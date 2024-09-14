@@ -15,4 +15,8 @@ export const navItems = [
     name: "Calendar",
     path: "/calendar",
   },
+  {
+    name: "Rules",
+    path: "/rules",
+  },
 ];

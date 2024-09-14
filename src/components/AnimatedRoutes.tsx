@@ -6,6 +6,7 @@ import Arcade from "../pages/Arcade/page";
 import Authentication from "../pages/Authentication/page";
 import Scareboard from "../pages/Scareboard/page";
 import Calendar from "../pages/Calendar/page";
+import Rules from "../pages/Rules/page";
 
 export const AnimatedRoutes = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ export const AnimatedRoutes = () => {
         <Route path="/authentication" element={<Authentication />} />
         <Route path="/scareboard" element={<Scareboard />} />
         <Route path="/calendar" element={<Calendar />} />
+        <Route path="/rules" element={<Rules />} />
       </Routes>
     </AnimatePresence>
   );

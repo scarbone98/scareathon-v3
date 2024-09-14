@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useNavigatorContext } from "./context";
 import { navItems } from "./navItems";
 
@@ -7,6 +7,7 @@ export const Navigator = () => {
   const location = useLocation();
   const navRef = useRef<HTMLElement>(null);
   const { setHeight } = useNavigatorContext();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (navRef.current) {
@@ -20,22 +21,38 @@ export const Navigator = () => {
 
   return (
     <nav
-      className="flex justify-between items-center p-4 w-full absolute top-0 overflow-x-auto"
+      className="fixed bottom-4 left-4 z-50"
       ref={navRef}
     >
-      <ul className="flex gap-4 sm:gap-10 w-full justify-start sm:justify-center">
-        {navItems.map((item, index) => (
-          <li
-            key={item.name}
-            data-index={index}
-            className={`${
-              item.path === location.pathname ? "text-red-500" : "text-gray-500"
-            } text-sm sm:text-xl whitespace-nowrap`}
-          >
-            <Link to={item.path}>{item.name}</Link>
-          </li>
-        ))}
-      </ul>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="bg-gray-200 text-gray-700 p-3 rounded-full shadow-md hover:bg-gray-300 focus:outline-none"
+      >
+        ☰
+      </button>
+      {isOpen && (
+        <ul className="absolute bottom-full left-0 mb-2 w-48 bg-white shadow-md rounded-lg overflow-hidden">
+          {navItems.map((item, index) => (
+            <li
+              key={item.name}
+              data-index={index}
+              className={`${
+                item.path === location.pathname ? "bg-gray-100" : ""
+              }`}
+            >
+              <Link 
+                to={item.path} 
+                onClick={() => setIsOpen(false)}
+                className={`block px-4 py-2 text-sm ${
+                  item.path === location.pathname ? "text-red-500" : "text-gray-700"
+                } hover:bg-gray-100`}
+              >
+                {item.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </nav>
   );
 };
