@@ -20,17 +20,17 @@ export const Navigator = () => {
 
   return (
     <nav
-      className="flex justify-between items-center p-4 w-full absolute top-0"
+      className="flex justify-between items-center p-4 w-full absolute top-0 overflow-x-auto"
       ref={navRef}
     >
-      <ul className="flex gap-10 w-full justify-center">
+      <ul className="flex gap-4 sm:gap-10 w-full justify-start sm:justify-center">
         {navItems.map((item, index) => (
           <li
             key={item.name}
             data-index={index}
             className={`${
               item.path === location.pathname ? "text-red-500" : "text-gray-500"
-            } text-xl`}
+            } text-sm sm:text-xl whitespace-nowrap`}
           >
             <Link to={item.path}>{item.name}</Link>
           </li>

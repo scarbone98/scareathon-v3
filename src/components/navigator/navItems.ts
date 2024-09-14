@@ -4,11 +4,15 @@ export const navItems = [
     path: "/",
   },
   {
-    name: "Authentication",
-    path: "/authentication",
-  },
-  {
     name: "Arcade",
     path: "/arcade",
+  },
+  {
+    name: "Scareboard",
+    path: "/scareboard",
+  },
+  {
+    name: "Calendar",
+    path: "/calendar",
   },
 ];

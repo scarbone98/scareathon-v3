@@ -4,6 +4,8 @@ import { AnimatePresence } from "framer-motion";
 import Home from "../pages/Home/page";
 import Arcade from "../pages/Arcade/page";
 import Authentication from "../pages/Authentication/page";
+import Scareboard from "../pages/Scareboard/page";
+import Calendar from "../pages/Calendar/page";
 
 export const AnimatedRoutes = () => {
   const location = useLocation();
@@ -14,6 +16,8 @@ export const AnimatedRoutes = () => {
         <Route path="/" element={<Home />} />
         <Route path="/arcade" element={<Arcade />} />
         <Route path="/authentication" element={<Authentication />} />
+        <Route path="/scareboard" element={<Scareboard />} />
+        <Route path="/calendar" element={<Calendar />} />
       </Routes>
     </AnimatePresence>
   );
