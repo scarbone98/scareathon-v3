@@ -45,7 +45,7 @@ const ArcadeGallery: React.FC<Props> = ({
       0.1,
       1000
     );
-    camera.position.set(0, 1, 10);
+    camera.position.set(0, 1.75, 10);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -61,19 +61,14 @@ const ArcadeGallery: React.FC<Props> = ({
     scene.add(ambientLight);
 
     const pointLight = new THREE.PointLight(0xffaa55, 1, 50); // Point light with a warm color
-    pointLight.position.set(0, 2, 0); // Positioned above the glowing cube
+    pointLight.position.set(0, 5, 5); // Adjust position to be slightly in front and above the machines
     scene.add(pointLight);
 
-    // Adding a glowing cube in the center
-    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const cubeMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ff00,
-      emissive: 0x00ff00, // Glow effect
-      emissiveIntensity: 0.5,
-    });
-    const glowingCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    glowingCube.position.set(0, 0.5, 0); // Slightly elevated from the ground
-    scene.add(glowingCube);
+    // Add a directional light for stronger illumination
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
+    directionalLight.position.set(5, 10, 5); // Position the light above and to the side
+    directionalLight.castShadow = true; // Enable shadows if needed
+    scene.add(directionalLight);
 
     // Load the GLB model using GLTFLoader
     const loader = new GLTFLoader();
@@ -81,11 +76,24 @@ const ArcadeGallery: React.FC<Props> = ({
     const totalMachines = machinesData.length;
     const radius = 5;
 
-    loader.load("/models/ArcadeMachine.glb", (gltf: any) => {
+    loader.load("/models/ArcadeCabinet.glb", (gltf: any) => {
       const model = gltf.scene;
 
-      model.scale.set(0.2, 0.2, 0.2);
-      model.rotation.y = -Math.PI / 2;
+      // Adjust material properties
+      model.traverse((child: any) => {
+        if (child instanceof THREE.Mesh) {
+          if (child.material) {
+            child.material.emissive = new THREE.Color(0x222222); // Slight emissive glow
+            child.material.emissiveIntensity = 0.25; // Adjust intensity
+            child.material.needsUpdate = true; // Ensure the material updates
+          }
+        }
+      });
+
+      model.scale.set(0.5, 0.5, 0.5);
+      model.rotation.y = Math.PI;
+      model.rotation.x = Math.PI / 2;
+      model.rotation.z = -Math.PI * 2;
 
       for (let i = 0; i < totalMachines; i++) {
         const machine = model.clone();
