@@ -81,7 +81,7 @@ const ArcadeGallery: React.FC<Props> = ({
     const totalMachines = machinesData.length;
     const radius = 5;
 
-    loader.load("/src/assets/models/ArcadeMachine.glb", (gltf: any) => {
+    loader.load("/models/ArcadeMachine.glb", (gltf: any) => {
       const model = gltf.scene;
 
       model.scale.set(0.2, 0.2, 0.2);

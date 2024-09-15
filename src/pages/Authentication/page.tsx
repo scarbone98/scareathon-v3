@@ -21,7 +21,7 @@ const Authentication = () => {
           password,
         });
         if (error) throw error;
-        alert("Check your email for the confirmation link!");
+        navigate("/"); // Redirect to home page after successful login
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
