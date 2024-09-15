@@ -1,5 +1,5 @@
 // src/components/ArcadeGallery.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
@@ -26,9 +26,6 @@ const ArcadeGallery: React.FC<Props> = ({
   const isAnimating = useRef<boolean>(false);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-
-  const [animationSpeedMultiplier, setAnimationSpeedMultiplier] =
-    useState<number>(1);
 
   // Gsap promise mode instead of callback
   function promiseModeGsap(target: THREE.Vector3, config: gsap.TweenVars) {
@@ -140,7 +137,7 @@ const ArcadeGallery: React.FC<Props> = ({
     // Zoom camera out
     await promiseModeGsap(camera.position, {
       z: 10,
-      duration: 0.2 / animationSpeedMultiplier,
+      duration: 0.2,
       ease: "power1.inOut",
     });
 
@@ -162,7 +159,7 @@ const ArcadeGallery: React.FC<Props> = ({
       return promiseModeGsap(machine.position, {
         x: targetX,
         z: targetZ,
-        duration: 0.3 / animationSpeedMultiplier,
+        duration: 0.3,
         ease: "power1.inOut",
       });
     });
@@ -172,7 +169,7 @@ const ArcadeGallery: React.FC<Props> = ({
     // Zoom camera in
     await promiseModeGsap(camera.position, {
       z: 6.5,
-      duration: 0.2 / animationSpeedMultiplier,
+      duration: 0.2,
       ease: "power1.inOut",
     });
 
