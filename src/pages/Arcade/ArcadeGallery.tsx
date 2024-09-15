@@ -76,6 +76,27 @@ const ArcadeGallery: React.FC<Props> = ({
     const totalMachines = machinesData.length;
     const radius = 5;
 
+    // Create a video element
+    const video = document.createElement("video");
+    video.src =
+      "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; // Set the source of your video
+    video.crossOrigin = "anonymous"; // Set cross-origin if the video is from a different domain
+    video.loop = true; // Set to true if you want the video to loop
+    video.muted = true; // Set to true if you want to autoplay without user interaction
+    video.playsInline = true; // Required for mobile autoplay
+    video.play(); // Start playing the video
+
+    // Create a video texture from the video element
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.minFilter = THREE.LinearFilter; // Set min filter
+    videoTexture.magFilter = THREE.LinearFilter; // Set mag filter
+    videoTexture.format = THREE.RGBFormat; // Set format
+
+    // Adjust wrapping and repeat to fit the texture properly on the material
+    videoTexture.wrapS = THREE.ClampToEdgeWrapping; // Prevents repeating horizontally
+    videoTexture.wrapT = THREE.ClampToEdgeWrapping; // Prevents repeating vertically
+    videoTexture.repeat.set(1, 1); // Set repeat to 1 to fit the texture exactly on the UV map
+
     loader.load("/models/ArcadeCabinet.glb", (gltf: any) => {
       const model = gltf.scene;
 
@@ -85,6 +106,17 @@ const ArcadeGallery: React.FC<Props> = ({
           if (child.material) {
             child.material.emissive = new THREE.Color(0x222222); // Slight emissive glow
             child.material.emissiveIntensity = 0.25; // Adjust intensity
+            if (child.material.name === "GreyScreen") {
+              child.material.map = videoTexture; // Set the video texture as the diffuse map
+              // Flip the texture vertically
+              if (child.geometry && child.geometry.attributes.uv) {
+                const uvAttribute = child.geometry.attributes.uv;
+                for (let i = 0; i < uvAttribute.count; i++) {
+                  uvAttribute.setY(i, 1 - uvAttribute.getY(i));
+                }
+                uvAttribute.needsUpdate = true;
+              }
+            }
             child.material.needsUpdate = true; // Ensure the material updates
           }
         }
