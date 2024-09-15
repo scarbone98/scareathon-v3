@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
+import CustomModel from "./CustomModel";
 
 type MachineData = {
   name: string;
@@ -26,6 +27,7 @@ const ArcadeGallery: React.FC<Props> = ({
   const isAnimating = useRef<boolean>(false);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
 
   // Gsap promise mode instead of callback
   function promiseModeGsap(target: THREE.Vector3, config: gsap.TweenVars) {
@@ -97,6 +99,10 @@ const ArcadeGallery: React.FC<Props> = ({
     videoTexture.wrapT = THREE.ClampToEdgeWrapping; // Prevents repeating vertically
     videoTexture.repeat.set(1, 1); // Set repeat to 1 to fit the texture exactly on the UV map
 
+    CustomModel(loader, scene, (mixer: THREE.AnimationMixer) => {
+      mixerRef.current = mixer;
+    });
+
     loader.load("/models/ArcadeCabinet.glb", (gltf: any) => {
       const model = gltf.scene;
 
@@ -142,6 +148,10 @@ const ArcadeGallery: React.FC<Props> = ({
 
     const animate = (): void => {
       requestAnimationFrame(animate);
+      // Update the animation mixer
+      if (mixerRef.current) {
+        mixerRef.current.update(0.016); // Assuming 60fps, adjust if needed
+      }
       renderer.render(scene, camera);
     };
 
