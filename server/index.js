@@ -1,24 +1,60 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import Fastify from 'fastify'
 import pool from './mockDB.js'
+import cors from '@fastify/cors'
+import fastifyJwt from '@fastify/jwt';
+import calendarSheet from './google-sheets.js';
 
 const fastify = Fastify({
     logger: true
 })
 
-// Declare a route
-fastify.get('/', async (request, reply) => {
-    return { hello: 'world' }
+await fastify.register(cors, {
+    // put your options here
 })
 
-// Example route using the database
-fastify.get('/users', async (request, reply) => {
+fastify.register(fastifyJwt, {
+    secret: process.env.SUPABASE_JWT_SECRET
+})
+
+
+fastify.addHook('preValidation', async (request, reply) => {
     try {
-        const result = await pool.query('SELECT * FROM users')
-        return result.rows
+        await request.jwtVerify();
     } catch (err) {
-        fastify.log.error(err)
-        reply.code(500).send({ error: 'Internal Server Error' })
+        console.log(err);
+        return reply.code(401).send({ error: 'Unauthorized' });
     }
+});
+
+// Declare a route
+fastify.get('/calendar', async (request, reply) => {
+    const doc = await calendarSheet();
+    const sheet = doc.sheetsByIndex[0];
+    await sheet.loadCells(); // Load all cells in the sheet
+    await sheet.loadHeaderRow();
+
+    const rowCount = sheet.rowCount;
+    const columnCount = sheet.columnCount;
+    const data = [];
+
+    // Iterate through all cells with data
+    for (let row = 0; row < rowCount; row++) {
+        const rowData = {};
+        let hasData = false;
+        for (let col = 0; col < columnCount; col++) {
+            const cell = sheet.getCell(row, col);
+            if (cell.value !== null) {
+                rowData[sheet.headerValues[col]] = cell.value;
+                hasData = true;
+            }
+        }
+        if (!hasData) break;
+        data.push(rowData);
+    }
+
+    return { data: data }
 })
 
 // Run the server!

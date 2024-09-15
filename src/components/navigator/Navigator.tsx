@@ -31,7 +31,7 @@ export const Navigator = () => {
         ☰
       </button>
       {isOpen && (
-        <ul className="absolute bottom-full left-0 mb-2 w-48 bg-white shadow-md rounded-lg overflow-hidden">
+        <ul className="absolute bottom-full left-0 mb-2 w-48 bg-white shadow-md rounded-lg overflow-hidden z-50">
           {navItems.map((item, index) => (
             <li
               key={item.name}

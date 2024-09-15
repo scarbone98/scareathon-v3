@@ -4,7 +4,7 @@ export const PageContainer = ({ children }: { children: React.ReactNode }) => {
   const { height } = useNavigatorContext();
   return (
     <main
-      className="flex flex-col overflow-x-hidden min-h-screen pb-16"
+      className="flex flex-col overflow-x-hidden min-h-screen"
     >
       {children}
     </main>
