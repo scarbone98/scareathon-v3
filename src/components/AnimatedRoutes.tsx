@@ -29,8 +29,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  return <>{children}</>;
-
   if (loading) {
     return <div>Loading...</div>; // Or a loading spinner
   }

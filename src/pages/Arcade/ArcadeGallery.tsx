@@ -80,8 +80,7 @@ const ArcadeGallery: React.FC<Props> = ({
 
     // Create a video element
     const video = document.createElement("video");
-    video.src =
-      "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"; // Set the source of your video
+    video.src = "/game-recordings/8BitEvilReturnsMenu.mp4"; // Set the source of your video
     video.crossOrigin = "anonymous"; // Set cross-origin if the video is from a different domain
     video.loop = true; // Set to true if you want the video to loop
     video.muted = true; // Set to true if you want to autoplay without user interaction
