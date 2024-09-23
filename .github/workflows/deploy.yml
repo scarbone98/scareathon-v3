@@ -22,7 +22,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_IP }} << 'EOF'
           # Navigate to your server folder on the droplet
-          cd /root/scareathon-arcade
+          cd /root/scareathon-v3
 
           # Pull the latest changes from the repo
           git pull origin server
