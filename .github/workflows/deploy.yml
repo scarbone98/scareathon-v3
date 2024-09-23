@@ -35,6 +35,8 @@ jobs:
             kill -9 $PID
           fi
 
+          cd server
+
           # Install dependencies and restart your server
           npm install
           nohup npm start &
