@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import Fastify from 'fastify'
-import pool from './mockDB.js'
+// import pool from './mockDB.js'
 import cors from '@fastify/cors'
 import fastifyJwt from '@fastify/jwt';
 import calendarSheet from './google-sheets.js';
