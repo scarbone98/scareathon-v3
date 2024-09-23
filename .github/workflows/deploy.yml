@@ -35,7 +35,13 @@ jobs:
             kill -9 $PID
           fi
 
+          # cd to server folder
           cd server
+
+          # Export environment variables from GitHub Secrets
+          export SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }}
+          export GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          export GOOGLE_PRIVATE_KEY="${{ secrets.GOOGLE_PRIVATE_KEY }}"
 
           # Install dependencies and restart your server
           npm install
