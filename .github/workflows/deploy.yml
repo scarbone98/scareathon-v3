@@ -1,0 +1,42 @@
+name: Deploy to Droplet
+
+on:
+  push:
+    branches:
+      - server # Trigger this action only when pushing to the server branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to Droplet
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_IP }} << 'EOF'
+          # Navigate to your server folder on the droplet
+          cd /root/scareathon-arcade
+
+          # Pull the latest changes from the repo
+          git pull origin server
+
+          # Find the process running on your port (adjust the port number as needed)
+          PID=$(lsof -t -i:3000)  # Replace 3000 with your actual port number
+
+          # Kill the old process if it's running
+          if [ -n "$PID" ]; then
+            kill -9 $PID
+          fi
+
+          # Install dependencies and restart your server
+          npm install
+          nohup npm start &
+
+          EOF
