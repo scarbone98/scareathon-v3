@@ -42,7 +42,9 @@ jobs:
           export SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }}
           export GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           export GOOGLE_PRIVATE_KEY="${{ secrets.GOOGLE_PRIVATE_KEY }}"
-
+          export STRAPI_URL=${{ secrets.STRAPI_URL }}
+          export STRAPI_TOKEN=${{ secrets.STRAPI_TOKEN }}
+          
           # Install dependencies and restart your server
           npm install
 
