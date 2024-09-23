@@ -45,6 +45,9 @@ jobs:
 
           # Install dependencies and restart your server
           npm install
-          nohup npm start &
+
+          # Start the server
+          nohup npm start > server.log 2>&1 &
+          disown
 
           EOF
