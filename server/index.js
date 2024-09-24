@@ -59,7 +59,7 @@ fastify.get('/calendar', async (request, reply) => {
 
 fastify.get('/posts', async (request, reply) => {
     try {
-        const response = await fetch(`${process.env.STRAPI_URL}/api/posts`, {
+        const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*`, {
             headers: {
                 'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
             }
