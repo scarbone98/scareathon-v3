@@ -9,6 +9,7 @@ import Authentication from "../pages/Authentication/page";
 import Scareboard from "../pages/Scareboard/page";
 import Calendar from "../pages/Calendar/page";
 import Rules from "../pages/Rules/page";
+import Announcements from "../pages/Announcements/page";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
@@ -49,6 +50,7 @@ export const AnimatedRoutes = () => {
         <Route path="/" element={<Home />} />
         <Route path="/authentication" element={<Authentication />} />
         <Route path="/rules" element={<Rules />} />
+        <Route path="/announcements" element={<Announcements />} />
         <Route
           path="/arcade"
           element={
