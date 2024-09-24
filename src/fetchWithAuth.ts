@@ -15,7 +15,8 @@ export async function fetchWithAuth(
 
   const baseUrl = import.meta.env.VITE_BASE_URL || "";
   const url =
-    typeof input === "string" ? new URL(input, baseUrl).toString() : input;
-
+    typeof input === "string"
+      ? `${baseUrl.replace(/\/$/, "")}/${input.replace(/^\//, "")}`
+      : input;
   return fetch(url, { ...init, headers });
 }

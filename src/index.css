@@ -9,7 +9,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #000000;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -50,4 +50,29 @@ body {
 * {
   /* scrollbar-width: thin; */
   scrollbar-color: #4a0000 #000000;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 50% 100%;
+  }
+  50% {
+    background-position: 50% 85%;
+  }
+  100% {
+    background-position: 50% 100%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(180deg, 
+    #000000 0%,
+    #000000 75%,
+    #1a0000 85%,
+    #2a0000 92%,
+    #3a0000 96%,
+    #4a0000 100%
+  );
+  background-size: 100% 400%;
+  animation: gradient 15s ease infinite;
 }
