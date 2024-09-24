@@ -50,7 +50,14 @@ export const AnimatedRoutes = () => {
         <Route path="/" element={<Home />} />
         <Route path="/authentication" element={<Authentication />} />
         <Route path="/rules" element={<Rules />} />
-        <Route path="/announcements" element={<Announcements />} />
+        <Route
+          path="/announcements"
+          element={
+            <ProtectedRoute>
+              <Announcements />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/arcade"
           element={
