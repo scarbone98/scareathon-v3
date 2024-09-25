@@ -18,7 +18,7 @@ const GhostCursor: React.FC = () => {
   const previousTimeRef = useRef<number>();
 
   // Adjust these constants to control ghost behavior
-  const GHOST_COUNT = 5;
+  const GHOST_COUNT = 10;
   const MAX_SPEED = 8;
   const ACCELERATION = 0.45;
   const DRAG = 0.6;
@@ -28,7 +28,7 @@ const GhostCursor: React.FC = () => {
   const SEPARATION_RADIUS = 100;
   const COHESION_RADIUS = 100;
   const ALIGNMENT_RADIUS = 100;
-  const SEPARATION_FORCE = 0.05;
+  const SEPARATION_FORCE = 0.075;
   const COHESION_FORCE = 0.001;
   const ALIGNMENT_FORCE = 0.01;
 
