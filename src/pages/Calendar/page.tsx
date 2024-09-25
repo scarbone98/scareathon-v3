@@ -1,6 +1,7 @@
 import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
+import LoadingSpinner from "../../components/LoadingSpinner";
 
 export default function Calendar() {
   const { data, isLoading } = useQuery({
@@ -11,7 +12,7 @@ export default function Calendar() {
       }).then((res) => res.json()),
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <AnimatedPage>

@@ -10,6 +10,7 @@ import Scareboard from "../pages/Scareboard/page";
 import Calendar from "../pages/Calendar/page";
 import Rules from "../pages/Rules/page";
 import Announcements from "../pages/Announcements/page";
+import LoadingSpinner from "./LoadingSpinner";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
@@ -31,7 +32,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>; // Or a loading spinner
+    return <LoadingSpinner />;
   }
 
   if (!session) {

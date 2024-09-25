@@ -1,6 +1,22 @@
 import AnimatedPage from "../../components/AnimatedPage";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import { useQuery } from "@tanstack/react-query";
+import { fetchWithAuth } from "../../fetchWithAuth";
 
 export default function Scareboard() {
+  const { data, error, isLoading } = useQuery({
+    queryKey: ["leaderboard"],
+    queryFn: () => fetchWithAuth("/leaderboard").then((res) => res.json()),
+  });
+
+  if (error) return <div>Error: {error.message}</div>;
+  if (isLoading) return <LoadingSpinner />;
+
+  // Get the keys from the first data item, excluding 'name'
+  const keys = data?.data?.[0]
+    ? Object.keys(data.data[0]).filter((key) => key !== "name")
+    : [];
+
   return (
     <AnimatedPage>
       <div className="bg-gray-100 p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
@@ -14,13 +30,18 @@ export default function Scareboard() {
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Player
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Score
-                </th>
+                {keys.map((key) => (
+                  <th
+                    key={key}
+                    className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                  >
+                    {key}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {[...Array(10)].map((_, index) => (
+              {data?.data?.map((user: any, index: number) => (
                 <tr
                   key={index}
                   className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}
@@ -29,20 +50,20 @@ export default function Scareboard() {
                     {index + 1}
                   </td>
                   <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-500">
-                    Player {index + 1}
+                    {user.name}
                   </td>
-                  <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-500">
-                    {1000 - index * 50}
-                  </td>
+                  {keys.map((key) => (
+                    <td
+                      key={key}
+                      className="py-4 px-4 whitespace-nowrap text-sm text-gray-500"
+                    >
+                      {user[key]}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="mt-6 flex justify-center">
-          <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-105">
-            View More
-          </button>
         </div>
       </div>
     </AnimatedPage>
