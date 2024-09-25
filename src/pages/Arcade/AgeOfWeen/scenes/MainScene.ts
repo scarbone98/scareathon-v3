@@ -2,8 +2,6 @@ import Phaser from "phaser";
 import { GameObjects } from "phaser";
 
 export default class MainScene extends Phaser.Scene {
-  private player!: Phaser.GameObjects.Sprite;
-  private enemy!: Phaser.GameObjects.Sprite;
   private playerBase!: Phaser.GameObjects.Sprite;
   private enemyBase!: Phaser.GameObjects.Sprite;
   private gold: number = 0;
@@ -44,10 +42,15 @@ export default class MainScene extends Phaser.Scene {
       .setScale(0.1);
 
     // Create player and enemy characters with adjusted scale and position
-    this.player = this.add.sprite(200, 500, "player_character").setScale(0.1);
-    this.enemy = this.add
+    const player = this.add.sprite(200, 500, "player_character").setScale(0.1);
+    const enemy = this.add
       .sprite(worldWidth - 200, 500, "enemy_character")
       .setScale(0.1);
+
+    // If you need to use these sprites later, you can add them to a container or group
+    const characterGroup = this.add.group();
+    characterGroup.add(player);
+    characterGroup.add(enemy);
 
     // Create UI container
     this.uiContainer = this.add.container(0, 0);
@@ -139,10 +142,9 @@ export default class MainScene extends Phaser.Scene {
 
   private handleMinionCollision(
     object1: Phaser.GameObjects.GameObject,
-    object2: Phaser.GameObjects.GameObject
+    _object2: Phaser.GameObjects.GameObject
   ) {
     const enemy = object1 as GameObjects.Sprite;
-    const friendly = object2 as GameObjects.Sprite;
 
     // Reduce enemy health
     const currentHealth = enemy.getData("health") as number;
@@ -154,7 +156,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   private handleBaseCollision(
-    base: Phaser.GameObjects.GameObject,
+    _base: Phaser.GameObjects.GameObject,
     enemy: Phaser.GameObjects.GameObject
   ) {
     const enemySprite = enemy as GameObjects.Sprite;
@@ -170,12 +172,6 @@ export default class MainScene extends Phaser.Scene {
       // Game over logic
       this.scene.restart();
     }
-  }
-
-  private spawnUnit() {
-    // Placeholder function for spawning units
-    console.log("Spawning unit");
-    // Implement unit spawning logic here
   }
 
   private spawnFriendlyMinion() {
@@ -214,7 +210,7 @@ export default class MainScene extends Phaser.Scene {
     );
   }
 
-  update(time: number, delta: number) {
+  update(time: number, _delta: number) {
     // Handle camera movement with mouse clicks
     if (this.isLeftClicking) {
       this.cameras.main.scrollX -= 5;
