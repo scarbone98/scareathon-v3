@@ -72,6 +72,33 @@ fastify.get('/posts', async (request, reply) => {
     }
 });
 
+fastify.get('/leaderboard', async (request, reply) => {
+    try {
+        const users = [];
+
+        const doc = await calendarSheet();
+        const sheet = doc.sheetsByTitle['Users']; // or use doc.sheetsById[id] or doc.sheetsByTitle[title]
+
+        const rows = await sheet.getRows();
+        const keys = ['name', 'movies', 'primetime', 'combo', 'bonus', 'total'];
+
+        rows.forEach(row => {
+            const userObject = {};
+            keys.forEach(key => {
+                userObject[key] = row.get(key);
+            });
+            users.push(userObject);
+        });
+
+        return { data: users };
+
+    } catch (err) {
+        console.log(err);
+        reply.code(500).send({ error: 'An error has occurred with our database' });
+    }
+});
+
+
 // Run the server!
 const start = async () => {
     try {
