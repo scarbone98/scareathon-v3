@@ -20,6 +20,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  cursor: url('/images/zombiecursor.png'), auto;
 }
 
 ::-webkit-scrollbar {
@@ -47,15 +48,69 @@ body {
   scrollbar-color: #4a0000 #000000;
 }
 
+.ghost-cursor {
+  pointer-events: none;
+  position: fixed;
+  width: 100px;  /* Adjust based on your GIF size */
+  height: 100px; /* Adjust based on your GIF size */
+  background-image: url('/images/willowisp.gif');
+  background-size: contain;
+  background-repeat: no-repeat;
+  transition: transform 0.1s linear;
+  will-change: transform;
+  left: 200;
+  top: 200;
+}
+
+.rules-background {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.rules-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/images/rules_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 1;
+}
+
+.rules-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, 
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.7) 25%,
+    rgba(0, 43, 43, 0.6) 50%,
+    rgba(3, 95, 87, 0.5) 75%,
+    rgba(8, 110, 136, 0.4) 85%,
+    rgba(24, 185, 150, 0.3) 100%
+  );
+  background-size: 100% 400%;
+  animation: gradient 10s ease infinite;
+  z-index: 0;
+}
+
 @keyframes gradient {
   0% {
-    background-position: 50% 100%;
+    background-position: 50% 10%;
   }
   50% {
-    background-position: 50% 85%;
+    background-position: 0% 50%;
   }
   100% {
-    background-position: 50% 100%;
+    background-position: 50% 10%;
   }
 }
 
@@ -63,11 +118,11 @@ body {
   background: linear-gradient(180deg, 
     #000000 0%,
     #000000 75%,
-    #1a0000 85%,
-    #2a0000 92%,
-    #3a0000 96%,
-    #4a0000 100%
+    #000e1a 85%,
+    #00192a 92%,
+    #001e3a 96%,
+    #003b4a 100%
   );
   background-size: 100% 400%;
-  animation: gradient 15s ease infinite;
+  animation: gradient 5s ease infinite;
 }
