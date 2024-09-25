@@ -1,23 +1,17 @@
-import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import AnimatedPage from "../../components/AnimatedPage";
+import { useQuery } from "@tanstack/react-query";
+import LoadingSpinner from "../../components/LoadingSpinner";
+
 export default function Announcements() {
-  const [data, setData] = useState<any>([]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => fetchWithAuth("/posts").then((res) => res.json()),
+  });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetchWithAuth("/posts");
-        const data = await response.json();
-        setData(data);
-      } catch (error) {
-        console.error(error);
-      }
-    })();
-  }, []);
-
-  console.log(data);
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <div>Error: {error.message}</div>;
 
   return (
     <AnimatedPage className="container mx-auto px-4 py-8">

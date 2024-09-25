@@ -2,6 +2,7 @@ import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useState, useEffect } from "react";
 import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
+import AgeOfWeenGame from "./AgeOfWeen/AgeOfWeenGame.tsx";
 
 // Add this at the top of your file
 declare global {
@@ -30,7 +31,7 @@ export default function Arcade() {
       name: "Machine 2",
       description: "Description 2",
       image: "image2.jpg",
-      game: null,
+      game: <AgeOfWeenGame />,
     },
     {
       name: "Machine 3",
