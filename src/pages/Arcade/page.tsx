@@ -57,7 +57,7 @@ export default function Arcade() {
   };
 
   return (
-    <AnimatedPage style={{ overflow: "hidden" }}>
+    <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <ArcadeGallery
         machinesData={machinesData}
         onMachineSelected={handleMachineSelected}
