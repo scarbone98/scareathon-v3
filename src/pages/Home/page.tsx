@@ -49,6 +49,7 @@ export default function Home() {
       style={{
         overflow: "hidden",
         backgroundImage: "url('/images/emptyTheater.jpg')",
+        paddingTop: 0,
       }}
       className="flex flex-col items-center justify-center h-screen bg-cover bg-center"
     >

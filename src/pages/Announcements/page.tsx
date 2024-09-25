@@ -1,34 +1,27 @@
-import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import AnimatedPage from "../../components/AnimatedPage";
+import { useQuery } from "@tanstack/react-query";
+import LoadingSpinner from "../../components/LoadingSpinner";
+
 export default function Announcements() {
-  const [data, setData] = useState<any>([]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => fetchWithAuth("/posts").then((res) => res.json()),
+  });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetchWithAuth("/posts");
-        const data = await response.json();
-        setData(data);
-      } catch (error) {
-        console.error(error);
-      }
-    })();
-  }, []);
-
-  console.log(data);
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <div>Error: {error.message}</div>;
 
   return (
     <AnimatedPage className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">Announcements</h1>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {data?.data?.map((post: any) => (
           <div
             key={post.id}
             className="bg-white shadow-md rounded-lg overflow-hidden"
           >
-            <div className="p-6">
+            <div className="p-6 text-black">
               <h2 className="text-xl font-semibold mb-2">{post.Title}</h2>
               {post.Image && post.Image.length > 0 && (
                 <img
