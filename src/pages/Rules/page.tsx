@@ -36,7 +36,7 @@ const Rules = () => {
         <div className="mt-8 flex justify-center">
           <img
             src={
-              isAnimating ? "/images/skelly.gif" : "/images/rip-tombstone.gif"
+              isAnimating ? "/images/skelly.gif" : "/images/popcornzombie.png"
             }
             alt="Spooky Rules"
             className="w-64 h-64 object-cover cursor-pointer"

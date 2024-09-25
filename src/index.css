@@ -20,6 +20,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  cursor: url('/images/zombiecursor.png'), auto;
 }
 
 ::-webkit-scrollbar {
@@ -70,4 +71,18 @@ body {
   );
   background-size: 100% 400%;
   animation: gradient 15s ease infinite;
+}
+
+.ghost-cursor {
+  pointer-events: none;
+  position: fixed;
+  width: 100px;  /* Adjust based on your GIF size */
+  height: 100px; /* Adjust based on your GIF size */
+  background-image: url('/images/batty.gif');
+  background-size: contain;
+  background-repeat: no-repeat;
+  transition: transform 0.1s linear;
+  will-change: transform;
+  left: 200;
+  top: 200;
 }
