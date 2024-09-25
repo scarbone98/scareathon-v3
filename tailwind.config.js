@@ -27,6 +27,9 @@ export default {
       boxShadow: {
         'glow': '0 0 10px 5px rgba(255, 102, 0, 0.5)',
       },
+      flex: {
+        '2': '2 2 0%'
+      }
     },
   },
   plugins: [],

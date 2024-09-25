@@ -99,6 +99,31 @@ fastify.get('/leaderboard', async (request, reply) => {
 });
 
 
+fastify.get('/past-winners', async (request, reply) => {
+    try {
+        const doc = await calendarSheet();
+        const sheet = doc.sheetsByTitle['Winners'];
+        const rows = await sheet.getRows();
+        const keys = ['year', 'name'];
+
+        const pastWinners = [];
+
+        rows.forEach(row => {
+            const pastWinnerObject = {};
+            keys.forEach(key => {
+                pastWinnerObject[key] = row.get(key);
+            });
+            pastWinners.push(pastWinnerObject);
+        });
+
+        return { data: pastWinners };
+    } catch (err) {
+        console.log(err);
+        reply.code(500).send({ error: 'An error has occurred with our database' });
+    }
+});
+
+
 // Run the server!
 const start = async () => {
     try {
