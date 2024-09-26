@@ -48,7 +48,7 @@ export const Navigator = () => {
       <div className="md:hidden fixed bottom-4 left-4 z-50">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="bg-gray-200 text-gray-700 p-3 rounded-full shadow-md hover:bg-gray-300 focus:outline-none"
+          className="bg-gray-200 text-gray-700 p-3 rounded-full shadow-md hover:bg-gray-300 focus:outline-none opacity-50"
         >
           ☰
         </button>

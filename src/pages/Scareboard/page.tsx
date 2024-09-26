@@ -26,31 +26,27 @@ export default function Scareboard() {
     ? Object.keys(data.leaderboard.data[0]).filter((key) => key !== "name")
     : [];
 
+  const totalKey = "total"; // Assume 'total' is the key for the total column
+  const otherKeys = keys.filter((key) => key !== totalKey && key !== "name");
+
   const tableRowVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: (index: number) => ({
       opacity: 1,
       y: 0,
       transition: {
-        delay: index < 3 ? (index + 1) * 0.5 : 1.5 + (index - 3 + 1) * 0.05,
+        delay: index < 3 ? (index + 1) * 0.5 : 1.5 + (index) * 0.075,
         duration: index < 3 ? 0.8 : 0.5,
       },
       scale: index < 3 ? [1, 1.075 - 0.025 * index, 1] : 1,
     }),
   };
 
-  const getRowStyle = (index: number) => {
-    if (index === 0) return "bg-yellow-100 text-yellow-800 font-bold";
-    if (index === 1) return "bg-gray-100 text-gray-800 font-semibold";
-    if (index === 2) return "bg-orange-100 text-orange-800 font-semibold";
-    return index % 2 === 0 ? "bg-gray-50" : "bg-white";
-  };
-
   const getRankStyle = (index: number) => {
-    if (index === 0) return "bg-yellow-500 text-white";
-    if (index === 1) return "bg-gray-400 text-white";
-    if (index === 2) return "bg-orange-500 text-white";
-    return "text-gray-900";
+    if (index === 0) return "text-yellow-500";
+    if (index === 1) return "text-gray-400";
+    if (index === 2) return "text-orange-500";
+    return "text-gray-300";
   };
 
   const getPastWinYear = (name: string) => {
@@ -87,31 +83,34 @@ export default function Scareboard() {
         className="p-2 md:p-4 lg:p-6 rounded-lg shadow-lg max-w-4xl mx-auto"
       >
         <div className="overflow-x-auto">
-          <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
-            <thead className="bg-gray-200">
+          <table className="w-full bg-gray-800 shadow-md rounded-lg overflow-hidden">
+            <thead className="bg-gray-700">
               <tr>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider">
                   Rank
                 </th>
-                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider">
                   Player
                 </th>
-                {keys.map((key) => (
+                {otherKeys.map((header) => (
                   <th
-                    key={key}
-                    className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                    key={header}
+                    className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider hidden md:table-cell"
                   >
-                    {key}
+                    {header}
                   </th>
                 ))}
+                <th className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider">
+                  {totalKey}
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-700">
               <AnimatePresence>
                 {data?.leaderboard?.data?.map((user: any, index: number) => (
                   <motion.tr
                     key={user.name}
-                    className={getRowStyle(index)}
+                    className="bg-gray-800 transition-colors"
                     variants={tableRowVariants}
                     initial="hidden"
                     animate="visible"
@@ -126,21 +125,28 @@ export default function Scareboard() {
                     >
                       {index + 1}
                     </td>
-                    <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-500 flex items-center">
+                    <td
+                      className={`py-4 px-4 whitespace-nowrap text-sm font-medium flex items-center ${getRankStyle(
+                        index
+                      )}`}
+                    >
                       {user.name}
                       {(() => {
                         const winYear = getPastWinYear(user.name);
                         return winYear ? <StarWithYear year={winYear} /> : null;
                       })()}
                     </td>
-                    {keys.map((key) => (
+                    {otherKeys.map((key) => (
                       <td
                         key={key}
-                        className="py-4 px-4 whitespace-nowrap text-sm text-gray-500"
+                        className="py-4 px-4 whitespace-nowrap text-sm text-gray-300 hidden md:table-cell"
                       >
                         {user[key]}
                       </td>
                     ))}
+                    <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-300">
+                      {user[totalKey]}
+                    </td>
                   </motion.tr>
                 ))}
               </AnimatePresence>

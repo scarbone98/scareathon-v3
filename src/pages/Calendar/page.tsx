@@ -73,20 +73,14 @@ export default function Calendar() {
 
   return (
     <AnimatedPage className="pb-8">
-      <div className="bg-orange-100 p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-6xl mx-auto overflow-hidden">
-        <div className="flex justify-between items-center mb-4 md:mb-6">
-          <button className="text-xl md:text-2xl lg:text-3xl text-orange-700 hover:text-orange-800 transition-colors">
-            &lt;
-          </button>
-          <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-orange-800">
+      <div className="p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-6xl mx-auto overflow-hidden">
+        <div className="flex justify-center items-center mb-4 md:mb-6">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-orange-800">
             {currentDate.toLocaleString("default", {
               month: "long",
               year: "numeric",
             })}
           </h2>
-          <button className="text-xl md:text-2xl lg:text-3xl text-orange-700 hover:text-orange-800 transition-colors">
-            &gt;
-          </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
           {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
@@ -101,28 +95,43 @@ export default function Calendar() {
           {data?.data.slice(1, 32).map((day: any, index: number) => (
             <div key={day.title} className="flex justify-center">
               <div
-                className="flex flex-col items-center justify-between bg-orange-50 rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[300px] md:h-[225px] w-3/4 md:w-full border border-orange-300"
+                className="flex flex-col items-center justify-between bg-orange-50 rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full border border-orange-300"
                 onClick={(e) => handleDayClick(day, e)}
               >
-                <span className="sm:hidden font-semibold text-orange-700 text-sm mb-2">
-                  {
-                    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-                      (index + getFirstDayOfMonth(currentDate)) % 7
-                    ]
-                  }
+                <span className="md:hidden font-semibold text-orange-700 mb-2 flex flex-row justify-center space-x-1.5 w-full text-xl">
+                  <div>
+                    {
+                      [
+                        "Sunday",
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                      ][(index + getFirstDayOfMonth(currentDate)) % 7]
+                    }
+                  </div>
+                  <div>
+                    {index + 1}
+                    {index + 1 === 1
+                      ? "st"
+                      : index + 1 === 2
+                      ? "nd"
+                      : index + 1 === 3
+                      ? "rd"
+                      : "th"}
+                  </div>
                 </span>
                 <div className="text-orange-800 text-lg sm:text-xl md:text-2xl lg:text-3xl flex flex-col items-center w-full h-full">
-                  <span className="font-bold flex-1 flex items-center">
-                    {index + 1}
-                  </span>
-                  <div className="flex-2 w-full relative">
+                  <div className="flex-[5] w-full relative md:flex-2">
                     <img
                       src={day.lowResUrl}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover rounded-md"
+                      className="absolute inset-0 w-full h-full object-fit rounded-md"
                     />
                   </div>
-                  <div className="text-orange-700 text-sm w-full overflow-hidden text-ellipsis whitespace-nowrap flex-1 flex items-center">
+                  <div className="text-orange-700 text-lg w-full overflow-hidden text-ellipsis whitespace-nowrap items-center">
                     {day.title}
                   </div>
                 </div>
