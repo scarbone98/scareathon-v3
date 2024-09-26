@@ -2,12 +2,10 @@ import AnimatedPage from "../../components/AnimatedPage";
 import { useState } from "react";
 
 const Rules = () => {
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isAlternateImage, setIsAlternateImage] = useState(false);
 
   const handleImageClick = () => {
-    setIsAnimating(true);
-    // Reset the animation after it completes (adjust timeout based on your GIF duration)
-    setTimeout(() => setIsAnimating(false), 4000); // 3000ms = 3 seconds
+    setIsAlternateImage(!isAlternateImage);
   };
 
   return (
@@ -35,14 +33,18 @@ const Rules = () => {
           </ul>
         </div>
         <div className="mt-8 flex justify-center">
-          <img
-            src={
-              isAnimating ? "/images/skelly.gif" : "/images/popcornzombie.png"
-            }
-            alt="Spooky Rules"
-            className="w-64 h-64 object-cover cursor-pointer"
-            onClick={handleImageClick}
-          />
+          <div className={`relative ${isAlternateImage ? 'glow' : ''}`}>
+            <img
+              src={
+                isAlternateImage
+                  ? "/images/candleskull.gif"
+                  : "/images/candleskulldead.gif"
+              }
+              alt="Spooky Rules"
+              className="w-64 h-64 object-cover cursor-pointer rounded-full relative z-10"
+              onClick={handleImageClick}
+            />
+          </div>
         </div>
       </div>
     </AnimatedPage>

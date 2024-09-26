@@ -104,13 +104,13 @@ body {
 
 @keyframes gradient {
   0% {
-    background-position: 50% 10%;
+    background-position: 100% 10%;
   }
   50% {
-    background-position: 0% 50%;
+    background-position: 100% 35%;
   }
   100% {
-    background-position: 50% 10%;
+    background-position: 100% 10%;
   }
 }
 
@@ -125,4 +125,31 @@ body {
   );
   background-size: 100% 400%;
   animation: gradient 5s ease infinite;
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px #ff660013, 0 0 20px #ff66000e, 0 0 30px #ff66000e;
+  }
+  50% {
+    box-shadow: 0 0 20px #ff660010, 0 0 30px #ff660010, 0 0 40px #ff66000e;
+  }
+}
+
+.glow {
+  position: relative;
+  display: inline-block;
+}
+
+.glow::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  border-radius: 50%;
+  background: rgba(255, 102, 0, 0.116);
+  animation: glow 2s ease-in-out infinite;
+  z-index: -1;
 }
