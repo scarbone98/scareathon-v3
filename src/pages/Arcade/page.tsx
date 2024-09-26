@@ -1,8 +1,8 @@
 import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
-import AgeOfWeenGame from "./AgeOfWeen/AgeOfWeenGame.tsx";
+const AgeOfWeenGame = lazy(() => import("./AgeOfWeen/AgeOfWeenGame.tsx"));
 
 // Add this at the top of your file
 declare global {
@@ -31,7 +31,11 @@ export default function Arcade() {
       name: "Machine 2",
       description: "Description 2",
       image: "image2.jpg",
-      game: <AgeOfWeenGame />,
+      game: (
+        <Suspense fallback={<div>Loading...</div>}>
+          <AgeOfWeenGame />
+        </Suspense>
+      ),
     },
     {
       name: "Machine 3",

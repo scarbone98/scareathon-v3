@@ -3,7 +3,6 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { StarIcon } from "@heroicons/react/24/solid";
 
 export default function Scareboard() {
   const { data, error, isLoading } = useQuery({
