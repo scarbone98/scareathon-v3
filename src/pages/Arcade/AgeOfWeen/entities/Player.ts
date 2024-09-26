@@ -30,4 +30,9 @@ export class Player {
   public getHealth(): number {
     return this.health;
   }
+
+  // Add a method to use the sprite
+  public getSprite(): Phaser.GameObjects.Sprite {
+    return this.sprite;
+  }
 }

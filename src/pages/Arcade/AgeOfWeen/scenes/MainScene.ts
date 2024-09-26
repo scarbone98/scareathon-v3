@@ -6,6 +6,7 @@ import { UIManager } from "../ui/UIManager";
 
 export default class MainScene extends Phaser.Scene {
   private player!: Player;
+  // @ts-ignore
   private enemy!: Enemy;
   private playerBase!: Phaser.GameObjects.Sprite;
   private enemyBase!: Phaser.GameObjects.Sprite;
@@ -95,7 +96,7 @@ export default class MainScene extends Phaser.Scene {
     );
   }
 
-  private spawnFriendlyMinion() {
+  public spawnFriendlyMinion() {
     if (this.uiManager.getGold() >= 50) {
       const minion = new Minion(
         this,
