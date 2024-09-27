@@ -28,33 +28,43 @@ fastify.addHook('preValidation', async (request, reply) => {
     }
 });
 
+let calendarCache = null;
 // Declare a route
 fastify.get('/calendar', async (request, reply) => {
-    const doc = await calendarSheet();
-    const sheet = doc.sheetsByIndex[0];
-    await sheet.loadCells(); // Load all cells in the sheet
-    await sheet.loadHeaderRow();
+    try {
+        const doc = await calendarSheet();
+        const sheet = doc.sheetsByIndex[0];
+        await sheet.loadCells(); // Load all cells in the sheet
+        await sheet.loadHeaderRow();
 
-    const rowCount = sheet.rowCount;
-    const columnCount = sheet.columnCount;
-    const data = [];
+        const rowCount = sheet.rowCount;
+        const columnCount = sheet.columnCount;
+        const data = [];
 
-    // Iterate through all cells with data
-    for (let row = 0; row < rowCount; row++) {
-        const rowData = {};
-        let hasData = false;
-        for (let col = 0; col < columnCount; col++) {
-            const cell = sheet.getCell(row, col);
-            if (cell.value !== null) {
-                rowData[sheet.headerValues[col]] = cell.value;
-                hasData = true;
+        // Iterate through all cells with data
+        for (let row = 0; row < rowCount; row++) {
+            const rowData = {};
+            let hasData = false;
+            for (let col = 0; col < columnCount; col++) {
+                const cell = sheet.getCell(row, col);
+                if (cell.value !== null) {
+                    rowData[sheet.headerValues[col]] = cell.value;
+                    hasData = true;
+                }
             }
+            if (!hasData) break;
+            data.push(rowData);
         }
-        if (!hasData) break;
-        data.push(rowData);
-    }
 
-    return { data: data }
+        calendarCache = data;
+        return { data: data }
+    } catch (err) {
+        if (calendarCache) {
+            return { data: calendarCache };
+        }
+        console.log(err);
+        reply.code(500).send({ error: 'An error has occurred with our database' });
+    }
 })
 
 fastify.get('/posts', async (request, reply) => {
@@ -72,6 +82,8 @@ fastify.get('/posts', async (request, reply) => {
     }
 });
 
+
+let leaderboardCache = null;
 fastify.get('/leaderboard', async (request, reply) => {
     try {
         const users = [];
@@ -90,15 +102,19 @@ fastify.get('/leaderboard', async (request, reply) => {
             users.push(userObject);
         });
 
+        leaderboardCache = users;
         return { data: users };
 
     } catch (err) {
+        if (leaderboardCache) {
+            return { data: leaderboardCache };
+        }
         console.log(err);
         reply.code(500).send({ error: 'An error has occurred with our database' });
     }
 });
 
-
+let pastWinnersCache = null;
 fastify.get('/past-winners', async (request, reply) => {
     try {
         const doc = await calendarSheet();
@@ -116,8 +132,12 @@ fastify.get('/past-winners', async (request, reply) => {
             pastWinners.push(pastWinnerObject);
         });
 
+        pastWinnersCache = pastWinners;
         return { data: pastWinners };
     } catch (err) {
+        if (pastWinnersCache) {
+            return { data: pastWinnersCache };
+        }
         console.log(err);
         reply.code(500).send({ error: 'An error has occurred with our database' });
     }
