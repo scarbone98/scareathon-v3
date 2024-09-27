@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"; // added
 import { useNavigatorContext } from "../../../components/navigator/context";
+
 function GameRenderer() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -53,7 +54,7 @@ function GameRenderer() {
     <iframe
       ref={iframeRef}
       title="8BitEvilReturns"
-      src="https://scarbone98.github.io/8BitEvilReturnsBuild/"
+      src="https://scarbone98.github.io/godot-html-test/Godot%20Tactical%20RPG.html"
     ></iframe>
   );
 }

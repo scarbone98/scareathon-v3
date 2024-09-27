@@ -1,10 +1,10 @@
 // src/components/ArcadeGallery.tsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
-import CustomModel from "./CustomModel";
+import { FaChevronLeft, FaChevronRight, FaPlay } from "react-icons/fa";
 
 type MachineData = {
   name: string;
@@ -14,13 +14,10 @@ type MachineData = {
 
 type Props = {
   machinesData: MachineData[];
-  onMachineSelected?: (machine: MachineData) => void;
+  onPlay: (machine: MachineData) => void;
 };
 
-const ArcadeGallery: React.FC<Props> = ({
-  onMachineSelected,
-  machinesData,
-}) => {
+const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const machinesRef = useRef<THREE.Group[]>([]);
   const currentAngle = useRef<number>(0);
@@ -28,6 +25,10 @@ const ArcadeGallery: React.FC<Props> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [focusedMachine, setFocusedMachine] = useState<MachineData | null>(
+    null
+  );
 
   // Gsap promise mode instead of callback
   function promiseModeGsap(target: THREE.Vector3, config: gsap.TweenVars) {
@@ -47,7 +48,7 @@ const ArcadeGallery: React.FC<Props> = ({
       0.1,
       1000
     );
-    camera.position.set(0, 1.75, 10);
+    camera.position.set(0, 1.75, 6.5);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -97,10 +98,6 @@ const ArcadeGallery: React.FC<Props> = ({
     videoTexture.wrapS = THREE.ClampToEdgeWrapping; // Prevents repeating horizontally
     videoTexture.wrapT = THREE.ClampToEdgeWrapping; // Prevents repeating vertically
     videoTexture.repeat.set(1, 1); // Set repeat to 1 to fit the texture exactly on the UV map
-
-    CustomModel(loader, scene, (mixer: THREE.AnimationMixer) => {
-      mixerRef.current = mixer;
-    });
 
     loader.load("/models/ArcadeCabinet.glb", (gltf: any) => {
       const model = gltf.scene;
@@ -175,6 +172,16 @@ const ArcadeGallery: React.FC<Props> = ({
     };
   }, []);
 
+  const updateFocusedMachine = () => {
+    const focusedIndex =
+      Math.round(
+        currentAngle.current / ((Math.PI * 2) / machinesRef.current.length)
+      ) % machinesRef.current.length;
+    const normalizedIndex =
+      (focusedIndex + machinesRef.current.length) % machinesRef.current.length;
+    setFocusedMachine(machinesData[normalizedIndex]);
+  };
+
   const rotateMachines = async (direction: number): Promise<void> => {
     if (isAnimating.current || !cameraRef.current) return;
     isAnimating.current = true;
@@ -222,18 +229,9 @@ const ArcadeGallery: React.FC<Props> = ({
       ease: "power1.inOut",
     });
 
+    updateFocusedMachine();
     isAnimating.current = false;
-
-    // Calculate the index of the machine in focus
-    const focusedIndex =
-      Math.round(currentAngle.current / angleIncrement) %
-      machinesRef.current.length;
-    const normalizedIndex =
-      (focusedIndex + machinesRef.current.length) % machinesRef.current.length;
-
-    if (onMachineSelected) {
-      onMachineSelected(machinesData[normalizedIndex]);
-    }
+    setShowControls(true);
   };
 
   const bind = useGesture({
@@ -259,12 +257,110 @@ const ArcadeGallery: React.FC<Props> = ({
     };
   }, []);
 
+  // Update focused machine on component mount
+  useEffect(() => {
+    setFocusedMachine(machinesData[0]);
+  }, []);
+
+  const handleRotate = (direction: number) => {
+    rotateMachines(direction);
+    setShowControls(false);
+  };
+
+  const handlePlay = () => {
+    if (focusedMachine) {
+      onPlay(focusedMachine);
+    }
+  };
+
   return (
     <div
       ref={mountRef}
       {...bind()}
-      style={{ width: "100vw", height: "100vh", touchAction: "none" }}
-    />
+      style={{
+        width: "100vw",
+        height: "100vh",
+        touchAction: "none",
+        position: "relative",
+      }}
+    >
+      {showControls && (
+        <>
+          <button
+            onClick={() => handleRotate(1)}
+            style={{
+              position: "absolute",
+              left: "20px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: "2rem",
+              background: "none",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+            }}
+          >
+            <FaChevronLeft />
+          </button>
+          <button
+            onClick={() => handleRotate(-1)}
+            style={{
+              position: "absolute",
+              right: "20px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: "2rem",
+              background: "none",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+            }}
+          >
+            <FaChevronRight />
+          </button>
+          <button
+            onClick={handlePlay}
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: "20px",
+              transform: "translateX(-50%)",
+              fontSize: "2rem",
+              background: "rgba(255, 255, 255, 0.2)",
+              border: "none",
+              borderRadius: "50%",
+              width: "60px",
+              height: "60px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              color: "white",
+              cursor: "pointer",
+            }}
+          >
+            <FaPlay />
+          </button>
+        </>
+      )}
+      {focusedMachine && showControls && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            bottom: "100px",
+            transform: "translateX(-50%)",
+            background: "rgba(0, 0, 0, 0.8)",
+            padding: "10px 20px",
+            borderRadius: "20px",
+            color: "white",
+            textAlign: "center",
+            fontSize: "1rem",
+          }}
+        >
+          Play {focusedMachine.name}?
+        </div>
+      )}
+    </div>
   );
 };
 

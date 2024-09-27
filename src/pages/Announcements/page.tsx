@@ -3,6 +3,7 @@ import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 export default function Announcements() {
   const { data, isLoading, error } = useQuery({
@@ -11,7 +12,7 @@ export default function Announcements() {
   });
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <ErrorDisplay message={error.message} />;
 
   return (
     <AnimatedPage className="container mx-auto px-4 py-8">

@@ -3,10 +3,13 @@ import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import ErrorDisplay from "../../components/ErrorDisplay";
 import AnimatedMovieDetail from "./AnimatedMovieDetail";
 import { AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Calendar() {
+  const queryClient = useQueryClient();
   const [selectedDay, setSelectedDay] = useState<any | null>(null);
   const [initialPosition, setInitialPosition] = useState({
     top: 0,
@@ -27,15 +30,21 @@ export default function Calendar() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["calendar"],
     queryFn: () =>
       fetchWithAuth("/calendar", {
         headers: { "Content-Type": "application/json" },
       }).then((res) => res.json()),
+    staleTime: 1000 * 60 * 60 * 1,
+    initialData: () => {
+      // Use the previous cached data if available
+      return queryClient.getQueryData(["calendar"]);
+    },
   });
 
   if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorDisplay message={error.message} />;
 
   // Get the current year and set the month to October (9 because months are 0-indexed)
   const currentDate = new Date();

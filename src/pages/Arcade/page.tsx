@@ -2,8 +2,8 @@ import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useState, useEffect, Suspense, lazy } from "react";
 import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
+import GodotTest from "./GodotTest/GodotTest";
 const AgeOfWeenGame = lazy(() => import("./AgeOfWeen/AgeOfWeenGame.tsx"));
-
 // Add this at the top of your file
 declare global {
   interface Window {
@@ -22,13 +22,19 @@ export default function Arcade() {
 
   const machinesData = [
     {
-      name: "Machine 1",
-      description: "Description 1",
-      image: "image1.jpg",
-      game: null,
+      name: "8 Bit Evil Returns",
+      description: "Description 3",
+      image: "image3.jpg",
+      game: <GameRenderer />,
     },
     {
-      name: "Machine 2",
+      name: "Godot Test",
+      description: "Description 2",
+      image: "image2.jpg",
+      game: <GodotTest />,
+    },
+    {
+      name: "Age of Ween",
       description: "Description 2",
       image: "image2.jpg",
       game: (
@@ -36,25 +42,7 @@ export default function Arcade() {
           <AgeOfWeenGame />
         </Suspense>
       ),
-    },
-    {
-      name: "Machine 3",
-      description: "Description 3",
-      image: "image3.jpg",
-      game: <GameRenderer />,
-    },
-    {
-      name: "Machine 4",
-      description: "Description 4",
-      image: "image4.jpg",
-      game: null,
-    },
-    {
-      name: "Machine 5",
-      description: "Description 5",
-      image: "image5.jpg",
-      game: null,
-    },
+    }
   ];
 
   const handleMachineSelected = (machine: any) => {
@@ -65,7 +53,7 @@ export default function Arcade() {
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <ArcadeGallery
         machinesData={machinesData}
-        onMachineSelected={handleMachineSelected}
+        onPlay={handleMachineSelected}
       />
       {selectedMachine?.game && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center">

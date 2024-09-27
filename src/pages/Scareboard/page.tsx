@@ -1,10 +1,13 @@
 import AnimatedPage from "../../components/AnimatedPage";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import ErrorDisplay from "../../components/ErrorDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Scareboard() {
+  const queryClient = useQueryClient();
   const { data, error, isLoading } = useQuery({
     queryKey: ["leaderboard"],
     queryFn: async () => {
@@ -16,10 +19,15 @@ export default function Scareboard() {
       const pastWinners = await pastWinnersRes.json();
       return { leaderboard, pastWinners };
     },
+    initialData: () => {
+      // Use the previous cached data if available
+      return queryClient.getQueryData(["leaderboard"]);
+    },
+    staleTime: 1000 * 60 * 60 * 1,
   });
 
-  if (error) return <div>Error: {error.message}</div>;
   if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorDisplay message={error?.message} />;
 
   // Get the keys from the first data item, excluding 'name'
   const keys = data?.leaderboard?.data?.[0]
@@ -35,7 +43,7 @@ export default function Scareboard() {
       opacity: 1,
       y: 0,
       transition: {
-        delay: index < 3 ? (index + 1) * 0.5 : 1.5 + (index) * 0.075,
+        delay: index < 3 ? (index + 1) * 0.5 : 1.5 + index * 0.075,
         duration: index < 3 ? 0.8 : 0.5,
       },
       scale: index < 3 ? [1, 1.075 - 0.025 * index, 1] : 1,
