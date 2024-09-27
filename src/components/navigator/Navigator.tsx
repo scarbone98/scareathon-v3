@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useRef, useEffect, useState } from "react";
 import { useNavigatorContext } from "./context";
 import { navItems } from "./navItems";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const Navigator = () => {
   const location = useLocation();
@@ -46,36 +47,52 @@ export const Navigator = () => {
 
       {/* Mobile Navigation */}
       <div className="md:hidden fixed bottom-4 left-4 z-50">
-        <button
+        <motion.button
           onClick={() => setIsOpen(!isOpen)}
-          className="bg-gray-200 text-gray-700 p-3 rounded-full shadow-md hover:bg-gray-300 focus:outline-none opacity-50"
+          className="bg-transparent p-0 focus:outline-none relative"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          aria-label="Toggle mobile menu"
         >
-          ☰
-        </button>
-        {isOpen && (
-          <ul className="absolute bottom-full left-0 mb-2 w-48 bg-white shadow-md rounded-lg overflow-hidden">
-            {navItems.map((item) => (
-              <li
-                key={item.name}
-                className={`${
-                  item.path === location.pathname ? "bg-gray-100" : ""
-                }`}
-              >
-                <Link
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={`block px-4 py-2 text-sm ${
-                    item.path === location.pathname
-                      ? "text-red-500"
-                      : "text-gray-700"
-                  } hover:bg-gray-100`}
+          <div className={`w-16 h-16 relative ${isOpen ? 'opacity-100' : 'opacity-50'}`}>
+            <div className="absolute inset-0 bg-red-500 filter blur-md animate-pulse"></div>
+            <img 
+              src="/images/candleskull.gif" 
+              alt="Menu" 
+              className="w-full h-full object-cover relative z-10"
+            />
+            <div className="absolute inset-0 border-4 border-red-500 irregular-border"></div>
+          </div>
+        </motion.button>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.ul
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-full left-0 mb-2 w-56 bg-black bg-opacity-95 shadow-lg rounded-lg overflow-hidden border border-red-500"
+            >
+              {navItems.map((item) => (
+                <motion.li
+                  key={item.name}
+                  whileHover={{ backgroundColor: "rgba(255, 0, 0, 0.2)" }}
                 >
-                  {item.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <Link
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    className={`block px-4 py-3 text-sm ${
+                      item.path === location.pathname
+                        ? "text-red-500"
+                        : "text-gray-300"
+                    } hover:text-white transition-colors duration-200`}
+                  >
+                    {item.name}
+                  </Link>
+                </motion.li>
+              ))}
+            </motion.ul>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );

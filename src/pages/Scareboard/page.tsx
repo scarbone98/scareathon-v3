@@ -51,10 +51,10 @@ export default function Scareboard() {
   };
 
   const getRankStyle = (index: number) => {
-    if (index === 0) return "text-yellow-500";
-    if (index === 1) return "text-gray-400";
-    if (index === 2) return "text-orange-500";
-    return "text-gray-300";
+    if (index === 0) return "text-yellow-300 glow-text-yellow";
+    if (index === 1) return "text-silver-300 glow-text-silver";
+    if (index === 2) return "text-bronze-300 glow-text-bronze";
+    return "text-red-500";
   };
 
   const getPastWinYear = (name: string) => {
@@ -66,7 +66,7 @@ export default function Scareboard() {
 
   const StarWithYear = ({ year }: { year: number }) => (
     <svg
-      className="h-6 w-6 text-yellow-400 ml-2"
+      className="h-6 w-6 text-yellow-500 ml-2 star-pulse"
       viewBox="0 0 24 24"
       fill="currentColor"
     >
@@ -88,27 +88,27 @@ export default function Scareboard() {
     <AnimatedPage>
       <motion.div
         layout
-        className="p-2 md:p-4 lg:p-6 rounded-lg shadow-lg max-w-4xl mx-auto"
+        className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto"
       >
         <div className="overflow-x-auto">
-          <table className="w-full bg-gray-800 shadow-md rounded-lg overflow-hidden">
-            <thead className="bg-gray-700">
+          <table className="w-full bg-black shadow-md rounded-lg overflow-hidden">
+            <thead className="bg-gray-900">
               <tr>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider">
                   Rank
                 </th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider">
                   Player
                 </th>
                 {otherKeys.map((header) => (
                   <th
                     key={header}
-                    className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider hidden md:table-cell"
+                    className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider hidden md:table-cell"
                   >
                     {header}
                   </th>
                 ))}
-                <th className="py-3 px-4 text-left text-sm font-semibold text-green-400 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider">
                   {totalKey}
                 </th>
               </tr>
@@ -118,7 +118,7 @@ export default function Scareboard() {
                 {data?.leaderboard?.data?.map((user: any, index: number) => (
                   <motion.tr
                     key={user.name}
-                    className="bg-gray-800 transition-colors"
+                    className="bg-gray-950 transition-colors"
                     variants={tableRowVariants}
                     initial="hidden"
                     animate="visible"
@@ -147,12 +147,12 @@ export default function Scareboard() {
                     {otherKeys.map((key) => (
                       <td
                         key={key}
-                        className="py-4 px-4 whitespace-nowrap text-sm text-gray-300 hidden md:table-cell"
+                        className="py-4 px-4 whitespace-nowrap text-sm text-red-500 hidden md:table-cell"
                       >
                         {user[key]}
                       </td>
                     ))}
-                    <td className="py-4 px-4 whitespace-nowrap text-sm text-gray-300">
+                    <td className="py-4 px-4 whitespace-nowrap text-sm text-red-500">
                       {user[totalKey]}
                     </td>
                   </motion.tr>
@@ -165,3 +165,23 @@ export default function Scareboard() {
     </AnimatedPage>
   );
 }
+
+// Add these styles to your global CSS or use a CSS-in-JS solution
+const globalStyles = `
+  .glow-text-yellow {
+    text-shadow: 0 0 5px #fde047, 0 0 10px #fde047;
+  }
+  .glow-text-blue {
+    text-shadow: 0 0 5px #93c5fd, 0 0 10px #93c5fd;
+  }
+  .glow-text-green {
+    text-shadow: 0 0 5px #86efac, 0 0 10px #86efac;
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  .animate-flicker {
+    animation: flicker 3s infinite alternate;
+  }
+`;

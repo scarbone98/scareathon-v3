@@ -5,6 +5,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
 import { FaChevronLeft, FaChevronRight, FaPlay } from "react-icons/fa";
+import LoadingSpinner from "../../components/LoadingSpinner";
 
 type MachineData = {
   name: string;
@@ -29,6 +30,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   const [focusedMachine, setFocusedMachine] = useState<MachineData | null>(
     null
   );
+  const [isLoading, setIsLoading] = useState(true);
 
   // Gsap promise mode instead of callback
   function promiseModeGsap(target: THREE.Vector3, config: gsap.TweenVars) {
@@ -140,6 +142,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       }
 
       machinesRef.current = machines;
+      setIsLoading(false); // Set loading to false when machines are ready
     });
 
     const animate = (): void => {
@@ -274,93 +277,96 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   };
 
   return (
-    <div
-      ref={mountRef}
-      {...bind()}
-      style={{
-        width: "100vw",
-        height: "100vh",
-        touchAction: "none",
-        position: "relative",
-      }}
-    >
-      {showControls && (
-        <>
-          <button
-            onClick={() => handleRotate(1)}
-            style={{
-              position: "absolute",
-              left: "20px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: "2rem",
-              background: "none",
-              border: "none",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            <FaChevronLeft />
-          </button>
-          <button
-            onClick={() => handleRotate(-1)}
-            style={{
-              position: "absolute",
-              right: "20px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: "2rem",
-              background: "none",
-              border: "none",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            <FaChevronRight />
-          </button>
-          <button
-            onClick={handlePlay}
+    <>
+      {isLoading && <LoadingSpinner />}
+      <div
+        ref={mountRef}
+        {...bind()}
+        style={{
+          width: "100vw",
+          height: "100vh",
+          touchAction: "none",
+          position: "relative",
+        }}
+      >
+        {showControls && (
+          <>
+            <button
+              onClick={() => handleRotate(1)}
+              style={{
+                position: "absolute",
+                left: "20px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "2rem",
+                background: "none",
+                border: "none",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              <FaChevronLeft />
+            </button>
+            <button
+              onClick={() => handleRotate(-1)}
+              style={{
+                position: "absolute",
+                right: "20px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "2rem",
+                background: "none",
+                border: "none",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              <FaChevronRight />
+            </button>
+            <button
+              onClick={handlePlay}
+              style={{
+                position: "absolute",
+                left: "50%",
+                bottom: "20px",
+                transform: "translateX(-50%)",
+                fontSize: "2rem",
+                background: "rgba(255, 255, 255, 0.2)",
+                border: "none",
+                borderRadius: "50%",
+                width: "60px",
+                height: "60px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              <FaPlay />
+            </button>
+          </>
+        )}
+        {focusedMachine && showControls && (
+          <div
             style={{
               position: "absolute",
               left: "50%",
-              bottom: "20px",
+              bottom: "100px",
               transform: "translateX(-50%)",
-              fontSize: "2rem",
-              background: "rgba(255, 255, 255, 0.2)",
-              border: "none",
-              borderRadius: "50%",
-              width: "60px",
-              height: "60px",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
+              background: "rgba(0, 0, 0, 0.8)",
+              padding: "10px 20px",
+              borderRadius: "20px",
               color: "white",
-              cursor: "pointer",
+              textAlign: "center",
+              fontSize: "1rem",
             }}
           >
-            <FaPlay />
-          </button>
-        </>
-      )}
-      {focusedMachine && showControls && (
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            bottom: "100px",
-            transform: "translateX(-50%)",
-            background: "rgba(0, 0, 0, 0.8)",
-            padding: "10px 20px",
-            borderRadius: "20px",
-            color: "white",
-            textAlign: "center",
-            fontSize: "1rem",
-          }}
-        >
-          Play {focusedMachine.name}?
-        </div>
-      )}
-    </div>
+            Play {focusedMachine.name}?
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

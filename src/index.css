@@ -51,8 +51,10 @@ body {
 .ghost-cursor {
   pointer-events: none;
   position: fixed;
-  width: 100px;  /* Adjust based on your GIF size */
-  height: 100px; /* Adjust based on your GIF size */
+  width: 100px;
+  /* Adjust based on your GIF size */
+  height: 100px;
+  /* Adjust based on your GIF size */
   background-image: url('/images/willowisp.gif');
   background-size: contain;
   background-repeat: no-repeat;
@@ -89,14 +91,13 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(180deg, 
-    rgba(0, 0, 0, 0.8) 0%,
-    rgba(0, 0, 0, 0.7) 25%,
-    rgba(2, 80, 80, 0.521) 50%,
-    rgba(5, 126, 116, 0.507) 75%,
-    rgba(10, 147, 165, 0.479) 85%,
-    rgba(18, 211, 169, 0.473) 100%
-  );
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.7) 25%,
+      rgba(2, 80, 80, 0.521) 50%,
+      rgba(5, 126, 116, 0.507) 75%,
+      rgba(10, 147, 165, 0.479) 85%,
+      rgba(18, 211, 169, 0.473) 100%);
   background-size: 100% 400%;
   animation: gradient 10s ease infinite;
   z-index: 0;
@@ -106,31 +107,35 @@ body {
   0% {
     background-position: 100% 10%;
   }
+
   50% {
     background-position: 100% 35%;
   }
+
   100% {
     background-position: 100% 10%;
   }
 }
 
 .animated-gradient {
-  background: linear-gradient(180deg, 
-    #000000 0%,
-    #000000 75%,
-    #000e1a 85%,
-    #00192a 92%,
-    #001e3a 96%,
-    #003b4a 100%
-  );
+  background: linear-gradient(180deg,
+      #000000 0%,
+      #000000 75%,
+      #000e1a 85%,
+      #00192a 92%,
+      #001e3a 96%,
+      #003b4a 100%);
   background-size: 100% 400%;
   animation: gradient 5s ease infinite;
 }
 
 @keyframes glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 10px #ff660013, 0 0 20px #ff66000e, 0 0 30px #ff66000e;
   }
+
   50% {
     box-shadow: 0 0 20px #ff660010, 0 0 30px #ff660010, 0 0 40px #ff66000e;
   }
@@ -155,9 +160,12 @@ body {
 }
 
 @keyframes bobbing {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -165,4 +173,82 @@ body {
 
 .bobbing-animation {
   animation: bobbing 2s ease-in-out infinite;
+}
+
+@keyframes flicker {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.irregular-border {
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  animation: flicker 4s infinite alternate;
+}
+
+.animate-pulse {
+  animation: pulse 5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 0.2;
+  }
+}
+
+
+.glow-text-yellow {
+  text-shadow: 0 0 5px #fde047, 0 0 10px #fde047;
+}
+
+.glow-text-silver {
+  text-shadow: 0 0 5px #808080, 0 0 10px #808080;
+}
+
+.glow-text-bronze {
+  text-shadow: 0 0 5px #fde047, 0 0 10px #fde047;
+}
+
+@keyframes flicker {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-flicker {
+  animation: flicker 3s infinite alternate;
+}
+
+.star-pulse {
+  animation: star-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes star-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.1;
+  }
 }
