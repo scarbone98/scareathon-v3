@@ -16,11 +16,11 @@ export default function Announcements() {
 
   return (
     <AnimatedPage className="container mx-auto px-4 py-8">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
         {data?.data?.map((post: any) => (
           <div
             key={post.id}
-            className="bg-white shadow-md rounded-lg overflow-hidden"
+            className="bg-white shadow-md rounded-lg overflow-hidden flex flex-col mb-6 break-inside-avoid"
           >
             <div className="p-6 text-black">
               <h2 className="text-xl font-semibold mb-2">{post.Title}</h2>

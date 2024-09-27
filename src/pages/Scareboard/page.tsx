@@ -86,10 +86,7 @@ export default function Scareboard() {
 
   return (
     <AnimatedPage>
-      <motion.div
-        layout
-        className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto"
-      >
+      <motion.div layout className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto">
         <div className="overflow-x-auto">
           <table className="w-full bg-black shadow-md rounded-lg overflow-hidden">
             <thead className="bg-gray-900">
@@ -165,23 +162,3 @@ export default function Scareboard() {
     </AnimatedPage>
   );
 }
-
-// Add these styles to your global CSS or use a CSS-in-JS solution
-const globalStyles = `
-  .glow-text-yellow {
-    text-shadow: 0 0 5px #fde047, 0 0 10px #fde047;
-  }
-  .glow-text-blue {
-    text-shadow: 0 0 5px #93c5fd, 0 0 10px #93c5fd;
-  }
-  .glow-text-green {
-    text-shadow: 0 0 5px #86efac, 0 0 10px #86efac;
-  }
-  @keyframes flicker {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-  }
-  .animate-flicker {
-    animation: flicker 3s infinite alternate;
-  }
-`;
