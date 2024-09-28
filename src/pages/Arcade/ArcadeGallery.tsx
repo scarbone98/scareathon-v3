@@ -362,7 +362,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
               fontSize: "1rem",
             }}
           >
-            Play {focusedMachine.name}?
+            Play "{focusedMachine.name}"?
           </div>
         )}
       </div>

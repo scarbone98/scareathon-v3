@@ -1,20 +1,23 @@
 // src/components/AnimatedRoutes.tsx
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { supabase } from "../supabaseClient"; // Ensure this import path is correct
-import Home from "../pages/Home/page";
-import Arcade from "../pages/Arcade/page";
-import Authentication from "../pages/Authentication/page";
-import Scareboard from "../pages/Scareboard/page";
-import Calendar from "../pages/Calendar/page";
-import Rules from "../pages/Rules/page";
-import Announcements from "../pages/Announcements/page";
+import { lazy } from "react";
 import LoadingSpinner from "./LoadingSpinner";
+
+const Home = lazy(() => import("../pages/Home/page"));
+const Arcade = lazy(() => import("../pages/Arcade/page"));
+const Authentication = lazy(() => import("../pages/Authentication/page"));
+const Scareboard = lazy(() => import("../pages/Scareboard/page"));
+const Calendar = lazy(() => import("../pages/Calendar/page"));
+const Rules = lazy(() => import("../pages/Rules/page"));
+const Announcements = lazy(() => import("../pages/Announcements/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,7 +39,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!session) {
-    return <Navigate to="/authentication" replace />;
+    return (
+      <Navigate to="/authentication" state={{ from: location.pathname }} replace />
+    );
   }
 
   return <>{children}</>;
@@ -48,14 +53,37 @@ export const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Home />} />
-        <Route path="/authentication" element={<Authentication />} />
-        <Route path="/rules" element={<Rules />} />
+        <Route
+          path="/"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Home />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/authentication"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Authentication />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/rules"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Rules />
+            </Suspense>
+          }
+        />
         <Route
           path="/announcements"
           element={
             <ProtectedRoute>
-              <Announcements />
+              <Suspense fallback={<LoadingSpinner />}>
+                <Announcements />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -63,7 +91,9 @@ export const AnimatedRoutes = () => {
           path="/arcade"
           element={
             <ProtectedRoute>
-              <Arcade />
+              <Suspense fallback={<LoadingSpinner />}>
+                <Arcade />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -71,7 +101,9 @@ export const AnimatedRoutes = () => {
           path="/scareboard"
           element={
             <ProtectedRoute>
-              <Scareboard />
+              <Suspense fallback={<LoadingSpinner />}>
+                <Scareboard />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -79,7 +111,9 @@ export const AnimatedRoutes = () => {
           path="/calendar"
           element={
             <ProtectedRoute>
-              <Calendar />
+              <Suspense fallback={<LoadingSpinner />}>
+                <Calendar />
+              </Suspense>
             </ProtectedRoute>
           }
         />

@@ -1,4 +1,4 @@
-import calendarSheet from '../google-sheets.js';
+import calendarSheet from '../db/google-sheets.js';
 import { getCache, setCache } from '../utils/cacheManager.js';
 
 export default async function (fastify, options) {

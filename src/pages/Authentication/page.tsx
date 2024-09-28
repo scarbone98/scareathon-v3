@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedPage from "../../components/AnimatedPage";
 import { supabase } from "../../supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Authentication = () => {
   const [email, setEmail] = useState("");
@@ -10,6 +10,7 @@ const Authentication = () => {
   const [isLogin, setIsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,14 +23,16 @@ const Authentication = () => {
           password,
         });
         if (error) throw error;
-        navigate("/"); // Redirect to home page after successful login
+        const origin = location.state?.from || "/";
+        navigate(origin, { replace: true });
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
-        navigate("/"); // Redirect to home page after successful login
+        const origin = location.state?.from || "/";
+        navigate(origin, { replace: true });
       }
     } catch (error: any) {
       setError(error.message);
@@ -49,9 +52,9 @@ const Authentication = () => {
 
   return (
     <AnimatedPage style={{ paddingTop: 0 }}>
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animated-gradient">
         <div
-          className="max-w-md w-full space-y-8 bg-gray-800 p-10 rounded-xl shadow-2xl relative"
+          className="max-w-md w-full space-y-8 bg-gray-950 p-10 rounded-xl shadow-2xl relative"
           style={{ height: "500px" }}
         >
           <div className="flex justify-center space-x-4">
@@ -61,8 +64,8 @@ const Authentication = () => {
               onClick={() => setIsLogin(false)}
               className={`px-4 py-2 rounded-md transition-colors duration-200 w-32 ${
                 !isLogin
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  ? "bg-orange-600 text-white glow"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
               }`}
             >
               Sign Up
@@ -73,8 +76,8 @@ const Authentication = () => {
               onClick={() => setIsLogin(true)}
               className={`px-4 py-2 rounded-md transition-colors duration-200 w-32 ${
                 isLogin
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  ? "bg-orange-600 text-white glow"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
               }`}
             >
               Login
@@ -104,7 +107,7 @@ const Authentication = () => {
                       type="email"
                       autoComplete="email"
                       required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-800 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-800 rounded-t-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
                       placeholder="Email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -120,7 +123,7 @@ const Authentication = () => {
                       type="password"
                       autoComplete="current-password"
                       required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-800 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-800 rounded-b-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -129,7 +132,7 @@ const Authentication = () => {
                 </div>
 
                 {error && (
-                  <div className="text-red-400 text-sm text-center">
+                  <div className="text-red-400 text-sm text-center animate-pulse">
                     {error}
                   </div>
                 )}
@@ -137,14 +140,14 @@ const Authentication = () => {
                 <div>
                   <button
                     type="submit"
-                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 glow"
                   >
                     {isLogin ? "Login" : "Sign Up"}
                   </button>
                 </div>
                 {isLogin && (
                   <p
-                    className="text-sm text-center text-gray-400"
+                    className="text-sm text-center text-gray-400 hover:text-orange-500 cursor-pointer transition-colors duration-200"
                     onClick={() => {}}
                   >
                     Forgot your password?

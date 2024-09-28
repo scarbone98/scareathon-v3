@@ -9,6 +9,7 @@ export const Navigator = () => {
   const navRef = useRef<HTMLDivElement>(null);
   const { setHeight } = useNavigatorContext();
   const [isOpen, setIsOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (navRef.current) {
@@ -20,6 +21,19 @@ export const Navigator = () => {
     };
   }, [navRef.current?.offsetHeight]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileNavRef.current && !mobileNavRef.current.contains(event.target as Node) && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, mobileNavRef.current?.offsetHeight]);
+
   return (
     <nav>
       {/* Desktop Navigation */}
@@ -27,7 +41,7 @@ export const Navigator = () => {
         ref={navRef}
         className="hidden md:block bg-transparent z-50 absolute top-0 left-0 w-full"
       >
-        <ul className="flex justify-center space-x-4 py-4">
+        <ul className="flex justify-around py-4">
           {navItems.map((item) => (
             <li key={item.name}>
               <Link
@@ -46,7 +60,7 @@ export const Navigator = () => {
       </div>
 
       {/* Mobile Navigation */}
-      <div className="md:hidden fixed bottom-4 left-4 z-50">
+      <div className="md:hidden fixed bottom-4 left-4 z-50" ref={mobileNavRef}>
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
           className="bg-transparent p-0 focus:outline-none relative"
