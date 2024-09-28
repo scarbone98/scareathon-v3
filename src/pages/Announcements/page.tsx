@@ -15,8 +15,8 @@ export default function Announcements() {
   if (error) return <ErrorDisplay message={error.message} />;
 
   return (
-    <AnimatedPage className="container mx-auto px-4 py-8">
-      <div className="rules-gradient"></div>
+    <AnimatedPage className="container mx-auto px-4 py-8 news-background">
+      <div className="news-gradient"></div>
       <h1 className="text-3xl font-semibold mb-4 text-center">
         The Scareathon Post
       </h1>
