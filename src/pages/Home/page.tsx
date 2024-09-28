@@ -26,7 +26,7 @@ export default function Home() {
     >
       <div className="home-gradient" />
       <div className="text-center">
-        {timeLeft.difference <= 0 ? (
+        {timeLeft.difference >= 0 ? (
           <Countdown timeLeft={timeLeft} />
         ) : (
           <CurrentMovie />
