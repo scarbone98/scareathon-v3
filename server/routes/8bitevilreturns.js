@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import pool from '../db/mockDB.js';
+// import pool from '../db/mockDB.js';
 
 async function routes(fastify, options) {
 
