@@ -118,7 +118,7 @@ async function routes(fastify, options) {
                 VALUES ($1, $2, (SELECT id FROM games WHERE name = $3), $4, $5)
             `;
             const data = { runTimeSeconds, kills, candyCollected, userName, itemsUsed, selectedCharacter };
-            await pool.query(query, [uuidv4(), userId, game, `run-${v}`, data]);
+            await pool.query(query, [uuidv4(), userId, game, `runs-${v}`, data]);
 
             // Update leaderboards
             const leaderboardMetrics = [
