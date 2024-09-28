@@ -12,14 +12,13 @@ const ResetPassword = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if the access_token is in the URL
+    // Check for error parameters in the URL
     const hashParams = new URLSearchParams(location.hash.slice(1));
-    const accessToken = hashParams.get("access_token");
+    const errorCode = hashParams.get("error_code");
+    const errorDescription = hashParams.get("error_description");
 
-    if (!accessToken) {
-      setError(
-        "Invalid or missing reset token. Please try the reset password process again."
-      );
+    if (errorCode && errorDescription) {
+      setError(`Error ${errorCode}: ${decodeURIComponent(errorDescription)}`);
     }
   }, [location]);
 
@@ -29,16 +28,6 @@ const ResetPassword = () => {
 
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
-      return;
-    }
-
-    const hashParams = new URLSearchParams(location.hash.slice(1));
-    const accessToken = hashParams.get("access_token");
-
-    if (!accessToken) {
-      setError(
-        "Invalid or missing reset token. Please try the reset password process again."
-      );
       return;
     }
 
@@ -63,7 +52,7 @@ const ResetPassword = () => {
           </h2>
           {success ? (
             <div className="text-green-400 text-center">
-              Password reset successful! Redirecting to login page...
+              Password reset successful! Redirecting to home page...
             </div>
           ) : (
             <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -101,7 +90,7 @@ const ResetPassword = () => {
               </div>
 
               {error && (
-                <div className="text-red-400 text-sm text-center animate-pulse">
+                <div className="text-red-400 text-sm text-center">
                   {error}
                 </div>
               )}

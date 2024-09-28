@@ -13,8 +13,13 @@ const Scareboard = lazy(() => import("../pages/Scareboard/page"));
 const Calendar = lazy(() => import("../pages/Calendar/page"));
 const Rules = lazy(() => import("../pages/Rules/page"));
 const Announcements = lazy(() => import("../pages/Announcements/page"));
-const AnnouncementDetails = lazy(() => import("../pages/AnnouncementDetails/page"));
-const ResetPassword = lazy(() => import("../pages/Authentication/ResetPassword/page"));
+const AnnouncementDetails = lazy(
+  () => import("../pages/AnnouncementDetails/page")
+);
+const ResetPassword = lazy(
+  () => import("../pages/Authentication/ResetPassword/page")
+);
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +46,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!session) {
     return (
-      <Navigate to="/authentication" state={{ from: location.pathname }} replace />
+      <Navigate
+        to="/authentication"
+        state={{ from: location.pathname }}
+        replace
+      />
     );
   }
 
@@ -73,9 +82,11 @@ export const AnimatedRoutes = () => {
         <Route
           path="/reset-password"
           element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <ResetPassword />
-            </Suspense>
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ResetPassword />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
         <Route
