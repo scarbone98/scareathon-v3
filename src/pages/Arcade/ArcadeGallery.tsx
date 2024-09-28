@@ -50,7 +50,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       0.1,
       1000
     );
-    camera.position.set(0, 1.75, 6.5);
+    camera.position.set(-0.0065, 1.6, 6.75);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -227,7 +227,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
     // Zoom camera in
     await promiseModeGsap(camera.position, {
-      z: 6.5,
+      z: 6.75,
       duration: 0.2,
       ease: "power1.inOut",
     });

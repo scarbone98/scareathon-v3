@@ -35,7 +35,7 @@ export default function Scareboard() {
     : [];
 
   const totalKey = "total"; // Assume 'total' is the key for the total column
-  const otherKeys = keys.filter((key) => key !== totalKey && key !== "name");
+  const otherKeys = keys.filter((key) => key !== totalKey && key !== "name" && key !== "rank");
 
   const tableRowVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -50,10 +50,10 @@ export default function Scareboard() {
     }),
   };
 
-  const getRankStyle = (index: number) => {
-    if (index === 0) return "text-yellow-300 glow-text-yellow";
-    if (index === 1) return "text-silver-300 glow-text-silver";
-    if (index === 2) return "text-bronze-300 glow-text-bronze";
+  const getRankStyle = (rank: number) => {
+    if (rank === 1) return "text-yellow-300 glow-text-yellow";
+    if (rank === 2) return "text-silver-300 glow-text-silver";
+    if (rank === 3) return "text-bronze-300 glow-text-bronze";
     return "text-red-500";
   };
 
@@ -125,14 +125,14 @@ export default function Scareboard() {
                   >
                     <td
                       className={`py-4 px-4 whitespace-nowrap text-sm font-medium ${getRankStyle(
-                        index
+                        user.rank
                       )}`}
                     >
-                      {index + 1}
+                      {user.rank}
                     </td>
                     <td
                       className={`py-4 px-4 whitespace-nowrap text-sm font-medium flex items-center ${getRankStyle(
-                        index
+                        user.rank
                       )}`}
                     >
                       {user.name}

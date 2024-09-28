@@ -4,8 +4,6 @@ import { getCache, setCache } from '../utils/cacheManager.js';
 export default async function (fastify, options) {
     fastify.get('/calendar', async (request, reply) => {
         try {
-            const cachedData = getCache('calendar');
-            if (cachedData) return { data: cachedData };
 
             const doc = await calendarSheet();
             const sheet = doc.sheetsByIndex[0];
@@ -33,6 +31,9 @@ export default async function (fastify, options) {
             setCache('calendar', data);
             return { data: data };
         } catch (err) {
+            const cachedData = getCache('calendar');
+            if (cachedData) return { data: cachedData };
+
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });
         }
