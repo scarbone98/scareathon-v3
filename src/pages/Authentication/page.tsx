@@ -1,16 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedPage from "../../components/AnimatedPage";
 import { supabase } from "../../supabaseClient";
 import { useNavigate, useLocation } from "react-router-dom";
-
+import LoadingSpinner from "../../components/LoadingSpinner";
 const Authentication = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        navigate("/");
+      } else {
+        setIsLoading(false);
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,6 +64,8 @@ const Authentication = () => {
     visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
     exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
   };
+
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <AnimatedPage style={{ paddingTop: 0 }}>
@@ -148,7 +165,11 @@ const Authentication = () => {
                 {isLogin && (
                   <p
                     className="text-sm text-center text-gray-400 hover:text-orange-500 cursor-pointer transition-colors duration-200"
-                    onClick={() => {}}
+                    onClick={() =>
+                      supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: `${window.location.origin}/reset-password`,
+                      })
+                    }
                   >
                     Forgot your password?
                   </p>

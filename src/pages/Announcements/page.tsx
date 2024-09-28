@@ -15,12 +15,12 @@ export default function Announcements() {
   if (error) return <ErrorDisplay message={error.message} />;
 
   return (
-    <AnimatedPage className="container mx-auto px-4 py-8 news-background">
+    <AnimatedPage className="container mx-auto px-4 py-8 news-background flex flex-col items-center">
       <div className="news-gradient"></div>
       <h1 className="text-3xl font-semibold mb-4 text-center">
         The Scareathon Post
       </h1>
-      <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
+      <div className="columns-1 md:columns-2 lg:columns-3 gap-6 w-[1200px]">
         {data?.data?.map((post: any) => (
           <div
             key={post.id}

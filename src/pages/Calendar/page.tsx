@@ -93,7 +93,7 @@ export default function Calendar() {
           </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
-          {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
             <div
               key={`${day}-${index}`}
               className="hidden sm:block text-center font-semibold text-orange-700 mb-2 md:mb-3 lg:mb-4 text-xs md:text-sm lg:text-base"
