@@ -284,10 +284,10 @@ body {
   background: linear-gradient(180deg,
       rgba(0, 0, 0, 0.8) 0%,
       rgba(0, 0, 0, 0.7) 25%,
-      rgba(80, 2, 45, 0.521) 50%,
-      rgba(68, 5, 126, 0.507) 75%,
-      rgba(10, 51, 165, 0.479) 85%,
-      rgba(211, 18, 130, 0.473) 100%);
+      rgba(105, 3, 59, 0.521) 50%,
+      rgba(156, 6, 31, 0.507) 75%,
+      rgba(185, 8, 76, 0.479) 85%,
+      rgba(177, 3, 3, 0.473) 100%);
   background-size: 100% 400%;
   animation: gradient 10s ease infinite;
   z-index: -3;
