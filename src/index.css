@@ -55,52 +55,14 @@ body {
   /* Adjust based on your GIF size */
   height: 100px;
   /* Adjust based on your GIF size */
-  background-image: url('/images/willowisp.gif');
+  background-image: url('/images/batty.gif');
   background-size: contain;
   background-repeat: no-repeat;
   transition: transform 0.1s linear;
   will-change: transform;
   left: 200;
   top: 200;
-}
-
-.rules-background {
-  position: relative;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.rules-background::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url('/images/rules_bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 1;
-}
-
-.rules-gradient {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(180deg,
-      rgba(0, 0, 0, 0.8) 0%,
-      rgba(0, 0, 0, 0.7) 25%,
-      rgba(2, 80, 80, 0.521) 50%,
-      rgba(5, 126, 116, 0.507) 75%,
-      rgba(10, 147, 165, 0.479) 85%,
-      rgba(18, 211, 169, 0.473) 100%);
-  background-size: 100% 400%;
-  animation: gradient 10s ease infinite;
-  z-index: 0;
+  z-index: -2;
 }
 
 @keyframes gradient {
@@ -251,4 +213,82 @@ body {
   50% {
     opacity: 0.1;
   }
+}
+
+.rules-background {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.rules-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/images/rules_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 1;
+}
+
+.rules-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.7) 25%,
+      rgba(2, 80, 80, 0.521) 50%,
+      rgba(5, 126, 116, 0.507) 75%,
+      rgba(10, 147, 165, 0.479) 85%,
+      rgba(18, 211, 169, 0.473) 100%);
+  background-size: 100% 400%;
+  animation: gradient 10s ease infinite;
+  z-index: 0;
+}
+
+.calendar-background {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.calendar-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/images/cave_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+
+.calendar-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.7) 25%,
+      rgba(80, 2, 45, 0.521) 50%,
+      rgba(68, 5, 126, 0.507) 75%,
+      rgba(10, 51, 165, 0.479) 85%,
+      rgba(211, 18, 130, 0.473) 100%);
+  background-size: 100% 400%;
+  animation: gradient 10s ease infinite;
+  z-index: -3;
 }

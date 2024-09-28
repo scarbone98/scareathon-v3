@@ -81,7 +81,8 @@ export default function Calendar() {
   };
 
   return (
-    <AnimatedPage className="pb-8">
+    <AnimatedPage className="calendar-background pb-8">
+      <div className="calendar-gradient"></div>
       <div className="p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-6xl mx-auto overflow-hidden">
         <div className="flex justify-center items-center mb-4 md:mb-6">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-orange-800">

@@ -85,7 +85,8 @@ export default function Scareboard() {
   );
 
   return (
-    <AnimatedPage>
+    <AnimatedPage className="calendar-background">
+      <div className="calendar-gradient"></div>
       <motion.div layout className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto">
         <div className="overflow-x-auto">
           <table className="w-full bg-black shadow-md rounded-lg overflow-hidden">
