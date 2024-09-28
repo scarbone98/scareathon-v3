@@ -4,7 +4,7 @@ export const navItems = [
     path: "/",
   },
   {
-    name: "Announcements",
+    name: "News",
     path: "/announcements",
   },
   {

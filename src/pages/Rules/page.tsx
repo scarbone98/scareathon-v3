@@ -9,7 +9,7 @@ const Rules = () => {
   };
 
   return (
-    <AnimatedPage className="rules-background min-h-screen flex items-center justify-center relative">
+    <AnimatedPage className="rules-background flex items-center justify-center relative">
       <div className="rules-gradient"></div>
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-2xl rounded-lg">
         <h1 className="text-4xl font-bold mb-8 text-center text-halloween-purple font-spooky">

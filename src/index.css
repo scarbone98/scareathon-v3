@@ -233,7 +233,7 @@ body {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  z-index: 1;
+  z-index: -1;
 }
 
 .rules-gradient {
@@ -251,7 +251,7 @@ body {
       rgba(18, 211, 169, 0.473) 100%);
   background-size: 100% 400%;
   animation: gradient 10s ease infinite;
-  z-index: 0;
+  z-index: -3;
 }
 
 .calendar-background {

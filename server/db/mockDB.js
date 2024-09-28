@@ -1,7 +1,14 @@
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const { Pool } = pg;
+
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create a new pool
 const pool = new Pool({
@@ -16,70 +23,76 @@ const pool = new Pool({
 async function initializeDB() {
   const client = await pool.connect();
   try {
-    // Create users table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log('Users table created successfully');
+    // Read the SQL file
+    const sqlFile = path.join(__dirname, 'db.sql');
+    const sql = fs.readFileSync(sqlFile, 'utf8');
 
-    // Insert a sample user
-    const userId = '029e9d80-2ee9-4c48-a3f2-2cc29c4448ec';
-    await client.query(`
-      INSERT INTO users (id, username, email)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (username) DO NOTHING
-    `, [userId, 'samiam98', 'scarbone.bsopr@gmail.com']);
-    console.log('Sample user inserted successfully');
+    // Execute the SQL
+    await client.query(sql);
+    console.log('Database initialized successfully');
 
-    // Create game_specific_data table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS game_specific_data (
-        id UUID PRIMARY KEY,
-        user_id UUID REFERENCES users(id),
-        game_id UUID REFERENCES games(id),
-        data_type VARCHAR(50) NOT NULL,
-        data JSONB NOT NULL,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, game_id, data_type)
-      )
-    `);
-    console.log('Game specific data table created successfully');
-
-    // Insert a sample game-specific data (inventory for Space Invaders)
-    const gameSpecificDataId = uuidv4();
-    await client.query(`
-      INSERT INTO game_specific_data (id, user_id, game_id, data_type, data)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (user_id, game_id, data_type) DO UPDATE SET data = $5, updated_at = CURRENT_TIMESTAMP
-    `, [gameSpecificDataId, userId, gameId, 'inventory', JSON.stringify({
-      lives: 3,
-      powerups: ['shield', 'rapid_fire'],
-      coins: 100
-    })]);
-    console.log('Sample game-specific data inserted successfully');
-
-    // Create a more flexible leaderboards table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS leaderboards (
-        id UUID PRIMARY KEY,
-        game_id UUID REFERENCES games(id),
-        user_id UUID REFERENCES users(id),
-        metric_name VARCHAR(50) NOT NULL,
-        metric_value NUMERIC NOT NULL,
-        achieved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log('Leaderboards table created successfully');
-
+    // Insert sample data (if needed)
+    await insertSampleData(client);
   } catch (err) {
     console.error('Error initializing database:', err);
   } finally {
     client.release();
+  }
+}
+
+// Function to insert sample data
+async function insertSampleData(client) {
+  try {
+    // Insert a sample user (UUID remains the same)
+    const userId = '029e9d80-2ee9-4c48-a3f2-2cc29c4448ec';
+    await client.query(`
+      INSERT INTO users (id, username, email)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (id) DO UPDATE SET username = $2, email = $3
+    `, [userId, 'samiam98', 'scarbone.bsopr@gmail.com']);
+    console.log('Sample user inserted or updated successfully');
+
+    // Insert sample game
+    const gameResult = await client.query(`
+      INSERT INTO games (name)
+      VALUES ($1)
+      ON CONFLICT (name) DO UPDATE SET name = $1
+      RETURNING id
+    `, ['8BitEvilReturns']);
+    const gameId = gameResult.rows[0].id;
+    console.log('Sample game inserted or updated successfully with id:', gameId);
+
+    // Insert sample game-specific data
+    const gameData = {
+      silverAmount: 1000,
+      userName: 'samiam98',
+      unlockedCharacters: ['DefaultCharacter']
+    };
+    await client.query(`
+      INSERT INTO game_specific_data (user_id, game_id, data_type, data)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, game_id, data_type) DO UPDATE SET data = $4
+    `, [userId, gameId, 'user_data', JSON.stringify(gameData)]);
+    console.log('Sample game-specific data inserted or updated successfully');
+
+    // Insert sample leaderboard entries
+    const leaderboardEntries = [
+      { metric: 'runTimeSeconds', value: 300 },
+      { metric: 'kills', value: 50 },
+      { metric: 'candyCollected', value: 200 }
+    ];
+    for (const entry of leaderboardEntries) {
+      await client.query(`
+        INSERT INTO leaderboards (user_id, game_id, metric_name, metric_value)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (game_id, user_id, metric_name) DO UPDATE SET metric_value = $4
+      `, [userId, gameId, entry.metric, entry.value]);
+    }
+    console.log('Sample leaderboard entries inserted or updated successfully');
+
+  } catch (err) {
+    console.error('Error inserting sample data:', err);
+    throw err;  // Re-throw the error so it can be caught in the calling function
   }
 }
 

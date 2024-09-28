@@ -1,0 +1,161 @@
+{
+	"info": {
+		"name": "8 Bit Evil Returns API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get User Data",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/getUserData?userId={{userId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"getUserData"
+					],
+					"query": [
+						{
+							"key": "userId",
+							"value": "{{userId}}"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Set User Data",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": \"{{userId}}\",\n  \"gameId\": \"{{gameId}}\",\n  \"silverAmount\": 1000,\n  \"userName\": \"Player1\",\n  \"unlockedCharacters\": [\"Character1\", \"Character2\"]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/setUserData",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"setUserData"
+					]
+				}
+			}
+		},
+		{
+			"name": "Unlock Character",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"characterName\": \"NewCharacter\",\n  \"cost\": 500\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/unlockCharacter?userId={{userId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"unlockCharacter"
+					],
+					"query": [
+						{
+							"key": "userId",
+							"value": "{{userId}}"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Add Run Data",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"runTimeSeconds\": 300,\n  \"kills\": 50,\n  \"candyCollected\": 1000,\n  \"userName\": \"Player1\",\n  \"userId\": \"{{userId}}\",\n  \"itemsUsed\": [\"item1\", \"item2\"],\n  \"selectedCharacter\": \"Character1\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/runs?v={{version}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"runs"
+					],
+					"query": [
+						{
+							"key": "v",
+							"value": "{{version}}"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Get Leaderboard",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/getLeaderBoard?field=runTimeSeconds&v={{version}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"getLeaderBoard"
+					],
+					"query": [
+						{
+							"key": "field",
+							"value": "runTimeSeconds"
+						},
+						{
+							"key": "v",
+							"value": "{{version}}"
+						}
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "userId",
+			"value": "your-user-id"
+		},
+		{
+			"key": "gameId",
+			"value": "your-game-id"
+		},
+		{
+			"key": "version",
+			"value": "v1"
+		}
+	]
+}

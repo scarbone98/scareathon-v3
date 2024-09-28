@@ -16,7 +16,10 @@ export default function Announcements() {
 
   return (
     <AnimatedPage className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-semibold mb-4 text-center">Announcements</h1>
+      <div className="rules-gradient"></div>
+      <h1 className="text-3xl font-semibold mb-4 text-center">
+        The Scareathon Post
+      </h1>
       <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
         {data?.data?.map((post: any) => (
           <div

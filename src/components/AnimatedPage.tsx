@@ -17,7 +17,11 @@ export default function AnimatedPage({
   const { height } = useNavigatorContext();
   return (
     <motion.div
-      style={{ paddingTop: height, ...style }}
+      style={{
+        paddingTop: height,
+        minHeight: '100vh',
+        ...style,
+      }}
       className={className}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

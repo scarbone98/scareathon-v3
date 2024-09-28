@@ -105,7 +105,7 @@ export default function Calendar() {
           {data?.data.slice(1, 32).map((day: any, index: number) => (
             <div key={day.title} className="flex justify-center">
               <div
-                className="flex flex-col items-center justify-between bg-orange-50 rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full border border-orange-300"
+                className="flex flex-col items-center justify-between rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full"
                 onClick={(e) => handleDayClick(day, e)}
               >
                 <span className="md:hidden font-semibold text-orange-700 mb-2 flex flex-row justify-center space-x-1.5 w-full text-xl">
