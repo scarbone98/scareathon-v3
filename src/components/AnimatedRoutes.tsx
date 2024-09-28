@@ -13,6 +13,7 @@ const Scareboard = lazy(() => import("../pages/Scareboard/page"));
 const Calendar = lazy(() => import("../pages/Calendar/page"));
 const Rules = lazy(() => import("../pages/Rules/page"));
 const Announcements = lazy(() => import("../pages/Announcements/page"));
+const AnnouncementDetails = lazy(() => import("../pages/AnnouncementDetails/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
@@ -113,6 +114,16 @@ export const AnimatedRoutes = () => {
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
                 <Calendar />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/announcements/:id"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <AnnouncementDetails />
               </Suspense>
             </ProtectedRoute>
           }

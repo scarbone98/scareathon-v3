@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"; // added
 import { useNavigatorContext } from "../../../components/navigator/context";
+
 function GameRenderer() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 

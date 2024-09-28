@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, lazy } from "react";
 import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
 import GodotTest from "./GodotTest/GodotTest";
 const AgeOfWeenGame = lazy(() => import("./AgeOfWeen/AgeOfWeenGame.tsx"));
+
 // Add this at the top of your file
 declare global {
   interface Window {

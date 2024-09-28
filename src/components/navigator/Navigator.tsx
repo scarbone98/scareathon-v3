@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export const Navigator = () => {
   const location = useLocation();
+
   const navRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+
   const { setHeight } = useNavigatorContext();
   const [isOpen, setIsOpen] = useState(false);
-  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (navRef.current) {
@@ -23,7 +25,11 @@ export const Navigator = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (mobileNavRef.current && !mobileNavRef.current.contains(event.target as Node) && isOpen) {
+      if (
+        mobileNavRef.current &&
+        !mobileNavRef.current.contains(event.target as Node) &&
+        isOpen
+      ) {
         setIsOpen(false);
       }
     };
@@ -47,7 +53,9 @@ export const Navigator = () => {
               <Link
                 to={item.path}
                 className={`px-4 py-2 text-xl ${
-                  item.path === location.pathname
+                  (location.pathname.startsWith(item.path) &&
+                    item.path !== "/") ||
+                  (item.path === "/" && location.pathname === "/")
                     ? "text-red-500"
                     : "text-gray-700"
                 } hover:bg-gray-100 rounded`}
@@ -68,11 +76,15 @@ export const Navigator = () => {
           whileTap={{ scale: 0.9 }}
           aria-label="Toggle mobile menu"
         >
-          <div className={`w-16 h-16 relative ${isOpen ? 'opacity-100' : 'opacity-50'}`}>
+          <div
+            className={`w-16 h-16 relative ${
+              isOpen ? "opacity-100" : "opacity-50"
+            }`}
+          >
             <div className="absolute inset-0 bg-red-500 filter blur-md animate-pulse"></div>
-            <img 
-              src="/images/candleskull.gif" 
-              alt="Menu" 
+            <img
+              src="/images/candleskull.gif"
+              alt="Menu"
               className="w-full h-full object-cover relative z-10"
             />
             <div className="absolute inset-0 border-4 border-red-500 irregular-border"></div>
