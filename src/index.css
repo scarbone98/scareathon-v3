@@ -58,7 +58,7 @@ body {
   background-image: url('/images/batty.gif');
   background-size: contain;
   background-repeat: no-repeat;
-  transition: transform 0.1s linear;
+  transition: transform 0.2s linear;
   will-change: transform;
   left: 200;
   top: 200;
@@ -288,6 +288,45 @@ body {
       rgba(68, 5, 126, 0.507) 75%,
       rgba(10, 51, 165, 0.479) 85%,
       rgba(211, 18, 130, 0.473) 100%);
+  background-size: 100% 400%;
+  animation: gradient 10s ease infinite;
+  z-index: -3;
+}
+
+.news-background {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.news-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/images/grave_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+
+.news-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.7) 25%,
+      rgba(80, 49, 2, 0.521) 50%,
+      rgba(126, 70, 5, 0.507) 75%,
+      rgba(190, 104, 6, 0.479) 85%,
+      rgba(211, 127, 18, 0.473) 100%);
   background-size: 100% 400%;
   animation: gradient 10s ease infinite;
   z-index: -3;
