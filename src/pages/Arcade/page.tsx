@@ -24,26 +24,30 @@ export default function Arcade() {
   const machinesData = [
     {
       name: "8 Bit Evil Returns",
-      description: "Description 3",
-      image: "image3.jpg",
-      game: <GameRenderer />,
+      description: "Description 1",
+      game: (
+        <GameRenderer url="https://scarbone98.github.io/8BitEvilReturnsBuild/" />
+      ),
+    },
+    {
+      name: "Ascension",
+      description: "Description 2",
+      game: (
+        <GameRenderer url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html" />
+      ),
     },
     {
       name: "Godot Test",
-      description: "Description 2",
-      image: "image2.jpg",
       game: <GodotTest />,
     },
     {
       name: "Age of Ween",
-      description: "Description 2",
-      image: "image2.jpg",
       game: (
         <Suspense fallback={<div>Loading...</div>}>
           <AgeOfWeenGame />
         </Suspense>
       ),
-    }
+    },
   ];
 
   const handleMachineSelected = (machine: any) => {
