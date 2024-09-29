@@ -2,8 +2,8 @@ import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useState, useEffect, Suspense, lazy } from "react";
 import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
-import GodotTest from "./GodotTest/GodotTest";
-const AgeOfWeenGame = lazy(() => import("./AgeOfWeen/AgeOfWeenGame.tsx"));
+// @ts-ignore
+const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
 // Add this at the top of your file
 declare global {
@@ -24,26 +24,24 @@ export default function Arcade() {
   const machinesData = [
     {
       name: "8 Bit Evil Returns",
-      description: "Description 3",
-      image: "image3.jpg",
-      game: <GameRenderer />,
+      game: (
+        <GameRenderer url="https://scarbone98.github.io/8BitEvilReturnsBuild/" />
+      ),
     },
     {
       name: "Godot Test",
-      description: "Description 2",
-      image: "image2.jpg",
-      game: <GodotTest />,
+      game: (
+        <GameRenderer url="https://scarbone98.github.io/godot-html-test/Godot%20Tactical%20RPG.html" />
+      ),
     },
     {
-      name: "Age of Ween",
-      description: "Description 2",
-      image: "image2.jpg",
+      name: "8 Bit Evil",
       game: (
         <Suspense fallback={<div>Loading...</div>}>
-          <AgeOfWeenGame />
+          <EightBitEvil />
         </Suspense>
       ),
-    }
+    },
   ];
 
   const handleMachineSelected = (machine: any) => {

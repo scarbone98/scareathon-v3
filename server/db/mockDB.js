@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
@@ -10,14 +11,24 @@ const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 // Create a new pool
-const pool = new Pool({
+let pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'scareathon',
   password: 'postgres',
   port: 5432,
 });
+
+// if (process.env.NODE_ENV === 'production') {
+  // Create a new pool
+  pool = new Pool({
+    connectionString: process.env.DB_CONNECTION_STRING,
+    password: process.env.DB_PASSWORD
+  });
+// }
 
 // Function to initialize the database
 async function initializeDB() {
@@ -32,7 +43,7 @@ async function initializeDB() {
     console.log('Database initialized successfully');
 
     // Insert sample data (if needed)
-    await insertSampleData(client);
+    // await insertSampleData(client);
   } catch (err) {
     console.error('Error initializing database:', err);
   } finally {
@@ -43,29 +54,23 @@ async function initializeDB() {
 // Function to insert sample data
 async function insertSampleData(client) {
   try {
-    // Insert a sample user (UUID remains the same)
-    const userId = '029e9d80-2ee9-4c48-a3f2-2cc29c4448ec';
-    await client.query(`
-      INSERT INTO users (id, username, email)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (id) DO UPDATE SET username = $2, email = $3
-    `, [userId, 'samiam98', 'scarbone.bsopr@gmail.com']);
-    console.log('Sample user inserted or updated successfully');
 
-    // Insert sample game
+    const gameNames = ['8-Bit Evil Returns', 'Another Game', 'Yet Another Game'];
+
     const gameResult = await client.query(`
       INSERT INTO games (name)
-      VALUES ($1)
-      ON CONFLICT (name) DO UPDATE SET name = $1
+      SELECT UNNEST($1::text[])
+      ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
       RETURNING id
-    `, ['8BitEvilReturns']);
+    `, [gameNames]);
+
     const gameId = gameResult.rows[0].id;
     console.log('Sample game inserted or updated successfully with id:', gameId);
 
     // Insert sample game-specific data
     const gameData = {
       silverAmount: 1000,
-      userName: 'samiam98',
+      email: 'samiam98@gmail.com',
       unlockedCharacters: ['DefaultCharacter']
     };
     await client.query(`
@@ -96,8 +101,10 @@ async function insertSampleData(client) {
   }
 }
 
-// Initialize the database
-initializeDB();
+if (process.env.NODE_ENV === 'development') {
+  // Initialize the database
+  initializeDB();
+}
 
 // Export the pool for use in other files
 export default pool;

@@ -9,8 +9,6 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 
 type MachineData = {
   name: string;
-  description: string;
-  image: string;
 };
 
 type Props = {
