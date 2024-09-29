@@ -9,6 +9,8 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 
 type MachineData = {
   name: string;
+  videoUrl?: string;
+  game: React.ReactNode;
 };
 
 type Props = {
@@ -73,53 +75,42 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     directionalLight.castShadow = true; // Enable shadows if needed
     scene.add(directionalLight);
 
+    // Create a mapping of machine names to video textures
+    const videoTextureArray: {
+      videoTexture: THREE.VideoTexture;
+      url: string | undefined;
+    }[] = [];
+
+    machinesData.forEach((machine) => {
+      const video = document.createElement("video");
+      video.src = machine.videoUrl || "";
+      video.crossOrigin = "anonymous";
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.play();
+
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.repeat.set(1, 1);
+
+      videoTextureArray.push({ videoTexture, url: machine.videoUrl });
+    });
+
     // Load the GLB model using GLTFLoader
     const loader = new GLTFLoader();
     const machines: THREE.Group[] = [];
     const totalMachines = machinesData.length;
     const radius = 5;
 
-    // Create a video element
-    const video = document.createElement("video");
-    video.src = "/game-recordings/8BitEvilReturnsMenu.mp4"; // Set the source of your video
-    video.crossOrigin = "anonymous"; // Set cross-origin if the video is from a different domain
-    video.loop = true; // Set to true if you want the video to loop
-    video.muted = true; // Set to true if you want to autoplay without user interaction
-    video.playsInline = true; // Required for mobile autoplay
-    video.play(); // Start playing the video
-
-    // Create a video texture from the video element
-    const videoTexture = new THREE.VideoTexture(video);
-    videoTexture.minFilter = THREE.LinearFilter; // Set min filter
-    videoTexture.magFilter = THREE.LinearFilter; // Set mag filter
-    videoTexture.format = THREE.RGBFormat; // Set format
-
-    // Adjust wrapping and repeat to fit the texture properly on the material
-    videoTexture.wrapS = THREE.ClampToEdgeWrapping; // Prevents repeating horizontally
-    videoTexture.wrapT = THREE.ClampToEdgeWrapping; // Prevents repeating vertically
-    videoTexture.repeat.set(1, 1); // Set repeat to 1 to fit the texture exactly on the UV map
-
     loader.load("/models/ArcadeCabinet.glb", (gltf: any) => {
       const model = gltf.scene;
 
-      // Adjust material properties
       model.traverse((child: any) => {
         if (child instanceof THREE.Mesh) {
           if (child.material) {
-            child.material.emissive = new THREE.Color(0x222222); // Slight emissive glow
-            child.material.emissiveIntensity = 0.25; // Adjust intensity
-            if (child.material.name === "GreyScreen") {
-              child.material.map = videoTexture; // Set the video texture as the diffuse map
-              // Flip the texture vertically
-              if (child.geometry && child.geometry.attributes.uv) {
-                const uvAttribute = child.geometry.attributes.uv;
-                for (let i = 0; i < uvAttribute.count; i++) {
-                  uvAttribute.setY(i, 1 - uvAttribute.getY(i));
-                }
-                uvAttribute.needsUpdate = true;
-              }
-            }
-            child.material.needsUpdate = true; // Ensure the material updates
+            child.material.emissive = new THREE.Color(0x222222);
+            child.material.emissiveIntensity = 0.25;
+            child.material.needsUpdate = true;
           }
         }
       });
@@ -131,16 +122,49 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
       for (let i = 0; i < totalMachines; i++) {
         const machine = model.clone();
-        machine.position.x =
-          radius * Math.sin((i / totalMachines) * Math.PI * 2);
-        machine.position.z =
-          radius * Math.cos((i / totalMachines) * Math.PI * 2);
+        // Change the angle calculation to reverse the order
+        const angle = ((totalMachines - i) / totalMachines) * Math.PI * 2;
+        machine.position.x = radius * Math.sin(angle);
+        machine.position.z = radius * Math.cos(angle);
+
+        const machineName = machinesData[i].name;
+        machine.userData.machineName = machineName;
+
+        // Apply video texture to the screen
+        machine.traverse((child: any) => {
+          if (
+            child instanceof THREE.Mesh &&
+            child.material &&
+            child.material.name === "GreyScreen"
+          ) {
+            const newMaterial = child.material.clone();
+            const { videoTexture, url } = videoTextureArray[i];
+
+            console.log(machineName, url, { position: machine.position });
+
+            if (videoTexture) {
+              newMaterial.map = videoTexture;
+
+              // Fix for flipped texture
+              newMaterial.map.flipY = true;
+              newMaterial.map.repeat.set(1, -1);
+              newMaterial.map.offset.set(0, 1);
+
+              child.material = newMaterial;
+            } else {
+              console.log(
+                `No video texture found for machine: ${machineName}`
+              );
+            }
+          }
+        });
+
         scene.add(machine);
         machines.push(machine);
       }
 
       machinesRef.current = machines;
-      setIsLoading(false); // Set loading to false when machines are ready
+      setIsLoading(false);
     });
 
     const animate = (): void => {
@@ -170,8 +194,11 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
         mountRef.current.removeChild(renderer.domElement);
       }
       window.removeEventListener("resize", handleResize);
+      videoTextureArray.forEach((texture) => {
+        texture.videoTexture.dispose();
+      });
     };
-  }, []);
+  }, [machinesData]);
 
   const updateFocusedMachine = () => {
     const focusedIndex =
@@ -199,18 +226,10 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     });
 
     const animationPromises = machinesRef.current.map((machine, index) => {
-      const targetX =
-        5 *
-        Math.sin(
-          (index / machinesRef.current.length) * Math.PI * 2 +
-            currentAngle.current
-        );
-      const targetZ =
-        5 *
-        Math.cos(
-          (index / machinesRef.current.length) * Math.PI * 2 +
-            currentAngle.current
-        );
+      // Change the angle calculation to reverse the order
+      const angle = ((machinesRef.current.length - index) / machinesRef.current.length) * Math.PI * 2 + currentAngle.current;
+      const targetX = 5 * Math.sin(angle);
+      const targetZ = 5 * Math.cos(angle);
 
       // Animate the machine to its new position
       return promiseModeGsap(machine.position, {
@@ -273,6 +292,11 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       onPlay(focusedMachine);
     }
   };
+
+
+  for(const machine of machinesRef.current) {
+    console.log(machine.position, machine.userData.machineName);
+  }
 
   return (
     <>
