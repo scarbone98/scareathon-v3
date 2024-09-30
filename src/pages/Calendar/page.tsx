@@ -93,14 +93,16 @@ export default function Calendar() {
           </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
-            <div
-              key={`${day}-${index}`}
-              className="hidden sm:block text-center font-semibold text-orange-700 mb-2 md:mb-3 lg:mb-4 text-xs md:text-sm lg:text-base"
-            >
-              {day}
-            </div>
-          ))}
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+            (day, index) => (
+              <div
+                key={`${day}-${index}`}
+                className="hidden sm:block text-center font-semibold text-orange-700 mb-2 md:mb-3 lg:mb-4 text-xs md:text-sm lg:text-base"
+              >
+                {day}
+              </div>
+            )
+          )}
           {generateEmptyCells(currentDate)}
           {data?.data.slice(1, 32).map((day: any, index: number) => (
             <div key={day.title} className="flex justify-center">

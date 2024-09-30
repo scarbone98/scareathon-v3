@@ -54,8 +54,8 @@ export default function LeaderBoardModal({ playAgainCallback, score }) {
     }, []);
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center text-white font-maneater tracking-wider text-2xl z-10">
-            <div className={`relative p-6 pt-3 pb-3 rounded-lg w-full max-w-[95vw] max-h-[90vh] overflow-auto ${leaderBoard.loading ? 'bg-transparent' : 'bg-[rgb(177,10,10)]'}`}>
+        <div className="fixed inset-0 flex justify-center items-center text-white font-maneater tracking-wider text-2xl z-10">
+            <div className={`relative p-6 pt-3 pb-3 rounded-lg w-full max-w-[1024px] h-fit overflow-auto ${leaderBoard.loading ? 'bg-transparent' : 'bg-[rgb(177,10,10)]'}`}>
                 {
                     !leaderBoard.loading &&
                     <div
@@ -96,10 +96,10 @@ export default function LeaderBoardModal({ playAgainCallback, score }) {
                                         </thead>
                                         <tbody>
                                             {leaderBoard.data.map(({ score, userId }, index) => (
-                                                <tr key={index}>
-                                                    <td className="text-left text-2xl">{index + 1}</td>
-                                                    <td className="text-center text-2xl overflow-hidden overflow-ellipsis whitespace-nowrap max-w-0">{userId}</td>
-                                                    <td className="text-right text-2xl">{(score || 0).toLocaleString()}</td>
+                                                <tr key={index} className="w-full">
+                                                    <td className="text-left text-2xl w-1/6">{index + 1}</td>
+                                                    <td className="text-center text-2xl overflow-hidden overflow-ellipsis whitespace-nowrap w-3/6">{userId}</td>
+                                                    <td className="text-right text-2xl w-2/6">{(score || 0).toLocaleString()}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

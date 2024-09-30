@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
@@ -16,7 +17,13 @@ const fastify = Fastify({
 async function main() {
     try {
         await fastify.register(cors, {
-            
+            origin: [
+                'http://localhost:5173',
+                'https://www.scareathon.rip',
+                'https://scareathon-v3.vercel.app'
+            ],
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            credentials: true
         });
 
         fastify.register(fastifyJwt, {
@@ -24,6 +31,11 @@ async function main() {
         });
 
         fastify.addHook('preValidation', async (request, reply) => {
+            // Skip authentication for 8bitevilreturns routes
+            if (request.url.startsWith('/8bitevilreturns')) {
+                return;
+            }
+
             try {
                 await request.jwtVerify();
             } catch (err) {

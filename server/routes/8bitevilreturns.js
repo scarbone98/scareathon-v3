@@ -1,173 +1,132 @@
-import { v4 as uuidv4 } from 'uuid';
-import pool from '../db/mockDB.js';
+import { db } from '../firebase.js';
+import { collection, doc, getDoc, setDoc, runTransaction, addDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
-async function routes(fastify, options) {
-
-    // Get user data
+export default async function (fastify, options) {
     fastify.get('/getUserData', async (request, reply) => {
         try {
-            const { userId, game } = request.query;
-            const query = `
-                SELECT data
-                FROM game_specific_data 
-                WHERE user_id = $1 AND game_id = (SELECT id FROM games WHERE name = $2)
-                AND data_type = 'user_data'
-            `;
-            const result = await pool.query(query, [userId, game]);
+            const { userId } = request.query;
+            const userDoc = await getDoc(doc(db, 'games', '8bitevilreturns', 'users', userId));
 
-            if (result.rows.length > 0) {
-                return { data: result.rows[0].data };
-            } else {
-                reply.code(404).send({ error: 'User data not found' });
-            }
+            return userDoc.data();
         } catch (err) {
             fastify.log.error(err);
-            reply.code(500).send({ error: err.message });
+            return reply.code(500).send({ error: 'An error has occurred with our database' });
         }
     });
 
-    // Set user data
     fastify.post('/setUserData', async (request, reply) => {
-        const { userId, game, silverAmount, userName, unlockedCharacters } = request.body;
-
         try {
-            // Insert or update game_specific_data
-            const query = `
-                INSERT INTO game_specific_data (user_id, game_id, data_type, data)
-                VALUES ($1, (SELECT id FROM games WHERE name = $2), $3, $4)
-                ON CONFLICT (user_id, game_id, data_type) 
-                DO UPDATE SET data = $4, updated_at = CURRENT_TIMESTAMP
-            `;
+            const data = request.body;
+            const keys = ['silverAmount', 'userName', 'unlockedCharacters', 'userId'];
+            const filteredData = Object.fromEntries(
+                Object.entries(data).filter(([key]) => keys.includes(key))
+            );
 
-            const gameData = {
-                silverAmount,
-                userName,
-                unlockedCharacters
-            };
+            if (filteredData.silverAmount) {
+                filteredData.silverAmount = parseInt(filteredData.silverAmount);
+            }
 
-            await pool.query(query, [userId, game, 'user_data', JSON.stringify(gameData)]);
+            await setDoc(doc(db, 'games', '8bitevilreturns', 'users', filteredData.userId), filteredData, { merge: true });
 
-            reply.send({ data: 'success' });
-        } catch (error) {
-            console.error('Error in setUserData:', error);
-            reply.status(500).send({ error: error.message });
+            return { data: 'success' };
+        } catch (err) {
+            fastify.log.error(err);
+            return reply.code(500).send({ error: 'An error has occurred with our database' });
         }
     });
 
-    // Unlock character
     fastify.post('/unlockCharacter', async (request, reply) => {
-        const client = await pool.connect();
         try {
-            const { userId, game } = request.query;
+            const { userId } = request.query;
             const { characterName, cost } = request.body;
 
-            await client.query('BEGIN');
+            const userDocRef = doc(db, 'games', '8bitevilreturns', 'users', userId);
 
-            const getUserDataQuery = `
-                    SELECT data 
-                    FROM game_specific_data 
-                    WHERE user_id = $1 AND game_id = (SELECT id FROM games WHERE name = $2)
-                    AND data_type = 'user_data'
-                    FOR UPDATE
-                `;
-            const userData = await client.query(getUserDataQuery, [userId, game]);
+            await runTransaction(db, async (transaction) => {
+                const userDataSnapshot = await transaction.get(userDocRef);
 
-            if (userData.rows.length === 0) {
-                throw new Error('User data not found');
-            }
+                if (!userDataSnapshot.exists()) {
+                    throw new Error("Document does not exist!");
+                }
 
-            const { unlockedCharacters = [], silverAmount } = userData.rows[0].data;
+                let { unlockedCharacters = [], silverAmount } = userDataSnapshot.data();
 
-            if (!unlockedCharacters.includes(characterName)) {
-                unlockedCharacters.push(characterName);
-                const newSilverAmount = silverAmount - cost;
+                if (!unlockedCharacters.includes(characterName)) {
+                    unlockedCharacters = [...unlockedCharacters, characterName];
+                    transaction.set(userDocRef, { unlockedCharacters, silverAmount: silverAmount - cost }, { merge: true });
+                }
+            });
 
-                const updateQuery = `
-                    UPDATE game_specific_data
-                    SET data = jsonb_set(
-                        jsonb_set(data, '{unlockedCharacters}', $2::jsonb),
-                        '{silverAmount}',
-                        $3::jsonb
-                    ),
-                    updated_at = CURRENT_TIMESTAMP
-                    WHERE user_id = $1 AND game_id = (SELECT id FROM games WHERE name = $2)
-                    AND data_type = 'user_data'
-                `;
-                await client.query(updateQuery, [userId, game, JSON.stringify(unlockedCharacters), newSilverAmount]);
-            }
-
-            await client.query('COMMIT');
             return { data: 'success' };
         } catch (err) {
-            await client.query('ROLLBACK');
             fastify.log.error(err);
-            reply.code(500).send({ error: 'An error has occurred with our database' });
-        } finally {
-            client.release();
+            return reply.code(500).send({ error: 'An error has occurred with our database' });
         }
     });
 
-    // Add run data
     fastify.post('/runs', async (request, reply) => {
         try {
-            const { v = '', game } = request.query;
-            const { runTimeSeconds, kills, candyCollected, userName, userId, itemsUsed, selectedCharacter } = request.body;
+            const { v = '' } = request.query;
+            const data = request.body;
+            const keys = ['runTimeSeconds', 'kills', 'candyCollected', 'userName', 'userId', 'itemsUsed', 'selectedCharacter'];
+            const filteredData = Object.fromEntries(
+                Object.entries(data).filter(([key]) => keys.includes(key))
+            );
 
-            const query = `
-                INSERT INTO game_specific_data (id, user_id, game_id, data_type, data)
-                VALUES ($1, $2, (SELECT id FROM games WHERE name = $3), $4, $5)
-            `;
-            const data = { runTimeSeconds, kills, candyCollected, userName, itemsUsed, selectedCharacter };
-            await pool.query(query, [uuidv4(), userId, game, `runs-${v}`, data]);
+            ['runTimeSeconds', 'kills', 'candyCollected'].forEach(key => {
+                if (filteredData[key]) {
+                    filteredData[key] = parseInt(filteredData[key]);
+                }
+            });
 
-            // Update leaderboards
-            const leaderboardMetrics = [
-                { name: 'runTimeSeconds', value: runTimeSeconds },
-                { name: 'kills', value: kills },
-                { name: 'candyCollected', value: candyCollected }
-            ];
-
-            for (const metric of leaderboardMetrics) {
-                const leaderboardQuery = `
-                INSERT INTO leaderboards (id, game_id, user_id, metric_name, metric_value)
-                VALUES ($1, (SELECT id FROM games WHERE name = $2), $3, $4, $5)
-                ON CONFLICT (game_id, user_id, metric_name)
-                DO UPDATE SET metric_value = EXCLUDED.metric_value, achieved_at = CURRENT_TIMESTAMP
-                WHERE leaderboards.metric_value < EXCLUDED.metric_value
-                `;
-                await pool.query(leaderboardQuery, [uuidv4(), game, userId, metric.name, metric.value]);
-            }
+            await addDoc(collection(db, 'games', '8bitevilreturns', `runs-${v}`), filteredData);
 
             return { data: 'success' };
         } catch (err) {
             fastify.log.error(err);
-            reply.code(500).send({ error: 'An error has occurred with our database' });
+            return reply.code(500).send({ error: 'An error has occurred with our database' });
         }
     });
 
-    // Get leaderboard
     fastify.get('/getLeaderBoard', async (request, reply) => {
+        const { field = 'runTimeSeconds', v = '' } = request.query;
+        fastify.log.info(`Leaderboard request - field: ${field}, v: ${v}`);
+
         try {
-            const { field, v = '', game } = request.query;
+            // Validate the field parameter
+            const validFields = ['runTimeSeconds', 'kills', 'candyCollected'];
+            if (!validFields.includes(field)) {
+                fastify.log.warn(`Invalid field parameter: ${field}`);
+                return reply.code(400).send({ error: 'Invalid field parameter' });
+            }
 
-            const query = `
-                SELECT l.metric_value, u.username, gsd.data->>'selectedCharacter' as selectedCharacter
-                FROM leaderboards l
-                JOIN users u ON l.user_id = u.id
-                LEFT JOIN game_specific_data gsd ON l.user_id = gsd.user_id AND gsd.data_type = $1
-                WHERE l.game_id = (SELECT id FROM games WHERE name = $3)
-                AND l.metric_name = $2
-                ORDER BY l.metric_value DESC
-                LIMIT 15
-            `;
-            const result = await pool.query(query, [`run-${v}`, field, game]);
+            const collectionPath = `games/8bitevilreturns/runs-${v}`;
+            fastify.log.info(`Querying collection: ${collectionPath}`);
 
-            return { data: result.rows };
+            const collectionRef = collection(db, collectionPath);
+
+            // Check if the collection exists
+            const collectionSnapshot = await getDocs(collectionRef);
+            if (collectionSnapshot.empty) {
+                fastify.log.warn(`Collection ${collectionPath} is empty or does not exist`);
+                return reply.code(200).send({ data: [] }); // Return an empty array instead of an error
+            }
+
+            const q = query(
+                collectionRef,
+                orderBy(field, 'desc'),
+                limit(15)
+            );
+
+            const leaderBoardSnapshot = await getDocs(q);
+            const leaderBoardData = leaderBoardSnapshot.docs.map(doc => doc.data());
+
+            fastify.log.info(`Leaderboard data retrieved successfully. Items: ${leaderBoardData.length}`);
+            return { data: leaderBoardData };
         } catch (err) {
-            fastify.log.error(err);
-            reply.code(500).send({ error: 'An error has occurred with our database' });
+            fastify.log.error(`Error in getLeaderBoard: ${err.message}`);
+            fastify.log.error(err.stack);
+            return reply.code(500).send({ error: 'An error occurred with our database' });
         }
     });
 }
-
-export default routes;
