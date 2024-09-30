@@ -45,7 +45,9 @@ jobs:
           export STRAPI_URL=${{ secrets.STRAPI_URL }}
           export STRAPI_TOKEN=${{ secrets.STRAPI_TOKEN }}
           export DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}
-          
+          export FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+          export FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+
           # Install dependencies and restart your server
           npm install
 
