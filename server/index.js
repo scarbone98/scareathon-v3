@@ -20,7 +20,9 @@ async function main() {
             origin: [
                 'http://localhost:5173',
                 'https://www.scareathon.rip',
-                'https://scareathon-v3.vercel.app'
+                'https://scareathon-v3.vercel.app',
+                'https://scarbone98.github.io',
+                'https://sclondon.github.io'
             ],
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             credentials: true
