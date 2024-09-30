@@ -93,14 +93,16 @@ export default function Calendar() {
           </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
-          {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-            <div
-              key={`${day}-${index}`}
-              className="hidden sm:block text-center font-semibold text-orange-700 mb-2 md:mb-3 lg:mb-4 text-xs md:text-sm lg:text-base"
-            >
-              {day}
-            </div>
-          ))}
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+            (day, index) => (
+              <div
+                key={`${day}-${index}`}
+                className="hidden sm:block text-center font-semibold text-orange-700 mb-2 md:mb-3 lg:mb-4 text-xs md:text-sm lg:text-base"
+              >
+                {day}
+              </div>
+            )
+          )}
           {generateEmptyCells(currentDate)}
           {data?.data.slice(1, 32).map((day: any, index: number) => (
             <div key={day.title} className="flex justify-center">
@@ -108,8 +110,8 @@ export default function Calendar() {
                 className="flex flex-col items-center justify-between rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full"
                 onClick={(e) => handleDayClick(day, e)}
               >
-                <span className="md:hidden font-semibold text-orange-700 mb-2 flex flex-row justify-center space-x-1.5 w-full text-xl">
-                  <div>
+                <span className="font-semibold text-orange-700 mb-2 flex flex-row justify-center space-x-1.5 w-full text-xl relative">
+                  <div className="md:hidden">
                     {
                       [
                         "Sunday",
@@ -122,7 +124,7 @@ export default function Calendar() {
                       ][(index + getFirstDayOfMonth(currentDate)) % 7]
                     }
                   </div>
-                  <div>
+                  <div className="md:absolute md:bg-white md:bg-opacity-50 md:backdrop-blur-sm md:rounded-lg md:p-2 md:top-0 md:left-0 md:z-10">
                     {index + 1}
                     {index + 1 === 1
                       ? "st"

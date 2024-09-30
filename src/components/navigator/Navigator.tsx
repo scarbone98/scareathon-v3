@@ -14,14 +14,21 @@ export const Navigator = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (navRef.current) {
-      setHeight(navRef.current.offsetHeight);
-    }
+    const updateHeight = () => {
+      if (navRef.current) {
+        setHeight(navRef.current.offsetHeight);
+      }
+    };
+
+    updateHeight(); // Initial height set
+
+    window.addEventListener('resize', updateHeight);
 
     return () => {
+      window.removeEventListener('resize', updateHeight);
       setHeight(0);
     };
-  }, [navRef.current?.offsetHeight]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

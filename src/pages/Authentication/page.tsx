@@ -1,20 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AnimatedPage from "../../components/AnimatedPage";
 import { supabase } from "../../supabaseClient";
 import { useNavigate, useLocation } from "react-router-dom";
+import LoadingSpinner from "../../components/LoadingSpinner";
+import PasswordResetPopup from "../../components/PasswordResetPopup";
 
 const Authentication = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        navigate("/");
+      } else {
+        setIsLoading(false);
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setSignupSuccess(false);
 
     try {
       if (isLogin) {
@@ -22,22 +42,36 @@ const Authentication = () => {
           email,
           password,
         });
+
         if (error) throw error;
+
         const origin = location.state?.from || "/";
         navigate(origin, { replace: true });
       } else {
-        const { error } = await supabase.auth.signUp({
+        // Check if user already exists using Supabase Auth API
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
-        if (error) throw error;
-        const origin = location.state?.from || "/";
-        navigate(origin, { replace: true });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data.user) {
+          setSignupSuccess(true);
+        } else {
+          throw new Error("Signup failed. Please try again.");
+        }
       }
     } catch (error: any) {
       setError(error.message);
     }
   };
+
+  useEffect(() => {
+    setError(null);
+  }, [isLogin]);
 
   const tabVariants = {
     active: { y: 0, opacity: 1 },
@@ -49,6 +83,8 @@ const Authentication = () => {
     visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
     exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
   };
+
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <AnimatedPage style={{ paddingTop: 0 }}>
@@ -137,6 +173,12 @@ const Authentication = () => {
                   </div>
                 )}
 
+                {signupSuccess && !isLogin && (
+                  <div className="text-green-400 text-sm text-center animate-pulse">
+                    Please check your email to confirm your account.
+                  </div>
+                )}
+
                 <div>
                   <button
                     type="submit"
@@ -148,7 +190,7 @@ const Authentication = () => {
                 {isLogin && (
                   <p
                     className="text-sm text-center text-gray-400 hover:text-orange-500 cursor-pointer transition-colors duration-200"
-                    onClick={() => {}}
+                    onClick={() => setShowPasswordReset(true)}
                   >
                     Forgot your password?
                   </p>
@@ -158,6 +200,12 @@ const Authentication = () => {
           </AnimatePresence>
         </div>
       </div>
+      {showPasswordReset && (
+        <PasswordResetPopup
+          onClose={() => setShowPasswordReset(false)}
+          initialEmail={email}
+        />
+      )}
     </AnimatedPage>
   );
 };

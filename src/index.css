@@ -23,6 +23,10 @@ body {
   cursor: url('/images/zombiecursor.png'), auto;
 }
 
+img {
+  user-select: none;
+}
+
 ::-webkit-scrollbar {
   width: 12px;
 }
@@ -284,10 +288,10 @@ body {
   background: linear-gradient(180deg,
       rgba(0, 0, 0, 0.8) 0%,
       rgba(0, 0, 0, 0.7) 25%,
-      rgba(80, 2, 45, 0.521) 50%,
-      rgba(68, 5, 126, 0.507) 75%,
-      rgba(10, 51, 165, 0.479) 85%,
-      rgba(211, 18, 130, 0.473) 100%);
+      rgba(105, 3, 59, 0.521) 50%,
+      rgba(156, 6, 31, 0.507) 75%,
+      rgba(185, 8, 76, 0.479) 85%,
+      rgba(177, 3, 3, 0.473) 100%);
   background-size: 100% 400%;
   animation: gradient 10s ease infinite;
   z-index: -3;
@@ -323,10 +327,49 @@ body {
   background: linear-gradient(180deg,
       rgba(0, 0, 0, 0.8) 0%,
       rgba(0, 0, 0, 0.7) 25%,
-      rgba(80, 49, 2, 0.521) 50%,
-      rgba(126, 70, 5, 0.507) 75%,
-      rgba(190, 104, 6, 0.479) 85%,
-      rgba(211, 127, 18, 0.473) 100%);
+      rgba(180, 110, 5, 0.521) 50%,
+      rgba(189, 105, 9, 0.507) 75%,
+      rgba(231, 127, 7, 0.479) 85%,
+      rgba(221, 129, 8, 0.788) 100%);
+  background-size: 100% 400%;
+  animation: gradient 10s ease infinite;
+  z-index: -3;
+}
+
+.home-background {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.home-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/images/home_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+}
+
+.home-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.7) 25%,
+      rgba(180, 5, 5, 0.521) 50%,
+      rgba(189, 9, 9, 0.507) 75%,
+      rgba(231, 7, 7, 0.479) 85%,
+      rgba(221, 8, 8, 0.788) 100%);
   background-size: 100% 400%;
   animation: gradient 10s ease infinite;
   z-index: -3;

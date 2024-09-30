@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"; // added
 import { useNavigatorContext } from "../../../components/navigator/context";
 
-function GameRenderer() {
+function GameRenderer({url}: {url: string}) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { height: headerHeight } = useNavigatorContext();
@@ -54,7 +54,7 @@ function GameRenderer() {
     <iframe
       ref={iframeRef}
       title="8BitEvilReturns"
-      src="https://scarbone98.github.io/8BitEvilReturnsBuild/"
+      src={url}
     ></iframe>
   );
 }

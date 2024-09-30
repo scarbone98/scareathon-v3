@@ -1,7 +1,7 @@
 export default async function (fastify, options) {
     fastify.get('/posts', async (request, reply) => {
         try {
-            const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*`, {
+            const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*&sort=createdAt:desc`, {
                 headers: {
                     'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
                 }

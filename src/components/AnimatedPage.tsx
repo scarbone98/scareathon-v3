@@ -20,6 +20,7 @@ export default function AnimatedPage({
       style={{
         paddingTop: height,
         minHeight: '100vh',
+        minWidth: '100vw',
         ...style,
       }}
       className={className}
