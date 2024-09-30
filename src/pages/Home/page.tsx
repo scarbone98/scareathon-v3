@@ -1,21 +1,24 @@
 import AnimatedPage from "../../components/AnimatedPage";
 import Countdown from "./Countdown";
 import CurrentMovie from "./CurrentMovie";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { calculateTimeLeft } from "./calculateTimeLeft";
 
 export default function Home() {
-  const [timeLeft, setTimeLeft] = useState(
-    calculateTimeLeft(new Date("2024-10-01"))
-  );
+  const endDate = useMemo(() => {
+    // Set the end date to October 1, 2024, at midnight EST
+    return new Date("2024-10-01T00:00:00-05:00");
+  }, []);
+
+  const [timeLeft, setTimeLeft] = useState(() => calculateTimeLeft(endDate));
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft(new Date("2024-10-01")));
+      setTimeLeft(calculateTimeLeft(endDate));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [endDate]);
 
   return (
     <AnimatedPage
