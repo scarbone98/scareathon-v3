@@ -52,7 +52,7 @@ jobs:
           npm install
 
           # Start the server
-          nohup npm start > server.log 2>&1 &
+          nohup npm run production > server.log 2>&1 &
           disown
 
           EOF
