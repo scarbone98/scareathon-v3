@@ -14,21 +14,23 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Create a new pool
-let pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'scareathon',
-  password: 'postgres',
-  port: 5432,
-});
+let pool = null;
 
-// if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production') {
   // Create a new pool
   pool = new Pool({
     connectionString: process.env.DB_CONNECTION_STRING,
     password: process.env.DB_PASSWORD
   });
-// }
+} else {
+  pool = new Pool({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'scareathon',
+    password: 'postgres',
+    port: 5432,
+  })
+}
 
 // Function to initialize the database
 async function initializeDB() {
@@ -103,114 +105,8 @@ async function insertSampleData(client) {
 
 if (process.env.NODE_ENV === 'development') {
   // Initialize the database
-  initializeDB();
+  // initializeDB();
 }
 
 // Export the pool for use in other files
 export default pool;
-
-// Function to update a specific field in game_specific_data
-async function updateGameSpecificDataField(userId, gameId, dataType, field, value) {
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      UPDATE game_specific_data
-      SET data = jsonb_set(data, $1, $2::jsonb),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $3 AND game_id = $4 AND data_type = $5
-    `, [
-      `{${field}}`,
-      JSON.stringify(value),
-      userId,
-      gameId,
-      dataType
-    ]);
-    console.log(`Updated ${field} for user ${userId} in game ${gameId}`);
-  } catch (err) {
-    console.error('Error updating game-specific data:', err);
-  } finally {
-    client.release();
-  }
-}
-
-// Example usage:
-// updateGameSpecificDataField(userId, gameId, 'inventory', 'coins', 150);
-
-// Function to update multiple fields in game_specific_data
-async function updateMultipleGameSpecificDataFields(userId, gameId, dataType, updates) {
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      UPDATE game_specific_data
-      SET data = data || $1::jsonb,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = $2 AND game_id = $3 AND data_type = $4
-    `, [
-      JSON.stringify(updates),
-      userId,
-      gameId,
-      dataType
-    ]);
-    console.log(`Updated multiple fields for user ${userId} in game ${gameId}`);
-  } catch (err) {
-    console.error('Error updating multiple game-specific data fields:', err);
-  } finally {
-    client.release();
-  }
-}
-
-// Example usage:
-// updateMultipleGameSpecificDataFields(userId, gameId, 'inventory', { coins: 150, lives: 2 });
-
-// Function to add or update a leaderboard entry
-async function upsertLeaderboardEntry(userId, gameId, metricName, metricValue) {
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      INSERT INTO leaderboards (id, user_id, game_id, metric_name, metric_value)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (user_id, game_id, metric_name) 
-      DO UPDATE SET 
-        metric_value = CASE 
-          WHEN leaderboards.metric_value < $5 THEN $5 
-          ELSE leaderboards.metric_value 
-        END,
-        achieved_at = CASE 
-          WHEN leaderboards.metric_value < $5 THEN CURRENT_TIMESTAMP 
-          ELSE leaderboards.achieved_at 
-        END
-    `, [uuidv4(), userId, gameId, metricName, metricValue]);
-    console.log(`Upserted leaderboard entry for user ${userId} in game ${gameId} for metric ${metricName}`);
-  } catch (err) {
-    console.error('Error upserting leaderboard entry:', err);
-  } finally {
-    client.release();
-  }
-}
-
-// Function to get top leaderboard entries for a game and metric
-async function getTopLeaderboardEntries(gameId, metricName, limit = 10) {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(`
-      SELECT l.user_id, u.username, l.metric_value, l.achieved_at
-      FROM leaderboards l
-      JOIN users u ON l.user_id = u.id
-      WHERE l.game_id = $1 AND l.metric_name = $2
-      ORDER BY l.metric_value DESC
-      LIMIT $3
-    `, [gameId, metricName, limit]);
-    return result.rows;
-  } catch (err) {
-    console.error('Error getting top leaderboard entries:', err);
-    return [];
-  } finally {
-    client.release();
-  }
-}
-
-// Example usage:
-// await upsertLeaderboardEntry(userId, gameId, 'score', 1000);
-// await upsertLeaderboardEntry(userId, gameId, 'time', 120.5);
-// const topScores = await getTopLeaderboardEntries(gameId, 'score');
-// const topTimes = await getTopLeaderboardEntries(gameId, 'time', 5);
