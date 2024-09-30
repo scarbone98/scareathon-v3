@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import AnimatedMovieDetail from "./AnimatedMovieDetail";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion"; // Add motion import
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Calendar() {
@@ -18,6 +18,7 @@ export default function Calendar() {
     height: 0,
   });
   const [isMobile, setIsMobile] = useState(false);
+  const currentDayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -42,6 +43,15 @@ export default function Calendar() {
       return queryClient.getQueryData(["calendar"]);
     },
   });
+
+  useEffect(() => {
+    if (isMobile && currentDayRef.current) {
+      currentDayRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [isMobile, data]);
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorDisplay message={error.message} />;
@@ -80,19 +90,53 @@ export default function Calendar() {
     setSelectedDay(day);
   };
 
+  const currentDay = new Date().getDate();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: isMobile ? 0 : 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: isMobile ? 20 : 0,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+      },
+    },
+  };
+
   return (
     <AnimatedPage className="calendar-background pb-8">
       <div className="calendar-gradient"></div>
       <div className="p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-6xl mx-auto overflow-hidden">
-        <div className="flex justify-center items-center mb-4 md:mb-6">
+        <motion.div
+          className="flex justify-center items-center mb-4 md:mb-6"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-orange-800">
             {currentDate.toLocaleString("default", {
               month: "long",
               year: "numeric",
             })}
           </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4">
+        </motion.div>
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
             (day, index) => (
               <div
@@ -105,9 +149,16 @@ export default function Calendar() {
           )}
           {generateEmptyCells(currentDate)}
           {data?.data.slice(1, 32).map((day: any, index: number) => (
-            <div key={day.title} className="flex justify-center">
+            <motion.div
+              key={day.title}
+              className="flex justify-center"
+              variants={itemVariants}
+              ref={index + 1 === currentDay ? currentDayRef : null}
+            >
               <div
-                className="flex flex-col items-center justify-between rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full"
+                className={`flex flex-col items-center justify-between rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
+                  index + 1 < currentDay ? "opacity-50" : ""
+                }`}
                 onClick={(e) => handleDayClick(day, e)}
               >
                 <span className="font-semibold text-orange-700 mb-2 flex flex-row justify-center space-x-1.5 w-full text-xl relative">
@@ -148,9 +199,9 @@ export default function Calendar() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
       <AnimatePresence>
