@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
@@ -7,6 +8,7 @@ import calendarRoutes from './routes/calendar.js';
 import postsRoutes from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
+import gamesRoutes from './routes/games.js';
 
 const fastify = Fastify({
     logger: true
@@ -15,7 +17,13 @@ const fastify = Fastify({
 async function main() {
     try {
         await fastify.register(cors, {
-            // put your options here
+            origin: [
+                'http://localhost:5173',
+                'https://www.scareathon.rip',
+                'https://scareathon-v3.vercel.app'
+            ],
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            credentials: true
         });
 
         fastify.register(fastifyJwt, {
@@ -23,6 +31,11 @@ async function main() {
         });
 
         fastify.addHook('preValidation', async (request, reply) => {
+            // Skip authentication for 8bitevilreturns routes
+            if (request.url.startsWith('/8bitevilreturns')) {
+                return;
+            }
+
             try {
                 await request.jwtVerify();
             } catch (err) {
@@ -35,6 +48,7 @@ async function main() {
         fastify.register(calendarRoutes);
         fastify.register(postsRoutes);
         fastify.register(leaderboardRoutes);
+        fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
 
         // Run the server!

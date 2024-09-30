@@ -76,10 +76,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     scene.add(directionalLight);
 
     // Create a mapping of machine names to video textures
-    const videoTextureArray: {
-      videoTexture: THREE.VideoTexture;
-      url: string | undefined;
-    }[] = [];
+    const videoTextureArray: THREE.VideoTexture[] = [];
 
     machinesData.forEach((machine) => {
       const video = document.createElement("video");
@@ -93,7 +90,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       const videoTexture = new THREE.VideoTexture(video);
       videoTexture.repeat.set(1, 1);
 
-      videoTextureArray.push({ videoTexture, url: machine.videoUrl });
+      videoTextureArray.push(videoTexture);
     });
 
     // Load the GLB model using GLTFLoader
@@ -138,9 +135,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
             child.material.name === "GreyScreen"
           ) {
             const newMaterial = child.material.clone();
-            const { videoTexture, url } = videoTextureArray[i];
-
-            console.log(machineName, url, { position: machine.position });
+            const videoTexture = videoTextureArray[i];
 
             if (videoTexture) {
               newMaterial.map = videoTexture;
@@ -152,7 +147,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
               child.material = newMaterial;
             } else {
-              console.log(
+              console.error(
                 `No video texture found for machine: ${machineName}`
               );
             }
@@ -195,7 +190,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       }
       window.removeEventListener("resize", handleResize);
       videoTextureArray.forEach((texture) => {
-        texture.videoTexture.dispose();
+        texture.dispose();
       });
     };
   }, [machinesData]);
@@ -207,6 +202,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       ) % machinesRef.current.length;
     const normalizedIndex =
       (focusedIndex + machinesRef.current.length) % machinesRef.current.length;
+
     setFocusedMachine(machinesData[normalizedIndex]);
   };
 
@@ -227,7 +223,11 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
     const animationPromises = machinesRef.current.map((machine, index) => {
       // Change the angle calculation to reverse the order
-      const angle = ((machinesRef.current.length - index) / machinesRef.current.length) * Math.PI * 2 + currentAngle.current;
+      const angle =
+        ((machinesRef.current.length - index) / machinesRef.current.length) *
+          Math.PI *
+          2 +
+        currentAngle.current;
       const targetX = 5 * Math.sin(angle);
       const targetZ = 5 * Math.cos(angle);
 
@@ -292,11 +292,6 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       onPlay(focusedMachine);
     }
   };
-
-
-  for(const machine of machinesRef.current) {
-    console.log(machine.position, machine.userData.machineName);
-  }
 
   return (
     <>

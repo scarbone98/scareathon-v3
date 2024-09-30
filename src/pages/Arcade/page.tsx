@@ -1,30 +1,39 @@
 import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
-import { useState, useEffect } from "react";
+import { useState, Suspense, lazy } from "react";
+import { supabase } from "../../supabaseClient";
 import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
-import GodotTest from "./GodotTest/GodotTest";
-
-declare global {
-  interface Window {
-    UnityFullyLoaded: () => void;
-  }
-}
+// @ts-ignore
+const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
 export default function Arcade() {
   const [selectedMachine, setSelectedMachine] = useState<any | null>(null);
-
-  useEffect(() => {
-    window.UnityFullyLoaded = () => {
-      console.log("UnityFullyLoaded");
-    };
-  }, []);
 
   const machinesData = [
     {
       name: "8 Bit Evil Returns",
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
       game: (
-        <GameRenderer url="https://scarbone98.github.io/8BitEvilReturnsBuild/" />
+        <GameRenderer
+          url="https://scarbone98.github.io/8BitEvilReturnsBuild/"
+          onLoad={(iframe) => {
+            window.onmessage = async (e) => {
+              if (e.data.type === "unityReady") {
+                const { data } = await supabase.auth.getUser();
+                if (data) {
+                  iframe.contentWindow?.postMessage(
+                    { type: "authDetails", userId: data?.user?.id },
+                    "*"
+                  );
+                }
+              }
+            };
+
+            return () => {
+              window.onmessage = null;
+            };
+          }}
+        />
       ),
     },
     {
@@ -35,9 +44,13 @@ export default function Arcade() {
       ),
     },
     {
-      name: "Godot Test 1",
-      // videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4", // Update this path if you have a specific video for Godot Test
-      game: <GodotTest />,
+      name: "8 Bit Evil",
+      videoUrl: "/game-recordings/8BitEvil.mp4",
+      game: (
+        <Suspense fallback={<div>Loading...</div>}>
+          <EightBitEvil />
+        </Suspense>
+      ),
     },
   ];
 
