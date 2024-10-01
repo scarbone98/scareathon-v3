@@ -50,7 +50,7 @@ const AnimatedMovieDetail: React.FC<MovieDetailProps> = ({
         stiffness: 60,
         duration: 0.3,
       }}
-      className="fixed bg-orange-50 rounded-lg shadow-xl border border-orange-300 p-6 overflow-auto z-25"
+      className="fixed bg-orange-50 rounded-lg shadow-xl border border-orange-300 p-6 overflow-auto z-50"
     >
       <h2 className="text-2xl font-bold text-orange-800 mb-4">{day.title}</h2>
       <img

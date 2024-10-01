@@ -94,8 +94,8 @@ export default function Scareboard() {
         className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto tracking-widest"
       >
         <div className="overflow-x-auto">
-          <table className="w-full bg-black shadow-md rounded-lg overflow-hidden">
-            <thead className="bg-gray-900">
+          <table className="w-full shadow-md rounded-lg overflow-hidden">
+            <thead className="bg-gray-900 bg-opacity-50">
               <tr>
                 <th className="py-3 px-4 text-left text-lg font-semibold text-red-500 uppercase tracking-wider">
                   Rank
@@ -121,7 +121,7 @@ export default function Scareboard() {
                 {data?.leaderboard?.data?.map((user: any, index: number) => (
                   <motion.tr
                     key={user.name}
-                    className="bg-gray-950 transition-colors"
+                    className="bg-gray-950 bg-opacity-50 transition-colors"
                     variants={tableRowVariants}
                     initial="hidden"
                     animate="visible"
