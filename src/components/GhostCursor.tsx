@@ -18,7 +18,8 @@ const GhostCursor: React.FC = () => {
   const previousTimeRef = useRef<number>();
 
   // Adjust these constants to control ghost behavior
-  const GHOST_COUNT = 25;
+  const BASE_GHOST_COUNT = 25;
+  const GHOST_COUNT = window.innerWidth <= 768 ? Math.floor(BASE_GHOST_COUNT / 2) : BASE_GHOST_COUNT;
   const MAX_SPEED = 8;
   const ACCELERATION = 0.45;
   const DRAG = 0.6;
@@ -43,7 +44,7 @@ const GhostCursor: React.FC = () => {
       orbitSpeed: ORBIT_SPEED * (0.8 + Math.random() * 0.4),
       orbitRadius: ORBIT_RADIUS * (0.8 + Math.random() * 0.4)
     }));
-  }, []);
+  }, [GHOST_COUNT]);
 
   useEffect(() => {
     const updatePosition = (e: MouseEvent) => {
