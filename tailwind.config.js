@@ -6,6 +6,15 @@ export default {
   ],
   theme: {
     extend: {
+      height: {
+        'screen-dynamic': 'var(--vh)',
+      },
+      minHeight: {
+        'screen-dynamic': 'var(--vh)',
+      },
+      maxHeight: {
+        'screen-dynamic': 'var(--vh)',
+      },
       colors: {
         'halloween-orange': '#FF6600',
         'halloween-purple': '#6B0099',

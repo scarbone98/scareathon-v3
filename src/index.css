@@ -44,7 +44,7 @@ body {
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: var(--vh);
   cursor: url('/images/zombiecursor.png'), auto;
 }
 

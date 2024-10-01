@@ -25,7 +25,7 @@ export default function Home() {
       style={{
         paddingTop: 0,
       }}
-      className="flex flex-col items-center justify-center h-screen bg-cover bg-center home-background"
+      className="flex flex-col items-center justify-center bg-cover bg-center home-background"
     >
       <div className="home-gradient" />
       <div className="text-center">

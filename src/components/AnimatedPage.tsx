@@ -19,7 +19,7 @@ export default function AnimatedPage({
     <motion.div
       style={{
         paddingTop: height,
-        minHeight: '100vh',
+        minHeight: 'var(--vh)',
         minWidth: '100vw',
         ...style,
       }}
