@@ -21,6 +21,7 @@ export default function AnimatedPage({
         paddingTop: height,
         minHeight: 'var(--vh)',
         minWidth: '100vw',
+        position: 'relative',
         ...style,
       }}
       className={className}
