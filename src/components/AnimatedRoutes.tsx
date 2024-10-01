@@ -20,7 +20,7 @@ const ResetPassword = lazy(
   () => import("../pages/Authentication/ResetPassword/page")
 );
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();

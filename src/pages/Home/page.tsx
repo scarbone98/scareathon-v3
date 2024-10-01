@@ -3,7 +3,7 @@ import Countdown from "./Countdown";
 import CurrentMovie from "./CurrentMovie";
 import { useState, useEffect, useMemo } from "react";
 import { calculateTimeLeft } from "./calculateTimeLeft";
-
+import { ProtectedRoute } from "../../components/AnimatedRoutes";
 export default function Home() {
   const endDate = useMemo(() => {
     // Set the end date to October 1, 2024, at midnight EST
@@ -32,7 +32,9 @@ export default function Home() {
         {timeLeft.difference > 0 ? (
           <Countdown timeLeft={timeLeft} />
         ) : (
-          <CurrentMovie />
+          <ProtectedRoute>
+            <CurrentMovie />
+          </ProtectedRoute>
         )}
       </div>
     </AnimatedPage>
