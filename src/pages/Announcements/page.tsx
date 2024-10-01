@@ -23,7 +23,7 @@ export default function Announcements() {
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-bold mb-8 text-center text-[rgba(221,129,8,0.9)]"
+          className="text-4xl font-bold mb-8 pt-8 text-center text-[rgba(221,129,8,0.9)]"
         >
           The Scareathon Post
         </motion.h1>

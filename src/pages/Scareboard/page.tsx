@@ -35,7 +35,9 @@ export default function Scareboard() {
     : [];
 
   const totalKey = "total"; // Assume 'total' is the key for the total column
-  const otherKeys = keys.filter((key) => key !== totalKey && key !== "name" && key !== "rank");
+  const otherKeys = keys.filter(
+    (key) => key !== totalKey && key !== "name" && key !== "rank"
+  );
 
   const tableRowVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -87,26 +89,29 @@ export default function Scareboard() {
   return (
     <AnimatedPage className="calendar-background">
       <div className="calendar-gradient"></div>
-      <motion.div layout className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto">
+      <motion.div
+        layout
+        className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto tracking-widest"
+      >
         <div className="overflow-x-auto">
           <table className="w-full bg-black shadow-md rounded-lg overflow-hidden">
             <thead className="bg-gray-900">
               <tr>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-lg font-semibold text-red-500 uppercase tracking-wider">
                   Rank
                 </th>
-                <th className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-lg font-semibold text-red-500 uppercase tracking-wider">
                   Player
                 </th>
                 {otherKeys.map((header) => (
                   <th
                     key={header}
-                    className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider hidden md:table-cell"
+                    className="py-3 px-4 text-left text-lg font-semibold text-red-500 uppercase tracking-wider hidden md:table-cell"
                   >
                     {header}
                   </th>
                 ))}
-                <th className="py-3 px-4 text-left text-sm font-semibold text-red-500 uppercase tracking-wider">
+                <th className="py-3 px-4 text-left text-lg font-semibold text-red-500 uppercase tracking-wider">
                   {totalKey}
                 </th>
               </tr>
@@ -125,14 +130,14 @@ export default function Scareboard() {
                     layout
                   >
                     <td
-                      className={`py-4 px-4 whitespace-nowrap text-sm font-medium ${getRankStyle(
+                      className={`py-4 px-4 whitespace-nowrap text-lg font-medium ${getRankStyle(
                         user.rank
                       )}`}
                     >
                       {user.rank}
                     </td>
                     <td
-                      className={`py-4 px-4 whitespace-nowrap text-sm font-medium flex items-center ${getRankStyle(
+                      className={`py-4 px-4 whitespace-nowrap text-lg font-medium flex items-center ${getRankStyle(
                         user.rank
                       )}`}
                     >
@@ -145,12 +150,12 @@ export default function Scareboard() {
                     {otherKeys.map((key) => (
                       <td
                         key={key}
-                        className="py-4 px-4 whitespace-nowrap text-sm text-red-500 hidden md:table-cell"
+                        className="py-4 px-4 whitespace-nowrap text-lg text-red-500 hidden md:table-cell"
                       >
                         {user[key]}
                       </td>
                     ))}
-                    <td className="py-4 px-4 whitespace-nowrap text-sm text-red-500">
+                    <td className="py-4 px-4 whitespace-nowrap text-lg text-red-500">
                       {user[totalKey]}
                     </td>
                   </motion.tr>
