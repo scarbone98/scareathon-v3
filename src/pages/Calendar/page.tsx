@@ -97,7 +97,7 @@ export default function Calendar() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: isMobile ? 0 : 0.1,
+        staggerChildren: 0.1,
       },
     },
   };
@@ -106,7 +106,7 @@ export default function Calendar() {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
-      y: isMobile ? 20 : 0,
+      y: 0,
       transition: {
         type: "spring",
         stiffness: 100,
@@ -120,7 +120,7 @@ export default function Calendar() {
       <div className="p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-6xl mx-auto overflow-hidden">
         <motion.div
           className="flex justify-center items-center mb-4 md:mb-6"
-          initial={{ opacity: 0, y: -20 }}
+          initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
@@ -134,7 +134,7 @@ export default function Calendar() {
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4"
           variants={containerVariants}
-          initial="hidden"
+          initial={isMobile ? "visible" : "hidden"}
           animate="visible"
         >
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
@@ -156,8 +156,12 @@ export default function Calendar() {
               ref={index + 1 === currentDay ? currentDayRef : null}
             >
               <div
-                className={`flex flex-col items-center justify-between rounded-lg shadow-md hover:bg-orange-200 transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
-                  index + 1 < currentDay ? "opacity-50" : ""
+                className={`flex flex-col items-center justify-between rounded-lg shadow-md transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
+                  index + 1 < currentDay ? "opacity-40" : ""
+                } ${
+                  index + 1 === currentDay
+                    ? "outline outline-4 outline-orange-700"
+                    : ""
                 }`}
                 onClick={(e) => handleDayClick(day, e)}
               >

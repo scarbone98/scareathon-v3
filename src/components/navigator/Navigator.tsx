@@ -22,10 +22,10 @@ export const Navigator = () => {
 
     updateHeight(); // Initial height set
 
-    window.addEventListener('resize', updateHeight);
+    window.addEventListener("resize", updateHeight);
 
     return () => {
-      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener("resize", updateHeight);
       setHeight(0);
     };
   }, []);
@@ -47,8 +47,21 @@ export const Navigator = () => {
     };
   }, [isOpen, mobileNavRef.current?.offsetHeight]);
 
+  function getColor(item: { path: string }) {
+    return (location.pathname.startsWith(item.path) && item.path !== "/") ||
+      (item.path === "/" && location.pathname === "/")
+      ? `${selectedItem?.color || "white"}`
+      : "#374151";
+  }
+
+  const selectedItem = navItems.find(
+    (item) =>
+      (location.pathname.startsWith(item.path) && item.path !== "/") ||
+      (item.path === "/" && location.pathname === "/")
+  );
+
   return (
-    <nav>
+    <nav className="font-spooky">
       {/* Desktop Navigation */}
       <div
         ref={navRef}
@@ -59,13 +72,10 @@ export const Navigator = () => {
             <li key={item.name}>
               <Link
                 to={item.path}
-                className={`px-4 py-2 text-xl ${
-                  (location.pathname.startsWith(item.path) &&
-                    item.path !== "/") ||
-                  (item.path === "/" && location.pathname === "/")
-                    ? "text-red-500"
-                    : "text-gray-700"
-                } hover:bg-gray-100 rounded`}
+                className="px-4 py-2 text-2xl hover:bg-gray-100 rounded"
+                style={{
+                  color: getColor(item),
+                }}
               >
                 {item.name}
               </Link>
@@ -103,7 +113,10 @@ export const Navigator = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-full left-0 mb-2 w-56 bg-black bg-opacity-95 shadow-lg rounded-lg overflow-hidden border border-red-500"
+              className="absolute bottom-full left-0 mb-2 w-56 bg-black bg-opacity-95 shadow-lg rounded-lg overflow-hidden border"
+              style={{
+                borderColor: selectedItem?.color || "red-500",
+              }}
             >
               {navItems.map((item) => (
                 <motion.li
@@ -113,11 +126,10 @@ export const Navigator = () => {
                   <Link
                     to={item.path}
                     onClick={() => setIsOpen(false)}
-                    className={`block px-4 py-3 text-sm ${
-                      item.path === location.pathname
-                        ? "text-red-500"
-                        : "text-gray-300"
-                    } hover:text-white transition-colors duration-200`}
+                    className={`block px-4 py-3 text-sm hover:text-white transition-colors duration-200`}
+                    style={{
+                      color: getColor(item),
+                    }}
                   >
                     {item.name}
                   </Link>

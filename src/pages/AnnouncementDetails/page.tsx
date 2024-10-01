@@ -15,7 +15,12 @@ export default function AnnouncementDetails() {
   });
 
   if (isLoading) return <LoadingSpinner />;
-  if (error || !data?.data) return <ErrorDisplay message={error?.message || "Error fetching announcement details"} />;
+  if (error || !data?.data)
+    return (
+      <ErrorDisplay
+        message={error?.message || "Error fetching announcement details"}
+      />
+    );
 
   const post = data?.data;
 
