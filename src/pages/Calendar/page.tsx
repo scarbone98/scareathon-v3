@@ -117,7 +117,7 @@ export default function Calendar() {
   return (
     <AnimatedPage className="calendar-background pb-8">
       <div className="calendar-gradient"></div>
-      <div className="p-4 md:p-6 lg:p-8 rounded-lg shadow-lg max-w-6xl mx-auto overflow-hidden">
+      <div className="p-4 md:p-6 lg:p-8 rounded-lg max-w-6xl mx-auto overflow-hidden">
         <motion.div
           className="flex justify-center items-center mb-4 md:mb-6"
           initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
@@ -156,7 +156,7 @@ export default function Calendar() {
               ref={index + 1 === currentDay ? currentDayRef : null}
             >
               <div
-                className={`flex flex-col items-center justify-between rounded-lg shadow-md transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
+                className={`flex flex-col items-center justify-between rounded-lg transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
                   index + 1 < currentDay ? "opacity-40" : ""
                 } ${
                   index + 1 === currentDay

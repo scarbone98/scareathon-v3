@@ -44,7 +44,7 @@ body {
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: var(--vh);
   cursor: url('/images/zombiecursor.png'), auto;
 }
 
@@ -262,7 +262,7 @@ img {
   background-position: bottom center; /* Sticks to the bottom and centers horizontally */
   background-repeat: no-repeat; /* No repeating of the image */
   background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
-  min-height: 100vh; /* Ensures the body takes up the full viewport height */
+  min-height: var(--vh); /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 
@@ -342,7 +342,7 @@ img {
   background-position: bottom center; /* Sticks to the bottom and centers horizontally */
   background-repeat: no-repeat; /* No repeating of the image */
   background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
-  min-height: 100vh; /* Ensures the body takes up the full viewport height */
+  min-height: var(--vh); /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 
@@ -383,7 +383,7 @@ img {
   background-position: bottom center; /* Sticks to the bottom and centers horizontally */
   background-repeat: no-repeat; /* No repeating of the image */
   background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
-  min-height: 100vh; /* Ensures the body takes up the full viewport height */
+  min-height: var(--vh); /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 

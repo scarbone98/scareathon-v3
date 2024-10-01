@@ -45,7 +45,7 @@ const ResetPassword = () => {
 
   return (
     <AnimatedPage>
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animated-gradient">
+      <div className="min-h-screen-dynamic flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animated-gradient">
         <div className="max-w-md w-full space-y-8 bg-gray-950 p-10 rounded-xl shadow-2xl">
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Reset Your Password

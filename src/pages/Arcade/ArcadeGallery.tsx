@@ -207,6 +207,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   };
 
   const rotateMachines = async (direction: number): Promise<void> => {
+    setShowControls(false);
     if (isAnimating.current || !cameraRef.current) return;
     isAnimating.current = true;
 
@@ -284,7 +285,6 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
   const handleRotate = (direction: number) => {
     rotateMachines(direction);
-    setShowControls(false);
   };
 
   const handlePlay = () => {
@@ -311,7 +311,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
             <button
               onClick={() => handleRotate(1)}
               style={{
-                position: "absolute",
+                position: "fixed",
                 left: "20px",
                 top: "50%",
                 transform: "translateY(-50%)",
@@ -327,7 +327,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
             <button
               onClick={() => handleRotate(-1)}
               style={{
-                position: "absolute",
+                position: "fixed",
                 right: "20px",
                 top: "50%",
                 transform: "translateY(-50%)",
@@ -343,9 +343,9 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
             <button
               onClick={handlePlay}
               style={{
-                position: "absolute",
+                position: "fixed",
                 left: "50%",
-                bottom: "20px",
+                bottom: "50px",
                 transform: "translateX(-50%)",
                 fontSize: "2rem",
                 background: "rgba(255, 255, 255, 0.2)",
@@ -367,9 +367,9 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
         {focusedMachine && showControls && (
           <div
             style={{
-              position: "absolute",
+              position: "fixed",
               left: "50%",
-              bottom: "100px",
+              bottom: "125px",
               transform: "translateX(-50%)",
               background: "rgba(0, 0, 0, 0.8)",
               padding: "10px 20px",

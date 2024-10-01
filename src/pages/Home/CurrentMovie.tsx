@@ -17,7 +17,9 @@ export default function CurrentMovie() {
 
   const getCurrentMovie = () => {
     if (!calendarData) return null;
-    const today = new Date();
+    
+    // Create a date object for the current time in EST
+    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
     const dayOfMonth = today.getDate();
     return calendarData.data[dayOfMonth];
   };
