@@ -88,7 +88,7 @@ const Authentication = () => {
 
   return (
     <AnimatedPage style={{ paddingTop: 0 }}>
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animated-gradient">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animated-gradient text-xl">
         <div
           className="max-w-md w-full space-y-8 bg-gray-950 p-10 rounded-xl shadow-2xl relative"
           style={{ height: "500px" }}
