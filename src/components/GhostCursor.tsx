@@ -12,7 +12,7 @@ interface Ghost {
 }
 
 const GhostCursor: React.FC = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: window.innerWidth/2, y: window.innerHeight/2 });
   const [ghosts, setGhosts] = useState<Ghost[]>([]);
   const requestRef = useRef<number>();
   const previousTimeRef = useRef<number>();
@@ -145,7 +145,7 @@ const GhostCursor: React.FC = () => {
         x += vx * deltaTime;
         y += vy * deltaTime;
 
-        if (x < 0 || x > window.innerWidth) {
+        if (x < -20 || x > window.innerWidth) {
           vx = -vx * BOUNCE_FACTOR;
           x = x < 0 ? 0 : window.innerWidth;
         }
