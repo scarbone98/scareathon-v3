@@ -175,6 +175,7 @@ const GhostCursor: React.FC = () => {
           key={ghost.id}
           className="ghost-cursor"
           style={{
+            willChange: 'transform',
             transform: `translate(${ghost.x}px, ${ghost.y}px) scaleX(${ghost.vx > 0 ? 1 : -1})`,
           }}
         />
