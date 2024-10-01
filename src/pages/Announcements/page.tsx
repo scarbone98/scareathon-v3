@@ -33,7 +33,6 @@ export default function Announcements() {
               key={post.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.05 }}
               className="bg-gray-900 shadow-lg rounded-lg overflow-hidden border border-[rgba(221,129,8,0.9)] mb-6 break-inside-avoid"
             >
               <div className="p-6">
