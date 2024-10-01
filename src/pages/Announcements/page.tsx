@@ -17,7 +17,7 @@ export default function Announcements() {
   if (error) return <ErrorDisplay message={error.message} />;
 
   return (
-    <AnimatedPage className="mx-auto px-4 py-8 text-gray-300 min-h-screen news-background">
+    <AnimatedPage className="mx-auto px-4 py-8 text-gray-300 min-h-screen news-background font-fancy">
       <div className="news-gradient" />
       <div className="relative z-10">
         <motion.h1

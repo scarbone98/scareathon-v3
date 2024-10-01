@@ -19,6 +19,9 @@ export default {
       fontFamily: {
         'spooky': ['Creepster', 'cursive'],
         'eerie': ['Nosifer', 'cursive'],
+        'fancy': ['Fancy', 'cursive'],
+        'scooby': ['ScoobyDoo', 'cursive'],
+        'zombie': ['Zombie', 'cursive'],
       },
       backgroundImage: {
         'spider-web': "url('/images/spider-web.svg')",

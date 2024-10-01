@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'ScoobyDoo';
+  src: url('/fonts/scoobydoo.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Zombie';
+  src: url('/fonts/zombie.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Fancy';
+  src: url('/fonts/fancy.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  font-family: 'ScoobyDoo', sans-serif;
+  letter-spacing: 0.25em;
+} 
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -374,3 +400,4 @@ img {
   animation: gradient 10s ease infinite;
   z-index: -3;
 }
+

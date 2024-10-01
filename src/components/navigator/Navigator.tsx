@@ -61,7 +61,7 @@ export const Navigator = () => {
   );
 
   return (
-    <nav className="font-spooky">
+    <nav className="font-zombie">
       {/* Desktop Navigation */}
       <div
         ref={navRef}
@@ -72,7 +72,7 @@ export const Navigator = () => {
             <li key={item.name}>
               <Link
                 to={item.path}
-                className="px-4 py-2 text-2xl hover:bg-gray-100 rounded"
+                className="px-4 py-2 text-4xl hover:bg-gray-100 rounded"
                 style={{
                   color: getColor(item),
                 }}
@@ -126,7 +126,7 @@ export const Navigator = () => {
                   <Link
                     to={item.path}
                     onClick={() => setIsOpen(false)}
-                    className={`block px-4 py-3 text-sm hover:text-white transition-colors duration-200`}
+                    className={`block px-4 py-3 text-lg hover:text-white transition-colors duration-200`}
                     style={{
                       color: getColor(item),
                     }}
