@@ -126,7 +126,7 @@ export const Navigator = () => {
                   <Link
                     to={item.path}
                     onClick={() => setIsOpen(false)}
-                    className={`block px-4 py-3 text-2xl hover:text-white transition-colors duration-200 tracking-[0.15em]`}
+                    className={`block px-4 py-3 text-3xl hover:text-white transition-colors duration-200 tracking-[0.15em]`}
                     style={{
                       color: getColor(item),
                     }}
