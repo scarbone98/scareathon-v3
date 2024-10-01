@@ -245,8 +245,7 @@ img {
 }
 
 .rules-background {
-  position: relative;
-  background-size: cover;
+  background-size: 100% auto;
   background-position: center;
   background-repeat: no-repeat;
 }
@@ -259,9 +258,11 @@ img {
   right: 0;
   bottom: 0;
   background-image: url('/images/rules_bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: 100% 100%; /* Stretches the image to cover both width and height */
+  background-position: bottom center; /* Sticks to the bottom and centers horizontally */
+  background-repeat: no-repeat; /* No repeating of the image */
+  background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
+  min-height: 100vh; /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 
@@ -298,9 +299,11 @@ img {
   right: 0;
   bottom: 0;
   background-image: url('/images/cave_bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: 100% 100%; /* Stretches the image to cover both width and height */
+  background-position: bottom center; /* Sticks to the bottom and centers horizontally */
+  background-repeat: no-repeat; /* No repeating of the image */
+  background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
+  min-height: 100vh; /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 
@@ -337,9 +340,11 @@ img {
   right: 0;
   bottom: 0;
   background-image: url('/images/grave_bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: 100% 100%; /* Stretches the image to cover both width and height */
+  background-position: bottom center; /* Sticks to the bottom and centers horizontally */
+  background-repeat: no-repeat; /* No repeating of the image */
+  background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
+  min-height: 100vh; /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 
@@ -376,9 +381,11 @@ img {
   right: 0;
   bottom: 0;
   background-image: url('/images/home_bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-size: 100% 100%; /* Stretches the image to cover both width and height */
+  background-position: bottom center; /* Sticks to the bottom and centers horizontally */
+  background-repeat: no-repeat; /* No repeating of the image */
+  background-attachment: fixed; /* Optional: Keeps the image fixed during scroll */
+  min-height: 100vh; /* Ensures the body takes up the full viewport height */
   z-index: -1;
 }
 
