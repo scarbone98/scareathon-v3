@@ -37,7 +37,7 @@ export default function Arcade() {
       ),
     },
     {
-      name: "Ascension",
+      name: "Hemlock's Tower",
       videoUrl: "/game-recordings/Ascension.mp4",
       game: (
         <GameRenderer url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html" />
