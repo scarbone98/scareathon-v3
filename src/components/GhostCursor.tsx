@@ -18,7 +18,7 @@ const GhostCursor: React.FC = () => {
   const previousTimeRef = useRef<number>();
 
   // Adjust these constants to control ghost behavior
-  const BASE_GHOST_COUNT = 25;
+  const BASE_GHOST_COUNT = 0;
   const GHOST_COUNT = window.innerWidth <= 768 ? Math.floor(BASE_GHOST_COUNT / 2) : BASE_GHOST_COUNT;
   const MAX_SPEED = 8;
   const ACCELERATION = 0.45;
