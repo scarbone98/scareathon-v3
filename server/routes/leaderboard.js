@@ -7,7 +7,7 @@ export default async function (fastify, options) {
             const doc = await calendarSheet();
             const sheet = doc.sheetsByTitle['Users'];
             const rows = await sheet.getRows();
-            const keys = ['name', 'movies', 'primetime', 'combo', 'bonus', 'total'];
+            const keys = ['name', 'movies', 'weekly', 'bonus', 'total'];
 
             const users = rows.map(row => {
                 const userObject = {};
@@ -22,7 +22,7 @@ export default async function (fastify, options) {
             let rank = 1;
             users.forEach((user, index) => {
                 if (index > 0 && users[index - 1].total !== user.total) {
-                    rank = index + 1;
+                    rank++;
                 }
                 user.rank = rank;
             });
