@@ -69,13 +69,20 @@ function ContentWithReadMore({ content }: { content: any }) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (contentRef.current) {
-      setShowReadMore(contentRef.current.scrollHeight >= 200);
+    function handleResize() {
+      if (contentRef.current) {
+        const isOverflowing =
+          contentRef.current.scrollHeight > contentRef.current.clientHeight;
+        setShowReadMore(isOverflowing);
+      }
     }
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [content]);
 
   return (
-    <div className="text-gray-300 relative">
+    <div className="text-gray-300 relative list-disc list-inside">
       <div
         ref={contentRef}
         className={`relative ${
@@ -90,7 +97,22 @@ function ContentWithReadMore({ content }: { content: any }) {
             isExpanded ? "" : "max-h-[200px] overflow-hidden"
           }`}
         >
-          <BlocksRenderer content={content} />
+          <BlocksRenderer
+            content={content}
+            blocks={{
+              list: ({ children }) => (
+                <ul className="list-disc list-inside">{children}</ul>
+              ),
+              link: ({ children, url }) => (
+                <a
+                  href={url}
+                  className="text-[rgba(221,129,8,0.9)] hover:text-[rgba(221,129,8,1)] transition-colors duration-200"
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          />
         </div>
       </div>
       {showReadMore && (
