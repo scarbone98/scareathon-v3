@@ -43,6 +43,13 @@ export default function Arcade() {
         <GameRenderer url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html" />
       ),
     },
+    // {
+    //   name: "Ooidash",
+    //   videoUrl: "/game-recordings/Ascension.mp4",
+    //   game: (
+    //     <GameRenderer url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html" />
+    //   ),
+    // },
     {
       name: "8 Bit Evil",
       videoUrl: "/game-recordings/8BitEvil.mp4",

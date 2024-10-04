@@ -10,7 +10,9 @@ import { useState, useRef, useEffect } from "react";
 export default function Announcements() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["posts"],
+    refetchInterval: 1000 * 60 * 5,
     queryFn: () => fetchWithAuth("/posts").then((res) => res.json()),
+    staleTime: 1000 * 60 * 60 * 1,
   });
 
   if (isLoading) return <LoadingSpinner />;
@@ -42,13 +44,13 @@ export default function Announcements() {
                 {post.Image && post.Image.length > 0 && (
                   <img
                     src={`${import.meta.env.VITE_STRAPI_BASE_URL}${
-                      post.Image[0].formats.medium.url
+                      post.Image[0].url
                     }`}
                     alt={post.Image[0].alternativeText || post.Title}
                     className="w-full h-auto mb-4 rounded"
                   />
                 )}
-                <ContentWithReadMore content={post.Content} />
+                {post.Content && <ContentWithReadMore content={post.Content} />}
                 <p className="text-sm text-gray-500 mt-4">
                   Published: {new Date(post.publishedAt).toLocaleDateString()}
                 </p>

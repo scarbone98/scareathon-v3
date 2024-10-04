@@ -40,7 +40,7 @@ function GameRenderer({ url, onLoad }: GameRendererProps) {
       const height = window.innerHeight;
       iframe.style.marginTop = `${headerHeight / 2}px`;
       iframe.style.height = `${height - headerHeight}px`;
-      iframe.style.width = `${height * (9 / 16)}px`;
+      iframe.style.width = `${(height - headerHeight) * (9 / 16)}px`;
       iframe.style.zIndex = "1";
     }
 
