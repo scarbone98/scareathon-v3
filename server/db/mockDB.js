@@ -30,10 +30,6 @@ if (process.env.NODE_ENV === 'production') {
     password: 'postgres',
     port: 5432,
   });
-  // pool = new Pool({
-  //   connectionString: 'postgresql://postgres.oqgpryirvvkryybsaldo:zp1O61FuUQaJwBOq@aws-0-us-east-1.pooler.supabase.com:6543/postgres?schema=public',
-  //   password: 'zp1O61FuUQaJwBOq'
-  // });
 }
 
 // Function to initialize the database
