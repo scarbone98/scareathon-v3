@@ -475,8 +475,8 @@ export default class Game extends Phaser.Scene {
 
             // BLACK MAGIC DO NOT TOUCH
             if (!enemy.body.touching.none) {
-                window.customFunctions.triggerLeaderBoardModal(this.score, () => this.scene.start('game'));
-                this.scene.stop();
+                window.customFunctions.onDeath(this.score);
+                this.scene.start('title');
             }
 
             //this.physics.moveTo(zombie, this.zombies[follow]["zombie"].x, this.zombies[follow]["zombie"].y, zomspeed)

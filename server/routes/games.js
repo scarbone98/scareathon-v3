@@ -14,9 +14,8 @@ async function routes(fastify, options) {
     fastify.get('/getLeaderboard', async (request, reply) => {
         try {
             const { game, metric, limit = 10 } = request.query;
-
             const leaderboard = await pool.query(`
-                SELECT u.email, l.metric_value, l.achieved_at
+                SELECT u.username, l.metric_value, l.achieved_at
                 FROM leaderboards l
                 JOIN games g ON l.game_id = g.id
                 JOIN users u ON l.user_id = u.id
@@ -34,13 +33,12 @@ async function routes(fastify, options) {
 
     fastify.post('/submitScore', async (request, reply) => {
         try {
-            const userId = request.user.id;
+            const userId = request.user.sub;
             const { game, metricName, metricValue } = request.body;
-
             // First, get the game_id
             const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
             if (gameResult.rows.length === 0) {
-                return reply.code(404).send({ error: 'Game not found' });
+                return reply.code(400).send({ error: 'Game not found' });
             }
             const gameId = gameResult.rows[0].id;
 
@@ -60,7 +58,7 @@ async function routes(fastify, options) {
 
     fastify.get('/getGameSpecificData', async (request, reply) => {
         try {
-            const userId = request.user.id;
+            const userId = request.user.sub;
             const { game, dataType } = request.query;
 
             // First, get the game_id
@@ -89,7 +87,7 @@ async function routes(fastify, options) {
 
     fastify.post('/setGameSpecificData', async (request, reply) => {
         try {
-            const userId = request.user.id;
+            const userId = request.user.sub;
             const { game, dataType, data } = request.body;
 
             // First, get the game_id
@@ -106,7 +104,7 @@ async function routes(fastify, options) {
             `, [userId, gameId, dataType]);
 
             const oldData = existingDataResult.rows[0]?.data || {};
-            
+
             // Merge new data with existing data
             const updatedData = { ...oldData, ...data };
 

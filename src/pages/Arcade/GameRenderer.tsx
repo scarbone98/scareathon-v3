@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react"; // added
-import { useNavigatorContext } from "../../../components/navigator/context";
+import { useNavigatorContext } from "../../components/navigator/context";
 
 type GameRendererProps = {
   url: string;
   onLoad?: (
     iframe: HTMLIFrameElement
   ) => () => void | ((iframe: HTMLIFrameElement) => void)[] | undefined;
+  title: string;
 };
 
-function GameRenderer({ url, onLoad }: GameRendererProps) {
+function GameRenderer({ url, title, onLoad }: GameRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { height: headerHeight } = useNavigatorContext();
@@ -30,9 +31,6 @@ function GameRenderer({ url, onLoad }: GameRendererProps) {
 
       iframe.style.width = "100vw";
       iframe.style.height = "100vh";
-      iframe.style.position = "absolute";
-      iframe.style.top = "0";
-      iframe.style.left = "0";
       iframe.style.zIndex = "1";
 
       document.body.style.textAlign = "left";
@@ -41,7 +39,7 @@ function GameRenderer({ url, onLoad }: GameRendererProps) {
       iframe.style.marginTop = `${headerHeight / 2}px`;
       iframe.style.height = `${height - headerHeight}px`;
       iframe.style.width = `${(height - headerHeight) * (9 / 16)}px`;
-      iframe.style.zIndex = "1";
+      iframe.style.zIndex = "0";
     }
 
     if (onLoad) {
@@ -56,7 +54,7 @@ function GameRenderer({ url, onLoad }: GameRendererProps) {
     }
   }, [onLoad]);
 
-  return <iframe ref={iframeRef} title="8BitEvilReturns" src={url}></iframe>;
+  return <iframe ref={iframeRef} title={title} src={url}></iframe>;
 }
 
 export default GameRenderer;

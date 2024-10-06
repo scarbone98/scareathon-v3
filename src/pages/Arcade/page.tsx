@@ -2,9 +2,18 @@ import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useState, Suspense, lazy } from "react";
 import { supabase } from "../../supabaseClient";
-import GameRenderer from "./8BitEvilReturns/8BitEvilReturns";
+import GameRenderer from "./GameRenderer.tsx";
+import LoadingSpinner from "../../components/LoadingSpinner.tsx";
+import Toolbar from "./Toolbar.tsx";
+import { fetchWithAuth } from "../../fetchWithAuth.ts";
 // @ts-ignore
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
+
+interface CustomWindow extends Window {
+  customFunctions?: {
+    onDeath?: (score: number) => void;
+  };
+}
 
 export default function Arcade() {
   const [selectedMachine, setSelectedMachine] = useState<any | null>(null);
@@ -15,6 +24,7 @@ export default function Arcade() {
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
       game: (
         <GameRenderer
+          title="8 Bit Evil Returns"
           url="https://scarbone98.github.io/8BitEvilReturnsBuild/"
           onLoad={(iframe) => {
             window.onmessage = async (e) => {
@@ -40,22 +50,77 @@ export default function Arcade() {
       name: "Hemlock's Tower",
       videoUrl: "/game-recordings/Ascension.mp4",
       game: (
-        <GameRenderer url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html" />
+        <GameRenderer
+          title="Hemlock's Tower"
+          url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html"
+        />
       ),
     },
-    // {
-    //   name: "Ooidash",
-    //   videoUrl: "/game-recordings/Ascension.mp4",
-    //   game: (
-    //     <GameRenderer url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html" />
-    //   ),
-    // },
+    {
+      name: "Ooidash",
+      videoUrl: "/game-recordings/Ascension.mp4",
+      game: (
+        <GameRenderer
+          title="Ooidash"
+          url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html"
+          onLoad={() => {
+            window.onmessage = async (e) => {
+              if (e.data.type === "PLAYER_DIED") {
+                const data = await fetchWithAuth("/games/submitScore", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    game: "Ooidash",
+                    metricName: "score",
+                    metricValue: e.data.score,
+                  }),
+                }).then((res) => res.json());
+              }
+            };
+
+            return () => {
+              window.onmessage = null;
+            };
+          }}
+        />
+      ),
+    },
     {
       name: "8 Bit Evil",
       videoUrl: "/game-recordings/8BitEvil.mp4",
       game: (
-        <Suspense fallback={<div>Loading...</div>}>
-          <EightBitEvil />
+        <Suspense fallback={<LoadingSpinner />}>
+          <EightBitEvil
+            onLoad={(gameInstance: any) => {
+              if (!(window as CustomWindow).customFunctions) {
+                (window as CustomWindow).customFunctions = {};
+              }
+
+              if ((window as CustomWindow).customFunctions) {
+                ((window as CustomWindow).customFunctions ??= {}).onDeath =
+                  async (score: number) => {
+                    const data = await fetchWithAuth("/games/submitScore", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        game: "8 Bit Evil",
+                        metricName: "score",
+                        metricValue: score,
+                      }),
+                    }).then((res) => res.json());
+                  };
+              }
+
+              return () => {
+                gameInstance?.destroy(true);
+                (window as CustomWindow).customFunctions = {};
+              };
+            }}
+          />
         </Suspense>
       ),
     },
@@ -73,7 +138,10 @@ export default function Arcade() {
       />
       {selectedMachine?.game && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center">
-          {selectedMachine.game}
+          <div className="relative h-fit w-fit flex justify-center items-center">
+            {selectedMachine.game}
+            <Toolbar currentGame={selectedMachine?.name} />
+          </div>
         </div>
       )}
     </AnimatedPage>

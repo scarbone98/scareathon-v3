@@ -29,7 +29,11 @@ if (process.env.NODE_ENV === 'production') {
     database: 'scareathon',
     password: 'postgres',
     port: 5432,
-  })
+  });
+  // pool = new Pool({
+  //   connectionString: 'postgresql://postgres.oqgpryirvvkryybsaldo:zp1O61FuUQaJwBOq@aws-0-us-east-1.pooler.supabase.com:6543/postgres?schema=public',
+  //   password: 'zp1O61FuUQaJwBOq'
+  // });
 }
 
 // Function to initialize the database
@@ -53,60 +57,75 @@ async function initializeDB() {
   }
 }
 
-// Function to insert sample data
-async function insertSampleData(client) {
+// Function to mock insert users with null usernames
+async function mockInsertNullUsers(count = 5) {
+  const client = await pool.connect();
+  const emails = ["test1@test.com", "test2@test.com", "test3@test.com", "test4@test.com", "test5@test.com"];
   try {
-
-    const gameNames = ['8-Bit Evil Returns', 'Another Game', 'Yet Another Game'];
-
-    const gameResult = await client.query(`
-      INSERT INTO games (name)
-      SELECT UNNEST($1::text[])
-      ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-      RETURNING id
-    `, [gameNames]);
-
-    const gameId = gameResult.rows[0].id;
-    console.log('Sample game inserted or updated successfully with id:', gameId);
-
-    // Insert sample game-specific data
-    const gameData = {
-      silverAmount: 1000,
-      email: 'samiam98@gmail.com',
-      unlockedCharacters: ['DefaultCharacter']
-    };
-    await client.query(`
-      INSERT INTO game_specific_data (user_id, game_id, data_type, data)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (user_id, game_id, data_type) DO UPDATE SET data = $4
-    `, [userId, gameId, 'user_data', JSON.stringify(gameData)]);
-    console.log('Sample game-specific data inserted or updated successfully');
-
-    // Insert sample leaderboard entries
-    const leaderboardEntries = [
-      { metric: 'runTimeSeconds', value: 300 },
-      { metric: 'kills', value: 50 },
-      { metric: 'candyCollected', value: 200 }
-    ];
-    for (const entry of leaderboardEntries) {
-      await client.query(`
-        INSERT INTO leaderboards (user_id, game_id, metric_name, metric_value)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (game_id, user_id, metric_name) DO UPDATE SET metric_value = $4
-      `, [userId, gameId, entry.metric, entry.value]);
+    for (let i = 0; i < count; i++) {
+      const userId = uuidv4();
+      const query = 'INSERT INTO users (id, username, email) VALUES ($1, $2, $3)';
+      await client.query(query, [userId, null, emails[i]]);
     }
-    console.log('Sample leaderboard entries inserted or updated successfully');
-
+    console.log(`Successfully inserted ${count} users with null usernames`);
   } catch (err) {
-    console.error('Error inserting sample data:', err);
-    throw err;  // Re-throw the error so it can be caught in the calling function
+    console.error('Error inserting mock users:', err);
+  } finally {
+    client.release();
   }
 }
 
-if (process.env.NODE_ENV === 'development') {
-  // Initialize the database
-  // initializeDB();
+// if (process.env.NODE_ENV === 'development') {
+// Initialize the database
+// initializeDB();
+
+// Mock insert users with null usernames
+// mockInsertNullUsers();
+// }
+
+async function addSpookyUsernames() {
+
+  const spookyAdjectives = [
+    'Ghostly', 'Haunted', 'Creepy', 'Spooky', 'Eerie', 'Shadowy', 'Cursed', 'Wicked', 
+    'Sinister', 'Frightful', 'Macabre', 'Ominous', 'Grim', 'Morbid', 'Terrifying', 
+    'Dreadful', 'Vile', 'Bloodcurdling', 'Ghastly', 'Menacing', 'Nightmarish', 
+    'Mysterious', 'Horrifying', 'Chilling', 'Dark'
+  ];
+  
+  const spookyNouns = [
+    'Phantom', 'Skeleton', 'Wraith', 'Goblin', 'Ghoul', 'Specter', 'Banshee', 'Zombie', 
+    'Vampire', 'Werewolf', 'Demon', 'Witch', 'Poltergeist', 'Shade', 'Beast', 
+    'Nightstalker', 'Cryptkeeper', 'Mummy', 'Revenant', 'Warlock', 'Lich', 
+    'Necromancer', 'Gorgon', 'Ogre', 'Troll'
+  ];
+  
+  function generateSpookyUsername() {
+    const adjective = spookyAdjectives[Math.floor(Math.random() * spookyAdjectives.length)];
+    const noun = spookyNouns[Math.floor(Math.random() * spookyNouns.length)];
+    const randomNum = Math.floor(Math.random() * 1000); // Keep the random number for uniqueness
+    return `${adjective}${noun}${randomNum}`;
+  }
+
+  try {
+    const users = await pool.query('SELECT id, email FROM users WHERE username IS NULL');
+
+    for (let user of users.rows) {
+      const spookyUsername = generateSpookyUsername();
+
+      const { error: updateError } = await pool.query('UPDATE users SET username = $1 WHERE id = $2', [spookyUsername, user.id]);
+
+      if (updateError) {
+        console.error(`Error updating user ${user.email}:`, updateError);
+      } else {
+        console.log(`Updated ${user.email} with username ${spookyUsername}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error adding spooky usernames:', error);
+  }
 }
+
+// addSpookyUsernames();
 
 // Export the pool for use in other files
 export default pool;

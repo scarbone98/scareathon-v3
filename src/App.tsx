@@ -5,12 +5,30 @@ import { Navigator } from "./components/navigator/Navigator";
 import { PageContainer } from "./components/PageContainer";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
 import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import GhostCursor from "./components/GhostCursor";
+import LoadingSpinner from "./components/LoadingSpinner";
 
 const AppContent = () => {
   const location = useLocation();
   const isResetPasswordPage = location.pathname === "/reset-password";
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadFonts = async () => {
+      try {
+        // make sure the fonts are loaded before continuing
+        if (document.fonts) {
+          await document.fonts.ready;
+        }
+      } catch (error) {
+        console.error("Error loading fonts", error);
+      } finally {
+        setFontsLoaded(true);
+      }
+    };
+    loadFonts();
+  }, []);
 
   useEffect(() => {
     const setVh = () => {
@@ -23,6 +41,11 @@ const AppContent = () => {
     window.addEventListener("resize", setVh);
     return () => window.removeEventListener("resize", setVh);
   }, []);
+
+  // if the fonts are not loaded, show the loading spinner
+  if (!fontsLoaded) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <>

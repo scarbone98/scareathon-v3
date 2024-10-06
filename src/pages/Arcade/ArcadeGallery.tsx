@@ -1,6 +1,6 @@
 // src/components/ArcadeGallery.tsx
 import React, { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
+import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, VideoTexture, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
@@ -20,12 +20,12 @@ type Props = {
 
 const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const machinesRef = useRef<THREE.Group[]>([]);
+  const machinesRef = useRef<Group[]>([]);
   const currentAngle = useRef<number>(0);
   const isAnimating = useRef<boolean>(false);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+  const cameraRef = useRef<PerspectiveCamera | null>(null);
+  const rendererRef = useRef<WebGLRenderer | null>(null);
+  const mixerRef = useRef<AnimationMixer | null>(null);
   const [showControls, setShowControls] = useState(true);
   const [focusedMachine, setFocusedMachine] = useState<MachineData | null>(
     null
@@ -33,7 +33,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Gsap promise mode instead of callback
-  function promiseModeGsap(target: THREE.Vector3, config: gsap.TweenVars) {
+  function promiseModeGsap(target: Vector3, config: gsap.TweenVars) {
     return new Promise((resolve) => {
       gsap.to(target, {
         ...config,
@@ -43,8 +43,8 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
   }
 
   useEffect(() => {
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
+    const scene = new Scene();
+    const camera = new PerspectiveCamera(
       75,
       window.innerWidth / window.innerHeight,
       0.1,
@@ -53,7 +53,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     camera.position.set(-0.0065, 1.6, 6.75);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     rendererRef.current = renderer;
@@ -63,21 +63,21 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     }
 
     // Improved lighting setup
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Softer ambient light
+    const ambientLight = new AmbientLight(0xffffff, 0.5); // Softer ambient light
     scene.add(ambientLight);
 
-    const pointLight = new THREE.PointLight(0xffaa55, 1, 50); // Point light with a warm color
+    const pointLight = new PointLight(0xffaa55, 1, 50); // Point light with a warm color
     pointLight.position.set(0, 5, 5); // Adjust position to be slightly in front and above the machines
     scene.add(pointLight);
 
     // Add a directional light for stronger illumination
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 5);
+    const directionalLight = new DirectionalLight(0xffffff, 5);
     directionalLight.position.set(5, 10, 5); // Position the light above and to the side
     directionalLight.castShadow = true; // Enable shadows if needed
     scene.add(directionalLight);
 
     // Create a mapping of machine names to video textures
-    const videoTextureArray: THREE.VideoTexture[] = [];
+    const videoTextureArray: VideoTexture[] = [];
 
     machinesData.forEach((machine) => {
       const video = document.createElement("video");
@@ -88,7 +88,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       video.playsInline = true;
       video.play();
 
-      const videoTexture = new THREE.VideoTexture(video);
+      const videoTexture = new VideoTexture(video);
       videoTexture.repeat.set(1, 1);
 
       videoTextureArray.push(videoTexture);
@@ -96,7 +96,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
     // Load the GLB model using GLTFLoader
     const loader = new GLTFLoader();
-    const machines: THREE.Group[] = [];
+    const machines: Group[] = [];
     const totalMachines = machinesData.length;
     const radius = 5;
 
@@ -104,9 +104,9 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       const model = gltf.scene;
 
       model.traverse((child: any) => {
-        if (child instanceof THREE.Mesh) {
+        if (child instanceof Mesh) {
           if (child.material) {
-            child.material.emissive = new THREE.Color(0x222222);
+            child.material.emissive = new Color(0x222222);
             child.material.emissiveIntensity = 0.25;
             child.material.needsUpdate = true;
           }
@@ -131,7 +131,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
         // Apply video texture to the screen
         machine.traverse((child: any) => {
           if (
-            child instanceof THREE.Mesh &&
+            child instanceof Mesh &&
             child.material &&
             child.material.name === "GreyScreen"
           ) {

@@ -42,13 +42,15 @@ export default function Announcements() {
                   {post.Title}
                 </h2>
                 {post.Image && post.Image.length > 0 && (
-                  <img
-                    src={`${import.meta.env.VITE_STRAPI_BASE_URL}${
-                      post.Image[0].url
-                    }`}
-                    alt={post.Image[0].alternativeText || post.Title}
-                    className="w-full h-auto mb-4 rounded"
-                  />
+                  <div className="flex justify-center mb-4 overflow-hidden rounded bg-black">
+                    <img
+                      src={`https://api.firststreetstudios.com/${
+                        post.Image[0].url
+                      }`}
+                      alt={post.Image[0].alternativeText || post.Title}
+                      className="w-auto max-h-[200px] md:max-h-[300px] object-contain"
+                    />
+                  </div>
                 )}
                 {post.Content && <ContentWithReadMore content={post.Content} />}
                 <p className="text-sm text-gray-500 mt-4">
@@ -71,8 +73,7 @@ function ContentWithReadMore({ content }: { content: any }) {
   useEffect(() => {
     function handleResize() {
       if (contentRef.current) {
-        const isOverflowing =
-          contentRef.current.scrollHeight > contentRef.current.clientHeight;
+        const isOverflowing = contentRef.current.scrollHeight > 190;
         setShowReadMore(isOverflowing);
       }
     }
