@@ -15,7 +15,7 @@ async function routes(fastify, options) {
         try {
             const { game, metric, limit = 10 } = request.query;
             const leaderboard = await pool.query(`
-                SELECT u.username, l.metric_value, l.achieved_at
+                SELECT u.username, u.id, l.metric_value, l.achieved_at
                 FROM leaderboards l
                 JOIN games g ON l.game_id = g.id
                 JOIN users u ON l.user_id = u.id
@@ -24,7 +24,14 @@ async function routes(fastify, options) {
                 LIMIT $3
             `, [game, metric, limit]);
 
-            return { data: leaderboard.rows };
+            const entries = leaderboard.rows.map(row => ({
+                username: row.username,
+                metricValue: row.metric_value,
+                achieved_at: row.achieved_at,
+                isUserScore: row.id === request.user.sub
+            }));
+
+            return { data: entries };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: error.message });

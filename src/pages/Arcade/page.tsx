@@ -101,7 +101,7 @@ export default function Arcade() {
               if ((window as CustomWindow).customFunctions) {
                 ((window as CustomWindow).customFunctions ??= {}).onDeath =
                   async (score: number) => {
-                    const data = await fetchWithAuth("/games/submitScore", {
+                    await fetchWithAuth("/games/submitScore", {
                       method: "POST",
                       headers: {
                         "Content-Type": "application/json",

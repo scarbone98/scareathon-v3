@@ -6,8 +6,9 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 
 interface LeaderboardEntry {
   username: string;
-  metric_value: number;
+  metricValue: number;
   achieved_at: string;
+  isUserScore: boolean;
 }
 
 interface ToolbarProps {
@@ -85,22 +86,29 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentGame }) => {
               <table className="w-full text-white">
                 <thead>
                   <tr>
-                    <th className="text-left sticky top-0 bg-gray-800">Rank</th>
-                    <th className="text-left sticky top-0 bg-gray-800">
+                    <th className="sticky top-0 bg-gray-800 text-center">
+                      Rank
+                    </th>
+                    <th className="sticky top-0 bg-gray-800 text-center">
                       Player
                     </th>
-                    <th className="text-right sticky top-0 bg-gray-800">
+                    <th className="sticky top-0 bg-gray-800 text-center">
                       Score
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {leaderboardData?.map((entry, index) => (
-                    <tr key={index} className="border-t border-gray-700">
-                      <td className="py-2">{index + 1}</td>
-                      <td className="py-2">{entry.username}</td>
-                      <td className="py-2 text-right pr-4">
-                        {entry.metric_value}
+                    <tr
+                      key={index}
+                      className={`${
+                        entry.isUserScore ? "text-yellow-500" : ""
+                      }`}
+                    >
+                      <td className="py-2 text-center">{index + 1}</td>
+                      <td className="py-2 text-center">{entry.username}</td>
+                      <td className="py-2 text-center">
+                        {entry.metricValue}
                       </td>
                     </tr>
                   ))}
