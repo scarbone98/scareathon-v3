@@ -36,7 +36,13 @@ const Profile = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ newUsername }),
-      }).then((res) => res.json()),
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to update username");
+        }
+        return data;
+      }),
     onSuccess: (data) => {
       setSuccessMessage("Username updated successfully!");
       setNewUsername("");
@@ -44,6 +50,11 @@ const Profile = () => {
       if (userData) {
         userData.data.username = data.data.username;
       }
+      setIsEditing(false);
+    },
+    onError: (error: Error) => {
+      setSuccessMessage(null);
+      setValidationError(error.message);
     },
   });
 
@@ -73,9 +84,9 @@ const Profile = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSuccessMessage(null);
-    if (!validationError && newUsername) {
+    setValidationError(null);
+    if (newUsername) {
       updateUsername();
-      setIsEditing(false);
     }
   };
 
@@ -91,11 +102,11 @@ const Profile = () => {
   };
 
   if (isUserLoading) return <LoadingSpinner />;
-  if (userError || updateUsernameError) {
+  if (userError) {
     return (
       <ErrorDisplay
         message={
-          userError?.message || updateUsernameError?.message || "Unknown error"
+          userError?.message || "Unknown error"
         }
       />
     );

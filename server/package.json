@@ -23,6 +23,7 @@
     "google-auth-library": "^9.14.1",
     "google-spreadsheet": "^4.1.4",
     "nodemon": "^3.1.4",
+    "obscenity": "^0.4.0",
     "pg": "^8.12.0",
     "uuid": "^9.0.1"
   },

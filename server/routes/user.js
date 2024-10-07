@@ -1,4 +1,15 @@
 import pool from '../db/mockDB.js';
+import {
+    RegExpMatcher,
+    TextCensor,
+    englishDataset,
+    englishRecommendedTransformers,
+} from 'obscenity';
+
+const profanityMatcher = new RegExpMatcher({
+    ...englishDataset.build(),
+    ...englishRecommendedTransformers,
+});
 
 export default async function (fastify, options) {
 
@@ -19,7 +30,11 @@ export default async function (fastify, options) {
     fastify.put('/updateUsername', async (request, reply) => {
         const userId = request.user.sub;
         const { newUsername } = request.body;
-        console.log(newUsername, userId);
+
+        if (profanityMatcher.hasMatch(newUsername)) {
+            return reply.code(400).send({ error: 'Username contains inappropriate language' });
+        }
+
         if (!userId || !newUsername) {
             return reply.code(400).send({ error: 'User ID and new username are required' });
         }
