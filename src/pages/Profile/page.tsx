@@ -26,8 +26,7 @@ const Profile = () => {
 
   const {
     mutate: updateUsername,
-    isPending: isUpdatingUsername,
-    error: updateUsernameError,
+    isPending: isUpdatingUsername
   } = useMutation({
     mutationFn: () =>
       fetchWithAuth("/user/updateUsername", {
