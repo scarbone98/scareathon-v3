@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS game_specific_data (
 CREATE TABLE IF NOT EXISTS leaderboards (
     id SERIAL PRIMARY KEY,
     game_id INTEGER REFERENCES games (id),
-    user_id UUID REFERENCES users (id),
+    user_id UUID REFERENCES users (id) ON DELETE CASCADE,
     metric_name VARCHAR(50) NOT NULL,
     metric_value NUMERIC NOT NULL,
     achieved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

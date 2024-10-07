@@ -29,4 +29,9 @@ export const navItems = [
     path: "/rules",
     color: "#12D3A979",
   },
+  {
+    name: "Profile",
+    path: "/profile",
+    color: "#8A2BE2",
+  },
 ];

@@ -19,6 +19,7 @@ const AnnouncementDetails = lazy(
 const ResetPassword = lazy(
   () => import("../pages/Authentication/ResetPassword/page")
 );
+const Profile = lazy(() => import("../pages/Profile/page"));
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
@@ -143,6 +144,16 @@ export const AnimatedRoutes = () => {
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
                 <AnnouncementDetails />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Profile />
               </Suspense>
             </ProtectedRoute>
           }
