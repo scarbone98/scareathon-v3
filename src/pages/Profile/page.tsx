@@ -24,38 +24,37 @@ const Profile = () => {
     queryFn: () => fetchWithAuth("/user").then((res) => res.json()),
   });
 
-  const {
-    mutate: updateUsername,
-    isPending: isUpdatingUsername
-  } = useMutation({
-    mutationFn: () =>
-      fetchWithAuth("/user/updateUsername", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ newUsername }),
-      }).then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to update username");
+  const { mutate: updateUsername, isPending: isUpdatingUsername } = useMutation(
+    {
+      mutationFn: () =>
+        fetchWithAuth("/user/updateUsername", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ newUsername }),
+        }).then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to update username");
+          }
+          return data;
+        }),
+      onSuccess: (data) => {
+        setSuccessMessage("Username updated successfully!");
+        setNewUsername("");
+        // Update the local userData state with the new username
+        if (userData) {
+          userData.data.username = data.data.username;
         }
-        return data;
-      }),
-    onSuccess: (data) => {
-      setSuccessMessage("Username updated successfully!");
-      setNewUsername("");
-      // Update the local userData state with the new username
-      if (userData) {
-        userData.data.username = data.data.username;
-      }
-      setIsEditing(false);
-    },
-    onError: (error: Error) => {
-      setSuccessMessage(null);
-      setValidationError(error.message);
-    },
-  });
+        setIsEditing(false);
+      },
+      onError: (error: Error) => {
+        setSuccessMessage(null);
+        setValidationError(error.message);
+      },
+    }
+  );
 
   useEffect(() => {
     // Validate username on type
@@ -102,13 +101,7 @@ const Profile = () => {
 
   if (isUserLoading) return <LoadingSpinner />;
   if (userError) {
-    return (
-      <ErrorDisplay
-        message={
-          userError?.message || "Unknown error"
-        }
-      />
-    );
+    return <ErrorDisplay message={userError?.message || "Unknown error"} />;
   }
 
   return (

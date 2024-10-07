@@ -6,6 +6,7 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
+import Carousel from "../../components/Carousel";
 
 export default function Announcements() {
   const { data, isLoading, error } = useQuery({
@@ -42,14 +43,23 @@ export default function Announcements() {
                   {post.Title}
                 </h2>
                 {post.Image && post.Image.length > 0 && (
-                  <div className="flex justify-center mb-4 overflow-hidden rounded bg-black">
-                    <img
-                      src={`https://api.firststreetstudios.com/${
-                        post.Image[0].url
-                      }`}
-                      alt={post.Image[0].alternativeText || post.Title}
-                      className="w-auto max-h-[200px] md:max-h-[300px] object-contain"
-                    />
+                  <div className="mb-4 overflow-hidden rounded bg-black">
+                    {post.Image.length === 1 ? (
+                      <img
+                        src={`https://api.firststreetstudios.com/${post.Image[0].url}`}
+                        alt={post.Image[0].alternativeText || post.Title}
+                        className="w-full h-auto max-h-[300px] object-contain"
+                      />
+                    ) : (
+                      <Carousel
+                        images={post.Image.map(
+                          (img: any) =>
+                            `https://api.firststreetstudios.com/${img.url}`
+                        )}
+                        autoPlay={true}
+                        interval={5000}
+                      />
+                    )}
                   </div>
                 )}
                 {post.Content && <ContentWithReadMore content={post.Content} />}
