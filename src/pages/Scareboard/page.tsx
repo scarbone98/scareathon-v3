@@ -142,8 +142,8 @@ export default function Scareboard() {
                       )}`}
                     >
                       {user.name}
-                      {getPastWinYears(user.name).map((year: string, index: number) => (
-                        <StarWithYear key={year} year={year} />
+                      {getPastWinYears(user.name).map((year: string) => (
+                        <StarWithYear key={year} year={parseInt(year)} />
                       ))}
                     </td>
                     {otherKeys.map((key) => (
