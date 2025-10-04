@@ -83,11 +83,9 @@ export const AnimatedRoutes = () => {
         <Route
           path="/reset-password"
           element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <ResetPassword />
-              </Suspense>
-            </ProtectedRoute>
+            <Suspense fallback={<LoadingSpinner />}>
+              <ResetPassword />
+            </Suspense>
           }
         />
         <Route

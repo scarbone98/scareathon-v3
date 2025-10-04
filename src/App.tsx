@@ -19,7 +19,10 @@ const AppContent = () => {
       try {
         // make sure the fonts are loaded before continuing
         if (document.fonts) {
-          await document.fonts.ready;
+          await Promise.race([
+            document.fonts.ready,
+            new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
+          ]);
         }
       } catch (error) {
         console.error("Error loading fonts", error);
