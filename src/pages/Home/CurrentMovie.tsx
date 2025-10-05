@@ -1,30 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
+import MovieInfo from "./MovieInfo";
+import StreamingProviders from "./StreamingProviders";
 
 export default function CurrentMovie() {
+  // Get current day in EST
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const dayOfMonth = today.getDate();
+
   const {
-    data: calendarData,
+    data: movieData,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["calendar"],
+    queryKey: ["calendar", "day", dayOfMonth],
     queryFn: () =>
-      fetchWithAuth("/calendar", {
+      fetchWithAuth(`/calendar/${dayOfMonth}`, {
         headers: { "Content-Type": "application/json" },
       }).then((res) => res.json()),
-    staleTime: 1000 * 60 * 60 * 1, // 1 hour
+    staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const getCurrentMovie = () => {
-    if (!calendarData) return null;
-    
-    // Create a date object for the current time in EST
-    const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const dayOfMonth = today.getDate();
-    return calendarData.data[dayOfMonth];
-  };
-
-  const currentMovie = getCurrentMovie();
+  const currentMovie = movieData?.data;
 
   if (isLoading) {
     return (
@@ -51,28 +48,48 @@ export default function CurrentMovie() {
   }
 
   return (
-    <div className="text-blood-red relative">
-      <h2 className="text-3xl md:text-4xl font-bold mb-4 font-spooky">
+    <div className="text-blood-red relative max-w-4xl mx-auto px-4">
+      <h2 className="text-3xl md:text-4xl font-bold mb-6 font-spooky">
         Today's Movie
       </h2>
-      <div className="relative inline-block mb-4">
+
+      {/* Movie poster with zombies */}
+      <div className="relative inline-block mb-6">
         <img
           src={currentMovie.lowResUrl}
           alt={currentMovie.title}
-          className="rounded-lg h-80 md:h-96 lg:h-112 relative z-10" // Added z-index
+          className="rounded-lg h-80 md:h-96 lg:h-112 relative z-10"
         />
         <img
           src="/images/popcornzombie.png"
           alt="Zombie eating popcorn"
-          className="absolute top-0 -left-24 h-full w-auto object-contain transform -translate-x-full z-20" // Added z-index
+          className="absolute top-0 -left-24 h-full w-auto object-contain transform -translate-x-full z-20 hidden lg:block"
         />
         <img
           src="/images/popcornzombie.png"
           alt="Zombie eating popcorn"
-          className="absolute top-0 -right-24 h-full w-auto object-contain transform translate-x-full z-20" // Added z-index
+          className="absolute top-0 -right-24 h-full w-auto object-contain transform translate-x-full z-20 hidden lg:block"
         />
       </div>
-      <p className="text-xl md:text-2xl font-eerie">{currentMovie.title}</p>
+
+      {/* Movie title */}
+      <p className="text-2xl md:text-3xl font-eerie font-bold mb-4">
+        {currentMovie.title}
+      </p>
+
+      {/* Movie info (runtime, year, rating, genres) */}
+      <MovieInfo
+        runtime={currentMovie.runtime}
+        year={currentMovie.year}
+        rating={currentMovie.rating}
+        genres={currentMovie.genres || []}
+      />
+
+      {/* Streaming providers */}
+      <StreamingProviders
+        watchProviders={currentMovie.watchProviders}
+        movieTitle={currentMovie.title}
+      />
     </div>
   );
 }
