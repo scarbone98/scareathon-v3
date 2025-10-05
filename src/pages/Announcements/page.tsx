@@ -46,7 +46,7 @@ export default function Announcements() {
                   <div className="mb-4 overflow-hidden rounded bg-black">
                     {post.Image.length === 1 ? (
                       <img
-                        src={`https://api.firststreetstudios.com/${post.Image[0].url}`}
+                        src={`${import.meta.env.VITE_STRAPI_BASE_URL}${post.Image[0].url}`}
                         alt={post.Image[0].alternativeText || post.Title}
                         className="w-full h-auto max-h-[300px] object-contain"
                       />
@@ -54,7 +54,7 @@ export default function Announcements() {
                       <Carousel
                         images={post.Image.map(
                           (img: any) =>
-                            `https://api.firststreetstudios.com/${img.url}`
+                            `${import.meta.env.VITE_STRAPI_BASE_URL}${img.url}`
                         )}
                         autoPlay={true}
                         interval={5000}
@@ -63,9 +63,17 @@ export default function Announcements() {
                   </div>
                 )}
                 {post.Content && <ContentWithReadMore content={post.Content} />}
-                <p className="text-sm text-gray-500 mt-4">
-                  Published: {new Date(post.publishedAt).toLocaleDateString()}
-                </p>
+                <div className="flex justify-between items-center mt-4">
+                  <p className="text-sm text-gray-500">
+                    Published: {new Date(post.publishedAt).toLocaleDateString()}
+                  </p>
+                  {/* <Link
+                    to={`/post/${post.documentId}`}
+                    className="text-orange-400 hover:text-orange-300 transition-colors duration-200 text-sm font-medium"
+                  >
+                    Read Full Post →
+                  </Link> */}
+                </div>
               </div>
             </motion.div>
           ))}

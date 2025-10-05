@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "debug": "node --inspect=0.0.0.0:9229 index.js",
+    "debug:break": "node --inspect-brk=0.0.0.0:9229 index.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.integration.js",
     "production": "export NODE_ENV=production && node index.js"
