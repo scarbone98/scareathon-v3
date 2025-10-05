@@ -37,7 +37,7 @@ const ResetPassword = () => {
       });
       if (error) throw error;
       setSuccess(true);
-      setTimeout(() => navigate("/"), 3000); // Redirect to home page after 3 seconds
+      setTimeout(() => navigate("/authentication"), 3000); // Redirect to authentication page after 3 seconds
     } catch (error: any) {
       setError(error.message);
     }
@@ -52,7 +52,7 @@ const ResetPassword = () => {
           </h2>
           {success ? (
             <div className="text-green-400 text-center">
-              Password reset successful! Redirecting to home page...
+              Password reset successful! Redirecting to login page...
             </div>
           ) : (
             <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

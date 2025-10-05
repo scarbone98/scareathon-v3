@@ -59,11 +59,11 @@ export default function Scareboard() {
     return "text-red-500";
   };
 
-  const getPastWinYear = (name: string) => {
-    const winner = data?.pastWinners?.data?.find(
+  const getPastWinYears = (name: string) => {
+    const winners = data?.pastWinners?.data?.filter(
       (winner: any) => winner.name === name
     );
-    return winner ? winner.year.slice(2, 4) : null;
+    return winners ? winners.map((winner: any) => winner.year.slice(2, 4)) : [];
   };
 
   const StarWithYear = ({ year }: { year: number }) => (
@@ -142,10 +142,9 @@ export default function Scareboard() {
                       )}`}
                     >
                       {user.name}
-                      {(() => {
-                        const winYear = getPastWinYear(user.name);
-                        return winYear ? <StarWithYear year={winYear} /> : null;
-                      })()}
+                      {getPastWinYears(user.name).map((year: string) => (
+                        <StarWithYear key={year} year={parseInt(year)} />
+                      ))}
                     </td>
                     {otherKeys.map((key) => (
                       <td

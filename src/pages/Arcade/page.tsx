@@ -53,6 +53,58 @@ export default function Arcade() {
         <GameRenderer
           title="Hemlock's Tower"
           url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html"
+          onLoad={() => {
+            window.onmessage = async (e) => {
+              if (e.data.type === "PLAYER_DIED") {
+                await fetchWithAuth("/games/submitScore", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    game: "Hemlock's Tower",
+                    metricName: "score",
+                    metricValue: e.data.score,
+                  }),
+                }).then((res) => res.json());
+              }
+            };
+
+            return () => {
+              window.onmessage = null;
+            };
+          }}
+        />
+      ),
+    },
+    {
+      name: "Tlaloc’s Curse",
+      videoUrl: "",
+      game: (
+        <GameRenderer
+          title="Tlaloc’s Curse"
+          url="https://scarbone98.github.io/tlalocs-curse-pinball/"
+          onLoad={() => {
+            window.onmessage = async (e) => {
+              if (e.data.type === "PLAYER_DIED") {
+                await fetchWithAuth("/games/submitScore", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    game: "Tlaloc’s Curse",
+                    metricName: "score",
+                    metricValue: e.data.score,
+                  }),
+                }).then((res) => res.json());
+              }
+            };
+
+            return () => {
+              window.onmessage = null;
+            };
+          }}
         />
       ),
     },

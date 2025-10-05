@@ -20,6 +20,7 @@ const ResetPassword = lazy(
   () => import("../pages/Authentication/ResetPassword/page")
 );
 const Profile = lazy(() => import("../pages/Profile/page"));
+const Post = lazy(() => import("../pages/Post/page"));
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
@@ -83,11 +84,17 @@ export const AnimatedRoutes = () => {
         <Route
           path="/reset-password"
           element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <ResetPassword />
-              </Suspense>
-            </ProtectedRoute>
+            <Suspense fallback={<LoadingSpinner />}>
+              <ResetPassword />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/post/:documentId"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Post />
+            </Suspense>
           }
         />
         <Route
