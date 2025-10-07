@@ -1,5 +1,4 @@
 {
-    "version": 2,
     "headers": [
         {
             "source": "/index.html",
@@ -11,7 +10,7 @@
             ]
         },
         {
-            "source": "/assets/(.*)",
+            "source": "/assets/:path*",
             "headers": [
                 {
                     "key": "Cache-Control",
@@ -20,7 +19,7 @@
             ]
         },
         {
-            "source": "/(.*\\.(js|mjs|css|map|woff2?|ttf|otf|eot|svg|jpg|jpeg|png|webp|gif))",
+            "source": "/:path*.:ext(js|mjs|css|map|woff2|ttf|otf|eot|svg|jpg|jpeg|png|webp|gif)",
             "headers": [
                 {
                     "key": "Cache-Control",
@@ -31,7 +30,7 @@
     ],
     "rewrites": [
         {
-            "source": "/((?!assets/|.*\\..*).*)",
+            "source": "/((?!assets/).*)",
             "destination": "/index.html"
         }
     ]
