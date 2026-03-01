@@ -3,7 +3,7 @@ dotenv.config();
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import fastifyJwt from '@fastify/jwt';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import calendarRoutes from './routes/calendar.js';
 import postsRoutes from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
@@ -15,8 +15,49 @@ const fastify = Fastify({
     logger: true
 });
 
+function getAuthConfig() {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const projectRef = process.env.SUPABASE_PROJECT_REF;
+    const explicitJwks = process.env.SUPABASE_JWKS_URL;
+
+    if (explicitJwks) {
+        return {
+            issuer: process.env.SUPABASE_JWT_ISSUER || null,
+            jwksUrl: explicitJwks
+        };
+    }
+
+    if (supabaseUrl) {
+        const base = supabaseUrl.replace(/\/$/, '');
+        return {
+            issuer: `${base}/auth/v1`,
+            jwksUrl: `${base}/auth/v1/.well-known/jwks.json`
+        };
+    }
+
+    if (projectRef) {
+        const base = `https://${projectRef}.supabase.co`;
+        return {
+            issuer: `${base}/auth/v1`,
+            jwksUrl: `${base}/auth/v1/.well-known/jwks.json`
+        };
+    }
+
+    throw new Error('Missing SUPABASE_URL or SUPABASE_PROJECT_REF (or SUPABASE_JWKS_URL) for JWT verification.');
+}
+
+function getBearerToken(authHeader) {
+    if (!authHeader || typeof authHeader !== 'string') return null;
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') return null;
+    return parts[1];
+}
+
 async function main() {
     try {
+        const authConfig = getAuthConfig();
+        const jwks = createRemoteJWKSet(new URL(authConfig.jwksUrl));
+
         await fastify.register(cors, {
             origin: [
                 'http://localhost:5173',
@@ -28,19 +69,29 @@ async function main() {
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             credentials: true
         });
-
-        fastify.register(fastifyJwt, {
-            secret: process.env.SUPABASE_JWT_SECRET
-        });
+        fastify.decorateRequest('user', null);
 
         fastify.addHook('preValidation', async (request, reply) => {
             // Skip authentication for 8bitevilreturns routes
-            if (request.url.startsWith('/8bitevilreturns')) {
+            if (request.url.startsWith('/8bitevilreturns') || request.method === 'OPTIONS') {
                 return;
             }
 
             try {
-                await request.jwtVerify();
+                const token = getBearerToken(request.headers.authorization);
+                if (!token) {
+                    return reply.code(401).send({ error: 'Unauthorized: missing bearer token' });
+                }
+
+                const verifyOptions = {
+                    audience: 'authenticated'
+                };
+                if (authConfig.issuer) {
+                    verifyOptions.issuer = authConfig.issuer;
+                }
+
+                const { payload } = await jwtVerify(token, jwks, verifyOptions);
+                request.user = payload;
             } catch (err) {
                 console.log(err);
                 return reply.code(401).send({ error: 'Unauthorized' });

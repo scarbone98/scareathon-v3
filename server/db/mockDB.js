@@ -17,10 +17,23 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 let pool = null;
 
 if (process.env.NODE_ENV === 'production') {
+  const rawConnectionString = process.env.DB_CONNECTION_STRING || '';
+  let connectionString = rawConnectionString;
+  try {
+    const parsed = new URL(rawConnectionString);
+    parsed.searchParams.delete('sslmode');
+    connectionString = parsed.toString();
+  } catch (_) {
+    connectionString = rawConnectionString;
+  }
+
   // Create a new pool
   pool = new Pool({
-    connectionString: process.env.DB_CONNECTION_STRING,
-    password: process.env.DB_PASSWORD
+    connectionString,
+    password: process.env.DB_PASSWORD,
+    ssl: {
+      rejectUnauthorized: false
+    }
   });
 } else {
   pool = new Pool({
