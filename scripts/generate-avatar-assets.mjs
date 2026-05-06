@@ -1,11 +1,24 @@
 import fs from "node:fs";
-import path from "node:path";
 import zlib from "node:zlib";
+import { createClient } from "@supabase/supabase-js";
 
+// Requires SUPABASE_URL or VITE_SUPABASE_URL, plus SUPABASE_SERVICE_ROLE_KEY.
+// Optional: AVATAR_SPRITE_BUCKET, defaulting to the public `avatar-sprites` bucket.
 const SIZE = 64;
 const SCALE = 4;
 const OUT_SIZE = SIZE * SCALE;
-const ROOT = path.resolve("public/avatar");
+
+loadEnvFile();
+
+const bucketName = process.env.AVATAR_SPRITE_BUCKET || "avatar-sprites";
+const supabaseUrl =
+  process.env.SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  (process.env.SUPABASE_PROJECT_REF
+    ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co`
+    : "");
+const supabaseServiceKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
 const slots = {
   body: ["default_body", "pale_body", "green_zombie_body"],
@@ -300,12 +313,96 @@ function png(canvas) {
   ]);
 }
 
-for (const [dir, keys] of Object.entries(slots)) {
-  fs.mkdirSync(path.join(ROOT, dir), { recursive: true });
-  for (const key of keys) {
-    const file = path.join(ROOT, dir, `${key}.png`);
-    fs.writeFileSync(file, png(upscale(drawAsset(key))));
+function loadEnvFile(file = ".env") {
+  if (!fs.existsSync(file)) return;
+
+  const lines = fs.readFileSync(file, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match || process.env[match[1]] !== undefined) continue;
+
+    let value = match[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[match[1]] = value;
   }
 }
 
-console.log("Generated avatar PNG layers.");
+async function ensurePublicBucket(supabase) {
+  const { data: bucket, error: getError } = await supabase.storage.getBucket(bucketName);
+
+  if (getError) {
+    const { error: createError } = await supabase.storage.createBucket(bucketName, {
+      public: true,
+      allowedMimeTypes: ["image/png"],
+    });
+
+    if (createError) {
+      throw new Error(`Unable to create storage bucket "${bucketName}": ${createError.message}`);
+    }
+    return;
+  }
+
+  if (!bucket.public) {
+    const { error: updateError } = await supabase.storage.updateBucket(bucketName, {
+      public: true,
+      allowedMimeTypes: ["image/png"],
+    });
+
+    if (updateError) {
+      throw new Error(`Unable to make storage bucket "${bucketName}" public: ${updateError.message}`);
+    }
+  }
+}
+
+async function uploadAvatarAssets() {
+  if (!supabaseUrl) {
+    throw new Error("Missing SUPABASE_URL, VITE_SUPABASE_URL, or SUPABASE_PROJECT_REF.");
+  }
+  if (!supabaseServiceKey) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY.");
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  await ensurePublicBucket(supabase);
+
+  let uploadedCount = 0;
+  for (const [dir, keys] of Object.entries(slots)) {
+    for (const key of keys) {
+      const storagePath = `${dir}/${key}.png`;
+      const file = png(upscale(drawAsset(key)));
+      const { error } = await supabase.storage.from(bucketName).upload(storagePath, file, {
+        cacheControl: "31536000",
+        contentType: "image/png",
+        upsert: true,
+      });
+
+      if (error) {
+        throw new Error(`Unable to upload ${storagePath}: ${error.message}`);
+      }
+
+      uploadedCount += 1;
+      console.log(`Uploaded ${bucketName}/${storagePath}`);
+    }
+  }
+
+  console.log(`Uploaded ${uploadedCount} avatar PNG layers to public bucket "${bucketName}".`);
+}
+
+uploadAvatarAssets().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});
