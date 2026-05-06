@@ -35,8 +35,25 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       .then(({ supabase }) => {
         if (!isMounted) return;
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
           if (!isMounted) return;
+
+          if (session) {
+            const {
+              data: { user },
+              error,
+            } = await supabase.auth.getUser();
+
+            if (!isMounted) return;
+
+            if (error || !user) {
+              await supabase.auth.signOut();
+              setSession(null);
+              setLoading(false);
+              return;
+            }
+          }
+
           setSession(session);
           setLoading(false);
         });

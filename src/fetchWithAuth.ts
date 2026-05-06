@@ -18,5 +18,9 @@ export async function fetchWithAuth(
     typeof input === "string"
       ? `${baseUrl.replace(/\/$/, "")}/${input.replace(/^\//, "")}`
       : input;
-  return fetch(url, { ...init, headers });
+  const response = await fetch(url, { ...init, headers });
+  if (response.status === 401 && session) {
+    await supabase.auth.signOut();
+  }
+  return response;
 }

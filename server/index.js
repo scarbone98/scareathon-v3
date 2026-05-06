@@ -10,6 +10,7 @@ import leaderboardRoutes from './routes/leaderboard.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import gamesRoutes from './routes/games.js';
 import userRoutes from './routes/user.js';
+import pool from './db/mockDB.js';
 
 const fastify = Fastify({
     logger: true
@@ -92,6 +93,14 @@ async function main() {
 
                 const { payload } = await jwtVerify(token, jwks, verifyOptions);
                 request.user = payload;
+
+                const userResult = await pool.query(
+                    'SELECT 1 FROM users WHERE id = $1',
+                    [payload.sub]
+                );
+                if (userResult.rowCount === 0) {
+                    return reply.code(401).send({ error: 'Unauthorized: user no longer exists' });
+                }
             } catch (err) {
                 console.log(err);
                 return reply.code(401).send({ error: 'Unauthorized' });
