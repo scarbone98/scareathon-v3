@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { FaEdit, FaCheck, FaTimes, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Make sure this import is correct
+import { AvatarEditor } from "../../components/avatar/AvatarEditor";
 
 const Profile = () => {
   const [newUsername, setNewUsername] = useState("");
@@ -59,9 +60,9 @@ const Profile = () => {
   useEffect(() => {
     // Validate username on type
     if (newUsername.length > 0) {
-      if (!/^[a-zA-Z0-9_]{1,20}$/.test(newUsername)) {
+      if (!/^[a-zA-Z0-9_]{1,32}$/.test(newUsername)) {
         setValidationError(
-          "Username must be 1-20 characters long and contain only letters, numbers, and underscores"
+          "Username must be 1-32 characters long and contain only letters, numbers, and underscores"
         );
       } else {
         setValidationError(null);
@@ -111,7 +112,7 @@ const Profile = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className={`relative z-10 bg-gray-950 p-8 rounded-xl shadow-2xl max-w-md w-full h-full md:mb-[100px] flex flex-col gap-4`}
+        className={`relative z-10 bg-gray-950 p-8 rounded-xl shadow-2xl max-w-5xl w-full h-full md:mb-[100px] flex flex-col gap-6`}
       >
         <h2 className="text-3xl font-extrabold text-center text-red-500">
           Profile
@@ -130,6 +131,7 @@ const Profile = () => {
                   onChange={(e) => setNewUsername(e.target.value)}
                   className="bg-gray-800 text-white px-2 py-1 rounded"
                   placeholder={userData?.data?.username}
+                  maxLength={32}
                 />
                 <button
                   type="submit"
@@ -171,7 +173,8 @@ const Profile = () => {
             </div>
           )}
         </div>
-        {/* Add more profile fields here */}
+
+        <AvatarEditor />
 
         {/* Add logout button */}
         <div className="flex justify-center">
