@@ -5,6 +5,7 @@ export type AvatarSlot = {
 
 export type AvatarItem = {
   id: number;
+  itemInstanceId: number;
   itemKey: string;
   name: string;
   slot: string;

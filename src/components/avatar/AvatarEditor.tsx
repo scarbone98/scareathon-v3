@@ -8,7 +8,11 @@ import { AvatarPreview } from "./AvatarPreview";
 import type { AvatarData, AvatarItem, AvatarResponse } from "./types";
 
 function sortEquipped(layers: AvatarItem[]) {
-  return [...layers].sort((a, b) => a.layerOrder - b.layerOrder || a.id - b.id);
+  return [...layers].sort(
+    (a, b) =>
+      a.layerOrder - b.layerOrder ||
+      (a.itemInstanceId || a.id) - (b.itemInstanceId || b.id)
+  );
 }
 
 function replaceEquippedItem(data: AvatarData, slot: string, item: AvatarItem) {
@@ -42,11 +46,17 @@ export function AvatarEditor() {
   }, [avatar]);
 
   const equipMutation = useMutation({
-    mutationFn: async ({ slot, itemKey }: { slot: string; itemKey: string }) => {
+    mutationFn: async ({
+      slot,
+      itemInstanceId,
+    }: {
+      slot: string;
+      itemInstanceId: number;
+    }) => {
       const response = await fetchWithAuth("/user/avatar/equip", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot, itemKey }),
+        body: JSON.stringify({ slot, itemInstanceId }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -54,11 +64,11 @@ export function AvatarEditor() {
       }
       return data as AvatarResponse;
     },
-    onMutate: async ({ slot, itemKey }) => {
+    onMutate: async ({ slot, itemInstanceId }) => {
       await queryClient.cancelQueries({ queryKey: ["avatar"] });
       const previous = queryClient.getQueryData<AvatarResponse>(["avatar"]);
       const item = previous?.data.inventory[slot]?.find(
-        (inventoryItem) => inventoryItem.itemKey === itemKey
+        (inventoryItem) => inventoryItem.itemInstanceId === itemInstanceId
       );
 
       if (previous && item) {
@@ -126,15 +136,17 @@ export function AvatarEditor() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {activeItems.map((item) => {
-              const isEquipped = equippedBySlot.get(activeSlot)?.itemKey === item.itemKey;
+              const equippedItem = equippedBySlot.get(activeSlot);
+              const isEquipped = equippedItem?.itemInstanceId === item.itemInstanceId;
+
               return (
                 <button
-                  key={item.itemKey}
+                  key={item.itemInstanceId}
                   type="button"
                   onClick={() =>
                     equipMutation.mutate({
                       slot: activeSlot,
-                      itemKey: item.itemKey,
+                      itemInstanceId: item.itemInstanceId,
                     })
                   }
                   disabled={equipMutation.isPending && !isEquipped}

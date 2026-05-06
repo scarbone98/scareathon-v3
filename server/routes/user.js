@@ -37,6 +37,7 @@ function getAvatarAssetUrl(assetPath) {
 function serializeAvatarItem(row) {
     return {
         id: row.id,
+        itemInstanceId: Number(row.item_instance_id),
         itemKey: row.item_key,
         name: row.name,
         slot: row.slot,
@@ -49,11 +50,26 @@ function serializeAvatarItem(row) {
     };
 }
 
+function serializeCurrencyTransaction(row) {
+    return {
+        id: row.id,
+        amount: Number(row.amount),
+        balanceAfter: Number(row.balance_after),
+        transactionType: row.transaction_type,
+        sourceType: row.source_type,
+        sourceId: row.source_id,
+        counterpartyUserId: row.counterparty_user_id,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+    };
+}
+
 async function getAvatarPayload(userId) {
     await pool.query('SELECT public.seed_user_avatar_defaults($1)', [userId]);
 
     const equippedResult = await pool.query(`
-        SELECT ai.id, ai.item_key, ai.name, ai.slot, ai.layer_order, ai.asset_path, ai.is_default, ai.is_starter
+        SELECT ai.id, ua.item_instance_id, ai.item_key, ai.name, ai.slot, ai.layer_order,
+            ai.asset_path, ai.is_default, ai.is_starter
         FROM user_avatar ua
         JOIN avatar_items ai ON ai.id = ua.item_id
         WHERE ua.user_id = $1
@@ -61,11 +77,21 @@ async function getAvatarPayload(userId) {
     `, [userId]);
 
     const inventoryResult = await pool.query(`
-        SELECT ai.id, ai.item_key, ai.name, ai.slot, ai.layer_order, ai.asset_path, ai.is_default, ai.is_starter
-        FROM user_inventory ui
-        JOIN avatar_items ai ON ai.id = ui.item_id
-        WHERE ui.user_id = $1
-        ORDER BY ai.slot ASC, ai.layer_order ASC, ai.name ASC
+        SELECT
+            ai.id,
+            uii.id AS item_instance_id,
+            ai.item_key,
+            ai.name,
+            ai.slot,
+            ai.layer_order,
+            ai.asset_path,
+            ai.is_default,
+            ai.is_starter
+        FROM user_item_instances uii
+        JOIN avatar_items ai ON ai.id = uii.item_id
+        WHERE uii.user_id = $1
+          AND uii.status = 'owned'
+        ORDER BY ai.slot ASC, ai.layer_order ASC, ai.name ASC, uii.id ASC
     `, [userId]);
 
     const inventory = avatarSlots.reduce((acc, { slot }) => {
@@ -111,12 +137,48 @@ export default async function (fastify, options) {
         }
     });
 
+    fastify.get('/wallet', async (request, reply) => {
+        const userId = request.user.sub;
+        const limit = Math.min(Math.max(parseInt(request.query?.limit || '25', 10), 1), 100);
+
+        try {
+            await pool.query('SELECT public.ensure_user_wallet($1)', [userId]);
+
+            const walletResult = await pool.query(`
+                SELECT coin_balance, created_at, updated_at
+                FROM user_wallets
+                WHERE user_id = $1
+            `, [userId]);
+
+            const transactionResult = await pool.query(`
+                SELECT id, amount, balance_after, transaction_type, source_type, source_id,
+                    counterparty_user_id, metadata, created_at
+                FROM currency_transactions
+                WHERE user_id = $1
+                ORDER BY created_at DESC, id DESC
+                LIMIT $2
+            `, [userId, limit]);
+
+            return {
+                data: {
+                    coinBalance: Number(walletResult.rows[0]?.coin_balance || 0),
+                    createdAt: walletResult.rows[0]?.created_at,
+                    updatedAt: walletResult.rows[0]?.updated_at,
+                    transactions: transactionResult.rows.map(serializeCurrencyTransaction),
+                },
+            };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while fetching the wallet' });
+        }
+    });
+
     fastify.put('/avatar/equip', async (request, reply) => {
         const userId = request.user.sub;
-        const { slot, itemKey } = request.body || {};
+        const { slot, itemInstanceId } = request.body || {};
 
-        if (!slot || !itemKey) {
-            return reply.code(400).send({ error: 'Slot and itemKey are required' });
+        if (!slot || !itemInstanceId) {
+            return reply.code(400).send({ error: 'Slot and itemInstanceId are required' });
         }
 
         if (!avatarSlots.some((avatarSlot) => avatarSlot.slot === slot)) {
@@ -125,11 +187,14 @@ export default async function (fastify, options) {
 
         try {
             const itemResult = await pool.query(`
-                SELECT ai.id, ai.slot
+                SELECT ai.id, ai.slot, uii.id AS item_instance_id
                 FROM avatar_items ai
-                JOIN user_inventory ui ON ui.item_id = ai.id
-                WHERE ui.user_id = $1 AND ai.item_key = $2
-            `, [userId, itemKey]);
+                JOIN user_item_instances uii ON uii.item_id = ai.id
+                WHERE uii.user_id = $1
+                  AND uii.id = $2
+                  AND uii.status = 'owned'
+                LIMIT 1
+            `, [userId, itemInstanceId]);
 
             if (itemResult.rowCount === 0) {
                 return reply.code(404).send({ error: 'Avatar item is not in your inventory' });
@@ -141,11 +206,14 @@ export default async function (fastify, options) {
             }
 
             await pool.query(`
-                INSERT INTO user_avatar (user_id, slot, item_id, updated_at)
-                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                INSERT INTO user_avatar (user_id, slot, item_id, item_instance_id, updated_at)
+                VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id, slot)
-                DO UPDATE SET item_id = EXCLUDED.item_id, updated_at = CURRENT_TIMESTAMP
-            `, [userId, slot, item.id]);
+                DO UPDATE SET
+                    item_id = EXCLUDED.item_id,
+                    item_instance_id = EXCLUDED.item_instance_id,
+                    updated_at = CURRENT_TIMESTAMP
+            `, [userId, slot, item.id, item.item_instance_id]);
 
             return { data: await getAvatarPayload(userId) };
         } catch (error) {
@@ -159,17 +227,29 @@ export default async function (fastify, options) {
         try {
             await pool.query('SELECT public.seed_user_avatar_defaults($1)', [userId]);
             await pool.query(`
-                INSERT INTO user_avatar (user_id, slot, item_id, updated_at)
-                SELECT DISTINCT ON (slot)
+                INSERT INTO user_avatar (user_id, slot, item_id, item_instance_id, updated_at)
+                SELECT DISTINCT ON (avatar_items.slot)
                     $1,
-                    slot,
-                    id,
+                    avatar_items.slot,
+                    avatar_items.id,
+                    (
+                        SELECT uii.id
+                        FROM user_item_instances uii
+                        WHERE uii.user_id = $1
+                          AND uii.item_id = avatar_items.id
+                          AND uii.status = 'owned'
+                        ORDER BY uii.id ASC
+                        LIMIT 1
+                    ),
                     CURRENT_TIMESTAMP
                 FROM avatar_items
                 WHERE is_default = TRUE
-                ORDER BY slot, layer_order, id
+                ORDER BY avatar_items.slot, avatar_items.layer_order, avatar_items.id
                 ON CONFLICT (user_id, slot)
-                DO UPDATE SET item_id = EXCLUDED.item_id, updated_at = CURRENT_TIMESTAMP
+                DO UPDATE SET
+                    item_id = EXCLUDED.item_id,
+                    item_instance_id = EXCLUDED.item_instance_id,
+                    updated_at = CURRENT_TIMESTAMP
             `, [userId]);
 
             return { data: await getAvatarPayload(userId) };

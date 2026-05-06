@@ -10,6 +10,7 @@ import leaderboardRoutes from './routes/leaderboard.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import gamesRoutes from './routes/games.js';
 import userRoutes from './routes/user.js';
+import marketplaceRoutes from './routes/marketplace.js';
 import pool from './db/mockDB.js';
 
 const fastify = Fastify({
@@ -114,6 +115,7 @@ async function main() {
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
         fastify.register(userRoutes, { prefix: '/user' });
+        fastify.register(marketplaceRoutes, { prefix: '/marketplace' });
 
         // Run the server!
         const start = async () => {

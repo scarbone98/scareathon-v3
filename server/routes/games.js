@@ -1,5 +1,26 @@
 import pool from '../db/mockDB.js';
 
+export function calculateRuleAward(rule, metricValue) {
+    if (rule.min_metric_value !== null && Number(metricValue) < Number(rule.min_metric_value)) {
+        return 0;
+    }
+
+    let award = 0;
+    if (rule.reward_type === 'fixed') {
+        award = Number(rule.fixed_amount || 0);
+    }
+
+    if (rule.reward_type === 'multiplier') {
+        award = Math.floor(Number(metricValue) * Number(rule.multiplier || 0));
+    }
+
+    if (rule.max_reward !== null) {
+        award = Math.min(award, Number(rule.max_reward));
+    }
+
+    return Math.max(0, award);
+}
+
 async function routes(fastify, options) {
     fastify.get('/', async (request, reply) => {
         try {
@@ -39,27 +60,83 @@ async function routes(fastify, options) {
     });
 
     fastify.post('/submitScore', async (request, reply) => {
+        const client = await pool.connect();
         try {
             const userId = request.user.sub;
             const { game, metricName, metricValue } = request.body;
+            const numericMetricValue = Number(metricValue);
+
+            if (!game || !metricName || !Number.isFinite(numericMetricValue)) {
+                return reply.code(400).send({ error: 'Game, metricName, and numeric metricValue are required' });
+            }
+
+            await client.query('BEGIN');
+
             // First, get the game_id
-            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await client.query('SELECT id FROM games WHERE name = $1', [game]);
             if (gameResult.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return reply.code(400).send({ error: 'Game not found' });
             }
             const gameId = gameResult.rows[0].id;
 
             // Insert a new leaderboard entry
-            const result = await pool.query(`
+            const result = await client.query(`
                 INSERT INTO leaderboards (game_id, user_id, metric_name, metric_value)
                 VALUES ($1, $2, $3, $4)
                 RETURNING *
-            `, [gameId, userId, metricName, metricValue]);
+            `, [gameId, userId, metricName, numericMetricValue]);
 
-            return { data: result.rows[0] };
+            const scoreRow = result.rows[0];
+            const rewardRulesResult = await client.query(`
+                SELECT id, reward_type, fixed_amount, multiplier, min_metric_value, max_reward
+                FROM arcade_reward_rules
+                WHERE game_id = $1
+                  AND metric_name = $2
+                  AND is_active = TRUE
+                  AND (starts_at IS NULL OR starts_at <= now())
+                  AND (ends_at IS NULL OR ends_at > now())
+            `, [gameId, metricName]);
+
+            const coinsAwarded = rewardRulesResult.rows.reduce((total, rule) => {
+                return total + calculateRuleAward(rule, numericMetricValue);
+            }, 0);
+
+            let coinBalance = null;
+            if (coinsAwarded > 0) {
+                const walletResult = await client.query(`
+                    SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
+                `, [
+                    userId,
+                    coinsAwarded,
+                    'arcade_score',
+                    String(scoreRow.id),
+                    JSON.stringify({
+                        gameId,
+                        game,
+                        metricName,
+                        metricValue: numericMetricValue,
+                        ruleIds: rewardRulesResult.rows.map((rule) => rule.id),
+                    }),
+                ]);
+                coinBalance = Number(walletResult.rows[0].coin_balance);
+            }
+
+            await client.query('COMMIT');
+
+            return {
+                data: {
+                    ...scoreRow,
+                    coinsAwarded,
+                    coinBalance,
+                },
+            };
         } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
             fastify.log.error(error);
             return reply.code(500).send({ error: error.message });
+        } finally {
+            client.release();
         }
     });
 
