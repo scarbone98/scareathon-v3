@@ -1,12 +1,12 @@
-import ArcadeGallery from "./ArcadeGallery.tsx";
 import AnimatedPage from "../../components/AnimatedPage";
-import { useState, Suspense, lazy } from "react";
+import { useState, Suspense, lazy, type ReactNode } from "react";
 import { supabase } from "../../supabaseClient";
 import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import Toolbar from "./Toolbar.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
-// @ts-ignore
+
+const ArcadeGallery = lazy(() => import("./ArcadeGallery.tsx"));
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
 interface CustomWindow extends Window {
@@ -15,10 +15,20 @@ interface CustomWindow extends Window {
   };
 }
 
-export default function Arcade() {
-  const [selectedMachine, setSelectedMachine] = useState<any | null>(null);
+type GameInstance = {
+  destroy?: (removeCanvas?: boolean) => void;
+};
 
-  const machinesData = [
+type MachineData = {
+  name: string;
+  videoUrl?: string;
+  game: ReactNode;
+};
+
+export default function Arcade() {
+  const [selectedMachine, setSelectedMachine] = useState<MachineData | null>(null);
+
+  const machinesData: MachineData[] = [
     {
       name: "8 Bit Evil Returns",
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
@@ -145,7 +155,7 @@ export default function Arcade() {
       game: (
         <Suspense fallback={<LoadingSpinner />}>
           <EightBitEvil
-            onLoad={(gameInstance: any) => {
+            onLoad={(gameInstance: GameInstance) => {
               if (!(window as CustomWindow).customFunctions) {
                 (window as CustomWindow).customFunctions = {};
               }
@@ -168,7 +178,7 @@ export default function Arcade() {
               }
 
               return () => {
-                gameInstance?.destroy(true);
+                gameInstance?.destroy?.(true);
                 (window as CustomWindow).customFunctions = {};
               };
             }}
@@ -178,16 +188,18 @@ export default function Arcade() {
     },
   ];
 
-  const handleMachineSelected = (machine: any) => {
+  const handleMachineSelected = (machine: MachineData) => {
     setSelectedMachine(machine);
   };
 
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
-      <ArcadeGallery
-        machinesData={machinesData}
-        onPlay={handleMachineSelected}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <ArcadeGallery
+          machinesData={machinesData}
+          onPlay={handleMachineSelected}
+        />
+      </Suspense>
       {selectedMachine?.game && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center">
           <div className="relative h-fit w-fit flex justify-center items-center">

@@ -1,8 +1,22 @@
 import calendarSheet from '../db/google-sheets.js';
-import { getCache, setCache } from '../utils/cacheManager.js';
+import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
+
+const LEADERBOARD_TTL = 5 * 60 * 1000;
+const CLIENT_CACHE_SECONDS = 5 * 60;
+
+function setReadCacheHeaders(reply) {
+    reply.header('Cache-Control', `private, max-age=${CLIENT_CACHE_SECONDS}, stale-while-revalidate=60`);
+}
 
 export default async function (fastify, options) {
     fastify.get('/leaderboard', async (request, reply) => {
+        const cacheKey = 'leaderboard';
+        const cachedData = getCache(cacheKey);
+        if (cachedData) {
+            setReadCacheHeaders(reply);
+            return { data: cachedData };
+        }
+
         try {
             const doc = await calendarSheet();
             const sheet = doc.sheetsByTitle['Users'];
@@ -27,11 +41,15 @@ export default async function (fastify, options) {
                 user.rank = rank;
             });
 
-            setCache('leaderboard', users);
+            setCache(cacheKey, users, LEADERBOARD_TTL);
+            setReadCacheHeaders(reply);
             return { data: users };
         } catch (err) {
-            const cachedData = getCache('leaderboard');
-            if (cachedData) return { data: cachedData };
+            const staleData = getStaleCache(cacheKey);
+            if (staleData) {
+                setReadCacheHeaders(reply);
+                return { data: staleData };
+            }
 
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });
@@ -39,6 +57,13 @@ export default async function (fastify, options) {
     });
 
     fastify.get('/past-winners', async (request, reply) => {
+        const cacheKey = 'pastWinners';
+        const cachedData = getCache(cacheKey);
+        if (cachedData) {
+            setReadCacheHeaders(reply);
+            return { data: cachedData };
+        }
+
         try {
             const doc = await calendarSheet();
             const sheet = doc.sheetsByTitle['Winners'];
@@ -53,11 +78,15 @@ export default async function (fastify, options) {
                 return pastWinnerObject;
             });
 
-            setCache('pastWinners', pastWinners);
+            setCache(cacheKey, pastWinners, LEADERBOARD_TTL);
+            setReadCacheHeaders(reply);
             return { data: pastWinners };
         } catch (err) {
-            const cachedData = getCache('pastWinners');
-            if (cachedData) return { data: cachedData };
+            const staleData = getStaleCache(cacheKey);
+            if (staleData) {
+                setReadCacheHeaders(reply);
+                return { data: staleData };
+            }
 
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });

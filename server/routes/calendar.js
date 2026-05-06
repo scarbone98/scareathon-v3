@@ -1,18 +1,24 @@
 import calendarSheet from '../db/google-sheets.js';
-import { getCache, setCache } from '../utils/cacheManager.js';
+import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
 import { enrichMovieData } from '../utils/tmdb.js';
+
+const CALENDAR_TTL = 60 * 60 * 1000;
+const CALENDAR_DAY_TTL = 30 * 60 * 1000;
+
+function setReadCacheHeaders(reply, seconds) {
+    reply.header('Cache-Control', `private, max-age=${seconds}, stale-while-revalidate=60`);
+}
 
 export default async function (fastify, options) {
     fastify.get('/calendar', async (request, reply) => {
+        const cacheKey = 'calendar';
+        const cachedData = getCache(cacheKey);
+        if (cachedData) {
+            setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
+            return { data: cachedData };
+        }
+
         try {
-            // Check if calendar data is cached
-            const cacheKey = 'calendar';
-            const cachedData = getCache(cacheKey);
-
-            if (cachedData) {
-                return { data: cachedData };
-            }
-
             const doc = await calendarSheet();
             const sheet = doc.sheetsByIndex[0];
             await sheet.loadCells();
@@ -36,13 +42,16 @@ export default async function (fastify, options) {
                 data.push(rowData);
             }
 
-            // Cache for 1 hour
-            setCache(cacheKey, data, 60 * 60 * 1000);
+            setCache(cacheKey, data, CALENDAR_TTL);
+            setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
 
             return { data: data };
         } catch (err) {
-            const cachedData = getCache('calendar');
-            if (cachedData) return { data: cachedData };
+            const staleData = getStaleCache(cacheKey);
+            if (staleData) {
+                setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
+                return { data: staleData };
+            }
 
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });
@@ -62,6 +71,7 @@ export default async function (fastify, options) {
             const cachedDayData = getCache(dayCacheKey);
 
             if (cachedDayData) {
+                setReadCacheHeaders(reply, CALENDAR_DAY_TTL / 1000);
                 return { data: cachedDayData };
             }
 
@@ -98,7 +108,7 @@ export default async function (fastify, options) {
                 }
 
                 calendarData = data;
-                setCache(calendarCacheKey, data, 60 * 60 * 1000);
+                setCache(calendarCacheKey, data, CALENDAR_TTL);
             }
 
             // Find the movie for the specific day
@@ -122,11 +132,17 @@ export default async function (fastify, options) {
                 enrichedMovie = dayMovie; // Return original data if enrichment fails
             }
 
-            // Cache the enriched day data for 30 minutes
-            setCache(dayCacheKey, enrichedMovie, 30 * 60 * 1000);
+            setCache(dayCacheKey, enrichedMovie, CALENDAR_DAY_TTL);
+            setReadCacheHeaders(reply, CALENDAR_DAY_TTL / 1000);
 
             return { data: enrichedMovie };
         } catch (err) {
+            const staleDayData = getStaleCache(`calendar_day_enriched_${request.params.day}`);
+            if (staleDayData) {
+                setReadCacheHeaders(reply, CALENDAR_DAY_TTL / 1000);
+                return { data: staleDayData };
+            }
+
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });
         }

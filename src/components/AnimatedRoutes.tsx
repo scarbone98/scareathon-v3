@@ -2,8 +2,8 @@
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useState, Suspense } from "react";
-import { supabase } from "../supabaseClient"; // Ensure this import path is correct
 import { lazy } from "react";
+import type { Session } from "@supabase/supabase-js";
 import LoadingSpinner from "./LoadingSpinner";
 
 const Home = lazy(() => import("../pages/Home/page"));
@@ -23,23 +23,45 @@ const Profile = lazy(() => import("../pages/Profile/page"));
 const Post = lazy(() => import("../pages/Post/page"));
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    import("../supabaseClient")
+      .then(({ supabase }) => {
+        if (!isMounted) return;
 
-    return () => subscription.unsubscribe();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!isMounted) return;
+          setSession(session);
+          setLoading(false);
+        });
+
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (isMounted) {
+            setSession(session);
+          }
+        });
+
+        unsubscribe = () => subscription.unsubscribe();
+      })
+      .catch((error) => {
+        console.error("Error loading auth client", error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
   }, []);
 
   if (loading) {

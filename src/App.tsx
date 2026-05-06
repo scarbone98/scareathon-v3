@@ -6,7 +6,6 @@ import { PageContainer } from "./components/PageContainer";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import GhostCursor from "./components/GhostCursor";
 import LoadingSpinner from "./components/LoadingSpinner";
 
 const AppContent = () => {
@@ -52,7 +51,6 @@ const AppContent = () => {
 
   return (
     <>
-      <GhostCursor />
       {!isResetPasswordPage && <Navigator />}
       <PageContainer>
         <AnimatedRoutes />
