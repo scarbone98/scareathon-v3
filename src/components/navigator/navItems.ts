@@ -25,6 +25,11 @@ export const navItems = [
     color: "#69033B",
   },
   {
+    name: "Inbox",
+    path: "/inbox",
+    color: "#F59E0B",
+  },
+  {
     name: "Rules",
     path: "/rules",
     color: "#12D3A979",

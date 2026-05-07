@@ -80,22 +80,29 @@ async function main() {
                 return;
             }
 
+            const token = getBearerToken(request.headers.authorization);
+            if (!token) {
+                return reply.code(401).send({ error: 'Unauthorized: missing bearer token' });
+            }
+
+            const verifyOptions = {
+                audience: 'authenticated'
+            };
+            if (authConfig.issuer) {
+                verifyOptions.issuer = authConfig.issuer;
+            }
+
+            let payload;
             try {
-                const token = getBearerToken(request.headers.authorization);
-                if (!token) {
-                    return reply.code(401).send({ error: 'Unauthorized: missing bearer token' });
-                }
+                ({ payload } = await jwtVerify(token, jwks, verifyOptions));
+            } catch (err) {
+                request.log.warn({ err }, 'Supabase JWT verification failed');
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
 
-                const verifyOptions = {
-                    audience: 'authenticated'
-                };
-                if (authConfig.issuer) {
-                    verifyOptions.issuer = authConfig.issuer;
-                }
+            request.user = payload;
 
-                const { payload } = await jwtVerify(token, jwks, verifyOptions);
-                request.user = payload;
-
+            try {
                 const userResult = await pool.query(
                     'SELECT 1 FROM users WHERE id = $1',
                     [payload.sub]
@@ -104,8 +111,8 @@ async function main() {
                     return reply.code(401).send({ error: 'Unauthorized: user no longer exists' });
                 }
             } catch (err) {
-                console.log(err);
-                return reply.code(401).send({ error: 'Unauthorized' });
+                request.log.error({ err }, 'Database unavailable during auth user check');
+                return reply.code(503).send({ error: 'Database unavailable' });
             }
         });
 

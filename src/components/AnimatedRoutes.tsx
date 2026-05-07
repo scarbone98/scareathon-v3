@@ -4,6 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import { useEffect, useState, Suspense } from "react";
 import { lazy } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { shouldClearAuthSession } from "../authErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
 const Home = lazy(() => import("../pages/Home/page"));
@@ -21,6 +22,7 @@ const ResetPassword = lazy(
 );
 const Profile = lazy(() => import("../pages/Profile/page"));
 const Post = lazy(() => import("../pages/Post/page"));
+const Inbox = lazy(() => import("../pages/Inbox/page"));
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,8 +49,12 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
             if (!isMounted) return;
 
             if (error || !user) {
-              await supabase.auth.signOut();
-              setSession(null);
+              if (shouldClearAuthSession(error)) {
+                await supabase.auth.signOut();
+                setSession(null);
+              } else {
+                setSession(session);
+              }
               setLoading(false);
               return;
             }
@@ -200,6 +206,16 @@ export const AnimatedRoutes = () => {
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
                 <Profile />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inbox"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Inbox />
               </Suspense>
             </ProtectedRoute>
           }
