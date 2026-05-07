@@ -105,10 +105,13 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 export const AnimatedRoutes = () => {
   const location = useLocation();
+  const routeAnimationKey = location.pathname.startsWith("/profile")
+    ? "/profile"
+    : location.pathname;
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location} key={routeAnimationKey}>
         <Route
           path="/"
           element={

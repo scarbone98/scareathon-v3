@@ -164,66 +164,70 @@ const Profile = () => {
     return <ErrorDisplay message={userError?.message || "Unknown error"} />;
   }
 
+  const coinBalance = walletData?.data.coinBalance || 0;
+
   return (
-    <AnimatedPage className="home-background flex justify-center items-center relative px-4">
+    <AnimatedPage className="home-background relative flex items-start justify-center px-4 py-6 md:py-10">
       <div className="home-gradient"></div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className={`relative z-10 bg-gray-950 p-8 rounded-xl shadow-2xl max-w-5xl w-full h-full md:mb-[100px] flex flex-col gap-6`}
+        className="relative z-10 flex h-full w-full max-w-6xl flex-col gap-5 rounded-xl bg-gray-950 p-5 shadow-2xl sm:p-6 md:mb-[100px]"
       >
-        <h2 className="text-3xl font-extrabold text-center text-red-500">
-          Profile
-        </h2>
+        <div className="flex flex-col gap-4 border-b border-red-950/70 pb-5 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-center text-3xl font-extrabold text-red-500 md:text-left">
+            Profile
+          </h2>
 
-        <div className="mx-auto grid w-full max-w-md grid-cols-2 rounded border border-red-950 bg-black/50 p-1">
-          <Link
-            to="/profile"
-            className={`inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-lg transition ${
-              activeTab === "settings"
-                ? "bg-red-700 text-white"
-                : "text-gray-300 hover:bg-red-950/50 hover:text-white"
-            }`}
-          >
-            <FaCog />
-            Settings
-          </Link>
-          <Link
-            to="/profile/inbox"
-            className={`inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-lg transition ${
-              activeTab === "inbox"
-                ? "bg-red-700 text-white"
-                : "text-gray-300 hover:bg-red-950/50 hover:text-white"
-            }`}
-          >
-            <FaEnvelope />
-            Inbox
-            {unreadInboxCount > 0 && (
-              <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-black">
-                +{unreadInboxCount}
-              </span>
-            )}
-          </Link>
+          <div className="grid w-full grid-cols-2 rounded border border-red-950 bg-black/50 p-1 md:max-w-md">
+            <Link
+              to="/profile"
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
+                activeTab === "settings"
+                  ? "bg-red-700 text-white"
+                  : "text-gray-300 hover:bg-red-950/50 hover:text-white"
+              }`}
+            >
+              <FaCog />
+              Settings
+            </Link>
+            <Link
+              to="/profile/inbox"
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
+                activeTab === "inbox"
+                  ? "bg-red-700 text-white"
+                  : "text-gray-300 hover:bg-red-950/50 hover:text-white"
+              }`}
+            >
+              <FaEnvelope />
+              Inbox
+              {unreadInboxCount > 0 && (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-black">
+                  +{unreadInboxCount}
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
 
         {activeTab === "inbox" ? (
           <InboxContent embedded />
         ) : (
           <>
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center space-x-4">
-                <p className="text-xl text-gray-300">Username:</p>
+            <div className="grid gap-4 border-b border-red-950/70 pb-5 md:grid-cols-2">
+              <div className="flex min-h-24 flex-col justify-center gap-2 rounded border border-red-950/70 bg-black/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-lg text-gray-300">Username</p>
                 {isEditing ? (
                   <form
                     onSubmit={handleSubmit}
-                    className="flex items-center space-x-2"
+                    className="flex flex-wrap items-center gap-2"
                   >
                     <input
                       type="text"
                       value={newUsername}
                       onChange={(e) => setNewUsername(e.target.value)}
-                      className="bg-gray-800 text-white px-2 py-1 rounded"
+                      className="min-w-0 rounded bg-gray-800 px-2 py-1 text-white"
                       placeholder={userData?.data?.username}
                       maxLength={32}
                     />
@@ -245,7 +249,7 @@ const Profile = () => {
                     </button>
                   </form>
                 ) : (
-                  <>
+                  <div className="flex items-center gap-3">
                     <p className="text-2xl font-bold text-red-500">
                       {userData?.data?.username}
                     </p>
@@ -255,31 +259,38 @@ const Profile = () => {
                     >
                       <FaEdit />
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
-              {validationError && (
-                <div className="text-red-500 text-lg">{validationError}</div>
-              )}
-              {successMessage && (
-                <div className="text-green-400 text-lg animate-pulse">
-                  {successMessage}
+
+              <div className="flex min-h-24 items-center justify-between gap-4 rounded border border-amber-500/60 bg-amber-950/30 px-4 py-3 text-amber-100">
+                <div className="flex items-center gap-3">
+                  <FaCoins className="text-2xl text-amber-300" />
+                  <span className="text-lg text-amber-200">Coins</span>
+                </div>
+                <div className="text-2xl font-bold text-amber-300">
+                  {isWalletLoading
+                    ? "..."
+                    : walletError
+                      ? "Unavailable"
+                      : coinBalance.toLocaleString()}
+                </div>
+              </div>
+
+              {(validationError || successMessage) && (
+                <div className="md:col-span-2">
+                  {validationError && (
+                    <div className="text-center text-lg text-red-500">
+                      {validationError}
+                    </div>
+                  )}
+                  {successMessage && (
+                    <div className="animate-pulse text-center text-lg text-green-400">
+                      {successMessage}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-
-            <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-4 rounded border border-amber-500/60 bg-amber-950/30 px-5 py-4 text-amber-100 shadow-lg">
-              <div className="flex items-center gap-3">
-                <FaCoins className="text-2xl text-amber-300" />
-                <span className="text-lg text-amber-200">Coins</span>
-              </div>
-              <div className="text-2xl font-bold text-amber-300">
-                {isWalletLoading
-                  ? "..."
-                  : walletError
-                    ? "Unavailable"
-                    : (walletData?.data.coinBalance || 0).toLocaleString()}
-              </div>
             </div>
 
             <AvatarEditor />

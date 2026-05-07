@@ -3,6 +3,15 @@ import { useRef, useEffect, useState } from "react";
 import { useNavigatorContext } from "./context";
 import { navItems } from "./navItems";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { fetchWithAuth } from "../../fetchWithAuth";
+import { supabase } from "../../supabaseClient";
+
+type InboxSummary = {
+  data: Array<{
+    unreadCount?: number;
+  }>;
+};
 
 export const Navigator = () => {
   const location = useLocation();
@@ -12,6 +21,27 @@ export const Navigator = () => {
 
   const { setHeight } = useNavigatorContext();
   const [isOpen, setIsOpen] = useState(false);
+
+  const { data: inboxSummary } = useQuery<InboxSummary>({
+    queryKey: ["inbox", "conversations"],
+    queryFn: async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        return { data: [] };
+      }
+
+      const response = await fetchWithAuth("/inbox/conversations?limit=25");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load inbox");
+      }
+      return data;
+    },
+    staleTime: 1000 * 30,
+  });
 
   useEffect(() => {
     const updateHeight = () => {
@@ -59,6 +89,22 @@ export const Navigator = () => {
       (location.pathname.startsWith(item.path) && item.path !== "/") ||
       (item.path === "/" && location.pathname === "/")
   );
+  const unreadInboxCount =
+    inboxSummary?.data.reduce(
+      (total, conversation) => total + (conversation.unreadCount || 0),
+      0
+    ) || 0;
+
+  const renderNavLabel = (item: { name: string }) => (
+    <>
+      <span>{item.name}</span>
+      {item.name === "Profile" && unreadInboxCount > 0 && (
+        <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold leading-none text-black">
+          +{unreadInboxCount}
+        </span>
+      )}
+    </>
+  );
 
   return (
     <nav className="font-zombie">
@@ -72,12 +118,12 @@ export const Navigator = () => {
             <li key={item.name}>
               <Link
                 to={item.path}
-                className="px-4 py-2 text-4xl hover:bg-gray-100 rounded tracking-wide"
+                className="inline-flex items-center gap-2 rounded px-4 py-2 text-4xl tracking-wide hover:bg-gray-100"
                 style={{
                   color: getColor(item),
                 }}
               >
-                {item.name}
+                {renderNavLabel(item)}
               </Link>
             </li>
           ))}
@@ -126,12 +172,12 @@ export const Navigator = () => {
                   <Link
                     to={item.path}
                     onClick={() => setIsOpen(false)}
-                    className={`block px-4 py-3 text-3xl hover:text-white transition-colors duration-200 tracking-[0.15em]`}
+                    className="flex items-center gap-2 px-4 py-3 text-3xl tracking-[0.15em] transition-colors duration-200 hover:text-white"
                     style={{
                       color: getColor(item),
                     }}
                   >
-                    {item.name}
+                    {renderNavLabel(item)}
                   </Link>
                 </motion.li>
               ))}
