@@ -22,7 +22,6 @@ const ResetPassword = lazy(
 );
 const Profile = lazy(() => import("../pages/Profile/page"));
 const Post = lazy(() => import("../pages/Post/page"));
-const Inbox = lazy(() => import("../pages/Inbox/page"));
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -211,12 +210,20 @@ export const AnimatedRoutes = () => {
           }
         />
         <Route
-          path="/inbox"
+          path="/profile/inbox"
           element={
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
-                <Inbox />
+                <Profile />
               </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inbox"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/profile/inbox" replace />
             </ProtectedRoute>
           }
         />

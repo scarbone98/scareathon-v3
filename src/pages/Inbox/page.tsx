@@ -567,7 +567,7 @@ function ConversationCard({
   );
 }
 
-export default function Inbox() {
+export function InboxContent({ embedded = false }: { embedded?: boolean }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isComposing, setIsComposing] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<
@@ -635,9 +635,12 @@ export default function Inbox() {
     );
   }
 
-  return (
-    <AnimatedPage className="min-h-screen bg-black px-4 py-8 text-gray-100">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+  const content = (
+    <div
+      className={`mx-auto flex w-full flex-col gap-5 ${
+        embedded ? "max-w-none" : "max-w-3xl"
+      }`}
+    >
         <motion.header
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -694,6 +697,19 @@ export default function Inbox() {
           </motion.div>
         )}
       </div>
+  );
+
+  if (embedded) {
+    return <div className="text-gray-100">{content}</div>;
+  }
+
+  return (
+    <AnimatedPage className="min-h-screen bg-black px-4 py-8 text-gray-100">
+      {content}
     </AnimatedPage>
   );
+}
+
+export default function Inbox() {
+  return <InboxContent />;
 }
