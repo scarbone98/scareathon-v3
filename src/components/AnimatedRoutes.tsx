@@ -1,5 +1,11 @@
 // src/components/AnimatedRoutes.tsx
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useLocation,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useState, Suspense } from "react";
 import { lazy } from "react";
@@ -27,6 +33,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -86,19 +93,22 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (loading || session || location.pathname === "/authentication") {
+      return;
+    }
+
+    navigate("/authentication", {
+      replace: true,
+      state: { from: location.pathname },
+    });
+  }, [loading, session, location.pathname, navigate]);
+
   if (loading) {
     return <LoadingSpinner />;
   }
 
-  if (!session) {
-    return (
-      <Navigate
-        to="/authentication"
-        state={{ from: location.pathname }}
-        replace
-      />
-    );
-  }
+  if (!session) return null;
 
   return <>{children}</>;
 };

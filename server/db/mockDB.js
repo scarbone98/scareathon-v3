@@ -45,7 +45,7 @@ export function buildProductionPoolConfig(env = process.env) {
 // Create a new pool
 let pool = null;
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env.DB_CONNECTION_STRING) {
   pool = new Pool(buildProductionPoolConfig());
 } else {
   pool = new Pool({
