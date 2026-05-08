@@ -1,23 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
-import AnimatedMovieDetail from "./AnimatedMovieDetail";
-import { AnimatePresence, motion } from "framer-motion"; // Add motion import
+import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Calendar() {
   const queryClient = useQueryClient();
-  const [selectedDay, setSelectedDay] = useState<any | null>(null);
-  const [initialPosition, setInitialPosition] = useState({
-    top: 0,
-    left: 0,
-    width: 0,
-    height: 0,
-  });
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
   const currentDayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,22 +64,6 @@ export default function Calendar() {
       .map((_, index) => (
         <div key={`empty-${index}`} className="hidden sm:block"></div>
       ));
-  };
-
-  const handleDayClick = (
-    day: any,
-    event: React.MouseEvent<HTMLDivElement>
-  ) => {
-    if (isMobile) return; // Don't do anything on mobile
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    setInitialPosition({
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height,
-    });
-    setSelectedDay(day);
   };
 
   const currentDay = new Date().getDate();
@@ -156,14 +132,13 @@ export default function Calendar() {
               ref={index + 1 === currentDay ? currentDayRef : null}
             >
               <div
-                className={`flex flex-col items-center justify-between rounded-lg transition-colors cursor-pointer p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
+                className={`flex flex-col items-center justify-between rounded-lg p-3 h-[450px] md:h-[225px] w-3/4 md:w-full ${
                   index + 1 < currentDay ? "opacity-40" : ""
                 } ${
                   index + 1 === currentDay
                     ? "outline outline-4 outline-orange-700"
                     : ""
                 }`}
-                onClick={(e) => handleDayClick(day, e)}
               >
                 <span className="font-semibold text-orange-700 mb-2 flex flex-row justify-center space-x-1.5 w-full text-xl relative">
                   <div className="md:hidden">
@@ -207,16 +182,6 @@ export default function Calendar() {
           ))}
         </motion.div>
       </div>
-
-      <AnimatePresence>
-        {!isMobile && selectedDay && (
-          <AnimatedMovieDetail
-            day={selectedDay}
-            onClose={() => setSelectedDay(null)}
-            initialPosition={initialPosition}
-          />
-        )}
-      </AnimatePresence>
     </AnimatedPage>
   );
 }

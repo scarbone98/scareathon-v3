@@ -4,9 +4,6 @@ import { ProtectedRoute } from "../../components/AnimatedRoutes";
 export default function Home() {
   return (
     <AnimatedPage
-      style={{
-        paddingTop: 0,
-      }}
       className="flex flex-col items-center justify-center bg-cover bg-center home-background"
     >
       <div className="home-gradient" />
