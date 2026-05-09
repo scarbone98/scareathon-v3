@@ -2,6 +2,9 @@ import pool from '../db/mockDB.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_REF ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co` : '');
 const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
+const allowedShopSlots = new Set(['body', 'pants', 'shirt', 'shoes', 'face', 'hair', 'accessory']);
+const allowedShopRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
+const maxShopPageSize = 20;
 
 function getAvatarAssetUrl(assetPath) {
     if (!assetPath) return '';
@@ -83,16 +86,69 @@ function serializeShopItem(row) {
 async function routes(fastify, options) {
     fastify.get('/shop/items', async (request, reply) => {
         const userId = request.user.sub;
-        const slot = typeof request.query?.slot === 'string' ? request.query.slot : null;
+        const slot = typeof request.query?.slot === 'string' && request.query.slot.trim()
+            ? request.query.slot.trim()
+            : null;
+        const rarity = typeof request.query?.rarity === 'string' && request.query.rarity.trim()
+            ? request.query.rarity.trim()
+            : null;
+        const search = typeof request.query?.search === 'string'
+            ? request.query.search.trim().slice(0, 80)
+            : '';
+        const page = Math.max(parseInt(request.query?.page || '1', 10) || 1, 1);
+        const requestedLimit = parseInt(request.query?.limit || String(maxShopPageSize), 10) || maxShopPageSize;
+        const limit = Math.min(Math.max(requestedLimit, 1), maxShopPageSize);
+        const offset = (page - 1) * limit;
+
+        if (slot && !allowedShopSlots.has(slot)) {
+            return reply.code(400).send({ error: 'Invalid shop classification' });
+        }
+        if (rarity && !allowedShopRarities.has(rarity)) {
+            return reply.code(400).send({ error: 'Invalid shop rarity' });
+        }
 
         try {
-            const params = [userId];
-            let slotFilter = '';
+            const filterValues = [];
+            const countFilters = [];
+            const itemFilters = [];
             if (slot) {
-                params.push(slot);
-                slotFilter = `AND ai.slot = $${params.length}`;
+                filterValues.push(slot);
+                countFilters.push(`ai.slot = $${filterValues.length}`);
+                itemFilters.push(`ai.slot = $${filterValues.length + 1}`);
             }
+            if (rarity) {
+                filterValues.push(rarity);
+                countFilters.push(`ai.rarity = $${filterValues.length}`);
+                itemFilters.push(`ai.rarity = $${filterValues.length + 1}`);
+            }
+            if (search) {
+                filterValues.push(`%${search}%`);
+                countFilters.push(`(ai.name ILIKE $${filterValues.length} OR ai.item_key ILIKE $${filterValues.length})`);
+                itemFilters.push(`(ai.name ILIKE $${filterValues.length + 1} OR ai.item_key ILIKE $${filterValues.length + 1})`);
+            }
+            const countWhereClause = `
+                ai.release_status = 'released'
+                AND ai.base_price IS NOT NULL
+                AND ai.base_price > 0
+                AND ai.is_default = FALSE
+                ${countFilters.map((filter) => `AND ${filter}`).join('\n                ')}
+            `;
+            const itemWhereClause = `
+                ai.release_status = 'released'
+                AND ai.base_price IS NOT NULL
+                AND ai.base_price > 0
+                AND ai.is_default = FALSE
+                ${itemFilters.map((filter) => `AND ${filter}`).join('\n                ')}
+            `;
 
+            const countResult = await pool.query(`
+                SELECT COUNT(*)::INTEGER AS total
+                FROM avatar_items ai
+                WHERE ${countWhereClause}
+            `, filterValues);
+            const total = Number(countResult.rows[0]?.total || 0);
+
+            const itemParams = [userId, ...filterValues, limit, offset];
             const result = await pool.query(`
                 SELECT
                     ai.id,
@@ -129,15 +185,21 @@ async function routes(fastify, options) {
                       AND uii.user_id = $1
                       AND uii.status IN ('owned', 'listed', 'locked')
                 ) owned ON TRUE
-                WHERE ai.release_status = 'released'
-                  AND ai.base_price IS NOT NULL
-                  AND ai.base_price > 0
-                  AND ai.is_default = FALSE
-                  ${slotFilter}
+                WHERE ${itemWhereClause}
                 ORDER BY ai.slot ASC, ai.layer_order ASC, ai.name ASC, ai.id ASC
-            `, params);
+                LIMIT $${itemParams.length - 1}
+                OFFSET $${itemParams.length}
+            `, itemParams);
 
-            return { data: result.rows.map(serializeShopItem) };
+            return {
+                data: result.rows.map(serializeShopItem),
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pageCount: Math.max(Math.ceil(total / limit), 1),
+                },
+            };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'An error occurred while fetching shop items' });

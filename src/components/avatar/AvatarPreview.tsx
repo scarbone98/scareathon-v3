@@ -3,7 +3,7 @@ import type { AvatarItem } from "./types";
 
 type AvatarPreviewProps = {
   layers: AvatarItem[];
-  size?: "sm" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 };
 
 export function AvatarPreview({ layers, size = "lg" }: AvatarPreviewProps) {
@@ -16,7 +16,14 @@ export function AvatarPreview({ layers, size = "lg" }: AvatarPreviewProps) {
     [layers]
   );
 
-  const dimensions = size === "sm" ? "h-24 w-24" : "h-64 w-64";
+  const dimensions =
+    size === "xs"
+      ? "h-20 w-20"
+      : size === "sm"
+        ? "h-24 w-24"
+        : size === "md"
+          ? "h-40 w-40"
+          : "h-64 w-64";
 
   return (
     <div
