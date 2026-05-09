@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FaUndo } from "react-icons/fa";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { AvatarPreview } from "./AvatarPreview";
+import { uploadAvatarComposite } from "./avatarComposite";
 import type { AvatarData, AvatarItem, AvatarResponse } from "./types";
 
 function sortEquipped(layers: AvatarItem[]) {
@@ -27,6 +28,7 @@ function replaceEquippedItem(data: AvatarData, slot: string, item: AvatarItem) {
 export function AvatarEditor() {
   const queryClient = useQueryClient();
   const [activeSlot, setActiveSlot] = useState("body");
+  const initialCompositeSavedRef = useRef(false);
 
   const {
     data: avatarResponse,
@@ -44,6 +46,21 @@ export function AvatarEditor() {
     avatar?.equipped.forEach((item) => map.set(item.slot, item));
     return map;
   }, [avatar]);
+
+  useEffect(() => {
+    if (!avatar || initialCompositeSavedRef.current) return;
+
+    initialCompositeSavedRef.current = true;
+    uploadAvatarComposite(avatar.equipped)
+      .then((compositeUrl) => {
+        if (compositeUrl) {
+          queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to save avatar composite", error);
+      });
+  }, [avatar, queryClient]);
 
   const equipMutation = useMutation({
     mutationFn: async ({
@@ -84,8 +101,16 @@ export function AvatarEditor() {
         queryClient.setQueryData(["avatar"], context.previous);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.setQueryData(["avatar"], data);
+      try {
+        const compositeUrl = await uploadAvatarComposite(data.data.equipped);
+        if (compositeUrl) {
+          queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
+        }
+      } catch (error) {
+        console.error("Failed to save avatar composite", error);
+      }
     },
   });
 
@@ -100,8 +125,16 @@ export function AvatarEditor() {
       }
       return data as AvatarResponse;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.setQueryData(["avatar"], data);
+      try {
+        const compositeUrl = await uploadAvatarComposite(data.data.equipped);
+        if (compositeUrl) {
+          queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
+        }
+      } catch (error) {
+        console.error("Failed to save avatar composite", error);
+      }
     },
   });
 

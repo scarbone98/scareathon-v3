@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
+import { getAvatarCompositePublicUrl } from "../avatar/avatarComposite";
 
 type InboxSummary = {
   data: Array<{
@@ -21,6 +22,7 @@ export const Navigator = () => {
 
   const { setHeight } = useNavigatorContext();
   const [isOpen, setIsOpen] = useState(false);
+  const [avatarImageFailed, setAvatarImageFailed] = useState(false);
 
   const { data: inboxSummary } = useQuery<InboxSummary>({
     queryKey: ["inbox", "conversations"],
@@ -42,6 +44,26 @@ export const Navigator = () => {
     },
     staleTime: 1000 * 30,
   });
+
+  const { data: avatarCompositeUrl } = useQuery<string | null>({
+    queryKey: ["avatar", "compositeUrl"],
+    queryFn: async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        return null;
+      }
+
+      return getAvatarCompositePublicUrl(session.user.id, Date.now());
+    },
+    staleTime: 1000 * 60,
+  });
+
+  useEffect(() => {
+    setAvatarImageFailed(false);
+  }, [avatarCompositeUrl]);
 
   useEffect(() => {
     const updateHeight = () => {
@@ -95,14 +117,33 @@ export const Navigator = () => {
       0
     ) || 0;
 
-  const renderNavLabel = (item: { name: string }) => (
+  const renderProfileLabel = () => (
     <>
-      <span>{item.name}</span>
-      {item.name === "Profile" && unreadInboxCount > 0 && (
+      {avatarCompositeUrl && !avatarImageFailed ? (
+        <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-red-900 bg-black/70">
+          <img
+            src={avatarCompositeUrl}
+            alt="Profile"
+            className="h-full w-full rounded-full object-contain"
+            draggable={false}
+            style={{ imageRendering: "pixelated" }}
+            onError={() => setAvatarImageFailed(true)}
+          />
+        </span>
+      ) : (
+        <span>Profile</span>
+      )}
+      {unreadInboxCount > 0 && (
         <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold leading-none text-black">
           +{unreadInboxCount}
         </span>
       )}
+    </>
+  );
+
+  const renderNavLabel = (item: { name: string }) => (
+    <>
+      {item.name === "Profile" ? renderProfileLabel() : <span>{item.name}</span>}
     </>
   );
 

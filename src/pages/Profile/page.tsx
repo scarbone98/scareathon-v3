@@ -13,6 +13,7 @@ import {
   FaEnvelope,
   FaSignOutAlt,
   FaTimes,
+  FaUserAlt,
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Make sure this import is correct
@@ -142,8 +143,11 @@ const Profile = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const activeTab =
-    location.pathname === "/profile/inbox" ? "inbox" : "settings";
+  const activeTab = location.pathname.endsWith("/inbox")
+    ? "inbox"
+    : location.pathname.endsWith("/avatar")
+      ? "avatar"
+      : "settings";
   const unreadInboxCount =
     inboxSummary?.data.reduce(
       (total, conversation) => total + (conversation.unreadCount || 0),
@@ -175,12 +179,8 @@ const Profile = () => {
         exit={{ opacity: 0, y: -20 }}
         className="relative z-10 flex h-full w-full max-w-6xl flex-col gap-5 rounded-xl bg-gray-950 p-5 shadow-2xl sm:p-6 md:mb-[100px]"
       >
-        <div className="flex flex-col gap-4 border-b border-red-950/70 pb-5 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-center text-3xl font-extrabold text-red-500 md:text-left">
-            Profile
-          </h2>
-
-          <div className="grid w-full grid-cols-2 rounded border border-red-950 bg-black/50 p-1 md:max-w-md">
+        <div className="border-b border-red-950/70 pb-5">
+          <div className="mx-auto grid w-full max-w-2xl grid-cols-3 rounded border border-red-950 bg-black/50 p-1">
             <Link
               to="/profile"
               className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
@@ -191,6 +191,17 @@ const Profile = () => {
             >
               <FaCog />
               Settings
+            </Link>
+            <Link
+              to="/profile/avatar"
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
+                activeTab === "avatar"
+                  ? "bg-red-700 text-white"
+                  : "text-gray-300 hover:bg-red-950/50 hover:text-white"
+              }`}
+            >
+              <FaUserAlt />
+              Avatar
             </Link>
             <Link
               to="/profile/inbox"
@@ -213,6 +224,8 @@ const Profile = () => {
 
         {activeTab === "inbox" ? (
           <InboxContent embedded />
+        ) : activeTab === "avatar" ? (
+          <AvatarEditor />
         ) : (
           <>
             <div className="grid gap-4 border-b border-red-950/70 pb-5 md:grid-cols-2">
@@ -292,8 +305,6 @@ const Profile = () => {
                 </div>
               )}
             </div>
-
-            <AvatarEditor />
 
             <div className="flex justify-center">
               <button
