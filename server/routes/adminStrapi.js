@@ -293,6 +293,18 @@ function serializeAvatarItem(row) {
     };
 }
 
+async function cleanupInvalidEquippedSlots(itemId) {
+    const result = await pool.query(`
+        DELETE FROM user_avatar ua
+        USING avatar_items ai
+        WHERE ua.item_id = ai.id
+          AND ai.id = $1
+          AND ua.slot <> ai.slot
+    `, [itemId]);
+
+    return result.rowCount;
+}
+
 async function upsertAvatarItem(item, assetPath, existingItem = null) {
     const metadata = JSON.stringify({
         source: 'strapi',
@@ -434,8 +446,9 @@ async function routes(fastify) {
             const existingItem = await getExistingAvatarItem(item);
             const assetPath = await resolveAssetPath(item, existingItem);
             const syncedItem = await upsertAvatarItem(item, assetPath, existingItem);
+            const unequippedCount = await cleanupInvalidEquippedSlots(syncedItem.id);
 
-            return { data: syncedItem };
+            return { data: { ...syncedItem, unequippedCount } };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'An error occurred while syncing the Strapi avatar item' });

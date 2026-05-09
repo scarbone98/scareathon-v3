@@ -33,7 +33,7 @@ export function AvatarPreview({ layers, size = "lg" }: AvatarPreviewProps) {
       {sortedLayers.map((layer) =>
         missingAssets.has(layer.assetPath) ? null : (
           <img
-            key={`${layer.slot}-${layer.itemInstanceId}`}
+            key={`${layer.slot}-${layer.itemInstanceId || layer.id}`}
             src={layer.assetPath}
             alt=""
             className="absolute inset-0 h-full w-full object-contain"

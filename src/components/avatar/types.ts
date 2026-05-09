@@ -5,7 +5,7 @@ export type AvatarSlot = {
 
 export type AvatarItem = {
   id: number;
-  itemInstanceId: number;
+  itemInstanceId?: number;
   itemKey: string;
   name: string;
   slot: string;
@@ -15,6 +15,9 @@ export type AvatarItem = {
   storagePath?: string;
   isDefault: boolean;
   isStarter: boolean;
+  rarity?: string;
+  basePrice?: number | null;
+  releaseStatus?: string;
 };
 
 export type AvatarData = {

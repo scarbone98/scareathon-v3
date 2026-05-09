@@ -243,6 +243,16 @@ export const AnimatedRoutes = () => {
           }
         />
         <Route
+          path="/profile/shop"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Profile />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/inbox"
           element={
             <ProtectedRoute>

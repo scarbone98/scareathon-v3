@@ -11,6 +11,7 @@ import {
   FaCoins,
   FaEdit,
   FaEnvelope,
+  FaShoppingBag,
   FaSignOutAlt,
   FaTimes,
   FaUserAlt,
@@ -18,6 +19,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Make sure this import is correct
 import { AvatarEditor } from "../../components/avatar/AvatarEditor";
+import { AvatarShop } from "../../components/avatar/AvatarShop";
 import { InboxContent } from "../Inbox/page";
 
 type WalletData = {
@@ -145,6 +147,8 @@ const Profile = () => {
   const location = useLocation();
   const activeTab = location.pathname.endsWith("/inbox")
     ? "inbox"
+    : location.pathname.endsWith("/shop")
+      ? "shop"
     : location.pathname.endsWith("/avatar")
       ? "avatar"
       : "settings";
@@ -180,7 +184,7 @@ const Profile = () => {
         className="relative z-10 flex h-full w-full max-w-6xl flex-col gap-5 rounded-xl bg-gray-950 p-5 shadow-2xl sm:p-6 md:mb-[100px]"
       >
         <div className="border-b border-red-950/70 pb-5">
-          <div className="mx-auto grid w-full max-w-2xl grid-cols-3 rounded border border-red-950 bg-black/50 p-1">
+          <div className="mx-auto grid w-full max-w-3xl grid-cols-2 rounded border border-red-950 bg-black/50 p-1 md:grid-cols-4">
             <Link
               to="/profile"
               className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
@@ -204,6 +208,17 @@ const Profile = () => {
               Avatar
             </Link>
             <Link
+              to="/profile/shop"
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
+                activeTab === "shop"
+                  ? "bg-red-700 text-white"
+                  : "text-gray-300 hover:bg-red-950/50 hover:text-white"
+              }`}
+            >
+              <FaShoppingBag />
+              Shop
+            </Link>
+            <Link
               to="/profile/inbox"
               className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
                 activeTab === "inbox"
@@ -224,6 +239,8 @@ const Profile = () => {
 
         {activeTab === "inbox" ? (
           <InboxContent embedded />
+        ) : activeTab === "shop" ? (
+          <AvatarShop />
         ) : activeTab === "avatar" ? (
           <AvatarEditor />
         ) : (

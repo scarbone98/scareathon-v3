@@ -171,18 +171,21 @@ export function AvatarEditor() {
             {activeItems.map((item) => {
               const equippedItem = equippedBySlot.get(activeSlot);
               const isEquipped = equippedItem?.itemInstanceId === item.itemInstanceId;
+              const canEquip = typeof item.itemInstanceId === "number";
 
               return (
                 <button
-                  key={item.itemInstanceId}
+                  key={item.itemInstanceId || item.id}
                   type="button"
                   onClick={() =>
-                    equipMutation.mutate({
-                      slot: activeSlot,
-                      itemInstanceId: item.itemInstanceId,
-                    })
+                    canEquip
+                      ? equipMutation.mutate({
+                          slot: activeSlot,
+                          itemInstanceId: item.itemInstanceId as number,
+                        })
+                      : undefined
                   }
-                  disabled={equipMutation.isPending && !isEquipped}
+                  disabled={!canEquip || (equipMutation.isPending && !isEquipped)}
                   className={`flex min-h-32 flex-col items-center justify-between gap-2 rounded border p-3 text-center transition ${
                     isEquipped
                       ? "border-orange-500 bg-orange-950/70 text-orange-100"

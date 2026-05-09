@@ -55,7 +55,255 @@ function serializeListing(row) {
     };
 }
 
+function serializeShopItem(row) {
+    return {
+        id: row.id,
+        itemKey: row.item_key,
+        name: row.name,
+        slot: row.slot,
+        layerOrder: row.layer_order,
+        assetPath: getAvatarAssetUrl(row.asset_path),
+        storageBucket: avatarSpriteBucket,
+        storagePath: row.asset_path,
+        isDefault: row.is_default,
+        isStarter: row.is_starter,
+        isTradeable: row.is_tradeable,
+        isSellable: row.is_sellable,
+        rarity: row.rarity,
+        basePrice: row.base_price,
+        releaseStatus: row.release_status,
+        supplyLimit: row.supply_limit,
+        mintedCount: Number(row.minted_count || 0),
+        ownedCount: Number(row.owned_count || 0),
+        isSoldOut: row.supply_limit !== null && Number(row.minted_count || 0) >= Number(row.supply_limit),
+        metadata: row.item_metadata,
+    };
+}
+
 async function routes(fastify, options) {
+    fastify.get('/shop/items', async (request, reply) => {
+        const userId = request.user.sub;
+        const slot = typeof request.query?.slot === 'string' ? request.query.slot : null;
+
+        try {
+            const params = [userId];
+            let slotFilter = '';
+            if (slot) {
+                params.push(slot);
+                slotFilter = `AND ai.slot = $${params.length}`;
+            }
+
+            const result = await pool.query(`
+                SELECT
+                    ai.id,
+                    ai.item_key,
+                    ai.name,
+                    ai.slot,
+                    ai.layer_order,
+                    ai.asset_path,
+                    ai.is_default,
+                    ai.is_starter,
+                    ai.is_tradeable,
+                    ai.is_sellable,
+                    ai.rarity,
+                    ai.base_price,
+                    ai.release_status,
+                    ai.metadata AS item_metadata,
+                    CASE
+                        WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
+                            THEN (ai.metadata->>'supplyLimit')::INTEGER
+                        ELSE NULL
+                    END AS supply_limit,
+                    COALESCE(minted.count, 0)::INTEGER AS minted_count,
+                    COALESCE(owned.count, 0)::INTEGER AS owned_count
+                FROM avatar_items ai
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*) AS count
+                    FROM user_item_instances uii
+                    WHERE uii.item_id = ai.id
+                ) minted ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*) AS count
+                    FROM user_item_instances uii
+                    WHERE uii.item_id = ai.id
+                      AND uii.user_id = $1
+                      AND uii.status IN ('owned', 'listed', 'locked')
+                ) owned ON TRUE
+                WHERE ai.release_status = 'released'
+                  AND ai.base_price IS NOT NULL
+                  AND ai.base_price > 0
+                  AND ai.is_default = FALSE
+                  ${slotFilter}
+                ORDER BY ai.slot ASC, ai.layer_order ASC, ai.name ASC, ai.id ASC
+            `, params);
+
+            return { data: result.rows.map(serializeShopItem) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while fetching shop items' });
+        }
+    });
+
+    fastify.post('/shop/items/:id/buy', async (request, reply) => {
+        const userId = request.user.sub;
+        const itemId = parsePositiveInteger(request.params?.id);
+
+        if (!itemId) {
+            return reply.code(400).send({ error: 'Valid item id is required' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const itemResult = await client.query(`
+                SELECT
+                    ai.id,
+                    ai.item_key,
+                    ai.name,
+                    ai.slot,
+                    ai.layer_order,
+                    ai.asset_path,
+                    ai.is_default,
+                    ai.is_starter,
+                    ai.is_tradeable,
+                    ai.is_sellable,
+                    ai.rarity,
+                    ai.base_price,
+                    ai.release_status,
+                    ai.metadata AS item_metadata,
+                    CASE
+                        WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
+                            THEN (ai.metadata->>'supplyLimit')::INTEGER
+                        ELSE NULL
+                    END AS supply_limit,
+                    COALESCE(minted.count, 0)::INTEGER AS minted_count,
+                    COALESCE(owned.count, 0)::INTEGER AS owned_count
+                FROM avatar_items ai
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*) AS count
+                    FROM user_item_instances uii
+                    WHERE uii.item_id = ai.id
+                ) minted ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT COUNT(*) AS count
+                    FROM user_item_instances uii
+                    WHERE uii.item_id = ai.id
+                      AND uii.user_id = $2
+                      AND uii.status IN ('owned', 'listed', 'locked')
+                ) owned ON TRUE
+                WHERE ai.id = $1
+                  AND ai.release_status = 'released'
+                  AND ai.base_price IS NOT NULL
+                  AND ai.base_price > 0
+                  AND ai.is_default = FALSE
+                FOR UPDATE OF ai
+            `, [itemId, userId]);
+
+            if (itemResult.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return reply.code(404).send({ error: 'Shop item not found' });
+            }
+
+            const item = itemResult.rows[0];
+            if (item.supply_limit !== null && Number(item.minted_count || 0) >= Number(item.supply_limit)) {
+                await client.query('ROLLBACK');
+                return reply.code(409).send({ error: 'Shop item is sold out' });
+            }
+
+            await client.query('SELECT public.ensure_user_wallet($1)', [userId]);
+
+            const walletResult = await client.query(`
+                SELECT coin_balance
+                FROM user_wallets
+                WHERE user_id = $1
+                FOR UPDATE
+            `, [userId]);
+            const coinBalance = Number(walletResult.rows[0]?.coin_balance || 0);
+            const priceAmount = Number(item.base_price);
+
+            if (coinBalance < priceAmount) {
+                await client.query('ROLLBACK');
+                return reply.code(402).send({ error: 'Insufficient funds' });
+            }
+
+            const instanceResult = await client.query(`
+                INSERT INTO user_item_instances (
+                    user_id,
+                    item_id,
+                    status,
+                    source_type,
+                    metadata
+                )
+                VALUES ($1, $2, 'owned', 'shop_purchase', $3::jsonb)
+                RETURNING id
+            `, [
+                userId,
+                item.id,
+                JSON.stringify({
+                    itemId: item.id,
+                    itemKey: item.item_key,
+                    priceAmount,
+                    currencyCode: 'coins',
+                }),
+            ]);
+            const itemInstanceId = Number(instanceResult.rows[0].id);
+
+            const updatedWalletResult = await client.query(`
+                UPDATE user_wallets
+                SET coin_balance = coin_balance - $2,
+                    updated_at = now()
+                WHERE user_id = $1
+                RETURNING coin_balance
+            `, [userId, priceAmount]);
+            const balanceAfter = Number(updatedWalletResult.rows[0].coin_balance);
+
+            await client.query(`
+                INSERT INTO currency_transactions (
+                    user_id,
+                    amount,
+                    balance_after,
+                    transaction_type,
+                    source_type,
+                    source_id,
+                    metadata
+                )
+                VALUES ($1, $2, $3, 'spend', 'shop_purchase', $4, $5::jsonb)
+            `, [
+                userId,
+                -priceAmount,
+                balanceAfter,
+                String(itemInstanceId),
+                JSON.stringify({
+                    itemId: item.id,
+                    itemKey: item.item_key,
+                    priceAmount,
+                    currencyCode: 'coins',
+                }),
+            ]);
+
+            await client.query('COMMIT');
+
+            return reply.code(201).send({
+                data: {
+                    item: serializeShopItem({
+                        ...item,
+                        owned_count: Number(item.owned_count || 0) + 1,
+                        minted_count: Number(item.minted_count || 0) + 1,
+                    }),
+                    itemInstanceId,
+                    coinBalance: balanceAfter,
+                },
+            });
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while buying the shop item' });
+        } finally {
+            client.release();
+        }
+    });
+
     fastify.get('/listings', async (request, reply) => {
         const userId = request.user.sub;
         const status = request.query?.status || 'active';
