@@ -206,7 +206,25 @@ async function uploadSpriteToSupabase(storagePath, file) {
     return normalizedPath;
 }
 
-async function resolveAssetPath(item) {
+async function getExistingAvatarItem(itemKey) {
+    const result = await pool.query(`
+        SELECT id, asset_path, metadata
+        FROM avatar_items
+        WHERE item_key = $1
+        LIMIT 1
+    `, [itemKey]);
+
+    return result.rows[0] || null;
+}
+
+async function resolveAssetPath(item, existingItem = null) {
+    if (
+        existingItem?.asset_path &&
+        existingItem?.metadata?.assetUrl === item.assetUrl
+    ) {
+        return existingItem.asset_path;
+    }
+
     const storagePath = `${item.slot}/${item.itemKey}.png`;
     const file = await downloadAsset(item.assetUrl);
     const uploadedPath = await uploadSpriteToSupabase(storagePath, file);
@@ -302,7 +320,8 @@ async function routes(fastify) {
                 return reply.code(400).send({ error });
             }
 
-            const assetPath = await resolveAssetPath(item);
+            const existingItem = await getExistingAvatarItem(item.itemKey);
+            const assetPath = await resolveAssetPath(item, existingItem);
             const syncedItem = await upsertAvatarItem(item, assetPath);
 
             return { data: syncedItem };
