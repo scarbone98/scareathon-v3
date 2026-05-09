@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FaUndo } from "react-icons/fa";
+import { FaSave, FaUndo } from "react-icons/fa";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { AvatarPreview } from "./AvatarPreview";
 import { uploadAvatarComposite } from "./avatarComposite";
-import type { AvatarData, AvatarItem, AvatarResponse } from "./types";
+import type { AvatarItem, AvatarResponse } from "./types";
 
 function sortEquipped(layers: AvatarItem[]) {
   return [...layers].sort(
@@ -16,18 +16,58 @@ function sortEquipped(layers: AvatarItem[]) {
   );
 }
 
-function replaceEquippedItem(data: AvatarData, slot: string, item: AvatarItem) {
-  const equipped = data.equipped.filter((layer) => layer.slot !== slot);
-  equipped.push(item);
-  return {
-    ...data,
-    equipped: sortEquipped(equipped),
-  };
+function getEquipGroup(item: AvatarItem) {
+  return item.equipGroup || item.slot;
+}
+
+function isHiddenAvatarItem(item: AvatarItem) {
+  return item.itemKey === "default_accessory_none";
+}
+
+function visibleItems(items: AvatarItem[]) {
+  return items.filter((item) => !isHiddenAvatarItem(item));
+}
+
+function selectionKey(items: AvatarItem[]) {
+  return visibleItems(items)
+    .map((item) => item.itemInstanceId)
+    .filter((id): id is number => typeof id === "number")
+    .sort((a, b) => a - b)
+    .join(",");
+}
+
+function toggleDraftItem(draftEquipped: AvatarItem[], item: AvatarItem) {
+  const equipGroup = getEquipGroup(item);
+  const isEquipped = draftEquipped.some(
+    (layer) => getEquipGroup(layer) === equipGroup && layer.itemInstanceId === item.itemInstanceId
+  );
+
+  if (isEquipped) {
+    if (item.slot !== "accessory") return draftEquipped;
+
+    return sortEquipped(
+      draftEquipped.filter((layer) => getEquipGroup(layer) !== equipGroup)
+    );
+  }
+
+  return sortEquipped([
+    ...draftEquipped.filter((layer) => getEquipGroup(layer) !== equipGroup),
+    item,
+  ]);
+}
+
+async function readAvatarResponse(response: Response) {
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to load avatar");
+  }
+  return data as AvatarResponse;
 }
 
 export function AvatarEditor() {
   const queryClient = useQueryClient();
   const [activeSlot, setActiveSlot] = useState("body");
+  const [draftEquipped, setDraftEquipped] = useState<AvatarItem[]>([]);
   const initialCompositeSavedRef = useRef(false);
 
   const {
@@ -36,22 +76,42 @@ export function AvatarEditor() {
     error,
   } = useQuery<AvatarResponse>({
     queryKey: ["avatar"],
-    queryFn: () => fetchWithAuth("/user/avatar").then((res) => res.json()),
+    queryFn: () => fetchWithAuth("/user/avatar").then(readAvatarResponse),
   });
 
   const avatar = avatarResponse?.data;
-  const activeItems = avatar?.inventory[activeSlot] || [];
-  const equippedBySlot = useMemo(() => {
+  const savedEquipped = useMemo(
+    () => visibleItems(avatar?.equipped || []),
+    [avatar]
+  );
+  const activeItems = useMemo(
+    () => visibleItems(avatar?.inventory[activeSlot] || []),
+    [activeSlot, avatar]
+  );
+  const savedSelectionKey = useMemo(
+    () => selectionKey(savedEquipped),
+    [savedEquipped]
+  );
+  const draftSelectionKey = useMemo(
+    () => selectionKey(draftEquipped),
+    [draftEquipped]
+  );
+  const hasUnsavedChanges = draftSelectionKey !== savedSelectionKey;
+  const equippedByGroup = useMemo(() => {
     const map = new Map<string, AvatarItem>();
-    avatar?.equipped.forEach((item) => map.set(item.slot, item));
+    draftEquipped.forEach((item) => map.set(getEquipGroup(item), item));
     return map;
-  }, [avatar]);
+  }, [draftEquipped]);
+
+  useEffect(() => {
+    setDraftEquipped(savedEquipped);
+  }, [savedSelectionKey, savedEquipped]);
 
   useEffect(() => {
     if (!avatar || initialCompositeSavedRef.current) return;
 
     initialCompositeSavedRef.current = true;
-    uploadAvatarComposite(avatar.equipped)
+    uploadAvatarComposite(savedEquipped)
       .then((compositeUrl) => {
         if (compositeUrl) {
           queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
@@ -60,75 +120,27 @@ export function AvatarEditor() {
       .catch((error) => {
         console.error("Failed to save avatar composite", error);
       });
-  }, [avatar, queryClient]);
+  }, [avatar, savedEquipped, queryClient]);
 
-  const equipMutation = useMutation({
-    mutationFn: async ({
-      slot,
-      itemInstanceId,
-    }: {
-      slot: string;
-      itemInstanceId: number;
-    }) => {
-      const response = await fetchWithAuth("/user/avatar/equip", {
+  const saveMutation = useMutation({
+    mutationFn: async (items: AvatarItem[]) => {
+      const itemInstanceIds = items
+        .map((item) => item.itemInstanceId)
+        .filter((id): id is number => typeof id === "number");
+      const response = await fetchWithAuth("/user/avatar/save", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot, itemInstanceId }),
+        body: JSON.stringify({ itemInstanceIds }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update avatar");
-      }
-      return data as AvatarResponse;
-    },
-    onMutate: async ({ slot, itemInstanceId }) => {
-      await queryClient.cancelQueries({ queryKey: ["avatar"] });
-      const previous = queryClient.getQueryData<AvatarResponse>(["avatar"]);
-      const item = previous?.data.inventory[slot]?.find(
-        (inventoryItem) => inventoryItem.itemInstanceId === itemInstanceId
-      );
-
-      if (previous && item) {
-        queryClient.setQueryData<AvatarResponse>(["avatar"], {
-          data: replaceEquippedItem(previous.data, slot, item),
-        });
-      }
-
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["avatar"], context.previous);
-      }
+      return readAvatarResponse(response);
     },
     onSuccess: async (data) => {
       queryClient.setQueryData(["avatar"], data);
-      try {
-        const compositeUrl = await uploadAvatarComposite(data.data.equipped);
-        if (compositeUrl) {
-          queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
-        }
-      } catch (error) {
-        console.error("Failed to save avatar composite", error);
-      }
-    },
-  });
+      const equipped = visibleItems(data.data.equipped);
+      setDraftEquipped(equipped);
 
-  const resetMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetchWithAuth("/user/avatar/reset", {
-        method: "POST",
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to reset avatar");
-      }
-      return data as AvatarResponse;
-    },
-    onSuccess: async (data) => {
-      queryClient.setQueryData(["avatar"], data);
       try {
-        const compositeUrl = await uploadAvatarComposite(data.data.equipped);
+        const compositeUrl = await uploadAvatarComposite(equipped);
         if (compositeUrl) {
           queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
         }
@@ -147,7 +159,7 @@ export function AvatarEditor() {
   return (
     <section className="flex flex-col gap-5 border-t border-red-950/70 pt-5">
       <div className="flex flex-col items-center gap-5 lg:flex-row lg:items-start">
-        <AvatarPreview layers={avatar.equipped} />
+        <AvatarPreview layers={draftEquipped} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
@@ -169,7 +181,7 @@ export function AvatarEditor() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {activeItems.map((item) => {
-              const equippedItem = equippedBySlot.get(activeSlot);
+              const equippedItem = equippedByGroup.get(getEquipGroup(item));
               const isEquipped = equippedItem?.itemInstanceId === item.itemInstanceId;
               const canEquip = typeof item.itemInstanceId === "number";
 
@@ -179,18 +191,15 @@ export function AvatarEditor() {
                   type="button"
                   onClick={() =>
                     canEquip
-                      ? equipMutation.mutate({
-                          slot: activeSlot,
-                          itemInstanceId: item.itemInstanceId as number,
-                        })
+                      ? setDraftEquipped((current) => toggleDraftItem(current, item))
                       : undefined
                   }
-                  disabled={!canEquip || (equipMutation.isPending && !isEquipped)}
+                  disabled={!canEquip || saveMutation.isPending}
                   className={`flex min-h-32 flex-col items-center justify-between gap-2 rounded border p-3 text-center transition ${
                     isEquipped
                       ? "border-orange-500 bg-orange-950/70 text-orange-100"
                       : "border-red-950 bg-black/40 text-gray-200 hover:border-red-700"
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   <AvatarPreview layers={[item]} size="sm" />
                   <span className="text-sm leading-tight">{item.name}</span>
@@ -199,21 +208,30 @@ export function AvatarEditor() {
             })}
           </div>
 
-          {(equipMutation.error || resetMutation.error) && (
+          {saveMutation.error && (
             <div className="text-center text-sm text-red-400 lg:text-left">
-              {((equipMutation.error || resetMutation.error) as Error).message}
+              {(saveMutation.error as Error).message}
             </div>
           )}
 
-          <div className="flex justify-center lg:justify-start">
+          <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
             <button
               type="button"
-              onClick={() => resetMutation.mutate()}
-              disabled={resetMutation.isPending}
-              className="flex items-center gap-2 rounded bg-gray-800 px-4 py-2 text-sm text-gray-100 transition hover:bg-gray-700 disabled:opacity-60"
+              onClick={() => saveMutation.mutate(draftEquipped)}
+              disabled={!hasUnsavedChanges || saveMutation.isPending}
+              className="flex items-center gap-2 rounded bg-orange-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400"
+            >
+              <FaSave />
+              <span>{saveMutation.isPending ? "Saving..." : "Save"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDraftEquipped(savedEquipped)}
+              disabled={!hasUnsavedChanges || saveMutation.isPending}
+              className="flex items-center gap-2 rounded bg-gray-800 px-4 py-2 text-sm text-gray-100 transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FaUndo />
-              <span>Reset</span>
+              <span>Discard</span>
             </button>
           </div>
         </div>

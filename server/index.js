@@ -13,6 +13,7 @@ import userRoutes from './routes/user.js';
 import marketplaceRoutes from './routes/marketplace.js';
 import inboxRoutes from './routes/inbox.js';
 import adminStrapiRoutes from './routes/adminStrapi.js';
+import homeRoutes from './routes/home.js';
 import pool from './db/mockDB.js';
 
 const fastify = Fastify({
@@ -131,6 +132,7 @@ async function main() {
         fastify.register(marketplaceRoutes, { prefix: '/marketplace' });
         fastify.register(inboxRoutes, { prefix: '/inbox' });
         fastify.register(adminStrapiRoutes, { prefix: '/admin/strapi' });
+        fastify.register(homeRoutes, { prefix: '/home' });
 
         // Run the server!
         const start = async () => {

@@ -5,33 +5,32 @@ export const navItems = [
     color: "red",
   },
   {
-    name: "News",
-    path: "/announcements",
-    color: "#dd8108",
-  },
-  {
     name: "Arcade",
     path: "/arcade",
     color: "green",
   },
   {
-    name: "Scareboard",
-    path: "/scareboard",
+    name: "Scareathon",
+    path: "/scareathon",
     color: "#F0E68C",
   },
   {
-    name: "Calendar",
-    path: "/calendar",
-    color: "#69033B",
+    name: "News",
+    path: "/announcements",
+    color: "#dd8108",
   },
+];
+
+export const profileNavItem = {
+  name: "Profile",
+  path: "/profile",
+  color: "#8A2BE2",
+};
+
+export const mobileNavItems = [
+  ...navItems,
   {
-    name: "Rules",
-    path: "/rules",
-    color: "#12D3A979",
-  },
-  {
-    name: "Profile",
-    path: "/profile",
-    color: "#8A2BE2",
+    ...profileNavItem,
+    group: "account",
   },
 ];

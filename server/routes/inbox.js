@@ -180,6 +180,20 @@ function serializeConversation(row) {
     };
 }
 
+export async function getUnreadInboxCount(userId) {
+    const result = await pool.query(`
+        SELECT COUNT(*)::INTEGER AS unread_count
+        FROM inbox_participants p
+        JOIN inbox_messages m ON m.conversation_id = p.conversation_id
+        WHERE p.user_id = $1
+          AND p.deleted_at IS NULL
+          AND (p.read_at IS NULL OR m.created_at > p.read_at)
+          AND m.sender_user_id IS DISTINCT FROM $1
+    `, [userId]);
+
+    return Number(result.rows[0]?.unread_count || 0);
+}
+
 function ensureAdmin(request, reply) {
     if (!isAdminUser(request.user)) {
         reply.code(403).send({ error: 'Admin access required' });

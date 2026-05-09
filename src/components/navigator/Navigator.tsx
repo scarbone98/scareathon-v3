@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useRef, useEffect, useState } from "react";
 import { useNavigatorContext } from "./context";
-import { navItems } from "./navItems";
+import { mobileNavItems, navItems, profileNavItem } from "./navItems";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
@@ -80,7 +80,7 @@ export const Navigator = () => {
       window.removeEventListener("resize", updateHeight);
       setHeight(0);
     };
-  }, []);
+  }, [setHeight]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -99,14 +99,15 @@ export const Navigator = () => {
     };
   }, [isOpen, mobileNavRef.current?.offsetHeight]);
 
-  function getColor(item: { path: string }) {
+  function getColor(item: { path: string; color?: string }) {
     return (location.pathname.startsWith(item.path) && item.path !== "/") ||
       (item.path === "/" && location.pathname === "/")
-      ? `${selectedItem?.color || "white"}`
+      ? `${item.color || selectedItem?.color || "white"}`
       : "#374151";
   }
 
-  const selectedItem = navItems.find(
+  const allNavItems = [...navItems, profileNavItem];
+  const selectedItem = allNavItems.find(
     (item) =>
       (location.pathname.startsWith(item.path) && item.path !== "/") ||
       (item.path === "/" && location.pathname === "/")
@@ -120,7 +121,7 @@ export const Navigator = () => {
   const renderProfileLabel = () => (
     <>
       {avatarCompositeUrl && !avatarImageFailed ? (
-        <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-red-900 bg-black/70">
+        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-900 bg-black/70 xl:h-12 xl:w-12">
           <img
             src={avatarCompositeUrl}
             alt="Profile"
@@ -154,21 +155,36 @@ export const Navigator = () => {
         ref={navRef}
         className="hidden md:block bg-transparent z-50 absolute top-0 left-0 w-full"
       >
-        <ul className="flex justify-around py-4">
-          {navItems.map((item) => (
-            <li key={item.name}>
+        <div className="flex items-center justify-between px-8 py-3 xl:px-10">
+          <ul className="flex items-center gap-7 xl:gap-10">
+            {navItems.map((item) => (
+              <li key={item.name}>
+                <Link
+                  to={item.path}
+                  className="inline-flex items-center gap-2 rounded px-3 py-2 text-3xl leading-none tracking-wide hover:bg-gray-100"
+                  style={{
+                    color: getColor(item),
+                  }}
+                >
+                  {renderNavLabel(item)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <ul className="flex items-center">
+            <li key={profileNavItem.name}>
               <Link
-                to={item.path}
-                className="inline-flex items-center gap-2 rounded px-4 py-2 text-4xl tracking-wide hover:bg-gray-100"
+                to={profileNavItem.path}
+                className="inline-flex items-center gap-2 rounded px-3 py-2 text-3xl leading-none tracking-wide hover:bg-gray-100"
                 style={{
-                  color: getColor(item),
+                  color: getColor(profileNavItem),
                 }}
               >
-                {renderNavLabel(item)}
+                {renderNavLabel(profileNavItem)}
               </Link>
             </li>
-          ))}
-        </ul>
+          </ul>
+        </div>
       </div>
 
       {/* Mobile Navigation */}
@@ -205,9 +221,14 @@ export const Navigator = () => {
                 borderColor: selectedItem?.color || "red-500",
               }}
             >
-              {navItems.map((item) => (
+              {mobileNavItems.map((item) => (
                 <motion.li
                   key={item.name}
+                  className={
+                    "group" in item && item.group === "account"
+                      ? "border-t border-red-950/70"
+                      : undefined
+                  }
                   whileHover={{ backgroundColor: "rgba(255, 0, 0, 0.2)" }}
                 >
                   <Link

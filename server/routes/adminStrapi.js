@@ -2,6 +2,18 @@ import pool from '../db/mockDB.js';
 
 const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
 const allowedSlots = new Set(['body', 'pants', 'shirt', 'shoes', 'face', 'hair', 'accessory']);
+const allowedEquipGroups = new Set([
+    'hat',
+    'back',
+    'pin',
+    'badge',
+    'glasses',
+    'neck',
+    'held',
+    'face_accessory',
+    'earring',
+    'accessory',
+]);
 const allowedRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
 const allowedReleaseStatuses = new Set(['draft', 'released', 'retired']);
 const requiredSpriteSize = 256;
@@ -53,6 +65,10 @@ function normalizeItemKey(value) {
     return normalized || null;
 }
 
+function normalizeEquipGroup(value, slot, itemKey) {
+    return normalizeItemKey(value) || (slot === 'accessory' ? itemKey : slot);
+}
+
 function parseNonnegativeInteger(value) {
     if (value === undefined || value === null || value === '') return null;
     const parsed = Number(value);
@@ -71,6 +87,7 @@ function normalizeStrapiItem(item) {
     const itemKey = normalizeItemKey(item?.itemKey);
     const name = typeof item?.name === 'string' ? item.name.trim() : '';
     const slot = typeof item?.slot === 'string' ? item.slot : '';
+    const equipGroup = normalizeEquipGroup(item?.equipGroup, slot, itemKey);
     const layerOrder = Number(item?.layerOrder);
     const rarity = typeof item?.rarity === 'string' ? item.rarity : 'common';
     const releaseStatus = typeof item?.releaseStatus === 'string' ? item.releaseStatus : 'draft';
@@ -83,6 +100,9 @@ function normalizeStrapiItem(item) {
     if (!itemKey) return { error: 'itemKey is required' };
     if (!name) return { error: 'name is required' };
     if (!allowedSlots.has(slot)) return { error: 'slot is invalid' };
+    if (item?.equipGroup && !allowedEquipGroups.has(equipGroup)) {
+        return { error: 'equipGroup is invalid' };
+    }
     if (!Number.isInteger(layerOrder) || layerOrder < 0) {
         return { error: 'layerOrder must be a nonnegative integer' };
     }
@@ -106,6 +126,7 @@ function normalizeStrapiItem(item) {
             itemKey,
             name,
             slot,
+            equipGroup,
             layerOrder,
             rarity,
             releaseStatus,
@@ -280,6 +301,7 @@ function serializeAvatarItem(row) {
         itemKey: row.item_key,
         name: row.name,
         slot: row.slot,
+        equipGroup: row.equip_group || row.slot,
         layerOrder: row.layer_order,
         assetPath: row.asset_path,
         isDefault: row.is_default,
@@ -299,7 +321,10 @@ async function cleanupInvalidEquippedSlots(itemId) {
         USING avatar_items ai
         WHERE ua.item_id = ai.id
           AND ai.id = $1
-          AND ua.slot <> ai.slot
+          AND (
+              ua.slot <> ai.slot
+              OR ua.equip_group <> ai.equip_group
+          )
     `, [itemId]);
 
     return result.rowCount;
@@ -320,20 +345,22 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
             SET item_key = $1,
                 name = $2,
                 slot = $3,
-                layer_order = $4,
-                asset_path = $5,
-                is_tradeable = $6,
-                is_sellable = $7,
-                rarity = $8,
-                base_price = $9,
-                release_status = $10,
-                metadata = $11::jsonb
-            WHERE id = $12
+                equip_group = $4,
+                layer_order = $5,
+                asset_path = $6,
+                is_tradeable = $7,
+                is_sellable = $8,
+                rarity = $9,
+                base_price = $10,
+                release_status = $11,
+                metadata = $12::jsonb
+            WHERE id = $13
             RETURNING *
         `, [
             item.itemKey,
             item.name,
             item.slot,
+            item.equipGroup,
             item.layerOrder,
             assetPath,
             item.isTradeable,
@@ -354,6 +381,7 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
             item_key,
             name,
             slot,
+            equip_group,
             layer_order,
             asset_path,
             is_default,
@@ -365,11 +393,12 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
             release_status,
             metadata
         )
-        VALUES ($1, $2, $3, $4, $5, FALSE, FALSE, $6, $7, $8, $9, $10, $11::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, FALSE, FALSE, $7, $8, $9, $10, $11, $12::jsonb)
         ON CONFLICT (item_key)
         DO UPDATE SET
             name = EXCLUDED.name,
             slot = EXCLUDED.slot,
+            equip_group = EXCLUDED.equip_group,
             layer_order = EXCLUDED.layer_order,
             asset_path = EXCLUDED.asset_path,
             is_tradeable = EXCLUDED.is_tradeable,
@@ -383,6 +412,7 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
         item.itemKey,
         item.name,
         item.slot,
+        item.equipGroup,
         item.layerOrder,
         assetPath,
         item.isTradeable,

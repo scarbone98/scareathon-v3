@@ -4,15 +4,54 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+type LeaderboardUser = {
+  name: string;
+  rank: number;
+  movies?: string | number;
+  weekly?: string | number;
+  bonus?: string | number;
+  total?: string | number;
+  [key: string]: string | number | undefined;
+};
+
+type LeaderboardResponse = {
+  data: LeaderboardUser[];
+  meta?: {
+    year?: number;
+    sheetTitle?: string;
+    isLive?: boolean;
+    availableYears?: number[];
+  };
+};
+
+type PastWinner = {
+  year: string;
+  name: string;
+};
+
+type PastWinnersResponse = {
+  data: PastWinner[];
+};
+
+type ScareboardData = {
+  leaderboard: LeaderboardResponse;
+  pastWinners: PastWinnersResponse;
+};
 
 export default function Scareboard() {
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const queryClient = useQueryClient();
-  const { data, error, isLoading } = useQuery({
-    queryKey: ["leaderboard"],
+  const { data, error, isFetching, isLoading } = useQuery<ScareboardData>({
+    queryKey: ["leaderboard", "by-year", selectedYear],
     queryFn: async () => {
+      const leaderboardPath = selectedYear
+        ? `/leaderboard?year=${selectedYear}`
+        : "/leaderboard";
       const [leaderboardRes, pastWinnersRes] = await Promise.all([
-        fetchWithAuth("/leaderboard"),
+        fetchWithAuth(leaderboardPath),
         fetchWithAuth("/past-winners"),
       ]);
       const leaderboard = await leaderboardRes.json();
@@ -21,12 +60,17 @@ export default function Scareboard() {
     },
     initialData: () => {
       // Use the previous cached data if available
-      return queryClient.getQueryData(["leaderboard"]);
+      return queryClient.getQueryData<ScareboardData>([
+        "leaderboard",
+        "by-year",
+        selectedYear,
+      ]);
     },
+    placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 60 * 1,
   });
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading && !data) return <LoadingSpinner />;
   if (error) return <ErrorDisplay message={error?.message} />;
 
   // Get the keys from the first data item, excluding 'name'
@@ -38,6 +82,8 @@ export default function Scareboard() {
   const otherKeys = keys.filter(
     (key) => key !== totalKey && key !== "name" && key !== "rank"
   );
+  const availableYears = data?.leaderboard?.meta?.availableYears || [];
+  const activeYear = data?.leaderboard?.meta?.year;
 
   const tableRowVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -61,9 +107,9 @@ export default function Scareboard() {
 
   const getPastWinYears = (name: string) => {
     const winners = data?.pastWinners?.data?.filter(
-      (winner: any) => winner.name === name
+      (winner) => winner.name === name
     );
-    return winners ? winners.map((winner: any) => winner.year.slice(2, 4)) : [];
+    return winners ? winners.map((winner) => winner.year.slice(2, 4)) : [];
   };
 
   const StarWithYear = ({ year }: { year: number }) => (
@@ -93,6 +139,46 @@ export default function Scareboard() {
         layout
         className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto tracking-widest"
       >
+        <div className="mb-5 rounded-lg border border-red-950/70 bg-black/60 px-4 py-3">
+          <h1 className="text-3xl font-bold text-red-500 md:text-4xl">
+            {data?.leaderboard?.meta?.year
+              ? `${data.leaderboard.meta.year} Scareboard`
+              : "Scareboard"}
+          </h1>
+          <p className="mt-1 text-sm uppercase tracking-widest text-orange-100/70">
+            {data?.leaderboard?.meta?.isLive
+              ? "Live October standings"
+              : "Latest available historical standings"}
+          </p>
+          {availableYears.length > 1 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {availableYears.map((year) => {
+                const isRequestedYear = year === selectedYear;
+
+                return (
+                  <button
+                    key={year}
+                    type="button"
+                    onClick={() => setSelectedYear(year)}
+                    disabled={isFetching && isRequestedYear}
+                    className={`rounded border px-3 py-1 text-lg transition disabled:cursor-wait disabled:opacity-80 ${
+                      year === activeYear
+                        ? "border-red-500 bg-red-800 text-white"
+                        : "border-red-950 bg-black/50 text-red-300 hover:border-red-500 hover:text-white"
+                    }`}
+                  >
+                    {year}
+                  </button>
+                );
+              })}
+              {isFetching && (
+                <span className="ml-2 text-sm uppercase tracking-widest text-orange-100/60">
+                  Loading
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full shadow-md rounded-lg overflow-hidden">
             <thead className="bg-gray-900 bg-opacity-50">
@@ -118,7 +204,7 @@ export default function Scareboard() {
             </thead>
             <tbody className="divide-y divide-gray-700">
               <AnimatePresence>
-                {data?.leaderboard?.data?.map((user: any, index: number) => (
+                {data?.leaderboard?.data?.map((user, index: number) => (
                   <motion.tr
                     key={user.name}
                     className="bg-gray-950 bg-opacity-50 transition-colors"

@@ -9,6 +9,7 @@ export type AvatarItem = {
   itemKey: string;
   name: string;
   slot: string;
+  equipGroup: string;
   layerOrder: number;
   assetPath: string;
   storageBucket?: string;

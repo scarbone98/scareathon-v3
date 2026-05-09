@@ -95,12 +95,17 @@ function sortLayers(layers: AvatarItem[]) {
   );
 }
 
+function getEquipGroup(item: AvatarItem) {
+  return item.equipGroup || item.slot;
+}
+
 function previewLayers(avatar: AvatarData | undefined, item: ShopItem | null) {
   if (!avatar) return item ? [item] : [];
   if (!item) return avatar.equipped;
+  const equipGroup = getEquipGroup(item);
 
   return sortLayers([
-    ...avatar.equipped.filter((layer) => layer.slot !== item.slot),
+    ...avatar.equipped.filter((layer) => getEquipGroup(layer) !== equipGroup),
     item,
   ]);
 }
@@ -275,7 +280,9 @@ export function AvatarShop() {
             </div>
             <p className="truncate text-sm text-gray-400">
               <span className="font-bold text-white">{previewItem.name}</span> as{" "}
-              <span className="font-bold text-white">{previewItem.slot}</span>.
+              <span className="font-bold text-white">
+                {getEquipGroup(previewItem)}
+              </span>.
             </p>
           </div>
           <button
@@ -308,6 +315,7 @@ export function AvatarShop() {
             const rarity = item.rarity || "common";
             const rarityClass = rarityStyles[rarity] || rarityStyles.common;
             const isPreviewing = previewItem?.id === item.id;
+            const equipGroup = getEquipGroup(item);
 
             return (
               <article
@@ -327,6 +335,11 @@ export function AvatarShop() {
                       <span className="rounded border border-current px-2 py-1">
                         {item.slot}
                       </span>
+                      {equipGroup !== item.slot ? (
+                        <span className="rounded border border-current px-2 py-1">
+                          {equipGroup}
+                        </span>
+                      ) : null}
                       <span className="rounded border border-current px-2 py-1">
                         {rarity}
                       </span>

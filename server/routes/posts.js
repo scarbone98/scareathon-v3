@@ -7,37 +7,44 @@ function setReadCacheHeaders(reply) {
     reply.header('Cache-Control', `private, max-age=${CLIENT_CACHE_SECONDS}, stale-while-revalidate=60`);
 }
 
-export default async function (fastify, options) {
-    fastify.get('/posts', async (request, reply) => {
-        const cacheKey = 'posts:list';
-        const cachedData = getCache(cacheKey);
-        if (cachedData) {
-            setReadCacheHeaders(reply);
-            return cachedData;
+export async function getPostsPayload() {
+    const cacheKey = 'posts:list';
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+        return cachedData;
+    }
+
+    try {
+        const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*&sort=createdAt:desc`, {
+            headers: {
+                'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Strapi API error: ${response.status}`);
         }
 
+        const data = await response.json();
+        setCache(cacheKey, data, POSTS_TTL);
+        return data;
+    } catch (error) {
+        const staleData = getStaleCache(cacheKey);
+        if (staleData) {
+            return staleData;
+        }
+
+        throw error;
+    }
+}
+
+export default async function (fastify, options) {
+    fastify.get('/posts', async (request, reply) => {
         try {
-            const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*&sort=createdAt:desc`, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Strapi API error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setCache(cacheKey, data, POSTS_TTL);
+            const data = await getPostsPayload();
             setReadCacheHeaders(reply);
             return data;
         } catch (error) {
-            const staleData = getStaleCache(cacheKey);
-            if (staleData) {
-                setReadCacheHeaders(reply);
-                return staleData;
-            }
-
             fastify.log.error(error);
             reply.code(500).send({ error: 'Internal Server Error' });
         }

@@ -7,6 +7,11 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import { motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 
+type CalendarDay = {
+  title: string;
+  lowResUrl: string;
+};
+
 export default function Calendar() {
   const queryClient = useQueryClient();
   const [isMobile, setIsMobile] = React.useState(false);
@@ -66,7 +71,9 @@ export default function Calendar() {
       ));
   };
 
-  const currentDay = new Date().getDate();
+  const today = new Date();
+  const isOctober = today.getMonth() === 9;
+  const currentDay = isOctober ? today.getDate() : 0;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -124,7 +131,7 @@ export default function Calendar() {
             )
           )}
           {generateEmptyCells(currentDate)}
-          {data?.data.slice(1, 32).map((day: any, index: number) => (
+          {data?.data.slice(1, 32).map((day: CalendarDay, index: number) => (
             <motion.div
               key={day.title}
               className="flex justify-center"

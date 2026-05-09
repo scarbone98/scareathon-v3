@@ -16,6 +16,8 @@ import LoadingSpinner from "./LoadingSpinner";
 const Home = lazy(() => import("../pages/Home/page"));
 const Arcade = lazy(() => import("../pages/Arcade/page"));
 const Authentication = lazy(() => import("../pages/Authentication/page"));
+const Scareathon = lazy(() => import("../pages/Scareathon/page"));
+const ScareathonToday = lazy(() => import("../pages/Scareathon/Today"));
 const Scareboard = lazy(() => import("../pages/Scareboard/page"));
 const Calendar = lazy(() => import("../pages/Calendar/page"));
 const Rules = lazy(() => import("../pages/Rules/page"));
@@ -158,6 +160,32 @@ export const AnimatedRoutes = () => {
           path="/rules"
           element={
             <Suspense fallback={<LoadingSpinner />}>
+              <Navigate to="/scareathon/rules" replace />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/scareathon"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Scareathon />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/scareathon/today"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ScareathonToday />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scareathon/rules"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
               <Rules />
             </Suspense>
           }
@@ -187,13 +215,33 @@ export const AnimatedRoutes = () => {
           element={
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
-                <Scareboard />
+                <Navigate to="/scareathon/scareboard" replace />
               </Suspense>
             </ProtectedRoute>
           }
         />
         <Route
           path="/calendar"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Navigate to="/scareathon/calendar" replace />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scareathon/scareboard"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Scareboard />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scareathon/calendar"
           element={
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
