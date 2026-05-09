@@ -206,29 +206,72 @@ async function uploadSpriteToSupabase(storagePath, file) {
     return normalizedPath;
 }
 
-async function getExistingAvatarItem(itemKey) {
+function canDeleteStoragePath(assetPath) {
+    if (!assetPath || typeof assetPath !== 'string') return false;
+    if (/^https?:\/\//i.test(assetPath)) return false;
+    if (assetPath.includes('..')) return false;
+    return /^[a-z]+\/[a-z0-9_-]+\.png$/i.test(assetPath);
+}
+
+async function deleteSpriteFromSupabase(assetPath) {
+    const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_REF ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co` : '');
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !serviceKey || !canDeleteStoragePath(assetPath)) return false;
+
+    const response = await fetch(
+        `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${avatarSpriteBucket}`,
+        {
+            method: 'DELETE',
+            headers: {
+                Authorization: `Bearer ${serviceKey}`,
+                apikey: serviceKey,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prefixes: [assetPath.replace(/^\/+/, '')] }),
+        }
+    );
+
+    if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        throw new Error(`Unable to delete avatar sprite: ${response.status} ${body}`);
+    }
+
+    return true;
+}
+
+async function getExistingAvatarItem(item) {
     const result = await pool.query(`
         SELECT id, asset_path, metadata
         FROM avatar_items
-        WHERE item_key = $1
+        WHERE metadata->>'strapiDocumentId' = $1
+           OR item_key = $2
+        ORDER BY CASE WHEN metadata->>'strapiDocumentId' = $1 THEN 0 ELSE 1 END
         LIMIT 1
-    `, [itemKey]);
+    `, [item.strapiDocumentId, item.itemKey]);
 
     return result.rows[0] || null;
 }
 
 async function resolveAssetPath(item, existingItem = null) {
+    const storagePath = `${item.slot}/${item.itemKey}.png`;
+
     if (
         existingItem?.asset_path &&
-        existingItem?.metadata?.assetUrl === item.assetUrl
+        existingItem?.metadata?.assetUrl === item.assetUrl &&
+        existingItem.asset_path === storagePath
     ) {
         return existingItem.asset_path;
     }
 
-    const storagePath = `${item.slot}/${item.itemKey}.png`;
     const file = await downloadAsset(item.assetUrl);
     const uploadedPath = await uploadSpriteToSupabase(storagePath, file);
     return uploadedPath || item.assetUrl;
+}
+
+async function cleanupReplacedSprite(existingItem, assetPath) {
+    if (!existingItem?.asset_path || existingItem.asset_path === assetPath) return false;
+    return deleteSpriteFromSupabase(existingItem.asset_path);
 }
 
 function serializeAvatarItem(row) {
@@ -250,7 +293,50 @@ function serializeAvatarItem(row) {
     };
 }
 
-async function upsertAvatarItem(item, assetPath) {
+async function upsertAvatarItem(item, assetPath, existingItem = null) {
+    const metadata = JSON.stringify({
+        source: 'strapi',
+        strapiDocumentId: item.strapiDocumentId,
+        strapiId: item.strapiId,
+        supplyLimit: item.supplyLimit,
+        assetUrl: item.assetUrl,
+    });
+
+    if (existingItem?.id) {
+        const result = await pool.query(`
+            UPDATE avatar_items
+            SET item_key = $1,
+                name = $2,
+                slot = $3,
+                layer_order = $4,
+                asset_path = $5,
+                is_tradeable = $6,
+                is_sellable = $7,
+                rarity = $8,
+                base_price = $9,
+                release_status = $10,
+                metadata = $11::jsonb
+            WHERE id = $12
+            RETURNING *
+        `, [
+            item.itemKey,
+            item.name,
+            item.slot,
+            item.layerOrder,
+            assetPath,
+            item.isTradeable,
+            item.isSellable,
+            item.rarity,
+            item.basePrice,
+            item.releaseStatus,
+            metadata,
+            existingItem.id,
+        ]);
+
+        await cleanupReplacedSprite(existingItem, assetPath);
+        return serializeAvatarItem(result.rows[0]);
+    }
+
     const result = await pool.query(`
         INSERT INTO avatar_items (
             item_key,
@@ -292,37 +378,62 @@ async function upsertAvatarItem(item, assetPath) {
         item.rarity,
         item.basePrice,
         item.releaseStatus,
-        JSON.stringify({
-            source: 'strapi',
-            strapiDocumentId: item.strapiDocumentId,
-            strapiId: item.strapiId,
-            supplyLimit: item.supplyLimit,
-            assetUrl: item.assetUrl,
-        }),
+        metadata,
     ]);
 
     return serializeAvatarItem(result.rows[0]);
+}
+
+async function deleteAvatarItem(documentId, itemKey = null) {
+    const normalizedItemKey = normalizeItemKey(itemKey);
+    const result = await pool.query(`
+        DELETE FROM avatar_items
+        WHERE (metadata->>'strapiDocumentId' = $1 OR ($2::text IS NOT NULL AND item_key = $2))
+          AND metadata->>'source' = 'strapi'
+        RETURNING id, item_key, asset_path, metadata
+    `, [documentId, normalizedItemKey]);
+
+    const deletedItems = [];
+    for (const row of result.rows) {
+        deletedItems.push({
+            id: row.id,
+            itemKey: row.item_key,
+            assetPath: row.asset_path,
+            storageDeleted: await deleteSpriteFromSupabase(row.asset_path),
+        });
+    }
+
+    return deletedItems;
 }
 
 async function routes(fastify) {
     fastify.post('/avatar-items/sync', async (request, reply) => {
         if (!verifySyncSecret(request, reply)) return;
 
-        const { documentId } = request.body || {};
+        const { action = 'sync', documentId, itemKey } = request.body || {};
         if (!documentId || typeof documentId !== 'string') {
             return reply.code(400).send({ error: 'documentId is required' });
         }
 
         try {
+            if (action === 'delete') {
+                const deletedItems = await deleteAvatarItem(documentId, itemKey);
+                return { data: { deletedItems } };
+            }
+
+            if (action !== 'sync') {
+                return reply.code(400).send({ error: 'action is invalid' });
+            }
+
             const strapiItem = await fetchStrapiAvatarItem(documentId);
             const { item, error } = normalizeStrapiItem(strapiItem);
             if (error) {
                 return reply.code(400).send({ error });
             }
 
-            const existingItem = await getExistingAvatarItem(item.itemKey);
+            const existingItem = await getExistingAvatarItem(item);
             const assetPath = await resolveAssetPath(item, existingItem);
-            const syncedItem = await upsertAvatarItem(item, assetPath);
+            const syncedItem = await upsertAvatarItem(item, assetPath, existingItem);
 
             return { data: syncedItem };
         } catch (error) {
