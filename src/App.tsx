@@ -7,6 +7,7 @@ import { AnimatedRoutes } from "./components/AnimatedRoutes";
 import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "./components/LoadingSpinner";
+import { AvatarCompositeEnsurer } from "./components/avatar/AvatarCompositeEnsurer";
 
 const AppContent = () => {
   const location = useLocation();
@@ -51,6 +52,7 @@ const AppContent = () => {
 
   return (
     <>
+      <AvatarCompositeEnsurer />
       {!isResetPasswordPage && <Navigator />}
       <PageContainer>
         <AnimatedRoutes />

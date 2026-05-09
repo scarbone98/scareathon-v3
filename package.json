@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "jest",
+    "backfill:avatar-composites": "node scripts/backfill-avatar-composites.mjs",
     "test:integration": "jest --config jest.config.integration.js"
   },
   "dependencies": {

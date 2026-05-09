@@ -29,13 +29,30 @@ export function getAvatarCompositePublicUrl(userId: string, version?: number) {
   return version ? `${data.publicUrl}?v=${version}` : data.publicUrl;
 }
 
-export async function uploadAvatarComposite(layers: AvatarItem[]) {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+export async function avatarCompositeExists(userId: string) {
+  try {
+    const response = await fetch(getAvatarCompositePublicUrl(userId), {
+      method: "HEAD",
+      cache: "no-store",
+    });
 
-  if (userError || !user) {
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function uploadAvatarComposite(layers: AvatarItem[], userId?: string) {
+  let targetUserId = userId;
+
+  if (!targetUserId) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    targetUserId = session?.user.id;
+  }
+
+  if (!targetUserId) {
     return null;
   }
 
@@ -68,7 +85,7 @@ export async function uploadAvatarComposite(layers: AvatarItem[]) {
 
   const { error: uploadError } = await supabase.storage
     .from(AVATAR_COMPOSITE_BUCKET)
-    .upload(`${user.id}.png`, blob, {
+    .upload(`${targetUserId}.png`, blob, {
       cacheControl: "60",
       contentType: "image/png",
       upsert: true,
@@ -78,5 +95,5 @@ export async function uploadAvatarComposite(layers: AvatarItem[]) {
     throw uploadError;
   }
 
-  return getAvatarCompositePublicUrl(user.id, Date.now());
+  return getAvatarCompositePublicUrl(targetUserId, Date.now());
 }
