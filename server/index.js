@@ -58,6 +58,14 @@ function getBearerToken(authHeader) {
     return parts[1];
 }
 
+function isTransientJwtVerificationError(error) {
+    return (
+        error?.code === 'ERR_JWKS_TIMEOUT' ||
+        error?.code === 'ERR_JWKS_FETCH_FAILED' ||
+        error?.name === 'JWKSTimeout'
+    );
+}
+
 async function main() {
     try {
         const authConfig = getAuthConfig();
@@ -103,6 +111,10 @@ async function main() {
                 ({ payload } = await jwtVerify(token, jwks, verifyOptions));
             } catch (err) {
                 request.log.warn({ err }, 'Supabase JWT verification failed');
+                if (isTransientJwtVerificationError(err)) {
+                    return reply.code(503).send({ error: 'Authentication service unavailable' });
+                }
+
                 return reply.code(401).send({ error: 'Unauthorized' });
             }
 

@@ -1,5 +1,8 @@
 import { isRetryableAuthError } from "./authErrors";
 import { supabase } from "./supabaseClient";
+import type { Session } from "@supabase/supabase-js";
+
+let refreshPromise: Promise<Session | null> | null = null;
 
 function buildApiUrl(input: RequestInfo) {
   const baseUrl = import.meta.env.VITE_BASE_URL || "";
@@ -21,6 +24,28 @@ async function fetchWithAccessToken(
   return fetch(buildApiUrl(input), { ...init, headers });
 }
 
+function refreshSessionOnce(refreshToken: string) {
+  if (!refreshPromise) {
+    refreshPromise = supabase.auth
+      .refreshSession({ refresh_token: refreshToken })
+      .then(async ({ data, error }) => {
+        if (error || !data.session?.access_token) {
+          if (!isRetryableAuthError(error)) {
+            await supabase.auth.signOut();
+          }
+          return null;
+        }
+
+        return data.session;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+}
+
 export async function fetchWithAuth(
   input: RequestInfo,
   init?: RequestInit
@@ -34,20 +59,15 @@ export async function fetchWithAuth(
     return response;
   }
 
-  const { data, error } = await supabase.auth.refreshSession({
-    refresh_token: session.refresh_token,
-  });
-  if (error || !data.session?.access_token) {
-    if (!isRetryableAuthError(error)) {
-      await supabase.auth.signOut();
-    }
+  const refreshedSession = await refreshSessionOnce(session.refresh_token);
+  if (!refreshedSession?.access_token) {
     return response;
   }
 
   const retryResponse = await fetchWithAccessToken(
     input,
     init,
-    data.session.access_token
+    refreshedSession.access_token
   );
   if (retryResponse.status === 401) {
     await supabase.auth.signOut();
