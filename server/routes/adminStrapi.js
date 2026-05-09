@@ -4,6 +4,8 @@ const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
 const allowedSlots = new Set(['body', 'pants', 'shirt', 'shoes', 'face', 'hair', 'accessory']);
 const allowedRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
 const allowedReleaseStatuses = new Set(['draft', 'released', 'retired']);
+const requiredSpriteSize = 256;
+const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function getRequiredEnv(name) {
     const value = process.env[name];
@@ -146,7 +148,32 @@ async function downloadAsset(assetUrl) {
         throw new Error('Avatar asset must be served as image/png');
     }
 
-    return Buffer.from(await response.arrayBuffer());
+    const file = Buffer.from(await response.arrayBuffer());
+    validatePngDimensions(file);
+    return file;
+}
+
+function getPngDimensions(file) {
+    if (file.length < 24 || !file.subarray(0, 8).equals(pngSignature)) {
+        throw new Error('Avatar asset must be a valid PNG image');
+    }
+
+    const chunkType = file.subarray(12, 16).toString('ascii');
+    if (chunkType !== 'IHDR') {
+        throw new Error('Avatar PNG is missing an IHDR header');
+    }
+
+    return {
+        width: file.readUInt32BE(16),
+        height: file.readUInt32BE(20),
+    };
+}
+
+function validatePngDimensions(file) {
+    const { width, height } = getPngDimensions(file);
+    if (width !== requiredSpriteSize || height !== requiredSpriteSize) {
+        throw new Error(`Avatar asset must be ${requiredSpriteSize}x${requiredSpriteSize}px; received ${width}x${height}px`);
+    }
 }
 
 async function uploadSpriteToSupabase(storagePath, file) {
