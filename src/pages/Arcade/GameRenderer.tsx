@@ -7,9 +7,15 @@ type GameRendererProps = {
     iframe: HTMLIFrameElement
   ) => () => void | ((iframe: HTMLIFrameElement) => void)[] | undefined;
   title: string;
+  desktopAspectRatio?: number;
 };
 
-function GameRenderer({ url, title, onLoad }: GameRendererProps) {
+function GameRenderer({
+  url,
+  title,
+  onLoad,
+  desktopAspectRatio = 9 / 16,
+}: GameRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { height: headerHeight } = useNavigatorContext();
@@ -35,10 +41,18 @@ function GameRenderer({ url, title, onLoad }: GameRendererProps) {
 
       document.body.style.textAlign = "left";
     } else {
-      const height = window.innerHeight;
+      const availableHeight = window.innerHeight - headerHeight;
+      const availableWidth = window.innerWidth;
+      const viewportAspectRatio = availableWidth / availableHeight;
+      const height =
+        viewportAspectRatio > desktopAspectRatio
+          ? availableHeight
+          : availableWidth / desktopAspectRatio;
+      const width = height * desktopAspectRatio;
+
       iframe.style.marginTop = `${headerHeight / 2}px`;
-      iframe.style.height = `${height - headerHeight}px`;
-      iframe.style.width = `${(height - headerHeight) * (9 / 16)}px`;
+      iframe.style.height = `${height}px`;
+      iframe.style.width = `${width}px`;
       iframe.style.zIndex = "0";
     }
 

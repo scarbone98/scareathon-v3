@@ -1,5 +1,13 @@
 import AnimatedPage from "../../components/AnimatedPage";
-import { useState, Suspense, lazy, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  Suspense,
+  lazy,
+  type ReactNode,
+} from "react";
 import { supabase } from "../../supabaseClient";
 import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
@@ -28,7 +36,7 @@ type MachineData = {
 export default function Arcade() {
   const [selectedMachine, setSelectedMachine] = useState<MachineData | null>(null);
 
-  const machinesData: MachineData[] = [
+  const machinesData = useMemo<MachineData[]>(() => [
     {
       name: "8 Bit Evil Returns",
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
@@ -186,11 +194,28 @@ export default function Arcade() {
         </Suspense>
       ),
     },
-  ];
+  ], []);
 
   const handleMachineSelected = (machine: MachineData) => {
     setSelectedMachine(machine);
   };
+
+  const handleCloseGame = useCallback(() => {
+    setSelectedMachine(null);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedMachine) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleCloseGame();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleCloseGame, selectedMachine]);
 
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
@@ -204,7 +229,10 @@ export default function Arcade() {
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center">
           <div className="relative h-fit w-fit flex justify-center items-center">
             {selectedMachine.game}
-            <Toolbar currentGame={selectedMachine?.name} />
+            <Toolbar
+              currentGame={selectedMachine.name}
+              onClose={handleCloseGame}
+            />
           </div>
         </div>
       )}

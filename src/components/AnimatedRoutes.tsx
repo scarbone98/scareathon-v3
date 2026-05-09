@@ -58,7 +58,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
             if (error || !user) {
               if (shouldClearAuthSession(error)) {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: "local" });
                 setSession(null);
               } else {
                 setSession(session);

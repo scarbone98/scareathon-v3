@@ -3,6 +3,7 @@ import { useNavigatorContext } from "../../components/navigator/context";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { useQuery } from "@tanstack/react-query";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import { FaTimes } from "react-icons/fa";
 
 interface LeaderboardEntry {
   username: string;
@@ -13,9 +14,10 @@ interface LeaderboardEntry {
 
 interface ToolbarProps {
   currentGame: string;
+  onClose: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ currentGame }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ currentGame, onClose }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const { height: headerHeight } = useNavigatorContext();
@@ -75,6 +77,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentGame }) => {
           </button>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close game"
+        title="Close game"
+        className="absolute right-4 z-50 flex h-11 w-11 items-center justify-center rounded border border-red-400/70 bg-black/80 text-red-100 shadow-lg transition hover:border-red-200 hover:bg-red-950 focus:outline-none focus:ring-2 focus:ring-red-300"
+        style={{ top: `${8 + headerHeight / 2}px` }}
+      >
+        <FaTimes />
+      </button>
       {isLoading && <LoadingSpinner />}
       {showLeaderboard && !isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4">

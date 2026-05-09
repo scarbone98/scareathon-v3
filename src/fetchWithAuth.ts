@@ -31,7 +31,7 @@ function refreshSessionOnce(refreshToken: string) {
       .then(async ({ data, error }) => {
         if (error || !data.session?.access_token) {
           if (!isRetryableAuthError(error)) {
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: "local" });
           }
           return null;
         }
@@ -70,7 +70,7 @@ export async function fetchWithAuth(
     refreshedSession.access_token
   );
   if (retryResponse.status === 401) {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   }
   return retryResponse;
 }
