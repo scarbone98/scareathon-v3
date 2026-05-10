@@ -8,7 +8,6 @@ import {
   lazy,
   type ReactNode,
 } from "react";
-import { supabase } from "../../supabaseClient";
 import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import Toolbar from "./Toolbar.tsx";
@@ -44,16 +43,20 @@ export default function Arcade() {
         <GameRenderer
           title="8 Bit Evil Returns"
           url="https://scarbone98.github.io/8BitEvilReturnsBuild/"
-          onLoad={(iframe) => {
+          onLoad={() => {
             window.onmessage = async (e) => {
-              if (e.data.type === "unityReady") {
-                const { data } = await supabase.auth.getUser();
-                if (data) {
-                  iframe.contentWindow?.postMessage(
-                    { type: "authDetails", userId: data?.user?.id },
-                    "*"
-                  );
-                }
+              if (e.data.type === "PLAYER_DIED") {
+                await fetchWithAuth("/games/submitScore", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    game: "8 Bit Evil Returns",
+                    metricName: "score",
+                    metricValue: e.data.score,
+                  }),
+                }).then((res) => res.json());
               }
             };
 
