@@ -29,11 +29,38 @@ type GameInstance = {
 type MachineData = {
   name: string;
   videoUrl?: string;
+  availableOnMobile?: boolean;
   game: ReactNode;
 };
 
+const ORIGINAL_EIGHT_BIT_EVIL = "8 Bit Evil";
+const mobileArcadeQuery = "(max-width: 768px), (pointer: coarse)";
+
+function useIsMobileArcade() {
+  const getMatches = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia(mobileArcadeQuery).matches;
+
+  const [isMobile, setIsMobile] = useState(getMatches);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(mobileArcadeQuery);
+    const handleChange = () => setIsMobile(mediaQuery.matches);
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
+  return isMobile;
+}
+
 export default function Arcade() {
   const [selectedMachine, setSelectedMachine] = useState<MachineData | null>(null);
+  const isMobileArcade = useIsMobileArcade();
 
   const machinesData = useMemo<MachineData[]>(() => [
     {
@@ -161,8 +188,9 @@ export default function Arcade() {
       ),
     },
     {
-      name: "8 Bit Evil",
+      name: ORIGINAL_EIGHT_BIT_EVIL,
       videoUrl: "/game-recordings/8BitEvil.mp4",
+      availableOnMobile: false,
       game: (
         <Suspense fallback={<LoadingSpinner />}>
           <EightBitEvil
@@ -199,6 +227,14 @@ export default function Arcade() {
     },
   ], []);
 
+  const visibleMachinesData = useMemo(
+    () =>
+      isMobileArcade
+        ? machinesData.filter((machine) => machine.availableOnMobile !== false)
+        : machinesData,
+    [isMobileArcade, machinesData]
+  );
+
   const handleMachineSelected = (machine: MachineData) => {
     setSelectedMachine(machine);
   };
@@ -220,11 +256,17 @@ export default function Arcade() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleCloseGame, selectedMachine]);
 
+  useEffect(() => {
+    if (isMobileArcade && selectedMachine?.availableOnMobile === false) {
+      handleCloseGame();
+    }
+  }, [handleCloseGame, isMobileArcade, selectedMachine?.availableOnMobile]);
+
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <Suspense fallback={<LoadingSpinner />}>
         <ArcadeGallery
-          machinesData={machinesData}
+          machinesData={visibleMachinesData}
           onPlay={handleMachineSelected}
         />
       </Suspense>

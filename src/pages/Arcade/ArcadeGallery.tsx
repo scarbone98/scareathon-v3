@@ -10,6 +10,7 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 type MachineData = {
   name: string;
   videoUrl?: string;
+  availableOnMobile?: boolean;
   game: React.ReactNode;
 };
 
@@ -281,8 +282,8 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
   // Update focused machine on component mount
   useEffect(() => {
-    setFocusedMachine(machinesData[0]);
-  }, []);
+    setFocusedMachine(machinesData[0] ?? null);
+  }, [machinesData]);
 
   const handleRotate = (direction: number) => {
     rotateMachines(direction);
