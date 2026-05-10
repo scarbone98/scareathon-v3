@@ -141,7 +141,7 @@ export default function Scareboard() {
       <div className="calendar-gradient"></div>
       <motion.div
         layout
-        className={`${siteContainerClassName} py-4 md:py-6 tracking-widest`}
+        className={`${siteContainerClassName} pb-4 pt-6 md:pb-6 md:pt-20 tracking-widest`}
       >
         <div className="mb-5 rounded-lg border border-red-950/70 bg-black/60 px-4 py-3">
           <h1 className="text-3xl font-bold text-red-500 md:text-4xl">

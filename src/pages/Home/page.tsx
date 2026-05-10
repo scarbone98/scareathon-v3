@@ -136,7 +136,7 @@ export default function Home() {
       <div className="home-gradient" />
       <SiteContainer
         as="main"
-        className="relative z-10 flex flex-1 flex-col gap-6"
+        className="relative z-10 flex flex-1 flex-col gap-6 pt-6 md:pt-20"
       >
         <section className="max-w-3xl">
           <h1 className="text-4xl font-bold text-orange-100 md:text-6xl">
