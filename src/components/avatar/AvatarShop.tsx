@@ -11,7 +11,6 @@ import {
   FaChevronRight,
   FaCoins,
   FaSearch,
-  FaShoppingBag,
 } from "react-icons/fa";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
@@ -207,23 +206,7 @@ export function AvatarShop() {
   );
 
   return (
-    <section className="flex flex-col gap-5 border-t border-red-950/70 pt-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 text-amber-200">
-          <FaShoppingBag className="text-2xl text-red-400" />
-          <h2 className="text-2xl text-red-200">Shop</h2>
-          {isFetching && !isInitialLoading ? (
-            <span className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-400">
-              Updating
-            </span>
-          ) : null}
-        </div>
-        <div className="inline-flex items-center gap-2 self-start rounded border border-amber-500/60 bg-amber-950/30 px-3 py-2 text-amber-200 sm:self-auto">
-          <FaCoins className="text-amber-300" />
-          <span className="font-bold text-amber-300">{coinBalance.toLocaleString()}</span>
-        </div>
-      </div>
-
+    <section className="flex flex-col gap-5">
       <div className="grid gap-3 rounded border border-red-950/70 bg-black/30 p-3 md:grid-cols-[minmax(0,1fr),220px,180px]">
         <label className="relative block">
           <span className="sr-only">Search shop items</span>
@@ -306,7 +289,7 @@ export function AvatarShop() {
           No shop items match.
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="grid gap-3 xl:grid-cols-2 2xl:grid-cols-3">
           {items.map((item) => {
             const price = item.basePrice || 0;
             const cannotAfford = coinBalance < price;
@@ -320,34 +303,36 @@ export function AvatarShop() {
             return (
               <article
                 key={item.id}
-                className={`flex flex-col gap-3 rounded border bg-black/40 p-3 sm:grid sm:grid-cols-[80px,minmax(0,1fr),170px] sm:items-center ${rarityClass}`}
+                className={`grid min-h-32 grid-cols-[84px_minmax(0,1fr)] gap-3 rounded border bg-black/40 p-3 ${rarityClass}`}
               >
-                <div className="flex justify-center sm:justify-start">
+                <div className="flex items-center justify-center rounded border border-red-950/70 bg-black/30">
                   <AvatarPreview layers={[item]} size="xs" />
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-2 text-center sm:text-left">
+                <div className="flex min-w-0 flex-col gap-2">
                   <div>
-                    <h3 className="truncate text-base font-bold text-white sm:text-lg">
-                      {item.name}
-                    </h3>
-                    <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs uppercase tracking-normal sm:justify-start">
-                      <span className="rounded border border-current px-2 py-1">
-                        {item.slot}
-                      </span>
-                      {equipGroup !== item.slot ? (
-                        <span className="rounded border border-current px-2 py-1">
-                          {equipGroup}
-                        </span>
-                      ) : null}
-                      <span className="rounded border border-current px-2 py-1">
+                    <div className="mb-1 flex min-w-0 items-start justify-between gap-2">
+                      <h3 className="truncate text-base font-bold text-white">
+                        {item.name}
+                      </h3>
+                      <span className="shrink-0 rounded border border-current bg-black/70 px-2 py-0.5 text-[10px] uppercase">
                         {rarity}
                       </span>
                     </div>
+                    <div className="flex flex-wrap gap-1.5 text-[11px] uppercase tracking-normal">
+                      <span className="rounded border border-current px-1.5 py-0.5">
+                        {item.slot}
+                      </span>
+                      {equipGroup !== item.slot ? (
+                        <span className="rounded border border-current px-1.5 py-0.5">
+                          {equipGroup}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="text-sm text-gray-300">
-                    <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div className="text-gray-300">
                       Owned: {item.ownedCount}
                       {item.supplyLimit ? (
                         <span>
@@ -356,41 +341,40 @@ export function AvatarShop() {
                         </span>
                       ) : null}
                     </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-stretch sm:justify-center">
-                  <div className="flex items-center gap-2 text-amber-200 sm:justify-center">
-                    <FaCoins className="text-amber-300" />
-                    <span className="font-bold">{price.toLocaleString()}</span>
+                    <div className="flex items-center gap-1.5 text-amber-200">
+                      <FaCoins className="text-amber-300" />
+                      <span className="font-bold">{price.toLocaleString()}</span>
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setPreviewItem(isPreviewing ? null : item)}
-                    className={`min-h-10 min-w-28 rounded border px-4 py-2 text-sm font-bold transition sm:w-full ${
-                      isPreviewing
-                        ? "border-amber-400 bg-amber-950/50 text-amber-100"
-                        : "border-gray-700 bg-gray-950 text-gray-200 hover:border-red-700"
-                    }`}
-                  >
-                    {isPreviewing ? "Hide" : "Preview"}
-                  </button>
+                  <div className="mt-auto grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewItem(isPreviewing ? null : item)}
+                      className={`min-h-9 rounded border px-2 py-1.5 text-sm font-bold transition ${
+                        isPreviewing
+                          ? "border-amber-400 bg-amber-950/50 text-amber-100"
+                          : "border-gray-700 bg-gray-950 text-gray-200 hover:border-red-700"
+                      }`}
+                    >
+                      {isPreviewing ? "Hide" : "Preview"}
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => buyMutation.mutate(item.id)}
-                    disabled={pendingThisItem || item.isSoldOut || cannotAfford}
-                    className="min-h-10 min-w-28 rounded bg-red-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400 sm:w-full"
-                  >
-                    {item.isSoldOut
-                      ? "Sold Out"
-                      : cannotAfford
-                        ? "Need Coins"
-                        : pendingThisItem
-                          ? "Buying..."
-                          : "Buy"}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => buyMutation.mutate(item.id)}
+                      disabled={pendingThisItem || item.isSoldOut || cannotAfford}
+                      className="min-h-9 rounded bg-red-700 px-2 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400"
+                    >
+                      {item.isSoldOut
+                        ? "Sold Out"
+                        : cannotAfford
+                          ? "Need Coins"
+                          : pendingThisItem
+                            ? "Buying..."
+                            : "Buy"}
+                    </button>
+                  </div>
                 </div>
               </article>
             );

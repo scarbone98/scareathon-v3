@@ -64,7 +64,11 @@ async function readAvatarResponse(response: Response) {
   return data as AvatarResponse;
 }
 
-export function AvatarEditor() {
+type AvatarEditorProps = {
+  onPreviewLayersChange?: (layers: AvatarItem[] | null) => void;
+};
+
+export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
   const queryClient = useQueryClient();
   const [activeSlot, setActiveSlot] = useState("body");
   const [draftEquipped, setDraftEquipped] = useState<AvatarItem[]>([]);
@@ -106,6 +110,12 @@ export function AvatarEditor() {
   useEffect(() => {
     setDraftEquipped(savedEquipped);
   }, [savedSelectionKey, savedEquipped]);
+
+  useEffect(() => {
+    onPreviewLayersChange?.(draftEquipped);
+
+    return () => onPreviewLayersChange?.(null);
+  }, [draftEquipped, onPreviewLayersChange]);
 
   useEffect(() => {
     if (!avatar || initialCompositeSavedRef.current) return;
@@ -157,10 +167,8 @@ export function AvatarEditor() {
   if (!avatar) return null;
 
   return (
-    <section className="flex flex-col gap-5 border-t border-red-950/70 pt-5">
-      <div className="flex flex-col items-center gap-5 lg:flex-row lg:items-start">
-        <AvatarPreview layers={draftEquipped} />
-
+    <section className="flex flex-col gap-5">
+      <div className="grid gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
             {avatar.slots.map((slot) => (
