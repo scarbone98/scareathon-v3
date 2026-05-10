@@ -1,8 +1,8 @@
 import calendarSheet from '../db/google-sheets.js';
 import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
 
-const LEADERBOARD_TTL = 5 * 60 * 1000;
-const CLIENT_CACHE_SECONDS = 5 * 60;
+const LEADERBOARD_TTL = 24 * 60 * 60 * 1000;
+const CLIENT_CACHE_SECONDS = 24 * 60 * 60;
 const EVENT_MONTH_INDEX = 9;
 const LEADERBOARD_KEYS = ['name', 'movies', 'weekly', 'bonus', 'total'];
 const WINNER_KEYS = ['year', 'name'];

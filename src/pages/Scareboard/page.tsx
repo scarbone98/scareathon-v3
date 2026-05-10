@@ -41,6 +41,8 @@ type ScareboardData = {
   pastWinners: PastWinnersResponse;
 };
 
+const SCAREBOARD_CACHE_TIME = 1000 * 60 * 60 * 24;
+
 export default function Scareboard() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const queryClient = useQueryClient();
@@ -67,7 +69,8 @@ export default function Scareboard() {
       ]);
     },
     placeholderData: keepPreviousData,
-    staleTime: 1000 * 60 * 60 * 1,
+    staleTime: SCAREBOARD_CACHE_TIME,
+    gcTime: SCAREBOARD_CACHE_TIME,
   });
 
   if (isLoading && !data) return <LoadingSpinner />;
