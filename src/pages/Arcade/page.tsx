@@ -328,7 +328,7 @@ export default function Arcade() {
           className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
           style={{ top: headerHeight }}
         >
-          <div className="flex h-full w-full flex-col items-center justify-start">
+          <div className="flex h-full w-fit flex-col items-center justify-start">
             <Toolbar
               currentGame={selectedMachine.name}
               onClose={handleCloseGame}

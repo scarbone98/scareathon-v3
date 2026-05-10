@@ -29,11 +29,10 @@ function GameRenderer({
     iframe.style.display = "block";
 
     const applyIframeSize = () => {
-      const parentElement = iframe.parentElement;
-      const availableWidth = parentElement?.clientWidth || window.innerWidth;
-      const availableHeight =
-        (parentElement?.clientHeight || window.innerHeight) -
-        reservedVerticalSpace;
+      const viewportHeight =
+        iframe.parentElement?.parentElement?.clientHeight || window.innerHeight;
+      const availableHeight = viewportHeight - reservedVerticalSpace;
+      const availableWidth = window.innerWidth;
 
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         iframe.style.width = `${availableWidth}px`;
@@ -70,12 +69,12 @@ function GameRenderer({
     applyIframeSize();
     window.addEventListener("resize", applyIframeSize);
     const resizeObserver =
-      iframe.parentElement && "ResizeObserver" in window
+      iframe.parentElement?.parentElement && "ResizeObserver" in window
         ? new ResizeObserver(applyIframeSize)
         : null;
 
-    if (resizeObserver && iframe.parentElement) {
-      resizeObserver.observe(iframe.parentElement);
+    if (resizeObserver && iframe.parentElement?.parentElement) {
+      resizeObserver.observe(iframe.parentElement.parentElement);
     }
 
     let functionsToRun: GameRendererCleanup;
