@@ -164,7 +164,7 @@ export const Navigator = () => {
               <li key={item.name}>
                 <Link
                   to={item.path}
-                  className="inline-flex items-center gap-2 rounded px-3 py-2 text-3xl leading-none tracking-wide hover:bg-gray-100"
+                  className="inline-flex items-center gap-2 rounded px-3 py-2 text-4xl leading-none tracking-wide hover:bg-gray-100"
                   style={{
                     color: getColor(item),
                   }}
@@ -178,7 +178,7 @@ export const Navigator = () => {
             <li key={profileNavItem.name}>
               <Link
                 to={profileNavItem.path}
-                className="inline-flex items-center gap-2 rounded px-3 py-2 text-3xl leading-none tracking-wide hover:bg-gray-100"
+                className="inline-flex items-center gap-2 rounded px-3 py-2 text-4xl leading-none tracking-wide hover:bg-gray-100"
                 style={{
                   color: getColor(profileNavItem),
                 }}

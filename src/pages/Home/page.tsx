@@ -144,10 +144,10 @@ export default function Home() {
           </h1>
         </section>
 
-        <section className="grid flex-1 gap-5 md:grid-cols-2 md:grid-rows-2">
+        <section className="grid gap-5 md:grid-cols-2 md:auto-rows-fr">
           <Link
             to="/arcade"
-            className="flex min-h-64 flex-col justify-between rounded-lg border border-red-950/70 bg-gray-950/75 p-6 transition hover:border-red-600 hover:bg-red-950/50 md:p-8 lg:min-h-72 lg:p-10"
+            className="flex min-h-56 flex-col justify-between rounded-lg border border-red-950/70 bg-gray-950/75 p-6 transition hover:border-red-600 hover:bg-red-950/50 md:min-h-60 md:p-7"
           >
             <div className="grid gap-4 md:gap-6">
               <div className="flex items-center gap-3 text-4xl text-red-500 md:gap-5 md:text-5xl">
@@ -170,7 +170,7 @@ export default function Home() {
 
           <Link
             to="/scareathon/scareboard"
-            className="flex min-h-64 flex-col justify-between rounded-lg border border-red-950/70 bg-gray-950/75 p-6 transition hover:border-red-600 hover:bg-red-950/50 md:p-8 lg:min-h-72 lg:p-10"
+            className="flex min-h-56 flex-col justify-between rounded-lg border border-red-950/70 bg-gray-950/75 p-6 transition hover:border-red-600 hover:bg-red-950/50 md:min-h-60 md:p-7"
           >
             <div className="grid gap-4 md:gap-6">
               <div className="flex items-center gap-3 text-3xl text-red-500 md:gap-5 md:text-5xl">
@@ -196,7 +196,7 @@ export default function Home() {
 
           <Link
             to="/announcements"
-            className="flex min-h-64 flex-col justify-between rounded-lg border border-orange-800/70 bg-gray-950/75 p-6 transition hover:border-orange-500 hover:bg-orange-950/40 md:p-8 lg:min-h-72 lg:p-10"
+            className="flex min-h-56 flex-col justify-between rounded-lg border border-orange-800/70 bg-gray-950/75 p-6 transition hover:border-orange-500 hover:bg-orange-950/40 md:min-h-60 md:p-7"
           >
             <div className="grid gap-4 md:gap-6">
               <div className="flex items-center gap-3 text-3xl text-orange-500 md:gap-5 md:text-5xl">
@@ -221,7 +221,7 @@ export default function Home() {
 
           <Link
             to="/profile"
-            className="flex min-h-64 flex-col justify-between rounded-lg border border-purple-900/70 bg-gray-950/75 p-6 transition hover:border-purple-500 hover:bg-purple-950/40 md:p-8 lg:min-h-72 lg:p-10"
+            className="flex min-h-56 flex-col justify-between rounded-lg border border-purple-900/70 bg-gray-950/75 p-6 transition hover:border-purple-500 hover:bg-purple-950/40 md:min-h-60 md:p-7"
           >
             <div className="grid gap-4 md:gap-6">
               <div className="flex items-center gap-3 text-3xl text-purple-400 md:gap-5 md:text-5xl">

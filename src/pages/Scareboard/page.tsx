@@ -6,6 +6,7 @@ import { fetchWithAuth } from "../../fetchWithAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { siteContainerClassName } from "../../components/PageContainer";
 
 type LeaderboardUser = {
   name: string;
@@ -140,7 +141,7 @@ export default function Scareboard() {
       <div className="calendar-gradient"></div>
       <motion.div
         layout
-        className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto tracking-widest"
+        className={`${siteContainerClassName} py-4 md:py-6 tracking-widest`}
       >
         <div className="mb-5 rounded-lg border border-red-950/70 bg-black/60 px-4 py-3">
           <h1 className="text-3xl font-bold text-red-500 md:text-4xl">
