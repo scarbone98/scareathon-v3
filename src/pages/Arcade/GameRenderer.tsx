@@ -8,6 +8,7 @@ type GameRendererProps = {
   ) => () => void | ((iframe: HTMLIFrameElement) => void)[] | undefined;
   title: string;
   desktopAspectRatio?: number;
+  reservedVerticalSpace?: number;
 };
 
 function GameRenderer({
@@ -15,6 +16,7 @@ function GameRenderer({
   title,
   onLoad,
   desktopAspectRatio = 9 / 16,
+  reservedVerticalSpace = 0,
 }: GameRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -36,12 +38,14 @@ function GameRenderer({
       document.getElementsByTagName("head")[0].appendChild(meta);
 
       iframe.style.width = "100vw";
-      iframe.style.height = "100vh";
+      iframe.style.height = reservedVerticalSpace
+        ? `calc(100vh - ${reservedVerticalSpace}px)`
+        : "100vh";
       iframe.style.zIndex = "1";
 
       document.body.style.textAlign = "left";
     } else {
-      const availableHeight = window.innerHeight - headerHeight;
+      const availableHeight = window.innerHeight - headerHeight - reservedVerticalSpace;
       const availableWidth = window.innerWidth;
       const viewportAspectRatio = availableWidth / availableHeight;
       const height =
@@ -66,7 +70,7 @@ function GameRenderer({
         }
       };
     }
-  }, [onLoad]);
+  }, [desktopAspectRatio, headerHeight, onLoad, reservedVerticalSpace]);
 
   return <iframe ref={iframeRef} title={title} src={url}></iframe>;
 }

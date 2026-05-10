@@ -37,6 +37,7 @@ type MachineData = {
 
 const ORIGINAL_EIGHT_BIT_EVIL = "8 Bit Evil";
 const mobileArcadeQuery = "(max-width: 768px), (pointer: coarse)";
+const GAME_TOOLBAR_HEIGHT = 56;
 
 function normalizeMachineName(name: string) {
   return name
@@ -82,6 +83,7 @@ export default function Arcade() {
         <GameRenderer
           title="8 Bit Evil Returns"
           url="https://scarbone98.github.io/8BitEvilReturnsBuild/"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={() => {
             const handleMessage = async (e: MessageEvent) => {
               if (e.data.type === "unityReady") {
@@ -131,6 +133,7 @@ export default function Arcade() {
         <GameRenderer
           title="Hemlock's Tower"
           url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={() => {
             window.onmessage = async (e) => {
               if (e.data.type === "PLAYER_DIED") {
@@ -162,6 +165,7 @@ export default function Arcade() {
         <GameRenderer
           title="Tlaloc’s Curse"
           url="https://scarbone98.github.io/tlalocs-curse-pinball/"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={() => {
             window.onmessage = async (e) => {
               if (e.data.type === "PLAYER_DIED") {
@@ -193,6 +197,7 @@ export default function Arcade() {
         <GameRenderer
           title="Ooidash"
           url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={() => {
             window.onmessage = async (e) => {
               if (e.data.type === "PLAYER_DIED") {
@@ -318,12 +323,12 @@ export default function Arcade() {
       </Suspense>
       {selectedMachine?.game && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="relative h-fit w-fit flex justify-center items-center">
-            {selectedMachine.game}
+          <div className="h-fit w-fit flex flex-col items-center justify-center">
             <Toolbar
               currentGame={selectedMachine.name}
               onClose={handleCloseGame}
             />
+            {selectedMachine.game}
           </div>
         </div>
       )}
