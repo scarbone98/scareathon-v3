@@ -208,9 +208,9 @@ const Profile = () => {
   ];
 
   return (
-    <AnimatedPage className="home-background relative flex items-start justify-center py-6 md:py-10">
+    <AnimatedPage className="home-background relative flex items-start justify-center py-4 md:py-6">
       <div className="home-gradient"></div>
-      <div className={`${siteContainerClassName} relative z-10`}>
+      <div className={`${siteContainerClassName} relative z-10 pt-3 md:pt-14`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
