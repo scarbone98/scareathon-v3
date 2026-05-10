@@ -11,7 +11,7 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
  * @param {string} title - Movie title to search for
  * @returns {Promise<object|null>} First matching movie result or null
  */
-export async function searchMovie(title) {
+async function searchMovie(title) {
     const cacheKey = `tmdb_search_${title}`;
     const cached = getCache(cacheKey);
 
@@ -59,7 +59,7 @@ export async function searchMovie(title) {
  * @param {number} movieId - TMDB movie ID
  * @returns {Promise<object|null>} Movie details or null
  */
-export async function getMovieDetails(movieId) {
+async function getMovieDetails(movieId) {
     const cacheKey = `tmdb_details_${movieId}`;
     const cached = getCache(cacheKey);
 
@@ -100,7 +100,7 @@ export async function getMovieDetails(movieId) {
  * @param {number} movieId - TMDB movie ID
  * @returns {Promise<object|null>} Watch providers by region or null
  */
-export async function getWatchProviders(movieId) {
+async function getWatchProviders(movieId) {
     const cacheKey = `tmdb_providers_${movieId}`;
     const cached = getCache(cacheKey);
 

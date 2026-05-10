@@ -1,7 +1,7 @@
 import { supabase } from "../../supabaseClient";
 import type { AvatarItem } from "./types";
 
-export const AVATAR_COMPOSITE_BUCKET = "avatar-composites";
+const AVATAR_COMPOSITE_BUCKET = "avatar-composites";
 
 const COMPOSITE_SIZE = 256;
 

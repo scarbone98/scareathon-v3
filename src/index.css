@@ -77,23 +77,6 @@ img {
   scrollbar-color: #4a0000 #000000;
 }
 
-.ghost-cursor {
-  pointer-events: none;
-  position: fixed;
-  width: 100px;
-  /* Adjust based on your GIF size */
-  height: 100px;
-  /* Adjust based on your GIF size */
-  background-image: url('/images/batty.gif');
-  background-size: contain;
-  background-repeat: no-repeat;
-  transition: transform 0.2s linear;
-  will-change: transform;
-  left: 200;
-  top: 200;
-  z-index: -2;
-}
-
 @keyframes gradient {
   0% {
     background-position: 100% 10%;
@@ -404,4 +387,3 @@ img {
   animation: gradient 10s ease infinite;
   z-index: -3;
 }
-

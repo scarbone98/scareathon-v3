@@ -20,6 +20,13 @@ type LeaderboardUser = {
   total?: string | number;
 };
 
+type GameLeaderboardEntry = {
+  username: string;
+  metricValue: string | number;
+  achieved_at?: string;
+  isUserScore?: boolean;
+};
+
 type HomeSummary = {
   data?: {
     isAuthenticated?: boolean;
@@ -29,6 +36,15 @@ type HomeSummary = {
       meta?: {
         year?: number;
         isLive?: boolean;
+      } | null;
+    } | null;
+    featuredGame?: {
+      name: string;
+      leader?: GameLeaderboardEntry | null;
+      highScore?: {
+        username: string;
+        value: string | number;
+        achievedAt?: string;
       } | null;
     } | null;
     latestPost?: Post | null;
@@ -122,7 +138,9 @@ async function fetchHomeSummary(): Promise<HomeSummary | null> {
     fetchWithAuth("/posts").then((response) =>
       readJsonIfOk<{ data?: Post[] }>(response)
     ),
-    fetchWithAuth("/user/wallet?limit=1").then((response) =>
+    fetchWithAuth(
+      "/user/wallet?limit=1"
+    ).then((response) =>
       readJsonIfOk<WalletData>(response)
     ),
     fetchWithAuth("/inbox/conversations?limit=25").then((response) =>
@@ -160,7 +178,8 @@ function arcadeGamePath(gameName: string) {
 }
 
 export default function Home() {
-  const { data: summary } = useQuery<HomeSummary | null>({
+  const { data: summary, isLoading: isSummaryLoading } =
+    useQuery<HomeSummary | null>({
     queryKey: ["home", "summary"],
     queryFn: fetchHomeSummary,
     staleTime: 1000 * 30,
@@ -168,7 +187,9 @@ export default function Home() {
 
   const leaderboard: LeaderboardResponse | null =
     summary?.data?.leaderboard || null;
-  const leader = leaderboard?.leader;
+  const scareboardLeader = leaderboard?.leader;
+  const featuredGameHighScore = summary?.data?.featuredGame?.highScore;
+  const featuredGameLeader = summary?.data?.featuredGame?.leader;
   const latestPost = summary?.data?.latestPost;
   const latestPostTitle =
     latestPost?.Title || latestPost?.title || "Latest announcements";
@@ -183,9 +204,16 @@ export default function Home() {
     summary?.data?.user?.username ||
     summary?.data?.user?.email?.split("@")[0] ||
     "Your haunt";
-  const leaderLabel = leader
-    ? `${leader.name} - ${leader.total ?? 0}`
-    : "Scores loading";
+  const featuredGameLeaderLabel = featuredGameHighScore
+    ? `${featuredGameHighScore.username} - ${featuredGameHighScore.value ?? 0}`
+    : featuredGameLeader
+    ? `${featuredGameLeader.username} - ${featuredGameLeader.metricValue ?? 0}`
+    : isSummaryLoading
+      ? "High score loading"
+      : "No high score yet";
+  const scareboardLeaderLabel = scareboardLeader
+    ? `${scareboardLeader.name} - ${scareboardLeader.total ?? 0}`
+    : "Standings loading";
 
   const cabinets = [
     "8 Bit Evil Returns",
@@ -277,7 +305,7 @@ export default function Home() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div className="flex items-center gap-3 rounded border border-amber-300/30 bg-black/50 px-4 py-3 text-amber-200">
                   <FaTrophy />
-                  <span>{leaderLabel}</span>
+                  <span>{featuredGameLeaderLabel}</span>
                 </div>
                 <span className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-5 py-3 text-lg font-bold text-white transition group-hover:bg-red-600">
                   Play Now
@@ -408,7 +436,7 @@ export default function Home() {
               <div className="rounded border border-amber-300/30 bg-amber-950/20 px-4 py-4 text-amber-200">
                 <div className="flex items-center gap-3 text-xl">
                   <FaTrophy />
-                  <span>{leaderLabel}</span>
+                  <span>{scareboardLeaderLabel}</span>
                 </div>
               </div>
               <p className="text-base text-orange-100/65">

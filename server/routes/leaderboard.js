@@ -20,7 +20,7 @@ function isLiveEventOpen(date = new Date()) {
     return date.getMonth() >= EVENT_MONTH_INDEX;
 }
 
-export function normalizeYear(value) {
+function normalizeYear(value) {
     const year = Number.parseInt(value, 10);
     return Number.isFinite(year) ? year : null;
 }

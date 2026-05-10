@@ -46,11 +46,3 @@ export function setCache(key, data, ttl = null) {
     });
     pruneOldest();
 }
-
-export function deleteCache(key) {
-    cache.delete(key);
-}
-
-export function clearCache() {
-    cache.clear();
-}

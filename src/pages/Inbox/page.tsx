@@ -711,7 +711,3 @@ export function InboxContent({ embedded = false }: { embedded?: boolean }) {
     </AnimatedPage>
   );
 }
-
-export default function Inbox() {
-  return <InboxContent />;
-}

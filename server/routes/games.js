@@ -21,6 +21,37 @@ export function calculateRuleAward(rule, metricValue) {
     return Math.max(0, award);
 }
 
+export async function getGameLeaderboardPayload({
+    game,
+    metric = 'score',
+    limit = 10,
+    currentUserId = null
+}) {
+    const numericLimit = Number.parseInt(limit, 10);
+    const boundedLimit = Number.isFinite(numericLimit)
+        ? Math.min(Math.max(numericLimit, 1), 100)
+        : 10;
+
+    const leaderboard = await pool.query(`
+        SELECT u.username, u.id, l.metric_value, l.achieved_at
+        FROM leaderboards l
+        JOIN games g ON l.game_id = g.id
+        JOIN users u ON l.user_id = u.id
+        WHERE g.name = $1 AND l.metric_name = $2
+        ORDER BY l.metric_value DESC
+        LIMIT $3
+    `, [game, metric, boundedLimit]);
+
+    return {
+        data: leaderboard.rows.map(row => ({
+            username: row.username,
+            metricValue: row.metric_value,
+            achieved_at: row.achieved_at,
+            isUserScore: currentUserId ? row.id === currentUserId : false
+        }))
+    };
+}
+
 async function routes(fastify, options) {
     fastify.get('/', async (request, reply) => {
         try {
@@ -35,24 +66,12 @@ async function routes(fastify, options) {
     fastify.get('/getLeaderboard', async (request, reply) => {
         try {
             const { game, metric, limit = 10 } = request.query;
-            const leaderboard = await pool.query(`
-                SELECT u.username, u.id, l.metric_value, l.achieved_at
-                FROM leaderboards l
-                JOIN games g ON l.game_id = g.id
-                JOIN users u ON l.user_id = u.id
-                WHERE g.name = $1 AND l.metric_name = $2
-                ORDER BY l.metric_value DESC
-                LIMIT $3
-            `, [game, metric, limit]);
-
-            const entries = leaderboard.rows.map(row => ({
-                username: row.username,
-                metricValue: row.metric_value,
-                achieved_at: row.achieved_at,
-                isUserScore: row.id === request.user.sub
-            }));
-
-            return { data: entries };
+            return getGameLeaderboardPayload({
+                game,
+                metric,
+                limit,
+                currentUserId: request.user.sub
+            });
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: error.message });

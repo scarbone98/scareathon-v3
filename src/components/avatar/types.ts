@@ -1,4 +1,4 @@
-export type AvatarSlot = {
+type AvatarSlot = {
   slot: string;
   label: string;
 };

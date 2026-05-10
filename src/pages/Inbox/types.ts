@@ -19,7 +19,7 @@ export interface InboxReward {
   updatedAt: string;
 }
 
-export interface InboxLatestMessage {
+interface InboxLatestMessage {
   id: number;
   senderUserId: string | null;
   senderUsername: string | null;
