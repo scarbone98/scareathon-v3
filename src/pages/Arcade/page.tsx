@@ -14,6 +14,7 @@ import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import Toolbar from "./Toolbar.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
 import { supabase } from "../../supabaseClient.ts";
+import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 const ArcadeGallery = lazy(() => import("./ArcadeGallery.tsx"));
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
@@ -72,6 +73,7 @@ function useIsMobileArcade() {
 export default function Arcade() {
   const [selectedMachine, setSelectedMachine] = useState<MachineData | null>(null);
   const isMobileArcade = useIsMobileArcade();
+  const { height: headerHeight } = useNavigatorContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedGameName = searchParams.get("game") || "";
 
@@ -322,8 +324,11 @@ export default function Arcade() {
         />
       </Suspense>
       {selectedMachine?.game && (
-        <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="h-fit w-fit flex flex-col items-center justify-center">
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
+          style={{ top: headerHeight }}
+        >
+          <div className="flex h-full w-full flex-col items-center justify-start">
             <Toolbar
               currentGame={selectedMachine.name}
               onClose={handleCloseGame}

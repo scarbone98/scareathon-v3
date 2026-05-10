@@ -1,11 +1,10 @@
 import { useEffect, useRef } from "react"; // added
-import { useNavigatorContext } from "../../components/navigator/context";
+
+type GameRendererCleanup = void | (() => void) | (() => void)[];
 
 type GameRendererProps = {
   url: string;
-  onLoad?: (
-    iframe: HTMLIFrameElement
-  ) => () => void | ((iframe: HTMLIFrameElement) => void)[] | undefined;
+  onLoad?: (iframe: HTMLIFrameElement) => GameRendererCleanup;
   title: string;
   desktopAspectRatio?: number;
   reservedVerticalSpace?: number;
@@ -20,33 +19,30 @@ function GameRenderer({
 }: GameRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { height: headerHeight } = useNavigatorContext();
-
   useEffect(() => {
     const iframe = iframeRef.current;
 
     if (!iframe) return;
 
     iframe.style.overflow = "hidden";
+    iframe.style.border = "0";
+    iframe.style.display = "block";
 
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      // Mobile device style: fill the whole browser client area with the game canvas:
-      var meta = document.createElement("meta");
-      meta.name = "viewport";
-      meta.content =
-        "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
-      document.getElementsByTagName("head")[0].appendChild(meta);
+    const applyIframeSize = () => {
+      const parentElement = iframe.parentElement;
+      const availableWidth = parentElement?.clientWidth || window.innerWidth;
+      const availableHeight =
+        (parentElement?.clientHeight || window.innerHeight) -
+        reservedVerticalSpace;
 
-      iframe.style.width = "100vw";
-      iframe.style.height = reservedVerticalSpace
-        ? `calc(100vh - ${reservedVerticalSpace}px)`
-        : "100vh";
-      iframe.style.zIndex = "1";
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        iframe.style.width = `${availableWidth}px`;
+        iframe.style.height = `${availableHeight}px`;
+        iframe.style.marginTop = "0";
+        iframe.style.zIndex = "1";
+        return;
+      }
 
-      document.body.style.textAlign = "left";
-    } else {
-      const availableHeight = window.innerHeight - headerHeight - reservedVerticalSpace;
-      const availableWidth = window.innerWidth;
       const viewportAspectRatio = availableWidth / availableHeight;
       const height =
         viewportAspectRatio > desktopAspectRatio
@@ -54,23 +50,51 @@ function GameRenderer({
           : availableWidth / desktopAspectRatio;
       const width = height * desktopAspectRatio;
 
-      iframe.style.marginTop = `${headerHeight / 2}px`;
       iframe.style.height = `${height}px`;
       iframe.style.width = `${width}px`;
+      iframe.style.marginTop = "0";
       iframe.style.zIndex = "0";
+    };
+
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // Mobile device style: fill the whole browser client area with the game canvas:
+      const meta = document.createElement("meta");
+      meta.name = "viewport";
+      meta.content =
+        "width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes";
+      document.getElementsByTagName("head")[0].appendChild(meta);
+
+      document.body.style.textAlign = "left";
     }
 
-    if (onLoad) {
-      const functionsToRun = onLoad(iframe);
-      return () => {
-        if (Array.isArray(functionsToRun)) {
-          functionsToRun.forEach((func: () => void) => func());
-        } else if (typeof functionsToRun === "function") {
-          functionsToRun();
-        }
-      };
+    applyIframeSize();
+    window.addEventListener("resize", applyIframeSize);
+    const resizeObserver =
+      iframe.parentElement && "ResizeObserver" in window
+        ? new ResizeObserver(applyIframeSize)
+        : null;
+
+    if (resizeObserver && iframe.parentElement) {
+      resizeObserver.observe(iframe.parentElement);
     }
-  }, [desktopAspectRatio, headerHeight, onLoad, reservedVerticalSpace]);
+
+    let functionsToRun: GameRendererCleanup;
+
+    if (onLoad) {
+      functionsToRun = onLoad(iframe);
+    }
+
+    return () => {
+      window.removeEventListener("resize", applyIframeSize);
+      resizeObserver?.disconnect();
+
+      if (Array.isArray(functionsToRun)) {
+        functionsToRun.forEach((func: () => void) => func());
+      } else if (typeof functionsToRun === "function") {
+        functionsToRun();
+      }
+    };
+  }, [desktopAspectRatio, onLoad, reservedVerticalSpace]);
 
   return <iframe ref={iframeRef} title={title} src={url}></iframe>;
 }
