@@ -646,16 +646,18 @@ export function InboxContent({ embedded = false }: { embedded?: boolean }) {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div>
-            <h1 className="text-4xl font-bold text-red-400">Inbox</h1>
-            <p className="mt-1 text-sm text-gray-400">
-              Messages, replies, and claimable rewards.
-            </p>
-          </div>
+          {!embedded && (
+            <div>
+              <h1 className="text-4xl font-bold text-red-400">Inbox</h1>
+              <p className="mt-1 text-sm text-gray-400">
+                Messages, replies, and claimable rewards.
+              </p>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setIsComposing((current) => !current)}
-            className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-4 py-2 font-bold text-white transition hover:bg-red-600"
+            className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-4 py-2 font-bold text-white transition hover:bg-red-600 sm:ml-auto"
           >
             {isComposing ? <FaTimes /> : <FaPlus />}
             {isComposing ? "Close" : "New Message"}

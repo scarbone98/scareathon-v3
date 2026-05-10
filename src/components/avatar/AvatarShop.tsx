@@ -6,7 +6,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
-  FaEye,
   FaChevronLeft,
   FaChevronRight,
   FaCoins,
@@ -109,7 +108,11 @@ function previewLayers(avatar: AvatarData | undefined, item: ShopItem | null) {
   ]);
 }
 
-export function AvatarShop() {
+type AvatarShopProps = {
+  onPreviewLayersChange?: (layers: AvatarItem[] | null) => void;
+};
+
+export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -197,13 +200,22 @@ export function AvatarShop() {
   };
   const coinBalance = walletData?.data.coinBalance || 0;
   const isInitialLoading = isLoading && !shopData;
-  const previewedLayers = previewLayers(avatarResponse?.data, previewItem);
+  const previewedLayers = useMemo(
+    () => previewLayers(avatarResponse?.data, previewItem),
+    [avatarResponse?.data, previewItem]
+  );
   const firstItemNumber =
     pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
   const lastItemNumber = Math.min(
     pagination.page * pagination.limit,
     pagination.total
   );
+
+  useEffect(() => {
+    onPreviewLayersChange?.(previewItem ? previewedLayers : null);
+
+    return () => onPreviewLayersChange?.(null);
+  }, [onPreviewLayersChange, previewItem, previewedLayers]);
 
   return (
     <section className="flex flex-col gap-5">
@@ -251,33 +263,6 @@ export function AvatarShop() {
         </label>
       </div>
 
-      {previewItem && (
-        <div className="grid gap-4 rounded border border-red-950/70 bg-black/30 p-3 sm:grid-cols-[112px,minmax(0,1fr),auto] sm:items-center">
-          <div className="flex justify-center sm:justify-start">
-            <AvatarPreview layers={previewedLayers} size="sm" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-2 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <FaEye className="text-red-300" />
-              <h3 className="text-lg font-bold text-red-100">Previewing</h3>
-            </div>
-            <p className="truncate text-sm text-gray-400">
-              <span className="font-bold text-white">{previewItem.name}</span> as{" "}
-              <span className="font-bold text-white">
-                {getEquipGroup(previewItem)}
-              </span>.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPreviewItem(null)}
-            className="mx-auto min-h-10 rounded border border-gray-700 px-4 py-2 text-sm text-gray-200 transition hover:border-red-700 sm:mx-0"
-          >
-            Clear
-          </button>
-        </div>
-      )}
-
       {isInitialLoading ? (
         <div className="flex min-h-80 items-center justify-center rounded border border-red-950/70 bg-black/30">
           <LoadingSpinner />
@@ -305,7 +290,7 @@ export function AvatarShop() {
                 key={item.id}
                 className={`grid min-h-32 grid-cols-[84px_minmax(0,1fr)] gap-3 rounded border bg-black/40 p-3 ${rarityClass}`}
               >
-                <div className="flex items-center justify-center rounded border border-red-950/70 bg-black/30">
+                <div className="flex items-center justify-center">
                   <AvatarPreview layers={[item]} size="xs" />
                 </div>
 

@@ -18,6 +18,7 @@ import {
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Make sure this import is correct
+import { siteContainerClassName } from "../../components/PageContainer";
 import { AvatarEditor } from "../../components/avatar/AvatarEditor";
 import { AvatarPreview } from "../../components/avatar/AvatarPreview";
 import { AvatarShop } from "../../components/avatar/AvatarShop";
@@ -192,10 +193,13 @@ const Profile = () => {
 
   const coinBalance = walletData?.data.coinBalance || 0;
   const equippedAvatarLayers = avatarResponse?.data.equipped || [];
-  const visibleAvatarLayers =
+  const visibleAvatarLayers = avatarPreviewLayers || equippedAvatarLayers;
+  const avatarPreviewLabel =
     activeTab === "avatar" && avatarPreviewLayers
-      ? avatarPreviewLayers
-      : equippedAvatarLayers;
+      ? "Live Preview"
+      : activeTab === "shop" && avatarPreviewLayers
+        ? "Marketplace Preview"
+        : "Current Profile";
   const profileTabs = [
     { to: "/profile/avatar", key: "avatar", label: "Avatar", icon: <FaUserAlt /> },
     { to: "/profile/shop", key: "shop", label: "Shop", icon: <FaShoppingBag /> },
@@ -204,13 +208,14 @@ const Profile = () => {
   ];
 
   return (
-    <AnimatedPage className="home-background relative flex items-start justify-center px-4 py-6 md:py-10">
+    <AnimatedPage className="home-background relative flex items-start justify-center py-6 md:py-10">
       <div className="home-gradient"></div>
+      <div className={`${siteContainerClassName} relative z-10`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="relative z-10 grid h-full w-full max-w-7xl gap-5 rounded-xl bg-gray-950 p-4 shadow-2xl sm:p-5 md:mb-[100px] lg:max-h-[calc(100vh-7rem)] lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[360px_minmax(0,1fr)]"
+        className="grid h-full w-full gap-5 md:mb-[100px] lg:max-h-[calc(100vh-7rem)] lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[340px_minmax(0,1fr)]"
       >
         <aside className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
           <div className="rounded border border-red-950/70 bg-black/30 p-4">
@@ -224,7 +229,7 @@ const Profile = () => {
               )}
               <div className="w-full min-w-0 text-center">
                 <p className="text-sm uppercase tracking-widest text-gray-400">
-                  {activeTab === "avatar" ? "Live Preview" : "Current Profile"}
+                  {avatarPreviewLabel}
                 </p>
                 <h1 className="truncate text-3xl font-bold text-red-500">
                   {userData?.data?.username}
@@ -266,7 +271,7 @@ const Profile = () => {
           </div>
         </aside>
 
-        <section className="flex min-w-0 flex-col gap-5 lg:min-h-0">
+        <section className="flex min-w-0 flex-col gap-5 rounded-xl bg-gray-950 p-4 shadow-2xl sm:p-5 lg:min-h-0">
           <div className="grid grid-cols-2 rounded border border-red-950 bg-black/50 p-1 md:grid-cols-4">
             {profileTabs.map((tab) => (
               <Link
@@ -293,7 +298,7 @@ const Profile = () => {
             {activeTab === "inbox" ? (
               <InboxContent embedded />
             ) : activeTab === "shop" ? (
-              <AvatarShop />
+              <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} />
             ) : activeTab === "avatar" ? (
               <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} />
             ) : (
@@ -381,6 +386,7 @@ const Profile = () => {
           </div>
         </section>
       </motion.div>
+      </div>
     </AnimatedPage>
   );
 };
