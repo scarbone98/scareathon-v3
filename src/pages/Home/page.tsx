@@ -9,6 +9,7 @@ import {
   FaUserAlt,
 } from "react-icons/fa";
 import AnimatedPage from "../../components/AnimatedPage";
+import { SiteContainer } from "../../components/PageContainer";
 import { fetchWithAuth } from "../../fetchWithAuth";
 
 type LeaderboardUser = {
@@ -131,9 +132,12 @@ export default function Home() {
   const unreadCount = summary?.data?.inbox?.unreadCount || 0;
 
   return (
-    <AnimatedPage className="flex flex-col items-center justify-start bg-cover bg-center home-background px-4 py-4 md:py-6">
+    <AnimatedPage className="flex flex-col items-center justify-start bg-cover bg-center home-background py-4 md:py-6">
       <div className="home-gradient" />
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6">
+      <SiteContainer
+        as="main"
+        className="relative z-10 flex flex-1 flex-col gap-6"
+      >
         <section className="max-w-3xl">
           <h1 className="text-4xl font-bold text-orange-100 md:text-6xl">
             Arcade, avatars, standings, and news.
@@ -244,7 +248,7 @@ export default function Home() {
             </span>
           </Link>
         </section>
-      </main>
+      </SiteContainer>
     </AnimatedPage>
   );
 }

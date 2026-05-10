@@ -8,6 +8,7 @@ import {
   FaTrophy,
 } from "react-icons/fa";
 import AnimatedPage from "../../components/AnimatedPage";
+import { SiteContainer } from "../../components/PageContainer";
 
 const eventMonth = 9;
 
@@ -76,7 +77,10 @@ export default function Scareathon() {
   return (
     <AnimatedPage className="calendar-background">
       <div className="calendar-gradient"></div>
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-2 md:px-8 md:py-4">
+      <SiteContainer
+        as="main"
+        className="relative z-10 flex flex-col gap-5 py-2 md:py-4"
+      >
         <section className="grid gap-6 rounded-lg border border-red-950/70 bg-black/60 p-5 shadow-2xl md:grid-cols-[1fr,auto] md:items-center md:p-7">
           <div>
             <p className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">
@@ -138,7 +142,7 @@ export default function Scareathon() {
             );
           })}
         </section>
-      </main>
+      </SiteContainer>
     </AnimatedPage>
   );
 }

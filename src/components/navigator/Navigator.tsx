@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
 import { getAvatarCompositePublicUrl } from "../avatar/avatarComposite";
+import { siteContainerClassName } from "../PageContainer";
 
 type InboxSummary = {
   data: Array<{
@@ -155,7 +156,9 @@ export const Navigator = () => {
         ref={navRef}
         className="hidden md:block bg-transparent z-50 absolute top-0 left-0 w-full"
       >
-        <div className="flex items-center justify-between px-8 py-3 xl:px-10">
+        <div
+          className={`${siteContainerClassName} flex items-center justify-between py-3`}
+        >
           <ul className="flex items-center gap-7 xl:gap-10">
             {navItems.map((item) => (
               <li key={item.name}>

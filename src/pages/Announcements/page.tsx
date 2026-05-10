@@ -7,6 +7,7 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import Carousel from "../../components/Carousel";
+import { SiteContainer } from "../../components/PageContainer";
 
 export default function Announcements() {
   const { data, isLoading, error } = useQuery({
@@ -20,9 +21,9 @@ export default function Announcements() {
   if (error) return <ErrorDisplay message={error.message} />;
 
   return (
-    <AnimatedPage className="mx-auto px-4 py-8 text-gray-300 news-background font-fancy">
+    <AnimatedPage className="py-8 text-gray-300 news-background font-fancy">
       <div className="news-gradient" />
-      <div className="relative z-10">
+      <SiteContainer className="relative z-10">
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -30,7 +31,7 @@ export default function Announcements() {
         >
           The Scareathon Post
         </motion.h1>
-        <div className="columns-1 md:columns-2 gap-6 max-w-[1200px] mx-auto">
+        <div className="columns-1 md:columns-2 gap-6">
           {data?.data?.map((post: any) => (
             <motion.div
               key={post.id}
@@ -78,7 +79,7 @@ export default function Announcements() {
             </motion.div>
           ))}
         </div>
-      </div>
+      </SiteContainer>
     </AnimatedPage>
   );
 }
