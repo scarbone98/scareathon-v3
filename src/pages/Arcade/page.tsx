@@ -8,6 +8,7 @@ import {
   lazy,
   type ReactNode,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import Toolbar from "./Toolbar.tsx";
@@ -36,6 +37,14 @@ type MachineData = {
 const ORIGINAL_EIGHT_BIT_EVIL = "8 Bit Evil";
 const mobileArcadeQuery = "(max-width: 768px), (pointer: coarse)";
 
+function normalizeMachineName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
 function useIsMobileArcade() {
   const getMatches = () =>
     typeof window !== "undefined" &&
@@ -61,6 +70,8 @@ function useIsMobileArcade() {
 export default function Arcade() {
   const [selectedMachine, setSelectedMachine] = useState<MachineData | null>(null);
   const isMobileArcade = useIsMobileArcade();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedGameName = searchParams.get("game") || "";
 
   const machinesData = useMemo<MachineData[]>(() => [
     {
@@ -235,7 +246,22 @@ export default function Arcade() {
     [isMobileArcade, machinesData]
   );
 
+  const initialMachineName = useMemo(() => {
+    const normalizedRequestedGame = normalizeMachineName(requestedGameName);
+    if (!normalizedRequestedGame) return undefined;
+
+    return visibleMachinesData.find(
+      (machine) =>
+        normalizeMachineName(machine.name) === normalizedRequestedGame
+    )?.name;
+  }, [requestedGameName, visibleMachinesData]);
+
   const handleMachineSelected = (machine: MachineData) => {
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.set("game", machine.name);
+      return nextParams;
+    });
     setSelectedMachine(machine);
   };
 
@@ -266,6 +292,7 @@ export default function Arcade() {
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <Suspense fallback={<LoadingSpinner />}>
         <ArcadeGallery
+          initialMachineName={initialMachineName}
           machinesData={visibleMachinesData}
           onPlay={handleMachineSelected}
         />

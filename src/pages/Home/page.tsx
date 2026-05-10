@@ -13,6 +13,7 @@ import {
 import AnimatedPage from "../../components/AnimatedPage";
 import { SiteContainer } from "../../components/PageContainer";
 import { fetchWithAuth } from "../../fetchWithAuth";
+import { supabase } from "../../supabaseClient";
 
 type LeaderboardUser = {
   name: string;
@@ -21,6 +22,8 @@ type LeaderboardUser = {
 
 type HomeSummary = {
   data?: {
+    isAuthenticated?: boolean;
+    user?: UserProfile | null;
     leaderboard?: {
       leader?: LeaderboardUser | null;
       meta?: {
@@ -36,6 +39,11 @@ type HomeSummary = {
       unreadCount: number;
     } | null;
   };
+};
+
+type UserProfile = {
+  username?: string | null;
+  email?: string | null;
 };
 
 type LeaderboardResponse = {
@@ -68,15 +76,43 @@ type InboxSummary = {
   }>;
 };
 
+type UserResponse = {
+  data?: UserProfile | null;
+};
+
 async function readJsonIfOk<T>(response: Response): Promise<T | null> {
   if (!response.ok) return Promise.resolve(null);
   return response.json() as Promise<T>;
 }
 
 async function fetchHomeSummary(): Promise<HomeSummary | null> {
-  const summaryResponse = await fetchWithAuth("/home/summary");
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return {
+      data: {
+        isAuthenticated: false,
+      },
+    };
+  }
+
+  const [summaryResponse, userResponse] = await Promise.all([
+    fetchWithAuth("/home/summary"),
+    fetchWithAuth("/user"),
+  ]);
+  const user = await readJsonIfOk<UserResponse>(userResponse);
+
   if (summaryResponse.ok) {
-    return summaryResponse.json() as Promise<HomeSummary>;
+    const summary = (await summaryResponse.json()) as HomeSummary;
+    return {
+      data: {
+        ...summary.data,
+        isAuthenticated: true,
+        user: user?.data || null,
+      },
+    };
   }
 
   const [leaderboard, posts, wallet, inbox] = await Promise.all([
@@ -96,6 +132,8 @@ async function fetchHomeSummary(): Promise<HomeSummary | null> {
 
   return {
     data: {
+      isAuthenticated: true,
+      user: user?.data || null,
       leaderboard: {
         leader: leaderboard?.data?.[0] || leaderboard?.leader || null,
         meta: leaderboard?.meta || null,
@@ -117,6 +155,10 @@ async function fetchHomeSummary(): Promise<HomeSummary | null> {
   };
 }
 
+function arcadeGamePath(gameName: string) {
+  return `/arcade?game=${encodeURIComponent(gameName)}`;
+}
+
 export default function Home() {
   const { data: summary } = useQuery<HomeSummary | null>({
     queryKey: ["home", "summary"],
@@ -136,6 +178,11 @@ export default function Home() {
     : "Latest";
   const unreadCount = summary?.data?.inbox?.unreadCount || 0;
   const coinBalance = summary?.data?.wallet?.coinBalance;
+  const isAuthenticated = summary?.data?.isAuthenticated !== false;
+  const userName =
+    summary?.data?.user?.username ||
+    summary?.data?.user?.email?.split("@")[0] ||
+    "Your haunt";
   const leaderLabel = leader
     ? `${leader.name} - ${leader.total ?? 0}`
     : "Scores loading";
@@ -146,24 +193,42 @@ export default function Home() {
     "Ooidash",
   ];
 
-  const quickActions = [
-    {
-      label: "Shop",
-      to: "/profile/shop",
-      icon: <FaShoppingBag />,
-    },
-    {
-      label: "Avatar",
-      to: "/profile/avatar",
-      icon: <FaUserAlt />,
-    },
-    {
-      label: "Inbox",
-      to: "/profile/inbox",
-      icon: <FaEnvelope />,
-      badge: unreadCount,
-    },
-  ];
+  const quickActions = isAuthenticated
+    ? [
+        {
+          label: "Shop",
+          to: "/profile/shop",
+          icon: <FaShoppingBag />,
+        },
+        {
+          label: "Avatar",
+          to: "/profile/avatar",
+          icon: <FaUserAlt />,
+        },
+        {
+          label: "Inbox",
+          to: "/profile/inbox",
+          icon: <FaEnvelope />,
+          badge: unreadCount,
+        },
+      ]
+    : [
+        {
+          label: "Login",
+          to: "/authentication",
+          icon: <FaUserAlt />,
+        },
+        {
+          label: "Event",
+          to: "/scareathon",
+          icon: <FaGamepad />,
+        },
+        {
+          label: "Rules",
+          to: "/scareathon/rules",
+          icon: <FaListOl />,
+        },
+      ];
 
   return (
     <AnimatedPage className="flex flex-col items-center justify-start bg-cover bg-center home-background py-4 md:py-6">
@@ -184,7 +249,7 @@ export default function Home() {
           </div>
 
           <Link
-            to="/arcade"
+            to={arcadeGamePath("8 Bit Evil Returns")}
             className="group relative flex min-h-[24rem] overflow-hidden rounded-lg border border-red-950/70 bg-gray-950/80 shadow-2xl transition hover:border-red-500 lg:col-span-8"
           >
             <video
@@ -231,21 +296,34 @@ export default function Home() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-orange-100">
-                      Your haunt
+                      {isAuthenticated ? userName : "Join the haunt"}
                     </h2>
                     <p className="text-sm uppercase tracking-widest text-orange-100/55">
-                      Avatar, shop, inbox
+                      {isAuthenticated
+                        ? "Avatar, shop, inbox"
+                        : "Save scores and earn coins"}
                     </p>
                   </div>
                 </div>
                 <div className="rounded border border-amber-300/30 bg-amber-950/20 px-3 py-2 text-right text-amber-200">
-                  <div className="flex items-center justify-end gap-2 text-xl font-bold">
-                    <FaCoins className="text-amber-300" />
-                    {coinBalance?.toLocaleString() ?? "..."}
-                  </div>
-                  <p className="text-xs uppercase tracking-widest text-amber-100/60">
-                    Coins
-                  </p>
+                  {isAuthenticated ? (
+                    <>
+                      <div className="flex items-center justify-end gap-2 text-xl font-bold">
+                        <FaCoins className="text-amber-300" />
+                        {coinBalance?.toLocaleString() ?? "..."}
+                      </div>
+                      <p className="text-xs uppercase tracking-widest text-amber-100/60">
+                        Coins
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-xl font-bold">Guest</div>
+                      <p className="text-xs uppercase tracking-widest text-amber-100/60">
+                        Mode
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -270,10 +348,12 @@ export default function Home() {
               </div>
 
               <Link
-                to="/profile/avatar"
+                to={isAuthenticated ? "/profile/avatar" : "/authentication"}
                 className="inline-flex items-center justify-between rounded border border-purple-400/30 bg-purple-950/30 px-4 py-3 text-purple-100 transition hover:border-purple-400 hover:bg-purple-900/40"
               >
-                Customize your arcade identity
+                {isAuthenticated
+                  ? "Customize your arcade identity"
+                  : "Create an account to save progress"}
                 <FaArrowRight />
               </Link>
             </div>
@@ -292,7 +372,7 @@ export default function Home() {
               {cabinets.map((cabinet) => (
                 <Link
                   key={cabinet}
-                  to="/arcade"
+                  to={arcadeGamePath(cabinet)}
                   className="group flex items-center justify-between rounded border border-red-950/60 bg-black/35 px-4 py-3 text-orange-100/80 transition hover:border-red-500 hover:bg-red-950/35 hover:text-orange-100"
                 >
                   <span>{cabinet}</span>

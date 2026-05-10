@@ -15,11 +15,16 @@ type MachineData = {
 };
 
 type Props = {
+  initialMachineName?: string;
   machinesData: MachineData[];
   onPlay: (machine: MachineData) => void;
 };
 
-const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
+const ArcadeGallery: React.FC<Props> = ({
+  initialMachineName,
+  onPlay,
+  machinesData,
+}) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const machinesRef = useRef<Group[]>([]);
   const currentAngle = useRef<number>(0);
@@ -32,6 +37,33 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
+
+  const getInitialMachineIndex = () => {
+    if (!initialMachineName) return 0;
+
+    const index = machinesData.findIndex(
+      (machine) => machine.name === initialMachineName
+    );
+    return index >= 0 ? index : 0;
+  };
+
+  const getAngleForMachineIndex = (index: number) => {
+    if (machinesData.length === 0) return 0;
+    return index * ((Math.PI * 2) / machinesData.length);
+  };
+
+  const positionMachines = (angleOffset: number) => {
+    machinesRef.current.forEach((machine, index) => {
+      const angle =
+        ((machinesRef.current.length - index) / machinesRef.current.length) *
+          Math.PI *
+          2 +
+        angleOffset;
+
+      machine.position.x = 5 * Math.sin(angle);
+      machine.position.z = 5 * Math.cos(angle);
+    });
+  };
 
   // Gsap promise mode instead of callback
   function promiseModeGsap(target: Vector3, config: gsap.TweenVars) {
@@ -100,6 +132,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
     const machines: Group[] = [];
     const totalMachines = machinesData.length;
     const radius = 5;
+    currentAngle.current = getAngleForMachineIndex(getInitialMachineIndex());
 
     loader.load("/models/ArcadeCabinet.glb", (gltf: any) => {
       const model = gltf.scene;
@@ -122,7 +155,9 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       for (let i = 0; i < totalMachines; i++) {
         const machine = model.clone();
         // Change the angle calculation to reverse the order
-        const angle = ((totalMachines - i) / totalMachines) * Math.PI * 2;
+        const angle =
+          ((totalMachines - i) / totalMachines) * Math.PI * 2 +
+          currentAngle.current;
         machine.position.x = radius * Math.sin(angle);
         machine.position.z = radius * Math.cos(angle);
 
@@ -161,6 +196,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
       }
 
       machinesRef.current = machines;
+      setFocusedMachine(machinesData[getInitialMachineIndex()] ?? null);
       setIsLoading(false);
     });
 
@@ -195,7 +231,7 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
         texture.dispose();
       });
     };
-  }, [machinesData]);
+  }, [initialMachineName, machinesData]);
 
   const updateFocusedMachine = () => {
     const focusedIndex =
@@ -282,8 +318,11 @@ const ArcadeGallery: React.FC<Props> = ({ onPlay, machinesData }) => {
 
   // Update focused machine on component mount
   useEffect(() => {
-    setFocusedMachine(machinesData[0] ?? null);
-  }, [machinesData]);
+    const initialMachineIndex = getInitialMachineIndex();
+    currentAngle.current = getAngleForMachineIndex(initialMachineIndex);
+    positionMachines(currentAngle.current);
+    setFocusedMachine(machinesData[initialMachineIndex] ?? null);
+  }, [initialMachineName, machinesData]);
 
   const handleRotate = (direction: number) => {
     rotateMachines(direction);
