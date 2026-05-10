@@ -51,7 +51,7 @@ function filterPlayerData(data = {}) {
 
 async function getGameId(client = pool) {
     const existingGame = await client.query(
-        'SELECT id FROM games WHERE name = $1 OR name = $2 OR display_name = $1 LIMIT 1',
+        'SELECT id FROM games WHERE name = $1 OR name = $2 ORDER BY id ASC LIMIT 1',
         [GAME_NAME, LEGACY_GAME_NAME]
     );
 
@@ -60,10 +60,8 @@ async function getGameId(client = pool) {
     }
 
     const createdGame = await client.query(`
-        INSERT INTO games (name, display_name, description, is_active)
-        VALUES ($1, $1, $2, TRUE)
-        ON CONFLICT (name) DO UPDATE
-            SET display_name = COALESCE(games.display_name, EXCLUDED.display_name)
+        INSERT INTO games (name, description, is_active)
+        VALUES ($1, $2, TRUE)
         RETURNING id
     `, [GAME_NAME, 'Arcade survival game']);
 

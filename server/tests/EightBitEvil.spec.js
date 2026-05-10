@@ -68,6 +68,7 @@ describe('8bitevilreturns Routes', () => {
             userName: 'testUser',
             unlockedCharacters: ['Matt'],
         });
+        expect(query.mock.calls[0][0]).not.toContain('display_name');
     });
 
     test('POST /setUserData merges and upserts player data', async () => {
