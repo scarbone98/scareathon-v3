@@ -198,7 +198,7 @@ export default function Arcade() {
       game: (
         <GameRenderer
           title="Ooidash"
-          url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=ceda3b5"
+          url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=bf98d08"
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={() => {
             window.onmessage = async (e) => {
