@@ -13,6 +13,7 @@ import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import Toolbar from "./Toolbar.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
+import { supabase } from "../../supabaseClient.ts";
 
 const ArcadeGallery = lazy(() => import("./ArcadeGallery.tsx"));
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
@@ -82,7 +83,24 @@ export default function Arcade() {
           title="8 Bit Evil Returns"
           url="https://scarbone98.github.io/8BitEvilReturnsBuild/"
           onLoad={() => {
-            window.onmessage = async (e) => {
+            const handleMessage = async (e: MessageEvent) => {
+              if (e.data.type === "unityReady") {
+                const {
+                  data: { user },
+                } = await supabase.auth.getUser();
+
+                if (user?.id) {
+                  (e.source as WindowProxy | null)?.postMessage(
+                    {
+                      type: "SCARATHON_USER",
+                      userId: user.id,
+                      apiBaseUrl: import.meta.env.VITE_BASE_URL || "",
+                    },
+                    e.origin || "*"
+                  );
+                }
+              }
+
               if (e.data.type === "PLAYER_DIED") {
                 await fetchWithAuth("/games/submitScore", {
                   method: "POST",
@@ -97,9 +115,10 @@ export default function Arcade() {
                 }).then((res) => res.json());
               }
             };
+            window.addEventListener("message", handleMessage);
 
             return () => {
-              window.onmessage = null;
+              window.removeEventListener("message", handleMessage);
             };
           }}
         />

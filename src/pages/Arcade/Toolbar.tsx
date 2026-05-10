@@ -17,6 +17,30 @@ interface ToolbarProps {
   onClose: () => void;
 }
 
+const TIME_SCORE_GAMES = new Set(["8 Bit Evil Returns"]);
+
+function formatSecondsScore(value: number) {
+  const totalSeconds = Math.max(0, Math.floor(Number(value) || 0));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const paddedSeconds = String(seconds).padStart(2, "0");
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${paddedSeconds}`;
+  }
+
+  return `${minutes}:${paddedSeconds}`;
+}
+
+function formatLeaderboardScore(game: string, value: number) {
+  if (TIME_SCORE_GAMES.has(game)) {
+    return formatSecondsScore(value);
+  }
+
+  return value;
+}
+
 const Toolbar: React.FC<ToolbarProps> = ({ currentGame, onClose }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -120,7 +144,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentGame, onClose }) => {
                       <td className="py-2 text-center">{index + 1}</td>
                       <td className="py-2 text-center">{entry.username}</td>
                       <td className="py-2 text-center">
-                        {entry.metricValue}
+                        {formatLeaderboardScore(currentGame, entry.metricValue)}
                       </td>
                     </tr>
                   ))}
