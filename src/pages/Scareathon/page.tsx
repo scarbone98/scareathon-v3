@@ -8,6 +8,7 @@ import {
   FaTrophy,
 } from "react-icons/fa";
 import AnimatedPage from "../../components/AnimatedPage";
+import ContentLoop from "../../components/ContentLoop";
 import { SiteContainer } from "../../components/PageContainer";
 
 const eventMonth = 9;
@@ -105,6 +106,8 @@ export default function Scareathon() {
             </span>
           </div>
         </section>
+
+        <ContentLoop />
 
         <section className="grid gap-4 md:grid-cols-2">
           {sortedSections.map((section) => {

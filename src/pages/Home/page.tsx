@@ -11,6 +11,7 @@ import {
   FaUserAlt,
 } from "react-icons/fa";
 import AnimatedPage from "../../components/AnimatedPage";
+import ContentLoop from "../../components/ContentLoop";
 import { SiteContainer } from "../../components/PageContainer";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
@@ -78,6 +79,21 @@ type Post = {
   title?: string;
   publishedAt?: string;
   createdAt?: string;
+  excerpt?: string | null;
+  Excerpt?: string | null;
+  description?: string | null;
+  Description?: string | null;
+  summary?: string | null;
+  Summary?: string | null;
+  Content?: unknown;
+  image?: {
+    url?: string;
+    alternativeText?: string | null;
+  } | null;
+  Image?: Array<{
+    url?: string;
+    alternativeText?: string | null;
+  }>;
 };
 
 type WalletData = {
@@ -190,13 +206,6 @@ export default function Home() {
   const scareboardLeader = leaderboard?.leader;
   const featuredGameHighScore = summary?.data?.featuredGame?.highScore;
   const featuredGameLeader = summary?.data?.featuredGame?.leader;
-  const latestPost = summary?.data?.latestPost;
-  const latestPostTitle =
-    latestPost?.Title || latestPost?.title || "Latest announcements";
-  const latestPostDate = latestPost?.publishedAt || latestPost?.createdAt;
-  const latestPostDateLabel = latestPostDate
-    ? new Date(latestPostDate).toLocaleDateString()
-    : "Latest";
   const unreadCount = summary?.data?.inbox?.unreadCount || 0;
   const coinBalance = summary?.data?.wallet?.coinBalance;
   const isAuthenticated = summary?.data?.isAuthenticated !== false;
@@ -449,39 +458,7 @@ export default function Home() {
             </span>
           </Link>
 
-          <Link
-            to="/announcements"
-            className="group flex min-h-72 flex-col overflow-hidden rounded-lg border border-orange-800/70 bg-gray-950/80 transition hover:border-orange-500 hover:bg-orange-950/30"
-          >
-            <div className="relative h-32 overflow-hidden bg-black">
-              <img
-                src="/images/home_bg.png"
-                alt=""
-                className="h-full w-full object-cover opacity-55 transition duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-gray-950 to-transparent" />
-            </div>
-            <div className="flex flex-1 flex-col p-5 md:p-6">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="inline-flex rounded border border-orange-500/30 bg-orange-950/40 px-3 py-1 text-xs uppercase tracking-widest text-orange-200">
-                  Latest News
-                </span>
-                <span className="text-xs uppercase tracking-widest text-orange-100/45">
-                  {latestPostDateLabel}
-                </span>
-              </div>
-              <h2 className="text-2xl font-bold text-orange-100">
-                {latestPostTitle}
-              </h2>
-              <p className="mt-3 flex-1 text-base text-orange-100/65">
-                Event updates, arcade notes, and house announcements.
-              </p>
-              <span className="mt-5 inline-flex items-center gap-2 text-sm uppercase tracking-widest text-orange-200">
-                Read Posts
-                <FaArrowRight />
-              </span>
-            </div>
-          </Link>
+          <ContentLoop compact />
         </section>
       </SiteContainer>
     </AnimatedPage>

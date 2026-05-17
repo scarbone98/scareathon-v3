@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "npm --prefix server test --",
+    "sync:weekly-challenge-announcement": "node scripts/sync-weekly-challenge-announcement.mjs",
     "backfill:avatar-composites": "node scripts/backfill-avatar-composites.mjs",
     "test:integration": "npm --prefix server run test:integration --"
   },

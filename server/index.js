@@ -5,8 +5,9 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import calendarRoutes from './routes/calendar.js';
-import postsRoutes from './routes/posts.js';
+import postsRoutes, { getPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import gamesRoutes from './routes/games.js';
 import userRoutes from './routes/user.js';
@@ -74,6 +75,7 @@ async function main() {
         await fastify.register(cors, {
             origin: [
                 'http://localhost:5173',
+                'http://127.0.0.1:5173',
                 'https://www.scareathon.rip',
                 'https://scareathon-v3.vercel.app',
                 'https://scarbone98.github.io',
@@ -93,6 +95,8 @@ async function main() {
             if (
                 isLegacyEightBitEvilRoute ||
                 request.url.startsWith('/admin/strapi') ||
+                (request.method === 'GET' && request.url.startsWith('/weekly-challenges/current')) ||
+                (request.method === 'GET' && request.url.startsWith('/content-loop')) ||
                 request.method === 'OPTIONS'
             ) {
                 return;
@@ -141,6 +145,7 @@ async function main() {
         // Register route handlers
         fastify.register(calendarRoutes);
         fastify.register(postsRoutes);
+        fastify.register(weeklyChallengeRoutes, { getPostsPayload });
         fastify.register(leaderboardRoutes);
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });

@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
 
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_SCORE_POLICIES = new Map([
@@ -218,6 +219,24 @@ async function routes(fastify, options) {
                 coinBalance = Number(walletResult.rows[0].coin_balance);
             }
 
+            let weeklyChallengeRewards = [];
+            try {
+                weeklyChallengeRewards = await awardEligibleWeeklyChallengeRewards(client, userId, {
+                    game,
+                    metricName,
+                    metricValue: numericMetricValue,
+                    leaderboardId: scoreRow.id,
+                });
+                const latestWeeklyChallengeBalance = weeklyChallengeRewards
+                    .filter((reward) => reward.coinBalance !== null && reward.coinBalance !== undefined)
+                    .at(-1)?.coinBalance;
+                if (latestWeeklyChallengeBalance !== undefined) {
+                    coinBalance = latestWeeklyChallengeBalance;
+                }
+            } catch (error) {
+                fastify.log.warn({ err: error }, 'Unable to evaluate weekly challenge rewards');
+            }
+
             await client.query('COMMIT');
 
             return {
@@ -225,6 +244,7 @@ async function routes(fastify, options) {
                     ...scoreRow,
                     coinsAwarded,
                     coinBalance,
+                    weeklyChallengeRewards,
                 },
             };
         } catch (error) {
