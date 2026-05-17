@@ -1,5 +1,24 @@
 import pool from '../db/mockDB.js';
 
+const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
+const GAME_SCORE_POLICIES = new Map([
+    ['8 Bit Evil Returns', {
+        score: { min: 0, max: 86400, integer: true },
+    }],
+    ['Hemlock\'s Tower', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+    ['Tlaloc’s Curse', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+    ['Ooidash', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+    ['8 Bit Evil', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+]);
+
 export function calculateRuleAward(rule, metricValue) {
     if (rule.min_metric_value !== null && Number(metricValue) < Number(rule.min_metric_value)) {
         return 0;
@@ -19,6 +38,45 @@ export function calculateRuleAward(rule, metricValue) {
     }
 
     return Math.max(0, award);
+}
+
+export function validateScoreSubmission({ game, metricName, metricValue }) {
+    if (!game || !metricName || !Number.isFinite(metricValue)) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Game, metricName, and numeric metricValue are required'
+        };
+    }
+
+    const gamePolicy = GAME_SCORE_POLICIES.get(game);
+    const metricPolicy = gamePolicy?.[metricName];
+
+    if (!metricPolicy) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Unsupported game metric'
+        };
+    }
+
+    if (metricPolicy.integer && !Number.isInteger(metricValue)) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Metric value must be an integer'
+        };
+    }
+
+    if (metricValue < metricPolicy.min || metricValue > metricPolicy.max) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Metric value is outside the allowed range'
+        };
+    }
+
+    return { ok: true };
 }
 
 export async function getGameLeaderboardPayload({
@@ -84,20 +142,39 @@ async function routes(fastify, options) {
             const userId = request.user.sub;
             const { game, metricName, metricValue } = request.body;
             const numericMetricValue = Number(metricValue);
+            const validation = validateScoreSubmission({
+                game,
+                metricName,
+                metricValue: numericMetricValue,
+            });
 
-            if (!game || !metricName || !Number.isFinite(numericMetricValue)) {
-                return reply.code(400).send({ error: 'Game, metricName, and numeric metricValue are required' });
+            if (!validation.ok) {
+                return reply.code(validation.statusCode).send({ error: validation.error });
             }
 
             await client.query('BEGIN');
 
             // First, get the game_id
-            const gameResult = await client.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await client.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
             if (gameResult.rows.length === 0) {
                 await client.query('ROLLBACK');
                 return reply.code(400).send({ error: 'Game not found' });
             }
             const gameId = gameResult.rows[0].id;
+
+            const recentSubmissions = await client.query(`
+                SELECT COUNT(*)::int AS count
+                FROM leaderboards
+                WHERE game_id = $1
+                  AND user_id = $2
+                  AND metric_name = $3
+                  AND achieved_at >= now() - interval '1 minute'
+            `, [gameId, userId, metricName]);
+
+            if (Number(recentSubmissions.rows[0]?.count || 0) >= SCORE_SUBMISSION_LIMIT_PER_MINUTE) {
+                await client.query('ROLLBACK');
+                return reply.code(429).send({ error: 'Too many score submissions' });
+            }
 
             // Insert a new leaderboard entry
             const result = await client.query(`
@@ -165,7 +242,7 @@ async function routes(fastify, options) {
             const { game, dataType } = request.query;
 
             // First, get the game_id
-            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
             if (gameResult.rows.length === 0) {
                 return reply.code(404).send({ error: 'Game not found' });
             }
@@ -194,7 +271,7 @@ async function routes(fastify, options) {
             const { game, dataType, data } = request.body;
 
             // First, get the game_id
-            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
             if (gameResult.rows.length === 0) {
                 return reply.code(404).send({ error: 'Game not found' });
             }

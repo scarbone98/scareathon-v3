@@ -39,6 +39,73 @@ type MachineData = {
 const ORIGINAL_EIGHT_BIT_EVIL = "8 Bit Evil";
 const mobileArcadeQuery = "(max-width: 768px), (pointer: coarse)";
 const GAME_TOOLBAR_HEIGHT = 56;
+const EIGHT_BIT_EVIL_RETURNS_URL =
+  "https://scarbone98.github.io/8BitEvilReturnsBuild/";
+const HEMLOCKS_TOWER_URL =
+  "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html";
+const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
+const OOIDASH_URL =
+  "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=bf98d08";
+
+type ArcadeMessage = {
+  type?: unknown;
+  score?: unknown;
+};
+
+function getUrlOrigin(url: string) {
+  return new URL(url).origin;
+}
+
+function isArcadeMessage(value: unknown): value is ArcadeMessage {
+  return typeof value === "object" && value !== null;
+}
+
+async function submitArcadeScore(game: string, score: unknown) {
+  const metricValue = Number(score);
+  if (!Number.isFinite(metricValue) || metricValue < 0) return;
+
+  const response = await fetchWithAuth("/games/submitScore", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      game,
+      metricName: "score",
+      metricValue,
+    }),
+  });
+
+  if (!response.ok) {
+    console.error(`Score submission failed for ${game}`, await response.text());
+  }
+}
+
+function isTrustedGameMessage(
+  iframe: HTMLIFrameElement,
+  event: MessageEvent,
+  expectedOrigin: string
+) {
+  return event.source === iframe.contentWindow && event.origin === expectedOrigin;
+}
+
+function listenForPlayerDiedScores(
+  iframe: HTMLIFrameElement,
+  game: string,
+  gameUrl: string
+) {
+  const expectedOrigin = getUrlOrigin(gameUrl);
+
+  const handleMessage = async (event: MessageEvent) => {
+    if (!isTrustedGameMessage(iframe, event, expectedOrigin)) return;
+    if (!isArcadeMessage(event.data) || event.data.type !== "PLAYER_DIED") return;
+
+    await submitArcadeScore(game, event.data.score);
+  };
+
+  window.addEventListener("message", handleMessage);
+  return () => window.removeEventListener("message", handleMessage);
+}
 
 function normalizeMachineName(name: string) {
   return name
@@ -84,39 +151,35 @@ export default function Arcade() {
       game: (
         <GameRenderer
           title="8 Bit Evil Returns"
-          url="https://scarbone98.github.io/8BitEvilReturnsBuild/"
+          url={EIGHT_BIT_EVIL_RETURNS_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          onLoad={() => {
+          onLoad={(iframe) => {
+            const expectedOrigin = getUrlOrigin(EIGHT_BIT_EVIL_RETURNS_URL);
+
             const handleMessage = async (e: MessageEvent) => {
+              if (!isTrustedGameMessage(iframe, e, expectedOrigin)) return;
+              if (!isArcadeMessage(e.data)) return;
+
               if (e.data.type === "unityReady") {
                 const {
-                  data: { user },
-                } = await supabase.auth.getUser();
+                  data: { session },
+                } = await supabase.auth.getSession();
 
-                if (user?.id) {
+                if (session?.user?.id) {
                   (e.source as WindowProxy | null)?.postMessage(
                     {
                       type: "SCARATHON_USER",
-                      userId: user.id,
+                      userId: session.user.id,
+                      accessToken: session.access_token,
                       apiBaseUrl: import.meta.env.VITE_BASE_URL || "",
                     },
-                    e.origin || "*"
+                    e.origin
                   );
                 }
               }
 
               if (e.data.type === "PLAYER_DIED") {
-                await fetchWithAuth("/games/submitScore", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    game: "8 Bit Evil Returns",
-                    metricName: "score",
-                    metricValue: e.data.score,
-                  }),
-                }).then((res) => res.json());
+                await submitArcadeScore("8 Bit Evil Returns", e.data.score);
               }
             };
             window.addEventListener("message", handleMessage);
@@ -134,29 +197,11 @@ export default function Arcade() {
       game: (
         <GameRenderer
           title="Hemlock's Tower"
-          url="https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html"
+          url={HEMLOCKS_TOWER_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          onLoad={() => {
-            window.onmessage = async (e) => {
-              if (e.data.type === "PLAYER_DIED") {
-                await fetchWithAuth("/games/submitScore", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    game: "Hemlock's Tower",
-                    metricName: "score",
-                    metricValue: e.data.score,
-                  }),
-                }).then((res) => res.json());
-              }
-            };
-
-            return () => {
-              window.onmessage = null;
-            };
-          }}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Hemlock's Tower", HEMLOCKS_TOWER_URL)
+          }
         />
       ),
     },
@@ -166,29 +211,11 @@ export default function Arcade() {
       game: (
         <GameRenderer
           title="Tlaloc’s Curse"
-          url="https://scarbone98.github.io/tlalocs-curse-pinball/"
+          url={TLALOCS_CURSE_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          onLoad={() => {
-            window.onmessage = async (e) => {
-              if (e.data.type === "PLAYER_DIED") {
-                await fetchWithAuth("/games/submitScore", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    game: "Tlaloc’s Curse",
-                    metricName: "score",
-                    metricValue: e.data.score,
-                  }),
-                }).then((res) => res.json());
-              }
-            };
-
-            return () => {
-              window.onmessage = null;
-            };
-          }}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Tlaloc’s Curse", TLALOCS_CURSE_URL)
+          }
         />
       ),
     },
@@ -198,29 +225,11 @@ export default function Arcade() {
       game: (
         <GameRenderer
           title="Ooidash"
-          url="https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=bf98d08"
+          url={OOIDASH_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          onLoad={() => {
-            window.onmessage = async (e) => {
-              if (e.data.type === "PLAYER_DIED") {
-                await fetchWithAuth("/games/submitScore", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    game: "Ooidash",
-                    metricName: "score",
-                    metricValue: e.data.score,
-                  }),
-                }).then((res) => res.json());
-              }
-            };
-
-            return () => {
-              window.onmessage = null;
-            };
-          }}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Ooidash", OOIDASH_URL)
+          }
         />
       ),
     },
@@ -239,17 +248,7 @@ export default function Arcade() {
               if ((window as CustomWindow).customFunctions) {
                 ((window as CustomWindow).customFunctions ??= {}).onDeath =
                   async (score: number) => {
-                    await fetchWithAuth("/games/submitScore", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        game: "8 Bit Evil",
-                        metricName: "score",
-                        metricValue: score,
-                      }),
-                    }).then((res) => res.json());
+                    await submitArcadeScore("8 Bit Evil", score);
                   };
               }
 

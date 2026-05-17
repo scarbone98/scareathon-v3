@@ -8,6 +8,11 @@ const DEFAULT_PLAYER_DATA = {
     silverAmount: 0,
     unlockedCharacters: [],
 };
+const RUN_LIMITS = {
+    runTimeSeconds: { min: 0, max: 86400 },
+    kills: { min: 0, max: 100000 },
+    candyCollected: { min: 0, max: 100000 },
+};
 
 function isUuid(value) {
     return typeof value === 'string'
@@ -17,6 +22,24 @@ function isUuid(value) {
 function parseInteger(value, fallback = 0) {
     const parsed = Number.parseInt(value, 10);
     return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseSubmittedInteger(value) {
+    if (typeof value === 'number') {
+        return Number.isSafeInteger(value) ? value : NaN;
+    }
+
+    if (typeof value === 'string' && /^[+-]?\d+$/.test(value.trim())) {
+        const parsed = Number(value);
+        return Number.isSafeInteger(parsed) ? parsed : NaN;
+    }
+
+    return NaN;
+}
+
+function validateRunMetric(name, value) {
+    const limits = RUN_LIMITS[name];
+    return Number.isInteger(value) && value >= limits.min && value <= limits.max;
 }
 
 function normalizePlayerData(data = {}, fallbackUserName = DEFAULT_PLAYER_DATA.userName) {
@@ -202,15 +225,23 @@ export default async function (fastify, options) {
 
         try {
             const data = request.body || {};
-            const userId = data.userId || request.query?.userId;
+            const userId = request.user?.sub;
 
             if (!isUuid(userId)) {
-                return reply.code(400).send({ error: 'Valid userId is required' });
+                return reply.code(401).send({ error: 'Authenticated user is required' });
             }
 
-            const runTimeSeconds = parseInteger(data.runTimeSeconds);
-            const kills = parseInteger(data.kills);
-            const candyCollected = parseInteger(data.candyCollected);
+            const runTimeSeconds = parseSubmittedInteger(data.runTimeSeconds);
+            const kills = parseSubmittedInteger(data.kills);
+            const candyCollected = parseSubmittedInteger(data.candyCollected);
+
+            if (
+                !validateRunMetric('runTimeSeconds', runTimeSeconds) ||
+                !validateRunMetric('kills', kills) ||
+                !validateRunMetric('candyCollected', candyCollected)
+            ) {
+                return reply.code(400).send({ error: 'Run metrics are outside the allowed range' });
+            }
 
             await client.query('BEGIN');
             const gameId = await getGameId(client);

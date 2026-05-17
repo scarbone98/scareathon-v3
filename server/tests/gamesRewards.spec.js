@@ -1,4 +1,4 @@
-import { calculateRuleAward } from '../routes/games.js';
+import { calculateRuleAward, validateScoreSubmission } from '../routes/games.js';
 
 describe('calculateRuleAward', () => {
     test('returns fixed awards when the metric clears the threshold', () => {
@@ -35,5 +35,46 @@ describe('calculateRuleAward', () => {
         }, 250);
 
         expect(award).toBe(30);
+    });
+});
+
+describe('validateScoreSubmission', () => {
+    test('allows a supported current arcade score', () => {
+        expect(validateScoreSubmission({
+            game: 'Tlaloc’s Curse',
+            metricName: 'score',
+            metricValue: 2500,
+        })).toEqual({ ok: true });
+    });
+
+    test('rejects unsupported game metrics', () => {
+        expect(validateScoreSubmission({
+            game: 'Tlaloc’s Curse',
+            metricName: 'coins',
+            metricValue: 2500,
+        })).toMatchObject({
+            ok: false,
+            statusCode: 400,
+        });
+    });
+
+    test('rejects non-integer and out-of-range scores', () => {
+        expect(validateScoreSubmission({
+            game: 'Ooidash',
+            metricName: 'score',
+            metricValue: 10.5,
+        })).toMatchObject({
+            ok: false,
+            error: 'Metric value must be an integer',
+        });
+
+        expect(validateScoreSubmission({
+            game: 'Ooidash',
+            metricName: 'score',
+            metricValue: 10000001,
+        })).toMatchObject({
+            ok: false,
+            error: 'Metric value is outside the allowed range',
+        });
     });
 });

@@ -85,9 +85,13 @@ async function main() {
         fastify.decorateRequest('user', null);
 
         fastify.addHook('preValidation', async (request, reply) => {
-            // Skip authentication for 8bitevilreturns routes
+            const isLegacyEightBitEvilRoute =
+                request.url.startsWith('/8bitevilreturns') &&
+                !request.url.startsWith('/8bitevilreturns/runs');
+
+            // Keep legacy game data routes public, but require auth for score writes.
             if (
-                request.url.startsWith('/8bitevilreturns') ||
+                isLegacyEightBitEvilRoute ||
                 request.url.startsWith('/admin/strapi') ||
                 request.method === 'OPTIONS'
             ) {
