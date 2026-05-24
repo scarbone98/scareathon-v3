@@ -66,6 +66,10 @@ function getCacheEntry(key) {
 }
 
 export function setCache(key, data, ttl = null) {
+    if (data === undefined) {
+        throw new Error(`Cache refresh for "${key}" returned undefined`);
+    }
+
     cache.delete(key);
     cache.set(key, {
         data,

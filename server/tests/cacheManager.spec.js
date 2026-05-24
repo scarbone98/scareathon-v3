@@ -97,4 +97,14 @@ describe('cacheManager', () => {
         await expect(getOrRefreshCache(key, async () => ({ value: 'fresh' }), 1000))
             .resolves.toEqual({ value: 'fresh' });
     });
+
+    test('rejects undefined refresh results instead of caching empty route responses', async () => {
+        const key = `cache-test-undefined-${Date.now()}`;
+
+        await expect(getOrRefreshCache(key, async () => undefined, 1000))
+            .rejects.toThrow(`Cache refresh for "${key}" returned undefined`);
+
+        await expect(getOrRefreshCache(key, async () => ({ value: 'fresh' }), 1000))
+            .resolves.toEqual({ value: 'fresh' });
+    });
 });

@@ -180,6 +180,7 @@ export async function getLeaderboardPayload({ requestedYear, date = new Date() }
                 availableYears
             }
         };
+        return response;
     }, LEADERBOARD_TTL);
 }
 
