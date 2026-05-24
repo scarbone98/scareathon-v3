@@ -7,6 +7,10 @@ const CLIENT_CACHE_SECONDS = 5 * 60;
 const WEEKLY_CHALLENGE_SOURCE_TYPE = 'weekly_challenge';
 const ARCADE_SCORE_VERIFICATION_TYPES = new Set(['arcade_score', 'game_score']);
 const COMPARISON_OPERATORS = new Set(['>=', '>', '<=', '<', '=']);
+const GENERATED_CHALLENGE_GAME_NAME = '8 Bit Evil Returns';
+const GENERATED_CHALLENGE_METRIC_NAME = 'score';
+const GENERATED_CHALLENGE_TARGETS = [1000, 1500, 2000, 2500, 3000, 4000, 5000];
+const GENERATED_CHALLENGE_REWARDS = [50, 75, 100];
 
 function setReadCacheHeaders(reply) {
     reply.header('Cache-Control', `private, max-age=${CLIENT_CACHE_SECONDS}, stale-while-revalidate=60`);
@@ -133,6 +137,70 @@ function firstMediaUrl(media) {
     } : null;
 }
 
+function startOfUtcWeek(date = new Date()) {
+    const normalized = new Date(Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate()
+    ));
+    normalized.setUTCDate(normalized.getUTCDate() - normalized.getUTCDay());
+    return normalized;
+}
+
+function addUtcDays(date, days) {
+    const next = new Date(date);
+    next.setUTCDate(next.getUTCDate() + days);
+    return next;
+}
+
+function weekIndexFromStart(start) {
+    return Math.floor(start.getTime() / (7 * 24 * 60 * 60 * 1000));
+}
+
+function generatedChallengeDocumentId(start) {
+    return `generated-weekly-${start.toISOString().slice(0, 10)}`;
+}
+
+export function getGeneratedWeeklyChallenge({ date = new Date(), documentId = null } = {}) {
+    let start = startOfUtcWeek(date);
+    if (documentId) {
+        const match = String(documentId).match(/^generated-weekly-(\d{4}-\d{2}-\d{2})$/);
+        if (!match) return null;
+
+        start = startOfUtcWeek(new Date(`${match[1]}T00:00:00.000Z`));
+        if (generatedChallengeDocumentId(start) !== documentId) return null;
+    }
+
+    const endExclusive = addUtcDays(start, 7);
+    const endsAt = new Date(endExclusive.getTime() - 1);
+    const weekIndex = weekIndexFromStart(start);
+    const targetMetricValue = GENERATED_CHALLENGE_TARGETS[weekIndex % GENERATED_CHALLENGE_TARGETS.length];
+    const rewardCoins = GENERATED_CHALLENGE_REWARDS[weekIndex % GENERATED_CHALLENGE_REWARDS.length];
+    const target = targetMetricValue.toLocaleString('en-US');
+
+    return {
+        id: generatedChallengeDocumentId(start),
+        documentId: generatedChallengeDocumentId(start),
+        slug: generatedChallengeDocumentId(start),
+        title: `Weekly Arcade Challenge: Score ${target}`,
+        summary: `Score at least ${target} in ${GENERATED_CHALLENGE_GAME_NAME} before the week resets.`,
+        content: null,
+        startsAt: start.toISOString(),
+        endsAt: endsAt.toISOString(),
+        points: 1,
+        rewardCoins,
+        verificationType: 'arcade_score',
+        gameName: GENERATED_CHALLENGE_GAME_NAME,
+        metricName: GENERATED_CHALLENGE_METRIC_NAME,
+        targetMetricValue,
+        comparisonOperator: '>=',
+        status: 'published',
+        publishedAt: start.toISOString(),
+        image: null,
+        source: 'generated',
+    };
+}
+
 export function normalizeWeeklyChallenge(entry) {
     const fields = getFields(entry);
     if (!fields) return null;
@@ -252,7 +320,7 @@ export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {
             });
         } catch (error) {
             if (isStrapiNotFound(error)) {
-                return { data: null };
+                return { data: getGeneratedWeeklyChallenge({ date }) };
             }
             throw error;
         }
@@ -262,7 +330,7 @@ export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {
             .filter((challenge) => isWeeklyChallengeActive(challenge, date));
         const payload = { data: challenges[0] || null };
 
-        return payload;
+        return payload.data ? payload : { data: getGeneratedWeeklyChallenge({ date }) };
     }, WEEKLY_CHALLENGE_TTL);
 }
 
@@ -281,7 +349,7 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
             });
         } catch (error) {
             if (isStrapiNotFound(error)) {
-                return { data: [] };
+                return { data: [getGeneratedWeeklyChallenge({ date })] };
             }
             throw error;
         }
@@ -290,13 +358,22 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
             .map(normalizeWeeklyChallenge)
             .filter((challenge) => challenge?.status === 'published')
             .slice(0, boundedLimit);
-        const payload = { data: challenges };
+        const payload = {
+            data: challenges.length > 0
+                ? challenges
+                : [getGeneratedWeeklyChallenge({ date })],
+        };
 
         return payload;
     }, WEEKLY_CHALLENGE_TTL);
 }
 
 export async function getWeeklyChallengeByDocumentId(documentId) {
+    const generatedChallenge = getGeneratedWeeklyChallenge({ documentId });
+    if (generatedChallenge) {
+        return generatedChallenge;
+    }
+
     let body;
     try {
         body = await fetchStrapiJson(`/api/weekly-challenges/${encodeURIComponent(documentId)}`, {

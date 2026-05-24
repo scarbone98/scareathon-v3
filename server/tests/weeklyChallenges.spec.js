@@ -1,4 +1,5 @@
 import {
+    getGeneratedWeeklyChallenge,
     getCurrentWeeklyChallengePayload,
     getRecentWeeklyChallengesPayload,
     getWeeklyChallengeByDocumentId,
@@ -117,7 +118,7 @@ describe('weekly challenge helpers', () => {
         })).toBe(false);
     });
 
-    test('treats a missing Strapi weekly challenge collection as no active challenge', async () => {
+    test('generates a weekly challenge fallback when the Strapi collection is missing', async () => {
         process.env.STRAPI_URL = 'https://cms.example.test';
         process.env.STRAPI_TOKEN = 'test-token';
         global.fetch = async () => ({
@@ -126,12 +127,35 @@ describe('weekly challenge helpers', () => {
             json: async () => ({ error: { message: 'Not Found' } }),
         });
 
+        const generated = getGeneratedWeeklyChallenge({
+            date: new Date('2026-10-05T12:00:00.000Z'),
+        });
+
         await expect(getCurrentWeeklyChallengePayload({
             date: new Date('2026-10-05T12:00:00.000Z'),
-        })).resolves.toEqual({ data: null });
+        })).resolves.toEqual({ data: generated });
         await expect(getRecentWeeklyChallengesPayload({
             date: new Date('2026-10-05T12:00:00.000Z'),
-        })).resolves.toEqual({ data: [] });
+        })).resolves.toEqual({ data: [generated] });
+        await expect(getWeeklyChallengeByDocumentId(generated.documentId)).resolves.toEqual(generated);
         await expect(getWeeklyChallengeByDocumentId('missing-doc')).resolves.toBeNull();
+    });
+
+    test('generated weekly challenges are active only during their generated week', () => {
+        const challenge = getGeneratedWeeklyChallenge({
+            date: new Date('2026-10-05T12:00:00.000Z'),
+        });
+
+        expect(challenge).toMatchObject({
+            documentId: 'generated-weekly-2026-10-04',
+            title: expect.stringContaining('Weekly Arcade Challenge'),
+            verificationType: 'arcade_score',
+            gameName: '8 Bit Evil Returns',
+            metricName: 'score',
+            comparisonOperator: '>=',
+            status: 'published',
+        });
+        expect(isWeeklyChallengeActive(challenge, new Date('2026-10-05T12:00:00.000Z'))).toBe(true);
+        expect(isWeeklyChallengeActive(challenge, new Date('2026-10-11T00:00:00.000Z'))).toBe(false);
     });
 });
