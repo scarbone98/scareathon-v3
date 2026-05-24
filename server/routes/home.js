@@ -1,6 +1,6 @@
 import { getLeaderboardPayload } from './leaderboard.js';
 import { getGameLeaderboardPayload } from './games.js';
-import { getPostsPayload } from './posts.js';
+import { getRecentPostsPayload } from './posts.js';
 import { getUnreadInboxCount } from './inbox.js';
 import { getWalletPayload } from './user.js';
 
@@ -159,7 +159,7 @@ async function getHomeSummaryPublicData(fastify, currentUserId = null) {
             limit: 1,
             currentUserId
         })),
-        withSourceTiming(fastify, 'posts', () => getPostsPayload()),
+        withSourceTiming(fastify, 'posts', () => getRecentPostsPayload({ limit: 1 })),
     ]);
 
     const leaderboard = toSettledData(leaderboardResult);

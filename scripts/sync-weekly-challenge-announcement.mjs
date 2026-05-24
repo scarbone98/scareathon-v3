@@ -34,10 +34,17 @@ async function strapiRequest(path, { method = 'GET', body = null, params = null 
 
   if (!response.ok) {
     const message = payload?.error?.message || payload?.error || `Strapi returned ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.statusCode = response.status;
+    error.path = path;
+    throw error;
   }
 
   return payload;
+}
+
+function isStrapiNotFound(error) {
+  return error?.statusCode === 404;
 }
 
 function getFields(entry) {
@@ -137,15 +144,23 @@ export function buildAnnouncementPost(challenge) {
 }
 
 async function findActiveChallenge(date = new Date()) {
-  const payload = await strapiRequest('/api/weekly-challenges', {
-    params: {
-      populate: '*',
-      'sort[0]': 'startsAt:desc',
-      'pagination[limit]': '25',
-      'filters[startsAt][$lte]': date.toISOString(),
-      'filters[endsAt][$gte]': date.toISOString(),
-    },
-  });
+  let payload;
+  try {
+    payload = await strapiRequest('/api/weekly-challenges', {
+      params: {
+        populate: '*',
+        'sort[0]': 'startsAt:desc',
+        'pagination[limit]': '25',
+        'filters[startsAt][$lte]': date.toISOString(),
+        'filters[endsAt][$gte]': date.toISOString(),
+      },
+    });
+  } catch (error) {
+    if (isStrapiNotFound(error)) {
+      return null;
+    }
+    throw error;
+  }
 
   return (payload?.data || []).find((entry) => isActiveChallenge(entry, date)) || null;
 }

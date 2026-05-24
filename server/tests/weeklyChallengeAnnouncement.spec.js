@@ -1,9 +1,20 @@
+import { jest } from '@jest/globals';
 import {
     buildAnnouncementPost,
     isActiveChallenge,
+    run,
 } from '../../scripts/sync-weekly-challenge-announcement.mjs';
 
 describe('weekly challenge announcement script helpers', () => {
+    const originalEnv = process.env;
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+        process.env = originalEnv;
+        global.fetch = originalFetch;
+        jest.restoreAllMocks();
+    });
+
     test('finds active challenges that need draft announcements', () => {
         const challenge = {
             documentId: 'challenge-doc',
@@ -37,5 +48,24 @@ describe('weekly challenge announcement script helpers', () => {
         expect(JSON.stringify(post.Content)).toContain('Worth 1 weekly point.');
         expect(JSON.stringify(post.Content)).toContain('Score at least 5,000 in 8 Bit Evil Returns.');
         expect(JSON.stringify(post.Content)).toContain('claim 40 coins');
+    });
+
+    test('treats a missing Strapi weekly challenge collection as no active challenge', async () => {
+        process.env = {
+            ...originalEnv,
+            STRAPI_URL: 'https://strapi.example.com',
+            STRAPI_TOKEN: 'test-token',
+        };
+        global.fetch = jest.fn(async () => ({
+            ok: false,
+            status: 404,
+            json: async () => ({ error: { message: 'Not Found' } }),
+        }));
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+
+        await expect(run({
+            date: new Date('2026-10-05T12:00:00.000Z'),
+            dryRun: true,
+        })).resolves.toEqual({ created: false, reason: 'no_active_challenge' });
     });
 });

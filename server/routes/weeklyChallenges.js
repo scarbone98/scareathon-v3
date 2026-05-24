@@ -43,10 +43,17 @@ async function fetchStrapiJson(path, params = null) {
 
     if (!response.ok) {
         const message = body?.error?.message || body?.error || `Strapi returned ${response.status}`;
-        throw new Error(message);
+        const error = new Error(message);
+        error.statusCode = response.status;
+        error.path = path;
+        throw error;
     }
 
     return body;
+}
+
+function isStrapiNotFound(error) {
+    return error?.statusCode === 404;
 }
 
 function getFields(entry) {
@@ -234,13 +241,22 @@ export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {
     const cacheKey = `weekly_challenge_current_${date.toISOString().slice(0, 10)}`;
 
     return getOrRefreshCache(cacheKey, async () => {
-        const body = await fetchStrapiJson('/api/weekly-challenges', {
-            populate: '*',
-            'sort[0]': 'startsAt:desc',
-            'pagination[limit]': '25',
-            'filters[startsAt][$lte]': date.toISOString(),
-            'filters[endsAt][$gte]': date.toISOString(),
-        });
+        let body;
+        try {
+            body = await fetchStrapiJson('/api/weekly-challenges', {
+                populate: '*',
+                'sort[0]': 'startsAt:desc',
+                'pagination[limit]': '25',
+                'filters[startsAt][$lte]': date.toISOString(),
+                'filters[endsAt][$gte]': date.toISOString(),
+            });
+        } catch (error) {
+            if (isStrapiNotFound(error)) {
+                return { data: null };
+            }
+            throw error;
+        }
+
         const challenges = (body?.data || [])
             .map(normalizeWeeklyChallenge)
             .filter((challenge) => isWeeklyChallengeActive(challenge, date));
@@ -255,12 +271,21 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
     const cacheKey = `weekly_challenge_recent_${date.toISOString().slice(0, 10)}_${boundedLimit}`;
 
     return getOrRefreshCache(cacheKey, async () => {
-        const body = await fetchStrapiJson('/api/weekly-challenges', {
-            populate: '*',
-            'sort[0]': 'startsAt:desc',
-            'pagination[limit]': String(boundedLimit),
-            'filters[startsAt][$lte]': date.toISOString(),
-        });
+        let body;
+        try {
+            body = await fetchStrapiJson('/api/weekly-challenges', {
+                populate: '*',
+                'sort[0]': 'startsAt:desc',
+                'pagination[limit]': String(boundedLimit),
+                'filters[startsAt][$lte]': date.toISOString(),
+            });
+        } catch (error) {
+            if (isStrapiNotFound(error)) {
+                return { data: [] };
+            }
+            throw error;
+        }
+
         const challenges = (body?.data || [])
             .map(normalizeWeeklyChallenge)
             .filter((challenge) => challenge?.status === 'published')
@@ -272,18 +297,28 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
 }
 
 export async function getWeeklyChallengeByDocumentId(documentId) {
-    const body = await fetchStrapiJson(`/api/weekly-challenges/${encodeURIComponent(documentId)}`, {
-        populate: '*',
-    });
+    let body;
+    try {
+        body = await fetchStrapiJson(`/api/weekly-challenges/${encodeURIComponent(documentId)}`, {
+            populate: '*',
+        });
+    } catch (error) {
+        if (isStrapiNotFound(error)) {
+            return null;
+        }
+        throw error;
+    }
+
     return normalizeWeeklyChallenge(body?.data);
 }
 
-export async function getContentLoopPayload({ getPostsPayload, date = new Date() }) {
+export async function getContentLoopPayload({ getPostsPayload, getRecentPostsPayload = null, date = new Date() }) {
     const cacheKey = `content_loop_${date.toISOString().slice(0, 10)}`;
 
     return getOrRefreshCache(cacheKey, async () => {
+        const getPosts = getRecentPostsPayload || getPostsPayload;
         const [postsResult, challengeResult] = await Promise.allSettled([
-            getPostsPayload(),
+            getPosts({ limit: 5 }),
             getRecentWeeklyChallengesPayload({ date, limit: 2 }),
         ]);
         const posts = postsResult.status === 'fulfilled' ? postsResult.value?.data || [] : [];
@@ -474,7 +509,10 @@ export default async function routes(fastify, options = {}) {
 
     fastify.get('/content-loop', async (request, reply) => {
         try {
-            const payload = await getContentLoopPayload({ getPostsPayload: options.getPostsPayload });
+            const payload = await getContentLoopPayload({
+                getPostsPayload: options.getPostsPayload,
+                getRecentPostsPayload: options.getRecentPostsPayload,
+            });
             setReadCacheHeaders(reply);
             return payload;
         } catch (error) {

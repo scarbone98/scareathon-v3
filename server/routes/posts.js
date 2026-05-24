@@ -7,21 +7,53 @@ function setReadCacheHeaders(reply) {
     reply.header('Cache-Control', `private, max-age=${CLIENT_CACHE_SECONDS}, stale-while-revalidate=60`);
 }
 
+function buildPostsUrl({ limit = null } = {}) {
+    const baseUrl = process.env.STRAPI_URL.replace(/\/$/, '');
+    const url = new URL(`${baseUrl}/api/posts`);
+
+    url.searchParams.set('populate', '*');
+    url.searchParams.set('sort', 'createdAt:desc');
+
+    if (limit) {
+        url.searchParams.set('pagination[limit]', String(limit));
+    }
+
+    return url;
+}
+
+function normalizeLimit(limit, fallback) {
+    const parsed = Number.parseInt(limit, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function fetchPostsJson(url) {
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Strapi API error: ${response.status}`);
+    }
+
+    return response.json();
+}
+
 export async function getPostsPayload() {
     const cacheKey = 'posts:list';
 
     return getOrRefreshCache(cacheKey, async () => {
-        const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*&sort=createdAt:desc`, {
-            headers: {
-                'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
-            }
-        });
+        return fetchPostsJson(buildPostsUrl());
+    }, POSTS_TTL);
+}
 
-        if (!response.ok) {
-            throw new Error(`Strapi API error: ${response.status}`);
-        }
+export async function getRecentPostsPayload({ limit = 5 } = {}) {
+    const boundedLimit = Math.min(normalizeLimit(limit, 5), 10);
+    const cacheKey = `posts:recent:${boundedLimit}`;
 
-        return response.json();
+    return getOrRefreshCache(cacheKey, async () => {
+        return fetchPostsJson(buildPostsUrl({ limit: boundedLimit }));
     }, POSTS_TTL);
 }
 

@@ -1,11 +1,38 @@
 import {
+    getCurrentWeeklyChallengePayload,
+    getRecentWeeklyChallengesPayload,
+    getWeeklyChallengeByDocumentId,
     isWeeklyChallengeActive,
     normalizeChallengeLoopItem,
     normalizeWeeklyChallenge,
     scoreSubmissionCompletesChallenge,
 } from '../routes/weeklyChallenges.js';
+import { deleteCachePrefix } from '../utils/cacheManager.js';
 
 describe('weekly challenge helpers', () => {
+    const originalFetch = global.fetch;
+    const originalStrapiUrl = process.env.STRAPI_URL;
+    const originalStrapiToken = process.env.STRAPI_TOKEN;
+
+    beforeEach(() => {
+        deleteCachePrefix('weekly_challenge_');
+    });
+
+    afterEach(() => {
+        global.fetch = originalFetch;
+        if (originalStrapiUrl === undefined) {
+            delete process.env.STRAPI_URL;
+        } else {
+            process.env.STRAPI_URL = originalStrapiUrl;
+        }
+        if (originalStrapiToken === undefined) {
+            delete process.env.STRAPI_TOKEN;
+        } else {
+            process.env.STRAPI_TOKEN = originalStrapiToken;
+        }
+        deleteCachePrefix('weekly_challenge_');
+    });
+
     test('normalizes Strapi weekly challenge fields and reward coins', () => {
         const challenge = normalizeWeeklyChallenge({
             id: 7,
@@ -88,5 +115,23 @@ describe('weekly challenge helpers', () => {
             metricName: 'score',
             metricValue: 900,
         })).toBe(false);
+    });
+
+    test('treats a missing Strapi weekly challenge collection as no active challenge', async () => {
+        process.env.STRAPI_URL = 'https://cms.example.test';
+        process.env.STRAPI_TOKEN = 'test-token';
+        global.fetch = async () => ({
+            ok: false,
+            status: 404,
+            json: async () => ({ error: { message: 'Not Found' } }),
+        });
+
+        await expect(getCurrentWeeklyChallengePayload({
+            date: new Date('2026-10-05T12:00:00.000Z'),
+        })).resolves.toEqual({ data: null });
+        await expect(getRecentWeeklyChallengesPayload({
+            date: new Date('2026-10-05T12:00:00.000Z'),
+        })).resolves.toEqual({ data: [] });
+        await expect(getWeeklyChallengeByDocumentId('missing-doc')).resolves.toBeNull();
     });
 });

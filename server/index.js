@@ -5,7 +5,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import calendarRoutes from './routes/calendar.js';
-import postsRoutes, { getPostsPayload } from './routes/posts.js';
+import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
@@ -145,7 +145,7 @@ async function main() {
         // Register route handlers
         fastify.register(calendarRoutes);
         fastify.register(postsRoutes);
-        fastify.register(weeklyChallengeRoutes, { getPostsPayload });
+        fastify.register(weeklyChallengeRoutes, { getPostsPayload, getRecentPostsPayload });
         fastify.register(leaderboardRoutes);
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
