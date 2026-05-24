@@ -1,4 +1,4 @@
-import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
+import { getOrRefreshCache } from '../utils/cacheManager.js';
 
 const POSTS_TTL = 5 * 60 * 1000;
 const CLIENT_CACHE_SECONDS = 5 * 60;
@@ -9,12 +9,8 @@ function setReadCacheHeaders(reply) {
 
 export async function getPostsPayload() {
     const cacheKey = 'posts:list';
-    const cachedData = getCache(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
 
-    try {
+    return getOrRefreshCache(cacheKey, async () => {
         const response = await fetch(`${process.env.STRAPI_URL}/api/posts?populate=*&sort=createdAt:desc`, {
             headers: {
                 'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
@@ -25,17 +21,8 @@ export async function getPostsPayload() {
             throw new Error(`Strapi API error: ${response.status}`);
         }
 
-        const data = await response.json();
-        setCache(cacheKey, data, POSTS_TTL);
-        return data;
-    } catch (error) {
-        const staleData = getStaleCache(cacheKey);
-        if (staleData) {
-            return staleData;
-        }
-
-        throw error;
-    }
+        return response.json();
+    }, POSTS_TTL);
 }
 
 export default async function (fastify, options) {
@@ -58,40 +45,39 @@ export default async function (fastify, options) {
         }
 
         const cacheKey = `posts:detail:${documentId}`;
-        const cachedData = getCache(cacheKey);
-        if (cachedData) {
-            setReadCacheHeaders(reply);
-            return cachedData;
-        }
 
         try {
-            const response = await fetch(`${process.env.STRAPI_URL}/api/posts/${documentId}?populate=*`, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
+            const data = await getOrRefreshCache(cacheKey, async () => {
+                const response = await fetch(`${process.env.STRAPI_URL}/api/posts/${documentId}?populate=*`, {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        const error = new Error('Post not found');
+                        error.statusCode = 404;
+                        throw error;
+                    }
+                    throw new Error(`Strapi API error: ${response.status}`);
                 }
-            });
 
-            if (!response.ok) {
-                if (response.status === 404) {
-                    return reply.code(404).send({ error: 'Post not found' });
+                const postData = await response.json();
+
+                if (!postData.data) {
+                    const error = new Error('Post not found');
+                    error.statusCode = 404;
+                    throw error;
                 }
-                throw new Error(`Strapi API error: ${response.status}`);
-            }
 
-            const data = await response.json();
-
-            if (!data.data) {
-                return reply.code(404).send({ error: 'Post not found' });
-            }
-
-            setCache(cacheKey, data, POSTS_TTL);
+                return postData;
+            }, POSTS_TTL);
             setReadCacheHeaders(reply);
             return data;
         } catch (error) {
-            const staleData = getStaleCache(cacheKey);
-            if (staleData) {
-                setReadCacheHeaders(reply);
-                return staleData;
+            if (error.statusCode === 404) {
+                return reply.code(404).send({ error: 'Post not found' });
             }
 
             fastify.log.error(error);

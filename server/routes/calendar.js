@@ -1,5 +1,5 @@
 import calendarSheet from '../db/google-sheets.js';
-import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
+import { getOrRefreshCache } from '../utils/cacheManager.js';
 import { enrichMovieData } from '../utils/tmdb.js';
 
 const CALENDAR_TTL = 60 * 60 * 1000;
@@ -9,50 +9,43 @@ function setReadCacheHeaders(reply, seconds) {
     reply.header('Cache-Control', `private, max-age=${seconds}, stale-while-revalidate=60`);
 }
 
+async function loadCalendarData() {
+    const doc = await calendarSheet();
+    const sheet = doc.sheetsByIndex[0];
+    await sheet.loadCells();
+    await sheet.loadHeaderRow();
+
+    const rowCount = sheet.rowCount;
+    const columnCount = sheet.columnCount;
+    const data = [];
+
+    for (let row = 0; row < rowCount; row++) {
+        const rowData = {};
+        let hasData = false;
+        for (let col = 0; col < columnCount; col++) {
+            const cell = sheet.getCell(row, col);
+            if (cell.value !== null) {
+                rowData[sheet.headerValues[col]] = cell.value;
+                hasData = true;
+            }
+        }
+        if (!hasData) break;
+        data.push(rowData);
+    }
+
+    return data;
+}
+
 export default async function (fastify, options) {
     fastify.get('/calendar', async (request, reply) => {
         const cacheKey = 'calendar';
-        const cachedData = getCache(cacheKey);
-        if (cachedData) {
-            setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
-            return { data: cachedData };
-        }
 
         try {
-            const doc = await calendarSheet();
-            const sheet = doc.sheetsByIndex[0];
-            await sheet.loadCells();
-            await sheet.loadHeaderRow();
-
-            const rowCount = sheet.rowCount;
-            const columnCount = sheet.columnCount;
-            const data = [];
-
-            for (let row = 0; row < rowCount; row++) {
-                const rowData = {};
-                let hasData = false;
-                for (let col = 0; col < columnCount; col++) {
-                    const cell = sheet.getCell(row, col);
-                    if (cell.value !== null) {
-                        rowData[sheet.headerValues[col]] = cell.value;
-                        hasData = true;
-                    }
-                }
-                if (!hasData) break;
-                data.push(rowData);
-            }
-
-            setCache(cacheKey, data, CALENDAR_TTL);
+            const data = await getOrRefreshCache(cacheKey, loadCalendarData, CALENDAR_TTL);
             setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
 
             return { data: data };
         } catch (err) {
-            const staleData = getStaleCache(cacheKey);
-            if (staleData) {
-                setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
-                return { data: staleData };
-            }
-
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });
         }
@@ -68,79 +61,34 @@ export default async function (fastify, options) {
 
             // Check if specific day data is cached (with enrichment)
             const dayCacheKey = `calendar_day_enriched_${day}`;
-            const cachedDayData = getCache(dayCacheKey);
+            const enrichedMovie = await getOrRefreshCache(dayCacheKey, async () => {
+                const calendarData = await getOrRefreshCache('calendar', loadCalendarData, CALENDAR_TTL);
+                const dayMovie = calendarData[day];
 
-            if (cachedDayData) {
-                setReadCacheHeaders(reply, CALENDAR_DAY_TTL / 1000);
-                return { data: cachedDayData };
-            }
-
-            // Get calendar data (basic, no enrichment)
-            let calendarData;
-            const calendarCacheKey = 'calendar';
-            const cachedCalendar = getCache(calendarCacheKey);
-
-            if (cachedCalendar) {
-                calendarData = cachedCalendar;
-            } else {
-                // Load fresh data if not cached
-                const doc = await calendarSheet();
-                const sheet = doc.sheetsByIndex[0];
-                await sheet.loadCells();
-                await sheet.loadHeaderRow();
-
-                const rowCount = sheet.rowCount;
-                const columnCount = sheet.columnCount;
-                const data = [];
-
-                for (let row = 0; row < rowCount; row++) {
-                    const rowData = {};
-                    let hasData = false;
-                    for (let col = 0; col < columnCount; col++) {
-                        const cell = sheet.getCell(row, col);
-                        if (cell.value !== null) {
-                            rowData[sheet.headerValues[col]] = cell.value;
-                            hasData = true;
-                        }
-                    }
-                    if (!hasData) break;
-                    data.push(rowData);
+                if (!dayMovie || !dayMovie.title) {
+                    const error = new Error(`No movie found for day ${day}`);
+                    error.statusCode = 404;
+                    throw error;
                 }
 
-                calendarData = data;
-                setCache(calendarCacheKey, data, CALENDAR_TTL);
-            }
+                try {
+                    const tmdbData = await enrichMovieData(dayMovie.title);
+                    return {
+                        ...dayMovie,
+                        ...tmdbData
+                    };
+                } catch (error) {
+                    console.error(`Failed to enrich "${dayMovie.title}":`, error);
+                    return dayMovie;
+                }
+            }, CALENDAR_DAY_TTL);
 
-            // Find the movie for the specific day
-            // Assuming day 1 is at index 1 (index 0 is header)
-            const dayMovie = calendarData[day];
-
-            if (!dayMovie || !dayMovie.title) {
-                return reply.code(404).send({ error: `No movie found for day ${day}` });
-            }
-
-            // Enrich this single movie with TMDB data
-            let enrichedMovie;
-            try {
-                const tmdbData = await enrichMovieData(dayMovie.title);
-                enrichedMovie = {
-                    ...dayMovie,
-                    ...tmdbData
-                };
-            } catch (error) {
-                console.error(`Failed to enrich "${dayMovie.title}":`, error);
-                enrichedMovie = dayMovie; // Return original data if enrichment fails
-            }
-
-            setCache(dayCacheKey, enrichedMovie, CALENDAR_DAY_TTL);
             setReadCacheHeaders(reply, CALENDAR_DAY_TTL / 1000);
 
             return { data: enrichedMovie };
         } catch (err) {
-            const staleDayData = getStaleCache(`calendar_day_enriched_${request.params.day}`);
-            if (staleDayData) {
-                setReadCacheHeaders(reply, CALENDAR_DAY_TTL / 1000);
-                return { data: staleDayData };
+            if (err.statusCode === 404) {
+                return reply.code(404).send({ error: err.message });
             }
 
             console.log(err);

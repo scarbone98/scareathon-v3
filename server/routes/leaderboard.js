@@ -1,5 +1,5 @@
 import calendarSheet from '../db/google-sheets.js';
-import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
+import { getOrRefreshCache } from '../utils/cacheManager.js';
 
 const LEADERBOARD_TTL = 24 * 60 * 60 * 1000;
 const CLIENT_CACHE_SECONDS = 24 * 60 * 60;
@@ -154,12 +154,8 @@ export async function getLeaderboardPayload({ requestedYear, date = new Date() }
     const cutoffYear = getLeaderboardCutoffYear(date);
     const targetYear = requestedYear || cutoffYear;
     const cacheKey = `leaderboard_${targetYear}_${cutoffYear}`;
-    const cachedData = getCache(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
 
-    try {
+    return getOrRefreshCache(cacheKey, async () => {
         const doc = await calendarSheet();
         const winnerSheet = doc.sheetsByTitle['Winners'];
         const winnerRows = winnerSheet ? await winnerSheet.getRows() : [];
@@ -184,17 +180,7 @@ export async function getLeaderboardPayload({ requestedYear, date = new Date() }
                 availableYears
             }
         };
-
-        setCache(cacheKey, response, LEADERBOARD_TTL);
-        return response;
-    } catch (err) {
-        const staleData = getStaleCache(cacheKey);
-        if (staleData) {
-            return staleData;
-        }
-
-        throw err;
-    }
+    }, LEADERBOARD_TTL);
 }
 
 export default async function (fastify, options) {
@@ -217,28 +203,18 @@ export default async function (fastify, options) {
     fastify.get('/past-winners', async (request, reply) => {
         const cutoffYear = getLeaderboardCutoffYear();
         const cacheKey = `pastWinners_${cutoffYear}`;
-        const cachedData = getCache(cacheKey);
-        if (cachedData) {
-            setReadCacheHeaders(reply);
-            return { data: cachedData };
-        }
 
         try {
-            const doc = await calendarSheet();
-            const sheet = doc.sheetsByTitle['Winners'];
-            const rows = await sheet.getRows();
-            const pastWinners = readWinnerRows(rows, cutoffYear);
+            const pastWinners = await getOrRefreshCache(cacheKey, async () => {
+                const doc = await calendarSheet();
+                const sheet = doc.sheetsByTitle['Winners'];
+                const rows = await sheet.getRows();
 
-            setCache(cacheKey, pastWinners, LEADERBOARD_TTL);
+                return readWinnerRows(rows, cutoffYear);
+            }, LEADERBOARD_TTL);
             setReadCacheHeaders(reply);
             return { data: pastWinners };
         } catch (err) {
-            const staleData = getStaleCache(cacheKey);
-            if (staleData) {
-                setReadCacheHeaders(reply);
-                return { data: staleData };
-            }
-
             console.log(err);
             reply.code(500).send({ error: 'An error has occurred with our database' });
         }

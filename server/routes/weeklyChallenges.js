@@ -1,5 +1,5 @@
 import pool from '../db/mockDB.js';
-import { getCache, getStaleCache, setCache } from '../utils/cacheManager.js';
+import { getOrRefreshCache } from '../utils/cacheManager.js';
 
 const WEEKLY_CHALLENGE_TTL = 5 * 60 * 1000;
 const CONTENT_LOOP_TTL = 5 * 60 * 1000;
@@ -232,12 +232,8 @@ export function normalizeChallengeLoopItem(challenge) {
 
 export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {}) {
     const cacheKey = `weekly_challenge_current_${date.toISOString().slice(0, 10)}`;
-    const cachedData = getCache(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
 
-    try {
+    return getOrRefreshCache(cacheKey, async () => {
         const body = await fetchStrapiJson('/api/weekly-challenges', {
             populate: '*',
             'sort[0]': 'startsAt:desc',
@@ -250,24 +246,15 @@ export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {
             .filter((challenge) => isWeeklyChallengeActive(challenge, date));
         const payload = { data: challenges[0] || null };
 
-        setCache(cacheKey, payload, WEEKLY_CHALLENGE_TTL);
         return payload;
-    } catch (error) {
-        const staleData = getStaleCache(cacheKey);
-        if (staleData) return staleData;
-        throw error;
-    }
+    }, WEEKLY_CHALLENGE_TTL);
 }
 
 export async function getRecentWeeklyChallengesPayload({ date = new Date(), limit = 2 } = {}) {
     const boundedLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 2, 1), 5);
     const cacheKey = `weekly_challenge_recent_${date.toISOString().slice(0, 10)}_${boundedLimit}`;
-    const cachedData = getCache(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
 
-    try {
+    return getOrRefreshCache(cacheKey, async () => {
         const body = await fetchStrapiJson('/api/weekly-challenges', {
             populate: '*',
             'sort[0]': 'startsAt:desc',
@@ -280,13 +267,8 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
             .slice(0, boundedLimit);
         const payload = { data: challenges };
 
-        setCache(cacheKey, payload, WEEKLY_CHALLENGE_TTL);
         return payload;
-    } catch (error) {
-        const staleData = getStaleCache(cacheKey);
-        if (staleData) return staleData;
-        throw error;
-    }
+    }, WEEKLY_CHALLENGE_TTL);
 }
 
 export async function getWeeklyChallengeByDocumentId(documentId) {
@@ -298,12 +280,8 @@ export async function getWeeklyChallengeByDocumentId(documentId) {
 
 export async function getContentLoopPayload({ getPostsPayload, date = new Date() }) {
     const cacheKey = `content_loop_${date.toISOString().slice(0, 10)}`;
-    const cachedData = getCache(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
 
-    try {
+    return getOrRefreshCache(cacheKey, async () => {
         const [postsResult, challengeResult] = await Promise.allSettled([
             getPostsPayload(),
             getRecentWeeklyChallengesPayload({ date, limit: 2 }),
@@ -316,13 +294,8 @@ export async function getContentLoopPayload({ getPostsPayload, date = new Date()
         ].filter(Boolean);
         const payload = { data: items };
 
-        setCache(cacheKey, payload, CONTENT_LOOP_TTL);
         return payload;
-    } catch (error) {
-        const staleData = getStaleCache(cacheKey);
-        if (staleData) return staleData;
-        throw error;
-    }
+    }, CONTENT_LOOP_TTL);
 }
 
 async function getExistingWeeklyChallengeGrant(client, userId, documentId) {

@@ -1,7 +1,9 @@
 import pool from '../db/mockDB.js';
+import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
 
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
+const GAME_LEADERBOARD_TTL = 60 * 1000;
 const GAME_SCORE_POLICIES = new Map([
     ['8 Bit Evil Returns', {
         score: { min: 0, max: 86400, integer: true },
@@ -80,6 +82,23 @@ export function validateScoreSubmission({ game, metricName, metricValue }) {
     return { ok: true };
 }
 
+function getGameLeaderboardCacheKey(game, metric, limit) {
+    return `gameLeaderboard:${game}:${metric}:${limit}`;
+}
+
+function getGameLeaderboardCachePrefix(game, metric) {
+    return `gameLeaderboard:${game}:${metric}:`;
+}
+
+function serializeGameLeaderboardRows(rows, currentUserId = null) {
+    return rows.map(row => ({
+        username: row.username,
+        metricValue: row.metric_value,
+        achieved_at: row.achieved_at,
+        isUserScore: currentUserId ? row.id === currentUserId : false
+    }));
+}
+
 export async function getGameLeaderboardPayload({
     game,
     metric = 'score',
@@ -90,24 +109,23 @@ export async function getGameLeaderboardPayload({
     const boundedLimit = Number.isFinite(numericLimit)
         ? Math.min(Math.max(numericLimit, 1), 100)
         : 10;
+    const cacheKey = getGameLeaderboardCacheKey(game, metric, boundedLimit);
+    const rows = await getOrRefreshCache(cacheKey, async () => {
+        const leaderboard = await pool.query(`
+            SELECT u.username, u.id, l.metric_value, l.achieved_at
+            FROM leaderboards l
+            JOIN games g ON l.game_id = g.id
+            JOIN users u ON l.user_id = u.id
+            WHERE g.name = $1 AND l.metric_name = $2
+            ORDER BY l.metric_value DESC
+            LIMIT $3
+        `, [game, metric, boundedLimit]);
 
-    const leaderboard = await pool.query(`
-        SELECT u.username, u.id, l.metric_value, l.achieved_at
-        FROM leaderboards l
-        JOIN games g ON l.game_id = g.id
-        JOIN users u ON l.user_id = u.id
-        WHERE g.name = $1 AND l.metric_name = $2
-        ORDER BY l.metric_value DESC
-        LIMIT $3
-    `, [game, metric, boundedLimit]);
+        return leaderboard.rows;
+    }, GAME_LEADERBOARD_TTL);
 
     return {
-        data: leaderboard.rows.map(row => ({
-            username: row.username,
-            metricValue: row.metric_value,
-            achieved_at: row.achieved_at,
-            isUserScore: currentUserId ? row.id === currentUserId : false
-        }))
+        data: serializeGameLeaderboardRows(rows, currentUserId)
     };
 }
 
@@ -238,6 +256,7 @@ async function routes(fastify, options) {
             }
 
             await client.query('COMMIT');
+            deleteCachePrefix(getGameLeaderboardCachePrefix(game, metricName));
 
             return {
                 data: {
