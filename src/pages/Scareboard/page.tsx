@@ -44,6 +44,27 @@ type ScareboardData = {
 
 const SCAREBOARD_CACHE_TIME = 1000 * 60 * 60 * 24;
 
+async function readScareboardJson<T>(response: Response, label: string): Promise<T> {
+  const text = await response.text();
+
+  if (!response.ok) {
+    let errorMessage = `${label} request failed`;
+    try {
+      const payload = JSON.parse(text);
+      errorMessage = payload.error || errorMessage;
+    } catch {
+      if (text.trim()) errorMessage = text.trim();
+    }
+    throw new Error(errorMessage);
+  }
+
+  if (!text.trim()) {
+    throw new Error(`${label} returned an empty response`);
+  }
+
+  return JSON.parse(text) as T;
+}
+
 export default function Scareboard() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const queryClient = useQueryClient();
@@ -54,11 +75,17 @@ export default function Scareboard() {
         ? `/leaderboard?year=${selectedYear}`
         : "/leaderboard";
       const [leaderboardRes, pastWinnersRes] = await Promise.all([
-        fetchWithAuth(leaderboardPath),
-        fetchWithAuth("/past-winners"),
+        fetchWithAuth(leaderboardPath, { cache: "no-store" }),
+        fetchWithAuth("/past-winners", { cache: "no-store" }),
       ]);
-      const leaderboard = await leaderboardRes.json();
-      const pastWinners = await pastWinnersRes.json();
+      const leaderboard = await readScareboardJson<LeaderboardResponse>(
+        leaderboardRes,
+        "Leaderboard"
+      );
+      const pastWinners = await readScareboardJson<PastWinnersResponse>(
+        pastWinnersRes,
+        "Past winners"
+      );
       return { leaderboard, pastWinners };
     },
     initialData: () => {

@@ -29,8 +29,8 @@ describe('leaderboard helpers', () => {
         const usersSheet = {
             title: 'Users-2025',
             getRows: jest.fn(async () => [
-                row({ name: 'Sam', movies: '10', weekly: '2', bonus: '1', total: '13' }),
-                row({ name: 'Alex', movies: '8', weekly: '4', bonus: '0', total: '12' }),
+                row({ name: 'Sam', movies: '10.0', weekly: '2.0', bonus: '1.0', total: '13' }),
+                row({ name: 'Alex', movies: '8', weekly: '4', bonus: '0', total: '12.0' }),
             ]),
         };
         const winnersSheet = {

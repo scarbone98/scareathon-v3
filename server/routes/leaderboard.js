@@ -2,13 +2,12 @@ import calendarSheet from '../db/google-sheets.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
 
 const LEADERBOARD_TTL = 24 * 60 * 60 * 1000;
-const CLIENT_CACHE_SECONDS = 24 * 60 * 60;
 const EVENT_MONTH_INDEX = 9;
 const LEADERBOARD_KEYS = ['name', 'movies', 'weekly', 'bonus', 'total'];
 const WINNER_KEYS = ['year', 'name'];
 
 function setReadCacheHeaders(reply) {
-    reply.header('Cache-Control', `private, max-age=${CLIENT_CACHE_SECONDS}, stale-while-revalidate=60`);
+    reply.header('Cache-Control', 'private, no-store');
 }
 
 function getLeaderboardCutoffYear(date = new Date()) {
@@ -132,7 +131,7 @@ function readLeaderboardRows(rows) {
     const users = rows.map(row => {
         const userObject = {};
         LEADERBOARD_KEYS.forEach(key => {
-            userObject[key] = row.get(key);
+            userObject[key] = normalizeLeaderboardCellValue(key, row.get(key));
         });
         return userObject;
     });
@@ -148,6 +147,20 @@ function readLeaderboardRows(rows) {
     });
 
     return users;
+}
+
+function normalizeLeaderboardCellValue(key, value) {
+    if (key === 'name' || value === null || value === undefined) {
+        return value;
+    }
+
+    const trimmed = typeof value === 'string' ? value.trim() : value;
+    const numericValue = Number(trimmed);
+    if (!Number.isFinite(numericValue) || !Number.isInteger(numericValue)) {
+        return value;
+    }
+
+    return String(numericValue);
 }
 
 export async function getLeaderboardPayload({ requestedYear, date = new Date() } = {}) {
