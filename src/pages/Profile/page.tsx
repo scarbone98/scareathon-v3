@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import "../../styles/profile.css";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { m as motion } from "framer-motion";
 import AnimatedPage from "../../components/AnimatedPage";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -21,11 +22,11 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Make sure this import is correct
 import { siteContainerClassName } from "../../components/PageContainer";
-import { AvatarEditor } from "../../components/avatar/AvatarEditor";
 import { AvatarPreview } from "../../components/avatar/AvatarPreview";
-import { AvatarShop } from "../../components/avatar/AvatarShop";
 import type { AvatarItem, AvatarResponse } from "../../components/avatar/types";
-import { InboxContent } from "../Inbox/page";
+const AvatarEditor = lazy(() => import("../../components/avatar/AvatarEditor").then(module => ({ default: module.AvatarEditor })));
+const AvatarShop = lazy(() => import("../../components/avatar/AvatarShop").then(module => ({ default: module.AvatarShop })));
+const InboxContent = lazy(() => import("../Inbox/page").then(module => ({ default: module.InboxContent })));
 
 type WalletData = {
   data: {
@@ -261,6 +262,7 @@ const Profile = () => {
             </nav>
             <div className="profile-panel-body">
               <header className="profile-section-heading"><h2>{sectionDetails.title}</h2><p>{sectionDetails.description}</p></header>
+              <Suspense fallback={<div className="py-10 text-center text-sm text-purple-200" role="status">Loading {activeTab === "avatar" ? "wardrobe" : activeTab}…</div>}>
               {activeTab === "inbox" ? <InboxContent embedded /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
                 <div className="account-settings">
                   <section className="account-section">
@@ -279,6 +281,7 @@ const Profile = () => {
                   <section className="account-section"><div className="account-section-icon"><FaSignOutAlt /></div><div className="account-section-content"><h3>Heading out?</h3><p>Your character will be here when you get back.</p><button onClick={handleLogout} className="profile-secondary-button"><FaSignOutAlt /> Sign out</button></div></section>
                 </div>
               )}
+              </Suspense>
             </div>
           </section>
         </motion.div>

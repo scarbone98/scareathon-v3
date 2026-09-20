@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m as motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { FaArrowRight, FaChevronLeft, FaChevronRight, FaCoins } from "react-icons/fa";
 import { fetchWithAuth } from "../fetchWithAuth";

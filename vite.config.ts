@@ -7,9 +7,6 @@ function manualChunks(id: string) {
   if (id.includes('/three/')) return 'vendor-three'
   if (id.includes('/gsap/')) return 'vendor-animation'
   if (id.includes('/@use-gesture/')) return 'vendor-gesture'
-  if (id.includes('/framer-motion/') || id.includes('/motion-dom/') || id.includes('/motion-utils/')) {
-    return 'vendor-motion'
-  }
   if (id.includes('/@supabase/') || id.includes('/@gotrue/') || id.includes('/@supabase-js/')) {
     return 'vendor-supabase'
   }
@@ -24,7 +21,6 @@ function manualChunks(id: string) {
   ) {
     return 'vendor-react'
   }
-  if (id.includes('/react-icons/')) return 'vendor-icons'
 
   return undefined
 }
@@ -33,6 +29,7 @@ function manualChunks(id: string) {
 export default defineConfig({
   plugins: [react()],
   build: {
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks,

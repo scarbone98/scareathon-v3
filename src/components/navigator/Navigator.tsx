@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useRef, useEffect, useState } from "react";
 import { useNavigatorContext } from "./context";
 import { mobileNavItems, navItems, profileNavItem } from "./navItems";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";

@@ -4,7 +4,7 @@ import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import Carousel from "../../components/Carousel";
 import { SiteContainer } from "../../components/PageContainer";

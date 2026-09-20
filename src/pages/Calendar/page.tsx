@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 
 type CalendarDay = {
