@@ -58,7 +58,7 @@ export default function Scareathon() {
       title: "Scareboard",
       description: isOctober
         ? "Live movie scores, ranks, and past winner marks."
-        : "Historical movie scores and past winner marks.",
+        : "The upcoming season, historical scores, and past winners.",
       path: "/scareathon/scareboard",
       icon: <FaListOl />,
       active: true,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FaSave, FaUndo } from "react-icons/fa";
+import { FaSave, FaUndo, FaCheck, FaSearch } from "react-icons/fa";
+import { Link } from "react-router-dom";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
@@ -71,6 +72,7 @@ type AvatarEditorProps = {
 export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
   const queryClient = useQueryClient();
   const [activeSlot, setActiveSlot] = useState("body");
+  const [search, setSearch] = useState("");
   const [draftEquipped, setDraftEquipped] = useState<AvatarItem[]>([]);
   const initialCompositeSavedRef = useRef(false);
 
@@ -89,8 +91,8 @@ export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
     [avatar]
   );
   const activeItems = useMemo(
-    () => visibleItems(avatar?.inventory[activeSlot] || []),
-    [activeSlot, avatar]
+    () => visibleItems(avatar?.inventory[activeSlot] || []).filter((item) => item.name.toLowerCase().includes(search.toLowerCase())),
+    [activeSlot, avatar, search]
   );
   const savedSelectionKey = useMemo(
     () => selectionKey(savedEquipped),
@@ -167,27 +169,25 @@ export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
   if (!avatar) return null;
 
   return (
-    <section className="flex flex-col gap-5">
+    <section className="wardrobe">
+      <div className="wardrobe-toolbar"><span>MY ITEMS <strong>{visibleItems(avatar.inventory[activeSlot] || []).length}</strong></span><label className="wardrobe-search"><FaSearch aria-hidden="true" /><input aria-label="Search wardrobe items" placeholder="Find an item…" value={search} onChange={(e) => setSearch(e.target.value)} /></label></div>
       <div className="grid gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
+          <div className="wardrobe-categories">
             {avatar.slots.map((slot) => (
               <button
                 key={slot.slot}
                 type="button"
                 onClick={() => setActiveSlot(slot.slot)}
-                className={`rounded border px-3 py-2 text-sm transition ${
-                  activeSlot === slot.slot
-                    ? "border-orange-500 bg-orange-700 text-white"
-                    : "border-red-950 bg-gray-900 text-gray-300 hover:border-red-700"
-                }`}
+                aria-pressed={activeSlot === slot.slot}
+                className={`wardrobe-category ${activeSlot === slot.slot ? "is-active" : ""}`}
               >
                 {slot.label}
               </button>
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="wardrobe-grid">
             {activeItems.map((item) => {
               const equippedItem = equippedByGroup.get(getEquipGroup(item));
               const isEquipped = equippedItem?.itemInstanceId === item.itemInstanceId;
@@ -203,12 +203,10 @@ export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
                       : undefined
                   }
                   disabled={!canEquip || saveMutation.isPending}
-                  className={`flex min-h-32 flex-col items-center justify-between gap-2 rounded border p-3 text-center transition ${
-                    isEquipped
-                      ? "border-orange-500 bg-orange-950/70 text-orange-100"
-                      : "border-red-950 bg-black/40 text-gray-200 hover:border-red-700"
-                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                  aria-pressed={isEquipped}
+                  className={`wardrobe-item ${isEquipped ? "is-equipped" : ""}`}
                 >
+                  <span className="wardrobe-item-status">{isEquipped ? <><FaCheck /> Wearing</> : "Try on"}</span>
                   <AvatarPreview layers={[item]} size="sm" />
                   <span className="text-sm leading-tight">{item.name}</span>
                 </button>
@@ -216,27 +214,29 @@ export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
             })}
           </div>
 
+          {activeItems.length === 0 && <div className="wardrobe-empty"><p>{search ? "No items match that search." : "Something new belongs here."}</p>{search ? <button className="profile-secondary-button" onClick={() => setSearch("")}>Clear search</button> : <Link className="profile-secondary-button" to="/profile/shop">Explore the item shop</Link>}</div>}
           {saveMutation.error && (
             <div className="text-center text-sm text-red-400 lg:text-left">
               {(saveMutation.error as Error).message}
             </div>
           )}
 
-          <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
+          <div className="wardrobe-save-bar">
+            <p role="status">{hasUnsavedChanges ? "Looking good! Save to keep this outfit." : "Your outfit is saved."}</p>
             <button
               type="button"
               onClick={() => saveMutation.mutate(draftEquipped)}
               disabled={!hasUnsavedChanges || saveMutation.isPending}
-              className="flex items-center gap-2 rounded bg-orange-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400"
+              className="profile-primary-button"
             >
               <FaSave />
-              <span>{saveMutation.isPending ? "Saving..." : "Save"}</span>
+              <span>{saveMutation.isPending ? "Saving…" : "Save outfit"}</span>
             </button>
             <button
               type="button"
               onClick={() => setDraftEquipped(savedEquipped)}
               disabled={!hasUnsavedChanges || saveMutation.isPending}
-              className="flex items-center gap-2 rounded bg-gray-800 px-4 py-2 text-sm text-gray-100 transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="profile-secondary-button"
             >
               <FaUndo />
               <span>Discard</span>

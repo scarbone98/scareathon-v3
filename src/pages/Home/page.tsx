@@ -37,6 +37,7 @@ type HomeSummary = {
       meta?: {
         year?: number;
         isLive?: boolean;
+        isPreseason?: boolean;
       } | null;
     } | null;
     featuredGame?: {
@@ -69,6 +70,7 @@ type LeaderboardResponse = {
   meta?: {
     year?: number;
     isLive?: boolean;
+    isPreseason?: boolean;
   } | null;
 };
 
@@ -222,7 +224,11 @@ export default function Home() {
       : "No high score yet";
   const scareboardLeaderLabel = scareboardLeader
     ? `${scareboardLeader.name} - ${scareboardLeader.total ?? 0}`
-    : "Standings loading";
+    : isSummaryLoading
+      ? "Standings loading"
+      : leaderboard?.meta?.isPreseason
+        ? "New season starts October 1"
+        : "No scores yet";
 
   const cabinets = [
     "8 Bit Evil Returns",
@@ -439,7 +445,7 @@ export default function Home() {
             <div className="flex flex-1 flex-col justify-center gap-4">
               <p className="text-base uppercase tracking-widest text-orange-100/55">
                 {leaderboard?.meta?.year
-                  ? `${leaderboard.meta.year} ${leaderboard.meta.isLive ? "live" : "historical"} standings`
+                  ? `${leaderboard.meta.year} ${leaderboard.meta.isPreseason ? "preseason" : leaderboard.meta.isLive ? "live" : "historical"} standings`
                   : "Latest standings"}
               </p>
               <div className="rounded border border-amber-300/30 bg-amber-950/20 px-4 py-4 text-amber-200">

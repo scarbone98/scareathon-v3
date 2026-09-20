@@ -238,10 +238,12 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -18 }}
           transition={{ duration: 0.28, ease: "easeOut" }}
-          className={`grid h-full ${
+          className={`grid min-w-0 ${
             compact
               ? "min-h-[29rem] md:min-h-[28.75rem] md:grid-cols-[1fr]"
-              : "min-h-[21rem] md:grid-cols-[minmax(0,0.9fr),minmax(0,1.1fr)]"
+              : imageUrl
+                ? "min-h-[21rem] md:grid-cols-[minmax(0,0.9fr),minmax(0,1.1fr)]"
+                : "min-h-[21rem] grid-cols-1"
           }`}
         >
         {!compact && imageUrl ? (
@@ -256,8 +258,10 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
         ) : null}
 
         <div
-          className={`flex min-h-0 flex-col p-5 md:p-6 ${
-            compact ? "h-[29rem] md:h-[28.75rem]" : "h-[21rem]"
+          className={`flex min-w-0 flex-col ${
+            compact
+              ? "min-h-0 h-[29rem] p-5 md:h-[28.75rem] md:p-6"
+              : "min-h-[21rem] p-5 sm:p-7 lg:p-8"
           }`}
         >
           <div className="mb-4 flex min-h-7 items-center justify-between gap-3">
@@ -269,19 +273,19 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
             </span>
           </div>
 
-          <h2 className="line-clamp-2 min-h-[4rem] text-2xl font-bold text-orange-100 md:text-3xl md:leading-tight">
+          <h2 className={`break-words text-2xl font-bold text-orange-100 md:text-3xl md:leading-tight ${compact ? "line-clamp-2 min-h-[4rem]" : ""}`}>
             {activeItem.title}
           </h2>
           {activeItem.summary ? (
-            <p className="mt-3 line-clamp-3 min-h-[5.25rem] text-base leading-7 text-orange-100/68">
+            <p className={`mt-3 break-words text-base leading-7 text-orange-100/70 ${compact ? "line-clamp-3 min-h-[5.25rem]" : ""}`}>
               {activeItem.summary}
             </p>
           ) : (
-            <div className="mt-3 min-h-[5.25rem]" />
+            compact ? <div className="mt-3 min-h-[5.25rem]" /> : null
           )}
 
           {isChallenge ? (
-            <div className="mt-5 flex min-h-[4.75rem] flex-wrap content-start items-start gap-3 overflow-hidden text-sm">
+            <div className={`mt-5 flex flex-wrap content-start items-start gap-3 text-sm ${compact ? "min-h-[4.75rem] overflow-hidden" : ""}`}>
               <span className="rounded border border-red-500/30 bg-red-950/40 px-3 py-2 uppercase tracking-widest text-red-100">
                 {activeItem.points || 1} point
               </span>
@@ -292,16 +296,16 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
                 </span>
               ) : null}
               {challengeTarget ? (
-                <span className="max-w-full truncate rounded border border-orange-500/25 bg-black/30 px-3 py-2 text-orange-100/75">
+                <span className={`max-w-full rounded border border-orange-500/25 bg-black/30 px-3 py-2 text-orange-100/75 ${compact ? "truncate" : "break-words"}`}>
                   {challengeTarget}
                 </span>
               ) : null}
             </div>
           ) : (
-            <div className="mt-5 min-h-[4.75rem]" />
+            compact ? <div className="mt-5 min-h-[4.75rem]" /> : null
           )}
 
-          <div className="mt-auto flex min-h-[4.5rem] flex-col gap-3 pt-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className={`mt-auto flex min-h-[4.5rem] flex-col gap-3 pt-5 sm:flex-row sm:items-end sm:justify-between ${compact ? "" : "sm:flex-wrap"}`}>
             <div className="flex h-12 items-center gap-2">
               {items.length > 1 ? (
                 <>
@@ -333,7 +337,7 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
               ) : null}
             </div>
 
-            <div className="flex min-h-12 flex-wrap items-center justify-end gap-3">
+            <div className={`flex min-h-12 flex-wrap items-center gap-3 ${compact ? "justify-end" : "justify-start sm:ml-auto sm:justify-end"}`}>
               {claimMessage ? (
                 <span className="max-w-full truncate text-sm text-amber-200">
                   {claimMessage}

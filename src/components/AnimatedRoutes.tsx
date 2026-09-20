@@ -270,6 +270,7 @@ export const AnimatedRoutes = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/profile/settings" element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><Profile /></Suspense></ProtectedRoute>} />
         <Route
           path="/profile/inbox"
           element={

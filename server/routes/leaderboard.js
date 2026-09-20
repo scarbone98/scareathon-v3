@@ -3,6 +3,7 @@ import { getOrRefreshCache } from '../utils/cacheManager.js';
 
 const LEADERBOARD_TTL = 24 * 60 * 60 * 1000;
 const EVENT_MONTH_INDEX = 9;
+const PRESEASON_MONTH_INDEX = 8;
 const LEADERBOARD_KEYS = ['name', 'movies', 'weekly', 'bonus', 'total'];
 const WINNER_KEYS = ['year', 'name'];
 
@@ -12,11 +13,15 @@ function setReadCacheHeaders(reply) {
 
 function getLeaderboardCutoffYear(date = new Date()) {
     const currentYear = date.getFullYear();
-    return date.getMonth() >= EVENT_MONTH_INDEX ? currentYear : currentYear - 1;
+    return date.getMonth() >= PRESEASON_MONTH_INDEX ? currentYear : currentYear - 1;
 }
 
 function isLiveEventOpen(date = new Date()) {
-    return date.getMonth() >= EVENT_MONTH_INDEX;
+    return date.getMonth() === EVENT_MONTH_INDEX;
+}
+
+function getWinnerCutoffYear(date = new Date()) {
+    return date.getMonth() >= EVENT_MONTH_INDEX ? date.getFullYear() : date.getFullYear() - 1;
 }
 
 function normalizeYear(value) {
@@ -24,7 +29,7 @@ function normalizeYear(value) {
     return Number.isFinite(year) ? year : null;
 }
 
-function readWinnerRows(rows, cutoffYear = getLeaderboardCutoffYear()) {
+function readWinnerRows(rows, cutoffYear = getWinnerCutoffYear()) {
     return rows
         .map(row => {
             const pastWinnerObject = {};
@@ -66,7 +71,7 @@ function getSheetCandidates(year, { allowLiveUsersSheet = false } = {}) {
     const candidates = [`Users-${year}`];
 
     if (allowLiveUsersSheet) {
-        candidates.unshift('Users');
+        candidates.push('Users');
     }
 
     if (year <= 2021) {
@@ -78,7 +83,7 @@ function getSheetCandidates(year, { allowLiveUsersSheet = false } = {}) {
 
 function findLeaderboardSheet(doc, requestedYear, pastWinners, date = new Date()) {
     const liveYear = date.getFullYear();
-    const allowLiveUsersSheet = isLiveEventOpen(date) && requestedYear === liveYear;
+    const allowLiveUsersSheet = date.getMonth() >= EVENT_MONTH_INDEX && requestedYear === liveYear;
     const requestedCandidates = getSheetCandidates(requestedYear, { allowLiveUsersSheet });
 
     for (const title of requestedCandidates) {
@@ -92,6 +97,7 @@ function findLeaderboardSheet(doc, requestedYear, pastWinners, date = new Date()
     ].sort((a, b) => b - a);
 
     for (const year of fallbackYears) {
+        if (year > getLeaderboardCutoffYear(date)) continue;
         for (const title of getSheetCandidates(year)) {
             if (doc.sheetsByTitle[title]) {
                 return { sheet: doc.sheetsByTitle[title], year, sheetTitle: title };
@@ -107,7 +113,7 @@ function getAvailableLeaderboardYears(doc, pastWinners, date = new Date()) {
     const liveYear = date.getFullYear();
     const cutoffYear = getLeaderboardCutoffYear(date);
 
-    if (isLiveEventOpen(date) && doc.sheetsByTitle['Users']) {
+    if (date.getMonth() >= EVENT_MONTH_INDEX && doc.sheetsByTitle['Users']) {
         years.push(liveYear);
     }
 
@@ -124,7 +130,7 @@ function getAvailableLeaderboardYears(doc, pastWinners, date = new Date()) {
         }
     }
 
-    return years;
+    return years.sort((a, b) => b - a);
 }
 
 function readLeaderboardRows(rows) {
@@ -166,18 +172,18 @@ function normalizeLeaderboardCellValue(key, value) {
 export async function getLeaderboardPayload({ requestedYear, date = new Date() } = {}) {
     const cutoffYear = getLeaderboardCutoffYear(date);
     const targetYear = requestedYear || cutoffYear;
-    const cacheKey = `leaderboard_${targetYear}_${cutoffYear}`;
+    const cacheKey = `leaderboard_${targetYear}_${cutoffYear}_${date.getMonth()}`;
 
     return getOrRefreshCache(cacheKey, async () => {
         const doc = await calendarSheet();
         const winnerSheet = doc.sheetsByTitle['Winners'];
         const winnerRows = winnerSheet ? await winnerSheet.getRows() : [];
-        const pastWinners = readWinnerRows(winnerRows, cutoffYear);
+        const pastWinners = readWinnerRows(winnerRows, getWinnerCutoffYear(date));
         const selection = findLeaderboardSheet(doc, targetYear, pastWinners, date);
         const availableYears = getAvailableLeaderboardYears(doc, pastWinners, date);
 
         if (!selection) {
-            const error = new Error('No leaderboard sheet found for a completed Scareathon year');
+            const error = new Error('No leaderboard sheet found for an available Scareathon season');
             error.statusCode = 404;
             throw error;
         }
@@ -189,7 +195,8 @@ export async function getLeaderboardPayload({ requestedYear, date = new Date() }
             meta: {
                 year: selection.year,
                 sheetTitle: selection.sheetTitle,
-                isLive: selection.sheetTitle === 'Users' && isLiveEventOpen(date),
+                isLive: selection.year === date.getFullYear() && isLiveEventOpen(date),
+                isPreseason: selection.year === date.getFullYear() && date.getMonth() < EVENT_MONTH_INDEX,
                 availableYears
             }
         };
@@ -215,7 +222,7 @@ export default async function (fastify, options) {
     });
 
     fastify.get('/past-winners', async (request, reply) => {
-        const cutoffYear = getLeaderboardCutoffYear();
+        const cutoffYear = getWinnerCutoffYear();
         const cacheKey = `pastWinners_${cutoffYear}`;
 
         try {

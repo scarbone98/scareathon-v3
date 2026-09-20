@@ -24,6 +24,7 @@ type LeaderboardResponse = {
     year?: number;
     sheetTitle?: string;
     isLive?: boolean;
+    isPreseason?: boolean;
     availableYears?: number[];
   };
 };
@@ -42,7 +43,7 @@ type ScareboardData = {
   pastWinners: PastWinnersResponse;
 };
 
-const SCAREBOARD_CACHE_TIME = 1000 * 60 * 60 * 24;
+const SCAREBOARD_CACHE_TIME = 1000 * 60 * 5;
 
 async function readScareboardJson<T>(response: Response, label: string): Promise<T> {
   const text = await response.text();
@@ -168,7 +169,7 @@ export default function Scareboard() {
       <div className="calendar-gradient"></div>
       <motion.div
         layout
-        className={`${siteContainerClassName} pb-4 pt-6 md:pb-6 md:pt-20 tracking-widest`}
+        className={`${siteContainerClassName} py-4 md:py-6 tracking-widest`}
       >
         <div className="mb-5 rounded-lg border border-red-950/70 bg-black/60 px-4 py-3">
           <h1 className="text-3xl font-bold text-red-500 md:text-4xl">
@@ -179,7 +180,9 @@ export default function Scareboard() {
           <p className="mt-1 text-sm uppercase tracking-widest text-orange-100/70">
             {data?.leaderboard?.meta?.isLive
               ? "Live October standings"
-              : "Latest available historical standings"}
+              : data?.leaderboard?.meta?.isPreseason
+                ? "Preseason — starts October 1"
+                : "Historical standings"}
           </p>
           {availableYears.length > 1 && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -210,7 +213,18 @@ export default function Scareboard() {
             </div>
           )}
         </div>
-        <div className="overflow-x-auto">
+        {data?.leaderboard?.data?.length === 0 ? (
+          <section className="rounded-lg border border-orange-800/50 bg-gray-950/70 px-6 py-10 text-center">
+            <h2 className="text-2xl font-bold text-orange-100">
+              {data?.leaderboard?.meta?.isPreseason ? `${activeYear} is on the way` : "No scores yet"}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed tracking-normal text-orange-100/75">
+              {data?.leaderboard?.meta?.isPreseason
+                ? "A fresh season, a fresh board. Standings begin October 1. Explore past seasons using the year buttons above."
+                : "Standings will appear here once the first scores are recorded."}
+            </p>
+          </section>
+        ) : <div className="overflow-x-auto">
           <table className="w-full shadow-md rounded-lg overflow-hidden">
             <thead className="bg-gray-900 bg-opacity-50">
               <tr>
@@ -279,7 +293,7 @@ export default function Scareboard() {
               </AnimatePresence>
             </tbody>
           </table>
-        </div>
+        </div>}
       </motion.div>
     </AnimatedPage>
   );

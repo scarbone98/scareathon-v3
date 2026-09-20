@@ -4,9 +4,11 @@ import AnimatedPage from "../../components/AnimatedPage";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { fetchWithAuth } from "../../fetchWithAuth";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FaCheck,
+  FaArrowRight,
+  FaGhost,
   FaCog,
   FaCoins,
   FaEdit,
@@ -39,6 +41,7 @@ type InboxSummary = {
 };
 
 const Profile = () => {
+  const queryClient = useQueryClient();
   const [newUsername, setNewUsername] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -53,7 +56,11 @@ const Profile = () => {
     error: userError,
   } = useQuery({
     queryKey: ["user"],
-    queryFn: () => fetchWithAuth("/user").then((res) => res.json()),
+    queryFn: () => fetchWithAuth("/user").then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load profile");
+      return data;
+    }),
   });
 
   const {
@@ -117,10 +124,7 @@ const Profile = () => {
       onSuccess: (data) => {
         setSuccessMessage("Username updated successfully!");
         setNewUsername("");
-        // Update the local userData state with the new username
-        if (userData) {
-          userData.data.username = data.data.username;
-        }
+        queryClient.setQueryData(["user"], data);
         setIsEditing(false);
       },
       onError: (error: Error) => {
@@ -147,6 +151,7 @@ const Profile = () => {
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
+    if (!isEditing) setNewUsername(userData?.data?.username || "");
     if (isEditing) {
       setNewUsername("");
       setValidationError(null);
@@ -170,7 +175,9 @@ const Profile = () => {
       ? "shop"
     : location.pathname.endsWith("/avatar")
       ? "avatar"
-      : "settings";
+      : location.pathname.endsWith("/settings")
+        ? "settings"
+        : "avatar";
   const unreadInboxCount =
     inboxSummary?.data.reduce(
       (total, conversation) => total + (conversation.unreadCount || 0),
@@ -182,7 +189,7 @@ const Profile = () => {
     if (error) {
       console.error("Error logging out:", error);
     } else {
-      navigate("/login"); // Redirect to login page after logout
+      navigate("/authentication");
     }
   };
 
@@ -201,191 +208,80 @@ const Profile = () => {
         ? "Marketplace Preview"
         : "Current Profile";
   const profileTabs = [
-    { to: "/profile/avatar", key: "avatar", label: "Avatar", icon: <FaUserAlt /> },
-    { to: "/profile/shop", key: "shop", label: "Shop", icon: <FaShoppingBag /> },
+    { to: "/profile/avatar", key: "avatar", label: "Dress up", icon: <FaUserAlt /> },
+    { to: "/profile/shop", key: "shop", label: "Item shop", icon: <FaShoppingBag /> },
     { to: "/profile/inbox", key: "inbox", label: "Inbox", icon: <FaEnvelope /> },
-    { to: "/profile", key: "settings", label: "Settings", icon: <FaCog /> },
+    { to: "/profile/settings", key: "settings", label: "Settings", icon: <FaCog /> },
   ];
 
+  const sectionDetails = {
+    avatar: { title: "Your wardrobe", description: "A little strange. Entirely you. Pick a category and try something on." },
+    shop: { title: "Find your next favorite", description: "Discover new pieces and give your character a little more personality." },
+    inbox: { title: "Your inbox", description: "Keep in touch with the creatures you meet along the way." },
+    settings: { title: "Account settings", description: "Make yourself at home. Manage your name and account here." },
+  }[activeTab];
+
   return (
-    <AnimatedPage className="home-background relative flex items-start justify-center py-4 md:py-6">
-      <div className="home-gradient"></div>
-      <div className={`${siteContainerClassName} relative z-10 pt-3 md:pt-14`}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="grid h-full w-full gap-5 md:mb-[100px] lg:max-h-[calc(100vh-7rem)] lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[340px_minmax(0,1fr)]"
-      >
-        <aside className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
-          <div className="rounded border border-red-950/70 bg-black/30 p-4">
-            <div className="flex flex-col items-center gap-4">
-              {isAvatarLoading ? (
-                <div className="flex h-64 w-64 items-center justify-center rounded border border-red-900/60 bg-black/60">
-                  <LoadingSpinner />
-                </div>
-              ) : (
-                <AvatarPreview layers={visibleAvatarLayers} />
-              )}
-              <div className="w-full min-w-0 text-center">
-                <p className="text-sm uppercase tracking-widest text-gray-400">
-                  {avatarPreviewLabel}
-                </p>
-                <h1 className="truncate text-3xl font-bold text-red-500">
-                  {userData?.data?.username}
-                </h1>
-              </div>
-            </div>
+    <AnimatedPage className="profile-world">
+      <div className={`${siteContainerClassName} profile-container`}>
+        <header className="profile-heading">
+          <div>
+            <p className="profile-eyebrow"><FaGhost aria-hidden="true" /> YOUR LITTLE CORNER OF SCAREATHON</p>
+            <h1>My haunt<span>.</span></h1>
+            <p>Dress up, hang out, and make a little mischief.</p>
           </div>
-
-          <div className="grid gap-3 rounded border border-red-950/70 bg-black/30 p-4 sm:grid-cols-3 lg:grid-cols-1">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 text-amber-200">
-                <FaCoins className="text-xl text-amber-300" />
-                <span>Coins</span>
+          <Link className="profile-community-link" to="/arcade">Visit the arcade <FaArrowRight /></Link>
+        </header>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="profile-layout">
+          <aside className="profile-sidebar">
+            <div className="character-card">
+              <div className="character-card-heading"><span>MY CHARACTER</span><FaGhost aria-hidden="true" /></div>
+              <div className="character-stage">
+                <div className="character-moon" aria-hidden="true" />
+                {isAvatarLoading ? <div className="character-loading" role="status">Getting dressed…</div> : <AvatarPreview layers={visibleAvatarLayers} />}
+                <span className="character-preview-label">{avatarPreviewLabel}</span>
               </div>
-              <span className="font-bold text-amber-300">
-                {isWalletLoading
-                  ? "..."
-                  : walletError
-                    ? "Unavailable"
-                    : coinBalance.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 text-gray-300">
-                <FaEnvelope className="text-xl text-red-400" />
-                <span>Unread</span>
+              <div className="character-identity">
+                <h2>{userData?.data?.username || "Fellow creature"}</h2>
+                <p>Your one-of-a-kind alter ego</p>
               </div>
-              <span className="font-bold text-red-200">{unreadInboxCount}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 text-gray-300">
-                <FaUserAlt className="text-xl text-red-400" />
-                <span>Loadout</span>
+              <div className="character-wallet">
+                <span className="coin-icon"><FaCoins /></span>
+                <div><span className="wallet-caption">Your coins</span><strong>{isWalletLoading ? "…" : walletError ? "Unavailable" : coinBalance.toLocaleString()}</strong></div>
+                <Link to="/profile/shop" aria-label="Spend coins in the item shop"><FaArrowRight /></Link>
               </div>
-              <span className="font-bold text-red-200">
-                {equippedAvatarLayers.length}
-              </span>
             </div>
-          </div>
-        </aside>
-
-        <section className="flex min-w-0 flex-col gap-5 rounded-xl bg-gray-950 p-4 shadow-2xl sm:p-5 lg:min-h-0">
-          <div className="grid grid-cols-2 rounded border border-red-950 bg-black/50 p-1 md:grid-cols-4">
-            {profileTabs.map((tab) => (
-              <Link
-                key={tab.key}
-                to={tab.to}
-                className={`inline-flex min-h-12 items-center justify-center gap-2 rounded px-3 py-2 text-base transition sm:text-lg ${
-                  activeTab === tab.key
-                    ? "bg-red-700 text-white"
-                    : "text-gray-300 hover:bg-red-950/50 hover:text-white"
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-                {tab.key === "inbox" && unreadInboxCount > 0 && (
-                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-black">
-                    +{unreadInboxCount}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-
-          <div className="min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-            {activeTab === "inbox" ? (
-              <InboxContent embedded />
-            ) : activeTab === "shop" ? (
-              <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} />
-            ) : activeTab === "avatar" ? (
-              <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} />
-            ) : (
-              <div className="grid gap-5">
-                <div className="rounded border border-red-950/70 bg-black/30 p-4">
-                  <div className="mb-4 flex items-center gap-3 text-amber-200">
-                    <FaCog className="text-2xl text-red-400" />
-                    <h2 className="text-2xl text-red-200">Account Settings</h2>
-                  </div>
-
-                  <div className="flex min-h-24 flex-col justify-center gap-3 rounded border border-red-950/70 bg-black/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-lg text-gray-300">Username</p>
-                    {isEditing ? (
-                      <form
-                        onSubmit={handleSubmit}
-                        className="flex flex-wrap items-center gap-2 sm:justify-end"
-                      >
-                        <input
-                          type="text"
-                          value={newUsername}
-                          onChange={(e) => setNewUsername(e.target.value)}
-                          className="min-w-0 rounded bg-gray-800 px-2 py-1 text-white"
-                          placeholder={userData?.data?.username}
-                          maxLength={32}
-                        />
-                        <button
-                          type="submit"
-                          disabled={
-                            !!validationError || !newUsername || isUpdatingUsername
-                          }
-                          className="text-green-500 hover:text-green-400 disabled:text-gray-500"
-                        >
-                          <FaCheck />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleEditToggle}
-                          className="text-red-500 hover:text-red-400"
-                        >
-                          <FaTimes />
-                        </button>
-                      </form>
-                    ) : (
-                      <div className="flex min-w-0 items-center gap-3">
-                        <p className="truncate text-2xl font-bold text-red-500">
-                          {userData?.data?.username}
-                        </p>
-                        <button
-                          onClick={handleEditToggle}
-                          className="shrink-0 text-blue-500 hover:text-blue-400"
-                        >
-                          <FaEdit />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {(validationError || successMessage) && (
-                    <div className="mt-4">
-                      {validationError && (
-                        <div className="text-center text-lg text-red-500">
-                          {validationError}
-                        </div>
-                      )}
-                      {successMessage && (
-                        <div className="animate-pulse text-center text-lg text-green-400">
-                          {successMessage}
-                        </div>
-                      )}
+            <div className="profile-sidebar-note"><FaGhost aria-hidden="true" /><p>A new look, same you.<br /><span>Try on items before saving your outfit.</span></p></div>
+          </aside>
+          <section className="profile-panel">
+            <nav className="profile-tabs" aria-label="Profile sections">
+              {profileTabs.map((tab) => <Link key={tab.key} to={tab.to} aria-current={activeTab === tab.key ? "page" : undefined} className={`profile-tab ${activeTab === tab.key ? "is-active" : ""}`}>
+                {tab.icon}<span>{tab.label}</span>{tab.key === "inbox" && unreadInboxCount > 0 && <span className="unread-badge">{unreadInboxCount}</span>}
+              </Link>)}
+            </nav>
+            <div className="profile-panel-body">
+              <header className="profile-section-heading"><h2>{sectionDetails.title}</h2><p>{sectionDetails.description}</p></header>
+              {activeTab === "inbox" ? <InboxContent embedded /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
+                <div className="account-settings">
+                  <section className="account-section">
+                    <div className="account-section-icon"><FaUserAlt /></div>
+                    <div className="account-section-content">
+                      <h3>Your name around here</h3><p>This is how other members will see you.</p>
+                      {isEditing ? <form onSubmit={handleSubmit} className="username-form">
+                        <label htmlFor="profile-username">Username</label>
+                        <input id="profile-username" autoFocus type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} maxLength={32} aria-invalid={!!validationError} aria-describedby={validationError ? "username-error" : undefined} />
+                        <div className="profile-button-row"><button type="submit" className="profile-primary-button" disabled={!!validationError || !newUsername || isUpdatingUsername}><FaCheck />{isUpdatingUsername ? "Saving…" : "Save name"}</button><button type="button" onClick={handleEditToggle} className="profile-secondary-button"><FaTimes /> Cancel</button></div>
+                      </form> : <div className="username-display"><strong>{userData?.data?.username}</strong><button onClick={handleEditToggle} className="profile-secondary-button"><FaEdit /> Edit name</button></div>}
+                      {validationError && <p id="username-error" role="alert" className="profile-error">{validationError}</p>}
+                      {successMessage && <p role="status" className="profile-success">{successMessage}</p>}
                     </div>
-                  )}
-
-                  <div className="mt-5 border-t border-red-950/70 pt-4">
-                    <button
-                      onClick={handleLogout}
-                      className="flex min-h-11 items-center justify-center gap-2 rounded bg-red-600 px-4 py-2 font-bold text-white transition duration-300 hover:bg-red-700"
-                    >
-                      <FaSignOutAlt />
-                      <span>Logout</span>
-                    </button>
-                  </div>
+                  </section>
+                  <section className="account-section"><div className="account-section-icon"><FaSignOutAlt /></div><div className="account-section-content"><h3>Heading out?</h3><p>Your character will be here when you get back.</p><button onClick={handleLogout} className="profile-secondary-button"><FaSignOutAlt /> Sign out</button></div></section>
                 </div>
-              </div>
-            )}
-          </div>
-        </section>
-      </motion.div>
+              )}
+            </div>
+          </section>
+        </motion.div>
       </div>
     </AnimatedPage>
   );
