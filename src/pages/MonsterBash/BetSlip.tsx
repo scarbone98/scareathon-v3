@@ -11,15 +11,23 @@ const EMPTY_POOLS: BetPools = { amounts: [0, 0], bettors: [0, 0] };
 
 const formatCoins = (coins: number) => coins.toLocaleString("en-US");
 
+// Everything staked on a side: players' coins plus the house's seed.
+function sideTotal(pools: BetPools, side: number) {
+  return pools.amounts[side] + (pools.house?.[side] ?? 0);
+}
+
 // Parimutuel payout for `stake` on `side` if it were added to the pools now.
 function estimatePayout(pools: BetPools, side: FighterSide, stake: number, alreadyIn = false) {
-  const total = pools.amounts[0] + pools.amounts[1] + (alreadyIn ? 0 : stake);
-  const sidePool = pools.amounts[side] + (alreadyIn ? 0 : stake);
+  const added = alreadyIn ? 0 : stake;
+  const total = sideTotal(pools, 0) + sideTotal(pools, 1) + added;
+  const sidePool = sideTotal(pools, side) + added;
   return sidePool > 0 ? Math.floor((stake * total) / sidePool) : stake;
 }
 
 function PoolBar({ match, pools }: { match: LiveMatch; pools: BetPools }) {
-  const total = pools.amounts[0] + pools.amounts[1];
+  const sides = [sideTotal(pools, 0), sideTotal(pools, 1)];
+  const total = sides[0] + sides[1];
+  const houseTotal = (pools.house?.[0] ?? 0) + (pools.house?.[1] ?? 0);
   const names = match.fighters.map((id) => getMonster(id).name);
   return (
     <div>
@@ -28,7 +36,7 @@ function PoolBar({ match, pools }: { match: LiveMatch; pools: BetPools }) {
           [0, 1].map((side) => (
             <div
               key={side}
-              style={{ width: `${(pools.amounts[side] / total) * 100}%`, background: SIDE_COLORS[side] }}
+              style={{ width: `${(sides[side] / total) * 100}%`, background: SIDE_COLORS[side] }}
               className={side === 0 ? "border-r-2 border-[#0b0617]" : ""}
             />
           ))}
@@ -36,12 +44,15 @@ function PoolBar({ match, pools }: { match: LiveMatch; pools: BetPools }) {
       <div className="mt-1.5 flex justify-between text-xs text-purple-200/70 tabular-nums">
         {[0, 1].map((side) => (
           <span key={side} className={side === 1 ? "text-right" : ""}>
-            <strong className="text-orange-50">{formatCoins(pools.amounts[side])}</strong> on {names[side]}
+            <strong className="text-orange-50">{formatCoins(sides[side])}</strong> on {names[side]}
             <br />
             {pools.bettors[side]} {pools.bettors[side] === 1 ? "bettor" : "bettors"}
           </span>
         ))}
       </div>
+      {houseTotal > 0 && (
+        <p className="mt-1 text-xs text-purple-200/60">Includes {formatCoins(houseTotal)} coins from the house, split by win chance.</p>
+      )}
     </div>
   );
 }
@@ -119,7 +130,7 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
     } else if (bet.status === "refunded") {
       body = <p className="text-orange-100/90">Your {formatCoins(bet.amount)} coins were refunded.</p>;
     } else {
-      const unopposed = pools.amounts[1 - bet.side] === 0;
+      const unopposed = sideTotal(pools, 1 - bet.side) === 0;
       body = (
         <p className="text-orange-100/90">
           You bet <strong className="text-orange-50">{formatCoins(bet.amount)}</strong> on{" "}
@@ -152,7 +163,7 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
     body = (
       <form onSubmit={submit} className="flex flex-col gap-3">
         <p className="text-xs text-purple-200/70">
-          Winners split the coins bet on the loser, so payouts follow the crowd, not the win chance.
+          Winners split the whole pot. Payouts start near the odds and shift as the crowd bets.
         </p>
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Pick a monster">
           {[0, 1].map((option) => {
@@ -161,7 +172,7 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
             const multiplier = estimatePayout(pools, choice, 100) / 100;
             // Winnings come out of the other side's pool; if it's empty, a
             // win would only return the stake.
-            const nothingAgainst = pools.amounts[1 - choice] === 0;
+            const nothingAgainst = sideTotal(pools, 1 - choice) === 0;
             return (
               <button
                 key={option}
@@ -222,7 +233,7 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
           {side === null
             ? "Pick a monster"
             : validStake
-              ? pools.amounts[1 - side] === 0
+              ? sideTotal(pools, 1 - side) === 0
                 ? `Bet ${formatCoins(stake)} on ${names[side]}`
                 : `Bet ${formatCoins(stake)} on ${names[side]} (pays ~${formatCoins(estimatePayout(pools, side, stake))})`
               : `Enter 1 to ${formatCoins(maxBet)} coins`}
