@@ -1,6 +1,6 @@
 /* A welcoming front door to the community. */
-.auth-world { background: radial-gradient(ellipse at 15% 35%, #38294370, transparent 55%), #17151e; color: #eee5f4; font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: auto; }
-.auth-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,440px); align-items: center; gap: 28px 70px; max-width: 1110px; margin: 0 auto; padding: 64px 32px 36px; }
+.auth-world { color: #eee5f4; font-family: Inter, ui-sans-serif, system-ui, sans-serif; cursor: auto; }
+.auth-layout { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,440px); align-items: center; gap: 28px 70px; max-width: 1110px; margin: 0 auto; padding: 24px 32px 36px; }
 .auth-eyebrow { display: flex; align-items: center; gap: 8px; color: #b7a0d0; font-size: 10px; font-weight: 750; letter-spacing: 2px; }
 .auth-welcome h1 { margin: 20px 0; color: #f7f0e7; font-size: clamp(38px,4.5vw,62px); font-weight: 800; line-height: 1.08; letter-spacing: -2px; }
 .auth-welcome h1 span { color: #c1a0ec; }
@@ -52,12 +52,12 @@
 .auth-confirmation .auth-submit { margin: 24px 0 15px; }
 .auth-world button:focus-visible, .auth-world a:focus-visible { outline: 3px solid #c5a3e9; outline-offset: 4px; }
 @media (max-width: 900px) {
-  .auth-layout { gap: 28px; padding-top: 40px; }
+  .auth-layout { gap: 28px; padding-top: 24px; }
   .auth-card { padding: 23px; }
   .auth-welcome h1 { font-size: 40px; }
 }
 @media (max-width: 700px) {
-  .auth-layout { grid-template-columns: minmax(0, 440px); justify-content: center; padding: 28px 18px 70px; gap: 24px; }
+  .auth-layout { grid-template-columns: minmax(0, 440px); justify-content: center; padding: 16px 18px 70px; gap: 24px; }
   .auth-welcome { text-align: center; }
   .auth-eyebrow { justify-content: center; font-size: 8px; }
   .auth-welcome h1 { font-size: 35px; margin: 12px 0; }

@@ -80,7 +80,7 @@ export default function Scareathon() {
       <div className="calendar-gradient"></div>
       <SiteContainer
         as="main"
-        className="relative z-10 flex flex-col gap-5 pb-2 pt-6 md:pb-4 md:pt-20"
+        className="relative z-10 flex flex-col gap-5 pb-2 pt-4 md:pb-4 md:pt-6"
       >
         <section className="grid gap-6 rounded-lg border border-red-950/70 bg-black/60 p-5 shadow-2xl md:grid-cols-[1fr,auto] md:items-center md:p-7">
           <div>

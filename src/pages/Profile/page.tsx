@@ -223,7 +223,8 @@ const Profile = () => {
   }[activeTab];
 
   return (
-    <AnimatedPage className="profile-world">
+    <AnimatedPage className="profile-world home-background">
+      <div className="home-gradient" />
       <div className={`${siteContainerClassName} profile-container`}>
         <header className="profile-heading">
           <div>

@@ -89,11 +89,12 @@ const Authentication = () => {
   };
 
   return (
-    <AnimatedPage className="auth-world">
+    <AnimatedPage className="auth-world home-background">
+      <div className="home-gradient" />
       <div className="auth-layout">
         <section className="auth-welcome" aria-labelledby="auth-welcome-title">
           <p className="auth-eyebrow"><FaGhost aria-hidden="true" /> GOOD COMPANY. BAD OMENS.</p>
-          <h1 id="auth-welcome-title">A place for<br />your <span>strange side.</span></h1>
+          <h1 id="auth-welcome-title">A place for <br />your <span>strange side.</span></h1>
           <p className="auth-intro">Your next favorite horror movie. A new arcade high score. A character that’s completely you.</p>
           <div className="auth-scene" aria-hidden="true">
             <div className="auth-moon" /><span className="auth-star auth-star-one">✦</span><span className="auth-star auth-star-two">✧</span>

@@ -278,7 +278,7 @@ export default function Home() {
       <div className="home-gradient" />
       <SiteContainer
         as="main"
-        className="relative z-10 flex flex-1 flex-col gap-6 pt-3 md:pt-14"
+        className="relative z-10 flex flex-1 flex-col gap-6 pt-4 md:pt-6"
       >
         <section className="grid gap-5 lg:grid-cols-12">
           <div className="lg:col-span-12">
