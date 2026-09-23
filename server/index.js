@@ -4,6 +4,7 @@ dotenv.config();
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { isOptionalAuthRoute, isPublicRoute } from './utils/authRoutes.js';
 import calendarRoutes from './routes/calendar.js';
 import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
@@ -87,23 +88,16 @@ async function main() {
         fastify.decorateRequest('user', null);
 
         fastify.addHook('preValidation', async (request, reply) => {
-            const isLegacyEightBitEvilRoute =
-                request.url.startsWith('/8bitevilreturns') &&
-                !request.url.startsWith('/8bitevilreturns/runs');
-
-            // Keep legacy game data routes public, but require auth for score writes.
-            if (
-                isLegacyEightBitEvilRoute ||
-                request.url.startsWith('/admin/strapi') ||
-                (request.method === 'GET' && request.url.startsWith('/weekly-challenges/current')) ||
-                (request.method === 'GET' && request.url.startsWith('/content-loop')) ||
-                request.method === 'OPTIONS'
-            ) {
+            if (isPublicRoute(request.method, request.url)) {
                 return;
             }
 
             const token = getBearerToken(request.headers.authorization);
             if (!token) {
+                // Guests can read leaderboards; everything else (including score writes) needs a login
+                if (isOptionalAuthRoute(request.method, request.url)) {
+                    return;
+                }
                 return reply.code(401).send({ error: 'Unauthorized: missing bearer token' });
             }
 

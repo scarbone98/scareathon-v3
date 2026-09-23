@@ -147,7 +147,8 @@ async function routes(fastify, options) {
                 game,
                 metric,
                 limit,
-                currentUserId: request.user.sub
+                // Guests (no token) can view leaderboards too
+                currentUserId: request.user?.sub ?? null
             });
         } catch (error) {
             fastify.log.error(error);

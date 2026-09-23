@@ -203,11 +203,10 @@ export const AnimatedRoutes = () => {
         <Route
           path="/arcade"
           element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Arcade />
-              </Suspense>
-            </ProtectedRoute>
+            // Open to guests: they can play, and are asked to sign in to save scores
+            <Suspense fallback={<LoadingSpinner />}>
+              <Arcade />
+            </Suspense>
           }
         />
         <Route

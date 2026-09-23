@@ -8,7 +8,7 @@ import {
   lazy,
   type ReactNode,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import Toolbar from "./Toolbar.tsx";
@@ -60,9 +60,23 @@ function isArcadeMessage(value: unknown): value is ArcadeMessage {
   return typeof value === "object" && value !== null;
 }
 
+// Guests can play but not save; the page listens for this to offer a sign-in
+const GUEST_SCORE_EVENT = "arcade:guest-score";
+type GuestScore = { game: string; score: number };
+
 async function submitArcadeScore(game: string, score: unknown) {
   const metricValue = Number(score);
   if (!Number.isFinite(metricValue) || metricValue < 0) return;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    window.dispatchEvent(
+      new CustomEvent<GuestScore>(GUEST_SCORE_EVENT, { detail: { game, score: metricValue } })
+    );
+    return;
+  }
 
   const response = await fetchWithAuth("/games/submitScore", {
     method: "POST",
@@ -313,6 +327,17 @@ export default function Arcade() {
     }
   }, [handleCloseGame, isMobileArcade, selectedMachine?.availableOnMobile]);
 
+  const [guestScore, setGuestScore] = useState<GuestScore | null>(null);
+  useEffect(() => {
+    const handleGuestScore = (event: Event) =>
+      setGuestScore((event as CustomEvent<GuestScore>).detail);
+    window.addEventListener(GUEST_SCORE_EVENT, handleGuestScore);
+    return () => window.removeEventListener(GUEST_SCORE_EVENT, handleGuestScore);
+  }, []);
+  useEffect(() => {
+    if (!selectedMachine) setGuestScore(null);
+  }, [selectedMachine]);
+
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <Suspense fallback={<LoadingSpinner />}>
@@ -334,6 +359,32 @@ export default function Arcade() {
             />
             {selectedMachine.game}
           </div>
+          {guestScore && (
+            <div
+              role="status"
+              className="fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,30rem)] -translate-x-1/2 items-center gap-3 rounded-lg border border-amber-400/60 bg-black/90 px-4 py-3 text-sm text-amber-100 shadow-2xl"
+            >
+              <span className="flex-1">
+                Nice run! <strong className="text-amber-300">{guestScore.score.toLocaleString()}</strong>{" "}
+                points. Sign in to save your scores and earn coins.
+              </span>
+              <Link
+                to="/authentication"
+                state={{ from: `/arcade?game=${encodeURIComponent(guestScore.game)}` }}
+                className="shrink-0 rounded bg-amber-500 px-3 py-2 font-bold text-black transition hover:bg-amber-400"
+              >
+                Sign in
+              </Link>
+              <button
+                type="button"
+                onClick={() => setGuestScore(null)}
+                aria-label="Dismiss"
+                className="shrink-0 px-1 text-lg leading-none text-amber-200/70 transition hover:text-amber-100"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       )}
     </AnimatedPage>

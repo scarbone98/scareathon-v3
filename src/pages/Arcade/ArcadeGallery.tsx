@@ -601,6 +601,7 @@ const ArcadeGallery: React.FC<Props> = ({
             </button>
             <button
               onClick={handlePlay}
+              aria-label={focusedMachine ? `Play ${focusedMachine.name}` : "Play"}
               style={{
                 position: "fixed",
                 left: "50%",
