@@ -24,8 +24,11 @@ export type MatchInfo = {
 };
 
 export type BetPools = {
+  /** Coins players have bet on each side. */
   amounts: [number, number];
   bettors: [number, number];
+  /** The house's stake on each side, split by the pre-fight win chance. */
+  house?: [number, number];
 };
 
 export type ChatMessage = {

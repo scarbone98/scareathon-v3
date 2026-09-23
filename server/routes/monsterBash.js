@@ -60,6 +60,10 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
         config: {
             bettingMs: readPositiveInt(process.env.MONSTER_BASH_BETTING_SECONDS, 30) * 1000,
             retentionDays: readPositiveInt(process.env.MONSTER_BASH_RETENTION_DAYS, 14),
+            // 0 turns the house stake off (one-sided pools are then refunded).
+            houseSeed: process.env.MONSTER_BASH_HOUSE_SEED === '0'
+                ? 0
+                : readPositiveInt(process.env.MONSTER_BASH_HOUSE_SEED, 100),
         },
     });
 

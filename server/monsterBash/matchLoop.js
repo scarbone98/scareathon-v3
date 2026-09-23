@@ -21,6 +21,8 @@ export const DEFAULT_LOOP_CONFIG = {
     settleRetryMs: 5_000,
     settleAttempts: 5,
     poolBroadcastMs: 500,
+    // Coins the house stakes on each bout, split by the pre-fight win chance.
+    houseSeed: 100,
     // Late joiners get this much recent movement; older frames aren't needed
     // because spectators only ever watch the last few seconds.
     catchUpTicks: 5 * TICK_RATE,
@@ -40,6 +42,15 @@ export function pickFighters(random = Math.random, previous = null) {
         const rematch = previous && new Set([left, right, ...previous]).size === 2;
         if (!rematch) return [left, right];
     }
+}
+
+// Splits the house stake by fighter 0's win chance, keeping at least one coin
+// on each side so there is always something to win.
+export function splitHouseSeed(total, p) {
+    if (!Number.isInteger(total) || total < 2) return [0, 0];
+    const chance = Number.isFinite(p) ? p : 0.5;
+    const left = Math.min(total - 1, Math.max(1, Math.round(total * chance)));
+    return [left, total - left];
 }
 
 function historyEntry(match) {
@@ -142,6 +153,13 @@ export class MonsterBashLoop {
 
         const fighters = pickFighters(this.random, this.lastFighters);
         const seed = this.createSeed();
+
+        // The pre-fight odds decide how the house splits its stake.
+        const pregame = await this.odds.pregame(seed, fighters).catch((error) => {
+            this.log.warn({ err: error }, 'Monster Bash pre-fight odds failed');
+            return null;
+        });
+        const houseSeed = splitHouseSeed(this.config.houseSeed, pregame?.p ?? 0.5);
         const bettingClosesAt = Date.now() + this.config.bettingMs;
 
         let row;
@@ -153,6 +171,7 @@ export class MonsterBashLoop {
                 seedHash: hashSeed(seed),
                 bettingClosesAt,
                 fightStartsAt: bettingClosesAt,
+                houseSeed,
             });
         } catch (error) {
             const reason = error.code === ACTIVE_MATCH_CONFLICT ? 'another bout is still open' : 'database error';
@@ -160,11 +179,6 @@ export class MonsterBashLoop {
             this.schedule(() => this.openMatch(), this.config.retryMs);
             return;
         }
-
-        const pregame = await this.odds.pregame(seed, fighters).catch((error) => {
-            this.log.warn({ err: error }, 'Monster Bash pre-fight odds failed');
-            return null;
-        });
 
         this.current = {
             id: row.id,
@@ -177,7 +191,7 @@ export class MonsterBashLoop {
             fight: null,
             pendingOdds: [],
             released: { frames: [], events: [], odds: pregame ? [pregame] : [] },
-            pools: { amounts: [0, 0], bettors: [0, 0] },
+            pools: { amounts: [0, 0], bettors: [0, 0], house: houseSeed },
             result: null,
         };
         this.hub.broadcast(this.matchMessage(this.current));
@@ -197,7 +211,7 @@ export class MonsterBashLoop {
         // Betting is over: take the final pools from the database, which is
         // what payouts will be based on.
         try {
-            match.pools = await this.repo.poolTotals(match.id);
+            match.pools = { ...(await this.repo.poolTotals(match.id)), house: match.pools.house };
         } catch (error) {
             this.log.warn({ err: error, matchId: match.id }, 'Monster Bash could not reload the betting pools');
         }
@@ -289,10 +303,11 @@ export class MonsterBashLoop {
 
         this.hub.broadcast({ type: 'settled', matchId, summary });
         if (this.chat && summary.settled > 0) {
-            const coins = summary.pool.toLocaleString('en-US');
-            const text = summary.refunded
-                ? `Bets refunded: ${coins} coins went back (one side had no bets).`
-                : `Payouts sent: ${coins} coins split among the winners.`;
+            const coins = (summary.paidOut ?? summary.pool).toLocaleString('en-US');
+            let text;
+            if (summary.refunded) text = `Bets refunded: ${coins} coins went back.`;
+            else if (summary.paidOut === 0) text = 'Nobody backed the winner. The house keeps the pot.';
+            else text = `Payouts sent: ${coins} coins to the winners.`;
             this.hub.broadcast({ type: 'chat', message: this.chat.system(text) });
         }
     }

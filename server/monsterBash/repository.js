@@ -27,21 +27,25 @@ function toMatch(row) {
         finishedAt: row.finished_at ? new Date(row.finished_at).getTime() : null,
         winner: row.winner,
         durationTicks: row.duration_ticks,
+        houseSeed: [Number(row.house_seed_left ?? 0), Number(row.house_seed_right ?? 0)],
     };
 }
 
 // All Monster Bash SQL lives here so the match loop can be tested with a fake.
 export function createMatchRepository(db = pool) {
     return {
-        async insertMatch({ fighters, engineVersion, seed, seedHash, bettingClosesAt, fightStartsAt }) {
+        async insertMatch({ fighters, engineVersion, seed, seedHash, bettingClosesAt, fightStartsAt, houseSeed = [0, 0] }) {
             const { rows } = await db.query(
                 `INSERT INTO monster_bash_matches (
                     fighter_left, fighter_right, engine_version, seed, seed_hash,
-                    status, betting_closes_at, fight_starts_at
+                    status, betting_closes_at, fight_starts_at, house_seed_left, house_seed_right
                 )
-                VALUES ($1, $2, $3, $4, $5, 'betting', $6, $7)
+                VALUES ($1, $2, $3, $4, $5, 'betting', $6, $7, $8, $9)
                 RETURNING *`,
-                [fighters[0], fighters[1], engineVersion, seed, seedHash, new Date(bettingClosesAt), new Date(fightStartsAt)]
+                [
+                    fighters[0], fighters[1], engineVersion, seed, seedHash,
+                    new Date(bettingClosesAt), new Date(fightStartsAt), houseSeed[0], houseSeed[1],
+                ]
             );
             return toMatch(rows[0]);
         },
