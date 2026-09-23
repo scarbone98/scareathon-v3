@@ -4,7 +4,7 @@ import {
     MONSTERS,
     TICK_RATE,
     simulateFight,
-} from '../../shared/monster-bash/index.js';
+} from '../shared/monster-bash/index.js';
 import { ACTIVE_MATCH_CONFLICT } from './repository.js';
 
 export const DEFAULT_LOOP_CONFIG = {

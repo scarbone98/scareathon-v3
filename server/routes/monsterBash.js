@@ -1,5 +1,5 @@
 import websocket from '@fastify/websocket';
-import { TICK_RATE } from '../../shared/monster-bash/index.js';
+import { TICK_RATE } from '../shared/monster-bash/index.js';
 import { MonsterBashLoop } from '../monsterBash/matchLoop.js';
 import { createOddsService } from '../monsterBash/oddsService.js';
 import { createMatchRepository } from '../monsterBash/repository.js';

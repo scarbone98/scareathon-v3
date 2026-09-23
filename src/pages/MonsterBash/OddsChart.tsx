@@ -3,7 +3,7 @@ import {
   TICK_RATE,
   getMonster,
   type OddsPoint,
-} from "../../../shared/monster-bash/index.js";
+} from "../../../server/shared/monster-bash/index.js";
 import type { LiveMatch } from "./matchStore";
 import { SIDE_COLORS, formatPercent } from "./theme";
 

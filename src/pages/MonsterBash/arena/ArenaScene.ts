@@ -11,7 +11,7 @@ import {
   type FighterSide,
   type FighterSnapshot,
   type Monster,
-} from "../../../../shared/monster-bash/index.js";
+} from "../../../../server/shared/monster-bash/index.js";
 import type { LiveMatch, MatchStore } from "../matchStore";
 import { SIDE_COLOR_NUMBERS } from "../theme";
 

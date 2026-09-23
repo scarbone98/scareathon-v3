@@ -7,7 +7,7 @@ import {
     TICK_RATE,
     buildOddsSeries,
     simulateFight,
-} from '../shared/monster-bash/index.js';
+} from '../server/shared/monster-bash/index.js';
 
 const args = Object.fromEntries(
     process.argv.slice(2).map((arg) => {

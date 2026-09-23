@@ -10,7 +10,7 @@ import {
   simulateFight,
   type FightResult,
   type OddsPoint,
-} from "../../../../shared/monster-bash/index.js";
+} from "../../../../server/shared/monster-bash/index.js";
 import type { FeedMessage } from "../matchStore";
 
 const INTRO_MS = 6000;

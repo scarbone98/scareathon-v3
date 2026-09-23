@@ -1,4 +1,4 @@
-import type { Monster } from "../../../shared/monster-bash/index.js";
+import type { Monster } from "../../../server/shared/monster-bash/index.js";
 
 // First frame of a monster's sprite sheet, drawn crisp at pixel scale.
 export default function FighterPortrait({
