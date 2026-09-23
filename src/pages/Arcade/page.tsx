@@ -207,7 +207,7 @@ export default function Arcade() {
     },
     {
       name: "Tlaloc’s Curse",
-      videoUrl: "",
+      videoUrl: "/game-recordings/TlalocsCurse.mp4",
       game: (
         <GameRenderer
           title="Tlaloc’s Curse"
@@ -221,7 +221,7 @@ export default function Arcade() {
     },
     {
       name: "Ooidash",
-      videoUrl: "/game-recordings/Ascension.mp4",
+      videoUrl: "/game-recordings/Ooidash.mp4",
       game: (
         <GameRenderer
           title="Ooidash"
