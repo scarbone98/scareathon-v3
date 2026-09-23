@@ -345,6 +345,7 @@ export default function Arcade() {
           initialMachineName={initialMachineName}
           machinesData={visibleMachinesData}
           onPlay={handleMachineSelected}
+          paused={Boolean(selectedMachine?.game)}
         />
       </Suspense>
       {selectedMachine?.game && (

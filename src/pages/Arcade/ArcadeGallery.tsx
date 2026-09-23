@@ -20,7 +20,14 @@ type Props = {
   initialMachineName?: string;
   machinesData: MachineData[];
   onPlay: (machine: MachineData) => void;
+  // True while a game is open over the carousel: stop rendering and videos so the game gets the GPU
+  paused?: boolean;
 };
+
+// Phones and tablets: smaller video canvases, no antialiasing, lower pixel ratio
+const isLightweightDevice = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
 
 // Neon colours cycle across the cabinets so neighbours never match
 const MARQUEE_NEON_COLORS = ["#ff2d55", "#39ff9f", "#2de2ff", "#c86bff", "#ffa31a"];
@@ -114,8 +121,12 @@ const ArcadeGallery: React.FC<Props> = ({
   initialMachineName,
   onPlay,
   machinesData,
+  paused = false,
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const screenVideoElementsRef = useRef<(HTMLVideoElement | null)[]>([]);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const machinesRef = useRef<Group[]>([]);
   const currentAngle = useRef<number>(0);
   const isAnimating = useRef<boolean>(false);
@@ -176,9 +187,10 @@ const ArcadeGallery: React.FC<Props> = ({
     camera.position.set(-0.0065, 1.6, 6.75);
     cameraRef.current = camera;
 
-    const renderer = new WebGLRenderer({ antialias: true });
-    // Phones report 3x; 2x looks the same here and draws far fewer pixels
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const lightweight = isLightweightDevice();
+    // MSAA on a dense phone screen costs a lot and is hard to see; so is rendering past 1.5x there
+    const renderer = new WebGLRenderer({ antialias: !lightweight });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, lightweight ? 1.5 : 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     rendererRef.current = renderer;
 
@@ -218,8 +230,9 @@ const ArcadeGallery: React.FC<Props> = ({
       video.preload = "auto";
 
       const canvas = document.createElement("canvas");
-      canvas.width = 960;
-      canvas.height = 512;
+      // Same ~1.88:1 shape either way; phones show the screen small, so upload far fewer pixels
+      canvas.width = lightweight ? 640 : 960;
+      canvas.height = lightweight ? 340 : 512;
       const context = canvas.getContext("2d");
       context?.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -291,11 +304,10 @@ const ArcadeGallery: React.FC<Props> = ({
         frameRequest = video.requestVideoFrameCallback(onFrame);
       }
 
-      video.play().catch(() => {
-        // Autoplay can be denied; the first available frame is still shown.
-      });
+      // Playback starts from the focus effect below: only the cabinet in front plays
 
       return {
+        video,
         texture,
         updateFrame: () => {
           if (!hasVideoFrameCallback && video.currentTime !== lastTime) {
@@ -405,10 +417,13 @@ const ArcadeGallery: React.FC<Props> = ({
       setIsLoading(false);
     });
 
+    screenVideoElementsRef.current = screenVideos.map((screenVideo) => screenVideo?.video ?? null);
+
     let animationFrame: number;
     let lastFrameTime = performance.now() / 1000;
     const animate = (): void => {
       animationFrame = requestAnimationFrame(animate);
+      if (pausedRef.current) return; // a game is open on top; leave the GPU to it
       const frameTime = performance.now() / 1000;
       ambience?.update(frameTime, Math.min(frameTime - lastFrameTime, 0.1));
       lastFrameTime = frameTime;
@@ -541,6 +556,27 @@ const ArcadeGallery: React.FC<Props> = ({
     positionMachines(currentAngle.current);
     setFocusedMachine(machinesData[initialMachineIndex] ?? null);
   }, [initialMachineName, machinesData]);
+
+  // Decode only the cabinet in front: phones have few hardware video decoders, and every playing
+  // video is re-uploaded to the GPU each frame. The others keep showing their last frame.
+  useEffect(() => {
+    const syncPlayback = () => {
+      const focusedIndex = focusedMachine ? machinesData.indexOf(focusedMachine) : -1;
+      screenVideoElementsRef.current.forEach((video, index) => {
+        if (!video) return;
+        if (index === focusedIndex && !paused && !document.hidden) {
+          video.play().catch(() => {
+            // Autoplay can be denied; the first frame is still shown
+          });
+        } else {
+          video.pause();
+        }
+      });
+    };
+    syncPlayback();
+    document.addEventListener("visibilitychange", syncPlayback);
+    return () => document.removeEventListener("visibilitychange", syncPlayback);
+  }, [focusedMachine, machinesData, paused]);
 
   const handleRotate = (direction: number) => {
     rotateMachines(direction);
