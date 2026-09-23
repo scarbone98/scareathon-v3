@@ -141,10 +141,17 @@ function RecentResults({ history }: { history: { id: string; fighters: [string, 
           {history.map((bout) => {
             const [a, b] = bout.fighters.map((id) => getMonster(id).name);
             return (
-              <li key={bout.id} className="flex justify-between gap-2 text-orange-100/90">
-                <span className={bout.winner === 0 ? "font-bold text-orange-50" : "text-purple-200/60"}>{a}</span>
+              // Fixed columns keep every "vs" in one line regardless of name length.
+              <li key={bout.id} className="grid grid-cols-[minmax(0,1fr),auto,minmax(0,1fr)] items-baseline gap-3">
+                <span className={`truncate ${bout.winner === 0 ? "font-bold text-orange-50" : "text-purple-200/60"}`}>
+                  {a}
+                  {bout.winner === 0 && <span className="sr-only"> (winner)</span>}
+                </span>
                 <span className="text-xs text-purple-200/50">vs</span>
-                <span className={bout.winner === 1 ? "font-bold text-orange-50" : "text-purple-200/60"}>{b}</span>
+                <span className={`truncate text-right ${bout.winner === 1 ? "font-bold text-orange-50" : "text-purple-200/60"}`}>
+                  {b}
+                  {bout.winner === 1 && <span className="sr-only"> (winner)</span>}
+                </span>
               </li>
             );
           })}
