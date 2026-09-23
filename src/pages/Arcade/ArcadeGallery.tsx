@@ -1,6 +1,6 @@
 // src/components/ArcadeGallery.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, VideoTexture, Vector3 } from "three";
+import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
@@ -109,22 +109,86 @@ const ArcadeGallery: React.FC<Props> = ({
     directionalLight.castShadow = true; // Enable shadows if needed
     scene.add(directionalLight);
 
-    // Create a mapping of machine names to video textures
-    const videoTextureArray: VideoTexture[] = [];
+    // The cabinet screen is about 1.88:1. Draw each video inside a canvas with
+    // that aspect ratio so portrait and 16:9 recordings keep their proportions.
+    const screenVideos = machinesData.map((machine) => {
+      if (!machine.videoUrl) return null;
 
-    machinesData.forEach((machine) => {
       const video = document.createElement("video");
-      video.src = machine.videoUrl || "";
       video.crossOrigin = "anonymous";
+      video.src = machine.videoUrl;
       video.loop = true;
       video.muted = true;
       video.playsInline = true;
-      video.play();
+      video.preload = "auto";
 
-      const videoTexture = new VideoTexture(video);
-      videoTexture.repeat.set(1, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width = 960;
+      canvas.height = 512;
+      const context = canvas.getContext("2d");
+      context?.fillRect(0, 0, canvas.width, canvas.height);
 
-      videoTextureArray.push(videoTexture);
+      const texture = new CanvasTexture(canvas);
+      // Preserve the orientation used by the cabinet model's screen UVs.
+      texture.flipY = true;
+      texture.repeat.set(1, -1);
+      texture.offset.set(0, 1);
+
+      let frameRequest: number | undefined;
+      let lastTime = -1;
+      const drawFrame = () => {
+        if (!context || !video.videoWidth || !video.videoHeight) return;
+
+        const scale = Math.min(
+          canvas.width / video.videoWidth,
+          canvas.height / video.videoHeight
+        );
+        const width = video.videoWidth * scale;
+        const height = video.videoHeight * scale;
+        context.fillStyle = "black";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(
+          video,
+          (canvas.width - width) / 2,
+          (canvas.height - height) / 2,
+          width,
+          height
+        );
+        texture.needsUpdate = true;
+      };
+      video.addEventListener("loadeddata", drawFrame);
+
+      const hasVideoFrameCallback =
+        typeof video.requestVideoFrameCallback === "function";
+      if (hasVideoFrameCallback) {
+        const onFrame: VideoFrameRequestCallback = () => {
+          drawFrame();
+          frameRequest = video.requestVideoFrameCallback(onFrame);
+        };
+        frameRequest = video.requestVideoFrameCallback(onFrame);
+      }
+
+      video.play().catch(() => {
+        // Autoplay can be denied; the first available frame is still shown.
+      });
+
+      return {
+        texture,
+        updateFrame: () => {
+          if (!hasVideoFrameCallback && video.currentTime !== lastTime) {
+            lastTime = video.currentTime;
+            drawFrame();
+          }
+        },
+        dispose: () => {
+          if (frameRequest !== undefined) video.cancelVideoFrameCallback(frameRequest);
+          video.removeEventListener("loadeddata", drawFrame);
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+          texture.dispose();
+        },
+      };
     });
 
     // Load the GLB model using GLTFLoader
@@ -172,21 +236,12 @@ const ArcadeGallery: React.FC<Props> = ({
             child.material.name === "GreyScreen"
           ) {
             const newMaterial = child.material.clone();
-            const videoTexture = videoTextureArray[i];
+            const videoTexture = screenVideos[i]?.texture;
 
             if (videoTexture) {
               newMaterial.map = videoTexture;
 
-              // Fix for flipped texture
-              newMaterial.map.flipY = true;
-              newMaterial.map.repeat.set(1, -1);
-              newMaterial.map.offset.set(0, 1);
-
               child.material = newMaterial;
-            } else {
-              console.error(
-                `No video texture found for machine: ${machineName}`
-              );
             }
           }
         });
@@ -200,8 +255,10 @@ const ArcadeGallery: React.FC<Props> = ({
       setIsLoading(false);
     });
 
+    let animationFrame: number;
     const animate = (): void => {
-      requestAnimationFrame(animate);
+      animationFrame = requestAnimationFrame(animate);
+      screenVideos.forEach((screenVideo) => screenVideo?.updateFrame());
       // Update the animation mixer
       if (mixerRef.current) {
         mixerRef.current.update(0.016); // Assuming 60fps, adjust if needed
@@ -223,13 +280,13 @@ const ArcadeGallery: React.FC<Props> = ({
     window.addEventListener("resize", handleResize);
 
     return () => {
+      cancelAnimationFrame(animationFrame);
       if (mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
       }
       window.removeEventListener("resize", handleResize);
-      videoTextureArray.forEach((texture) => {
-        texture.dispose();
-      });
+      screenVideos.forEach((screenVideo) => screenVideo?.dispose());
+      renderer.dispose();
     };
   }, [initialMachineName, machinesData]);
 
