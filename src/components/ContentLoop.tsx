@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, m as motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { FaArrowRight, FaChevronLeft, FaChevronRight, FaCoins } from "react-icons/fa";
+import { FaArrowRight, FaCheck, FaChevronLeft, FaChevronRight, FaCoins } from "react-icons/fa";
 import { fetchWithAuth } from "../fetchWithAuth";
 import { supabase } from "../supabaseClient";
 
@@ -33,16 +33,6 @@ type ContentLoopItem = {
 
 type ContentLoopResponse = {
   data?: ContentLoopItem[];
-};
-
-type ClaimResponse = {
-  data?: {
-    claimed: boolean;
-    alreadyClaimed: boolean;
-    coinBalance: number;
-    rewardCoins: number;
-  };
-  error?: string;
 };
 
 type RewardStatusResponse = {
@@ -123,9 +113,7 @@ async function readRewardStatus(response: Response) {
 }
 
 export default function ContentLoop({ compact = false }: { compact?: boolean }) {
-  const queryClient = useQueryClient();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [claimMessage, setClaimMessage] = useState<string | null>(null);
   const [rotationTick, setRotationTick] = useState(0);
 
   const { data: isAuthenticated = false } = useQuery({
@@ -169,7 +157,6 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
 
     const timeout = window.setTimeout(() => {
       setActiveIndex((current) => (current + 1) % items.length);
-      setClaimMessage(null);
     }, 7000);
 
     return () => window.clearTimeout(timeout);
@@ -180,42 +167,6 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
       setActiveIndex(0);
     }
   }, [activeIndex, items.length]);
-
-  const claimMutation = useMutation({
-    mutationFn: async (documentId: string) => {
-      const response = await fetchWithAuth(
-        `/weekly-challenges/${encodeURIComponent(documentId)}/claim-reward`,
-        { method: "POST" }
-      );
-      return readJson<ClaimResponse>(response);
-    },
-    onSuccess: (payload) => {
-      const rewardCoins = payload.data?.rewardCoins || 0;
-      queryClient.setQueryData<RewardStatusResponse>(
-        ["weekly-challenge", activeItem?.documentId, "reward-status"],
-        {
-          data: {
-            alreadyClaimed: true,
-            coinBalance: payload.data?.coinBalance ?? null,
-          },
-        }
-      );
-      setClaimMessage(
-        payload.data?.alreadyClaimed
-          ? "Reward already claimed"
-          : `${rewardCoins.toLocaleString()} coins added`
-      );
-      queryClient.invalidateQueries({ queryKey: ["home", "summary"] });
-      queryClient.invalidateQueries({ queryKey: ["user", "wallet"] });
-    },
-    onError: (error) => {
-      setClaimMessage(
-        (error as Error).message === "Unauthorized"
-          ? "Sign in to claim this reward"
-          : (error as Error).message
-      );
-    },
-  });
 
   if (!activeItem) return null;
 
@@ -314,7 +265,6 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
                     aria-label="Previous update"
                     onClick={() => {
                       setActiveIndex((current) => (current - 1 + items.length) % items.length);
-                      setClaimMessage(null);
                       setRotationTick((current) => current + 1);
                     }}
                     className="rounded border border-orange-500/30 p-3 text-orange-200 transition hover:bg-orange-950/50"
@@ -326,7 +276,6 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
                     aria-label="Next update"
                     onClick={() => {
                       setActiveIndex((current) => (current + 1) % items.length);
-                      setClaimMessage(null);
                       setRotationTick((current) => current + 1);
                     }}
                     className="rounded border border-orange-500/30 p-3 text-orange-200 transition hover:bg-orange-950/50"
@@ -338,37 +287,22 @@ export default function ContentLoop({ compact = false }: { compact?: boolean }) 
             </div>
 
             <div className={`flex min-h-12 flex-wrap items-center gap-3 ${compact ? "justify-end" : "justify-start sm:ml-auto sm:justify-end"}`}>
-              {claimMessage ? (
-                <span className="max-w-full truncate text-sm text-amber-200">
-                  {claimMessage}
+              {isChallenge && rewardCoins > 0 && rewardAlreadyClaimed ? (
+                <span className="inline-flex items-center gap-2 rounded border border-emerald-400/40 bg-emerald-950/40 px-4 py-3 text-sm font-bold uppercase tracking-widest text-emerald-200">
+                  <FaCheck />
+                  Completed
                 </span>
               ) : null}
               {isChallenge &&
               isActiveChallenge &&
               rewardCoins > 0 &&
-              !rewardAlreadyClaimed &&
-              isAuthenticated ? (
-                <button
-                  type="button"
-                  disabled={claimMutation.isPending}
-                  onClick={() => claimMutation.mutate(activeItem.documentId)}
-                  className="inline-flex items-center justify-center gap-2 rounded bg-amber-600 px-4 py-3 text-sm font-bold uppercase tracking-widest text-black transition hover:bg-amber-500 disabled:cursor-wait disabled:opacity-60"
-                >
-                  <FaCoins />
-                  {claimMutation.isPending ? "Claiming" : "Claim Coins"}
-                </button>
-              ) : null}
-              {isChallenge &&
-              isActiveChallenge &&
-              rewardCoins > 0 &&
-              !rewardAlreadyClaimed &&
               !isAuthenticated ? (
                 <Link
                   to="/authentication"
                   className="inline-flex items-center justify-center gap-2 rounded bg-amber-600 px-4 py-3 text-sm font-bold uppercase tracking-widest text-black transition hover:bg-amber-500"
                 >
                   <FaCoins />
-                  Sign In to Claim
+                  Sign In to Earn
                 </Link>
               ) : null}
               <Link

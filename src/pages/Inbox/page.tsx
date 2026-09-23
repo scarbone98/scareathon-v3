@@ -62,11 +62,11 @@ function participantName(
   participants: InboxParticipant[],
   currentUserId: string | null
 ) {
-  const otherParticipant =
-    participants.find((participant) => participant.userId !== currentUserId) ||
-    participants[0];
+  const otherParticipant = participants.find(
+    (participant) => participant.userId !== currentUserId
+  );
 
-  return otherParticipant?.username || "Conversation";
+  return otherParticipant?.username || "Scareathon";
 }
 
 function conversationTitle(
@@ -117,7 +117,7 @@ function MessageRewardCard({
           <FaGift className="mt-1 shrink-0 text-amber-300" />
           <div>
             <div className="text-sm uppercase tracking-wide text-amber-300">
-              {isPending ? "Pending reward" : "Claimed reward"}
+              {isPending ? "Pending reward" : "Reward"}
             </div>
             <div className="text-lg">{rewardSummary(reward)}</div>
           </div>
@@ -134,7 +134,7 @@ function MessageRewardCard({
           </button>
         ) : (
           <div className="rounded border border-green-700 bg-green-950/50 px-3 py-2 text-sm text-green-200">
-            Claimed
+            Added to your wallet
           </div>
         )}
       </div>
@@ -434,7 +434,7 @@ function ConversationThread({
           messages.map((message) => {
             const isMine = message.senderUserId === currentUserId;
             const senderName =
-              message.senderType === "admin"
+              message.senderType === "admin" || message.senderType === "system"
                 ? "Scareathon"
                 : message.senderUsername || (isMine ? "You" : "Unknown");
 
@@ -478,12 +478,7 @@ function ConversationThread({
 
         {conversation.repliesEnabled ? (
           <ReplyComposer conversationId={conversation.id} />
-        ) : (
-          <div className="mt-5 flex items-center gap-3 rounded border border-gray-800 bg-gray-950 p-4 text-sm text-gray-300">
-            <FaLock className="shrink-0 text-gray-500" />
-            Replies are disabled for this conversation.
-          </div>
-        )}
+        ) : null}
       </div>
     </motion.div>
   );

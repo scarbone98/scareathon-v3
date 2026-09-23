@@ -217,7 +217,9 @@ async function getVisibleConversation(client, conversationId, userId) {
     return result.rows[0] || null;
 }
 
-async function createConversationWithMessage(client, {
+// rewardStatus 'claimed' records a reward that was already paid out (e.g. weekly challenge coins),
+// so the message shows it without asking the player to claim it again.
+export async function createConversationWithMessage(client, {
     conversationType,
     createdByUserId,
     subject,
@@ -229,6 +231,7 @@ async function createConversationWithMessage(client, {
     metadata = {},
     reward = null,
     rewardRecipientUserId = null,
+    rewardStatus = 'pending',
 }) {
     const conversationResult = await client.query(`
         INSERT INTO inbox_conversations (
@@ -294,9 +297,11 @@ async function createConversationWithMessage(client, {
                 coin_amount,
                 item_id,
                 item_quantity,
-                metadata
+                metadata,
+                status,
+                claimed_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, CASE WHEN $8 = 'claimed' THEN now() END)
         `, [
             conversationId,
             messageId,
@@ -305,6 +310,7 @@ async function createConversationWithMessage(client, {
             reward.itemId,
             reward.itemQuantity,
             JSON.stringify(metadata?.reward || {}),
+            rewardStatus,
         ]);
     }
 

@@ -3,10 +3,12 @@ import {
     getCurrentWeeklyChallengePayload,
     getRecentWeeklyChallengesPayload,
     getWeeklyChallengeByDocumentId,
+    grantWeeklyChallengeReward,
     isWeeklyChallengeActive,
     normalizeChallengeLoopItem,
     normalizeWeeklyChallenge,
     scoreSubmissionCompletesChallenge,
+    weeklyChallengeRewardMail,
 } from '../routes/weeklyChallenges.js';
 import { deleteCachePrefix } from '../utils/cacheManager.js';
 
@@ -76,7 +78,7 @@ describe('weekly challenge helpers', () => {
         expect(isWeeklyChallengeActive(challenge, new Date('2026-10-12T12:00:00.000Z'))).toBe(false);
     });
 
-    test('normalizes challenge loop item with claim cta when coins are available', () => {
+    test('normalizes challenge loop item with a view cta', () => {
         const challenge = normalizeWeeklyChallenge({
             documentId: 'challenge-doc',
             title: 'Creature feature week',
@@ -88,7 +90,7 @@ describe('weekly challenge helpers', () => {
         expect(normalizeChallengeLoopItem(challenge)).toMatchObject({
             type: 'weekly_challenge',
             documentId: 'challenge-doc',
-            ctaLabel: 'Claim Coins',
+            ctaLabel: 'View Challenge',
             rewardCoins: 75,
         });
     });
@@ -157,5 +159,62 @@ describe('weekly challenge helpers', () => {
         });
         expect(isWeeklyChallengeActive(challenge, new Date('2026-10-05T12:00:00.000Z'))).toBe(true);
         expect(isWeeklyChallengeActive(challenge, new Date('2026-10-11T00:00:00.000Z'))).toBe(false);
+    });
+});
+
+describe('weekly challenge reward mail', () => {
+    const challenge = {
+        documentId: 'challenge-1',
+        title: 'Survive 60 seconds',
+        rewardCoins: 1500,
+        startsAt: null,
+        endsAt: null,
+        points: 1,
+        verificationType: 'arcade_score',
+    };
+
+    // Records every query and answers the few the grant path reads from
+    function fakeClient({ existingGrant = null } = {}) {
+        const queries = [];
+        return {
+            queries,
+            async query(sql, params = []) {
+                queries.push({ sql, params });
+                if (sql.includes('FROM currency_transactions')) return { rows: existingGrant ? [existingGrant] : [] };
+                if (sql.includes('grant_currency')) return { rows: [{ coin_balance: 4200 }] };
+                if (sql.includes('INSERT INTO inbox_conversations')) return { rows: [{ id: 11 }] };
+                if (sql.includes('INSERT INTO inbox_messages')) return { rows: [{ id: 22 }] };
+                return { rows: [], rowCount: 0 };
+            },
+        };
+    }
+
+    test('writes a friendly subject and body', () => {
+        const mail = weeklyChallengeRewardMail(challenge);
+        expect(mail.subject).toBe('Weekly challenge complete: Survive 60 seconds');
+        expect(mail.body).toContain('1,500 coins have been added to your wallet');
+    });
+
+    test('granting a reward sends an inbox message with the coins already added', async () => {
+        const client = fakeClient();
+        const result = await grantWeeklyChallengeReward(client, 'user-1', challenge, null);
+
+        expect(result).toMatchObject({ claimed: true, coinBalance: 4200, rewardCoins: 1500 });
+        const conversation = client.queries.find((q) => q.sql.includes('INSERT INTO inbox_conversations'));
+        expect(conversation.params).toEqual(['admin_dm', null, 'Weekly challenge complete: Survive 60 seconds', false, expect.any(String)]);
+        const participant = client.queries.find((q) => q.sql.includes('INSERT INTO inbox_participants'));
+        expect(participant.params).toEqual([11, 'user-1', 'member', null]);
+        const message = client.queries.find((q) => q.sql.includes('INSERT INTO inbox_messages'));
+        expect(message.params.slice(0, 3)).toEqual([11, null, 'system']);
+        const reward = client.queries.find((q) => q.sql.includes('INSERT INTO inbox_rewards'));
+        expect(reward.params).toEqual([11, 22, 'user-1', 1500, null, null, expect.any(String), 'claimed']);
+    });
+
+    test('an already granted challenge does not send another message', async () => {
+        const client = fakeClient({ existingGrant: { balance_after: 900 } });
+        const result = await grantWeeklyChallengeReward(client, 'user-1', challenge, null);
+
+        expect(result).toMatchObject({ claimed: false, alreadyClaimed: true });
+        expect(client.queries.some((q) => q.sql.includes('inbox_'))).toBe(false);
     });
 });

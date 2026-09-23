@@ -1,5 +1,6 @@
 import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
+import { createConversationWithMessage } from './inbox.js';
 
 const WEEKLY_CHALLENGE_TTL = 5 * 60 * 1000;
 const CONTENT_LOOP_TTL = 5 * 60 * 1000;
@@ -301,7 +302,7 @@ export function normalizeChallengeLoopItem(challenge) {
         comparisonOperator: challenge.comparisonOperator,
         image: challenge.image,
         href: '/scareathon',
-        ctaLabel: challenge.rewardCoins > 0 ? 'Claim Coins' : 'View Challenge',
+        ctaLabel: 'View Challenge',
     };
 }
 
@@ -544,12 +545,48 @@ export async function grantWeeklyChallengeReward(client, userId, challenge, evid
         }),
     ]);
 
+    await sendWeeklyChallengeRewardMail(client, userId, challenge);
+
     return {
         claimed: true,
         alreadyClaimed: false,
         coinBalance: Number(walletResult.rows[0].coin_balance),
         rewardCoins: challenge.rewardCoins,
     };
+}
+
+export function weeklyChallengeRewardMail(challenge) {
+    const coins = Number(challenge.rewardCoins).toLocaleString('en-US');
+    const title = challenge.title ? `"${challenge.title}"` : "this week's challenge";
+    const subject = `Weekly challenge complete: ${challenge.title || 'Nice run'}`.slice(0, 120);
+    return {
+        subject,
+        body: `You beat ${title}! ${coins} coins have been added to your wallet. See you on next week's challenge.`,
+    };
+}
+
+// Tell the player about coins that were just paid out. Runs in the caller's transaction,
+// so the message exists exactly when the grant does (one per player per challenge).
+async function sendWeeklyChallengeRewardMail(client, userId, challenge) {
+    const { subject, body } = weeklyChallengeRewardMail(challenge);
+    await createConversationWithMessage(client, {
+        conversationType: 'admin_dm',
+        createdByUserId: null,
+        subject,
+        repliesEnabled: false,
+        participants: [{ userId, role: 'member', readAt: null }],
+        senderUserId: null,
+        senderType: 'system',
+        body,
+        metadata: {
+            source: WEEKLY_CHALLENGE_SOURCE_TYPE,
+            challengeDocumentId: challenge.documentId,
+            reward: { source: WEEKLY_CHALLENGE_SOURCE_TYPE, challengeDocumentId: challenge.documentId },
+        },
+        reward: { coinAmount: challenge.rewardCoins, itemId: null, itemQuantity: null },
+        rewardRecipientUserId: userId,
+        rewardStatus: 'claimed',
+    });
 }
 
 export async function awardEligibleWeeklyChallengeRewards(client, userId, submission) {

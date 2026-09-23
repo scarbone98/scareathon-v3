@@ -238,6 +238,8 @@ async function routes(fastify, options) {
             }
 
             let weeklyChallengeRewards = [];
+            // Savepoint so a failed challenge payout can't abort the transaction and drop the score
+            await client.query('SAVEPOINT weekly_challenge_reward');
             try {
                 weeklyChallengeRewards = await awardEligibleWeeklyChallengeRewards(client, userId, {
                     game,
@@ -245,6 +247,7 @@ async function routes(fastify, options) {
                     metricValue: numericMetricValue,
                     leaderboardId: scoreRow.id,
                 });
+                await client.query('RELEASE SAVEPOINT weekly_challenge_reward');
                 const latestWeeklyChallengeBalance = weeklyChallengeRewards
                     .filter((reward) => reward.coinBalance !== null && reward.coinBalance !== undefined)
                     .at(-1)?.coinBalance;
@@ -252,6 +255,8 @@ async function routes(fastify, options) {
                     coinBalance = latestWeeklyChallengeBalance;
                 }
             } catch (error) {
+                await client.query('ROLLBACK TO SAVEPOINT weekly_challenge_reward').catch(() => {});
+                weeklyChallengeRewards = [];
                 fastify.log.warn({ err: error }, 'Unable to evaluate weekly challenge rewards');
             }
 
