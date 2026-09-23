@@ -1,6 +1,6 @@
 // src/components/ArcadeGallery.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { BufferGeometry, Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
+import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
@@ -19,31 +19,6 @@ type Props = {
   machinesData: MachineData[];
   onPlay: (machine: MachineData) => void;
 };
-
-// The cabinet model maps the middle of its screen to u=0.685 rather than 0.5, so
-// the left 68.5% of a texture lands on one half of the screen and the rest is
-// squeezed into the other. Recompute u from each vertex's x position (the screen
-// runs from u=0 at +x to u=1 at -x) so the video maps evenly across the screen.
-function withEvenScreenUVs(geometry: BufferGeometry) {
-  const evened = geometry.clone();
-  const positions = evened.getAttribute("position");
-  const uvs = evened.getAttribute("uv");
-  if (!positions || !uvs) return evened;
-
-  let minX = Infinity;
-  let maxX = -Infinity;
-  for (let i = 0; i < positions.count; i += 1) {
-    minX = Math.min(minX, positions.getX(i));
-    maxX = Math.max(maxX, positions.getX(i));
-  }
-  if (maxX - minX < 1e-6) return evened;
-
-  for (let i = 0; i < uvs.count; i += 1) {
-    uvs.setX(i, (maxX - positions.getX(i)) / (maxX - minX));
-  }
-  uvs.needsUpdate = true;
-  return evened;
-}
 
 // How much the video is enlarged past "fit the whole frame": trims a little off
 // portrait clips' top and bottom so they read larger on the wide cabinet screen.
@@ -299,7 +274,6 @@ const ArcadeGallery: React.FC<Props> = ({
               newMaterial.map = videoTexture;
 
               child.material = newMaterial;
-              child.geometry = withEvenScreenUVs(child.geometry);
             }
           }
         });
