@@ -1,0 +1,97 @@
+/* Inbox inside the profile panel: same palette as profile.css. */
+.inbox { display: flex; flex-direction: column; gap: 14px; color: #e9e2f0; }
+.inbox-center { display: grid; place-items: center; min-height: 200px; position: relative; }
+.inbox-muted { color: #92859f; font-size: 12px; }
+.inbox-error { color: #f3a3b4; font-size: 13px; }
+
+.inbox-primary-button, .inbox-secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 650; transition: background .15s, border-color .15s; }
+.inbox-primary-button { color: #281b35; background: #c6ace8; border: 1px solid #c6ace8; }
+.inbox-primary-button:hover:not(:disabled) { background: #ddc5fc; }
+.inbox-secondary-button { color: #cfbfde; background: transparent; border: 1px solid #53465f; }
+.inbox-secondary-button:hover { background: #ffffff08; }
+.inbox-primary-button:disabled, .inbox-send-button:disabled { opacity: .55; cursor: not-allowed; }
+
+.inbox-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Conversation list */
+.inbox-list { display: flex; flex-direction: column; border: 1px solid #443c50; border-radius: 12px; overflow: hidden; background: #1d1a24; }
+.inbox-list > li + li { border-top: 1px solid #332c3d; }
+.inbox-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; text-align: left; transition: background .15s; }
+.inbox-row:hover { background: #2a2433; }
+.inbox-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.inbox-row-top, .inbox-row-bottom { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.inbox-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: #d8cde6; }
+.inbox-row-top time { flex-shrink: 0; font-size: 11px; color: #8f839c; }
+.inbox-row-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #9a8ea7; }
+.inbox-row.is-unread .inbox-row-title { font-weight: 750; color: #faf5ed; }
+.inbox-row.is-unread .inbox-row-preview { color: #cdbfdb; }
+.inbox-row.is-unread .inbox-row-top time { color: #d8b879; }
+.inbox-row-lock { flex-shrink: 0; font-size: 10px; color: #6f6479; }
+.inbox-unread-dot { flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 10px; background: #d8b879; color: #2d2317; font-size: 10px; font-weight: 800; }
+.inbox-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+.inbox-chip.is-reward { color: #e7bd71; background: #e7bd7114; border: 1px solid #e7bd7140; }
+
+.inbox-avatar { flex-shrink: 0; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #35293f; color: #d4bdf0; font-size: 15px; font-weight: 800; }
+.inbox-avatar.is-scareathon { background: #4a1d24; color: #f4a3a3; }
+
+.inbox-load-more { align-self: center; padding: 8px 14px; border-radius: 8px; border: 1px solid #4a4056; color: #cfbfde; font-size: 12px; transition: background .15s; }
+.inbox-load-more:hover:not(:disabled) { background: #ffffff08; }
+
+.inbox-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 42px 20px; border: 1px dashed #4a4056; border-radius: 12px; text-align: center; color: #aaa1b5; font-size: 13px; }
+.inbox-empty svg { font-size: 30px; color: #bda0da; }
+.inbox-empty p { color: #eee5f8; font-size: 15px; font-weight: 700; }
+.inbox-empty span { max-width: 340px; line-height: 1.6; }
+
+/* Thread + composer headers */
+.inbox-view-header { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #443c50; }
+.inbox-view-header h3 { font-size: 16px; font-weight: 750; color: #faf5ed; overflow-wrap: anywhere; }
+.inbox-thread-title p { margin-top: 2px; font-size: 12px; color: #92859f; }
+.inbox-back-button { flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid #4a4056; color: #cfbfde; transition: background .15s; }
+.inbox-back-button:hover { background: #ffffff08; }
+
+/* Thread */
+.inbox-thread { display: flex; flex-direction: column; gap: 12px; }
+.inbox-messages { display: flex; flex-direction: column; gap: 10px; max-height: min(60vh, 560px); overflow-y: auto; overscroll-behavior: contain; padding: 4px 2px; }
+.inbox-bubble-row { display: flex; }
+.inbox-bubble-row.is-mine { justify-content: flex-end; }
+.inbox-bubble { max-width: min(85%, 520px); padding: 10px 13px; border-radius: 14px 14px 14px 4px; background: #2d2737; border: 1px solid #3f3649; }
+.inbox-bubble.is-mine { border-radius: 14px 14px 4px 14px; background: #4b3a63; border-color: #6a5188; }
+.inbox-bubble.is-scareathon { background: #2a1d25; border-color: #5a2a33; }
+.inbox-bubble-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; font-size: 11px; }
+.inbox-bubble-meta strong { color: #e4d6f3; }
+.inbox-bubble.is-scareathon .inbox-bubble-meta strong { color: #f4a3a3; }
+.inbox-bubble-meta time { color: #8f839c; }
+.inbox-bubble p { font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: #eee5f8; }
+
+.inbox-reward { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #e7bd710d; border: 1px solid #e7bd7140; }
+.inbox-reward-icon { color: #e7bd71; font-size: 18px; }
+.inbox-reward-text { display: flex; flex-direction: column; flex: 1; min-width: 110px; }
+.inbox-reward-text span { font-size: 10px; font-weight: 750; letter-spacing: 1px; text-transform: uppercase; color: #d8b879; }
+.inbox-reward-text strong { font-size: 15px; color: #f7e7c4; }
+.inbox-reward-done { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #9fdcb2; }
+.inbox-reward-error { flex-basis: 100%; }
+
+/* Reply bar */
+.inbox-reply { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid #443c50; }
+.inbox-reply textarea { flex: 1; min-width: 0; resize: none; padding: 10px 12px; background: #191620; border: 1px solid #5c4b6d; border-radius: 12px; color: #eee5f8; font-size: 14px; line-height: 1.45; }
+.inbox-reply textarea:focus { outline: none; border-color: #bda0de; }
+.inbox-send-button { flex-shrink: 0; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #c6ace8; color: #281b35; transition: background .15s; }
+.inbox-send-button:hover:not(:disabled) { background: #ddc5fc; }
+.inbox-reply-error { flex-basis: 100%; }
+
+/* New message */
+.inbox-compose { display: flex; flex-direction: column; gap: 14px; }
+.inbox-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 650; color: #cfbfde; }
+.inbox-field span { font-weight: 400; color: #8f839c; }
+.inbox-field input, .inbox-field textarea { width: 100%; padding: 11px 12px; background: #191620; border: 1px solid #5c4b6d; border-radius: 8px; color: #eee5f8; font-size: 14px; font-weight: 400; }
+.inbox-field textarea { resize: vertical; line-height: 1.5; }
+.inbox-field input:focus, .inbox-field textarea:focus { outline: none; border-color: #bda0de; }
+.inbox-compose-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+@media (max-width: 767px) {
+  /* Leave room for the floating mobile menu button in the bottom-left corner */
+  .inbox { padding-bottom: 56px; }
+  .inbox-messages { max-height: 58vh; }
+  .inbox-row { padding: 12px; }
+  .inbox-bubble { max-width: 92%; }
+}

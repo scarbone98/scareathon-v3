@@ -1,211 +1,152 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import "../../styles/auth.css";
+import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
+import { FaArrowRight, FaCheck, FaEnvelope, FaEye, FaEyeSlash, FaFilm, FaGamepad, FaGhost, FaLock, FaUserAlt } from "react-icons/fa";
 import AnimatedPage from "../../components/AnimatedPage";
 import { supabase } from "../../supabaseClient";
-import { useNavigate, useLocation } from "react-router-dom";
-import LoadingSpinner from "../../components/LoadingSpinner";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import PasswordResetPopup from "../../components/PasswordResetPopup";
+import { isRetryableAuthError } from "../../authErrors";
+
+function authErrorMessage(error: unknown) {
+  if (isRetryableAuthError(error) || error instanceof TypeError) {
+    return "We couldn’t reach the haunted headquarters. Check your connection and try again in a moment.";
+  }
+  const code = error && typeof error === "object" && "code" in error ? error.code : null;
+  if (code === "invalid_credentials") return "That email and password don’t match. Try again, or reset your password below.";
+  if (code === "email_not_confirmed") return "Check your inbox and confirm your email before logging in.";
+  if (code === "over_request_rate_limit" || code === "over_email_send_rate_limit") return "Too many attempts just now. Give it a minute, then try again.";
+  return error instanceof Error ? error.message : "Something went wrong. Please try again.";
+}
 
 const Authentication = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const requestedDestination = location.state?.from;
+  const destination = typeof requestedDestination === "string" && requestedDestination.startsWith("/") && !requestedDestination.startsWith("//") && !requestedDestination.startsWith("/authentication")
+    ? requestedDestination : "/profile";
 
   useEffect(() => {
+    let active = true;
     const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        navigate("/");
-      } else {
-        setIsLoading(false);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (active && user) navigate(destination, { replace: true });
+      } catch {
+        // Keep the form available when the session check cannot reach the server.
+      } finally {
+        if (active) setIsCheckingSession(false);
       }
     };
-    checkAuth();
-  }, [navigate]);
+    void checkAuth();
+    return () => { active = false; };
+  }, [navigate, destination]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const switchMode = (login: boolean) => {
+    setIsLogin(login);
     setError(null);
     setSignupSuccess(false);
+    setShowPassword(false);
+  };
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setError(null);
     try {
+      const credentials = { email: email.trim(), password };
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
+        const { error } = await supabase.auth.signInWithPassword(credentials);
         if (error) throw error;
-
-        const origin = location.state?.from || "/";
-        navigate(origin, { replace: true });
+        navigate(destination, { replace: true });
       } else {
-        // Check if user already exists using Supabase Auth API
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        if (data.user) {
+        const { data, error } = await supabase.auth.signUp(credentials);
+        if (error) throw error;
+        if (data.session) {
+          navigate(destination, { replace: true });
+        } else if (data.user) {
           setSignupSuccess(true);
+          setPassword("");
         } else {
-          throw new Error("Signup failed. Please try again.");
+          throw new Error("We couldn’t create your account. Please try again.");
         }
       }
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(authErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  useEffect(() => {
-    setError(null);
-  }, [isLogin]);
-
-  const tabVariants = {
-    active: { y: 0, opacity: 1 },
-    inactive: { y: 5, opacity: 0.7 },
-  };
-
-  const formVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3 } },
-    exit: { opacity: 0, x: 20, transition: { duration: 0.3 } },
-  };
-
-  if (isLoading) return <LoadingSpinner />;
-
   return (
-    <AnimatedPage style={{ paddingTop: 0 }}>
-      <div className="min-h-screen-dynamic flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animated-gradient text-xl">
-        <div
-          className="max-w-md w-full space-y-8 bg-gray-950 p-10 rounded-xl shadow-2xl relative"
-          style={{ height: "500px" }}
-        >
-          <div className="flex justify-center space-x-4">
-            <motion.button
-              variants={tabVariants}
-              animate={!isLogin ? "active" : "inactive"}
-              onClick={() => setIsLogin(false)}
-              className={`px-4 py-2 rounded-md transition-colors duration-200 w-32 ${
-                !isLogin
-                  ? "bg-orange-600 text-white glow"
-                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              Sign Up
-            </motion.button>
-            <motion.button
-              variants={tabVariants}
-              animate={isLogin ? "active" : "inactive"}
-              onClick={() => setIsLogin(true)}
-              className={`px-4 py-2 rounded-md transition-colors duration-200 w-32 ${
-                isLogin
-                  ? "bg-orange-600 text-white glow"
-                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              Login
-            </motion.button>
+    <AnimatedPage className="auth-world home-background">
+      <div className="home-gradient" />
+      <div className="auth-layout">
+        <section className="auth-welcome" aria-labelledby="auth-welcome-title">
+          <p className="auth-eyebrow"><FaGhost aria-hidden="true" /> GOOD COMPANY. BAD OMENS.</p>
+          <h1 id="auth-welcome-title">A place for <br />your <span>strange side.</span></h1>
+          <p className="auth-intro">Your next favorite horror movie. A new arcade high score. A character that’s completely you.</p>
+          <div className="auth-scene" aria-hidden="true">
+            <div className="auth-moon" /><span className="auth-star auth-star-one">✦</span><span className="auth-star auth-star-two">✧</span>
+            <img src="/images/popcornzombie.webp" alt="" className="auth-creature" />
+            <span className="auth-scene-caption"><FaFilm /> ALWAYS ROOM FOR ONE MORE</span>
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={isLogin ? "login" : "signup"}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              variants={formVariants}
-              className="absolute top-24 left-10 right-10"
-            >
-              <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-                {isLogin ? "Login to your account" : "Create an account"}
-              </h2>
-              <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                <div className="rounded-md shadow-sm -space-y-px">
-                  <div>
-                    <label htmlFor="email-address" className="sr-only">
-                      Email address
-                    </label>
-                    <input
-                      id="email-address"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-800 rounded-t-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10"
-                      placeholder="Email address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="password" className="sr-only">
-                      Password
-                    </label>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      required
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-800 rounded-b-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10"
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
+          <div className="auth-perks"><span><FaUserAlt /> Make a character</span><span><FaGamepad /> Play the arcade</span><span><FaFilm /> Watch together</span></div>
+        </section>
+
+        <section className="auth-card" aria-labelledby="auth-form-title">
+          <div className="auth-mode-switch" aria-label="Account access">
+            <button type="button" aria-pressed={isLogin} disabled={isSubmitting} onClick={() => switchMode(true)}>Log in</button>
+            <button type="button" aria-pressed={!isLogin} disabled={isSubmitting} onClick={() => switchMode(false)}>Join the club</button>
+          </div>
+          {signupSuccess ? (
+            <div className="auth-confirmation" role="status">
+              <span className="auth-card-icon"><FaEnvelope /></span>
+              <p className="auth-eyebrow">ONE LAST THING</p>
+              <h2 id="auth-form-title">Check your inbox.</h2>
+              <p>Look for a confirmation link at <strong>{email.trim()}</strong>. Follow it to finish setting up your account.</p>
+              <p className="auth-helper">Can’t find it? Check your spam folder. If you already have an account, try logging in or resetting your password.</p>
+              <button type="button" className="auth-submit" onClick={() => switchMode(true)}>Back to log in <FaArrowRight /></button>
+              <button type="button" className="auth-text-button" onClick={() => setSignupSuccess(false)}>Use a different email</button>
+            </div>
+          ) : (
+            <>
+              <header className="auth-form-heading">
+                <span className="auth-card-icon"><FaGhost aria-hidden="true" /></span>
+                <h2 id="auth-form-title">{isLogin ? "Welcome back, creature." : "Every haunt needs a you."}</h2>
+                <p>{isLogin ? "Your little corner of Scareathon is waiting." : "Make an account. Find your people. Get a little spooky."}</p>
+              </header>
+              <form onSubmit={handleSubmit} className="auth-form" aria-busy={isSubmitting}>
+                <div className="auth-field">
+                  <label htmlFor="auth-email">Email address</label>
+                  <div className="auth-input-wrap"><FaEnvelope aria-hidden="true" /><input id="auth-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required placeholder="you@example.com" value={email} disabled={isSubmitting} onChange={(event) => { setEmail(event.target.value); setError(null); }} /></div>
                 </div>
-
-                {error && (
-                  <div className="text-red-400 text-sm text-center animate-pulse">
-                    {error}
-                  </div>
-                )}
-
-                {signupSuccess && !isLogin && (
-                  <div className="text-green-400 text-sm text-center animate-pulse">
-                    Please check your email to confirm your account.
-                  </div>
-                )}
-
-                <div>
-                  <button
-                    type="submit"
-                    className="text-xl group relative w-full flex justify-center py-2 px-4 border border-transparent font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 glow"
-                  >
-                    {isLogin ? "Login" : "Sign Up"}
-                  </button>
+                <div className="auth-field">
+                  <div className="auth-label-row"><label htmlFor="auth-password">Password</label>{isLogin && <button type="button" className="auth-text-button" disabled={isSubmitting} onClick={() => setShowPasswordReset(true)}>Forgot password?</button>}</div>
+                  <div className="auth-input-wrap"><FaLock aria-hidden="true" /><input id="auth-password" name="password" type={showPassword ? "text" : "password"} autoComplete={isLogin ? "current-password" : "new-password"} minLength={isLogin ? undefined : 8} required placeholder={isLogin ? "Your password" : "Create a password"} value={password} disabled={isSubmitting} aria-describedby={!isLogin ? "auth-password-hint" : undefined} onChange={(event) => { setPassword(event.target.value); setError(null); }} /><button type="button" className="auth-password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <FaEyeSlash /> : <FaEye />}</button></div>
+                  {!isLogin && <p id="auth-password-hint" className="auth-helper"><FaCheck aria-hidden="true" /> At least 8 characters. Make it unique to you.</p>}
                 </div>
-                {isLogin && (
-                  <p
-                    className="text-lg text-center text-gray-400 hover:text-orange-500 cursor-pointer transition-colors duration-200"
-                    onClick={() => setShowPasswordReset(true)}
-                  >
-                    Forgot your password?
-                  </p>
-                )}
+                {error && <p className="auth-error" role="alert">{error}</p>}
+                <button type="submit" className="auth-submit" disabled={isSubmitting || isCheckingSession}>{isSubmitting ? (isLogin ? "Opening the door…" : "Creating your account…") : isCheckingSession ? "Getting ready…" : isLogin ? "Enter my haunt" : "Create my account"}<FaArrowRight aria-hidden="true" /></button>
               </form>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              <p className="auth-switch-prompt">{isLogin ? "New around here?" : "Already one of us?"} <button type="button" className="auth-text-button" disabled={isSubmitting} onClick={() => switchMode(!isLogin)}>{isLogin ? "Join the club" : "Log in"}</button></p>
+            </>
+          )}
+          <div className="auth-card-footer"><FaLock aria-hidden="true" /> Your password stays private. Your weirdness is welcome.</div>
+        </section>
+        <Link to="/" className="auth-home-link">Just looking around? Back to Scareathon <FaArrowRight /></Link>
       </div>
-      {showPasswordReset && (
-        <PasswordResetPopup
-          onClose={() => setShowPasswordReset(false)}
-          initialEmail={email}
-        />
-      )}
+      {showPasswordReset && <PasswordResetPopup onClose={() => setShowPasswordReset(false)} initialEmail={email} />}
     </AnimatedPage>
   );
 };

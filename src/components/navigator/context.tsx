@@ -5,7 +5,7 @@ interface NavigatorContextType {
   setHeight: (height: number) => void;
 }
 
-export const NavigatorContext = createContext<NavigatorContextType | undefined>(
+const NavigatorContext = createContext<NavigatorContextType | undefined>(
   undefined
 );
 

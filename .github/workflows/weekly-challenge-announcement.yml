@@ -1,0 +1,26 @@
+name: Weekly Challenge Announcement
+
+on:
+  schedule:
+    - cron: '0 17 * * 0'
+  workflow_dispatch:
+
+jobs:
+  create-draft:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Create draft announcement
+        env:
+          TZ: America/Los_Angeles
+          STRAPI_URL: ${{ secrets.STRAPI_URL }}
+          STRAPI_TOKEN: ${{ secrets.STRAPI_TOKEN }}
+        run: npm run sync:weekly-challenge-announcement

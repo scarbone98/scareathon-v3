@@ -1,38 +1,17 @@
 // src/App.tsx
 import "./index.css";
+import { LazyMotion, domAnimation } from "framer-motion";
 import { BrowserRouter as Router } from "react-router-dom";
 import { Navigator } from "./components/navigator/Navigator";
 import { PageContainer } from "./components/PageContainer";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
 import { useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
-import GhostCursor from "./components/GhostCursor";
-import LoadingSpinner from "./components/LoadingSpinner";
+import { useEffect } from "react";
+import { AvatarCompositeEnsurer } from "./components/avatar/AvatarCompositeEnsurer";
 
 const AppContent = () => {
   const location = useLocation();
   const isResetPasswordPage = location.pathname === "/reset-password";
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  useEffect(() => {
-    const loadFonts = async () => {
-      try {
-        // make sure the fonts are loaded before continuing
-        if (document.fonts) {
-          await Promise.race([
-            document.fonts.ready,
-            new Promise(resolve => setTimeout(resolve, 3000)) // 3 second timeout
-          ]);
-        }
-      } catch (error) {
-        console.error("Error loading fonts", error);
-      } finally {
-        setFontsLoaded(true);
-      }
-    };
-    loadFonts();
-  }, []);
-
   useEffect(() => {
     const setVh = () => {
       document.documentElement.style.setProperty(
@@ -45,14 +24,9 @@ const AppContent = () => {
     return () => window.removeEventListener("resize", setVh);
   }, []);
 
-  // if the fonts are not loaded, show the loading spinner
-  if (!fontsLoaded) {
-    return <LoadingSpinner />;
-  }
-
   return (
     <>
-      <GhostCursor />
+      <AvatarCompositeEnsurer />
       {!isResetPasswordPage && <Navigator />}
       <PageContainer>
         <AnimatedRoutes />
@@ -63,9 +37,11 @@ const AppContent = () => {
 
 function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <LazyMotion features={domAnimation}>
+      <Router>
+        <AppContent />
+      </Router>
+    </LazyMotion>
   );
 }
 

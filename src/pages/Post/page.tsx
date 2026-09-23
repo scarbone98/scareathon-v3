@@ -5,7 +5,7 @@ import AnimatedPage from "../../components/AnimatedPage";
 import { useQuery } from "@tanstack/react-query";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import Carousel from "../../components/Carousel";
 

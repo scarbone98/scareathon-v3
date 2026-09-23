@@ -22,7 +22,7 @@ export default class Preloader extends Phaser.Scene {
 		//misc
 		this.load.image('background', '/sprites/gamebg.png');
 		this.load.image('framebg', '/sprites/framebg.png');
-		this.load.audio('theme', '/music/scareathon.wav');
+		this.load.audio('theme', '/music/scareathon-theme.mp3');
 		this.load.spritesheet('alex', '/sprites/alex.png', { frameWidth: 16, frameHeight: 36 });
 
 		//load enemy sprites

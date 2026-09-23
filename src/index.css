@@ -7,6 +7,7 @@
   src: url('/fonts/scoobydoo.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -14,6 +15,7 @@
   src: url('/fonts/zombie.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -21,6 +23,7 @@
   src: url('/fonts/fancy.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
 
 body {
@@ -75,23 +78,6 @@ img {
 * {
   /* scrollbar-width: thin; */
   scrollbar-color: #4a0000 #000000;
-}
-
-.ghost-cursor {
-  pointer-events: none;
-  position: fixed;
-  width: 100px;
-  /* Adjust based on your GIF size */
-  height: 100px;
-  /* Adjust based on your GIF size */
-  background-image: url('/images/batty.gif');
-  background-size: contain;
-  background-repeat: no-repeat;
-  transition: transform 0.2s linear;
-  will-change: transform;
-  left: 200;
-  top: 200;
-  z-index: -2;
 }
 
 @keyframes gradient {
@@ -404,4 +390,3 @@ img {
   animation: gradient 10s ease infinite;
   z-index: -3;
 }
-

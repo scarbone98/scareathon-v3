@@ -3,23 +3,81 @@ dotenv.config();
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import fastifyJwt from '@fastify/jwt';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { isOptionalAuthRoute, isPublicRoute } from './utils/authRoutes.js';
 import calendarRoutes from './routes/calendar.js';
-import postsRoutes from './routes/posts.js';
+import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import gamesRoutes from './routes/games.js';
 import userRoutes from './routes/user.js';
+import marketplaceRoutes from './routes/marketplace.js';
+import inboxRoutes from './routes/inbox.js';
+import adminStrapiRoutes from './routes/adminStrapi.js';
+import homeRoutes from './routes/home.js';
+import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js';
+import pool from './db/mockDB.js';
 
 const fastify = Fastify({
     logger: true
 });
 
+function getAuthConfig() {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const projectRef = process.env.SUPABASE_PROJECT_REF;
+    const explicitJwks = process.env.SUPABASE_JWKS_URL;
+
+    if (explicitJwks) {
+        return {
+            issuer: process.env.SUPABASE_JWT_ISSUER || null,
+            jwksUrl: explicitJwks
+        };
+    }
+
+    if (supabaseUrl) {
+        const base = supabaseUrl.replace(/\/$/, '');
+        return {
+            issuer: `${base}/auth/v1`,
+            jwksUrl: `${base}/auth/v1/.well-known/jwks.json`
+        };
+    }
+
+    if (projectRef) {
+        const base = `https://${projectRef}.supabase.co`;
+        return {
+            issuer: `${base}/auth/v1`,
+            jwksUrl: `${base}/auth/v1/.well-known/jwks.json`
+        };
+    }
+
+    throw new Error('Missing SUPABASE_URL or SUPABASE_PROJECT_REF (or SUPABASE_JWKS_URL) for JWT verification.');
+}
+
+function getBearerToken(authHeader) {
+    if (!authHeader || typeof authHeader !== 'string') return null;
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') return null;
+    return parts[1];
+}
+
+function isTransientJwtVerificationError(error) {
+    return (
+        error?.code === 'ERR_JWKS_TIMEOUT' ||
+        error?.code === 'ERR_JWKS_FETCH_FAILED' ||
+        error?.name === 'JWKSTimeout'
+    );
+}
+
 async function main() {
     try {
+        const authConfig = getAuthConfig();
+        const jwks = createRemoteJWKSet(new URL(authConfig.jwksUrl));
+
         await fastify.register(cors, {
             origin: [
                 'http://localhost:5173',
+                'http://127.0.0.1:5173',
                 'https://www.scareathon.rip',
                 'https://scareathon-v3.vercel.app',
                 'https://scarbone98.github.io',
@@ -28,32 +86,72 @@ async function main() {
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             credentials: true
         });
-
-        fastify.register(fastifyJwt, {
-            secret: process.env.SUPABASE_JWT_SECRET
-        });
+        fastify.decorateRequest('user', null);
 
         fastify.addHook('preValidation', async (request, reply) => {
-            // Skip authentication for 8bitevilreturns routes
-            if (request.url.startsWith('/8bitevilreturns')) {
+            if (isPublicRoute(request.method, request.url)) {
                 return;
             }
 
+            const token = getBearerToken(request.headers.authorization);
+            if (!token) {
+                // Guests can read leaderboards; everything else (including score writes) needs a login
+                if (isOptionalAuthRoute(request.method, request.url)) {
+                    return;
+                }
+                return reply.code(401).send({ error: 'Unauthorized: missing bearer token' });
+            }
+
+            const verifyOptions = {
+                audience: 'authenticated'
+            };
+            if (authConfig.issuer) {
+                verifyOptions.issuer = authConfig.issuer;
+            }
+
+            let payload;
             try {
-                await request.jwtVerify();
+                ({ payload } = await jwtVerify(token, jwks, verifyOptions));
             } catch (err) {
-                console.log(err);
+                request.log.warn({ err }, 'Supabase JWT verification failed');
+                if (isTransientJwtVerificationError(err)) {
+                    return reply.code(503).send({ error: 'Authentication service unavailable' });
+                }
+
                 return reply.code(401).send({ error: 'Unauthorized' });
+            }
+
+            request.user = payload;
+
+            try {
+                const userResult = await pool.query(
+                    'SELECT 1 FROM users WHERE id = $1',
+                    [payload.sub]
+                );
+                if (userResult.rowCount === 0) {
+                    return reply.code(401).send({ error: 'Unauthorized: user no longer exists' });
+                }
+            } catch (err) {
+                request.log.error({ err }, 'Database unavailable during auth user check');
+                return reply.code(503).send({ error: 'Database unavailable' });
             }
         });
 
         // Register route handlers
         fastify.register(calendarRoutes);
         fastify.register(postsRoutes);
+        fastify.register(weeklyChallengeRoutes, { getPostsPayload, getRecentPostsPayload });
         fastify.register(leaderboardRoutes);
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
         fastify.register(userRoutes, { prefix: '/user' });
+        fastify.register(marketplaceRoutes, { prefix: '/marketplace' });
+        fastify.register(inboxRoutes, { prefix: '/inbox' });
+        fastify.register(adminStrapiRoutes, { prefix: '/admin/strapi' });
+        fastify.register(homeRoutes, { prefix: '/home' });
+        if (isMonsterBashEnabled()) {
+            fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
+        }
 
         // Run the server!
         const start = async () => {

@@ -4,29 +4,105 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { siteContainerClassName } from "../../components/PageContainer";
+
+type LeaderboardUser = {
+  name: string;
+  rank: number;
+  movies?: string | number;
+  weekly?: string | number;
+  bonus?: string | number;
+  total?: string | number;
+  [key: string]: string | number | undefined;
+};
+
+type LeaderboardResponse = {
+  data: LeaderboardUser[];
+  meta?: {
+    year?: number;
+    sheetTitle?: string;
+    isLive?: boolean;
+    isPreseason?: boolean;
+    availableYears?: number[];
+  };
+};
+
+type PastWinner = {
+  year: string;
+  name: string;
+};
+
+type PastWinnersResponse = {
+  data: PastWinner[];
+};
+
+type ScareboardData = {
+  leaderboard: LeaderboardResponse;
+  pastWinners: PastWinnersResponse;
+};
+
+const SCAREBOARD_CACHE_TIME = 1000 * 60 * 5;
+
+async function readScareboardJson<T>(response: Response, label: string): Promise<T> {
+  const text = await response.text();
+
+  if (!response.ok) {
+    let errorMessage = `${label} request failed`;
+    try {
+      const payload = JSON.parse(text);
+      errorMessage = payload.error || errorMessage;
+    } catch {
+      if (text.trim()) errorMessage = text.trim();
+    }
+    throw new Error(errorMessage);
+  }
+
+  if (!text.trim()) {
+    throw new Error(`${label} returned an empty response`);
+  }
+
+  return JSON.parse(text) as T;
+}
 
 export default function Scareboard() {
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const queryClient = useQueryClient();
-  const { data, error, isLoading } = useQuery({
-    queryKey: ["leaderboard"],
+  const { data, error, isFetching, isLoading } = useQuery<ScareboardData>({
+    queryKey: ["leaderboard", "by-year", selectedYear],
     queryFn: async () => {
+      const leaderboardPath = selectedYear
+        ? `/leaderboard?year=${selectedYear}`
+        : "/leaderboard";
       const [leaderboardRes, pastWinnersRes] = await Promise.all([
-        fetchWithAuth("/leaderboard"),
-        fetchWithAuth("/past-winners"),
+        fetchWithAuth(leaderboardPath, { cache: "no-store" }),
+        fetchWithAuth("/past-winners", { cache: "no-store" }),
       ]);
-      const leaderboard = await leaderboardRes.json();
-      const pastWinners = await pastWinnersRes.json();
+      const leaderboard = await readScareboardJson<LeaderboardResponse>(
+        leaderboardRes,
+        "Leaderboard"
+      );
+      const pastWinners = await readScareboardJson<PastWinnersResponse>(
+        pastWinnersRes,
+        "Past winners"
+      );
       return { leaderboard, pastWinners };
     },
     initialData: () => {
       // Use the previous cached data if available
-      return queryClient.getQueryData(["leaderboard"]);
+      return queryClient.getQueryData<ScareboardData>([
+        "leaderboard",
+        "by-year",
+        selectedYear,
+      ]);
     },
-    staleTime: 1000 * 60 * 60 * 1,
+    placeholderData: keepPreviousData,
+    staleTime: SCAREBOARD_CACHE_TIME,
+    gcTime: SCAREBOARD_CACHE_TIME,
   });
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading && !data) return <LoadingSpinner />;
   if (error) return <ErrorDisplay message={error?.message} />;
 
   // Get the keys from the first data item, excluding 'name'
@@ -38,6 +114,8 @@ export default function Scareboard() {
   const otherKeys = keys.filter(
     (key) => key !== totalKey && key !== "name" && key !== "rank"
   );
+  const availableYears = data?.leaderboard?.meta?.availableYears || [];
+  const activeYear = data?.leaderboard?.meta?.year;
 
   const tableRowVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -61,9 +139,9 @@ export default function Scareboard() {
 
   const getPastWinYears = (name: string) => {
     const winners = data?.pastWinners?.data?.filter(
-      (winner: any) => winner.name === name
+      (winner) => winner.name === name
     );
-    return winners ? winners.map((winner: any) => winner.year.slice(2, 4)) : [];
+    return winners ? winners.map((winner) => winner.year.slice(2, 4)) : [];
   };
 
   const StarWithYear = ({ year }: { year: number }) => (
@@ -91,9 +169,62 @@ export default function Scareboard() {
       <div className="calendar-gradient"></div>
       <motion.div
         layout
-        className="p-2 md:p-4 lg:p-6 max-w-4xl mx-auto tracking-widest"
+        className={`${siteContainerClassName} py-4 md:py-6 tracking-widest`}
       >
-        <div className="overflow-x-auto">
+        <div className="mb-5 rounded-lg border border-red-950/70 bg-black/60 px-4 py-3">
+          <h1 className="text-3xl font-bold text-red-500 md:text-4xl">
+            {data?.leaderboard?.meta?.year
+              ? `${data.leaderboard.meta.year} Scareboard`
+              : "Scareboard"}
+          </h1>
+          <p className="mt-1 text-sm uppercase tracking-widest text-orange-100/70">
+            {data?.leaderboard?.meta?.isLive
+              ? "Live October standings"
+              : data?.leaderboard?.meta?.isPreseason
+                ? "Preseason — starts October 1"
+                : "Historical standings"}
+          </p>
+          {availableYears.length > 1 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {availableYears.map((year) => {
+                const isRequestedYear = year === selectedYear;
+
+                return (
+                  <button
+                    key={year}
+                    type="button"
+                    onClick={() => setSelectedYear(year)}
+                    disabled={isFetching && isRequestedYear}
+                    className={`rounded border px-3 py-1 text-lg transition disabled:cursor-wait disabled:opacity-80 ${
+                      year === activeYear
+                        ? "border-red-500 bg-red-800 text-white"
+                        : "border-red-950 bg-black/50 text-red-300 hover:border-red-500 hover:text-white"
+                    }`}
+                  >
+                    {year}
+                  </button>
+                );
+              })}
+              {isFetching && (
+                <span className="ml-2 text-sm uppercase tracking-widest text-orange-100/60">
+                  Loading
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        {data?.leaderboard?.data?.length === 0 ? (
+          <section className="rounded-lg border border-orange-800/50 bg-gray-950/70 px-6 py-10 text-center">
+            <h2 className="text-2xl font-bold text-orange-100">
+              {data?.leaderboard?.meta?.isPreseason ? `${activeYear} is on the way` : "No scores yet"}
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed tracking-normal text-orange-100/75">
+              {data?.leaderboard?.meta?.isPreseason
+                ? "A fresh season, a fresh board. Standings begin October 1. Explore past seasons using the year buttons above."
+                : "Standings will appear here once the first scores are recorded."}
+            </p>
+          </section>
+        ) : <div className="overflow-x-auto">
           <table className="w-full shadow-md rounded-lg overflow-hidden">
             <thead className="bg-gray-900 bg-opacity-50">
               <tr>
@@ -118,7 +249,7 @@ export default function Scareboard() {
             </thead>
             <tbody className="divide-y divide-gray-700">
               <AnimatePresence>
-                {data?.leaderboard?.data?.map((user: any, index: number) => (
+                {data?.leaderboard?.data?.map((user, index: number) => (
                   <motion.tr
                     key={user.name}
                     className="bg-gray-950 bg-opacity-50 transition-colors"
@@ -162,7 +293,7 @@ export default function Scareboard() {
               </AnimatePresence>
             </tbody>
           </table>
-        </div>
+        </div>}
       </motion.div>
     </AnimatedPage>
   );

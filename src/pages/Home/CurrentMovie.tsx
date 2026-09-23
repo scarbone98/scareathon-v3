@@ -1,3 +1,4 @@
+import "./movie-fonts.css";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import MovieInfo from "./MovieInfo";
@@ -61,12 +62,12 @@ export default function CurrentMovie() {
           className="rounded-lg h-80 md:h-96 lg:h-112 relative z-10"
         />
         <img
-          src="/images/popcornzombie.png"
+          src="/images/popcornzombie.webp"
           alt="Zombie eating popcorn"
           className="absolute top-0 -left-24 h-full w-auto object-contain transform -translate-x-full z-20 hidden lg:block"
         />
         <img
-          src="/images/popcornzombie.png"
+          src="/images/popcornzombie.webp"
           alt="Zombie eating popcorn"
           className="absolute top-0 -right-24 h-full w-auto object-contain transform translate-x-full z-20 hidden lg:block"
         />

@@ -1,4 +1,133 @@
 import pool from '../db/mockDB.js';
+import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
+import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
+
+const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
+const GAME_LEADERBOARD_TTL = 60 * 1000;
+const GAME_SCORE_POLICIES = new Map([
+    ['8 Bit Evil Returns', {
+        score: { min: 0, max: 86400, integer: true },
+    }],
+    ['Hemlock\'s Tower', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+    ['Tlaloc’s Curse', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+    ['Ooidash', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+    ['8 Bit Evil', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
+]);
+
+export function calculateRuleAward(rule, metricValue) {
+    if (rule.min_metric_value !== null && Number(metricValue) < Number(rule.min_metric_value)) {
+        return 0;
+    }
+
+    let award = 0;
+    if (rule.reward_type === 'fixed') {
+        award = Number(rule.fixed_amount || 0);
+    }
+
+    if (rule.reward_type === 'multiplier') {
+        award = Math.floor(Number(metricValue) * Number(rule.multiplier || 0));
+    }
+
+    if (rule.max_reward !== null) {
+        award = Math.min(award, Number(rule.max_reward));
+    }
+
+    return Math.max(0, award);
+}
+
+export function validateScoreSubmission({ game, metricName, metricValue }) {
+    if (!game || !metricName || !Number.isFinite(metricValue)) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Game, metricName, and numeric metricValue are required'
+        };
+    }
+
+    const gamePolicy = GAME_SCORE_POLICIES.get(game);
+    const metricPolicy = gamePolicy?.[metricName];
+
+    if (!metricPolicy) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Unsupported game metric'
+        };
+    }
+
+    if (metricPolicy.integer && !Number.isInteger(metricValue)) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Metric value must be an integer'
+        };
+    }
+
+    if (metricValue < metricPolicy.min || metricValue > metricPolicy.max) {
+        return {
+            ok: false,
+            statusCode: 400,
+            error: 'Metric value is outside the allowed range'
+        };
+    }
+
+    return { ok: true };
+}
+
+function getGameLeaderboardCacheKey(game, metric, limit) {
+    return `gameLeaderboard:${game}:${metric}:${limit}`;
+}
+
+function getGameLeaderboardCachePrefix(game, metric) {
+    return `gameLeaderboard:${game}:${metric}:`;
+}
+
+function serializeGameLeaderboardRows(rows, currentUserId = null) {
+    return rows.map(row => ({
+        username: row.username,
+        metricValue: row.metric_value,
+        achieved_at: row.achieved_at,
+        isUserScore: currentUserId ? row.id === currentUserId : false
+    }));
+}
+
+export async function getGameLeaderboardPayload({
+    game,
+    metric = 'score',
+    limit = 10,
+    currentUserId = null
+}) {
+    const numericLimit = Number.parseInt(limit, 10);
+    const boundedLimit = Number.isFinite(numericLimit)
+        ? Math.min(Math.max(numericLimit, 1), 100)
+        : 10;
+    const cacheKey = getGameLeaderboardCacheKey(game, metric, boundedLimit);
+    const rows = await getOrRefreshCache(cacheKey, async () => {
+        const leaderboard = await pool.query(`
+            SELECT u.username, u.id, l.metric_value, l.achieved_at
+            FROM leaderboards l
+            JOIN games g ON l.game_id = g.id
+            JOIN users u ON l.user_id = u.id
+            WHERE g.name = $1 AND l.metric_name = $2
+            ORDER BY l.metric_value DESC
+            LIMIT $3
+        `, [game, metric, boundedLimit]);
+
+        return leaderboard.rows;
+    }, GAME_LEADERBOARD_TTL);
+
+    return {
+        data: serializeGameLeaderboardRows(rows, currentUserId)
+    };
+}
 
 async function routes(fastify, options) {
     fastify.get('/', async (request, reply) => {
@@ -14,24 +143,13 @@ async function routes(fastify, options) {
     fastify.get('/getLeaderboard', async (request, reply) => {
         try {
             const { game, metric, limit = 10 } = request.query;
-            const leaderboard = await pool.query(`
-                SELECT u.username, u.id, l.metric_value, l.achieved_at
-                FROM leaderboards l
-                JOIN games g ON l.game_id = g.id
-                JOIN users u ON l.user_id = u.id
-                WHERE g.name = $1 AND l.metric_name = $2
-                ORDER BY l.metric_value DESC
-                LIMIT $3
-            `, [game, metric, limit]);
-
-            const entries = leaderboard.rows.map(row => ({
-                username: row.username,
-                metricValue: row.metric_value,
-                achieved_at: row.achieved_at,
-                isUserScore: row.id === request.user.sub
-            }));
-
-            return { data: entries };
+            return getGameLeaderboardPayload({
+                game,
+                metric,
+                limit,
+                // Guests (no token) can view leaderboards too
+                currentUserId: request.user?.sub ?? null
+            });
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: error.message });
@@ -39,27 +157,127 @@ async function routes(fastify, options) {
     });
 
     fastify.post('/submitScore', async (request, reply) => {
+        const client = await pool.connect();
         try {
             const userId = request.user.sub;
             const { game, metricName, metricValue } = request.body;
+            const numericMetricValue = Number(metricValue);
+            const validation = validateScoreSubmission({
+                game,
+                metricName,
+                metricValue: numericMetricValue,
+            });
+
+            if (!validation.ok) {
+                return reply.code(validation.statusCode).send({ error: validation.error });
+            }
+
+            await client.query('BEGIN');
+
             // First, get the game_id
-            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await client.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
             if (gameResult.rows.length === 0) {
+                await client.query('ROLLBACK');
                 return reply.code(400).send({ error: 'Game not found' });
             }
             const gameId = gameResult.rows[0].id;
 
+            const recentSubmissions = await client.query(`
+                SELECT COUNT(*)::int AS count
+                FROM leaderboards
+                WHERE game_id = $1
+                  AND user_id = $2
+                  AND metric_name = $3
+                  AND achieved_at >= now() - interval '1 minute'
+            `, [gameId, userId, metricName]);
+
+            if (Number(recentSubmissions.rows[0]?.count || 0) >= SCORE_SUBMISSION_LIMIT_PER_MINUTE) {
+                await client.query('ROLLBACK');
+                return reply.code(429).send({ error: 'Too many score submissions' });
+            }
+
             // Insert a new leaderboard entry
-            const result = await pool.query(`
+            const result = await client.query(`
                 INSERT INTO leaderboards (game_id, user_id, metric_name, metric_value)
                 VALUES ($1, $2, $3, $4)
                 RETURNING *
-            `, [gameId, userId, metricName, metricValue]);
+            `, [gameId, userId, metricName, numericMetricValue]);
 
-            return { data: result.rows[0] };
+            const scoreRow = result.rows[0];
+            const rewardRulesResult = await client.query(`
+                SELECT id, reward_type, fixed_amount, multiplier, min_metric_value, max_reward
+                FROM arcade_reward_rules
+                WHERE game_id = $1
+                  AND metric_name = $2
+                  AND is_active = TRUE
+                  AND (starts_at IS NULL OR starts_at <= now())
+                  AND (ends_at IS NULL OR ends_at > now())
+            `, [gameId, metricName]);
+
+            const coinsAwarded = rewardRulesResult.rows.reduce((total, rule) => {
+                return total + calculateRuleAward(rule, numericMetricValue);
+            }, 0);
+
+            let coinBalance = null;
+            if (coinsAwarded > 0) {
+                const walletResult = await client.query(`
+                    SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
+                `, [
+                    userId,
+                    coinsAwarded,
+                    'arcade_score',
+                    String(scoreRow.id),
+                    JSON.stringify({
+                        gameId,
+                        game,
+                        metricName,
+                        metricValue: numericMetricValue,
+                        ruleIds: rewardRulesResult.rows.map((rule) => rule.id),
+                    }),
+                ]);
+                coinBalance = Number(walletResult.rows[0].coin_balance);
+            }
+
+            let weeklyChallengeRewards = [];
+            // Savepoint so a failed challenge payout can't abort the transaction and drop the score
+            await client.query('SAVEPOINT weekly_challenge_reward');
+            try {
+                weeklyChallengeRewards = await awardEligibleWeeklyChallengeRewards(client, userId, {
+                    game,
+                    metricName,
+                    metricValue: numericMetricValue,
+                    leaderboardId: scoreRow.id,
+                });
+                await client.query('RELEASE SAVEPOINT weekly_challenge_reward');
+                const latestWeeklyChallengeBalance = weeklyChallengeRewards
+                    .filter((reward) => reward.coinBalance !== null && reward.coinBalance !== undefined)
+                    .at(-1)?.coinBalance;
+                if (latestWeeklyChallengeBalance !== undefined) {
+                    coinBalance = latestWeeklyChallengeBalance;
+                }
+            } catch (error) {
+                await client.query('ROLLBACK TO SAVEPOINT weekly_challenge_reward').catch(() => {});
+                weeklyChallengeRewards = [];
+                fastify.log.warn({ err: error }, 'Unable to evaluate weekly challenge rewards');
+            }
+
+            await client.query('COMMIT');
+            deleteCachePrefix(getGameLeaderboardCachePrefix(game, metricName));
+
+            return {
+                data: {
+                    ...scoreRow,
+                    coinsAwarded,
+                    coinBalance,
+                    weeklyChallengeRewards,
+                },
+            };
         } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
             fastify.log.error(error);
             return reply.code(500).send({ error: error.message });
+        } finally {
+            client.release();
         }
     });
 
@@ -69,7 +287,7 @@ async function routes(fastify, options) {
             const { game, dataType } = request.query;
 
             // First, get the game_id
-            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
             if (gameResult.rows.length === 0) {
                 return reply.code(404).send({ error: 'Game not found' });
             }
@@ -98,7 +316,7 @@ async function routes(fastify, options) {
             const { game, dataType, data } = request.body;
 
             // First, get the game_id
-            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1', [game]);
+            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
             if (gameResult.rows.length === 0) {
                 return reply.code(404).send({ error: 'Game not found' });
             }

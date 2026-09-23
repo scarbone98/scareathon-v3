@@ -1,14 +1,23 @@
 // src/components/AnimatedRoutes.tsx
-import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useLocation,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useState, Suspense } from "react";
-import { supabase } from "../supabaseClient"; // Ensure this import path is correct
 import { lazy } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { shouldClearAuthSession } from "../authErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
 const Home = lazy(() => import("../pages/Home/page"));
 const Arcade = lazy(() => import("../pages/Arcade/page"));
 const Authentication = lazy(() => import("../pages/Authentication/page"));
+const Scareathon = lazy(() => import("../pages/Scareathon/page"));
+const ScareathonToday = lazy(() => import("../pages/Scareathon/Today"));
 const Scareboard = lazy(() => import("../pages/Scareboard/page"));
 const Calendar = lazy(() => import("../pages/Calendar/page"));
 const Rules = lazy(() => import("../pages/Rules/page"));
@@ -21,50 +30,101 @@ const ResetPassword = lazy(
 );
 const Profile = lazy(() => import("../pages/Profile/page"));
 const Post = lazy(() => import("../pages/Post/page"));
+const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
 
-export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<any>(null);
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    let isMounted = true;
+    let unsubscribe: (() => void) | undefined;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    import("../supabaseClient")
+      .then(({ supabase }) => {
+        if (!isMounted) return;
 
-    return () => subscription.unsubscribe();
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+          if (!isMounted) return;
+
+          if (session) {
+            const {
+              data: { user },
+              error,
+            } = await supabase.auth.getUser();
+
+            if (!isMounted) return;
+
+            if (error || !user) {
+              if (shouldClearAuthSession(error)) {
+                await supabase.auth.signOut({ scope: "local" });
+                setSession(null);
+              } else {
+                setSession(session);
+              }
+              setLoading(false);
+              return;
+            }
+          }
+
+          setSession(session);
+          setLoading(false);
+        });
+
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (isMounted) {
+            setSession(session);
+          }
+        });
+
+        unsubscribe = () => subscription.unsubscribe();
+      })
+      .catch((error) => {
+        console.error("Error loading auth client", error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
   }, []);
+
+  useEffect(() => {
+    if (loading || session || location.pathname === "/authentication") {
+      return;
+    }
+
+    navigate("/authentication", {
+      replace: true,
+      state: { from: location.pathname },
+    });
+  }, [loading, session, location.pathname, navigate]);
 
   if (loading) {
     return <LoadingSpinner />;
   }
 
-  if (!session) {
-    return (
-      <Navigate
-        to="/authentication"
-        state={{ from: location.pathname }}
-        replace
-      />
-    );
-  }
+  if (!session) return null;
 
   return <>{children}</>;
 };
 
 export const AnimatedRoutes = () => {
   const location = useLocation();
+  const routeAnimationKey = location.pathname.startsWith("/profile")
+    ? "/profile"
+    : location.pathname;
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location} key={routeAnimationKey}>
         <Route
           path="/"
           element={
@@ -101,6 +161,32 @@ export const AnimatedRoutes = () => {
           path="/rules"
           element={
             <Suspense fallback={<LoadingSpinner />}>
+              <Navigate to="/scareathon/rules" replace />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/scareathon"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Scareathon />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/scareathon/today"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ScareathonToday />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scareathon/rules"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
               <Rules />
             </Suspense>
           }
@@ -118,15 +204,43 @@ export const AnimatedRoutes = () => {
         <Route
           path="/arcade"
           element={
+            // Open to guests: they can play, and are asked to sign in to save scores
+            <Suspense fallback={<LoadingSpinner />}>
+              <Arcade />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/monster-bash"
+          element={
+            // Open to guests: anyone can watch; betting will need a login
+            <Suspense fallback={<LoadingSpinner />}>
+              <MonsterBash />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/scareboard"
+          element={
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
-                <Arcade />
+                <Navigate to="/scareathon/scareboard" replace />
               </Suspense>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/scareboard"
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Navigate to="/scareathon/calendar" replace />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scareathon/scareboard"
           element={
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
@@ -136,7 +250,7 @@ export const AnimatedRoutes = () => {
           }
         />
         <Route
-          path="/calendar"
+          path="/scareathon/calendar"
           element={
             <ProtectedRoute>
               <Suspense fallback={<LoadingSpinner />}>
@@ -162,6 +276,45 @@ export const AnimatedRoutes = () => {
               <Suspense fallback={<LoadingSpinner />}>
                 <Profile />
               </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/profile/settings" element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><Profile /></Suspense></ProtectedRoute>} />
+        <Route
+          path="/profile/inbox"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Profile />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/avatar"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Profile />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/shop"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Profile />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inbox"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/profile/inbox" replace />
             </ProtectedRoute>
           }
         />

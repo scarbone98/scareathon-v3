@@ -13,15 +13,40 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+export function buildProductionPoolConfig(env = process.env) {
+  const rawConnectionString = env.DB_CONNECTION_STRING || '';
+  let connectionString = rawConnectionString;
+
+  if (!rawConnectionString) {
+    throw new Error('Missing DB_CONNECTION_STRING for production database connection.');
+  }
+
+  try {
+    const parsed = new URL(rawConnectionString);
+    parsed.searchParams.delete('sslmode');
+
+    if (env.DB_PASSWORD) {
+      parsed.password = env.DB_PASSWORD;
+    }
+
+    connectionString = parsed.toString();
+  } catch (_) {
+    connectionString = rawConnectionString;
+  }
+
+  return {
+    connectionString,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  };
+}
+
 // Create a new pool
 let pool = null;
 
-if (process.env.NODE_ENV === 'production') {
-  // Create a new pool
-  pool = new Pool({
-    connectionString: process.env.DB_CONNECTION_STRING,
-    password: process.env.DB_PASSWORD
-  });
+if (process.env.DB_CONNECTION_STRING) {
+  pool = new Pool(buildProductionPoolConfig());
 } else {
   pool = new Pool({
     user: 'postgres',
