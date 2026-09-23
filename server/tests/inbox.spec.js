@@ -6,9 +6,16 @@ import inboxRoutes, {
     normalizeSubject,
     normalizeUsernameList,
     parseAllowlist,
+    splitPage,
 } from '../routes/inbox.js';
 
 describe('inbox helpers', () => {
+    test('splitPage trims the look-ahead row and reports whether more exist', () => {
+        expect(splitPage([1, 2, 3], 2)).toEqual({ rows: [1, 2], hasMore: true });
+        expect(splitPage([1, 2], 2)).toEqual({ rows: [1, 2], hasMore: false });
+        expect(splitPage([], 2)).toEqual({ rows: [], hasMore: false });
+    });
+
     test('parseAllowlist trims entries and ignores blanks', () => {
         expect(parseAllowlist(' user-1, user-2 ,, ').has('user-1')).toBe(true);
         expect(parseAllowlist(' user-1, user-2 ,, ').has('user-2')).toBe(true);

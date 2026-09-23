@@ -180,6 +180,11 @@ function serializeConversation(row) {
     };
 }
 
+// Pages are fetched with one extra row so the client knows whether to offer "load more"
+export function splitPage(rows, limit) {
+    return { rows: rows.slice(0, limit), hasMore: rows.length > limit };
+}
+
 export async function getUnreadInboxCount(userId) {
     const result = await pool.query(`
         SELECT COUNT(*)::INTEGER AS unread_count
@@ -391,12 +396,23 @@ async function routes(fastify, options) {
                   AND p.deleted_at IS NULL
                 ORDER BY c.updated_at DESC, c.id DESC
                 LIMIT $2 OFFSET $3
-            `, [userId, limit, offset]);
+            `, [userId, limit + 1, offset]);
 
-            return { data: result.rows.map(serializeConversation) };
+            const page = splitPage(result.rows, limit);
+            return { data: page.rows.map(serializeConversation), hasMore: page.hasMore };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'An error occurred while fetching inbox conversations' });
+        }
+    });
+
+    // Badge count across every conversation (the list endpoint is paginated)
+    fastify.get('/unread-count', async (request, reply) => {
+        try {
+            return { data: { unreadCount: await getUnreadInboxCount(request.user.sub) } };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while counting unread messages' });
         }
     });
 
@@ -443,9 +459,10 @@ async function routes(fastify, options) {
                   AND ($4::BIGINT IS NULL OR m.id < $4)
                 ORDER BY m.id DESC
                 LIMIT $5
-            `, [conversationId, userId, adminCanViewRewards, beforeMessageId, limit]);
+            `, [conversationId, userId, adminCanViewRewards, beforeMessageId, limit + 1]);
 
-            return { data: result.rows.reverse().map(serializeMessage) };
+            const page = splitPage(result.rows, limit);
+            return { data: page.rows.reverse().map(serializeMessage), hasMore: page.hasMore };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'An error occurred while fetching inbox messages' });

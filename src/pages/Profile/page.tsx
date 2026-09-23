@@ -24,6 +24,7 @@ import { supabase } from "../../supabaseClient"; // Make sure this import is cor
 import { siteContainerClassName } from "../../components/PageContainer";
 import { AvatarPreview } from "../../components/avatar/AvatarPreview";
 import type { AvatarItem, AvatarResponse } from "../../components/avatar/types";
+import { useInboxUnreadCount } from "../Inbox/useInboxUnreadCount";
 const AvatarEditor = lazy(() => import("../../components/avatar/AvatarEditor").then(module => ({ default: module.AvatarEditor })));
 const AvatarShop = lazy(() => import("../../components/avatar/AvatarShop").then(module => ({ default: module.AvatarShop })));
 const InboxContent = lazy(() => import("../Inbox/page").then(module => ({ default: module.InboxContent })));
@@ -35,11 +36,6 @@ type WalletData = {
   };
 };
 
-type InboxSummary = {
-  data: Array<{
-    unreadCount?: number;
-  }>;
-};
 
 const Profile = () => {
   const queryClient = useQueryClient();
@@ -80,18 +76,6 @@ const Profile = () => {
       }),
   });
 
-  const { data: inboxSummary } = useQuery<InboxSummary>({
-    queryKey: ["inbox", "conversations"],
-    queryFn: () =>
-      fetchWithAuth("/inbox/conversations?limit=25").then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to load inbox");
-        }
-        return data;
-      }),
-    staleTime: 1000 * 30,
-  });
 
   const { data: avatarResponse, isLoading: isAvatarLoading } =
     useQuery<AvatarResponse>({
@@ -179,11 +163,7 @@ const Profile = () => {
       : location.pathname.endsWith("/settings")
         ? "settings"
         : "avatar";
-  const unreadInboxCount =
-    inboxSummary?.data.reduce(
-      (total, conversation) => total + (conversation.unreadCount || 0),
-      0
-    ) || 0;
+  const unreadInboxCount = useInboxUnreadCount();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -264,7 +244,7 @@ const Profile = () => {
             <div className="profile-panel-body">
               <header className="profile-section-heading"><h2>{sectionDetails.title}</h2><p>{sectionDetails.description}</p></header>
               <Suspense fallback={<div className="py-10 text-center text-sm text-purple-200" role="status">Loading {activeTab === "avatar" ? "wardrobe" : activeTab}…</div>}>
-              {activeTab === "inbox" ? <InboxContent embedded /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
+              {activeTab === "inbox" ? <InboxContent /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
                 <div className="account-settings">
                   <section className="account-section">
                     <div className="account-section-icon"><FaUserAlt /></div>

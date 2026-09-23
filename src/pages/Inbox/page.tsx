@@ -1,22 +1,35 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import {
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import {
+  FaArrowLeft,
   FaBoxOpen,
-  FaCoins,
-  FaEnvelope,
+  FaCheck,
+  FaEnvelopeOpenText,
+  FaGhost,
   FaGift,
   FaLock,
   FaPaperPlane,
-  FaPlus,
-  FaReply,
-  FaTimes,
+  FaPen,
 } from "react-icons/fa";
-import AnimatedPage from "../../components/AnimatedPage";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import { useNavigatorContext } from "../../components/navigator/context";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
+import "../../styles/inbox.css";
 import type {
   InboxConversation,
   InboxMessage,
@@ -26,6 +39,14 @@ import type {
 
 const SUBJECT_MAX_LENGTH = 120;
 const BODY_MAX_LENGTH = 4000;
+const CONVERSATIONS_PAGE_SIZE = 20;
+const MESSAGES_PAGE_SIZE = 30;
+
+const CONVERSATIONS_KEY = ["inbox", "conversations", "list"] as const;
+const messagesKey = (conversationId: number) =>
+  ["inbox", "messages", conversationId] as const;
+
+type Page<T> = { data: T[]; hasMore?: boolean };
 
 async function readJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -49,7 +70,45 @@ function inboxPost<T>(path: string, body?: Record<string, unknown>) {
   }).then((response) => readJson<T>(response));
 }
 
-function formatDateTime(value: string) {
+// Bring a freshly opened view to the top of the screen (below the fixed nav), so on
+// phones the reply box isn't pushed off-screen by the character card above the inbox.
+function useScrollIntoViewOnOpen<T extends HTMLElement>(ready = true) {
+  const ref = useRef<T>(null);
+  const hasScrolled = useRef(false);
+  const { height: navHeight } = useNavigatorContext();
+  useEffect(() => {
+    // Measure once the content is in: a loading spinner makes the page too short to scroll
+    if (!ready || hasScrolled.current) return;
+    hasScrolled.current = true;
+    // Wait a frame: switching from a long list shrinks the page, which would cut a scroll short
+    const frame = requestAnimationFrame(() => {
+      const element = ref.current;
+      if (!element) return;
+      const top = element.getBoundingClientRect().top + window.scrollY - navHeight - 12;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo({ top: Math.max(0, Math.min(top, maxScroll)) });
+    });
+    return () => cancelAnimationFrame(frame);
+    // Only on open; nav height changes shouldn't yank the page around
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+  return ref;
+}
+
+// "3m", "5h", "Mon", "May 6" for the list; full date and time inside a thread
+function formatListTime(value: string) {
+  const date = new Date(value);
+  const minutes = Math.round((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h`;
+  if (minutes < 60 * 24 * 6) {
+    return date.toLocaleDateString([], { weekday: "short" });
+  }
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function formatMessageTime(value: string) {
   return new Date(value).toLocaleString([], {
     month: "short",
     day: "numeric",
@@ -79,6 +138,10 @@ function conversationTitle(
   );
 }
 
+function isFromScareathon(senderType: string) {
+  return senderType === "admin" || senderType === "system";
+}
+
 function rewardSummary(reward: InboxReward) {
   const parts = [];
 
@@ -97,7 +160,25 @@ function rewardSummary(reward: InboxReward) {
   return parts.join(" and ") || "Reward";
 }
 
-function MessageRewardCard({
+function useCurrentUserId() {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setCurrentUserId(data.session?.user.id || null));
+  }, []);
+  return currentUserId;
+}
+
+function Avatar({ name, fromScareathon }: { name: string; fromScareathon: boolean }) {
+  return (
+    <span className={`inbox-avatar ${fromScareathon ? "is-scareathon" : ""}`} aria-hidden="true">
+      {fromScareathon ? <FaGhost /> : name.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
+function RewardCard({
   reward,
   onClaim,
   isClaiming,
@@ -111,43 +192,37 @@ function MessageRewardCard({
   const isPending = reward.status === "pending";
 
   return (
-    <div className="mt-3 rounded border border-amber-500/60 bg-amber-950/30 p-4 text-amber-100">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <FaGift className="mt-1 shrink-0 text-amber-300" />
-          <div>
-            <div className="text-sm uppercase tracking-wide text-amber-300">
-              {isPending ? "Pending reward" : "Reward"}
-            </div>
-            <div className="text-lg">{rewardSummary(reward)}</div>
-          </div>
-        </div>
-        {isPending ? (
-          <button
-            type="button"
-            onClick={() => onClaim(reward)}
-            disabled={isClaiming}
-            className="inline-flex items-center justify-center gap-2 rounded border border-amber-400 bg-amber-600 px-4 py-2 text-sm font-bold text-black transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <FaBoxOpen />
-            {isClaiming ? "Claiming" : "Claim"}
-          </button>
-        ) : (
-          <div className="rounded border border-green-700 bg-green-950/50 px-3 py-2 text-sm text-green-200">
-            Added to your wallet
-          </div>
-        )}
+    <div className="inbox-reward">
+      <FaGift className="inbox-reward-icon" aria-hidden="true" />
+      <div className="inbox-reward-text">
+        <span>{isPending ? "Reward waiting" : "Reward"}</span>
+        <strong>{rewardSummary(reward)}</strong>
       </div>
-      {error && <div className="mt-3 text-sm text-red-300">{error}</div>}
+      {isPending ? (
+        <button
+          type="button"
+          onClick={() => onClaim(reward)}
+          disabled={isClaiming}
+          className="inbox-primary-button"
+        >
+          <FaBoxOpen aria-hidden="true" />
+          {isClaiming ? "Claiming" : "Claim"}
+        </button>
+      ) : (
+        <span className="inbox-reward-done">
+          <FaCheck aria-hidden="true" /> Added to your wallet
+        </span>
+      )}
+      {error && <p className="inbox-error inbox-reward-error">{error}</p>}
     </div>
   );
 }
 
 function NewMessageComposer({
-  onClose,
+  onCancel,
   onCreated,
 }: {
-  onClose: () => void;
+  onCancel: () => void;
   onCreated: (conversationId: number) => void;
 }) {
   const [recipientUsername, setRecipientUsername] = useState("");
@@ -155,6 +230,7 @@ function NewMessageComposer({
   const [body, setBody] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const rootRef = useScrollIntoViewOnOpen<HTMLFormElement>();
 
   const createConversation = useMutation({
     mutationFn: () =>
@@ -168,10 +244,6 @@ function NewMessageComposer({
       ),
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["inbox"] });
-      setRecipientUsername("");
-      setSubject("");
-      setBody("");
-      setValidationError(null);
       onCreated(data.data.conversationId);
     },
   });
@@ -181,22 +253,19 @@ function NewMessageComposer({
     setValidationError(null);
 
     if (!recipientUsername.trim()) {
-      setValidationError("Recipient username is required.");
+      setValidationError("Who's it for? Add a username.");
       return;
     }
-
     if (!body.trim()) {
-      setValidationError("Message body is required.");
+      setValidationError("Write a message first.");
       return;
     }
-
     if (subject.trim().length > SUBJECT_MAX_LENGTH) {
       setValidationError(`Subject must be ${SUBJECT_MAX_LENGTH} characters or fewer.`);
       return;
     }
-
     if (body.trim().length > BODY_MAX_LENGTH) {
-      setValidationError(`Body must be ${BODY_MAX_LENGTH} characters or fewer.`);
+      setValidationError(`Message must be ${BODY_MAX_LENGTH} characters or fewer.`);
       return;
     }
 
@@ -204,86 +273,68 @@ function NewMessageComposer({
   };
 
   return (
-    <motion.form
-      initial={{ opacity: 0, y: -12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      onSubmit={handleSubmit}
-      className="rounded border border-red-900 bg-black/70 p-4 shadow-xl"
-    >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-2xl text-red-300">
-          <FaEnvelope />
-          New Message
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-2 text-gray-300 transition hover:bg-red-950 hover:text-white"
-          aria-label="Close new message composer"
-        >
-          <FaTimes />
+    <form onSubmit={handleSubmit} className="inbox-compose" ref={rootRef}>
+      <div className="inbox-view-header">
+        <button type="button" onClick={onCancel} className="inbox-back-button" aria-label="Back to inbox">
+          <FaArrowLeft />
         </button>
+        <h3>New message</h3>
       </div>
 
-      <div className="grid gap-4">
-        <label className="grid gap-2 text-sm text-gray-300">
-          Username
-          <input
-            value={recipientUsername}
-            onChange={(event) => setRecipientUsername(event.target.value)}
-            className="rounded border border-red-950 bg-gray-950 px-3 py-2 text-base text-white outline-none transition focus:border-red-500"
-            placeholder="recipient_username"
-            autoComplete="off"
-          />
-        </label>
-
-        <label className="grid gap-2 text-sm text-gray-300">
-          Subject
-          <input
-            value={subject}
-            onChange={(event) => setSubject(event.target.value)}
-            maxLength={SUBJECT_MAX_LENGTH}
-            className="rounded border border-red-950 bg-gray-950 px-3 py-2 text-base text-white outline-none transition focus:border-red-500"
-            placeholder="Optional"
-          />
-        </label>
-
-        <label className="grid gap-2 text-sm text-gray-300">
-          Message
-          <textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            maxLength={BODY_MAX_LENGTH}
-            className="min-h-36 resize-y rounded border border-red-950 bg-gray-950 px-3 py-2 text-base text-white outline-none transition focus:border-red-500"
-            placeholder="Write your message"
-          />
-        </label>
-      </div>
+      <label className="inbox-field">
+        To
+        <input
+          value={recipientUsername}
+          onChange={(event) => setRecipientUsername(event.target.value)}
+          placeholder="Their username"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          autoFocus
+        />
+      </label>
+      <label className="inbox-field">
+        Subject <span>optional</span>
+        <input
+          value={subject}
+          onChange={(event) => setSubject(event.target.value)}
+          maxLength={SUBJECT_MAX_LENGTH}
+          placeholder="What's it about?"
+        />
+      </label>
+      <label className="inbox-field">
+        Message
+        <textarea
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          maxLength={BODY_MAX_LENGTH}
+          rows={6}
+          placeholder="Say something spooky"
+        />
+      </label>
 
       {(validationError || createConversation.error) && (
-        <div className="mt-4 text-sm text-red-300">
+        <p className="inbox-error" role="alert">
           {validationError || (createConversation.error as Error).message}
-        </div>
+        </p>
       )}
 
-      <div className="mt-4 flex justify-end">
-        <button
-          type="submit"
-          disabled={createConversation.isPending}
-          className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-4 py-2 font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <FaPaperPlane />
+      <div className="inbox-compose-actions">
+        <button type="button" onClick={onCancel} className="inbox-secondary-button">
+          Cancel
+        </button>
+        <button type="submit" disabled={createConversation.isPending} className="inbox-primary-button">
+          <FaPaperPlane aria-hidden="true" />
           {createConversation.isPending ? "Sending" : "Send"}
         </button>
       </div>
-    </motion.form>
+    </form>
   );
 }
 
 function ReplyComposer({ conversationId }: { conversationId: number }) {
   const [body, setBody] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const replyMutation = useMutation({
@@ -294,91 +345,142 @@ function ReplyComposer({ conversationId }: { conversationId: number }) {
       ),
     onSuccess: async () => {
       setBody("");
-      setValidationError(null);
+      setError(null);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["inbox", "conversations"] }),
-        queryClient.invalidateQueries({
-          queryKey: ["inbox", "messages", conversationId],
-        }),
+        queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY }),
+        queryClient.invalidateQueries({ queryKey: messagesKey(conversationId) }),
       ]);
     },
+    onError: (mutationError) => setError((mutationError as Error).message),
   });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setValidationError(null);
-
-    if (!body.trim()) {
-      setValidationError("Reply body is required.");
-      return;
-    }
-
+  const send = () => {
+    if (!body.trim() || replyMutation.isPending) return;
     if (body.trim().length > BODY_MAX_LENGTH) {
-      setValidationError(`Reply must be ${BODY_MAX_LENGTH} characters or fewer.`);
+      setError(`Reply must be ${BODY_MAX_LENGTH} characters or fewer.`);
       return;
     }
-
     replyMutation.mutate();
   };
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    send();
+  };
+
+  // Ctrl/Cmd+Enter sends; plain Enter keeps adding lines
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      send();
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="mt-5 border-t border-red-950 pt-5">
-      <label className="grid gap-2 text-sm text-gray-300">
-        Reply
-        <textarea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          maxLength={BODY_MAX_LENGTH}
-          className="min-h-28 resize-y rounded border border-red-950 bg-gray-950 px-3 py-2 text-base text-white outline-none transition focus:border-red-500"
-          placeholder="Write a reply"
-        />
-      </label>
-
-      {(validationError || replyMutation.error) && (
-        <div className="mt-3 text-sm text-red-300">
-          {validationError || (replyMutation.error as Error).message}
-        </div>
-      )}
-
-      <div className="mt-3 flex justify-end">
-        <button
-          type="submit"
-          disabled={replyMutation.isPending}
-          className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-4 py-2 font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <FaReply />
-          {replyMutation.isPending ? "Replying" : "Reply"}
-        </button>
-      </div>
+    <form onSubmit={handleSubmit} className="inbox-reply">
+      <textarea
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        onKeyDown={handleKeyDown}
+        maxLength={BODY_MAX_LENGTH}
+        rows={Math.min(5, Math.max(1, body.split("\n").length))}
+        placeholder="Write a reply"
+        aria-label="Reply"
+      />
+      <button
+        type="submit"
+        disabled={!body.trim() || replyMutation.isPending}
+        className="inbox-send-button"
+        aria-label="Send reply"
+      >
+        <FaPaperPlane />
+      </button>
+      {error && <p className="inbox-error inbox-reply-error" role="alert">{error}</p>}
     </form>
   );
 }
 
 function ConversationThread({
+  conversationId,
   conversation,
   currentUserId,
+  onBack,
 }: {
-  conversation: InboxConversation;
+  conversationId: number;
+  conversation: InboxConversation | null;
   currentUserId: string | null;
+  onBack: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [claimErrorByRewardId, setClaimErrorByRewardId] = useState<
-    Record<number, string>
-  >({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const restoreScrollFrom = useRef<number | null>(null);
+  const newestShownId = useRef<number | null>(null);
+  const [claimErrorByRewardId, setClaimErrorByRewardId] = useState<Record<number, string>>({});
 
-  const messagesQuery = useQuery<{ data: InboxMessage[] }>({
-    queryKey: ["inbox", "messages", conversation.id],
-    queryFn: () =>
-      inboxGet<{ data: InboxMessage[] }>(
-        `/inbox/conversations/${conversation.id}/messages`
+  // Pages go newest-first: the first page is the latest messages, older pages load on demand
+  const messagesQuery = useInfiniteQuery({
+    queryKey: messagesKey(conversationId),
+    queryFn: ({ pageParam }) =>
+      inboxGet<Page<InboxMessage>>(
+        `/inbox/conversations/${conversationId}/messages?limit=${MESSAGES_PAGE_SIZE}` +
+          (pageParam ? `&beforeMessageId=${pageParam}` : "")
       ),
+    initialPageParam: null as number | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore && lastPage.data.length > 0 ? lastPage.data[0].id : undefined,
+    refetchInterval: 1000 * 20,
   });
+
+  const messages = useMemo(
+    () => [...(messagesQuery.data?.pages || [])].reverse().flatMap((page) => page.data),
+    [messagesQuery.data]
+  );
+  const rootRef = useScrollIntoViewOnOpen<HTMLDivElement>(!messagesQuery.isLoading);
+
+  const markRead = useMutation({
+    mutationFn: () => inboxPost(`/inbox/conversations/${conversationId}/read`),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY }),
+        queryClient.invalidateQueries({ queryKey: ["inbox", "unread-count"] }),
+      ]),
+  });
+
+  const unreadCount = conversation?.unreadCount || 0;
+  useEffect(() => {
+    if (unreadCount > 0 && !markRead.isPending) markRead.mutate();
+    // Only react to the unread count; the mutation object changes every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, unreadCount]);
+
+  // Keep the reader at the newest message, but hold position when older messages load above
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    if (!container || messages.length === 0) return;
+    if (restoreScrollFrom.current !== null) {
+      container.scrollTop = container.scrollHeight - restoreScrollFrom.current;
+      restoreScrollFrom.current = null;
+      return;
+    }
+    const newestId = messages[messages.length - 1].id;
+    if (newestShownId.current !== newestId) {
+      newestShownId.current = newestId;
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages]);
+
+  const loadOlder = () => {
+    if (scrollRef.current) {
+      restoreScrollFrom.current = scrollRef.current.scrollHeight - scrollRef.current.scrollTop;
+    }
+    messagesQuery.fetchNextPage();
+  };
 
   const claimMutation = useMutation({
     mutationFn: ({ rewardId }: { rewardId: number }) =>
-      inboxPost<{
-        data: { reward: InboxReward; coinBalance: number | null };
-      }>(`/inbox/rewards/${rewardId}/claim`),
+      inboxPost<{ data: { reward: InboxReward; coinBalance: number | null } }>(
+        `/inbox/rewards/${rewardId}/claim`
+      ),
     onSuccess: async (_data, variables) => {
       setClaimErrorByRewardId((current) => {
         const next = { ...current };
@@ -400,309 +502,238 @@ function ConversationThread({
     },
   });
 
-  if (messagesQuery.isLoading) {
-    return (
-      <div className="relative min-h-56">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (messagesQuery.error) {
-    return (
-      <div className="rounded border border-red-900 bg-red-950/40 p-4 text-red-100">
-        {(messagesQuery.error as Error).message}
-      </div>
-    );
-  }
-
-  const messages = messagesQuery.data?.data || [];
+  const title = conversation ? conversationTitle(conversation, currentUserId) : "Conversation";
+  const participant = conversation
+    ? participantName(conversation.participants, currentUserId)
+    : null;
+  // Unknown until the list loads (deep link); the server still enforces it on send
+  const repliesEnabled = conversation ? conversation.repliesEnabled : true;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      className="overflow-hidden border-t border-red-950 bg-black/30"
-    >
-      <div className="space-y-4 p-4">
-        {messages.length === 0 ? (
-          <div className="rounded border border-gray-800 bg-gray-950 p-4 text-gray-300">
-            No messages found.
-          </div>
-        ) : (
-          messages.map((message) => {
-            const isMine = message.senderUserId === currentUserId;
-            const senderName =
-              message.senderType === "admin" || message.senderType === "system"
-                ? "Scareathon"
-                : message.senderUsername || (isMine ? "You" : "Unknown");
-
-            return (
-              <div
-                key={message.id}
-                className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-full rounded border p-4 sm:max-w-[82%] ${
-                    isMine
-                      ? "border-red-800 bg-red-950/50"
-                      : "border-gray-800 bg-gray-950"
-                  }`}
-                >
-                  <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-400">
-                    <span className="font-bold text-gray-200">{senderName}</span>
-                    <span>{formatDateTime(message.createdAt)}</span>
-                  </div>
-                  <p className="whitespace-pre-wrap break-words text-gray-100">
-                    {message.body}
-                  </p>
-                  {message.reward && (
-                    <MessageRewardCard
-                      reward={message.reward}
-                      onClaim={(reward) =>
-                        claimMutation.mutate({ rewardId: reward.id })
-                      }
-                      isClaiming={
-                        claimMutation.isPending &&
-                        claimMutation.variables?.rewardId === message.reward.id
-                      }
-                      error={claimErrorByRewardId[message.reward.id] || null}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-
-        {conversation.repliesEnabled ? (
-          <ReplyComposer conversationId={conversation.id} />
-        ) : null}
+    <div className="inbox-thread" ref={rootRef}>
+      <div className="inbox-view-header">
+        <button type="button" onClick={onBack} className="inbox-back-button" aria-label="Back to inbox">
+          <FaArrowLeft />
+        </button>
+        <div className="inbox-thread-title">
+          <h3>{title}</h3>
+          {participant && participant !== title && <p>{participant}</p>}
+        </div>
       </div>
-    </motion.div>
+
+      <div className="inbox-messages" ref={scrollRef}>
+        {messagesQuery.isLoading ? (
+          <div className="inbox-center"><LoadingSpinner /></div>
+        ) : messagesQuery.error ? (
+          <p className="inbox-error">{(messagesQuery.error as Error).message}</p>
+        ) : (
+          <>
+            {messagesQuery.hasNextPage && (
+              <button
+                type="button"
+                className="inbox-load-more"
+                onClick={loadOlder}
+                disabled={messagesQuery.isFetchingNextPage}
+              >
+                {messagesQuery.isFetchingNextPage ? "Loading…" : "Load older messages"}
+              </button>
+            )}
+            {messages.length === 0 && <p className="inbox-muted inbox-center">No messages yet.</p>}
+            {messages.map((message) => {
+              const isMine = message.senderUserId === currentUserId;
+              const fromScareathon = isFromScareathon(message.senderType);
+              const senderName = fromScareathon
+                ? "Scareathon"
+                : isMine
+                  ? "You"
+                  : message.senderUsername || "Unknown";
+
+              return (
+                <div key={message.id} className={`inbox-bubble-row ${isMine ? "is-mine" : ""}`}>
+                  <div className={`inbox-bubble ${isMine ? "is-mine" : ""} ${fromScareathon ? "is-scareathon" : ""}`}>
+                    <div className="inbox-bubble-meta">
+                      <strong>{senderName}</strong>
+                      <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+                    </div>
+                    <p>{message.body}</p>
+                    {message.reward && (
+                      <RewardCard
+                        reward={message.reward}
+                        onClaim={(reward) => claimMutation.mutate({ rewardId: reward.id })}
+                        isClaiming={
+                          claimMutation.isPending &&
+                          claimMutation.variables?.rewardId === message.reward.id
+                        }
+                        error={claimErrorByRewardId[message.reward.id] || null}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {repliesEnabled ? (
+        <ReplyComposer conversationId={conversationId} />
+      ) : null}
+    </div>
   );
 }
 
-function ConversationCard({
+function ConversationRow({
   conversation,
   currentUserId,
-  isSelected,
-  onSelect,
+  onOpen,
 }: {
   conversation: InboxConversation;
   currentUserId: string | null;
-  isSelected: boolean;
-  onSelect: (conversation: InboxConversation) => void;
+  onOpen: (conversationId: number) => void;
 }) {
-  const title = conversationTitle(conversation, currentUserId);
-  const preview =
-    conversation.latestMessage?.body || "Open this conversation to read more.";
-  const participant = participantName(conversation.participants, currentUserId);
+  const latest = conversation.latestMessage;
+  const fromScareathon =
+    conversation.conversationType === "admin_dm" ||
+    (latest ? isFromScareathon(latest.senderType) : false);
+  const name = participantName(conversation.participants, currentUserId);
+  const isUnread = conversation.unreadCount > 0;
+  const previewPrefix = latest && latest.senderUserId === currentUserId ? "You: " : "";
 
   return (
-    <motion.article
-      layout
-      className="overflow-hidden rounded border border-red-950 bg-black/70 shadow-xl"
-    >
+    <li>
       <button
         type="button"
-        onClick={() => onSelect(conversation)}
-        className="grid w-full gap-3 p-4 text-left transition hover:bg-red-950/30"
+        onClick={() => onOpen(conversation.id)}
+        className={`inbox-row ${isUnread ? "is-unread" : ""}`}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="break-words text-2xl text-red-200">{title}</h2>
-            <div className="mt-1 text-sm text-gray-400">{participant}</div>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {conversation.unreadCount > 0 && (
-              <span className="rounded-full bg-red-600 px-3 py-1 text-sm font-bold text-white">
-                {conversation.unreadCount} unread
-              </span>
+        <Avatar name={name} fromScareathon={fromScareathon} />
+        <span className="inbox-row-main">
+          <span className="inbox-row-top">
+            <span className="inbox-row-title">{conversationTitle(conversation, currentUserId)}</span>
+            <time dateTime={conversation.updatedAt}>
+              {formatListTime(latest?.createdAt || conversation.updatedAt)}
+            </time>
+          </span>
+          <span className="inbox-row-bottom">
+            <span className="inbox-row-preview">
+              {previewPrefix}
+              {latest?.body || "Open to read"}
+            </span>
+            {conversation.pendingReward && (
+              <span className="inbox-chip is-reward"><FaGift aria-hidden="true" /> Reward</span>
             )}
             {!conversation.repliesEnabled && (
-              <span className="inline-flex items-center gap-1 rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">
-                <FaLock />
-                No reply
-              </span>
+              <FaLock className="inbox-row-lock" aria-label="Replies off" />
             )}
-            {conversation.pendingReward && (
-              <span className="inline-flex items-center gap-1 rounded border border-amber-500 bg-amber-950/60 px-2 py-1 text-xs text-amber-200">
-                <FaGift />
-                Reward
-              </span>
-            )}
-          </div>
-        </div>
-
-        <p className="line-clamp-2 break-words text-gray-300">{preview}</p>
-        {conversation.latestMessage && (
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-            <span>{formatDateTime(conversation.latestMessage.createdAt)}</span>
-            {conversation.pendingReward?.coinAmount && (
-              <span className="inline-flex items-center gap-1 text-amber-300">
-                <FaCoins />
-                {conversation.pendingReward.coinAmount.toLocaleString()}
-              </span>
-            )}
-          </div>
-        )}
+            {isUnread && <span className="inbox-unread-dot">{conversation.unreadCount}</span>}
+          </span>
+        </span>
       </button>
-
-      <AnimatePresence initial={false}>
-        {isSelected && (
-          <ConversationThread
-            conversation={conversation}
-            currentUserId={currentUserId}
-          />
-        )}
-      </AnimatePresence>
-    </motion.article>
+    </li>
   );
 }
 
-export function InboxContent({ embedded = false }: { embedded?: boolean }) {
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isComposing, setIsComposing] = useState(false);
-  const [selectedConversationId, setSelectedConversationId] = useState<
-    number | null
-  >(null);
-  const queryClient = useQueryClient();
+export function InboxContent() {
+  const currentUserId = useCurrentUserId();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = Number(searchParams.get("c")) || null;
+  const isComposing = searchParams.get("compose") === "1";
 
-  useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data }) => setCurrentUserId(data.session?.user.id || null));
-  }, []);
-
-  const conversationsQuery = useQuery<{ data: InboxConversation[] }>({
-    queryKey: ["inbox", "conversations"],
-    queryFn: () =>
-      inboxGet<{ data: InboxConversation[] }>(
-        "/inbox/conversations?limit=25"
+  const conversationsQuery = useInfiniteQuery({
+    queryKey: CONVERSATIONS_KEY,
+    queryFn: ({ pageParam }) =>
+      inboxGet<Page<InboxConversation>>(
+        `/inbox/conversations?limit=${CONVERSATIONS_PAGE_SIZE}&offset=${pageParam}`
       ),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.hasMore ? allPages.length * CONVERSATIONS_PAGE_SIZE : undefined,
     staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
   });
 
   const conversations = useMemo(
-    () => conversationsQuery.data?.data || [],
+    () => conversationsQuery.data?.pages.flatMap((page) => page.data) || [],
     [conversationsQuery.data]
   );
 
-  const markReadMutation = useMutation({
-    mutationFn: (conversationId: number) =>
-      inboxPost<{ data: { conversationId: number; readAt: string } }>(
-        `/inbox/conversations/${conversationId}/read`
-      ),
-    onSuccess: async (_data, conversationId) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["inbox", "conversations"] }),
-        queryClient.invalidateQueries({
-          queryKey: ["inbox", "messages", conversationId],
-        }),
-      ]);
-    },
-  });
+  // Views live in the URL so the phone's back button returns to the list
+  const openConversation = (conversationId: number) => setSearchParams({ c: String(conversationId) });
+  const openComposer = () => setSearchParams({ compose: "1" });
+  const backToList = () => setSearchParams({});
 
-  const handleSelectConversation = (conversation: InboxConversation) => {
-    setSelectedConversationId((current) =>
-      current === conversation.id ? null : conversation.id
+  if (isComposing) {
+    return (
+      <div className="inbox">
+        <NewMessageComposer onCancel={backToList} onCreated={openConversation} />
+      </div>
     );
+  }
 
-    if (conversation.unreadCount > 0) {
-      markReadMutation.mutate(conversation.id);
-    }
-  };
-
-  const handleCreatedConversation = (conversationId: number) => {
-    setIsComposing(false);
-    setSelectedConversationId(conversationId);
-  };
+  if (selectedId) {
+    return (
+      <div className="inbox">
+        <ConversationThread
+          key={selectedId}
+          conversationId={selectedId}
+          conversation={conversations.find((conversation) => conversation.id === selectedId) || null}
+          currentUserId={currentUserId}
+          onBack={backToList}
+        />
+      </div>
+    );
+  }
 
   if (conversationsQuery.isLoading) {
-    return <LoadingSpinner />;
+    return <div className="inbox inbox-center"><LoadingSpinner /></div>;
   }
 
   if (conversationsQuery.error) {
-    return (
-      <ErrorDisplay message={(conversationsQuery.error as Error).message} />
-    );
-  }
-
-  const content = (
-    <div
-      className={`mx-auto flex w-full flex-col gap-5 ${
-        embedded ? "max-w-none" : "max-w-3xl"
-      }`}
-    >
-        <motion.header
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-          {!embedded && (
-            <div>
-              <h1 className="text-4xl font-bold text-red-400">Inbox</h1>
-              <p className="mt-1 text-sm text-gray-400">
-                Messages, replies, and claimable rewards.
-              </p>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setIsComposing((current) => !current)}
-            className="inline-flex items-center justify-center gap-2 rounded bg-red-700 px-4 py-2 font-bold text-white transition hover:bg-red-600 sm:ml-auto"
-          >
-            {isComposing ? <FaTimes /> : <FaPlus />}
-            {isComposing ? "Close" : "New Message"}
-          </button>
-        </motion.header>
-
-        <AnimatePresence>
-          {isComposing && (
-            <NewMessageComposer
-              onClose={() => setIsComposing(false)}
-              onCreated={handleCreatedConversation}
-            />
-          )}
-        </AnimatePresence>
-
-        {conversations.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded border border-red-950 bg-black/70 p-8 text-center shadow-xl"
-          >
-            <FaEnvelope className="mx-auto mb-4 text-4xl text-red-500" />
-            <h2 className="text-2xl text-red-200">No messages yet</h2>
-            <p className="mt-2 text-gray-400">
-              Start a new message to open a conversation with another player.
-            </p>
-          </motion.div>
-        ) : (
-          <motion.div layout className="grid gap-4">
-            {conversations.map((conversation) => (
-              <ConversationCard
-                key={conversation.id}
-                conversation={conversation}
-                currentUserId={currentUserId}
-                isSelected={selectedConversationId === conversation.id}
-                onSelect={handleSelectConversation}
-              />
-            ))}
-          </motion.div>
-        )}
-      </div>
-  );
-
-  if (embedded) {
-    return <div className="text-gray-100">{content}</div>;
+    return <ErrorDisplay message={(conversationsQuery.error as Error).message} />;
   }
 
   return (
-    <AnimatedPage className="min-h-screen bg-black px-4 py-8 text-gray-100">
-      {content}
-    </AnimatedPage>
+    <div className="inbox">
+      <div className="inbox-toolbar">
+        <span className="inbox-muted">
+          {conversations.length === 0
+            ? "Nothing here yet"
+            : `${conversations.length}${conversationsQuery.hasNextPage ? "+" : ""} conversation${conversations.length === 1 && !conversationsQuery.hasNextPage ? "" : "s"}`}
+        </span>
+        <button type="button" onClick={openComposer} className="inbox-primary-button">
+          <FaPen aria-hidden="true" /> New message
+        </button>
+      </div>
+
+      {conversations.length === 0 ? (
+        <div className="inbox-empty">
+          <FaEnvelopeOpenText aria-hidden="true" />
+          <p>No messages yet</p>
+          <span>Rewards and notes from Scareathon show up here, and you can message other players by username.</span>
+        </div>
+      ) : (
+        <ul className="inbox-list">
+          {conversations.map((conversation) => (
+            <ConversationRow
+              key={conversation.id}
+              conversation={conversation}
+              currentUserId={currentUserId}
+              onOpen={openConversation}
+            />
+          ))}
+        </ul>
+      )}
+
+      {conversationsQuery.hasNextPage && (
+        <button
+          type="button"
+          className="inbox-load-more"
+          onClick={() => conversationsQuery.fetchNextPage()}
+          disabled={conversationsQuery.isFetchingNextPage}
+        >
+          {conversationsQuery.isFetchingNextPage ? "Loading…" : "Load more conversations"}
+        </button>
+      )}
+    </div>
   );
 }

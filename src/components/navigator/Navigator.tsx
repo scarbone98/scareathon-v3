@@ -4,16 +4,11 @@ import { useNavigatorContext } from "./context";
 import { mobileNavItems, navItems, profileNavItem } from "./navItems";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
 import { getAvatarCompositePublicUrl } from "../avatar/avatarComposite";
 import { siteContainerClassName } from "../PageContainer";
+import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 
-type InboxSummary = {
-  data: Array<{
-    unreadCount?: number;
-  }>;
-};
 
 export const Navigator = () => {
   const location = useLocation();
@@ -25,26 +20,6 @@ export const Navigator = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [avatarImageFailed, setAvatarImageFailed] = useState(false);
 
-  const { data: inboxSummary } = useQuery<InboxSummary>({
-    queryKey: ["inbox", "conversations"],
-    queryFn: async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        return { data: [] };
-      }
-
-      const response = await fetchWithAuth("/inbox/conversations?limit=25");
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to load inbox");
-      }
-      return data;
-    },
-    staleTime: 1000 * 30,
-  });
 
   const { data: avatarCompositeUrl } = useQuery<string | null>({
     queryKey: ["avatar", "compositeUrl"],
@@ -113,11 +88,7 @@ export const Navigator = () => {
       (location.pathname.startsWith(item.path) && item.path !== "/") ||
       (item.path === "/" && location.pathname === "/")
   );
-  const unreadInboxCount =
-    inboxSummary?.data.reduce(
-      (total, conversation) => total + (conversation.unreadCount || 0),
-      0
-    ) || 0;
+  const unreadInboxCount = useInboxUnreadCount();
 
   const renderProfileLabel = () => (
     <>
