@@ -12,6 +12,8 @@ export function isPublicRoute(method, url) {
         url.startsWith('/admin/strapi') ||
         (method === 'GET' && url.startsWith('/weekly-challenges/current')) ||
         (method === 'GET' && url.startsWith('/content-loop')) ||
+        // Monster Bash spectating (the live socket and past results) is open to guests.
+        (method === 'GET' && url.startsWith('/monster-bash/')) ||
         method === 'OPTIONS'
     );
 }

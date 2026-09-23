@@ -16,4 +16,10 @@ describe('auth route rules', () => {
         expect(isPublicRoute('OPTIONS', '/inbox/conversations')).toBe(true);
         expect(isPublicRoute('GET', '/inbox/conversations')).toBe(false);
     });
+
+    test('monster bash spectating is open, anything else there is not', () => {
+        expect(isPublicRoute('GET', '/monster-bash/ws')).toBe(true);
+        expect(isPublicRoute('GET', '/monster-bash/recent')).toBe(true);
+        expect(isPublicRoute('POST', '/monster-bash/bets')).toBe(false);
+    });
 });
