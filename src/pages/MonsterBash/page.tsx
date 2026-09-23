@@ -9,6 +9,9 @@ import { SiteContainer } from "../../components/PageContainer";
 import Arena from "./arena/Arena";
 import { connectLocalFeed } from "./feed/localFeed";
 import { connectSocketFeed } from "./feed/socketFeed";
+import { usePlayerAccount, useSession } from "./account";
+import BetSlip from "./BetSlip";
+import Chat from "./Chat";
 import FighterPortrait from "./FighterPortrait";
 import { MatchStore, type LiveMatch, type MatchPhase } from "./matchStore";
 import OddsChart from "./OddsChart";
@@ -151,18 +154,62 @@ function RecentResults({ history }: { history: { id: string; fighters: [string, 
   );
 }
 
+function useIsDesktop() {
+  const query = "(min-width: 1024px)";
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const onChange = () => setMatches(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+  return matches;
+}
+
 export default function MonsterBash() {
   const [store] = useState(() => new MatchStore());
-  const { match, history, viewers, connection } = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const { match, history, viewers, connection, chat, settledMatchId } = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot
+  );
   const { tick, phase } = usePlaybackClock(store);
+  const isDesktop = useIsDesktop();
   // `?preview=local` runs bouts in the browser, for working on the page offline.
   const [localPreview] = useState(() => new URLSearchParams(window.location.search).get("preview") === "local");
+  const session = useSession();
+  const signedIn = Boolean(session);
+  const { account, setAccount, failed: accountFailed, refresh: refreshAccount } = usePlayerAccount(signedIn && !localPreview, match?.id ?? null, settledMatchId);
 
   useEffect(
     () => (localPreview ? connectLocalFeed(store) : connectSocketFeed(store)),
     [store, localPreview]
   );
   const reconnecting = connection === "reconnecting";
+  const secondsToClose = match?.bettingClosesAt
+    ? Math.max(0, Math.ceil((match.bettingClosesAt - (Date.now() + store.clockOffsetMs)) / 1000))
+    : 0;
+
+  const betSlip = match && !localPreview && (
+    <BetSlip
+      match={match}
+      phase={phase}
+      secondsToClose={secondsToClose}
+      signedIn={signedIn}
+      account={account}
+      accountFailed={accountFailed}
+      onRetry={refreshAccount}
+      onBetPlaced={setAccount}
+    />
+  );
+  const chatPanel = !localPreview && (
+    <Chat messages={chat} signedIn={signedIn} className={isDesktop ? "h-[32rem]" : "h-96"} />
+  );
+  const details = (
+    <div className="grid gap-4 md:grid-cols-2">
+      {match && <TaleOfTheTape match={match} />}
+      <RecentResults history={history} />
+    </div>
+  );
 
   return (
     <AnimatedPage className="bg-[#07030c]">
@@ -171,7 +218,7 @@ export default function MonsterBash() {
           <div>
             <p className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">Monster Bash</p>
             <p className="text-sm text-purple-200/70">
-              Monsters fight it out around the clock. Watch the odds swing live.
+              Monsters fight it out around the clock. Bet your coins and watch the odds swing live.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -197,22 +244,34 @@ export default function MonsterBash() {
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr),320px]">
-          <div className="flex min-w-0 flex-col gap-4">
+        {isDesktop ? (
+          <div className="grid grid-cols-[minmax(0,1fr),340px] gap-4">
+            <div className="flex min-w-0 flex-col gap-4">
+              {match && <Matchup match={match} tick={tick} phase={phase} />}
+              <Arena store={store} />
+              {match && <OddsChart match={match} playbackTick={tick} />}
+              {details}
+            </div>
+            <aside className="flex flex-col gap-4">
+              {betSlip}
+              {chatPanel}
+            </aside>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
             {match && <Matchup match={match} tick={tick} phase={phase} />}
             <Arena store={store} />
+            {betSlip}
             {match && <OddsChart match={match} playbackTick={tick} />}
+            {chatPanel}
+            {details}
           </div>
-          <aside className="flex flex-col gap-4">
-            {match && <TaleOfTheTape match={match} />}
-            <RecentResults history={history} />
-            {localPreview && (
-              <p className="text-xs text-purple-200/50">
-                Local preview: bouts are simulated in your browser, not the live arena.
-              </p>
-            )}
-          </aside>
-        </div>
+        )}
+        {localPreview && (
+          <p className="text-xs text-purple-200/50">
+            Local preview: bouts are simulated in your browser, not the live arena. Betting and chat are off.
+          </p>
+        )}
       </SiteContainer>
     </AnimatedPage>
   );

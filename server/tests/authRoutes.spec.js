@@ -21,5 +21,7 @@ describe('auth route rules', () => {
         expect(isPublicRoute('GET', '/monster-bash/ws')).toBe(true);
         expect(isPublicRoute('GET', '/monster-bash/recent')).toBe(true);
         expect(isPublicRoute('POST', '/monster-bash/bets')).toBe(false);
+        expect(isPublicRoute('POST', '/monster-bash/chat')).toBe(false);
+        expect(isPublicRoute('GET', '/monster-bash/me')).toBe(false);
     });
 });

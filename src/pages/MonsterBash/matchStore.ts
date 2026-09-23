@@ -19,6 +19,29 @@ export type MatchInfo = {
   bettingClosesAt?: number;
   /** sha256 of the secret seed, published before the fight for verification. */
   seedHash?: string;
+  /** Coins staked on each side; absent in the local preview. */
+  pools?: BetPools;
+};
+
+export type BetPools = {
+  amounts: [number, number];
+  bettors: [number, number];
+};
+
+export type ChatMessage = {
+  id: number;
+  text: string;
+  at: number;
+  name?: string;
+  /** Announcements from the arena (payouts, refunds). */
+  system?: boolean;
+};
+
+export type SettlementSummary = {
+  settled: number;
+  pool: number;
+  winningPool: number;
+  refunded: boolean;
 };
 
 export type MatchResult = {
@@ -38,7 +61,11 @@ export type FeedMessage =
   | { type: "viewers"; count: number }
   | { type: "match"; match: MatchInfo; odds: OddsPoint[] }
   | { type: "chunk"; chunk: MatchChunk }
-  | { type: "result"; matchId: string; result: MatchResult };
+  | { type: "result"; matchId: string; result: MatchResult }
+  | { type: "pool"; matchId: string; pools: BetPools }
+  | { type: "settled"; matchId: string; summary: SettlementSummary }
+  | { type: "chat"; message: ChatMessage }
+  | { type: "chatHistory"; messages: ChatMessage[] };
 
 export type LiveMatch = MatchInfo & {
   frames: FightFrame[];
@@ -62,10 +89,14 @@ type Snapshot = {
   history: FinishedMatch[];
   viewers: number | null;
   connection: FeedConnection;
+  chat: ChatMessage[];
+  /** The last bout whose bets were paid out; the page refreshes balances on change. */
+  settledMatchId: string | null;
   version: number;
 };
 
 const HISTORY_LIMIT = 8;
+const CHAT_LIMIT = 100;
 
 // Holds the match being shown. Feeds push messages in; React reads it through
 // useSyncExternalStore and the Phaser arena reads it directly every frame.
@@ -75,6 +106,8 @@ export class MatchStore {
     history: [],
     viewers: null,
     connection: "connecting",
+    chat: [],
+    settledMatchId: null,
     version: 0,
   };
   private listeners = new Set<() => void>();
@@ -113,6 +146,21 @@ export class MatchStore {
       return;
     }
 
+    if (message.type === "chatHistory") {
+      this.commit({ chat: message.messages.slice(-CHAT_LIMIT) });
+      return;
+    }
+
+    if (message.type === "chat") {
+      this.commit({ chat: [...this.snapshot.chat, message.message].slice(-CHAT_LIMIT) });
+      return;
+    }
+
+    if (message.type === "settled") {
+      this.commit({ settledMatchId: message.matchId });
+      return;
+    }
+
     if (message.type === "match") {
       const isNewBout = current?.id !== message.match.id;
       const alreadyListed = this.snapshot.history.some((bout) => bout.id === current?.id);
@@ -147,6 +195,11 @@ export class MatchStore {
       current.events.push(...events);
       current.odds.push(...odds);
       this.commit({ match: { ...current } });
+      return;
+    }
+
+    if (message.type === "pool" && message.matchId === current.id) {
+      this.commit({ match: { ...current, pools: message.pools } });
       return;
     }
 

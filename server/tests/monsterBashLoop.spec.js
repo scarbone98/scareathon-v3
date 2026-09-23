@@ -1,7 +1,8 @@
 import { jest } from '@jest/globals';
 import { ENGINE_VERSION, TICK_RATE, simulateFight } from '../shared/monster-bash/index.js';
 import { MonsterBashLoop, hashSeed, pickFighters } from '../monsterBash/matchLoop.js';
-import { ACTIVE_MATCH_CONFLICT } from '../monsterBash/repository.js';
+import { ACTIVE_MATCH_CONFLICT, BetRefusedError } from '../monsterBash/repository.js';
+import { createChatRoom } from '../monsterBash/chatRoom.js';
 
 const BETTING_MS = 5_000;
 const RESULT_MS = 3_000;
@@ -36,6 +37,21 @@ function createFakeRepo(openMatches = []) {
         }),
         listRecent: jest.fn(async () => []),
         pruneOlderThan: jest.fn(async () => 0),
+        bets: [],
+        placeBet: jest.fn(async function placeBet(bet) {
+            this.bets.push(bet);
+            return { betId: this.bets.length, balance: 1000 - bet.amount };
+        }),
+        poolTotals: jest.fn(async function poolTotals() {
+            const pools = { amounts: [0, 0], bettors: [0, 0] };
+            this.bets.forEach((bet) => {
+                pools.amounts[bet.side] += bet.amount;
+                pools.bettors[bet.side] += 1;
+            });
+            return pools;
+        }),
+        settleMatch: jest.fn(async () => ({ settled: 2, pool: 300, winningPool: 100, refunded: false })),
+        findUnsettledMatchIds: jest.fn(async () => []),
     };
 }
 
@@ -55,6 +71,7 @@ function createLoop(repo, overrides = {}) {
         repo,
         odds: fakeOdds,
         hub: { broadcast: (message) => messages.push(message) },
+        chat: createChatRoom({ lookupUsername: async () => 'Tester' }),
         log: silentLog,
         config: { bettingMs: BETTING_MS, resultMs: RESULT_MS, retryMs: RETRY_MS },
         createSeed: () => `test-seed-${seedCount++}`,
@@ -203,13 +220,89 @@ describe('MonsterBashLoop', () => {
         await loop.start();
         await jest.advanceTimersByTimeAsync(BETTING_MS + 20_000);
 
-        const [hello, match, chunk] = loop.welcomeMessages();
+        const [hello, chatHistory, match, chunk] = loop.welcomeMessages();
+        expect(chatHistory).toEqual({ type: 'chatHistory', messages: [] });
         expect(hello).toMatchObject({ type: 'hello', serverTime: Date.now(), history: [] });
         expect(match.type).toBe('match');
         expect(match.odds.length).toBeGreaterThan(1);
         const frameTicks = chunk.chunk.frames.map((frame) => frame.t);
         expect(Math.max(...frameTicks) - Math.min(...frameTicks)).toBeLessThanOrEqual(5 * TICK_RATE);
         expect(chunk.chunk.events.length).toBe(loop.current.released.events.length);
+        loop.stop();
+    });
+
+    test('takes bets while betting is open and batches pool updates', async () => {
+        const repo = createFakeRepo();
+        const { loop, messages } = createLoop(repo);
+        await loop.start();
+        const matchId = repo.inserted[0].id;
+
+        await loop.placeBet({ userId: 'u1', matchId, side: 0, amount: 100 });
+        await loop.placeBet({ userId: 'u2', matchId, side: 1, amount: 50 });
+        await loop.placeBet({ userId: 'u3', matchId, side: 1, amount: 25 });
+        expect(messages.filter((message) => message.type === 'pool')).toHaveLength(0);
+
+        await jest.advanceTimersByTimeAsync(500);
+        const pools = messages.filter((message) => message.type === 'pool');
+        expect(pools).toEqual([{ type: 'pool', matchId, pools: { amounts: [100, 75], bettors: [1, 2] } }]);
+        expect(loop.welcomeMessages().find((message) => message.type === 'match').match.pools).toEqual({ amounts: [100, 75], bettors: [1, 2] });
+        loop.stop();
+    });
+
+    test('refuses bets on the wrong bout or once betting has closed', async () => {
+        const repo = createFakeRepo();
+        const { loop } = createLoop(repo);
+        await loop.start();
+        const matchId = repo.inserted[0].id;
+
+        await expect(loop.placeBet({ userId: 'u1', matchId: '999', side: 0, amount: 10 })).rejects.toEqual(new BetRefusedError('betting_closed'));
+        await jest.advanceTimersByTimeAsync(BETTING_MS);
+        await expect(loop.placeBet({ userId: 'u1', matchId, side: 0, amount: 10 })).rejects.toEqual(new BetRefusedError('betting_closed'));
+        expect(repo.placeBet).not.toHaveBeenCalled();
+        loop.stop();
+    });
+
+    test('pays out just after spectators see the KO and announces it in chat', async () => {
+        const repo = createFakeRepo();
+        const { loop, messages } = createLoop(repo);
+        await loop.start();
+        const matchId = repo.inserted[0].id;
+
+        await jest.advanceTimersByTimeAsync(BETTING_MS);
+        await playToResult(messages);
+        expect(repo.settleMatch).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(2_500);
+        expect(repo.settleMatch).toHaveBeenCalledWith(matchId);
+        expect(messages).toContainEqual({ type: 'settled', matchId, summary: { settled: 2, pool: 300, winningPool: 100, refunded: false } });
+        const announcement = messages.find((message) => message.type === 'chat');
+        expect(announcement.message).toMatchObject({ system: true, text: 'Payouts sent: 300 coins split among the winners.' });
+        loop.stop();
+    });
+
+    test('retries a failed payout', async () => {
+        const repo = createFakeRepo();
+        repo.settleMatch.mockRejectedValueOnce(new Error('deadlock'));
+        const { loop, messages } = createLoop(repo);
+        await loop.start();
+
+        await jest.advanceTimersByTimeAsync(BETTING_MS);
+        await playToResult(messages);
+        await jest.advanceTimersByTimeAsync(2_500);
+        expect(messages.some((message) => message.type === 'settled')).toBe(false);
+
+        await jest.advanceTimersByTimeAsync(5_000);
+        expect(repo.settleMatch).toHaveBeenCalledTimes(2);
+        expect(messages.some((message) => message.type === 'settled')).toBe(true);
+        loop.stop();
+    });
+
+    test('recovery pays out bouts that still owe coins', async () => {
+        const repo = createFakeRepo();
+        repo.findUnsettledMatchIds.mockResolvedValueOnce(['7', '8']);
+        const { loop } = createLoop(repo);
+        await loop.start();
+        expect(repo.settleMatch.mock.calls).toEqual([['7'], ['8']]);
         loop.stop();
     });
 });
