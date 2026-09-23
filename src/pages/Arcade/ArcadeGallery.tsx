@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, SRGBColorSpace, Vector3 } from "three";
 import type { MeshStandardMaterial } from "three";
+import { createArcadeAmbience, type ArcadeAmbience } from "./arcadeAmbience";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
@@ -176,7 +177,8 @@ const ArcadeGallery: React.FC<Props> = ({
     cameraRef.current = camera;
 
     const renderer = new WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // Phones report 3x; 2x looks the same here and draws far fewer pixels
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     rendererRef.current = renderer;
 
@@ -201,6 +203,8 @@ const ArcadeGallery: React.FC<Props> = ({
     // The cabinet screen is about 1.88:1. Draw each video inside a canvas with
     // that aspect ratio so portrait and 16:9 recordings keep their proportions.
     const marquees: { material: MeshStandardMaterial; texture: CanvasTexture; seed: number }[] = [];
+    let ambience: ArcadeAmbience | null = null;
+    let disposed = false;
 
     const screenVideos = machinesData.map((machine) => {
       if (!machine.videoUrl) return null;
@@ -388,13 +392,26 @@ const ArcadeGallery: React.FC<Props> = ({
       }
 
       machinesRef.current = machines;
+      if (!disposed) {
+        ambience = createArcadeAmbience({
+          scene,
+          ambientLight,
+          machines,
+          neonColors: MARQUEE_NEON_COLORS,
+          glowLevel: (index, time) => marqueeFlicker(time, index),
+        });
+      }
       setFocusedMachine(machinesData[getInitialMachineIndex()] ?? null);
       setIsLoading(false);
     });
 
     let animationFrame: number;
+    let lastFrameTime = performance.now() / 1000;
     const animate = (): void => {
       animationFrame = requestAnimationFrame(animate);
+      const frameTime = performance.now() / 1000;
+      ambience?.update(frameTime, Math.min(frameTime - lastFrameTime, 0.1));
+      lastFrameTime = frameTime;
       screenVideos.forEach((screenVideo) => screenVideo?.updateFrame());
       const time = performance.now() / 1000;
       marquees.forEach(({ material, seed }) => {
@@ -428,6 +445,8 @@ const ArcadeGallery: React.FC<Props> = ({
       window.removeEventListener("resize", handleResize);
       screenVideos.forEach((screenVideo) => screenVideo?.dispose());
       marquees.forEach(({ texture }) => texture.dispose());
+      disposed = true;
+      ambience?.dispose();
       renderer.dispose();
     };
   }, [initialMachineName, machinesData]);
