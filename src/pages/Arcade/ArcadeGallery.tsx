@@ -1,6 +1,7 @@
 // src/components/ArcadeGallery.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
+import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, SRGBColorSpace, Vector3 } from "three";
+import type { MeshStandardMaterial } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
@@ -19,6 +20,90 @@ type Props = {
   machinesData: MachineData[];
   onPlay: (machine: MachineData) => void;
 };
+
+// Neon colours cycle across the cabinets so neighbours never match
+const MARQUEE_NEON_COLORS = ["#ff2d55", "#39ff9f", "#2de2ff", "#c86bff", "#ffa31a"];
+const MARQUEE_GLOW = 1.4;
+
+// Paint a game's name as a neon sign: dark backing, a coloured halo, a brighter
+// inner glow and a near-white core, like a lit glass tube.
+function drawNeonMarquee(canvas: HTMLCanvasElement, name: string, color: string) {
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const { width, height } = canvas;
+
+  context.shadowBlur = 0;
+  const backing = context.createLinearGradient(0, 0, 0, height);
+  backing.addColorStop(0, "#0c0612");
+  backing.addColorStop(1, "#030105");
+  context.fillStyle = backing;
+  context.fillRect(0, 0, width, height);
+
+  const wash = context.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width * 0.45);
+  wash.addColorStop(0, `${color}30`);
+  wash.addColorStop(1, `${color}00`);
+  context.fillStyle = wash;
+  context.fillRect(0, 0, width, height);
+
+  // Thin neon border tube
+  context.strokeStyle = color;
+  context.lineWidth = 5;
+  context.shadowColor = color;
+  context.shadowBlur = 24;
+  context.strokeRect(22, 22, width - 44, height - 44);
+
+  const label = name.replace(/[\u2018\u2019]/g, "'").toUpperCase();
+  let fontSize = 220;
+  context.font = `${fontSize}px Zombie, Creepster, cursive`;
+  while (context.measureText(label).width > width * 0.86 && fontSize > 60) {
+    fontSize -= 6;
+    context.font = `${fontSize}px Zombie, Creepster, cursive`;
+  }
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  const x = width / 2;
+  const y = height / 2 + fontSize * 0.04;
+
+  context.fillStyle = color;
+  for (const blur of [70, 36, 14]) {
+    context.shadowColor = color;
+    context.shadowBlur = blur;
+    context.fillText(label, x, y);
+  }
+  context.shadowColor = "#ffffff";
+  context.shadowBlur = 6;
+  context.fillStyle = "#fff4f8";
+  context.globalAlpha = 0.85;
+  context.fillText(label, x, y);
+  context.globalAlpha = 1;
+}
+
+function createMarqueeTexture(name: string, color: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 340; // about the marquee's 6:1 shape
+  drawNeonMarquee(canvas, name, color);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 8;
+  // The first paint may use a fallback font; repaint once the Zombie web font is ready
+  document.fonts
+    ?.load("220px Zombie")
+    .then(() => {
+      drawNeonMarquee(canvas, name, color);
+      texture.needsUpdate = true;
+    })
+    .catch(() => {});
+  return texture;
+}
+
+// Brief neon flicker every ~9s, staggered per cabinet
+function marqueeFlicker(time: number, seed: number) {
+  const phase = (time + seed * 3.7) % 9;
+  if (phase > 0.45) return 1;
+  return Math.sin(phase * 70) > 0.2 ? 1 : 0.3;
+}
 
 // How much the video is enlarged past "fit the whole frame": trims a little off
 // portrait clips' top and bottom so they read larger on the wide cabinet screen.
@@ -115,6 +200,8 @@ const ArcadeGallery: React.FC<Props> = ({
 
     // The cabinet screen is about 1.88:1. Draw each video inside a canvas with
     // that aspect ratio so portrait and 16:9 recordings keep their proportions.
+    const marquees: { material: MeshStandardMaterial; texture: CanvasTexture; seed: number }[] = [];
+
     const screenVideos = machinesData.map((machine) => {
       if (!machine.videoUrl) return null;
 
@@ -275,6 +362,24 @@ const ArcadeGallery: React.FC<Props> = ({
 
               child.material = newMaterial;
             }
+          } else if (
+            child instanceof Mesh &&
+            child.material &&
+            child.material.name === "Marque"
+          ) {
+            // Light the marquee with the game's name as a neon sign
+            const marquee = child.material.clone() as MeshStandardMaterial;
+            const texture = createMarqueeTexture(
+              machineName,
+              MARQUEE_NEON_COLORS[i % MARQUEE_NEON_COLORS.length]
+            );
+            marquee.map = texture;
+            marquee.emissiveMap = texture;
+            marquee.color = new Color("#ffffff");
+            marquee.emissive = new Color("#ffffff");
+            marquee.emissiveIntensity = MARQUEE_GLOW;
+            child.material = marquee;
+            marquees.push({ material: marquee, texture, seed: i });
           }
         });
 
@@ -291,6 +396,10 @@ const ArcadeGallery: React.FC<Props> = ({
     const animate = (): void => {
       animationFrame = requestAnimationFrame(animate);
       screenVideos.forEach((screenVideo) => screenVideo?.updateFrame());
+      const time = performance.now() / 1000;
+      marquees.forEach(({ material, seed }) => {
+        material.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, seed);
+      });
       // Update the animation mixer
       if (mixerRef.current) {
         mixerRef.current.update(0.016); // Assuming 60fps, adjust if needed
@@ -318,6 +427,7 @@ const ArcadeGallery: React.FC<Props> = ({
       }
       window.removeEventListener("resize", handleResize);
       screenVideos.forEach((screenVideo) => screenVideo?.dispose());
+      marquees.forEach(({ texture }) => texture.dispose());
       renderer.dispose();
     };
   }, [initialMachineName, machinesData]);
