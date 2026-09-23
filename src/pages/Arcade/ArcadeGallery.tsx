@@ -1,6 +1,6 @@
 // src/components/ArcadeGallery.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
+import { BufferGeometry, Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
@@ -19,6 +19,35 @@ type Props = {
   machinesData: MachineData[];
   onPlay: (machine: MachineData) => void;
 };
+
+// The cabinet model maps the middle of its screen to u=0.685 rather than 0.5, so
+// the left 68.5% of a texture lands on one half of the screen and the rest is
+// squeezed into the other. Recompute u from each vertex's x position (the screen
+// runs from u=0 at +x to u=1 at -x) so the video maps evenly across the screen.
+function withEvenScreenUVs(geometry: BufferGeometry) {
+  const evened = geometry.clone();
+  const positions = evened.getAttribute("position");
+  const uvs = evened.getAttribute("uv");
+  if (!positions || !uvs) return evened;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (let i = 0; i < positions.count; i += 1) {
+    minX = Math.min(minX, positions.getX(i));
+    maxX = Math.max(maxX, positions.getX(i));
+  }
+  if (maxX - minX < 1e-6) return evened;
+
+  for (let i = 0; i < uvs.count; i += 1) {
+    uvs.setX(i, (maxX - positions.getX(i)) / (maxX - minX));
+  }
+  uvs.needsUpdate = true;
+  return evened;
+}
+
+// How much the video is enlarged past "fit the whole frame": trims a little off
+// portrait clips' top and bottom so they read larger on the wide cabinet screen.
+const SCREEN_VIDEO_ZOOM = 1.15;
 
 const ArcadeGallery: React.FC<Props> = ({
   initialMachineName,
@@ -128,6 +157,12 @@ const ArcadeGallery: React.FC<Props> = ({
       const context = canvas.getContext("2d");
       context?.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Tiny canvas used as a cheap, cross-browser blur: shrink the frame, then scale it back up
+      const backdrop = document.createElement("canvas");
+      backdrop.width = 32;
+      backdrop.height = 17;
+      const backdropContext = backdrop.getContext("2d");
+
       const texture = new CanvasTexture(canvas);
       // Preserve the orientation used by the cabinet model's screen UVs.
       texture.flipY = true;
@@ -139,21 +174,43 @@ const ArcadeGallery: React.FC<Props> = ({
       const drawFrame = () => {
         if (!context || !video.videoWidth || !video.videoHeight) return;
 
-        const scale = Math.min(
+        const fitScale = Math.min(
           canvas.width / video.videoWidth,
           canvas.height / video.videoHeight
         );
-        const width = video.videoWidth * scale;
-        const height = video.videoHeight * scale;
+        const fillScale = Math.max(
+          canvas.width / video.videoWidth,
+          canvas.height / video.videoHeight
+        );
+
+        // Backdrop: the same footage filling the screen, blurred and dimmed, instead of black bars
         context.fillStyle = "black";
         context.fillRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(
-          video,
-          (canvas.width - width) / 2,
-          (canvas.height - height) / 2,
-          width,
-          height
-        );
+        if (backdropContext) {
+          const backdropScale = fillScale * (backdrop.width / canvas.width);
+          const backdropWidth = video.videoWidth * backdropScale;
+          const backdropHeight = video.videoHeight * backdropScale;
+          backdropContext.drawImage(
+            video,
+            (backdrop.width - backdropWidth) / 2,
+            (backdrop.height - backdropHeight) / 2,
+            backdropWidth,
+            backdropHeight
+          );
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = "high";
+          context.drawImage(backdrop, 0, 0, canvas.width, canvas.height);
+          context.fillStyle = "rgba(0, 0, 0, 0.45)";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Foreground: the whole clip, a little larger than a strict fit but never past filling the screen
+        const scale = Math.min(fitScale * SCREEN_VIDEO_ZOOM, fillScale);
+        const width = video.videoWidth * scale;
+        const height = video.videoHeight * scale;
+        // When the zoom overflows vertically, trim mostly from the bottom: titles and logos sit at the top
+        const top = height > canvas.height ? (canvas.height - height) * 0.2 : (canvas.height - height) / 2;
+        context.drawImage(video, (canvas.width - width) / 2, top, width, height);
         texture.needsUpdate = true;
       };
       video.addEventListener("loadeddata", drawFrame);
@@ -242,6 +299,7 @@ const ArcadeGallery: React.FC<Props> = ({
               newMaterial.map = videoTexture;
 
               child.material = newMaterial;
+              child.geometry = withEvenScreenUVs(child.geometry);
             }
           }
         });
