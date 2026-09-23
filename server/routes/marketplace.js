@@ -176,10 +176,12 @@ async function routes(fastify, options) {
                     COALESCE(minted.count, 0)::INTEGER AS minted_count,
                     COALESCE(owned.count, 0)::INTEGER AS owned_count
                 FROM avatar_items ai
+                -- Copies in circulation only matter for supply-limited items, so skip the count otherwise
                 LEFT JOIN LATERAL (
                     SELECT COUNT(*) AS count
                     FROM user_item_instances uii
                     WHERE uii.item_id = ai.id
+                      AND ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
                 ) minted ON TRUE
                 LEFT JOIN LATERAL (
                     SELECT COUNT(*) AS count
@@ -221,6 +223,8 @@ async function routes(fastify, options) {
         try {
             await client.query('BEGIN');
 
+            // Lock the item before counting copies: counts taken in the locking statement itself
+            // come from before the lock wait, so two buyers could both take the last copy.
             const itemResult = await client.query(`
                 SELECT
                     ai.id,
@@ -242,34 +246,31 @@ async function routes(fastify, options) {
                         WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
                             THEN (ai.metadata->>'supplyLimit')::INTEGER
                         ELSE NULL
-                    END AS supply_limit,
-                    COALESCE(minted.count, 0)::INTEGER AS minted_count,
-                    COALESCE(owned.count, 0)::INTEGER AS owned_count
+                    END AS supply_limit
                 FROM avatar_items ai
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS count
-                    FROM user_item_instances uii
-                    WHERE uii.item_id = ai.id
-                ) minted ON TRUE
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS count
-                    FROM user_item_instances uii
-                    WHERE uii.item_id = ai.id
-                      AND uii.user_id = $2
-                      AND uii.status IN ('owned', 'listed', 'locked')
-                ) owned ON TRUE
                 WHERE ai.id = $1
                   AND ai.release_status = 'released'
                   AND ai.base_price IS NOT NULL
                   AND ai.base_price > 0
                   AND ai.is_default = FALSE
                 FOR UPDATE OF ai
-            `, [itemId, userId]);
+            `, [itemId]);
 
             if (itemResult.rowCount === 0) {
                 await client.query('ROLLBACK');
                 return reply.code(404).send({ error: 'Shop item not found' });
             }
+
+            const countsResult = await client.query(`
+                SELECT
+                    COUNT(*)::INTEGER AS minted_count,
+                    (COUNT(*) FILTER (
+                        WHERE user_id = $2 AND status IN ('owned', 'listed', 'locked')
+                    ))::INTEGER AS owned_count
+                FROM user_item_instances
+                WHERE item_id = $1
+            `, [itemId, userId]);
+            itemResult.rows[0] = { ...itemResult.rows[0], ...countsResult.rows[0] };
 
             const item = itemResult.rows[0];
             if (item.supply_limit !== null && Number(item.minted_count || 0) >= Number(item.supply_limit)) {

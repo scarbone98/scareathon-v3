@@ -16,6 +16,7 @@ import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { AvatarPreview } from "./AvatarPreview";
 import type { AvatarData, AvatarItem, AvatarResponse } from "./types";
+import "../../styles/shop.css";
 
 type ShopItem = AvatarItem & {
   supplyLimit: number | null;
@@ -46,14 +47,6 @@ type PurchaseResponse = {
     itemInstanceId: number;
     coinBalance: number;
   };
-};
-
-const rarityStyles: Record<string, string> = {
-  common: "border-gray-600 text-gray-200",
-  uncommon: "border-green-500 text-green-200",
-  rare: "border-blue-500 text-blue-200",
-  epic: "border-purple-500 text-purple-200",
-  legendary: "border-amber-400 text-amber-200",
 };
 
 const classifications = [
@@ -218,27 +211,22 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
   }, [onPreviewLayersChange, previewItem, previewedLayers]);
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="grid gap-3 rounded border border-red-950/70 bg-black/30 p-3 md:grid-cols-[minmax(0,1fr),220px,180px]">
-        <label className="relative block">
+    <section className="shop">
+      <div className="shop-filters">
+        <label className="shop-search">
           <span className="sr-only">Search shop items</span>
-          <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <FaSearch aria-hidden="true" />
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search items"
-            className="h-11 w-full rounded border border-gray-800 bg-gray-950 py-2 pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-600"
           />
         </label>
 
         <label>
           <span className="sr-only">Classification</span>
-          <select
-            value={classification}
-            onChange={(event) => setClassification(event.target.value)}
-            className="h-11 w-full rounded border border-gray-800 bg-gray-950 px-3 text-sm text-white outline-none transition focus:border-red-600"
-          >
+          <select value={classification} onChange={(event) => setClassification(event.target.value)}>
             {classifications.map((option) => (
               <option key={option.value || "all"} value={option.value}>
                 {option.label}
@@ -249,11 +237,7 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
 
         <label>
           <span className="sr-only">Rarity</span>
-          <select
-            value={rarityFilter}
-            onChange={(event) => setRarityFilter(event.target.value)}
-            className="h-11 w-full rounded border border-gray-800 bg-gray-950 px-3 text-sm text-white outline-none transition focus:border-red-600"
-          >
+          <select value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value)}>
             {rarities.map((option) => (
               <option key={option.value || "all"} value={option.value}>
                 {option.label}
@@ -264,102 +248,75 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
       </div>
 
       {isInitialLoading ? (
-        <div className="flex min-h-80 items-center justify-center rounded border border-red-950/70 bg-black/30">
+        <div className="shop-state">
           <LoadingSpinner />
         </div>
       ) : error && !shopData ? (
         <ErrorDisplay message={(error as Error).message || "Failed to load shop"} />
       ) : items.length === 0 ? (
-        <div className="rounded border border-red-950/70 bg-black/30 px-4 py-6 text-center text-gray-300">
-          No shop items match.
-        </div>
+        <div className="shop-state">Nothing matches those filters.</div>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className={`shop-grid ${isFetching ? "is-refreshing" : ""}`}>
           {items.map((item) => {
             const price = item.basePrice || 0;
             const cannotAfford = coinBalance < price;
             const pendingThisItem =
               buyMutation.isPending && buyMutation.variables === item.id;
             const rarity = item.rarity || "common";
-            const rarityClass = rarityStyles[rarity] || rarityStyles.common;
             const isPreviewing = previewItem?.id === item.id;
             const equipGroup = getEquipGroup(item);
+            const supplyLeft =
+              item.supplyLimit !== null ? Math.max(item.supplyLimit - item.mintedCount, 0) : null;
 
             return (
-              <article
-                key={item.id}
-                className={`grid min-h-32 grid-cols-[84px_minmax(0,1fr)] gap-3 rounded border bg-black/40 p-3 ${rarityClass}`}
-              >
-                <div className="flex items-center justify-center">
-                  <AvatarPreview layers={[item]} size="xs" />
+              <article key={item.id} className={`shop-item rarity-${rarity} ${isPreviewing ? "is-previewing" : ""}`}>
+                <div className="shop-item-art">
+                  <AvatarPreview layers={previewLayers(avatarResponse?.data, item)} size="sm" />
+                  <span className="shop-rarity">{rarity}</span>
+                  {item.ownedCount > 0 && (
+                    <span className="shop-owned">Owned{item.ownedCount > 1 ? ` ×${item.ownedCount}` : ""}</span>
+                  )}
                 </div>
 
-                <div className="flex min-w-0 flex-col gap-2">
-                  <div>
-                    <div className="mb-1 flex min-w-0 items-start justify-between gap-2">
-                      <h3 className="truncate text-base font-bold text-white">
-                        {item.name}
-                      </h3>
-                      <span className="shrink-0 rounded border border-current bg-black/70 px-2 py-0.5 text-[10px] uppercase">
-                        {rarity}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 text-[11px] uppercase tracking-normal">
-                      <span className="rounded border border-current px-1.5 py-0.5">
-                        {item.slot}
-                      </span>
-                      {equipGroup !== item.slot ? (
-                        <span className="rounded border border-current px-1.5 py-0.5">
-                          {equipGroup}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
+                <h3 className="shop-item-name" title={item.name}>{item.name}</h3>
+                <p className="shop-item-meta">
+                  <span className="shop-item-slot">
+                    {item.slot}
+                    {equipGroup !== item.slot ? ` · ${equipGroup}` : ""}
+                  </span>
+                  {supplyLeft !== null && (
+                    <span className={supplyLeft <= 5 ? "is-scarce" : ""}>
+                      {" · "}
+                      {supplyLeft === 0 ? "none left" : `${supplyLeft} of ${item.supplyLimit} left`}
+                    </span>
+                  )}
+                </p>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <div className="text-gray-300">
-                      Owned: {item.ownedCount}
-                      {item.supplyLimit ? (
-                        <span>
-                          {" "}
-                          | {item.mintedCount}/{item.supplyLimit}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-amber-200">
-                      <FaCoins className="text-amber-300" />
-                      <span className="font-bold">{price.toLocaleString()}</span>
-                    </div>
-                  </div>
+                <div className="shop-item-price">
+                  <FaCoins aria-hidden="true" />
+                  {price.toLocaleString()}
+                  {cannotAfford && !item.isSoldOut && (
+                    <span className="shop-item-short">Need {(price - coinBalance).toLocaleString()} more</span>
+                  )}
+                </div>
 
-                  <div className="mt-auto grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewItem(isPreviewing ? null : item)}
-                      className={`min-h-9 rounded border px-2 py-1.5 text-sm font-bold transition ${
-                        isPreviewing
-                          ? "border-amber-400 bg-amber-950/50 text-amber-100"
-                          : "border-gray-700 bg-gray-950 text-gray-200 hover:border-red-700"
-                      }`}
-                    >
-                      {isPreviewing ? "Hide" : "Preview"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => buyMutation.mutate(item.id)}
-                      disabled={pendingThisItem || item.isSoldOut || cannotAfford}
-                      className="min-h-9 rounded bg-red-700 px-2 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-400"
-                    >
-                      {item.isSoldOut
-                        ? "Sold Out"
-                        : cannotAfford
-                          ? "Need Coins"
-                          : pendingThisItem
-                            ? "Buying..."
-                            : "Buy"}
-                    </button>
-                  </div>
+                <div className="shop-item-actions">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewItem(isPreviewing ? null : item)}
+                    className={`shop-button is-secondary ${isPreviewing ? "is-active" : ""}`}
+                    aria-pressed={isPreviewing}
+                  >
+                    {isPreviewing ? "Hide" : "Try on"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => buyMutation.mutate(item.id)}
+                    disabled={pendingThisItem || item.isSoldOut || cannotAfford}
+                    className="shop-button"
+                  >
+                    {item.isSoldOut ? "Sold out" : pendingThisItem ? "Buying…" : "Buy"}
+                  </button>
                 </div>
               </article>
             );
@@ -367,33 +324,27 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
         </div>
       )}
 
-      {!isInitialLoading && !error && (
-        <div className="flex flex-col gap-3 rounded border border-red-950/70 bg-black/30 px-4 py-3 text-sm text-gray-300 sm:flex-row sm:items-center sm:justify-between">
+      {!isInitialLoading && !error && pagination.total > 0 && (
+        <div className="shop-pager">
           <span>
-            {pagination.total === 0
-              ? "0 items"
-              : `${firstItemNumber}-${lastItemNumber} of ${pagination.total}`}
+            {firstItemNumber}–{lastItemNumber} of {pagination.total}
           </span>
-          <div className="flex items-center gap-2">
+          <div>
             <button
               type="button"
               onClick={() => setPage((current) => Math.max(current - 1, 1))}
               disabled={pagination.page <= 1 || isFetching}
-              className="inline-flex h-10 w-10 items-center justify-center rounded border border-gray-800 bg-gray-950 text-gray-200 transition hover:border-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Previous page"
             >
               <FaChevronLeft />
             </button>
-            <span className="min-w-24 text-center">
+            <span>
               Page {pagination.page} of {pagination.pageCount}
             </span>
             <button
               type="button"
-              onClick={() =>
-                setPage((current) => Math.min(current + 1, pagination.pageCount))
-              }
+              onClick={() => setPage((current) => Math.min(current + 1, pagination.pageCount))}
               disabled={pagination.page >= pagination.pageCount || isFetching}
-              className="inline-flex h-10 w-10 items-center justify-center rounded border border-gray-800 bg-gray-950 text-gray-200 transition hover:border-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Next page"
             >
               <FaChevronRight />
@@ -403,9 +354,9 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
       )}
 
       {buyMutation.error && (
-        <div className="rounded border border-red-900 bg-red-950/50 px-4 py-3 text-center text-sm text-red-100">
+        <p className="shop-error" role="alert">
           {(buyMutation.error as Error).message}
-        </div>
+        </p>
       )}
     </section>
   );

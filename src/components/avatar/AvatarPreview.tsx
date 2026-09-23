@@ -44,6 +44,8 @@ export function AvatarPreview({ layers, size = "lg" }: AvatarPreviewProps) {
             src={layer.assetPath}
             alt=""
             className="absolute inset-0 h-full w-full object-contain"
+            loading="lazy"
+            decoding="async"
             draggable={false}
             style={{ imageRendering: "pixelated" }}
             onError={() =>
