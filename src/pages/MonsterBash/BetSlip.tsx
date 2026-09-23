@@ -119,12 +119,20 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
     } else if (bet.status === "refunded") {
       body = <p className="text-orange-100/90">Your {formatCoins(bet.amount)} coins were refunded.</p>;
     } else {
+      const unopposed = pools.amounts[1 - bet.side] === 0;
       body = (
         <p className="text-orange-100/90">
           You bet <strong className="text-orange-50">{formatCoins(bet.amount)}</strong> on{" "}
-          <strong style={{ color: SIDE_COLORS[bet.side] }}>{pick}</strong>. Pays about{" "}
-          <strong className="text-orange-50">{formatCoins(estimatePayout(pools, bet.side, bet.amount, true))}</strong> if{" "}
-          {pick} wins.
+          <strong style={{ color: SIDE_COLORS[bet.side] }}>{pick}</strong>.{" "}
+          {unopposed ? (
+            "No one has bet against you yet. If it stays that way, you get your coins back."
+          ) : (
+            <>
+              Pays about{" "}
+              <strong className="text-orange-50">{formatCoins(estimatePayout(pools, bet.side, bet.amount, true))}</strong> if{" "}
+              {pick} wins.
+            </>
+          )}
         </p>
       );
     }
@@ -143,11 +151,17 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
   } else {
     body = (
       <form onSubmit={submit} className="flex flex-col gap-3">
+        <p className="text-xs text-purple-200/70">
+          Winners split the coins bet on the loser, so payouts follow the crowd, not the win chance.
+        </p>
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Pick a monster">
           {[0, 1].map((option) => {
             const choice = option as FighterSide;
             const selected = side === choice;
             const multiplier = estimatePayout(pools, choice, 100) / 100;
+            // Winnings come out of the other side's pool; if it's empty, a
+            // win would only return the stake.
+            const nothingAgainst = pools.amounts[1 - choice] === 0;
             return (
               <button
                 key={option}
@@ -161,7 +175,9 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
                 style={selected ? { borderColor: SIDE_COLORS[option] } : undefined}
               >
                 <span className="block truncate font-bold text-orange-50">{names[option]}</span>
-                <span className="text-xs text-purple-200/70 tabular-nums">Pays {multiplier.toFixed(2)}x</span>
+                <span className="text-xs text-purple-200/70 tabular-nums">
+                  {nothingAgainst ? "No bets against yet" : `Pays ${multiplier.toFixed(2)}x`}
+                </span>
               </button>
             );
           })}
@@ -206,7 +222,9 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
           {side === null
             ? "Pick a monster"
             : validStake
-              ? `Bet ${formatCoins(stake)} on ${names[side]} (pays ~${formatCoins(estimatePayout(pools, side, stake))})`
+              ? pools.amounts[1 - side] === 0
+                ? `Bet ${formatCoins(stake)} on ${names[side]}`
+                : `Bet ${formatCoins(stake)} on ${names[side]} (pays ~${formatCoins(estimatePayout(pools, side, stake))})`
               : `Enter 1 to ${formatCoins(maxBet)} coins`}
         </button>
         {error && <p className="text-sm text-red-300" role="alert">{error}</p>}
