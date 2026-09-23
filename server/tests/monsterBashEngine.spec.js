@@ -8,7 +8,7 @@ import {
     isFightOver,
     simulateFight,
     stepFight,
-} from '../../shared/monster-bash/index.js';
+} from '../shared/monster-bash/index.js';
 
 const ids = MONSTERS.map((monster) => monster.id);
 

@@ -3,7 +3,7 @@ import {
   getMonster,
   type Monster,
   type MonsterMove,
-} from "../../../shared/monster-bash/index.js";
+} from "../../../server/shared/monster-bash/index.js";
 import AnimatedPage from "../../components/AnimatedPage";
 import { SiteContainer } from "../../components/PageContainer";
 import Arena from "./arena/Arena";

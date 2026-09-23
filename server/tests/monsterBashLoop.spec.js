@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { ENGINE_VERSION, TICK_RATE, simulateFight } from '../../shared/monster-bash/index.js';
+import { ENGINE_VERSION, TICK_RATE, simulateFight } from '../shared/monster-bash/index.js';
 import { MonsterBashLoop, hashSeed, pickFighters } from '../monsterBash/matchLoop.js';
 import { ACTIVE_MATCH_CONFLICT } from '../monsterBash/repository.js';
 

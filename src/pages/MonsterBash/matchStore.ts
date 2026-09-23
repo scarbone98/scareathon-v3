@@ -4,7 +4,7 @@ import {
   type FightFrame,
   type FighterSide,
   type OddsPoint,
-} from "../../../shared/monster-bash/index.js";
+} from "../../../server/shared/monster-bash/index.js";
 
 // Spectators watch slightly behind the feed so late-arriving chunks never
 // stall the arena. The server streams in real time; we play this far back.

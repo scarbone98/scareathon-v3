@@ -2,7 +2,7 @@
 // ~100 times, which would stall API requests if it ran on the event loop.
 
 import { parentPort } from 'node:worker_threads';
-import { estimateWinProbability, simulateFight } from '../../shared/monster-bash/index.js';
+import { estimateWinProbability, simulateFight } from '../shared/monster-bash/index.js';
 
 function roundProbability(p) {
     return Math.round(p * 1000) / 1000;
