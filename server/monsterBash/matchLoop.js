@@ -5,7 +5,7 @@ import {
     TICK_RATE,
     simulateFight,
 } from '../shared/monster-bash/index.js';
-import { ACTIVE_MATCH_CONFLICT } from './repository.js';
+import { ACTIVE_MATCH_CONFLICT, BetRefusedError } from './repository.js';
 
 export const DEFAULT_LOOP_CONFIG = {
     bettingMs: 30_000,
@@ -15,6 +15,12 @@ export const DEFAULT_LOOP_CONFIG = {
     retentionDays: 14,
     pruneEveryMs: 60 * 60 * 1000,
     historySize: 8,
+    // Pay out just after spectators (who watch ~1.5s behind) see the KO, so
+    // balances never spoil the ending.
+    settleDelayMs: 2_500,
+    settleRetryMs: 5_000,
+    settleAttempts: 5,
+    poolBroadcastMs: 500,
     // Late joiners get this much recent movement; older frames aren't needed
     // because spectators only ever watch the last few seconds.
     catchUpTicks: 5 * TICK_RATE,
@@ -44,8 +50,9 @@ function historyEntry(match) {
 // result, repeat. The database row is the source of truth for recovery; the
 // fight itself lives in memory and goes straight to spectators.
 export class MonsterBashLoop {
-    constructor({ repo, odds, hub, log, config = {}, random = Math.random, createSeed = () => randomBytes(16).toString('hex') }) {
+    constructor({ repo, odds, hub, chat = null, log, config = {}, random = Math.random, createSeed = () => randomBytes(16).toString('hex') }) {
         this.repo = repo;
+        this.chat = chat;
         this.odds = odds;
         this.hub = hub;
         this.log = log;
@@ -57,6 +64,7 @@ export class MonsterBashLoop {
         this.lastFighters = null;
         this.timers = new Set();
         this.pruneTimer = null;
+        this.poolTimer = null;
         this.stopped = false;
         this.needsRecovery = false;
     }
@@ -75,6 +83,7 @@ export class MonsterBashLoop {
         this.timers.forEach((timer) => clearTimeout(timer));
         this.timers.clear();
         clearInterval(this.pruneTimer);
+        clearTimeout(this.poolTimer);
     }
 
     // --- scheduling --------------------------------------------------------
@@ -115,6 +124,12 @@ export class MonsterBashLoop {
                 await this.repo.markCancelled(match.id);
                 this.log.info({ matchId: match.id, status: match.status }, 'Monster Bash bout cancelled during recovery');
             }
+        }
+
+        // Pay out (or refund) any closed bout that still owes coins.
+        for (const matchId of await this.repo.findUnsettledMatchIds()) {
+            const summary = await this.repo.settleMatch(matchId);
+            this.log.info({ matchId, summary }, 'Monster Bash bets settled during recovery');
         }
     }
 
@@ -162,6 +177,7 @@ export class MonsterBashLoop {
             fight: null,
             pendingOdds: [],
             released: { frames: [], events: [], odds: pregame ? [pregame] : [] },
+            pools: { amounts: [0, 0], bettors: [0, 0] },
             result: null,
         };
         this.hub.broadcast(this.matchMessage(this.current));
@@ -178,6 +194,16 @@ export class MonsterBashLoop {
         });
 
         match.status = 'fighting';
+        // Betting is over: take the final pools from the database, which is
+        // what payouts will be based on.
+        try {
+            match.pools = await this.repo.poolTotals(match.id);
+        } catch (error) {
+            this.log.warn({ err: error, matchId: match.id }, 'Monster Bash could not reload the betting pools');
+        }
+        clearTimeout(this.poolTimer);
+        this.poolTimer = null;
+        this.broadcastPools(match);
         match.fight = simulateFight({ seed: match.seed, fighters: match.fighters });
         this.odds
             .stream(match.seed, match.fighters, (point) => {
@@ -236,6 +262,7 @@ export class MonsterBashLoop {
                 rounds: fight.rounds,
                 finishedAt: Date.now(),
             });
+            this.schedule(() => this.settle(match.id), this.config.settleDelayMs);
         } catch (error) {
             // The row stays open; the next bout runs recovery before opening.
             this.needsRecovery = true;
@@ -243,6 +270,63 @@ export class MonsterBashLoop {
         }
 
         this.schedule(() => this.openMatch(), this.config.resultMs);
+    }
+
+    async settle(matchId, attempt = 1) {
+        let summary;
+        try {
+            summary = await this.repo.settleMatch(matchId);
+        } catch (error) {
+            this.log.error({ err: error, matchId, attempt }, 'Monster Bash settlement failed');
+            if (attempt < this.config.settleAttempts) {
+                this.schedule(() => this.settle(matchId, attempt + 1), this.config.settleRetryMs * attempt);
+            } else {
+                // Recovery before the next bout will pick it up.
+                this.needsRecovery = true;
+            }
+            return;
+        }
+
+        this.hub.broadcast({ type: 'settled', matchId, summary });
+        if (this.chat && summary.settled > 0) {
+            const coins = summary.pool.toLocaleString('en-US');
+            const text = summary.refunded
+                ? `Bets refunded: ${coins} coins went back (one side had no bets).`
+                : `Payouts sent: ${coins} coins split among the winners.`;
+            this.hub.broadcast({ type: 'chat', message: this.chat.system(text) });
+        }
+    }
+
+    // --- betting -----------------------------------------------------------
+
+    async placeBet({ userId, matchId, side, amount }) {
+        const match = this.current;
+        const open = match
+            && match.id === String(matchId)
+            && match.status === 'betting'
+            && Date.now() < match.bettingClosesAt;
+        if (!open) throw new BetRefusedError('betting_closed');
+
+        const result = await this.repo.placeBet({ userId, matchId: match.id, side, amount });
+        if (this.current === match && match.status === 'betting') {
+            match.pools.amounts[side] += amount;
+            match.pools.bettors[side] += 1;
+            this.schedulePoolBroadcast(match);
+        }
+        return result;
+    }
+
+    // Pool updates are batched so a rush of bets is one message, not dozens.
+    schedulePoolBroadcast(match) {
+        if (this.poolTimer) return;
+        this.poolTimer = setTimeout(() => {
+            this.poolTimer = null;
+            if (this.current === match) this.broadcastPools(match);
+        }, this.config.poolBroadcastMs);
+    }
+
+    broadcastPools(match) {
+        this.hub.broadcast({ type: 'pool', matchId: match.id, pools: match.pools });
     }
 
     async prune() {
@@ -261,6 +345,7 @@ export class MonsterBashLoop {
                 seedHash: match.seedHash,
                 bettingClosesAt: match.bettingClosesAt,
                 fightStartsAt: match.fightStartsAt,
+                pools: match.pools,
             },
             odds: [...match.released.odds],
         };
@@ -269,6 +354,7 @@ export class MonsterBashLoop {
     // Everything a spectator needs to join mid-bout.
     welcomeMessages() {
         const messages = [{ type: 'hello', serverTime: Date.now(), history: this.history }];
+        if (this.chat) messages.push({ type: 'chatHistory', messages: this.chat.recent() });
         const match = this.current;
         if (!match) return messages;
 
