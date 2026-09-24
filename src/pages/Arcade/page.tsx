@@ -248,6 +248,17 @@ export default function Arcade() {
       ),
     },
     {
+      name: "Crypt Clash",
+      videoUrl: "/game-recordings/CryptClash.mp4",
+      game: (
+        <GameRenderer
+          title="Crypt Clash"
+          url="/crypt-clash"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
       name: ORIGINAL_EIGHT_BIT_EVIL,
       videoUrl: "/game-recordings/8BitEvil.mp4",
       availableOnMobile: false,

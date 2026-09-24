@@ -75,9 +75,14 @@ export function HomeScreen({
   return (
     <div className="relative flex h-full flex-col overflow-hidden">
       <div className="flex items-start justify-between px-3 pt-3">
-        <Link to="/" className="cc-sbtn cc-sbtn-stone cc-outline-sm px-1 text-sm" aria-label="Leave">
-          <span>◀</span>
-        </Link>
+        {/* In the arcade cabinet (an iframe) the arcade's own toolbar exits. */}
+        {window.self === window.top ? (
+          <Link to="/" className="cc-sbtn cc-sbtn-stone cc-outline-sm px-1 text-sm" aria-label="Leave">
+            <span>◀</span>
+          </Link>
+        ) : (
+          <span />
+        )}
         <NameEditor name={name} onChange={onName} />
       </div>
 
