@@ -330,6 +330,9 @@ export class Renderer {
   }
 
   // Views the arena from `me`'s end. Call before the first render of a match.
+  // Health bars draw over everything, so the blurred menu backdrop hides them.
+  showBars = true;
+
   setPerspective(me: Team) {
     this.me = me;
     this.side = me === 0 ? 1 : -1;
@@ -555,7 +558,7 @@ export class Renderer {
       }
       view.tower = tower;
       view.hpBar.set(tower.hp / tower.maxHp);
-      view.hpBar.sprite.visible = !tower.destroyed;
+      view.hpBar.sprite.visible = this.showBars && !tower.destroyed;
       // Destroyed while its event was skipped (catching up after a hidden tab).
       if (tower.destroyed && view.sinkT < 0) view.sinkT = 0;
       // A sleeping king's guard stands still until the king wakes up.
@@ -629,7 +632,7 @@ export class Renderer {
       view.ring.position.set(view.x + lx, 0.03, view.z + lz);
       view.hpBar.sprite.position.set(view.x, y + view.height + 0.3, view.z);
       view.hpBar.set(unit.hp / unit.maxHp);
-      view.hpBar.sprite.visible = !deploying && (unit.hp < unit.maxHp || card.type === "building");
+      view.hpBar.sprite.visible = this.showBars && !deploying && (unit.hp < unit.maxHp || card.type === "building");
       if (view.flashT > 0) {
         view.flashT -= dt;
         view.sprite.material.color.setRGB(5, 3, 3);

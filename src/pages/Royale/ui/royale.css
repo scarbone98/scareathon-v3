@@ -1,0 +1,156 @@
+/* Crypt Clash UI: pixel font, sprite animation and game-style effects. */
+
+@font-face {
+  font-family: "Pixelify";
+  src: url("/fonts/PixelifySans.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+.cc-root {
+  font-family: "Pixelify", ui-monospace, monospace;
+  -webkit-font-smoothing: none;
+}
+
+.cc-title {
+  font-family: "Zombie", "Pixelify", cursive;
+  line-height: 0.85;
+  letter-spacing: 0.04em;
+}
+
+/* Text with a hard dark outline, readable over the busy arena. */
+.cc-outline {
+  text-shadow:
+    -2px 0 #140a1c, 2px 0 #140a1c, 0 -2px #140a1c, 0 2px #140a1c,
+    -2px -2px #140a1c, 2px 2px #140a1c, -2px 2px #140a1c, 2px -2px #140a1c;
+}
+
+.cc-outline-sm {
+  text-shadow:
+    -1px 0 #140a1c, 1px 0 #140a1c, 0 -1px #140a1c, 0 1px #140a1c,
+    0 2px #140a1c;
+}
+
+/* Sprite sheets: a horizontal strip stepped through with steps(). */
+.cc-sprite {
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  animation-name: cc-sprite;
+  animation-iteration-count: infinite;
+  animation-timing-function: var(--cc-steps);
+}
+
+@keyframes cc-sprite {
+  from { background-position: 0 0; }
+  to { background-position: var(--cc-strip) 0; }
+}
+
+@keyframes cc-bob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+.cc-bob { animation: cc-bob 3.2s ease-in-out infinite; }
+
+@keyframes cc-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.cc-float { animation: cc-float 2.4s ease-in-out infinite; }
+
+@keyframes cc-ember {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate(var(--cc-drift), -110vh) scale(0.4); opacity: 0; }
+}
+.cc-ember {
+  position: absolute;
+  bottom: -10px;
+  width: 4px;
+  height: 4px;
+  animation: cc-ember linear infinite;
+  box-shadow: 0 0 6px 1px currentColor;
+  background: currentColor;
+}
+
+@keyframes cc-pop {
+  0% { transform: scale(0.2); opacity: 0; }
+  60% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.cc-pop { animation: cc-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+
+@keyframes cc-count {
+  0% { transform: scale(2.4); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.6); opacity: 0; }
+}
+.cc-count { animation: cc-count 1s ease-out both; }
+
+@keyframes cc-shine {
+  0% { transform: translateX(-120%) skewX(-20deg); }
+  60%, 100% { transform: translateX(260%) skewX(-20deg); }
+}
+.cc-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: cc-shine 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes cc-pulse-ring {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.cc-pulse-ring { animation: cc-pulse-ring 1.6s ease-out infinite; }
+
+/* Sprite buttons: 8 Bit Evil Returns' button, 9-sliced at 4x so it
+   stretches to any width and stays pixel-sharp. Pressing swaps to the
+   frame that sits down on its shadow. */
+.cc-sbtn {
+  border-style: solid;
+  border-width: 16px 12px 16px 12px;
+  border-image-slice: 4 3 4 3 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  background: none;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  line-height: 1;
+  transition: filter 0.12s;
+}
+.cc-sbtn > * { position: relative; top: -2px; }
+.cc-sbtn:hover:not(:disabled) { filter: brightness(1.12); }
+.cc-sbtn:active:not(:disabled) > * { top: 6px; }
+.cc-sbtn:disabled { filter: grayscale(0.7) brightness(0.7); }
+.cc-sbtn-orange { border-image-source: url("/royale/ui/btn_orange.png"); }
+.cc-sbtn-orange:active:not(:disabled) { border-image-source: url("/royale/ui/btn_orange_down.png"); }
+.cc-sbtn-purple { border-image-source: url("/royale/ui/btn_purple.png"); }
+.cc-sbtn-purple:active:not(:disabled) { border-image-source: url("/royale/ui/btn_purple_down.png"); }
+.cc-sbtn-green { border-image-source: url("/royale/ui/btn_green.png"); }
+.cc-sbtn-green:active:not(:disabled) { border-image-source: url("/royale/ui/btn_green_down.png"); }
+.cc-sbtn-stone { border-image-source: url("/royale/ui/btn_stone.png"); }
+.cc-sbtn-stone:active:not(:disabled) { border-image-source: url("/royale/ui/btn_stone_down.png"); }
+
+/* Gold-framed stone panels from the same game. */
+.cc-spanel {
+  border-style: solid;
+  border-width: 18px;
+  border-image: url("/royale/ui/panel.png") 6 fill stretch;
+  image-rendering: pixelated;
+}
+.cc-spanel-gold { border-image-source: url("/royale/ui/panel_gold.png"); }
+
+.cc-pixel { image-rendering: pixelated; }
+
+/* The cost gem on cards. */
+.cc-gem {
+  background: radial-gradient(circle at 35% 30%, #ffb6f5, #d63bd9 45%, #7a168a);
+  border: 2px solid #140a1c;
+  box-shadow: 0 2px 0 #140a1c;
+}

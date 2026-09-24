@@ -53,15 +53,19 @@ interface Driver {
 class BotDriver implements Driver {
   me: Team = 0;
   private pending: Play[] = [];
-  private bot: Bot;
-  constructor(seed: string, reaction: [number, number]) {
-    this.bot = createBot(seed, { reaction });
+  private bots: [Team, Bot][];
+  // `bothSides` lets bots play each other (the menu backdrop).
+  constructor(seed: string, reaction: [number, number], bothSides = false) {
+    this.bots = [[1, createBot(seed, { reaction })]];
+    if (bothSides) this.bots.push([0, createBot(`${seed}:mirror`, { reaction })]);
   }
   next(state: MatchState) {
     const plays = this.pending;
     this.pending = [];
-    const move = botPlay(state, 1, this.bot);
-    if (move) plays.push(move);
+    for (const [team, bot] of this.bots) {
+      const move = botPlay(state, team, bot);
+      if (move) plays.push(move);
+    }
     return plays;
   }
   submit(play: Play) {
@@ -137,6 +141,8 @@ export class MatchController {
   private waiting = true;
   private unconfirmed: string[] = [];
   private preview: { card: string; x: number; y: number } | null = null;
+  private demo: [string[], string[]] | null = null;
+  private demoRestart = 0;
 
   constructor(
     host: HTMLElement,
@@ -171,6 +177,14 @@ export class MatchController {
     return this.begin(state, new BotDriver(setup.seed, setup.reaction), 0);
   }
 
+  // Bots on both sides, restarting after each match: the menu backdrop.
+  startDemo(decks: [string[], string[]]) {
+    const seed = `demo-${Date.now()}-${Math.random()}`;
+    this.demo = decks;
+    this.renderer.showBars = false;
+    return this.begin(createMatch({ seed, decks }), new BotDriver(seed, [10, 22], true), 0);
+  }
+
   startNet(setup: { seed: string; decks: [string[], string[]]; startsInMs: number }, driver: NetDriver) {
     return this.begin(createMatch({ seed: setup.seed, decks: setup.decks }), driver, setup.startsInMs);
   }
@@ -189,6 +203,7 @@ export class MatchController {
 
   dispose() {
     this.disposed = true;
+    window.clearTimeout(this.demoRestart);
     cancelAnimationFrame(this.raf);
     this.renderer.dispose();
   }
@@ -298,6 +313,13 @@ export class MatchController {
       if (this.state !== state) break;
     }
     if (state.result) this.preview = null;
+    if (state.result && this.demo && !this.demoRestart) {
+      const decks = this.demo;
+      this.demoRestart = window.setTimeout(() => {
+        this.demoRestart = 0;
+        void this.startDemo([decks[1], decks[0]]);
+      }, 3000);
+    }
     this.updatePreview();
     const alpha = state.result ? 1 : Math.min(1, this.acc / STEP);
     this.renderer.render(state, this.prev, alpha, this.events, dt);
