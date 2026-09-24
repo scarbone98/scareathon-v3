@@ -45,7 +45,7 @@ const HEMLOCKS_TOWER_URL =
   "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html";
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
-  "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=3ac4444";
+  "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=470e1b8";
 
 type ArcadeMessage = {
   type?: unknown;
