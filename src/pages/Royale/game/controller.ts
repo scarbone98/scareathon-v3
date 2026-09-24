@@ -117,6 +117,10 @@ const MAX_CATCH_UP = 0.25;
 // Network play keeps a couple of ticks in hand to ride out jitter, and
 // speeds up to catch up when too many pile up.
 const NET_BUFFER = 2;
+// Further behind than this (a backgrounded or occluded tab stops animation
+// frames while the server keeps going), jump straight to the present
+// instead of fast-forwarding on screen: a tick costs microseconds.
+const SKIP_AHEAD = TICK_RATE / 2;
 
 export class MatchController {
   private renderer: Renderer;
@@ -264,8 +268,21 @@ export class MatchController {
     const state = this.state;
     const driver = this.driver;
 
-    const buffered = driver.buffered();
-    const rate = driver instanceof NetDriver ? (buffered > NET_BUFFER * 4 ? 3 : buffered > NET_BUFFER * 2 ? 1.5 : 1) : 1;
+    let buffered = driver.buffered();
+    if (buffered > SKIP_AHEAD && now >= this.startAt) {
+      while (buffered > NET_BUFFER && !state.result && this.state === state) {
+        const plays = driver.next(state);
+        if (!plays) break;
+        this.waiting = false;
+        this.step(plays, true);
+        const expected = driver.hashAt?.(state.tick);
+        if (expected !== undefined && expected !== hashState(state)) driver.desynced?.();
+        buffered = driver.buffered();
+      }
+      this.acc = 0;
+    }
+    // Drift a little faster when a few ticks pile up from network jitter.
+    const rate = driver instanceof NetDriver && buffered > NET_BUFFER * 2 ? 1.25 : 1;
     if (now >= this.startAt) this.acc += dt * rate;
     while (this.acc >= STEP && !state.result) {
       const plays = driver.next(state);
@@ -292,14 +309,15 @@ export class MatchController {
     }
   };
 
-  private step(plays: Play[]) {
+  // `quiet` skips the renderer's effects (used when skipping ahead).
+  private step(plays: Play[], quiet = false) {
     const state = this.state!;
     this.prev = new Map();
     for (const u of state.units) this.prev.set(u.id, { x: u.x, z: u.z });
     for (const p of state.projectiles) this.prev.set(p.id, { x: p.x, z: p.z });
     stepMatch(state, plays);
     for (const e of state.events) {
-      this.events.push(e);
+      if (!quiet) this.events.push(e);
       if ((e.type === "play" || e.type === "rejected") && e.team === this.me) {
         const i = this.unconfirmed.indexOf(e.card);
         if (i >= 0) this.unconfirmed.splice(i, 1);

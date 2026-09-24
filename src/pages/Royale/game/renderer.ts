@@ -27,8 +27,13 @@ export const THEIR_COLOR = "#b061ff";
 const SIZE_SCALE = 1.75;
 const FLY_HEIGHT = 1.7;
 const DROP_TICKS = 7;
-const TERRY_URL = "/royale/oldmanterry1.png";
-const IMP_URL = "/sprites/imp.png";
+// Who stands on top of the towers: Joe and Matt (from 8 Bit Evil Returns)
+// guard yours, imps guard the enemy's.
+const ARCHERS = {
+  joe: { url: "/royale/joe_idle.png", frames: 6, width: 16, height: 24, size: 1.45 },
+  matt: { url: "/royale/matt_idle.png", frames: 6, width: 16, height: 24, size: 1.7 },
+  imp: { url: "/sprites/imp.png", frames: 4, width: 16, height: 16, size: 1.0 },
+};
 const CANDLE_URL = "/sprites/candle.png";
 
 export interface ViewOptions {
@@ -101,6 +106,8 @@ class TowerView {
   group = new THREE.Group();
   archer: THREE.Sprite;
   archerTex: THREE.Texture;
+  archerFrames: number;
+  archerPhase = Math.random() * 10;
   hpBar: HpBar;
   topY: number;
   sinkT = -1;
@@ -144,13 +151,14 @@ class TowerView {
       if (front < 0) door.rotation.y = Math.PI;
       this.group.add(door);
     }
-    const url = mine ? TERRY_URL : IMP_URL;
-    this.archerTex = textures.get(url)!.clone();
-    if (!mine) this.archerTex.repeat.set(1 / 4, 1);
+    const archer = mine ? (king ? ARCHERS.matt : ARCHERS.joe) : ARCHERS.imp;
+    this.archerFrames = archer.frames;
+    this.archerTex = textures.get(archer.url)!.clone();
+    this.archerTex.repeat.set(1 / archer.frames, 1);
     this.archer = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.archerTex, alphaTest: 0.5 }));
     this.archer.center.set(0.5, 0);
-    const scale = king ? 1.35 : 1;
-    this.archer.scale.set((mine ? 1.3 : 1.0) * scale, (mine ? 0.93 : 1.0) * scale, 1);
+    const archerH = archer.size * (king && !mine ? 1.35 : 1);
+    this.archer.scale.set((archerH * archer.width) / archer.height, archerH, 1);
     this.archer.position.y = h + 0.35;
     this.group.add(this.archer);
     const light = new THREE.PointLight("#ff9a4a", 6, 7, 1.4);
@@ -158,7 +166,8 @@ class TowerView {
     this.group.add(light);
     this.group.position.set(tower.x, 0, tower.z);
     this.hpBar = new HpBar(color, king ? 3.0 : 2.4, 0.3);
-    this.hpBar.sprite.position.set(tower.x, h + (king ? 2.3 : 2.0), tower.z);
+    // Above the guard's head.
+    this.hpBar.sprite.position.set(tower.x, h + 0.35 + archerH + 0.35, tower.z);
   }
 }
 
@@ -198,7 +207,7 @@ class SpellView {
 type Tween = (dt: number) => boolean;
 
 export function preloadUrls() {
-  const urls = new Set<string>([TERRY_URL, IMP_URL, CANDLE_URL]);
+  const urls = new Set<string>([...Object.values(ARCHERS).map((a) => a.url), CANDLE_URL]);
   for (const id of ["meteor", "comet"]) urls.add(getCard(id).sprite.url);
   return urls;
 }
@@ -547,8 +556,11 @@ export class Renderer {
       view.tower = tower;
       view.hpBar.set(tower.hp / tower.maxHp);
       view.hpBar.sprite.visible = !tower.destroyed;
-      view.archer.visible = tower.active && !tower.destroyed;
-      if (tower.team === 1) view.archerTex.offset.x = (Math.floor(performance.now() / 180) % 4) / 4;
+      // Destroyed while its event was skipped (catching up after a hidden tab).
+      if (tower.destroyed && view.sinkT < 0) view.sinkT = 0;
+      // A sleeping king's guard stands still until the king wakes up.
+      view.archer.visible = !tower.destroyed;
+      if (tower.active) view.archerTex.offset.x = (Math.floor(performance.now() / 170 + view.archerPhase) % view.archerFrames) / view.archerFrames;
       const flash = view.flashT > 0 ? 1.8 : 1;
       view.flashT -= dt;
       for (const m of view.materials) m.color.setScalar(flash);
