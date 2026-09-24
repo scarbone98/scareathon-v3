@@ -17,6 +17,8 @@ import inboxRoutes from './routes/inbox.js';
 import adminStrapiRoutes from './routes/adminStrapi.js';
 import homeRoutes from './routes/home.js';
 import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js';
+import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
+import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 
 const fastify = Fastify({
@@ -87,6 +89,9 @@ async function main() {
             credentials: true
         });
         fastify.decorateRequest('user', null);
+        // Registered once for every socket route: each registration adds its own
+        // raw 'upgrade' listener, so two would handle every connection twice.
+        await fastify.register(websocket, { options: { maxPayload: 8192 } });
 
         fastify.addHook('preValidation', async (request, reply) => {
             if (isPublicRoute(request.method, request.url)) {
@@ -151,6 +156,9 @@ async function main() {
         fastify.register(homeRoutes, { prefix: '/home' });
         if (isMonsterBashEnabled()) {
             fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
+        }
+        if (isCryptClashEnabled()) {
+            fastify.register(cryptClashRoutes, { prefix: '/crypt-clash' });
         }
 
         // Run the server!

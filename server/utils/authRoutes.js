@@ -15,6 +15,8 @@ export function isPublicRoute(method, url) {
         // Monster Bash spectating (the live socket and past results) is open to
         // guests; betting, chat and /me need a login.
         (method === 'GET' && (url.startsWith('/monster-bash/ws') || url.startsWith('/monster-bash/recent'))) ||
+        // Crypt Clash friend matches are open to guests.
+        (method === 'GET' && url.startsWith('/crypt-clash/ws')) ||
         method === 'OPTIONS'
     );
 }

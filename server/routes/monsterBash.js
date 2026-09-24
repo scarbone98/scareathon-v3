@@ -67,7 +67,9 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
         },
     });
 
-    await fastify.register(websocket, { options: { maxPayload: 4096 } });
+    if (!fastify.hasDecorator('websocketServer')) {
+        await fastify.register(websocket, { options: { maxPayload: 4096 } });
+    }
 
     // Spectator feed. Guests can watch; nothing a client sends is acted on yet.
     fastify.get('/ws', { websocket: true }, (socket) => {

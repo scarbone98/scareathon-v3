@@ -21,7 +21,9 @@ import {
 import { buildArena, type Arena } from "./arena";
 import { HpBar, glowTexture, pixelate, stoneTexture } from "./textures";
 
-export const TEAM_COLOR = ["#ff8a1f", "#b061ff"] as const;
+// You are always orange and at the bottom; the opponent is purple.
+export const MY_COLOR = "#ff8a1f";
+export const THEIR_COLOR = "#b061ff";
 const SIZE_SCALE = 1.75;
 const FLY_HEIGHT = 1.7;
 const DROP_TICKS = 7;
@@ -56,7 +58,7 @@ class UnitView {
   z = 0;
   y = 0;
 
-  constructor(public unit: Unit, public card: Card, sheet: THREE.Texture) {
+  constructor(public unit: Unit, public card: Card, sheet: THREE.Texture, color: string) {
     const s = card.sprite;
     this.height = s.height * SIZE_SCALE;
     this.width = (this.height * s.frameWidth) / s.frameHeight;
@@ -68,10 +70,10 @@ class UnitView {
     this.shadow = new THREE.Mesh(SHADOW_GEO, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: unit.flying ? 0.25 : 0.4, depthWrite: false }));
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.scale.set(r, r * 0.7, 1);
-    this.ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({ color: TEAM_COLOR[unit.team], transparent: true, opacity: 0.6, depthWrite: false }));
+    this.ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, depthWrite: false }));
     this.ring.rotation.x = -Math.PI / 2;
     this.ring.scale.set(r, r * 0.7, 1);
-    this.hpBar = new HpBar(TEAM_COLOR[unit.team], Math.max(0.8, this.width * 0.8), 0.14);
+    this.hpBar = new HpBar(color, Math.max(0.8, this.width * 0.8), 0.14);
     this.hpBar.sprite.visible = false;
   }
 
@@ -105,7 +107,10 @@ class TowerView {
   flashT = 0;
   materials: THREE.MeshLambertMaterial[] = [];
 
-  constructor(public tower: Tower, textures: Map<string, THREE.Texture>, stone: THREE.Texture, capStone: THREE.Texture) {
+  // `front` is the side the camera sits on (+1 or -1 in z): banners, door
+  // and torch go on the face the viewer sees.
+  constructor(public tower: Tower, mine: boolean, front: number, textures: Map<string, THREE.Texture>, stone: THREE.Texture, capStone: THREE.Texture) {
+    const color = mine ? MY_COLOR : THEIR_COLOR;
     const king = tower.tower === "king";
     const size = king ? 3.4 : 2.6;
     const h = king ? 3.0 : 2.5;
@@ -127,31 +132,32 @@ class TowerView {
         c.position.set(cx, h + 0.57, cz);
         this.group.add(c);
       }
-    const bannerMat = new THREE.MeshLambertMaterial({ color: TEAM_COLOR[tower.team], side: THREE.DoubleSide });
+    const bannerMat = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
     for (const bx of king ? [-0.9, 0.9] : [0]) {
       const banner = new THREE.Mesh(new THREE.PlaneGeometry(king ? 1.1 : 0.8, king ? 1.5 : 1.1), bannerMat);
-      banner.position.set(bx, h * 0.62, size / 2 + 0.02);
+      banner.position.set(bx, h * 0.62, front * (size / 2 + 0.02));
       this.group.add(banner);
     }
     if (king) {
       const door = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), new THREE.MeshBasicMaterial({ color: "#0d0812" }));
-      door.position.set(0, 0.6, size / 2 + 0.02);
+      door.position.set(0, 0.6, front * (size / 2 + 0.02));
+      if (front < 0) door.rotation.y = Math.PI;
       this.group.add(door);
     }
-    const url = tower.team === 0 ? TERRY_URL : IMP_URL;
+    const url = mine ? TERRY_URL : IMP_URL;
     this.archerTex = textures.get(url)!.clone();
-    if (tower.team === 1) this.archerTex.repeat.set(1 / 4, 1);
+    if (!mine) this.archerTex.repeat.set(1 / 4, 1);
     this.archer = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.archerTex, alphaTest: 0.5 }));
     this.archer.center.set(0.5, 0);
     const scale = king ? 1.35 : 1;
-    this.archer.scale.set((tower.team === 0 ? 1.3 : 1.0) * scale, (tower.team === 0 ? 0.93 : 1.0) * scale, 1);
+    this.archer.scale.set((mine ? 1.3 : 1.0) * scale, (mine ? 0.93 : 1.0) * scale, 1);
     this.archer.position.y = h + 0.35;
     this.group.add(this.archer);
     const light = new THREE.PointLight("#ff9a4a", 6, 7, 1.4);
-    light.position.set(0, h + 1.2, size / 2 + 0.6);
+    light.position.set(0, h + 1.2, front * (size / 2 + 0.6));
     this.group.add(light);
     this.group.position.set(tower.x, 0, tower.z);
-    this.hpBar = new HpBar(TEAM_COLOR[tower.team], king ? 3.0 : 2.4, 0.3);
+    this.hpBar = new HpBar(color, king ? 3.0 : 2.4, 0.3);
     this.hpBar.sprite.position.set(tower.x, h + (king ? 2.3 : 2.0), tower.z);
   }
 }
@@ -175,13 +181,14 @@ class SpellView {
   marker: THREE.Mesh;
   total: number;
   from: THREE.Vector3;
-  constructor(spell: Spell, card: Card, tex: THREE.Texture) {
+  constructor(spell: Spell, card: Card, tex: THREE.Texture, color: string, side: number) {
     this.total = Math.max(1, Math.round((card.travel ?? 1) * TICK_RATE));
     const comet = card.id === "comet";
     this.sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, alphaTest: 0.4, fog: false }));
     this.sprite.scale.setScalar(comet ? 1.4 : 2.2);
-    this.from = new THREE.Vector3(spell.x + (comet ? 3 : 6), comet ? 12 : 18, spell.z - (comet ? 4 : 8));
-    this.marker = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 28), new THREE.MeshBasicMaterial({ color: TEAM_COLOR[spell.team], transparent: true, opacity: 0.8, depthWrite: false }));
+    // Falls in from the far side of the arena, whichever way the camera faces.
+    this.from = new THREE.Vector3(spell.x + (comet ? 3 : 6) * side, comet ? 12 : 18, spell.z - (comet ? 4 : 8) * side);
+    this.marker = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
     this.marker.rotation.x = -Math.PI / 2;
     this.marker.position.set(spell.x, 0.06, spell.z);
     this.marker.scale.setScalar(card.radius ?? 1);
@@ -203,6 +210,9 @@ export class Renderer {
   private baseCamPos = new THREE.Vector3();
   private world = new THREE.Group();
   private view: ViewOptions = { pixelSize: 2, tilt: 55 };
+  // Which team sits at the bottom of the screen; side is its home z sign.
+  private me: Team = 0;
+  private side = 1;
   private textures = new Map<string, THREE.Texture>();
   private arena: Arena | null = null;
   private units = new Map<number, UnitView>();
@@ -240,7 +250,7 @@ export class Renderer {
     this.scene.add(this.previewRing, this.previewGhost);
 
     // Deploy zones: your half, plus a pocket per lane once its enemy princess falls.
-    const zoneMat = new THREE.MeshBasicMaterial({ color: TEAM_COLOR[0], transparent: true, opacity: 0.14, depthWrite: false });
+    const zoneMat = new THREE.MeshBasicMaterial({ color: MY_COLOR, transparent: true, opacity: 0.14, depthWrite: false });
     const own = new THREE.Mesh(new THREE.PlaneGeometry(HALF_WIDTH * 2 - 1, HALF_LENGTH - RIVER_HALF - 1), zoneMat);
     own.position.set(0, 0.03, (HALF_LENGTH + RIVER_HALF) / 2);
     const pocketDepth = 7.5 - (RIVER_HALF + 0.5);
@@ -309,6 +319,16 @@ export class Renderer {
     this.tweens = [];
   }
 
+  // Views the arena from `me`'s end. Call before the first render of a match.
+  setPerspective(me: Team) {
+    this.me = me;
+    this.side = me === 0 ? 1 : -1;
+    this.zones[0].position.z = (this.side * (HALF_LENGTH + RIVER_HALF)) / 2;
+    const pocketDepth = 7.5 - (RIVER_HALF + 0.5);
+    for (const pocket of this.zones.slice(1)) pocket.position.z = -this.side * (RIVER_HALF + 0.5 + pocketDepth / 2);
+    this.applyView();
+  }
+
   // ---------- camera ----------
 
   private applyView() {
@@ -321,8 +341,8 @@ export class Renderer {
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
     const tilt = THREE.MathUtils.degToRad(this.view.tilt);
-    const dir = new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt));
-    const target = new THREE.Vector3(0, 0, 0.6);
+    const dir = new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt) * this.side);
+    const target = new THREE.Vector3(0, 0, 0.6 * this.side);
     const pts: THREE.Vector3[] = [];
     for (const x of [-HALF_WIDTH - 0.8, HALF_WIDTH + 0.8])
       for (const z of [-HALF_LENGTH - 0.8, HALF_LENGTH + 0.8]) pts.push(new THREE.Vector3(x, 0, z), new THREE.Vector3(x, 1, z));
@@ -517,7 +537,7 @@ export class Renderer {
     for (const tower of state.towers) {
       let view = this.towers.get(tower.id);
       if (!view) {
-        view = new TowerView(tower, this.textures, this.stoneTex, this.capTex);
+        view = new TowerView(tower, tower.team === this.me, this.side, this.textures, this.stoneTex, this.capTex);
         this.towers.set(tower.id, view);
         this.world.add(view.group, view.hpBar.sprite);
       }
@@ -547,7 +567,7 @@ export class Renderer {
       if (!view) {
         const sheet = this.textures.get(card.sprite.url);
         if (!sheet) continue;
-        view = new UnitView(unit, card, sheet);
+        view = new UnitView(unit, card, sheet, unit.team === this.me ? MY_COLOR : THEIR_COLOR);
         this.units.set(unit.id, view);
         this.world.add(...view.objects);
       }
@@ -573,7 +593,8 @@ export class Renderer {
 
       view.animT += dt;
       const fps = unit.moving ? 5 + (card.speed ?? 1) * 3 : 4;
-      view.setFrame(Math.floor(view.animT * fps) % card.sprite.frames, unit.facing);
+      // Facing is in world x; the far-side camera mirrors it on screen.
+      view.setFrame(Math.floor(view.animT * fps) % card.sprite.frames, unit.facing * this.side);
 
       let lx = 0;
       let lz = 0;
@@ -617,7 +638,7 @@ export class Renderer {
       seen.add(p.id);
       let view = this.projectiles.get(p.id);
       if (!view) {
-        const color = projectileColor(p);
+        const color = projectileColor(p, p.team === this.me);
         const source = this.units.get(p.sourceId);
         const tower = this.towers.get(p.sourceId);
         const startY = source ? source.y + source.height * 0.6 : tower ? tower.topY + 1 : 1;
@@ -651,7 +672,7 @@ export class Renderer {
       let view = this.spells.get(spell.id);
       const card = getCard(spell.card);
       if (!view) {
-        view = new SpellView(spell, card, this.textures.get(card.sprite.url)!);
+        view = new SpellView(spell, card, this.textures.get(card.sprite.url)!, spell.team === this.me ? MY_COLOR : THEIR_COLOR, this.side);
         this.spells.set(spell.id, view);
         this.world.add(view.sprite, view.marker);
       }
@@ -767,8 +788,8 @@ export class Renderer {
   }
 }
 
-function projectileColor(p: Projectile) {
-  if (p.source === "princess" || p.source === "king") return p.team === 0 ? "#ffae42" : "#d18cff";
+function projectileColor(p: Projectile, mine: boolean) {
+  if (p.source === "princess" || p.source === "king") return mine ? "#ffae42" : "#d18cff";
   switch (p.source) {
     case "skull":
       return "#f3ecd0";
