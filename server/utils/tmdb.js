@@ -11,8 +11,8 @@ const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
  * @param {string} title - Movie title to search for
  * @returns {Promise<object|null>} First matching movie result or null
  */
-async function searchMovie(title) {
-    const cacheKey = `tmdb_search_${title}`;
+async function searchMovie(title, releaseYear) {
+    const cacheKey = `tmdb_search_${title}_${releaseYear || 'any'}`;
 
     if (!process.env.TMDB_API_TOKEN) {
         console.error('TMDB_API_TOKEN is not set in environment variables');
@@ -22,7 +22,7 @@ async function searchMovie(title) {
     try {
         return await getOrRefreshCache(cacheKey, async () => {
             const response = await fetch(
-                `${TMDB_BASE_URL}/search/movie?query=${encodeURIComponent(title)}&include_adult=false&language=en-US&page=1`,
+                `${TMDB_BASE_URL}/search/movie?query=${encodeURIComponent(title)}&include_adult=false&language=en-US&page=1${releaseYear ? `&year=${releaseYear}` : ''}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${process.env.TMDB_API_TOKEN}`,
@@ -115,12 +115,12 @@ async function getWatchProviders(movieId) {
  * @param {string} title - Movie title
  * @returns {Promise<object>} Enriched movie data
  */
-export async function enrichMovieData(title) {
+export async function enrichMovieData(title, releaseYear) {
     if (!title) {
         return {};
     }
 
-    const searchResult = await searchMovie(title);
+    const searchResult = await searchMovie(title, releaseYear);
 
     if (!searchResult) {
         return {};

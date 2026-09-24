@@ -14,6 +14,8 @@ type CalendarDay = {
 
 export default function Calendar() {
   const queryClient = useQueryClient();
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const calendarYear = today.getFullYear();
   const [isMobile, setIsMobile] = React.useState(false);
   const currentDayRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +31,7 @@ export default function Calendar() {
   }, []);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["calendar"],
+    queryKey: ["calendar", calendarYear],
     queryFn: () =>
       fetchWithAuth("/calendar", {
         headers: { "Content-Type": "application/json" },
@@ -37,7 +39,7 @@ export default function Calendar() {
     staleTime: 1000 * 60 * 60 * 1,
     initialData: () => {
       // Use the previous cached data if available
-      return queryClient.getQueryData(["calendar"]);
+      return queryClient.getQueryData(["calendar", calendarYear]);
     },
   });
 
@@ -53,10 +55,7 @@ export default function Calendar() {
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorDisplay message={error.message} />;
 
-  // Get the current year and set the month to October (9 because months are 0-indexed)
-  const currentDate = new Date();
-  currentDate.setMonth(9); // Set to October
-  currentDate.setDate(1); // Set to the first day of the month
+  const currentDate = new Date(calendarYear, 9, 1);
 
   const getFirstDayOfMonth = (date: Date) => {
     return date.getDay();
@@ -71,8 +70,7 @@ export default function Calendar() {
       ));
   };
 
-  const today = new Date();
-  const isOctober = today.getMonth() === 9;
+  const isOctober = today.getFullYear() === calendarYear && today.getMonth() === 9;
   const currentDay = isOctober ? today.getDate() : 0;
 
   const containerVariants = {
@@ -174,11 +172,17 @@ export default function Calendar() {
                 </span>
                 <div className="text-orange-800 text-lg sm:text-xl md:text-2xl lg:text-3xl flex flex-col items-center w-full h-full">
                   <div className="flex-[5] w-full relative md:flex-2">
-                    <img
-                      src={day.lowResUrl}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-fit rounded-md"
-                    />
+                    {day.lowResUrl ? (
+                      <img
+                        src={day.lowResUrl}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-fit rounded-md"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-md bg-gradient-to-b from-orange-950 to-stone-950 p-3 text-center text-sm font-bold text-orange-100">
+                        {day.title}
+                      </div>
+                    )}
                   </div>
                   <div className="text-orange-700 text-lg w-full overflow-hidden text-ellipsis whitespace-nowrap items-center">
                     {day.title}

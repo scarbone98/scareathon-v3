@@ -14,7 +14,7 @@ export default function CurrentMovie() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["calendar", "day", dayOfMonth],
+    queryKey: ["calendar", today.getFullYear(), "day", dayOfMonth],
     queryFn: () =>
       fetchWithAuth(`/calendar/${dayOfMonth}`, {
         headers: { "Content-Type": "application/json" },
@@ -56,11 +56,17 @@ export default function CurrentMovie() {
 
       {/* Movie poster with zombies */}
       <div className="relative inline-block mb-6">
-        <img
-          src={currentMovie.lowResUrl}
-          alt={currentMovie.title}
-          className="rounded-lg h-80 md:h-96 lg:h-112 relative z-10"
-        />
+        {currentMovie.lowResUrl ? (
+          <img
+            src={currentMovie.lowResUrl}
+            alt={currentMovie.title}
+            className="rounded-lg h-80 md:h-96 lg:h-112 relative z-10"
+          />
+        ) : (
+          <div className="relative z-10 flex h-80 w-56 items-center justify-center rounded-lg bg-gradient-to-b from-orange-950 to-stone-950 p-5 text-center font-spooky text-2xl text-orange-100 md:h-96 md:w-64 lg:h-112">
+            {currentMovie.title}
+          </div>
+        )}
         <img
           src="/images/popcornzombie.webp"
           alt="Zombie eating popcorn"
