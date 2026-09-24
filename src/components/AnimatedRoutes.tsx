@@ -31,6 +31,7 @@ const ResetPassword = lazy(
 const Profile = lazy(() => import("../pages/Profile/page"));
 const Post = lazy(() => import("../pages/Post/page"));
 const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
+const CryptClash = lazy(() => import("../pages/Royale/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -216,6 +217,15 @@ export const AnimatedRoutes = () => {
             // Open to guests: anyone can watch; betting will need a login
             <Suspense fallback={<LoadingSpinner />}>
               <MonsterBash />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/crypt-clash"
+          element={
+            // Unlinked on purpose so it can be tested in prod by URL
+            <Suspense fallback={<LoadingSpinner />}>
+              <CryptClash />
             </Suspense>
           }
         />

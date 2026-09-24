@@ -13,7 +13,8 @@
     "backfill:avatar-composites": "node scripts/backfill-avatar-composites.mjs",
     "test:integration": "npm --prefix server run test:integration --",
     "build:report": "npm run build && node scripts/report-bundles.mjs",
-    "balance:monster-bash": "node scripts/monster-bash-balance.mjs"
+    "balance:monster-bash": "node scripts/monster-bash-balance.mjs",
+    "balance:royale": "node scripts/royale-balance.mjs"
   },
   "dependencies": {
     "@strapi/blocks-react-renderer": "^1.0.1",
