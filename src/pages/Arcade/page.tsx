@@ -33,6 +33,8 @@ type MachineData = {
   name: string;
   videoUrl?: string;
   availableOnMobile?: boolean;
+  // Games that don't submit scores hide the Leaderboard button.
+  hasLeaderboard?: boolean;
   game: ReactNode;
 };
 
@@ -250,6 +252,7 @@ export default function Arcade() {
     {
       name: "Crypt Clash",
       videoUrl: "/game-recordings/CryptClash.mp4",
+      hasLeaderboard: false,
       game: (
         <GameRenderer
           title="Crypt Clash"
@@ -367,6 +370,7 @@ export default function Arcade() {
           <div className="flex h-full w-fit flex-col items-center justify-start">
             <Toolbar
               currentGame={selectedMachine.name}
+              hasLeaderboard={selectedMachine.hasLeaderboard !== false}
               onClose={handleCloseGame}
             />
             {selectedMachine.game}

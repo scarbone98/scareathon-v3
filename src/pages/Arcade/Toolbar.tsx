@@ -13,6 +13,7 @@ interface LeaderboardEntry {
 
 interface ToolbarProps {
   currentGame: string;
+  hasLeaderboard?: boolean;
   onClose: () => void;
 }
 
@@ -40,7 +41,7 @@ function formatLeaderboardScore(game: string, value: number) {
   return value;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ currentGame, onClose }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ currentGame, hasLeaderboard = true, onClose }) => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const fetchLeaderboardData = async () => {
@@ -72,14 +73,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ currentGame, onClose }) => {
       <div
         className="z-40 flex h-12 w-full items-center justify-between gap-3 border border-red-900/70 bg-black/90 px-3 text-red-100 shadow-lg"
       >
-        <button
-          type="button"
-          onClick={toggleLeaderboard}
-          className="flex h-9 items-center gap-2 rounded border border-red-700/70 bg-red-950/70 px-3 text-sm font-semibold text-red-50 transition hover:border-red-300 hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-300"
-        >
-          <FaTrophy aria-hidden="true" />
-          Leaderboard
-        </button>
+        {hasLeaderboard ? (
+          <button
+            type="button"
+            onClick={toggleLeaderboard}
+            className="flex h-9 items-center gap-2 rounded border border-red-700/70 bg-red-950/70 px-3 text-sm font-semibold text-red-50 transition hover:border-red-300 hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-300"
+          >
+            <FaTrophy aria-hidden="true" />
+            Leaderboard
+          </button>
+        ) : (
+          <span />
+        )}
         <button
           type="button"
           onClick={onClose}
