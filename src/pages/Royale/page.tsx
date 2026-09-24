@@ -4,7 +4,7 @@ import { MatchController, NetDriver, type Hud } from "./game/controller";
 import { BOT_REACTION, PRESET_DECKS, type Difficulty } from "./game/decks";
 import { ClashSocket, savedSession, type ServerMessage, type SocketStatus } from "./game/net";
 import { Button, Embers, GameCard, Heading, Panel, Sprite, Title } from "./ui/parts";
-import { ORANGE, PURPLE, SPRITES } from "./ui/theme";
+import { ORANGE, PURPLE, SPRITES, useScreenScale } from "./ui/theme";
 import { DeckStrip, DecksScreen, HomeScreen, NameEditor, Screen, TrainingScreen } from "./ui/screens";
 
 const NAME_KEY = "crypt-clash-name";
@@ -66,6 +66,7 @@ interface MatchViewProps {
   opponentLeft?: boolean;
   onRematch: () => void;
   onExit: () => void;
+  ui?: number; // HUD scale on big screens
 }
 
 function Crowns({ count, color }: { count: number; color: string }) {
@@ -80,7 +81,7 @@ function Crowns({ count, color }: { count: number; color: string }) {
   );
 }
 
-function MatchView({ onReady, names, opponentOnline = true, connection = "open", rematch, opponentLeft, onRematch, onExit }: MatchViewProps) {
+function MatchView({ onReady, names, opponentOnline = true, connection = "open", rematch, opponentLeft, onRematch, onExit, ui = 1 }: MatchViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const ctrlRef = useRef<MatchController | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
@@ -188,11 +189,11 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
         <div ref={hostRef} className="absolute inset-0" />
         {hud && (
           <>
-            <Panel className="pointer-events-none absolute left-1 top-1 px-0 text-center" style={{ borderWidth: 12 }}>
+            <Panel className="pointer-events-none absolute left-1 top-1 origin-top-left px-0 text-center" style={{ borderWidth: 12, transform: `scale(${ui})` }}>
               <div className="text-[9px] uppercase tracking-widest text-white/60">{overtime ? "overtime" : "time"}</div>
               <div className={`cc-outline-sm text-xl font-bold leading-none ${overtime ? "text-[#ff5a5a]" : "text-white"}`}>{formatClock(clock)}</div>
             </Panel>
-            <div className="pointer-events-none absolute right-1 top-1 flex flex-col items-end gap-1">
+            <div className="pointer-events-none absolute right-1 top-1 flex origin-top-right flex-col items-end gap-1" style={{ transform: `scale(${ui})` }}>
               <Panel className="flex items-center gap-2 px-0 text-sm" style={{ borderWidth: 12 }}>
                 {names && (
                   <span className="cc-outline-sm max-w-[8rem] truncate text-xs" style={{ color: PURPLE }}>
@@ -238,7 +239,8 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
           <div className="cc-outline-sm pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 border-2 border-[#140a1c] bg-[#3a1020]/90 px-3 py-1 text-sm text-[#ffb0b0]">{toast}</div>
         )}
         {result && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/55 px-6 text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55 px-6 text-center">
+            <div className="flex w-full flex-col items-center gap-4" style={{ transform: `scale(${ui})` }}>
             <div className="cc-pop cc-title" style={{ fontSize: 64, color: won ? "#ffcf4a" : lost ? PURPLE : "#ffffff", textShadow: "0 5px 0 #140a1c, 0 0 30px currentColor" }}>
               {won ? "VICTORY" : lost ? "DEFEAT" : "DRAW"}
             </div>
@@ -261,6 +263,7 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
                 Leave
               </Button>
             </div>
+            </div>
           </div>
         )}
       </div>
@@ -268,24 +271,26 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
       {hud && (
         <div className="border-t-4 border-[#140a1c] bg-gradient-to-b from-[#2a1a3a] to-[#140a1c] px-2 pb-2 pt-3">
           <div className="flex items-end justify-between gap-1">
-            <div className="flex w-12 flex-col items-center text-[10px] uppercase text-white/60">
+            <div className="flex flex-col items-center text-[10px] uppercase text-white/60" style={{ width: 48 * ui }}>
               next
               <div className="mt-1 opacity-80">
-                <GameCard id={hud.next} width={40} animate={false} />
+                <GameCard id={hud.next} width={40 * ui} animate={false} />
               </div>
             </div>
             {hud.hand.map((id, i) => {
               const affordable = hud.elixir >= getCard(id).cost && !hud.pending.includes(id);
               return (
                 <button key={`${i}-${id}`} onPointerDown={(e) => cardDown(i, e)} className="touch-none pl-1 pt-1">
-                  <GameCard id={id} width={70} selected={selected === i} dim={!affordable} />
+                  <GameCard id={id} width={70 * ui} selected={selected === i} dim={!affordable} />
                 </button>
               );
             })}
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <div className="cc-gem cc-outline-sm flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold">{Math.floor(hud.elixir)}</div>
-            <div className="relative h-5 flex-1 overflow-hidden border-2 border-[#140a1c] bg-[#1a0f24]">
+            <div className="cc-gem cc-outline-sm flex items-center justify-center rounded-full font-bold" style={{ width: 28 * ui, height: 28 * ui, fontSize: 14 * ui }}>
+              {Math.floor(hud.elixir)}
+            </div>
+            <div className="relative flex-1 overflow-hidden border-2 border-[#140a1c] bg-[#1a0f24]" style={{ height: 20 * ui }}>
               <div className="h-full bg-gradient-to-b from-[#f08af2] via-[#c23bd4] to-[#8a1f9a] transition-[width] duration-100" style={{ width: `${hud.elixir * 10}%` }} />
               <div className="absolute inset-0 flex">
                 {Array.from({ length: 10 }, (_, i) => (
@@ -302,7 +307,7 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
 
 // ---------- bot games ----------
 
-function BotGame({ deck, difficulty, onExit }: { deck: string[]; difficulty: Difficulty; onExit: () => void }) {
+function BotGame({ deck, difficulty, onExit, ui }: { deck: string[]; difficulty: Difficulty; onExit: () => void; ui: number }) {
   const ctrlRef = useRef<MatchController | null>(null);
   const start = () => {
     const botDeck = PRESET_DECKS[Math.floor(Math.random() * PRESET_DECKS.length)].cards;
@@ -316,6 +321,7 @@ function BotGame({ deck, difficulty, onExit }: { deck: string[]; difficulty: Dif
       }}
       onRematch={start}
       onExit={onExit}
+      ui={ui}
     />
   );
 }
@@ -353,7 +359,7 @@ function Versus({ left, right }: { left: Fighter; right: Fighter }) {
   );
 }
 
-function OnlineGame({ intent, deckId, onDeck, onExit, onInMatch }: { intent: OnlineIntent; deckId: string; onDeck: (id: string) => void; onExit: () => void; onInMatch: (inMatch: boolean) => void }) {
+function OnlineGame({ intent, deckId, onDeck, onExit, onInMatch, ui }: { intent: OnlineIntent; deckId: string; onDeck: (id: string) => void; onExit: () => void; onInMatch: (inMatch: boolean) => void; ui: number }) {
   const [status, setStatus] = useState<SocketStatus>("connecting");
   const [screen, setScreen] = useState<"connecting" | "lobby" | "invite" | "match" | "error">(intent.kind === "join" ? "invite" : "connecting");
   const [code, setCode] = useState<string | null>(intent.kind === "create" ? null : intent.code);
@@ -490,6 +496,7 @@ function OnlineGame({ intent, deckId, onDeck, onExit, onInMatch }: { intent: Onl
         opponentLeft={opponentLeft}
         onRematch={() => socketRef.current?.send({ type: "rematch" })}
         onExit={leave}
+        ui={ui}
       />
     );
   }
@@ -635,12 +642,17 @@ export default function CryptClash() {
     savePref(DECK_KEY, id);
   };
   const inMatch = view.kind === "bot" || (view.kind === "online" && onlineInMatch);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const scale = useScreenScale(frameRef);
+  // Menus scale up as a whole on big screens (pixel art included); in a
+  // match the arena fills the screen and the HUD scales itself.
+  const zoom = inMatch ? 1 : scale;
 
   return (
     <div className="cc-root fixed inset-0 z-50 flex justify-center bg-[#0b0712] text-white select-none">
-      <div className="relative h-full w-full overflow-hidden" style={{ maxWidth: "min(100vw, calc(100dvh * 0.6))" }}>
+      <div ref={frameRef} className="relative h-full w-full overflow-hidden" style={{ maxWidth: "min(100vw, calc(100dvh * 0.6))" }}>
         {!inMatch && <Backdrop />}
-        <div className="relative h-full">
+        <div className="relative origin-top-left" style={{ transform: zoom === 1 ? undefined : `scale(${zoom})`, width: `${100 / zoom}%`, height: `${100 / zoom}%` }}>
           {view.kind === "home" && (
             <HomeScreen
               name={name}
@@ -658,9 +670,10 @@ export default function CryptClash() {
           {view.kind === "training" && (
             <TrainingScreen deckId={deckId} onStart={(difficulty) => setView({ kind: "bot", difficulty })} onDecks={() => setView({ kind: "decks", back: "training" })} onBack={home} />
           )}
-          {view.kind === "bot" && <BotGame deck={deckById(deckId)} difficulty={view.difficulty} onExit={home} />}
+          {view.kind === "bot" && <BotGame deck={deckById(deckId)} difficulty={view.difficulty} onExit={home} ui={scale} />}
           {view.kind === "online" && (
             <OnlineGame
+              ui={scale}
               intent={view.intent}
               deckId={deckId}
               onDeck={pickDeck}

@@ -27,14 +27,17 @@ export function avgCost(cards: string[]) {
   return cards.reduce((sum, id) => sum + getCard(id).cost, 0) / cards.length;
 }
 
-// How much to scale a screen's art and controls up on tall displays: 1 at
-// phone height (about 860px), up to 1.6.
+// How much to scale the menus up on big displays: 1 on phones, growing with
+// the frame (designed for about 516x860) up to 1.6.
 export function useScreenScale(ref: RefObject<HTMLElement>) {
   const [scale, setScale] = useState(1);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => setScale(Math.min(1.6, Math.max(1, el.clientHeight / 860))));
+    const observer = new ResizeObserver(() => {
+      const fit = Math.min(el.clientHeight / 860, el.clientWidth / 516);
+      setScale(Math.min(1.6, Math.max(1, fit)));
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, [ref]);
