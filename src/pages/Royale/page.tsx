@@ -4,7 +4,7 @@ import { MatchController, NetDriver, type Hud } from "./game/controller";
 import { BOT_REACTION, PRESET_DECKS, type Difficulty } from "./game/decks";
 import { ClashSocket, savedSession, type ServerMessage, type SocketStatus } from "./game/net";
 import { Button, Embers, GameCard, Heading, Panel, Sprite, Title } from "./ui/parts";
-import { ORANGE, PURPLE, SPRITES, useScreenScale } from "./ui/theme";
+import { ORANGE, PURPLE, SPRITES, useScreenScale, useWidth } from "./ui/theme";
 import { DeckStrip, DecksScreen, HomeScreen, NameEditor, Screen, TrainingScreen } from "./ui/screens";
 
 const NAME_KEY = "crypt-clash-name";
@@ -182,6 +182,9 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
   const result = hud?.result;
   const won = result && result.winner === hud?.me;
   const lost = result && result.winner !== null && result.winner !== hud?.me;
+  // The hand is laid out for a 376px-wide bar; narrower phones shrink it to fit.
+  const [barRef, barWidth] = useWidth<HTMLDivElement>();
+  const hand = barWidth ? Math.min(ui, barWidth / 376) : ui;
 
   return (
     <div className="flex h-full flex-col">
@@ -213,9 +216,6 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
                 <Crowns count={hud.crowns[0]} color={ORANGE} />
               </Panel>
             </div>
-            {hud.doubleElixir && !result && (
-              <div className="cc-pop cc-outline-sm pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 border-2 border-[#140a1c] bg-[#c23bd4] px-2 py-0.5 text-sm font-bold">2x ELIXIR</div>
-            )}
             {hud.countdown > 0 && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div key={hud.countdown} className="cc-count cc-title cc-outline text-[110px] text-[#ffcf4a]">
@@ -269,25 +269,25 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
       </div>
 
       {hud && (
-        <div className="border-t-4 border-[#140a1c] bg-gradient-to-b from-[#2a1a3a] to-[#140a1c] px-2 pb-2 pt-3">
+        <div ref={barRef} className="border-t-4 border-[#140a1c] bg-gradient-to-b from-[#2a1a3a] to-[#140a1c] px-2 pb-2 pt-3">
           <div className="flex items-end justify-between gap-1">
-            <div className="flex flex-col items-center text-[10px] uppercase text-white/60" style={{ width: 48 * ui }}>
+            <div className="flex flex-col items-center text-[10px] uppercase text-white/60" style={{ width: 48 * hand }}>
               next
               <div className="mt-1 opacity-80">
-                <GameCard id={hud.next} width={40 * ui} animate={false} />
+                <GameCard id={hud.next} width={40 * hand} animate={false} />
               </div>
             </div>
             {hud.hand.map((id, i) => {
               const affordable = hud.elixir >= getCard(id).cost && !hud.pending.includes(id);
               return (
                 <button key={`${i}-${id}`} onPointerDown={(e) => cardDown(i, e)} className="touch-none pl-1 pt-1">
-                  <GameCard id={id} width={70 * ui} selected={selected === i} dim={!affordable} />
+                  <GameCard id={id} width={70 * hand} selected={selected === i} dim={!affordable} />
                 </button>
               );
             })}
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <div className="cc-gem cc-outline-sm flex items-center justify-center rounded-full font-bold" style={{ width: 28 * ui, height: 28 * ui, fontSize: 14 * ui }}>
+            <div className="cc-gem cc-outline-sm flex shrink-0 items-center justify-center rounded-full" style={{ width: 28 * ui, height: 28 * ui, fontSize: 16 * ui, paddingLeft: 1 }}>
               {Math.floor(hud.elixir)}
             </div>
             <div className="relative flex-1 overflow-hidden border-2 border-[#140a1c] bg-[#1a0f24]" style={{ height: 20 * ui }}>
@@ -297,6 +297,11 @@ function MatchView({ onReady, names, opponentOnline = true, connection = "open",
                   <div key={i} className="flex-1 border-r-2 border-[#140a1c]/70 last:border-r-0" />
                 ))}
               </div>
+              {hud.doubleElixir && !result && (
+                <div className="cc-pop cc-outline-sm pointer-events-none absolute inset-0 flex items-center justify-center font-bold uppercase tracking-widest text-white" style={{ fontSize: 12 * ui }}>
+                  Double elixir!
+                </div>
+              )}
             </div>
           </div>
         </div>

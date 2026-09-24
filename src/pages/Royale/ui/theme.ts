@@ -27,6 +27,19 @@ export function avgCost(cards: string[]) {
   return cards.reduce((sum, id) => sum + getCard(id).cost, 0) / cards.length;
 }
 
+// An element's width, kept current, so card rows can size cards to fit.
+export function useWidth<T extends HTMLElement>() {
+  const [el, setEl] = useState<T | null>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (!el) return;
+    const observer = new ResizeObserver(() => setWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [el]);
+  return [setEl, width] as const;
+}
+
 // How much to scale the menus up on big displays: 1 on phones, growing with
 // the frame (designed for about 516x860) up to 1.6.
 export function useScreenScale(ref: RefObject<HTMLElement>) {

@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { PRESET_DECKS, type Difficulty } from "../game/decks";
 import { Button, Character, GameCard, Graveyard, Heading, Panel, Skulls, Sprite, Title } from "./parts";
-import { SPRITES, avgCost } from "./theme";
+import { SPRITES, avgCost, useWidth } from "./theme";
 
 export function Screen({ children, onBack, title }: { children: ReactNode; onBack?: () => void; title?: string }) {
   return (
@@ -46,10 +46,14 @@ export function NameEditor({ name, onChange }: { name: string; onChange: (name: 
 }
 
 export function DeckStrip({ cards, width = 34 }: { cards: string[]; width?: number }) {
+  // Shrink the cards to fit one row on narrow phones.
+  const [ref, room] = useWidth<HTMLDivElement>();
+  const gap = 6;
+  const fit = room ? Math.min(width, Math.floor((room - 8 - gap * (cards.length - 1)) / cards.length)) : width;
   return (
-    <div className="flex justify-center gap-2 pl-2 pt-2">
+    <div ref={ref} className="flex justify-center pl-2 pt-2" style={{ gap }}>
       {cards.map((id) => (
-        <GameCard key={id} id={id} width={width} animate={false} />
+        <GameCard key={id} id={id} width={fit} animate={false} />
       ))}
     </div>
   );
@@ -128,6 +132,8 @@ export function DecksScreen({ deckId, onPick, onBack }: { deckId: string; onPick
   const index = Math.max(0, PRESET_DECKS.findIndex((d) => d.id === deckId));
   const deck = PRESET_DECKS[index];
   const shift = (by: number) => onPick(PRESET_DECKS[(index + by + PRESET_DECKS.length) % PRESET_DECKS.length].id);
+  const [gridRef, gridWidth] = useWidth<HTMLDivElement>();
+  const cardWidth = gridWidth ? Math.min(68, Math.floor((gridWidth - 8 - 3 * 8) / 4)) : 68;
   return (
     <Screen onBack={onBack} title="Decks">
       <div className="mx-auto mt-4 w-full max-w-sm px-3">
@@ -144,13 +150,13 @@ export function DecksScreen({ deckId, onPick, onBack }: { deckId: string; onPick
               ▶
             </Button>
           </div>
-          <div className="mt-4 grid grid-cols-4 justify-items-center gap-x-2 gap-y-4 pl-2">
+          <div ref={gridRef} className="mt-4 grid grid-cols-4 justify-items-center gap-x-2 gap-y-4 pl-2">
             {deck.cards.map((id) => (
-              <GameCard key={id} id={id} width={68} />
+              <GameCard key={id} id={id} width={cardWidth} />
             ))}
           </div>
           <div className="mt-4 flex items-center justify-center gap-2 text-sm text-white/80">
-            <span className="cc-gem cc-outline-sm flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white">{avgCost(deck.cards).toFixed(1)}</span>
+            <span className="cc-gem cc-outline-sm flex h-6 items-center justify-center rounded-full px-1.5 text-xs text-white">{avgCost(deck.cards).toFixed(1)}</span>
             average elixir
           </div>
         </Panel>

@@ -40,6 +40,8 @@ const CARD_FRAME: Record<string, number> = { unit: 0, building: 1, spell: 2 };
 export function GameCard({ id, width = 64, animate = true, selected = false, dim = false }: { id: string; width?: number; animate?: boolean; selected?: boolean; dim?: boolean }) {
   const card = getCard(id);
   const h = Math.round(width * 1.5);
+  // The cost stays readable on the little cards in deck strips.
+  const gem = Math.max(16, Math.round(width * 0.36));
   return (
     <div
       className={`relative shrink-0 select-none transition-transform duration-100 ${selected ? "-translate-y-2" : ""}`}
@@ -58,8 +60,8 @@ export function GameCard({ id, width = 64, animate = true, selected = false, dim
         </span>
       </div>
       <div
-        className="cc-gem cc-outline-sm absolute -left-2 -top-2 flex items-center justify-center rounded-full font-bold text-white"
-        style={{ width: Math.round(width * 0.36), height: Math.round(width * 0.36), fontSize: Math.round(width * 0.22) }}
+        className="cc-gem cc-outline-sm absolute flex items-center justify-center rounded-full text-white"
+        style={{ width: gem, height: gem, left: -gem / 4, top: -gem / 4, fontSize: Math.round(gem * 0.6), paddingLeft: 1 }}
       >
         {card.cost}
       </div>

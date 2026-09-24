@@ -7,8 +7,19 @@
   font-display: swap;
 }
 
+/* Pixelify's 2, 3 and 5 read as 8, 8 and S at small sizes, so numbers
+   (costs, elixir, the clock) come from Press Start 2P, subset to digits. */
+@font-face {
+  font-family: "CCDigits";
+  src: url("/fonts/PressStart2P-digits.woff2") format("woff2");
+  unicode-range: U+0030-0039;
+  font-weight: 400 700; /* already chunky; never faux-bold it */
+  size-adjust: 80%;
+  font-display: swap;
+}
+
 .cc-root {
-  font-family: "Pixelify", ui-monospace, monospace;
+  font-family: "CCDigits", "Pixelify", ui-monospace, monospace;
   -webkit-font-smoothing: none;
 }
 
