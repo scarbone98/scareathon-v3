@@ -209,7 +209,8 @@ export class Renderer {
   private camera = new THREE.PerspectiveCamera(30, 1, 0.5, 400);
   private baseCamPos = new THREE.Vector3();
   private world = new THREE.Group();
-  private view: ViewOptions = { pixelSize: 2, tilt: 55 };
+  // pixelSize 1 renders at full screen resolution (no pixel filter).
+  private view: ViewOptions = { pixelSize: 1, tilt: 55 };
   // Which team sits at the bottom of the screen; side is its home z sign.
   private me: Team = 0;
   private side = 1;
@@ -232,7 +233,7 @@ export class Renderer {
   ready = false;
 
   constructor(private host: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(1);
     const canvas = this.renderer.domElement;
     Object.assign(canvas.style, { width: "100%", height: "100%", imageRendering: "pixelated", display: "block", touchAction: "none" });
@@ -335,7 +336,9 @@ export class Renderer {
     const w = this.host.clientWidth;
     const h = this.host.clientHeight;
     if (!w || !h) return;
-    const px = this.view.pixelSize;
+    // Match the screen's pixel density (capped at 2x to keep phones fast),
+    // then divide by pixelSize for a chunkier look if ever wanted.
+    const px = this.view.pixelSize / Math.min(2, window.devicePixelRatio || 1);
     this.renderer.setSize(Math.max(1, Math.round(w / px)), Math.max(1, Math.round(h / px)), false);
     const cam = this.camera;
     cam.aspect = w / h;
