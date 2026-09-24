@@ -1,9 +1,9 @@
 // Menu screens: home, deck picker and training setup.
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { PRESET_DECKS, type Difficulty } from "../game/decks";
 import { Button, Character, GameCard, Graveyard, Heading, Panel, Skulls, Sprite, Title } from "./parts";
-import { SPRITES, avgCost } from "./theme";
+import { SPRITES, avgCost, useScreenScale } from "./theme";
 
 export function Screen({ children, onBack, title }: { children: ReactNode; onBack?: () => void; title?: string }) {
   return (
@@ -71,8 +71,11 @@ export function HomeScreen({
   onDecks: () => void;
 }) {
   const deck = PRESET_DECKS.find((d) => d.id === deckId) ?? PRESET_DECKS[0];
+  const rootRef = useRef<HTMLDivElement>(null);
+  const k = useScreenScale(rootRef);
+  const buttonFont = { fontSize: 20 * k };
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
+    <div ref={rootRef} className="relative flex h-full flex-col overflow-hidden">
       <div className="flex items-start justify-between px-3 pt-3">
         <Link to="/" className="cc-sbtn cc-sbtn-stone cc-outline-sm px-1 text-sm" aria-label="Leave">
           <span>◀</span>
@@ -80,34 +83,40 @@ export function HomeScreen({
         <NameEditor name={name} onChange={onName} />
       </div>
 
-      <div className="mt-2 flex items-end justify-center gap-1">
-        <Sprite sprite={SPRITES.lamp} size={112} fps={6} />
-        <Title />
-        <Sprite sprite={SPRITES.lamp} size={112} fps={6} flip />
+      {/* Title and buttons share the space above the graveyard, spread out on tall screens. */}
+      <div className="flex flex-1 flex-col items-center justify-evenly">
+        <div className="flex items-end justify-center gap-1">
+          <Sprite sprite={SPRITES.lamp} size={112 * k} fps={6} />
+          <Title scale={k} />
+          <Sprite sprite={SPRITES.lamp} size={112 * k} fps={6} flip />
+        </div>
+
+        <div className="flex w-full flex-col px-4" style={{ maxWidth: 320 * k, gap: 18 * k * k }}>
+          <Button color="orange" onClick={onPlayFriend} style={{ ...buttonFont, paddingBlock: 4 * k }}>
+            <span className="leading-none" style={{ fontSize: 26 * k }}>
+              ⚔
+            </span>{" "}
+            Battle a friend
+          </Button>
+          <Button color="purple" onClick={onTraining} style={{ ...buttonFont, paddingBlock: 4 * k }}>
+            <Sprite sprite={SPRITES.skull} size={26 * k} /> Training
+          </Button>
+          <Button color="green" onClick={onDecks} style={{ ...buttonFont, paddingBlock: 4 * k }}>
+            <Sprite sprite={SPRITES.chest} size={28 * k} animate={false} />
+            <span className="flex flex-col items-start leading-tight">
+              Decks
+              <span className="normal-case tracking-normal text-[#e6ffe0]" style={{ fontSize: 10 * k }}>
+                {deck.name}
+              </span>
+            </span>
+          </Button>
+        </div>
       </div>
 
-      <div className="mx-auto mt-6 flex w-full max-w-xs flex-col gap-4 px-4">
-        <Button color="orange" onClick={onPlayFriend} className="py-1 text-xl">
-          <span className="text-2xl leading-none">⚔</span> Battle a friend
-        </Button>
-        <Button color="purple" onClick={onTraining} className="py-1 text-lg">
-          <Sprite sprite={SPRITES.skull} size={26} /> Training
-        </Button>
-        <Button color="green" onClick={onDecks} className="py-1 text-lg">
-          <Sprite sprite={SPRITES.chest} size={28} animate={false} />
-          <span className="flex flex-col items-start leading-tight">
-            Decks
-            <span className="text-[10px] normal-case tracking-normal text-[#e6ffe0]">{deck.name}</span>
-          </span>
-        </Button>
-      </div>
-
-      <div className="mt-auto">
-        <Graveyard>
-          <Character sprite={SPRITES.joe} size={64} />
-          <Character sprite={SPRITES.matt} size={64} flip />
-        </Graveyard>
-      </div>
+      <Graveyard scale={k}>
+        <Character sprite={SPRITES.joe} size={64 * k} />
+        <Character sprite={SPRITES.matt} size={64 * k} flip />
+      </Graveyard>
     </div>
   );
 }

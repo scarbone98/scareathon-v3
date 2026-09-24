@@ -90,13 +90,13 @@ export function Heading({ children }: { children: ReactNode }) {
   return <div className="cc-outline text-center text-2xl font-bold uppercase tracking-widest text-[#ffcf4a]">{children}</div>;
 }
 
-export function Title({ small = false }: { small?: boolean }) {
+export function Title({ small = false, scale = 1 }: { small?: boolean; scale?: number }) {
   return (
     <div className="cc-bob pointer-events-none text-center" style={{ filter: "drop-shadow(0 0 18px #ff6a0055)" }}>
-      <div className="cc-title" style={{ fontSize: small ? 30 : 46, color: "#c88cff", textShadow: "0 3px 0 #4a1a7a, 0 6px 0 #140a1c" }}>
+      <div className="cc-title" style={{ fontSize: (small ? 30 : 46) * scale, color: "#c88cff", textShadow: "0 3px 0 #4a1a7a, 0 6px 0 #140a1c" }}>
         CRYPT
       </div>
-      <div className="cc-title" style={{ fontSize: small ? 48 : 76, color: ORANGE, textShadow: "0 4px 0 #8a3a00, 0 8px 0 #140a1c, 0 0 24px #ff8a1f66" }}>
+      <div className="cc-title" style={{ fontSize: (small ? 48 : 76) * scale, color: ORANGE, textShadow: "0 4px 0 #8a3a00, 0 8px 0 #140a1c, 0 0 24px #ff8a1f66" }}>
         CLASH
       </div>
     </div>
@@ -144,27 +144,28 @@ export function Character({ sprite, size, flip = false }: { sprite: CardSprite; 
 }
 
 // The graveyard strip along the bottom of menu screens.
-export function Graveyard({ children }: { children?: ReactNode }) {
+export function Graveyard({ children, scale = 1 }: { children?: ReactNode; scale?: number }) {
   return (
-    <div className="pointer-events-none relative h-52 w-full">
+    <div className="pointer-events-none relative w-full" style={{ height: 208 * scale }}>
       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b0712] via-[#0b0712cc] to-transparent" />
       <div className="absolute bottom-3 left-1">
-        <Sprite sprite={SPRITES.tree} size={120} style={{ opacity: 0.85 }} />
+        <Sprite sprite={SPRITES.tree} size={120 * scale} style={{ opacity: 0.85 }} />
       </div>
       <div className="absolute bottom-2 right-2">
-        <Sprite sprite={SPRITES.tree} size={104} flip style={{ opacity: 0.85 }} />
+        <Sprite sprite={SPRITES.tree} size={104 * scale} flip style={{ opacity: 0.85 }} />
       </div>
       <div className="absolute bottom-3 left-[30%]">
-        <Sprite sprite={SPRITES.grave} size={46} />
+        <Sprite sprite={SPRITES.grave} size={46 * scale} />
       </div>
       <div className="absolute bottom-4 right-[27%]">
-        <Sprite sprite={SPRITES.grave} size={38} flip />
+        <Sprite sprite={SPRITES.grave} size={38 * scale} flip />
       </div>
       <div className="absolute inset-x-0 bottom-6 flex justify-center">
-        <Sprite sprite={SPRITES.mausoleum} size={170} style={{ filter: "brightness(0.8)" }} />
+        <Sprite sprite={SPRITES.mausoleum} size={170 * scale} style={{ filter: "brightness(0.8)" }} />
       </div>
       <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0b0712] to-transparent" />
       <div className="absolute inset-x-0 bottom-2 flex items-end justify-center gap-16">{children}</div>
     </div>
   );
 }
+

@@ -1,4 +1,5 @@
 // Colors, sprite sheets and helpers shared by the Crypt Clash screens.
+import { useEffect, useState, type RefObject } from "react";
 import { getCard, type CardSprite } from "../../../../server/shared/royale/index.js";
 
 export const ORANGE = "#ff8a1f";
@@ -24,4 +25,18 @@ export const SPRITES = {
 
 export function avgCost(cards: string[]) {
   return cards.reduce((sum, id) => sum + getCard(id).cost, 0) / cards.length;
+}
+
+// How much to scale a screen's art and controls up on tall displays: 1 at
+// phone height (about 860px), up to 1.6.
+export function useScreenScale(ref: RefObject<HTMLElement>) {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setScale(Math.min(1.6, Math.max(1, el.clientHeight / 860))));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return scale;
 }
