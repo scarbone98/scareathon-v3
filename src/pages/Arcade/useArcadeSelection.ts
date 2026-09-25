@@ -20,12 +20,13 @@ export function useArcadeSelection(games: MachineData[], isMobileArcade: boolean
   }, [requestedGameName, games]);
 
   // Remember the game in the URL so the page can be shared or reloaded onto it.
-  const selectGame = useCallback((machine: MachineData) => {
+  // replace: swap the URL in place instead of adding a history entry.
+  const selectGame = useCallback((machine: MachineData, options?: { replace?: boolean }) => {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
       nextParams.set("game", machine.name);
       return nextParams;
-    });
+    }, { replace: options?.replace });
   }, [setSearchParams]);
 
   const playGame = useCallback((machine: MachineData) => {

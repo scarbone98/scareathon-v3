@@ -15,6 +15,7 @@ import LoadingSpinner from "./LoadingSpinner";
 
 const Home = lazy(() => import("../pages/Home/page"));
 const Arcade = lazy(() => import("../pages/Arcade/page"));
+const ArcadeV2 = lazy(() => import("../pages/ArcadeV2/page"));
 const Authentication = lazy(() => import("../pages/Authentication/page"));
 const Scareathon = lazy(() => import("../pages/Scareathon/page"));
 const ScareathonToday = lazy(() => import("../pages/Scareathon/Today"));
@@ -210,6 +211,15 @@ export const AnimatedRoutes = () => {
             // Open to guests: they can play, and are asked to sign in to save scores
             <Suspense fallback={<LoadingSpinner />}>
               <Arcade />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/arcade-v2"
+          element={
+            // The cartridge arcade, beside /arcade until it replaces it
+            <Suspense fallback={<LoadingSpinner />}>
+              <ArcadeV2 />
             </Suspense>
           }
         />

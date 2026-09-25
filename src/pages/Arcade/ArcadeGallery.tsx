@@ -1,6 +1,6 @@
 // src/components/ArcadeGallery.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, SRGBColorSpace, Vector3 } from "three";
+import { Group, PerspectiveCamera, WebGLRenderer, Scene, Color, AnimationMixer, AmbientLight, PointLight, DirectionalLight, Mesh, CanvasTexture, Vector3 } from "three";
 import type { MeshStandardMaterial } from "three";
 import { createArcadeAmbience, type ArcadeAmbience } from "./arcadeAmbience";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -9,6 +9,14 @@ import { useGesture } from "@use-gesture/react";
 import { FaChevronLeft, FaChevronRight, FaPlay } from "react-icons/fa";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import type { MachineData } from "./games.tsx";
+import {
+  MARQUEE_GLOW,
+  MARQUEE_NEON_COLORS,
+  createMarqueeTexture,
+  createScreenVideo,
+  isLightweightDevice,
+  marqueeFlicker,
+} from "./cabinetParts.ts";
 
 type Props = {
   initialMachineName?: string;
@@ -17,99 +25,6 @@ type Props = {
   // True while a game is open over the carousel: stop rendering and videos so the game gets the GPU
   paused?: boolean;
 };
-
-// Phones and tablets: smaller video canvases, no antialiasing, lower pixel ratio
-const isLightweightDevice = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
-
-// Neon colours cycle across the cabinets so neighbours never match
-const MARQUEE_NEON_COLORS = ["#ff2d55", "#39ff9f", "#2de2ff", "#c86bff", "#ffa31a"];
-const MARQUEE_GLOW = 1.4;
-
-// Paint a game's name as a neon sign: dark backing, a coloured halo, a brighter
-// inner glow and a near-white core, like a lit glass tube.
-function drawNeonMarquee(canvas: HTMLCanvasElement, name: string, color: string) {
-  const context = canvas.getContext("2d");
-  if (!context) return;
-  const { width, height } = canvas;
-
-  context.shadowBlur = 0;
-  const backing = context.createLinearGradient(0, 0, 0, height);
-  backing.addColorStop(0, "#0c0612");
-  backing.addColorStop(1, "#030105");
-  context.fillStyle = backing;
-  context.fillRect(0, 0, width, height);
-
-  const wash = context.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width * 0.45);
-  wash.addColorStop(0, `${color}30`);
-  wash.addColorStop(1, `${color}00`);
-  context.fillStyle = wash;
-  context.fillRect(0, 0, width, height);
-
-  // Thin neon border tube
-  context.strokeStyle = color;
-  context.lineWidth = 5;
-  context.shadowColor = color;
-  context.shadowBlur = 24;
-  context.strokeRect(22, 22, width - 44, height - 44);
-
-  const label = name.replace(/[\u2018\u2019]/g, "'").toUpperCase();
-  let fontSize = 220;
-  context.font = `${fontSize}px Zombie, Creepster, cursive`;
-  while (context.measureText(label).width > width * 0.86 && fontSize > 60) {
-    fontSize -= 6;
-    context.font = `${fontSize}px Zombie, Creepster, cursive`;
-  }
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  const x = width / 2;
-  const y = height / 2 + fontSize * 0.04;
-
-  context.fillStyle = color;
-  for (const blur of [70, 36, 14]) {
-    context.shadowColor = color;
-    context.shadowBlur = blur;
-    context.fillText(label, x, y);
-  }
-  context.shadowColor = "#ffffff";
-  context.shadowBlur = 6;
-  context.fillStyle = "#fff4f8";
-  context.globalAlpha = 0.85;
-  context.fillText(label, x, y);
-  context.globalAlpha = 1;
-}
-
-function createMarqueeTexture(name: string, color: string) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 2048;
-  canvas.height = 340; // about the marquee's 6:1 shape
-  drawNeonMarquee(canvas, name, color);
-
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.anisotropy = 8;
-  // The first paint may use a fallback font; repaint once the Zombie web font is ready
-  document.fonts
-    ?.load("220px Zombie")
-    .then(() => {
-      drawNeonMarquee(canvas, name, color);
-      texture.needsUpdate = true;
-    })
-    .catch(() => {});
-  return texture;
-}
-
-// Brief neon flicker every ~9s, staggered per cabinet
-function marqueeFlicker(time: number, seed: number) {
-  const phase = (time + seed * 3.7) % 9;
-  if (phase > 0.45) return 1;
-  return Math.sin(phase * 70) > 0.2 ? 1 : 0.3;
-}
-
-// How much the video is enlarged past "fit the whole frame": trims a little off
-// portrait clips' top and bottom so they read larger on the wide cabinet screen.
-const SCREEN_VIDEO_ZOOM = 1.15;
 
 const ArcadeGallery: React.FC<Props> = ({
   initialMachineName,
@@ -206,119 +121,13 @@ const ArcadeGallery: React.FC<Props> = ({
     directionalLight.castShadow = true; // Enable shadows if needed
     scene.add(directionalLight);
 
-    // The cabinet screen is about 1.88:1. Draw each video inside a canvas with
-    // that aspect ratio so portrait and 16:9 recordings keep their proportions.
     const marquees: { material: MeshStandardMaterial; texture: CanvasTexture; seed: number }[] = [];
     let ambience: ArcadeAmbience | null = null;
     let disposed = false;
 
-    const screenVideos = machinesData.map((machine) => {
-      if (!machine.videoUrl) return null;
-
-      const video = document.createElement("video");
-      video.crossOrigin = "anonymous";
-      video.src = machine.videoUrl;
-      video.loop = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.preload = "auto";
-
-      const canvas = document.createElement("canvas");
-      // Same ~1.88:1 shape either way; phones show the screen small, so upload far fewer pixels
-      canvas.width = lightweight ? 640 : 960;
-      canvas.height = lightweight ? 340 : 512;
-      const context = canvas.getContext("2d");
-      context?.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Tiny canvas used as a cheap, cross-browser blur: shrink the frame, then scale it back up
-      const backdrop = document.createElement("canvas");
-      backdrop.width = 32;
-      backdrop.height = 17;
-      const backdropContext = backdrop.getContext("2d");
-
-      const texture = new CanvasTexture(canvas);
-      // Preserve the orientation used by the cabinet model's screen UVs.
-      texture.flipY = true;
-      texture.repeat.set(1, -1);
-      texture.offset.set(0, 1);
-
-      let frameRequest: number | undefined;
-      let lastTime = -1;
-      const drawFrame = () => {
-        if (!context || !video.videoWidth || !video.videoHeight) return;
-
-        const fitScale = Math.min(
-          canvas.width / video.videoWidth,
-          canvas.height / video.videoHeight
-        );
-        const fillScale = Math.max(
-          canvas.width / video.videoWidth,
-          canvas.height / video.videoHeight
-        );
-
-        // Backdrop: the same footage filling the screen, blurred and dimmed, instead of black bars
-        context.fillStyle = "black";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        if (backdropContext) {
-          const backdropScale = fillScale * (backdrop.width / canvas.width);
-          const backdropWidth = video.videoWidth * backdropScale;
-          const backdropHeight = video.videoHeight * backdropScale;
-          backdropContext.drawImage(
-            video,
-            (backdrop.width - backdropWidth) / 2,
-            (backdrop.height - backdropHeight) / 2,
-            backdropWidth,
-            backdropHeight
-          );
-          context.imageSmoothingEnabled = true;
-          context.imageSmoothingQuality = "high";
-          context.drawImage(backdrop, 0, 0, canvas.width, canvas.height);
-          context.fillStyle = "rgba(0, 0, 0, 0.45)";
-          context.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Foreground: the whole clip, a little larger than a strict fit but never past filling the screen
-        const scale = Math.min(fitScale * SCREEN_VIDEO_ZOOM, fillScale);
-        const width = video.videoWidth * scale;
-        const height = video.videoHeight * scale;
-        // When the zoom overflows vertically, trim mostly from the bottom: titles and logos sit at the top
-        const top = height > canvas.height ? (canvas.height - height) * 0.2 : (canvas.height - height) / 2;
-        context.drawImage(video, (canvas.width - width) / 2, top, width, height);
-        texture.needsUpdate = true;
-      };
-      video.addEventListener("loadeddata", drawFrame);
-
-      const hasVideoFrameCallback =
-        typeof video.requestVideoFrameCallback === "function";
-      if (hasVideoFrameCallback) {
-        const onFrame: VideoFrameRequestCallback = () => {
-          drawFrame();
-          frameRequest = video.requestVideoFrameCallback(onFrame);
-        };
-        frameRequest = video.requestVideoFrameCallback(onFrame);
-      }
-
-      // Playback starts from the focus effect below: only the cabinet in front plays
-
-      return {
-        video,
-        texture,
-        updateFrame: () => {
-          if (!hasVideoFrameCallback && video.currentTime !== lastTime) {
-            lastTime = video.currentTime;
-            drawFrame();
-          }
-        },
-        dispose: () => {
-          if (frameRequest !== undefined) video.cancelVideoFrameCallback(frameRequest);
-          video.removeEventListener("loadeddata", drawFrame);
-          video.pause();
-          video.removeAttribute("src");
-          video.load();
-          texture.dispose();
-        },
-      };
-    });
+    const screenVideos = machinesData.map((machine) =>
+      machine.videoUrl ? createScreenVideo(machine.videoUrl, lightweight) : null
+    );
 
     // Load the GLB model using GLTFLoader
     const loader = new GLTFLoader();
