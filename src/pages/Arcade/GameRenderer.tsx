@@ -10,6 +10,8 @@ type GameRendererProps = {
   reservedVerticalSpace?: number;
   // Permissions policy for the game frame, e.g. "accelerometer; gyroscope" for tilt controls.
   allow?: string;
+  // Sandbox for games we didn't make (community games)
+  sandbox?: string;
 };
 
 function GameRenderer({
@@ -19,6 +21,7 @@ function GameRenderer({
   desktopAspectRatio = 9 / 16,
   reservedVerticalSpace = 0,
   allow,
+  sandbox,
 }: GameRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -98,7 +101,7 @@ function GameRenderer({
     };
   }, [desktopAspectRatio, onLoad, reservedVerticalSpace]);
 
-  return <iframe ref={iframeRef} title={title} src={url} allow={allow}></iframe>;
+  return <iframe ref={iframeRef} title={title} src={url} allow={allow} sandbox={sandbox}></iframe>;
 }
 
 export default GameRenderer;

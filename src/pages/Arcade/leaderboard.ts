@@ -12,6 +12,11 @@ export interface LeaderboardEntry {
 
 const TIME_SCORE_GAMES = new Set(["8 Bit Evil Returns"]);
 
+// Community games say in their manifest whether their score is a time
+export function markTimeScoreGame(game: string) {
+  TIME_SCORE_GAMES.add(game);
+}
+
 function formatSecondsScore(value: number) {
   const totalSeconds = Math.max(0, Math.floor(Number(value) || 0));
   const hours = Math.floor(totalSeconds / 3600);

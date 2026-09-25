@@ -200,8 +200,10 @@ const VIDEO_FALLBACK_TIMEOUT = 8000;
 // attract video, one video at a time so phones aren't downloading a dozen clips
 // at once. A video that stalls (iOS won't load a video that isn't playing) is
 // given up on so it can't hold up the rest. Calls onFrame as each one arrives.
+// A game with a stillUrl (community games' cover images) uses that instead;
+// it's on another site, so it only shows if that site allows CORS.
 export function loadVideoStills(
-  videoUrls: (string | undefined)[],
+  games: { videoUrl?: string; stillUrl?: string }[],
   onFrame: (index: number, source: CanvasImageSource, width: number, height: number) => void
 ) {
   let cancelled = false;
@@ -243,7 +245,7 @@ export function loadVideoStills(
       done();
     }, { once: true });
     video.addEventListener("error", done, { once: true });
-    video.src = videoUrls[index]!;
+    video.src = games[index].videoUrl!;
   };
 
   // Once every still has loaded or failed, work through the videos that had none
@@ -252,21 +254,23 @@ export function loadVideoStills(
     if (pending === 0) nextVideo();
   };
 
-  videoUrls.forEach((url, index) => {
-    if (!url) return;
+  games.forEach(({ videoUrl, stillUrl }, index) => {
+    if (!videoUrl && !stillUrl) return;
     pending += 1;
     const image = new Image();
     images.push(image);
     image.decoding = "async";
+    // Cross-site pictures must come with CORS or the label texture can't use them
+    if (stillUrl) image.crossOrigin = "anonymous";
     image.onload = () => {
       if (!cancelled) onFrame(index, image, image.naturalWidth, image.naturalHeight);
       settled();
     };
     image.onerror = () => {
-      needVideo.push(index);
+      if (videoUrl) needVideo.push(index);
       settled();
     };
-    image.src = stillUrlFor(url);
+    image.src = stillUrl ?? stillUrlFor(videoUrl!);
   });
 
   return () => {

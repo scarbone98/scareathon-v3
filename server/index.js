@@ -4,7 +4,8 @@ dotenv.config();
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { isOptionalAuthRoute, isPublicRoute } from './utils/authRoutes.js';
+import { isArcadeTokenRoute, isOptionalAuthRoute, isPublicRoute } from './utils/authRoutes.js';
+import { findArcadeTokenUser, isArcadeToken } from './arcadeCommunity/tokens.js';
 import calendarRoutes from './routes/calendar.js';
 import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
@@ -19,6 +20,7 @@ import homeRoutes from './routes/home.js';
 import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js';
 import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
+import arcadeCommunityRoutes from './routes/arcadeCommunity.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 
@@ -108,6 +110,23 @@ async function main() {
                 return reply.code(401).send({ error: 'Unauthorized: missing bearer token' });
             }
 
+            if (isArcadeToken(token)) {
+                if (!isArcadeTokenRoute(request.method, request.url)) {
+                    return reply.code(401).send({ error: 'Arcade tokens only work for submitting arcade games' });
+                }
+                try {
+                    const tokenUser = await findArcadeTokenUser(pool, token);
+                    if (!tokenUser) {
+                        return reply.code(401).send({ error: 'Unauthorized: arcade token is unknown or revoked' });
+                    }
+                    request.user = { sub: tokenUser.user_id, arcadeTokenId: Number(tokenUser.token_id) };
+                    return;
+                } catch (err) {
+                    request.log.error({ err }, 'Database unavailable during arcade token check');
+                    return reply.code(503).send({ error: 'Database unavailable' });
+                }
+            }
+
             const verifyOptions = {
                 audience: 'authenticated'
             };
@@ -155,6 +174,7 @@ async function main() {
         fastify.register(inboxRoutes, { prefix: '/inbox' });
         fastify.register(adminStrapiRoutes, { prefix: '/admin/strapi' });
         fastify.register(homeRoutes, { prefix: '/home' });
+        fastify.register(arcadeCommunityRoutes, { prefix: '/arcade' });
         if (isMonsterBashEnabled()) {
             fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
         }

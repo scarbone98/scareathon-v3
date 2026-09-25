@@ -27,6 +27,9 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   cartridge: { color: string; tagline: string };
+  // Community games: who made it, and their cover picture for the label
+  byline?: string;
+  stillUrl?: string;
   game: ReactNode;
 };
 
@@ -52,11 +55,11 @@ type ArcadeMessage = {
 };
 
 // Relative URLs are games served by this site, like /horde-rush
-function getUrlOrigin(url: string) {
+export function getUrlOrigin(url: string) {
   return new URL(url, window.location.href).origin;
 }
 
-function isArcadeMessage(value: unknown): value is ArcadeMessage {
+export function isArcadeMessage(value: unknown): value is ArcadeMessage {
   return typeof value === "object" && value !== null;
 }
 
@@ -95,7 +98,7 @@ export async function submitArcadeScore(game: string, score: unknown) {
   }
 }
 
-function isTrustedGameMessage(
+export function isTrustedGameMessage(
   iframe: HTMLIFrameElement,
   event: MessageEvent,
   expectedOrigin: string
@@ -103,7 +106,7 @@ function isTrustedGameMessage(
   return event.source === iframe.contentWindow && event.origin === expectedOrigin;
 }
 
-function listenForPlayerDiedScores(
+export function listenForPlayerDiedScores(
   iframe: HTMLIFrameElement,
   game: string,
   gameUrl: string

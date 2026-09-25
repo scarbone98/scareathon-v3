@@ -17,6 +17,8 @@ const Home = lazy(() => import("../pages/Home/page"));
 // The old ring-of-cabinets arcade, kept for swapping back (see the /arcade route)
 // const Arcade = lazy(() => import("../pages/Arcade/page"));
 const ArcadeV2 = lazy(() => import("../pages/ArcadeV2/page"));
+const ArcadeCreate = lazy(() => import("../pages/ArcadeCreate/page"));
+const ArcadeConnect = lazy(() => import("../pages/ArcadeCreate/Connect"));
 const Authentication = lazy(() => import("../pages/Authentication/page"));
 const Scareathon = lazy(() => import("../pages/Scareathon/page"));
 const ScareathonToday = lazy(() => import("../pages/Scareathon/Today"));
@@ -108,9 +110,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
     navigate("/authentication", {
       replace: true,
-      state: { from: location.pathname },
+      // Keep the query too, e.g. /arcade/connect?code=... after signing in
+      state: { from: location.pathname + location.search },
     });
-  }, [loading, session, location.pathname, navigate]);
+  }, [loading, session, location.pathname, location.search, navigate]);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -228,6 +231,26 @@ export const AnimatedRoutes = () => {
             <Suspense fallback={<LoadingSpinner />}>
               <ArcadeV2 />
             </Suspense>
+          }
+        />
+        <Route
+          path="/arcade/connect"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ArcadeConnect />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/arcade/create"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ArcadeCreate />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
         <Route

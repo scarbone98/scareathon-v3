@@ -731,7 +731,7 @@ export default function CartridgeArcade({
         gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });
       });
 
-      stopStills = loadVideoStills(games.map((game) => game.videoUrl), (index, source, width, height) => {
+      stopStills = loadVideoStills(games, (index, source, width, height) => {
         carts[index]?.cart.setPicture(source, width, height);
       });
       setLoading(false);

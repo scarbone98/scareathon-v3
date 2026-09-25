@@ -1,6 +1,7 @@
 import pool from '../db/mockDB.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
+import { getCommunityScorePolicy } from './arcadeCommunity.js';
 
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
@@ -57,7 +58,9 @@ export function calculateRuleAward(rule, metricValue) {
     return Math.max(0, award);
 }
 
-export function validateScoreSubmission({ game, metricName, metricValue }) {
+// communityPolicy: the score rule of a live community game (see
+// routes/arcadeCommunity.js), used when the game isn't one of the house games above.
+export function validateScoreSubmission({ game, metricName, metricValue }, communityPolicy = null) {
     if (!game || !metricName || !Number.isFinite(metricValue)) {
         return {
             ok: false,
@@ -66,7 +69,7 @@ export function validateScoreSubmission({ game, metricName, metricValue }) {
         };
     }
 
-    const gamePolicy = GAME_SCORE_POLICIES.get(game);
+    const gamePolicy = GAME_SCORE_POLICIES.get(game) ?? (communityPolicy ? { score: communityPolicy } : undefined);
     const metricPolicy = gamePolicy?.[metricName];
 
     if (!metricPolicy) {
@@ -176,11 +179,14 @@ async function routes(fastify, options) {
             const userId = request.user.sub;
             const { game, metricName, metricValue } = request.body;
             const numericMetricValue = Number(metricValue);
+            const communityPolicy = typeof game === 'string' && !GAME_SCORE_POLICIES.has(game)
+                ? await getCommunityScorePolicy(client, game)
+                : null;
             const validation = validateScoreSubmission({
                 game,
                 metricName,
                 metricValue: numericMetricValue,
-            });
+            }, communityPolicy);
 
             if (!validation.ok) {
                 return reply.code(validation.statusCode).send({ error: validation.error });

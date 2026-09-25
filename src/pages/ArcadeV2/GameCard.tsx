@@ -153,7 +153,10 @@ export default function GameCard({
               <FittedTitle text={game.name} accent={accent} />
               {/* Room for two lines whether the tagline needs them or not */}
               <p className="flex h-10 items-center justify-center text-sm leading-5 text-orange-100/80">
-                <span className="line-clamp-2">{game.cartridge.tagline}</span>
+                <span className="line-clamp-2">
+                  {game.cartridge.tagline}
+                  {game.byline && <span className="text-orange-100/50"> · by {game.byline}</span>}
+                </span>
               </p>
               {game.hasLeaderboard !== false ? (
                 <TopScore game={game} />
