@@ -49,7 +49,7 @@ const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
-const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=727a9e4";
+const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
 const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
 
@@ -276,7 +276,6 @@ export default function Arcade() {
         <GameRenderer
           title="WirtWare"
           url={WIRTWARE_URL}
-          desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "WirtWare", WIRTWARE_URL)
