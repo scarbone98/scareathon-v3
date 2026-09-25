@@ -20,7 +20,7 @@ import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
 import { createArcadeGames, useIsMobileArcade } from "../Arcade/games";
 
-// The redesigned landing page, shown at /?v2 while we try it out. Three calm
+// The home page (the old one is pages/Home, kept for swapping back). Three calm
 // sections: what's coming (the October event), the arcade shelf, and the news.
 // Game colours only show up as small accents so the page stays easy on the eyes.
 

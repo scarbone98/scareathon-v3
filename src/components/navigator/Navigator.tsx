@@ -12,11 +12,9 @@ import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 
 export const Navigator = () => {
   const location = useLocation();
-  // Line up with the wider redesigned home page while it's being tried at /?v2
+  // Line up with the home page, which is a little wider than the rest
   const containerClassName =
-    location.pathname === "/" && new URLSearchParams(location.search).has("v2")
-      ? wideSiteContainerClassName
-      : siteContainerClassName;
+    location.pathname === "/" ? wideSiteContainerClassName : siteContainerClassName;
 
   const navRef = useRef<HTMLDivElement>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);

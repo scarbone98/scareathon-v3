@@ -13,8 +13,8 @@ import type { Session } from "@supabase/supabase-js";
 import { shouldClearAuthSession } from "../authErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
-const Home = lazy(() => import("../pages/Home/page"));
-// The redesigned home page, at /?v2 until it replaces Home
+// The old home page, kept for swapping back (see the / route)
+// const Home = lazy(() => import("../pages/Home/page"));
 const HomeV2 = lazy(() => import("../pages/HomeV2/page"));
 // The old ring-of-cabinets arcade, kept for swapping back (see the /arcade route)
 // const Arcade = lazy(() => import("../pages/Arcade/page"));
@@ -136,7 +136,10 @@ export const AnimatedRoutes = () => {
           path="/"
           element={
             <Suspense fallback={<LoadingSpinner />}>
-              {new URLSearchParams(location.search).has("v2") ? <HomeV2 /> : <Home />}
+              {/* The redesigned home page. To swap back to the old one: use <Home /> here,
+                  uncomment the `Home` import at the top, and put the nav back to the
+                  narrower container (containerClassName in navigator/Navigator.tsx). */}
+              <HomeV2 />
             </Suspense>
           }
         />
