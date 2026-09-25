@@ -327,11 +327,9 @@ export class GameController {
         case "goal":
           if (!live) break;
           if (this.coop) {
-            // The stage is only cleared once both balls are through.
+            // One ball through clears it for both; the server's verdict brings the fanfare.
             this.coop.link.send({ type: "goal", attempt: this.coop.attempt, left: g.timeLeft, limit: g.stage.time });
             this.coop.reported = true;
-            sfx.oneUp();
-            this.cb.onBanner("YOU'RE THROUGH!", "coop");
             break;
           }
           sfx.goal();
@@ -746,11 +744,6 @@ export class GameController {
     sfx.fly();
   }
 
-  coopGoal(seat: Seat, name: string) {
-    if (!this.coop || seat === this.coop.seat) return;
-    this.cb.onBanner(`${name} IS THROUGH!`, "coop");
-  }
-
   // The server's verdict on this attempt.
   coopOutcome(m: OutcomeMessage, name: string) {
     const c = this.coop;
@@ -764,6 +757,7 @@ export class GameController {
       g.statusT = 0;
       sfx.goal();
       this.cb.onBanner("GOAL!", "goal");
+      if (m.seat !== undefined && m.seat !== c.seat) this.cb.onBanner(`${name} GOT YOU THROUGH!`, "coop");
       if (m.info) this.cb.onClear(m.info);
       return;
     }

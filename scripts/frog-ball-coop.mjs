@@ -44,7 +44,7 @@ function play(stage, latencyMs, drive, maxSeconds = stage.time + 5) {
     const [a, b] = games;
     if (a.status === "fallout" || b.status === "fallout") outcome = "fallout";
     else if (a.status === "timeover" || b.status === "timeover") outcome = "timeover";
-    else if (a.status === "goal" && b.status === "goal") outcome = "goal";
+    else if (a.status === "goal" || b.status === "goal") outcome = "goal";
     if ([a.p, a.v, b.p, b.v].some((v) => !Number.isFinite(v.x + v.y + v.z))) outcome = "blew up";
   }
   return { outcome: outcome ?? "stuck", maxStretch, seconds: frame * DT };

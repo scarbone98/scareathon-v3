@@ -3,8 +3,9 @@
 // Each player's game simulates only their own ball, so the server doesn't run
 // any physics. It relays each ball's position to the partner, owns the clock
 // (every stage starts at a server time both players count from, so moving
-// platforms line up), and decides how each attempt ends: cleared once both
-// balls are through the goal, failed as soon as either falls or time runs out.
+// platforms line up), and decides how each attempt ends: cleared as soon as
+// either ball rolls through the goal, failed as soon as either falls or time
+// runs out.
 // Lives and score are shared and kept here.
 //
 // Rooms live in memory only.
@@ -154,18 +155,18 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         sendRoomInfo(room);
     }
 
-    // How an attempt ends. Only the first report counts.
+    // How an attempt ends. Only the first report counts; seat is who made it
+    // through, or who slipped.
     function resolve(room, kind, seat) {
         const run = room.run;
         run.resolved = true;
         if (kind === 'clear') {
-            const left = Math.min(run.goals[0].left, run.goals[1].left);
-            const limit = run.goals[0].limit;
+            const { left, limit } = run.goals[seat];
             let flies = 0;
             for (const big of run.flies.values()) flies += big ? 10 : 1;
             const info = stageScore(left, limit, flies);
             run.score += info.total;
-            broadcast(room, { type: 'outcome', attempt: run.attempt, kind, info, lives: run.lives, score: run.score });
+            broadcast(room, { type: 'outcome', attempt: run.attempt, kind, seat, info, lives: run.lives, score: run.score });
             const last = run.stage + 1 >= run.stageCount;
             room.next = { at: now() + CLEAR_MS, run: () => (last ? endRun(room, true, 'cleared') : startStage(room, run.stage + 1)) };
         } else {
@@ -273,8 +274,8 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             const live = liveRun(socket, attempt);
             if (!live || typeof left !== 'number' || typeof limit !== 'number' || !Number.isFinite(left) || !Number.isFinite(limit)) return;
             live.run.goals[live.seat] = { left: Math.max(0, Math.min(limit, left)), limit: Math.max(1, Math.min(600, limit)) };
-            broadcast(live.room, { type: 'goal', seat: live.seat });
-            if (live.run.goals.every(Boolean)) resolve(live.room, 'clear');
+            // One ball through the goal gets the pair through.
+            resolve(live.room, 'clear', live.seat);
         },
 
         fail(socket, { attempt, why }) {
