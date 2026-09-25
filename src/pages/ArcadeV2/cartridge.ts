@@ -186,50 +186,95 @@ export function createCartridge(
   };
 }
 
-// Grab a still from each attract video, one at a time so phones aren't
-// downloading a dozen clips at once. Calls onFrame as each one arrives.
+// The label still for a video: /game-recordings/Foo.mp4 → /game-recordings/stills/Foo.jpg,
+// made by scripts/make-cartridge-stills.mjs (npm run stills:arcade).
+export function stillUrlFor(videoUrl: string) {
+  const slash = videoUrl.lastIndexOf("/");
+  return `${videoUrl.slice(0, slash)}/stills/${videoUrl.slice(slash + 1).replace(/\.mp4$/i, ".jpg")}`;
+}
+
+const VIDEO_FALLBACK_TIMEOUT = 8000;
+
+// A picture for each cartridge label. Loads the pre-made stills (small, all at
+// once); for any game without one, falls back to grabbing a frame from its
+// attract video, one video at a time so phones aren't downloading a dozen clips
+// at once. A video that stalls (iOS won't load a video that isn't playing) is
+// given up on so it can't hold up the rest. Calls onFrame as each one arrives.
 export function loadVideoStills(
   videoUrls: (string | undefined)[],
-  onFrame: (index: number, video: HTMLVideoElement) => void
+  onFrame: (index: number, source: CanvasImageSource, width: number, height: number) => void
 ) {
   let cancelled = false;
   let current: HTMLVideoElement | null = null;
+  let timer = 0;
+  const images: HTMLImageElement[] = [];
+  const needVideo: number[] = [];
+  let pending = 0;
 
-  const next = (index: number) => {
-    if (cancelled || index >= videoUrls.length) return;
-    const url = videoUrls[index];
-    if (!url) {
-      next(index + 1);
-      return;
-    }
+  const release = (video: HTMLVideoElement) => {
+    video.removeAttribute("src");
+    video.load();
+  };
+
+  const nextVideo = () => {
+    if (cancelled) return;
+    const index = needVideo.shift();
+    if (index === undefined) return;
     const video = document.createElement("video");
     current = video;
     video.crossOrigin = "anonymous";
     video.muted = true;
     video.playsInline = true;
     video.preload = "auto";
+    let finished = false;
     const done = () => {
-      video.removeAttribute("src");
-      video.load();
-      next(index + 1);
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      release(video);
+      nextVideo();
     };
+    timer = window.setTimeout(done, VIDEO_FALLBACK_TIMEOUT);
     video.addEventListener("loadedmetadata", () => {
       video.currentTime = Math.min(2, (video.duration || 4) * 0.25);
     }, { once: true });
     video.addEventListener("seeked", () => {
-      if (!cancelled && video.videoWidth) onFrame(index, video);
+      if (!cancelled && video.videoWidth) onFrame(index, video, video.videoWidth, video.videoHeight);
       done();
     }, { once: true });
     video.addEventListener("error", done, { once: true });
-    video.src = url;
+    video.src = videoUrls[index]!;
   };
-  next(0);
+
+  // Once every still has loaded or failed, work through the videos that had none
+  const settled = () => {
+    pending -= 1;
+    if (pending === 0) nextVideo();
+  };
+
+  videoUrls.forEach((url, index) => {
+    if (!url) return;
+    pending += 1;
+    const image = new Image();
+    images.push(image);
+    image.decoding = "async";
+    image.onload = () => {
+      if (!cancelled) onFrame(index, image, image.naturalWidth, image.naturalHeight);
+      settled();
+    };
+    image.onerror = () => {
+      needVideo.push(index);
+      settled();
+    };
+    image.src = stillUrlFor(url);
+  });
 
   return () => {
     cancelled = true;
-    if (current) {
-      current.removeAttribute("src");
-      current.load();
-    }
+    window.clearTimeout(timer);
+    images.forEach((image) => {
+      image.onload = image.onerror = null;
+    });
+    if (current) release(current);
   };
 }
