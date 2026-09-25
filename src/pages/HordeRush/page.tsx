@@ -183,6 +183,10 @@ export default function HordeRush() {
       onBoss: () => showBanner("BOSS!", "#ff2d55"),
       onOver: (run) => {
         setResult(run);
+        // Inside the arcade cabinet, the arcade saves the score to the leaderboard
+        if (window.parent !== window) {
+          window.parent.postMessage({ type: "PLAYER_DIED", score: run.score }, window.location.origin);
+        }
         const isBest = run.score > bestRef.current;
         setNewBest(isBest);
         if (isBest) {

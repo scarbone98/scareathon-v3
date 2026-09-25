@@ -1,4 +1,4 @@
--- Salmon Run 2: a low-poly fish trick racer (Godot web build hosted on GitHub Pages).
+-- Horde Rush: the crowd-runner shooter built into the site at /horde-rush.
 -- Score submissions look the game up by name, so it needs a games row before its
 -- arcade leaderboard can take scores.
 --
@@ -8,17 +8,17 @@
 
 UPDATE public.games
 SET is_active = TRUE,
-    url = 'https://sclondon.github.io/SalmonRun2/build/index.html',
+    url = '/horde-rush',
     updated_at = NOW()
-WHERE name = 'Salmon Run 2';
+WHERE name = 'Horde Rush';
 
 INSERT INTO public.games (name, description, is_active, url, created_at, updated_at, published_at)
 SELECT
-    'Salmon Run 2',
-    'Race a sockeye salmon down a jungle river, pulling tricks to drum & bass.',
+    'Horde Rush',
+    'Lead the 8 Bit Evil Returns crew down the road, shooting gates to grow your squad and blasting monsters.',
     TRUE,
-    'https://sclondon.github.io/SalmonRun2/build/index.html',
+    '/horde-rush',
     NOW(),
     NOW(),
     NOW()
-WHERE NOT EXISTS (SELECT 1 FROM public.games WHERE name = 'Salmon Run 2');
+WHERE NOT EXISTS (SELECT 1 FROM public.games WHERE name = 'Horde Rush');
