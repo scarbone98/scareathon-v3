@@ -2,12 +2,33 @@
 // stage parts (kept in step with the sim's moving bodies), flies, boost pads,
 // the goal gate and the frog in its ball.
 import * as THREE from "three";
-import { buildFrogBall, type FrogBall } from "./frog";
-import { GOAL_H, goalFrame, type Body, type Game } from "./sim";
+import { buildFrogBall, GREEN_FROG, PINK_FROG, type FrogBall } from "./frog";
+import { BALL_R, CHAIN_LENGTH, GOAL_H, goalFrame, type Body, type Game } from "./sim";
 import type { Tone } from "./stages";
 import { makeSky, PALETTES, SCENERY, type Palette, type Scenery } from "./worlds";
 
 const TILE = 2; // world units per floor texture tile
+const CHAIN_LINKS = 18;
+
+function tagTexture(label: string, color: string) {
+  const cv = document.createElement("canvas");
+  cv.width = 32;
+  cv.height = 16;
+  const x = cv.getContext("2d")!;
+  x.fillStyle = "#1a1033";
+  x.fillRect(0, 0, 32, 16);
+  x.fillStyle = color;
+  x.fillRect(1, 1, 30, 14);
+  x.fillStyle = "#1a1033";
+  x.font = "bold 11px monospace";
+  x.textAlign = "center";
+  x.textBaseline = "middle";
+  x.fillText(label, 16, 9);
+  const t = new THREE.CanvasTexture(cv);
+  t.magFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 function canvasTexture(size: number, draw: (x: CanvasRenderingContext2D, s: number) => void) {
   const cv = document.createElement("canvas");
@@ -151,7 +172,14 @@ export class Renderer {
   readonly gl: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(60, 1, 0.1, 900);
-  readonly ball: FrogBall;
+  // Player 1's green frog and player 2's pink one. Single player is seat 0.
+  private balls: [FrogBall, FrogBall];
+  private seat: 0 | 1 = 0;
+  private coop = false;
+  private chain = new THREE.Group();
+  private links: THREE.Mesh[] = [];
+  private chainMat = new THREE.MeshLambertMaterial({ color: "#fff3c4", emissive: "#ffd23f", emissiveIntensity: 0.25, flatShading: true });
+  private tags: THREE.Sprite[] = [];
   private world = -1;
   private palette: Palette = PALETTES[0];
   private sky: THREE.Mesh | null = null;
@@ -181,8 +209,26 @@ export class Renderer {
     sc.far = 80;
     this.sun.shadow.bias = -0.002;
     this.scene.add(this.hemi, this.sun, this.sun.target, this.stage);
-    this.ball = buildFrogBall();
-    this.scene.add(this.ball.root);
+    this.balls = [buildFrogBall(GREEN_FROG), buildFrogBall(PINK_FROG)];
+    this.scene.add(this.balls[0].root, this.balls[1].root);
+    this.balls[1].root.visible = false;
+    const linkGeo = new THREE.TorusGeometry(0.075, 0.024, 4, 8);
+    for (let i = 0; i < CHAIN_LINKS; i++) {
+      const link = new THREE.Mesh(linkGeo, this.chainMat);
+      link.castShadow = true;
+      this.links.push(link);
+      this.chain.add(link);
+    }
+    this.chain.visible = false;
+    this.scene.add(this.chain);
+    this.tags = ["P1", "P2"].map((label, i) => {
+      const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTexture(label, i ? "#ff5fa8" : "#8cff5a"), depthTest: false, transparent: true }));
+      tag.scale.set(0.62, 0.31, 1);
+      tag.renderOrder = 20;
+      tag.visible = false;
+      this.scene.add(tag);
+      return tag;
+    });
   }
 
   resize(width: number, height: number, pixelRatio: number) {
@@ -206,7 +252,7 @@ export class Renderer {
     this.hemi.intensity = p.light.ambient * 1.6;
     this.sun.color.set(p.light.sun);
     this.sun.intensity = p.light.sunIntensity;
-    this.ball.setTint(world === 3 || world === 4 ? "#d8c8ff" : "#c8fbff");
+    this.balls[0].setTint(world === 3 || world === 4 ? "#d8c8ff" : GREEN_FROG.shell);
     if (this.scenery) this.scene.remove(this.scenery.group);
     this.scenery = SCENERY[world](center, radius);
     this.scene.add(this.scenery.group);
@@ -406,8 +452,10 @@ export class Renderer {
         this.pops.splice(i, 1);
       }
     }
-    this.ball.root.position.set(g.p.x, g.p.y, g.p.z);
-    this.ball.update(dt, t, new THREE.Vector3(g.v.x - g.groundVel.x, g.v.y, g.v.z - g.groundVel.z), g.grounded);
+    const mine = this.balls[this.seat];
+    mine.root.position.set(g.p.x, g.p.y, g.p.z);
+    mine.update(dt, t, new THREE.Vector3(g.v.x - g.groundVel.x, g.v.y, g.v.z - g.groundVel.z), g.grounded);
+    if (this.coop) this.tags[this.seat].position.set(g.p.x, g.p.y + 0.95, g.p.z);
     this.scenery?.update(t);
   }
 
@@ -418,13 +466,68 @@ export class Renderer {
       (this.sky.material as THREE.ShaderMaterial).uniforms.uTime.value = t;
     }
     // The sun's shadow follows the ball.
-    const b = this.ball.root.position;
+    const b = this.balls[this.seat].root.position;
     const dir = new THREE.Vector3(...this.palette.sun.dir).normalize();
     if (dir.y < 0.5) dir.y = 0.5 + dir.y;
     dir.normalize();
     this.sun.position.copy(b).addScaledVector(dir, 40);
     this.sun.target.position.copy(b);
     this.gl.render(this.scene, cam);
+  }
+
+  // Co-op: which frog is yours, and whether the partner and chain show.
+  setCoop(on: boolean, seat: 0 | 1 = 0) {
+    this.coop = on;
+    this.seat = on ? seat : 0;
+    this.balls[0].root.visible = true;
+    this.balls[1].root.visible = on;
+    this.chain.visible = on;
+    this.tags.forEach((tag) => (tag.visible = on));
+  }
+
+  // Where the partner's ball is, as best we know; draws it and the chain.
+  syncPartner(p: THREE.Vector3, v: THREE.Vector3, grounded: boolean, visible: boolean, dt: number, t: number) {
+    const other = this.balls[1 - this.seat];
+    other.root.visible = visible;
+    this.chain.visible = visible;
+    this.tags[1 - this.seat].visible = visible;
+    if (!visible) return;
+    other.root.position.copy(p);
+    other.update(dt, t, v, grounded);
+    this.tags[1 - this.seat].position.set(p.x, p.y + 0.95, p.z);
+    this.drawChain(this.balls[this.seat].root.position, p);
+  }
+
+  // The chain hangs in a curve when slack and pulls straight (and glows) when taut.
+  private drawChain(a: THREE.Vector3, b: THREE.Vector3) {
+    const d = a.distanceTo(b);
+    const dir = new THREE.Vector3().subVectors(b, a).normalize();
+    const from = a.clone().addScaledVector(dir, BALL_R * 0.85);
+    const to = b.clone().addScaledVector(dir, -BALL_R * 0.85);
+    const sag = d < CHAIN_LENGTH ? Math.min(1.4, Math.sqrt(CHAIN_LENGTH * CHAIN_LENGTH - d * d) / 2) : 0;
+    const control = from.clone().add(to).multiplyScalar(0.5);
+    const avgY = control.y;
+    control.y -= sag * 2;
+    // A slack chain lies on the ground rather than sinking through it.
+    const floorY = Math.min(a.y, b.y) - BALL_R + 0.08;
+    control.y = Math.max(control.y, 2 * floorY - avgY);
+    const stretch = Math.max(0, d - CHAIN_LENGTH);
+    this.chainMat.color.set(stretch > 0.05 ? "#ff8a5a" : "#fff3c4");
+    this.chainMat.emissive.set(stretch > 0.05 ? "#ff4a4a" : "#ffd23f");
+    this.chainMat.emissiveIntensity = 0.25 + Math.min(1, stretch * 2);
+    const at = (s: number) =>
+      new THREE.Vector3()
+        .addScaledVector(from, (1 - s) * (1 - s))
+        .addScaledVector(control, 2 * s * (1 - s))
+        .addScaledVector(to, s * s);
+    this.links.forEach((link, i) => {
+      const s = (i + 0.5) / CHAIN_LINKS;
+      const pos = at(s);
+      link.position.copy(pos);
+      link.lookAt(at(Math.min(1, s + 0.02)));
+      link.rotateY(Math.PI / 2);
+      if (i % 2) link.rotateX(Math.PI / 2);
+    });
   }
 
   dispose() {

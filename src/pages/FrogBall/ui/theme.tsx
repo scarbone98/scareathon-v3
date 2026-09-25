@@ -1,4 +1,8 @@
 // Constants shared by Frog Ball's menus and HUD.
+import { COOP_STAGES, STAGES } from "../game/stages";
+
+// The stage list a run uses.
+export const stagesFor = (coop: boolean) => (coop ? COOP_STAGES : STAGES);
 
 export const WORLD_COLORS = ["#ff7fbf", "#ffd23f", "#45e3ff", "#b58cff", "#ff4fd8"];
 

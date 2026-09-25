@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GameController, type BannerKind, type ClearInfo, type Hud, type RunResult } from "./game/controller";
+import { GameController, type BannerKind, type ClearInfo, type CoopLink, type Hud, type RunResult } from "./game/controller";
+import { CoopSocket, type Seat, type ServerMessage, type SocketStatus } from "./game/coopNet";
 import { setMuted, sfx, unlockAudio } from "./game/sfx";
-import { STAGES } from "./game/stages";
+import { COOP_STAGES, STAGES } from "./game/stages";
+import { CoopMenu, JoinCode, Lobby } from "./ui/coop";
 import { Banner, ContinueScreen, FinalRanking, GameOverSplash, HudView, NameEntry, Pause, StageIntro, Tally } from "./ui/game";
+import { stagesFor } from "./ui/theme";
 import { isTouchDevice, useUiScale } from "./ui/hooks";
 import { HowTo, MainMenu, Options, StageSelect, Title, type MenuChoice } from "./ui/menus";
 import { addRanking, loadProgress, loadRanking, loadSettings, rankFor, saveProgress, saveSettings, type Settings } from "./ui/storage";
@@ -15,9 +18,20 @@ function devStage() {
   return n > 0 ? Math.min(STAGES.length, n) - 1 : 0;
 }
 
-type View = "title" | "menu" | "stages" | "options" | "howto" | "play" | "over";
+type View = "title" | "menu" | "stages" | "options" | "howto" | "play" | "over" | "coop" | "join" | "lobby";
 type OverStep = "splash" | "name" | "continue" | "ranking";
-const MENU_INDEX: Record<MenuChoice, number> = { start: 0, practice: 1, howto: 2, options: 3 };
+const MENU_INDEX: Record<MenuChoice, number> = { start: 0, coop: 1, practice: 2, howto: 3, options: 4 };
+
+interface Room {
+  code: string;
+  seat: Seat;
+  status: string;
+  names: string[];
+  connected: boolean[];
+}
+
+// /frog-ball?room=ABCD opens straight into joining that room.
+const linkedRoom = () => (new URLSearchParams(window.location.search).get("room") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
 
 // Frog Ball: Monkey Ball with a frog. Tip the world to roll the ball to the
 // goal through floating dreamscapes.
@@ -29,7 +43,7 @@ export default function FrogBall() {
   const ui = useUiScale(rootRef);
   const [touch] = useState(isTouchDevice);
 
-  const [view, setView] = useState<View>("title");
+  const [view, setView] = useState<View>(() => (linkedRoom().length === 4 ? "join" : "title"));
   const [menuAt, setMenuAt] = useState(0);
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [progress, setProgress] = useState(loadProgress);
@@ -48,6 +62,21 @@ export default function FrogBall() {
   const [overStep, setOverStep] = useState<OverStep>("splash");
   const [rank, setRank] = useState(-1);
   const [highlight, setHighlight] = useState(-1);
+
+  // Co-op.
+  const sockRef = useRef<CoopSocket | null>(null);
+  const [room, setRoom] = useState<Room | null>(null);
+  const [coopRun, setCoopRun] = useState(false);
+  const [coopError, setCoopError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [net, setNet] = useState<SocketStatus>("open");
+  const [rtt, setRtt] = useState(0);
+  const roomRef = useRef(room);
+  roomRef.current = room;
+  const coopRunRef = useRef(coopRun);
+  coopRunRef.current = coopRun;
+  const hudRef = useRef(hud);
+  hudRef.current = hud;
 
   // Callbacks from the controller see the latest state through refs.
   const viewRef = useRef(view);
@@ -74,7 +103,7 @@ export default function FrogBall() {
         setStage(i);
         setClear(null);
         setIntro((k) => k + 1);
-        updateProgress((p) => ({ ...p, reached: Math.max(p.reached, i) }));
+        if (!coopRunRef.current) updateProgress((p) => ({ ...p, reached: Math.max(p.reached, i) }));
       },
       onBanner: (text, kind) => {
         if (kind === "oneup") setOneUp((k) => k + 1);
@@ -82,6 +111,7 @@ export default function FrogBall() {
       },
       onClear: (info) => {
         setClear(info);
+        if (coopRunRef.current) return;
         const s = STAGES[stageRef.current];
         const time = +(s.time - info.timeBonus / 100).toFixed(2);
         updateProgress((p) => ({ ...p, best: { ...p.best, [s.id]: Math.min(p.best[s.id] ?? Infinity, time) } }));
@@ -136,15 +166,161 @@ export default function FrogBall() {
     return () => window.clearTimeout(t);
   }, [intro]);
 
-  // Leaving the tab pauses a run in progress.
+  // Leaving the tab pauses a run in progress (a co-op world can't pause).
   useEffect(() => {
-    if (view !== "play") return;
+    if (view !== "play" || coopRun) return;
     const onHidden = () => {
       if (document.hidden) setPaused(true);
     };
     document.addEventListener("visibilitychange", onHidden);
     return () => document.removeEventListener("visibilitychange", onHidden);
-  }, [view]);
+  }, [view, coopRun]);
+
+  // --- co-op ---------------------------------------------------------------------------
+
+  // Your initials from the high score table; the server calls you P1 or P2 otherwise.
+  const myName = () => (settings.lastName && settings.lastName !== "AAA" ? settings.lastName : "");
+  const partnerName = () => {
+    const r = roomRef.current;
+    return r ? (r.names[1 - r.seat] ?? `P${2 - r.seat}`) : "P2";
+  };
+
+  const closeSocket = (leave: boolean) => {
+    if (leave) sockRef.current?.leave();
+    else sockRef.current?.close();
+    sockRef.current = null;
+  };
+
+  // Back to the co-op menu, with the demo behind it.
+  const exitCoop = (error: string | null = null) => {
+    closeSocket(false);
+    setRoom(null);
+    setCoopRun(false);
+    setJoining(false);
+    setCoopError(error);
+    resetPlayUi();
+    setView("coop");
+    ctrlRef.current?.start("demo");
+  };
+
+  const link: CoopLink = {
+    send: (m) => sockRef.current?.send(m),
+    serverNow: () => sockRef.current?.serverNow() ?? Date.now(),
+  };
+
+  // Messages from the co-op server. Kept in a ref so the socket always calls
+  // the latest version.
+  const onCoopMessage = useRef<(m: ServerMessage) => void>(() => {});
+  onCoopMessage.current = (m) => {
+    const ctrl = ctrlRef.current;
+    switch (m.type) {
+      case "room":
+        setRoom({ code: m.code, seat: m.seat, status: m.status, names: m.names, connected: m.connected });
+        setJoining(false);
+        setCoopError(null);
+        if (m.status !== "playing" && viewRef.current !== "over") {
+          setCoopRun(false);
+          if (viewRef.current !== "lobby") {
+            resetPlayUi();
+            setView("lobby");
+            ctrl?.start("demo");
+          }
+        }
+        break;
+      case "start": {
+        const r = roomRef.current;
+        if (!r || !ctrl) break;
+        if (viewRef.current !== "play") {
+          resetPlayUi();
+          setResult(null);
+        }
+        setCoopRun(true);
+        coopRunRef.current = true;
+        setPractice(false);
+        setView("play");
+        ctrl.startCoop(link, r.seat, m);
+        break;
+      }
+      case "peer":
+        ctrl?.coopPeer(m);
+        break;
+      case "fly":
+        ctrl?.coopFly(m.id, m.seat);
+        break;
+      case "goal":
+        ctrl?.coopGoal(m.seat, partnerName());
+        break;
+      case "outcome":
+        ctrl?.coopOutcome(m, partnerName());
+        break;
+      case "over":
+        setResult({ score: m.score, stage: m.stage, cleared: m.cleared, flies: hudRef.current?.flies ?? 0 });
+        setClear(null);
+        setBanner(null);
+        setOverStep("splash");
+        setView("over");
+        if (m.reason === "disconnected") setCoopError(`${partnerName()} DISCONNECTED`);
+        ctrl?.start("demo");
+        break;
+      case "presence":
+        setRoom((r) => (r ? { ...r, connected: m.connected } : r));
+        break;
+      case "left":
+        exitCoop(`${partnerName()} LEFT THE ROOM`);
+        break;
+      case "error":
+        setJoining(false);
+        setCoopError(m.message);
+        if (viewRef.current === "lobby") exitCoop(m.message);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const openSocket = (resume = false) => {
+    closeSocket(false);
+    sockRef.current = new CoopSocket((m) => onCoopMessage.current(m), setNet, resume);
+    return sockRef.current;
+  };
+
+  const hostRoom = () => {
+    unlockAudio();
+    setCoopError(null);
+    setRoom(null);
+    openSocket().send({ type: "create", name: myName() });
+    setView("lobby");
+  };
+
+  const joinRoom = (code: string) => {
+    unlockAudio();
+    setCoopError(null);
+    setJoining(true);
+    openSocket().send({ type: "join", code, name: myName() });
+  };
+
+  const leaveRoom = () => {
+    closeSocket(true);
+    exitCoop();
+  };
+
+  // A room link joins straight away; a reload mid-game rejoins the room.
+  // (Under StrictMode's double mount the first socket closes before it
+  // connects, so its queued join is never sent.)
+  useEffect(() => {
+    const code = linkedRoom();
+    if (code.length === 4) joinRoom(code);
+    else if (CoopSocket.hasSession()) openSocket(true);
+    return () => closeSocket(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The partner's ping, for the HUD.
+  useEffect(() => {
+    if (!coopRun) return;
+    const t = window.setInterval(() => setRtt(sockRef.current?.rtt ?? 0), 1000);
+    return () => window.clearInterval(t);
+  }, [coopRun]);
 
   const changeSettings = (s: Settings) => {
     setSettings(s);
@@ -188,14 +364,25 @@ export default function FrogBall() {
     setMenuAt(MENU_INDEX[c]);
     if (c === "start") begin("run", devStage());
     else if (c === "practice") setView("stages");
-    else setView(c);
+    else if (c === "coop") {
+      setCoopError(null);
+      setView("coop");
+    } else setView(c);
   };
 
   const previewStage = useCallback((i: number) => ctrlRef.current?.preview(i), []);
 
   // The game over run: splash, initials if you made the table, continue, ranking.
+  // A co-op run goes back to the lobby to play again.
   const afterSplash = () => {
     if (!result) return;
+    if (coopRun) {
+      setCoopRun(false);
+      resetPlayUi();
+      if (roomRef.current) setView("lobby");
+      else exitCoop(coopError);
+      return;
+    }
     const canContinue = !practice && !result.cleared;
     if (!practice && rank >= 0) setOverStep("name");
     else if (canContinue) setOverStep("continue");
@@ -257,15 +444,33 @@ export default function FrogBall() {
           />
         )}
         {view === "howto" && <HowTo touch={touch} onBack={() => (sfx.back(), setView("menu"))} />}
+        {view === "coop" && <CoopMenu touch={touch} error={coopError} onHost={hostRoom} onJoin={() => (setCoopError(null), setView("join"))} onBack={() => toMenu(MENU_INDEX.coop)} />}
+        {view === "join" && <JoinCode touch={touch} initial={linkedRoom()} error={coopError} busy={joining} onJoin={joinRoom} onBack={() => (closeSocket(false), setJoining(false), setView("coop"))} />}
+        {view === "lobby" &&
+          (room ? (
+            <Lobby code={room.code} seat={room.seat} names={room.names} connected={room.connected} touch={touch} onStart={() => sockRef.current?.send({ type: "go", count: COOP_STAGES.length })} onLeave={leaveRoom} />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-[#1a1033]/60">
+              <span className="fb-o fb-blink text-[16px] text-[var(--cyan)]">{net === "reconnecting" ? "RECONNECTING..." : "OPENING A ROOM..."}</span>
+            </div>
+          ))}
 
-        {view === "play" && hud && <HudView hud={hud} portrait={ui.h > ui.w} onPause={() => setPaused(true)} />}
-        {view === "play" && intro > 0 && !paused && <StageIntro key={intro} stage={stage} />}
+        {view === "play" && hud && (
+          <HudView
+            hud={hud}
+            portrait={ui.h > ui.w}
+            partner={coopRun && room ? { name: partnerName(), seat: (1 - room.seat) as Seat, connected: !!room.connected[1 - room.seat] && net === "open", rtt } : undefined}
+            onPause={() => setPaused(true)}
+          />
+        )}
+        {view === "play" && intro > 0 && !paused && <StageIntro key={intro} stage={stage} coop={coopRun} />}
         {view === "play" && banner && !paused && <Banner key={banner.key} kind={banner.kind} text={banner.text} />}
         {view === "play" && oneUp > 0 && <Banner key={`1up${oneUp}`} kind="oneup" text="1UP!" />}
-        {view === "play" && clear && !paused && <Tally info={clear} practice={practice} stageTime={STAGES[stage].time} touch={touch} onSkip={() => ctrlRef.current?.skip()} />}
+        {view === "play" && clear && !paused && <Tally info={clear} practice={practice} stageTime={stagesFor(coopRun)[stage].time} touch={touch} onSkip={() => ctrlRef.current?.skip()} />}
         {view === "play" && paused && (
           <Pause
             practice={practice}
+            coop={coopRun}
             lives={hud?.lives ?? 0}
             touch={touch}
             sound={settings.sound}
@@ -276,11 +481,11 @@ export default function FrogBall() {
               }
             }}
             onSound={() => changeSettings({ ...settings, sound: !settings.sound })}
-            onQuit={toTitle}
+            onQuit={coopRun ? leaveRoom : toTitle}
           />
         )}
 
-        {view === "over" && result && overStep === "splash" && <GameOverSplash result={result} touch={touch} onNext={afterSplash} />}
+        {view === "over" && result && overStep === "splash" && <GameOverSplash result={result} touch={touch} coop={coopRun} onNext={afterSplash} />}
         {view === "over" && result && overStep === "name" && <NameEntry score={result.score} rank={rank} initial={settings.lastName} touch={touch} onDone={nameDone} />}
         {view === "over" && result && overStep === "continue" && <ContinueScreen stage={result.stage} touch={touch} onYes={continueRun} onNo={() => setOverStep("ranking")} />}
         {view === "over" && overStep === "ranking" && <FinalRanking ranking={ranking} highlight={highlight} touch={touch} onDone={toTitle} />}

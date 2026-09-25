@@ -5,11 +5,36 @@
 import * as THREE from "three";
 import { Renderer } from "./render";
 import { sfx } from "./sfx";
-import { headingDir, MAX_TILT, newGame, newPilot, pilotTilt, READY_TIME, speedOf, stageScore, step, FLIES_PER_LIFE, type Game, type Pilot } from "./sim";
-import { STAGES } from "./stages";
+import { headingDir, MAX_TILT, newGame, newPilot, pilotTilt, READY_TIME, speedOf, stageScore, step, FLIES_PER_LIFE, type Game, type Pilot, type Tether, type V3 } from "./sim";
+import { COOP_STAGES, STAGES, type StageDef } from "./stages";
+import type { Seat, ServerMessage } from "./coopNet";
 
 // demo: the autopilot plays (behind the title). preview: orbit a stage (stage select).
-export type Mode = "demo" | "preview" | "run" | "practice";
+// coop: a two-player chained run, driven by the co-op server.
+export type Mode = "demo" | "preview" | "run" | "practice" | "coop";
+
+// What the controller needs from the co-op connection.
+export interface CoopLink {
+  send: (message: { type: string; [key: string]: unknown }) => void;
+  serverNow: () => number;
+}
+
+type StartMessage = Extract<ServerMessage, { type: "start" }>;
+type OutcomeMessage = Extract<ServerMessage, { type: "outcome" }>;
+type PeerMessage = Extract<ServerMessage, { type: "peer" }>;
+
+interface CoopState {
+  link: CoopLink;
+  seat: Seat;
+  attempt: number;
+  at: number; // server time (ms) when this attempt's stage clock reads 0
+  // The partner's latest ball update, in their stage clock.
+  peer: { t: number; p: V3; v: V3; s: string };
+  partnerVis: THREE.Vector3;
+  lastSend: number;
+  reported: boolean; // told the server how this attempt ended for us
+  menu: boolean; // the in-game menu is open (co-op can't pause)
+}
 
 export interface Hud {
   score: number;
@@ -20,6 +45,7 @@ export interface Hud {
   stage: number;
   stageTime: number;
   practice: boolean;
+  coop: boolean;
 }
 
 export interface ClearInfo {
@@ -36,7 +62,8 @@ export interface RunResult {
   flies: number;
 }
 
-export type BannerKind = "ready" | "go" | "goal" | "fall" | "time" | "oneup" | "hurry";
+// coop: a small message about the partner ("P2 IS THROUGH!").
+export type BannerKind = "ready" | "go" | "goal" | "fall" | "time" | "oneup" | "hurry" | "coop";
 
 export interface GameCallbacks {
   onHud: (hud: Hud) => void;
@@ -57,7 +84,12 @@ const PIXEL_LONG_SIDE = 720;
 const STICK_RANGE = 46;
 const STICK_DEAD = 0.08;
 
+// The co-op ball update rate, and how far ahead we'll guess the partner's ball.
+const COOP_SEND_MS = 33;
+const MAX_PEER_AGE = 0.5;
+
 const smooth = (rate: number, dt: number) => 1 - Math.exp(-rate * dt);
+const toV3 = (a: number[]): V3 => ({ x: a[0], y: a[1], z: a[2] });
 const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export class GameController {
@@ -73,6 +105,7 @@ export class GameController {
   private overSent = false;
   private advanced = false;
   private padHeld = new Set<number>();
+  private coop: CoopState | null = null;
 
   private raf = 0;
   private last = 0;
@@ -154,10 +187,15 @@ export class GameController {
   }
 
   private isLive() {
-    return this.mode === "run" || this.mode === "practice";
+    return this.mode === "run" || this.mode === "practice" || this.mode === "coop";
+  }
+
+  private stageList(): StageDef[] {
+    return this.mode === "coop" ? COOP_STAGES : STAGES;
   }
 
   start(mode: Mode, stageIndex = 0) {
+    this.leaveCoop();
     this.mode = mode;
     this.lives = START_LIVES;
     this.score = 0;
@@ -173,6 +211,13 @@ export class GameController {
   }
 
   setPaused(paused: boolean) {
+    // A co-op world keeps going; the menu just takes your hands off the controls.
+    if (this.coop) {
+      this.coop.menu = paused;
+      this.stick = null;
+      this.drawStick();
+      return;
+    }
     this.paused = paused;
     this.last = performance.now();
     if (paused) this.stick = null;
@@ -197,12 +242,13 @@ export class GameController {
   // --- stages ----------------------------------------------------------------
 
   private loadStage(i: number) {
+    const stage = this.stageList()[i];
     this.stageIndex = i;
-    this.game = newGame(STAGES[i]);
+    this.game = newGame(stage, this.coop?.seat);
     this.pilot = newPilot();
     this.advanced = false;
     this.renderer.setStage(this.game);
-    this.camYaw = (STAGES[i].heading * Math.PI) / 180;
+    this.camYaw = (stage.heading * Math.PI) / 180;
     this.placeIntroCamera(0, true);
     if (this.isLive()) {
       this.cb.onStage(i);
@@ -225,6 +271,13 @@ export class GameController {
         case "fly": {
           this.renderer.pop(new THREE.Vector3(e.at.x, e.at.y, e.at.z), e.big);
           if (!live) break;
+          if (this.coop) {
+            this.coop.link.send({ type: "fly", attempt: this.coop.attempt, id: g.flies.findIndex((f) => f.at === e.at), big: e.big });
+            this.flies += e.big ? 10 : 1;
+            if (e.big) sfx.bigFly();
+            else sfx.fly();
+            break;
+          }
           const n = e.big ? 10 : 1;
           const before = Math.floor(this.flies / FLIES_PER_LIFE);
           this.flies += n;
@@ -257,8 +310,19 @@ export class GameController {
           sfx.tick();
           if (e.seconds === 10) this.cb.onBanner("HURRY UP!", "hurry");
           break;
+        case "yank":
+          if (live) sfx.yank(e.strength);
+          break;
         case "goal":
           if (!live) break;
+          if (this.coop) {
+            // The stage is only cleared once both balls are through.
+            this.coop.link.send({ type: "goal", attempt: this.coop.attempt, left: g.timeLeft, limit: g.stage.time });
+            this.coop.reported = true;
+            sfx.oneUp();
+            this.cb.onBanner("YOU'RE THROUGH!", "coop");
+            break;
+          }
           sfx.goal();
           this.cb.onBanner("GOAL!", "goal");
           if (this.mode === "run") {
@@ -271,11 +335,19 @@ export class GameController {
           break;
         case "fallout":
           if (!live) break;
+          if (this.coop) {
+            this.reportFail("fall");
+            break;
+          }
           sfx.fallout();
           this.cb.onBanner("FALL OUT", "fall");
           break;
         case "timeover":
           if (!live) break;
+          if (this.coop) {
+            this.reportFail("time");
+            break;
+          }
           sfx.timeover();
           this.cb.onBanner("TIME OVER", "time");
           break;
@@ -288,7 +360,7 @@ export class GameController {
   private advance() {
     const g = this.game;
     if (this.advanced) return;
-    if (this.mode === "preview") return;
+    if (this.mode === "preview" || this.mode === "coop") return;
     if (this.mode === "demo") {
       if ((g.status === "goal" && g.statusT > 2.5) || ((g.status === "fallout" || g.status === "timeover") && g.statusT > 1.5)) {
         this.advanced = true;
@@ -529,6 +601,10 @@ export class GameController {
     this.raf = requestAnimationFrame(this.frame);
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
+    if (this.coop) {
+      this.coopFrame(dt, now);
+      return;
+    }
     if (this.paused) {
       this.renderer.render(this.clock);
       return;
@@ -572,15 +648,161 @@ export class GameController {
         stage: this.stageIndex,
         stageTime: g.stage.time,
         practice: this.mode === "practice",
+        coop: false,
       });
     }
   };
+
+  // --- co-op ---------------------------------------------------------------------------
+
+  // A stage of a co-op run, as announced by the server (also every retry).
+  startCoop(link: CoopLink, seat: Seat, m: StartMessage) {
+    const newRun = m.stage === 0 && m.attempt === 1;
+    this.mode = "coop";
+    this.lives = m.lives;
+    this.score = m.score;
+    if (newRun) this.flies = 0;
+    this.overSent = false;
+    this.paused = false;
+    const other = newGame(COOP_STAGES[m.stage], seat === 0 ? 1 : 0);
+    this.coop = {
+      link,
+      seat,
+      attempt: m.attempt,
+      at: m.at,
+      peer: { t: 0, p: other.p, v: { x: 0, y: 0, z: 0 }, s: "ready" },
+      partnerVis: new THREE.Vector3(other.p.x, other.p.y, other.p.z),
+      lastSend: 0,
+      reported: false,
+      menu: this.coop?.menu ?? false,
+    };
+    this.renderer.setCoop(true, seat);
+    this.loadStage(m.stage);
+  }
+
+  coopPeer(m: PeerMessage) {
+    const c = this.coop;
+    if (!c || m.a !== c.attempt || m.t < c.peer.t) return;
+    c.peer = { t: m.t, p: toV3(m.p), v: toV3(m.v), s: m.s };
+  }
+
+  // A fly eaten by either of us; ours are already gone.
+  coopFly(id: number, seat: Seat) {
+    const c = this.coop;
+    const f = this.game.flies[id];
+    if (!c || seat === c.seat || !f || f.taken) return;
+    f.taken = true;
+    this.flies += f.big ? 10 : 1;
+    this.renderer.pop(new THREE.Vector3(f.at.x, f.at.y, f.at.z), f.big);
+    sfx.fly();
+  }
+
+  coopGoal(seat: Seat, name: string) {
+    if (!this.coop || seat === this.coop.seat) return;
+    this.cb.onBanner(`${name} IS THROUGH!`, "coop");
+  }
+
+  // The server's verdict on this attempt.
+  coopOutcome(m: OutcomeMessage, name: string) {
+    const c = this.coop;
+    if (!c || m.attempt !== c.attempt) return;
+    const g = this.game;
+    this.lives = m.lives;
+    this.score = m.score;
+    c.reported = true;
+    if (m.kind === "clear") {
+      if (g.status === "play") g.status = "goal";
+      g.statusT = 0;
+      sfx.goal();
+      this.cb.onBanner("GOAL!", "goal");
+      if (m.info) this.cb.onClear(m.info);
+      return;
+    }
+    // Whoever slipped, the attempt is over for both of us.
+    if (g.status === "play" || g.status === "goal") {
+      g.status = m.kind === "time" ? "timeover" : "fallout";
+      g.statusT = 0;
+    }
+    if (m.kind === "time") {
+      sfx.timeover();
+      this.cb.onBanner("TIME OVER", "time");
+    } else {
+      sfx.fallout();
+      this.cb.onBanner(m.seat === c.seat ? "FALL OUT" : `${name} FELL!`, "fall");
+    }
+  }
+
+  private leaveCoop() {
+    if (!this.coop) return;
+    this.coop = null;
+    this.renderer.setCoop(false);
+  }
+
+  private reportFail(why: "fall" | "time") {
+    const c = this.coop!;
+    if (c.reported) return;
+    c.reported = true;
+    c.link.send({ type: "fail", attempt: c.attempt, why });
+  }
+
+  private coopFrame(dt: number, now: number) {
+    const c = this.coop!;
+    this.clock += dt;
+    const g = this.game;
+    // Our stage clock follows the server's, so the partner's is the same.
+    const target = (c.link.serverNow() - c.at) / 1000;
+    const simDt = Math.max(0, Math.min(2, target - g.t));
+    const input = c.menu ? { x: 0, y: 0 } : this.readInput(dt);
+    const f = headingDir(this.camYaw);
+    const tilt = { x: f.x * input.y - f.z * input.x, z: f.z * input.y + f.x * input.x };
+
+    // Where the partner's ball should be by now: its last update, carried on
+    // at its speed for as long as that update is old.
+    const age = Math.max(0, Math.min(MAX_PEER_AGE, g.t - c.peer.t));
+    const peer = c.peer;
+    const guess = { x: peer.p.x + peer.v.x * age, y: peer.p.y + peer.v.y * age, z: peer.p.z + peer.v.z * age };
+    const chained = g.t > 0 && peer.s !== "ready";
+    const tether: Tether | undefined = chained ? { at: guess, vel: { ...peer.v } } : undefined;
+    step(g, simDt, tilt, tether);
+    this.handleEvents();
+
+    if (now - c.lastSend >= COOP_SEND_MS && target >= 0) {
+      c.lastSend = now;
+      const r = (n: number) => Math.round(n * 1000) / 1000;
+      c.link.send({ type: "state", a: c.attempt, t: r(g.t), p: [r(g.p.x), r(g.p.y), r(g.p.z)], v: [r(g.v.x), r(g.v.y), r(g.v.z)], s: g.status });
+    }
+
+    // Draw the partner at the guess, smoothing over the jumps new updates bring.
+    const target3 = new THREE.Vector3(guess.x, guess.y, guess.z);
+    if (c.partnerVis.distanceTo(target3) > 4) c.partnerVis.copy(target3);
+    else c.partnerVis.lerp(target3, smooth(18, dt));
+    this.updateCamera(dt, input);
+    this.renderer.sync(g, this.clock, dt);
+    this.renderer.syncPartner(c.partnerVis, new THREE.Vector3(peer.v.x, peer.v.y, peer.v.z), true, true, dt, this.clock);
+    this.renderer.render(this.clock);
+    this.drawStick();
+
+    if (now - this.hudAt > 50) {
+      this.hudAt = now;
+      this.cb.onHud({
+        score: this.score,
+        timeLeft: g.timeLeft,
+        flies: this.flies,
+        lives: this.lives,
+        speed: Math.round(speedOf(g) * 3.6),
+        stage: this.stageIndex,
+        stageTime: g.stage.time,
+        practice: false,
+        coop: true,
+      });
+    }
+  }
 
   // On touch screens the joystick rests at the bottom of the screen during
   // play, and jumps to wherever you put your thumb down.
   private drawStick() {
     const { base, knob } = this.stickEls;
-    if (!this.touch || !this.isLive() || this.paused || this.overSent) {
+    if (!this.touch || !this.isLive() || this.paused || this.overSent || this.coop?.menu) {
       base.style.display = "none";
       return;
     }

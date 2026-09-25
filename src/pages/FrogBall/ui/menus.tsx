@@ -179,11 +179,12 @@ export function RankingTable({ ranking, highlight = -1 }: { ranking: RankEntry[]
 
 // --- mode select ------------------------------------------------------------------
 
-export type MenuChoice = "start" | "practice" | "howto" | "options";
+export type MenuChoice = "start" | "coop" | "practice" | "howto" | "options";
 
 export function MainMenu({ touch, onPick, onBack, initial = 0 }: { touch: boolean; onPick: (c: MenuChoice) => void; onBack: () => void; initial?: number }) {
   const choices: [MenuChoice, string, string][] = [
     ["start", "GAME START", "ROLL THROUGH ALL 15 STAGES. 3 LIVES."],
+    ["coop", "CO-OP", "TWO PLAYERS ONLINE, CHAINED TOGETHER."],
     ["practice", "PRACTICE", "PLAY ANY STAGE YOU HAVE REACHED."],
     ["howto", "HOW TO PLAY", "STEERING, GOALS AND FLIES."],
     ["options", "OPTIONS", "SOUND."],
@@ -326,7 +327,7 @@ export function StageSelect({
         </div>
       )}
       {touch && (
-        <button type="button" onClick={onBack} className="fb-item absolute left-3 top-3 px-2 py-1.5 text-[8px]">
+        <button type="button" onClick={onBack} className="fb-item !absolute left-3 top-3 px-2 py-1.5 text-[8px]">
           BACK
         </button>
       )}

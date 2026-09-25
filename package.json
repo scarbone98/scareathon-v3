@@ -16,7 +16,8 @@
     "balance:monster-bash": "node scripts/monster-bash-balance.mjs",
     "balance:royale": "node scripts/royale-balance.mjs",
     "balance:horde-rush": "node scripts/horde-rush-balance.mjs",
-    "check:frog-ball": "node scripts/frog-ball-stages.mjs"
+    "check:frog-ball": "node scripts/frog-ball-stages.mjs",
+    "check:frog-ball-coop": "node scripts/frog-ball-coop.mjs"
   },
   "dependencies": {
     "@strapi/blocks-react-renderer": "^1.0.1",
