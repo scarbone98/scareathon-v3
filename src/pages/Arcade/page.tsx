@@ -52,6 +52,7 @@ const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=ad664ca";
 const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
+const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=2c0fd36";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -322,6 +323,19 @@ export default function Arcade() {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Frog Ball", FROG_BALL_URL)
           }
+        />
+      ),
+    },
+    {
+      name: "BOB",
+      videoUrl: "/game-recordings/BOB.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="BOB"
+          url={BOB_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
