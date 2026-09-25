@@ -20,6 +20,10 @@ const GAME_SCORE_POLICIES = new Map([
     ['Salmon Run 2', {
         score: { min: 0, max: 10000000, integer: true },
     }],
+    // Levels never end and points scale with the level, so the cap is higher
+    ['Horde Rush', {
+        score: { min: 0, max: 1000000000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

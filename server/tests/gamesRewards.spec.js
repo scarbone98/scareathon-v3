@@ -77,4 +77,21 @@ describe('validateScoreSubmission', () => {
             error: 'Metric value is outside the allowed range',
         });
     });
+
+    test('allows Horde Rush scores past the usual cap, up to its own', () => {
+        expect(validateScoreSubmission({
+            game: 'Horde Rush',
+            metricName: 'score',
+            metricValue: 250000000,
+        })).toEqual({ ok: true });
+
+        expect(validateScoreSubmission({
+            game: 'Horde Rush',
+            metricName: 'score',
+            metricValue: 1000000001,
+        })).toMatchObject({
+            ok: false,
+            error: 'Metric value is outside the allowed range',
+        });
+    });
 });

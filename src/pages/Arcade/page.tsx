@@ -49,14 +49,16 @@ const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=92e62b6";
+const HORDE_RUSH_URL = "/horde-rush";
 
 type ArcadeMessage = {
   type?: unknown;
   score?: unknown;
 };
 
+// Relative URLs are games served by this site, like /horde-rush
 function getUrlOrigin(url: string) {
-  return new URL(url).origin;
+  return new URL(url, window.location.href).origin;
 }
 
 function isArcadeMessage(value: unknown): value is ArcadeMessage {
@@ -282,12 +284,14 @@ export default function Arcade() {
     {
       name: "Horde Rush",
       videoUrl: "/game-recordings/HordeRush.mp4",
-      hasLeaderboard: false,
       game: (
         <GameRenderer
           title="Horde Rush"
-          url="/horde-rush"
+          url={HORDE_RUSH_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Horde Rush", HORDE_RUSH_URL)
+          }
         />
       ),
     },
