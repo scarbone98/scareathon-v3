@@ -184,16 +184,16 @@ next to the house games, with the same leaderboards.
 1. Build and host the game yourself (GitHub Pages, itch.io HTML5, Netlify, ...).
 2. Submit its URL and a manifest (below). Automated checks run straight away; if a
    check fails the submit is refused and nothing is saved.
-3. It is saved as a **draft** version. Only you and the Scareathon admins can play
+3. A new game is saved as a **draft**. Only you and the Scareathon admins can play
    it, from https://www.scareathon.rip/profile/developer. Scores from a draft preview
    are shown to you but never saved.
-4. An admin plays it and approves or rejects it (with a note).
+4. An admin plays it and approves or rejects it (with a note). Submitting again
+   before review replaces the waiting draft.
 5. Approved: it's on the shelf and its leaderboard is live.
-6. To update the game, submit again with the same name. That makes a new draft
-   version; players keep getting the last approved version until the new one is
-   approved. Submitting again before review replaces the waiting draft.
-   Tip: put a version in the URL (e.g. \`?v=2\`) so the new version doesn't come from
-   a stale cache, and keep the old URL working until the new one is approved.
+6. A game only needs approving once. To update it, submit again with the same
+   name: once the automated checks pass, the new version goes live straight away.
+   (If an admin takes a game off the shelf, updates wait for review again.)
+   Tip: put a version in the URL (e.g. \`?v=2\`) so players don't get a stale cache.
 
 ## Technical requirements (checked automatically)
 - A single web page at an **https** URL that plays in a browser with no install.

@@ -1,4 +1,5 @@
-// Community arcade games: submit (as a draft version), review, publish, and
+// Community arcade games: submit a version (a draft until the game's first
+// approval, live straight away after that), review, publish, and
 // the published list the arcade shelf reads. Also signing a player's AI (the
 // scareathon-arcade-mcp server) in, and the arcade tokens that gives it. The spec itself lives in arcadeCommunity/gameSpec.js.
 import pool from '../db/mockDB.js';
@@ -62,6 +63,7 @@ function serializeVersion(row, stats = EMPTY_STATS) {
         manifest: row.manifest,
         checks: row.checks,
         reviewNote: row.review_note,
+        autoApproved: row.auto_approved,
         reviewedAt: row.reviewed_at,
         submittedAt: row.created_at,
         stats,
@@ -207,6 +209,9 @@ export async function submitGameVersion(userId, rawManifest, db = pool) {
     try {
         await client.query('BEGIN');
         let communityGameId = existing?.id;
+        // One approval per game: while it's on the shelf, updates go live
+        // without review. (A game an admin unpublished waits for them again.)
+        let goesLive = false;
 
         if (!existing) {
             // Hidden until the first approval
@@ -224,7 +229,11 @@ export async function submitGameVersion(userId, rawManifest, db = pool) {
             communityGameId = inserted.rows[0].id;
         } else {
             // Serialise submits for the same game, then retire the waiting draft
-            await client.query('SELECT id FROM arcade_community_games WHERE id = $1 FOR UPDATE', [communityGameId]);
+            const locked = await client.query(
+                'SELECT live_version_id FROM arcade_community_games WHERE id = $1 FOR UPDATE',
+                [communityGameId]
+            );
+            goesLive = locked.rows[0].live_version_id !== null;
             await client.query(`
                 UPDATE arcade_game_versions SET status = 'superseded'
                 WHERE community_game_id = $1 AND status = 'draft'
@@ -240,14 +249,29 @@ export async function submitGameVersion(userId, rawManifest, db = pool) {
         // big files at runtime, so parse their loader configs too), falling
         // back to the newest approved version that still matches; or host
         // uploaded builds ourselves on a separate origin.
-        await client.query(`
-            INSERT INTO arcade_game_versions (community_game_id, version, url, manifest, status, checks, page_sha256)
-            SELECT $1, COALESCE(MAX(version), 0) + 1, $2, $3::jsonb, 'draft', $4::jsonb, $5
+        const inserted = await client.query(`
+            INSERT INTO arcade_game_versions
+                (community_game_id, version, url, manifest, status, auto_approved, reviewed_at, checks, page_sha256)
+            SELECT $1, COALESCE(MAX(version), 0) + 1, $2, $3::jsonb,
+                   CASE WHEN $6 THEN 'approved' ELSE 'draft' END, $6,
+                   CASE WHEN $6 THEN now() END, $4::jsonb, $5
             FROM arcade_game_versions WHERE community_game_id = $1
-        `, [communityGameId, manifest.url, JSON.stringify(manifest), JSON.stringify(checks), pageSha256]);
-        await client.query('UPDATE arcade_community_games SET updated_at = now() WHERE id = $1', [communityGameId]);
+            RETURNING id
+        `, [communityGameId, manifest.url, JSON.stringify(manifest), JSON.stringify(checks), pageSha256, goesLive]);
+        if (goesLive) {
+            await client.query(`
+                UPDATE arcade_community_games SET live_version_id = $2, updated_at = now() WHERE id = $1
+            `, [communityGameId, inserted.rows[0].id]);
+            await client.query(`
+                UPDATE games SET description = $2, updated_at = now()
+                WHERE id = (SELECT game_id FROM arcade_community_games WHERE id = $1)
+            `, [communityGameId, manifest.description ?? manifest.tagline]);
+        } else {
+            await client.query('UPDATE arcade_community_games SET updated_at = now() WHERE id = $1', [communityGameId]);
+        }
 
         await client.query('COMMIT');
+        if (goesLive) deleteCachePrefix(COMMUNITY_CACHE_KEY);
         return await loadGameDetail(client, 'cg.id = $1', [communityGameId]);
     } catch (error) {
         await client.query('ROLLBACK').catch(() => {});

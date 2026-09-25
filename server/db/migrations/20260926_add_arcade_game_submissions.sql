@@ -2,9 +2,10 @@
 -- scareathon-arcade-mcp server) submit a hosted HTML5 game plus a manifest.
 --
 -- A game is one arcade_community_games row; every submit adds an
--- arcade_game_versions row as a draft. The shelf serves the game's
--- live_version_id, so an update stays a draft (and players keep getting the
--- last approved version) until an admin approves it.
+-- arcade_game_versions row. The shelf serves the game's live_version_id.
+-- A game needs one admin approval: its first version is a draft until an
+-- admin approves it; after that, while it's on the shelf, each update that
+-- passes the automated checks goes live straight away (auto_approved).
 --
 -- Each community game also gets a games row, made hidden (is_active FALSE,
 -- published_at NULL) on first submit, because leaderboards hang off games.id.
@@ -33,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.arcade_game_versions (
     url TEXT NOT NULL,
     -- The validated manifest (tagline, colour, aspect ratio, score rule, ...)
     manifest JSONB NOT NULL,
-    -- draft: waiting for review. superseded: a newer draft replaced it before
+    -- draft: waiting for review. superseded: a newer submit replaced it before
     -- review. approved versions stay approved after a newer one goes live.
     status TEXT NOT NULL DEFAULT 'draft',
     -- Results of the automated checks run on submit
@@ -44,6 +45,8 @@ CREATE TABLE IF NOT EXISTS public.arcade_game_versions (
     -- TODO(version-drift) in routes/arcadeCommunity.js.
     page_sha256 TEXT,
     review_note TEXT,
+    -- Went live without review, because the game was already approved
+    auto_approved BOOLEAN NOT NULL DEFAULT FALSE,
     reviewed_by UUID REFERENCES public.users (id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

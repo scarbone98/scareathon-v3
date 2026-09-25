@@ -100,7 +100,7 @@ export default function ArcadeConnect() {
         <p className="mb-1 text-sm text-orange-100/70">Check this matches the code your AI showed you:</p>
         <p className="mb-4 font-mono text-3xl tracking-widest text-orange-300">{login.data.userCode}</p>
         <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-orange-50/75">
-          <li>It can submit games (always as drafts for review) and see your games.</li>
+          <li>It can submit games and see yours. New games wait for an admin; updates to your approved games go live straight away.</li>
           <li>It can't spend coins, post, message anyone or change your account.</li>
           <li>You can disconnect it any time in your profile's Developer tab.</li>
         </ul>

@@ -36,6 +36,7 @@ type GameVersion = {
   manifest: CommunityManifest;
   checks: Check[];
   reviewNote: string | null;
+  autoApproved: boolean;
   submittedAt: string;
   stats: VersionStats;
 };
@@ -242,7 +243,10 @@ function VersionRow({
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-sm text-orange-100/70">v{version.version}</span>
         <StatusChip status={versionStatus(game, version)} />
-        <span className="text-xs text-orange-100/50">{formatDate(version.submittedAt)}</span>
+        <span className="text-xs text-orange-100/50">
+          {formatDate(version.submittedAt)}
+          {version.autoApproved && " · went live without review"}
+        </span>
         <span className="ml-auto flex gap-2">
           <button type="button" className={buttonClass} onClick={() => setOpen(!open)}>
             {open ? "Hide" : "Details"}
@@ -342,7 +346,12 @@ function ManualSubmitSection({ exampleManifest }: { exampleManifest: object }) {
       }
       const game = await arcadeApi<GameDetail>("/arcade/games", { method: "POST", body: { manifest } });
       queryClient.invalidateQueries({ queryKey: ["arcade", "mine"] });
-      return { ok: true, message: `Submitted ${game.name} v${game.versions[0].version} as a draft.`, checks: game.versions[0].checks };
+      const version = game.versions[0];
+      const message =
+        version.status === "approved"
+          ? `${game.name} v${version.version} is live on the shelf.`
+          : `Submitted ${game.name} v${version.version}. It's a draft until an admin approves it.`;
+      return { ok: true, message, checks: version.checks };
     },
     onSuccess: setResult,
     onError: (error) => {
@@ -354,8 +363,8 @@ function ManualSubmitSection({ exampleManifest }: { exampleManifest: object }) {
   return (
     <Section title="Or submit by hand">
       <p className="mb-3 text-sm text-orange-50/80">
-        Paste your game's manifest. Submitting again with the same name makes a new version; players keep the last approved
-        one until it's reviewed.
+        Paste your game's manifest. Submitting again with the same name makes a new version: once the game has been approved,
+        new versions go live as soon as they pass the checks.
       </p>
       <textarea
         value={text}
@@ -535,8 +544,8 @@ export function DeveloperContent() {
       <p className="text-sm text-orange-50/80">
         Build a browser game, host it anywhere with https, and submit it. It goes in as a draft that only you and the
         admins can play. Once an admin approves it, it's on the <Link to="/arcade" className="text-orange-300 underline">arcade shelf</Link>{" "}
-        with its own leaderboard. Updates work the same way: the new version waits for review while players keep the last
-        approved one.
+        with its own leaderboard. A game only needs approving once: after that, updates go live as soon as they pass the
+        automated checks.
       </p>
 
       <ConnectAiSection />
