@@ -28,6 +28,9 @@ const GAME_SCORE_POLICIES = new Map([
     ['Horde Rush', {
         score: { min: 0, max: 1000000000, integer: true },
     }],
+    ['Frog Ball', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

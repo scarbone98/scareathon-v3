@@ -33,6 +33,7 @@ const Post = lazy(() => import("../pages/Post/page"));
 const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
 const CryptClash = lazy(() => import("../pages/Royale/page"));
 const HordeRush = lazy(() => import("../pages/HordeRush/page"));
+const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -235,6 +236,14 @@ export const AnimatedRoutes = () => {
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <HordeRush />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/frog-ball"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <FrogBall />
             </Suspense>
           }
         />

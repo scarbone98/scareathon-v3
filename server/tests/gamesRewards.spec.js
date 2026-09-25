@@ -94,4 +94,12 @@ describe('validateScoreSubmission', () => {
             error: 'Metric value is outside the allowed range',
         });
     });
+
+    test('accepts Frog Ball scores', () => {
+        expect(validateScoreSubmission({
+            game: 'Frog Ball',
+            metricName: 'score',
+            metricValue: 84250,
+        })).toEqual({ ok: true });
+    });
 });
