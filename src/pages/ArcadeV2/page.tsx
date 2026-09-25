@@ -1,5 +1,5 @@
 import AnimatedPage from "../../components/AnimatedPage";
-import { Suspense, lazy, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import ArcadePlayOverlay from "../Arcade/ArcadePlayOverlay.tsx";
 import LeaderboardDialog from "../Arcade/LeaderboardDialog.tsx";
@@ -23,6 +23,22 @@ export default function ArcadeV2() {
   const { initialMachineName, playingGame, selectGame, playGame, closeGame } =
     useArcadeSelection(visibleGames, isMobileArcade);
   const [leaderboardGame, setLeaderboardGame] = useState<MachineData | null>(null);
+
+  // The arcade is one fixed screen: no scrolling or rubber-banding the page behind it
+  useEffect(() => {
+    const targets = [document.documentElement, document.body];
+    const previous = targets.map((el) => [el.style.overflow, el.style.overscrollBehavior]);
+    targets.forEach((el) => {
+      el.style.overflow = "hidden";
+      el.style.overscrollBehavior = "none";
+    });
+    return () => {
+      targets.forEach((el, i) => {
+        el.style.overflow = previous[i][0];
+        el.style.overscrollBehavior = previous[i][1];
+      });
+    };
+  }, []);
   // Full-screen TV power-on into a game, and power-off back out of it
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
   const startGame = (game: MachineData) => setTransition({ mode: "on", game });

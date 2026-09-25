@@ -74,7 +74,9 @@ const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall"
 const SHELF_NEON = "#ff7a1a";
 const TALL_ASPECT = 1.05; // narrower than this and the shelf becomes a swipeable ledge
 const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
-const LEDGE_CARD_SPACE = 0.3; // share of a tall screen kept clear under the scene for the info card
+// Pixels kept clear under the scene on tall screens: the info card (about 150px)
+// plus the gap under it for the site menu button (5.25rem)
+const LEDGE_CARD_SPACE = 244;
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
 const POWER_OFF = 0.3;
 const STATIC = 0.4;
@@ -417,8 +419,11 @@ export default function CartridgeArcade({
       if (layoutMode === "wall") {
         box.union(new Box3().setFromObject(shelfGroup));
       } else {
-        // The ledge only needs to show its middle; it scrolls
+        // The ledge only needs to show its middle; it scrolls. Skip the floor under
+        // it so the cabinet can fill the width of a phone.
         box.expandByPoint(new Vector3(0, cartSize.height, shelfGroup.position.z + cartSize.depth));
+        const ledgeTop = carts.length ? carts[0].home.y - cartSize.height / 2 : box.min.y;
+        box.min.y = Math.max(box.min.y, ledgeTop - cartSize.height * 0.35);
       }
       const extent = box.getSize(new Vector3());
       const center = box.getCenter(new Vector3());
@@ -426,11 +431,11 @@ export default function CartridgeArcade({
       // Fit the scene into the band of screen the page's chrome leaves free: under
       // the top nav on wide screens, above the info card on tall ones
       const reserveTop = layoutMode === "wall" ? Math.min(NAV_CLEARANCE, height * 0.14) : 0;
-      const reserveBottom = layoutMode === "wall" ? height * 0.02 : height * LEDGE_CARD_SPACE;
+      const reserveBottom = layoutMode === "wall" ? height * 0.02 : Math.min(LEDGE_CARD_SPACE, height * 0.42);
       const freeShare = (height - reserveTop - reserveBottom) / height;
       const tan = Math.tan((camera.fov * Math.PI) / 360);
       const distance =
-        Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 0.86 : 0.96) +
+        Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 0.86 : 0.9) +
         extent.z / 2;
       // Slide the camera so the scene's middle lands in the middle of that band
       const visibleHeight = 2 * tan * distance;
@@ -1002,25 +1007,17 @@ export default function CartridgeArcade({
 
   const shown = focused >= 0 ? focused : inserted;
   const shownGame = games[shown];
-  const shownIsInserted = shown >= 0 && shown === inserted;
-  const insertedGame = games[inserted];
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
+    <div className="relative h-[100dvh] w-screen overflow-hidden bg-black">
       <div ref={mountRef} className="absolute inset-0" style={{ touchAction: "none" }} />
       {loading && <LoadingSpinner />}
 
       {!loading && (
         <GameCard
           game={shownGame}
-          index={shown}
-          total={games.length}
-          isInserted={shownIsInserted}
-          insertedGame={insertedGame}
           layout={layout}
-          onPlay={onPlay}
           onLeaderboard={onLeaderboard}
-          onPlugIn={() => worldRef.current?.activate(shown)}
           // Wide screens: over the shelf. Tall screens: along the bottom, clear of the menu button
           className={`absolute z-10 ${
             layout === "ledge" || !cardAnchor
