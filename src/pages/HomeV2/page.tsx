@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, animate, m as motion, useMotionValue, useReducedMotion } from "framer-motion";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { animate, m as motion, useMotionValue, useReducedMotion } from "framer-motion";
 import { useDrag } from "@use-gesture/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -212,74 +212,127 @@ function Hero({ summary, spotlight }: { summary?: Summary; spotlight: ShowcaseGa
   );
 }
 
-// Past this many pixels (or a quick flick), a drag changes the game
-const SWIPE_DISTANCE = 60;
+// Past this share of the card's width (or a quick flick), a drag changes the game
+const SWIPE_FRACTION = 0.2;
+const SLIDE: { duration: number; ease: [number, number, number, number] } = { duration: 0.45, ease: [0.32, 0.72, 0, 1] };
+
+function SpotlightSlide({ game }: { game: ShowcaseGame }) {
+  return (
+    <>
+      {game.video ? (
+        <video
+          className="h-full w-full object-cover opacity-85 transition-opacity duration-700 group-hover:opacity-100"
+          src={game.video}
+          poster={game.still}
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      ) : game.still ? (
+        <img src={game.still} alt="" draggable={false} className="h-full w-full object-cover" />
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center pb-16"
+          style={{ background: `radial-gradient(circle at 30% 20%, ${game.color}55, #16121a 70%)` }}
+        >
+          <span className="px-6 text-center font-scooby text-5xl text-stone-100/80 md:text-6xl">{game.name}</span>
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c10] via-[#0f0c10]/20 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 min-w-0 p-5 pr-20 md:p-6 md:pr-20">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-300/70">In the arcade</p>
+        <p className="mt-1 truncate text-2xl font-semibold text-stone-50">{game.name.replace(/’/g, "'")}</p>
+        <p className="truncate text-sm text-stone-300/80">{game.tagline}</p>
+      </div>
+    </>
+  );
+}
 
 // The big picture beside the headline: cycles through a few games, a few
-// seconds each. Swipe or drag it sideways to flip through them. Holds still on
-// hover, while dragging, and for people who've asked for less motion.
+// seconds each. A strip of three slides (previous, current, next) that slides
+// sideways: it follows a finger or mouse drag, and every change, whether a
+// swipe, the timer or a dot, is the same straight slide. Holds still on hover,
+// while dragging, and for people who've asked for less motion.
 function Spotlight({ games }: { games: ShowcaseGame[] }) {
   const [index, setIndex] = useState(0);
-  // Which way the last change went, so the next game slides in from that side
-  const [direction, setDirection] = useState(1);
+  // A dot can jump anywhere: the game it picked waits in the next (or
+  // previous) slot while the strip slides over to it
+  const [incoming, setIncoming] = useState<{ index: number; side: 1 | -1 } | null>(null);
   const [paused, setPaused] = useState(false);
   const [dragging, setDragging] = useState(false);
   const reduceMotion = useReducedMotion();
-  const dragX = useMotionValue(0);
+  const trackX = useMotionValue(0);
+  const cardRef = useRef<HTMLAnchorElement | null>(null);
+  const sliding = useRef(false);
   // A drag ends with a click on the card; this stops it opening the game
   const swiped = useRef(false);
-  const count = Math.max(games.length, 1);
-  const current = index % count;
-  const game = games[current];
+  const count = games.length;
+  const current = count ? index % count : 0;
+  const wrap = (i: number) => ((i % count) + count) % count;
+  const prev = incoming?.side === -1 ? incoming.index : wrap(current - 1);
+  const next = incoming?.side === 1 ? incoming.index : wrap(current + 1);
 
-  const go = (step: number) => {
-    setDirection(step > 0 ? 1 : -1);
-    setIndex((i) => (((i % count) + step) % count + count) % count);
-  };
-  const show = (target: number) => {
-    if (target === current) return;
-    setDirection(target > current ? 1 : -1);
-    setIndex(target);
+  // Once the new game is in the middle slot, put the strip back where it was.
+  // Before paint, so the swap can't be seen.
+  useLayoutEffect(() => {
+    trackX.set(0);
+  }, [current, trackX]);
+
+  const slideTo = (target: number, side: 1 | -1) => {
+    if (sliding.current || count < 2 || target === current) return;
+    const width = cardRef.current?.offsetWidth ?? 0;
+    const finish = () => {
+      sliding.current = false;
+      setIncoming(null);
+      setIndex(target);
+    };
+    if (reduceMotion || !width) return finish();
+    sliding.current = true;
+    const isNeighbour = target === (side === 1 ? wrap(current + 1) : wrap(current - 1));
+    if (!isNeighbour) setIncoming({ index: target, side });
+    animate(trackX, -side * width, { ...SLIDE, onComplete: finish });
   };
 
   const bind = useDrag(
     ({ first, last, movement: [mx], swipe: [swipeX], tap }) => {
-      if (tap || games.length < 2) return;
+      if (tap || count < 2 || sliding.current) return;
       if (first) {
         setDragging(true);
         swiped.current = false;
       }
       if (Math.abs(mx) > 8) swiped.current = true;
-      // The card follows the finger, with a little resistance
-      dragX.set(mx * 0.4);
+      trackX.set(mx);
       if (!last) return;
       setDragging(false);
-      animate(dragX, 0, { type: "spring", stiffness: 400, damping: 35 });
-      if (swipeX) go(-swipeX);
-      else if (Math.abs(mx) > SWIPE_DISTANCE) go(mx < 0 ? 1 : -1);
+      const width = cardRef.current?.offsetWidth ?? 1;
+      const side = swipeX ? (-swipeX as 1 | -1) : Math.abs(mx) > width * SWIPE_FRACTION ? (mx < 0 ? 1 : -1) : 0;
+      if (side) slideTo(wrap(current + side), side);
+      else animate(trackX, 0, SLIDE);
     },
     { axis: "x", filterTaps: true, pointer: { capture: false } }
   );
 
   useEffect(() => {
-    if (paused || dragging || reduceMotion || games.length < 2) return;
-    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % games.length), 7000);
+    if (paused || dragging || reduceMotion || count < 2) return;
+    const timer = window.setTimeout(() => slideTo(wrap(current + 1), 1), 7000);
     return () => window.clearTimeout(timer);
-  }, [index, paused, dragging, reduceMotion, games.length]);
+    // slideTo only reads current state; re-arm the timer when the game changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, paused, dragging, reduceMotion, count]);
 
-  if (!game) {
+  if (!count) {
     return <div className="aspect-[4/3] animate-pulse rounded-3xl border border-white/10 bg-white/[0.03] sm:aspect-video lg:aspect-[4/3]" />;
   }
 
+  const slots = count > 1 ? ([[prev, -1], [current, 0], [next, 1]] as const) : ([[current, 0]] as const);
+
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
+    <div className="relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <Link
         {...bind()}
-        to={game.href}
+        ref={cardRef}
+        to={games[current].href}
         draggable={false}
         onClickCapture={(event) => {
           if (swiped.current) event.preventDefault();
@@ -287,60 +340,24 @@ function Spotlight({ games }: { games: ShowcaseGame[] }) {
         }}
         className="group relative block aspect-[4/3] touch-pan-y select-none overflow-hidden rounded-3xl border border-white/10 bg-stone-900 shadow-2xl shadow-black/40 sm:aspect-video lg:aspect-[4/3]"
       >
-        <motion.div className="absolute inset-0" style={{ x: dragX }}>
-        <AnimatePresence initial={false} custom={direction}>
-          <motion.div
-            key={game.name}
-            className="absolute inset-0"
-            custom={direction}
-            variants={{
-              enter: (dir: number) => ({ opacity: 0, x: reduceMotion ? 0 : dir * 60 }),
-              center: { opacity: 1, x: 0 },
-              exit: (dir: number) => ({ opacity: 0, x: reduceMotion ? 0 : dir * -60 }),
-            }}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            {game.video ? (
-              <video
-                className="h-full w-full object-cover opacity-85 transition duration-700 group-hover:scale-[1.03] group-hover:opacity-100"
-                src={game.video}
-                poster={game.still}
-                autoPlay
-                muted
-                loop
-                playsInline
-              />
-            ) : game.still ? (
-              <img src={game.still} alt="" draggable={false} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
-            ) : (
-              <div
-                className="flex h-full w-full items-center justify-center pb-16"
-                style={{ background: `radial-gradient(circle at 30% 20%, ${game.color}55, #16121a 70%)` }}
-              >
-                <span className="px-6 text-center font-scooby text-5xl text-stone-100/80 md:text-6xl">{game.name}</span>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        <motion.div className="absolute inset-0" style={{ x: trackX }}>
+          {slots.map(([gameIndex, slot]) => (
+            <div
+              // Keyed by game (when that's unique) so a video keeps playing as it moves slots
+              key={count > 2 ? games[gameIndex].name : `${slot}-${games[gameIndex].name}`}
+              className="absolute inset-0"
+              style={{ transform: `translateX(${slot * 100}%)` }}
+              aria-hidden={slot !== 0}
+            >
+              <SpotlightSlide game={games[gameIndex]} />
+            </div>
+          ))}
         </motion.div>
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c10] via-[#0f0c10]/20 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5 md:p-6">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-300/70">
-              In the arcade
-            </p>
-            <p className="mt-1 truncate text-2xl font-semibold text-stone-50">{game.name.replace(/’/g, "'")}</p>
-            <p className="truncate text-sm text-stone-300/80">{game.tagline}</p>
-          </div>
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/90 text-stone-900 transition group-hover:scale-105">
-            <FaPlay className="ml-0.5 text-sm" />
-          </span>
-        </div>
+        <span className="absolute bottom-5 right-5 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-stone-900 transition group-hover:scale-105 md:bottom-6 md:right-6">
+          <FaPlay className="ml-0.5 text-sm" />
+        </span>
       </Link>
-      {games.length > 1 && (
+      {count > 1 && (
         <div className="mt-4 flex justify-center gap-1.5">
           {games.map((g, i) => (
             <button
@@ -348,7 +365,7 @@ function Spotlight({ games }: { games: ShowcaseGame[] }) {
               type="button"
               aria-label={`Show ${g.name}`}
               aria-current={i === current}
-              onClick={() => show(i)}
+              onClick={() => slideTo(i, i > current ? 1 : -1)}
               className={`h-1.5 rounded-full transition-all ${
                 i === current ? "w-6 bg-stone-200" : "w-1.5 bg-stone-600 hover:bg-stone-400"
               }`}
