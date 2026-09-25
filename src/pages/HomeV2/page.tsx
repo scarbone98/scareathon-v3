@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, m as motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, animate, m as motion, useMotionValue, useReducedMotion } from "framer-motion";
+import { useDrag } from "@use-gesture/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -211,20 +212,60 @@ function Hero({ summary, spotlight }: { summary?: Summary; spotlight: ShowcaseGa
   );
 }
 
+// Past this many pixels (or a quick flick), a drag changes the game
+const SWIPE_DISTANCE = 60;
+
 // The big picture beside the headline: cycles through a few games, a few
-// seconds each. Holds still on hover, and for
-// people who've asked for less motion.
+// seconds each. Swipe or drag it sideways to flip through them. Holds still on
+// hover, while dragging, and for people who've asked for less motion.
 function Spotlight({ games }: { games: ShowcaseGame[] }) {
   const [index, setIndex] = useState(0);
+  // Which way the last change went, so the next game slides in from that side
+  const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const reduceMotion = useReducedMotion();
-  const game = games[index % Math.max(games.length, 1)];
+  const dragX = useMotionValue(0);
+  // A drag ends with a click on the card; this stops it opening the game
+  const swiped = useRef(false);
+  const count = Math.max(games.length, 1);
+  const current = index % count;
+  const game = games[current];
+
+  const go = (step: number) => {
+    setDirection(step > 0 ? 1 : -1);
+    setIndex((i) => (((i % count) + step) % count + count) % count);
+  };
+  const show = (target: number) => {
+    if (target === current) return;
+    setDirection(target > current ? 1 : -1);
+    setIndex(target);
+  };
+
+  const bind = useDrag(
+    ({ first, last, movement: [mx], swipe: [swipeX], tap }) => {
+      if (tap || games.length < 2) return;
+      if (first) {
+        setDragging(true);
+        swiped.current = false;
+      }
+      if (Math.abs(mx) > 8) swiped.current = true;
+      // The card follows the finger, with a little resistance
+      dragX.set(mx * 0.4);
+      if (!last) return;
+      setDragging(false);
+      animate(dragX, 0, { type: "spring", stiffness: 400, damping: 35 });
+      if (swipeX) go(-swipeX);
+      else if (Math.abs(mx) > SWIPE_DISTANCE) go(mx < 0 ? 1 : -1);
+    },
+    { axis: "x", filterTaps: true, pointer: { capture: false } }
+  );
 
   useEffect(() => {
-    if (paused || reduceMotion || games.length < 2) return;
+    if (paused || dragging || reduceMotion || games.length < 2) return;
     const timer = window.setTimeout(() => setIndex((i) => (i + 1) % games.length), 7000);
     return () => window.clearTimeout(timer);
-  }, [index, paused, reduceMotion, games.length]);
+  }, [index, paused, dragging, reduceMotion, games.length]);
 
   if (!game) {
     return <div className="aspect-[4/3] animate-pulse rounded-3xl border border-white/10 bg-white/[0.03] sm:aspect-video lg:aspect-[4/3]" />;
@@ -237,17 +278,30 @@ function Spotlight({ games }: { games: ShowcaseGame[] }) {
       onMouseLeave={() => setPaused(false)}
     >
       <Link
+        {...bind()}
         to={game.href}
-        className="group relative block aspect-[4/3] overflow-hidden rounded-3xl border border-white/10 bg-stone-900 shadow-2xl shadow-black/40 sm:aspect-video lg:aspect-[4/3]"
+        draggable={false}
+        onClickCapture={(event) => {
+          if (swiped.current) event.preventDefault();
+          swiped.current = false;
+        }}
+        className="group relative block aspect-[4/3] touch-pan-y select-none overflow-hidden rounded-3xl border border-white/10 bg-stone-900 shadow-2xl shadow-black/40 sm:aspect-video lg:aspect-[4/3]"
       >
-        <AnimatePresence initial={false}>
+        <motion.div className="absolute inset-0" style={{ x: dragX }}>
+        <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={game.name}
             className="absolute inset-0"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
+            custom={direction}
+            variants={{
+              enter: (dir: number) => ({ opacity: 0, x: reduceMotion ? 0 : dir * 60 }),
+              center: { opacity: 1, x: 0 },
+              exit: (dir: number) => ({ opacity: 0, x: reduceMotion ? 0 : dir * -60 }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.5, ease: "easeOut" }}
           >
             {game.video ? (
               <video
@@ -260,7 +314,7 @@ function Spotlight({ games }: { games: ShowcaseGame[] }) {
                 playsInline
               />
             ) : game.still ? (
-              <img src={game.still} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
+              <img src={game.still} alt="" draggable={false} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
             ) : (
               <div
                 className="flex h-full w-full items-center justify-center pb-16"
@@ -271,6 +325,7 @@ function Spotlight({ games }: { games: ShowcaseGame[] }) {
             )}
           </motion.div>
         </AnimatePresence>
+        </motion.div>
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c10] via-[#0f0c10]/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5 md:p-6">
           <div className="min-w-0">
@@ -292,10 +347,10 @@ function Spotlight({ games }: { games: ShowcaseGame[] }) {
               key={g.name}
               type="button"
               aria-label={`Show ${g.name}`}
-              aria-current={i === index % games.length}
-              onClick={() => setIndex(i)}
+              aria-current={i === current}
+              onClick={() => show(i)}
               className={`h-1.5 rounded-full transition-all ${
-                i === index % games.length ? "w-6 bg-stone-200" : "w-1.5 bg-stone-600 hover:bg-stone-400"
+                i === current ? "w-6 bg-stone-200" : "w-1.5 bg-stone-600 hover:bg-stone-400"
               }`}
             />
           ))}
