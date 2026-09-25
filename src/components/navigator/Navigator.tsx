@@ -21,8 +21,13 @@ export const Navigator = () => {
   const navRef = useRef<HTMLDivElement>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
 
-  const { setHeight, hideMobileNav } = useNavigatorContext();
-  const [isOpen, setIsOpen] = useState(false);
+  const {
+    setHeight,
+    hideMobileNav,
+    mobileMenuOpen: isOpen,
+    setMobileMenuOpen: setIsOpen,
+    mobileNavDocked,
+  } = useNavigatorContext();
   const [avatarImageFailed, setAvatarImageFailed] = useState(false);
 
   // Close the menu if a game opens while it's showing
@@ -73,6 +78,8 @@ export const Navigator = () => {
       if (
         mobileNavRef.current &&
         !mobileNavRef.current.contains(event.target as Node) &&
+        // A docked menu button toggles the menu itself
+        !(event.target as Element).closest?.("[data-mobile-menu-toggle]") &&
         isOpen
       ) {
         setIsOpen(false);
@@ -181,9 +188,10 @@ export const Navigator = () => {
         style={{ pointerEvents: hideMobileNav ? "none" : undefined }}
         aria-hidden={hideMobileNav || undefined}
       >
+        {/* A page can dock this button into its own UI; the menu still opens here */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
-          className="bg-transparent p-0 focus:outline-none relative"
+          className={`bg-transparent p-0 focus:outline-none relative ${mobileNavDocked ? "hidden" : ""}`}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           aria-label="Toggle mobile menu"
@@ -208,7 +216,9 @@ export const Navigator = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-full left-0 mb-2 w-56 bg-black bg-opacity-95 shadow-lg rounded-lg overflow-hidden border"
+              className={`absolute left-0 w-56 bg-black bg-opacity-95 shadow-lg rounded-lg overflow-hidden border ${
+                mobileNavDocked ? "bottom-40" : "bottom-full mb-2"
+              }`}
               style={{
                 borderColor: selectedItem?.color || "red-500",
               }}

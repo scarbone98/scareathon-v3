@@ -37,6 +37,7 @@ import { createArcadeAmbience, type ArcadeAmbience } from "../Arcade/arcadeAmbie
 import { createCartridge, loadVideoStills, type Cartridge } from "./cartridge.ts";
 import { playClunk, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
+import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
 // flies into the slot on the cabinet's control panel; the screen crackles to
@@ -74,9 +75,9 @@ const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall"
 const SHELF_NEON = "#ff7a1a";
 const TALL_ASPECT = 1.05; // narrower than this and the shelf becomes a swipeable ledge
 const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
-// Pixels kept clear under the scene on tall screens: the info card (about 150px)
-// plus the gap under it for the site menu button (5.25rem)
-const LEDGE_CARD_SPACE = 244;
+// Pixels kept clear under the scene on tall screens for the info card (which
+// carries the site menu button there)
+const LEDGE_CARD_SPACE = 192;
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
 const POWER_OFF = 0.3;
 const STATIC = 0.4;
@@ -115,6 +116,12 @@ export default function CartridgeArcade({
   const [focused, setFocused] = useState(-1);
   const [inserted, setInserted] = useState(-1);
   const [layout, setLayout] = useState<Layout>(() => layoutFor(window.innerWidth, window.innerHeight));
+  // Phones: the site menu button lives in the info card instead of floating over the arcade
+  const { setMobileNavDocked } = useNavigatorContext();
+  useEffect(() => {
+    setMobileNavDocked(layout === "ledge");
+    return () => setMobileNavDocked(false);
+  }, [layout, setMobileNavDocked]);
   const [cardAnchor, setCardAnchor] = useState<CardAnchor | null>(null);
 
   useEffect(() => {
@@ -1033,7 +1040,7 @@ export default function CartridgeArcade({
           // Wide screens: over the shelf. Tall screens: along the bottom, clear of the menu button
           className={`absolute z-10 ${
             layout === "ledge" || !cardAnchor
-              ? "bottom-[5.25rem] left-1/2 w-[min(92vw,30rem)] -translate-x-1/2"
+              ? "bottom-3 left-1/2 w-[min(94vw,30rem)] -translate-x-1/2"
               : "-translate-x-1/2 -translate-y-full"
           }`}
           style={
