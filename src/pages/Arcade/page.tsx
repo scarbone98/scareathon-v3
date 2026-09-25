@@ -49,6 +49,7 @@ const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
+const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=ad664ca";
 const HORDE_RUSH_URL = "/horde-rush";
 
 type ArcadeMessage = {
@@ -263,6 +264,21 @@ export default function Arcade() {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Salmon Run 2", SALMON_RUN_2_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "WirtWare",
+      videoUrl: "/game-recordings/WirtWare.mp4",
+      game: (
+        <GameRenderer
+          title="WirtWare"
+          url={WIRTWARE_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "WirtWare", WIRTWARE_URL)
           }
         />
       ),
