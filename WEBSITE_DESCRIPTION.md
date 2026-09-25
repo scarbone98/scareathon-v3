@@ -45,7 +45,7 @@ As of May 10, 2026, Scareathon already has enough connected data to feel like a 
 
 The site can identify signed-in players through Supabase Auth. That gives Scareathon a real account layer: users can log in, keep a persistent profile, update their username, maintain a wallet, own avatar items, save avatar outfits, and return later without losing progress.
 
-The arcade data is active. The app knows which games are published, where those games live, and how to submit scores from playable web games back into Scareathon. Game score submissions can create leaderboard entries, award coins when reward rules apply, and preserve game-specific player data when a cabinet needs it. Current arcade experiences include games like 8 Bit Evil Returns, Ooidash, Hemlock's Tower, Tlaloc's Curse, Salmon Run 2, and the original 8 Bit Evil where supported.
+The arcade data is active. The app knows which games are published, where those games live, and how to submit scores from playable web games back into Scareathon. Game score submissions can create leaderboard entries, award coins when reward rules apply, and preserve game-specific player data when a cabinet needs it. Current arcade experiences include games like 8 Bit Evil Returns, Ooidash, Hemlock's Tower, Tlaloc's Curse, Salmon Run 2, WirtWare, and the original 8 Bit Evil where supported.
 
 The Scareboard is powered by event standings data from Google Sheets. The site can show the active or most relevant event year, historical years, player totals, ranks, category columns like movies, weekly, bonus, and total, plus past winners. This gives the event side of Scareathon a familiar competition layer that can be browsed by year.
 
