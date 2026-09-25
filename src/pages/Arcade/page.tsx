@@ -48,7 +48,7 @@ const HEMLOCKS_TOWER_URL =
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
-const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=92e62b6";
+const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=a3d97bd";
 const HORDE_RUSH_URL = "/horde-rush";
 
 type ArcadeMessage = {
@@ -255,8 +255,6 @@ export default function Arcade() {
     {
       name: "Salmon Run 2",
       videoUrl: "/game-recordings/SalmonRun2.mp4",
-      // Landscape 3D game played with keyboard or gamepad; no touch controls yet
-      availableOnMobile: false,
       game: (
         <GameRenderer
           title="Salmon Run 2"
