@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FaCheck,
   FaArrowRight,
+  FaCode,
   FaGhost,
   FaCog,
   FaCoins,
@@ -28,6 +29,7 @@ import { useInboxUnreadCount } from "../Inbox/useInboxUnreadCount";
 const AvatarEditor = lazy(() => import("../../components/avatar/AvatarEditor").then(module => ({ default: module.AvatarEditor })));
 const AvatarShop = lazy(() => import("../../components/avatar/AvatarShop").then(module => ({ default: module.AvatarShop })));
 const InboxContent = lazy(() => import("../Inbox/page").then(module => ({ default: module.InboxContent })));
+const DeveloperContent = lazy(() => import("../Developer/DeveloperContent").then(module => ({ default: module.DeveloperContent })));
 
 type WalletData = {
   data: {
@@ -162,6 +164,8 @@ const Profile = () => {
       ? "avatar"
       : location.pathname.endsWith("/settings")
         ? "settings"
+      : location.pathname.endsWith("/developer")
+        ? "developer"
         : "avatar";
   const unreadInboxCount = useInboxUnreadCount();
 
@@ -192,6 +196,7 @@ const Profile = () => {
     { to: "/profile/avatar", key: "avatar", label: "Dress up", icon: <FaUserAlt /> },
     { to: "/profile/shop", key: "shop", label: "Item shop", icon: <FaShoppingBag /> },
     { to: "/profile/inbox", key: "inbox", label: "Inbox", icon: <FaEnvelope /> },
+    { to: "/profile/developer", key: "developer", label: "Developer", icon: <FaCode /> },
     { to: "/profile/settings", key: "settings", label: "Settings", icon: <FaCog /> },
   ];
 
@@ -199,6 +204,7 @@ const Profile = () => {
     avatar: { title: "Your wardrobe", description: "A little strange. Entirely you. Pick a category and try something on." },
     shop: { title: "Find your next favorite", description: "Discover new pieces and give your character a little more personality." },
     inbox: { title: "Your inbox", description: "Keep in touch with the creatures you meet along the way." },
+    developer: { title: "Make arcade games", description: "Submit games to the arcade, follow their reviews, and see who's playing." },
     settings: { title: "Account settings", description: "Make yourself at home. Manage your name and account here." },
   }[activeTab];
 
@@ -244,7 +250,7 @@ const Profile = () => {
             <div className="profile-panel-body">
               <header className="profile-section-heading"><h2>{sectionDetails.title}</h2><p>{sectionDetails.description}</p></header>
               <Suspense fallback={<div className="py-10 text-center text-sm text-purple-200" role="status">Loading {activeTab === "avatar" ? "wardrobe" : activeTab}…</div>}>
-              {activeTab === "inbox" ? <InboxContent /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
+              {activeTab === "inbox" ? <InboxContent /> : activeTab === "developer" ? <DeveloperContent /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
                 <div className="account-settings">
                   <section className="account-section">
                     <div className="account-section-icon"><FaUserAlt /></div>

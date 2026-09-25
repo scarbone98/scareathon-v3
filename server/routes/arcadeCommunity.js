@@ -25,6 +25,9 @@ const DEVICE_LOGIN_TTL_MINUTES = 10;
 const DEVICE_LOGIN_COLLECT_MINUTES = 5;
 const DEVICE_POLL_INTERVAL_SECONDS = 3;
 const MAX_DEVICE_STARTS_PER_MINUTE = 60;
+// Play events one player can send a minute before the rest are dropped
+const MAX_PLAY_EVENTS_PER_MINUTE = 20;
+const PLAYER_KEY_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
 const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://www.scareathon.rip').replace(/\/$/, '');
 const REVIEW_NOTE_MAX = 1000;
 
@@ -48,7 +51,9 @@ function sendError(reply, error, log) {
     return reply.code(500).send({ error: 'Something went wrong' });
 }
 
-function serializeVersion(row) {
+const EMPTY_STATS = { plays: 0, players: 0, finishedRuns: 0, bestScore: null, playsLast7Days: 0 };
+
+function serializeVersion(row, stats = EMPTY_STATS) {
     return {
         id: Number(row.id),
         version: row.version,
@@ -59,7 +64,31 @@ function serializeVersion(row) {
         reviewNote: row.review_note,
         reviewedAt: row.reviewed_at,
         submittedAt: row.created_at,
+        stats,
     };
+}
+
+// Play stats for some versions, keyed by version id
+async function loadVersionStats(db, versionIds) {
+    if (versionIds.length === 0) return new Map();
+    const result = await db.query(`
+        SELECT version_id,
+               COUNT(*) FILTER (WHERE event = 'start')::int AS plays,
+               COUNT(DISTINCT player_key) FILTER (WHERE event = 'start')::int AS players,
+               COUNT(*) FILTER (WHERE event = 'finish')::int AS finished_runs,
+               MAX(score) FILTER (WHERE event = 'finish') AS best_score,
+               COUNT(*) FILTER (WHERE event = 'start' AND created_at >= now() - interval '7 days')::int AS plays_last_7_days
+        FROM arcade_game_plays
+        WHERE version_id = ANY($1::bigint[])
+        GROUP BY version_id
+    `, [versionIds]);
+    return new Map(result.rows.map((row) => [Number(row.version_id), {
+        plays: row.plays,
+        players: row.players,
+        finishedRuns: row.finished_runs,
+        bestScore: row.best_score === null ? null : Number(row.best_score),
+        playsLast7Days: row.plays_last_7_days,
+    }]));
 }
 
 async function loadGameDetail(db, where, params) {
@@ -78,13 +107,14 @@ async function loadGameDetail(db, where, params) {
         ORDER BY version DESC
     `, [game.id]);
 
+    const stats = await loadVersionStats(db, versions.rows.map((row) => row.id));
     return {
         slug: game.slug,
         name: game.name,
         owner: game.owner_username,
         ownerUserId: game.owner_user_id,
         liveVersionId: game.live_version_id ? Number(game.live_version_id) : null,
-        versions: versions.rows.map(serializeVersion),
+        versions: versions.rows.map((row) => serializeVersion(row, stats.get(Number(row.id)))),
     };
 }
 
@@ -131,11 +161,11 @@ async function runSubmissionChecks(db, userId, rawManifest) {
     const { manifest } = validation;
     const existing = await findGameForName(db, manifest.name, userId);
 
-    const checks = await checkGameUrl(manifest.url);
+    const { checks, pageSha256 } = await checkGameUrl(manifest.url);
     if (!checksPassed(checks)) {
         throw new SubmissionError(422, "The game URL didn't pass the automated checks", { checks });
     }
-    return { manifest, existing, checks };
+    return { manifest, existing, checks, pageSha256 };
 }
 
 async function enforceSubmitLimits(db, userId, existing) {
@@ -170,7 +200,7 @@ async function uniqueSlug(db, name) {
 }
 
 export async function submitGameVersion(userId, rawManifest, db = pool) {
-    const { manifest, existing, checks } = await runSubmissionChecks(db, userId, rawManifest);
+    const { manifest, existing, checks, pageSha256 } = await runSubmissionChecks(db, userId, rawManifest);
     await enforceSubmitLimits(db, userId, existing);
 
     const client = await db.connect();
@@ -201,11 +231,20 @@ export async function submitGameVersion(userId, rawManifest, db = pool) {
             `, [communityGameId]);
         }
 
+        // TODO(version-drift): an approved version is trusted not to change,
+        // but nothing enforces it: GitHub Pages and most hosts serve whatever
+        // was pushed last, and the CDNs that pin a commit (jsDelivr, raw
+        // GitHub) serve HTML as text/plain, so it won't run. Options when
+        // this matters: re-fetch approved versions on a schedule and compare
+        // page_sha256 (plus the scripts they load; Unity/Godot fetch their
+        // big files at runtime, so parse their loader configs too), falling
+        // back to the newest approved version that still matches; or host
+        // uploaded builds ourselves on a separate origin.
         await client.query(`
-            INSERT INTO arcade_game_versions (community_game_id, version, url, manifest, status, checks)
-            SELECT $1, COALESCE(MAX(version), 0) + 1, $2, $3::jsonb, 'draft', $4::jsonb
+            INSERT INTO arcade_game_versions (community_game_id, version, url, manifest, status, checks, page_sha256)
+            SELECT $1, COALESCE(MAX(version), 0) + 1, $2, $3::jsonb, 'draft', $4::jsonb, $5
             FROM arcade_game_versions WHERE community_game_id = $1
-        `, [communityGameId, manifest.url, JSON.stringify(manifest), JSON.stringify(checks)]);
+        `, [communityGameId, manifest.url, JSON.stringify(manifest), JSON.stringify(checks), pageSha256]);
         await client.query('UPDATE arcade_community_games SET updated_at = now() WHERE id = $1', [communityGameId]);
 
         await client.query('COMMIT');
@@ -225,7 +264,7 @@ export async function submitGameVersion(userId, rawManifest, db = pool) {
 export async function getLiveCommunityGames(db = pool) {
     return getOrRefreshCache(COMMUNITY_CACHE_KEY, async () => {
         const result = await db.query(`
-            SELECT cg.slug, cg.name, u.username AS owner, v.version, v.url, v.manifest
+            SELECT cg.slug, cg.name, u.username AS owner, v.id::int AS "versionId", v.version, v.url, v.manifest
             FROM arcade_community_games cg
             JOIN arcade_game_versions v ON v.id = cg.live_version_id
             JOIN users u ON u.id = cg.owner_user_id
@@ -268,6 +307,57 @@ async function routes(fastify) {
     fastify.get('/community', async (request, reply) => {
         try {
             return { data: await getLiveCommunityGames() };
+        } catch (error) {
+            return sendError(reply, error, fastify.log);
+        }
+    });
+
+    // Optional sign-in: a play of an approved version, for the author's stats.
+    // Best effort by design: nothing rides on these counts.
+    fastify.post('/community/:slug/plays', async (request, reply) => {
+        const { versionId, event, score, playerKey } = request.body ?? {};
+        const id = parseId(versionId);
+        if (!id || (event !== 'start' && event !== 'finish')) {
+            return reply.code(400).send({ error: 'versionId and event ("start" or "finish") are required' });
+        }
+        const numericScore = event === 'finish' && score !== undefined && score !== null ? Number(score) : null;
+        if (numericScore !== null && !(Number.isFinite(numericScore) && numericScore >= 0)) {
+            return reply.code(400).send({ error: 'score must be a number >= 0' });
+        }
+        let key;
+        if (request.user?.sub) {
+            key = `u:${request.user.sub}`;
+        } else if (typeof playerKey === 'string' && PLAYER_KEY_PATTERN.test(playerKey)) {
+            key = `g:${playerKey}`;
+        } else {
+            return reply.code(400).send({ error: 'Guests need a playerKey' });
+        }
+
+        try {
+            const version = await pool.query(`
+                SELECT v.id, v.manifest
+                FROM arcade_game_versions v
+                JOIN arcade_community_games cg ON cg.id = v.community_game_id
+                WHERE v.id = $1 AND cg.slug = $2 AND v.status = 'approved'
+            `, [id, request.params.slug]);
+            if (!version.rows[0]) return reply.code(404).send({ error: 'No approved version with that id' });
+
+            const recent = await pool.query(`
+                SELECT COUNT(*)::int AS count FROM arcade_game_plays
+                WHERE player_key = $1 AND created_at >= now() - interval '1 minute'
+            `, [key]);
+            if (recent.rows[0].count >= MAX_PLAY_EVENTS_PER_MINUTE) {
+                return reply.code(429).send({ error: 'Too many plays' });
+            }
+
+            // Out-of-range scores aren't saved to the leaderboard, so don't count them as a best either
+            const maxScore = version.rows[0].manifest.score?.max;
+            const keptScore = numericScore !== null && maxScore !== undefined && numericScore <= maxScore ? numericScore : null;
+            await pool.query(`
+                INSERT INTO arcade_game_plays (version_id, event, player_key, score)
+                VALUES ($1, $2, $3, $4)
+            `, [id, event, key, keptScore]);
+            return reply.code(201).send({ data: { ok: true } });
         } catch (error) {
             return sendError(reply, error, fastify.log);
         }

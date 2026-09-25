@@ -5,6 +5,7 @@
 // anything private: https only, and every address the host resolves to is
 // checked at connect time (the lookup hook below), which also covers DNS
 // that changes between a check and the request.
+import crypto from 'node:crypto';
 import dns from 'node:dns';
 import https from 'node:https';
 import net from 'node:net';
@@ -143,8 +144,17 @@ function check(id, label, ok, detail, level = 'error') {
     return { id, label, ok, level, ...(detail ? { detail } : {}) };
 }
 
-// Runs every check; a check with level 'error' that isn't ok blocks the submit.
-export async function checkGameUrl(rawUrl, { fetcher } = {}) {
+// Runs every check; a check with level 'error' that isn't ok blocks the
+// submit. Also returns a SHA-256 of the page's HTML, when it loaded.
+export async function checkGameUrl(rawUrl, options = {}) {
+    let pageSha256 = null;
+    const checks = await runChecks(rawUrl, options, (body) => {
+        pageSha256 = crypto.createHash('sha256').update(body).digest('hex');
+    });
+    return { checks, pageSha256 };
+}
+
+async function runChecks(rawUrl, { fetcher } = {}, onPage) {
     const checks = [];
     let url;
     try {
@@ -191,6 +201,7 @@ export async function checkGameUrl(rawUrl, { fetcher } = {}) {
 
     // Warnings: worth a look, but big engine builds keep this in their JS bundles
     const body = page.body || '';
+    onPage(body);
     const mentionsArcade = /ScareathonArcade|arcade-sdk\.js|PLAYER_DIED/.test(body);
     checks.push(check('sdk', 'Page includes the arcade score hookup', mentionsArcade,
         mentionsArcade ? undefined : "Didn't see ScareathonArcade / PLAYER_DIED in the HTML. Fine if it's in a script file; otherwise scores won't reach the leaderboard.",

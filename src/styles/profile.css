@@ -30,7 +30,7 @@
 .profile-sidebar-note > svg { flex-shrink: 0; margin-top: 4px; }
 .profile-sidebar-note span { color: #8f849e; font-size: 11px; }
 .profile-panel { min-width: 0; border: 1px solid #443c50; border-radius: 18px; overflow: hidden; background: #231f2c; box-shadow: 0 12px 35px #0002; }
-.profile-tabs { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); background: #1d1a24; border-bottom: 1px solid #443c50; padding: 0 12px; }
+.profile-tabs { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); background: #1d1a24; border-bottom: 1px solid #443c50; padding: 0 12px; }
 .profile-tab { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 65px; border-bottom: 3px solid transparent; color: #a89db7; font-size: 12px; font-weight: 650; }
 .profile-tab:hover { color: #e4d9f0; background: #ffffff03; }
 .profile-tab.is-active { border-bottom-color: #c4a3ef; color: #dcc6f6; background: linear-gradient(transparent, #b58ce810); }
@@ -104,7 +104,8 @@
   .character-wallet strong { font-size: 16px; }
   .coin-icon { width: 28px; height: 28px; }
   .profile-sidebar-note { display: none; }
-  .profile-tab { min-height: 60px; gap: 5px; font-size: 11px; }
+  /* Five tabs across a phone: icon above the label */
+  .profile-tab { min-height: 60px; flex-direction: column; gap: 4px; font-size: 11px; white-space: nowrap; }
   .profile-tabs { padding: 0 5px; }
   .profile-panel-body { padding: 20px 16px; }
   .profile-section-heading h2 { font-size: 22px; }

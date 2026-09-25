@@ -2,7 +2,7 @@
 //   <script src="https://www.scareathon.rip/arcade-sdk.js"></script>
 // then call ScareathonArcade.ready() once the game is playable and
 // ScareathonArcade.gameOver(score) once per run. Spec:
-// https://www.scareathon.rip/arcade/create
+// https://www.scareathon.rip/profile/developer
 (function () {
   var inArcade = window.parent !== window;
   function send(message) {

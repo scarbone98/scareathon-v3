@@ -21,7 +21,7 @@ import {
     mintUserCode,
     normalizeUserCode,
 } from '../arcadeCommunity/tokens.js';
-import { isArcadeTokenRoute, isPublicRoute } from '../utils/authRoutes.js';
+import { isArcadeTokenRoute, isOptionalAuthRoute, isPublicRoute } from '../utils/authRoutes.js';
 import { validateScoreSubmission } from '../routes/games.js';
 
 describe('validateManifest', () => {
@@ -134,16 +134,17 @@ const GOOD_PAGE = {
 };
 
 describe('checkGameUrl', () => {
-    test('passes a frameable HTML page', async () => {
-        const checks = await checkGameUrl('https://me.github.io/game/', {
+    test('passes a frameable HTML page, and fingerprints it', async () => {
+        const { checks, pageSha256 } = await checkGameUrl('https://me.github.io/game/', {
             fetcher: fakeFetcher({ 'https://me.github.io/game/': GOOD_PAGE }),
         });
         expect(checksPassed(checks)).toBe(true);
         expect(checks.every((entry) => entry.ok)).toBe(true);
+        expect(pageSha256).toMatch(/^[0-9a-f]{64}$/);
     });
 
     test('warns, without blocking, when the score hookup is not in the HTML', async () => {
-        const checks = await checkGameUrl('https://me.github.io/game/', {
+        const { checks } = await checkGameUrl('https://me.github.io/game/', {
             fetcher: fakeFetcher({ 'https://me.github.io/game/': { ...GOOD_PAGE, body: '<html></html>' } }),
         });
         expect(checksPassed(checks)).toBe(true);
@@ -151,7 +152,7 @@ describe('checkGameUrl', () => {
     });
 
     test('blocks pages that refuse to be framed', async () => {
-        const checks = await checkGameUrl('https://me.github.io/game/', {
+        const { checks } = await checkGameUrl('https://me.github.io/game/', {
             fetcher: fakeFetcher({
                 'https://me.github.io/game/': { ...GOOD_PAGE, headers: { ...GOOD_PAGE.headers, 'x-frame-options': 'SAMEORIGIN' } },
             }),
@@ -161,8 +162,8 @@ describe('checkGameUrl', () => {
 
     test('blocks IP hosts and the arcade itself without fetching', async () => {
         const fetcher = async () => { throw new Error('should not fetch'); };
-        expect(checksPassed(await checkGameUrl('https://127.0.0.1/', { fetcher }))).toBe(false);
-        expect(checksPassed(await checkGameUrl('https://www.scareathon.rip/x', { fetcher }))).toBe(false);
+        expect(checksPassed((await checkGameUrl('https://127.0.0.1/', { fetcher })).checks)).toBe(false);
+        expect(checksPassed((await checkGameUrl('https://www.scareathon.rip/x', { fetcher })).checks)).toBe(false);
     });
 
     test('follows same-site redirects but not cross-site ones', async () => {
@@ -172,12 +173,12 @@ describe('checkGameUrl', () => {
             'https://me.github.io/away': { status: 302, headers: { location: 'https://evil.example/' } },
         });
         expect((await fetchGamePage('https://me.github.io/game', fetcher)).url).toBe('https://me.github.io/game/');
-        const checks = await checkGameUrl('https://me.github.io/away', { fetcher });
+        const { checks } = await checkGameUrl('https://me.github.io/away', { fetcher });
         expect(checks.find((entry) => entry.id === 'redirect')).toMatchObject({ ok: false });
     });
 
     test('reports a page that does not load', async () => {
-        const checks = await checkGameUrl('https://me.github.io/404', {
+        const { checks } = await checkGameUrl('https://me.github.io/404', {
             fetcher: fakeFetcher({ 'https://me.github.io/404': { status: 404, headers: {}, body: '' } }),
         });
         expect(checksPassed(checks)).toBe(false);
@@ -220,6 +221,14 @@ describe('arcade tokens', () => {
         expect(isPublicRoute('POST', '/arcade/device/poll')).toBe(true);
         expect(isPublicRoute('POST', '/arcade/device/ABCD-2345/approve')).toBe(false);
         expect(isPublicRoute('GET', '/arcade/device/ABCD-2345')).toBe(false);
+    });
+});
+
+describe('community game plays', () => {
+    test('are recorded for guests and signed-in players alike', () => {
+        expect(isOptionalAuthRoute('POST', '/arcade/community/bat-dash/plays')).toBe(true);
+        expect(isOptionalAuthRoute('POST', '/arcade/community/bat-dash/plays/x')).toBe(false);
+        expect(isOptionalAuthRoute('POST', '/arcade/games')).toBe(false);
     });
 });
 

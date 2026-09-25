@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { fetchWithAuth } from "../../fetchWithAuth";
 
-// Bits shared by /arcade/create and /arcade/connect.
+// Bits shared by the profile's Developer tab and /arcade/connect.
 
 export type Check = { id: string; label: string; ok: boolean; level: "error" | "warning"; detail?: string };
 
@@ -31,7 +31,7 @@ export function formatDate(value: string | null) {
 
 export function Section({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-orange-500/30 bg-[#0d0910]/80 p-5">
+    <section className="rounded-2xl border border-[#443c50] bg-[#1d1a24] p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-bold text-orange-200">{title}</h2>
         {action}

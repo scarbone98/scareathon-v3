@@ -17,8 +17,7 @@ const Home = lazy(() => import("../pages/Home/page"));
 // The old ring-of-cabinets arcade, kept for swapping back (see the /arcade route)
 // const Arcade = lazy(() => import("../pages/Arcade/page"));
 const ArcadeV2 = lazy(() => import("../pages/ArcadeV2/page"));
-const ArcadeCreate = lazy(() => import("../pages/ArcadeCreate/page"));
-const ArcadeConnect = lazy(() => import("../pages/ArcadeCreate/Connect"));
+const ArcadeConnect = lazy(() => import("../pages/Developer/Connect"));
 const Authentication = lazy(() => import("../pages/Authentication/page"));
 const Scareathon = lazy(() => import("../pages/Scareathon/page"));
 const ScareathonToday = lazy(() => import("../pages/Scareathon/Today"));
@@ -243,16 +242,8 @@ export const AnimatedRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/arcade/create"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <ArcadeCreate />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
+        {/* Making games moved to the profile's Developer tab */}
+        <Route path="/arcade/create" element={<Navigate to="/profile/developer" replace />} />
         <Route
           path="/arcade-v2"
           element={
@@ -355,6 +346,7 @@ export const AnimatedRoutes = () => {
           }
         />
         <Route path="/profile/settings" element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><Profile /></Suspense></ProtectedRoute>} />
+        <Route path="/profile/developer" element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><Profile /></Suspense></ProtectedRoute>} />
         <Route
           path="/profile/inbox"
           element={

@@ -31,8 +31,9 @@ function formatSecondsScore(value: number) {
   return `${minutes}:${paddedSeconds}`;
 }
 
-export function formatLeaderboardScore(game: string, value: number) {
-  if (TIME_SCORE_GAMES.has(game)) {
+// format: when the caller already knows it (a community game's manifest)
+export function formatLeaderboardScore(game: string, value: number, format?: "points" | "time") {
+  if (format === "time" || TIME_SCORE_GAMES.has(game)) {
     return formatSecondsScore(value);
   }
 

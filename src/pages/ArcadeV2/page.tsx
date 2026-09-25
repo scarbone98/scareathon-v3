@@ -48,7 +48,7 @@ export default function ArcadeV2() {
       </Suspense>
       {!playingGame && (
         <Link
-          to="/arcade/create"
+          to="/profile/developer"
           className="absolute right-3 z-10 rounded-full border border-orange-500/40 bg-black/60 px-3 py-1.5 text-xs font-semibold text-orange-100/80 backdrop-blur-sm transition hover:border-orange-300 hover:text-orange-50"
           style={{ top: headerHeight + 12 }}
         >

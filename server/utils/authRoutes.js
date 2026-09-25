@@ -30,7 +30,11 @@ export function isPublicRoute(method, url) {
 // Guests may read these; a token, when sent, is still verified so the
 // signed-in player's own entry can be highlighted.
 export function isOptionalAuthRoute(method, url) {
-    return method === 'GET' && url.startsWith('/games/getLeaderboard');
+    return (
+        (method === 'GET' && url.startsWith('/games/getLeaderboard')) ||
+        // Community game plays count guests too (see routes/arcadeCommunity.js)
+        (method === 'POST' && /^\/arcade\/community\/[a-z0-9-]+\/plays$/.test(url))
+    );
 }
 
 // Routes an arcade token (sca_..., held by a player's AI's MCP server) can use

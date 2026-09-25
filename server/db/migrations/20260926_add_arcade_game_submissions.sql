@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS public.arcade_game_versions (
     status TEXT NOT NULL DEFAULT 'draft',
     -- Results of the automated checks run on submit
     checks JSONB NOT NULL DEFAULT '[]'::jsonb,
+    -- SHA-256 of the page's HTML when it was submitted. Nothing stops an
+    -- author changing an approved version's files (GitHub Pages can't pin a
+    -- commit); this is the starting point for spotting that later. See the
+    -- TODO(version-drift) in routes/arcadeCommunity.js.
+    page_sha256 TEXT,
     review_note TEXT,
     reviewed_by UUID REFERENCES public.users (id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
@@ -62,6 +67,27 @@ ALTER TABLE public.arcade_community_games
 ALTER TABLE public.arcade_community_games
     ADD CONSTRAINT arcade_community_games_live_version_fkey
     FOREIGN KEY (live_version_id) REFERENCES public.arcade_game_versions (id) ON DELETE SET NULL;
+
+-- Plays of approved community game versions, for the authors' stats: one
+-- 'start' row when a player opens the game, one 'finish' row per run that
+-- ends (the game's PLAYER_DIED message). player_key is 'u:<user id>' for
+-- signed-in players and 'g:<random id kept in the browser>' for guests.
+CREATE TABLE IF NOT EXISTS public.arcade_game_plays (
+    id BIGSERIAL PRIMARY KEY,
+    version_id BIGINT NOT NULL REFERENCES public.arcade_game_versions (id) ON DELETE CASCADE,
+    event TEXT NOT NULL,
+    player_key TEXT NOT NULL,
+    score NUMERIC,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT arcade_game_plays_event_check CHECK (event IN ('start', 'finish'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_arcade_game_plays_version
+    ON public.arcade_game_plays (version_id, event);
+
+-- Per-player throttle
+CREATE INDEX IF NOT EXISTS idx_arcade_game_plays_player
+    ON public.arcade_game_plays (player_key, created_at);
 
 -- Arcade tokens: what the scareathon-arcade-mcp server uses to submit games
 -- as a player. Only a SHA-256 of the token is stored; the token itself only
@@ -110,5 +136,6 @@ CREATE INDEX IF NOT EXISTS idx_arcade_device_logins_expires
 -- anon/authenticated see nothing. The game server connects as the owner.
 ALTER TABLE public.arcade_community_games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.arcade_game_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.arcade_game_plays ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.arcade_api_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.arcade_device_logins ENABLE ROW LEVEL SECURITY;

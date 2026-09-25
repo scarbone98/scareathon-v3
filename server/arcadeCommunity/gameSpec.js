@@ -185,7 +185,7 @@ next to the house games, with the same leaderboards.
 2. Submit its URL and a manifest (below). Automated checks run straight away; if a
    check fails the submit is refused and nothing is saved.
 3. It is saved as a **draft** version. Only you and the Scareathon admins can play
-   it, from https://www.scareathon.rip/arcade/create. Scores from a draft preview
+   it, from https://www.scareathon.rip/profile/developer. Scores from a draft preview
    are shown to you but never saved.
 4. An admin plays it and approves or rejects it (with a note).
 5. Approved: it's on the shelf and its leaderboard is live.

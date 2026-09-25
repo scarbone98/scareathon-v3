@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FaCheck, FaCopy, FaExclamationTriangle, FaPlay, FaTimes } from "react-icons/fa";
-import AnimatedPage from "../../components/AnimatedPage";
 import LoadingSpinner from "../../components/LoadingSpinner";
-import { SiteContainer } from "../../components/PageContainer";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import ArcadePlayOverlay from "../Arcade/ArcadePlayOverlay.tsx";
 import type { MachineData } from "../Arcade/games.tsx";
 import { communityGameToMachine, type CommunityManifest } from "../Arcade/communityGames.tsx";
+import { formatLeaderboardScore } from "../Arcade/leaderboard.ts";
 import {
   ArcadeApiError,
   arcadeApi,
@@ -19,10 +18,12 @@ import {
   type Check,
 } from "./ui.tsx";
 
-// /arcade/create: make a game for the arcade. Set up your AI with the public
-// MCP server (github.com/scarbone98/scareathon-arcade-mcp; it signs in
-// through /arcade/connect), follow your submissions and play your drafts, or
-// submit a manifest by hand. Admins also get the review queue here.
+// The profile's Developer tab (/profile/developer): make games for the arcade.
+// Set up your AI with the public MCP server
+// (github.com/scarbone98/scareathon-arcade-mcp; it signs in through
+// /arcade/connect), follow your submissions, their play stats and reviews,
+// play your drafts, or submit a manifest by hand. Admins also get the review
+// queue here.
 
 const MCP_PACKAGE = "github:scarbone98/scareathon-arcade-mcp";
 const MCP_REPO_URL = "https://github.com/scarbone98/scareathon-arcade-mcp";
@@ -36,6 +37,14 @@ type GameVersion = {
   checks: Check[];
   reviewNote: string | null;
   submittedAt: string;
+  stats: VersionStats;
+};
+type VersionStats = {
+  plays: number;
+  players: number;
+  finishedRuns: number;
+  bestScore: number | null;
+  playsLast7Days: number;
 };
 type GameDetail = { slug: string; name: string; owner: string; liveVersionId: number | null; versions: GameVersion[] };
 type ArcadeToken = { id: number; name: string; prefix: string; lastUsedAt: string | null; createdAt: string };
@@ -171,6 +180,49 @@ function ConnectAiSection() {
 
 // --- Your games -------------------------------------------------------------------------------
 
+function StatsLine({ stats, format }: { stats: VersionStats; format?: "points" | "time" }) {
+  const best =
+    stats.bestScore === null
+      ? null
+      : format === "time"
+        ? formatLeaderboardScore("", stats.bestScore, "time")
+        : stats.bestScore.toLocaleString();
+  const items = [
+    [stats.plays, stats.plays === 1 ? "play" : "plays"],
+    [stats.players, stats.players === 1 ? "player" : "players"],
+    [stats.finishedRuns, stats.finishedRuns === 1 ? "finished run" : "finished runs"],
+  ] as const;
+  return (
+    <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-orange-100/70">
+      {items.map(([value, label]) => (
+        <span key={label}>
+          <strong className="font-mono tabular-nums text-orange-50">{value.toLocaleString()}</strong> {label}
+        </span>
+      ))}
+      {best !== null && (
+        <span>
+          best <strong className="font-mono tabular-nums text-yellow-200">{best}</strong>
+        </span>
+      )}
+    </p>
+  );
+}
+
+function totalStats(versions: GameVersion[]): VersionStats {
+  return versions.reduce<VersionStats>(
+    (total, { stats }) => ({
+      plays: total.plays + stats.plays,
+      // A player of two versions counts twice here; close enough for a total
+      players: total.players + stats.players,
+      finishedRuns: total.finishedRuns + stats.finishedRuns,
+      bestScore:
+        stats.bestScore === null ? total.bestScore : Math.max(total.bestScore ?? 0, stats.bestScore),
+      playsLast7Days: total.playsLast7Days + stats.playsLast7Days,
+    }),
+    { plays: 0, players: 0, finishedRuns: 0, bestScore: null, playsLast7Days: 0 }
+  );
+}
+
 function versionStatus(game: { liveVersionId: number | null }, version: GameVersion) {
   return version.id === game.liveVersionId ? "live" : version.status;
 }
@@ -202,6 +254,11 @@ function VersionRow({
           )}
         </span>
       </div>
+      {version.status === "approved" && (
+        <div className="mt-2">
+          <StatsLine stats={version.stats} format={version.manifest.score?.format} />
+        </div>
+      )}
       {version.reviewNote && (
         <p className="mt-2 rounded border border-red-400/30 bg-red-500/10 px-2 py-1 text-sm text-red-100">
           Reviewer: {version.reviewNote}
@@ -239,6 +296,14 @@ function MyGamesSection({ onPlay }: { onPlay: (game: { name: string; owner: stri
                 </Link>
               )}
             </div>
+            {game.versions.some((version) => version.status === "approved") && (
+              <div className="mb-3 rounded-lg border border-white/10 bg-black/30 px-3 py-2">
+                <p className="mb-1 text-[0.7rem] font-semibold uppercase tracking-wide text-orange-100/50">
+                  All versions · {totalStats(game.versions).playsLast7Days.toLocaleString()} plays this week
+                </p>
+                <StatsLine stats={totalStats(game.versions)} format={game.versions[0]?.manifest.score?.format} />
+              </div>
+            )}
             <ul className="space-y-2">
               {game.versions.map((version) => (
                 <VersionRow key={version.id} game={game} version={version} onPlay={onPlay} />
@@ -431,7 +496,7 @@ function ReviewSection({ onPlay }: { onPlay: (game: { name: string; owner: strin
 
 // --- Page -----------------------------------------------------------------------------------------
 
-export default function ArcadeCreate() {
+export function DeveloperContent() {
   const [previewMachine, setPreviewMachine] = useState<MachineData | null>(null);
   const [previewScore, setPreviewScore] = useState<number | null>(null);
   const spec = useQuery({
@@ -466,41 +531,32 @@ export default function ArcadeCreate() {
   }, [previewMachine]);
 
   return (
-    <AnimatedPage>
-      <div className="min-h-[var(--vh)] bg-[#0a070d]">
-        <SiteContainer className="space-y-6 py-8 text-orange-50">
-          <header>
-            <Link to="/arcade" className="text-sm text-orange-300 underline">
-              ← Back to the arcade
-            </Link>
-            <h1 className="mt-2 text-3xl font-extrabold text-orange-300">Make a game for the arcade</h1>
-            <p className="mt-2 max-w-3xl text-orange-50/80">
-              Build a browser game, host it anywhere with https, and submit it. It goes in as a draft that only you and
-              the admins can play. Once an admin approves it, it's on the shelf with its own leaderboard. Updates work the
-              same way: the new version waits for review while players keep the last approved one.
-            </p>
-          </header>
+    <div className="space-y-6 text-orange-50">
+      <p className="text-sm text-orange-50/80">
+        Build a browser game, host it anywhere with https, and submit it. It goes in as a draft that only you and the
+        admins can play. Once an admin approves it, it's on the <Link to="/arcade" className="text-orange-300 underline">arcade shelf</Link>{" "}
+        with its own leaderboard. Updates work the same way: the new version waits for review while players keep the last
+        approved one.
+      </p>
 
-          <ConnectAiSection />
-          <MyGamesSection onPlay={playVersion} />
-          {spec.data && <ManualSubmitSection exampleManifest={spec.data.exampleManifest} />}
-          {me.data?.isAdmin && <ReviewSection onPlay={playVersion} />}
+      <ConnectAiSection />
+      <MyGamesSection onPlay={playVersion} />
+      {spec.data && <ManualSubmitSection exampleManifest={spec.data.exampleManifest} />}
+      {me.data?.isAdmin && <ReviewSection onPlay={playVersion} />}
 
-          <Section title="The spec">
-            {spec.isLoading && <LoadingSpinner />}
-            {spec.data && (
-              <pre className="max-h-[36rem] overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/60 p-4 text-xs leading-5 text-orange-50/85">
-                {spec.data.markdown}
-              </pre>
-            )}
-          </Section>
-        </SiteContainer>
-      </div>
+      <Section title="The spec">
+        {spec.isLoading && <LoadingSpinner />}
+        {spec.data && (
+          <pre className="max-h-[36rem] overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/60 p-4 text-xs leading-5 text-orange-50/85">
+            {spec.data.markdown}
+          </pre>
+        )}
+      </Section>
 
       {/* The overlay starts below the site nav, which scrolls with this page:
           black out whatever's scrolled into that gap */}
       {previewMachine && <div className="fixed inset-0 z-30 bg-black" />}
-      <ArcadePlayOverlay machine={previewMachine} onClose={closePreview} returnPath="/arcade/create" />
+      <ArcadePlayOverlay machine={previewMachine} onClose={closePreview} returnPath="/profile/developer" />
       {previewMachine && (
         <div
           role="status"
@@ -511,6 +567,6 @@ export default function ArcadeCreate() {
             : <>Score received: <strong className="text-amber-300">{previewScore.toLocaleString()}</strong>. The hookup works (not saved: this is a preview).</>}
         </div>
       )}
-    </AnimatedPage>
+    </div>
   );
 }

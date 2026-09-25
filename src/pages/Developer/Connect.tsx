@@ -102,7 +102,7 @@ export default function ArcadeConnect() {
         <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-orange-50/75">
           <li>It can submit games (always as drafts for review) and see your games.</li>
           <li>It can't spend coins, post, message anyone or change your account.</li>
-          <li>You can disconnect it any time on the Make a game page.</li>
+          <li>You can disconnect it any time in your profile's Developer tab.</li>
         </ul>
         <p className="mb-4 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
           Only approve if you just asked your own AI to sign in. If someone sent you this link, decline it.
@@ -125,8 +125,8 @@ export default function ArcadeConnect() {
       <div className="min-h-[var(--vh)] bg-[#0a070d]">
         <SiteContainer className="max-w-xl space-y-6 py-8 text-orange-50">
           <header>
-            <Link to="/arcade/create" className="text-sm text-orange-300 underline">
-              ← Make a game
+            <Link to="/profile/developer" className="text-sm text-orange-300 underline">
+              ← Developer
             </Link>
             <h1 className="mt-2 text-3xl font-extrabold text-orange-300">Connect your AI</h1>
           </header>
