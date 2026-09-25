@@ -6,12 +6,17 @@ import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../../supabaseClient";
 import { getAvatarCompositePublicUrl } from "../avatar/avatarComposite";
-import { siteContainerClassName } from "../PageContainer";
+import { siteContainerClassName, wideSiteContainerClassName } from "../PageContainer";
 import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 
 
 export const Navigator = () => {
   const location = useLocation();
+  // Line up with the wider redesigned home page while it's being tried at /?v2
+  const containerClassName =
+    location.pathname === "/" && new URLSearchParams(location.search).has("v2")
+      ? wideSiteContainerClassName
+      : siteContainerClassName;
 
   const navRef = useRef<HTMLDivElement>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
@@ -133,7 +138,7 @@ export const Navigator = () => {
         className="hidden md:block bg-transparent z-50 absolute top-0 left-0 w-full"
       >
         <div
-          className={`${siteContainerClassName} flex items-center justify-between py-3`}
+          className={`${containerClassName} flex items-center justify-between py-3`}
         >
           <ul className="flex items-center gap-7 xl:gap-10">
             {navItems.map((item) => (

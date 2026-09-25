@@ -14,6 +14,8 @@ import { shouldClearAuthSession } from "../authErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
 const Home = lazy(() => import("../pages/Home/page"));
+// The redesigned home page, at /?v2 until it replaces Home
+const HomeV2 = lazy(() => import("../pages/HomeV2/page"));
 // The old ring-of-cabinets arcade, kept for swapping back (see the /arcade route)
 // const Arcade = lazy(() => import("../pages/Arcade/page"));
 const ArcadeV2 = lazy(() => import("../pages/ArcadeV2/page"));
@@ -134,7 +136,7 @@ export const AnimatedRoutes = () => {
           path="/"
           element={
             <Suspense fallback={<LoadingSpinner />}>
-              <Home />
+              {new URLSearchParams(location.search).has("v2") ? <HomeV2 /> : <Home />}
             </Suspense>
           }
         />

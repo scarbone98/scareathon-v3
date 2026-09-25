@@ -3,6 +3,10 @@ import type { ElementType, ReactNode } from "react";
 export const siteContainerClassName =
   "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 
+// A little roomier, for the redesigned home page (/?v2) and the nav above it
+export const wideSiteContainerClassName =
+  "mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8";
+
 export const PageContainer = ({ children }: { children: ReactNode }) => {
   return <main className="flex flex-col overflow-x-hidden">{children}</main>;
 };
