@@ -44,10 +44,13 @@ const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every((n) => typeof
 const round = (n) => Math.round(n * 1000) / 1000;
 
 // A ball update, or null if it's malformed.
+// A ball update, or null if it's malformed. k is how the player is tilting
+// (x, z, each -1..1), which lets the partner guess how the ball will speed up.
 export function cleanState(message) {
-    const { a, t, p, v, s } = message ?? {};
+    const { a, t, p, v, k, s } = message ?? {};
     if (!Number.isInteger(a) || typeof t !== 'number' || !Number.isFinite(t) || !isVec(p) || !isVec(v)) return null;
-    return { a, t: round(t), p: p.map(round), v: v.map(round), s: typeof s === 'string' ? s.slice(0, 10) : 'play' };
+    const tilt = Array.isArray(k) && k.length === 2 && k.every((n) => typeof n === 'number' && Number.isFinite(n)) ? k.map((n) => round(Math.max(-1, Math.min(1, n)))) : [0, 0];
+    return { a, t: round(t), p: p.map(round), v: v.map(round), k: tilt, s: typeof s === 'string' ? s.slice(0, 10) : 'play' };
 }
 
 // Monkey Ball scoring, same as single player: 100 a second left, 100 a fly,

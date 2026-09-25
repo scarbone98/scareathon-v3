@@ -340,21 +340,29 @@ const CHAIN_DAMP = 22; // how fast a taut chain soaks up the speed pulling it ap
 const CHAIN_MAX_STRETCH = 1.2;
 const YANK_EVENT_SPEED = 4;
 
-function applyTether(g: Game, t: Tether, dt: number) {
-  t.at = add(t.at, scale(t.vel, dt));
-  const d = sub(g.p, t.at);
+// One step of the rope on a ball at p moving at v, with the other end at
+// `at` moving at `vel`. Returns the ball's new position and velocity, and the
+// speed that was pulling the ends apart (for the yank sound).
+export function ropeStep(p: V3, v: V3, at: V3, vel: V3, dt: number): { p: V3; v: V3; apart: number; excess: number } {
+  const d = sub(p, at);
   const dist = len(d);
-  if (dist <= CHAIN_LENGTH || dist < 1e-6) return;
+  if (dist <= CHAIN_LENGTH || dist < 1e-6) return { p, v, apart: 0, excess: 0 };
   const n = scale(d, 1 / dist);
   const excess = dist - CHAIN_LENGTH;
-  const apart = dot(sub(g.v, t.vel), n);
-  if (apart > 0) {
-    // A yank: the chain soaks up the speed pulling the balls apart.
-    if (apart > YANK_EVENT_SPEED && excess < 0.25) g.events.push({ type: "yank", strength: Math.min(1, apart / 15) });
-    g.v = sub(g.v, scale(n, apart * Math.min(1, CHAIN_DAMP * dt)));
-  }
-  g.v = sub(g.v, scale(n, CHAIN_K * excess * dt));
-  if (excess > CHAIN_MAX_STRETCH) g.p = sub(g.p, scale(n, excess - CHAIN_MAX_STRETCH));
+  const apart = dot(sub(v, vel), n);
+  // A yank: the chain soaks up the speed pulling the balls apart.
+  if (apart > 0) v = sub(v, scale(n, apart * Math.min(1, CHAIN_DAMP * dt)));
+  v = sub(v, scale(n, CHAIN_K * excess * dt));
+  if (excess > CHAIN_MAX_STRETCH) p = sub(p, scale(n, excess - CHAIN_MAX_STRETCH));
+  return { p, v, apart, excess };
+}
+
+function applyTether(g: Game, t: Tether, dt: number) {
+  t.at = add(t.at, scale(t.vel, dt));
+  const r = ropeStep(g.p, g.v, t.at, t.vel, dt);
+  if (r.apart > YANK_EVENT_SPEED && r.excess < 0.25) g.events.push({ type: "yank", strength: Math.min(1, r.apart / 15) });
+  g.p = r.p;
+  g.v = r.v;
 }
 
 // Advance by dt seconds (any size; it substeps). tilt is ignored once the

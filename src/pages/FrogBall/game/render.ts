@@ -221,6 +221,14 @@ export class Renderer {
     }
     this.chain.visible = false;
     this.scene.add(this.chain);
+    // The fly sparkles' shader compiles the first time one shows, which
+    // froze the game for a moment at the first fly. A never-seen point keeps
+    // that shader built from the start.
+    const warmGeo = new THREE.BufferGeometry();
+    warmGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0, -1e4, 0]), 3));
+    const warm = new THREE.Points(warmGeo, this.popMaterial("#fff6a0"));
+    warm.frustumCulled = false;
+    this.scene.add(warm);
     this.tags = ["P1", "P2"].map((label, i) => {
       const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTexture(label, i ? "#ff5fa8" : "#8cff5a"), depthTest: false, transparent: true }));
       tag.scale.set(0.62, 0.31, 1);
@@ -401,13 +409,14 @@ export class Renderer {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    const pts = new THREE.Points(
-      geo,
-      new THREE.PointsMaterial({ map: this.glow, color: big ? "#ffd84a" : "#fff6a0", size: 0.35, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
-    );
+    const pts = new THREE.Points(geo, this.popMaterial(big ? "#ffd84a" : "#fff6a0"));
     pts.frustumCulled = false;
     this.scene.add(pts);
     this.pops.push({ pts, vel, age: 0 });
+  }
+
+  private popMaterial(color: string) {
+    return new THREE.PointsMaterial({ map: this.glow, color, size: 0.35, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   }
 
   // Move everything to where the sim says it is.

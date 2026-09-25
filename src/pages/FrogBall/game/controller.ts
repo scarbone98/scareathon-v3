@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { Renderer } from "./render";
 import { sfx } from "./sfx";
-import { headingDir, MAX_TILT, newGame, newPilot, pilotTilt, READY_TIME, speedOf, stageScore, step, FLIES_PER_LIFE, type Game, type Pilot, type Tether, type V3 } from "./sim";
+import { headingDir, MAX_TILT, newGame, newPilot, pilotTilt, READY_TIME, ropeStep, speedOf, stageScore, step, tiltedGravity, FLIES_PER_LIFE, type Game, type Pilot, type Tether, type V3 } from "./sim";
 import { COOP_STAGES, STAGES, type StageDef } from "./stages";
 import type { Seat, ServerMessage } from "./coopNet";
 
@@ -28,9 +28,12 @@ interface CoopState {
   seat: Seat;
   attempt: number;
   at: number; // server time (ms) when this attempt's stage clock reads 0
-  // The partner's latest ball update, in their stage clock.
-  peer: { t: number; p: V3; v: V3; s: string };
-  partnerVis: THREE.Vector3;
+  // The partner's latest ball update, in their stage clock, with how they
+  // were tilting (so we can guess how they're speeding up).
+  peer: { t: number; p: V3; v: V3; k: { x: number; z: number }; s: string };
+  // Where we draw the partner is our best guess plus this, which fades to
+  // nothing: each new update's correction is eased in rather than snapped.
+  visOffset: THREE.Vector3;
   lastSend: number;
   reported: boolean; // told the server how this attempt ended for us
   menu: boolean; // the in-game menu is open (co-op can't pause)
@@ -86,7 +89,15 @@ const STICK_DEAD = 0.08;
 
 // The co-op ball update rate, and how far ahead we'll guess the partner's ball.
 const COOP_SEND_MS = 33;
-const MAX_PEER_AGE = 0.5;
+const MAX_PEER_AGE = 0.35;
+// How fast a correction to the partner's drawn position fades (per second),
+// and how big a correction is snapped rather than eased.
+const PEER_EASE = 12;
+const PEER_SNAP = 3;
+// The stage clock eases toward the server's by at most this share of each
+// frame, unless it's more than CLOCK_SNAP seconds out.
+const CLOCK_SLEW = 0.25;
+const CLOCK_SNAP = 0.3;
 
 const smooth = (rate: number, dt: number) => 1 - Math.exp(-rate * dt);
 const toV3 = (a: number[]): V3 => ({ x: a[0], y: a[1], z: a[2] });
@@ -599,10 +610,12 @@ export class GameController {
   private frame = (now: number) => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.frame);
-    const dt = Math.min(0.05, (now - this.last) / 1000);
+    const realDt = Math.max(0, (now - this.last) / 1000);
+    const dt = Math.min(0.05, realDt);
     this.last = now;
     if (this.coop) {
-      this.coopFrame(dt, now);
+      // Co-op keeps to real time (the server's clock), however slow the frames.
+      this.coopFrame(Math.min(0.25, realDt), now);
       return;
     }
     if (this.paused) {
@@ -670,8 +683,8 @@ export class GameController {
       seat,
       attempt: m.attempt,
       at: m.at,
-      peer: { t: 0, p: other.p, v: { x: 0, y: 0, z: 0 }, s: "ready" },
-      partnerVis: new THREE.Vector3(other.p.x, other.p.y, other.p.z),
+      peer: { t: 0, p: other.p, v: { x: 0, y: 0, z: 0 }, k: { x: 0, z: 0 }, s: "ready" },
+      visOffset: new THREE.Vector3(),
       lastSend: 0,
       reported: false,
       menu: this.coop?.menu ?? false,
@@ -683,7 +696,43 @@ export class GameController {
   coopPeer(m: PeerMessage) {
     const c = this.coop;
     if (!c || m.a !== c.attempt || m.t < c.peer.t) return;
-    c.peer = { t: m.t, p: toV3(m.p), v: toV3(m.v), s: m.s };
+    const before = this.peerGuess(this.game.t, true);
+    c.peer = { t: m.t, p: toV3(m.p), v: toV3(m.v), k: m.k ? { x: m.k[0], z: m.k[1] } : { x: 0, z: 0 }, s: m.s };
+    const after = this.peerGuess(this.game.t, true);
+    // Keep the drawn frog where it was this frame, then ease out the difference.
+    c.visOffset.x += before.x - after.x;
+    c.visOffset.y += before.y - after.y;
+    c.visOffset.z += before.z - after.z;
+    if (c.visOffset.length() > PEER_SNAP) c.visOffset.set(0, 0, 0);
+  }
+
+  // Where the partner's ball should be at stage time t: its last update,
+  // carried on at its speed and sped up by the way it was tilting. For
+  // drawing (withChain) it's also held by the chain to our ball, since on
+  // their screen our ball yanks theirs just as theirs yanks ours.
+  private peerGuess(t: number, withChain = false): V3 {
+    const peer = this.coop!.peer;
+    const age = Math.max(0, Math.min(MAX_PEER_AGE, t - peer.t));
+    const rolling = peer.s === "play";
+    const grav = rolling ? tiltedGravity(peer.k) : { x: 0, y: 0, z: 0 };
+    if (!withChain || age === 0) {
+      return {
+        x: peer.p.x + peer.v.x * age + 0.5 * grav.x * age * age,
+        y: peer.p.y + peer.v.y * age,
+        z: peer.p.z + peer.v.z * age + 0.5 * grav.z * age * age,
+      };
+    }
+    const g = this.game;
+    const steps = Math.max(1, Math.ceil(age / (1 / 120)));
+    const h = age / steps;
+    let p = { ...peer.p };
+    let v = { ...peer.v };
+    for (let i = 0; i < steps; i++) {
+      v = { x: v.x + grav.x * h, y: v.y, z: v.z + grav.z * h };
+      p = { x: p.x + v.x * h, y: p.y + v.y * h, z: p.z + v.z * h };
+      if (g.t > 0 && peer.s !== "ready") ({ p, v } = ropeStep(p, v, g.p, g.v, h));
+    }
+    return p;
   }
 
   // A fly eaten by either of us; ours are already gone.
@@ -749,18 +798,18 @@ export class GameController {
     const c = this.coop!;
     this.clock += dt;
     const g = this.game;
-    // Our stage clock follows the server's, so the partner's is the same.
+    // Our stage clock follows the server's, so the partner's is the same. It
+    // eases toward it, so a better clock estimate never makes the world jump
+    // or stall; only a big gap (a hidden tab) is closed at once.
     const target = (c.link.serverNow() - c.at) / 1000;
-    const simDt = Math.max(0, Math.min(2, target - g.t));
+    const behind = target - (g.t + dt);
+    const simDt = target <= 0 ? 0 : Math.abs(behind) > CLOCK_SNAP ? Math.max(0, Math.min(2, target - g.t)) : Math.max(0, dt + Math.max(-dt * CLOCK_SLEW, Math.min(dt * CLOCK_SLEW, behind)));
     const input = c.menu ? { x: 0, y: 0 } : this.readInput(dt);
     const f = headingDir(this.camYaw);
     const tilt = { x: f.x * input.y - f.z * input.x, z: f.z * input.y + f.x * input.x };
 
-    // Where the partner's ball should be by now: its last update, carried on
-    // at its speed for as long as that update is old.
-    const age = Math.max(0, Math.min(MAX_PEER_AGE, g.t - c.peer.t));
     const peer = c.peer;
-    const guess = { x: peer.p.x + peer.v.x * age, y: peer.p.y + peer.v.y * age, z: peer.p.z + peer.v.z * age };
+    const guess = this.peerGuess(g.t + simDt / 2);
     const chained = g.t > 0 && peer.s !== "ready";
     const tether: Tether | undefined = chained ? { at: guess, vel: { ...peer.v } } : undefined;
     step(g, simDt, tilt, tether);
@@ -769,16 +818,16 @@ export class GameController {
     if (now - c.lastSend >= COOP_SEND_MS && target >= 0) {
       c.lastSend = now;
       const r = (n: number) => Math.round(n * 1000) / 1000;
-      c.link.send({ type: "state", a: c.attempt, t: r(g.t), p: [r(g.p.x), r(g.p.y), r(g.p.z)], v: [r(g.v.x), r(g.v.y), r(g.v.z)], s: g.status });
+      c.link.send({ type: "state", a: c.attempt, t: r(g.t), p: [r(g.p.x), r(g.p.y), r(g.p.z)], v: [r(g.v.x), r(g.v.y), r(g.v.z)], k: [r(tilt.x), r(tilt.z)], s: g.status });
     }
 
-    // Draw the partner at the guess, smoothing over the jumps new updates bring.
-    const target3 = new THREE.Vector3(guess.x, guess.y, guess.z);
-    if (c.partnerVis.distanceTo(target3) > 4) c.partnerVis.copy(target3);
-    else c.partnerVis.lerp(target3, smooth(18, dt));
+    // Draw the partner at our best guess for now, plus the fading correction.
+    c.visOffset.multiplyScalar(Math.exp(-PEER_EASE * dt));
+    const now3 = this.peerGuess(g.t, true);
+    const vis = new THREE.Vector3(now3.x + c.visOffset.x, now3.y + c.visOffset.y, now3.z + c.visOffset.z);
     this.updateCamera(dt, input);
     this.renderer.sync(g, this.clock, dt);
-    this.renderer.syncPartner(c.partnerVis, new THREE.Vector3(peer.v.x, peer.v.y, peer.v.z), true, true, dt, this.clock);
+    this.renderer.syncPartner(vis, new THREE.Vector3(peer.v.x, peer.v.y, peer.v.z), true, true, dt, this.clock);
     this.renderer.render(this.clock);
     this.drawStick();
 

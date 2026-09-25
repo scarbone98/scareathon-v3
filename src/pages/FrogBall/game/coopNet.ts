@@ -10,7 +10,7 @@ export type ServerMessage =
   | { type: "room"; code: string; seat: Seat; token: string; status: "waiting" | "lobby" | "playing"; names: string[]; connected: boolean[] }
   | { type: "room-info"; code: string; status: "waiting" | "full" | "missing"; host?: string }
   | { type: "start"; stage: number; attempt: number; at: number; lives: number; score: number; names: string[] }
-  | { type: "peer"; seat: Seat; a: number; t: number; p: Vec3; v: Vec3; s: string }
+  | { type: "peer"; seat: Seat; a: number; t: number; p: Vec3; v: Vec3; k?: [number, number]; s: string }
   | { type: "fly"; id: number; seat: Seat }
   | { type: "goal"; seat: Seat }
   | { type: "outcome"; attempt: number; kind: "clear" | "fall" | "time"; seat?: Seat; lives: number; score: number; info?: { timeBonus: number; flyBonus: number; fast: boolean; total: number } }

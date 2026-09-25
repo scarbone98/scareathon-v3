@@ -54,6 +54,8 @@ describe('frog ball co-op rooms', () => {
         expect(cleanName('', 'P2')).toBe('P2');
         expect(cleanCode(' ab-c9x ')).toBe('ABC9');
         expect(cleanState({ a: 1, t: 2, p: [1, 2, 3], v: [0, 0, 0] })).toMatchObject({ a: 1, p: [1, 2, 3] });
+        expect(cleanState({ a: 1, t: 2, p: [1, 2, 3], v: [0, 0, 0], k: [0.5, -3] }).k).toEqual([0.5, -1]);
+        expect(cleanState({ a: 1, t: 2, p: [1, 2, 3], v: [0, 0, 0] }).k).toEqual([0, 0]);
         expect(cleanState({ a: 1, t: 2, p: [1, 2], v: [0, 0, 0] })).toBeNull();
         expect(cleanState({ a: 1, t: 2, p: [1, 2, NaN], v: [0, 0, 0] })).toBeNull();
     });
