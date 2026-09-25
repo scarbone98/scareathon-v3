@@ -391,7 +391,8 @@ export default function CartridgeArcade({
         scroll.x = 0;
       } else {
         pitchX = w * 1.45;
-        const ledgeY = cabinetSize.y * 0.2;
+        // Up under the control panel, so screen, controls and cartridges fit a phone together
+        const ledgeY = Math.max(cabinetSize.y * 0.2, seat.y - h * 1.5);
         const depth = d * 3.4;
         const span = (games.length - 1) * pitchX;
         shelfGroup.position.set(0, 0, cabinetBox.max.z + d * 6);
@@ -434,14 +435,25 @@ export default function CartridgeArcade({
       const reserveBottom = layoutMode === "wall" ? height * 0.02 : Math.min(LEDGE_CARD_SPACE, height * 0.42);
       const freeShare = (height - reserveTop - reserveBottom) / height;
       const tan = Math.tan((camera.fov * Math.PI) / 360);
-      const distance =
-        Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 0.86 : 0.9) +
-        extent.z / 2;
-      // Slide the camera so the scene's middle lands in the middle of that band
-      const visibleHeight = 2 * tan * distance;
-      const shiftY = ((reserveTop - reserveBottom) / 2 / height) * visibleHeight;
-      cameraTarget.set(center.x, center.y + shiftY, center.z);
-      cameraBase.set(center.x, center.y + shiftY + extent.y * 0.08, center.z + distance);
+      if (layoutMode === "ledge") {
+        // Phones: the cabinet's sides meet the screen's edges. Size by its width at its
+        // front face, then sit the ledge just above the card; on a short screen the top
+        // of the cabinet crops rather than the whole thing shrinking.
+        const frontDistance = cabinetBox.getSize(new Vector3()).x / 2 / (tan * aspect);
+        const cameraZ = cabinetBox.max.z + frontDistance;
+        const depth = cameraZ - center.z;
+        const visibleHeight = 2 * tan * depth;
+        const targetY = box.min.y + visibleHeight / 2 - (reserveBottom / height) * visibleHeight;
+        cameraTarget.set(center.x, targetY, center.z);
+        cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
+      } else {
+        const distance = Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * 0.86 + extent.z / 2;
+        // Slide the camera so the scene's middle lands in the middle of that band
+        const visibleHeight = 2 * tan * distance;
+        const shiftY = ((reserveTop - reserveBottom) / 2 / height) * visibleHeight;
+        cameraTarget.set(center.x, center.y + shiftY, center.z);
+        cameraBase.set(center.x, center.y + shiftY + extent.y * 0.08, center.z + distance);
+      }
       camera.position.copy(cameraBase);
       camera.lookAt(cameraTarget);
       camera.updateMatrixWorld();
