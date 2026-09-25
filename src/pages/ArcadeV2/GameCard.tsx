@@ -159,6 +159,9 @@ export default function GameCard({
             )}
           </div>
 
+          {layout === "ledge" && !isInserted && (
+            <p className="mt-2 text-[0.7rem] text-orange-100/45">Tap the cartridge again to plug it in</p>
+          )}
           {layout === "wall" && (
             <p className="mt-3 text-[0.7rem] text-orange-100/45">
               <kbd className="rounded border border-white/20 px-1">←</kbd>{" "}
@@ -169,7 +172,7 @@ export default function GameCard({
         </div>
       ) : (
         <p className="rounded-full border border-orange-500/30 bg-black/60 px-4 py-2 text-sm text-orange-100/80 backdrop-blur-sm">
-          {layout === "ledge" ? "Swipe the shelf and tap a cartridge" : "Pick a cartridge from the shelf"}
+          {layout === "ledge" ? "Swipe the shelf and tap a cartridge to pick it" : "Pick a cartridge from the shelf"}
         </p>
       )}
       <AnimatePresence>

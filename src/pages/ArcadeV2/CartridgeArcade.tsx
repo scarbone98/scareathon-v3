@@ -461,8 +461,11 @@ export default function CartridgeArcade({
     };
 
     // Fly an object along an arc to a world position, spinning `turns` times on the way.
-    // `bank` rolls it into the turn, peaking mid-flight.
-    const flyTo = (object: Object3D, to: Vector3, duration: number, arc: number, turns: number, ease: string, bank = 0) => {
+    // `bank` rolls it into the turn, peaking mid-flight. Pass a function for a target
+    // that moves, like a slot on a ledge that's still scrolling.
+    const flyTo = (object: Object3D, target: Vector3 | (() => Vector3), duration: number, arc: number, turns: number, ease: string, bank = 0) => {
+      const targetNow = () => (typeof target === "function" ? target() : target);
+      let to = new Vector3();
       const proxy = { t: 0 };
       let from = new Vector3();
       let fromRotation = { x: 0, y: 0 };
@@ -472,6 +475,7 @@ export default function CartridgeArcade({
         duration,
         ease,
         onStart: () => {
+          to = targetNow();
           from = object.position.clone();
           fromRotation = { x: object.rotation.x, y: object.rotation.y };
           control.copy(from).lerp(to, 0.5);
@@ -481,6 +485,13 @@ export default function CartridgeArcade({
         onUpdate: () => {
           const t = proxy.t;
           const u = 1 - t;
+          if (typeof target === "function") {
+            // Carry the arc's peak along with the target so the path stays smooth
+            const next = target();
+            control.x += (next.x - to.x) * 0.5;
+            control.z += (next.z - to.z) * 0.5;
+            to = next;
+          }
           object.position.set(
             u * u * from.x + 2 * u * t * control.x + t * t * to.x,
             u * u * from.y + 2 * u * t * control.y + t * t * to.y,
@@ -555,8 +566,13 @@ export default function CartridgeArcade({
       const state = carts[index];
       if (state.where !== "shelf") return;
       busy = true;
+      // On the ledge, let the row finish sliding the cartridge to the middle before
+      // anything takes off, so the row isn't moving under a cartridge in flight
+      const settle =
+        layoutMode === "ledge" && Math.abs(scroll.x - index * pitchX) > pitchX * 0.05 ? 0.3 : 0;
       focus(index);
-      const timeline = gsap.timeline({ onComplete: () => { busy = false; } });
+      if (settle) gsap.to(scroll, { x: index * pitchX, duration: settle, ease: "power2.out", overwrite: true });
+      const timeline = gsap.timeline({ delay: settle, onComplete: () => { busy = false; } });
 
       // Pop the current cartridge out and send it home first
       if (insertedIndex >= 0) {
@@ -575,7 +591,7 @@ export default function CartridgeArcade({
         playTick();
         // Spring up out of the port, then glide home
         timeline.to(oldGroup.position, { y: seat.y + cartSize.height * 0.95, duration: 0.26, ease: "back.out(2.4)" });
-        timeline.add(flyTo(oldGroup, homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut", -0.25));
+        timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut", -0.25));
         timeline.call(() => {
           shelfGroup.attach(oldGroup);
           oldGroup.position.copy(old.home);
@@ -738,21 +754,31 @@ export default function CartridgeArcade({
       return null;
     };
 
-    let press: { x: number; y: number; scroll: number; dragging: boolean } | null = null;
+    let press: { x: number; y: number; scroll: number; dragging: boolean; lastX: number; lastT: number; velocity: number } | null = null;
     const worldPerPixel = () => {
       const distance = camera.position.z - shelfGroup.position.z;
       const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * distance;
       return visibleHeight / renderer.domElement.clientHeight;
     };
-    const snapLedge = () => {
-      const index = Math.round(scroll.x / pitchX);
+    // `velocity` is the finger's speed in px/ms; a flick carries on a few cartridges
+    const snapLedge = (velocity = 0) => {
+      const coast = -velocity * 180 * worldPerPixel();
+      const index = Math.round((scroll.x + coast) / pitchX);
       const clamped = Math.min(Math.max(index, 0), carts.length - 1);
       if (clamped === focusIndex) gsap.to(scroll, { x: clamped * pitchX, duration: 0.3, ease: "power2.out" });
       else focus(clamped, true);
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      press = { x: event.clientX, y: event.clientY, scroll: scroll.x, dragging: false };
+      press = {
+        x: event.clientX,
+        y: event.clientY,
+        scroll: scroll.x,
+        dragging: false,
+        lastX: event.clientX,
+        lastT: event.timeStamp,
+        velocity: 0,
+      };
       renderer.domElement.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
@@ -761,6 +787,10 @@ export default function CartridgeArcade({
         if (layoutMode === "ledge" && (press.dragging || Math.abs(dx) > 8)) {
           press.dragging = true;
           gsap.killTweensOf(scroll);
+          const dt = event.timeStamp - press.lastT;
+          if (dt > 0) press.velocity = press.velocity * 0.4 + ((event.clientX - press.lastX) / dt) * 0.6;
+          press.lastX = event.clientX;
+          press.lastT = event.timeStamp;
           const limit = (carts.length - 1) * pitchX;
           scroll.x = Math.min(Math.max(press.scroll - dx * worldPerPixel(), -pitchX * 0.4), limit + pitchX * 0.4);
         }
@@ -776,14 +806,21 @@ export default function CartridgeArcade({
       renderer.domElement.style.cursor = clickable ? "pointer" : "default";
     };
     const onPointerUp = (event: PointerEvent) => {
-      const wasDragging = press?.dragging;
+      const released = press;
       press = null;
-      if (wasDragging) {
-        snapLedge();
+      if (released?.dragging) {
+        // A finger that stopped before lifting shouldn't fling the row
+        snapLedge(event.timeStamp - released.lastT < 80 ? released.velocity : 0);
         return;
       }
       const hit = pick(event.clientX, event.clientY);
-      if (hit?.kind === "cart") activate(hit.index);
+      if (hit?.kind === "cart") {
+        // A mouse has already focused it by hovering. On touch, the first tap picks a
+        // cartridge and slides it to the middle; tapping it again plugs it in.
+        const onShelf = carts[hit.index].where === "shelf";
+        if (event.pointerType !== "mouse" && onShelf && hit.index !== focusIndex) focus(hit.index, true);
+        else activate(hit.index);
+      }
       else if (hit?.kind === "cabinet" && insertedIndex >= 0) callbacksRef.current.onPlay(games[insertedIndex]);
     };
     const onWheel = (event: WheelEvent) => {
