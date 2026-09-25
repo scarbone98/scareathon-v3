@@ -44,12 +44,12 @@ const GAME_TOOLBAR_HEIGHT = 56;
 const EIGHT_BIT_EVIL_RETURNS_URL =
   "https://scarbone98.github.io/8BitEvilReturnsBuild/";
 const HEMLOCKS_TOWER_URL =
-  "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html?v=96f9ed4";
+  "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html?v=6465b08";
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
-const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=ad664ca";
+const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=727a9e4";
 const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
 
