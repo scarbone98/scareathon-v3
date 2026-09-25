@@ -48,7 +48,7 @@ const PasswordResetPopup: React.FC<PasswordResetProps> = ({
     <dialog ref={dialogRef} className="auth-reset-dialog" aria-labelledby="reset-dialog-title" onCancel={onClose}>
       <button type="button" className="auth-reset-close" aria-label="Close password reset" onClick={onClose}><FaTimes /></button>
       <span className="auth-card-icon"><FaEnvelope aria-hidden="true" /></span>
-      <h2 id="reset-dialog-title">Lost your way in?</h2>
+      <h2 id="reset-dialog-title">Reset your password</h2>
       <p className="auth-reset-intro">Enter your account email and we’ll send a link to choose a new password.</p>
       <form onSubmit={handleSubmit} className="auth-form" aria-busy={isSubmitting}>
         <div className="auth-field">

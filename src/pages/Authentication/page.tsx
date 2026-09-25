@@ -1,7 +1,7 @@
 import "../../styles/auth.css";
 import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
-import { FaArrowRight, FaCheck, FaEnvelope, FaEye, FaEyeSlash, FaFilm, FaGamepad, FaGhost, FaLock, FaUserAlt } from "react-icons/fa";
+import { FaArrowRight, FaCheck, FaCoins, FaEnvelope, FaEye, FaEyeSlash, FaFilm, FaGamepad, FaLock } from "react-icons/fa";
 import AnimatedPage from "../../components/AnimatedPage";
 import { supabase } from "../../supabaseClient";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -89,42 +89,41 @@ const Authentication = () => {
   };
 
   return (
-    <AnimatedPage className="auth-world home-background">
-      <div className="home-gradient" />
+    <AnimatedPage className="auth-world">
+      <div aria-hidden="true" className="auth-glow auth-glow-amber" />
+      <div aria-hidden="true" className="auth-glow auth-glow-violet" />
       <div className="auth-layout">
         <section className="auth-welcome" aria-labelledby="auth-welcome-title">
-          <p className="auth-eyebrow"><FaGhost aria-hidden="true" /> GOOD COMPANY. BAD OMENS.</p>
-          <h1 id="auth-welcome-title">A place for <br />your <span>strange side.</span></h1>
-          <p className="auth-intro">Your next favorite horror movie. A new arcade high score. A character that’s completely you.</p>
-          <div className="auth-scene" aria-hidden="true">
-            <div className="auth-moon" /><span className="auth-star auth-star-one">✦</span><span className="auth-star auth-star-two">✧</span>
-            <img src="/images/popcornzombie.webp" alt="" className="auth-creature" />
-            <span className="auth-scene-caption"><FaFilm /> ALWAYS ROOM FOR ONE MORE</span>
-          </div>
-          <div className="auth-perks"><span><FaUserAlt /> Make a character</span><span><FaGamepad /> Play the arcade</span><span><FaFilm /> Watch together</span></div>
+          <span className="auth-pill">{isLogin ? "Good to see you again" : "Free to join"}</span>
+          <h1 id="auth-welcome-title">{isLogin ? <>Welcome back<br /> to <span>the haunt.</span></> : <>Pull up a seat<br /> in <span>the haunt.</span></>}</h1>
+          <p className="auth-intro">One account for the arcade, the October movie marathon, and your own spooky little avatar.</p>
+          <ul className="auth-perks">
+            <li className="auth-perk"><span className="auth-perk-icon"><FaGamepad aria-hidden="true" /></span><span>Save your arcade scores<small>Climb the leaderboards in every game.</small></span></li>
+            <li className="auth-perk"><span className="auth-perk-icon"><FaCoins aria-hidden="true" /></span><span>Earn coins as you play<small>Spend them on looks for your avatar.</small></span></li>
+            <li className="auth-perk"><span className="auth-perk-icon"><FaFilm aria-hidden="true" /></span><span>Join Scareathon<small>A horror movie a day, all October.</small></span></li>
+          </ul>
         </section>
 
         <section className="auth-card" aria-labelledby="auth-form-title">
           <div className="auth-mode-switch" aria-label="Account access">
             <button type="button" aria-pressed={isLogin} disabled={isSubmitting} onClick={() => switchMode(true)}>Log in</button>
-            <button type="button" aria-pressed={!isLogin} disabled={isSubmitting} onClick={() => switchMode(false)}>Join the club</button>
+            <button type="button" aria-pressed={!isLogin} disabled={isSubmitting} onClick={() => switchMode(false)}>Sign up</button>
           </div>
           {signupSuccess ? (
             <div className="auth-confirmation" role="status">
-              <span className="auth-card-icon"><FaEnvelope /></span>
-              <p className="auth-eyebrow">ONE LAST THING</p>
-              <h2 id="auth-form-title">Check your inbox.</h2>
+              <span className="auth-card-icon"><FaEnvelope aria-hidden="true" /></span>
+              <h2 id="auth-form-title">Check your inbox</h2>
               <p>Look for a confirmation link at <strong>{email.trim()}</strong>. Follow it to finish setting up your account.</p>
-              <p className="auth-helper">Can’t find it? Check your spam folder. If you already have an account, try logging in or resetting your password.</p>
+              <p>Can’t find it? Check your spam folder. If you already have an account, try logging in or resetting your password.</p>
               <button type="button" className="auth-submit" onClick={() => switchMode(true)}>Back to log in <FaArrowRight /></button>
               <button type="button" className="auth-text-button" onClick={() => setSignupSuccess(false)}>Use a different email</button>
             </div>
           ) : (
             <>
               <header className="auth-form-heading">
-                <span className="auth-card-icon"><FaGhost aria-hidden="true" /></span>
-                <h2 id="auth-form-title">{isLogin ? "Welcome back, creature." : "Every haunt needs a you."}</h2>
-                <p>{isLogin ? "Your little corner of Scareathon is waiting." : "Make an account. Find your people. Get a little spooky."}</p>
+                <img src="/images/popcornzombie.webp" alt="" className="auth-mascot" />
+                <h2 id="auth-form-title">{isLogin ? "Log in" : "Create your account"}</h2>
+                <p>{isLogin ? "Your scores, coins and avatar are waiting." : "It takes a few seconds. Just an email and a password."}</p>
               </header>
               <form onSubmit={handleSubmit} className="auth-form" aria-busy={isSubmitting}>
                 <div className="auth-field">
@@ -137,14 +136,13 @@ const Authentication = () => {
                   {!isLogin && <p id="auth-password-hint" className="auth-helper"><FaCheck aria-hidden="true" /> At least 8 characters. Make it unique to you.</p>}
                 </div>
                 {error && <p className="auth-error" role="alert">{error}</p>}
-                <button type="submit" className="auth-submit" disabled={isSubmitting || isCheckingSession}>{isSubmitting ? (isLogin ? "Opening the door…" : "Creating your account…") : isCheckingSession ? "Getting ready…" : isLogin ? "Enter my haunt" : "Create my account"}<FaArrowRight aria-hidden="true" /></button>
+                <button type="submit" className="auth-submit" disabled={isSubmitting || isCheckingSession}>{isSubmitting ? (isLogin ? "Logging in…" : "Creating your account…") : isCheckingSession ? "Getting ready…" : isLogin ? "Log in" : "Create account"}<FaArrowRight aria-hidden="true" /></button>
               </form>
-              <p className="auth-switch-prompt">{isLogin ? "New around here?" : "Already one of us?"} <button type="button" className="auth-text-button" disabled={isSubmitting} onClick={() => switchMode(!isLogin)}>{isLogin ? "Join the club" : "Log in"}</button></p>
+              <p className="auth-switch-prompt">{isLogin ? "New here?" : "Already have an account?"} <button type="button" className="auth-text-button" disabled={isSubmitting} onClick={() => switchMode(!isLogin)}>{isLogin ? "Create an account" : "Log in"}</button></p>
             </>
           )}
-          <div className="auth-card-footer"><FaLock aria-hidden="true" /> Your password stays private. Your weirdness is welcome.</div>
         </section>
-        <Link to="/" className="auth-home-link">Just looking around? Back to Scareathon <FaArrowRight /></Link>
+        <Link to="/" className="auth-home-link">Just looking around? Back to the home page <FaArrowRight aria-hidden="true" /></Link>
       </div>
       {showPasswordReset && <PasswordResetPopup onClose={() => setShowPasswordReset(false)} initialEmail={email} />}
     </AnimatedPage>
