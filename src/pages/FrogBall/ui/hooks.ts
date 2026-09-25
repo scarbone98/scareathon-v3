@@ -44,6 +44,9 @@ export function useMenuInput(active: boolean, handlers: MenuHandlers) {
       fire(k);
     };
     window.addEventListener("keydown", onKey);
+    // Phones can report built-in sensors as gamepads with stuck sticks, which
+    // would scroll the menus by themselves; they use touch instead.
+    if (isTouchDevice()) return () => window.removeEventListener("keydown", onKey);
 
     // Gamepads: fire on press, then repeat directions while held.
     const held = new Map<MenuKey, number>();

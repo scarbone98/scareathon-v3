@@ -8,6 +8,13 @@
 // runs out.
 // Lives and score are shared and kept here.
 //
+// Players come and go without breaking the room. A dropped connection
+// keeps its seat for RECONNECT_MS so the same player can come back (the
+// client rejoins with its token). Meanwhile anyone with the code can take a
+// seat whose player isn't connected, so closing a tab never leaves a room
+// stuck "full". Leaving, or staying away too long, frees the seat: the player
+// who's left becomes the host and keeps the room and its code.
+//
 // Rooms live in memory only.
 
 import { randomBytes, randomInt } from 'node:crypto';
@@ -21,7 +28,7 @@ export const START_DELAY_MS = 800;
 // How long the GOAL / FALL OUT moment plays before the next attempt.
 export const CLEAR_MS = 4400;
 export const FAIL_MS = 2600;
-// A player who drops out mid-run has this long to come back.
+// A player who drops out has this long to come back before their seat is freed.
 export const RECONNECT_MS = 20_000;
 const WAITING_TTL_MS = 30 * 60_000;
 const ABANDONED_TTL_MS = 2 * 60_000;
@@ -110,7 +117,8 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         room.lastActive = now();
     }
 
-    const connected = (room) => room.players.map((p) => !!p.socket && p.socket.readyState === OPEN);
+    const isConnected = (p) => !!p.socket && p.socket.readyState === OPEN;
+    const connected = (room) => room.players.map(isConnected);
 
     function roomInfo(room, seat) {
         return {
@@ -152,6 +160,29 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         room.run = null;
         room.next = null;
         room.status = 'lobby';
+        sendRoomInfo(room);
+    }
+
+    // Someone left (or never came back): free their seat. Whoever's left
+    // becomes the host and waits for a new partner in the same room.
+    function removePlayer(room, seat, reason) {
+        const [gone] = room.players.splice(seat, 1);
+        if (gone?.socket) gone.socket.frogBall = null;
+        if (room.players.length === 0) {
+            rooms.delete(room.code);
+            return;
+        }
+        const stay = room.players[0];
+        if (stay.socket) stay.socket.frogBall = { code: room.code, seat: 0 };
+        send(stay, { type: 'left', seat, name: gone.name, reason });
+        if (room.run) {
+            send(stay, { type: 'over', cleared: false, reason, score: room.run.score, stage: room.run.stage });
+            log?.info({ code: room.code, reason, score: room.run.score }, 'Frog Ball co-op run ended');
+            room.run = null;
+            room.next = null;
+        }
+        room.status = 'waiting';
+        room.createdAt = now();
         sendRoomInfo(room);
     }
 
@@ -219,7 +250,18 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         join(socket, { code, name }) {
             const room = rooms.get(cleanCode(code));
             if (!room) throw new RoomError('missing');
-            if (room.players.length >= 2) throw new RoomError('full');
+            if (room.players.length >= 2) {
+                // A seat whose player isn't connected can be taken, so a closed
+                // tab never locks a room: the same player from a new tab, or a
+                // new friend, gets back in.
+                const free = room.players.findIndex((p) => !isConnected(p));
+                if (free < 0) throw new RoomError('full');
+                room.players[free] = newPlayer(socket, name, free);
+                attach(room, free, socket);
+                sendRoomInfo(room);
+                if (room.run) send(room.players[free], startMessage(room));
+                return room;
+            }
             room.players.push(newPlayer(socket, name, 1));
             room.status = 'lobby';
             attach(room, 1, socket);
@@ -287,14 +329,8 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         leave(socket) {
             const found = playerFor(socket);
             if (!found) return;
-            const { room, seat } = found;
-            socket.frogBall = null;
-            broadcast(room, { type: 'left', seat });
-            for (const p of room.players) {
-                if (p.socket) p.socket.frogBall = null;
-            }
-            rooms.delete(room.code);
-            log?.info({ code: room.code, seat }, 'Frog Ball co-op room closed');
+            removePlayer(found.room, found.seat, 'left');
+            log?.info({ code: found.room.code, seat: found.seat }, 'Frog Ball co-op player left');
         },
 
         disconnect(socket) {
@@ -316,9 +352,11 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
                     room.next = null;
                     next.run();
                 }
-                if (room.run && room.players.some((p) => p.goneAt !== null && t - p.goneAt > RECONNECT_MS)) {
-                    endRun(room, false, 'disconnected');
+                for (let seat = room.players.length - 1; seat >= 0; seat--) {
+                    const p = room.players[seat];
+                    if (p.goneAt !== null && t - p.goneAt > RECONNECT_MS) removePlayer(room, seat, 'dropped');
                 }
+                if (!rooms.has(room.code)) continue;
                 const anyone = connected(room).some(Boolean);
                 if (anyone) room.lastActive = t;
                 const expired = (room.status === 'waiting' && t - room.createdAt > WAITING_TTL_MS) || (!anyone && t - room.lastActive > ABANDONED_TTL_MS);

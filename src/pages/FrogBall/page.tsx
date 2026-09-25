@@ -73,6 +73,10 @@ export default function FrogBall() {
   const [joining, setJoining] = useState(false);
   const [net, setNet] = useState<SocketStatus>("open");
   const [rtt, setRtt] = useState(0);
+  // Shown in the lobby, e.g. when your partner leaves.
+  const [lobbyNote, setLobbyNote] = useState<string | null>(null);
+  // A room to join if rejoining it with this tab's old seat fails.
+  const rejoinFallback = useRef<string | null>(null);
   const roomRef = useRef(room);
   roomRef.current = room;
   const coopRunRef = useRef(coopRun);
@@ -224,6 +228,8 @@ export default function FrogBall() {
     switch (m.type) {
       case "room":
         setRoom({ code: m.code, seat: m.seat, status: m.status, names: m.names, connected: m.connected });
+        rejoinFallback.current = null;
+        if (m.names.length === 2) setLobbyNote(null);
         setJoining(false);
         setCoopError(null);
         if (m.status !== "playing" && viewRef.current !== "over") {
@@ -264,16 +270,24 @@ export default function FrogBall() {
         setBanner(null);
         setOverStep("splash");
         setView("over");
-        if (m.reason === "disconnected") setCoopError(`${partnerName()} DISCONNECTED`);
+
         ctrl?.start("demo");
         break;
       case "presence":
         setRoom((r) => (r ? { ...r, connected: m.connected } : r));
         break;
       case "left":
-        exitCoop(`${partnerName()} LEFT THE ROOM`);
+        // We keep the room (and become the host) and wait for someone new.
+        setLobbyNote(`${m.name} ${m.reason === "dropped" ? "DROPPED OUT" : "LEFT"}`);
         break;
       case "error":
+        // This tab's old seat is gone (someone took it, or it timed out): join afresh.
+        if (m.code === "missing" && rejoinFallback.current) {
+          const code = rejoinFallback.current;
+          rejoinFallback.current = null;
+          joinRoom(code);
+          break;
+        }
         setJoining(false);
         setCoopError(m.message);
         if (viewRef.current === "lobby") exitCoop(m.message);
@@ -305,6 +319,7 @@ export default function FrogBall() {
   };
 
   const leaveRoom = () => {
+    setLobbyNote(null);
     closeSocket(true);
     exitCoop();
   };
@@ -314,9 +329,15 @@ export default function FrogBall() {
   // before any socket opens (otherwise its join could take the seat).
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      // A reload keeps its seat: rejoin with this tab's token if it was in the
+      // linked room, and only join afresh if that fails.
       const code = linkedRoom();
-      if (code.length === 4) joinRoom(code);
-      else if (CoopSocket.hasSession()) openSocket(true);
+      const saved = CoopSocket.savedRoom();
+      if (code.length === 4 && saved === code) {
+        rejoinFallback.current = code;
+        openSocket(true);
+      } else if (code.length === 4) joinRoom(code);
+      else if (saved) openSocket(true);
     }, 0);
     return () => {
       window.clearTimeout(timer);
@@ -458,7 +479,7 @@ export default function FrogBall() {
         {view === "join" && <JoinCode touch={touch} initial={linkedRoom()} error={coopError} busy={joining} onJoin={joinRoom} onBack={() => (closeSocket(false), setJoining(false), setView("coop"))} />}
         {view === "lobby" &&
           (room ? (
-            <Lobby code={room.code} seat={room.seat} names={room.names} connected={room.connected} touch={touch} onStart={() => sockRef.current?.send({ type: "go", count: COOP_STAGES.length })} onLeave={leaveRoom} />
+            <Lobby code={room.code} note={lobbyNote} seat={room.seat} names={room.names} connected={room.connected} touch={touch} onStart={() => sockRef.current?.send({ type: "go", count: COOP_STAGES.length })} onLeave={leaveRoom} />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-[#1a1033]/60">
               <span className="fb-o fb-blink text-[16px] text-[var(--cyan)]">{net === "reconnecting" ? "RECONNECTING..." : "OPENING A ROOM..."}</span>

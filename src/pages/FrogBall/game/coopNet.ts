@@ -13,9 +13,10 @@ export type ServerMessage =
   | { type: "peer"; seat: Seat; a: number; t: number; p: Vec3; v: Vec3; k?: [number, number]; s: string }
   | { type: "fly"; id: number; seat: Seat }
   | { type: "outcome"; attempt: number; kind: "clear" | "fall" | "time"; seat?: Seat; lives: number; score: number; info?: { timeBonus: number; flyBonus: number; fast: boolean; total: number } }
-  | { type: "over"; cleared: boolean; reason: "cleared" | "lives" | "disconnected"; score: number; stage: number }
+  | { type: "over"; cleared: boolean; reason: "cleared" | "lives" | "left" | "dropped"; score: number; stage: number }
   | { type: "presence"; connected: boolean[] }
-  | { type: "left"; seat: Seat }
+  // Your partner left, or dropped out and didn't come back; you keep the room.
+  | { type: "left"; seat: Seat; name: string; reason: "left" | "dropped" }
   | { type: "error"; code: string; message: string }
   | { type: "pong"; t: number; now: number };
 
@@ -85,8 +86,9 @@ export class CoopSocket {
     document.addEventListener("visibilitychange", this.onVisible);
   }
 
-  static hasSession() {
-    return !!loadSession();
+  // The room this tab was last in, if any (tabs don't share it).
+  static savedRoom() {
+    return loadSession()?.code ?? null;
   }
 
   // The server's clock, in ms.
@@ -122,7 +124,7 @@ export class CoopSocket {
         this.session = { code: message.code, token: message.token };
         saveSession(this.session);
       }
-      if ((message.type === "error" && message.code === "missing") || message.type === "left") {
+      if (message.type === "error" && message.code === "missing") {
         this.session = null;
         saveSession(null);
       }
