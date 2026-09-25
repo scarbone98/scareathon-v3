@@ -7,6 +7,7 @@
 // that changes between a check and the request.
 import crypto from 'node:crypto';
 import dns from 'node:dns';
+import { isPrivateAddress } from '../utils/clientIp.js';
 import https from 'node:https';
 import net from 'node:net';
 
@@ -18,33 +19,8 @@ const MAX_REDIRECTS = 3;
 // would get our origin inside the sandbox.
 const OWN_HOST_SUFFIXES = ['scareathon.rip', 'scareathon-v3.vercel.app'];
 
-const privateRanges = new net.BlockList();
-for (const [address, prefix] of [
-    ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
-    ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24],
-    ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24],
-    ['224.0.0.0', 4], ['240.0.0.0', 4],
-]) {
-    privateRanges.addSubnet(address, prefix, 'ipv4');
-}
-for (const [address, prefix] of [
-    ['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
-    ['64:ff9b::', 96], ['2001:db8::', 32],
-]) {
-    privateRanges.addSubnet(address, prefix, 'ipv6');
-}
-
-export function isPrivateAddress(address) {
-    const family = net.isIP(address);
-    if (family === 4) return privateRanges.check(address, 'ipv4');
-    if (family === 6) {
-        // IPv4-mapped (::ffff:10.0.0.1) is judged as the IPv4 address
-        const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address);
-        if (mapped) return privateRanges.check(mapped[1], 'ipv4');
-        return privateRanges.check(address, 'ipv6');
-    }
-    return true;
-}
+// Also used to tell a real visitor's address from our proxies' (utils/clientIp.js)
+export { isPrivateAddress };
 
 export function isOwnHost(hostname) {
     const host = hostname.toLowerCase().replace(/\.$/, '');

@@ -2,6 +2,7 @@
 // approval, live straight away after that), review, publish, and
 // the published list the arcade shelf reads. Also signing a player's AI (the
 // scareathon-arcade-mcp server) in, and the arcade tokens that gives it. The spec itself lives in arcadeCommunity/gameSpec.js.
+import crypto from 'node:crypto';
 import pool from '../db/mockDB.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { isAdminUser } from './inbox.js';
@@ -14,6 +15,9 @@ import {
 } from '../arcadeCommunity/gameSpec.js';
 import { checkGameUrl, checksPassed } from '../arcadeCommunity/urlCheck.js';
 import { mintArcadeToken, mintDeviceCode, mintUserCode, hashArcadeToken, normalizeUserCode } from '../arcadeCommunity/tokens.js';
+import { getClientIp, hashClientIp } from '../utils/clientIp.js';
+import { ROUTE_LIMITS } from '../utils/rateLimits.js';
+import { getSigningSecret, signToken, verifyToken } from '../utils/signing.js';
 
 const COMMUNITY_CACHE_KEY = 'arcadeCommunity:live';
 const COMMUNITY_CACHE_TTL = 60 * 1000;
@@ -25,10 +29,14 @@ const DEVICE_LOGIN_TTL_MINUTES = 10;
 // After approval, how long the MCP server has to collect its token
 const DEVICE_LOGIN_COLLECT_MINUTES = 5;
 const DEVICE_POLL_INTERVAL_SECONDS = 3;
-const MAX_DEVICE_STARTS_PER_MINUTE = 60;
 // Play events one player can send a minute before the rest are dropped
 const MAX_PLAY_EVENTS_PER_MINUTE = 20;
-const PLAYER_KEY_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
+// Opening the same version again within this long isn't another play
+const PLAY_DEDUPE_MINUTES = 30;
+// A run has to last this long to count as finished
+const MIN_RUN_SECONDS = 10;
+// How long a play session (from opening the game) can report finished runs
+const PLAY_SESSION_HOURS = 12;
 const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://www.scareathon.rip').replace(/\/$/, '');
 const REVIEW_NOTE_MAX = 1000;
 
@@ -52,7 +60,7 @@ function sendError(reply, error, log) {
     return reply.code(500).send({ error: 'Something went wrong' });
 }
 
-const EMPTY_STATS = { plays: 0, players: 0, finishedRuns: 0, bestScore: null, playsLast7Days: 0 };
+const EMPTY_STATS = { plays: 0, players: 0, signedInPlayers: 0, networks: 0, finishedRuns: 0, bestScore: null, playsLast7Days: 0 };
 
 function serializeVersion(row, stats = EMPTY_STATS) {
     return {
@@ -77,6 +85,8 @@ async function loadVersionStats(db, versionIds) {
         SELECT version_id,
                COUNT(*) FILTER (WHERE event = 'start')::int AS plays,
                COUNT(DISTINCT player_key) FILTER (WHERE event = 'start')::int AS players,
+               COUNT(DISTINCT player_key) FILTER (WHERE event = 'start' AND player_key LIKE 'u:%')::int AS signed_in_players,
+               COUNT(DISTINCT ip_hash) FILTER (WHERE event = 'start')::int AS networks,
                COUNT(*) FILTER (WHERE event = 'finish')::int AS finished_runs,
                MAX(score) FILTER (WHERE event = 'finish') AS best_score,
                COUNT(*) FILTER (WHERE event = 'start' AND created_at >= now() - interval '7 days')::int AS plays_last_7_days
@@ -87,6 +97,8 @@ async function loadVersionStats(db, versionIds) {
     return new Map(result.rows.map((row) => [Number(row.version_id), {
         plays: row.plays,
         players: row.players,
+        signedInPlayers: row.signed_in_players,
+        networks: row.networks,
         finishedRuns: row.finished_runs,
         bestScore: row.best_score === null ? null : Number(row.best_score),
         playsLast7Days: row.plays_last_7_days,
@@ -336,10 +348,22 @@ async function routes(fastify) {
         }
     });
 
+    // A guest's player id: made and signed here, so a script can't invent
+    // new "players" by sending random ids. The browser keeps it.
+    fastify.post('/player-id', { config: { rateLimit: ROUTE_LIMITS.guestPlayerId } }, async () => ({
+        data: { playerId: signToken({ kind: 'guest', id: crypto.randomUUID(), at: Date.now() }, getSigningSecret()) },
+    }));
+
     // Optional sign-in: a play of an approved version, for the author's stats.
-    // Best effort by design: nothing rides on these counts.
-    fastify.post('/community/:slug/plays', async (request, reply) => {
-        const { versionId, event, score, playerKey } = request.body ?? {};
+    // Best effort by design (nothing rides on these counts), but hard to
+    // inflate: guests need a player id from /player-id; opening a version
+    // again within PLAY_DEDUPE_MINUTES isn't another play; a finished run
+    // needs the play session /plays handed out at the start, and at least
+    // MIN_RUN_SECONDS since; the author's own plays don't count; and each
+    // play records a hashed network, so a few networks faking many players
+    // shows in the stats.
+    fastify.post('/community/:slug/plays', { config: { rateLimit: ROUTE_LIMITS.plays } }, async (request, reply) => {
+        const { versionId, event, score, playerId, playToken } = request.body ?? {};
         const id = parseId(versionId);
         if (!id || (event !== 'start' && event !== 'finish')) {
             return reply.code(400).send({ error: 'versionId and event ("start" or "finish") are required' });
@@ -348,40 +372,78 @@ async function routes(fastify) {
         if (numericScore !== null && !(Number.isFinite(numericScore) && numericScore >= 0)) {
             return reply.code(400).send({ error: 'score must be a number >= 0' });
         }
+        const secret = getSigningSecret();
         let key;
         if (request.user?.sub) {
             key = `u:${request.user.sub}`;
-        } else if (typeof playerKey === 'string' && PLAYER_KEY_PATTERN.test(playerKey)) {
-            key = `g:${playerKey}`;
         } else {
-            return reply.code(400).send({ error: 'Guests need a playerKey' });
+            const guest = verifyToken(playerId, secret);
+            if (guest?.kind !== 'guest' || typeof guest.id !== 'string') {
+                return reply.code(400).send({ error: 'Invalid player id', code: 'invalid_player_id' });
+            }
+            key = `g:${guest.id}`;
         }
 
         try {
             const version = await pool.query(`
-                SELECT v.id, v.manifest
+                SELECT v.id, v.manifest, cg.owner_user_id
                 FROM arcade_game_versions v
                 JOIN arcade_community_games cg ON cg.id = v.community_game_id
                 WHERE v.id = $1 AND cg.slug = $2 AND v.status = 'approved'
             `, [id, request.params.slug]);
-            if (!version.rows[0]) return reply.code(404).send({ error: 'No approved version with that id' });
+            const row = version.rows[0];
+            if (!row) return reply.code(404).send({ error: 'No approved version with that id' });
+            // An author playing their own game doesn't count
+            if (request.user?.sub === row.owner_user_id) return { data: { counted: false } };
+
+            if (event === 'finish') {
+                const session = verifyToken(playToken, secret);
+                const startedAt = Number(session?.at);
+                const ageSeconds = (Date.now() - startedAt) / 1000;
+                if (session?.kind !== 'play' || session.v !== id || session.p !== key ||
+                    !(ageSeconds >= MIN_RUN_SECONDS && ageSeconds <= PLAY_SESSION_HOURS * 3600)) {
+                    return { data: { counted: false } };
+                }
+            }
 
             const recent = await pool.query(`
+                SELECT COUNT(*)::int AS count,
+                       COUNT(*) FILTER (
+                           WHERE version_id = $2 AND event = 'start'
+                             AND created_at >= now() - make_interval(mins => $3)
+                       )::int AS recent_starts,
+                       COUNT(*) FILTER (
+                           WHERE version_id = $2 AND event = 'finish'
+                             AND created_at >= now() - make_interval(secs => $4)
+                       )::int AS recent_finishes
+                FROM arcade_game_plays
+                WHERE player_key = $1 AND created_at >= now() - make_interval(mins => $3)
+            `, [key, id, PLAY_DEDUPE_MINUTES, MIN_RUN_SECONDS]);
+            const counts = recent.rows[0];
+            const perMinute = await pool.query(`
                 SELECT COUNT(*)::int AS count FROM arcade_game_plays
                 WHERE player_key = $1 AND created_at >= now() - interval '1 minute'
             `, [key]);
-            if (recent.rows[0].count >= MAX_PLAY_EVENTS_PER_MINUTE) {
+            if (perMinute.rows[0].count >= MAX_PLAY_EVENTS_PER_MINUTE) {
                 return reply.code(429).send({ error: 'Too many plays' });
             }
 
+            // Every start hands out a play session, counted or not, so the
+            // runs that follow can count
+            const response = event === 'start'
+                ? { playToken: signToken({ kind: 'play', v: id, p: key, at: Date.now() }, secret) }
+                : {};
+            const duplicate = event === 'start' ? counts.recent_starts > 0 : counts.recent_finishes > 0;
+            if (duplicate) return { data: { ...response, counted: false } };
+
             // Out-of-range scores aren't saved to the leaderboard, so don't count them as a best either
-            const maxScore = version.rows[0].manifest.score?.max;
+            const maxScore = row.manifest.score?.max;
             const keptScore = numericScore !== null && maxScore !== undefined && numericScore <= maxScore ? numericScore : null;
             await pool.query(`
-                INSERT INTO arcade_game_plays (version_id, event, player_key, score)
-                VALUES ($1, $2, $3, $4)
-            `, [id, event, key, keptScore]);
-            return reply.code(201).send({ data: { ok: true } });
+                INSERT INTO arcade_game_plays (version_id, event, player_key, score, ip_hash)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [id, event, key, keptScore, hashClientIp(getClientIp(request), secret)]);
+            return reply.code(201).send({ data: { ...response, counted: true } });
         } catch (error) {
             return sendError(reply, error, fastify.log);
         }
@@ -399,7 +461,7 @@ async function routes(fastify) {
     });
 
     // Dry run: everything a submit checks, nothing saved
-    fastify.post('/games/validate', async (request, reply) => {
+    fastify.post('/games/validate', { config: { rateLimit: ROUTE_LIMITS.gameCheck } }, async (request, reply) => {
         try {
             const { manifest, existing, checks } = await runSubmissionChecks(
                 pool, request.user.sub, request.body?.manifest
@@ -421,7 +483,7 @@ async function routes(fastify) {
         }
     });
 
-    fastify.post('/games', async (request, reply) => {
+    fastify.post('/games', { config: { rateLimit: ROUTE_LIMITS.gameCheck } }, async (request, reply) => {
         try {
             const game = await submitGameVersion(request.user.sub, request.body?.manifest);
             return reply.code(201).send({ data: publicGameDetail(game) });
@@ -648,19 +710,12 @@ async function routes(fastify) {
 
 async function deviceRoutes(fastify) {
     // Public: the MCP server has no credentials yet
-    fastify.post('/start', async (request, reply) => {
+    fastify.post('/start', { config: { rateLimit: ROUTE_LIMITS.deviceStart } }, async (request, reply) => {
         const clientName = typeof request.body?.clientName === 'string' && request.body.clientName.trim()
             ? request.body.clientName.trim().slice(0, CLIENT_NAME_MAX)
             : 'An AI assistant';
         try {
             await pool.query(`DELETE FROM arcade_device_logins WHERE expires_at < now() - interval '1 day'`);
-            const recent = await pool.query(`
-                SELECT COUNT(*)::int AS count FROM arcade_device_logins
-                WHERE created_at >= now() - interval '1 minute'
-            `);
-            if (recent.rows[0].count >= MAX_DEVICE_STARTS_PER_MINUTE) {
-                return reply.code(429).send({ error: 'Too many sign-ins right now. Try again in a minute.' });
-            }
 
             const { deviceCode, deviceCodeHash } = mintDeviceCode();
             for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -692,7 +747,7 @@ async function deviceRoutes(fastify) {
     });
 
     // Public: the device code is the credential
-    fastify.post('/poll', async (request, reply) => {
+    fastify.post('/poll', { config: { rateLimit: ROUTE_LIMITS.devicePoll } }, async (request, reply) => {
         const deviceCode = request.body?.deviceCode;
         if (typeof deviceCode !== 'string' || !deviceCode) {
             return reply.code(400).send({ error: 'deviceCode is required' });

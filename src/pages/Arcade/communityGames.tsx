@@ -13,6 +13,7 @@ import {
 } from "./games.tsx";
 import { markTimeScoreGame } from "./leaderboard.ts";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
+import { supabase } from "../../supabaseClient.ts";
 
 export type CommunityManifest = {
   name: string;
@@ -43,30 +44,77 @@ export type CommunityGame = {
 const COMMUNITY_GAME_SANDBOX = "allow-scripts allow-same-origin allow-pointer-lock allow-fullscreen allow-forms";
 const COMMUNITY_GAME_ALLOW = "fullscreen; gamepad; accelerometer; gyroscope";
 
-const PLAYER_KEY_STORAGE = "scareathon:arcade-player";
+const PLAYER_ID_STORAGE = "scareathon:arcade-player-id";
 
-// Guests are counted by a random id kept in this browser; signed-in players
-// by their account (the server ignores this for them)
-function guestPlayerKey() {
-  try {
-    let key = localStorage.getItem(PLAYER_KEY_STORAGE);
-    if (!key) {
-      key = crypto.randomUUID();
-      localStorage.setItem(PLAYER_KEY_STORAGE, key);
+// Guests are counted by a player id the server signs, kept in this browser.
+// Signed-in players are counted by their account and don't need one.
+let pendingPlayerId: Promise<string | null> | null = null;
+
+function guestPlayerId(fresh = false): Promise<string | null> {
+  if (!fresh) {
+    try {
+      const saved = localStorage.getItem(PLAYER_ID_STORAGE);
+      if (saved) return Promise.resolve(saved);
+    } catch {
+      // No storage (private mode): ask for one below
     }
-    return key;
-  } catch {
-    return crypto.randomUUID();
   }
+  // Games opening at the same moment share one request, so one browser is one player
+  pendingPlayerId ??= (async () => {
+    try {
+      const response = await fetchWithAuth("/arcade/player-id", { method: "POST" });
+      if (!response.ok) return null;
+      const playerId: string = (await response.json()).data.playerId;
+      try {
+        localStorage.setItem(PLAYER_ID_STORAGE, playerId);
+      } catch {
+        // Counted as a new player next visit; fine
+      }
+      return playerId;
+    } catch {
+      return null;
+    } finally {
+      pendingPlayerId = null;
+    }
+  })();
+  return pendingPlayerId;
 }
 
-// For the author's play stats. Best effort: a failure never bothers the player.
-function recordPlay(slug: string, versionId: number, event: "start" | "finish", score?: number) {
-  fetchWithAuth(`/arcade/community/${encodeURIComponent(slug)}/plays`, {
+async function postPlay(slug: string, body: object) {
+  return fetchWithAuth(`/arcade/community/${encodeURIComponent(slug)}/plays`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ versionId, event, score, playerKey: guestPlayerKey() }),
-  }).catch(() => {});
+    body: JSON.stringify(body),
+  });
+}
+
+// For the author's play stats. Best effort: a failure never bothers the
+// player. Returns the play session a "start" hands out, which the "finish"
+// events of that play send back.
+async function recordPlay(
+  slug: string,
+  versionId: number,
+  event: "start" | "finish",
+  extra: { score?: number; playToken?: string } = {}
+): Promise<string | undefined> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const playerId = session ? undefined : await guestPlayerId();
+    if (!session && !playerId) return undefined;
+    let response = await postPlay(slug, { versionId, event, playerId, ...extra });
+    // The server's key changed (or the id was tampered with): get a new id once
+    if (!session && response.status === 400 && (await response.clone().json()).code === "invalid_player_id") {
+      const freshId = await guestPlayerId(true);
+      if (!freshId) return undefined;
+      response = await postPlay(slug, { versionId, event, playerId: freshId, ...extra });
+    }
+    if (!response.ok) return undefined;
+    return (await response.json()).data?.playToken;
+  } catch {
+    return undefined;
+  }
 }
 
 function aspectRatioValue(aspectRatio: string) {
@@ -99,8 +147,9 @@ export function communityGameToMachine(
         desktopAspectRatio={aspectRatioValue(manifest.aspectRatio)}
         reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         onLoad={(iframe) => {
-          // The game was opened: one play
-          if (tracked) recordPlay(tracked.slug, tracked.versionId, "start");
+          // The game was opened: one play. Its runs report back with the
+          // play session this hands out.
+          const playToken = tracked ? recordPlay(tracked.slug, tracked.versionId, "start") : undefined;
           const expectedOrigin = getUrlOrigin(game.url);
           const handleMessage = (event: MessageEvent) => {
             if (!isTrustedGameMessage(iframe, event, expectedOrigin)) return;
@@ -110,7 +159,16 @@ export function communityGameToMachine(
               onPreviewScore(score);
               return;
             }
-            if (tracked) recordPlay(tracked.slug, tracked.versionId, "finish", Number.isFinite(score) ? score : undefined);
+            if (tracked && playToken) {
+              void playToken.then((token) =>
+                token
+                  ? recordPlay(tracked.slug, tracked.versionId, "finish", {
+                      score: Number.isFinite(score) ? score : undefined,
+                      playToken: token,
+                    })
+                  : undefined
+              );
+            }
             if (manifest.score) void submitArcadeScore(game.name, score);
           };
           window.addEventListener("message", handleMessage);

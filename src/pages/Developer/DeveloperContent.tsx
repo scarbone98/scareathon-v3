@@ -43,6 +43,8 @@ type GameVersion = {
 type VersionStats = {
   plays: number;
   players: number;
+  signedInPlayers: number;
+  networks: number;
   finishedRuns: number;
   bestScore: number | null;
   playsLast7Days: number;
@@ -188,9 +190,13 @@ function StatsLine({ stats, format }: { stats: VersionStats; format?: "points" |
       : format === "time"
         ? formatLeaderboardScore("", stats.bestScore, "time")
         : stats.bestScore.toLocaleString();
+  // Signed-in players need a real account, so they're the number to trust;
+  // networks show when a handful of connections make up lots of "players"
   const items = [
     [stats.plays, stats.plays === 1 ? "play" : "plays"],
-    [stats.players, stats.players === 1 ? "player" : "players"],
+    [stats.signedInPlayers, stats.signedInPlayers === 1 ? "signed-in player" : "signed-in players"],
+    [stats.players - stats.signedInPlayers, stats.players - stats.signedInPlayers === 1 ? "guest" : "guests"],
+    [stats.networks, stats.networks === 1 ? "network" : "networks"],
     [stats.finishedRuns, stats.finishedRuns === 1 ? "finished run" : "finished runs"],
   ] as const;
   return (
@@ -215,12 +221,14 @@ function totalStats(versions: GameVersion[]): VersionStats {
       plays: total.plays + stats.plays,
       // A player of two versions counts twice here; close enough for a total
       players: total.players + stats.players,
+      signedInPlayers: total.signedInPlayers + stats.signedInPlayers,
+      networks: total.networks + stats.networks,
       finishedRuns: total.finishedRuns + stats.finishedRuns,
       bestScore:
         stats.bestScore === null ? total.bestScore : Math.max(total.bestScore ?? 0, stats.bestScore),
       playsLast7Days: total.playsLast7Days + stats.playsLast7Days,
     }),
-    { plays: 0, players: 0, finishedRuns: 0, bestScore: null, playsLast7Days: 0 }
+    { plays: 0, players: 0, signedInPlayers: 0, networks: 0, finishedRuns: 0, bestScore: null, playsLast7Days: 0 }
   );
 }
 

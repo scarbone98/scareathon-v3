@@ -23,9 +23,14 @@ import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
 import arcadeCommunityRoutes from './routes/arcadeCommunity.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
+import { getClientIp, trustProxyHops } from './utils/clientIp.js';
+import { rateLimitsEnabled, registerRateLimits } from './utils/rateLimits.js';
+import { isAdminUser } from './routes/inbox.js';
 
 const fastify = Fastify({
-    logger: true
+    logger: true,
+    // Read the visitor's address from what Railway's proxy adds (utils/clientIp.js)
+    trustProxy: trustProxyHops()
 });
 
 function getAuthConfig() {
@@ -92,6 +97,8 @@ async function main() {
             credentials: true
         });
         fastify.decorateRequest('user', null);
+        // Before any routes, so every route gets a limit
+        await registerRateLimits(fastify);
         // Registered once for every socket route: each registration adds its own
         // raw 'upgrade' listener, so two would handle every connection twice.
         await fastify.register(websocket, { options: { maxPayload: 8192 } });
@@ -160,6 +167,25 @@ async function main() {
                 request.log.error({ err }, 'Database unavailable during auth user check');
                 return reply.code(503).send({ error: 'Database unavailable' });
             }
+        });
+
+        // Admins: check after a deploy that the server sees your real address
+        // (not a proxy's), which the per-IP rate limits depend on
+        fastify.get('/ops/request-info', async (request, reply) => {
+            if (!isAdminUser(request.user)) return reply.code(403).send({ error: 'Admin access required' });
+            const clientIp = getClientIp(request);
+            return {
+                data: {
+                    ip: request.ip,
+                    clientIp,
+                    perIpLimits: rateLimitsEnabled()
+                        ? (clientIp ? 'on for this address' : 'skipped: this is not a public address, so check TRUST_PROXY_HOPS')
+                        : 'off (RATE_LIMIT_ENABLED=false)',
+                    trustProxyHops: trustProxyHops(),
+                    xForwardedFor: request.headers['x-forwarded-for'] ?? null,
+                    xRealIp: request.headers['x-real-ip'] ?? null,
+                },
+            };
         });
 
         // Register route handlers

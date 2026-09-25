@@ -23,6 +23,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && (url.startsWith('/arcade/spec') || url.startsWith('/arcade/community'))) ||
         // An AI's MCP server signing in has no credentials yet (see routes/arcadeCommunity.js)
         (method === 'POST' && (url === '/arcade/device/start' || url === '/arcade/device/poll')) ||
+        // Guests get a signed player id so their plays count (routes/arcadeCommunity.js)
+        (method === 'POST' && url === '/arcade/player-id') ||
         method === 'OPTIONS'
     );
 }

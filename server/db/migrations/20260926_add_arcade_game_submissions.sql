@@ -74,13 +74,17 @@ ALTER TABLE public.arcade_community_games
 -- Plays of approved community game versions, for the authors' stats: one
 -- 'start' row when a player opens the game, one 'finish' row per run that
 -- ends (the game's PLAYER_DIED message). player_key is 'u:<user id>' for
--- signed-in players and 'g:<random id kept in the browser>' for guests.
+-- signed-in players and 'g:<id>' for guests, from a player id the server
+-- signed (POST /arcade/player-id). See the plays route for the anti-inflation rules.
 CREATE TABLE IF NOT EXISTS public.arcade_game_plays (
     id BIGSERIAL PRIMARY KEY,
     version_id BIGINT NOT NULL REFERENCES public.arcade_game_versions (id) ON DELETE CASCADE,
     event TEXT NOT NULL,
     player_key TEXT NOT NULL,
     score NUMERIC,
+    -- The player's network: a salted hash of their IP that changes monthly
+    -- (utils/clientIp.js), never the address itself
+    ip_hash TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT arcade_game_plays_event_check CHECK (event IN ('start', 'finish'))
 );
