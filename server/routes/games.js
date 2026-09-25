@@ -17,6 +17,9 @@ const GAME_SCORE_POLICIES = new Map([
     ['Ooidash', {
         score: { min: 0, max: 10000000, integer: true },
     }],
+    ['Salmon Run 2', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

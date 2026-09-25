@@ -48,6 +48,7 @@ const HEMLOCKS_TOWER_URL =
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
+const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=92e62b6";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -245,6 +246,23 @@ export default function Arcade() {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Ooidash", OOIDASH_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "Salmon Run 2",
+      videoUrl: "/game-recordings/SalmonRun2.mp4",
+      // Landscape 3D game played with keyboard or gamepad; no touch controls yet
+      availableOnMobile: false,
+      game: (
+        <GameRenderer
+          title="Salmon Run 2"
+          url={SALMON_RUN_2_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Salmon Run 2", SALMON_RUN_2_URL)
           }
         />
       ),
