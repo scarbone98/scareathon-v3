@@ -16,9 +16,14 @@ export const Navigator = () => {
   const navRef = useRef<HTMLDivElement>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
 
-  const { setHeight } = useNavigatorContext();
+  const { setHeight, hideMobileNav } = useNavigatorContext();
   const [isOpen, setIsOpen] = useState(false);
   const [avatarImageFailed, setAvatarImageFailed] = useState(false);
+
+  // Close the menu if a game opens while it's showing
+  useEffect(() => {
+    if (hideMobileNav) setIsOpen(false);
+  }, [hideMobileNav]);
 
 
   const { data: avatarCompositeUrl } = useQuery<string | null>({
@@ -161,8 +166,16 @@ export const Navigator = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden fixed bottom-4 left-4 z-50" ref={mobileNavRef}>
+      {/* Mobile Navigation: tucked away while a game is being played */}
+      <motion.div
+        className="md:hidden fixed bottom-4 left-4 z-50"
+        ref={mobileNavRef}
+        initial={false}
+        animate={hideMobileNav ? { opacity: 0, scale: 0.6, y: 24 } : { opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        style={{ pointerEvents: hideMobileNav ? "none" : undefined }}
+        aria-hidden={hideMobileNav || undefined}
+      >
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
           className="bg-transparent p-0 focus:outline-none relative"
@@ -220,7 +233,7 @@ export const Navigator = () => {
             </motion.ul>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </nav>
   );
 };

@@ -22,7 +22,6 @@ import {
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
-import { FaPlay, FaTrophy } from "react-icons/fa";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import type { MachineData } from "../Arcade/games.tsx";
 import {
@@ -37,6 +36,7 @@ import {
 import { createArcadeAmbience, type ArcadeAmbience } from "../Arcade/arcadeAmbience.ts";
 import { createCartridge, loadVideoStills, type Cartridge } from "./cartridge.ts";
 import { playClunk, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
+import GameCard from "./GameCard.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
 // flies into the slot on the cabinet's control panel; the screen crackles to
@@ -66,12 +66,21 @@ type CartState = {
   cart: Cartridge;
   home: Vector3; // resting spot, in the shelf group's space
   focus: { value: number };
+  intro: { value: number }; // 0 → 1 as it drops onto the shelf when the page opens
   where: "shelf" | "flying" | "slot";
 };
 
 const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"]);
 const SHELF_NEON = "#ff7a1a";
 const TALL_ASPECT = 1.05; // narrower than this and the shelf becomes a swipeable ledge
+const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
+const LEDGE_CARD_SPACE = 0.3; // share of a tall screen kept clear under the scene for the info card
+const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
+const POWER_OFF = 0.3;
+const STATIC = 0.4;
+
+// Where the info card sits on wide screens: centred over the top of the shelf, in px
+type CardAnchor = { x: number; y: number; width: number };
 
 const layoutFor = (width: number, height: number): Layout =>
   width / Math.max(height, 1) < TALL_ASPECT ? "ledge" : "wall";
@@ -104,6 +113,7 @@ export default function CartridgeArcade({
   const [focused, setFocused] = useState(-1);
   const [inserted, setInserted] = useState(-1);
   const [layout, setLayout] = useState<Layout>(() => layoutFor(window.innerWidth, window.innerHeight));
+  const [cardAnchor, setCardAnchor] = useState<CardAnchor | null>(null);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -152,7 +162,9 @@ export default function CartridgeArcade({
     noiseCanvas.width = 120;
     noiseCanvas.height = 64;
     const noiseContext = noiseCanvas.getContext("2d");
-    let screenMode: "idle" | "static" | "video" = "idle";
+    // idle → power (CRT warming up) → static → video; eject runs off → idle
+    let screenMode: "idle" | "power" | "static" | "video" | "off" = "idle";
+    let modeStart = 0;
     let staticUntil = 0;
     let lastIdleBlink = -1;
     let screenVideo: ScreenVideo | null = null;
@@ -161,6 +173,23 @@ export default function CartridgeArcade({
     const paintScreen = (time: number) => {
       if (!screenContext || screenMode === "video") return;
       const { width, height } = screenCanvas;
+      if (screenMode === "power" || screenMode === "off") {
+        // A CRT beam: a line that opens out to the full picture, or collapses back to a dot
+        const t = Math.min((time - modeStart) / (screenMode === "power" ? POWER_ON : POWER_OFF), 1);
+        const k = screenMode === "power" ? t : 1 - t;
+        const lineWidth = width * Math.min(k / 0.35, 1);
+        const lineHeight = k < 0.35 ? 3 : 3 + (height - 3) * ((k - 0.35) / 0.65) ** 2;
+        screenContext.fillStyle = "#000";
+        screenContext.fillRect(0, 0, width, height);
+        screenContext.shadowColor = "#bfe6ff";
+        screenContext.shadowBlur = 24;
+        screenContext.fillStyle = `rgba(235, 248, 255, ${0.55 + 0.45 * (1 - k)})`;
+        screenContext.fillRect((width - lineWidth) / 2, (height - lineHeight) / 2, lineWidth, lineHeight);
+        screenContext.shadowBlur = 0;
+        screenTexture.needsUpdate = true;
+        lastIdleBlink = -1;
+        return;
+      }
       if (screenMode === "static" && noiseContext) {
         const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
         for (let i = 0; i < image.data.length; i += 4) {
@@ -214,8 +243,12 @@ export default function CartridgeArcade({
       screenVideo = null;
     };
 
-    const startVideo = (game: MachineData) => {
+    const startVideo = (game: MachineData, bloom = false) => {
       stopVideo();
+      if (bloom && screenMaterial) {
+        // The picture comes on bright and settles, like a tube warming up
+        gsap.fromTo(screenMaterial, { emissiveIntensity: 2.2 }, { emissiveIntensity: 0.85, duration: 0.7, ease: "power2.out" });
+      }
       if (!game.videoUrl) {
         screenMode = "idle";
         lastIdleBlink = -1;
@@ -257,6 +290,19 @@ export default function CartridgeArcade({
       marqueeTexture.needsUpdate = true;
     };
     paintMarquee(marqueeText, marqueeColor);
+    const marqueeBoot = { value: 1 };
+    // Neon catching: a few stutters before it holds
+    const flickerMarquee = () => {
+      gsap.killTweensOf(marqueeBoot);
+      gsap
+        .timeline()
+        .set(marqueeBoot, { value: 0.05 })
+        .to(marqueeBoot, { value: 1, duration: 0.04 }, 0.08)
+        .to(marqueeBoot, { value: 0.12, duration: 0.03 }, 0.15)
+        .to(marqueeBoot, { value: 0.9, duration: 0.04 }, 0.28)
+        .to(marqueeBoot, { value: 0.3, duration: 0.03 }, 0.38)
+        .to(marqueeBoot, { value: 1, duration: 0.25 }, 0.45);
+    };
     document.fonts?.load("220px Zombie").then(() => {
       if (!disposed) paintMarquee(marqueeText, marqueeColor);
     }).catch(() => {});
@@ -283,6 +329,12 @@ export default function CartridgeArcade({
     const cameraBase = new Vector3();
     const cameraTarget = new Vector3();
     const shake = { value: 0 };
+    const punch = { value: 0 }; // brief push of the camera toward the cabinet when a cartridge seats
+    let sceneHeight = 1;
+    const parallax = { x: 0, y: 0, targetX: 0, targetY: 0 };
+    const shelfTop = new Vector3(); // top centre of the shelf, in the shelf group's space
+    let shelfWidth = 0;
+    let portLight: PointLight | null = null;
 
     const buildShelf = (mode: Layout) => {
       layoutMode = mode;
@@ -321,6 +373,8 @@ export default function CartridgeArcade({
         addBox(width, top - baseY + plankT, plankT, 0, (baseY + top) / 2, -depth / 2, wood);
         addBox(plankT, top + plankT / 2, depth, -width / 2, (top + plankT / 2) / 2, 0, wood);
         addBox(plankT, top + plankT / 2, depth, width / 2, (top + plankT / 2) / 2, 0, wood);
+        shelfTop.set(0, top + plankT, 0);
+        shelfWidth = width;
         carts.forEach((state, i) => {
           const row = Math.floor(i / wallColumns);
           const column = i % wallColumns;
@@ -367,15 +421,38 @@ export default function CartridgeArcade({
       }
       const extent = box.getSize(new Vector3());
       const center = box.getCenter(new Vector3());
+      sceneHeight = extent.y;
+      // Fit the scene into the band of screen the page's chrome leaves free: under
+      // the top nav on wide screens, above the info card on tall ones
+      const reserveTop = layoutMode === "wall" ? Math.min(NAV_CLEARANCE, height * 0.14) : 0;
+      const reserveBottom = layoutMode === "wall" ? height * 0.02 : height * LEDGE_CARD_SPACE;
+      const freeShare = (height - reserveTop - reserveBottom) / height;
       const tan = Math.tan((camera.fov * Math.PI) / 360);
       const distance =
-        Math.max(extent.y / 2 / tan, extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 1.1 : 1.06) +
+        Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 1.06 : 1.04) +
         extent.z / 2;
-      // Look a little low so the scene sits above the info card, and from slightly above
-      cameraTarget.set(center.x, center.y - extent.y * 0.06, center.z);
-      cameraBase.set(center.x, center.y + extent.y * 0.1, center.z + distance);
+      // Slide the camera so the scene's middle lands in the middle of that band
+      const visibleHeight = 2 * tan * distance;
+      const shiftY = ((reserveTop - reserveBottom) / 2 / height) * visibleHeight;
+      cameraTarget.set(center.x, center.y + shiftY, center.z);
+      cameraBase.set(center.x, center.y + shiftY + extent.y * 0.08, center.z + distance);
       camera.position.copy(cameraBase);
       camera.lookAt(cameraTarget);
+      camera.updateMatrixWorld();
+
+      if (layoutMode === "wall") {
+        shelfGroup.updateMatrixWorld(true);
+        const project = (local: Vector3) => {
+          const p = shelfGroup.localToWorld(local.clone()).project(camera);
+          return { x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
+        };
+        const top = project(shelfTop);
+        const left = project(new Vector3(-shelfWidth / 2, shelfTop.y, 0));
+        const right = project(new Vector3(shelfWidth / 2, shelfTop.y, 0));
+        setCardAnchor({ x: top.x, y: top.y, width: right.x - left.x });
+      } else {
+        setCardAnchor(null);
+      }
     };
 
     const homeWorld = (state: CartState) => {
@@ -384,7 +461,8 @@ export default function CartridgeArcade({
     };
 
     // Fly an object along an arc to a world position, spinning `turns` times on the way.
-    const flyTo = (object: Object3D, to: Vector3, duration: number, arc: number, turns: number, ease: string) => {
+    // `bank` rolls it into the turn, peaking mid-flight.
+    const flyTo = (object: Object3D, to: Vector3, duration: number, arc: number, turns: number, ease: string, bank = 0) => {
       const proxy = { t: 0 };
       let from = new Vector3();
       let fromRotation = { x: 0, y: 0 };
@@ -410,9 +488,11 @@ export default function CartridgeArcade({
           );
           object.rotation.x = fromRotation.x * u;
           object.rotation.y = fromRotation.y * u + turns * Math.PI * 2 * t;
+          object.rotation.z = bank * Math.sin(Math.PI * t);
         },
         onComplete: () => {
           object.rotation.y = 0;
+          object.rotation.z = 0;
         },
       });
     };
@@ -447,15 +527,26 @@ export default function CartridgeArcade({
         return;
       }
       playClunk();
+      flickerMarquee();
       gsap.fromTo(shake, { value: cartSize.height * 0.06 }, { value: 0, duration: 0.35, ease: "power2.out" });
+      gsap.fromTo(punch, { value: 0.035 }, { value: 0, duration: 0.7, ease: "power2.out" });
+      // Squash into the port, then spring back
+      gsap.fromTo(
+        state.cart.group.scale,
+        { x: 1.08, y: 0.86, z: 1.08 },
+        { x: 1, y: 1, z: 1, duration: 0.55, ease: "elastic.out(1.1, 0.4)" }
+      );
+      if (portLight) {
+        portLight.color.set(game.cartridge.color);
+        gsap.fromTo(portLight, { intensity: 5 }, { intensity: 0, duration: 0.8, ease: "power2.out" });
+      }
       if (rimMaterial) {
         const rim = new Color(game.cartridge.color);
         gsap.fromTo(rimMaterial.color, { r: 1, g: 1, b: 1 }, { r: rim.r, g: rim.g, b: rim.b, duration: 0.5 });
       }
-      screenMode = "static";
-      staticUntil = performance.now() / 1000 + 0.45;
+      screenMode = "power";
+      modeStart = performance.now() / 1000;
       showOnScreen(screenTexture);
-      playStatic();
       callbacksRef.current.onInsert(game);
     };
 
@@ -474,14 +565,17 @@ export default function CartridgeArcade({
         insertedIndex = -1;
         setInserted(-1);
         stopVideo();
-        screenMode = "idle";
-        lastIdleBlink = -1;
+        screenMode = "off";
+        modeStart = performance.now() / 1000;
         showOnScreen(screenTexture);
         paintMarquee("Scareathon", MARQUEE_NEON_COLORS[0]);
+        flickerMarquee();
         if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
         old.where = "flying";
-        timeline.to(oldGroup.position, { y: seat.y + cartSize.height * 0.9, duration: 0.22, ease: "power2.out" });
-        timeline.add(flyTo(oldGroup, homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut"));
+        playTick();
+        // Spring up out of the port, then glide home
+        timeline.to(oldGroup.position, { y: seat.y + cartSize.height * 0.95, duration: 0.26, ease: "back.out(2.4)" });
+        timeline.add(flyTo(oldGroup, homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut", -0.25));
         timeline.call(() => {
           shelfGroup.attach(oldGroup);
           oldGroup.position.copy(old.home);
@@ -491,14 +585,19 @@ export default function CartridgeArcade({
       }
 
       const group = state.cart.group;
+      const { height: h, depth: d } = cartSize;
       timeline.call(() => {
         state.where = "flying";
         scene.attach(group);
         playWhoosh();
       }, undefined, insertedIndex >= 0 ? 0.35 : 0);
-      const hover = seat.clone().add(new Vector3(0, cartSize.height * 1.05, 0));
-      timeline.add(flyTo(group, hover, 0.7, cartSize.height * 1.2, 1, "power2.inOut"));
-      timeline.to(group.position, { y: seat.y, duration: 0.16, ease: "power3.in" });
+      // Slide it off the shelf toward you, then arc over, spinning once and banking into the turn
+      timeline.to(group.position, { z: `+=${d * 2.5}`, y: `+=${h * 0.12}`, duration: 0.16, ease: "power2.out" });
+      const hover = seat.clone().add(new Vector3(0, h * 1.05, 0));
+      timeline.add(flyTo(group, hover, 0.62, h * 1.1, 1, "power2.inOut", 0.35));
+      // Line up over the port for a beat, then push it home
+      timeline.to(group.position, { y: hover.y + h * 0.05, duration: 0.1, ease: "sine.out" });
+      timeline.to(group.position, { y: seat.y, duration: 0.14, ease: "power3.in" });
       timeline.call(() => seatCartridge(index, false));
     };
 
@@ -581,11 +680,14 @@ export default function CartridgeArcade({
         scene.add(end);
       });
       seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.3, panelCenter.z);
+      portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
+      portLight.position.set(0, portTop + cartSize.height * 0.3, panelCenter.z + cartSize.depth * 3);
+      scene.add(portLight);
 
       games.forEach((game, index) => {
         const cart = createCartridge(game.name, game.cartridge.tagline, game.cartridge.color, cartSize);
         cart.group.userData.cartIndex = index;
-        carts.push({ cart, home: new Vector3(), focus: { value: 0 }, where: "shelf" });
+        carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
         disposables.push(cart);
       });
 
@@ -608,6 +710,10 @@ export default function CartridgeArcade({
         focus(initial);
         seatCartridge(initial, true);
       }
+      // Cartridges drop onto the shelf one after another
+      carts.forEach((state, i) => {
+        gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });
+      });
 
       stopStills = loadVideoStills(games.map((game) => game.videoUrl), (index, video) => {
         carts[index]?.cart.setPicture(video, video.videoWidth, video.videoHeight);
@@ -661,6 +767,9 @@ export default function CartridgeArcade({
         return;
       }
       if (event.pointerType !== "mouse") return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      parallax.targetX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      parallax.targetY = ((event.clientY - rect.top) / rect.height) * 2 - 1;
       const hit = pick(event.clientX, event.clientY);
       if (hit?.kind === "cart" && carts[hit.index].where === "shelf") focus(hit.index);
       const clickable = hit?.kind === "cart" || (hit?.kind === "cabinet" && insertedIndex >= 0);
@@ -697,22 +806,47 @@ export default function CartridgeArcade({
       ambience?.update(time, Math.min(time - lastTime, 0.1));
       lastTime = time;
 
-      if (screenMode === "static" && time > staticUntil && insertedIndex >= 0) startVideo(games[insertedIndex]);
+      if (screenMode === "power" && time > modeStart + POWER_ON) {
+        screenMode = "static";
+        staticUntil = time + STATIC;
+        playStatic();
+      }
+      if (screenMode === "off" && time > modeStart + POWER_OFF) {
+        screenMode = "idle";
+        lastIdleBlink = -1;
+      }
+      if (screenMode === "static" && time > staticUntil && insertedIndex >= 0) startVideo(games[insertedIndex], true);
       paintScreen(time);
       screenVideo?.updateFrame();
-      if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0);
+      if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
 
       if (layoutMode === "ledge") shelfGroup.position.x = -scroll.x;
-      carts.forEach((state) => {
+      carts.forEach((state, i) => {
         const f = state.focus.value;
-        state.cart.setHighlight(state.where === "slot" ? 0.6 : f);
+        state.cart.setHighlight(state.where === "slot" ? 0.6 + 0.15 * Math.sin(time * 3) : f);
         if (state.where !== "shelf") return;
         const group = state.cart.group;
-        group.position.set(state.home.x, state.home.y + cartSize.height * 0.08 * f, state.home.z + cartSize.depth * 1.8 * f);
+        const drop = 1 - state.intro.value;
+        group.position.set(
+          state.home.x,
+          state.home.y + cartSize.height * (0.08 * f + 1.4 * drop),
+          state.home.z + cartSize.depth * 1.8 * f
+        );
+        // The focused cartridge tips toward you and sways a little, as if held up
         group.rotation.x = 0.15 * f;
+        group.rotation.y = 0.12 * f * Math.sin(time * 2.2 + i);
+        group.rotation.z = 0.25 * drop * (i % 2 ? 1 : -1);
       });
 
+      // Ease toward the pointer for a touch of depth
+      parallax.x += (parallax.targetX - parallax.x) * 0.05;
+      parallax.y += (parallax.targetY - parallax.y) * 0.05;
       camera.position.copy(cameraBase);
+      if (layoutMode === "wall") {
+        camera.position.x += parallax.x * sceneHeight * 0.03;
+        camera.position.y -= parallax.y * sceneHeight * 0.015;
+      }
+      if (punch.value > 0) camera.position.lerp(cameraTarget, punch.value);
       if (shake.value > 0) {
         camera.position.x += (Math.random() - 0.5) * shake.value;
         camera.position.y += (Math.random() - 0.5) * shake.value;
@@ -743,8 +877,13 @@ export default function CartridgeArcade({
       document.removeEventListener("visibilitychange", syncVideo);
       stopStills?.();
       stopVideo();
-      gsap.killTweensOf(scroll);
-      carts.forEach((state) => gsap.killTweensOf(state.focus));
+      gsap.killTweensOf([scroll, shake, punch, marqueeBoot]);
+      if (screenMaterial) gsap.killTweensOf(screenMaterial);
+      if (portLight) gsap.killTweensOf(portLight);
+      if (rimMaterial) gsap.killTweensOf(rimMaterial.color);
+      carts.forEach((state) => {
+        gsap.killTweensOf([state.focus, state.intro, state.cart.group.position, state.cart.group.scale]);
+      });
       shelfMeshes.forEach((mesh) => mesh.geometry.dispose());
       ambience?.dispose();
       disposables.forEach((item) => item.dispose());
@@ -795,59 +934,32 @@ export default function CartridgeArcade({
       {loading && <LoadingSpinner />}
 
       {!loading && (
-        <div
-          className={`pointer-events-none absolute left-1/2 z-10 flex w-[min(92vw,34rem)] -translate-x-1/2 flex-col items-center gap-3 text-center ${
-            layout === "ledge" ? "top-20" : "bottom-6"
+        <GameCard
+          game={shownGame}
+          index={shown}
+          total={games.length}
+          isInserted={shownIsInserted}
+          insertedGame={insertedGame}
+          layout={layout}
+          onPlay={onPlay}
+          onLeaderboard={onLeaderboard}
+          onPlugIn={() => worldRef.current?.activate(shown)}
+          // Wide screens: over the shelf. Tall screens: along the bottom, clear of the menu button
+          className={`absolute z-10 ${
+            layout === "ledge" || !cardAnchor
+              ? "bottom-[5.25rem] left-1/2 w-[min(92vw,30rem)] -translate-x-1/2"
+              : "-translate-x-1/2 -translate-y-full"
           }`}
-        >
-          {shownGame ? (
-            <div className="pointer-events-auto w-full rounded-xl border border-orange-500/40 bg-black/75 px-5 py-3 shadow-glow backdrop-blur-sm">
-              <h2 className="font-zombie text-3xl tracking-wide text-orange-200" style={{ textShadow: `0 0 12px ${shownGame.cartridge.color}` }}>
-                {shownGame.name}
-              </h2>
-              <p className="text-sm text-orange-100/75">{shownGame.cartridge.tagline}</p>
-              <div className="mt-3 flex justify-center gap-2">
-                {shownIsInserted ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => onPlay(shownGame)}
-                      className="flex items-center gap-2 rounded bg-orange-500 px-5 py-2 font-bold text-black transition hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                    >
-                      <FaPlay aria-hidden="true" /> Play
-                    </button>
-                    {shownGame.hasLeaderboard !== false && (
-                      <button
-                        type="button"
-                        onClick={() => onLeaderboard(shownGame)}
-                        className="flex items-center gap-2 rounded border border-orange-500/70 bg-black/60 px-4 py-2 font-semibold text-orange-100 transition hover:border-orange-300 hover:bg-orange-950 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                      >
-                        <FaTrophy aria-hidden="true" /> Leaderboard
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => worldRef.current?.activate(shown)}
-                    className="rounded border border-orange-500/70 bg-black/60 px-5 py-2 font-semibold text-orange-100 transition hover:border-orange-300 hover:bg-orange-950 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                  >
-                    Plug it in
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="rounded-full bg-black/60 px-4 py-2 text-sm text-orange-100/80">
-              {layout === "ledge" ? "Swipe the shelf and tap a cartridge" : "Pick a cartridge from the shelf"}
-            </p>
-          )}
-          {insertedGame && !shownIsInserted && (
-            <p className="rounded-full bg-black/60 px-3 py-1 text-xs text-orange-100/70">
-              In the machine: {insertedGame.name}
-            </p>
-          )}
-        </div>
+          style={
+            layout === "wall" && cardAnchor
+              ? {
+                  left: cardAnchor.x,
+                  top: Math.max(cardAnchor.y - 16, NAV_CLEARANCE + 220),
+                  width: Math.min(Math.max(cardAnchor.width, 320), 480),
+                }
+              : undefined
+          }
+        />
       )}
 
       {/* Screen readers and keyboard users get the shelf as a plain list */}

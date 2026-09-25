@@ -34,7 +34,11 @@ export default function ArcadeV2() {
         />
       </Suspense>
       {leaderboardGame && (
-        <LeaderboardDialog game={leaderboardGame.name} onClose={() => setLeaderboardGame(null)} />
+        <LeaderboardDialog
+          game={leaderboardGame.name}
+          accent={leaderboardGame.cartridge.color}
+          onClose={() => setLeaderboardGame(null)}
+        />
       )}
       <ArcadePlayOverlay machine={playingGame} onClose={closeGame} returnPath="/arcade-v2" />
     </AnimatedPage>

@@ -14,8 +14,16 @@ type ArcadePlayOverlayProps = {
 // The open game: toolbar (close, leaderboard) over the game frame, plus the
 // "sign in to save your score" prompt for guests.
 export default function ArcadePlayOverlay({ machine, onClose, returnPath }: ArcadePlayOverlayProps) {
-  const { height: headerHeight } = useNavigatorContext();
+  const { height: headerHeight, setHideMobileNav } = useNavigatorContext();
   const [guestScore, setGuestScore] = useState<GuestScore | null>(null);
+  const isPlaying = Boolean(machine?.game);
+
+  // The phone menu button sits over the game's controls; hide it while playing
+  useEffect(() => {
+    if (!isPlaying) return;
+    setHideMobileNav(true);
+    return () => setHideMobileNav(false);
+  }, [isPlaying, setHideMobileNav]);
 
   useEffect(() => {
     const handleGuestScore = (event: Event) =>
