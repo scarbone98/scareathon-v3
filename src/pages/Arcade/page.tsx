@@ -52,7 +52,7 @@ const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
 const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
-const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=2c0fd36";
+const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -333,6 +333,7 @@ export default function Arcade() {
         <GameRenderer
           title="BOB"
           url={BOB_URL}
+          allow="accelerometer; gyroscope"
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />

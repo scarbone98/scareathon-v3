@@ -8,6 +8,8 @@ type GameRendererProps = {
   title: string;
   desktopAspectRatio?: number;
   reservedVerticalSpace?: number;
+  // Permissions policy for the game frame, e.g. "accelerometer; gyroscope" for tilt controls.
+  allow?: string;
 };
 
 function GameRenderer({
@@ -16,6 +18,7 @@ function GameRenderer({
   onLoad,
   desktopAspectRatio = 9 / 16,
   reservedVerticalSpace = 0,
+  allow,
 }: GameRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -95,7 +98,7 @@ function GameRenderer({
     };
   }, [desktopAspectRatio, onLoad, reservedVerticalSpace]);
 
-  return <iframe ref={iframeRef} title={title} src={url}></iframe>;
+  return <iframe ref={iframeRef} title={title} src={url} allow={allow}></iframe>;
 }
 
 export default GameRenderer;
