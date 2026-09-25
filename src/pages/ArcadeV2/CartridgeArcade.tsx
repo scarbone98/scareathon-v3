@@ -165,6 +165,7 @@ export default function CartridgeArcade({
     // idle → power (CRT warming up) → static → video; eject runs off → idle
     let screenMode: "idle" | "power" | "static" | "video" | "off" = "idle";
     let modeStart = 0;
+    let screenGame = -1; // which game the screen is tuned to
     let staticUntil = 0;
     let lastIdleBlink = -1;
     let screenVideo: ScreenVideo | null = null;
@@ -429,7 +430,7 @@ export default function CartridgeArcade({
       const freeShare = (height - reserveTop - reserveBottom) / height;
       const tan = Math.tan((camera.fov * Math.PI) / 360);
       const distance =
-        Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 1.06 : 1.04) +
+        Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * (layoutMode === "wall" ? 0.86 : 0.96) +
         extent.z / 2;
       // Slide the camera so the scene's middle lands in the middle of that band
       const visibleHeight = 2 * tan * distance;
@@ -508,6 +509,18 @@ export default function CartridgeArcade({
       });
     };
 
+    // A short burst of static, then that game's attract video
+    const tuneScreen = (index: number, seconds: number) => {
+      if (index === screenGame && screenMode === "video") return;
+      stopVideo();
+      screenGame = index;
+      screenMode = "static";
+      staticUntil = performance.now() / 1000 + seconds;
+      showOnScreen(screenTexture);
+      const game = games[index];
+      if (game) paintMarquee(game.name, MARQUEE_NEON_COLORS[index % MARQUEE_NEON_COLORS.length]);
+    };
+
     const focus = (index: number, fromUser = false) => {
       if (index < 0 || index >= carts.length || index === focusIndex) return;
       if (focusIndex >= 0) gsap.to(carts[focusIndex].focus, { value: 0, duration: 0.2 });
@@ -516,6 +529,8 @@ export default function CartridgeArcade({
       if (layoutMode === "ledge") gsap.to(scroll, { x: index * pitchX, duration: 0.35, ease: "power2.out" });
       if (fromUser) playTick();
       setFocused(index);
+      // Browsing the shelf previews each game on the screen
+      if (insertedIndex < 0 && !busy) tuneScreen(index, 0.18);
     };
 
     const moveFocus = (dx: number, dy: number) => {
@@ -555,10 +570,59 @@ export default function CartridgeArcade({
         const rim = new Color(game.cartridge.color);
         gsap.fromTo(rimMaterial.color, { r: 1, g: 1, b: 1 }, { r: rim.r, g: rim.g, b: rim.b, duration: 0.5 });
       }
+      stopVideo();
+      screenGame = index;
       screenMode = "power";
       modeStart = performance.now() / 1000;
       showOnScreen(screenTexture);
       callbacksRef.current.onInsert(game);
+      // Plugging in plays: give the screen a moment to warm up and crackle first
+      gsap.delayedCall(POWER_ON + STATIC + 0.15, () => {
+        if (insertedIndex === index) callbacksRef.current.onPlay(game);
+      });
+    };
+
+    // Spring the inserted cartridge up out of the port and fly it home
+    const ejectTimeline = () => {
+      const timeline = gsap.timeline();
+      if (insertedIndex < 0) return timeline;
+      const old = carts[insertedIndex];
+      const oldGroup = old.cart.group;
+      insertedIndex = -1;
+      setInserted(-1);
+      stopVideo();
+      screenGame = -1;
+      screenMode = "off";
+      modeStart = performance.now() / 1000;
+      showOnScreen(screenTexture);
+      paintMarquee("Scareathon", MARQUEE_NEON_COLORS[0]);
+      flickerMarquee();
+      if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
+      old.where = "flying";
+      playTick();
+      // Spring up out of the port, then glide home
+      timeline.to(oldGroup.position, { y: seat.y + cartSize.height * 0.95, duration: 0.26, ease: "back.out(2.4)" });
+      timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut", -0.25));
+      timeline.call(() => {
+        shelfGroup.attach(oldGroup);
+        oldGroup.position.copy(old.home);
+        oldGroup.rotation.set(0, 0, 0);
+        old.where = "shelf";
+      });
+      return timeline;
+    };
+
+    const eject = () => {
+      if (busy || insertedIndex < 0) return;
+      busy = true;
+      const index = insertedIndex;
+      ejectTimeline().eventCallback("onComplete", () => {
+        busy = false;
+        // Back to previewing whatever's focused once the tube has powered down
+        gsap.delayedCall(0.15, () => {
+          if (insertedIndex < 0) tuneScreen(focusIndex >= 0 ? focusIndex : index, 0.3);
+        });
+      });
     };
 
     const insert = (index: number) => {
@@ -575,30 +639,8 @@ export default function CartridgeArcade({
       const timeline = gsap.timeline({ delay: settle, onComplete: () => { busy = false; } });
 
       // Pop the current cartridge out and send it home first
-      if (insertedIndex >= 0) {
-        const old = carts[insertedIndex];
-        const oldGroup = old.cart.group;
-        insertedIndex = -1;
-        setInserted(-1);
-        stopVideo();
-        screenMode = "off";
-        modeStart = performance.now() / 1000;
-        showOnScreen(screenTexture);
-        paintMarquee("Scareathon", MARQUEE_NEON_COLORS[0]);
-        flickerMarquee();
-        if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
-        old.where = "flying";
-        playTick();
-        // Spring up out of the port, then glide home
-        timeline.to(oldGroup.position, { y: seat.y + cartSize.height * 0.95, duration: 0.26, ease: "back.out(2.4)" });
-        timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut", -0.25));
-        timeline.call(() => {
-          shelfGroup.attach(oldGroup);
-          oldGroup.position.copy(old.home);
-          oldGroup.rotation.set(0, 0, 0);
-          old.where = "shelf";
-        });
-      }
+      const hadCartridge = insertedIndex >= 0;
+      if (hadCartridge) timeline.add(ejectTimeline());
 
       const group = state.cart.group;
       const { height: h, depth: d } = cartSize;
@@ -606,7 +648,7 @@ export default function CartridgeArcade({
         state.where = "flying";
         scene.attach(group);
         playWhoosh();
-      }, undefined, insertedIndex >= 0 ? 0.35 : 0);
+      }, undefined, hadCartridge ? 0.35 : 0);
       // Slide it off the shelf toward you, then arc over, spinning once and banking into the turn
       timeline.to(group.position, { z: `+=${d * 2.5}`, y: `+=${h * 0.12}`, duration: 0.16, ease: "power2.out" });
       const hover = seat.clone().add(new Vector3(0, h * 1.05, 0));
@@ -627,7 +669,11 @@ export default function CartridgeArcade({
       focus,
       moveFocus,
       activate,
-      setPaused: () => syncVideo(),
+      setPaused: (isPaused: boolean) => {
+        syncVideo();
+        // Leaving the game unplugs its cartridge
+        if (!isPaused) eject();
+      },
     };
 
     // --- Load the cabinet, then build everything around it ----------------------------------
@@ -719,13 +765,7 @@ export default function CartridgeArcade({
       });
 
       const initial = games.findIndex((game) => game.name === initialGameRef.current);
-      if (initial >= 0) {
-        const group = carts[initial].cart.group;
-        scene.attach(group);
-        group.position.copy(seat);
-        focus(initial);
-        seatCartridge(initial, true);
-      }
+      if (initial >= 0) focus(initial);
       // Cartridges drop onto the shelf one after another
       carts.forEach((state, i) => {
         gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });
@@ -852,7 +892,7 @@ export default function CartridgeArcade({
         screenMode = "idle";
         lastIdleBlink = -1;
       }
-      if (screenMode === "static" && time > staticUntil && insertedIndex >= 0) startVideo(games[insertedIndex], true);
+      if (screenMode === "static" && time > staticUntil && screenGame >= 0) startVideo(games[screenGame], true);
       paintScreen(time);
       screenVideo?.updateFrame();
       if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
