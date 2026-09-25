@@ -153,6 +153,9 @@ export class GameController {
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("blur", this.onBlur);
+    window.addEventListener("touchend", this.onTouchEnd);
+    window.addEventListener("touchcancel", this.onTouchEnd);
+    document.addEventListener("visibilitychange", this.onBlur);
     this.resize();
     this.last = performance.now();
     this.raf = requestAnimationFrame(this.frame);
@@ -246,6 +249,9 @@ export class GameController {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("blur", this.onBlur);
+    window.removeEventListener("touchend", this.onTouchEnd);
+    window.removeEventListener("touchcancel", this.onTouchEnd);
+    document.removeEventListener("visibilitychange", this.onBlur);
     this.stickEls.base.remove();
     this.renderer.dispose();
   }
@@ -425,6 +431,12 @@ export class GameController {
     if (e.pointerType === "mouse" || this.stick) return;
     const r = this.host.getBoundingClientRect();
     this.stick = { id: e.pointerId, ox: e.clientX - r.left, oy: e.clientY - r.top, x: 0, y: 0 };
+    // Keep this finger's events coming to us even if it slides off the canvas.
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // Not supported; the window listeners still catch it.
+    }
   };
 
   private onPointerMove = (e: PointerEvent) => {
@@ -461,8 +473,18 @@ export class GameController {
     this.stick = null;
   };
 
+  // A belt-and-braces release: once no fingers are down, the stick lets go,
+  // even if the browser never sent this pointer's pointerup.
+  private onTouchEnd = (e: TouchEvent) => {
+    if (e.touches.length === 0) this.stick = null;
+  };
+
   // Tilt as (right, forward) relative to the camera, length up to 1.
   private readInput(dt: number) {
+    // Phones steer with the on-screen stick only. Some phones report built-in
+    // sensors as gamepads with a stick stuck off-centre, which would roll the
+    // ball on its own.
+    if (this.touch) return this.stickInput();
     const k = this.keys;
     const tx = (k.has("arrowright") || k.has("d") ? 1 : 0) - (k.has("arrowleft") || k.has("a") ? 1 : 0);
     const ty = (k.has("arrowup") || k.has("w") ? 1 : 0) - (k.has("arrowdown") || k.has("s") ? 1 : 0);
@@ -492,15 +514,16 @@ export class GameController {
         else this.padHeld.delete(key);
       }
     }
-    if (this.stick) {
-      // A small dead zone so resting a thumb on it doesn't drift.
-      const m = Math.hypot(this.stick.x, this.stick.y);
-      const k = m < STICK_DEAD ? 0 : (m - STICK_DEAD) / (1 - STICK_DEAD) / m;
-      x += this.stick.x * k;
-      y += this.stick.y * k;
-    }
     const m = Math.hypot(x, y);
     return m > 1 ? { x: x / m, y: y / m } : { x, y };
+  }
+
+  private stickInput() {
+    if (!this.stick) return { x: 0, y: 0 };
+    // A small dead zone so resting a thumb on it doesn't drift.
+    const m = Math.hypot(this.stick.x, this.stick.y);
+    const k = m < STICK_DEAD ? 0 : (m - STICK_DEAD) / (1 - STICK_DEAD) / m;
+    return { x: this.stick.x * k, y: this.stick.y * k };
   }
 
   // --- camera -------------------------------------------------------------------------
@@ -668,6 +691,15 @@ export class GameController {
 
   // A stage of a co-op run, as announced by the server (also every retry).
   startCoop(link: CoopLink, seat: Seat, m: StartMessage) {
+    // Back from a dropped connection into the attempt we're already playing:
+    // carry on rather than starting the stage over.
+    if (this.coop && this.mode === "coop" && this.coop.attempt === m.attempt && this.stageIndex === m.stage && this.coop.seat === seat) {
+      this.coop.link = link;
+      this.coop.at = m.at;
+      this.lives = m.lives;
+      this.score = m.score;
+      return;
+    }
     const newRun = m.stage === 0 && m.attempt === 1;
     this.mode = "coop";
     this.lives = m.lives;

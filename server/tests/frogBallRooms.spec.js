@@ -172,7 +172,7 @@ describe('frog ball co-op rooms', () => {
         expect(s.host.of('outcome')).toHaveLength(0);
     });
 
-    test('a dropped player can rejoin mid-run; one who never returns ends it', () => {
+    test('a dropped player can rejoin mid-run with their token', () => {
         const s = setup();
         const room = s.startRun();
         const token = s.guest.last('room').token;
@@ -182,17 +182,74 @@ describe('frog ball co-op rooms', () => {
         s.rooms.rejoin(back, { code: room.code, token });
         expect(back.last('room')).toMatchObject({ seat: 1, status: 'playing' });
         expect(back.last('start')).toMatchObject({ stage: 0, attempt: 1 });
-
-        s.rooms.disconnect(back);
-        s.advance(RECONNECT_MS + 1);
-        expect(s.host.last('over')).toMatchObject({ cleared: false, reason: 'disconnected' });
     });
 
-    test('leaving closes the room for both', () => {
+    test('a player who never comes back frees their seat; the room carries on', () => {
+        const s = setup();
+        const room = s.startRun();
+        s.rooms.disconnect(s.guest);
+        s.advance(RECONNECT_MS + 1);
+        expect(s.host.last('left')).toMatchObject({ seat: 1, name: 'Lily', reason: 'dropped' });
+        expect(s.host.last('over')).toMatchObject({ cleared: false, reason: 'dropped' });
+        expect(s.host.last('room')).toMatchObject({ status: 'waiting', seat: 0, names: ['Hoppy'] });
+        // Someone new can join the same room.
+        const friend = fakeSocket();
+        s.rooms.join(friend, { code: room.code, name: 'Tad' });
+        expect(friend.last('room')).toMatchObject({ seat: 1, status: 'lobby', names: ['Hoppy', 'Tad'] });
+    });
+
+    test("a closed tab doesn't lock the room: joining takes the empty seat", () => {
+        const s = setup();
+        const room = s.rooms.create(s.host, { name: 'Hoppy' });
+        s.rooms.join(s.guest, { code: room.code, name: 'Lily' });
+        const oldToken = s.guest.last('room').token;
+        s.rooms.disconnect(s.guest); // tab closed, no LEAVE
+        const again = fakeSocket();
+        s.rooms.join(again, { code: room.code, name: 'Lily' });
+        expect(again.last('room')).toMatchObject({ seat: 1, names: ['Hoppy', 'Lily'], connected: [true, true] });
+        // The old tab's token no longer holds the seat.
+        expect(() => s.rooms.rejoin(fakeSocket(), { code: room.code, token: oldToken })).toThrow(RoomError);
+        // With both players connected the room is full again.
+        expect(() => s.rooms.join(fakeSocket(), { code: room.code, name: 'Third' })).toThrow(RoomError);
+    });
+
+    test('the host can come back from a new tab mid-run and picks the run up', () => {
+        const s = setup();
+        const room = s.startRun();
+        s.rooms.disconnect(s.host);
+        const back = fakeSocket();
+        s.rooms.join(back, { code: room.code, name: 'Hoppy' });
+        expect(back.last('room')).toMatchObject({ seat: 0, status: 'playing' });
+        expect(back.last('start')).toMatchObject({ stage: 0, attempt: 1 });
+    });
+
+    test('a guest leaving frees their seat and the host keeps the room', () => {
         const s = setup();
         const room = s.startRun();
         s.rooms.leave(s.guest);
-        expect(s.host.last('left')).toEqual({ type: 'left', seat: 1 });
+        expect(s.host.last('left')).toMatchObject({ seat: 1, name: 'Lily', reason: 'left' });
+        expect(s.host.last('over')).toMatchObject({ reason: 'left' });
+        expect(s.host.last('room')).toMatchObject({ status: 'waiting', names: ['Hoppy'] });
+        expect(s.rooms.room(room.code)).not.toBeNull();
+    });
+
+    test('the host leaving hands the room to the guest', () => {
+        const s = setup();
+        const room = s.rooms.create(s.host, { name: 'Hoppy' });
+        s.rooms.join(s.guest, { code: room.code, name: 'Lily' });
+        s.rooms.leave(s.host);
+        expect(s.guest.last('room')).toMatchObject({ seat: 0, status: 'waiting', names: ['Lily'] });
+        // The new host can start once someone else joins.
+        const friend = fakeSocket();
+        s.rooms.join(friend, { code: room.code, name: 'Tad' });
+        s.rooms.go(s.guest, { count: 2 });
+        expect(friend.last('start')).toMatchObject({ stage: 0 });
+    });
+
+    test('the last player leaving closes the room', () => {
+        const s = setup();
+        const room = s.rooms.create(s.host, { name: 'Hoppy' });
+        s.rooms.leave(s.host);
         expect(s.rooms.room(room.code)).toBeNull();
     });
 });

@@ -186,6 +186,7 @@ function PlayerSlot({ seat, name, connected, you }: { seat: 0 | 1; name?: string
 
 export function Lobby({
   code,
+  note,
   seat,
   names,
   connected,
@@ -194,6 +195,7 @@ export function Lobby({
   onLeave,
 }: {
   code: string;
+  note: string | null;
   seat: 0 | 1;
   names: string[];
   connected: boolean[];
@@ -243,6 +245,7 @@ export function Lobby({
         <ArcadeText text={code} size={40} face="#ffd23f" side="#c2560a" depth={5} anim="drop" />
       </div>
       <span className="fb-o mt-1 text-[8px] text-[var(--cyan)]">{host ? "SEND THIS CODE TO A FRIEND" : "YOU'RE IN! WAITING FOR THE HOST"}</span>
+      {note && <span className="fb-o mt-1.5 text-[8px] text-[var(--pink)]">{note}</span>}
       <div className="mt-4 flex max-w-[600px] flex-wrap items-center justify-center gap-x-6 gap-y-4">
         <div className="flex gap-3">
           <PlayerSlot seat={0} name={names[0]} connected={connected[0]} you={seat === 0} />
