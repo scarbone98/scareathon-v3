@@ -262,6 +262,18 @@ export default function Arcade() {
       ),
     },
     {
+      name: "Horde Rush",
+      videoUrl: "/game-recordings/HordeRush.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Horde Rush"
+          url="/horde-rush"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
       name: ORIGINAL_EIGHT_BIT_EVIL,
       videoUrl: "/game-recordings/8BitEvil.mp4",
       availableOnMobile: false,

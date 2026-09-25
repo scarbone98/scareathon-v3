@@ -32,6 +32,7 @@ const Profile = lazy(() => import("../pages/Profile/page"));
 const Post = lazy(() => import("../pages/Post/page"));
 const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
 const CryptClash = lazy(() => import("../pages/Royale/page"));
+const HordeRush = lazy(() => import("../pages/HordeRush/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -226,6 +227,14 @@ export const AnimatedRoutes = () => {
             // Unlinked on purpose so it can be tested in prod by URL
             <Suspense fallback={<LoadingSpinner />}>
               <CryptClash />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/horde-rush"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <HordeRush />
             </Suspense>
           }
         />
