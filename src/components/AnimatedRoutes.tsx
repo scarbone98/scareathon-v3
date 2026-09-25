@@ -14,7 +14,8 @@ import { shouldClearAuthSession } from "../authErrors";
 import LoadingSpinner from "./LoadingSpinner";
 
 const Home = lazy(() => import("../pages/Home/page"));
-const Arcade = lazy(() => import("../pages/Arcade/page"));
+// The old ring-of-cabinets arcade, kept for swapping back (see the /arcade route)
+// const Arcade = lazy(() => import("../pages/Arcade/page"));
 const ArcadeV2 = lazy(() => import("../pages/ArcadeV2/page"));
 const Authentication = lazy(() => import("../pages/Authentication/page"));
 const Scareathon = lazy(() => import("../pages/Scareathon/page"));
@@ -205,6 +206,10 @@ export const AnimatedRoutes = () => {
             </ProtectedRoute>
           }
         />
+        {/*
+          The old ring-of-cabinets arcade. To swap back: uncomment this route and the
+          `Arcade` import at the top, and delete the cartridge arcade's /arcade and
+          /arcade-v2 routes below.
         <Route
           path="/arcade"
           element={
@@ -214,13 +219,22 @@ export const AnimatedRoutes = () => {
             </Suspense>
           }
         />
+        */}
         <Route
-          path="/arcade-v2"
+          path="/arcade"
           element={
-            // The cartridge arcade, beside /arcade until it replaces it
+            // The cartridge arcade: one cabinet and a shelf of games.
+            // Open to guests: they can play, and are asked to sign in to save scores
             <Suspense fallback={<LoadingSpinner />}>
               <ArcadeV2 />
             </Suspense>
+          }
+        />
+        <Route
+          path="/arcade-v2"
+          element={
+            // Where the cartridge arcade lived before it became /arcade; keeps ?game= links working
+            <Navigate to={{ pathname: "/arcade", search: location.search }} replace />
           }
         />
         <Route

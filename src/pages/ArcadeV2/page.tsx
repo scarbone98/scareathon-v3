@@ -8,8 +8,9 @@ import { useArcadeSelection } from "../Arcade/useArcadeSelection.ts";
 
 const CartridgeArcade = lazy(() => import("./CartridgeArcade.tsx"));
 
-// The cartridge arcade: one cabinet, a shelf of games. Not linked from the
-// nav yet; it lives beside /arcade until it replaces it.
+// The cartridge arcade: one cabinet, a shelf of games. Served at /arcade; the
+// old ring-of-cabinets page (pages/Arcade/page.tsx) is kept, unrouted, in
+// case we swap back.
 export default function ArcadeV2() {
   const isMobileArcade = useIsMobileArcade();
   const games = useMemo(createArcadeGames, []);
@@ -40,7 +41,7 @@ export default function ArcadeV2() {
           onClose={() => setLeaderboardGame(null)}
         />
       )}
-      <ArcadePlayOverlay machine={playingGame} onClose={closeGame} returnPath="/arcade-v2" />
+      <ArcadePlayOverlay machine={playingGame} onClose={closeGame} returnPath="/arcade" />
     </AnimatedPage>
   );
 }
