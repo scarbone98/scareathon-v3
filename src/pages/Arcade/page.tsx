@@ -44,7 +44,7 @@ const GAME_TOOLBAR_HEIGHT = 56;
 const EIGHT_BIT_EVIL_RETURNS_URL =
   "https://scarbone98.github.io/8BitEvilReturnsBuild/";
 const HEMLOCKS_TOWER_URL =
-  "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html?v=4cbaaf2";
+  "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html?v=3977f02";
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
