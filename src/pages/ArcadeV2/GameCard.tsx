@@ -1,11 +1,12 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, m as motion } from "framer-motion";
 import { FaCrown, FaPlay, FaTrophy } from "react-icons/fa";
 import type { MachineData } from "../Arcade/games.tsx";
 import { formatLeaderboardScore, useLeaderboard } from "../Arcade/leaderboard.ts";
 
 // The card beside the shelf: the focused (or plugged-in) game's name, pitch,
-// top score, and what you can do with it.
+// top score, and what you can do with it. Every row has a fixed height, so the
+// card stays the same size whichever game is showing.
 
 type Props = {
   game: MachineData | undefined;
@@ -30,6 +31,39 @@ function useSettled<T>(value: T, delay: number) {
     return () => window.clearTimeout(timer);
   }, [value, delay]);
   return settled;
+}
+
+// The game's name on one line: long names shrink to fit rather than wrapping
+function FittedTitle({ text, accent }: { text: string; accent: string }) {
+  const boxRef = useRef<HTMLHeadingElement | null>(null);
+  const textRef = useRef<HTMLSpanElement | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const span = textRef.current;
+    if (!box || !span) return;
+    // transform doesn't change the span's layout width, so this measures the unscaled text
+    const fit = () => setScale(Math.min(1, box.clientWidth / Math.max(span.offsetWidth, 1)));
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    document.fonts?.ready.then(fit).catch(() => {});
+    return () => observer.disconnect();
+  }, [text]);
+
+  return (
+    <h2
+      ref={boxRef}
+      className="flex h-10 w-full items-center justify-center overflow-hidden whitespace-nowrap font-zombie text-3xl tracking-wide text-orange-50 sm:h-11 sm:text-4xl"
+      style={{ textShadow: `0 0 14px ${accent}, 0 0 2px ${accent}` }}
+      title={text}
+    >
+      <span ref={textRef} className="inline-block" style={{ transform: `scale(${scale})` }}>
+        {text}
+      </span>
+    </h2>
+  );
 }
 
 function TopScore({ game }: { game: MachineData }) {
@@ -95,8 +129,8 @@ export default function GameCard({
               transition={{ duration: 0.16, ease: "easeOut" }}
               className="flex flex-col items-center gap-1"
             >
-              <div className="flex w-full items-center justify-between text-[0.7rem] font-semibold uppercase tracking-[0.18em]">
-                <span className="font-mono text-orange-100/50">
+              <div className="flex h-4 w-full items-center justify-between gap-3 text-[0.7rem] font-semibold uppercase tracking-[0.18em]">
+                <span className="shrink-0 font-mono text-orange-100/50">
                   {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
                 </span>
                 {isInserted ? (
@@ -107,22 +141,29 @@ export default function GameCard({
                     </span>
                     In the machine
                   </span>
+                ) : insertedGame ? (
+                  <span className="flex min-w-0 items-center gap-1.5 text-orange-100/60">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: insertedGame.cartridge.color }} />
+                    <span className="truncate">Playing: {insertedGame.name}</span>
+                  </span>
                 ) : (
                   <span className="text-orange-100/50">On the shelf</span>
                 )}
               </div>
-              <h2
-                className="font-zombie text-3xl leading-tight tracking-wide text-orange-50 sm:text-4xl"
-                style={{ textShadow: `0 0 14px ${accent}, 0 0 2px ${accent}` }}
-              >
-                {game.name}
-              </h2>
-              <p className="text-sm text-orange-100/80">{game.cartridge.tagline}</p>
-              {game.hasLeaderboard !== false && <TopScore game={game} />}
+              <FittedTitle text={game.name} accent={accent} />
+              {/* Room for two lines whether the tagline needs them or not */}
+              <p className="flex h-10 items-center justify-center text-sm leading-5 text-orange-100/80">
+                <span className="line-clamp-2">{game.cartridge.tagline}</span>
+              </p>
+              {game.hasLeaderboard !== false ? (
+                <TopScore game={game} />
+              ) : (
+                <p className="flex h-5 items-center justify-center text-sm text-orange-100/50">Just for fun: no scores kept</p>
+              )}
             </motion.div>
           </AnimatePresence>
 
-          <div className="mt-3 flex justify-center gap-2">
+          <div className="mt-3 flex h-10 items-center justify-center gap-2">
             {isInserted ? (
               <>
                 <motion.button
@@ -159,11 +200,13 @@ export default function GameCard({
             )}
           </div>
 
-          {layout === "ledge" && !isInserted && (
-            <p className="mt-2 text-[0.7rem] text-orange-100/45">Tap the cartridge again to plug it in</p>
+          {layout === "ledge" && (
+            <p className="mt-2 h-4 text-[0.7rem] text-orange-100/45">
+              {isInserted ? "Or tap the arcade screen to play" : "Tap the cartridge again to plug it in"}
+            </p>
           )}
           {layout === "wall" && (
-            <p className="mt-3 text-[0.7rem] text-orange-100/45">
+            <p className="mt-3 h-4 text-[0.7rem] text-orange-100/45">
               <kbd className="rounded border border-white/20 px-1">←</kbd>{" "}
               <kbd className="rounded border border-white/20 px-1">→</kbd> browse ·{" "}
               <kbd className="rounded border border-white/20 px-1">Enter</kbd> {isInserted ? "play" : "plug in"}
@@ -175,20 +218,6 @@ export default function GameCard({
           {layout === "ledge" ? "Swipe the shelf and tap a cartridge to pick it" : "Pick a cartridge from the shelf"}
         </p>
       )}
-      <AnimatePresence>
-        {insertedGame && !isInserted && (
-          <motion.p
-            key="in-machine"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 text-xs text-orange-100/75"
-          >
-            <span className="h-2 w-2 rounded-full" style={{ background: insertedGame.cartridge.color }} />
-            In the machine: {insertedGame.name}
-          </motion.p>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
