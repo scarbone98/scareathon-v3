@@ -8,13 +8,7 @@ import gsap from "gsap";
 import { useGesture } from "@use-gesture/react";
 import { FaChevronLeft, FaChevronRight, FaPlay } from "react-icons/fa";
 import LoadingSpinner from "../../components/LoadingSpinner";
-
-type MachineData = {
-  name: string;
-  videoUrl?: string;
-  availableOnMobile?: boolean;
-  game: React.ReactNode;
-};
+import type { MachineData } from "./games.tsx";
 
 type Props = {
   initialMachineName?: string;
