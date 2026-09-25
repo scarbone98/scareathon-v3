@@ -229,7 +229,8 @@ export type GameEvent =
   | { type: "goal" }
   | { type: "fallout" }
   | { type: "timeover" }
-  | { type: "tick"; seconds: number };
+  | { type: "tick"; seconds: number }
+  | { type: "yank"; strength: number };
 
 export interface Fly {
   at: V3;
@@ -268,7 +269,10 @@ export function goalFrame(stage: StageDef) {
   return { at: fromVec(stage.goal.at), forward: headingDir(h), right: headingRight(h), width: stage.goal.width ?? GOAL_W };
 }
 
-export function newGame(stage: StageDef): Game {
+// In co-op, seat 0 starts on the left of the start point and seat 1 on the right.
+export const SEAT_OFFSET = 1.4;
+
+export function newGame(stage: StageDef, seat?: 0 | 1): Game {
   const parts: PartDef[] = [...stage.parts];
   // The goal's two posts are solid, like Monkey Ball's.
   const g = goalFrame(stage);
@@ -279,7 +283,8 @@ export function newGame(stage: StageDef): Game {
   const bodies = parts.map(makeBody);
   let minY = Infinity;
   for (const b of bodies) minY = Math.min(minY, b.base.y - b.bound);
-  const start = fromVec(stage.start);
+  let start = fromVec(stage.start);
+  if (seat !== undefined) start = add(start, scale(headingRight(stage.heading * DEG), seat === 0 ? -SEAT_OFFSET : SEAT_OFFSET));
   return {
     stage,
     t: 0,
@@ -318,18 +323,61 @@ function setStatus(g: Game, status: Status) {
   g.statusT = 0;
 }
 
+// --- the co-op chain ---------------------------------------------------------------
+
+// In co-op the two balls are chained together. Each player's game only
+// simulates their own ball; the other end of the chain is where the partner's
+// ball is (as best we know over the network), moving at its velocity. Both
+// sides pull their own ball, so between them the chain pulls both.
+export interface Tether {
+  at: V3;
+  vel: V3;
+}
+
+export const CHAIN_LENGTH = 3.4;
+const CHAIN_K = 45; // spring once taut, per unit of stretch
+const CHAIN_DAMP = 22; // how fast a taut chain soaks up the speed pulling it apart
+const CHAIN_MAX_STRETCH = 1.2;
+const YANK_EVENT_SPEED = 4;
+
+// One step of the rope on a ball at p moving at v, with the other end at
+// `at` moving at `vel`. Returns the ball's new position and velocity, and the
+// speed that was pulling the ends apart (for the yank sound).
+export function ropeStep(p: V3, v: V3, at: V3, vel: V3, dt: number): { p: V3; v: V3; apart: number; excess: number } {
+  const d = sub(p, at);
+  const dist = len(d);
+  if (dist <= CHAIN_LENGTH || dist < 1e-6) return { p, v, apart: 0, excess: 0 };
+  const n = scale(d, 1 / dist);
+  const excess = dist - CHAIN_LENGTH;
+  const apart = dot(sub(v, vel), n);
+  // A yank: the chain soaks up the speed pulling the balls apart.
+  if (apart > 0) v = sub(v, scale(n, apart * Math.min(1, CHAIN_DAMP * dt)));
+  v = sub(v, scale(n, CHAIN_K * excess * dt));
+  if (excess > CHAIN_MAX_STRETCH) p = sub(p, scale(n, excess - CHAIN_MAX_STRETCH));
+  return { p, v, apart, excess };
+}
+
+function applyTether(g: Game, t: Tether, dt: number) {
+  t.at = add(t.at, scale(t.vel, dt));
+  const r = ropeStep(g.p, g.v, t.at, t.vel, dt);
+  if (r.apart > YANK_EVENT_SPEED && r.excess < 0.25) g.events.push({ type: "yank", strength: Math.min(1, r.apart / 15) });
+  g.p = r.p;
+  g.v = r.v;
+}
+
 // Advance by dt seconds (any size; it substeps). tilt is ignored once the
-// stage is over.
-export function step(g: Game, dt: number, tilt: { x: number; z: number }) {
+// stage is over. tether is the other end of the co-op chain, if any; it's
+// moved along its velocity as time passes.
+export function step(g: Game, dt: number, tilt: { x: number; z: number }, tether?: Tether) {
   let remaining = dt;
   while (remaining > 1e-9) {
     const h = Math.min(SUBSTEP, remaining);
-    substep(g, h, tilt);
+    substep(g, h, tilt, tether);
     remaining -= h;
   }
 }
 
-function substep(g: Game, dt: number, tilt: { x: number; z: number }) {
+function substep(g: Game, dt: number, tilt: { x: number; z: number }, tether?: Tether) {
   g.t += dt;
   g.statusT += dt;
   for (const b of g.bodies) if (b.moving) poseBody(b, g.t);
@@ -409,6 +457,8 @@ function substep(g: Game, dt: number, tilt: { x: number; z: number }) {
   if (g.grounded && g.groundBody === prevBody && g.bodies[prevBody].moving) {
     g.v = add(g.v, scale(sub(g.groundVel, prevVel), CARRY));
   }
+
+  if (tether) applyTether(g, tether, dt);
 
   // Rolling resistance, relative to whatever you're rolling on.
   if (g.grounded) {
@@ -497,35 +547,49 @@ export interface Pilot {
   i: number;
   jitter: number;
   wait: number;
+  lateral: number; // co-op: how far right of the route line to keep
 }
 
-export function newPilot(jitter = 0): Pilot {
-  return { i: 0, jitter, wait: 0 };
+export function newPilot(jitter = 0, lateral = 0): Pilot {
+  return { i: 0, jitter, wait: 0, lateral };
 }
 
 export function pilotTilt(g: Game, pilot: Pilot): { x: number; z: number } {
   const route = g.stage.route;
   if (!route?.length || g.status !== "play") return { x: 0, z: 0 };
+  // Where to aim for waypoint i: on the route, or beside it in co-op.
+  const target = (i: number) => {
+    const w = route[i];
+    if (!pilot.lateral) return { x: w[0], z: w[2] };
+    const prev = i > 0 ? route[i - 1] : g.stage.start;
+    const lx = w[0] - prev[0];
+    const lz = w[2] - prev[2];
+    const l = Math.hypot(lx, lz) || 1;
+    return { x: w[0] + (-lz / l) * pilot.lateral, z: w[2] + (lx / l) * pilot.lateral };
+  };
   // Skip waypoints we've already passed (e.g. after being knocked forward).
   while (pilot.i < route.length - 1) {
-    const w = route[pilot.i];
-    const d = Math.hypot(w[0] - g.p.x, w[2] - g.p.z);
-    if (d < (w[4] ?? 1.1)) {
+    const t = target(pilot.i);
+    const d = Math.hypot(t.x - g.p.x, t.z - g.p.z);
+    if (d < (route[pilot.i][4] ?? 1.1)) {
       pilot.i++;
       pilot.wait = 0;
     } else break;
   }
   let w = route[pilot.i];
+  let aim = target(pilot.i);
   const win = w[5];
   if (win && pilot.i > 0) {
     const m = g.t % win[0];
-    if (!pilot.wait && (m < win[1] || m > win[2])) {
+    const inWindow = win[1] <= win[2] ? m >= win[1] && m <= win[2] : m >= win[1] || m <= win[2];
+    if (!pilot.wait && !inWindow) {
       w = [...route[pilot.i - 1]];
       w[3] = 0.001;
+      aim = target(pilot.i - 1);
     } else pilot.wait = 1;
   }
-  const dx = w[0] - g.p.x;
-  const dz = w[2] - g.p.z;
+  const dx = aim.x - g.p.x;
+  const dz = aim.z - g.p.z;
   const dist = Math.hypot(dx, dz) || 1;
   const want = (w[3] ?? 7) * (1 + pilot.jitter);
   // Slow down into a waypoint that asks us to.

@@ -37,11 +37,23 @@ export interface FrogBall {
   setTint: (color: string) => void;
 }
 
-function buildFrog() {
+export interface FrogSkin {
+  body: string;
+  glow: string;
+  dark: string;
+  belly: string;
+  shell: string;
+}
+
+export const GREEN_FROG: FrogSkin = { body: "#5fcf55", glow: "#2a7a2a", dark: "#3f9e3c", belly: "#e4f7a0", shell: "#c8fbff" };
+// Player 2 in co-op.
+export const PINK_FROG: FrogSkin = { body: "#ff8fc8", glow: "#b0407a", dark: "#d0508f", belly: "#fff0c8", shell: "#ffd6ee" };
+
+function buildFrog(skin: FrogSkin) {
   const frog = new THREE.Group();
-  const green = mat("#5fcf55", "#2a7a2a", 0.25);
-  const dark = mat("#3f9e3c");
-  const belly = mat("#e4f7a0");
+  const green = mat(skin.body, skin.glow, 0.25);
+  const dark = mat(skin.dark);
+  const belly = mat(skin.belly);
   const white = mat("#ffffff", "#ffffff", 0.3);
   const black = mat("#1a1420");
   const pink = mat("#ff9ab8", "#ff6f9f", 0.4);
@@ -117,7 +129,7 @@ function buildFrog() {
   return { frog, eyes, legs };
 }
 
-export function buildFrogBall(): FrogBall {
+export function buildFrogBall(skin: FrogSkin = GREEN_FROG): FrogBall {
   const root = new THREE.Group();
   const roll = new THREE.Group();
   root.add(roll);
@@ -127,7 +139,7 @@ export function buildFrogBall(): FrogBall {
     fragmentShader: SHELL_FRAG,
     transparent: true,
     depthWrite: false,
-    uniforms: { uTint: { value: new THREE.Color("#bff6ff") } },
+    uniforms: { uTint: { value: new THREE.Color(skin.shell) } },
   });
   const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(BALL_R, 3), shellMat);
   shell.renderOrder = 5;
@@ -145,7 +157,7 @@ export function buildFrogBall(): FrogBall {
   shadow.castShadow = true;
   root.add(shadow);
 
-  const { frog, eyes, legs } = buildFrog();
+  const { frog, eyes, legs } = buildFrog(skin);
   frog.position.y = -0.1;
   frog.scale.setScalar(1.1);
   root.add(frog);

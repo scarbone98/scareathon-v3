@@ -74,9 +74,11 @@ const BALL_ROWS = (() => {
   return grid.map((r) => r.join(""));
 })();
 const BALL_PAL: Palette = { ...FROG_PAL, b: "#9fe9ff", c: "#6fcdf0", w: "#ffffff" };
+// Player 2's pink frog in a rosy ball.
+const PINK_BALL_PAL: Palette = { ...BALL_PAL, g: "#ff8fc8", G: "#d0508f", y: "#fff0c8", k: "#ff5fa8", b: "#ffd6ee", c: "#ffb0dc" };
 
-export function FrogBallSprite({ scale = 3, className }: { scale?: number; className?: string }) {
-  return <Pix rows={BALL_ROWS} palette={BALL_PAL} scale={scale} className={className} />;
+export function FrogBallSprite({ scale = 3, className, pink = false }: { scale?: number; className?: string; pink?: boolean }) {
+  return <Pix rows={BALL_ROWS} palette={pink ? PINK_BALL_PAL : BALL_PAL} scale={scale} className={className} />;
 }
 
 const FLY_ROWS = ["ww.....ww", "www.o.www", ".wwoooww.", "...ooo...", "....o...."];

@@ -750,3 +750,180 @@ S.push({
 }
 
 export const STAGES = S;
+
+// --- co-op stages ---------------------------------------------------------------------
+// Two chained balls, one per player. Paths are wider, goals are wide enough
+// for both balls side by side, and both have to roll through.
+
+const COOP_GOAL_W = 6;
+const C: StageDef[] = [];
+
+C.push({
+  id: "C-1",
+  name: "Buddy Bridge",
+  world: 0,
+  time: 60,
+  start: [0, 0, 0],
+  heading: 0,
+  goal: { at: [0, -3, -42], heading: 0, width: COOP_GOAL_W },
+  parts: [floorZ(0, 0, 4, -20, 10), ramp([0, 0, -20], [0, -3, -34], 10, { tone: "alt" }), floorZ(0, -3, -34, -48, 10)],
+  flies: [...flyLine([-2.5, 0, -5], [-2.5, 0, -17], 4), ...flyLine([2.5, 0, -5], [2.5, 0, -17], 4), big(0, -3, -38)],
+  route: [
+    [0, 0, -18, 6],
+    [0, -3, -45, 6],
+  ],
+});
+
+// Each ball gets its own rail, with nothing between them.
+C.push({
+  id: "C-2",
+  name: "Moonbeam Rails",
+  world: 3,
+  time: 75,
+  start: [0, 0, 0],
+  heading: 0,
+  goal: { at: [0, 0, -36], heading: 0, width: COOP_GOAL_W },
+  parts: [
+    floorZ(0, 0, 4, -4, 8, { tone: "alt" }),
+    floorZ(-1.5, 0, -4, -28, 1.6),
+    floorZ(1.5, 0, -4, -28, 1.6),
+    floorZ(0, 0, -28, -42, 9, { tone: "alt" }),
+  ],
+  flies: [...flyLine([-1.5, 0, -6], [-1.5, 0, -26], 6), ...flyLine([1.5, 0, -6], [1.5, 0, -26], 6), big(0, 0, -32)],
+  route: [
+    [0, 0, -3, 3.5],
+    [0, 0, -28, 4, 1.4],
+    [0, 0, -39, 5],
+  ],
+});
+
+// A carousel with a bumper in the middle to steer round together.
+{
+  const c: Vec = [0, 0, -17];
+  C.push({
+    id: "C-3",
+    name: "Carousel Duet",
+    world: 1,
+    time: 60,
+    start: [0, 0, 0],
+    heading: 0,
+    goal: { at: [0, 0, -36], heading: 0, width: COOP_GOAL_W },
+    parts: [
+      floorZ(0, 0, 4, -4, 7, { tone: "alt" }),
+      floorZ(0, 0, -4, -7.95, 6),
+      disc(c[0], 0, c[2], 9, { tone: "moving", spin: { speed: 20 } }),
+      bumper(c[0], 0, c[2], 1, 1.2, { spin: { speed: 20 } }),
+      floorZ(0, 0, -26.05, -30, 6),
+      floorZ(0, 0, -30, -42, 9, { tone: "alt" }),
+    ],
+    flies: [...flyRing(c[0], 0, c[2], 5.5, 10), big(0, 0, -28)],
+    route: [
+      [0, 0, -8.6, 4],
+      [-4, 0, -13, 4],
+      [-4, 0, -21, 4],
+      [0, 0, -26, 4],
+      [0, 0, -39, 5],
+    ],
+  });
+}
+
+// Two seesaws: one rocks side to side, one tips forward and back.
+C.push({
+  id: "C-4",
+  name: "Lily Seesaw",
+  world: 0,
+  time: 70,
+  start: [0, 0, 0],
+  heading: 0,
+  goal: { at: [0, 0, -35], heading: 0, width: COOP_GOAL_W },
+  parts: [
+    floorZ(0, 0, 4, -3, 7, { tone: "alt" }),
+    floorZ(0, 0, -3.1, -15, 6, { tone: "moving", swing: { amp: 8, period: 4, pivot: [0, 0, -9] } }),
+    floorZ(0, 0, -15.1, -18, 6),
+    floorZ(0, 0, -18.1, -28, 6, { tone: "moving", swing: { amp: 6, period: 3.5, axis: [1, 0, 0], pivot: [0, 0, -23] } }),
+    floorZ(0, 0, -28.1, -40, 9, { tone: "alt" }),
+  ],
+  flies: [...flyLine([-2, 0, -5], [-2, 0, -13], 3), ...flyLine([2, 0, -5], [2, 0, -13], 3), ...flyLine([0, 0, -19], [0, 0, -27], 4), big(0, 0, -16.5)],
+  route: [
+    [0, 0, -3, 3.5],
+    [0, 0, -16.5, 3.5],
+    [0, 0, -28, 3.5],
+    [0, 0, -38, 5],
+  ],
+});
+
+// Two lanes swept by drifting blocks. Each block swings wide enough to clear
+// both lanes for a moment at each end of its swing.
+{
+  const pushers = [
+    { z: -11, period: 3.6, phase: 0 },
+    { z: -19, period: 4.1, phase: 0.3 },
+    { z: -26, period: 4.6, phase: 0.6 },
+  ];
+  const AMP = 4.2;
+  // The autopilot waits before each block and goes so it passes the block
+  // just as the block reaches the end of its swing (twice a period).
+  const route: Waypoint[] = [[0, 0, -3, 3.5]];
+  for (const b of pushers) {
+    const half = b.period / 2;
+    const peak = (((0.25 - b.phase) * b.period) % half + half) % half;
+    const from = (peak - 1.05 + half) % half;
+    const to = (peak - 0.75 + half) % half;
+    route.push([0, 0, b.z + 2.4, 3, 0.9]);
+    route.push([0, 0, b.z - 1.6, 4.5, 0.9, [half, from, to]]);
+  }
+  route.push([0, 0, -30, 3.5, 1.4], [0, 0, -41, 5]);
+  C.push({
+    id: "C-5",
+    name: "Current Lanes",
+    world: 2,
+    time: 90,
+    start: [0, 0, 0],
+    heading: 0,
+    goal: { at: [0, 0, -38], heading: 0, width: COOP_GOAL_W },
+    parts: [
+      floorZ(0, 0, 4, -4, 8, { tone: "alt" }),
+      floorZ(-1.5, 0, -4, -30, 1.9),
+      floorZ(1.5, 0, -4, -30, 1.9),
+      ...pushers.map((b): PartDef => ({ shape: "box", at: [0, 0.5, b.z], size: [1.2, 1, 1.4], tone: "bumper", move: { by: [AMP, 0, 0], period: b.period, phase: b.phase } })),
+      floorZ(0, 0, -30, -44, 9, { tone: "alt" }),
+    ],
+    flies: [...flyLine([-1.5, 0, -6], [-1.5, 0, -28], 6), ...flyLine([1.5, 0, -6], [1.5, 0, -28], 6), big(0, 0, -34)],
+    route,
+  });
+}
+
+// A chained ski jump, then a narrow bridge to the goal island.
+C.push({
+  id: "C-6",
+  name: "Dream Duet",
+  world: 4,
+  time: 90,
+  start: [0, 0, 0],
+  heading: 0,
+  goal: { at: [0, -8, -62], heading: 0, width: COOP_GOAL_W },
+  parts: [
+    floorZ(0, 0, 4, -6, 9, { tone: "alt" }),
+    ramp([0, 0, -6], [0, -5, -22], 9),
+    ...rails([0, 0, -6], [0, -5, -22], 9),
+    ramp([0, -5, -22], [0, -4, -26], 9, { tone: "alt" }),
+    floorZ(0, -8, -30, -50, 13),
+    floorZ(0, -8, -50, -57.5, 6),
+    disc(0, -8, -62, 5),
+  ],
+  pads: [
+    { at: [-1.4, 0, -3], heading: 0 },
+    { at: [1.4, 0, -3], heading: 0 },
+  ],
+  flies: [...flyLine([-2.5, -1, -9], [-2.5, -4, -19], 3), ...flyLine([2.5, -1, -9], [2.5, -4, -19], 3), { at: [0, -3, -30] }, { at: [0, -4, -34] }, ...flyLine([0, -8, -51], [0, -8, -56], 3), big(0, -8, -44)],
+  route: [
+    [0, 0, -6, 30],
+    [0, -5, -22, 30],
+    [0, -4, -26, 30],
+    [0, -8, -40, 5, 1.5],
+    [0, -8, -50, 3.5],
+    [0, -8, -65, 4],
+  ],
+});
+
+export const COOP_STAGES = C;

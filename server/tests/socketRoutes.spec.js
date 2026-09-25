@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import cryptClashRoutes from '../routes/cryptClash.js';
+import frogBallRoutes from '../routes/frogBall.js';
 import monsterBashRoutes from '../routes/monsterBash.js';
 
 // index.js registers @fastify/websocket once at the root. Each registration
@@ -8,13 +9,14 @@ import monsterBashRoutes from '../routes/monsterBash.js';
 // every connection would be handled twice. Both socket features must work
 // side by side on the shared registration.
 describe('socket routes share one websocket server', () => {
-    test('Monster Bash and Crypt Clash sockets both answer', async () => {
+    test('Monster Bash, Crypt Clash and Frog Ball sockets all answer', async () => {
         // The database is offline: Monster Bash keeps serving spectators.
         const offlineRepo = new Proxy({}, { get: () => async () => { throw new Error('offline'); } });
         const app = Fastify();
         await app.register(websocket);
         await app.register(monsterBashRoutes, { prefix: '/monster-bash', repo: offlineRepo });
         await app.register(cryptClashRoutes, { prefix: '/crypt-clash' });
+        await app.register(frogBallRoutes, { prefix: '/frog-ball' });
         await app.ready();
         const sockets = [];
         try {
@@ -29,6 +31,7 @@ describe('socket routes share one websocket server', () => {
             // count that follows still proves the socket is live.
             expect(['hello', 'chatHistory', 'viewers']).toContain((await firstMessage('/monster-bash/ws')).type);
             expect((await firstMessage('/crypt-clash/ws', { type: 'peek', code: 'nope' })).status).toBe('missing');
+            expect((await firstMessage('/frog-ball/ws', { type: 'peek', code: 'NOPE' })).status).toBe('missing');
         } finally {
             sockets.forEach((socket) => socket.terminate());
             await app.close();

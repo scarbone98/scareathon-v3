@@ -7,16 +7,24 @@ import { STAGES, WORLDS } from "../game/stages";
 import { useMenuInput } from "./hooks";
 import { Hints, MenuList, RankingTable, type MenuItem } from "./menus";
 import { ArcadeText, Cursor, FrogFace, Fly } from "./pixels";
-import { KEYS, pad, RAINBOW, WORLD_COLORS } from "./theme";
+import { KEYS, pad, RAINBOW, stagesFor, WORLD_COLORS } from "./theme";
 import { ordinal, type RankEntry } from "./storage";
 
 const SEGMENTS = 12;
+
+// Your partner in co-op, for the HUD.
+export interface PartnerInfo {
+  name: string;
+  seat: 0 | 1;
+  connected: boolean;
+  rtt: number;
+}
 const TOP_SPEED = 110; // km/h that fills the gauge
 
 // --- HUD -----------------------------------------------------------------------------
 
-export function HudView({ hud, portrait, onPause }: { hud: Hud; portrait: boolean; onPause: () => void }) {
-  const stage = STAGES[hud.stage];
+export function HudView({ hud, portrait, partner, onPause }: { hud: Hud; portrait: boolean; partner?: PartnerInfo; onPause: () => void }) {
+  const stage = stagesFor(hud.coop)[hud.stage];
   const color = WORLD_COLORS[stage.world];
   const secs = Math.floor(hud.timeLeft);
   const hund = Math.floor((hud.timeLeft - secs) * 100);
@@ -40,6 +48,19 @@ export function HudView({ hud, portrait, onPause }: { hud: Hud; portrait: boolea
           </span>
           <span className="fb-o text-[8px] text-[var(--cream)]">{stage.name.toUpperCase()}</span>
         </div>
+        {partner && (
+          <div className="mt-2 flex items-center gap-1.5 text-[8px]">
+            <span className="h-[6px] w-[6px]" style={{ background: partner.seat === 1 ? "#ff5fa8" : "#8cff5a", boxShadow: "0 0 0 1px #1a1033" }} />
+            <span className="fb-o text-white">{partner.name}</span>
+            {partner.connected ? (
+              <span className="fb-o" style={{ color: partner.rtt < 120 ? "#8cff5a" : partner.rtt < 250 ? "#ffd23f" : "#ff4a4a" }}>
+                {partner.rtt}MS
+              </span>
+            ) : (
+              <span className="fb-o fb-blink text-[var(--pink)]">LOST CONNECTION</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* the clock */}
@@ -103,8 +124,8 @@ export function HudView({ hud, portrait, onPause }: { hud: Hud; portrait: boolea
 
 // --- stage intro and banners -------------------------------------------------------------
 
-export function StageIntro({ stage }: { stage: number }) {
-  const s = STAGES[stage];
+export function StageIntro({ stage, coop = false }: { stage: number; coop?: boolean }) {
+  const s = stagesFor(coop)[stage];
   const color = WORLD_COLORS[s.world];
   return (
     <div className="fb-passthru pointer-events-none absolute inset-x-0 top-[17%]">
@@ -112,7 +133,7 @@ export function StageIntro({ stage }: { stage: number }) {
         <span className="fb-o text-[8px]" style={{ color }}>
           WORLD {s.world + 1} - {WORLDS[s.world].name.toUpperCase()}
         </span>
-        <ArcadeText text={`STAGE ${s.id}`} size={24} face="#ffffff" side={color} depth={3} className="mt-2" />
+        <ArcadeText text={coop ? `CO-OP ${s.id.slice(2)}` : `STAGE ${s.id}`} size={24} face="#ffffff" side={color} depth={3} className="mt-2" />
         <span className="fb-o mt-1 text-[16px] text-[var(--yellow)]">{s.name.toUpperCase()}</span>
       </div>
     </div>
@@ -182,6 +203,14 @@ export function Banner({ kind, text }: { kind: BannerKind; text: string }) {
         <Center top="62%">
           <span className="fb-blink-fast inline-block">
             <ArcadeText text={text} size={24} face="#ff8a1f" side="#8a2a00" depth={3} />
+          </span>
+        </Center>
+      );
+    case "coop":
+      return (
+        <Center top="62%">
+          <span className="fb-a-float inline-block" style={{ animationDuration: "1.8s" }}>
+            <ArcadeText text={text} size={16} face="#45e3ff" side="#1f4fb0" depth={2} />
           </span>
         </Center>
       );
@@ -276,6 +305,7 @@ export function Tally({ info, practice, stageTime, touch, onSkip }: { info: Clea
 
 export function Pause({
   practice,
+  coop = false,
   lives,
   touch,
   sound,
@@ -285,6 +315,7 @@ export function Pause({
   onQuit,
 }: {
   practice: boolean;
+  coop?: boolean;
   lives: number;
   touch: boolean;
   sound: boolean;
@@ -293,12 +324,15 @@ export function Pause({
   onSound: () => void;
   onQuit: () => void;
 }) {
-  const rows: (MenuItem & { act: () => void })[] = [
-    { label: "CONTINUE", act: onResume },
-    { label: "RETRY", note: practice ? undefined : "-1 LIFE", disabled: !practice && lives <= 0, act: onRetry },
-  ];
+  // A co-op world can't stop for one player, so there's no retry either.
+  const rows: (MenuItem & { act: () => void })[] = coop
+    ? [{ label: "CONTINUE", act: onResume }]
+    : [
+        { label: "CONTINUE", act: onResume },
+        { label: "RETRY", note: practice ? undefined : "-1 LIFE", disabled: !practice && lives <= 0, act: onRetry },
+      ];
   rows.push({ label: "SOUND", value: sound ? "ON" : "OFF", act: onSound });
-  rows.push({ label: "QUIT", act: onQuit });
+  rows.push({ label: coop ? "LEAVE ROOM" : "QUIT", act: onQuit });
   const [sel, setSel] = useState(0);
   const pick = (i: number) => {
     const r = rows[i];
@@ -323,7 +357,8 @@ export function Pause({
   });
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1a1033]/70">
-      <ArcadeText text="PAUSE" size={40} face="#ffd23f" side="#c2560a" depth={5} anim="drop" />
+      <ArcadeText text={coop ? "MENU" : "PAUSE"} size={40} face="#ffd23f" side="#c2560a" depth={5} anim="drop" />
+      {coop && <span className="fb-o fb-blink mt-3 text-[8px] text-[var(--pink)]">THE GAME KEEPS GOING!</span>}
       <div className="mt-6">
         <MenuList width={220} items={rows} sel={sel} onHover={setSel} onPick={(i) => (setSel(i), pick(i))} />
       </div>
@@ -475,7 +510,7 @@ function useOnce(cb: () => void, ms: number) {
   return fire;
 }
 
-export function GameOverSplash({ result, touch, onNext }: { result: RunResult; touch: boolean; onNext: () => void }) {
+export function GameOverSplash({ result, touch, coop = false, onNext }: { result: RunResult; touch: boolean; coop?: boolean; onNext: () => void }) {
   const next = useOnce(onNext, result.cleared ? 5000 : 3500);
   useMenuInput(true, { ok: next, back: next });
   return (
@@ -484,7 +519,7 @@ export function GameOverSplash({ result, touch, onNext }: { result: RunResult; t
         <>
           <Confetti />
           <ArcadeText text="ALL CLEAR!" size={40} colors={RAINBOW} depth={5} anim="wave" />
-          <div className="fb-o mt-3 text-[8px] text-[var(--cream)]">SWEET DREAMS, LITTLE FROG</div>
+          <div className="fb-o mt-3 text-[8px] text-[var(--cream)]">{coop ? "SWEET DREAMS, LITTLE FROGS" : "SWEET DREAMS, LITTLE FROG"}</div>
         </>
       ) : (
         <ArcadeText text="GAME OVER" size={40} face="#ff5fa8" side="#8a1a50" depth={5} anim="drop" />
@@ -496,7 +531,7 @@ export function GameOverSplash({ result, touch, onNext }: { result: RunResult; t
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <span className="fb-o text-[var(--cyan)]">STAGE</span>
-          <span className="fb-o text-[16px] text-white">{STAGES[result.stage].id}</span>
+          <span className="fb-o text-[16px] text-white">{stagesFor(coop)[result.stage].id}</span>
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <span className="fb-o text-[var(--yellow)]">FLIES</span>

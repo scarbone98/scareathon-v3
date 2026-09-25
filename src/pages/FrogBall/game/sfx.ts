@@ -47,6 +47,11 @@ export const sfx = {
   fallout: () => tone(900, 1.2, "triangle", 0.1, 80),
   timeover: () => [400, 300, 200].forEach((f, i) => tone(f, 0.3, "square", 0.07, undefined, i * 0.25)),
   oneUp: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.1, "square", 0.05, undefined, i * 0.08)),
+  // The chain snapping taut.
+  yank: (k: number) => {
+    tone(90 + k * 60, 0.12, "sawtooth", 0.05 + k * 0.08, 50);
+    tone(1400, 0.05, "square", 0.02 + k * 0.03, 900);
+  },
   move: () => tone(660, 0.05, "square", 0.04),
   select: () => {
     tone(880, 0.06, "square", 0.05);

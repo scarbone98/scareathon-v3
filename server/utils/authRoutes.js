@@ -17,6 +17,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && (url.startsWith('/monster-bash/ws') || url.startsWith('/monster-bash/recent'))) ||
         // Crypt Clash friend matches are open to guests.
         (method === 'GET' && url.startsWith('/crypt-clash/ws')) ||
+        // So are Frog Ball co-op rooms.
+        (method === 'GET' && url.startsWith('/frog-ball/ws')) ||
         method === 'OPTIONS'
     );
 }

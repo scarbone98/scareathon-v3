@@ -18,6 +18,7 @@ import adminStrapiRoutes from './routes/adminStrapi.js';
 import homeRoutes from './routes/home.js';
 import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js';
 import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
+import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 
@@ -159,6 +160,9 @@ async function main() {
         }
         if (isCryptClashEnabled()) {
             fastify.register(cryptClashRoutes, { prefix: '/crypt-clash' });
+        }
+        if (isFrogBallEnabled()) {
+            fastify.register(frogBallRoutes, { prefix: '/frog-ball' });
         }
 
         // Run the server!
