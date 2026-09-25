@@ -1,7 +1,7 @@
 // Runs a Horde Rush game on a canvas: fixed-step simulation, drawing, and
 // steering by drag or keyboard. React only sees the HUD numbers.
 import { loadAssets, Renderer } from "./render";
-import { levelProgress, newGame, step, type GameState } from "./sim";
+import { levelProgress, newGame, step, type GameOptions, type GameState } from "./sim";
 
 const STEP = 1 / 60;
 
@@ -55,13 +55,13 @@ export class GameController {
     window.addEventListener("keyup", this.onKeyUp);
   }
 
-  async start(demo = false) {
+  async start(demo = false, options: GameOptions = {}) {
     const assets = await loadAssets();
     if (this.disposed) return;
     this.renderer ??= new Renderer(this.canvas, assets);
     this.resize();
     this.demo = demo;
-    this.state = newGame();
+    this.state = newGame(undefined, options);
     this.paused = false;
     this.acc = 0;
     this.last = performance.now();

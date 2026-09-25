@@ -1,7 +1,7 @@
 // Draws a Horde Rush state onto a 2D canvas: a pixel-art road running into
 // the distance (drawn a scanline at a time, like old racing games) with
 // every sprite scaled by its depth. Reads the state; never changes it.
-import { MAX_VISIBLE_SOLDIERS, MONSTERS, ROAD_HALF, SOLDIER_SPACING, squadRadius, type Barrel, type Enemy, type GameEvent, type GameState, type Gate, type MonsterId } from "./sim";
+import { formatCount, MAX_VISIBLE_SOLDIERS, MONSTERS, ROAD_HALF, SOLDIER_SPACING, squadRadius, type Barrel, type Enemy, type GameEvent, type GameState, type Gate, type MonsterId } from "./sim";
 
 interface SheetDef {
   url: string;
@@ -210,7 +210,7 @@ export class Renderer {
           const g = e.gate;
           const diff = e.after - e.before;
           const good = g.kind === "fire" ? g.value >= 0 : diff >= 0;
-          const text = g.kind === "fire" ? `${g.value >= 0 ? "+" : ""}${Math.floor(g.value)}% FIRE` : `${diff >= 0 ? "+" : ""}${diff}`;
+          const text = g.kind === "fire" ? `${g.value >= 0 ? "+" : ""}${Math.floor(g.value)}% FIRE` : `${diff >= 0 ? "+" : ""}${formatCount(diff)}`;
           this.floaters.push({ follow: true, text, color: good ? "#7dffb0" : "#ff5a6a", x: state.x, y: 2.6, z: state.z + 2, life: 1.2, max: 1.2, size: 1.1 });
           this.flash = 0.25;
           this.flashColor = good ? "#6ae0ff" : "#ff2d55";
@@ -219,7 +219,7 @@ export class Renderer {
         case "barrel": {
           const b = e.barrel;
           for (let i = 0; i < 18; i++) this.spark(b.x, 0.7, b.z, i % 2 ? "#3aa06a" : "#ffcf4a", 6, 0.6);
-          const text = b.reward.kind === "add" ? `+${b.reward.amount}` : `+${b.reward.amount}% FIRE`;
+          const text = b.reward.kind === "add" ? `+${formatCount(b.reward.amount)}` : `+${b.reward.amount}% FIRE`;
           this.floaters.push({ text, color: "#ffcf4a", x: b.x, y: 1.8, z: b.z, life: 1.1, max: 1.1, size: 0.9 });
           break;
         }
@@ -538,7 +538,7 @@ export class Renderer {
     ctx.globalAlpha = 1;
 
     const v = Math.floor(g.value);
-    const label = g.kind === "mul" ? `x${v}` : g.kind === "fire" ? `${v >= 0 ? "+" : ""}${v}%` : `${v >= 0 ? "+" : ""}${v}`;
+    const label = g.kind === "mul" ? `x${v}` : g.kind === "fire" ? `${v >= 0 ? "+" : ""}${v}%` : `${v >= 0 ? "+" : ""}${formatCount(v)}`;
     const size = Math.max(10, s * 1.05);
     const mid = (left + right) / 2;
     const cy = top + (bottom - top) * (g.kind === "fire" ? 0.38 : 0.45);
@@ -552,8 +552,8 @@ export class Renderer {
     const r = this.drawSprite("barrel", b.x, 0, b.z, 0, false, 1, b.hitT > 0 ? 0.6 : 0);
     if (!r) return;
     const size = Math.max(9, r.s * 0.6);
-    this.text(String(Math.ceil(b.hp)), r.x, r.top - size * 0.5, size, "#ffffff", r.alpha);
-    const reward = b.reward.kind === "add" ? `+${b.reward.amount}` : `+${b.reward.amount}%`;
+    this.text(formatCount(Math.ceil(b.hp)), r.x, r.top - size * 0.5, size, "#ffffff", r.alpha);
+    const reward = b.reward.kind === "add" ? `+${formatCount(b.reward.amount)}` : `+${b.reward.amount}%`;
     const color = b.reward.kind === "add" ? "#7dffb0" : "#ffb04a";
     this.text(reward, r.x, r.top + r.h * 0.55, size * 0.8, color, r.alpha);
   }
@@ -571,7 +571,7 @@ export class Renderer {
     const r = this.drawSprite(e.type, e.x, bob + lunge, e.z, frame, flip, mul, e.hitT > 0 ? 0.7 : 0);
     if (!r) return;
     const size = Math.max(e.boss ? 14 : 9, r.s * (e.boss ? 0.9 : 0.55));
-    this.text(String(Math.ceil(e.hp)), r.x, r.top - size * 0.6, size, e.boss ? "#ffcf4a" : "#ffffff", r.alpha);
+    this.text(formatCount(Math.ceil(e.hp)), r.x, r.top - size * 0.6, size, e.boss ? "#ffcf4a" : "#ffffff", r.alpha);
   }
 
   private collectSoldiers(state: GameState, items: { z: number; draw: () => void }[]) {
@@ -605,7 +605,7 @@ export class Renderer {
     if (!p) return;
     const { ctx } = this;
     const size = Math.max(14, this.cam.unit * 0.55);
-    const label = String(state.army);
+    const label = formatCount(state.army);
     ctx.font = `700 ${Math.round(size)}px ${FONT}`;
     const w = ctx.measureText(label).width + size * 1.1;
     const h = size * 1.35;

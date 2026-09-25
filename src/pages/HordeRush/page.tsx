@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Embers, Panel, Sprite } from "../Royale/ui/parts";
 import { ORANGE, PURPLE, SPRITES } from "../Royale/ui/theme";
 import { GameController, type Hud, type RunResult } from "./game/controller";
+import { formatCount } from "./game/sim";
 
 const BEST_KEY = "horde-rush-best";
 
@@ -19,6 +20,15 @@ function saveBest(score: number) {
   } catch {
     // Not remembered; fine.
   }
+}
+
+// In dev, /horde-rush?level=12&army=5000 starts a run later on, for testing.
+function devStart() {
+  if (!import.meta.env.DEV) return {};
+  const params = new URLSearchParams(window.location.search);
+  const level = Number(params.get("level")) || undefined;
+  const army = Number(params.get("army")) || undefined;
+  return { level, army };
 }
 
 const HERO_SPRITES = [SPRITES.joe, SPRITES.matt, SPRITES.alex, SPRITES.jon];
@@ -101,7 +111,7 @@ function HudBar({ hud, onPause }: { hud: Hud; onPause: () => void }) {
       <div className="mt-2 flex items-start justify-between">
         <div className="cc-outline text-xl text-white">{hud.score.toLocaleString()}</div>
         <div className="cc-outline-sm rounded border-2 border-[#140a1c] bg-[#3a1a08]/85 px-2 py-0.5 text-sm text-[#ffb04a]">
-          FIRE {Math.round(hud.fire * 100)}%
+          FIRE {formatCount(Math.round(hud.fire * 100))}%
         </div>
       </div>
       {hud.boss && (
@@ -224,8 +234,9 @@ export default function HordeRush() {
     setHud(null);
     setPaused(false);
     setView("playing");
-    showBanner("LEVEL 1", "#ffcf4a");
-    void ctrlRef.current?.start(false);
+    const options = devStart();
+    showBanner(`LEVEL ${options.level ?? 1}`, "#ffcf4a");
+    void ctrlRef.current?.start(false, options);
   };
 
   const menu = () => {

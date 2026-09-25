@@ -14,8 +14,8 @@ const BASE_RATE = 1.6;
 // Bullets actually simulated per second; past this each bullet hits harder.
 const MAX_BULLETS_PER_SEC = 45;
 const STEER_SPEED = 16;
-const MAX_ARMY = 9999;
-const MAX_FIRE = 2.5;
+// The army and fire rate a run starts with; level 1 is designed around them.
+const START_ARMY = 8;
 // Monsters start walking once they're this close.
 const WAKE_DISTANCE = 44;
 const SEGMENT_GAP = 19;
@@ -116,6 +116,16 @@ export type GameEvent =
   | { type: "boss"; enemy: Enemy }
   | { type: "over" };
 
+// Every level is built for the army you bring into it (see levelScale).
+export interface LevelScale {
+  // Your army at the start of the level, relative to START_ARMY.
+  army: number;
+  // Your firepower (army x fire rate), relative to level 1's.
+  power: number;
+  // How much tougher than level 1 this level is, beyond your size.
+  ramp: number;
+}
+
 export interface GameState {
   t: number;
   z: number;
@@ -125,6 +135,7 @@ export interface GameState {
   // Fire rate multiplier, 1 = 100%.
   fire: number;
   level: number;
+  scale: LevelScale;
   levelStartZ: number;
   bossZ: number;
   score: number;
@@ -152,9 +163,39 @@ export function makeRng(seed: number) {
   };
 }
 
-// How much tougher each level is: monster HP and gate costs scale with it.
-export function difficulty(level: number) {
-  return Math.pow(1.85, level - 1);
+// How much tougher monsters and barrels are than in level 1, once your
+// army's size is taken out of the picture. It's the only thing that makes
+// later levels harder. The chance of clearing a level falls off a cliff as
+// HP rises (past a point monsters outlive your fire and leak through), so
+// this rises quickly and then levels off toward 1.42x: each level is a bit
+// riskier than the last (a good player clears ~98% of level 1, ~80% of
+// level 10, ~70% by level 20) without ever becoming impossible. Check with
+// `npm run balance:horde-rush` after changing it.
+export function levelRamp(level: number) {
+  return 1 + 0.42 * (1 - Math.exp(-(level - 1) / 12));
+}
+
+// The game is scale-free: everything in a level (monster HP, how many
+// heroes a monster takes, gate and barrel values, what it costs to shoot a
+// gate up) is a multiple of the army and firepower you arrive with. A level
+// with 5,000 heroes plays exactly like one with 8, so doubling at an x2
+// gate helps for the rest of that level but can't break the game, and
+// falling behind doesn't doom you. Only levelRamp makes levels harder.
+function levelScale(state: GameState): LevelScale {
+  const army = Math.max(1, state.army / START_ARMY);
+  const power = Math.max(1, (state.army * state.fire) / START_ARMY);
+  return { army, power, ramp: levelRamp(state.level) };
+}
+
+// Armies have no cap (a cap would stop x2 gates working and break the
+// scaling), so big numbers are shortened: 12,345 -> 12.3K, 4.56M, 7.8B...
+const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi"];
+export function formatCount(n: number) {
+  const abs = Math.abs(n);
+  if (abs < 10_000) return `${Math.round(n)}`;
+  const tier = Math.min(SUFFIXES.length - 1, Math.floor(Math.log10(abs) / 3));
+  const sign = n < 0 ? "-" : "";
+  return `${sign}${+(abs / 10 ** (tier * 3)).toPrecision(3)}${SUFFIXES[tier]}`;
 }
 
 // The army stands in a sunflower spiral this far apart; past
@@ -167,15 +208,22 @@ export function squadRadius(army: number) {
   return 0.25 + SOLDIER_SPACING * Math.sqrt(Math.min(army, MAX_VISIBLE_SOLDIERS));
 }
 
-export function newGame(seed = Math.floor(Math.random() * 1e9)): GameState {
+export interface GameOptions {
+  // Start later in a run, for testing.
+  level?: number;
+  army?: number;
+}
+
+export function newGame(seed = Math.floor(Math.random() * 1e9), options: GameOptions = {}): GameState {
   const state: GameState = {
     t: 0,
     z: 0,
     x: 0,
     targetX: 0,
-    army: 8,
+    army: options.army ?? START_ARMY,
     fire: 1,
-    level: 1,
+    level: options.level ?? 1,
+    scale: { army: 1, power: 1, ramp: 1 },
     levelStartZ: 0,
     bossZ: 0,
     score: 0,
@@ -207,17 +255,18 @@ function between(rng: () => number, lo: number, hi: number) {
 
 function addGatePair(state: GameState, z: number, index: number) {
   const { rng, level } = state;
-  const d = difficulty(level);
-  const plus = () => ({ kind: "add" as const, value: between(rng, 4, 10) * Math.ceil(d) });
-  const minus = () => ({ kind: "add" as const, value: -between(rng, 5, 12) * Math.ceil(d) });
+  const { army } = state.scale;
+  const plus = () => ({ kind: "add" as const, value: Math.round(between(rng, 4, 10) * army) });
+  const minus = () => ({ kind: "add" as const, value: -Math.round(between(rng, 5, 12) * army) });
   const fireUp = () => ({ kind: "fire" as const, value: between(rng, 2, 5) * 5 });
   const fireDown = () => ({ kind: "fire" as const, value: -between(rng, 2, 4) * 5 });
   const times = () => ({ kind: "mul" as const, value: 2 });
 
-  // The first door of a run is free; after that most pairs have a trap,
-  // and from level 2 some are all traps until you shoot one good.
+  // Every level opens with a free door, so each one plays like level 1
+  // at your new size; after that most pairs have a trap, and from level 2
+  // some are all traps until you shoot one good.
   const options: { kind: GateKind; value: number }[][] =
-    index === 0 && level === 1
+    index === 0
       ? [[plus(), plus()]]
       : [
           [plus(), minus()],
@@ -249,15 +298,15 @@ function addGatePair(state: GameState, z: number, index: number) {
 }
 
 function addBarrels(state: GameState, z: number) {
-  const { rng, level } = state;
-  const d = difficulty(level);
+  const { rng } = state;
+  const { army, power, ramp } = state.scale;
   const count = rng() < 0.5 ? 2 : 3;
   const lanes = count === 2 ? [-2.6, 2.6] : [-3.3, 0, 3.3];
   for (const x of lanes) {
-    const hp = Math.round(between(rng, 12, 24) * d);
+    const hp = Math.round(between(rng, 12, 24) * power * ramp);
     const reward =
       rng() < 0.6
-        ? { kind: "add" as const, amount: between(rng, 3, 8) * Math.ceil(d) }
+        ? { kind: "add" as const, amount: Math.round(between(rng, 3, 8) * army) }
         : { kind: "fire" as const, amount: between(rng, 2, 4) * 5 };
     state.barrels.push({ id: state.nextId++, x, z: z + rng() * 2, hp, maxHp: hp, reward, hitT: 0 });
   }
@@ -265,8 +314,8 @@ function addBarrels(state: GameState, z: number) {
 
 function spawnEnemy(state: GameState, type: MonsterId, x: number, z: number, boss = false) {
   const stats = MONSTERS[type];
-  const d = difficulty(state.level);
-  const hp = boss ? Math.round(stats.hp * 8 * d * (1 + 0.15 * (state.level - 1))) : Math.max(1, Math.round(stats.hp * d));
+  const { power, ramp } = state.scale;
+  const hp = Math.max(1, Math.round(stats.hp * (boss ? 8 : 1) * power * ramp));
   const enemy: Enemy = {
     id: state.nextId++,
     type,
@@ -295,8 +344,7 @@ function addWave(state: GameState, z: number, strength: number) {
   while (budget > 2) {
     const affordable = pool.filter((id) => MONSTERS[id].hp <= budget);
     if (!affordable.length) break;
-    // Lean toward the tougher monsters you can afford.
-    const type = affordable[Math.floor(Math.pow(rng(), 0.7) * affordable.length)];
+    const type = pick(rng, affordable);
     budget -= MONSTERS[type].hp;
     const x = (rng() * 2 - 1) * (ROAD_HALF - 0.8);
     spawnEnemy(state, type, x, z + row * 1.1 + rng() * 0.8);
@@ -310,10 +358,12 @@ function buildLevel(state: GameState, startGap: number) {
   const { level } = state;
   const start = state.z + startGap;
   state.levelStartZ = state.z;
+  state.scale = levelScale(state);
   let gateIndex = 0;
   for (let i = 0; i < SEGMENTS_PER_LEVEL; i++) {
     const z = start + i * SEGMENT_GAP;
-    const waveStrength = (8 + i * 9) * (1 + (level - 1) * 0.3);
+    // In level-1 HP; monsters get tougher per level (levelRamp), not more numerous.
+    const waveStrength = (8 + i * 9) * 0.8;
     if (i % 2 === 0) {
       addGatePair(state, z, gateIndex++);
       if (i >= 2) addWave(state, z + 9, waveStrength * 0.5);
@@ -335,30 +385,39 @@ function applyGate(state: GameState, gate: Gate) {
   const value = Math.floor(gate.value);
   if (gate.kind === "add") state.army += value;
   if (gate.kind === "mul") state.army *= value;
-  if (gate.kind === "fire") state.fire = Math.min(MAX_FIRE, Math.max(0.4, state.fire * (1 + value / 100)));
-  state.army = Math.min(MAX_ARMY, Math.max(0, state.army));
+  if (gate.kind === "fire") state.fire *= 1 + value / 100;
+  state.army = Math.max(0, state.army);
   state.events.push({ type: "gate", gate, before, after: state.army });
 }
 
-// Each +1 on a gate costs a little more than the last, so shooting one
-// door all game can't grow the army without limit.
-function gateStepCost(gate: Gate, d: number) {
-  if (gate.kind === "fire") return d * (6 + Math.max(0, gate.value) * 1.2);
-  return d * (1.5 + Math.max(0, gate.value) * 0.5);
+// How much a hero gate's number goes up per step: 1 for small armies,
+// then 10, 100... so big gates tick up in round numbers.
+function gateIncrement(scale: LevelScale) {
+  return Math.pow(10, Math.max(0, Math.floor(Math.log10(scale.army / 3))));
+}
+
+// Damage to raise a gate one step. Each step costs a little more than the
+// last (measured in level-1 units), so shooting one door all game can't
+// grow the army without limit.
+function gateStepCost(gate: Gate, scale: LevelScale) {
+  if (gate.kind === "fire") return scale.power * (6 + Math.max(0, gate.value) * 1.2);
+  const inc = gateIncrement(scale);
+  const baseValue = Math.max(0, gate.value) / scale.army;
+  return (inc / scale.army) * scale.power * (1.5 + baseValue * 0.5);
 }
 
 function hurtGate(state: GameState, gate: Gate, dmg: number) {
-  const d = difficulty(state.level);
   gate.progress += dmg;
   gate.hitT = 0.12;
   // Multipliers are fixed: shooting one just wastes bullets.
   if (gate.kind === "mul") return;
   const cap = gate.kind === "fire" ? 30 : Infinity;
-  let cost = gateStepCost(gate, d);
+  const inc = gate.kind === "fire" ? 5 : gateIncrement(state.scale);
+  let cost = gateStepCost(gate, state.scale);
   while (gate.progress >= cost && gate.value < cap) {
     gate.progress -= cost;
-    gate.value += gate.kind === "fire" ? 5 : 1;
-    cost = gateStepCost(gate, d);
+    gate.value += inc;
+    cost = gateStepCost(gate, state.scale);
   }
 }
 
@@ -375,10 +434,13 @@ function loseSoldiers(state: GameState, count: number) {
   return lost;
 }
 
-// What a monster costs you when it reaches the army: one soldier per
-// couple of HP it has left, so wounded monsters hurt less.
-function biteSize(enemy: Enemy) {
-  return Math.ceil(enemy.hp / 2);
+// Converts HP left on a monster or barrel into heroes lost. At level 1
+// it's one hero per 2 HP; in general HP is measured against the firepower
+// the level was built for and heroes against its army size, so a high fire
+// rate helps you kill things without making their hits bigger.
+function heroesFor(state: GameState, hp: number, hpPerHero: number) {
+  const { army, power } = state.scale;
+  return (hp / power / hpPerHero) * army;
 }
 
 type Target = { kind: "gate"; gate: Gate } | { kind: "barrel"; barrel: Barrel } | { kind: "enemy"; enemy: Enemy };
@@ -460,8 +522,8 @@ export function step(state: GameState, dt: number) {
         state.events.push({ type: "hit", x: b.x, z: t.barrel.z, y: 0.6 });
         if (t.barrel.hp <= 0) {
           const { reward } = t.barrel;
-          if (reward.kind === "add") state.army = Math.min(MAX_ARMY, state.army + reward.amount);
-          else state.fire = Math.min(MAX_FIRE, state.fire * (1 + reward.amount / 100));
+          if (reward.kind === "add") state.army += reward.amount;
+          else state.fire *= 1 + reward.amount / 100;
           state.events.push({ type: "barrel", barrel: t.barrel });
           state.barrels = state.barrels.filter((x) => x !== t.barrel);
         }
@@ -495,7 +557,7 @@ export function step(state: GameState, dt: number) {
       } else {
         // The boss plants itself on the army and eats a few soldiers a second.
         e.chewing = true;
-        e.chewAcc += dt * (4 + 1.5 * state.level);
+        e.chewAcc += dt * 5.5 * state.scale.army * Math.sqrt(state.scale.ramp);
         if (e.chewAcc >= 1) {
           const lost = loseSoldiers(state, Math.floor(e.chewAcc));
           e.chewAcc -= Math.floor(e.chewAcc);
@@ -511,7 +573,7 @@ export function step(state: GameState, dt: number) {
       e.x += pull;
     }
     if (e.z <= contactZ && Math.abs(e.x - state.x) < r + e.radius * 0.8) {
-      const lost = loseSoldiers(state, biteSize(e));
+      const lost = loseSoldiers(state, heroesFor(state, e.hp, 2));
       state.events.push({ type: "bite", enemy: e, lost });
       e.hp = 0;
     } else if (e.z < state.z - 2) {
@@ -523,7 +585,7 @@ export function step(state: GameState, dt: number) {
   for (const barrel of state.barrels) {
     if (barrel.z > state.z + r * 0.5 || barrel.hp <= 0) continue;
     if (Math.abs(barrel.x - state.x) < r + 0.6) {
-      const lost = loseSoldiers(state, barrel.hp / 3);
+      const lost = loseSoldiers(state, heroesFor(state, barrel.hp, 3));
       state.events.push({ type: "barrelCrash", barrel, lost });
     }
     barrel.hp = 0;
