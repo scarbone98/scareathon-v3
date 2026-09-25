@@ -54,6 +54,8 @@ export default function FrogBall() {
   const [intro, setIntro] = useState(0); // key of the stage intro showing, 0 for none
   const [banner, setBanner] = useState<{ kind: BannerKind; text: string; key: number } | null>(null);
   const [oneUp, setOneUp] = useState(0);
+  // Co-op notes about your partner show alongside the main banner.
+  const [coopNote, setCoopNote] = useState<{ text: string; key: number } | null>(null);
   const [clear, setClear] = useState<ClearInfo | null>(null);
   const [paused, setPaused] = useState(false);
   const [practice, setPractice] = useState(false);
@@ -107,6 +109,7 @@ export default function FrogBall() {
       },
       onBanner: (text, kind) => {
         if (kind === "oneup") setOneUp((k) => k + 1);
+        else if (kind === "coop") setCoopNote({ text, key: Date.now() + Math.random() });
         else setBanner({ text, kind, key: Date.now() + Math.random() });
       },
       onClear: (info) => {
@@ -160,6 +163,11 @@ export default function FrogBall() {
     const t = window.setTimeout(() => setBanner(null), banner.kind === "goal" ? 2600 : banner.kind === "fall" ? 2200 : 1300);
     return () => window.clearTimeout(t);
   }, [banner]);
+  useEffect(() => {
+    if (!coopNote) return;
+    const t = window.setTimeout(() => setCoopNote(null), 1900);
+    return () => window.clearTimeout(t);
+  }, [coopNote]);
   useEffect(() => {
     if (!intro) return;
     const t = window.setTimeout(() => setIntro(0), 2300);
@@ -247,9 +255,6 @@ export default function FrogBall() {
       case "fly":
         ctrl?.coopFly(m.id, m.seat);
         break;
-      case "goal":
-        ctrl?.coopGoal(m.seat, partnerName());
-        break;
       case "outcome":
         ctrl?.coopOutcome(m, partnerName());
         break;
@@ -305,13 +310,18 @@ export default function FrogBall() {
   };
 
   // A room link joins straight away; a reload mid-game rejoins the room.
-  // (Under StrictMode's double mount the first socket closes before it
-  // connects, so its queued join is never sent.)
+  // It waits a tick so StrictMode's throwaway first mount is cancelled
+  // before any socket opens (otherwise its join could take the seat).
   useEffect(() => {
-    const code = linkedRoom();
-    if (code.length === 4) joinRoom(code);
-    else if (CoopSocket.hasSession()) openSocket(true);
-    return () => closeSocket(false);
+    const timer = window.setTimeout(() => {
+      const code = linkedRoom();
+      if (code.length === 4) joinRoom(code);
+      else if (CoopSocket.hasSession()) openSocket(true);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      closeSocket(false);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -465,6 +475,7 @@ export default function FrogBall() {
         )}
         {view === "play" && intro > 0 && !paused && <StageIntro key={intro} stage={stage} coop={coopRun} />}
         {view === "play" && banner && !paused && <Banner key={banner.key} kind={banner.kind} text={banner.text} />}
+        {view === "play" && coopNote && !paused && <Banner key={coopNote.key} kind="coop" text={coopNote.text} />}
         {view === "play" && oneUp > 0 && <Banner key={`1up${oneUp}`} kind="oneup" text="1UP!" />}
         {view === "play" && clear && !paused && <Tally info={clear} practice={practice} stageTime={stagesFor(coopRun)[stage].time} touch={touch} onSkip={() => ctrlRef.current?.skip()} />}
         {view === "play" && paused && (

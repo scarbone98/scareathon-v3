@@ -752,8 +752,8 @@ S.push({
 export const STAGES = S;
 
 // --- co-op stages ---------------------------------------------------------------------
-// Two chained balls, one per player. Paths are wider, goals are wide enough
-// for both balls side by side, and both have to roll through.
+// Two chained balls, one per player. Paths are wider and goals wide enough
+// for both balls side by side; either ball through the goal clears it.
 
 const COOP_GOAL_W = 6;
 const C: StageDef[] = [];

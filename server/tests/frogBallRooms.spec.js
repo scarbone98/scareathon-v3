@@ -107,7 +107,7 @@ describe('frog ball co-op rooms', () => {
         expect(s.guest.of('peer').length).toBeLessThanOrEqual(45);
     });
 
-    test('both balls through the goal clears the stage and moves on', () => {
+    test('either ball through the goal clears the stage and moves on', () => {
         const s = setup();
         s.startRun(3);
         s.rooms.fly(s.host, { attempt: 1, id: 2, big: false });
@@ -115,19 +115,28 @@ describe('frog ball co-op rooms', () => {
         s.rooms.fly(s.guest, { attempt: 1, id: 7, big: true });
         expect(s.host.of('fly')).toHaveLength(2);
 
-        s.rooms.goal(s.host, { attempt: 1, left: 50, limit: 60 });
-        expect(s.guest.last('goal')).toEqual({ type: 'goal', seat: 0 });
-        expect(s.host.of('outcome')).toHaveLength(0);
         s.rooms.goal(s.guest, { attempt: 1, left: 40, limit: 60 });
-        // The later ball's time counts: 40s left, 11 flies, more than half the time left.
+        // 40s left, 11 flies, more than half the time left; the guest got them through.
         const outcome = s.host.last('outcome');
-        expect(outcome).toMatchObject({ kind: 'clear', score: (4000 + 1100) * 2, lives: START_LIVES });
+        expect(outcome).toMatchObject({ kind: 'clear', seat: 1, score: (4000 + 1100) * 2, lives: START_LIVES });
         expect(s.guest.last('outcome')).toEqual(outcome);
+        // The other ball arriving later changes nothing.
+        s.rooms.goal(s.host, { attempt: 1, left: 38, limit: 60 });
+        expect(s.host.of('outcome')).toHaveLength(1);
 
         s.advance(CLEAR_MS - 1);
         expect(s.host.last('start').stage).toBe(0);
         s.advance(1);
         expect(s.host.last('start')).toMatchObject({ stage: 1, attempt: 2, score: 10200 });
+    });
+
+    test('a goal and a fall at the same moment: the first report wins', () => {
+        const s = setup();
+        s.startRun(3);
+        s.rooms.fail(s.host, { attempt: 1, why: 'fall' });
+        s.rooms.goal(s.guest, { attempt: 1, left: 30, limit: 60 });
+        expect(s.host.of('outcome')).toHaveLength(1);
+        expect(s.host.last('outcome')).toMatchObject({ kind: 'fall', seat: 0 });
     });
 
     test('a fall costs a shared life and retries the stage; out of lives ends the run', () => {
@@ -150,7 +159,6 @@ describe('frog ball co-op rooms', () => {
         const s = setup();
         s.startRun(1);
         s.rooms.goal(s.host, { attempt: 1, left: 10, limit: 60 });
-        s.rooms.goal(s.guest, { attempt: 1, left: 10, limit: 60 });
         s.advance(CLEAR_MS);
         expect(s.guest.last('over')).toMatchObject({ cleared: true, reason: 'cleared', score: 1000 });
     });
