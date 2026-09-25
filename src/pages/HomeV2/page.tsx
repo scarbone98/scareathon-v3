@@ -513,16 +513,17 @@ function ComingUp() {
 }
 
 function News() {
-  const { data, isLoading } = useQuery<ContentLoopItem[]>({
+  // Shares its cache entry with ContentLoop (the Scareathon page's challenge
+  // card), so it stores the whole response the same way and picks the list out
+  // with select. Caching just the list here blanked that card.
+  const { data, isLoading } = useQuery<{ data?: ContentLoopItem[] }, Error, ContentLoopItem[]>({
     queryKey: ["content-loop"],
     queryFn: async () => {
       const response = await fetchWithAuth("/content-loop");
       if (!response.ok) throw new Error("Couldn't load news");
-      return (await response.json()).data ?? [];
+      return response.json();
     },
-    select: (payload: unknown) =>
-      // Shares the cache with ContentLoop, which stores the whole response
-      Array.isArray(payload) ? payload : ((payload as { data?: ContentLoopItem[] })?.data ?? []),
+    select: (payload) => payload?.data ?? [],
     staleTime: 1000 * 60 * 5,
   });
   const items = (data ?? []).slice(0, 3);

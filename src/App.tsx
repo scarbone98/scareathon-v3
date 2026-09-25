@@ -8,6 +8,7 @@ import { AnimatedRoutes } from "./components/AnimatedRoutes";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { AvatarCompositeEnsurer } from "./components/avatar/AvatarCompositeEnsurer";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 const AppContent = () => {
   const location = useLocation();
@@ -29,7 +30,9 @@ const AppContent = () => {
       <AvatarCompositeEnsurer />
       {!isResetPasswordPage && <Navigator />}
       <PageContainer>
-        <AnimatedRoutes />
+        <AppErrorBoundary resetKey={location.pathname}>
+          <AnimatedRoutes />
+        </AppErrorBoundary>
       </PageContainer>
     </>
   );
