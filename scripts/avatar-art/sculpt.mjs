@@ -122,6 +122,8 @@ export function renderPart(shapes, { comment = "", outline = "auto", contactLine
     }
   }
 
+  despeckle(cells);
+
   if (contactLines) {
     const darken = [];
     for (const [i, cell] of cells) {
@@ -138,6 +140,26 @@ export function renderPart(shapes, { comment = "", outline = "auto", contactLine
   }
 
   return formatPart(cells, { minX, minY, maxX, maxY }, comment, outline);
+}
+
+// Removes stray pixels: a pixel whose shade matches none of its same-group
+// neighbours takes the shade most of them share (if at least three agree).
+function despeckle(cells) {
+  const changes = [];
+  for (const [i, cell] of cells) {
+    const x = i % WIDTH, y = Math.floor(i / WIDTH);
+    const shades = [];
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+      const other = cells.get(ny * WIDTH + nx);
+      if (other && other.group === cell.group && other.ramp === cell.ramp) shades.push(other.shade);
+    }
+    if (shades.length < 3 || shades.includes(cell.shade)) continue;
+    const counts = {};
+    for (const shade of shades) counts[shade] = (counts[shade] || 0) + 1;
+    const [best, count] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (count >= 3) changes.push([cell, Number(best)]);
+  }
+  for (const [cell, shade] of changes) cell.shade = shade;
 }
 
 function march(group, px, py) {

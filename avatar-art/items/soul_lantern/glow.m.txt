@@ -1,6 +1,6 @@
 # Dithered glow that fades out from the lantern, plus rising wisps (build m).
 # No outline: light has no edge.
-at: 67,98
+at: 69,98
 outline: none
 legend:
   c = dye1.2
