@@ -1,28 +1,11 @@
-// Runs a Mystery Crypt game on a canvas: takes input (keys, the on-screen
-// D-pad, or tapping a tile to walk there), plays a turn, and waits for the
-// animation to catch up before the next one. React only sees the HUD.
-import { loadAssets, Renderer } from "./render";
-import {
-  act,
-  autoAction,
-  leader,
-  MAP_W,
-  newGame,
-  onStairs,
-  party,
-  pathStep,
-  resolveRecruit,
-  runResult,
-  score,
-  xpToNext,
-  type Action,
-  type GameOptions,
-  type GameState,
-  type ItemId,
-  type RunResult,
-  type Unit,
-  type UnitKind,
-} from "./sim";
+// Runs a Mystery Crypt stage on a canvas: takes input (keys, the on-screen
+// D-pad and move buttons, or tapping a tile to walk there), plays a turn, and
+// waits for the animation to catch up before the next one. React only sees
+// the HUD.
+import { defaultMoves, HEROES, MOVES, STAGES, type HeroId, type ItemId, type MoveId, type UnitKind } from "./data.ts";
+import { loadAssets, Renderer } from "./render.ts";
+import type { StageReport } from "./save.ts";
+import { act, autoAction, isBossFloor, leader, MAP_W, newGame, onStairs, party, pathStep, report, xpToNext, type Action, type GameOptions, type GameState, type Unit } from "./sim.ts";
 
 export interface Member {
   id: number;
@@ -34,24 +17,32 @@ export interface Member {
 }
 
 export interface Hud {
+  stageName: string;
   floor: number;
-  score: number;
+  floors: number;
+  boss: { name: string; hp: number; maxHp: number } | null;
+  candy: number;
   hp: number;
   maxHp: number;
   level: number;
   xp: number;
   xpNext: number;
   party: Member[];
+  moves: { id: MoveId; pp: number; max: number }[];
   bag: ItemId[];
   onStairs: boolean;
-  recruit: Member | null;
+}
+
+export interface StageResult {
+  report: StageReport;
+  kills: number;
 }
 
 export interface GameCallbacks {
   onHud: (hud: Hud) => void;
   onMessage: (text: string, color?: string) => void;
-  onFloor: (floor: number) => void;
-  onOver: (result: RunResult) => void;
+  onFloor: (floor: number, boss: boolean) => void;
+  onOver: (result: StageResult) => void;
 }
 
 type Dir = { dx: number; dy: number };
@@ -74,8 +65,18 @@ function member(u: Unit, s: GameState): Member {
   return { id: u.id, kind: u.kind, hp: u.hp, maxHp: u.maxHp, level: u.level, leader: u.id === s.leaderId };
 }
 
+// The menu's background: a random hero and two monsters on a random early stage.
+function demoOptions(): GameOptions {
+  const heroes = Object.keys(HEROES) as HeroId[];
+  const stage = Math.floor(Math.random() * 4);
+  const level = STAGES[stage].level + 2;
+  const hero = heroes[Math.floor(Math.random() * heroes.length)];
+  const kinds: UnitKind[] = [hero, ...STAGES[stage].monsters.slice(0, 2)];
+  return { stage, roster: kinds.map((kind) => ({ uid: null, kind, level, xp: 0, moves: defaultMoves(kind, level) })), bag: ["heart"] };
+}
+
 export class GameController {
-  private state: GameState = newGame();
+  private state: GameState | null = null;
   private renderer: Renderer | null = null;
   private raf = 0;
   private last = 0;
@@ -85,7 +86,7 @@ export class GameController {
   private height = 0;
   private resizeObserver: ResizeObserver;
   private demo = false;
-  // Dev: the bot plays a real run, for testing.
+  // Dev: the bot plays a real stage, for testing.
   private autoplay = false;
   private demoClock = 0;
   private overClock = -1;
@@ -110,14 +111,15 @@ export class GameController {
     this.renderer.insetBottom = bottom;
   }
 
-  async start(demo = false, options: GameOptions = {}, autoplay = false) {
+  // A stage to play, or null for the menu's attract mode.
+  async start(options: GameOptions | null, autoplay = false) {
     const assets = await loadAssets();
     if (this.disposed) return;
     this.renderer ??= new Renderer(this.canvas, assets);
     this.resize();
-    this.demo = demo;
+    this.demo = !options;
     this.autoplay = autoplay;
-    this.state = newGame(demo ? { hero: (["joe", "matt", "alex", "jon"] as const)[Math.floor(Math.random() * 4)] } : options);
+    this.state = newGame(options ?? demoOptions());
     this.renderer.handleEvents(this.state, [{ type: "floor", floor: this.state.floor }]);
     this.flushEvents();
     this.paused = false;
@@ -151,10 +153,13 @@ export class GameController {
     if (dir && !this.demo && !this.paused) this.queued = { type: "move", ...dir };
   }
 
-  answerRecruit(replaceId: number | null) {
-    resolveRecruit(this.state, replaceId);
-    this.flushEvents();
-    this.pushHud();
+  // Gives up the stage in progress (it counts as fainting) and returns how it went.
+  retreat(): StageResult | null {
+    const s = this.state;
+    if (!s || this.demo || s.over) return null;
+    s.over = true;
+    this.overClock = -1;
+    return { report: report(s), kills: s.kills };
   }
 
   dispose() {
@@ -180,35 +185,34 @@ export class GameController {
     this.last = now;
     if (this.paused) dt = 0;
     const r = this.renderer!;
-    const s = this.state;
+    const s = this.state!;
 
     if (s.over) {
       if (this.overClock >= 0) {
         this.overClock += dt;
-        // Let the faint play out before the results.
-        if (this.overClock > 1.1) {
+        // Let the last blow land before the results.
+        if (this.overClock > 1.2) {
           this.overClock = -1;
-          if (this.demo) void this.start(true);
-          else this.cb.onOver(runResult(s));
+          if (this.demo) void this.start(null);
+          else this.cb.onOver({ report: report(s), kills: s.kills });
         }
       }
     } else if (!this.paused && this.readyForTurn()) {
       const action = this.nextAction(dt);
       if (action) this.play(action);
     }
-    r.draw(this.state, dt);
+    r.draw(s, dt);
   };
 
   // Nothing is mid-swing and the leader has nearly reached its tile. (Taking
   // the next step during the last few pixels of this one keeps walking smooth.)
   private readyForTurn() {
     const r = this.renderer!;
-    return !r.busy() && r.leaderLag(this.state) < 0.25;
+    return !r.busy() && r.leaderLag(this.state!) < 0.25;
   }
 
   private nextAction(dt: number): Action | null {
-    const s = this.state;
-    if (s.prompt) return null;
+    const s = this.state!;
     if (this.demo || this.autoplay) {
       this.demoClock += dt;
       if (this.demoClock < DEMO_STEP) return null;
@@ -226,9 +230,9 @@ export class GameController {
     return null;
   }
 
-  // One step of tap-to-walk. Stops when a monster comes into view nearby.
+  // One step of tap-to-walk.
   private walkStep(): Action | null {
-    const s = this.state;
+    const s = this.state!;
     const l = leader(s);
     const to = this.walkTo!;
     if (l.x === to.x && l.y === to.y) {
@@ -244,19 +248,21 @@ export class GameController {
   }
 
   private play(action: Action) {
-    const s = this.state;
+    const s = this.state!;
     const floorWas = s.floor;
     const seenBefore = this.visibleEnemies();
     const ok = act(s, action);
+    // A refused action can still explain itself ("nothing to hit that way").
+    this.flushEvents();
     if (!ok) {
       this.walkTo = null;
+      this.pushHud();
       return;
     }
-    this.flushEvents();
     if (s.floor !== floorWas) {
       this.walkTo = null;
       this.held = [];
-      if (!this.demo) this.cb.onFloor(s.floor);
+      if (!this.demo) this.cb.onFloor(s.floor, isBossFloor(s));
     }
     // A new monster in sight interrupts tap-to-walk.
     if (this.walkTo && this.visibleEnemies() > seenBefore) this.walkTo = null;
@@ -265,12 +271,12 @@ export class GameController {
   }
 
   private visibleEnemies() {
-    const s = this.state;
+    const s = this.state!;
     return s.units.filter((u) => u.team === "enemy" && s.visible[u.y * MAP_W + u.x]).length;
   }
 
   private flushEvents() {
-    const s = this.state;
+    const s = this.state!;
     this.renderer?.handleEvents(s, s.events);
     if (!this.demo) for (const e of s.events) if (e.type === "msg") this.cb.onMessage(e.text, e.color);
     s.events.length = 0;
@@ -278,29 +284,32 @@ export class GameController {
 
   private pushHud() {
     if (this.demo) return;
-    const s = this.state;
+    const s = this.state!;
     const l = leader(s);
-    const members = party(s);
+    const boss = s.units.find((u) => u.boss && s.visible[u.y * MAP_W + u.x]);
     this.cb.onHud({
+      stageName: s.def.name,
       floor: s.floor,
-      score: score(s),
+      floors: s.def.floors,
+      boss: boss ? { name: boss.boss!, hp: Math.max(0, boss.hp), maxHp: boss.maxHp } : null,
+      candy: s.candy,
       hp: Math.max(0, l?.hp ?? 0),
       maxHp: l?.maxHp ?? 1,
       level: l?.level ?? 1,
       xp: l?.xp ?? 0,
       xpNext: xpToNext(l?.level ?? 1),
-      party: members.map((u) => member(u, s)),
+      party: party(s).map((u) => member(u, s)),
+      moves: (l?.moves ?? []).map((m) => ({ id: m.id, pp: m.pp, max: MOVES[m.id].pp })),
       bag: [...s.bag],
       onStairs: onStairs(s),
-      recruit: s.prompt ? member(s.prompt.unit, s) : null,
     });
   }
 
   private onPointerDown = (e: PointerEvent) => {
-    if (this.demo || this.paused || this.state.over) return;
+    const s = this.state;
+    if (!s || this.demo || this.paused || s.over) return;
     const rect = this.canvas.getBoundingClientRect();
     const tile = this.renderer!.screenToTile(e.clientX - rect.left, e.clientY - rect.top);
-    const s = this.state;
     const l = leader(s);
     const dist = Math.abs(tile.x - l.x) + Math.abs(tile.y - l.y);
     if (dist === 0) return;
@@ -314,7 +323,7 @@ export class GameController {
   };
 
   private onKeyDown = (e: KeyboardEvent) => {
-    if (this.demo || this.paused) return;
+    if (this.demo || this.paused || !this.state) return;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     const dir = KEY_DIRS[key];
     if (dir) {
@@ -325,7 +334,9 @@ export class GameController {
       this.queued = { type: "move", ...dir };
       return;
     }
-    if (key === " " || key === "z" || key === "j") {
+    if (key >= "1" && key <= "4") {
+      if (!e.repeat) this.press({ type: "skill", slot: Number(key) - 1 });
+    } else if (key === " " || key === "z" || key === "j") {
       e.preventDefault();
       if (!e.repeat) this.press({ type: "attack" });
     } else if (key === "Enter" || key === ">") {

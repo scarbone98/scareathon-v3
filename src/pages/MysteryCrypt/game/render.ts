@@ -1,8 +1,10 @@
 // Draws Mystery Crypt onto a 2D canvas, top-down. The dungeon's floor and
 // walls are painted in code once per floor; the characters are the 8 Bit Evil
-// sprites. Units glide between tiles, so the turn-based rules feel smooth.
+// sprites, and the moves' effects come from 8 Bit Evil Returns. Units glide
+// between tiles, so the turn-based rules feel smooth.
 // Reads the state; never changes it.
-import { isFloor, leader, MAP_H, MAP_W, type GameEvent, type GameState, type Pickup, type Unit, type UnitKind } from "./sim";
+import { isHero, type HeroId, type UnitKind } from "./data.ts";
+import { isFloor, leader, MAP_H, MAP_W, type GameEvent, type GameState, type Pickup, type Unit } from "./sim.ts";
 
 const T = 16;
 const FONT = "CCDigits, Pixelify, monospace";
@@ -46,8 +48,35 @@ const ITEM_SHEETS = {
   lamp: sheet("/royale/ui/lamp.png", 16, 64, 4, 0.3),
 };
 
-type SheetId = UnitKind | keyof typeof ITEM_SHEETS;
-const ALL_SHEETS: Record<SheetId, SheetDef> = { ...UNIT_SHEETS, ...ITEM_SHEETS };
+// The heroes' run cycles, for walking.
+const RUN_SHEETS: Record<`run_${HeroId}`, SheetDef> = {
+  run_joe: sheet("/mystery-crypt/run_joe.png", 16, 24, 4),
+  run_matt: sheet("/mystery-crypt/run_matt.png", 16, 24, 4),
+  run_alex: sheet("/mystery-crypt/run_alex.png", 16, 24, 4),
+  run_jon: sheet("/mystery-crypt/run_jon.png", 16, 24, 4),
+};
+
+// Move effects.
+const FX_SHEETS = {
+  fx_fireball: sheet("/mystery-crypt/fireball.png", 32, 16, 7),
+  fx_explosion: sheet("/mystery-crypt/fireball_explosion.png", 32, 16, 7),
+  // The first frame is blank.
+  fx_lightning: sheet("/mystery-crypt/lightning.png", 16, 128, 18),
+  fx_boomerang: sheet("/mystery-crypt/boomerang.png", 16, 16, 4),
+  fx_claw: sheet("/mystery-crypt/bearclaw.png", 32, 32, 11),
+  fx_bolt: sheet("/mystery-crypt/crossbow_bolt.png", 16, 16, 1),
+  fx_sword: sheet("/mystery-crypt/cursed_sword.png", 32, 32, 6),
+  fx_flask: sheet("/mystery-crypt/acid_potion.png", 16, 16, 4),
+  fx_pool: sheet("/mystery-crypt/acid_pool.png", 32, 32, 6),
+  fx_bat: sheet("/mystery-crypt/bat.png", 32, 32, 4),
+  fx_wisp: sheet("/mystery-crypt/wisp.png", 32, 32, 6),
+  fx_cross: sheet("/mystery-crypt/holy_cross.png", 64, 64, 10),
+  fx_heart: sheet("/mystery-crypt/heartbeat.png", 64, 64, 8),
+};
+
+type FxSheet = keyof typeof FX_SHEETS;
+type SheetId = UnitKind | keyof typeof ITEM_SHEETS | keyof typeof RUN_SHEETS | FxSheet;
+const ALL_SHEETS: Record<SheetId, SheetDef> = { ...UNIT_SHEETS, ...ITEM_SHEETS, ...RUN_SHEETS, ...FX_SHEETS };
 
 // Colours for the bits that fly off when something is beaten.
 const GORE: Partial<Record<UnitKind, string>> = {
@@ -101,8 +130,8 @@ const THEMES: Theme[] = [
   { floor: ["#343a4c", "#2e3344", "#3b4256"], seam: "#1c2030", wallTop: "#0c0f1a", wallRim: "#8aa6d6", brick: ["#465274", "#3d4766"], mortar: "#1e2438", fog: "#05070e" },
 ];
 
-export function themeFor(floor: number) {
-  return THEMES[Math.floor((floor - 1) / 4) % THEMES.length];
+function themeFor(s: GameState) {
+  return THEMES[s.def.theme % THEMES.length];
 }
 
 // Cheap per-tile noise so the painting is the same every time for a floor.
@@ -117,7 +146,7 @@ function paintDungeon(s: GameState) {
   canvas.width = MAP_W * T;
   canvas.height = MAP_H * T;
   const g = canvas.getContext("2d")!;
-  const th = themeFor(s.floor);
+  const th = themeFor(s);
   const seed = s.seed + s.floor * 101;
   g.fillStyle = th.wallTop;
   g.fillRect(0, 0, canvas.width, canvas.height);
@@ -256,6 +285,7 @@ interface Corpse {
   y: number;
   flip: boolean;
   t: number;
+  boss: boolean;
 }
 
 interface Projectile {
@@ -265,7 +295,33 @@ interface Projectile {
   life: number;
 }
 
+type Pos = { x: number; y: number };
+
+// One effect sprite: flies from `from` to `to` (tiles) over `life`, or plays
+// in place when they're the same. Negative `t` is a delay before it starts.
+interface Fx {
+  sheet: FxSheet;
+  from: Pos;
+  to: Pos;
+  t: number;
+  life: number;
+  scale: number;
+  // Radians, when the sprite points along its path.
+  angle?: number;
+  spin?: number;
+  // Height of a thrown arc, px.
+  arc?: number;
+  // Out and back again (boomerang).
+  back?: boolean;
+  // Frames per second; otherwise the animation plays once over `life`.
+  fps?: number;
+  firstFrame?: number;
+  // Stands on the tile rather than centred on it.
+  ground?: boolean;
+}
+
 const MOVE_TIME = 0.11;
+const BOSS_SCALE = 1.6;
 const LUNGE_TIME = 0.16;
 // Tiles across the screen.
 const VIEW_TILES = 9.5;
@@ -286,6 +342,7 @@ export class Renderer {
   private particles: Particle[] = [];
   private corpses: Corpse[] = [];
   private projectiles: Projectile[] = [];
+  private fx: Fx[] = [];
   private cam: { x: number; y: number } | null = null;
   private shake = 0;
   // Where the map's top-left corner was last drawn, in CSS px.
@@ -324,11 +381,18 @@ export class Renderer {
   // True while units are still sliding or swinging, so the next turn waits.
   busy() {
     for (const u of this.shown.values()) if (u.lunge) return true;
-    return this.projectiles.length > 0;
+    return this.projectiles.length > 0 || this.fx.length > 0;
   }
 
   handleEvents(s: GameState, events: GameEvent[]) {
+    // Hits from a move show when its effect lands, not when it's thrown.
+    let delay = 0;
     for (const e of events) {
+      if (e.type === "attack") delay = 0;
+      if (e.type === "move") {
+        delay = this.playMove(s, e);
+        continue;
+      }
       if (e.type === "attack") {
         const u = this.shown.get(e.id);
         const unit = s.units.find((o) => o.id === e.id);
@@ -339,23 +403,23 @@ export class Renderer {
       } else if (e.type === "hit") {
         const u = this.shown.get(e.id);
         if (u) u.flash = 0.18;
-        this.float(`${e.amount}`, e.team === "party" ? "#ff5a6a" : "#ffffff", e.x, e.y);
+        this.float(`${e.amount}`, e.team === "party" ? "#ff5a6a" : "#ffffff", e.x, e.y, false, delay);
         if (e.id === s.leaderId) this.shake = 0.2;
-        this.burst(e.x, e.y, e.team === "party" ? "#ff5a6a" : "#ffe9c4", 4);
+        this.burst(e.x, e.y, e.team === "party" ? "#ff5a6a" : "#ffe9c4", 4, delay);
       } else if (e.type === "miss") {
-        this.float("MISS", "#9a8ab0", e.x, e.y);
+        this.float("MISS", "#9a8ab0", e.x, e.y, false, delay);
       } else if (e.type === "die") {
         const u = this.shown.get(e.unit.id);
-        this.corpses.push({ kind: e.unit.kind, x: e.unit.x, y: e.unit.y, flip: u?.flip ?? false, t: 0 });
+        this.corpses.push({ kind: e.unit.kind, x: e.unit.x, y: e.unit.y, flip: u?.flip ?? false, t: -delay, boss: !!e.unit.boss });
         this.shown.delete(e.unit.id);
-        this.burst(e.unit.x, e.unit.y, GORE[e.unit.kind] ?? "#ffcf4a", 14);
+        this.burst(e.unit.x, e.unit.y, GORE[e.unit.kind] ?? "#ffcf4a", e.unit.boss ? 40 : 14, delay);
       } else if (e.type === "heal") {
-        if (e.amount > 0) this.float(`+${e.amount}`, "#7dffb0", e.x, e.y);
+        if (e.amount > 0) this.float(`+${e.amount}`, "#7dffb0", e.x, e.y, false, delay);
       } else if (e.type === "level") {
-        this.float("LV UP!", "#7dffb0", e.x, e.y, true);
+        this.float("LV UP!", "#7dffb0", e.x, e.y, true, delay);
       } else if (e.type === "recruit") {
-        this.float("JOINED!", "#ff9ad5", e.x, e.y, true);
-        this.burst(e.x, e.y, "#ff9ad5", 16);
+        this.float("JOINED!", "#ff9ad5", e.x, e.y, true, delay);
+        this.burst(e.x, e.y, "#ff9ad5", 16, delay);
         const u = this.shown.get(e.id);
         if (u) u.joined = 1;
       } else if (e.type === "throw") {
@@ -371,24 +435,105 @@ export class Renderer {
         // New map: everyone appears in place.
         this.shown.clear();
         this.corpses = [];
+        this.fx = [];
         this.cam = null;
       }
     }
   }
 
-  private float(text: string, color: string, x: number, y: number, big = false) {
+  private float(text: string, color: string, x: number, y: number, big = false, delay = 0) {
     if (!text) return;
     // Stack floaters on the same tile so they don't overlap.
-    const stacked = this.floaters.filter((f) => f.x === x && f.y === y && f.t < 0.3).length;
-    this.floaters.push({ text, color, x, y: y - stacked * 0.45, t: 0, life: big ? 1.2 : 0.8, big });
+    const stacked = this.floaters.filter((f) => f.x === x && Math.abs(f.t + delay) < 0.3).length;
+    this.floaters.push({ text, color, x, y: y - stacked * 0.45, t: -delay, life: big ? 1.2 : 0.8, big });
   }
 
-  private burst(x: number, y: number, color: string, n: number) {
+  private burst(x: number, y: number, color: string, n: number, delay = 0) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 20 + Math.random() * 50;
-      this.particles.push({ x: x * T + T / 2, y: y * T + T / 2 - 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: 0, life: 0.35 + Math.random() * 0.3, color, size: Math.random() < 0.3 ? 2 : 1 });
+      this.particles.push({ x: x * T + T / 2, y: y * T + T / 2 - 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: -delay, life: 0.35 + Math.random() * 0.3, color, size: Math.random() < 0.3 ? 2 : 1 });
     }
+  }
+
+  // Queues a move's effects; returns how long until it lands.
+  private playMove(s: GameState, e: Extract<GameEvent, { type: "move" }>) {
+    const user = this.shown.get(e.id);
+    if (user && (e.dx || e.dy)) {
+      user.lunge = { dx: e.dx * 0.5, dy: e.dy * 0.5, t: 0 };
+      if (e.dx) user.flip = e.dx < 0;
+    }
+    const dist = Math.max(1, Math.abs(e.to.x - e.from.x) + Math.abs(e.to.y - e.from.y));
+    const angle = Math.atan2(e.dy, e.dx);
+    const at = (p: Pos) => ({ x: p.x, y: p.y });
+    const spots = e.targets.length ? e.targets : [e.to];
+    const add = (fx: Omit<Fx, "t"> & { t?: number }) => this.fx.push({ t: 0, ...fx });
+    switch (e.move) {
+      case "fireball": {
+        const travel = 0.05 + dist * 0.05;
+        add({ sheet: "fx_fireball", from: e.from, to: e.to, life: travel, scale: 0.8, angle, fps: 16 });
+        for (const p of spots) add({ sheet: "fx_explosion", from: at(p), to: at(p), life: 0.35, scale: 1.2, t: -travel });
+        return travel;
+      }
+      case "crossbow": {
+        const travel = 0.04 + dist * 0.03;
+        // The bolt sprite points up and to the right.
+        add({ sheet: "fx_bolt", from: e.from, to: e.to, life: travel, scale: 1, angle: angle + Math.PI / 4 });
+        return travel;
+      }
+      case "boomerang": {
+        const out = 0.06 + dist * 0.05;
+        add({ sheet: "fx_boomerang", from: e.from, to: e.to, life: out * 2, scale: 1, spin: 18, back: true, fps: 16 });
+        return out;
+      }
+      case "acid": {
+        const travel = 0.08 + dist * 0.05;
+        add({ sheet: "fx_flask", from: e.from, to: e.to, life: travel, scale: 0.9, arc: 12, spin: 10 });
+        for (const p of spots) add({ sheet: "fx_pool", from: at(p), to: at(p), life: 0.5, scale: 0.7, t: -travel, ground: true });
+        return travel;
+      }
+      case "claw": {
+        const fx = e.from.x + e.dx;
+        const fy = e.from.y + e.dy;
+        for (const [ox, oy] of [[0, 0], [e.dy, e.dx], [-e.dy, -e.dx]]) {
+          add({ sheet: "fx_claw", from: { x: fx + ox, y: fy + oy }, to: { x: fx + ox, y: fy + oy }, life: 0.3, scale: 0.7, firstFrame: 1 });
+        }
+        return 0.1;
+      }
+      case "cursedsword": {
+        const p = { x: e.from.x + e.dx, y: e.from.y + e.dy };
+        add({ sheet: "fx_sword", from: p, to: p, life: 0.32, scale: 0.9, angle: e.dx < 0 ? Math.PI : 0 });
+        return 0.14;
+      }
+      case "batswarm": {
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          add({ sheet: "fx_bat", from: e.from, to: { x: e.from.x + Math.cos(a) * 1.2, y: e.from.y + Math.sin(a) * 1.2 }, life: 0.35, scale: 0.45, fps: 16, back: true });
+        }
+        return 0.16;
+      }
+      case "lightning": {
+        for (const p of spots) add({ sheet: "fx_lightning", from: at(p), to: at(p), life: 0.35, scale: 0.6, firstFrame: 1, ground: true });
+        this.shake = Math.max(this.shake, 0.12);
+        return 0.1;
+      }
+      case "wisp": {
+        const travel = 0.1 + dist * 0.06;
+        add({ sheet: "fx_wisp", from: e.from, to: e.to, life: travel, scale: 0.5, fps: 12, arc: 6 });
+        return travel;
+      }
+      case "holycross": {
+        for (const p of spots) add({ sheet: "fx_cross", from: at(p), to: at(p), life: 0.5, scale: 0.35, ground: true });
+        return 0.25;
+      }
+      case "heartbeat": {
+        add({ sheet: "fx_heart", from: e.from, to: e.from, life: 0.5, scale: 0.4 });
+        for (const p of e.targets) if (p.x !== e.from.x || p.y !== e.from.y) add({ sheet: "fx_heart", from: at(p), to: at(p), life: 0.45, scale: 0.25, t: -0.1 });
+        return 0.2;
+      }
+    }
+    void s;
+    return 0;
   }
 
   // Where each unit is drawn: slides toward its tile.
@@ -435,7 +580,7 @@ export class Renderer {
     this.time += dt;
     this.sync(s, dt);
     const g = this.ctx;
-    const th = themeFor(s.floor);
+    const th = themeFor(s);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = th.fog;
     g.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -489,9 +634,9 @@ export class Renderer {
     // Beaten monsters fade out.
     this.corpses = this.corpses.filter((c) => (c.t += dt) < 0.45);
     for (const c of this.corpses) {
-      const k = c.t / 0.45;
+      const k = Math.max(0, c.t) / 0.45;
       g.globalAlpha = 1 - k;
-      this.drawSprite(c.kind, c.x * T + T / 2, c.y * T + T - 2, c.flip, 0, 1 - k * 0.4, true);
+      this.drawSprite(c.kind, c.x * T + T / 2, c.y * T + T - 2, c.flip, 0, (1 - k * 0.4) * (c.boss ? BOSS_SCALE : 1), c.t >= 0);
       g.globalAlpha = 1;
     }
 
@@ -511,9 +656,14 @@ export class Renderer {
       this.drawSheet("candycorn", x, y + 6, false, Math.floor(this.time * 20), 0.45);
     }
 
+    // Move effects.
+    this.fx = this.fx.filter((f) => (f.t += dt) < f.life);
+    for (const f of this.fx) if (f.t >= 0) this.drawFx(f);
+
     // Sparks.
     this.particles = this.particles.filter((p) => (p.t += dt) < p.life);
     for (const p of this.particles) {
+      if (p.t < 0) continue;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.vy += 160 * dt;
@@ -533,6 +683,7 @@ export class Renderer {
     g.textAlign = "center";
     g.textBaseline = "middle";
     for (const f of this.floaters) {
+      if (f.t < 0) continue;
       const k = f.t / f.life;
       const x = f.x * T + T / 2;
       const y = f.y * T - 6 - k * 12;
@@ -560,7 +711,7 @@ export class Renderer {
     this.fogFor = s.explored;
     const g = this.fog.getContext("2d")!;
     const img = g.createImageData(MAP_W, MAP_H);
-    const fog = themeFor(s.floor).fog;
+    const fog = themeFor(s).fog;
     const r = parseInt(fog.slice(1, 3), 16);
     const gg = parseInt(fog.slice(3, 5), 16);
     const b = parseInt(fog.slice(5, 7), 16);
@@ -593,7 +744,7 @@ export class Renderer {
     return h;
   }
 
-  private drawSprite(kind: UnitKind, cx: number, bottom: number, flip: boolean, frame: number, scale = 1, white = false) {
+  private drawSprite(kind: SheetId, cx: number, bottom: number, flip: boolean, frame: number, scale = 1, white = false) {
     if (!white) return this.drawSheet(kind, cx, bottom, flip, frame, scale);
     // A white silhouette, for hit flashes and fading corpses.
     const g = this.ctx;
@@ -613,32 +764,61 @@ export class Renderer {
       x += d.lunge.dx * k * 6;
       y += d.lunge.dy * k * 6;
     }
-    // Hop a little while walking.
+    // Heroes run; monsters hop a little.
     const walking = !Number.isInteger(d.x) || !Number.isInteger(d.y);
-    const hop = walking ? Math.abs(Math.sin((d.x + d.y) * Math.PI)) * 2 : 0;
+    const hero = isHero(u.kind);
+    const hop = walking && !hero ? Math.abs(Math.sin((d.x + d.y) * Math.PI)) * 2 : 0;
+    const big = u.boss ? BOSS_SCALE : 1;
 
     g.fillStyle = "rgba(0,0,0,0.4)";
     g.beginPath();
-    g.ellipse(x, y, 5.5, 2, 0, 0, Math.PI * 2);
+    g.ellipse(x, y, 5.5 * big, 2 * big, 0, 0, Math.PI * 2);
     g.fill();
 
-    const frame = Math.floor(this.time * 7 + d.phase);
-    const scale = d.joined > 0 ? 1 + Math.sin(d.joined * Math.PI) * 0.25 : 1;
-    const h = this.drawSprite(u.kind, x, y - hop, d.flip, frame, scale, d.flash > 0.08);
+    const sheetId: SheetId = walking && hero ? `run_${u.kind as HeroId}` : u.kind;
+    const frame = walking && hero ? Math.floor((d.x + d.y) * 4) : Math.floor(this.time * 7 + d.phase);
+    const scale = (d.joined > 0 ? 1 + Math.sin(d.joined * Math.PI) * 0.25 : 1) * big;
+    const h = this.drawSprite(sheetId, x, y - hop, d.flip, frame, scale, d.flash > 0.08);
     const top = y - hop - h;
+
+    // Burning or poisoned: embers or bubbles rise.
+    if (u.dot && Math.random() < 0.25) {
+      this.particles.push({ x: x + (Math.random() - 0.5) * 8, y: top + h * 0.5, vx: 0, vy: -20 - Math.random() * 10, t: 0, life: 0.5, color: u.dot.kind === "burn" ? "#ff8a1f" : "#7dff6a", size: 1 });
+    }
 
     // Teammates (not the leader) wear a little heart; charmed monsters a pulsing one.
     if (u.team === "party" && u.id !== s.leaderId) this.drawHeart(x, top - 3, 0.35, "#ff9ad5");
     if (u.charmed) this.drawHeart(x, top - 4 - Math.abs(Math.sin(this.time * 4)) * 2, 0.4, "#ff5aa8");
 
     // Health bars when hurt.
-    if (u.hp < u.maxHp) {
-      const bw = 12;
+    if (u.hp < u.maxHp || u.boss) {
+      const bw = u.boss ? 22 : 12;
       g.fillStyle = "#140a1c";
       g.fillRect(x - bw / 2 - 0.5, y + 1.5, bw + 1, 2.5);
       g.fillStyle = u.team === "party" ? "#7dffb0" : "#ff5a6a";
       g.fillRect(x - bw / 2, y + 2, Math.max(0.5, (bw * u.hp) / u.maxHp), 1.5);
     }
+  }
+
+  private drawFx(f: Fx) {
+    const g = this.ctx;
+    const def = FX_SHEETS[f.sheet];
+    let k = f.t / f.life;
+    if (f.back) k = k < 0.5 ? k * 2 : (1 - k) * 2;
+    const x = (f.from.x + (f.to.x - f.from.x) * k) * T + T / 2;
+    let y = (f.from.y + (f.to.y - f.from.y) * k) * T + T / 2 - 5;
+    if (f.arc) y -= Math.sin(k * Math.PI) * f.arc;
+    const first = f.firstFrame ?? 0;
+    const frames = def.frames - first;
+    const frame = first + (f.fps ? Math.floor(f.t * f.fps) % frames : Math.min(frames - 1, Math.floor((f.t / f.life) * frames)));
+    const w = def.fw * f.scale;
+    const h = def.fh * f.scale;
+    g.save();
+    g.translate(x, f.ground ? (f.from.y + 1) * T - 2 - h / 2 : y);
+    const rot = (f.angle ?? 0) + (f.spin ? f.t * f.spin : 0);
+    if (rot) g.rotate(rot);
+    g.drawImage(this.assets[f.sheet], frame * def.fw, 0, def.fw, def.fh, -w / 2, -h / 2, w, h);
+    g.restore();
   }
 
   private drawHeart(cx: number, cy: number, k: number, color: string) {
@@ -672,7 +852,22 @@ export class Renderer {
     const frame = Math.floor(this.time * 6 + p.id);
     if (p.kind === "candy") this.drawSheet(p.id % 2 ? "candybar" : "gum", x, y + 2, false, frame);
     else if (p.kind === "lamp") this.drawLantern(x, y);
+    else if (p.kind === "elixir") this.drawElixir(x, y);
     else this.drawSheet(p.kind, x, y + (p.kind === "chest" ? 1 : 0), false, frame);
+  }
+
+  // A blue bottle.
+  private drawElixir(cx: number, bottom: number) {
+    const g = this.ctx;
+    g.fillStyle = "#140a1c";
+    g.fillRect(cx - 4, bottom - 9, 8, 9);
+    g.fillRect(cx - 2, bottom - 12, 4, 3);
+    g.fillStyle = "#6ae0ff";
+    g.fillRect(cx - 3, bottom - 7, 6, 6);
+    g.fillStyle = "#c8f4ff";
+    g.fillRect(cx - 2, bottom - 6, 1, 3);
+    g.fillStyle = "#b08a5a";
+    g.fillRect(cx - 1, bottom - 12, 2, 2);
   }
 
   // A little lantern (the lamp-post sprite is too tall for a tile).
