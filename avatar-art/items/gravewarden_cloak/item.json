@@ -1,0 +1,10 @@
+{
+  "name": "Gravewarden Hood & Cloak",
+  "category": "outer",
+  "parts": [
+    { "slot": "back", "file": "back.txt" },
+    { "slot": "outer", "file": "outer.txt" },
+    { "slot": "head", "file": "head.txt" }
+  ],
+  "dyes": { "dye1": "night", "dye2": "blood" }
+}

@@ -1,0 +1,36 @@
+{
+  "_comment": "Every ramp is 5 shades, 0 = darkest (used for outlines) to 4 = brightest (highlights). Darks lean purple/blue, lights lean warm. Every colour in this file must be unique: swappable ramps are recoloured by exact-RGB lookup.",
+  "swappable": {
+    "skin": ["skin", "skin_pale", "skin_deep", "skin_zombie", "skin_ghost", "skin_demon"],
+    "hair": "any",
+    "eyes": "any",
+    "dye1": "any",
+    "dye2": "any"
+  },
+  "ramps": {
+    "ink":         ["#0d0714", "#1b1024", "#2c1c38", "#43304f", "#5e4a68"],
+    "bone":        ["#2a2230", "#5a4f60", "#9a8f98", "#d4cbc4", "#fbf6ec"],
+    "night":       ["#0b0a14", "#17152a", "#262240", "#3a3458", "#554c75"],
+    "blood":       ["#1f0612", "#4a0c1e", "#861628", "#c42a32", "#ec6a52"],
+    "pumpkin":     ["#2e0e10", "#6a2512", "#b44a18", "#ec8424", "#ffc45a"],
+    "gold":        ["#2a160a", "#6a3c10", "#b27a1a", "#e8bc3c", "#fff09a"],
+    "moss":        ["#0a1a18", "#163c2a", "#2a6038", "#4a8a40", "#94c060"],
+    "spectral":    ["#0a1626", "#123a52", "#1e6e84", "#3cb4b4", "#a4f0dc"],
+    "violet":      ["#12081e", "#2c1248", "#52207a", "#8a3eae", "#d088e0"],
+    "wood":        ["#1a0e0c", "#3c2218", "#66402a", "#946440", "#c69868"],
+    "rose":        ["#2a0a1c", "#5c1838", "#9a3058", "#d4607a", "#f8a8b0"],
+    "steel":       ["#0e1018", "#262a3a", "#4a5066", "#7e8698", "#c4c8d0"],
+
+    "skin":        ["#3a1a1c", "#7a3a34", "#c06e52", "#e8a57c", "#fcd8b4"],
+    "skin_pale":   ["#3a2a36", "#7a6474", "#b8a6aa", "#e0d4cc", "#fbf4ea"],
+    "skin_deep":   ["#1e0e0e", "#3e1e18", "#6a3a26", "#9a5e3a", "#c88c5e"],
+    "skin_zombie": ["#10201a", "#244634", "#4e7a4a", "#86ac66", "#c4d894"],
+    "skin_ghost":  ["#141c30", "#34466a", "#6a86a8", "#a8c4d8", "#e8f8fc"],
+    "skin_demon":  ["#240812", "#541020", "#8e2030", "#c8463e", "#f08a6a"],
+
+    "hair":        ["#120c10", "#2a1a1e", "#4a2e2c", "#6e4636", "#9a6c4a"],
+    "eyes":        ["#101410", "#1c3a22", "#2e6a34", "#58a848", "#c8f0a0"],
+    "dye1":        ["#330033", "#660066", "#990099", "#cc00cc", "#ff33ff"],
+    "dye2":        ["#003333", "#006666", "#009999", "#00cccc", "#33ffff"]
+  }
+}

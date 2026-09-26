@@ -18,7 +18,8 @@
     "balance:horde-rush": "node scripts/horde-rush-balance.mjs",
     "check:frog-ball": "node scripts/frog-ball-stages.mjs",
     "check:frog-ball-coop": "node scripts/frog-ball-coop.mjs",
-    "stills:arcade": "node scripts/make-cartridge-stills.mjs"
+    "stills:arcade": "node scripts/make-cartridge-stills.mjs",
+    "art:avatar": "node scripts/avatar-art/build.mjs"
   },
   "dependencies": {
     "@strapi/blocks-react-renderer": "^1.0.1",

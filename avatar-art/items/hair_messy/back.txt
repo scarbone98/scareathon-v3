@@ -1,0 +1,58 @@
+# Messy fringe, back half: the mass behind the head that shows past the cheeks.
+at: 0,27
+mirror: yes
+outline: auto
+legend:
+  b = hair.2
+  c = hair.1
+---
+.................cbbbbbbbb
+................ccbbbbbbbb
+................ccbbbbbbbb
+................ccbbbbbbbb
+.............ccbbbbbbbbbbb
+...........ccbbbbbbbbbbbbb
+.........ccbbbbbbbbbbbbbbb
+........ccbbbbbbbbbbbbbbbb
+.......ccbbbbbbbbbbbbbbbbb
+......ccbbbbbbbbbbbbbbbbbb
+.....ccbbbbbbbbbbbbbbbbbbb
+.....ccbbbbbbbbbbbbbbbbbbb
+....ccbbbbbbbbbbbbbbbbbbbb
+....ccbbbbbbbbbbbbbbbbbbbb
+...ccbbbbbbbbbbbbbbbbbbbbb
+...ccbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+.ccbbbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+..ccbbbbbbbbbbbbbbbbbbbbbb
+...ccbbbbbbbbbbbbbbbbbbbbb
+...ccbbbbbbbbbbbbbbbbbbbbb
+...ccbbbbbbbbbbbbbbbbbbbbb
+....ccbbbbbbbbbbbbbbbbbbbb
+....ccbbbbbbbbbbbbbbbbbbbb
+....ccbbbbbbbbbbbbbbbbbbbb
+.....ccbbbbbbbbbbbbbbbbbbb
+.....ccbbbbbbbbbbbbbbbbbbb
+.....ccbbbbbbbbbbbbbbbbbbb
+.......ccbbbbbbbbbbbbbbbbb
+......ccbbbbbbbbbbbbbbbbbb
+......ccbbbbbbbbbbbbbbbbbb
+........cc.bbbb.bbbb.bbbb.
+.......ccb.bbbb.bbbb.bbbb.
+.......ccb.bbbb.bbbb.bbbb.
+..........................
+..........................

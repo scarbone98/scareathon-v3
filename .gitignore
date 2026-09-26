@@ -25,3 +25,6 @@ dist-ssr
 .env
 .env.development
 supabase/.temp/
+
+# Rendered by npm run art:avatar
+avatar-art/previews/

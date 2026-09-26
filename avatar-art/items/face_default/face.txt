@@ -1,0 +1,34 @@
+# Default face: big chibi eyes. Brows use the hair ramp so they follow hair colour,
+# the mouth uses the skin ramp so it follows skin tone. Highlights stay top-left
+# on both eyes, so this is not mirrored.
+at: 33,50
+outline: none
+legend:
+  k = ink.0
+  w = bone.4
+  A = eyes.1
+  B = eyes.2
+  C = eyes.3
+  b = hair.1
+  D = skin.1
+  r = rose.3
+---
+...bbbb................bbbb...
+..b....b..............b....b..
+..............................
+..............................
+k.kkkkkk..............kkkkkk.k
+kkkkkkkkk............kkkkkkkkk
+.kwwAAAAk............kwwAAAAk.
+.kwwAAAAk............kwwAAAAk.
+.kAAABBAk............kAAABBAk.
+.kABBBBBk............kABBBBBk.
+.kBBCCBBk............kBBCCBBk.
+.kBCCCCwk............kBCCCCwk.
+..kCCCCk..............kCCCCk..
+...kkkk................kkkk...
+..............................
+.rrr......................rrr.
+..............................
+.............D..D.............
+..............DD..............

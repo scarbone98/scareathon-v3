@@ -1,0 +1,5 @@
+{
+  "name": "Base Body",
+  "category": "body",
+  "parts": [{ "slot": "body", "file": "body.txt" }]
+}
