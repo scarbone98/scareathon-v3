@@ -1,35 +1,34 @@
-# Hand touch-up: cracks (K) and outer rim (R).
-# Cracked porcelain half-mask over the near eye (sculpted first pass: avatar-art/sculpts/accessories.mjs mask).
-at: 53,57
+# Hand touch-up: cracks (K) and outer rim (R). Redo after re-sculpting.
+# Cracked porcelain half-mask over the right eye (sculpted first pass: avatar-art/sculpts/accessories.mjs mask).
+at: 60,57
 outline: auto
 legend:
   K = ink.2
   R = bone.1
-  d = bone.1
-  c = bone.2
-  b = bone.3
-  a = bone.4
+  c = bone.1
+  b = bone.2
+  a = bone.3
 ---
-abbbbbbbbbbbbbbcR....
-abbbbbbbbbbbbbbccR...
-bbbbbbbbbKKbbbbcccR..
-bbbbbbbbKbbbbbbccccR.
-bbbbbbbbKbbbbbbccccR.
-bbb.....bbbbbbccccccR
-bb.......bbbbbccccccR
-b.........bbbcccccccR
-...........bcccccccR.
-...........ccccccccR.
-...........cccccccdR.
-...........cccccccdR.
-...........ccccccdR..
-...........cccccddR..
-...........ccccdddR..
-c.........ccccdddR...
-cc.......cccdddddR...
-ccc.....cKcddddddR...
-cccccccccdKdddddR....
-cccccccdddKdddddR....
-ccccdddddddKKKddR....
-ddddddddddddddKdR....
-dddddddddddddddR.....
+aaaaaaaaaaaabR.....
+aaaaaaaaKaaabbR....
+aaaaaaaaaKaabbbR...
+aaaaaaaaaKaabbbbR..
+aaaaaaaaaaKabbbbR..
+aaaaaaa.......bbbR.
+aaaaaa.........bbR.
+aaaaa...........bcR
+aaaaa...........bcR
+aaaa.............cR
+aaaK.............R.
+aaaK.............R.
+aaKa.............R.
+aabbb...........cR.
+bbbbb...........R..
+bbbbbb.........cR..
+bbbbbbb.......ccR..
+bbbbbbbbcccccKccR..
+bbbbbbccccccccKR...
+bbbbccccccccccKR...
+bcccccccccccccR....
+cccccccccccccR.....
+cccccccccccR.......

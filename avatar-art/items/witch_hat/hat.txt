@@ -1,5 +1,5 @@
 # Crooked witch hat (sculpted first pass: avatar-art/sculpts/accessories.mjs witchHat).
-at: 28,1
+at: 26,1
 outline: auto
 legend:
   l = bone.1

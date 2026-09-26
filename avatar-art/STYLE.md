@@ -23,7 +23,7 @@ and renders every outfit in `avatar-art/outfits/` to `avatar-art/previews/`
 4. Add or update an outfit in `avatar-art/outfits/` that shows the item, with at
    least one alternative skin tone and dye so recolouring gets checked too.
 
-## Sculpting (3/4 view shapes)
+## Sculpting
 
 Anything with volume (bodies, hair, hats, horns, clothing) starts as a sculpt
 in `avatar-art/sculpts/*.mjs`: rough 3D shapes (`ellipsoid`, `sphere`, tapered
@@ -34,9 +34,11 @@ and snaps to palette shades. This is what keeps every item lit and shaded the sa
 node scripts/avatar-art/sculpt-cli.mjs avatar-art/sculpts/accessories.mjs horns > avatar-art/items/ram_horns/horns.txt
 ```
 
-- Coordinates are canvas pixels, with z pointing toward the viewer. The head's
-  cranium is centred at (62, 59, 0) with radius 24; see the base body sculpt
-  for every other part of the body.
+- Coordinates are canvas pixels, with z pointing toward the viewer. The body is
+  centred on x = 60 (between pixels 59 and 60). The head's cranium is centred
+  at (60, 58, 0) with radius 24; see the base body sculpt for every other part
+  of the body. For symmetric things, build one side and mirror the *shapes*
+  (`x -> 120 - x`, as `base_body.mjs` does), not the pixels, so the light stays right.
 - Shapes in the same `group` melt together (`blend` px). Different groups
   overlap hard and get a dark contact line, which is how strands of hair,
   arms over torsos and folds read.
@@ -50,28 +52,25 @@ node scripts/avatar-art/sculpt-cli.mjs avatar-art/sculpts/accessories.mjs horns 
 
 ## Canvas and anchors
 
-The canvas is **120 x 150** (Gaia's size), a chibi in **3/4 view turned toward
-the viewer's left**. The far side of the body (viewer's left) sits back, and
-the near side (viewer's right) is forward. Nothing is mirrored. Everything is
-drawn to fit `items/base_body/body.txt`.
+The canvas is **120 x 150** (Gaia's size), a chibi **facing forward**, centred
+on x = 60. Everything is drawn to fit `items/base_body/body.txt`.
 
 | Landmark            | Where (x, y)                                                  |
 | ------------------- | ------------------------------------------------------------- |
 | Headroom for hats   | y 0 - 33                                                      |
-| Cranium             | centre (62, 59), radius 24: x 38 - 86, top at y 35            |
-| Face centre line    | x ~50; chin at (50, 84)                                       |
-| Brows               | y 58 - 62, over each eye                                      |
-| Far eye (narrow)    | x 38 - 44, y 63 - 73                                          |
-| Near eye (full)     | x 49 - 59, y 63 - 73                                          |
+| Cranium             | centre (60, 58), radius 24: x 36 - 84, top at y 36            |
+| Chin                | (60, 84)                                                      |
+| Brows               | y 58 - 60, over each eye                                      |
+| Eyes                | left x 44 - 53, right x 66 - 75, y 63 - 73                    |
 | Cheeks / blush      | y 76, under each eye                                          |
-| Mouth               | x 47 - 53, y 78 - 81                                          |
-| Ear (near side)     | x 81 - 87, y 61 - 71 (usually under hair)                     |
+| Mouth               | x 56 - 63, y 79 - 82                                          |
+| Ears                | (36, 66) and (84, 66), usually under hair                     |
 | Neck                | x 55 - 65, y 80 - 92; choker line y 86 - 89                   |
-| Shoulders           | far (47, 97), near (71, 97)                                   |
-| Torso               | y 92 - 125; neckline dips to y 95 at x 57                     |
-| Hands               | far (44, 123), near (75, 123)                                 |
-| Legs                | far x 46 - 58, near x 60 - 72, y 120 - 140                    |
-| Feet (ground = 147) | far (47, 143), near (62, 144), toes point left                |
+| Shoulders           | (46, 97) and (74, 97)                                         |
+| Torso               | y 92 - 125; neckline dips to y 95 at the centre               |
+| Hands               | (41, 123) and (79, 123)                                       |
+| Legs                | x 47 - 59 and 61 - 73, y 120 - 140                            |
+| Feet (ground = 147) | (52, 143) and (68, 143)                                       |
 
 Items may go past the body (wings, cloaks, big hats, held props), but keep
 everything on the canvas.
@@ -192,8 +191,8 @@ legend:
 ```
 
 Several parts can share a slot; they are drawn in the listed order.
-`mirror: yes` still exists for the rare symmetric, straight-on detail, but in
-3/4 view almost nothing is symmetric, so don't reach for it.
+`mirror: yes` mirrors pixels, which flips the lighting too. Use it only for
+unshaded, symmetric details; for shaded forms, mirror the sculpt shapes instead.
 
 ## Swappable faces
 
@@ -213,8 +212,8 @@ This is a horror arcade, not a mall. Every item must pass these:
   the brightest shade 4 there and almost nowhere else.
 - **Wraps around properly.** Hoods have an inside, capes have a back, long hair
   has strands behind the shoulders. Use the back slots.
-- **Respects the turn.** The far side is narrower and partly hidden; the near
-  side is wider and overlaps. Check it doesn't look pasted on flat.
+- **Not perfectly symmetric.** A face-on avatar gets stiff if every item is a
+  mirror image. A crooked hat tip, a swept fringe or a scar on one side adds life.
 - **Story.** Name it like loot ("Gravewarden Hood", not "Black Hood").
 - **Tiers:** common items are dyeable basics done well. Rare items change the
   silhouette (horns, wings, huge collars, tails). Legendary items add an

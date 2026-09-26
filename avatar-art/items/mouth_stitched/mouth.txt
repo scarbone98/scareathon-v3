@@ -1,11 +1,11 @@
 # Sewn-shut mouth: a seam with cross stitches.
-at: 44,78
+at: 55,79
 outline: none
 legend:
   D = skin.1
   t = bone.3
   T = bone.2
 ---
-.t.t.t.t.
-DDDDDDDDD
-.T.T.T.T.
+.t.t.t.t..
+DDDDDDDDDD
+.T.T.T.T..
