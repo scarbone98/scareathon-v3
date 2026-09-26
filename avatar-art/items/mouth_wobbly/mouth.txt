@@ -1,0 +1,8 @@
+# Nervous: a wobbly line.
+at: 50,63
+outline: none
+legend:
+  D = skin.1
+---
+.DD..DD
+D..DD..

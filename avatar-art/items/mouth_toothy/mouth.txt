@@ -1,0 +1,12 @@
+# Toothy Maw: a wide grin of sharp teeth.
+at: 49,61
+outline: none
+legend:
+  k = ink.0
+  w = bone.4
+  v = blood.2
+---
+.kkkkkkk.
+kwvwvwvwk
+kvwvwvwvk
+.kkkkkkk.

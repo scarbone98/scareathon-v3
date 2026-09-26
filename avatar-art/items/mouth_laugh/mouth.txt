@@ -1,0 +1,14 @@
+# Laugh: wide open, teeth and tongue showing.
+at: 50,61
+outline: none
+legend:
+  k = ink.0
+  w = bone.4
+  r = blood.2
+  R = rose.3
+---
+.kkkkk.
+kwwwwwk
+krRRRrk
+.krrrk.
+..kkk..

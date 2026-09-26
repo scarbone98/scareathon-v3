@@ -1,0 +1,15 @@
+{
+  "name": "Drool",
+  "category": "mouth",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "mouth",
+      "file": "mouth.txt"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# Plaster across the bridge of the nose.
+at: 50,58
+outline: none
+legend:
+  p = bone.3
+  P = bone.2
+  o = bone.1
+---
+.oooooo.
+opPpPpPo
+oppppppo
+.oooooo.

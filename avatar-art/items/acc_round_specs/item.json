@@ -1,0 +1,15 @@
+{
+  "name": "Round Specs",
+  "category": "face_acc",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_acc",
+      "file": "specs.txt"
+    }
+  ]
+}

@@ -15,6 +15,11 @@
     {
       "slot": "face_acc",
       "file": "goggles.txt"
+    },
+    {
+      "slot": "hair_acc",
+      "file": "beak.txt",
+      "sculpt": "crypt.mjs#plagueBeak"
     }
   ],
   "dyes": {

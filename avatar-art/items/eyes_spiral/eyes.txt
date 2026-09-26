@@ -1,0 +1,19 @@
+# Spiral: hypnotised. The swirl uses the eye colour.
+at: 45,51
+outline: none
+legend:
+  k = ink.0
+  w = bone.4
+  A = eyes.1
+  B = eyes.2
+  C = eyes.3
+  D = eyes.4
+---
+..........kkkkkk.
+.kkkk....kCCCCCCk
+kCCCCk...kCkkkkCk
+kCkkCk...kCkCCkCk
+kCkCCk...kCkCkkCk
+kCkkkk...kCkCCCCk
+.kkkk....kCkkkkkk
+..........kkkkkk.

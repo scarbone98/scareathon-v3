@@ -1,0 +1,11 @@
+# Drool: a daydreaming smile with a drip.
+at: 52,63
+outline: none
+legend:
+  D = skin.1
+  d = spectral.4
+---
+D...D
+.DDD.
+...d.
+...d.

@@ -1,0 +1,24 @@
+# Bonehawk, back (sculpted: avatar-art/sculpts/hair2.mjs hawkBack).
+at: 77,39
+outline: auto
+legend:
+  c = hair.1
+  b = hair.2
+  a = hair.3
+---
+.aaab...
+aaaaab..
+aaaabc..
+aaabbc..
+bbbbbc..
+.bbbbb..
+.bbbbbc.
+..bbbbc.
+...bbbc.
+...bbbc.
+....bbb.
+....bbb.
+.....bb.
+.....bbc
+......bc
+......bc

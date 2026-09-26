@@ -1,0 +1,32 @@
+{
+  "name": "Bonehawk",
+  "category": "hair",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 110,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair2.mjs#hawkBack"
+    },
+    {
+      "slot": "hair_front",
+      "file": "stubble.txt",
+      "sculpt": "hair2.mjs#hawkStubble"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#hawkFront"
+    }
+  ],
+  "vet": {
+    "ignore": [
+      "stray-bits"
+    ],
+    "why": "Stubble is scattered single pixels by design."
+  }
+}

@@ -1,0 +1,23 @@
+# Doll Lashes: wide eyes with long upper and lower lashes.
+at: 44,49
+outline: none
+legend:
+  k = ink.0
+  w = bone.4
+  A = eyes.1
+  B = eyes.2
+  C = eyes.3
+  D = eyes.4
+---
+k.k..........k.k.k.
+.k.k........k.k.k..
+k.kkkk.....kkkkkk.k
+kkkkkkk...kkkkkkkkk
+.kwwAAk...kwwAAAAk.
+.kwAABk...kwwAABAk.
+.kABBBk...kAABBBAk.
+.kBBCBk...kABBCBBk.
+.kBCCwk...kBCCCCwk.
+..kCCk.....kCCCCk..
+...kk.......kkkk...
+..k.k........k.k...

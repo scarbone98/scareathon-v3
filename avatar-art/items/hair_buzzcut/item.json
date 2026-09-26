@@ -1,0 +1,16 @@
+{
+  "name": "Buzzcut",
+  "category": "hair",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#buzzFront"
+    }
+  ]
+}

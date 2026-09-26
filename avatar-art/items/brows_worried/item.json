@@ -1,0 +1,15 @@
+{
+  "name": "Worried Brows",
+  "category": "brows",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "brows",
+      "file": "brows.txt"
+    }
+  ]
+}

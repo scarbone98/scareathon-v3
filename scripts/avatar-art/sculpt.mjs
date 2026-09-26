@@ -86,7 +86,8 @@ export function shadeFor(normal, { highlight = true, bias = 0 } = {}) {
 //   material  ramp name, or (x, y, z) => ramp name, or { ramp, shift } to push the
 //             shade up or down (stripes, ribbing, folds); null cuts the pixel
 // optional: blend (px, default 4), highlight, bias, clip (x, y, z) => true to cut.
-export function renderPart(shapes, { comment = "", outline = "auto", contactLines = true, blend = 4 } = {}) {
+// Part options: outline, contactLines, blend, despeckle (default true).
+export function renderPart(shapes, { comment = "", outline = "auto", contactLines = true, blend = 4, despeckle: cleanUp = true } = {}) {
   const groups = new Map();
   for (const s of shapes) {
     if (!groups.has(s.group)) groups.set(s.group, []);
@@ -122,7 +123,8 @@ export function renderPart(shapes, { comment = "", outline = "auto", contactLine
     }
   }
 
-  despeckle(cells);
+  // Textures made of single-pixel speckle (stubble) opt out with despeckle: false.
+  if (cleanUp) despeckle(cells);
 
   if (contactLines) {
     const darken = [];

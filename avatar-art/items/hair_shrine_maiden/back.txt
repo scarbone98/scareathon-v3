@@ -1,0 +1,83 @@
+# Shrine Maiden, back: a straight sheet cut level at the waist (sculpted: avatar-art/sculpts/hair2.mjs himeBack).
+at: 41,31
+outline: auto
+legend:
+  d = hair.1
+  a = hair.2
+  b = hair.3
+  c = hair.4
+---
+...................abbbabbbab.................
+................bbbabbbabbbabbba..............
+..............acccbbbbabbbabbbabbb............
+............bcbcccbcbbabbbabbbabbbaa..........
+...........cccbcccbcbbabbbabbbabbbaba.........
+.........acccbcccbccbabbbabbbabbbabbada.......
+........bbcccbcccbcbbabbbabbbabbbabbbdaa......
+.......bcbcccbcccbcbbabbbabbbabbbabbbdaaa.....
+.......ccbcccbcccbbbbabbbabbbabbbabbbdaaa.....
+......bccbcccbcccabbbabbbabbbabbbabbbdaaad....
+.....acccbcccbcbbabbbabbbabbbabbbabbbdaaadd...
+.....acccbcccbbbbabbbabbbabbbabbbabbbdaaadd...
+....bbbcccccbbabbbabbbabbbabbbabbbabbadaaadd..
+....bbacccabbbabbbabbbabbbabbbabbbabaadaaadd..
+...bbbabbbabbbabbbabbbabbbabbbabbbabaadaaaddd.
+...abbbabbbabbbabbbabbbabbbabbbabbbaaaadaaadd.
+...abbbabbbabbbabbbabbbabbbabbbabbbdaaadaaadd.
+..babbbabbbabbbabbbabbbabbbabbbabbadaaadaaadd.
+..bbabbbabbbabbbabbbabbbabbbabbbabaadaaadaaddd
+..bbabbbabbbabbbabbbabbbabbbabbbaaaadaaadadddd
+..bbabbbabbbabbbabbbabbbabbbabbbaaaadaaadadddd
+..bbbabbbabbbabbbabbbabbbabbbabaadaaadaaaddddd
+..bbbabbbabbbabbbabbbabbbabbbaaaadaaadaaaddddd
+..bbbabbbabbbabbbabbbabbbabbbdaaadaaadaaaddddd
+..bbbabbbabbbabbbabbbabbbabbadaaadaaadaadddddd
+..bbbabbbabbbabbbabbbabbbaaaadaaadaaadaadddddd
+..bbbabbbabbbabbbabbbabbbdaaadaaadaaadaddddddd
+..bbbabbbabbbabbbabbbabaadaaadaaadaaadddddddd.
+..bbabbbabbbabbbabbbbaaadaaadaaadaaaddddddddd.
+..baabbbabbbabbbabbadaaadaaadaaadaaaddddddddd.
+..baaaaaabbbabbbaaaadaaadaaadaaadaadddddddddd.
+..baaaadaaadaaadaaadaaadaaadaaadaaddddddddddd.
+..baaaadaaadaaadaaadaaadaaadaaadaddddddddddd..
+..baaaadaaadaaadaaadaaadaaadaaaddddddddddddd..
+..abbadaaadaaadaaadaaadaaadaaadddddddddddddd..
+..abbadaaadaaadaaadaaadaaadadddddddddddddddd..
+..abbbdaaadaaadaaadaaadaaaddddddddddddddddddd.
+..bbbaaaadaaadaaadaaadddddddddddddddddddddddd.
+.abbbabaadaaadaaadadddddddddddddddddddddddddd.
+.abbbabbadaaadaaaddddddddddddddddddddddddddad.
+.abbbabbbdaaadaaddddddddddddddddddddddddddaad.
+.abbbabbbaaaadaaaddddddddddddddddddddddaadaaa.
+babbbabbbabaadaaadddddddddddddddddddddaaadaaad
+babbbabbbabbadaaadaadddddddddddddddaadaaadaaad
+bbabbbabbbabbaaaaadaaadadddddddaaadaaadaaadaad
+bbabbbabbbabbbaaaadaaadaaadaaadaaadaaadaaadaad
+bbabbbabbbabbbabbadaaadaaadaaadaaadaaadaaadaad
+bbbabbbabbbabbbabbbaaaadaaadaaadaaaaaaaaaaadad
+bbbabbbabbbabbbabbbbbbbdaaadaaadaabbbbbaaaadad
+abbbabbbabbbabbbabbbabbbabbbabbbabbbabbadaaadd
+abbbabbbabbbabbbabbbabbbabbbabbbabbbabbadaaadd
+abbbabbbabbbabbbabbbabbbabbbabbbabbbabbadaaadd
+babbbabbbabbbabbbabbbabbbabbbabbbabbbaaaadaaad
+babbbabbbabbbabbbabbbabbbabbbabbbabbbaaaadaaad
+babbbabbbabbbabbbabbbabbbabbbabbbabbbaaaadaaad
+aabbbabbbabbbabbbabbbabbbabbbabbbabbbdaaadaaad
+.abbbabbbabbbabbbabbbabbbabbbabbbabbbdaaadaad.
+.abbbabbbabbbabbbabbbabbbabbbabbbabbadaaadaad.
+.abbbabbbabbbabbbabbbabbbabbbabbbabbadaaadaad.
+.abbbabbbabbbabbbabbbabbbabbbabbbabaadaaadadd.
+..bbabbbabbbabbbabbbabbbabbbabbbabaadaaadaad..
+..bbabbbabbbabbbabbbabbbabbbabbbabaadaaadaad..
+..aabbbabbbabbbabbbabbbabbbabbbaaaadaaadaadd..
+...abbbabbbabbbabbbabbbabbbabbbaaaadaaadaad...
+...dbbbabbbabbbabbbabbbabbbabbbaaaadaaadadd...
+....bbabbbabbbabbbabbbabbbabbbaaaadaaadaad....
+....ababbbabbbabbbabbbabbbabbbdaaadaaadadd....
+.....babbbabbbabbbabbbabbbabbadaaadaaadad.....
+.....dbbbabbbabbbabbbabbbaaaadaaadaaadddd.....
+......abbabbbabbbabbbabbbaaaadaaadaaaddd......
+.......ababbbabbbabbbabbbdaaadaaadaaadd.......
+........adbbbabbbabbbabaadaaadaaadaadd........
+.........dabbabbbabbbdaaadaaadaaadadd.........
+..........aaaaaaaaaaadaaadaaadaaaddd..........

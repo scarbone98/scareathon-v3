@@ -1,0 +1,21 @@
+{
+  "name": "Wisp Pixie",
+  "category": "hair",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair2.mjs#pixieBack"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#pixieFront"
+    }
+  ]
+}

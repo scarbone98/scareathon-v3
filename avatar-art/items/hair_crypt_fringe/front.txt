@@ -1,0 +1,45 @@
+# Crypt Fringe, front (sculpted: avatar-art/sculpts/hair2.mjs cryptFront).
+at: 40,28
+outline: auto
+legend:
+  d = hair.1
+  c = hair.2
+  a = hair.3
+  b = hair.4
+---
+.........abaaac..aa.dcaaacaa................
+........bbbaaaabbaaacdaaacaaaca.............
+.......abbbaaaabbaaaacdaacaaacaaa...........
+.......aaaaaaacbaaaaccdacaaacaaacac.........
+.......aaaaaaacaaaaacdddcaaacaaacacc........
+.....adaaaaacccaaacccdddaaacaaacaaadcc......
+....bbdaaaaccccccccccdddaaacaaacaaadcc......
+...abbaccaaacccccccccdddaaacaaacaaadccc.....
+...aaaaaccaaccccccccccddaacaaacaaaccccdc....
+...aaaaaccaaacccccccccddaacaaacaaaccccdcd...
+..dccaaaccaaacccccccccddaacaaacaaadcccdcd...
+.bbdccaacdcaacccccccccddaacaaacaaadcccdcdd..
+abbadccaaccaaacccdccccddaacaaacaaadcccdcda..
+aaaaadcaacdcaacccdccccddaacaaacaacdcccdcdac.
+aaaacdccaadcaaccccccccdaaacaaacaccdcccdcdacd
+aaaccddccacdcaacccccccccaaaaaaaccccdcccddccd
+aaaccdd.caadcaacccdccccd....aaadcccdcccddcdd
+aaaccdd..cacdcacccdccccd..........cdcccddcdd
+.aaccdd..cccccaaccdccccd..........ccdcdddcdd
+.aaccd....ccc.caccc.cccd...........cdcdddcdd
+.aaccd.....cc.caccc.cccd...........cdddddcdd
+.aacdd......ad.aaccd.ccc............dddddcdd
+.aacd..........caccd.ccc............dddddcd.
+.accd...........aacd..cc............dddddcd.
+.accd...........cacc..cc.............ddddcd.
+.acc.............acc...cd............dddacd.
+.acd.............cac...cd.............ddacd.
+.acd..............ac..................ddacd.
+.acd..............ccd..................cacd.
+.ac................cc...................acd.
+.ac................cd...................acd.
+..d.....................................acd.
+.........................................cd.
+.........................................ad.
+.........................................ad.
+.........................................a..

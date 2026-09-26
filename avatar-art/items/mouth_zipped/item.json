@@ -1,0 +1,15 @@
+{
+  "name": "Zipped Shut",
+  "category": "mouth",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 80,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "mouth",
+      "file": "mouth.txt"
+    }
+  ]
+}

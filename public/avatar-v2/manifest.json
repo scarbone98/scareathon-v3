@@ -307,6 +307,72 @@
   },
   "items": [
     {
+      "key": "acc_eyepatch",
+      "name": "Eyepatch",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "build": null,
+          "src": "/avatar-v2/items/acc_eyepatch/face_acc.png?v=19a8edd751"
+        }
+      ],
+      "icon": "/avatar-v2/items/acc_eyepatch/icon.png?v=5f5b76c72b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "acc_monocle",
+      "name": "Monocle",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "build": null,
+          "src": "/avatar-v2/items/acc_monocle/face_acc.png?v=e5dc1496b8"
+        }
+      ],
+      "icon": "/avatar-v2/items/acc_monocle/icon.png?v=20af2a2715",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "acc_round_specs",
+      "name": "Round Specs",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "build": null,
+          "src": "/avatar-v2/items/acc_round_specs/face_acc.png?v=7175373f5d"
+        }
+      ],
+      "icon": "/avatar-v2/items/acc_round_specs/icon.png?v=a09eb3daa0",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "base_body",
       "name": "Base Body",
       "category": "body",
@@ -407,6 +473,28 @@
       "release": "released"
     },
     {
+      "key": "brows_skeptic",
+      "name": "Skeptical Brows",
+      "category": "brows",
+      "parts": [
+        {
+          "slot": "brows",
+          "build": null,
+          "src": "/avatar-v2/items/brows_skeptic/brows.png?v=38ed53cce3"
+        }
+      ],
+      "icon": "/avatar-v2/items/brows_skeptic/icon.png?v=cd97e9564e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "brows_soft",
       "name": "Soft Brows",
       "category": "brows",
@@ -440,6 +528,50 @@
         }
       ],
       "icon": "/avatar-v2/items/brows_thick/icon.png?v=c109e508a3",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "brows_thin",
+      "name": "Thin Brows",
+      "category": "brows",
+      "parts": [
+        {
+          "slot": "brows",
+          "build": null,
+          "src": "/avatar-v2/items/brows_thin/brows.png?v=5b5019cf20"
+        }
+      ],
+      "icon": "/avatar-v2/items/brows_thin/icon.png?v=8f0e7a26c0",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "brows_worried",
+      "name": "Worried Brows",
+      "category": "brows",
+      "parts": [
+        {
+          "slot": "brows",
+          "build": null,
+          "src": "/avatar-v2/items/brows_worried/brows.png?v=5366f155b6"
+        }
+      ],
+      "icon": "/avatar-v2/items/brows_worried/icon.png?v=e04c2ab328",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -590,6 +722,50 @@
       "release": "released"
     },
     {
+      "key": "eyes_doll",
+      "name": "Doll Lashes",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_doll/eyes.png?v=23e4839fbd"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_doll/icon.png?v=b9683e52b1",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "eyes_happy",
+      "name": "Happy",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_happy/eyes.png?v=7ac3d0ae23"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_happy/icon.png?v=2308201b84",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "eyes_hollow",
       "name": "Hollow Stare",
       "category": "eyes",
@@ -612,6 +788,30 @@
       "release": "released"
     },
     {
+      "key": "eyes_odd",
+      "name": "Odd Eyes",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_odd/eyes.png?v=6c963b4743"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_odd/icon.png?v=81d7b18736",
+      "dyes": {
+        "dye1": "gold"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
       "key": "eyes_sharp_glare",
       "name": "Sharp Glare",
       "category": "eyes",
@@ -623,6 +823,28 @@
         }
       ],
       "icon": "/avatar-v2/items/eyes_sharp_glare/icon.png?v=ae9e482f21",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "eyes_shocked",
+      "name": "Shocked",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_shocked/eyes.png?v=d1a1b69109"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_shocked/icon.png?v=1c8edac614",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -656,6 +878,72 @@
       "release": "released"
     },
     {
+      "key": "eyes_spiral",
+      "name": "Spiral Eyes",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_spiral/eyes.png?v=430f797b41"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_spiral/icon.png?v=f089e157a5",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "eyes_starry",
+      "name": "Starry Eyes",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_starry/eyes.png?v=8e60f4e8be"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_starry/icon.png?v=5f3b10e9f2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "eyes_void",
+      "name": "Glowing Void",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_void/eyes.png?v=02970ca288"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_void/icon.png?v=b805cad20e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
+      "release": "released"
+    },
+    {
       "key": "eyes_wide",
       "name": "Wide Eyes",
       "category": "eyes",
@@ -675,6 +963,50 @@
       "default": true,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "eyes_wink",
+      "name": "Wink",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_wink/eyes.png?v=f7c781baf0"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_wink/icon.png?v=76b9452225",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "eyes_x",
+      "name": "X Eyes",
+      "category": "eyes",
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_x/eyes.png?v=8f7278e926"
+        }
+      ],
+      "icon": "/avatar-v2/items/eyes_x/icon.png?v=3264cfb079",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 60,
       "release": "released"
     },
     {
@@ -876,6 +1208,111 @@
       "release": "released"
     },
     {
+      "key": "hair_bonehawk",
+      "name": "Bonehawk",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_bonehawk/hair_back.png?v=87ed96d9ef"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_bonehawk/hair_front.png?v=91bc7bd7fb"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_bonehawk/icon.png?v=e9c6f9437a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
+      "key": "hair_buzzcut",
+      "name": "Buzzcut",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_buzzcut/hair_front.png?v=5fb0907439"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_buzzcut/icon.png?v=e2c862eb1f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_crypt_fringe",
+      "name": "Crypt Fringe",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_crypt_fringe/hair_back.png?v=a2accd4eb2"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_crypt_fringe/hair_front.png?v=3008bf162b"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_crypt_fringe/icon.png?v=4cfc64f9c2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_gallows_braid",
+      "name": "Gallows Braid",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_gallows_braid/hair_back.png?v=e4fe27fecb"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_gallows_braid/hair_front.png?v=7f838679ef"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_gallows_braid/icon.png?v=70eeb0e646",
+      "dyes": {
+        "dye1": "blood"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "hair_ghoul_mop",
       "name": "Ghoul Mop",
       "category": "hair",
@@ -930,6 +1367,35 @@
       "release": "released"
     },
     {
+      "key": "hair_hangmans_tail",
+      "name": "Hangman's Tail",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_hangmans_tail/hair_back.png?v=df69203308"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_hangmans_tail/hair_front.png?v=c0b32df6a2"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_hangmans_tail/icon.png?v=3e1e688115",
+      "dyes": {
+        "dye1": "blood"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "hair_long_wisp",
       "name": "Long Wisp",
       "category": "hair",
@@ -952,6 +1418,87 @@
       "order": 0,
       "starter": true,
       "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_porcelain_bob",
+      "name": "Porcelain Bob",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_porcelain_bob/hair_back.png?v=7286da7188"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_porcelain_bob/hair_front.png?v=9318ce5038"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_porcelain_bob/icon.png?v=29232639b3",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_rats_nest",
+      "name": "Rat's Nest",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_rats_nest/hair_back.png?v=3db3ddf0d5"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_rats_nest/hair_front.png?v=6f033d6e27"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_rats_nest/icon.png?v=dfdd357803",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_shrine_maiden",
+      "name": "Shrine Maiden",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_shrine_maiden/hair_back.png?v=0ad2686856"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_shrine_maiden/hair_front.png?v=20004a8f00"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_shrine_maiden/icon.png?v=fe3dc11ba2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
       "rarity": "common",
       "price": null,
       "release": "released"
@@ -984,6 +1531,62 @@
       "release": "released"
     },
     {
+      "key": "hair_storm_curls",
+      "name": "Storm Cloud Curls",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_storm_curls/hair_back.png?v=a3a8bb8822"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_storm_curls/hair_front.png?v=9902b707c7"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_storm_curls/icon.png?v=13ba5d8bb4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_twin_hexes",
+      "name": "Twin Hexes",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_twin_hexes/hair_back.png?v=03dfc77d65"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_twin_hexes/hair_front.png?v=f8940b0a10"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_twin_hexes/icon.png?v=aec43d68d0",
+      "dyes": {
+        "dye1": "violet"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "hair_undertaker_sweep",
       "name": "Undertaker Sweep",
       "category": "hair",
@@ -1000,6 +1603,60 @@
         }
       ],
       "icon": "/avatar-v2/items/hair_undertaker_sweep/icon.png?v=28e2a6c775",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_werewolf_mullet",
+      "name": "Werewolf Mullet",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_werewolf_mullet/hair_back.png?v=1ebb303c6b"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_werewolf_mullet/hair_front.png?v=d14d22cc29"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_werewolf_mullet/icon.png?v=58764a6558",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "hair_wisp_pixie",
+      "name": "Wisp Pixie",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_wisp_pixie/hair_back.png?v=e4fe27fecb"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_wisp_pixie/hair_front.png?v=26eea01bca"
+        }
+      ],
+      "icon": "/avatar-v2/items/hair_wisp_pixie/icon.png?v=efa8be4541",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -1167,6 +1824,50 @@
       "release": "released"
     },
     {
+      "key": "mouth_cat",
+      "name": "Cat Mouth",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_cat/mouth.png?v=3d8a953e52"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_cat/icon.png?v=4fa0a01ed8",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "mouth_drool",
+      "name": "Drool",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_drool/mouth.png?v=aae218ead8"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_drool/icon.png?v=4129c7a1d1",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "mouth_fang",
       "name": "Fang Grin",
       "category": "mouth",
@@ -1230,6 +1931,50 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "mouth_laugh",
+      "name": "Laugh",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_laugh/mouth.png?v=e552c82231"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_laugh/icon.png?v=742b3ca0b1",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "mouth_o",
+      "name": "Gasp",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_o/mouth.png?v=11567c5eae"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_o/icon.png?v=53c417e037",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
       "release": "released"
     },
     {
@@ -1299,6 +2044,182 @@
       "release": "released"
     },
     {
+      "key": "mouth_toothy",
+      "name": "Toothy Maw",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_toothy/mouth.png?v=b05672922d"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_toothy/icon.png?v=8349854d2f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "mouth_vampire",
+      "name": "Vampire Smile",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_vampire/mouth.png?v=8d9196f56c"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_vampire/icon.png?v=e003fe318f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "mouth_wobbly",
+      "name": "Nervous",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_wobbly/mouth.png?v=9a38408663"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_wobbly/icon.png?v=801281bd07",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "mouth_zipped",
+      "name": "Zipped Shut",
+      "category": "mouth",
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_zipped/mouth.png?v=1c97a194a7"
+        }
+      ],
+      "icon": "/avatar-v2/items/mouth_zipped/icon.png?v=1a28a4ae1a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "paint_bandage",
+      "name": "Nose Plaster",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_bandage/face_paint.png?v=dd2399773d"
+        }
+      ],
+      "icon": "/avatar-v2/items/paint_bandage/icon.png?v=025fc8c40a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "paint_beauty_mark",
+      "name": "Beauty Mark",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_beauty_mark/face_paint.png?v=526d9c114d"
+        }
+      ],
+      "icon": "/avatar-v2/items/paint_beauty_mark/icon.png?v=a622c8973f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "paint_black_eye",
+      "name": "Black Eye",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_black_eye/face_paint.png?v=cb2350a5c7"
+        }
+      ],
+      "icon": "/avatar-v2/items/paint_black_eye/icon.png?v=7c20e6ccf3",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "paint_blood_drip",
+      "name": "Blood Drip",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_blood_drip/face_paint.png?v=1346a34852"
+        }
+      ],
+      "icon": "/avatar-v2/items/paint_blood_drip/icon.png?v=ad00879cea",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 70,
+      "release": "released"
+    },
+    {
       "key": "paint_blush",
       "name": "Blush",
       "category": "face_paint",
@@ -1362,6 +2283,52 @@
       "default": false,
       "rarity": "uncommon",
       "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "paint_rot",
+      "name": "Rot Patches",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_rot/face_paint.png?v=a6eeef6ac4"
+        }
+      ],
+      "icon": "/avatar-v2/items/paint_rot/icon.png?v=1289a79ec6",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "paint_runes",
+      "name": "Rune Marks",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_runes/face_paint.png?v=cbb53715d4"
+        }
+      ],
+      "icon": "/avatar-v2/items/paint_runes/icon.png?v=fac4db702a",
+      "dyes": {
+        "dye1": "spectral"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 140,
       "release": "released"
     },
     {
@@ -1446,10 +2413,15 @@
         {
           "slot": "face_acc",
           "build": null,
-          "src": "/avatar-v2/items/plague_mask/face_acc.png?v=a42e506575"
+          "src": "/avatar-v2/items/plague_mask/face_acc.png?v=3d1d205ed9"
+        },
+        {
+          "slot": "hair_acc",
+          "build": null,
+          "src": "/avatar-v2/items/plague_mask/hair_acc.png?v=7e84aee083"
         }
       ],
-      "icon": "/avatar-v2/items/plague_mask/icon.png?v=7d7a5ef284",
+      "icon": "/avatar-v2/items/plague_mask/icon.png?v=3f59261ab9",
       "dyes": {
         "dye1": "bone",
         "dye2": "spectral"
@@ -1508,7 +2480,8 @@
         "mouth",
         "brows",
         "face_paint",
-        "face_acc"
+        "face_acc",
+        "hair_acc"
       ],
       "order": 0,
       "starter": false,

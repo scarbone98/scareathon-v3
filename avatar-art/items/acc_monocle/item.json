@@ -1,0 +1,15 @@
+{
+  "name": "Monocle",
+  "category": "face_acc",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_acc",
+      "file": "monocle.txt"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Skeptical brows: one flat, one raised high. Hair ramp.
+at: 44,44
+outline: none
+legend:
+  b = hair.1
+---
+.............bbb.
+............b...b
+...........b.....
+bbbbb............

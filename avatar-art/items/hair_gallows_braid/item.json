@@ -1,0 +1,24 @@
+{
+  "name": "Gallows Braid",
+  "category": "hair",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair2.mjs#braidBack"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#braidFront"
+    }
+  ],
+  "dyes": {
+    "dye1": "blood"
+  }
+}

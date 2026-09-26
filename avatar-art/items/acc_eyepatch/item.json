@@ -1,0 +1,15 @@
+{
+  "name": "Eyepatch",
+  "category": "face_acc",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 60,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_acc",
+      "file": "patch.txt"
+    }
+  ]
+}

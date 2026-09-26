@@ -1,0 +1,24 @@
+# Plague Doctor Mask, the beak, drawn over the hair (sculpted: avatar-art/sculpts/crypt.mjs plagueBeak).
+at: 33,56
+outline: auto
+legend:
+  d = dye1.1
+  c = dye1.2
+  a = dye1.3
+  b = dye1.4
+---
+................abaaac..
+..............abbbaaaac.
+...........aaabbbbaaaacd
+........aaaaaaaaaaaaaccd
+.......bbbaaaaaaaaaaaccd
+......bbbaaaaaaaaaaacccd
+.....abaaaaaaaaaaaccccdd
+.....aaaaaaaaccccccccddd
+....aaaaaaacccccccddddd.
+...aaaaaacccccdddddddd..
+...aaaacccccdddddd......
+..aaaccccdddddd.........
+.aaccddddddd............
+acdd....................
+d.......................

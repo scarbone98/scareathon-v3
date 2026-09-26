@@ -1,0 +1,15 @@
+{
+  "name": "Black Eye",
+  "category": "face_paint",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_paint",
+      "file": "paint.txt"
+    }
+  ]
+}

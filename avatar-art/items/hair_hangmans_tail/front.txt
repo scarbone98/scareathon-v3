@@ -1,0 +1,38 @@
+# Hangman's Tail, front (sculpted: avatar-art/sculpts/hair2.mjs ponytailFront).
+at: 42,29
+outline: auto
+legend:
+  b = hair.1
+  d = hair.2
+  a = hair.3
+  c = hair.4
+---
+..............aabbabbbbaaaaa.............
+............ccaaadbcaaabaaaaaad..........
+...........cccaaaaccaaadbaaaaaadd........
+.......caabacaaaadcaaaaddbaaaaaadd.......
+......ccaaaaaaaaadaaaaadbbaaaaaaadd......
+.....acaaaaaaaaaddaaaaddbbaaaaaaaddd.....
+.....aaaaaaaaaddbbadddbbbbaaaaaaadddd....
+.....aaaaadaadddbbadddbbbaaaaaaaaddddd...
+.....aaadddaadddbbadddbbbaaaaaaaadddddb..
+.....aaddbbaaddbbbaddbbbaaaaaaaaadddddb..
+.cabaaaddbbaaddbbbaddbbaaaaaaaaaddddddbb.
+ccabaaddbbbaddbbbbaddbaaaaaaaaaaddddddbb.
+aaabaaddbbbaddbbaaadbaaaaaaaaaadddddddbb.
+aaabaadbb..addb.aaadbaaaaaaaaaadddddddbbb
+aadbadbb...adb....ad......aaaaddddddddbbb
+aadbadb....adb....ab...........ddddddbbbb
+aadbdb.....db...................dddddbbbb
+aadbd......d....................ddddbbbbb
+aadb.......b.....................dddbbbbb
+aadb.............................ddbbbbbb
+addb..............................bbbbbbb
+adb...............................bbbbbb.
+adb...............................bbbbbb.
+adb................................bbbbb.
+ab.................................bbbb..
+ab..................................bbb..
+d...................................bb...
+d........................................
+b........................................

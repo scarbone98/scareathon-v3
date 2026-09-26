@@ -1,0 +1,15 @@
+{
+  "name": "Happy",
+  "category": "eyes",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "eyes",
+      "file": "eyes.txt"
+    }
+  ]
+}

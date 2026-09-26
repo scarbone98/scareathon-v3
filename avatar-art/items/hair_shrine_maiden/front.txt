@@ -1,0 +1,47 @@
+# Shrine Maiden, front (sculpted: avatar-art/sculpts/hair2.mjs himeFront).
+at: 38,27
+outline: auto
+legend:
+  d = hair.1
+  b = hair.2
+  a = hair.3
+  c = hair.4
+---
+......................aaaaaab....................
+..................abaaabaaabaaaba................
+................aaabaaabaaabaaabaaa..............
+..............abcccccaabaaabaaabaaabb............
+.............aacccacccbaaabaaabaaababb...........
+............aaacccacccbaaabaaabaaabaabbb.........
+...........acacccacccaaaabaaabaaabaaadbbb........
+..........accacccacccaaaabaaabaaabaaadbbb........
+.........bcccacccacccaaaabaaabaaabaaadbbbd.......
+........baacacccacccbaaabaaabaaabaaabbbbdbd......
+.....aaabaacacccaccabaaabaaabaaabaaabbbbdbb......
+...cacaabaaaacccacaabaaabaaabaaabaaadbbbdbbd.....
+..acacaabaaabaccbaaabaaabaaabaaabaaadbbbdbbd.....
+..acbaaabaaabaaabaaabaaabaaabaaabaabdbbbdbbdba...
+..aabaaabaaabaaabaaabaaabaaabaaabaabdbbbdbdabab..
+..aabaaabaaabaaabaaabaaabaaabaaababbdbbbdbdababd.
+..aaabaaabaaabaaabaaabaaabaaabaaadbbbdbbbdddadbd.
+.baaabaaabaaabaaabaaabaaabaaabaabdbbbdbbbdddbdbd.
+.baaabaaabaaabaaabaaabaaabaaababbdbbbdbbbdddbdbd.
+.abaaabaaa.....aaaaaaaaaaabaaadbbbdbbbdbddddbbdd.
+.abaaabaaa...............abaabdbbbdbbbdbddddbbdd.
+.abaaababa.........................bbbddddddbbdd.
+.aabaaabbb............................dddddbabbd.
+.aabaaadbb............................dddddbabbd.
+.aabaaadbb............................dddddbabbd.
+.aaabaabdbb............................dddaabbbd.
+.aaabaabdbb............................dddaabbbd.
+.aaababbdbb.............................ddaabbbd.
+.aaababbdbb.............................daaabbbd.
+.aaababbdbd.............................daaabbbdd
+.aaababbdddd............................baaabbbdd
+.aaababbdddd............................baaabbbdd
+.aabaabdbdd.............................aaababbdd
+aaabaabdbdd.............................aaababbdd
+aaabaabddd..............................aaababbdd
+aabaaadbdd..............................aabaabdbd
+aabaaadbdd..............................aabaabdbd
+aabaaadbdd..............................aabaabdbd

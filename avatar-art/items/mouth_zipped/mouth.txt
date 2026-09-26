@@ -1,0 +1,15 @@
+# Zipped Shut: a zipper for a mouth, pull tab hanging.
+at: 49,62
+outline: none
+legend:
+  g = steel.4
+  G = steel.2
+  s = steel.3
+  k = ink.0
+---
+kkkkkkkkkk
+gGgGgGgGgG
+GgGgGgGgGg
+kkkkkkkkks
+.........s
+.........G

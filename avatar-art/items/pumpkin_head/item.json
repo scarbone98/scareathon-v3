@@ -27,6 +27,7 @@
     "mouth",
     "brows",
     "face_paint",
-    "face_acc"
+    "face_acc",
+    "hair_acc"
   ]
 }

@@ -61,16 +61,24 @@ export function parts(build) {
     },
 
     plagueMask: {
-      comment: "Plague Doctor Mask: leather over the face and a long beak (sculpted: avatar-art/sculpts/crypt.mjs plagueMask).\nThe goggles are a hand-drawn overlay, goggles.txt.",
+      comment: "Plague Doctor Mask: the leather over the face (sculpted: avatar-art/sculpts/crypt.mjs plagueMask).\nThe beak is its own part (plagueBeak) and the goggles a hand-drawn overlay, goggles.txt.",
       blend: 5,
       shapes: [
         ellipsoid([57.5, 56, 7], [13.5, 11.5, 12], {
           group: "mask",
           material: (x, y) => (x > 73 - (y - 44) * 0.2 || y < 44 ? null : "dye1"),
         }),
+        capsule([50, 66, 12], [58, 69, 8], 1.1, 1.1, { group: "strap", material: "wood" }),
+      ],
+    },
+    // The beak juts out past the hair, so it sits a layer above hair_front
+    // (hair_acc) while the leather stays under the fringe.
+    plagueBeak: {
+      comment: "Plague Doctor Mask, the beak, drawn over the hair (sculpted: avatar-art/sculpts/crypt.mjs plagueBeak).",
+      blend: 5,
+      shapes: [
         capsule([52, 61, 15], [43, 64, 16], 5.2, 3.6, { group: "beak", material: "dye1" }),
         capsule([43, 64, 16], [33, 70, 14], 3.6, 0.6, { group: "beak", material: "dye1" }),
-        capsule([50, 66, 12], [58, 69, 8], 1.1, 1.1, { group: "strap", material: "wood" }),
       ],
     },
 

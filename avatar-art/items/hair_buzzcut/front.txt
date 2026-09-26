@@ -1,0 +1,35 @@
+# Buzzcut (sculpted: avatar-art/sculpts/hair2.mjs buzzFront).
+at: 48,29
+outline: auto
+legend:
+  c = hair.1
+  b = hair.2
+  a = hair.3
+  d = hair.4
+---
+...........abaaaabaaa.............
+........abaaabaabaaaabac..........
+......aaaddbaaaaaaababaabb........
+.....aadaddadababaaabaababb.......
+....ddadddadabaaaabaaaabaabb......
+..badddadddadbaaaaaaababbabccc....
+..baaddaadaddaaaabaabbbababbcb....
+.baddaddaaaabbbabbbaaaabababbbb...
+baaddadadadabaabaaaaaabaabbbbbcc..
+addaddddaaabbbaabbabbaabbbbbbbcb..
+.....dadaabbaaabbabbaaabaabbbbbcc.
+...............aababababacbccbbcc.
+........................accccbcccc
+........................bcbbcbcbcc
+.........................cbcbbbccc
+.........................bbccbcccc
+..........................cccbcccc
+..........................bccccccc
+...........................bbccccc
+...........................bcccccc
+............................cccccc
+............................cccccc
+............................cccccc
+.............................cccc.
+.............................cccc.
+..............................cc..

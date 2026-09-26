@@ -1,0 +1,21 @@
+{
+  "name": "Porcelain Bob",
+  "category": "hair",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair2.mjs#bobBack"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#bobFront"
+    }
+  ]
+}

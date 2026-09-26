@@ -1,0 +1,7 @@
+# Thin brows: a fine single line. Hair ramp.
+at: 45,47
+outline: none
+legend:
+  b = hair.2
+---
+bbbb.......bbbbbb

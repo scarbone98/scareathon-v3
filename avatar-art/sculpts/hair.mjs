@@ -3,18 +3,18 @@
 // the face) and a back part (hair_back, behind the head and body).
 import { capsule, ellipsoid, sphere } from "../../scripts/avatar-art/sculpt.mjs";
 
-const hair = "hair";
-const lock = (name, a, b, ra, rb = 0.4) => capsule(a, b, ra, rb, { group: name, material: hair });
+export const hair = "hair";
+export const lock = (name, a, b, ra, rb = 0.4) => capsule(a, b, ra, rb, { group: name, material: hair });
 // A lock with a bend in the middle, for waves.
-const wave = (name, a, mid, b, ra, rm, rb = 0.5) => [
+export const wave = (name, a, mid, b, ra, rm, rb = 0.5) => [
   capsule(a, mid, ra, rm, { group: name, material: hair }),
   capsule(mid, b, rm, rb, { group: name, material: hair }),
 ];
 // The face opening every front cap cuts: open below `hairline` on the face
 // side, and nothing below `bottom`.
-const faceCut = (hairline, bottom) => (x, y) =>
+export const faceCut = (hairline, bottom) => (x, y) =>
   (x < 75.3 + 0.45 * (y - 49) && y > hairline + 0.1 * (x - 63)) || y > bottom;
-const nape = (name) => ellipsoid([66, 50, -5], [18.6, 17.8, 13], { group: name, material: hair });
+export const nape = (name) => ellipsoid([66, 50, -5], [18.6, 17.8, 13], { group: name, material: hair });
 
 export const parts = {
   // Grave Crop: short and spiky, sticking up and back.

@@ -1,0 +1,8 @@
+# Cat Mouth: a little ω.
+at: 52,63
+outline: none
+legend:
+  D = skin.1
+---
+.D.D.
+D.D.D

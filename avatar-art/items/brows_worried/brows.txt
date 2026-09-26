@@ -1,0 +1,9 @@
+# Worried brows: raised toward the nose. Hair ramp.
+at: 44,45
+outline: none
+legend:
+  b = hair.1
+---
+....bb.....bb.....
+..bb.........bbb..
+bb..............bb

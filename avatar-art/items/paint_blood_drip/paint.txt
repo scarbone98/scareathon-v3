@@ -1,0 +1,13 @@
+# Blood Drip: running from the corner of the mouth.
+at: 57,64
+outline: none
+legend:
+  r = blood.3
+  R = blood.2
+---
+r
+r
+R
+r
+.
+R

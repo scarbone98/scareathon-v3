@@ -1,0 +1,21 @@
+{
+  "name": "Werewolf Mullet",
+  "category": "hair",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 100,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair2.mjs#mulletBack"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#mulletFront"
+    }
+  ]
+}

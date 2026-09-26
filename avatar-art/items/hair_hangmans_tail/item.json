@@ -1,0 +1,24 @@
+{
+  "name": "Hangman's Tail",
+  "category": "hair",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair2.mjs#ponytailBack"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair2.mjs#ponytailFront"
+    }
+  ],
+  "dyes": {
+    "dye1": "blood"
+  }
+}

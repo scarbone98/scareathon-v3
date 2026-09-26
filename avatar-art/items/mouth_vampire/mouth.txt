@@ -1,0 +1,10 @@
+# Vampire Smile: closed smile, two fangs over the lip.
+at: 50,62
+outline: none
+legend:
+  D = skin.1
+  w = bone.4
+---
+D.....D
+.DDDDD.
+..w..w.

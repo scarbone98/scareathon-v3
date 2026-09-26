@@ -1,0 +1,11 @@
+# Gasp: a small round O.
+at: 53,62
+outline: none
+legend:
+  k = ink.0
+  r = blood.1
+---
+.kk.
+krrk
+krrk
+.kk.
