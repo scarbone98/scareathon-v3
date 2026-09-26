@@ -127,7 +127,8 @@ everything on the canvas.
 | `eyes`       | eyes (one item: both eyes)                                       |
 | `mouth`      | mouths and expressions                                           |
 | `brows`      | eyebrows (sit under the fringe, like Gaia)                       |
-| `legs`       | trousers, skirts, tights                                         |
+| `legwear`    | stockings, tights, socks (under skirts, trousers and shoes)      |
+| `legs`       | trousers, skirts, shorts                                         |
 | `feet`       | shoes, boots                                                     |
 | `torso`      | shirts, tops                                                     |
 | `outer`      | jackets, coats, cape fronts, armour                              |
@@ -143,6 +144,13 @@ For example, the Long Wisp hair puts its fringe in `hair_front` and its long
 back in `hair_back`, and the Candlewick Hat puts the hat in `head` and the
 candle flame in `front_fx`. If an item has a
 front and a back in real life, draw both.
+
+**Stacking is fixed, like Gaia's.** Layers draw in the slot order above, and
+the order someone puts items on never matters. If two kinds of item can share
+a slot and one belongs over the other, either give it its own slot (that's why
+stockings are `legwear`, not `legs`) or set `"order"` in `item.json`: higher
+draws on top within the slot (default 0; e.g. the sweater is 1 so it goes over
+any tee).
 
 `hides` in `item.json` removes other items' slots, for example a full helmet
 might hide `hair_front`. Only use it when no drawing could work instead.

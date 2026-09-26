@@ -18,5 +18,6 @@
   "dyes": {
     "dye1": "moss",
     "dye2": "pumpkin"
-  }
+  },
+  "order": 1
 }
