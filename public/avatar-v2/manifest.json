@@ -56,6 +56,10 @@
     "aura": 1,
     "background": 1
   },
+  "builds": [
+    "f",
+    "m"
+  ],
   "swappable": {
     "skin": [
       "#3a1a1c",
@@ -100,6 +104,50 @@
     "skin_zombie",
     "skin_ghost",
     "skin_demon"
+  ],
+  "hairColors": [
+    "hair",
+    "ink",
+    "bone",
+    "night",
+    "blood",
+    "pumpkin",
+    "gold",
+    "moss",
+    "spectral",
+    "violet",
+    "wood",
+    "rose",
+    "steel"
+  ],
+  "eyeColors": [
+    "eyes",
+    "ink",
+    "bone",
+    "night",
+    "blood",
+    "pumpkin",
+    "gold",
+    "moss",
+    "spectral",
+    "violet",
+    "wood",
+    "rose",
+    "steel"
+  ],
+  "dyeColors": [
+    "ink",
+    "bone",
+    "night",
+    "blood",
+    "pumpkin",
+    "gold",
+    "moss",
+    "spectral",
+    "violet",
+    "wood",
+    "rose",
+    "steel"
   ],
   "ramps": {
     "ink": [
@@ -257,410 +305,778 @@
       "#33ffff"
     ]
   },
-  "builds": [
-    "f",
-    "m"
-  ],
   "items": [
     {
       "key": "base_body",
       "name": "Base Body",
       "category": "body",
-      "slots": [
-        "body.f",
-        "body.m"
+      "parts": [
+        {
+          "slot": "body",
+          "build": "f",
+          "src": "/avatar-v2/items/base_body/body.f.png?v=d55abbfbc2"
+        },
+        {
+          "slot": "body",
+          "build": "m",
+          "src": "/avatar-v2/items/base_body/body.m.png?v=cfc6bdf825"
+        }
       ],
+      "icon": "/avatar-v2/items/base_body/icon.png?v=3731782b84",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
-    },
-    {
-      "key": "bat_wings",
-      "name": "Tattered Bat Wings",
-      "category": "wings",
-      "slots": [
-        "wings"
-      ],
-      "dyes": {
-        "dye1": "violet",
-        "dye2": "night"
-      },
-      "occupies": [],
-      "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "brows_scowl",
       "name": "Scowl",
       "category": "brows",
-      "slots": [
-        "brows"
+      "parts": [
+        {
+          "slot": "brows",
+          "build": null,
+          "src": "/avatar-v2/items/brows_scowl/brows.png?v=a7d129122c"
+        }
       ],
+      "icon": "/avatar-v2/items/brows_scowl/icon.png?v=b71fd77069",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "brows_soft",
       "name": "Soft Brows",
       "category": "brows",
-      "slots": [
-        "brows"
+      "parts": [
+        {
+          "slot": "brows",
+          "build": null,
+          "src": "/avatar-v2/items/brows_soft/brows.png?v=4074f5be8a"
+        }
       ],
+      "icon": "/avatar-v2/items/brows_soft/icon.png?v=2487838ddb",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "buckle_boots",
       "name": "Buckle Boots",
       "category": "feet",
-      "slots": [
-        "feet.f",
-        "feet.m"
+      "parts": [
+        {
+          "slot": "feet",
+          "build": "f",
+          "src": "/avatar-v2/items/buckle_boots/feet.f.png?v=5a6e9da860"
+        },
+        {
+          "slot": "feet",
+          "build": "m",
+          "src": "/avatar-v2/items/buckle_boots/feet.m.png?v=7098afe18f"
+        }
       ],
+      "icon": "/avatar-v2/items/buckle_boots/icon.png?v=318e17b1af",
       "dyes": {
         "dye1": "wood",
         "dye2": "night"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "charm_choker",
       "name": "Charm Choker",
       "category": "neck",
-      "slots": [
-        "neck"
+      "parts": [
+        {
+          "slot": "neck",
+          "build": null,
+          "src": "/avatar-v2/items/charm_choker/neck.png?v=b253582fde"
+        }
       ],
+      "icon": "/avatar-v2/items/charm_choker/icon.png?v=364227d747",
       "dyes": {
         "dye1": "night",
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
     },
     {
       "key": "eyes_hollow",
       "name": "Hollow Stare",
       "category": "eyes",
-      "slots": [
-        "eyes"
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_hollow/eyes.png?v=6605e5f98c"
+        }
       ],
+      "icon": "/avatar-v2/items/eyes_hollow/icon.png?v=3d9fa9df84",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
+      "release": "released"
     },
     {
       "key": "eyes_sleepless",
       "name": "Sleepless",
       "category": "eyes",
-      "slots": [
-        "eyes"
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_sleepless/eyes.png?v=b3e6b5e56f"
+        }
       ],
+      "icon": "/avatar-v2/items/eyes_sleepless/icon.png?v=7bc6202f7f",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "eyes_wide",
       "name": "Wide Eyes",
       "category": "eyes",
-      "slots": [
-        "eyes"
+      "parts": [
+        {
+          "slot": "eyes",
+          "build": null,
+          "src": "/avatar-v2/items/eyes_wide/eyes.png?v=7d4f7f4670"
+        }
       ],
+      "icon": "/avatar-v2/items/eyes_wide/icon.png?v=c0700d825e",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "grave_creepers",
       "name": "Grave Creepers",
       "category": "feet",
-      "slots": [
-        "feet.f",
-        "feet.m"
+      "parts": [
+        {
+          "slot": "feet",
+          "build": "f",
+          "src": "/avatar-v2/items/grave_creepers/feet.f.png?v=5ddff2550b"
+        },
+        {
+          "slot": "feet",
+          "build": "m",
+          "src": "/avatar-v2/items/grave_creepers/feet.m.png?v=dfb22b2043"
+        }
       ],
+      "icon": "/avatar-v2/items/grave_creepers/icon.png?v=4979f7fd99",
       "dyes": {
         "dye1": "night",
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "grave_tee",
       "name": "Grave Tee",
       "category": "torso",
-      "slots": [
-        "torso.f",
-        "torso.m"
+      "parts": [
+        {
+          "slot": "torso",
+          "build": "f",
+          "src": "/avatar-v2/items/grave_tee/torso.f.png?v=795ab9d65b"
+        },
+        {
+          "slot": "torso",
+          "build": "m",
+          "src": "/avatar-v2/items/grave_tee/torso.m.png?v=b507bd58fb"
+        }
       ],
+      "icon": "/avatar-v2/items/grave_tee/icon.png?v=2ab9eead4c",
       "dyes": {
         "dye1": "night"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "gravewarden_cloak",
       "name": "Gravewarden Hood & Cloak",
       "category": "outer",
-      "slots": [
-        "back.f",
-        "back.m",
-        "outer.f",
-        "outer.m",
-        "head"
+      "parts": [
+        {
+          "slot": "back",
+          "build": "f",
+          "src": "/avatar-v2/items/gravewarden_cloak/back.f.png?v=dd12ba2ef7"
+        },
+        {
+          "slot": "back",
+          "build": "m",
+          "src": "/avatar-v2/items/gravewarden_cloak/back.m.png?v=dd12ba2ef7"
+        },
+        {
+          "slot": "outer",
+          "build": "f",
+          "src": "/avatar-v2/items/gravewarden_cloak/outer.f.png?v=2fdf6e0b97"
+        },
+        {
+          "slot": "outer",
+          "build": "m",
+          "src": "/avatar-v2/items/gravewarden_cloak/outer.m.png?v=2fdf6e0b97"
+        },
+        {
+          "slot": "head",
+          "build": null,
+          "src": "/avatar-v2/items/gravewarden_cloak/head.png?v=a943426c00"
+        }
       ],
+      "icon": "/avatar-v2/items/gravewarden_cloak/icon.png?v=e27d50598e",
       "dyes": {
         "dye1": "night",
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 450,
+      "release": "released"
     },
     {
       "key": "hair_long_wisp",
       "name": "Long Wisp",
       "category": "hair",
-      "slots": [
-        "hair_back",
-        "hair_front"
+      "parts": [
+        {
+          "slot": "hair_back",
+          "build": null,
+          "src": "/avatar-v2/items/hair_long_wisp/hair_back.png?v=18924cd895"
+        },
+        {
+          "slot": "hair_front",
+          "build": null,
+          "src": "/avatar-v2/items/hair_long_wisp/hair_front.png?v=dc89564d94"
+        }
       ],
+      "icon": "/avatar-v2/items/hair_long_wisp/icon.png?v=88ca5294f1",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "hex_stockings",
       "name": "Hex Stockings",
       "category": "legwear",
-      "slots": [
-        "legwear.f",
-        "legwear.m"
+      "parts": [
+        {
+          "slot": "legwear",
+          "build": "f",
+          "src": "/avatar-v2/items/hex_stockings/legwear.f.png?v=83fea8c8cf"
+        },
+        {
+          "slot": "legwear",
+          "build": "m",
+          "src": "/avatar-v2/items/hex_stockings/legwear.m.png?v=53fece0775"
+        }
       ],
+      "icon": "/avatar-v2/items/hex_stockings/icon.png?v=b65ffbeeac",
       "dyes": {
         "dye1": "night",
         "dye2": "violet"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "katana_back",
       "name": "Graveblade (Sheathed)",
       "category": "back",
-      "slots": [
-        "back",
-        "strap"
+      "parts": [
+        {
+          "slot": "back",
+          "build": null,
+          "src": "/avatar-v2/items/katana_back/back.png?v=c64d440a75"
+        },
+        {
+          "slot": "strap",
+          "build": null,
+          "src": "/avatar-v2/items/katana_back/strap.png?v=994ccbbfed"
+        }
       ],
+      "icon": "/avatar-v2/items/katana_back/icon.png?v=211a961b19",
       "dyes": {
         "dye1": "night",
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 350,
+      "release": "released"
     },
     {
       "key": "katana_drawn",
       "name": "Graveblade (Drawn)",
       "category": "held_near",
-      "slots": [
-        "held_back.f",
-        "held_back.m",
-        "held.f",
-        "held.m",
-        "front_fx.f",
-        "front_fx.m"
+      "parts": [
+        {
+          "slot": "held_back",
+          "build": "f",
+          "src": "/avatar-v2/items/katana_drawn/held_back.f.png?v=10a6bb7253"
+        },
+        {
+          "slot": "held_back",
+          "build": "m",
+          "src": "/avatar-v2/items/katana_drawn/held_back.m.png?v=bf7e3783bd"
+        },
+        {
+          "slot": "held",
+          "build": "f",
+          "src": "/avatar-v2/items/katana_drawn/held.f.png?v=26a6eb775a"
+        },
+        {
+          "slot": "held",
+          "build": "m",
+          "src": "/avatar-v2/items/katana_drawn/held.m.png?v=bfd106df2e"
+        },
+        {
+          "slot": "front_fx",
+          "build": "f",
+          "src": "/avatar-v2/items/katana_drawn/front_fx.f.png?v=88739f7f6a"
+        },
+        {
+          "slot": "front_fx",
+          "build": "m",
+          "src": "/avatar-v2/items/katana_drawn/front_fx.m.png?v=09ffa07bbb"
+        }
       ],
+      "icon": "/avatar-v2/items/katana_drawn/icon.png?v=cb6bbcbcdf",
       "dyes": {
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 350,
+      "release": "released"
     },
     {
       "key": "mouth_fang",
       "name": "Fang Grin",
       "category": "mouth",
-      "slots": [
-        "mouth"
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_fang/mouth.png?v=2ca7763944"
+        }
       ],
+      "icon": "/avatar-v2/items/mouth_fang/icon.png?v=066ffb1940",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "mouth_smile",
       "name": "Small Smile",
       "category": "mouth",
-      "slots": [
-        "mouth"
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_smile/mouth.png?v=ca946269fa"
+        }
       ],
+      "icon": "/avatar-v2/items/mouth_smile/icon.png?v=1239b606f7",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "mouth_stitched",
       "name": "Sewn Shut",
       "category": "mouth",
-      "slots": [
-        "mouth"
+      "parts": [
+        {
+          "slot": "mouth",
+          "build": null,
+          "src": "/avatar-v2/items/mouth_stitched/mouth.png?v=399fe6fe6b"
+        }
       ],
+      "icon": "/avatar-v2/items/mouth_stitched/icon.png?v=ecccac215b",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
     },
     {
       "key": "paint_blush",
       "name": "Blush",
       "category": "face_paint",
-      "slots": [
-        "face_paint"
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_blush/face_paint.png?v=05ca80cd9b"
+        }
       ],
+      "icon": "/avatar-v2/items/paint_blush/icon.png?v=977f0d9890",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "paint_stitches",
       "name": "Stitched Scar",
       "category": "face_paint",
-      "slots": [
-        "face_paint"
+      "parts": [
+        {
+          "slot": "face_paint",
+          "build": null,
+          "src": "/avatar-v2/items/paint_stitches/face_paint.png?v=fd0d4e7b9e"
+        }
       ],
+      "icon": "/avatar-v2/items/paint_stitches/icon.png?v=bf769eb809",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 60,
+      "release": "released"
     },
     {
       "key": "patched_trousers",
       "name": "Patched Trousers",
       "category": "legs",
-      "slots": [
-        "legs.f",
-        "legs.m"
+      "parts": [
+        {
+          "slot": "legs",
+          "build": "f",
+          "src": "/avatar-v2/items/patched_trousers/legs.f.png?v=475a7eb36d"
+        },
+        {
+          "slot": "legs",
+          "build": "m",
+          "src": "/avatar-v2/items/patched_trousers/legs.m.png?v=0c9b792412"
+        }
       ],
+      "icon": "/avatar-v2/items/patched_trousers/icon.png?v=4985a1646f",
       "dyes": {
         "dye1": "steel",
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "porcelain_mask",
       "name": "Porcelain Half-Mask",
       "category": "face_acc",
-      "slots": [
-        "face_acc"
+      "parts": [
+        {
+          "slot": "face_acc",
+          "build": null,
+          "src": "/avatar-v2/items/porcelain_mask/face_acc.png?v=7ff4b24f83"
+        }
       ],
+      "icon": "/avatar-v2/items/porcelain_mask/icon.png?v=b2f93c4fca",
       "dyes": {},
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
+      "release": "released"
     },
     {
       "key": "ram_horns",
       "name": "Ram Horns",
       "category": "head",
-      "slots": [
-        "head"
+      "parts": [
+        {
+          "slot": "head",
+          "build": null,
+          "src": "/avatar-v2/items/ram_horns/head.png?v=5ae96641cc"
+        }
       ],
+      "icon": "/avatar-v2/items/ram_horns/icon.png?v=4c41c7c9b4",
       "dyes": {
         "dye1": "bone"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 250,
+      "release": "released"
     },
     {
       "key": "soul_lantern",
       "name": "Soul Lantern",
       "category": "held_near",
-      "slots": [
-        "held.f",
-        "held.m",
-        "front_fx.f",
-        "front_fx.m"
+      "parts": [
+        {
+          "slot": "held",
+          "build": "f",
+          "src": "/avatar-v2/items/soul_lantern/held.f.png?v=7299ef558b"
+        },
+        {
+          "slot": "held",
+          "build": "m",
+          "src": "/avatar-v2/items/soul_lantern/held.m.png?v=ffafcc3166"
+        },
+        {
+          "slot": "front_fx",
+          "build": "f",
+          "src": "/avatar-v2/items/soul_lantern/front_fx.f.png?v=a03f02a6e2"
+        },
+        {
+          "slot": "front_fx",
+          "build": "m",
+          "src": "/avatar-v2/items/soul_lantern/front_fx.m.png?v=1bb78797d4"
+        }
       ],
+      "icon": "/avatar-v2/items/soul_lantern/icon.png?v=07024ad803",
       "dyes": {
         "dye1": "spectral"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 600,
+      "release": "released"
     },
     {
       "key": "stitchwork_sweater",
       "name": "Stitchwork Sweater",
       "category": "torso",
-      "slots": [
-        "torso.f",
-        "torso.m"
+      "parts": [
+        {
+          "slot": "torso",
+          "build": "f",
+          "src": "/avatar-v2/items/stitchwork_sweater/torso.f.png?v=c9c6582b54"
+        },
+        {
+          "slot": "torso",
+          "build": "m",
+          "src": "/avatar-v2/items/stitchwork_sweater/torso.m.png?v=cdfcce1592"
+        }
       ],
+      "icon": "/avatar-v2/items/stitchwork_sweater/icon.png?v=444a7a2519",
       "dyes": {
         "dye1": "moss",
         "dye2": "pumpkin"
       },
       "occupies": [],
       "hides": [],
-      "order": 1
+      "order": 1,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
+      "key": "tattered_bat_wings",
+      "name": "Tattered Bat Wings",
+      "category": "wings",
+      "parts": [
+        {
+          "slot": "wings",
+          "build": null,
+          "src": "/avatar-v2/items/tattered_bat_wings/wings.png?v=c0b7ffdd27"
+        }
+      ],
+      "icon": "/avatar-v2/items/tattered_bat_wings/icon.png?v=acb9b230ec",
+      "dyes": {
+        "dye1": "violet",
+        "dye2": "night"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 400,
+      "release": "released"
     },
     {
       "key": "tattered_skirt",
       "name": "Tattered Skirt",
       "category": "legs",
-      "slots": [
-        "legs.f",
-        "legs.m"
+      "parts": [
+        {
+          "slot": "legs",
+          "build": "f",
+          "src": "/avatar-v2/items/tattered_skirt/legs.f.png?v=3b93a06f5e"
+        },
+        {
+          "slot": "legs",
+          "build": "m",
+          "src": "/avatar-v2/items/tattered_skirt/legs.m.png?v=83f9c31671"
+        }
       ],
+      "icon": "/avatar-v2/items/tattered_skirt/icon.png?v=5b712a6c2b",
       "dyes": {
         "dye1": "night",
         "dye2": "blood"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
     },
     {
       "key": "witch_hat",
       "name": "Candlewick Hat",
       "category": "head",
-      "slots": [
-        "head",
-        "front_fx"
+      "parts": [
+        {
+          "slot": "head",
+          "build": null,
+          "src": "/avatar-v2/items/witch_hat/head.png?v=b7537edd33"
+        },
+        {
+          "slot": "front_fx",
+          "build": null,
+          "src": "/avatar-v2/items/witch_hat/front_fx.png?v=ef09915fd6"
+        }
       ],
+      "icon": "/avatar-v2/items/witch_hat/icon.png?v=e615180d31",
       "dyes": {
         "dye1": "violet",
         "dye2": "gold"
       },
       "occupies": [],
       "hides": [],
-      "order": 0
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
+      "release": "released"
     }
   ]
 }

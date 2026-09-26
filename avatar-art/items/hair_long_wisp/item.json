@@ -1,6 +1,11 @@
 {
   "name": "Long Wisp",
   "category": "hair",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
     {
       "slot": "hair_back",

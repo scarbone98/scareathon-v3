@@ -1,1 +1,15 @@
-{ "name": "Hollow Stare", "category": "eyes", "parts": [{ "slot": "eyes", "file": "eyes.txt" }] }
+{
+  "name": "Hollow Stare",
+  "category": "eyes",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 150,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "eyes",
+      "file": "eyes.txt"
+    }
+  ]
+}

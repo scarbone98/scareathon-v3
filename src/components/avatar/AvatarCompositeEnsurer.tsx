@@ -4,10 +4,11 @@ import type { Session } from "@supabase/supabase-js";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
 import {
-  avatarCompositeExists,
+  avatarCompositeIsCurrent,
   getAvatarCompositePublicUrl,
   uploadAvatarComposite,
 } from "./avatarComposite";
+import { lookFromAvatar } from "./look";
 import type { AvatarResponse } from "./types";
 
 export function AvatarCompositeEnsurer() {
@@ -45,7 +46,7 @@ export function AvatarCompositeEnsurer() {
       const userId = session?.user.id;
       if (!userId) return null;
 
-      if (await avatarCompositeExists(userId)) {
+      if (await avatarCompositeIsCurrent(userId)) {
         const compositeUrl = getAvatarCompositePublicUrl(userId, Date.now());
         queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
         return compositeUrl;
@@ -59,7 +60,7 @@ export function AvatarCompositeEnsurer() {
 
       queryClient.setQueryData(["avatar"], data);
 
-      const compositeUrl = await uploadAvatarComposite(data.data.equipped, userId);
+      const compositeUrl = await uploadAvatarComposite(lookFromAvatar(data.data), userId);
       if (compositeUrl) {
         queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
       }

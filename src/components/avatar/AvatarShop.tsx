@@ -14,8 +14,9 @@ import {
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
-import { AvatarPreview } from "./AvatarPreview";
-import type { AvatarData, AvatarItem, AvatarResponse } from "./types";
+import { CATEGORY_LABELS, lookFromAvatar, lookWithItem } from "./look";
+import { useAvatarManifest } from "./manifest";
+import type { AvatarItem, AvatarLook, AvatarResponse } from "./types";
 import "../../styles/shop.css";
 
 type ShopItem = AvatarItem & {
@@ -50,14 +51,10 @@ type PurchaseResponse = {
 };
 
 const classifications = [
-  { value: "", label: "All classifications" },
-  { value: "body", label: "Body" },
-  { value: "pants", label: "Pants" },
-  { value: "shirt", label: "Shirt" },
-  { value: "shoes", label: "Shoes" },
-  { value: "face", label: "Face" },
-  { value: "hair", label: "Hair" },
-  { value: "accessory", label: "Accessory" },
+  { value: "", label: "All categories" },
+  ...Object.entries(CATEGORY_LABELS)
+    .filter(([value]) => value !== "body")
+    .map(([value, label]) => ({ value, label })),
 ];
 
 const rarities = [
@@ -78,34 +75,11 @@ function readJson<T>(response: Response) {
   });
 }
 
-function sortLayers(layers: AvatarItem[]) {
-  return [...layers].sort(
-    (a, b) =>
-      a.layerOrder - b.layerOrder ||
-      (a.itemInstanceId || a.id) - (b.itemInstanceId || b.id)
-  );
-}
-
-function getEquipGroup(item: AvatarItem) {
-  return item.equipGroup || item.slot;
-}
-
-function previewLayers(avatar: AvatarData | undefined, item: ShopItem | null) {
-  if (!avatar) return item ? [item] : [];
-  if (!item) return avatar.equipped;
-  const equipGroup = getEquipGroup(item);
-
-  return sortLayers([
-    ...avatar.equipped.filter((layer) => getEquipGroup(layer) !== equipGroup),
-    item,
-  ]);
-}
-
 type AvatarShopProps = {
-  onPreviewLayersChange?: (layers: AvatarItem[] | null) => void;
+  onPreviewLookChange?: (look: AvatarLook | null) => void;
 };
 
-export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
+export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -129,7 +103,7 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
   const shopQuery = useMemo(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("search", debouncedSearch);
-    if (classification) params.set("slot", classification);
+    if (classification) params.set("category", classification);
     if (rarityFilter) params.set("rarity", rarityFilter);
     params.set("page", String(page));
     params.set("limit", "20");
@@ -163,6 +137,8 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
     queryFn: () => fetchWithAuth("/user/avatar").then(readJson<AvatarResponse>),
   });
 
+  const { data: manifest } = useAvatarManifest();
+
   const buyMutation = useMutation({
     mutationFn: (itemId: number) =>
       fetchWithAuth(`/marketplace/shop/items/${itemId}/buy`, {
@@ -193,10 +169,11 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
   };
   const coinBalance = walletData?.data.coinBalance || 0;
   const isInitialLoading = isLoading && !shopData;
-  const previewedLayers = useMemo(
-    () => previewLayers(avatarResponse?.data, previewItem),
-    [avatarResponse?.data, previewItem]
-  );
+  const previewLook = useMemo(() => {
+    const avatar = avatarResponse?.data;
+    if (!avatar || !manifest || !previewItem) return null;
+    return lookWithItem(lookFromAvatar(avatar), previewItem, manifest.categories);
+  }, [avatarResponse?.data, manifest, previewItem]);
   const firstItemNumber =
     pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
   const lastItemNumber = Math.min(
@@ -205,10 +182,9 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
   );
 
   useEffect(() => {
-    onPreviewLayersChange?.(previewItem ? previewedLayers : null);
-
-    return () => onPreviewLayersChange?.(null);
-  }, [onPreviewLayersChange, previewItem, previewedLayers]);
+    onPreviewLookChange?.(previewLook);
+  }, [onPreviewLookChange, previewLook]);
+  useEffect(() => () => onPreviewLookChange?.(null), [onPreviewLookChange]);
 
   return (
     <section className="shop">
@@ -264,14 +240,13 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
               buyMutation.isPending && buyMutation.variables === item.id;
             const rarity = item.rarity || "common";
             const isPreviewing = previewItem?.id === item.id;
-            const equipGroup = getEquipGroup(item);
             const supplyLeft =
               item.supplyLimit !== null ? Math.max(item.supplyLimit - item.mintedCount, 0) : null;
 
             return (
               <article key={item.id} className={`shop-item rarity-${rarity} ${isPreviewing ? "is-previewing" : ""}`}>
                 <div className="shop-item-art">
-                  <AvatarPreview layers={previewLayers(avatarResponse?.data, item)} size="sm" />
+                  <img className="shop-item-icon" src={item.icon} alt="" draggable={false} />
                   <span className="shop-rarity">{rarity}</span>
                   {item.ownedCount > 0 && (
                     <span className="shop-owned">Owned{item.ownedCount > 1 ? ` ×${item.ownedCount}` : ""}</span>
@@ -280,10 +255,7 @@ export function AvatarShop({ onPreviewLayersChange }: AvatarShopProps) {
 
                 <h3 className="shop-item-name" title={item.name}>{item.name}</h3>
                 <p className="shop-item-meta">
-                  <span className="shop-item-slot">
-                    {item.slot}
-                    {equipGroup !== item.slot ? ` · ${equipGroup}` : ""}
-                  </span>
+                  <span className="shop-item-slot">{CATEGORY_LABELS[item.category] || item.category}</span>
                   {supplyLeft !== null && (
                     <span className={supplyLeft <= 5 ? "is-scarce" : ""}>
                       {" · "}

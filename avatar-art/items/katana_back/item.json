@@ -1,9 +1,25 @@
 {
   "name": "Graveblade (Sheathed)",
   "category": "back",
+  "starter": false,
+  "default": false,
+  "rarity": "epic",
+  "price": 350,
+  "release": "released",
   "parts": [
-    { "slot": "back", "file": "scabbard.txt", "sculpt": "weapons.mjs#katanaBack" },
-    { "slot": "strap", "file": "strap.txt", "sculpt": "weapons.mjs#katanaStrap" }
+    {
+      "slot": "back",
+      "file": "scabbard.txt",
+      "sculpt": "weapons.mjs#katanaBack"
+    },
+    {
+      "slot": "strap",
+      "file": "strap.txt",
+      "sculpt": "weapons.mjs#katanaStrap"
+    }
   ],
-  "dyes": { "dye1": "night", "dye2": "blood" }
+  "dyes": {
+    "dye1": "night",
+    "dye2": "blood"
+  }
 }

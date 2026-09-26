@@ -1,6 +1,11 @@
 {
   "name": "Buckle Boots",
   "category": "feet",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
     {
       "slot": "feet",

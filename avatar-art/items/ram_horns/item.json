@@ -1,6 +1,11 @@
 {
   "name": "Ram Horns",
   "category": "head",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 250,
+  "release": "released",
   "parts": [
     {
       "slot": "head",

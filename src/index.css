@@ -390,3 +390,6 @@ img {
   animation: gradient 10s ease infinite;
   z-index: -3;
 }
+
+/* Nav bar avatar: crop the full-body composite (120x150) to the head. */
+.nav-avatar-head img { position: absolute; left: -84.1%; top: -77.3%; width: 272.7%; max-width: none; height: auto; }

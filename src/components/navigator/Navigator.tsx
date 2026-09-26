@@ -108,11 +108,10 @@ export const Navigator = () => {
   const renderProfileLabel = () => (
     <>
       {avatarCompositeUrl && !avatarImageFailed ? (
-        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-900 bg-black/70 xl:h-12 xl:w-12">
+        <span className="nav-avatar-head relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-red-900 bg-black/70 xl:h-12 xl:w-12">
           <img
             src={avatarCompositeUrl}
             alt="Profile"
-            className="h-full w-full rounded-full object-contain"
             draggable={false}
             style={{ imageRendering: "pixelated" }}
             onError={() => setAvatarImageFailed(true)}

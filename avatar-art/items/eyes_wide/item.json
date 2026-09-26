@@ -1,1 +1,15 @@
-{ "name": "Wide Eyes", "category": "eyes", "parts": [{ "slot": "eyes", "file": "eyes.txt" }] }
+{
+  "name": "Wide Eyes",
+  "category": "eyes",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "eyes",
+      "file": "eyes.txt"
+    }
+  ]
+}

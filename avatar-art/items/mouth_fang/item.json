@@ -1,1 +1,15 @@
-{ "name": "Fang Grin", "category": "mouth", "parts": [{ "slot": "mouth", "file": "mouth.txt" }] }
+{
+  "name": "Fang Grin",
+  "category": "mouth",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "mouth",
+      "file": "mouth.txt"
+    }
+  ]
+}

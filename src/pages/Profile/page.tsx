@@ -22,8 +22,9 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient"; // Make sure this import is correct
 import { siteContainerClassName } from "../../components/PageContainer";
-import { AvatarPreview } from "../../components/avatar/AvatarPreview";
-import type { AvatarItem, AvatarResponse } from "../../components/avatar/types";
+import { AvatarView } from "../../components/avatar/AvatarView";
+import { lookFromAvatar } from "../../components/avatar/look";
+import type { AvatarLook, AvatarResponse } from "../../components/avatar/types";
 import { useInboxUnreadCount } from "../Inbox/useInboxUnreadCount";
 const AvatarEditor = lazy(() => import("../../components/avatar/AvatarEditor").then(module => ({ default: module.AvatarEditor })));
 const AvatarShop = lazy(() => import("../../components/avatar/AvatarShop").then(module => ({ default: module.AvatarShop })));
@@ -43,9 +44,7 @@ const Profile = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [avatarPreviewLayers, setAvatarPreviewLayers] = useState<
-    AvatarItem[] | null
-  >(null);
+  const [avatarPreviewLook, setAvatarPreviewLook] = useState<AvatarLook | null>(null);
 
   const {
     data: userData,
@@ -180,12 +179,12 @@ const Profile = () => {
   }
 
   const coinBalance = walletData?.data.coinBalance || 0;
-  const equippedAvatarLayers = avatarResponse?.data.equipped || [];
-  const visibleAvatarLayers = avatarPreviewLayers || equippedAvatarLayers;
+  const savedAvatarLook = avatarResponse ? lookFromAvatar(avatarResponse.data) : null;
+  const visibleAvatarLook = avatarPreviewLook || savedAvatarLook;
   const avatarPreviewLabel =
-    activeTab === "avatar" && avatarPreviewLayers
+    activeTab === "avatar" && avatarPreviewLook
       ? "Live Preview"
-      : activeTab === "shop" && avatarPreviewLayers
+      : activeTab === "shop" && avatarPreviewLook
         ? "Marketplace Preview"
         : "Current Profile";
   const profileTabs = [
@@ -220,7 +219,7 @@ const Profile = () => {
               <div className="character-card-heading"><span>MY CHARACTER</span><FaGhost aria-hidden="true" /></div>
               <div className="character-stage">
                 <div className="character-moon" aria-hidden="true" />
-                {isAvatarLoading ? <div className="character-loading" role="status">Getting dressed…</div> : <AvatarPreview layers={visibleAvatarLayers} />}
+                {isAvatarLoading ? <div className="character-loading" role="status">Getting dressed…</div> : <AvatarView look={visibleAvatarLook} height={300} className="character-avatar" />}
                 <span className="character-preview-label">{avatarPreviewLabel}</span>
               </div>
               <div className="character-identity">
@@ -244,7 +243,7 @@ const Profile = () => {
             <div className="profile-panel-body">
               <header className="profile-section-heading"><h2>{sectionDetails.title}</h2><p>{sectionDetails.description}</p></header>
               <Suspense fallback={<div className="py-10 text-center text-sm text-purple-200" role="status">Loading {activeTab === "avatar" ? "wardrobe" : activeTab}…</div>}>
-              {activeTab === "inbox" ? <InboxContent /> : activeTab === "shop" ? <AvatarShop onPreviewLayersChange={setAvatarPreviewLayers} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLayersChange={setAvatarPreviewLayers} /> : (
+              {activeTab === "inbox" ? <InboxContent /> : activeTab === "shop" ? <AvatarShop onPreviewLookChange={setAvatarPreviewLook} /> : activeTab === "avatar" ? <AvatarEditor onPreviewLookChange={setAvatarPreviewLook} /> : (
                 <div className="account-settings">
                   <section className="account-section">
                     <div className="account-section-icon"><FaUserAlt /></div>

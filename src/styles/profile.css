@@ -116,3 +116,26 @@
 @media (prefers-reduced-motion: reduce) {
   .profile-world * { transition: none !important; animation: none !important; }
 }
+
+/* Avatar v2 */
+.avatar-view { position: relative; display: inline-flex; flex-shrink: 0; }
+.avatar-view canvas { display: block; }
+.avatar-view-error { position: absolute; inset: auto 0 8px; text-align: center; font-size: 10px; color: #f3b1b1; }
+.character-avatar { z-index: 1; }
+.wardrobe-icon { width: 84px; height: 84px; image-rendering: pixelated; border-radius: 8px; background: #ffffff05; }
+.wardrobe-body-panel { display: grid; gap: 18px; }
+.wardrobe-body-panel h4, .wardrobe-dye-panel h4 { margin-bottom: 8px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #c5b5d8; }
+.wardrobe-build-toggle { display: flex; gap: 7px; }
+.wardrobe-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+.wardrobe-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ffffff22; box-shadow: inset 0 -4px 0 #0003; transition: transform .12s; }
+.wardrobe-swatch:hover { transform: scale(1.1); }
+.wardrobe-swatch[aria-pressed="true"] { border-color: #f4e8ff; box-shadow: 0 0 0 2px #c6ace8, inset 0 -4px 0 #0003; }
+.wardrobe-dye-panel { display: grid; gap: 12px; padding: 14px; border: 1px solid #4a4056; border-radius: 12px; background: #2a2433; }
+.wardrobe-dye-panel span { display: block; margin-bottom: 6px; font-size: 11px; color: #b4a5c3; }
+.build-chooser { margin-bottom: 18px; padding: 18px; text-align: center; border: 1px solid #bc9ddd; border-radius: 14px; background: #30283b; }
+.build-chooser h3 { font-size: 17px; font-weight: 750; color: #f7f0e7; }
+.build-chooser p { margin: 6px 0 14px; font-size: 12px; color: #b4a5c3; }
+.build-chooser-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.build-chooser-option { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 18px; border: 1px solid #4a4056; border-radius: 12px; background: #251f2d; color: #e9dcf7; font-weight: 700; transition: border-color .15s, transform .15s; }
+.build-chooser-option:hover:not(:disabled) { border-color: #c6ace8; transform: translateY(-2px); }
+.build-chooser-option:disabled { opacity: .5; }

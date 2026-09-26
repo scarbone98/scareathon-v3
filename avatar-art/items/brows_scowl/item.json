@@ -1,1 +1,15 @@
-{ "name": "Scowl", "category": "brows", "parts": [{ "slot": "brows", "file": "brows.txt" }] }
+{
+  "name": "Scowl",
+  "category": "brows",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "brows",
+      "file": "brows.txt"
+    }
+  ]
+}
