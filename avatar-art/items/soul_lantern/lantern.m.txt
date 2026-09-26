@@ -1,6 +1,6 @@
 # Iron lantern hanging from the near hand (build m).
 # trapped soul can be any colour; the frame is fixed steel.
-at: 75,105
+at: 77,105
 outline: auto
 legend:
   s = steel.1

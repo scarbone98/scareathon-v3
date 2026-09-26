@@ -104,9 +104,9 @@ back and is partly hidden; the near side (viewer's right) comes forward.
 | Mouth               | x 51 - 57, y 62 - 65                                              |
 | Ear                 | (79, 54), usually under hair                                      |
 | Neck                | x 56 - 66, y 63 - 75; choker line y 69 - 73                       |
-| Shoulders           | m: (47, 77) and (75, 77); f: (49, 77.5) and (73, 77.5)            |
+| Shoulders           | m: (47, 77.5) and (75, 77.5); f: (49, 78) and (73, 78)            |
 | Torso               | chest y 84, waist y 95, hips y 103; front centre x ~57            |
-| Hands               | m: far (43, 106), near (80, 106); f: (45, 106) and (78, 106)      |
+| Hands               | m: far (41.5, 106), near (82, 106); f: (43.5, 106) and (79.5, 106) |
 | Legs                | thighs y 104 - 121, shins y 121 - 138                             |
 | Feet (ground ~146)  | far (46, 141.5), near (65, 142.5), toes toward the left           |
 
