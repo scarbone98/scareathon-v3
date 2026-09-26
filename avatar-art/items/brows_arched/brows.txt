@@ -1,0 +1,9 @@
+# Arched, villainous brows. Hair ramp, so they follow hair colour.
+at: 44,45
+outline: none
+legend:
+  b = hair.1
+---
+...bb.......bbb...
+.bb..b.....b...bb.
+b................b

@@ -1,0 +1,11 @@
+# Jack Grin: a wide jack-o'-lantern mouth full of jagged teeth.
+at: 48,61
+outline: none
+legend:
+  k = ink.0
+  w = bone.3
+---
+.kkkkkkkk.
+kwkwkwkwkk
+kkwkwkwkwk
+.kkkkkkkk.

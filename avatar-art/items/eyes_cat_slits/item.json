@@ -1,0 +1,15 @@
+{
+  "name": "Cat Slits",
+  "category": "eyes",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 150,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "eyes",
+      "file": "eyes.txt"
+    }
+  ]
+}

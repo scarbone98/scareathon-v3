@@ -1,0 +1,11 @@
+# Freckles across the nose and cheeks.
+at: 46,58
+outline: none
+legend:
+  f = skin.1
+---
+..f............
+f........f...f.
+...f..f........
+...........f..f
+.....f.........

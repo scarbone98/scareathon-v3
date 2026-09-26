@@ -1,0 +1,15 @@
+{
+  "name": "Ink Tears",
+  "category": "face_paint",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 70,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_paint",
+      "file": "paint.txt"
+    }
+  ]
+}

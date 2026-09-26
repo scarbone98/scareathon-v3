@@ -1,0 +1,8 @@
+# Smirk: one corner up, on the near side.
+at: 52,62
+outline: none
+legend:
+  D = skin.1
+---
+.....D
+DDDDD.

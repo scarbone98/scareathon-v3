@@ -1,0 +1,16 @@
+# Ink Tears: black streaks running down from both eyes.
+at: 47,60
+outline: none
+legend:
+  k = ink.1
+  K = ink.2
+---
+K.........K
+k.........k
+k.........k
+K.........K
+k.........k
+..........k
+k..........
+..........K
+..........k

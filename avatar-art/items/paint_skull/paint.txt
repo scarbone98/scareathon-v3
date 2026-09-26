@@ -1,0 +1,25 @@
+# Skull Paint: dark eye sockets, a nose cavity and painted teeth.
+at: 44,50
+outline: none
+legend:
+  k = ink.1
+  K = ink.2
+  w = bone.4
+---
+.KKKKKK...KKKKKKKK.
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+KkkkkkkK.KkkkkkkkkK
+.KKKKKK...KKKKKKKK.
+.........k.........
+........kkk........
+...................
+.....w.w.w.w.w.....
+.....kkkkkkkkk.....
+.....w.w.w.w.w.....

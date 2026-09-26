@@ -1,0 +1,15 @@
+{
+  "name": "Skull Paint",
+  "category": "face_paint",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 160,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_paint",
+      "file": "paint.txt"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Blep: tongue poking out.
+at: 52,62
+outline: none
+legend:
+  D = skin.1
+  k = ink.1
+  r = rose.3
+  R = rose.2
+---
+D...D
+.kkk.
+.rRr.
+..r..

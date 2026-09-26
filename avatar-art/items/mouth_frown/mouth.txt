@@ -1,0 +1,8 @@
+# Frown.
+at: 52,63
+outline: none
+legend:
+  D = skin.1
+---
+.DDD.
+D...D

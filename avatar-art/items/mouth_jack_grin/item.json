@@ -1,0 +1,15 @@
+{
+  "name": "Jack Grin",
+  "category": "mouth",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "mouth",
+      "file": "mouth.txt"
+    }
+  ]
+}
