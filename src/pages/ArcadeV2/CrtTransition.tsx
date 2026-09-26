@@ -13,6 +13,7 @@ type Props = {
 
 const STATIC_MS = 420;
 const LINE_MS = 380;
+const FADE_IN_MS = 90; // the static swells in from the cabinet's rather than cutting on
 
 export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -47,7 +48,7 @@ export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
       if (mode === "on") {
         // Static over black, then a bright line opens up to reveal the game
         if (t < STATIC_MS) {
-          paintStatic(1);
+          paintStatic(Math.min(t / FADE_IN_MS, 1));
           beam.style.opacity = "0";
         } else {
           if (!midpointSent) {

@@ -600,8 +600,9 @@ export default function CartridgeArcade({
       modeStart = performance.now() / 1000;
       showOnScreen(screenTexture);
       callbacksRef.current.onInsert(game);
-      // Plugging in plays: give the screen a moment to warm up and crackle first
-      gsap.delayedCall(POWER_ON + STATIC + 0.15, () => {
+      // Plugging in plays: once the screen warms up and starts to crackle, the
+      // full-screen static takes over so it feels like it spills out of the cabinet
+      gsap.delayedCall(POWER_ON + 0.1, () => {
         if (insertedIndex === index) callbacksRef.current.onPlay(game);
       });
     };
