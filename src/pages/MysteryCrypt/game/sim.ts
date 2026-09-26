@@ -68,6 +68,8 @@ export interface Unit {
   goal: { x: number; y: number } | null;
   // Party: which roster entry this is.
   roster: number;
+  // Enemies: turns until they may heal again.
+  healWait: number;
 }
 
 export interface Pickup {
@@ -234,7 +236,7 @@ function makeUnit(s: GameState, kind: UnitKind, team: Unit["team"], level: numbe
   const u: Unit = {
     id: s.nextId++, kind, team, x, y, hp: 0, maxHp: 0, atk: 0, def: 0, level, xp: 0,
     moves: moves.map((id) => ({ id, pp: MOVES[id].pp })),
-    dx: 1, dy: 0, charmed: false, dot: null, boss: null, aware: false, goal: null, roster: -1,
+    dx: 1, dy: 0, charmed: false, dot: null, boss: null, aware: false, goal: null, roster: -1, healWait: 0,
   };
   applyStats(u);
   u.hp = u.maxHp;
@@ -742,8 +744,11 @@ function performMove(s: GameState, u: Unit, slot: MoveSlot, dx = u.dx, dy = u.dy
   else msg(s, `${u.boss ?? `The ${unitName(u.kind)}`} used ${def.name}!`, "#ff9a8a");
 
   if (def.shape === "heal") {
+    // Monsters heal half as much, so bosses can't drag a fight out.
+    const share = def.power * (u.team === "enemy" ? 0.5 : 1);
+    if (u.team === "enemy") u.healWait = 6;
     for (const o of heals) {
-      const amount = Math.min(o.maxHp - o.hp, Math.ceil(o.maxHp * def.power));
+      const amount = Math.min(o.maxHp - o.hp, Math.ceil(o.maxHp * share));
       o.hp += amount;
       s.events.push({ type: "heal", id: o.id, x: o.x, y: o.y, amount });
     }
@@ -999,6 +1004,7 @@ function pickMove(s: GameState, u: Unit, chance: number) {
     if (slot.pp <= 0) continue;
     const def = MOVES[slot.id];
     if (def.shape === "heal") {
+      if (u.healWait > 0) continue;
       const low = healTargets(s, u).filter((o) => o.hp < o.maxHp * 0.5);
       if (low.length) options.push({ slot, dx: u.dx, dy: u.dy, score: 3 + low.length });
       continue;
@@ -1042,6 +1048,7 @@ function allyTurn(s: GameState, u: Unit) {
 }
 
 function enemyTurn(s: GameState, u: Unit) {
+  if (u.healWait > 0) u.healWait--;
   const members = party(s);
   if (members.some((m) => canSee(s, u, m))) u.aware = true;
   if (u.aware) {

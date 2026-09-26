@@ -326,6 +326,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Mystery Crypt",
       cartridge: { color: "#5b3a8c", tagline: "Crawl the crypt, recruit the monsters.", font: { family: "Creepster" } },
+      videoUrl: "/game-recordings/MysteryCrypt.mp4",
       game: (
         <GameRenderer
           title="Mystery Crypt"
