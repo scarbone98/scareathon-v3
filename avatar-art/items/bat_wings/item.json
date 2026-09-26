@@ -1,9 +1,9 @@
 {
   "name": "Tattered Bat Wings",
-  "category": "back",
+  "category": "wings",
   "parts": [
     {
-      "slot": "back",
+      "slot": "wings",
       "file": "wings.txt",
       "sculpt": "accessories.mjs#wings"
     }

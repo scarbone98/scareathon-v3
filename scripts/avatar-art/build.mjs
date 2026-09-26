@@ -11,6 +11,7 @@ import path from "node:path";
 import {
   ART_DIR,
   BUILDS,
+  CATEGORIES,
   HEIGHT,
   SLOTS,
   WIDTH,
@@ -103,6 +104,9 @@ function loadItems(errors) {
       if (!["dye1", "dye2"].includes(channel)) errors.push(`${key}: dyes can only set dye1/dye2, not ${channel}`);
       if (!palette.ramps[ramp]) errors.push(`${key}: default ${channel} ramp "${ramp}" does not exist`);
     }
+    for (const category of [meta.category, ...(meta.occupies || [])]) {
+      if (!(category in CATEGORIES)) errors.push(`${key}: unknown category "${category}"`);
+    }
     for (const slot of meta.hides || []) {
       if (!SLOTS.includes(slot)) errors.push(`${key}: hides unknown slot "${slot}"`);
     }
@@ -122,8 +126,18 @@ function loadOutfits(items, errors) {
       outfit.items = outfit.items.map((entry) => (typeof entry === "string" ? { key: entry } : entry));
       outfit.build ||= BUILDS[0];
       if (!BUILDS.includes(outfit.build)) errors.push(`outfit ${outfit.id}: unknown build "${outfit.build}"`);
+      const worn = {};
       for (const { key } of outfit.items) {
-        if (!items[key]) errors.push(`outfit ${outfit.id}: unknown item "${key}"`);
+        if (!items[key]) {
+          errors.push(`outfit ${outfit.id}: unknown item "${key}"`);
+          continue;
+        }
+        for (const category of [items[key].category, ...(items[key].occupies || [])]) {
+          worn[category] = (worn[category] || 0) + 1;
+          if (worn[category] > (CATEGORIES[category] ?? 1)) {
+            errors.push(`outfit ${outfit.id}: too many ${category} items (max ${CATEGORIES[category]})`);
+          }
+        }
       }
       for (const channel of ["skin", "hair", "eyes"]) {
         if (outfit[channel] && !palette.ramps[outfit[channel]]) {
@@ -205,6 +219,7 @@ function writeManifest() {
     width: WIDTH,
     height: HEIGHT,
     slots: SLOTS,
+    categories: CATEGORIES,
     swappable,
     skinTones: palette.swappable.skin,
     ramps: Object.fromEntries(
@@ -217,6 +232,7 @@ function writeManifest() {
       category: item.category,
       slots: Object.keys(rendered[item.key]),
       dyes: item.dyes || {},
+      occupies: item.occupies || [],
       hides: item.hides || [],
       order: item.order || 0,
     })),

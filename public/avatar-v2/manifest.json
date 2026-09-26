@@ -2,9 +2,12 @@
   "width": 120,
   "height": 150,
   "slots": [
+    "background",
     "back_fx",
+    "wings",
     "back",
     "hair_back",
+    "held_back",
     "body",
     "face_paint",
     "eyes",
@@ -14,14 +17,45 @@
     "legs",
     "feet",
     "torso",
+    "waist",
     "outer",
+    "strap",
     "neck",
+    "hands",
     "face_acc",
     "hair_front",
+    "hair_acc",
     "head",
     "held",
+    "companion",
     "front_fx"
   ],
+  "categories": {
+    "body": 1,
+    "eyes": 1,
+    "mouth": 1,
+    "brows": 1,
+    "face_paint": 2,
+    "hair": 1,
+    "hair_acc": 2,
+    "head": 1,
+    "face_acc": 1,
+    "neck": 2,
+    "torso": 1,
+    "outer": 1,
+    "waist": 1,
+    "hands": 1,
+    "legs": 1,
+    "legwear": 1,
+    "feet": 1,
+    "back": 1,
+    "wings": 1,
+    "held_near": 1,
+    "held_far": 1,
+    "companion": 1,
+    "aura": 1,
+    "background": 1
+  },
   "swappable": {
     "skin": [
       "#3a1a1c",
@@ -237,20 +271,22 @@
         "body.m"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
     {
       "key": "bat_wings",
       "name": "Tattered Bat Wings",
-      "category": "back",
+      "category": "wings",
       "slots": [
-        "back"
+        "wings"
       ],
       "dyes": {
         "dye1": "violet",
         "dye2": "night"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -262,6 +298,7 @@
         "brows"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -273,6 +310,7 @@
         "brows"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -288,6 +326,7 @@
         "dye1": "wood",
         "dye2": "night"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -302,6 +341,7 @@
         "dye1": "night",
         "dye2": "blood"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -313,6 +353,7 @@
         "eyes"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -324,6 +365,7 @@
         "eyes"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -335,6 +377,7 @@
         "eyes"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -350,6 +393,7 @@
         "dye1": "night",
         "dye2": "blood"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -364,6 +408,7 @@
       "dyes": {
         "dye1": "night"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -382,6 +427,7 @@
         "dye1": "night",
         "dye2": "blood"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -394,6 +440,7 @@
         "hair_front"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -409,6 +456,42 @@
         "dye1": "night",
         "dye2": "violet"
       },
+      "occupies": [],
+      "hides": [],
+      "order": 0
+    },
+    {
+      "key": "katana_back",
+      "name": "Graveblade (Sheathed)",
+      "category": "back",
+      "slots": [
+        "back",
+        "strap"
+      ],
+      "dyes": {
+        "dye1": "night",
+        "dye2": "blood"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0
+    },
+    {
+      "key": "katana_drawn",
+      "name": "Graveblade (Drawn)",
+      "category": "held_near",
+      "slots": [
+        "held_back.f",
+        "held_back.m",
+        "held.f",
+        "held.m",
+        "front_fx.f",
+        "front_fx.m"
+      ],
+      "dyes": {
+        "dye2": "blood"
+      },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -420,6 +503,7 @@
         "mouth"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -431,6 +515,7 @@
         "mouth"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -442,6 +527,7 @@
         "mouth"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -453,6 +539,7 @@
         "face_paint"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -464,6 +551,7 @@
         "face_paint"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -479,6 +567,7 @@
         "dye1": "steel",
         "dye2": "blood"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -490,6 +579,7 @@
         "face_acc"
       ],
       "dyes": {},
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -503,13 +593,14 @@
       "dyes": {
         "dye1": "bone"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
     {
       "key": "soul_lantern",
       "name": "Soul Lantern",
-      "category": "held",
+      "category": "held_near",
       "slots": [
         "held.f",
         "held.m",
@@ -519,6 +610,7 @@
       "dyes": {
         "dye1": "spectral"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -534,6 +626,7 @@
         "dye1": "moss",
         "dye2": "pumpkin"
       },
+      "occupies": [],
       "hides": [],
       "order": 1
     },
@@ -549,6 +642,7 @@
         "dye1": "night",
         "dye2": "blood"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     },
@@ -564,6 +658,7 @@
         "dye1": "violet",
         "dye2": "gold"
       },
+      "occupies": [],
       "hides": [],
       "order": 0
     }

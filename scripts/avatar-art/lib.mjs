@@ -12,28 +12,68 @@ export const CENTER_X = WIDTH / 2;
 // Body builds. Parts can be fitted to one build; unfitted parts suit both.
 export const BUILDS = ["f", "m"];
 
-// Draw order, back to front. An item can put parts in any of these.
+// Draw layers, back to front. An item can put parts in any of these; that is
+// how things wrap around the body (a katana on the back puts its scabbard in
+// `back` and its strap in `strap`). See STYLE.md for what goes where.
 export const SLOTS = [
-  "back_fx",
-  "back",
-  "hair_back",
+  "background", // scenes and backdrops, full canvas
+  "back_fx", // auras and glows behind the avatar
+  "wings", // wings, big tails
+  "back", // things worn on the back: sheathed weapons, packs, cape backs, hood insides
+  "hair_back", // hair behind the head
+  "held_back", // held-item parts behind the body or hand: grips, far-hand props
   "body",
   "face_paint",
   "eyes",
   "mouth",
   "brows",
-  "legwear",
-  "legs",
-  "feet",
-  "torso",
-  "outer",
-  "neck",
-  "face_acc",
-  "hair_front",
-  "head",
-  "held",
-  "front_fx",
+  "legwear", // stockings, tights, socks
+  "legs", // trousers, skirts
+  "feet", // shoes, boots
+  "torso", // shirts, tops
+  "waist", // belts, sashes, hip sheaths, pouches
+  "outer", // coats, jackets, cape fronts
+  "strap", // straps and bandoliers across the chest
+  "neck", // scarves, collars, necklaces
+  "hands", // gloves, bracelets, rings
+  "face_acc", // masks, glasses, eyepatches
+  "hair_front", // fringe and front locks
+  "hair_acc", // clips, ribbons, flowers
+  "head", // hats, hoods, horns, crowns
+  "held", // held items in front of everything
+  "companion", // familiars on the shoulder or floating nearby
+  "front_fx", // glows and particles over everything
 ];
+
+// What can be worn together. Each item has one `category`; an outfit can hold
+// up to this many items of a category. An item can also `occupy` extra
+// categories (a two-handed scythe occupies held_near and held_far).
+export const CATEGORIES = {
+  body: 1,
+  eyes: 1,
+  mouth: 1,
+  brows: 1,
+  face_paint: 2,
+  hair: 1,
+  hair_acc: 2,
+  head: 1,
+  face_acc: 1,
+  neck: 2,
+  torso: 1,
+  outer: 1,
+  waist: 1,
+  hands: 1,
+  legs: 1,
+  legwear: 1,
+  feet: 1,
+  back: 1,
+  wings: 1,
+  held_near: 1,
+  held_far: 1,
+  companion: 1,
+  aura: 1,
+  background: 1,
+};
 
 export function loadPalette() {
   const raw = JSON.parse(fs.readFileSync(path.join(ART_DIR, "palette.json"), "utf8"));
