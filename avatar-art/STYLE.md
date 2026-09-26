@@ -262,6 +262,11 @@ legend:
 {
   "name": "Candlewick Hat",
   "category": "head",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 200,
+  "release": "released",
   "parts": [
     { "slot": "head", "file": "hat.txt" },
     { "slot": "front_fx", "file": "flame.txt" }
@@ -275,6 +280,29 @@ Several parts can share a slot; they are drawn in the listed order. A part
 can also have `"build": "f"` or `"m"` (fitted to one body) and `"sculpt"`
 (see Sculpting). Parts without a build suit both bodies.
 `mirror: yes` exists, but in 3/4 view almost nothing is symmetric; avoid it.
+
+Shop fields: `starter` (every player gets one, free), `default` (part of a new
+player's first outfit; must also be a starter, at most the category's limit),
+`rarity` (`common` to `legendary`), `price` in coins or `null` if it isn't sold,
+and `release` (`draft`, `released` or `retired`). Starter items are free and
+can't be traded.
+
+## Shipping items
+
+`npm run art:avatar` writes everything the site needs:
+
+- `public/avatar-v2/`: the layer PNGs, an `icon.png` per item for the shop and
+  wardrobe, and `manifest.json` (slots, categories, colours). Image URLs carry
+  a content hash, so browsers pick up changed art on the next deploy.
+- `server/utils/avatarRules.json`: what the API validates saved outfits against.
+- `server/db/avatar_catalog.sql`: an idempotent upsert of every item into
+  `avatar_items`. **Apply it to the database whenever items are added or
+  changed** (after the deploy that ships their art). It refuses to overwrite
+  old-style items with the same `item_key`.
+
+New starter items reach existing players automatically the next time their
+avatar loads. Never reuse or rename an `item_key` once it has shipped: players
+own copies of it.
 
 ## Swappable faces
 

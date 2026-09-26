@@ -1,8 +1,9 @@
 import pool from '../db/mockDB.js';
+import { avatarRules, serializeAvatarItemV2 } from '../utils/avatarV2.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_REF ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co` : '');
 const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
-const allowedShopSlots = new Set(['body', 'pants', 'shirt', 'shoes', 'face', 'hair', 'accessory']);
+const allowedShopCategories = new Set(Object.keys(avatarRules.categories));
 const allowedShopRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
 const maxShopPageSize = 20;
 
@@ -38,6 +39,7 @@ function serializeListing(row) {
         soldAt: row.sold_at,
         canceledAt: row.canceled_at,
         item: {
+            ...serializeAvatarItemV2({ ...row, id: row.item_id, name: row.item_name }),
             id: row.item_id,
             itemKey: row.item_key,
             name: row.item_name,
@@ -61,6 +63,7 @@ function serializeListing(row) {
 
 function serializeShopItem(row) {
     return {
+        ...serializeAvatarItemV2(row),
         id: row.id,
         itemKey: row.item_key,
         name: row.name,
@@ -88,8 +91,8 @@ function serializeShopItem(row) {
 async function routes(fastify, options) {
     fastify.get('/shop/items', async (request, reply) => {
         const userId = request.user.sub;
-        const slot = typeof request.query?.slot === 'string' && request.query.slot.trim()
-            ? request.query.slot.trim()
+        const category = typeof request.query?.category === 'string' && request.query.category.trim()
+            ? request.query.category.trim()
             : null;
         const rarity = typeof request.query?.rarity === 'string' && request.query.rarity.trim()
             ? request.query.rarity.trim()
@@ -102,8 +105,8 @@ async function routes(fastify, options) {
         const limit = Math.min(Math.max(requestedLimit, 1), maxShopPageSize);
         const offset = (page - 1) * limit;
 
-        if (slot && !allowedShopSlots.has(slot)) {
-            return reply.code(400).send({ error: 'Invalid shop classification' });
+        if (category && !allowedShopCategories.has(category)) {
+            return reply.code(400).send({ error: 'Invalid shop category' });
         }
         if (rarity && !allowedShopRarities.has(rarity)) {
             return reply.code(400).send({ error: 'Invalid shop rarity' });
@@ -113,10 +116,10 @@ async function routes(fastify, options) {
             const filterValues = [];
             const countFilters = [];
             const itemFilters = [];
-            if (slot) {
-                filterValues.push(slot);
-                countFilters.push(`ai.slot = $${filterValues.length}`);
-                itemFilters.push(`ai.slot = $${filterValues.length + 1}`);
+            if (category) {
+                filterValues.push(category);
+                countFilters.push(`ai.category = $${filterValues.length}`);
+                itemFilters.push(`ai.category = $${filterValues.length + 1}`);
             }
             if (rarity) {
                 filterValues.push(rarity);
@@ -129,14 +132,16 @@ async function routes(fastify, options) {
                 itemFilters.push(`(ai.name ILIKE $${filterValues.length + 1} OR ai.item_key ILIKE $${filterValues.length + 1})`);
             }
             const countWhereClause = `
-                ai.release_status = 'released'
+                ai.art_version = 2
+                AND ai.release_status = 'released'
                 AND ai.base_price IS NOT NULL
                 AND ai.base_price > 0
                 AND ai.is_default = FALSE
                 ${countFilters.map((filter) => `AND ${filter}`).join('\n                ')}
             `;
             const itemWhereClause = `
-                ai.release_status = 'released'
+                ai.art_version = 2
+                AND ai.release_status = 'released'
                 AND ai.base_price IS NOT NULL
                 AND ai.base_price > 0
                 AND ai.is_default = FALSE
@@ -168,6 +173,12 @@ async function routes(fastify, options) {
                     ai.base_price,
                     ai.release_status,
                     ai.metadata AS item_metadata,
+                    ai.category,
+                    ai.parts,
+                    ai.dyes,
+                    ai.hides,
+                    ai.occupies,
+                    ai.stack_order,
                     CASE
                         WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
                             THEN (ai.metadata->>'supplyLimit')::INTEGER
@@ -191,7 +202,7 @@ async function routes(fastify, options) {
                       AND uii.status IN ('owned', 'listed', 'locked')
                 ) owned ON TRUE
                 WHERE ${itemWhereClause}
-                ORDER BY ai.slot ASC, ai.layer_order ASC, ai.name ASC, ai.id ASC
+                ORDER BY ai.category ASC, ai.stack_order ASC, ai.name ASC, ai.id ASC
                 LIMIT $${itemParams.length - 1}
                 OFFSET $${itemParams.length}
             `, itemParams);
@@ -242,6 +253,12 @@ async function routes(fastify, options) {
                     ai.base_price,
                     ai.release_status,
                     ai.metadata AS item_metadata,
+                    ai.category,
+                    ai.parts,
+                    ai.dyes,
+                    ai.hides,
+                    ai.occupies,
+                    ai.stack_order,
                     CASE
                         WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
                             THEN (ai.metadata->>'supplyLimit')::INTEGER
@@ -249,6 +266,7 @@ async function routes(fastify, options) {
                     END AS supply_limit
                 FROM avatar_items ai
                 WHERE ai.id = $1
+                  AND ai.art_version = 2
                   AND ai.release_status = 'released'
                   AND ai.base_price IS NOT NULL
                   AND ai.base_price > 0
@@ -418,7 +436,13 @@ async function routes(fastify, options) {
                     ai.rarity,
                     ai.base_price,
                     ai.release_status,
-                    ai.metadata AS item_metadata
+                    ai.metadata AS item_metadata,
+                    ai.category,
+                    ai.parts,
+                    ai.dyes,
+                    ai.hides,
+                    ai.occupies,
+                    ai.stack_order
                 FROM marketplace_listings ml
                 JOIN avatar_items ai ON ai.id = ml.item_id
                 JOIN users seller ON seller.id = ml.seller_user_id
@@ -485,7 +509,7 @@ async function routes(fastify, options) {
 
             const equippedResult = await client.query(`
                 SELECT 1
-                FROM user_avatar
+                FROM user_outfit_items
                 WHERE user_id = $1
                   AND item_instance_id = $2
                 LIMIT 1

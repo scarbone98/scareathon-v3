@@ -1,25 +1,9 @@
 import { supabase } from "../../supabaseClient";
-import type { AvatarItem } from "./types";
+import { composeLook } from "./compose";
+import { loadAvatarManifest } from "./manifest";
+import type { AvatarLook } from "./types";
 
 const AVATAR_COMPOSITE_BUCKET = "avatar-composites";
-
-const COMPOSITE_SIZE = 256;
-
-function sortLayers(layers: AvatarItem[]) {
-  return [...layers].sort(
-    (a, b) => a.layerOrder - b.layerOrder || a.id - b.id
-  );
-}
-
-function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Failed to load avatar layer: ${src}`));
-    image.src = src;
-  });
-}
 
 export function getAvatarCompositePublicUrl(userId: string, version?: number) {
   const { data } = supabase.storage
@@ -29,20 +13,20 @@ export function getAvatarCompositePublicUrl(userId: string, version?: number) {
   return version ? `${data.publicUrl}?v=${version}` : data.publicUrl;
 }
 
-export async function avatarCompositeExists(userId: string) {
-  try {
-    const response = await fetch(getAvatarCompositePublicUrl(userId), {
-      method: "HEAD",
-      cache: "no-store",
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
+// True when the stored composite exists and was drawn by the current avatar
+// system. Composites from the old system were 256x256, so the size tells them
+// apart and they get redrawn on the user's next visit.
+export async function avatarCompositeIsCurrent(userId: string) {
+  const manifest = await loadAvatarManifest();
+  return new Promise<boolean>((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image.naturalWidth === manifest.width && image.naturalHeight === manifest.height);
+    image.onerror = () => resolve(false);
+    image.src = getAvatarCompositePublicUrl(userId, Date.now());
+  });
 }
 
-export async function uploadAvatarComposite(layers: AvatarItem[], userId?: string) {
+export async function uploadAvatarComposite(look: AvatarLook, userId?: string) {
   let targetUserId = userId;
 
   if (!targetUserId) {
@@ -56,23 +40,7 @@ export async function uploadAvatarComposite(layers: AvatarItem[], userId?: strin
     return null;
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = COMPOSITE_SIZE;
-  canvas.height = COMPOSITE_SIZE;
-
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Could not create avatar composite canvas");
-  }
-
-  context.imageSmoothingEnabled = false;
-  context.clearRect(0, 0, COMPOSITE_SIZE, COMPOSITE_SIZE);
-
-  for (const layer of sortLayers(layers)) {
-    const image = await loadImage(layer.assetPath);
-    context.drawImage(image, 0, 0, COMPOSITE_SIZE, COMPOSITE_SIZE);
-  }
-
+  const canvas = await composeLook(look, await loadAvatarManifest());
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((result) => {
       if (result) {

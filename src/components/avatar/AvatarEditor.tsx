@@ -1,60 +1,56 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FaSave, FaUndo, FaCheck, FaSearch } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
-import { AvatarPreview } from "./AvatarPreview";
+import { AvatarView } from "./AvatarView";
 import { uploadAvatarComposite } from "./avatarComposite";
-import type { AvatarItem, AvatarResponse } from "./types";
+import { CATEGORY_LABELS, WARDROBE_TABS, lookFromAvatar, wearItem } from "./look";
+import { rampSwatch, useAvatarManifest } from "./manifest";
+import type {
+  AvatarBuild,
+  AvatarData,
+  AvatarLook,
+  AvatarManifest,
+  AvatarResponse,
+  DyeChoice,
+  InventoryEntry,
+} from "./types";
 
-function sortEquipped(layers: AvatarItem[]) {
-  return [...layers].sort(
-    (a, b) =>
-      a.layerOrder - b.layerOrder ||
-      (a.itemInstanceId || a.id) - (b.itemInstanceId || b.id)
-  );
+type Draft = {
+  profile: { build: AvatarBuild; skin: string; hair: string; eyes: string };
+  outfit: { itemInstanceId: number; dyes: DyeChoice }[];
+};
+
+const BUILD_LABELS: Record<AvatarBuild, string> = { f: "Female", m: "Male" };
+const DYE_LABELS: Record<string, string> = { dye1: "Main colour", dye2: "Trim colour" };
+
+function draftFromAvatar(avatar: AvatarData): Draft {
+  const { build, skin, hair, eyes } = avatar.profile;
+  return {
+    profile: { build, skin, hair, eyes },
+    outfit: avatar.outfit.map(({ itemInstanceId, dyes }) => ({ itemInstanceId, dyes })),
+  };
 }
 
-function getEquipGroup(item: AvatarItem) {
-  return item.equipGroup || item.slot;
+function draftKey(draft: Draft | null) {
+  if (!draft) return "";
+  const outfit = [...draft.outfit]
+    .sort((a, b) => a.itemInstanceId - b.itemInstanceId)
+    .map(({ itemInstanceId, dyes }) => [itemInstanceId, dyes.dye1 || "", dyes.dye2 || ""]);
+  return JSON.stringify([draft.profile, outfit]);
 }
 
-function isHiddenAvatarItem(item: AvatarItem) {
-  return item.itemKey === "default_accessory_none";
-}
-
-function visibleItems(items: AvatarItem[]) {
-  return items.filter((item) => !isHiddenAvatarItem(item));
-}
-
-function selectionKey(items: AvatarItem[]) {
-  return visibleItems(items)
-    .map((item) => item.itemInstanceId)
-    .filter((id): id is number => typeof id === "number")
-    .sort((a, b) => a - b)
-    .join(",");
-}
-
-function toggleDraftItem(draftEquipped: AvatarItem[], item: AvatarItem) {
-  const equipGroup = getEquipGroup(item);
-  const isEquipped = draftEquipped.some(
-    (layer) => getEquipGroup(layer) === equipGroup && layer.itemInstanceId === item.itemInstanceId
-  );
-
-  if (isEquipped) {
-    if (item.slot !== "accessory") return draftEquipped;
-
-    return sortEquipped(
-      draftEquipped.filter((layer) => getEquipGroup(layer) !== equipGroup)
-    );
-  }
-
-  return sortEquipped([
-    ...draftEquipped.filter((layer) => getEquipGroup(layer) !== equipGroup),
-    item,
-  ]);
+function lookFromDraft(draft: Draft, inventory: Map<number, InventoryEntry>): AvatarLook {
+  return {
+    profile: draft.profile,
+    outfit: draft.outfit.flatMap(({ itemInstanceId, dyes }) => {
+      const entry = inventory.get(itemInstanceId);
+      return entry ? [{ item: entry.item, dyes }] : [];
+    }),
+  };
 }
 
 async function readAvatarResponse(response: Response) {
@@ -65,16 +61,43 @@ async function readAvatarResponse(response: Response) {
   return data as AvatarResponse;
 }
 
-type AvatarEditorProps = {
-  onPreviewLayersChange?: (layers: AvatarItem[] | null) => void;
+type SwatchesProps = {
+  manifest: AvatarManifest;
+  ramps: string[];
+  value: string;
+  onChange: (ramp: string) => void;
+  label: string;
 };
 
-export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
+function Swatches({ manifest, ramps, value, onChange, label }: SwatchesProps) {
+  return (
+    <div className="wardrobe-swatches" role="group" aria-label={label}>
+      {ramps.map((ramp) => (
+        <button
+          key={ramp}
+          type="button"
+          className="wardrobe-swatch"
+          style={{ background: rampSwatch(manifest, ramp) }}
+          aria-label={`${label}: ${ramp.replace(/_/g, " ")}`}
+          aria-pressed={value === ramp}
+          onClick={() => onChange(ramp)}
+        />
+      ))}
+    </div>
+  );
+}
+
+type AvatarEditorProps = {
+  onPreviewLookChange?: (look: AvatarLook | null) => void;
+};
+
+export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
   const queryClient = useQueryClient();
-  const [activeSlot, setActiveSlot] = useState("body");
+  const { data: manifest, error: manifestError } = useAvatarManifest();
+  const [activeTab, setActiveTab] = useState("body");
   const [search, setSearch] = useState("");
-  const [draftEquipped, setDraftEquipped] = useState<AvatarItem[]>([]);
-  const initialCompositeSavedRef = useRef(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const {
     data: avatarResponse,
@@ -86,146 +109,245 @@ export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
   });
 
   const avatar = avatarResponse?.data;
-  const savedEquipped = useMemo(
-    () => visibleItems(avatar?.equipped || []),
+  const inventory = useMemo(
+    () => new Map((avatar?.inventory || []).map((entry) => [entry.itemInstanceId, entry])),
     [avatar]
   );
-  const activeItems = useMemo(
-    () => visibleItems(avatar?.inventory[activeSlot] || []).filter((item) => item.name.toLowerCase().includes(search.toLowerCase())),
-    [activeSlot, avatar, search]
-  );
-  const savedSelectionKey = useMemo(
-    () => selectionKey(savedEquipped),
-    [savedEquipped]
-  );
-  const draftSelectionKey = useMemo(
-    () => selectionKey(draftEquipped),
-    [draftEquipped]
-  );
-  const hasUnsavedChanges = draftSelectionKey !== savedSelectionKey;
-  const equippedByGroup = useMemo(() => {
-    const map = new Map<string, AvatarItem>();
-    draftEquipped.forEach((item) => map.set(getEquipGroup(item), item));
-    return map;
-  }, [draftEquipped]);
+  const savedDraft = useMemo(() => (avatar ? draftFromAvatar(avatar) : null), [avatar]);
+  const savedKey = draftKey(savedDraft);
 
   useEffect(() => {
-    setDraftEquipped(savedEquipped);
-  }, [savedSelectionKey, savedEquipped]);
+    setDraft(savedDraft);
+    // Only reset when what's saved actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  const look = useMemo(() => (draft ? lookFromDraft(draft, inventory) : null), [draft, inventory]);
+  const hasUnsavedChanges = Boolean(draft) && draftKey(draft) !== savedKey;
 
   useEffect(() => {
-    onPreviewLayersChange?.(draftEquipped);
-
-    return () => onPreviewLayersChange?.(null);
-  }, [draftEquipped, onPreviewLayersChange]);
-
-  useEffect(() => {
-    if (!avatar || initialCompositeSavedRef.current) return;
-
-    initialCompositeSavedRef.current = true;
-    uploadAvatarComposite(savedEquipped)
-      .then((compositeUrl) => {
-        if (compositeUrl) {
-          queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to save avatar composite", error);
-      });
-  }, [avatar, savedEquipped, queryClient]);
+    onPreviewLookChange?.(look);
+  }, [look, onPreviewLookChange]);
+  useEffect(() => () => onPreviewLookChange?.(null), [onPreviewLookChange]);
 
   const saveMutation = useMutation({
-    mutationFn: async (items: AvatarItem[]) => {
-      const itemInstanceIds = items
-        .map((item) => item.itemInstanceId)
-        .filter((id): id is number => typeof id === "number");
+    mutationFn: async (next: Draft) => {
       const response = await fetchWithAuth("/user/avatar/save", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemInstanceIds }),
+        body: JSON.stringify(next),
       });
       return readAvatarResponse(response);
     },
     onSuccess: async (data) => {
       queryClient.setQueryData(["avatar"], data);
-      const equipped = visibleItems(data.data.equipped);
-      setDraftEquipped(equipped);
-
       try {
-        const compositeUrl = await uploadAvatarComposite(equipped);
+        const compositeUrl = await uploadAvatarComposite(lookFromAvatar(data.data));
         if (compositeUrl) {
           queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
         }
-      } catch (error) {
-        console.error("Failed to save avatar composite", error);
+      } catch (uploadError) {
+        console.error("Failed to save avatar composite", uploadError);
       }
     },
   });
 
-  if (isLoading) return <LoadingSpinner />;
-  if (error) {
-    return <ErrorDisplay message={(error as Error).message || "Unknown error"} />;
+  if (isLoading || (!manifest && !manifestError)) return <LoadingSpinner />;
+  if (error || manifestError) {
+    return <ErrorDisplay message={((error || manifestError) as Error).message || "Unknown error"} />;
   }
-  if (!avatar) return null;
+  if (!avatar || !draft || !manifest || !look) return null;
+
+  const tab = WARDROBE_TABS.find((t) => t.key === activeTab) || WARDROBE_TABS[0];
+  const wearing = new Set(draft.outfit.map((entry) => entry.itemInstanceId));
+  const tabItems = avatar.inventory.filter(
+    (entry) =>
+      tab.categories.includes(entry.item.category) &&
+      entry.item.category !== "body" &&
+      entry.item.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const selected = selectedId !== null && wearing.has(selectedId) ? inventory.get(selectedId) : undefined;
+  const selectedDyes = draft.outfit.find((entry) => entry.itemInstanceId === selectedId)?.dyes || {};
+
+  const setProfile = (changes: Partial<Draft["profile"]>) =>
+    setDraft((current) => current && { ...current, profile: { ...current.profile, ...changes } });
+
+  const toggleItem = (entry: InventoryEntry) => {
+    setDraft((current) => {
+      if (!current) return current;
+      if (current.outfit.some((worn) => worn.itemInstanceId === entry.itemInstanceId)) {
+        return { ...current, outfit: current.outfit.filter((worn) => worn.itemInstanceId !== entry.itemInstanceId) };
+      }
+      const withItems = current.outfit.flatMap((worn) => {
+        const owned = inventory.get(worn.itemInstanceId);
+        return owned ? [{ ...worn, item: owned.item }] : [];
+      });
+      const next = wearItem(withItems, { itemInstanceId: entry.itemInstanceId, dyes: {}, item: entry.item }, manifest.categories);
+      return { ...current, outfit: next.map(({ itemInstanceId, dyes }) => ({ itemInstanceId, dyes })) };
+    });
+    setSelectedId(Object.keys(entry.item.dyes).length > 0 ? entry.itemInstanceId : null);
+  };
+
+  const setDye = (itemInstanceId: number, channel: string, ramp: string) =>
+    setDraft((current) =>
+      current && {
+        ...current,
+        outfit: current.outfit.map((worn) =>
+          worn.itemInstanceId === itemInstanceId ? { ...worn, dyes: { ...worn.dyes, [channel]: ramp } } : worn
+        ),
+      }
+    );
+
+  const chooseBuild = (build: AvatarBuild) => saveMutation.mutate({ ...draft, profile: { ...draft.profile, build } });
+  // The build picker shows just the body, face and hair so the difference is clear.
+  const bareLook = {
+    ...look,
+    outfit: look.outfit.filter(({ item }) => ["body", "eyes", "mouth", "brows", "face_paint", "hair"].includes(item.category)),
+  };
 
   return (
     <section className="wardrobe">
-      <div className="wardrobe-toolbar"><span>MY ITEMS <strong>{visibleItems(avatar.inventory[activeSlot] || []).length}</strong></span><label className="wardrobe-search"><FaSearch aria-hidden="true" /><input aria-label="Search wardrobe items" placeholder="Find an item…" value={search} onChange={(e) => setSearch(e.target.value)} /></label></div>
+      {!avatar.profile.buildChosen && (
+        <div className="build-chooser" role="dialog" aria-labelledby="build-chooser-title">
+          <h3 id="build-chooser-title">Choose your body</h3>
+          <p>Hair, faces and accessories fit either one. You can change this later on the Body tab.</p>
+          <div className="build-chooser-options">
+            {manifest.builds.map((build) => (
+              <button
+                key={build}
+                type="button"
+                className="build-chooser-option"
+                disabled={saveMutation.isPending}
+                onClick={() => chooseBuild(build)}
+              >
+                <AvatarView look={{ ...bareLook, profile: { ...bareLook.profile, build } }} height={180} label={`${BUILD_LABELS[build]} body`} />
+                <span>{BUILD_LABELS[build]}</span>
+              </button>
+            ))}
+          </div>
+          {saveMutation.error && <p className="profile-error">{(saveMutation.error as Error).message}</p>}
+        </div>
+      )}
+
+      <div className="wardrobe-toolbar">
+        <span>
+          MY ITEMS <strong>{avatar.inventory.length}</strong>
+        </span>
+        <label className="wardrobe-search">
+          <FaSearch aria-hidden="true" />
+          <input aria-label="Search wardrobe items" placeholder="Find an item…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+      </div>
+
       <div className="grid gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="wardrobe-categories">
-            {avatar.slots.map((slot) => (
+            {WARDROBE_TABS.map((t) => (
               <button
-                key={slot.slot}
+                key={t.key}
                 type="button"
-                onClick={() => setActiveSlot(slot.slot)}
-                aria-pressed={activeSlot === slot.slot}
-                className={`wardrobe-category ${activeSlot === slot.slot ? "is-active" : ""}`}
+                onClick={() => setActiveTab(t.key)}
+                aria-pressed={activeTab === t.key}
+                className={`wardrobe-category ${activeTab === t.key ? "is-active" : ""}`}
               >
-                {slot.label}
+                {t.label}
               </button>
             ))}
           </div>
 
-          <div className="wardrobe-grid">
-            {activeItems.map((item) => {
-              const equippedItem = equippedByGroup.get(getEquipGroup(item));
-              const isEquipped = equippedItem?.itemInstanceId === item.itemInstanceId;
-              const canEquip = typeof item.itemInstanceId === "number";
-
-              return (
-                <button
-                  key={item.itemInstanceId || item.id}
-                  type="button"
-                  onClick={() =>
-                    canEquip
-                      ? setDraftEquipped((current) => toggleDraftItem(current, item))
-                      : undefined
-                  }
-                  disabled={!canEquip || saveMutation.isPending}
-                  aria-pressed={isEquipped}
-                  className={`wardrobe-item ${isEquipped ? "is-equipped" : ""}`}
-                >
-                  <span className="wardrobe-item-status">{isEquipped ? <><FaCheck /> Wearing</> : "Try on"}</span>
-                  <AvatarPreview layers={[item]} size="sm" />
-                  <span className="text-sm leading-tight">{item.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {activeItems.length === 0 && <div className="wardrobe-empty"><p>{search ? "No items match that search." : "Something new belongs here."}</p>{search ? <button className="profile-secondary-button" onClick={() => setSearch("")}>Clear search</button> : <Link className="profile-secondary-button" to="/profile/shop">Explore the item shop</Link>}</div>}
-          {saveMutation.error && (
-            <div className="text-center text-sm text-red-400 lg:text-left">
-              {(saveMutation.error as Error).message}
+          {tab.key === "body" && (
+            <div className="wardrobe-body-panel">
+              <div>
+                <h4>Body</h4>
+                <div className="wardrobe-build-toggle" role="group" aria-label="Body build">
+                  {manifest.builds.map((build) => (
+                    <button
+                      key={build}
+                      type="button"
+                      aria-pressed={draft.profile.build === build}
+                      className={`wardrobe-category ${draft.profile.build === build ? "is-active" : ""}`}
+                      onClick={() => setProfile({ build })}
+                    >
+                      {BUILD_LABELS[build]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4>Skin</h4>
+                <Swatches manifest={manifest} ramps={manifest.skinTones} value={draft.profile.skin} onChange={(skin) => setProfile({ skin })} label="Skin tone" />
+              </div>
+              <div>
+                <h4>Eyes</h4>
+                <Swatches manifest={manifest} ramps={manifest.eyeColors} value={draft.profile.eyes} onChange={(eyes) => setProfile({ eyes })} label="Eye colour" />
+              </div>
+              <div>
+                <h4>Hair colour</h4>
+                <Swatches manifest={manifest} ramps={manifest.hairColors} value={draft.profile.hair} onChange={(hair) => setProfile({ hair })} label="Hair colour" />
+              </div>
             </div>
+          )}
+
+          {tab.key !== "body" && (
+            <div className="wardrobe-grid">
+              {tabItems.map((entry) => {
+                const isEquipped = wearing.has(entry.itemInstanceId);
+                return (
+                  <button
+                    key={entry.itemInstanceId}
+                    type="button"
+                    onClick={() => toggleItem(entry)}
+                    disabled={saveMutation.isPending}
+                    aria-pressed={isEquipped}
+                    className={`wardrobe-item ${isEquipped ? "is-equipped" : ""}`}
+                  >
+                    <span className="wardrobe-item-status">{isEquipped ? <><FaCheck /> Wearing</> : CATEGORY_LABELS[entry.item.category] || "Try on"}</span>
+                    <img className="wardrobe-icon" src={entry.item.icon} alt="" draggable={false} />
+                    <span className="text-sm leading-tight">{entry.item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {tab.key !== "body" && tabItems.length === 0 && (
+            <div className="wardrobe-empty">
+              <p>{search ? "No items match that search." : "Something new belongs here."}</p>
+              {search ? (
+                <button className="profile-secondary-button" onClick={() => setSearch("")}>Clear search</button>
+              ) : (
+                <Link className="profile-secondary-button" to="/profile/shop">Explore the item shop</Link>
+              )}
+            </div>
+          )}
+
+          {selected && (
+            <div className="wardrobe-dye-panel">
+              <h4>Colours for {selected.item.name}</h4>
+              {Object.keys(selected.item.dyes).map((channel) => (
+                <div key={channel}>
+                  <span>{DYE_LABELS[channel] || channel}</span>
+                  <Swatches
+                    manifest={manifest}
+                    ramps={manifest.dyeColors}
+                    value={selectedDyes[channel as keyof DyeChoice] || selected.item.dyes[channel as keyof DyeChoice] || ""}
+                    onChange={(ramp) => setDye(selected.itemInstanceId, channel, ramp)}
+                    label={`${selected.item.name} ${DYE_LABELS[channel] || channel}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {saveMutation.error && (
+            <div className="text-center text-sm text-red-400 lg:text-left">{(saveMutation.error as Error).message}</div>
           )}
 
           <div className="wardrobe-save-bar">
             <p role="status">{hasUnsavedChanges ? "Looking good! Save to keep this outfit." : "Your outfit is saved."}</p>
             <button
               type="button"
-              onClick={() => saveMutation.mutate(draftEquipped)}
+              onClick={() => saveMutation.mutate(draft)}
               disabled={!hasUnsavedChanges || saveMutation.isPending}
               className="profile-primary-button"
             >
@@ -234,7 +356,10 @@ export function AvatarEditor({ onPreviewLayersChange }: AvatarEditorProps) {
             </button>
             <button
               type="button"
-              onClick={() => setDraftEquipped(savedEquipped)}
+              onClick={() => {
+                setDraft(savedDraft);
+                setSelectedId(null);
+              }}
               disabled={!hasUnsavedChanges || saveMutation.isPending}
               className="profile-secondary-button"
             >

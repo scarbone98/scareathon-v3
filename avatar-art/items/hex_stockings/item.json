@@ -1,6 +1,11 @@
 {
   "name": "Hex Stockings",
   "category": "legwear",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
     {
       "slot": "legwear",

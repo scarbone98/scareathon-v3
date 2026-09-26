@@ -1,6 +1,11 @@
 {
   "name": "Patched Trousers",
   "category": "legs",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
     {
       "slot": "legs",

@@ -1,6 +1,11 @@
 {
   "name": "Stitchwork Sweater",
   "category": "torso",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 120,
+  "release": "released",
   "parts": [
     {
       "slot": "torso",

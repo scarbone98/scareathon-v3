@@ -1,6 +1,11 @@
 {
   "name": "Grave Creepers",
   "category": "feet",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
     {
       "slot": "feet",

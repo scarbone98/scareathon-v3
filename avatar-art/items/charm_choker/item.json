@@ -1,6 +1,11 @@
 {
   "name": "Charm Choker",
   "category": "neck",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
   "parts": [
     {
       "slot": "neck",

@@ -1,1 +1,15 @@
-{ "name": "Soft Brows", "category": "brows", "parts": [{ "slot": "brows", "file": "brows.txt" }] }
+{
+  "name": "Soft Brows",
+  "category": "brows",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "brows",
+      "file": "brows.txt"
+    }
+  ]
+}

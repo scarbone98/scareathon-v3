@@ -1,6 +1,11 @@
 {
   "name": "Tattered Skirt",
   "category": "legs",
+  "starter": true,
+  "default": false,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
     {
       "slot": "legs",

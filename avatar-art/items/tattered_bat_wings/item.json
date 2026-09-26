@@ -1,6 +1,11 @@
 {
   "name": "Tattered Bat Wings",
   "category": "wings",
+  "starter": false,
+  "default": false,
+  "rarity": "epic",
+  "price": 400,
+  "release": "released",
   "parts": [
     {
       "slot": "wings",

@@ -1,8 +1,23 @@
 {
   "name": "Base Body",
   "category": "body",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
   "parts": [
-    { "slot": "body", "file": "body.f.txt", "build": "f", "sculpt": "base_body.mjs#body" },
-    { "slot": "body", "file": "body.m.txt", "build": "m", "sculpt": "base_body.mjs#body" }
+    {
+      "slot": "body",
+      "file": "body.f.txt",
+      "build": "f",
+      "sculpt": "base_body.mjs#body"
+    },
+    {
+      "slot": "body",
+      "file": "body.m.txt",
+      "build": "m",
+      "sculpt": "base_body.mjs#body"
+    }
   ]
 }

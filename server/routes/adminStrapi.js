@@ -265,8 +265,8 @@ async function getExistingAvatarItem(item) {
     const result = await pool.query(`
         SELECT id, asset_path, metadata
         FROM avatar_items
-        WHERE metadata->>'strapiDocumentId' = $1
-           OR item_key = $2
+        WHERE art_version = 1
+          AND (metadata->>'strapiDocumentId' = $1 OR item_key = $2)
         ORDER BY CASE WHEN metadata->>'strapiDocumentId' = $1 THEN 0 ELSE 1 END
         LIMIT 1
     `, [item.strapiDocumentId, item.itemKey]);
@@ -407,6 +407,9 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
             base_price = EXCLUDED.base_price,
             release_status = EXCLUDED.release_status,
             metadata = EXCLUDED.metadata
+        -- Avatar v2 items are drawn in avatar-art/ and synced from the repo;
+        -- Strapi must never overwrite them.
+        WHERE avatar_items.art_version = 1
         RETURNING *
     `, [
         item.itemKey,
@@ -423,6 +426,10 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
         metadata,
     ]);
 
+    if (result.rowCount === 0) {
+        throw new Error(`Item key "${item.itemKey}" belongs to a repo-managed avatar item`);
+    }
+
     return serializeAvatarItem(result.rows[0]);
 }
 
@@ -432,6 +439,7 @@ async function deleteAvatarItem(documentId, itemKey = null) {
         DELETE FROM avatar_items
         WHERE (metadata->>'strapiDocumentId' = $1 OR ($2::text IS NOT NULL AND item_key = $2))
           AND metadata->>'source' = 'strapi'
+          AND art_version = 1
         RETURNING id, item_key, asset_path, metadata
     `, [documentId, normalizedItemKey]);
 

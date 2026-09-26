@@ -57,3 +57,4 @@
   .shop { padding-bottom: 56px; } /* clear the floating mobile menu button */
   .shop-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 }
+.shop-item-icon { width: 96px; height: 96px; image-rendering: pixelated; }

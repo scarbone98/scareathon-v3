@@ -1,1 +1,15 @@
-{ "name": "Stitched Scar", "category": "face_paint", "parts": [{ "slot": "face_paint", "file": "paint.txt" }] }
+{
+  "name": "Stitched Scar",
+  "category": "face_paint",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 60,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_paint",
+      "file": "paint.txt"
+    }
+  ]
+}

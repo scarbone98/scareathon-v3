@@ -1,6 +1,11 @@
 {
   "name": "Candlewick Hat",
   "category": "head",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 200,
+  "release": "released",
   "parts": [
     {
       "slot": "head",

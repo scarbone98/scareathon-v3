@@ -11,7 +11,6 @@
     "test": "npm --prefix server test --",
     "sync:weekly-challenge-announcement": "node scripts/sync-weekly-challenge-announcement.mjs",
     "check:weekly-challenges": "node scripts/check-weekly-challenges.mjs",
-    "backfill:avatar-composites": "node scripts/backfill-avatar-composites.mjs",
     "test:integration": "npm --prefix server run test:integration --",
     "build:report": "npm run build && node scripts/report-bundles.mjs",
     "balance:monster-bash": "node scripts/monster-bash-balance.mjs",

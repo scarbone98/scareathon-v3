@@ -1,8 +1,20 @@
 {
   "name": "Porcelain Half-Mask",
   "category": "face_acc",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 220,
+  "release": "released",
   "parts": [
-    { "slot": "face_acc", "file": "mask.txt", "sculpt": "accessories.mjs#mask" },
-    { "slot": "face_acc", "file": "cracks.txt" }
+    {
+      "slot": "face_acc",
+      "file": "mask.txt",
+      "sculpt": "accessories.mjs#mask"
+    },
+    {
+      "slot": "face_acc",
+      "file": "cracks.txt"
+    }
   ]
 }

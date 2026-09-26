@@ -1,1 +1,15 @@
-{ "name": "Small Smile", "category": "mouth", "parts": [{ "slot": "mouth", "file": "mouth.txt" }] }
+{
+  "name": "Small Smile",
+  "category": "mouth",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "mouth",
+      "file": "mouth.txt"
+    }
+  ]
+}

@@ -1,6 +1,11 @@
 {
   "name": "Soul Lantern",
   "category": "held_near",
+  "starter": false,
+  "default": false,
+  "rarity": "legendary",
+  "price": 600,
+  "release": "released",
   "parts": [
     {
       "slot": "held",

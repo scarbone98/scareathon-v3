@@ -1,5 +1,12 @@
 import pool from '../db/mockDB.js';
 import {
+    avatarItemColumns,
+    parseOutfitRequest,
+    serializeAvatarItemV2,
+    serializeProfile,
+    validateOutfitItems,
+} from '../utils/avatarV2.js';
+import {
     RegExpMatcher,
     TextCensor,
     englishDataset,
@@ -10,50 +17,6 @@ const profanityMatcher = new RegExpMatcher({
     ...englishDataset.build(),
     ...englishRecommendedTransformers,
 });
-
-const avatarSlots = [
-    { slot: 'body', label: 'Body' },
-    { slot: 'pants', label: 'Pants' },
-    { slot: 'shirt', label: 'Shirt' },
-    { slot: 'shoes', label: 'Shoes' },
-    { slot: 'face', label: 'Face' },
-    { slot: 'hair', label: 'Hair' },
-    { slot: 'accessory', label: 'Accessory' },
-];
-
-const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_REF ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co` : '');
-const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
-
-function getAvatarAssetUrl(assetPath) {
-    if (!assetPath) return '';
-    if (/^https?:\/\//.test(assetPath) || assetPath.startsWith('/')) return assetPath;
-    if (!supabaseUrl) return assetPath;
-
-    const baseUrl = supabaseUrl.replace(/\/$/, '');
-    const normalizedPath = assetPath.replace(/^\/+/, '');
-    return `${baseUrl}/storage/v1/object/public/${avatarSpriteBucket}/${normalizedPath}`;
-}
-
-function serializeAvatarItem(row) {
-    return {
-        id: row.id,
-        itemInstanceId: Number(row.item_instance_id),
-        itemKey: row.item_key,
-        name: row.name,
-        slot: row.slot,
-        equipGroup: row.equip_group || row.slot,
-        layerOrder: row.layer_order,
-        assetPath: getAvatarAssetUrl(row.asset_path),
-        storageBucket: avatarSpriteBucket,
-        storagePath: row.asset_path,
-        isDefault: row.is_default,
-        isStarter: row.is_starter,
-    };
-}
-
-function isHiddenAvatarItem(row) {
-    return row.item_key === 'default_accessory_none';
-}
 
 function serializeCurrencyTransaction(row) {
     return {
@@ -97,55 +60,44 @@ export async function getWalletPayload(userId, { limit = 25, includeTransactions
     };
 }
 
-async function getAvatarPayload(userId) {
-    await pool.query('SELECT public.seed_user_avatar_defaults($1)', [userId]);
+async function getAvatarPayload(userId, client = pool) {
+    await client.query('SELECT public.seed_user_avatar_defaults($1)', [userId]);
 
-    const equippedResult = await pool.query(`
-        SELECT ai.id, ua.item_instance_id, ai.item_key, ai.name, ai.slot,
-            COALESCE(ai.equip_group, ai.slot) AS equip_group, ai.layer_order,
-            ai.asset_path, ai.is_default, ai.is_starter
-        FROM user_avatar ua
-        JOIN avatar_items ai ON ai.id = ua.item_id
-        WHERE ua.user_id = $1
-        ORDER BY ai.layer_order ASC, ai.id ASC
+    const profileResult = await client.query(`
+        SELECT build, build_chosen, skin, hair, eyes
+        FROM user_avatar_profile
+        WHERE user_id = $1
     `, [userId]);
 
-    const inventoryResult = await pool.query(`
-        SELECT
-            ai.id,
-            uii.id AS item_instance_id,
-            ai.item_key,
-            ai.name,
-            ai.slot,
-            COALESCE(ai.equip_group, ai.slot) AS equip_group,
-            ai.layer_order,
-            ai.asset_path,
-            ai.is_default,
-            ai.is_starter
+    const outfitResult = await client.query(`
+        SELECT uoi.item_instance_id, uoi.dyes AS chosen_dyes, ${avatarItemColumns}
+        FROM user_outfit_items uoi
+        JOIN avatar_items ai ON ai.id = uoi.item_id
+        WHERE uoi.user_id = $1
+        ORDER BY ai.category ASC, ai.stack_order ASC, uoi.item_instance_id ASC
+    `, [userId]);
+
+    const inventoryResult = await client.query(`
+        SELECT uii.id AS item_instance_id, ${avatarItemColumns}
         FROM user_item_instances uii
         JOIN avatar_items ai ON ai.id = uii.item_id
         WHERE uii.user_id = $1
           AND uii.status = 'owned'
-        ORDER BY ai.slot ASC, ai.layer_order ASC, ai.name ASC, uii.id ASC
+          AND ai.art_version = 2
+        ORDER BY ai.category ASC, ai.name ASC, uii.id ASC
     `, [userId]);
 
-    const inventory = avatarSlots.reduce((acc, { slot }) => {
-        acc[slot] = [];
-        return acc;
-    }, {});
-
-    for (const row of inventoryResult.rows) {
-        if (isHiddenAvatarItem(row)) continue;
-        if (!inventory[row.slot]) inventory[row.slot] = [];
-        inventory[row.slot].push(serializeAvatarItem(row));
-    }
-
     return {
-        slots: avatarSlots,
-        equipped: equippedResult.rows
-            .filter((row) => !isHiddenAvatarItem(row))
-            .map(serializeAvatarItem),
-        inventory,
+        profile: serializeProfile(profileResult.rows[0]),
+        outfit: outfitResult.rows.map((row) => ({
+            itemInstanceId: Number(row.item_instance_id),
+            dyes: row.chosen_dyes || {},
+            item: serializeAvatarItemV2(row),
+        })),
+        inventory: inventoryResult.rows.map((row) => ({
+            itemInstanceId: Number(row.item_instance_id),
+            item: serializeAvatarItemV2(row),
+        })),
     };
 }
 
@@ -191,74 +143,60 @@ export default async function (fastify, options) {
 
     fastify.put('/avatar/save', async (request, reply) => {
         const userId = request.user.sub;
-        const itemInstanceIds = Array.isArray(request.body?.itemInstanceIds)
-            ? request.body.itemInstanceIds
-            : null;
-
-        if (!itemInstanceIds) {
-            return reply.code(400).send({ error: 'itemInstanceIds is required' });
-        }
-
-        const normalizedItemInstanceIds = [...new Set(itemInstanceIds.map((id) => Number(id)))]
-            .filter((id) => Number.isInteger(id) && id > 0);
-
-        if (normalizedItemInstanceIds.length !== itemInstanceIds.length) {
-            return reply.code(400).send({ error: 'itemInstanceIds must contain unique positive ids' });
+        const parsed = parseOutfitRequest(request.body);
+        if (parsed.error) {
+            return reply.code(400).send({ error: parsed.error });
         }
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
-            const itemResult = normalizedItemInstanceIds.length > 0
+            const instanceIds = parsed.entries.map((entry) => entry.itemInstanceId);
+            // Lock the copies so they can't be listed for sale mid-save.
+            const ownedResult = instanceIds.length > 0
                 ? await client.query(`
-                    SELECT
-                        ai.id,
-                        ai.slot,
-                        COALESCE(ai.equip_group, ai.slot) AS equip_group,
-                        uii.id AS item_instance_id
+                    SELECT uii.id AS item_instance_id, ${avatarItemColumns}
                     FROM user_item_instances uii
                     JOIN avatar_items ai ON ai.id = uii.item_id
                     WHERE uii.user_id = $1
                       AND uii.id = ANY($2::bigint[])
                       AND uii.status = 'owned'
-                    ORDER BY ai.layer_order ASC, ai.id ASC, uii.id ASC
-                `, [userId, normalizedItemInstanceIds])
-                : { rows: [], rowCount: 0 };
+                      AND ai.art_version = 2
+                    FOR UPDATE OF uii
+                `, [userId, instanceIds])
+                : { rows: [] };
 
-            if (itemResult.rowCount !== normalizedItemInstanceIds.length) {
+            const ownedById = new Map(ownedResult.rows.map((row) => [Number(row.item_instance_id), row]));
+            const outfitError = validateOutfitItems(parsed.entries, ownedById);
+            if (outfitError) {
                 await client.query('ROLLBACK');
-                return reply.code(404).send({ error: 'One or more avatar items are not in your inventory' });
+                return reply.code(400).send({ error: outfitError });
             }
 
-            const seenEquipGroups = new Set();
-            for (const item of itemResult.rows) {
-                if (seenEquipGroups.has(item.equip_group)) {
-                    await client.query('ROLLBACK');
-                    return reply.code(400).send({ error: 'Only one item per equip group can be saved' });
-                }
-                seenEquipGroups.add(item.equip_group);
-            }
-
-            await client.query('DELETE FROM user_avatar WHERE user_id = $1', [userId]);
-
-            for (const item of itemResult.rows) {
+            await client.query('DELETE FROM user_outfit_items WHERE user_id = $1', [userId]);
+            for (const entry of parsed.entries) {
                 await client.query(`
-                    INSERT INTO user_avatar (
-                        user_id,
-                        slot,
-                        equip_group,
-                        item_id,
-                        item_instance_id,
-                        updated_at
-                    )
-                    VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-                `, [userId, item.slot, item.equip_group, item.id, item.item_instance_id]);
+                    INSERT INTO user_outfit_items (user_id, item_instance_id, item_id, dyes)
+                    VALUES ($1, $2, $3, $4::jsonb)
+                `, [userId, entry.itemInstanceId, ownedById.get(entry.itemInstanceId).id, JSON.stringify(entry.dyes)]);
             }
 
-            await client.query('COMMIT');
+            await client.query(`
+                INSERT INTO user_avatar_profile (user_id, build, build_chosen, skin, hair, eyes, updated_at)
+                VALUES ($1, $2, TRUE, $3, $4, $5, now())
+                ON CONFLICT (user_id) DO UPDATE SET
+                    build = EXCLUDED.build,
+                    build_chosen = TRUE,
+                    skin = EXCLUDED.skin,
+                    hair = EXCLUDED.hair,
+                    eyes = EXCLUDED.eyes,
+                    updated_at = now()
+            `, [userId, parsed.profile.build, parsed.profile.skin, parsed.profile.hair, parsed.profile.eyes]);
 
-            return { data: await getAvatarPayload(userId) };
+            const payload = await getAvatarPayload(userId, client);
+            await client.query('COMMIT');
+            return { data: payload };
         } catch (error) {
             await client.query('ROLLBACK').catch(() => {});
             fastify.log.error(error);
