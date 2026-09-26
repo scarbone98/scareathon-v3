@@ -83,7 +83,8 @@ export function shadeFor(normal, { highlight = true, bias = 0 } = {}) {
 
 // Renders shapes to a part file. Each shape needs:
 //   group     shapes in the same group blend together
-//   material  ramp name, or (x, y, z) => ramp name (return null to cut the pixel)
+//   material  ramp name, or (x, y, z) => ramp name, or { ramp, shift } to push the
+//             shade up or down (stripes, ribbing, folds); null cuts the pixel
 // optional: blend (px, default 4), highlight, bias, clip (x, y, z) => true to cut.
 export function renderPart(shapes, { comment = "", outline = "auto", contactLines = true, blend = 4 } = {}) {
   const groups = new Map();
@@ -168,9 +169,11 @@ function march(group, px, py) {
 
 function shadePixel(hit, x, y) {
   const { owner } = hit;
-  const ramp = typeof owner.material === "function" ? owner.material(x, y, hit.z) : owner.material;
-  if (!ramp) return null;
-  return { ramp, shade: shadeFor(hit.normal, owner), z: hit.z, group: hit.group };
+  const result = typeof owner.material === "function" ? owner.material(x, y, hit.z) : owner.material;
+  if (!result) return null;
+  const { ramp, shift = 0 } = typeof result === "string" ? { ramp: result } : result;
+  const shade = Math.min(4, Math.max(1, shadeFor(hit.normal, owner) + shift));
+  return { ramp, shade, z: hit.z, group: hit.group };
 }
 
 function formatPart(cells, { minX, minY, maxX, maxY }, comment, outline) {

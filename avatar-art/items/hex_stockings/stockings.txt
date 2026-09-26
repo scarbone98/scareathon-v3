@@ -1,0 +1,34 @@
+# Hex Stockings (sculpted first pass: avatar-art/sculpts/clothing.mjs stockings).
+at: 46,128
+outline: auto
+legend:
+  g = dye1.1
+  f = dye1.2
+  e = dye1.3
+  h = dye1.4
+  d = dye2.1
+  c = dye2.2
+  b = dye2.3
+  a = dye2.4
+---
+aaaaaaaaabbbccaaaaaaaaabbbcc
+aaaaaaaaabbbccaaaaaaaaabbbcc
+bbbbbbbbbcccddbbbbbbbbbcccdd
+bbbbbbbbbcccddbbbbbbbbbcccdd
+eeeeeeeeffffggeeeeeeeeffffgg
+eeeeeeeffffgggeeeeeeeffffggg
+feeeeeeffffgggfeeeeeeffffggg
+.bbbbbccccddd..bbbbbccccddd.
+.bbbbbccccddd..bbbbbccccddd.
+.bbbbbbcccddd..bbbbbbcccddd.
+..eeeeefffgg....eeeeefffgg..
+..eeeeeeffgg....eeeeeeffgg..
+..eeeeeefffg....eeeeeefffg..
+..bbbbbbccdd....bbbbbbccdd..
+..eeeeeeeddd....bbdeeeeeef..
+.hhhheeeeefd....dhhhheeeeef.
+ehhheeeeeffg....ehhheeeeeffg
+eeeeeeeeffgg....eeeeeeeeffgg
+feeffffffggg....feeffffffggg
+.ffffgggggg......ffffgggggg.
+..gggggggg........gggggggg..

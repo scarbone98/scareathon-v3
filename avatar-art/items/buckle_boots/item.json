@@ -1,0 +1,1 @@
+{ "name": "Buckle Boots", "category": "feet", "parts": [{ "slot": "feet", "file": "boots.txt" }], "dyes": { "dye1": "wood", "dye2": "night" } }

@@ -50,6 +50,24 @@ node scripts/avatar-art/sculpt-cli.mjs avatar-art/sculpts/accessories.mjs horns 
   touch-ups in the part's comment ("Hand touch-up: ...") and redo them if you
   re-sculpt.
 
+## Clothing
+
+Garments are sculpted from the body's own shapes in `avatar-art/sculpts/body.mjs`
+(`torso`, `chest`, `hips`, `neck`, `upperArm`, `forearm`, `hand`, `thigh`,
+`shin`, `foot`), grown with `inflate` so they sit on top. That way every
+garment fits the base exactly, and fits again if the base changes. See
+`sculpts/clothing.mjs`.
+
+- **How much to inflate:** fitted tops and stockings 0.5-1, sweaters and
+  trousers 1.5-2.2, shoes 1.3-1.6, anything bulky (coats, armour) 2.5+.
+- **Cut a garment to length** with `material` returning null (hems, necklines,
+  sleeve ends), and add hems, cuffs and ribbing with `{ ramp, shift }`.
+- **Layering:** `torso` draws over `legs`, so tops tuck over skirts and trousers;
+  `outer` sits over both. Keep hems in mind: a top that ends at y 122 leaves
+  the skirt or trousers room to show.
+- **Details that must stay crisp** (prints, clasps, buttons, logos) are hand
+  grids added as a second part in the same slot, in fixed ramps.
+
 ## Canvas and anchors
 
 The canvas is **120 x 150** (Gaia's size), a chibi **facing forward**, centred
@@ -69,8 +87,8 @@ on x = 60. Everything is drawn to fit `items/base_body/body.txt`.
 | Shoulders           | (46, 97) and (74, 97)                                         |
 | Torso               | y 92 - 125; neckline dips to y 95 at the centre               |
 | Hands               | (41, 123) and (79, 123)                                       |
-| Legs                | x 47 - 59 and 61 - 73, y 120 - 140                            |
-| Feet (ground = 147) | (52, 143) and (68, 143)                                       |
+| Legs                | x 47 - 59 and 61 - 73; thigh y 120 - 131, shin y 131 - 143    |
+| Feet (ground = 149) | (52, 145) and (68, 145)                                       |
 
 Items may go past the body (wings, cloaks, big hats, held props), but keep
 everything on the canvas.

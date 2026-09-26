@@ -1,0 +1,1 @@
+{ "name": "Stitchwork Sweater", "category": "torso", "parts": [{ "slot": "torso", "file": "sweater.txt" }], "dyes": { "dye1": "moss", "dye2": "pumpkin" } }
