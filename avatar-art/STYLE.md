@@ -115,35 +115,67 @@ back and is partly hidden; the near side (viewer's right) comes forward.
 Items may go past the body (wings, cloaks, big hats, held props), but keep
 everything on the canvas.
 
-## Slots (draw order, back to front)
+## Layers and equipping
 
-| Slot         | Use for                                                          |
-| ------------ | ---------------------------------------------------------------- |
-| `back_fx`    | auras, shadows, anything glowing behind the avatar               |
-| `back`       | wings, tails, cape backs, the inside of hoods, backpacks         |
-| `hair_back`  | hair mass behind the head                                        |
-| `body`       | the base body only                                               |
-| `face_paint` | blush, scars, stitches, makeup, markings                         |
-| `eyes`       | eyes (one item: both eyes)                                       |
-| `mouth`      | mouths and expressions                                           |
-| `brows`      | eyebrows (sit under the fringe, like Gaia)                       |
-| `legwear`    | stockings, tights, socks (under skirts, trousers and shoes)      |
-| `legs`       | trousers, skirts, shorts                                         |
-| `feet`       | shoes, boots                                                     |
-| `torso`      | shirts, tops                                                     |
-| `outer`      | jackets, coats, cape fronts, armour                              |
-| `neck`       | scarves, collars, necklaces                                      |
-| `face_acc`   | masks, glasses, eyepatches, face jewellery                       |
-| `hair_front` | fringe and front locks                                           |
-| `head`       | hats, hoods, horns, masks, halos                                 |
-| `held`       | props in the hands                                               |
-| `front_fx`   | glows, particles, anything over the whole avatar                 |
+Two separate ideas, which Gaia blurred together:
 
-**One item can use several slots.** That is how things wrap around the body.
-For example, the Long Wisp hair puts its fringe in `hair_front` and its long
-back in `hair_back`, and the Candlewick Hat puts the hat in `head` and the
-candle flame in `front_fx`. If an item has a
-front and a back in real life, draw both.
+- **Draw layers (`slot`)** decide *depth*. Every part of an item goes on one
+  layer, and one item can have parts on several layers.
+- **Equip categories (`category`)** decide *what can be worn together*. Each
+  item has one category, and an outfit can hold a limited number of items per
+  category (`CATEGORIES` in `scripts/avatar-art/lib.mjs`). An item can also
+  `"occupies": [...]` extra categories, e.g. a two-handed scythe occupies
+  `held_near` and `held_far`.
+
+Draw layers, back to front (`SLOTS` in `lib.mjs`):
+
+| Slot         | Use for                                                           |
+| ------------ | ----------------------------------------------------------------- |
+| `background` | scenes and backdrops, full canvas                                 |
+| `back_fx`    | auras and glows behind the avatar                                 |
+| `wings`      | wings, big tails                                                  |
+| `back`       | things worn on the back: sheathed weapons, packs, cape backs, hood insides |
+| `hair_back`  | hair behind the head                                              |
+| `held_back`  | held-item parts behind the body or hand: grips (so fingers wrap them), far-hand props |
+| `body`       | the base body only                                                |
+| `face_paint` | blush, scars, stitches, makeup, markings                          |
+| `eyes`       | eyes (one item: both eyes)                                        |
+| `mouth`      | mouths and expressions                                            |
+| `brows`      | eyebrows (sit under the fringe, like Gaia)                        |
+| `legwear`    | stockings, tights, socks (under skirts, trousers and shoes)       |
+| `legs`       | trousers, skirts, shorts                                          |
+| `feet`       | shoes, boots                                                      |
+| `torso`      | shirts, tops                                                      |
+| `waist`      | belts, sashes, hip sheaths, pouches                               |
+| `outer`      | coats, jackets, cape fronts, armour                               |
+| `strap`      | straps and bandoliers across the chest                            |
+| `neck`       | scarves, collars, necklaces                                       |
+| `hands`      | gloves, bracelets, rings                                          |
+| `face_acc`   | masks, glasses, eyepatches                                        |
+| `hair_front` | fringe and front locks                                            |
+| `hair_acc`   | clips, ribbons, flowers                                           |
+| `head`       | hats, hoods, horns, crowns                                        |
+| `held`       | held items in front of everything                                 |
+| `companion`  | familiars on the shoulder or floating nearby                      |
+| `front_fx`   | glows and particles over everything                               |
+
+Equip categories and how many of each an outfit can wear: `body`, `eyes`,
+`mouth`, `brows`, `hair`, `head`, `face_acc`, `torso`, `outer`, `waist`,
+`hands`, `legs`, `legwear`, `feet`, `back`, `wings`, `held_near`, `held_far`,
+`companion`, `aura` and `background` allow one each; `face_paint`, `hair_acc`
+and `neck` allow two. The build rejects outfits that break these limits.
+
+**Split items across layers wherever real objects would be.** Examples:
+
+- *Graveblade (Sheathed)*, category `back`: scabbard and hilt on `back` (behind
+  the body, hilt poking over the shoulder), strap on `strap` (across the chest).
+- *Graveblade (Drawn)*, category `held_near`: grip on `held_back` so the
+  hand's fingers draw over it, guard and blade on `held`, a glint on `front_fx`.
+- *Long Wisp*, category `hair`: `hair_back` and `hair_front`.
+- *Candlewick Hat*, category `head`: hat on `head`, flame on `front_fx`.
+
+Held items follow the hand, which differs per build, so sculpt them with
+`bodyFor(build).anchors.hand` (see `sculpts/weapons.mjs`).
 
 **Stacking is fixed, like Gaia's.** Layers draw in the slot order above, and
 the order someone puts items on never matters. If two kinds of item can share

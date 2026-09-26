@@ -1,0 +1,13 @@
+{
+  "name": "Graveblade (Drawn)",
+  "category": "held_near",
+  "parts": [
+    { "slot": "held_back", "file": "grip.f.txt", "build": "f", "sculpt": "weapons.mjs#katanaGrip" },
+    { "slot": "held_back", "file": "grip.m.txt", "build": "m", "sculpt": "weapons.mjs#katanaGrip" },
+    { "slot": "held", "file": "blade.f.txt", "build": "f", "sculpt": "weapons.mjs#katanaBlade" },
+    { "slot": "held", "file": "blade.m.txt", "build": "m", "sculpt": "weapons.mjs#katanaBlade" },
+    { "slot": "front_fx", "file": "glint.f.txt", "build": "f" },
+    { "slot": "front_fx", "file": "glint.m.txt", "build": "m" }
+  ],
+  "dyes": { "dye2": "blood" }
+}

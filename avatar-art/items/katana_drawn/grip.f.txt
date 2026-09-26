@@ -1,0 +1,26 @@
+# Graveblade katana grip, behind the fingers, build f (sculpted: avatar-art/sculpts/weapons.mjs katanaGrip).
+at: 79,99
+outline: auto
+legend:
+  h = dye2.1
+  f = dye2.2
+  d = dye2.3
+  c = gold.2
+  b = gold.3
+  a = gold.4
+  g = ink.2
+  e = ink.3
+---
+abc...
+def...
+edf...
+ddef..
+.edf..
+.ddg..
+.dedf.
+..ddg.
+..def.
+..eddg
+...def
+...efh
+....h.

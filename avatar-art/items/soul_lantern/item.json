@@ -1,6 +1,6 @@
 {
   "name": "Soul Lantern",
-  "category": "held",
+  "category": "held_near",
   "parts": [
     {
       "slot": "held",

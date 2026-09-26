@@ -1,0 +1,12 @@
+# A glint on the blade (build m). No outline: light has no edge.
+at: 93,127
+outline: none
+legend:
+  w = bone.4
+  s = bone.3
+---
+..s..
+..w..
+swwws
+..w..
+..s..
