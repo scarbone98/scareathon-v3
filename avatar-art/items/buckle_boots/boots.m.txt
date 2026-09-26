@@ -1,0 +1,30 @@
+# Buckle Boots, build m (sculpted: avatar-art/sculpts/clothing.mjs boots).
+at: 39,131
+outline: auto
+legend:
+  d = dye1.1
+  c = dye1.2
+  b = dye1.3
+  a = dye1.4
+  h = dye2.1
+  g = dye2.2
+  e = dye2.3
+  f = gold.3
+  i = night.1
+---
+.....aaaaaaabbbcc......aaaaaaabbbcc
+.....aaaaaaabbbcc......aaaaaaabbbcc
+.....bbbbbbbccdd.......bbbbbbbcccdd
+.....bbbbbbcccdd.......bbbbbbbcccdd
+.....eeffffggghh.......eeeffffggghh
+.....eeffffggghh.......eeeffffggghh
+....bbbbbbbcccdd.......dbbbbbbcccdd
+..aaaabbbbbcccdd......bbbbbbbbcccdd
+.baaabbbbbbccdd.....baaabbbbbbccddd
+.babbbbbbbcccdd....baaaabbbbbbbcdd.
+bbbbbbbbbcccdd.....baabbbbbbbbcccd.
+.bbbbbcccccdd......bbbbbbbbbccccd..
+.ccccccccdddd......bbbbbbcccccddd..
+..dddddddddd.......cccccccccddddd..
+....iiiiii..........iiiiiiiiiiii...
+......................iiiiiiii.....

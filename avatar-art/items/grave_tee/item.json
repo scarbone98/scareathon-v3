@@ -1,1 +1,25 @@
-{ "name": "Grave Tee", "category": "torso", "parts": [{ "slot": "torso", "file": "tee.txt" }, { "slot": "torso", "file": "print.txt" }], "dyes": { "dye1": "night" } }
+{
+  "name": "Grave Tee",
+  "category": "torso",
+  "parts": [
+    {
+      "slot": "torso",
+      "file": "tee.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#tee"
+    },
+    {
+      "slot": "torso",
+      "file": "tee.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#tee"
+    },
+    {
+      "slot": "torso",
+      "file": "print.txt"
+    }
+  ],
+  "dyes": {
+    "dye1": "night"
+  }
+}

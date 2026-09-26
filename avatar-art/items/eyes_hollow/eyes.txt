@@ -1,5 +1,5 @@
 # Black, hollow eyes with a single glowing pinprick. Glow uses the eye colour.
-at: 43,63
+at: 44,51
 outline: none
 legend:
   k = ink.0
@@ -7,14 +7,12 @@ legend:
   g = eyes.4
   G = eyes.3
 ---
-k..kkkkkk................kkkkkk..k
-k.kkkkkkkk..............kkkkkkkk.k
-.kkkKKKKkkk............kkkKKKKkkk.
-.kkKKKKKKkk............kkKKKKKKkk.
-.kKKKKKKKKk............kKKKKKKKKk.
-.kKKKKGKKKk............kKKKKGKKKk.
-.kKKKGgGKKk............kKKKGgGKKk.
-.kKKKKGKKKk............kKKKKGKKKk.
-.kKKKKKKKKk............kKKKKKKKKk.
-..kKKKKKKk..............kKKKKKKk..
-...kkkkkk................kkkkkk...
+k.kkkk.....kkkkkk.k
+kkkKKkk...kkKKKKkkk
+.kKKKKk...kKKKKKKk.
+.kKGKKk...kKKKGKKk.
+.kGgGKk...kKKGgGKk.
+.kKGKKk...kKKKGKKk.
+.kKKKKk...kKKKKKKk.
+..kKKk.....kKKKKk..
+...kk.......kkkk...

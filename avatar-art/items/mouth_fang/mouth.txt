@@ -1,5 +1,5 @@
 # Open grin with one fang.
-at: 56,79
+at: 51,62
 outline: none
 legend:
   D = skin.1
@@ -7,7 +7,7 @@ legend:
   r = blood.2
   w = bone.4
 ---
-D......D
-.kkkkkk.
-.kwrrrk.
-..w.....
+D.....D
+.kkkkk.
+.kwrrk.
+..w....

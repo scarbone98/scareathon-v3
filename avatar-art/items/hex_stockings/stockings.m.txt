@@ -1,0 +1,46 @@
+# Hex Stockings, build m (sculpted: avatar-art/sculpts/clothing.mjs stockings).
+at: 40,113
+outline: auto
+legend:
+  f = dye1.1
+  e = dye1.2
+  d = dye1.3
+  h = dye1.4
+  g = dye2.1
+  c = dye2.2
+  b = dye2.3
+  a = dye2.4
+---
+......aaaaaaabbbccc..aaaaaaaabbbcc.
+......aaaaaaaabbcc...aaaaaaaaabbbc.
+......ddddddddeeff...dddddddddeeef.
+.....dddddddddeeff...dddddddddeeeff
+.....bbbbbbbbbccgg...bbbbbbbbbcccgg
+.....bbbbbbbbcccgg...bbbbbbbbbcccgg
+....bbbbbbbbbcccgg...bbbbbbbbbcccgg
+....dddddddddeeeff...dddddddddeeeff
+....ddddddddeeefff...ddddddddeeeeff
+....ddddddddeeefff...ddddddddeeefff
+....bbbbbbbccccgg....bbbbbbbccccggg
+.....bbbbbccccggg....cbbbbbbccccggg
+.....bbbbbccccggg.....bbbbbbccccgg.
+.....dddddeeefff......ddddddeeefff.
+.....dddddeeefff......ddddddeeefff.
+.....ddddddeeff.......dddddddeeeff.
+.....bbbbbbccgg........bbbbbbcccg..
+.....bbbbbbccgg........bbbbbbcccg..
+.....bbbbbbccgg........bbbbbbcccg..
+.....ddddddeeff........ddddddeeef..
+.....dddddeeef.........ddddddeeef..
+.....dddddeeef.........ddddddeeef..
+.....bbbbbccgg.........bbbbbbccgg..
+.....bbbbbccgg.........bbbbbbccgg..
+....gbbbbbccgg.........bbbbbbccgg..
+...dddddddeeff.........ffddddeeff..
+.dhhhdddddeff........ddddddeeefff..
+.hhhdddddeeff.......hhhhdddddeff...
+ddddddddeeff.......hhhdddddddee....
+.dddeeeeeff........ddddddddeeef....
+.feeeefffff........eddeeeeeefff....
+...ffffff...........eeeeffffff.....
+.....................ffffffff......

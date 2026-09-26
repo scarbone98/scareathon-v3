@@ -222,13 +222,18 @@
       "#33ffff"
     ]
   },
+  "builds": [
+    "f",
+    "m"
+  ],
   "items": [
     {
       "key": "base_body",
       "name": "Base Body",
       "category": "body",
       "slots": [
-        "body"
+        "body.f",
+        "body.m"
       ],
       "dyes": {},
       "hides": []
@@ -271,7 +276,8 @@
       "name": "Buckle Boots",
       "category": "feet",
       "slots": [
-        "feet"
+        "feet.f",
+        "feet.m"
       ],
       "dyes": {
         "dye1": "wood",
@@ -327,7 +333,8 @@
       "name": "Grave Creepers",
       "category": "feet",
       "slots": [
-        "feet"
+        "feet.f",
+        "feet.m"
       ],
       "dyes": {
         "dye1": "night",
@@ -340,7 +347,8 @@
       "name": "Grave Tee",
       "category": "torso",
       "slots": [
-        "torso"
+        "torso.f",
+        "torso.m"
       ],
       "dyes": {
         "dye1": "night"
@@ -352,8 +360,10 @@
       "name": "Gravewarden Hood & Cloak",
       "category": "outer",
       "slots": [
-        "back",
-        "outer",
+        "back.f",
+        "back.m",
+        "outer.f",
+        "outer.m",
         "head"
       ],
       "dyes": {
@@ -378,7 +388,8 @@
       "name": "Hex Stockings",
       "category": "legs",
       "slots": [
-        "legs"
+        "legs.f",
+        "legs.m"
       ],
       "dyes": {
         "dye1": "night",
@@ -441,7 +452,8 @@
       "name": "Patched Trousers",
       "category": "legs",
       "slots": [
-        "legs"
+        "legs.f",
+        "legs.m"
       ],
       "dyes": {
         "dye1": "steel",
@@ -476,8 +488,10 @@
       "name": "Soul Lantern",
       "category": "held",
       "slots": [
-        "held",
-        "front_fx"
+        "held.f",
+        "held.m",
+        "front_fx.f",
+        "front_fx.m"
       ],
       "dyes": {
         "dye1": "spectral"
@@ -489,7 +503,8 @@
       "name": "Stitchwork Sweater",
       "category": "torso",
       "slots": [
-        "torso"
+        "torso.f",
+        "torso.m"
       ],
       "dyes": {
         "dye1": "moss",
@@ -502,7 +517,8 @@
       "name": "Tattered Skirt",
       "category": "legs",
       "slots": [
-        "legs"
+        "legs.f",
+        "legs.m"
       ],
       "dyes": {
         "dye1": "night",

@@ -2,10 +2,42 @@
   "name": "Gravewarden Hood & Cloak",
   "category": "outer",
   "parts": [
-    { "slot": "back", "file": "back.txt" },
-    { "slot": "outer", "file": "outer.txt" },
-    { "slot": "outer", "file": "clasp.txt" },
-    { "slot": "head", "file": "head.txt" }
+    {
+      "slot": "back",
+      "file": "back.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#cloakBack"
+    },
+    {
+      "slot": "back",
+      "file": "back.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#cloakBack"
+    },
+    {
+      "slot": "outer",
+      "file": "outer.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#cloakOuter"
+    },
+    {
+      "slot": "outer",
+      "file": "outer.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#cloakOuter"
+    },
+    {
+      "slot": "outer",
+      "file": "clasp.txt"
+    },
+    {
+      "slot": "head",
+      "file": "head.txt",
+      "sculpt": "clothing.mjs#cloakHead"
+    }
   ],
-  "dyes": { "dye1": "night", "dye2": "blood" }
+  "dyes": {
+    "dye1": "night",
+    "dye2": "blood"
+  }
 }

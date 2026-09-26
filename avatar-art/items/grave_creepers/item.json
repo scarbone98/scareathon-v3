@@ -1,1 +1,22 @@
-{ "name": "Grave Creepers", "category": "feet", "parts": [{ "slot": "feet", "file": "creepers.txt" }], "dyes": { "dye1": "night", "dye2": "blood" } }
+{
+  "name": "Grave Creepers",
+  "category": "feet",
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "creepers.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#creepers"
+    },
+    {
+      "slot": "feet",
+      "file": "creepers.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#creepers"
+    }
+  ],
+  "dyes": {
+    "dye1": "night",
+    "dye2": "blood"
+  }
+}

@@ -1,0 +1,34 @@
+# Tattered Skirt, two layers, build f (sculpted: avatar-art/sculpts/clothing.mjs skirt).
+at: 43,99
+outline: auto
+legend:
+  f = dye1.1
+  d = dye1.2
+  e = dye1.3
+  c = dye2.1
+  b = dye2.2
+  a = dye2.3
+---
+.....aaaaaaaaaaaaaaaaabbbbbbccc.....
+.....aaaaaaaaaaaaaaaaaaabbbbbcc.....
+.....aaaaaaaaaaaaaaaaaaabbbbbbc.....
+....ddeeeedddeeeedddeeeedffdddff....
+....ddeeeedddeeeedddeeeedffdddff....
+....ddeeeedddeeeedddeeeedffdddff....
+....ddeeeedddeeeedddeeeedffddddf....
+...dddeeeedddeeeedddeeeedffddddff...
+...dddeeeedddeeeedddeeeedffddddff...
+...dddeeeedddeeeedddeeeedffddddff...
+..edddeeeedddeeeedddeeeeddfddddfff..
+..edddeeeedddeeeedddeeeeddfddddfff..
+..edddeeeedddeeeedddeeeeddfddddfff..
+.eedddeeeedddeeeedddeeeeddfddddffff.
+.eedddeeeedddeeeedddeeeeddfddddffff.
+.eedddeeeedddeeeedddeeeeddfddddffff.
+.eedddeeeedddeeeedddeeeeddfddddffff.
+eeedddeeeedddeeeedddeeeedddddddfffff
+eeedddeeeedddeeeeddd.eddfff.dddfffff
+eeedddeeeeddd.eeeddd.dddfff.ddffff.f
+eeeddd.eeeddd.eeeddd.dddfff.ddffff.f
+dee.dd.e.e.dd.e.eddf.d.dfff.dfff.f.f
+..e.d..e.e.dd.e.e.ff.d.df.f.f..f.f..

@@ -2,8 +2,18 @@
   "name": "Candlewick Hat",
   "category": "head",
   "parts": [
-    { "slot": "head", "file": "hat.txt" },
-    { "slot": "front_fx", "file": "flame.txt" }
+    {
+      "slot": "head",
+      "file": "hat.txt",
+      "sculpt": "accessories.mjs#witchHat"
+    },
+    {
+      "slot": "front_fx",
+      "file": "flame.txt"
+    }
   ],
-  "dyes": { "dye1": "violet", "dye2": "gold" }
+  "dyes": {
+    "dye1": "violet",
+    "dye2": "gold"
+  }
 }

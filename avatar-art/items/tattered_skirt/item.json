@@ -1,1 +1,22 @@
-{ "name": "Tattered Skirt", "category": "legs", "parts": [{ "slot": "legs", "file": "skirt.txt" }], "dyes": { "dye1": "night", "dye2": "blood" } }
+{
+  "name": "Tattered Skirt",
+  "category": "legs",
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "skirt.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#skirt"
+    },
+    {
+      "slot": "legs",
+      "file": "skirt.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#skirt"
+    }
+  ],
+  "dyes": {
+    "dye1": "night",
+    "dye2": "blood"
+  }
+}
