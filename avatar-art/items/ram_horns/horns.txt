@@ -10,10 +10,10 @@ legend:
 ....aaa.................................aaab....
 ...ccaaaaaab.........................aaaaaaab...
 ..aaaaacccaab.....................ccaaaaaaabb...
-..caaaaaaaaabb...................cccaaababbbbb..
+..aaaaaaaaaabb...................cccaaababbbbb..
 .caaaaaaaaaaab..................accaaabbbbbbbbb.
 aaaabbaaaaaaabb.................ccaaaabbdddbbbbb
-aaabbdbbaaaaaab................ccaaaabbddddbbbbd
+aaabbbbbaaaaaab................ccaaaabbddddbbbbd
 babbd..bbaaaaaab..............ccaaaabbdd...bbbbd
 .bbbd...baaaaaaab............cccaaabbdd....babd.
 ..bb.....baaaaaabb..........cccaaabbdd......abd.

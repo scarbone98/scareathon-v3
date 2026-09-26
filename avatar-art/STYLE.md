@@ -55,6 +55,8 @@ returning `{ partName: { shapes, blend, comment, ... } }`.
 - `material` can be a function of (x, y, z) returning a ramp, `{ ramp, shift }`
   (push the shade for ribbing, stripes, folds) or null (cut the pixel);
   `clip` also removes pixels (face openings, scalloped edges).
+- Keep limbs clear of the torso where they hang: an arm tucked just behind the
+  torso's edge gets a jagged dark overlap line down its inside.
 - **Never hand-edit a sculpted `.txt`**; re-sculpting would wipe it. Put
   hand-drawn detail (cracks, prints, clasps, stitches) in its own part in the
   same slot, listed after the sculpted one. See `porcelain_mask` and `grave_tee`.
@@ -106,7 +108,7 @@ back and is partly hidden; the near side (viewer's right) comes forward.
 | Neck                | x 56 - 66, y 63 - 75; choker line y 69 - 73                       |
 | Shoulders           | m: (47, 77.5) and (75, 77.5); f: (49, 78) and (73, 78)            |
 | Torso               | chest y 84, waist y 95, hips y 103; front centre x ~57            |
-| Hands               | m: far (41.5, 106), near (82, 106); f: (43.5, 106) and (79.5, 106) |
+| Hands               | m: far (38.5, 106), near (84.5, 106); f: (41, 106) and (82, 106)  |
 | Legs                | thighs y 104 - 121, shins y 121 - 138                             |
 | Feet (ground ~146)  | far (46, 141.5), near (65, 142.5), toes toward the left           |
 
@@ -166,7 +168,8 @@ undersides and anything under an overhang are in shadow. Highlights (shade 4)
 land top-left, and eye shines go top-left too.
 - **No pillow shading.** Don't just darken all edges evenly; shade by form.
 - **No banding.** Avoid parallel shade stripes that follow the outline.
-- **No stray single pixels**, unless they are deliberate sparkle.
+- **No stray single pixels**, unless they are deliberate sparkle. Sculpts clean
+  these up automatically; hand-drawn grids need checking by eye.
 
 Adding a ramp: 5 new unique colours, darkest to brightest, shifting hue the
 same way the others do. The build rejects duplicates, because recolouring

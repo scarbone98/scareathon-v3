@@ -143,7 +143,7 @@ export function parts(build) {
           return d < 1.2 ? { ramp: "dye1", shift: 1 } : "dye1";
         };
         return [
-          ellipsoid([63.5, 48, -1], [21.5, 21, 19.5], { group: "hood", material }),
+          ellipsoid([63, 47.5, -1], [23.5, 21.5, 20], { group: "hood", material }),
           ellipsoid([65, 29, -3], [6.5, 4.5, 6], { group: "hood", material }), // soft peak
           // the hood falls over the hair and onto the shoulders
           capsule([46, 56, 3], [45, 77, 2], 6, 7.5, { group: "hood", material }),
@@ -177,9 +177,9 @@ export function parts(build) {
             },
           });
         return [
-          panel([48, 80, 3], [41, 136, 1], 6.5, 10.5, "panel-far"),
-          panel([74, 80, 5], [81, 136, 4], 7, 11.5, "panel-near"),
-          ellipsoid([61, 80, 1], [21, 7.5, 13], {
+          panel([47, 80, 3], [38, 136, 1], 7.5, 12, "panel-far"),
+          panel([75, 80, 5], [84, 136, 4], 8, 12.5, "panel-near"),
+          ellipsoid([61, 80, 1], [23.5, 7.5, 13], {
             group: "mantle",
             blend: 0,
             material: (x, y) => (y < 73 || y > 84 + tatter(x, 1) ? null : { ramp: "dye1", shift: y <= 75 ? 1 : 0 }),
