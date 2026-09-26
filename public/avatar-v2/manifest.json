@@ -1,17 +1,21 @@
 {
-  "width": 96,
-  "height": 144,
+  "width": 120,
+  "height": 150,
   "slots": [
     "back_fx",
     "back",
     "hair_back",
     "body",
-    "face",
+    "face_paint",
+    "eyes",
+    "mouth",
+    "brows",
     "legs",
     "feet",
     "torso",
     "outer",
     "neck",
+    "face_acc",
     "hair_front",
     "head",
     "held",
@@ -230,23 +234,44 @@
       "hides": []
     },
     {
-      "key": "face_default",
-      "name": "Wide Eyes",
-      "category": "face",
+      "key": "bat_wings",
+      "name": "Tattered Bat Wings",
+      "category": "back",
       "slots": [
-        "face"
+        "back"
+      ],
+      "dyes": {
+        "dye1": "violet",
+        "dye2": "night"
+      },
+      "hides": []
+    },
+    {
+      "key": "brows_scowl",
+      "name": "Scowl",
+      "category": "brows",
+      "slots": [
+        "brows"
       ],
       "dyes": {},
       "hides": []
     },
     {
-      "key": "gravewarden_cloak",
-      "name": "Gravewarden Hood & Cloak",
-      "category": "outer",
+      "key": "brows_soft",
+      "name": "Soft Brows",
+      "category": "brows",
       "slots": [
-        "back",
-        "outer",
-        "head"
+        "brows"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "charm_choker",
+      "name": "Charm Choker",
+      "category": "neck",
+      "slots": [
+        "neck"
       ],
       "dyes": {
         "dye1": "night",
@@ -255,8 +280,38 @@
       "hides": []
     },
     {
-      "key": "hair_messy",
-      "name": "Messy Fringe",
+      "key": "eyes_hollow",
+      "name": "Hollow Stare",
+      "category": "eyes",
+      "slots": [
+        "eyes"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "eyes_sleepless",
+      "name": "Sleepless",
+      "category": "eyes",
+      "slots": [
+        "eyes"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "eyes_wide",
+      "name": "Wide Eyes",
+      "category": "eyes",
+      "slots": [
+        "eyes"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "hair_long_wisp",
+      "name": "Long Wisp",
       "category": "hair",
       "slots": [
         "hair_back",
@@ -266,15 +321,88 @@
       "hides": []
     },
     {
-      "key": "soul_lantern",
-      "name": "Soul Lantern",
-      "category": "held",
+      "key": "mouth_fang",
+      "name": "Fang Grin",
+      "category": "mouth",
       "slots": [
-        "held",
+        "mouth"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "mouth_smile",
+      "name": "Small Smile",
+      "category": "mouth",
+      "slots": [
+        "mouth"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "mouth_stitched",
+      "name": "Sewn Shut",
+      "category": "mouth",
+      "slots": [
+        "mouth"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "paint_blush",
+      "name": "Blush",
+      "category": "face_paint",
+      "slots": [
+        "face_paint"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "paint_stitches",
+      "name": "Stitched Scar",
+      "category": "face_paint",
+      "slots": [
+        "face_paint"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "porcelain_mask",
+      "name": "Porcelain Half-Mask",
+      "category": "face_acc",
+      "slots": [
+        "face_acc"
+      ],
+      "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "ram_horns",
+      "name": "Ram Horns",
+      "category": "head",
+      "slots": [
+        "head"
+      ],
+      "dyes": {
+        "dye1": "bone"
+      },
+      "hides": []
+    },
+    {
+      "key": "witch_hat",
+      "name": "Candlewick Hat",
+      "category": "head",
+      "slots": [
+        "head",
         "front_fx"
       ],
       "dyes": {
-        "dye1": "spectral"
+        "dye1": "violet",
+        "dye2": "gold"
       },
       "hides": []
     }

@@ -1,0 +1,13 @@
+# Open grin with one fang.
+at: 47,79
+outline: none
+legend:
+  D = skin.1
+  k = ink.1
+  r = blood.2
+  w = bone.4
+---
+D.....D
+.kkkkk.
+.kwrrk.
+..w.k..

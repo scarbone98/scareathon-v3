@@ -1,0 +1,23 @@
+# Big anime eyes. Far eye (left) is narrower because the head is turned.
+# Both shines sit top-left, toward the light.
+at: 38,63
+outline: none
+legend:
+  k = ink.0
+  w = bone.4
+  A = eyes.1
+  B = eyes.2
+  C = eyes.3
+  W = bone.3
+---
+.............kkkkkk...
+.kkkkk......kkkkkkkkkk
+kkkkkkk....kkwwAAAAkk.
+.kwwAAk....kwwwAAAAAk.
+.kwwABk....kwwAAABBAk.
+.kAABBk....kWAAABBBAk.
+.kABBCk....kWABBBBCAk.
+.kBCCCk....kWBBCCCCBk.
+.kBCCwk....kWBCCCCwBk.
+..kCCk......kBCCCCCk..
+...kk........kkkkkk...

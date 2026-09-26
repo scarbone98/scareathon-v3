@@ -1,9 +1,0 @@
-{
-  "name": "Soul Lantern",
-  "category": "held",
-  "parts": [
-    { "slot": "held", "file": "lantern.txt" },
-    { "slot": "front_fx", "file": "glow.txt" }
-  ],
-  "dyes": { "dye1": "spectral" }
-}

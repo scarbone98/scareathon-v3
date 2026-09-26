@@ -3,7 +3,7 @@
 //   node scripts/avatar-art/build.mjs           validate, export, render previews
 //   node scripts/avatar-art/build.mjs --check   validate only
 //
-// Exports public/avatar-v2/items/<item>/<slot>.png (96x144, canonical colours)
+// Exports public/avatar-v2/items/<item>/<slot>.png (120x150, canonical colours)
 // plus public/avatar-v2/manifest.json, and renders every outfit in
 // avatar-art/outfits/ to avatar-art/previews/ for eyeballing.
 import fs from "node:fs";

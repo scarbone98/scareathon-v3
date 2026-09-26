@@ -1,0 +1,8 @@
+{
+  "name": "Long Wisp",
+  "category": "hair",
+  "parts": [
+    { "slot": "hair_back", "file": "back.txt" },
+    { "slot": "hair_front", "file": "front.txt" }
+  ]
+}

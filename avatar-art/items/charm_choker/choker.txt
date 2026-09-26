@@ -1,0 +1,26 @@
+# Choker with a hanging charm (sculpted first pass: avatar-art/sculpts/accessories.mjs choker).
+at: 51,84
+outline: auto
+legend:
+  c = dye1.1
+  d = dye1.2
+  a = dye1.3
+  b = dye1.4
+  j = dye2.1
+  i = dye2.2
+  g = dye2.3
+  h = dye2.4
+  f = steel.2
+  e = steel.4
+---
+.aa............aa.
+abba..........aaac
+daabaa......aaadcc
+.daaaaaaaaaaaadcc.
+...daaefaaadddc...
+....ccggcddccc....
+.....hhgic........
+....ggggij........
+....gggiij........
+.....iijj.........
+......jj..........

@@ -9,45 +9,69 @@ npm run art:avatar -- --check # validate only
 ```
 
 The build writes `public/avatar-v2/items/<item>/<slot>.png` (one PNG per slot the
-item uses, full 96x144 canvas, canonical colours), `public/avatar-v2/manifest.json`,
+item uses, full 120x150 canvas, canonical colours), `public/avatar-v2/manifest.json`,
 and renders every outfit in `avatar-art/outfits/` to `avatar-art/previews/`
 (4x, plus `_sheet.png` with all outfits side by side).
 
 ## How to work
 
-1. Draw or edit the `.txt` grids.
+1. Rough out the shape with a **sculpt** (next section), or draw small things
+   (eyes, mouths, flames, cracks) straight into a `.txt` grid.
 2. Run the build. It refuses anything off-palette, off-canvas or malformed.
 3. **Look at the preview PNGs** (open them with the image viewer / Read tool). Judge them
    honestly at 4x *and* think about how they read at 1x. Fix, rebuild, repeat.
 4. Add or update an outfit in `avatar-art/outfits/` that shows the item, with at
    least one alternative skin tone and dye so recolouring gets checked too.
 
-For large organic shapes it is fine to lay down a first pass with a throwaway
-script (profiles, curves, dithering) and write its output to the `.txt`. From
-then on the `.txt` is the source: refine it by hand and never re-run the
-script over hand edits. Do not commit sketch scripts.
+## Sculpting (3/4 view shapes)
+
+Anything with volume (bodies, hair, hats, horns, clothing) starts as a sculpt
+in `avatar-art/sculpts/*.mjs`: rough 3D shapes (`ellipsoid`, `sphere`, tapered
+`capsule`) that `scripts/avatar-art/sculpt.mjs` lights from one fixed light
+and snaps to palette shades. This is what keeps every item lit and shaded the same way.
+
+```
+node scripts/avatar-art/sculpt-cli.mjs avatar-art/sculpts/accessories.mjs horns > avatar-art/items/ram_horns/horns.txt
+```
+
+- Coordinates are canvas pixels, with z pointing toward the viewer. The head's
+  cranium is centred at (62, 59, 0) with radius 24; see the base body sculpt
+  for every other part of the body.
+- Shapes in the same `group` melt together (`blend` px). Different groups
+  overlap hard and get a dark contact line, which is how strands of hair,
+  arms over torsos and folds read.
+- `material` can be a function of (x, y, z) for bands, trims and cut-outs;
+  `clip` removes pixels (face openings, scalloped edges).
+- Commit the sculpt spec. The `.txt` it prints is the real source: sculpts
+  get you 80% of the way, and the rest is touch-up by hand (cracks, stitches,
+  shine, stray pixels). **Re-running a sculpt overwrites hand work**, so note
+  touch-ups in the part's comment ("Hand touch-up: ...") and redo them if you
+  re-sculpt.
 
 ## Canvas and anchors
 
-The canvas is **96 x 144**, front-facing, centred between columns 47 and 48.
-Everything is drawn to fit the base body in `items/base_body/body.txt`.
+The canvas is **120 x 150** (Gaia's size), a chibi in **3/4 view turned toward
+the viewer's left**. The far side of the body (viewer's left) sits back, and
+the near side (viewer's right) is forward. Nothing is mirrored. Everything is
+drawn to fit `items/base_body/body.txt`.
 
-| Landmark            | Rows (y)  | Columns (x)                  |
-| ------------------- | --------- | ---------------------------- |
-| Headroom for hats   | 0 - 29    | anywhere                     |
-| Head (skull)        | 30 - 73   | widest at y 54: 26 - 69      |
-| Brows               | 50 - 51   | 35 - 41, 54 - 60             |
-| Eyes                | 54 - 63   | 34 - 41, 54 - 61             |
-| Cheeks / blush      | 65        | 34 - 36, 59 - 61             |
-| Mouth               | 67 - 68   | 46 - 49                      |
-| Ears                | 52 - 61   | 24 - 25, 70 - 71             |
-| Neck                | 74 - 79   | 43 - 52                      |
-| Shoulders           | 79 - 83   | 27 - 68                      |
-| Torso               | 78 - 107  | chest 34 - 61, waist 36 - 59 |
-| Hands               | 99 - 105  | 26 - 31, 64 - 69             |
-| Hips                | 104 - 113 | 35 - 60                      |
-| Legs                | 108 - 133 | 36 - 46, 49 - 59             |
-| Feet (ground = 139) | 134 - 139 | 35 - 45, 50 - 60             |
+| Landmark            | Where (x, y)                                                  |
+| ------------------- | ------------------------------------------------------------- |
+| Headroom for hats   | y 0 - 33                                                      |
+| Cranium             | centre (62, 59), radius 24: x 38 - 86, top at y 35            |
+| Face centre line    | x ~50; chin at (50, 84)                                       |
+| Brows               | y 58 - 62, over each eye                                      |
+| Far eye (narrow)    | x 38 - 44, y 63 - 73                                          |
+| Near eye (full)     | x 49 - 59, y 63 - 73                                          |
+| Cheeks / blush      | y 76, under each eye                                          |
+| Mouth               | x 47 - 53, y 78 - 81                                          |
+| Ear (near side)     | x 81 - 87, y 61 - 71 (usually under hair)                     |
+| Neck                | x 55 - 65, y 80 - 92; choker line y 86 - 89                   |
+| Shoulders           | far (47, 97), near (71, 97)                                   |
+| Torso               | y 92 - 125; neckline dips to y 95 at x 57                     |
+| Hands               | far (44, 123), near (75, 123)                                 |
+| Legs                | far x 46 - 58, near x 60 - 72, y 120 - 140                    |
+| Feet (ground = 147) | far (47, 143), near (62, 144), toes point left                |
 
 Items may go past the body (wings, cloaks, big hats, held props), but keep
 everything on the canvas.
@@ -60,20 +84,25 @@ everything on the canvas.
 | `back`       | wings, tails, cape backs, the inside of hoods, backpacks         |
 | `hair_back`  | hair mass behind the head                                        |
 | `body`       | the base body only                                               |
-| `face`       | eyes, brows, mouth, face paint, scars                            |
+| `face_paint` | blush, scars, stitches, makeup, markings                         |
+| `eyes`       | eyes (one item: both eyes)                                       |
+| `mouth`      | mouths and expressions                                           |
+| `brows`      | eyebrows (sit under the fringe, like Gaia)                       |
 | `legs`       | trousers, skirts, tights                                         |
 | `feet`       | shoes, boots                                                     |
 | `torso`      | shirts, tops                                                     |
 | `outer`      | jackets, coats, cape fronts, armour                              |
 | `neck`       | scarves, collars, necklaces                                      |
+| `face_acc`   | masks, glasses, eyepatches, face jewellery                       |
 | `hair_front` | fringe and front locks                                           |
 | `head`       | hats, hoods, horns, masks, halos                                 |
 | `held`       | props in the hands                                               |
 | `front_fx`   | glows, particles, anything over the whole avatar                 |
 
 **One item can use several slots.** That is how things wrap around the body.
-For example, the Gravewarden cloak puts its lining and hood interior in `back`,
-its panels and mantle in `outer`, and its hood shell in `head`. If an item has a
+For example, the Long Wisp hair puts its fringe in `hair_front` and its long
+back in `hair_back`, and the Candlewick Hat puts the hat in `head` and the
+candle flame in `front_fx`. If an item has a
 front and a back in real life, draw both.
 
 `hides` in `item.json` removes other items' slots, for example a full helmet
@@ -94,9 +123,10 @@ Only colours from `palette.json` are allowed. Each ramp has 5 shades:
 The ramps already shift hue (darks lean purple, lights lean warm). Do not
 fake shading with a different ramp.
 
-**Light comes from the top-front**, so shading is symmetric: tops and
-forward-facing rims are lit, and undersides, sides and anything under an
-overhang are in shadow. This is why most parts can be `mirror: yes`.
+**Light comes from the upper left, slightly in front** (the sculptor's light).
+The upper-left parts of every form are lit, and the lower-right parts,
+undersides and anything under an overhang are in shadow. Highlights (shade 4)
+land top-left, and eye shines go top-left too.
 - **No pillow shading.** Don't just darken all edges evenly; shade by form.
 - **No banding.** Avoid parallel shade stripes that follow the outline.
 - **No stray single pixels**, unless they are deliberate sparkle.
@@ -150,19 +180,28 @@ legend:
 
 ```json
 {
-  "name": "Gravewarden Hood & Cloak",
-  "category": "outer",
+  "name": "Candlewick Hat",
+  "category": "head",
   "parts": [
-    { "slot": "back", "file": "back.txt" },
-    { "slot": "outer", "file": "outer.txt" },
-    { "slot": "head", "file": "head.txt" }
+    { "slot": "head", "file": "hat.txt" },
+    { "slot": "front_fx", "file": "flame.txt" }
   ],
-  "dyes": { "dye1": "night", "dye2": "blood" },
+  "dyes": { "dye1": "violet", "dye2": "gold" },
   "hides": []
 }
 ```
 
 Several parts can share a slot; they are drawn in the listed order.
+`mirror: yes` still exists for the rare symmetric, straight-on detail, but in
+3/4 view almost nothing is symmetric, so don't reach for it.
+
+## Swappable faces
+
+Faces are built from separate items, like Gaia: `eyes`, `mouth`, `brows` and
+`face_paint`, with `face_acc` on top for masks and glasses. Each is its own item,
+so any eyes work with any mouth. Draw face parts straight into grids at the
+anchors above, with `outline: none`. An item that replaces the whole face (a
+skull head, say) should use `hides` on the face slots it replaces.
 
 ## The bar: no bland items
 
@@ -174,6 +213,8 @@ This is a horror arcade, not a mall. Every item must pass these:
   the brightest shade 4 there and almost nowhere else.
 - **Wraps around properly.** Hoods have an inside, capes have a back, long hair
   has strands behind the shoulders. Use the back slots.
+- **Respects the turn.** The far side is narrower and partly hidden; the near
+  side is wider and overlaps. Check it doesn't look pasted on flat.
 - **Story.** Name it like loot ("Gravewarden Hood", not "Black Hood").
 - **Tiers:** common items are dyeable basics done well. Rare items change the
   silhouette (horns, wings, huge collars, tails). Legendary items add an
