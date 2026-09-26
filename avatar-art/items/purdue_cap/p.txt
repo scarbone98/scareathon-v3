@@ -1,0 +1,13 @@
+# Purdue Motion P on the cap's front panel, drawn by hand in fixed old gold.
+at: 53,35
+outline: none
+legend:
+  H = old_gold.4
+  G = old_gold.3
+  s = old_gold.2
+---
+.HHHG.
+.HG.Gs
+HGGGs.
+GGs...
+Gs....

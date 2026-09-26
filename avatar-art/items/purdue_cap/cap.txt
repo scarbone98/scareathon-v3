@@ -1,0 +1,29 @@
+# Purdue P Cap (sculpted: avatar-art/sculpts/purdue.mjs cap).
+at: 38,29
+outline: auto
+legend:
+  e = dye1.1
+  c = dye1.2
+  b = dye1.3
+  d = dye1.4
+  a = dye2.1
+---
+.........................aa..................
+....................bbbbbbbbbbb..............
+................bbbbbbbbbbbbbbbbbbc..........
+..............bbbbbbbbbbbbbbbbbbbbbbc........
+.............bbddddddbbbbbbbbbbbbbbbcc.......
+...........bbdddddddddbbbbbbbbbbbbbbbccc.....
+..........bdddddddddddbbbbbbbbbbbbbbbcccc....
+.........bbddddddddddbbbbbbbbbbbbbbbbccccc...
+.........bdddddddddddbbbbbbbbbbbbbbbbccccc...
+........bbdddddddddddbbbbbbbbbbbbbbbbccccce..
+.......bbbdddddddddbbbbbbbbbbbbbbbbbccccccee.
+.......bbbddddddddcbbbbbbbbbbbbbbbbcccccccee.
+.......eeeeeeebbbbbbbbbbbbbbbbbbbbbcccccccee.
+bbbbbbbbbbbccccbbbbbbbbbbbbbbbbbbbcccccccceee
+bbbbbbbbbbccccccccccccbbbbbbbbbbbcccccccceeee
+bbbbbbbbbbccccc...ccccccccccccbccccccccceeeee
+bbbbbbbbbccccce...........cccceeeeeeeeceeeeee
+..................................eeeeeeeeeee
+.........................................eeee

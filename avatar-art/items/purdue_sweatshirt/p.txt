@@ -1,0 +1,18 @@
+# Purdue Motion P on the chest, drawn by hand. Fixed old gold so it stays
+# gold whatever the sweatshirt is dyed.
+at: 52,81
+outline: none
+legend:
+  H = old_gold.4
+  G = old_gold.3
+  s = old_gold.2
+---
+..HHHHHHG.
+..HGGGGGGs
+.HGG...GGs
+.HGG..GGs.
+.GGGGGGGs.
+GGGGGGss..
+GGGs......
+GGs.......
+Gss.......

@@ -118,7 +118,9 @@
     "violet",
     "wood",
     "rose",
-    "steel"
+    "steel",
+    "coal",
+    "old_gold"
   ],
   "eyeColors": [
     "eyes",
@@ -133,7 +135,9 @@
     "violet",
     "wood",
     "rose",
-    "steel"
+    "steel",
+    "coal",
+    "old_gold"
   ],
   "dyeColors": [
     "ink",
@@ -147,7 +151,9 @@
     "violet",
     "wood",
     "rose",
-    "steel"
+    "steel",
+    "coal",
+    "old_gold"
   ],
   "ramps": {
     "ink": [
@@ -233,6 +239,20 @@
       "#4a5066",
       "#7e8698",
       "#c4c8d0"
+    ],
+    "coal": [
+      "#070709",
+      "#121216",
+      "#1e1e25",
+      "#2e2e38",
+      "#4a4a58"
+    ],
+    "old_gold": [
+      "#241a1e",
+      "#56432f",
+      "#8f7650",
+      "#cfb991",
+      "#f3e8c8"
     ],
     "skin": [
       "#3a1a1c",
@@ -2488,6 +2508,70 @@
       "default": false,
       "rarity": "legendary",
       "price": 500,
+      "release": "released"
+    },
+    {
+      "key": "purdue_cap",
+      "name": "Purdue P Cap",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "build": null,
+          "src": "/avatar-v2/items/purdue_cap/head.png?v=02a935a4c4"
+        },
+        {
+          "slot": "mask",
+          "build": null,
+          "src": "/avatar-v2/items/purdue_cap/mask.png?v=4840065413",
+          "masks": [
+            "hair_back",
+            "hair_front"
+          ]
+        }
+      ],
+      "icon": "/avatar-v2/items/purdue_cap/icon.png?v=b8063f7c59",
+      "dyes": {
+        "dye1": "coal",
+        "dye2": "old_gold"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
+      "release": "released"
+    },
+    {
+      "key": "purdue_sweatshirt",
+      "name": "Purdue P Sweatshirt",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "build": "f",
+          "src": "/avatar-v2/items/purdue_sweatshirt/torso.f.png?v=455ae8ef98"
+        },
+        {
+          "slot": "torso",
+          "build": "m",
+          "src": "/avatar-v2/items/purdue_sweatshirt/torso.m.png?v=53e947a7e2"
+        }
+      ],
+      "icon": "/avatar-v2/items/purdue_sweatshirt/icon.png?v=cc9ab2a79e",
+      "dyes": {
+        "dye1": "coal",
+        "dye2": "old_gold"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 1,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 180,
       "release": "released"
     },
     {

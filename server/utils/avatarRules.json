@@ -83,7 +83,9 @@
     "violet",
     "wood",
     "rose",
-    "steel"
+    "steel",
+    "coal",
+    "old_gold"
   ],
   "eyeColors": [
     "eyes",
@@ -98,7 +100,9 @@
     "violet",
     "wood",
     "rose",
-    "steel"
+    "steel",
+    "coal",
+    "old_gold"
   ],
   "dyeColors": [
     "ink",
@@ -112,6 +116,8 @@
     "violet",
     "wood",
     "rose",
-    "steel"
+    "steel",
+    "coal",
+    "old_gold"
   ]
 }

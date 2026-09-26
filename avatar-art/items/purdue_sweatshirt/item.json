@@ -1,0 +1,16 @@
+{
+  "name": "Purdue P Sweatshirt",
+  "category": "torso",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 180,
+  "release": "released",
+  "parts": [
+    { "slot": "torso", "file": "sweatshirt.f.txt", "build": "f", "sculpt": "purdue.mjs#sweatshirt" },
+    { "slot": "torso", "file": "sweatshirt.m.txt", "build": "m", "sculpt": "purdue.mjs#sweatshirt" },
+    { "slot": "torso", "file": "p.txt" }
+  ],
+  "dyes": { "dye1": "coal", "dye2": "old_gold" },
+  "order": 1
+}
