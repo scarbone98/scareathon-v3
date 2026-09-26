@@ -1,0 +1,10 @@
+# Angry brows angled down toward the nose.
+at: 39,58
+outline: none
+legend:
+  b = hair.1
+---
+bb.................bb.
+..bbb...........bbb...
+.....b.........b......
+.............bb.......

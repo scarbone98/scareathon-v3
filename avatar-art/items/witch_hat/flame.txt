@@ -1,0 +1,14 @@
+# Candle flame, drawn over everything. No outline: light has no edge.
+at: 84,24
+outline: none
+legend:
+  y = gold.4
+  o = pumpkin.4
+  r = pumpkin.3
+  w = bone.4
+---
+..o..
+.oyo.
+.ywy.
+.ryr.
+..r..

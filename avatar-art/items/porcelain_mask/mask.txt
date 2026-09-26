@@ -1,0 +1,35 @@
+# Hand touch-up: cracks (K) and outer rim (R).
+# Cracked porcelain half-mask over the near eye (sculpted first pass: avatar-art/sculpts/accessories.mjs mask).
+at: 53,57
+outline: auto
+legend:
+  K = ink.2
+  R = bone.1
+  d = bone.1
+  c = bone.2
+  b = bone.3
+  a = bone.4
+---
+abbbbbbbbbbbbbbcR....
+abbbbbbbbbbbbbbccR...
+bbbbbbbbbKKbbbbcccR..
+bbbbbbbbKbbbbbbccccR.
+bbbbbbbbKbbbbbbccccR.
+bbb.....bbbbbbccccccR
+bb.......bbbbbccccccR
+b.........bbbcccccccR
+...........bcccccccR.
+...........ccccccccR.
+...........cccccccdR.
+...........cccccccdR.
+...........ccccccdR..
+...........cccccddR..
+...........ccccdddR..
+c.........ccccdddR...
+cc.......cccdddddR...
+ccc.....cKcddddddR...
+cccccccccdKdddddR....
+cccccccdddKdddddR....
+ccccdddddddKKKddR....
+ddddddddddddddKdR....
+dddddddddddddddR.....

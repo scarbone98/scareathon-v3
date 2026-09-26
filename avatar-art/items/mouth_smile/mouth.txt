@@ -1,0 +1,8 @@
+# Small smile, slightly toward the face side.
+at: 48,80
+outline: none
+legend:
+  D = skin.1
+---
+D...D
+.DDD.

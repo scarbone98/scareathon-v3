@@ -5,8 +5,8 @@ import path from "node:path";
 import zlib from "node:zlib";
 
 export const ART_DIR = path.resolve("avatar-art");
-export const WIDTH = 96;
-export const HEIGHT = 144;
+export const WIDTH = 120;
+export const HEIGHT = 150;
 export const CENTER_X = WIDTH / 2;
 
 // Draw order, back to front. An item can put parts in any of these.
@@ -15,12 +15,16 @@ export const SLOTS = [
   "back",
   "hair_back",
   "body",
-  "face",
+  "face_paint",
+  "eyes",
+  "mouth",
+  "brows",
   "legs",
   "feet",
   "torso",
   "outer",
   "neck",
+  "face_acc",
   "hair_front",
   "head",
   "held",
