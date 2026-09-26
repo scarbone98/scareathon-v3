@@ -48,15 +48,13 @@ const spriteOf = (kind: UnitKind) => {
   return { url: s.url, frameWidth: s.fw, frameHeight: s.fh, frames: s.frames, height: 1 };
 };
 
-const MENU_MONSTERS: UnitKind[] = ["rat", "pumpkin", "ghost", "werewolf"];
-
 function Title() {
   return (
-    <div className="cc-bob pointer-events-none text-center" style={{ filter: "drop-shadow(0 0 18px #b061ff55)" }}>
-      <div className="cc-title" style={{ fontSize: 44, color: "#c88cff", textShadow: "0 3px 0 #4a1a7a, 0 6px 0 #140a1c" }}>
+    <div className="cc-bob pointer-events-none shrink-0 text-center" style={{ filter: "drop-shadow(0 0 18px #b061ff55)" }}>
+      <div className="cc-title" style={{ fontSize: 34, color: "#c88cff", textShadow: "0 3px 0 #4a1a7a, 0 5px 0 #140a1c" }}>
         MYSTERY
       </div>
-      <div className="cc-title" style={{ fontSize: 76, color: ORANGE, textShadow: "0 4px 0 #8a3a00, 0 8px 0 #140a1c, 0 0 24px #ff8a1f66" }}>
+      <div className="cc-title -mt-1" style={{ fontSize: 60, color: ORANGE, textShadow: "0 4px 0 #8a3a00, 0 7px 0 #140a1c, 0 0 24px #ff8a1f66" }}>
         CRYPT
       </div>
     </div>
@@ -65,50 +63,46 @@ function Title() {
 
 function Menu({ best, hero, onHero, onPlay }: { best: number; hero: HeroId; onHero: (h: HeroId) => void; onPlay: () => void }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center overflow-y-auto px-5 pb-6 pt-[6vh]">
-      <Title />
-      <p className="cc-outline-sm mt-3 text-center text-sm text-[#ffe9c4]">Choose your hero</p>
-      <div className="mt-2 grid w-full max-w-sm grid-cols-4 gap-2">
-        {(Object.keys(HEROES) as HeroId[]).map((id) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onHero(id)}
-            className={`flex flex-col items-center rounded-md border-2 px-1 pb-1 pt-2 transition ${
-              id === hero ? "border-[#ffcf4a] bg-[#3a2254]" : "border-[#140a1c] bg-[#1c1128]/80 opacity-70 hover:opacity-100"
-            }`}
-          >
-            <Sprite sprite={spriteOf(id)} size={44} fps={7} animate={id === hero} />
-            <span className="cc-outline-sm mt-1 text-sm text-white">{HEROES[id].name}</span>
-          </button>
-        ))}
+    <div className="absolute inset-0 flex flex-col overflow-y-auto px-5 py-4">
+      {/* my-auto centres the menu when it fits and lets it scroll when it doesn't. */}
+      <div className="my-auto flex w-full flex-col items-center">
+        <Title />
+        <div className="mt-3 grid w-full max-w-sm shrink-0 grid-cols-4 gap-2">
+          {(Object.keys(HEROES) as HeroId[]).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onHero(id)}
+              className={`flex flex-col items-center rounded-md border-2 px-1 pb-1 pt-1.5 transition ${
+                id === hero ? "border-[#ffcf4a] bg-[#3a2254]" : "border-[#140a1c] bg-[#1c1128]/80 opacity-70 hover:opacity-100"
+              }`}
+            >
+              <Sprite sprite={spriteOf(id)} size={36} fps={7} animate={id === hero} />
+              <span className="cc-outline-sm mt-0.5 text-sm text-white">{HEROES[id].name}</span>
+            </button>
+          ))}
+        </div>
+        <p className="cc-outline-sm mt-1.5 shrink-0 text-center text-sm text-[#ffcf4a]">{HEROES[hero].perk}</p>
+        <Panel className="mt-3 w-full max-w-sm shrink-0 px-1 text-[13px] leading-snug text-[#ffe9c4]">
+          <ul className="cc-outline-sm space-y-1">
+            <li>
+              Move one step, then the monsters move. <span className="text-[#ffcf4a]">Find the stairs</span> and go deep.
+            </li>
+            <li>
+              <span className="text-[#ff9ad5]">Beaten monsters may join you</span> (up to {MAX_PARTY - 1}). Throw <span className="text-[#ffcf4a]">Candy Corn</span> first to help.
+            </li>
+            <li>If your hero faints, the run is over.</li>
+          </ul>
+        </Panel>
+        <Button color="orange" onClick={onPlay} className="cc-shine relative mt-4 w-full max-w-xs shrink-0 overflow-hidden py-2 text-3xl">
+          Play
+        </Button>
+        {best > 0 && (
+          <p className="cc-outline-sm mt-2 shrink-0 text-sm text-[#ffe9c4]">
+            Best: <span className="text-[#ffcf4a]">{best.toLocaleString()}</span>
+          </p>
+        )}
       </div>
-      <p className="cc-outline-sm mt-2 h-5 text-center text-sm text-[#ffcf4a]">{HEROES[hero].perk}</p>
-      <Panel className="mt-3 w-full max-w-sm px-1 text-sm leading-snug text-[#ffe9c4]">
-        <ul className="cc-outline-sm space-y-1.5">
-          <li>
-            Every floor is a new maze. <span className="text-[#ffcf4a]">Find the stairs</span> and go as deep as you can.
-          </li>
-          <li>You move one step, then the monsters move. Walk into a monster to hit it.</li>
-          <li>
-            <span className="text-[#ff9ad5]">Beaten monsters may join your team.</span> Throw <span className="text-[#ffcf4a]">Candy Corn</span> first to make it likelier.
-          </li>
-          <li>Up to {MAX_PARTY - 1} monsters can follow you. If your hero faints, the run is over.</li>
-        </ul>
-      </Panel>
-      <div className="mt-4 flex items-end gap-1">
-        {MENU_MONSTERS.map((k) => (
-          <Sprite key={k} sprite={spriteOf(k)} size={34} fps={8} />
-        ))}
-      </div>
-      <Button color="orange" onClick={onPlay} className="cc-shine relative mt-4 w-full max-w-xs overflow-hidden py-2 text-3xl">
-        Play
-      </Button>
-      {best > 0 && (
-        <p className="cc-outline-sm mt-3 text-sm text-[#ffe9c4]">
-          Best: <span className="text-[#ffcf4a]">{best.toLocaleString()}</span>
-        </p>
-      )}
     </div>
   );
 }
@@ -181,9 +175,10 @@ function PadButton({ children, onDown, onUp, className = "", label }: { children
 function Controls({ ctrl, onBag, bagCount }: { ctrl: GameController | null; onBag: () => void; bagCount: number }) {
   const hold = (dx: number, dy: number) => () => ctrl?.hold({ dx, dy });
   const release = () => ctrl?.hold(null);
-  const size = "h-12 w-12";
+  // Smaller on short screens so the map keeps some room.
+  const size = "h-12 w-12 [@media(max-height:640px)]:h-10 [@media(max-height:640px)]:w-10";
   return (
-    <div className="flex items-center justify-between px-4 pb-4 pt-2">
+    <div className="flex items-center justify-between px-4 pb-4 pt-2 [@media(max-height:640px)]:pb-2">
       <div className="grid grid-cols-3 grid-rows-3 gap-1">
         <span />
         <PadButton label="Up" className={size} onDown={hold(0, -1)} onUp={release}>
@@ -208,7 +203,7 @@ function Controls({ ctrl, onBag, bagCount }: { ctrl: GameController | null; onBa
       <div className="flex flex-col items-center gap-3">
         <button
           type="button"
-          className="cc-sbtn cc-sbtn-orange cc-outline-sm h-20 w-20 rounded-full p-0 text-2xl"
+          className="cc-sbtn cc-sbtn-orange cc-outline-sm h-20 w-20 rounded-full p-0 text-2xl [@media(max-height:640px)]:h-16 [@media(max-height:640px)]:w-16"
           onPointerDown={(e) => {
             e.preventDefault();
             ctrl?.press({ type: "attack" });
@@ -244,8 +239,8 @@ function BagPanel({ bag, onUse, onClose }: { bag: ItemId[]; onUse: (slot: number
     lamp: <Sprite sprite={{ url: "/royale/ui/lamp.png", frameWidth: 16, frameHeight: 64, frames: 4, height: 1 }} size={34} />,
   };
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0b0712]/75 px-5" onClick={onClose}>
-      <Panel className="cc-pop w-full max-w-sm" style={{}}>
+    <div className="absolute inset-0 flex items-center justify-center bg-[#0b0712]/75 px-5 py-4" onClick={onClose}>
+      <Panel className="cc-pop max-h-full w-full max-w-sm overflow-y-auto">
         <div onClick={(e) => e.stopPropagation()}>
           <div className="cc-outline mb-2 text-center text-2xl text-[#ffcf4a]">Bag</div>
           {kinds.length === 0 && <p className="cc-outline-sm py-4 text-center text-[#ffe9c4]">Empty. Look for items on the floor.</p>}
@@ -296,8 +291,8 @@ function MemberRow({ m, children }: { m: Member; children?: ReactNode }) {
 function RecruitPanel({ hud, onAnswer }: { hud: Hud; onAnswer: (replaceId: number | null) => void }) {
   const newcomer = hud.recruit!;
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0b0712]/80 px-5">
-      <Panel gold className="cc-pop w-full max-w-sm">
+    <div className="absolute inset-0 flex items-center justify-center bg-[#0b0712]/80 px-5 py-4">
+      <Panel gold className="cc-pop max-h-full w-full max-w-sm overflow-y-auto">
         <div className="cc-outline text-center text-xl text-[#ff9ad5]">The {unitName(newcomer.kind)} wants to join!</div>
         <p className="cc-outline-sm mb-3 mt-1 text-center text-sm text-[#ffe9c4]">Your team is full. Swap someone out?</p>
         <MemberRow m={newcomer} />
