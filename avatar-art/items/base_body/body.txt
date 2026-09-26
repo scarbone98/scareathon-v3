@@ -1,0 +1,123 @@
+# Base mannequin. Front-facing, lit from the top-front, so it is mirrored.
+at: 0,30
+mirror: yes
+outline: auto
+legend:
+  h = skin.4
+  s = skin.3
+  S = skin.2
+  D = skin.1
+  m = night.3
+  n = night.2
+  N = night.1
+---
+...................sssssss
+................ssssssssss
+..............ssssssssssss
+............ssssssssssssss
+...........sssssssssssssss
+..........ssssssssssssssss
+.........sssssssssssssssss
+........ssssssssssssssssss
+........ssssssssssssssssss
+.......sssssssssssssssssss
+.......sssssssssssssssssss
+......SSssssssssssssssssss
+......SSssssssssssssssssss
+.....SSsssssssssssssssssss
+.....SSsssssssssssssssssss
+.....SSsssssssssssssssssss
+.....SSsssssssssssssssssss
+....SSssssssssssssssssssss
+....SSssssssssssssssssssss
+....SSssssssssssssssssssss
+....SSssssssssssssssssssss
+....SSssssssssssssssssssss
+...SSSssssssssssssssssssss
+..sSSSssssssssssssssssssss
+..sDSSssssssssssssssssssss
+..sDSSssssssssssssssssssss
+..sDSSssssssssssssssssssss
+..sDSSssssssssssssssssssss
+..sDSSssssssssssssssssssss
+..sDSSssssssssssssssssssss
+...sSSSsssssssssssssssssss
+....SSSsssssssssssssssssss
+.....SSsssssssssssssssssss
+......SSssssssssssssssssss
+......SSssssssssssssssssss
+.......SSsssssssssssssssss
+........SSssssssssssssssss
+........SSssssssssssssssss
+.........SSSSsssssssssssss
+..........SSSSssssssssssss
+...........SSSSsssssssssss
+.............SSSSSSSSSSSSS
+...............SSSSSSSSSSS
+.................SSSSSSSSS
+.....................DDDDD
+.....................DDDDD
+.....................SSSSS
+.....................SSSSS
+..................SSsSSSSS
+.........sssss.SnnsssSSSSS
+.......sssssssSsnnssssssss
+......SSsssssSssnnssssssss
+.....SSsssssNNnnnnnsssssss
+.....SSsssssNNnnnnnnnsssss
+.....SSsssS.NNnnnnnnnnnnnn
+.....SSsssS.NNnnnnnnnnnnnn
+.....SSsssS.NNnnnnnnnnnnnn
+.....SSsssS.NNnnnnnnnnnnnn
+.....SSsssS.NNnnnnnnnnnnnn
+.....SSsssS.NNnnnnnnnnnnnn
+.....SSssS...NNnnnnnnnnnnn
+.....SSssS...NNnnnnnnnnnnn
+.....SSssS...NNnnnnnnnnnnn
+.....SSssS....NNnnnnnnnnnn
+.....SSssS....NNnnnnnnnnnn
+.....SSssS....NNnnnnnnnnnn
+.....SSsS.....NNnnnnnnnnnn
+.....SSsS.....NNnnnnnnnnnn
+.....SSsS.....NNnnnnnnnnnn
+....SSssss....NNnnnnnnnnnn
+....SSssss....NNnnnnnnnnnn
+....SSssss...NNnnnnnnnnnnn
+....SSDDDs...NNnnnnnnnnnnn
+....SSssss...NNnnnnnnnnnnn
+....SSSSS....NNNNNNNNNNNNN
+.....SSSS....NNnnnnnnnnnnn
+.............NNnnnnnnnnnnn
+.............NNnnnnnnnnnnn
+.............NnnnnnnnnnnN.
+.............NnnnnnnnnnnN.
+.............NnnnnnnnnnnN.
+.............NnnnnnnnnnnN.
+.............NnnnnnnnnnnN.
+..............NNNNNNNNNNN.
+..............SssssssssSS.
+..............SsssssssSS..
+..............SsssssssSS..
+..............SsssssssSS..
+..............SsssssssSS..
+..............SsssssssSS..
+..............SsssssssSS..
+...............SssssssSS..
+...............SssssssSS..
+...............SssssssSS..
+...............SssssssSS..
+...............SssssssSS..
+...............SssssssSS..
+...............SsssssSS...
+...............SsssssSS...
+................SssssSS...
+................SssssSS...
+................SssssSS...
+................SssssSS...
+................SssssSS...
+................Sssssss...
+..............Ssssssssss..
+.............Sssssssssss..
+.............Sssssssssss..
+.............SSSSSSSSSSS..
+..............SSSSSSSSS...
