@@ -1,0 +1,1 @@
+{ "name": "Hex Stockings", "category": "legs", "parts": [{ "slot": "legs", "file": "stockings.txt" }], "dyes": { "dye1": "night", "dye2": "violet" } }

@@ -1,0 +1,29 @@
+# Buckle Boots (sculpted first pass: avatar-art/sculpts/clothing.mjs boots).
+at: 45,136
+outline: auto
+legend:
+  d = dye1.1
+  c = dye1.2
+  b = dye1.3
+  a = dye1.4
+  i = dye2.1
+  h = dye2.2
+  e = dye2.3
+  g = gold.2
+  f = gold.3
+  j = night.1
+---
+.aaaaaaaabbbcccaaaaaaaabbbccc.
+..aaaaaaabbbcc..aaaaaaabbbcc..
+..bbbbbbbcccdd..bbbbbbbcccdd..
+..bbbbbbbcccdd..bbbbbbbcccdd..
+..eeeefffghhii..eeeefffghhii..
+..iieefffghhii..eeeeffffeeii..
+..aaaabbbbbcdd..bbaaaabbbbbc..
+.aaaaabbbbbccd..daaaaabbbbbcc.
+bbabbbbbbbcccd..bbabbbbbbbcccd
+bbbbbbbbbcccdd..bbbbbbbbbcccdd
+cbbbbbcccccddd..cbbbbbcccccddd
+.cccccccddddd....cccccccddddd.
+..jjjjjjjjjj......jjjjjjjjjj..
+....jjjjjj..........jjjjjj....

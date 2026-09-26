@@ -1,0 +1,1 @@
+{ "name": "Grave Tee", "category": "torso", "parts": [{ "slot": "torso", "file": "tee.txt" }, { "slot": "torso", "file": "print.txt" }], "dyes": { "dye1": "night" } }

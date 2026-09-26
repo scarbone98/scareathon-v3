@@ -6,6 +6,6 @@ import { renderPart } from "./sculpt.mjs";
 
 const [specFile, partName] = process.argv.slice(2);
 const spec = await import(pathToFileURL(path.resolve(specFile)).href);
-const part = partName ? spec.parts?.[partName] : spec.default;
+const part = partName ? (spec.parts?.[partName] ?? Object.values(spec).find((v) => v && typeof v === "object" && v[partName])?.[partName]) : spec.default;
 if (!part) throw new Error(`No part "${partName || "default"}" in ${specFile}`);
 process.stdout.write(renderPart(part.shapes, part));

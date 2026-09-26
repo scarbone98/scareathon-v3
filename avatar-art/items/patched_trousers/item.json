@@ -1,0 +1,1 @@
+{ "name": "Patched Trousers", "category": "legs", "parts": [{ "slot": "legs", "file": "trousers.txt" }], "dyes": { "dye1": "steel", "dye2": "blood" } }

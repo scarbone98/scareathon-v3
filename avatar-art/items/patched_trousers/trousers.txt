@@ -1,0 +1,53 @@
+# Patched Trousers with a belt (sculpted first pass: avatar-art/sculpts/clothing.mjs trousers).
+at: 44,110
+outline: auto
+legend:
+  m = bone.2
+  j = bone.3
+  g = dye1.1
+  f = dye1.2
+  e = dye1.3
+  h = dye1.4
+  l = dye2.1
+  i = dye2.2
+  k = dye2.3
+  c = gold.3
+  d = wood.2
+  b = wood.3
+  a = wood.4
+---
+....aaaaaaaabbccccbbbbbbbbdd....
+...baaaaaabbbbccccbbbbbbbbddd...
+...baaaabbbbbbccccbbbbbbbdddd...
+..eeeeeeeeeeeeeeeeeeeeeefffffg..
+..eeeeeeeeeeeeeeeeeeeeeffffffg..
+..eeeeeeeeeeeeeeeeeeeeffffffgg..
+..eheeeeeeeeeeeeeeeeffffffffff..
+.eehheeeeeeeeeeeeefffffffeefffg.
+.eeeeeeeeeeeeeeeffffffffeeffffg.
+.eeeeeeeeeeefffffffffffeeefffgg.
+.eeeeeeeeeffffffffffffeefffffgg.
+.eeeeeeeeefffffffffffeeeffffggg.
+.eeeeeeeeeefffffffggeeeeeffffgg.
+.eeeeeeeeeeffggggggeeeeeeffffgg.
+.eeeeeeeeeeefffggeeeeeeeeefffgg.
+.eeeeeeeeeeefffgeeeeeeeeeefffgg.
+.eeeeeeeeeeeffffeeeeeeeeeeffffg.
+.eeeeeeeeeeeffffeeeeeeeeeeffffg.
+.eeeeeeeeeeeffffeeeijijijiffffg.
+eeeeeeeeeeeeffffeeejkkkkkjffffgg
+eeeeeeeeeeeffffgeeeikkkkklfffggg
+eeeeeeeeeeeffffgeeejkkkkkmfffggg
+eeeeeeeeeefffffgeeeikkkkilfffggg
+.eeeeeeeeeffffggeeejkkkkimffggg.
+.eeeeeeeefffffggeeeijijlmlffggg.
+.eeeeeeeefffffggeeeeeeefffffggg.
+.eeeeeeeeffffgggeeeeeeeffffgggg.
+..eeeeeeeffffgggeeeeeeeffffggg..
+..eeeeeeeffffgggeeeeeeeffffggg..
+..eeeeeeeffffgggeeeeeeeffffggg..
+..eeeeeeeefffgggeeeeeeeefffggg..
+..eeeeeeeeffffggeeeeeeeeffffgg..
+..ffffffffggggggffffffffgggggg..
+..ffffffffggggggffffffffgggggg..
+...ffffffgggggg..ffffffgggggg...

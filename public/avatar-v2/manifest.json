@@ -267,6 +267,19 @@
       "hides": []
     },
     {
+      "key": "buckle_boots",
+      "name": "Buckle Boots",
+      "category": "feet",
+      "slots": [
+        "feet"
+      ],
+      "dyes": {
+        "dye1": "wood",
+        "dye2": "night"
+      },
+      "hides": []
+    },
+    {
       "key": "charm_choker",
       "name": "Charm Choker",
       "category": "neck",
@@ -310,6 +323,46 @@
       "hides": []
     },
     {
+      "key": "grave_creepers",
+      "name": "Grave Creepers",
+      "category": "feet",
+      "slots": [
+        "feet"
+      ],
+      "dyes": {
+        "dye1": "night",
+        "dye2": "blood"
+      },
+      "hides": []
+    },
+    {
+      "key": "grave_tee",
+      "name": "Grave Tee",
+      "category": "torso",
+      "slots": [
+        "torso"
+      ],
+      "dyes": {
+        "dye1": "night"
+      },
+      "hides": []
+    },
+    {
+      "key": "gravewarden_cloak",
+      "name": "Gravewarden Hood & Cloak",
+      "category": "outer",
+      "slots": [
+        "back",
+        "outer",
+        "head"
+      ],
+      "dyes": {
+        "dye1": "night",
+        "dye2": "blood"
+      },
+      "hides": []
+    },
+    {
       "key": "hair_long_wisp",
       "name": "Long Wisp",
       "category": "hair",
@@ -318,6 +371,19 @@
         "hair_front"
       ],
       "dyes": {},
+      "hides": []
+    },
+    {
+      "key": "hex_stockings",
+      "name": "Hex Stockings",
+      "category": "legs",
+      "slots": [
+        "legs"
+      ],
+      "dyes": {
+        "dye1": "night",
+        "dye2": "violet"
+      },
       "hides": []
     },
     {
@@ -371,6 +437,19 @@
       "hides": []
     },
     {
+      "key": "patched_trousers",
+      "name": "Patched Trousers",
+      "category": "legs",
+      "slots": [
+        "legs"
+      ],
+      "dyes": {
+        "dye1": "steel",
+        "dye2": "blood"
+      },
+      "hides": []
+    },
+    {
       "key": "porcelain_mask",
       "name": "Porcelain Half-Mask",
       "category": "face_acc",
@@ -389,6 +468,45 @@
       ],
       "dyes": {
         "dye1": "bone"
+      },
+      "hides": []
+    },
+    {
+      "key": "soul_lantern",
+      "name": "Soul Lantern",
+      "category": "held",
+      "slots": [
+        "held",
+        "front_fx"
+      ],
+      "dyes": {
+        "dye1": "spectral"
+      },
+      "hides": []
+    },
+    {
+      "key": "stitchwork_sweater",
+      "name": "Stitchwork Sweater",
+      "category": "torso",
+      "slots": [
+        "torso"
+      ],
+      "dyes": {
+        "dye1": "moss",
+        "dye2": "pumpkin"
+      },
+      "hides": []
+    },
+    {
+      "key": "tattered_skirt",
+      "name": "Tattered Skirt",
+      "category": "legs",
+      "slots": [
+        "legs"
+      ],
+      "dyes": {
+        "dye1": "night",
+        "dye2": "blood"
       },
       "hides": []
     },
