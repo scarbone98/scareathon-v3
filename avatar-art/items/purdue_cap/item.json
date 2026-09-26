@@ -1,0 +1,15 @@
+{
+  "name": "Purdue P Cap",
+  "category": "head",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 150,
+  "release": "released",
+  "parts": [
+    { "slot": "head", "file": "cap.txt", "sculpt": "purdue.mjs#cap" },
+    { "slot": "head", "file": "p.txt" },
+    { "slot": "mask", "masks": ["hair_back", "hair_front"], "file": "hair_mask.txt" }
+  ],
+  "dyes": { "dye1": "coal", "dye2": "old_gold" }
+}
