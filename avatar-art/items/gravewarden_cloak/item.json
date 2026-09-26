@@ -58,5 +58,8 @@
       "skin-gaps"
     ],
     "why": "The hood's opening frames the face and neck, so skin shows at its edges by design."
-  }
+  },
+  "occupies": [
+    "head"
+  ]
 }

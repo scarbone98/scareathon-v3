@@ -1,0 +1,24 @@
+{
+  "name": "Plague Doctor Mask",
+  "category": "face_acc",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 240,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "face_acc",
+      "file": "mask.txt",
+      "sculpt": "crypt.mjs#plagueMask"
+    },
+    {
+      "slot": "face_acc",
+      "file": "goggles.txt"
+    }
+  ],
+  "dyes": {
+    "dye1": "bone",
+    "dye2": "spectral"
+  }
+}

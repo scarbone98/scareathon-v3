@@ -334,6 +334,35 @@
       "release": "released"
     },
     {
+      "key": "bone_crown",
+      "name": "Bone Crown",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "back",
+          "build": null,
+          "src": "/avatar-v2/items/bone_crown/back.png?v=db76565aeb"
+        },
+        {
+          "slot": "head",
+          "build": null,
+          "src": "/avatar-v2/items/bone_crown/head.png?v=3f194708eb"
+        }
+      ],
+      "icon": "/avatar-v2/items/bone_crown/icon.png?v=db22e0d6c5",
+      "dyes": {
+        "dye1": "blood"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
+      "release": "released"
+    },
+    {
       "key": "brows_arched",
       "name": "Arched Brows",
       "category": "brows",
@@ -474,6 +503,46 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "coffin_backpack",
+      "name": "Coffin Backpack",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "build": "f",
+          "src": "/avatar-v2/items/coffin_backpack/back.f.png?v=5fcb55f269"
+        },
+        {
+          "slot": "back",
+          "build": "m",
+          "src": "/avatar-v2/items/coffin_backpack/back.m.png?v=5fcb55f269"
+        },
+        {
+          "slot": "strap",
+          "build": "f",
+          "src": "/avatar-v2/items/coffin_backpack/strap.f.png?v=6572acf059"
+        },
+        {
+          "slot": "strap",
+          "build": "m",
+          "src": "/avatar-v2/items/coffin_backpack/strap.m.png?v=67d2edb13b"
+        }
+      ],
+      "icon": "/avatar-v2/items/coffin_backpack/icon.png?v=1c987af763",
+      "dyes": {
+        "dye1": "night",
+        "dye2": "wood"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 320,
       "release": "released"
     },
     {
@@ -668,6 +737,33 @@
       "release": "released"
     },
     {
+      "key": "grave_wraps",
+      "name": "Grave Wraps",
+      "category": "hands",
+      "parts": [
+        {
+          "slot": "hands",
+          "build": "f",
+          "src": "/avatar-v2/items/grave_wraps/hands.f.png?v=5a9f39bbb0"
+        },
+        {
+          "slot": "hands",
+          "build": "m",
+          "src": "/avatar-v2/items/grave_wraps/hands.m.png?v=dbec0dd1c0"
+        }
+      ],
+      "icon": "/avatar-v2/items/grave_wraps/icon.png?v=6b03c4813a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
       "key": "gravewarden_cloak",
       "name": "Gravewarden Hood & Cloak",
       "category": "outer",
@@ -712,13 +808,44 @@
         "dye1": "night",
         "dye2": "blood"
       },
-      "occupies": [],
+      "occupies": [
+        "head"
+      ],
       "hides": [],
       "order": 0,
       "starter": false,
       "default": false,
       "rarity": "epic",
       "price": 450,
+      "release": "released"
+    },
+    {
+      "key": "graveyard_mist",
+      "name": "Graveyard Mist",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "back_fx",
+          "build": null,
+          "src": "/avatar-v2/items/graveyard_mist/back_fx.png?v=01c290081a"
+        },
+        {
+          "slot": "front_fx",
+          "build": null,
+          "src": "/avatar-v2/items/graveyard_mist/front_fx.png?v=d93ffd5f80"
+        }
+      ],
+      "icon": "/avatar-v2/items/graveyard_mist/icon.png?v=84f88ba50d",
+      "dyes": {
+        "dye1": "steel"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
       "release": "released"
     },
     {
@@ -990,6 +1117,31 @@
       "default": false,
       "rarity": "epic",
       "price": 350,
+      "release": "released"
+    },
+    {
+      "key": "moth_wings",
+      "name": "Death's-Head Moth Wings",
+      "category": "wings",
+      "parts": [
+        {
+          "slot": "wings",
+          "build": null,
+          "src": "/avatar-v2/items/moth_wings/wings.png?v=c961703f6c"
+        }
+      ],
+      "icon": "/avatar-v2/items/moth_wings/icon.png?v=cf4b54cc66",
+      "dyes": {
+        "dye1": "wood",
+        "dye2": "gold"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 300,
       "release": "released"
     },
     {
@@ -1287,6 +1439,31 @@
       "release": "released"
     },
     {
+      "key": "plague_mask",
+      "name": "Plague Doctor Mask",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "build": null,
+          "src": "/avatar-v2/items/plague_mask/face_acc.png?v=a42e506575"
+        }
+      ],
+      "icon": "/avatar-v2/items/plague_mask/icon.png?v=7d7a5ef284",
+      "dyes": {
+        "dye1": "bone",
+        "dye2": "spectral"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 240,
+      "release": "released"
+    },
+    {
       "key": "porcelain_mask",
       "name": "Porcelain Half-Mask",
       "category": "face_acc",
@@ -1306,6 +1483,38 @@
       "default": false,
       "rarity": "rare",
       "price": 220,
+      "release": "released"
+    },
+    {
+      "key": "pumpkin_head",
+      "name": "Jack-o'-Lantern Head",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "build": null,
+          "src": "/avatar-v2/items/pumpkin_head/head.png?v=289ec726c7"
+        }
+      ],
+      "icon": "/avatar-v2/items/pumpkin_head/icon.png?v=e85f6188ca",
+      "dyes": {
+        "dye1": "pumpkin"
+      },
+      "occupies": [],
+      "hides": [
+        "hair_front",
+        "hair_back",
+        "eyes",
+        "mouth",
+        "brows",
+        "face_paint",
+        "face_acc"
+      ],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 500,
       "release": "released"
     },
     {
@@ -1330,6 +1539,84 @@
       "default": false,
       "rarity": "rare",
       "price": 250,
+      "release": "released"
+    },
+    {
+      "key": "raven_familiar",
+      "name": "Raven Familiar",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "build": "f",
+          "src": "/avatar-v2/items/raven_familiar/companion.f.png?v=a87495d143"
+        },
+        {
+          "slot": "companion",
+          "build": "m",
+          "src": "/avatar-v2/items/raven_familiar/companion.m.png?v=83523c3d98"
+        }
+      ],
+      "icon": "/avatar-v2/items/raven_familiar/icon.png?v=466ae4fdc6",
+      "dyes": {
+        "dye1": "night"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 500,
+      "release": "released"
+    },
+    {
+      "key": "reaper_scythe",
+      "name": "Reaper's Scythe",
+      "category": "held_near",
+      "parts": [
+        {
+          "slot": "held_back",
+          "build": "f",
+          "src": "/avatar-v2/items/reaper_scythe/held_back.f.png?v=631f9c2bf6"
+        },
+        {
+          "slot": "held_back",
+          "build": "m",
+          "src": "/avatar-v2/items/reaper_scythe/held_back.m.png?v=fa243165d2"
+        },
+        {
+          "slot": "back",
+          "build": "f",
+          "src": "/avatar-v2/items/reaper_scythe/back.f.png?v=4bbb738346"
+        },
+        {
+          "slot": "back",
+          "build": "m",
+          "src": "/avatar-v2/items/reaper_scythe/back.m.png?v=8246897279"
+        },
+        {
+          "slot": "front_fx",
+          "build": "f",
+          "src": "/avatar-v2/items/reaper_scythe/front_fx.f.png?v=f9a276f3a9"
+        },
+        {
+          "slot": "front_fx",
+          "build": "m",
+          "src": "/avatar-v2/items/reaper_scythe/front_fx.m.png?v=65715eaa7b"
+        }
+      ],
+      "icon": "/avatar-v2/items/reaper_scythe/icon.png?v=27a040cb73",
+      "dyes": {},
+      "occupies": [
+        "held_far"
+      ],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 550,
       "release": "released"
     },
     {
@@ -1454,6 +1741,36 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "undertaker_coat",
+      "name": "Undertaker Coat",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "build": "f",
+          "src": "/avatar-v2/items/undertaker_coat/outer.f.png?v=f5c168a63c"
+        },
+        {
+          "slot": "outer",
+          "build": "m",
+          "src": "/avatar-v2/items/undertaker_coat/outer.m.png?v=1a1954b88f"
+        }
+      ],
+      "icon": "/avatar-v2/items/undertaker_coat/icon.png?v=0678af356a",
+      "dyes": {
+        "dye1": "night",
+        "dye2": "blood"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 380,
       "release": "released"
     },
     {

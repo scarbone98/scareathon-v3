@@ -99,6 +99,7 @@ export function bodyFor(build) {
   ];
   // Anchor points items can hang things from.
   maker.anchors = {
+    shoulder: { far: b.shoulder.far[0], near: b.shoulder.near[0] },
     hand: { far: b.hand.far[0], near: b.hand.near[0] },
     foot: { far: b.foot.far[0], near: b.foot.near[0] },
     shin: { far: b.shin.far, near: b.shin.near },

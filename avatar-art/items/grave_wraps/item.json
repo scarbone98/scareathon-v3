@@ -1,0 +1,23 @@
+{
+  "name": "Grave Wraps",
+  "category": "hands",
+  "starter": false,
+  "default": false,
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "hands",
+      "file": "wraps.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#wraps"
+    },
+    {
+      "slot": "hands",
+      "file": "wraps.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#wraps"
+    }
+  ]
+}

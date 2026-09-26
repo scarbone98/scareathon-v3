@@ -1,0 +1,17 @@
+# Round brass-rimmed goggles over each eye, drawn by hand. The glass uses dye2.
+at: 44,51
+outline: none
+legend:
+  g = gold.3
+  G = gold.2
+  a = dye2.2
+  b = dye2.3
+  w = bone.4
+---
+.gggg.....gggggg.
+gwbaaG...gwbbbaaG
+gbaaaG...gbbaaaaG
+gaaaaG...gbaaaaaG
+gaaaaG...gaaaaaaG
+.GGGG....GaaaaaaG
+..........GGGGGG.

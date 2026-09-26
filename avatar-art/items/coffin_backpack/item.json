@@ -1,0 +1,39 @@
+{
+  "name": "Coffin Backpack",
+  "category": "back",
+  "starter": false,
+  "default": false,
+  "rarity": "epic",
+  "price": 320,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "back",
+      "file": "coffin.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#coffin"
+    },
+    {
+      "slot": "back",
+      "file": "coffin.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#coffin"
+    },
+    {
+      "slot": "strap",
+      "file": "straps.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#coffinStraps"
+    },
+    {
+      "slot": "strap",
+      "file": "straps.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#coffinStraps"
+    }
+  ],
+  "dyes": {
+    "dye1": "night",
+    "dye2": "wood"
+  }
+}

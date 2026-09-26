@@ -1,0 +1,39 @@
+# Coffin Backpack straps over the shoulders, build f (sculpted: avatar-art/sculpts/crypt.mjs coffinStraps).
+at: 69,72
+outline: auto
+legend:
+  g = gold.1
+  f = gold.2
+  e = gold.3
+  d = wood.1
+  c = wood.2
+  b = wood.3
+  a = wood.4
+---
+....ab
+....bc
+...bbc
+...bbd
+...bbd
+...bbd
+...bc.
+...bc.
+...bc.
+..bbc.
+..bbd.
+..bbd.
+..bb..
+..bc..
+..ef..
+.eef..
+.eeg..
+.bbd..
+.bb...
+.bc...
+.bc...
+bbc...
+bbd...
+bbd...
+bbd...
+bc....
+cd....

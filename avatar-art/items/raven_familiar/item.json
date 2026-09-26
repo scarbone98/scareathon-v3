@@ -1,0 +1,36 @@
+{
+  "name": "Raven Familiar",
+  "category": "companion",
+  "starter": false,
+  "default": false,
+  "rarity": "legendary",
+  "price": 500,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "raven.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#raven"
+    },
+    {
+      "slot": "companion",
+      "file": "raven.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#raven"
+    },
+    {
+      "slot": "companion",
+      "file": "eye.f.txt",
+      "build": "f"
+    },
+    {
+      "slot": "companion",
+      "file": "eye.m.txt",
+      "build": "m"
+    }
+  ],
+  "dyes": {
+    "dye1": "night"
+  }
+}

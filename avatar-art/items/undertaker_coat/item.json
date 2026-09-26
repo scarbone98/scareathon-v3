@@ -1,0 +1,33 @@
+{
+  "name": "Undertaker Coat",
+  "category": "outer",
+  "starter": false,
+  "default": false,
+  "rarity": "epic",
+  "price": 380,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "outer",
+      "file": "coat.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#coat"
+    },
+    {
+      "slot": "outer",
+      "file": "coat.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#coat"
+    }
+  ],
+  "dyes": {
+    "dye1": "night",
+    "dye2": "blood"
+  },
+  "vet": {
+    "ignore": [
+      "skin-gaps"
+    ],
+    "why": "The hands show between the cuffs and the coat tails."
+  }
+}

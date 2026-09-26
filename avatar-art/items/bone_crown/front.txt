@@ -1,0 +1,27 @@
+# Bone Crown, front half (sculpted: avatar-art/sculpts/crypt.mjs crownFront).
+at: 44,25
+outline: auto
+legend:
+  a = bone.1
+  c = bone.2
+  b = bone.3
+  d = bone.4
+  h = dye1.1
+  g = dye1.2
+  f = dye1.3
+  e = dye1.4
+---
+...............a..............a.......
+..bc..........bc.............bc.....b.
+..bb..........bb.............bc.....b.
+..bb..........bb.............bc.....b.
+..bba..b......bba.....da....bbc....ab.
+.abbc..bb.....bbc.....bc....bbc...daa.
+.abbc..bbc....bbc....bbc....bbc..bbaaa
+.abbba.bbc...bbbc....dbb....bbc..dbaaa
+.abbbaefbbddddbbbbbbbbbbbbbbbbcabbbcaa
+bbddafffbbbbbbbbbbbbbbbbcbbbbbbcccccca
+bbbbaffgbbbbbbbbccbbbbbccccccccaacccaa
+bcbbbaghccccccccaccccccaaaaaccaaaaaaaa
+ccccaaaaaaaaa.aaa....aaa.aaaaaaaaaaaaa
+.aaaaa............................aaa.

@@ -1,0 +1,30 @@
+{
+  "name": "Bone Crown",
+  "category": "head",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 220,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "back",
+      "file": "back.txt",
+      "sculpt": "crypt.mjs#crownBack"
+    },
+    {
+      "slot": "head",
+      "file": "front.txt",
+      "sculpt": "crypt.mjs#crownFront"
+    }
+  ],
+  "dyes": {
+    "dye1": "blood"
+  },
+  "vet": {
+    "ignore": [
+      "hair-pokes"
+    ],
+    "why": "A crown is an open ring that sits on the hair, so tall hair and buns rise above it."
+  }
+}

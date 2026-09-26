@@ -1,0 +1,32 @@
+{
+  "name": "Jack-o'-Lantern Head",
+  "category": "head",
+  "starter": false,
+  "default": false,
+  "rarity": "legendary",
+  "price": 500,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "head",
+      "file": "pumpkin.txt",
+      "sculpt": "crypt.mjs#pumpkinHead"
+    },
+    {
+      "slot": "head",
+      "file": "face.txt"
+    }
+  ],
+  "dyes": {
+    "dye1": "pumpkin"
+  },
+  "hides": [
+    "hair_front",
+    "hair_back",
+    "eyes",
+    "mouth",
+    "brows",
+    "face_paint",
+    "face_acc"
+  ]
+}

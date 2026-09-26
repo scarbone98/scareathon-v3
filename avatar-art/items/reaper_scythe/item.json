@@ -1,0 +1,48 @@
+{
+  "name": "Reaper's Scythe",
+  "category": "held_near",
+  "starter": false,
+  "default": false,
+  "rarity": "legendary",
+  "price": 550,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "held_back",
+      "file": "pole.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#scythePole"
+    },
+    {
+      "slot": "held_back",
+      "file": "pole.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#scythePole"
+    },
+    {
+      "slot": "back",
+      "file": "blade.f.txt",
+      "build": "f",
+      "sculpt": "crypt.mjs#scytheBlade"
+    },
+    {
+      "slot": "back",
+      "file": "blade.m.txt",
+      "build": "m",
+      "sculpt": "crypt.mjs#scytheBlade"
+    },
+    {
+      "slot": "front_fx",
+      "file": "glint.f.txt",
+      "build": "f"
+    },
+    {
+      "slot": "front_fx",
+      "file": "glint.m.txt",
+      "build": "m"
+    }
+  ],
+  "occupies": [
+    "held_far"
+  ]
+}

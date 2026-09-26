@@ -1,0 +1,7 @@
+# The raven's gleaming eye (build f).
+at: 76,58
+outline: none
+legend:
+  y = gold.4
+---
+y

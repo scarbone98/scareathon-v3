@@ -1,0 +1,12 @@
+# A glint on the scythe blade (build f). No outline: light has no edge.
+at: 40,15
+outline: none
+legend:
+  w = bone.4
+  s = bone.3
+---
+..s..
+..w..
+swwws
+..w..
+..s..

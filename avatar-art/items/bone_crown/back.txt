@@ -1,0 +1,23 @@
+# Bone Crown, back half, behind the head (sculpted: avatar-art/sculpts/crypt.mjs crownBack).
+at: 46,27
+outline: auto
+legend:
+  b = bone.1
+  c = bone.2
+  a = bone.3
+  d = bone.4
+---
+ab..........................b.......
+ac..........ac.............ac.......
+aa..........ac.............ac.......
+aab.........aa.............ac.......
+aac..a......aa.............ac...db..
+aac..aa.....aab.....db....aac...ab..
+aaab.aa.....aac.....ac....aac..dbb..
+aaac.bac....aac....aac....aac.abaaa.
+aaacaaaaaaabaac....daa.aaaadddaaaaab
+aaacccccaaaaaaaaaaaaaddddddddaaaaacb
+aaccbbbccccaaaaaaaaaaaaaaaaaaaacccbb
+cccbbbbbccccccccccaaaaaaaaaccccbbbb.
+..bbbbbbbbbbbbbbccccccccbccbbbbbb...
+.............b......b...............

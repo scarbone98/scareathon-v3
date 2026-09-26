@@ -1,0 +1,22 @@
+{
+  "name": "Graveyard Mist",
+  "category": "aura",
+  "starter": false,
+  "default": false,
+  "rarity": "rare",
+  "price": 200,
+  "release": "released",
+  "parts": [
+    {
+      "slot": "back_fx",
+      "file": "back.txt"
+    },
+    {
+      "slot": "front_fx",
+      "file": "front.txt"
+    }
+  ],
+  "dyes": {
+    "dye1": "steel"
+  }
+}
