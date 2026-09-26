@@ -15,6 +15,14 @@
     {
       "slot": "front_fx",
       "file": "flame.txt"
+    },
+    {
+      "slot": "mask",
+      "masks": [
+        "hair_back",
+        "hair_front"
+      ],
+      "file": "hair_mask.txt"
     }
   ],
   "dyes": {

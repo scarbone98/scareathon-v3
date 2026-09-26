@@ -20,7 +20,8 @@
     "check:frog-ball-coop": "node scripts/frog-ball-coop.mjs",
     "stills:arcade": "node scripts/make-cartridge-stills.mjs",
     "art:avatar": "node scripts/avatar-art/build.mjs",
-    "art:resculpt": "node scripts/avatar-art/resculpt.mjs"
+    "art:resculpt": "node scripts/avatar-art/resculpt.mjs",
+    "art:vet": "node scripts/avatar-art/vet.mjs"
   },
   "dependencies": {
     "@strapi/blocks-react-renderer": "^1.0.1",

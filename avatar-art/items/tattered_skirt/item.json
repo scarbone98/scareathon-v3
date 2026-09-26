@@ -23,5 +23,11 @@
   "dyes": {
     "dye1": "night",
     "dye2": "blood"
+  },
+  "vet": {
+    "ignore": [
+      "skin-gaps"
+    ],
+    "why": "Legs show between the tatters of the hem by design."
   }
 }

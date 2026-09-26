@@ -696,6 +696,15 @@
           "slot": "head",
           "build": null,
           "src": "/avatar-v2/items/gravewarden_cloak/head.png?v=a943426c00"
+        },
+        {
+          "slot": "mask",
+          "build": null,
+          "src": "/avatar-v2/items/gravewarden_cloak/mask.png?v=75d371f450",
+          "masks": [
+            "hair_back",
+            "hair_front"
+          ]
         }
       ],
       "icon": "/avatar-v2/items/gravewarden_cloak/icon.png?v=e27d50598e",
@@ -1461,6 +1470,15 @@
           "slot": "front_fx",
           "build": null,
           "src": "/avatar-v2/items/witch_hat/front_fx.png?v=ef09915fd6"
+        },
+        {
+          "slot": "mask",
+          "build": null,
+          "src": "/avatar-v2/items/witch_hat/mask.png?v=4585f7ab42",
+          "masks": [
+            "hair_back",
+            "hair_front"
+          ]
         }
       ],
       "icon": "/avatar-v2/items/witch_hat/icon.png?v=e615180d31",

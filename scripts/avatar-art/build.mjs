@@ -11,6 +11,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { composeOutfit as composeWith, loadCatalog, renderCatalog } from "./catalog.mjs";
 import {
   ART_DIR,
   BUILDS,
@@ -18,18 +19,10 @@ import {
   HEIGHT,
   SLOTS,
   WIDTH,
-  blit,
-  createLayer,
-  drawPart,
   encodePng,
   fillImage,
-  loadPalette,
-  parsePart,
   pasteImage,
   scaleImage,
-  swapRamps,
-  validatePalette,
-  validatePart,
 } from "./lib.mjs";
 
 const checkOnly = process.argv.includes("--check");
@@ -37,16 +30,11 @@ const EXPORT_DIR = path.resolve("public/avatar-v2");
 const PREVIEW_DIR = path.join(ART_DIR, "previews");
 const PREVIEW_SCALE = 4;
 const PREVIEW_BG = [24, 18, 32, 255];
-const RARITIES = ["common", "uncommon", "rare", "epic", "legendary"];
-const RELEASES = ["draft", "released", "retired"];
 const RULES_FILE = path.resolve("server/utils/avatarRules.json");
 const CATALOG_FILE = path.resolve("server/db/avatar_catalog.sql");
 const ICON_BUILD = "f";
 
-const palette = loadPalette();
-const errors = validatePalette(palette);
-const items = loadItems(errors);
-const outfits = loadOutfits(items, errors);
+const { palette, items, outfits, errors } = loadCatalog();
 
 if (errors.length) {
   console.error(errors.map((e) => `  ✗ ${e}`).join("\n"));
@@ -56,19 +44,25 @@ if (errors.length) {
 console.log(`✓ ${Object.keys(items).length} items and ${outfits.length} outfits are valid.`);
 if (checkOnly) process.exit(0);
 
-const rendered = {};
+const rendered = renderCatalog(items, palette);
+const composeOutfit = (outfit) => composeWith({ items, rendered, palette }, outfit);
 const exported = {};
 // Start clean so renamed or deleted items don't leave stale files behind.
 fs.rmSync(path.join(EXPORT_DIR, "items"), { recursive: true, force: true });
 for (const [key, item] of Object.entries(items)) {
-  rendered[key] = renderItem(item);
   const dir = path.join(EXPORT_DIR, "items", key);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   exported[key] = { parts: [] };
   for (const [layerKey, layer] of Object.entries(rendered[key])) {
     const [slot, build = null] = layerKey.split(".");
-    exported[key].parts.push({ slot, build, src: writePng(dir, key, `${layerKey}.png`, layer.rgba, WIDTH, HEIGHT) });
+    const src = writePng(dir, key, `${layerKey}.png`, layer.rgba, WIDTH, HEIGHT);
+    if (slot === "mask") {
+      const masks = [...new Set(item.parts.filter((p) => p.slot === "mask").flatMap((p) => p.masks))];
+      exported[key].parts.push({ slot, build, src, masks });
+    } else {
+      exported[key].parts.push({ slot, build, src });
+    }
   }
 }
 for (const [key, item] of Object.entries(items)) {
@@ -94,142 +88,9 @@ const previews = outfits.map((outfit) => {
 writeSheet(previews);
 console.log(`✓ Exported to ${path.relative(process.cwd(), EXPORT_DIR)}, previews in ${path.relative(process.cwd(), PREVIEW_DIR)}`);
 
-function loadItems(errors) {
-  const itemsDir = path.join(ART_DIR, "items");
-  const result = {};
-  for (const key of fs.readdirSync(itemsDir).sort()) {
-    const dir = path.join(itemsDir, key);
-    const metaFile = path.join(dir, "item.json");
-    if (!fs.existsSync(metaFile)) continue;
-    const meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
-    const item = { key, ...meta, parts: [] };
-    for (const { slot, file, build } of meta.parts) {
-      if (!SLOTS.includes(slot)) {
-        errors.push(`${key}: unknown slot "${slot}"`);
-        continue;
-      }
-      if (build && !BUILDS.includes(build)) {
-        errors.push(`${key}: unknown build "${build}" (use ${BUILDS.join(" or ")})`);
-        continue;
-      }
-      try {
-        const part = parsePart(path.join(dir, file));
-        errors.push(...validatePart(part, palette));
-        item.parts.push({ slot, build, part });
-      } catch (error) {
-        errors.push(error.message);
-      }
-    }
-    for (const [channel, ramp] of Object.entries(meta.dyes || {})) {
-      if (!["dye1", "dye2"].includes(channel)) errors.push(`${key}: dyes can only set dye1/dye2, not ${channel}`);
-      if (!palette.ramps[ramp]) errors.push(`${key}: default ${channel} ramp "${ramp}" does not exist`);
-    }
-    for (const category of [meta.category, ...(meta.occupies || [])]) {
-      if (!(category in CATEGORIES)) errors.push(`${key}: unknown category "${category}"`);
-    }
-    for (const slot of meta.hides || []) {
-      if (!SLOTS.includes(slot)) errors.push(`${key}: hides unknown slot "${slot}"`);
-    }
-    if (typeof meta.starter !== "boolean") errors.push(`${key}: "starter" must be true or false`);
-    if (typeof meta.default !== "boolean") errors.push(`${key}: "default" must be true or false`);
-    if (meta.default && !meta.starter) errors.push(`${key}: a default item must also be a starter`);
-    if (!RARITIES.includes(meta.rarity)) errors.push(`${key}: "rarity" must be one of ${RARITIES.join(", ")}`);
-    if (!RELEASES.includes(meta.release)) errors.push(`${key}: "release" must be one of ${RELEASES.join(", ")}`);
-    if (meta.price !== null && !(Number.isInteger(meta.price) && meta.price > 0)) {
-      errors.push(`${key}: "price" must be a positive whole number of coins, or null if it isn't sold`);
-    }
-    if (meta.starter && meta.price !== null) errors.push(`${key}: starter items are free, so "price" must be null`);
-    result[key] = item;
-  }
-  const defaults = {};
-  for (const item of Object.values(result)) {
-    if (!item.default) continue;
-    defaults[item.category] = (defaults[item.category] || 0) + 1;
-    if (defaults[item.category] > (CATEGORIES[item.category] ?? 1)) {
-      errors.push(`too many default ${item.category} items (max ${CATEGORIES[item.category]})`);
-    }
-  }
-  if (!defaults.body) errors.push("the default outfit needs a body item");
-  return result;
-}
 
-function loadOutfits(items, errors) {
-  const dir = path.join(ART_DIR, "outfits");
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".json"))
-    .sort()
-    .map((file) => {
-      const outfit = { id: file.replace(/\.json$/, ""), ...JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")) };
-      outfit.items = outfit.items.map((entry) => (typeof entry === "string" ? { key: entry } : entry));
-      outfit.build ||= BUILDS[0];
-      if (!BUILDS.includes(outfit.build)) errors.push(`outfit ${outfit.id}: unknown build "${outfit.build}"`);
-      const worn = {};
-      for (const { key } of outfit.items) {
-        if (!items[key]) {
-          errors.push(`outfit ${outfit.id}: unknown item "${key}"`);
-          continue;
-        }
-        for (const category of [items[key].category, ...(items[key].occupies || [])]) {
-          worn[category] = (worn[category] || 0) + 1;
-          if (worn[category] > (CATEGORIES[category] ?? 1)) {
-            errors.push(`outfit ${outfit.id}: too many ${category} items (max ${CATEGORIES[category]})`);
-          }
-        }
-      }
-      for (const channel of ["skin", "hair", "eyes"]) {
-        if (outfit[channel] && !palette.ramps[outfit[channel]]) {
-          errors.push(`outfit ${outfit.id}: ${channel} ramp "${outfit[channel]}" does not exist`);
-        }
-      }
-      return outfit;
-    });
-}
 
-// Layers are keyed "<slot>" when every part in that slot suits both builds,
-// and "<slot>.<build>" when any part in it is fitted to one build. A fitted
-// slot also includes that slot's shared parts, drawn in the order listed.
-function renderItem(item) {
-  const bySlot = {};
-  const fittedSlots = new Set(item.parts.filter((p) => p.build).map((p) => p.slot));
-  for (const { slot, build, part } of item.parts) {
-    const keys = !fittedSlots.has(slot) ? [slot] : build ? [`${slot}.${build}`] : BUILDS.map((b) => `${slot}.${b}`);
-    for (const key of keys) {
-      bySlot[key] ||= createLayer();
-      drawPart(bySlot[key], part, palette);
-    }
-  }
-  return bySlot;
-}
 
-// Same order of operations the browser compositor will use: per item, apply
-// the avatar-wide swaps plus that item's dyes, then stack slots back to front.
-function composeOutfit(outfit) {
-  const hidden = new Set(outfit.items.flatMap(({ key }) => items[key].hides || []));
-  // Within a slot, items stack by their `order` (default 0), never by the
-  // order they were put on, so an outfit always looks the same.
-  const byOrder = outfit.items
-    .map((entry, index) => ({ entry, index }))
-    .sort((a, b) => (items[a.entry.key].order || 0) - (items[b.entry.key].order || 0) || a.index - b.index)
-    .map(({ entry }) => entry);
-  const canvas = createLayer();
-  for (const slot of SLOTS) {
-    if (hidden.has(slot)) continue;
-    for (const entry of byOrder) {
-      const layer = rendered[entry.key][`${slot}.${outfit.build}`] ?? rendered[entry.key][slot];
-      if (!layer) continue;
-      const swaps = {
-        skin: outfit.skin,
-        hair: outfit.hair,
-        eyes: outfit.eyes,
-        dye1: entry.dye1 || items[entry.key].dyes?.dye1,
-        dye2: entry.dye2 || items[entry.key].dyes?.dye2,
-      };
-      blit(canvas, { rgba: swapRamps(layer.rgba, swaps, palette), ramp: layer.ramp });
-    }
-  }
-  return canvas.rgba;
-}
 
 function writeSheet(images) {
   const scale = 3;

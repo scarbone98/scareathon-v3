@@ -287,6 +287,38 @@ player's first outfit; must also be a starter, at most the category's limit),
 and `release` (`draft`, `released` or `retired`). Starter items are free and
 can't be traded.
 
+## Vetting: no clipping ships
+
+Every new or changed item must pass `npm run art:vet -- <item>`, and you must
+look at its sheets. For each build it renders the item alone and with every
+item it is likely to overlap (hats with every hairstyle, tops with every coat,
+shoes with every pair of trousers...) into `avatar-art/previews/vet/<item>.png`,
+plus a close-up of every flagged look in `avatar-art/previews/vet/<item>/`,
+with suspect pixels painted magenta. It checks for:
+
+- **skin gaps:** skin showing through a narrow gap inside a garment
+- **hair pokes:** hair sticking out above a hat or hood that covers the crown
+- **stray bits:** 1-2 pixel specks not attached to the item
+
+The checks catch the common mistakes, not all of them: read the sheets. Fix
+problems in the art, or with a mask (below). If a flag is intended (legs
+between the tatters of a hem), record it in `item.json`:
+`"vet": { "ignore": ["skin-gaps"], "why": "..." }`.
+
+## Masks
+
+A part with `"slot": "mask"` erases **other** items' pixels, in the slots it
+lists, wherever it is opaque:
+
+```json
+{ "slot": "mask", "masks": ["hair_back", "hair_front"], "file": "hair_mask.txt" }
+```
+
+Hats use one to squash the hair under the crown (the Candlewick Hat erases
+hair above its brim), and hoods to keep hair inside (the Gravewarden hood
+erases hair outside its face opening). Draw the mask in any colour; only
+opacity matters. Masks can be fitted per build like other parts.
+
 ## Shipping items
 
 `npm run art:avatar` writes everything the site needs:

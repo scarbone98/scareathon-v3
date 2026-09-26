@@ -39,10 +39,24 @@
       "slot": "head",
       "file": "head.txt",
       "sculpt": "clothing.mjs#cloakHead"
+    },
+    {
+      "slot": "mask",
+      "masks": [
+        "hair_back",
+        "hair_front"
+      ],
+      "file": "hair_mask.txt"
     }
   ],
   "dyes": {
     "dye1": "night",
     "dye2": "blood"
+  },
+  "vet": {
+    "ignore": [
+      "skin-gaps"
+    ],
+    "why": "The hood's opening frames the face and neck, so skin shows at its edges by design."
   }
 }

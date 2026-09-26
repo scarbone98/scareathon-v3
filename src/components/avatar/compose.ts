@@ -83,17 +83,36 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
 
   const hidden = new Set(look.outfit.flatMap(({ item }) => item.hides));
   const outfit = orderedOutfit(look);
+
+  // Masks: an item's "mask" part erases other items' pixels in the slots it
+  // lists (a hat squashing the hair under its crown).
+  const maskParts = outfit.flatMap((entry) => {
+    const part = partFor(entry.item, "mask", look.profile.build);
+    return part?.masks ? [{ entry, part }] : [];
+  });
+  const maskImages = await Promise.all(maskParts.map(({ part }) => loadImage(part.src)));
+  const masksBySlot = new Map<string, { entry: (typeof outfit)[number]; alpha: Uint8ClampedArray }[]>();
+  maskParts.forEach(({ entry, part }, index) => {
+    scratchContext.clearRect(0, 0, width, height);
+    scratchContext.drawImage(maskImages[index], 0, 0);
+    const alpha = scratchContext.getImageData(0, 0, width, height).data;
+    for (const slot of part.masks || []) {
+      if (!masksBySlot.has(slot)) masksBySlot.set(slot, []);
+      masksBySlot.get(slot)!.push({ entry, alpha });
+    }
+  });
   const layers = manifest.slots
     .filter((slot) => !hidden.has(slot))
     .flatMap((slot) =>
       outfit.flatMap((entry) => {
         const part = partFor(entry.item, slot, look.profile.build);
-        return part ? [{ entry, src: part.src }] : [];
+        return part ? [{ entry, slot, src: part.src }] : [];
       })
     );
   const loaded = await Promise.all(layers.map((layer) => loadImage(layer.src)));
 
-  layers.forEach(({ entry }, index) => {
+  layers.forEach(({ entry, slot }, index) => {
+    const masks = (masksBySlot.get(slot) || []).filter((mask) => mask.entry !== entry);
     const table = swapTable(manifest, {
       skin: look.profile.skin,
       hair: look.profile.hair,
@@ -103,11 +122,15 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
     });
     scratchContext.clearRect(0, 0, width, height);
     scratchContext.drawImage(loaded[index], 0, 0);
-    if (table.size > 0) {
+    if (table.size > 0 || masks.length > 0) {
       const pixels = scratchContext.getImageData(0, 0, width, height);
       const data = pixels.data;
       for (let i = 0; i < data.length; i += 4) {
         if (data[i + 3] === 0) continue;
+        if (masks.some(({ alpha }) => alpha[i + 3] > 0)) {
+          data[i + 3] = 0;
+          continue;
+        }
         const swapped = table.get(rgbKey(data[i], data[i + 1], data[i + 2]));
         if (swapped) {
           data[i] = swapped[0];

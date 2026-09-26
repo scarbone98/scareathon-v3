@@ -6,10 +6,13 @@ export type AvatarBuild = "f" | "m";
 export type DyeChoice = Partial<Record<"dye1" | "dye2", string>>;
 
 export type AvatarItemPart = {
+  // a draw layer, or "mask" for a part that erases other items' pixels
   slot: string;
   // null when the part suits both body builds
   build: AvatarBuild | null;
   src: string;
+  // for mask parts: the slots whose pixels it erases
+  masks?: string[];
 };
 
 export type AvatarItem = {
