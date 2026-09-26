@@ -1,17 +1,23 @@
 import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
 import { createConversationWithMessage } from './inbox.js';
+import {
+    generateWeeklyChallenge,
+    generatedChallengeDocumentId,
+    startOfUtcWeek,
+    weekStartFromDocumentId,
+} from '../utils/weeklyChallengeGenerator.js';
 
 const WEEKLY_CHALLENGE_TTL = 5 * 60 * 1000;
+// A generated week never changes once it starts, so it can be kept a while
+const GENERATED_CHALLENGE_TTL = 60 * 60 * 1000;
 const CONTENT_LOOP_TTL = 5 * 60 * 1000;
 const CLIENT_CACHE_SECONDS = 5 * 60;
 const WEEKLY_CHALLENGE_SOURCE_TYPE = 'weekly_challenge';
 const ARCADE_SCORE_VERIFICATION_TYPES = new Set(['arcade_score', 'game_score']);
+// "Finish N runs of a game": targetMetricValue is N, counted from saved scores
+const ARCADE_RUNS_VERIFICATION_TYPE = 'arcade_runs';
 const COMPARISON_OPERATORS = new Set(['>=', '>', '<=', '<', '=']);
-const GENERATED_CHALLENGE_GAME_NAME = '8 Bit Evil Returns';
-const GENERATED_CHALLENGE_METRIC_NAME = 'score';
-const GENERATED_CHALLENGE_TARGETS = [1000, 1500, 2000, 2500, 3000, 4000, 5000];
-const GENERATED_CHALLENGE_REWARDS = [50, 75, 100];
 
 function setReadCacheHeaders(reply) {
     reply.header('Cache-Control', `private, max-age=${CLIENT_CACHE_SECONDS}, stale-while-revalidate=60`);
@@ -138,68 +144,16 @@ function firstMediaUrl(media) {
     } : null;
 }
 
-function startOfUtcWeek(date = new Date()) {
-    const normalized = new Date(Date.UTC(
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate()
-    ));
-    normalized.setUTCDate(normalized.getUTCDate() - normalized.getUTCDay());
-    return normalized;
-}
-
-function addUtcDays(date, days) {
-    const next = new Date(date);
-    next.setUTCDate(next.getUTCDate() + days);
-    return next;
-}
-
-function weekIndexFromStart(start) {
-    return Math.floor(start.getTime() / (7 * 24 * 60 * 60 * 1000));
-}
-
-function generatedChallengeDocumentId(start) {
-    return `generated-weekly-${start.toISOString().slice(0, 10)}`;
-}
-
-export function getGeneratedWeeklyChallenge({ date = new Date(), documentId = null } = {}) {
-    let start = startOfUtcWeek(date);
-    if (documentId) {
-        const match = String(documentId).match(/^generated-weekly-(\d{4}-\d{2}-\d{2})$/);
-        if (!match) return null;
-
-        start = startOfUtcWeek(new Date(`${match[1]}T00:00:00.000Z`));
-        if (generatedChallengeDocumentId(start) !== documentId) return null;
-    }
-
-    const endExclusive = addUtcDays(start, 7);
-    const endsAt = new Date(endExclusive.getTime() - 1);
-    const weekIndex = weekIndexFromStart(start);
-    const targetMetricValue = GENERATED_CHALLENGE_TARGETS[weekIndex % GENERATED_CHALLENGE_TARGETS.length];
-    const rewardCoins = GENERATED_CHALLENGE_REWARDS[weekIndex % GENERATED_CHALLENGE_REWARDS.length];
-    const target = targetMetricValue.toLocaleString('en-US');
-
-    return {
-        id: generatedChallengeDocumentId(start),
-        documentId: generatedChallengeDocumentId(start),
-        slug: generatedChallengeDocumentId(start),
-        title: `Weekly Arcade Challenge: Score ${target}`,
-        summary: `Score at least ${target} in ${GENERATED_CHALLENGE_GAME_NAME} before the week resets.`,
-        content: null,
-        startsAt: start.toISOString(),
-        endsAt: endsAt.toISOString(),
-        points: 1,
-        rewardCoins,
-        verificationType: 'arcade_score',
-        gameName: GENERATED_CHALLENGE_GAME_NAME,
-        metricName: GENERATED_CHALLENGE_METRIC_NAME,
-        targetMetricValue,
-        comparisonOperator: '>=',
-        status: 'published',
-        publishedAt: start.toISOString(),
-        image: null,
-        source: 'generated',
-    };
+// The generated challenge for the week holding `date`, or for a generated
+// documentId (null if documentId isn't one). See utils/weeklyChallengeGenerator.js.
+export async function getGeneratedWeeklyChallenge({ date = new Date(), documentId = null, db = pool } = {}) {
+    const id = documentId ?? generatedChallengeDocumentId(startOfUtcWeek(date));
+    if (!weekStartFromDocumentId(id)) return null;
+    return getOrRefreshCache(
+        `weekly_challenge_generated_${id}`,
+        () => generateWeeklyChallenge({ documentId: id, db }),
+        GENERATED_CHALLENGE_TTL
+    );
 }
 
 export function normalizeWeeklyChallenge(entry) {
@@ -306,7 +260,7 @@ export function normalizeChallengeLoopItem(challenge) {
     };
 }
 
-export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {}) {
+export async function getCurrentWeeklyChallengePayload({ date = new Date(), db = pool } = {}) {
     const cacheKey = `weekly_challenge_current_${date.toISOString().slice(0, 10)}`;
 
     return getOrRefreshCache(cacheKey, async () => {
@@ -321,7 +275,7 @@ export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {
             });
         } catch (error) {
             if (isStrapiNotFound(error)) {
-                return { data: getGeneratedWeeklyChallenge({ date }) };
+                return { data: await getGeneratedWeeklyChallenge({ date, db }) };
             }
             throw error;
         }
@@ -331,11 +285,11 @@ export async function getCurrentWeeklyChallengePayload({ date = new Date() } = {
             .filter((challenge) => isWeeklyChallengeActive(challenge, date));
         const payload = { data: challenges[0] || null };
 
-        return payload.data ? payload : { data: getGeneratedWeeklyChallenge({ date }) };
+        return payload.data ? payload : { data: await getGeneratedWeeklyChallenge({ date, db }) };
     }, WEEKLY_CHALLENGE_TTL);
 }
 
-export async function getRecentWeeklyChallengesPayload({ date = new Date(), limit = 2 } = {}) {
+export async function getRecentWeeklyChallengesPayload({ date = new Date(), limit = 2, db = pool } = {}) {
     const boundedLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 2, 1), 5);
     const cacheKey = `weekly_challenge_recent_${date.toISOString().slice(0, 10)}_${boundedLimit}`;
 
@@ -350,7 +304,7 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
             });
         } catch (error) {
             if (isStrapiNotFound(error)) {
-                return { data: [getGeneratedWeeklyChallenge({ date })] };
+                return { data: [await getGeneratedWeeklyChallenge({ date, db })] };
             }
             throw error;
         }
@@ -362,15 +316,15 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
         const payload = {
             data: challenges.length > 0
                 ? challenges
-                : [getGeneratedWeeklyChallenge({ date })],
+                : [await getGeneratedWeeklyChallenge({ date, db })],
         };
 
         return payload;
     }, WEEKLY_CHALLENGE_TTL);
 }
 
-export async function getWeeklyChallengeByDocumentId(documentId) {
-    const generatedChallenge = getGeneratedWeeklyChallenge({ documentId });
+export async function getWeeklyChallengeByDocumentId(documentId, { db = pool } = {}) {
+    const generatedChallenge = await getGeneratedWeeklyChallenge({ documentId, db });
     if (generatedChallenge) {
         return generatedChallenge;
     }
@@ -390,14 +344,14 @@ export async function getWeeklyChallengeByDocumentId(documentId) {
     return normalizeWeeklyChallenge(body?.data);
 }
 
-export async function getContentLoopPayload({ getPostsPayload, getRecentPostsPayload = null, date = new Date() }) {
+export async function getContentLoopPayload({ getPostsPayload, getRecentPostsPayload = null, date = new Date(), db = pool }) {
     const cacheKey = `content_loop_${date.toISOString().slice(0, 10)}`;
 
     return getOrRefreshCache(cacheKey, async () => {
         const getPosts = getRecentPostsPayload || getPostsPayload;
         const [postsResult, challengeResult] = await Promise.allSettled([
             getPosts({ limit: 5 }),
-            getRecentWeeklyChallengesPayload({ date, limit: 2 }),
+            getRecentWeeklyChallengesPayload({ date, limit: 2, db }),
         ]);
         const posts = postsResult.status === 'fulfilled' ? postsResult.value?.data || [] : [];
         const challenges = challengeResult.status === 'fulfilled' ? challengeResult.value?.data || [] : [];
@@ -432,6 +386,43 @@ function isArcadeScoreChallenge(challenge) {
         Number.isFinite(challenge.targetMetricValue);
 }
 
+function isArcadeRunsChallenge(challenge) {
+    return challenge?.verificationType === ARCADE_RUNS_VERIFICATION_TYPE &&
+        Boolean(challenge.gameName) &&
+        Boolean(challenge.metricName) &&
+        Number.isInteger(challenge.targetMetricValue) &&
+        challenge.targetMetricValue > 0;
+}
+
+// Saved scores in the game during the challenge week, the current run included
+// (it's inserted in the same transaction before this runs)
+async function getArcadeRunsCompletion(client, userId, challenge) {
+    const result = await client.query(`
+        SELECT count(*)::int AS runs
+        FROM leaderboards l
+        JOIN games g ON l.game_id = g.id
+        WHERE l.user_id = $1
+          AND g.name = $2
+          AND l.metric_name = $3
+          AND ($4::timestamptz IS NULL OR l.achieved_at >= $4::timestamptz)
+          AND ($5::timestamptz IS NULL OR l.achieved_at <= $5::timestamptz)
+    `, [
+        userId,
+        challenge.gameName,
+        challenge.metricName,
+        challenge.startsAt ? new Date(challenge.startsAt).toISOString() : null,
+        challenge.endsAt ? new Date(challenge.endsAt).toISOString() : null,
+    ]);
+    const runs = Number(result.rows[0]?.runs || 0);
+    if (runs < challenge.targetMetricValue) {
+        return { completed: false, reason: 'not_enough_runs', runs };
+    }
+    return {
+        completed: true,
+        evidence: { type: ARCADE_RUNS_VERIFICATION_TYPE, game: challenge.gameName, runs },
+    };
+}
+
 export function scoreSubmissionCompletesChallenge(challenge, submission) {
     if (!isArcadeScoreChallenge(challenge)) return false;
     if (submission.game !== challenge.gameName) return false;
@@ -444,6 +435,10 @@ export function scoreSubmissionCompletesChallenge(challenge, submission) {
 }
 
 export async function getVerifiedWeeklyChallengeCompletion(client, userId, challenge, submission = null) {
+    if (isArcadeRunsChallenge(challenge)) {
+        return getArcadeRunsCompletion(client, userId, challenge);
+    }
+
     if (!isArcadeScoreChallenge(challenge)) {
         return { completed: false, reason: 'unsupported_verification_type' };
     }

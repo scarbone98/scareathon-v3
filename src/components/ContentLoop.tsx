@@ -66,6 +66,15 @@ function formatDateRange(item: ContentLoopItem) {
 
 function formatChallengeTarget(item: ContentLoopItem) {
   if (
+    item.type === "weekly_challenge" &&
+    item.verificationType === "arcade_runs" &&
+    item.gameName &&
+    item.targetMetricValue
+  ) {
+    return `Finish ${item.targetMetricValue} runs of ${item.gameName.replace(/[‘’]/g, "'")} while signed in.`;
+  }
+
+  if (
     item.type !== "weekly_challenge" ||
     (item.verificationType !== "arcade_score" &&
       item.verificationType !== "game_score") ||

@@ -1,40 +1,10 @@
 import pool from '../db/mockDB.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
+import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
 
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
-const GAME_SCORE_POLICIES = new Map([
-    ['8 Bit Evil Returns', {
-        score: { min: 0, max: 86400, integer: true },
-    }],
-    ['Hemlock\'s Tower', {
-        score: { min: 0, max: 10000000, integer: true },
-    }],
-    ['Tlaloc’s Curse', {
-        score: { min: 0, max: 10000000, integer: true },
-    }],
-    ['Ooidash', {
-        score: { min: 0, max: 10000000, integer: true },
-    }],
-    ['Salmon Run 2', {
-        score: { min: 0, max: 10000000, integer: true },
-    }],
-    // Score is the number of microgames won in one run.
-    ['WirtWare', {
-        score: { min: 0, max: 10000, integer: true },
-    }],
-    // Levels never end and points scale with the level, so the cap is higher
-    ['Horde Rush', {
-        score: { min: 0, max: 1000000000, integer: true },
-    }],
-    ['Frog Ball', {
-        score: { min: 0, max: 10000000, integer: true },
-    }],
-    ['8 Bit Evil', {
-        score: { min: 0, max: 10000000, integer: true },
-    }],
-]);
 
 export function calculateRuleAward(rule, metricValue) {
     if (rule.min_metric_value !== null && Number(metricValue) < Number(rule.min_metric_value)) {

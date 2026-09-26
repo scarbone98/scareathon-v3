@@ -120,6 +120,9 @@ describe('weekly challenge helpers', () => {
         })).toBe(false);
     });
 
+    // No saved scores, so generated weeks under the new rules are "play runs" ones
+    const emptyDb = { query: async () => ({ rows: [] }) };
+
     test('generates a weekly challenge fallback when the Strapi collection is missing', async () => {
         process.env.STRAPI_URL = 'https://cms.example.test';
         process.env.STRAPI_TOKEN = 'test-token';
@@ -129,32 +132,27 @@ describe('weekly challenge helpers', () => {
             json: async () => ({ error: { message: 'Not Found' } }),
         });
 
-        const generated = getGeneratedWeeklyChallenge({
-            date: new Date('2026-10-05T12:00:00.000Z'),
-        });
+        const date = new Date('2026-10-05T12:00:00.000Z');
+        const generated = await getGeneratedWeeklyChallenge({ date, db: emptyDb });
 
-        await expect(getCurrentWeeklyChallengePayload({
-            date: new Date('2026-10-05T12:00:00.000Z'),
-        })).resolves.toEqual({ data: generated });
-        await expect(getRecentWeeklyChallengesPayload({
-            date: new Date('2026-10-05T12:00:00.000Z'),
-        })).resolves.toEqual({ data: [generated] });
-        await expect(getWeeklyChallengeByDocumentId(generated.documentId)).resolves.toEqual(generated);
-        await expect(getWeeklyChallengeByDocumentId('missing-doc')).resolves.toBeNull();
+        await expect(getCurrentWeeklyChallengePayload({ date, db: emptyDb })).resolves.toEqual({ data: generated });
+        await expect(getRecentWeeklyChallengesPayload({ date, db: emptyDb })).resolves.toEqual({ data: [generated] });
+        await expect(getWeeklyChallengeByDocumentId(generated.documentId, { db: emptyDb })).resolves.toEqual(generated);
+        await expect(getWeeklyChallengeByDocumentId('missing-doc', { db: emptyDb })).resolves.toBeNull();
     });
 
-    test('generated weekly challenges are active only during their generated week', () => {
-        const challenge = getGeneratedWeeklyChallenge({
+    test('generated weekly challenges are active only during their generated week', async () => {
+        const challenge = await getGeneratedWeeklyChallenge({
             date: new Date('2026-10-05T12:00:00.000Z'),
+            db: emptyDb,
         });
 
         expect(challenge).toMatchObject({
             documentId: 'generated-weekly-2026-10-04',
             title: expect.stringContaining('Weekly Arcade Challenge'),
-            verificationType: 'arcade_score',
-            gameName: '8 Bit Evil Returns',
+            gameName: 'Frog Ball',
+            verificationType: 'arcade_runs',
             metricName: 'score',
-            comparisonOperator: '>=',
             status: 'published',
         });
         expect(isWeeklyChallengeActive(challenge, new Date('2026-10-05T12:00:00.000Z'))).toBe(true);
