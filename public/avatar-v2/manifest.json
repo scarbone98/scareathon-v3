@@ -523,15 +523,15 @@
         {
           "slot": "strap",
           "build": "f",
-          "src": "/avatar-v2/items/coffin_backpack/strap.f.png?v=6572acf059"
+          "src": "/avatar-v2/items/coffin_backpack/strap.f.png?v=89ca05e5dd"
         },
         {
           "slot": "strap",
           "build": "m",
-          "src": "/avatar-v2/items/coffin_backpack/strap.m.png?v=67d2edb13b"
+          "src": "/avatar-v2/items/coffin_backpack/strap.m.png?v=b8e18312d7"
         }
       ],
-      "icon": "/avatar-v2/items/coffin_backpack/icon.png?v=1c987af763",
+      "icon": "/avatar-v2/items/coffin_backpack/icon.png?v=49968fcd8f",
       "dyes": {
         "dye1": "night",
         "dye2": "wood"
@@ -856,15 +856,15 @@
         {
           "slot": "hair_back",
           "build": null,
-          "src": "/avatar-v2/items/hair_banshee_mane/hair_back.png?v=6537ec2d24"
+          "src": "/avatar-v2/items/hair_banshee_mane/hair_back.png?v=37592cb91c"
         },
         {
           "slot": "hair_front",
           "build": null,
-          "src": "/avatar-v2/items/hair_banshee_mane/hair_front.png?v=f4a7ed6b0d"
+          "src": "/avatar-v2/items/hair_banshee_mane/hair_front.png?v=c9f0f74d45"
         }
       ],
-      "icon": "/avatar-v2/items/hair_banshee_mane/icon.png?v=7e666e71d5",
+      "icon": "/avatar-v2/items/hair_banshee_mane/icon.png?v=37c29fa573",
       "dyes": {},
       "occupies": [],
       "hides": [],

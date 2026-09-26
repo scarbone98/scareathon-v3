@@ -141,10 +141,13 @@ export function parts(build) {
       comment: `Coffin Backpack straps over the shoulders, build ${build} (sculpted: avatar-art/sculpts/crypt.mjs coffinStraps).`,
       blend: 0,
       shapes: [
-        capsule([sx + 1, sy - 5, 6], [sx - 3, sy + 20, 9], 1.2, 1.2, {
-          group: "strap",
-          material: (x, y) => (Math.abs(y - (sy + 9)) <= 1 ? "gold" : "wood"),
-        }),
+        // a flat leather band (two tubes side by side) with a brass buckle
+        ...[0, 1.6].map((dx) =>
+          capsule([sx + 1 + dx, sy - 5, 6], [sx - 3 + dx, sy + 20, 9], 1.1, 1.1, {
+            group: "strap",
+            material: (x, y) => (Math.abs(y - (sy + 9)) <= 1.5 ? "gold" : "wood"),
+          })
+        ),
       ],
     },
 

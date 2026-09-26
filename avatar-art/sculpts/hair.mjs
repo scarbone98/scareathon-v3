@@ -107,7 +107,9 @@ export const parts = {
     })(),
   },
 
-  // Banshee Mane: enormous, waist-length and wild.
+  // Banshee Mane: a full, flowing sheet of hair to the hips. One big mass
+  // with strand texture and a wavy hem, rather than separate locks, so it
+  // reads as hair and not dreadlocks. The side locks frame the face.
   maneFront: {
     comment: "Banshee Mane, front (sculpted: avatar-art/sculpts/hair.mjs maneFront).",
     shapes: [
@@ -116,23 +118,28 @@ export const parts = {
       lock("l2", [56.5, 32.4, 19.4], [53.6, 49.4, 15.8], 5.2),
       lock("l3", [62.3, 32.4, 19.4], [60.8, 48.7, 15.8], 5.2),
       lock("l4", [68, 33.9, 18], [68.8, 47.8, 15.1], 4.9),
-      ...wave("curtainFar", [44, 42, 10], [35, 68, 5], [37, 98, 1], 5, 4, 1.2),
-      ...wave("curtainFar2", [48, 50, 12], [44, 70, 8], [38, 90, 5], 3.6, 3),
-      ...wave("curtainNear", [81, 43, 4], [90, 68, 0], [87, 97, -2], 5.5, 4.5, 1.2),
-      ...wave("curtainNear2", [78, 48, 7], [83, 70, 4], [80, 88, 2], 3.6, 3),
+      // framing locks fall outside the face, not across it
+      ...wave("frameFar", [44, 42, 9], [39, 62, 6], [40, 84, 4], 4.2, 3.6, 1),
+      ...wave("frameNear", [81, 44, 3], [84, 64, 1], [83, 82, -1], 4.2, 3.6, 1),
     ],
   },
   maneBack: {
     comment: "Banshee Mane, back (sculpted: avatar-art/sculpts/hair.mjs maneBack).",
-    shapes: [
-      ellipsoid([65, 52, -6], [22.5, 22, 16], { group: "mass", material: hair }),
-      ...wave("b1", [46, 60, -8], [36, 90, -10], [33, 124, -12], 6, 5, 1.5),
-      ...wave("b2", [53, 62, -10], [46, 96, -12], [44, 128, -13], 6, 5, 1.5),
-      ...wave("b3", [61, 64, -12], [56, 98, -13], [58, 131, -14], 6, 5, 1.5),
-      ...wave("b4", [69, 64, -12], [74, 98, -13], [69, 131, -14], 6, 5, 1.5),
-      ...wave("b5", [77, 62, -10], [85, 94, -12], [81, 128, -13], 6, 5, 1.5),
-      ...wave("b6", [84, 59, -8], [94, 88, -10], [96, 122, -12], 6, 5, 1.5),
-      ...wave("b7", [89, 56, -5], [101, 76, -7], [104, 102, -8], 5, 4, 1.2),
-    ],
+    shapes: (() => {
+      // Wavy strand lines down the sheet, and a hem that dips and rises.
+      const strands = (x, y) => {
+        const wavy = x + 2.5 * Math.sin(y * 0.18);
+        const hem = 112 + 5 * Math.sin(x * 0.35) + 3 * Math.sin(x * 0.9);
+        if (y > hem) return null;
+        return { ramp: hair, shift: Math.abs(wavy % 5) < 1 ? -1 : 0 };
+      };
+      return [
+        ellipsoid([65, 52, -6], [22.5, 22, 16], { group: "mass", material: strands }),
+        ellipsoid([64, 84, -13], [26, 34, 7], { group: "mass", material: strands, blend: 10 }),
+        // a little flare at the sides so the silhouette isn't a slab
+        ...wave("flareFar", [45, 60, -8], [38, 84, -10], [37, 106, -11], 4.5, 4, 1),
+        ...wave("flareNear", [85, 58, -8], [91, 82, -10], [92, 104, -11], 4.5, 4, 1),
+      ];
+    })(),
   },
 };

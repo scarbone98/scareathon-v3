@@ -2,39 +2,38 @@
 at: 71,71
 outline: auto
 legend:
-  g = gold.1
+  e = gold.1
   f = gold.2
-  e = gold.3
-  d = wood.1
-  c = wood.2
-  b = wood.3
-  a = wood.4
+  d = gold.3
+  c = wood.1
+  b = wood.2
+  a = wood.3
 ---
-....ab
-....bc
-....bc
-...bbc
-...bbd
-...bbd
-...bb.
-...bc.
-...bc.
-..bbc.
-..bbd.
-..bbd.
-..bbd.
-..bc..
-..bc..
-.eef..
-.eeg..
-.bbd..
-.bbd..
-.bc...
-.bc...
-.bc...
-bbc...
-bbd...
-bbd...
-bb....
-bc....
-dd....
+....aaa.
+....abac
+....abac
+....aaa.
+...aaab.
+...aaab.
+...aaab.
+...abac.
+...abac.
+...aaa..
+..aaaa..
+..aaab..
+..aaab..
+..aaac..
+..ddde..
+..ddde..
+.dddd...
+.dddf...
+.aaab...
+.abab...
+.abac...
+.abac...
+aaaa....
+aaab....
+aaab....
+aaab....
+aaac....
+ccc.....
