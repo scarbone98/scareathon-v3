@@ -19,8 +19,8 @@ const FADE_IN_MS = 90; // the static swells in from the cabinet's rather than cu
 // Snow held over the game after it mounts, to hide its loading screen
 const HOLD_MS = 2500;
 const TUNE_MS = 900;
-const LINE_MS = 380;
-const LIFT_MS = 260;
+const LINE_MS = 250;
+const LIFT_MS = 170;
 
 export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);

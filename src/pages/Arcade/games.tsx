@@ -26,7 +26,8 @@ export type MachineData = {
   // Games that don't submit scores hide the Leaderboard button.
   hasLeaderboard?: boolean;
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
-  cartridge: { color: string; tagline: string };
+  // font: a Google Font that suits the game, for its name on the label, marquee and card.
+  cartridge: { color: string; tagline: string; font: { family: string; weight?: number } };
   game: ReactNode;
 };
 
@@ -156,7 +157,7 @@ export function createArcadeGames(): MachineData[] {
   return [
     {
       name: "8 Bit Evil Returns",
-      cartridge: { color: "#e0433b", tagline: "The pixel nightmare is back." },
+      cartridge: { color: "#e0433b", tagline: "The pixel nightmare is back.", font: { family: "Press Start 2P" } },
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
       game: (
         <GameRenderer
@@ -203,7 +204,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Hemlock's Tower",
-      cartridge: { color: "#3fb68b", tagline: "Climb out from the deep." },
+      cartridge: { color: "#3fb68b", tagline: "Climb out from the deep.", font: { family: "Cinzel Decorative", weight: 700 } },
       videoUrl: "/game-recordings/Ascension.mp4",
       game: (
         <GameRenderer
@@ -218,7 +219,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Tlaloc’s Curse",
-      cartridge: { color: "#2f86d6", tagline: "Pinball under a storm god’s curse." },
+      cartridge: { color: "#2f86d6", tagline: "Pinball under a storm god’s curse.", font: { family: "Tilt Warp" } },
       videoUrl: "/game-recordings/TlalocsCurse.mp4",
       game: (
         <GameRenderer
@@ -233,7 +234,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Ooidash",
-      cartridge: { color: "#f2a93b", tagline: "Dash for the high score." },
+      cartridge: { color: "#f2a93b", tagline: "Dash for the high score.", font: { family: "Russo One" } },
       videoUrl: "/game-recordings/Ooidash.mp4",
       game: (
         <GameRenderer
@@ -248,7 +249,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Salmon Run 2",
-      cartridge: { color: "#f07a5a", tagline: "Race a salmon down a jungle river." },
+      cartridge: { color: "#f07a5a", tagline: "Race a salmon down a jungle river.", font: { family: "Luckiest Guy" } },
       videoUrl: "/game-recordings/SalmonRun2.mp4",
       game: (
         <GameRenderer
@@ -264,7 +265,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "WirtWare",
-      cartridge: { color: "#a86ee0", tagline: "Tiny games, faster and faster." },
+      cartridge: { color: "#a86ee0", tagline: "Tiny games, faster and faster.", font: { family: "Titan One" } },
       videoUrl: "/game-recordings/WirtWare.mp4",
       game: (
         <GameRenderer
@@ -279,7 +280,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Crypt Clash",
-      cartridge: { color: "#7d8a99", tagline: "Last one standing wins." },
+      cartridge: { color: "#7d8a99", tagline: "Last one standing wins.", font: { family: "Grenze Gotisch", weight: 700 } },
       videoUrl: "/game-recordings/CryptClash.mp4",
       hasLeaderboard: false,
       game: (
@@ -292,7 +293,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Horde Rush",
-      cartridge: { color: "#c23b5a", tagline: "Grow your squad, blast the horde." },
+      cartridge: { color: "#c23b5a", tagline: "Grow your squad, blast the horde.", font: { family: "Black Ops One" } },
       videoUrl: "/game-recordings/HordeRush.mp4",
       game: (
         <GameRenderer
@@ -307,7 +308,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Frog Ball",
-      cartridge: { color: "#6cc04a", tagline: "Roll a frog through dream worlds." },
+      cartridge: { color: "#6cc04a", tagline: "Roll a frog through dream worlds.", font: { family: "Fredoka", weight: 600 } },
       videoUrl: "/game-recordings/FrogBall.mp4",
       game: (
         <GameRenderer
@@ -323,7 +324,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "BOB",
-      cartridge: { color: "#f4f1e8", tagline: "Look after a stick figure." },
+      cartridge: { color: "#f4f1e8", tagline: "Look after a stick figure.", font: { family: "Patrick Hand" } },
       videoUrl: "/game-recordings/BOB.mp4",
       hasLeaderboard: false,
       game: (
@@ -338,7 +339,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: ORIGINAL_EIGHT_BIT_EVIL,
-      cartridge: { color: "#9e2f2a", tagline: "Where it all began." },
+      cartridge: { color: "#9e2f2a", tagline: "Where it all began.", font: { family: "Silkscreen" } },
       videoUrl: "/game-recordings/8BitEvil.mp4",
       availableOnMobile: false,
       game: (

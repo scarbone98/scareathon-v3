@@ -12,8 +12,16 @@ export const MARQUEE_NEON_COLORS = ["#ff2d55", "#39ff9f", "#2de2ff", "#c86bff", 
 export const MARQUEE_GLOW = 1.4;
 
 // Paint a game's name as a neon sign: dark backing, a coloured halo, a brighter
-// inner glow and a near-white core, like a lit glass tube.
-export function drawNeonMarquee(canvas: HTMLCanvasElement, name: string, color: string) {
+// inner glow and a near-white core, like a lit glass tube. `font` is a CSS
+// font-weight plus family, e.g. `700 "Cinzel Decorative", Zombie`.
+export function drawNeonMarquee(
+  canvas: HTMLCanvasElement,
+  name: string,
+  color: string,
+  font = "400 Zombie, Creepster, cursive"
+) {
+  const [weight, ...family] = font.split(" ");
+  const fontAt = (size: number) => `${weight} ${size}px ${family.join(" ")}`;
   const context = canvas.getContext("2d");
   if (!context) return;
   const { width, height } = canvas;
@@ -40,10 +48,14 @@ export function drawNeonMarquee(canvas: HTMLCanvasElement, name: string, color: 
 
   const label = name.replace(/[\u2018\u2019]/g, "'").toUpperCase();
   let fontSize = 220;
-  context.font = `${fontSize}px Zombie, Creepster, cursive`;
-  while (context.measureText(label).width > width * 0.86 && fontSize > 60) {
+  context.font = fontAt(fontSize);
+  // Fit the width, and keep tall fonts inside the tube border
+  while (
+    (context.measureText(label).width > width * 0.86 || fontSize > height * 0.62) &&
+    fontSize > 60
+  ) {
     fontSize -= 6;
-    context.font = `${fontSize}px Zombie, Creepster, cursive`;
+    context.font = fontAt(fontSize);
   }
   context.textAlign = "center";
   context.textBaseline = "middle";

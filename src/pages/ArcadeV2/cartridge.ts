@@ -8,6 +8,7 @@ import {
   PlaneGeometry,
   SRGBColorSpace,
 } from "three";
+import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // A game cartridge: a plastic shell in the game's colour with a paper label on
 // the front showing the game's name, tagline and a still from its attract video.
@@ -31,6 +32,7 @@ function paintLabel(
   name: string,
   tagline: string,
   color: string,
+  font: ArcadeFont,
   picture?: { source: CanvasImageSource; width: number; height: number }
 ) {
   const { width, height } = context.canvas;
@@ -61,13 +63,13 @@ function paintLabel(
   context.roundRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height, 10);
   context.stroke();
 
-  // Name, shrunk to fit, in the site's spooky display font
+  // Name, shrunk to fit, in the game's own font
   const label = name.replace(/[‘’]/g, "'").toUpperCase();
   let fontSize = 64;
-  context.font = `${fontSize}px Zombie, Creepster, cursive`;
+  context.font = canvasFont(font, fontSize);
   while (context.measureText(label).width > width - 40 && fontSize > 22) {
     fontSize -= 2;
-    context.font = `${fontSize}px Zombie, Creepster, cursive`;
+    context.font = canvasFont(font, fontSize);
   }
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -104,6 +106,7 @@ export function createCartridge(
   name: string,
   tagline: string,
   color: string,
+  font: ArcadeFont,
   size: CartridgeSize
 ): Cartridge {
   const group = new Group();
@@ -136,15 +139,15 @@ export function createCartridge(
   const context = canvas.getContext("2d");
   let picture: { source: CanvasImageSource; width: number; height: number } | undefined;
   const repaint = () => {
-    if (context) paintLabel(context, name, tagline, color, picture);
+    if (context) paintLabel(context, name, tagline, color, font, picture);
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
   repaint();
-  // The first paint may use a fallback font; repaint once the Zombie web font is ready
-  document.fonts?.load("64px Zombie").then(repaint).catch(() => {});
+  // The first paint may use a fallback font; repaint once the game's font is ready
+  whenFontReady(font).then(repaint);
 
   const labelMaterial = new MeshStandardMaterial({
     map: texture,

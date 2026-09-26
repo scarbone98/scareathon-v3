@@ -3,6 +3,7 @@ import { AnimatePresence, m as motion } from "framer-motion";
 import { FaTrophy } from "react-icons/fa";
 import type { MachineData } from "../Arcade/games.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
+import { fontFamily, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // The site's phone menu button, docked into the card so nothing floats over the arcade
 function MenuSkull({ className = "relative" }: { className?: string }) {
@@ -35,7 +36,7 @@ type Props = {
 };
 
 // The game's name on one line: long names shrink to fit rather than wrapping
-function FittedTitle({ text, accent }: { text: string; accent: string }) {
+function FittedTitle({ text, accent, font }: { text: string; accent: string; font: ArcadeFont }) {
   const boxRef = useRef<HTMLHeadingElement | null>(null);
   const textRef = useRef<HTMLSpanElement | null>(null);
   const [scale, setScale] = useState(1);
@@ -49,15 +50,19 @@ function FittedTitle({ text, accent }: { text: string; accent: string }) {
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
-    document.fonts?.ready.then(fit).catch(() => {});
+    whenFontReady(font).then(fit);
     return () => observer.disconnect();
-  }, [text]);
+  }, [text, font]);
 
   return (
     <h2
       ref={boxRef}
-      className="flex h-10 w-full items-center justify-center overflow-hidden whitespace-nowrap font-zombie text-3xl tracking-wide text-orange-50 sm:h-11 sm:text-4xl"
-      style={{ textShadow: `0 0 14px ${accent}, 0 0 2px ${accent}` }}
+      className="flex h-10 w-full items-center justify-center overflow-hidden whitespace-nowrap text-3xl text-orange-50 sm:h-11 sm:text-4xl"
+      style={{
+        fontFamily: fontFamily(font),
+        fontWeight: font.weight ?? 400,
+        textShadow: `0 0 14px ${accent}, 0 0 2px ${accent}`,
+      }}
       title={text}
     >
       <span ref={textRef} className="inline-block" style={{ transform: `scale(${scale})` }}>
@@ -91,9 +96,9 @@ export default function GameCard({ game, layout, style, className = "", onLeader
               transition={{ duration: 0.16, ease: "easeOut" }}
               className="flex flex-col items-center gap-1"
             >
-              <FittedTitle text={game.name} accent={accent} />
+              <FittedTitle text={game.name} accent={accent} font={game.cartridge.font} />
               {/* Room for two lines whether the tagline needs them or not */}
-              <p className="flex h-10 items-center justify-center text-sm leading-5 text-orange-100/80">
+              <p className="flex h-10 items-center justify-center font-sans text-sm font-medium leading-5 text-orange-100/85">
                 <span className="line-clamp-2">{game.cartridge.tagline}</span>
               </p>
             </motion.div>
@@ -105,18 +110,18 @@ export default function GameCard({ game, layout, style, className = "", onLeader
                 type="button"
                 onClick={() => onLeaderboard(game)}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 rounded-lg border px-4 py-1.5 text-sm font-semibold text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                className="flex items-center gap-2 rounded-lg border px-4 py-1.5 font-sans text-sm font-semibold text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
                 style={{ borderColor: accent, background: `${accent}2e` }}
               >
                 <FaTrophy aria-hidden="true" /> Leaderboard
               </motion.button>
             ) : (
-              <p className="text-xs text-orange-100/50">Just for fun: no scores kept</p>
+              <p className="font-sans text-xs text-orange-100/55">Just for fun: no scores kept</p>
             )}
           </div>
 
           {layout === "wall" && (
-            <p className="mt-2 h-4 text-[0.7rem] text-orange-100/45">
+            <p className="mt-2 h-4 font-sans text-[0.7rem] text-orange-100/50">
               Click a cartridge to play ·{" "}
               <kbd className="rounded border border-white/20 px-1">←</kbd>{" "}
               <kbd className="rounded border border-white/20 px-1">→</kbd>{" "}

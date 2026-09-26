@@ -35,6 +35,7 @@ import {
 } from "../Arcade/cabinetParts.ts";
 import { createArcadeAmbience, type ArcadeAmbience } from "../Arcade/arcadeAmbience.ts";
 import { createCartridge, loadVideoStills, type Cartridge } from "./cartridge.ts";
+import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
@@ -73,6 +74,8 @@ type CartState = {
 
 const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"]);
 const SHELF_NEON = "#ff7a1a";
+// The cabinet's trim and big buttons as modelled, before a game recolours them
+const CABINET_TRIM = "#ff7a1a";
 const TALL_ASPECT = 1.05; // narrower than this and the shelf becomes a swipeable ledge
 const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
 // Pixels kept clear under the scene on tall screens for the info card (which
@@ -153,6 +156,7 @@ export default function CartridgeArcade({
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
     scene.add(shelfLight);
 
+    linkArcadeFonts(games.map((game) => game.cartridge.font));
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -292,12 +296,28 @@ export default function CartridgeArcade({
     marqueeTexture.anisotropy = 8;
     let marqueeText = "Scareathon";
     let marqueeColor = MARQUEE_NEON_COLORS[0];
+    let marqueeFontName: string | undefined;
     let marqueeMaterial: MeshStandardMaterial | null = null;
-    const paintMarquee = (text: string, color: string) => {
+    const paintMarquee = (text: string, color: string, font?: ArcadeFont) => {
       marqueeText = text;
       marqueeColor = color;
-      drawNeonMarquee(marqueeCanvas, text, color);
+      marqueeFontName = font && marqueeFont(font);
+      drawNeonMarquee(marqueeCanvas, text, color, marqueeFontName);
       marqueeTexture.needsUpdate = true;
+      // Repaint once the game's font has arrived, if it's still the sign
+      if (font) {
+        whenFontReady(font).then(() => {
+          if (disposed || marqueeText !== text) return;
+          drawNeonMarquee(marqueeCanvas, text, color, marqueeFontName);
+          marqueeTexture.needsUpdate = true;
+        });
+      }
+    };
+    // Paint the sign for a game: its name, in its font and colour, and
+    // recolour the cabinet to match
+    const showGame = (game: MachineData) => {
+      paintMarquee(game.name, game.cartridge.color, game.cartridge.font);
+      tintCabinet(game.cartridge.color);
     };
     paintMarquee(marqueeText, marqueeColor);
     const marqueeBoot = { value: 1 };
@@ -314,7 +334,7 @@ export default function CartridgeArcade({
         .to(marqueeBoot, { value: 1, duration: 0.25 }, 0.45);
     };
     document.fonts?.load("220px Zombie").then(() => {
-      if (!disposed) paintMarquee(marqueeText, marqueeColor);
+      if (!disposed && !marqueeFontName) paintMarquee(marqueeText, marqueeColor);
     }).catch(() => {});
 
     // --- State filled in once the cabinet model loads --------------------------------
@@ -345,6 +365,21 @@ export default function CartridgeArcade({
     const shelfTop = new Vector3(); // top centre of the shelf, in the shelf group's space
     let shelfWidth = 0;
     let portLight: PointLight | null = null;
+
+    // --- Cabinet colour: the trim and big buttons take on the game's colour --------
+    const tintMaterials: MeshStandardMaterial[] = [];
+    let tintTarget = CABINET_TRIM;
+    const tintCabinet = (hex: string, instant = false) => {
+      tintTarget = hex;
+      const target = new Color(hex);
+      tintMaterials.forEach((material) => {
+        gsap.killTweensOf([material.color, material.emissive]);
+        const glow = target.clone().multiplyScalar(0.3);
+        const duration = instant ? 0 : 0.45;
+        gsap.to(material.color, { r: target.r, g: target.g, b: target.b, duration, ease: "power2.out" });
+        gsap.to(material.emissive, { r: glow.r, g: glow.g, b: glow.b, duration, ease: "power2.out" });
+      });
+    };
 
     const buildShelf = (mode: Layout) => {
       layoutMode = mode;
@@ -542,7 +577,7 @@ export default function CartridgeArcade({
       staticUntil = performance.now() / 1000 + seconds;
       showOnScreen(screenTexture);
       const game = games[index];
-      if (game) paintMarquee(game.name, MARQUEE_NEON_COLORS[index % MARQUEE_NEON_COLORS.length]);
+      if (game) showGame(game);
     };
 
     const focus = (index: number, fromUser = false) => {
@@ -570,7 +605,7 @@ export default function CartridgeArcade({
       state.where = "slot";
       insertedIndex = index;
       setInserted(index);
-      paintMarquee(game.name, MARQUEE_NEON_COLORS[index % MARQUEE_NEON_COLORS.length]);
+      showGame(game);
       if (rimMaterial) rimMaterial.color.set(game.cartridge.color);
       if (instant) {
         startVideo(game);
@@ -621,6 +656,7 @@ export default function CartridgeArcade({
       modeStart = performance.now() / 1000;
       showOnScreen(screenTexture);
       paintMarquee("Scareathon", MARQUEE_NEON_COLORS[0]);
+      tintCabinet(CABINET_TRIM);
       flickerMarquee();
       if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
       old.where = "flying";
@@ -736,10 +772,14 @@ export default function CartridgeArcade({
           marqueeMaterial.emissive = new Color("#ffffff");
           marqueeMaterial.emissiveIntensity = MARQUEE_GLOW;
           child.material = marqueeMaterial;
-        } else if (PANEL_MATERIALS.has(material.name)) {
-          panelBox.union(new Box3().setFromObject(child));
+        } else if (material.name === "Lining" || material.name === "OrangeButton") {
+          const own = track(material.clone());
+          child.material = own;
+          tintMaterials.push(own);
         }
+        if (PANEL_MATERIALS.has(material.name)) panelBox.union(new Box3().setFromObject(child));
       });
+      tintCabinet(tintTarget, true);
 
       const cabinetSize = cabinetBox.getSize(new Vector3());
       const cartWidth = cabinetSize.x * 0.2;
@@ -772,7 +812,7 @@ export default function CartridgeArcade({
       scene.add(portLight);
 
       games.forEach((game, index) => {
-        const cart = createCartridge(game.name, game.cartridge.tagline, game.cartridge.color, cartSize);
+        const cart = createCartridge(game.name, game.cartridge.tagline, game.cartridge.color, game.cartridge.font, cartSize);
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
         disposables.push(cart);
