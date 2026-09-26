@@ -45,6 +45,7 @@ const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
 const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
+const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 
 type ArcadeMessage = {
@@ -318,6 +319,20 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Frog Ball", FROG_BALL_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "Mystery Crypt",
+      cartridge: { color: "#5b3a8c", tagline: "Crawl the crypt, recruit the monsters.", font: { family: "Creepster" } },
+      game: (
+        <GameRenderer
+          title="Mystery Crypt"
+          url={MYSTERY_CRYPT_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Mystery Crypt", MYSTERY_CRYPT_URL)
           }
         />
       ),

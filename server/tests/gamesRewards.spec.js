@@ -102,4 +102,12 @@ describe('validateScoreSubmission', () => {
             metricValue: 84250,
         })).toEqual({ ok: true });
     });
+
+    test('accepts Mystery Crypt scores', () => {
+        expect(validateScoreSubmission({
+            game: 'Mystery Crypt',
+            metricName: 'score',
+            metricValue: 6420,
+        })).toEqual({ ok: true });
+    });
 });

@@ -28,6 +28,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Frog Ball', {
         score: { min: 0, max: 10000000, integer: true },
     }],
+    // Candy plus floor and kill bonuses; floors never end, so leave room.
+    ['Mystery Crypt', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

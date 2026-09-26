@@ -1,0 +1,6 @@
+/* A new message slides up into the log. */
+@keyframes mc-msg {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.mc-msg { animation: mc-msg 0.2s ease-out both; }
