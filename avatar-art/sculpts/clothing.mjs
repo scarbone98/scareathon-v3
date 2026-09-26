@@ -39,8 +39,8 @@ export function parts(build) {
           },
         }),
         ...SIDES.flatMap((s) => [
-          body.upperArm(s, { inflate: 2, material: "dye1" }),
-          body.forearm(s, { inflate: 2.2, material: (x, y) => (y > 104 ? null : y >= 100 ? rib(x) : "dye1") }),
+          body.upperArm(s, { inflate: 1.7, material: "dye1" }),
+          body.forearm(s, { inflate: 1.9, material: (x, y) => (y > 104 ? null : y >= 100 ? rib(x) : "dye1") }),
         ]),
       ],
     },
@@ -49,7 +49,7 @@ export function parts(build) {
       blend: 5,
       shapes: [
         ...body.torso({ inflate: 1, material: (x, y) => (y > 108 || neckOpen(x, y, 4) ? null : "dye1") }),
-        ...SIDES.map((s) => body.upperArm(s, { inflate: 1.4, material: (x, y) => (y > 87 ? null : "dye1") })),
+        ...SIDES.map((s) => body.upperArm(s, { inflate: 1.2, material: (x, y) => (y > 87 ? null : "dye1") })),
       ],
     },
     skirt: {
