@@ -1,5 +1,5 @@
 # Heavy-lidded, tired eyes with dark bags under them. Irises peek from under the lid.
-at: 38,63
+at: 44,63
 outline: none
 legend:
   k = ink.0
@@ -10,13 +10,13 @@ legend:
   B = eyes.2
   C = eyes.3
 ---
-......................
-......................
-.............lllllll..
-..lllll.....llllllllll
-.kkkkkkk...kkkkkkkkkk.
-.kwAABk....kwwAABBBAk.
-.kABBCk....kABBBCCCBk.
-..kCCk......kBCCCCwk..
-...kk........kkkkkk...
-..LLL.........LLLLL...
+................................
+.llllllll..............llllllll.
+llllllllll............llllllllll
+kkkkkkkkkk............kkkkkkkkkk
+kwwAABBBAk............kwwAABBBAk
+kABBBCCCBk............kABBBCCCBk
+.kBCCCCwk..............kBCCCCwk.
+..kkkkkk................kkkkkk..
+................................
+.LLLLLLLL..............LLLLLLLL.

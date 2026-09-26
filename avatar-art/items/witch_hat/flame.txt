@@ -1,5 +1,5 @@
 # Candle flame, drawn over everything. No outline: light has no edge.
-at: 84,24
+at: 82,24
 outline: none
 legend:
   y = gold.4
