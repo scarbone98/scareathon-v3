@@ -22,6 +22,7 @@ export const SLOTS = [
   "eyes",
   "mouth",
   "brows",
+  "legwear",
   "legs",
   "feet",
   "torso",

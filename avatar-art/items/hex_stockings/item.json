@@ -1,15 +1,15 @@
 {
   "name": "Hex Stockings",
-  "category": "legs",
+  "category": "legwear",
   "parts": [
     {
-      "slot": "legs",
+      "slot": "legwear",
       "file": "stockings.f.txt",
       "build": "f",
       "sculpt": "clothing.mjs#stockings"
     },
     {
-      "slot": "legs",
+      "slot": "legwear",
       "file": "stockings.m.txt",
       "build": "m",
       "sculpt": "clothing.mjs#stockings"

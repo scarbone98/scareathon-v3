@@ -154,10 +154,16 @@ function renderItem(item) {
 // the avatar-wide swaps plus that item's dyes, then stack slots back to front.
 function composeOutfit(outfit) {
   const hidden = new Set(outfit.items.flatMap(({ key }) => items[key].hides || []));
+  // Within a slot, items stack by their `order` (default 0), never by the
+  // order they were put on, so an outfit always looks the same.
+  const byOrder = outfit.items
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => (items[a.entry.key].order || 0) - (items[b.entry.key].order || 0) || a.index - b.index)
+    .map(({ entry }) => entry);
   const canvas = createLayer();
   for (const slot of SLOTS) {
     if (hidden.has(slot)) continue;
-    for (const entry of outfit.items) {
+    for (const entry of byOrder) {
       const layer = rendered[entry.key][`${slot}.${outfit.build}`] ?? rendered[entry.key][slot];
       if (!layer) continue;
       const swaps = {
@@ -212,6 +218,7 @@ function writeManifest() {
       slots: Object.keys(rendered[item.key]),
       dyes: item.dyes || {},
       hides: item.hides || [],
+      order: item.order || 0,
     })),
   };
   fs.writeFileSync(path.join(EXPORT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
