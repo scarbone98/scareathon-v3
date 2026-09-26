@@ -46,12 +46,6 @@ export function AvatarCompositeEnsurer() {
       const userId = session?.user.id;
       if (!userId) return null;
 
-      if (await avatarCompositeIsCurrent(userId)) {
-        const compositeUrl = getAvatarCompositePublicUrl(userId, Date.now());
-        queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
-        return compositeUrl;
-      }
-
       const response = await fetchWithAuth("/user/avatar");
       const data = (await response.json()) as AvatarResponse & { error?: string };
       if (!response.ok) {
@@ -59,6 +53,12 @@ export function AvatarCompositeEnsurer() {
       }
 
       queryClient.setQueryData(["avatar"], data);
+
+      if (await avatarCompositeIsCurrent(userId, data.data.profile.savedAt)) {
+        const compositeUrl = getAvatarCompositePublicUrl(userId, Date.now());
+        queryClient.setQueryData(["avatar", "compositeUrl"], compositeUrl);
+        return compositeUrl;
+      }
 
       const compositeUrl = await uploadAvatarComposite(lookFromAvatar(data.data), userId);
       if (compositeUrl) {

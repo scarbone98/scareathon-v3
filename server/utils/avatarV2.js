@@ -56,6 +56,8 @@ export function serializeProfile(row) {
         skin: row?.skin || avatarRules.skinTones[0],
         hair: row?.hair || avatarRules.hairColors[0],
         eyes: row?.eyes || avatarRules.eyeColors[0],
+        // When the look was last saved; a composite older than this is stale.
+        savedAt: row?.updated_at ? new Date(row.updated_at).toISOString() : null,
     };
 }
 

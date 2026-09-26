@@ -38,6 +38,7 @@ export type AvatarProfile = {
   skin: string;
   hair: string;
   eyes: string;
+  savedAt?: string | null;
 };
 
 export type OutfitEntry = {

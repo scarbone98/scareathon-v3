@@ -101,6 +101,6 @@ describe('validateOutfitItems', () => {
 
 describe('serializeProfile', () => {
     test('fills defaults for a missing row', () => {
-        expect(serializeProfile(undefined)).toEqual({ build: 'f', buildChosen: false, skin: 'skin', hair: 'hair', eyes: 'eyes' });
+        expect(serializeProfile(undefined)).toEqual({ build: 'f', buildChosen: false, skin: 'skin', hair: 'hair', eyes: 'eyes', savedAt: null });
     });
 });

@@ -64,7 +64,7 @@ async function getAvatarPayload(userId, client = pool) {
     await client.query('SELECT public.seed_user_avatar_defaults($1)', [userId]);
 
     const profileResult = await client.query(`
-        SELECT build, build_chosen, skin, hair, eyes
+        SELECT build, build_chosen, skin, hair, eyes, updated_at
         FROM user_avatar_profile
         WHERE user_id = $1
     `, [userId]);
