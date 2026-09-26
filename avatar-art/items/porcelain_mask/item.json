@@ -1,1 +1,8 @@
-{ "name": "Porcelain Half-Mask", "category": "face_acc", "parts": [{ "slot": "face_acc", "file": "mask.txt" }] }
+{
+  "name": "Porcelain Half-Mask",
+  "category": "face_acc",
+  "parts": [
+    { "slot": "face_acc", "file": "mask.txt", "sculpt": "accessories.mjs#mask" },
+    { "slot": "face_acc", "file": "cracks.txt" }
+  ]
+}

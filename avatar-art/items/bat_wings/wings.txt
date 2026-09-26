@@ -1,42 +1,41 @@
-# Tattered bat wings (sculpted first pass: avatar-art/sculpts/accessories.mjs wings).
-at: 5,69
+# Tattered bat wings (sculpted: avatar-art/sculpts/accessories.mjs wings).
+at: 9,52
 outline: auto
 legend:
-  c = dye1.1
-  h = dye1.2
+  b = dye1.1
+  f = dye1.2
   a = dye1.3
-  b = dye1.4
-  g = dye2.1
-  f = dye2.2
-  d = dye2.3
-  e = dye2.4
+  c = dye1.4
+  h = dye2.1
+  g = dye2.2
+  e = dye2.3
+  d = dye2.4
 ---
-................aaaaaaaaaaaa......................................................aaaaaaaaaaaa................
-.............baaaaaaaaaaaaaaaaa................................................baaaaaaaaaaaaaaaaa.............
-..........aaaaaaaaaaaaacddcaaaaaaa..........................................aaaaaaacddcaaaaaaaaaaaaa..........
-.........aaaaaaaaaaaaadeedfcaaaaaaa........................................aaaaaaaceeddfaaaaaaaaaaaaa.........
-.......baaaaaaaaaaddeeedddfgaaaaaaaaa....................................baaaaaaaaddddddddddaaaaaaaaaaa.......
-......aaaaaaaadeedddddddddffaaaaaaaaaa..................................aaaaaaaaaaddddffddddddddaaaaaaaa......
-.....aaaadeedddddddffddddffdfaaaaaaaaaa................................aaaaaaaaaaedddfffffffdddddddddaaaa.....
-....deeddddddffffggggdddffdddfaaaaaaaaaa..............................aaaaaaaaaaeddffffffgggfffffddddddddd....
-..eddddffffgggaaaaaaadddffddddfaaaaaaaaaa............................aaaaaaaaaaeedfffffffaaaaaaagggffffddddd..
-..fffgggaaaaaaaaaaaaedddfffddddfaaaaaaaaa...........................baaaaaaaaaeedfggffffdfaaaaaaaaaaaagggffg..
-..aaaaaaaaaaaaaaaaaadffdfgafddddfaaaaaaaa...........................aaaaaaaaadeddfgaddffddaaaaaaaaaaaaaaaaaa..
-.aaaaaaaaaaaaaaaaaaedgfdfaaafddddcaaaaaaa...........................aaaaaaaaceddfgaaadfffdfaaaaaaaaaaaaaaaaah.
-.aaaaaaaaaaaaaaaaaadfaadfaaaafddddcaaaaaa...........................aaaaaaaceddfgaaaadfaaddaaaaaaaaaaaaaaaaah.
-aaaaaaaaaaaaaaaaaadfaaadfaaaaafddddcaaaaa...........................aaaaaaceddfgaaaaadfaaaddaaaaaaaaaaaaaaaaac
-aaaaaaaaaaaaaaaaaddaaaadfaaaaacdddddcaaaa...........................aaaaaceddfgcaaaaaddaaaadfaaaaaaaaaaaaaaaah
-aaaaaaaaaaaaaaaaadaaaaadaaaaaaacdddddcaaa...........................aaaaceddfgcaaaaaaadaaaaadaaaaaaaaaaaaaaaah
-aaaaaaaaaaaaaaaadfaaaaadaaaaaaaafddddfcaa...........................aaaceddfggaaaaaaaadaaaaaddaaaaaaaaaaaaaahh
-aaaaaaaaaaaaaaaafaaaaaadaaaaaaaaafddddfca...........................aaceddffgaaaaaaaaadaaaaaadaaaaaaaaaaaaaahh
-aaaaaaaaaaaaaaadaaaaaaafaaaaaaaaacfddddfc...........................aceeddfgcaaaaaaaaadaaaaaaadaaaaaaaaaaaaahh
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacfddddf...........................ceeddfgcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaahhh
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacfddddf..........................eeddfgcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaahhc
-.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacfddddf........................eeddfgcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaahhh.
-.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacddddf........................dddfgcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaahhhh.
-..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacfddfg........................ddfggcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaahhh..
-..aaaaaaaaedaaaaaaaaaddaaaaaaaaa..aaaacffgg........................ffggcaaa..aaaaaaaaa.daaaaaaaaafdaaaaahhhc..
-...aaaaaa.fg.aaaaaaa.dd.aaaaaaa....ahhhcc............................ccaaa....aaaaaaa..dgaaaaaaa..fgaahhhhh...
-....aaaaa....aaaaaaa.df.aaaaaaa....hhhhh..............................aaaa....aaaaaaa..dfaaaaaaa....ahhhhh....
-.....aaa......aaaaa..df..aaaaa......hhh................................aa......aaaaa...df.aaaaa......hhhh.....
-......h........aaa...fg...aaa........h..........................................aaa....fg..aaa........hh......
+...............................................................................aaaaaaaaaa...............
+...........................................................................aaaabbbbaaaaaaaaaa...........
+.........................................................................caaaabddeebaaaaaaaaaaa.........
+...............aaaaaabbbb..............................................caaaaaabeeeeeeeeaaaaaaaaaf.......
+...........caaaaaaaabddegbaaa.........................................caaaaaaaeeeeggeeeeeeeaaaaaaa......
+.........caaaaaaaeeddeeeghaaaaa......................................caaaaaaaadeeggggggeeeeeeeeeaaa.....
+.......caaaaaeddeeeeeeeeggaaaaaaa...................................aaaaaaaaadeegggghhhhhggggeeeeeee....
+......aaeddeeeeeegggeeeggebaaaaaaa.................................caaaaaaaadeeggggggaaaaaaahhhgggeeeee.
+....ddeeeeeeggghhhheeeggeeebaaaaaaaf..............................caaaaaaaaedeghgggeeaaaaaaaaaaaaahhggh.
+.deeeeggghhhaaaaaaaeeeggeeeeaaaaaaaaf.............................aaaaaaaabdeghaeeggegaaaaaaaaaaaaaaaa..
+.gghhhaaaaaaaaaaaadegeghgeeegaaaaaaaa.............................aaaaaaaadeehaaeegaeeaaaaaaaaaaaaaaaaf.
+..aaaaaaaaaaaaaaaaeggegaageeegaaaaaaaa............................aaaaaaadeeghaaaegaaegaaaaaaaaaaaaaaaf.
+.caaaaaaaaaaaaaaaeehaegaaageeegaaaaaaa............................aaaaaadeeghaaaaegaaaeaaaaaaaaaaaaaaaab
+.aaaaaaaaaaaaaaaaehaaegaaaageeegaaaaaa............................aaaaabdeghaaaaaeaaaaaeaaaaaaaaaaaaaaaf
+aaaaaaaaaaaaaaaaegaaaegaaaaaeeeegaaaaa............................aaaabdeehbaaaaaeaaaaaeaaaaaaaaaaaaaaaf
+aaaaaaaaaaaaaaaagaaaaeaaaaaabeeeebaaaa............................aaabdeeghaaaaaaaaaaaaaeaaaaaaaaaaaaaff
+aaaaaaaaaaaaaaaeaaaaaeaaaaaaageeeebaaa............................aabdeeghbaaaaaaaaaaaaaaaaaaaaaaaaaaaff
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaageeegbaa............................abedeghbaaaaaaaaaaaaaaaaaaaaaaaaaaaaff
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabgeeegba............................abdeeghaaaaaaaaaaaaaaaaaaaaaaaaaaaafff
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabeeeegb............................bdeeghbaaaaaaaaaaaaaaaaaaaaaaaaaaaaffb
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabeeeeg............................deeghbaaaaaaaaaaaaaaaaaaaaaaaaaaaafff.
+faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabgeeeeg..........................ddeghbaaaaaaaaaaaaaaaaaaaaaaaaaaaaffff.
+.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabgeeee..........................deeghbaaaaaaaaaaaaaaaaaaaaaaaaaaaffff..
+.aaaaaaaadeaaaaaaaa.eaaaaaaaa..aaabgeeeg........................eeeghbaaa..aaaaaaaah.aaaaaaaaegaaffffb..
+..aaaaaa.gh.aaaaaa.ee.aaaaaa....affbeegh........................eeghbaaa....aaaaaaeh..aaaaaa.gh.fffff...
+...aaaaa....aaaaaa.eg.aaaaaa....ffffbgh..........................gh.aaaa....aaaaaaeg..aaaaaa....ffff....
+....aa........aa...eg...aa........ff.................................f........aa..eg....aa........f.....
+...................gh.............................................................gh....................

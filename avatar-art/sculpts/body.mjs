@@ -1,68 +1,109 @@
 // The base body's shapes, shared so clothing is sculpted to fit it exactly.
-// Every function takes { inflate, material, group, ...options }: `inflate`
-// grows the shape by that many pixels, which is how clothes sit on top.
-// `side` is 1 for the viewer's left, -1 for the viewer's right.
+//
+// 3/4 view, turned toward the viewer's left, with Gaia-like proportions: the
+// head is ~35 px wide and a third of the figure's height. The far side
+// (viewer's left) sits back (-z); the near side (viewer's right) comes forward.
+//
+// bodyFor(build) returns shape makers for "f" or "m". Both builds share the
+// head, so hair, faces and hats fit either. Every maker takes
+// { inflate, material, ...options }; `inflate` grows the shape by that many
+// pixels, which is how clothes sit on top.
 import { capsule, ellipsoid, sphere } from "../../scripts/avatar-art/sculpt.mjs";
 
-export const mx = (side, x) => 60 + side * (x - 60);
-export const SIDES = [1, -1];
+export const SIDES = ["far", "near"];
+const TORSO_TURN = -25;
 
-const grow = (radii, by) => (Array.isArray(radii) ? radii.map((r) => r + by) : radii + by);
+const grow = (radii, by) => radii.map((r) => r + by);
+
+// Shared head. Cranium centre (63, 49), radius ~17.5; face toward lower left.
+export const HEAD = { x: 63, y: 49, r: 17.5 };
 
 export function head({ inflate = 0, ...o } = {}) {
   return [
-    ellipsoid([60, 58, 0], grow([24, 22, 21], inflate), { group: "head", ...o }),
-    ellipsoid([60, 70, 6], grow([18, 13, 14], inflate), { group: "head", blend: 10, ...o }),
-    sphere([60, 78, 8], 6.5 + inflate, { group: "head", blend: 8, ...o }),
+    ellipsoid([63, 49, 0], grow([17.5, 17, 16.5], inflate), { group: "head", ...o }),
+    ellipsoid([57.2, 57.6, 4.3], grow([13, 9.4, 10.8], inflate), { group: "head", blend: 7, ...o }),
+    sphere([54.4, 63.4, 5.8], 4.5 + inflate, { group: "head", blend: 6, ...o }),
   ];
 }
 
-export function ear(side, { inflate = 0, ...o } = {}) {
-  return ellipsoid([mx(side, 36.5), 66, -2], grow([3, 5, 3], inflate), { group: `ear${side}`, ...o });
+export function ear({ inflate = 0, ...o } = {}) {
+  return ellipsoid([78.8, 54, -1.4], grow([2.6, 4, 2.2], inflate), { group: "ear", ...o });
 }
 
-export function neck({ inflate = 0, ...o } = {}) {
-  return capsule([60, 80, -4], [60, 93, -3], 5 + inflate, 5.5 + inflate, { group: "torso", ...o });
-}
+// Per-build measurements. [x, y, z] points and radii.
+const BUILD_SPECS = {
+  m: {
+    neck: [[61, 63, -3], [61, 74, -2], 4.8, 5.4],
+    shoulder: { far: [[47, 77, -4], 5.4], near: [[75, 77, 3], 5.8] },
+    chest: [[61, 84, 0], [15.5, 9, 9.5]],
+    bust: [],
+    waist: [[61, 95, 0], [12.5, 8, 8.5]],
+    hips: [[61, 103, 0], [12.5, 7, 8.5]],
+    upperArm: { far: [[45, 79, -5], [42, 92, -5], 4.2, 3.8], near: [[77, 79, 4], [81, 92, 5], 4.6, 4.1] },
+    forearm: { far: [[42, 92, -5], [42, 103, -3], 3.8, 3.3], near: [[81, 92, 5], [81, 103, 7], 4.1, 3.5] },
+    hand: { far: [[43, 106, -2], [3.4, 4.2, 3.2]], near: [[80, 106, 8], [3.7, 4.5, 3.6]] },
+    thigh: { far: [[54, 104, -3], [51, 121, -3], 6.2, 5.1], near: [[67.5, 104, 3], [68, 121, 3], 6.6, 5.4] },
+    shin: { far: [[51, 121, -3], [49, 138, -3], 5.1, 3.9], near: [[68, 121, 3], [68, 138, 3], 5.4, 4.2] },
+    foot: { far: [[46, 141.5, -1], [5.2, 3.2, 4.6]], near: [[65, 142.5, 5], [6, 3.3, 5.2]] },
+  },
+  f: {
+    neck: [[61, 63, -3], [61, 74, -2], 4.2, 4.7],
+    shoulder: { far: [[49, 77.5, -4], 4.6], near: [[73, 77.5, 3], 5] },
+    chest: [[61, 85, 0], [13, 8.5, 8.5]],
+    bust: [[[55.5, 88, 5], 3.6], [[65.5, 88, 6.5], 4]],
+    waist: [[61, 95, 0], [10, 8, 7.5]],
+    hips: [[61, 104, 0], [13.5, 7.5, 9]],
+    upperArm: { far: [[47, 80, -5], [44, 92, -5], 3.7, 3.3], near: [[75, 80, 4], [79, 92, 5], 4.1, 3.6] },
+    forearm: { far: [[44, 92, -5], [44, 103, -3], 3.3, 2.8], near: [[79, 92, 5], [79, 103, 7], 3.6, 3] },
+    hand: { far: [[45, 106, -2], [3.1, 3.9, 3]], near: [[78, 106, 8], [3.4, 4.2, 3.3]] },
+    thigh: { far: [[54, 105, -3], [51, 121, -3], 6.6, 5], near: [[67.5, 105, 3], [68, 121, 3], 7, 5.2] },
+    shin: { far: [[51, 121, -3], [49.5, 138, -3], 5, 3.5], near: [[68, 121, 3], [68, 138, 3], 5.2, 3.8] },
+    foot: { far: [[46.5, 141.5, -1], [4.8, 3, 4.3]], near: [[65, 142.5, 5], [5.5, 3.1, 4.8]] },
+  },
+};
 
-export function shoulder(side, { inflate = 0, ...o } = {}) {
-  return sphere([mx(side, 46), 97, -1], 6 + inflate, { group: "torso", ...o });
-}
+export function bodyFor(build) {
+  const b = BUILD_SPECS[build];
+  if (!b) throw new Error(`Unknown build "${build}"`);
+  const tube = ([a, c, ra, rb], inflate, o) => capsule(a, c, ra + inflate, rb + inflate, o);
 
-export function chest({ inflate = 0, ...o } = {}) {
-  return ellipsoid([60, 102, 0], grow([15, 10, 9], inflate), { group: "torso", ...o });
-}
-
-export function hips({ inflate = 0, ...o } = {}) {
-  return ellipsoid([60, 116, 0], grow([13, 9, 8.5], inflate), { group: "torso", blend: 8, ...o });
-}
-
-export function torso(options = {}) {
-  return [...SIDES.map((s) => shoulder(s, options)), chest(options), hips(options)];
-}
-
-export function upperArm(side, { inflate = 0, ...o } = {}) {
-  return capsule([mx(side, 44), 98, 0], [mx(side, 41), 110, 0], 4.4 + inflate, 3.9 + inflate, { group: `arm${side}`, ...o });
-}
-
-export function forearm(side, { inflate = 0, ...o } = {}) {
-  return capsule([mx(side, 41), 110, 0], [mx(side, 41), 120, 1], 3.9 + inflate, 3.4 + inflate, { group: `arm${side}`, ...o });
-}
-
-export function hand(side, { inflate = 0, ...o } = {}) {
-  return ellipsoid([mx(side, 41), 123, 2], grow([3.8, 4.6, 3.6], inflate), { group: `arm${side}`, ...o });
-}
-
-export function thigh(side, { inflate = 0, ...o } = {}) {
-  return capsule([mx(side, 53), 120, 0], [mx(side, 53), 131.5, 0], 6.2 + inflate, 5.3 + inflate, { group: `leg${side}`, ...o });
-}
-
-export function shin(side, { inflate = 0, ...o } = {}) {
-  return capsule([mx(side, 53), 131.5, 0], [mx(side, 53), 143, 0], 5.3 + inflate, 4.3 + inflate, { group: `leg${side}`, ...o });
-}
-
-export function foot(side, { inflate = 0, ...o } = {}) {
-  return ellipsoid([mx(side, 52), 145.5, 3], grow([5.5, 3.3, 5.5], inflate), { group: `foot${side}`, ...o });
+  const maker = {
+    build,
+    head,
+    ear,
+    neck: ({ inflate = 0, ...o } = {}) => tube(b.neck, inflate, { group: "torso", ...o }),
+    shoulder: (side, { inflate = 0, ...o } = {}) =>
+      sphere(b.shoulder[side][0], b.shoulder[side][1] + inflate, { group: "torso", ...o }),
+    chest: ({ inflate = 0, ...o } = {}) => [
+      ellipsoid(b.chest[0], grow(b.chest[1], inflate), { group: "torso", rotY: TORSO_TURN, ...o }),
+      ...b.bust.map(([c, r]) => sphere(c, r + inflate, { group: "torso", blend: 4, ...o })),
+    ],
+    waist: ({ inflate = 0, ...o } = {}) =>
+      ellipsoid(b.waist[0], grow(b.waist[1], inflate), { group: "torso", rotY: TORSO_TURN, blend: 7, ...o }),
+    hips: ({ inflate = 0, ...o } = {}) =>
+      ellipsoid(b.hips[0], grow(b.hips[1], inflate), { group: "torso", rotY: TORSO_TURN, blend: 7, ...o }),
+    upperArm: (side, { inflate = 0, ...o } = {}) => tube(b.upperArm[side], inflate, { group: `arm-${side}`, ...o }),
+    forearm: (side, { inflate = 0, ...o } = {}) => tube(b.forearm[side], inflate, { group: `arm-${side}`, ...o }),
+    hand: (side, { inflate = 0, ...o } = {}) =>
+      ellipsoid(b.hand[side][0], grow(b.hand[side][1], inflate), { group: `arm-${side}`, ...o }),
+    thigh: (side, { inflate = 0, ...o } = {}) => tube(b.thigh[side], inflate, { group: `leg-${side}`, ...o }),
+    shin: (side, { inflate = 0, ...o } = {}) => tube(b.shin[side], inflate, { group: `leg-${side}`, ...o }),
+    foot: (side, { inflate = 0, ...o } = {}) =>
+      ellipsoid(b.foot[side][0], grow(b.foot[side][1], inflate), { group: `foot-${side}`, ...o }),
+  };
+  maker.torso = (options = {}) => [
+    ...SIDES.map((s) => maker.shoulder(s, options)),
+    ...maker.chest(options),
+    maker.waist(options),
+    maker.hips(options),
+  ];
+  // Anchor points items can hang things from.
+  maker.anchors = {
+    hand: { far: b.hand.far[0], near: b.hand.near[0] },
+    foot: { far: b.foot.far[0], near: b.foot.near[0] },
+    shin: { far: b.shin.far, near: b.shin.near },
+  };
+  return maker;
 }
 
 // Useful bands and patterns for materials.

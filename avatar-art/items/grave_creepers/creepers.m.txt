@@ -1,0 +1,26 @@
+# Grave Creepers with a thick crepe sole, build m (sculpted: avatar-art/sculpts/clothing.mjs creepers).
+at: 38,137
+outline: auto
+legend:
+  j = bone.1
+  h = bone.2
+  i = bone.3
+  d = dye1.1
+  b = dye1.2
+  a = dye1.3
+  c = dye1.4
+  g = dye2.1
+  f = dye2.2
+  e = dye2.3
+---
+....aaaaaaab.......................
+...ccccaaaaab..........aaaaaaaa....
+..ccccaaaaaabb.......accccaaaaaab..
+.aaaaaaaaaabbbd.....accccaaaaaaabb.
+.eeeeeeeeefffgg.....aaaaaaaaaaabbb.
+.baaaaaabbbbddd....eeeeeeeeeeffffgg
+.hiiiihhhhhbbd......aaaaaabbbbbddd.
+hhhhhhhhhjjjjjj.....aaaaaaaabbbddd.
+..jjjjjjjjjjj......hhhhhhhhhjjjjjj.
+.......jj............jjjjjjjjjjjj..
+.........................jjjj......

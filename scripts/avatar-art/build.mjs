@@ -10,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ART_DIR,
+  BUILDS,
   HEIGHT,
   SLOTS,
   WIDTH,
@@ -81,15 +82,19 @@ function loadItems(errors) {
     if (!fs.existsSync(metaFile)) continue;
     const meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
     const item = { key, ...meta, parts: [] };
-    for (const { slot, file } of meta.parts) {
+    for (const { slot, file, build } of meta.parts) {
       if (!SLOTS.includes(slot)) {
         errors.push(`${key}: unknown slot "${slot}"`);
+        continue;
+      }
+      if (build && !BUILDS.includes(build)) {
+        errors.push(`${key}: unknown build "${build}" (use ${BUILDS.join(" or ")})`);
         continue;
       }
       try {
         const part = parsePart(path.join(dir, file));
         errors.push(...validatePart(part, palette));
-        item.parts.push({ slot, part });
+        item.parts.push({ slot, build, part });
       } catch (error) {
         errors.push(error.message);
       }
@@ -115,6 +120,8 @@ function loadOutfits(items, errors) {
     .map((file) => {
       const outfit = { id: file.replace(/\.json$/, ""), ...JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")) };
       outfit.items = outfit.items.map((entry) => (typeof entry === "string" ? { key: entry } : entry));
+      outfit.build ||= BUILDS[0];
+      if (!BUILDS.includes(outfit.build)) errors.push(`outfit ${outfit.id}: unknown build "${outfit.build}"`);
       for (const { key } of outfit.items) {
         if (!items[key]) errors.push(`outfit ${outfit.id}: unknown item "${key}"`);
       }
@@ -127,11 +134,18 @@ function loadOutfits(items, errors) {
     });
 }
 
+// Layers are keyed "<slot>" when every part in that slot suits both builds,
+// and "<slot>.<build>" when any part in it is fitted to one build. A fitted
+// slot also includes that slot's shared parts, drawn in the order listed.
 function renderItem(item) {
   const bySlot = {};
-  for (const { slot, part } of item.parts) {
-    bySlot[slot] ||= createLayer();
-    drawPart(bySlot[slot], part, palette);
+  const fittedSlots = new Set(item.parts.filter((p) => p.build).map((p) => p.slot));
+  for (const { slot, build, part } of item.parts) {
+    const keys = !fittedSlots.has(slot) ? [slot] : build ? [`${slot}.${build}`] : BUILDS.map((b) => `${slot}.${b}`);
+    for (const key of keys) {
+      bySlot[key] ||= createLayer();
+      drawPart(bySlot[key], part, palette);
+    }
   }
   return bySlot;
 }
@@ -144,7 +158,7 @@ function composeOutfit(outfit) {
   for (const slot of SLOTS) {
     if (hidden.has(slot)) continue;
     for (const entry of outfit.items) {
-      const layer = rendered[entry.key][slot];
+      const layer = rendered[entry.key][`${slot}.${outfit.build}`] ?? rendered[entry.key][slot];
       if (!layer) continue;
       const swaps = {
         skin: outfit.skin,
@@ -162,13 +176,16 @@ function composeOutfit(outfit) {
 function writeSheet(images) {
   const scale = 3;
   const gap = 8;
+  const perRow = 6;
   const w = WIDTH * scale;
   const h = HEIGHT * scale;
-  const sheetWidth = images.length * (w + gap) + gap;
-  const sheetHeight = h + gap * 2;
+  const sheetWidth = Math.min(images.length, perRow) * (w + gap) + gap;
+  const sheetHeight = Math.ceil(images.length / perRow) * (h + gap) + gap;
   const sheet = fillImage(sheetWidth, sheetHeight, PREVIEW_BG);
   images.forEach((image, i) => {
-    pasteImage(sheet, sheetWidth, scaleImage(image, WIDTH, HEIGHT, scale), w, h, gap + i * (w + gap), gap);
+    const left = gap + (i % perRow) * (w + gap);
+    const top = gap + Math.floor(i / perRow) * (h + gap);
+    pasteImage(sheet, sheetWidth, scaleImage(image, WIDTH, HEIGHT, scale), w, h, left, top);
   });
   fs.writeFileSync(path.join(PREVIEW_DIR, "_sheet.png"), encodePng(sheet, sheetWidth, sheetHeight));
 }
@@ -187,6 +204,7 @@ function writeManifest() {
     ramps: Object.fromEntries(
       Object.entries(palette.ramps).map(([name, ramp]) => [name, ramp.map(([r, g, b]) => toHex(r, g, b))])
     ),
+    builds: BUILDS,
     items: Object.values(items).map((item) => ({
       key: item.key,
       name: item.name,

@@ -2,7 +2,15 @@
   "name": "Long Wisp",
   "category": "hair",
   "parts": [
-    { "slot": "hair_back", "file": "back.txt" },
-    { "slot": "hair_front", "file": "front.txt" }
+    {
+      "slot": "hair_back",
+      "file": "back.txt",
+      "sculpt": "hair_long_wisp.mjs#back"
+    },
+    {
+      "slot": "hair_front",
+      "file": "front.txt",
+      "sculpt": "hair_long_wisp.mjs#front"
+    }
   ]
 }

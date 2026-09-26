@@ -1,5 +1,5 @@
 # Skull print on the chest, drawn by hand. Fixed bone colours so it survives any dye.
-at: 55,98
+at: 54,83
 outline: none
 legend:
   W = bone.4
@@ -7,10 +7,10 @@ legend:
   S = bone.2
   k = ink.1
 ---
-..WWWWWW..
-.WWWWWWBB.
-WWkkWWkkBB
-WWkkWWkkBS
-.WWWkkWBS.
-..BWBBWS..
-..B.B.B...
+.WWWWW..
+WWWWWBB.
+WkkWkkBS
+WkkWkkBS
+.WWkkBS.
+.BWBBS..
+.B.B.B..

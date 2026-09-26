@@ -4,12 +4,14 @@ Avatar art is drawn as text. Every item is a folder of pixel grids in
 `avatar-art/items/<item_key>/`, built into PNGs by:
 
 ```
+npm run art:resculpt          # regenerate every sculpted part (or: -- <item> ...)
 npm run art:avatar            # validate, export, render previews
 npm run art:avatar -- --check # validate only
 ```
 
 The build writes `public/avatar-v2/items/<item>/<slot>.png` (one PNG per slot the
-item uses, full 120x150 canvas, canonical colours), `public/avatar-v2/manifest.json`,
+item uses, full 120x150 canvas, canonical colours; `<slot>.<build>.png` when the
+slot is fitted per body build), `public/avatar-v2/manifest.json`,
 and renders every outfit in `avatar-art/outfits/` to `avatar-art/previews/`
 (4x, plus `_sheet.png` with all outfits side by side).
 
@@ -21,7 +23,11 @@ and renders every outfit in `avatar-art/outfits/` to `avatar-art/previews/`
 3. **Look at the preview PNGs** (open them with the image viewer / Read tool). Judge them
    honestly at 4x *and* think about how they read at 1x. Fix, rebuild, repeat.
 4. Add or update an outfit in `avatar-art/outfits/` that shows the item, with at
-   least one alternative skin tone and dye so recolouring gets checked too.
+   least one alternative skin tone and dye so recolouring gets checked too,
+   on both builds if it is fitted per build (`"build": "f"` or `"m"`).
+
+Reference: the look and proportions come from Gaia Online avatars. Study real
+samples (see how to fetch them in the project memory), but never copy their pixels.
 
 ## Sculpting
 
@@ -30,65 +36,79 @@ in `avatar-art/sculpts/*.mjs`: rough 3D shapes (`ellipsoid`, `sphere`, tapered
 `capsule`) that `scripts/avatar-art/sculpt.mjs` lights from one fixed light
 and snaps to palette shades. This is what keeps every item lit and shaded the same way.
 
-```
-node scripts/avatar-art/sculpt-cli.mjs avatar-art/sculpts/accessories.mjs horns > avatar-art/items/ram_horns/horns.txt
+A part in `item.json` names the sculpt it comes from, and `npm run art:resculpt`
+regenerates it (once per build for fitted parts):
+
+```json
+{ "slot": "torso", "file": "sweater.m.txt", "build": "m", "sculpt": "clothing.mjs#sweater" }
 ```
 
-- Coordinates are canvas pixels, with z pointing toward the viewer. The body is
-  centred on x = 60 (between pixels 59 and 60). The head's cranium is centred
-  at (60, 58, 0) with radius 24; see the base body sculpt for every other part
-  of the body. For symmetric things, build one side and mirror the *shapes*
-  (`x -> 120 - x`, as `base_body.mjs` does), not the pixels, so the light stays right.
+A sculpt file exports `parts`, either an object or a function `parts(build)`
+returning `{ partName: { shapes, blend, comment, ... } }`.
+
+- Coordinates are canvas pixels, with z pointing toward the viewer. The shared
+  head's cranium is centred at (63, 49, 0) with radius ~17.5; `sculpts/body.mjs`
+  has every other body part, per build.
 - Shapes in the same `group` melt together (`blend` px). Different groups
   overlap hard and get a dark contact line, which is how strands of hair,
   arms over torsos and folds read.
-- `material` can be a function of (x, y, z) for bands, trims and cut-outs;
-  `clip` removes pixels (face openings, scalloped edges).
-- Commit the sculpt spec. The `.txt` it prints is the real source: sculpts
-  get you 80% of the way, and the rest is touch-up by hand (cracks, stitches,
-  shine, stray pixels). **Re-running a sculpt overwrites hand work**, so note
-  touch-ups in the part's comment ("Hand touch-up: ...") and redo them if you
-  re-sculpt.
+- `material` can be a function of (x, y, z) returning a ramp, `{ ramp, shift }`
+  (push the shade for ribbing, stripes, folds) or null (cut the pixel);
+  `clip` also removes pixels (face openings, scalloped edges).
+- **Never hand-edit a sculpted `.txt`**; re-sculpting would wipe it. Put
+  hand-drawn detail (cracks, prints, clasps, stitches) in its own part in the
+  same slot, listed after the sculpted one. See `porcelain_mask` and `grave_tee`.
 
 ## Clothing
 
-Garments are sculpted from the body's own shapes in `avatar-art/sculpts/body.mjs`
-(`torso`, `chest`, `hips`, `neck`, `upperArm`, `forearm`, `hand`, `thigh`,
-`shin`, `foot`), grown with `inflate` so they sit on top. That way every
-garment fits the base exactly, and fits again if the base changes. See
-`sculpts/clothing.mjs`.
+There are two body builds, `f` and `m`, like Gaia's two bases. They share the
+head (so hair, faces and hats fit both) but differ from the neck down: `m` has
+broad shoulders, a thick neck and a straight waist; `f` has narrower shoulders,
+a waist and hips.
+
+Garments are sculpted from the body's own shapes: `bodyFor(build)` in
+`avatar-art/sculpts/body.mjs` gives `torso`, `chest`, `waist`, `hips`, `neck`,
+`upperArm`, `forearm`, `hand`, `thigh`, `shin` and `foot` (sides `"far"` and
+`"near"`), grown with `inflate` so they sit on top. Write the garment once as
+`parts(build)` and list one part per build in `item.json`; it fits both bodies
+and refits if a body changes. See `sculpts/clothing.mjs`.
 
 - **How much to inflate:** fitted tops and stockings 0.5-1, sweaters and
   trousers 1.5-2.2, shoes 1.3-1.6, anything bulky (coats, armour) 2.5+.
 - **Cut a garment to length** with `material` returning null (hems, necklines,
   sleeve ends), and add hems, cuffs and ribbing with `{ ramp, shift }`.
 - **Layering:** `torso` draws over `legs`, so tops tuck over skirts and trousers;
-  `outer` sits over both. Keep hems in mind: a top that ends at y 122 leaves
+  `outer` sits over both. Keep hems in mind: a top that ends at y 108 leaves
   the skirt or trousers room to show.
+- The front centre of the turned torso is x ~57; necklines, buttons, belts
+  and prints centre there, not on x 60.
 - **Details that must stay crisp** (prints, clasps, buttons, logos) are hand
   grids added as a second part in the same slot, in fixed ramps.
 
 ## Canvas and anchors
 
-The canvas is **120 x 150** (Gaia's size), a chibi **facing forward**, centred
-on x = 60. Everything is drawn to fit `items/base_body/body.txt`.
+The canvas is **120 x 150** (Gaia's size). The avatar is in **3/4 view, turned
+toward the viewer's left**, with Gaia's proportions: the head is ~35 px wide
+and about a third of the figure's height. The far side (viewer's left) sits
+back and is partly hidden; the near side (viewer's right) comes forward.
 
-| Landmark            | Where (x, y)                                                  |
-| ------------------- | ------------------------------------------------------------- |
-| Headroom for hats   | y 0 - 33                                                      |
-| Cranium             | centre (60, 58), radius 24: x 36 - 84, top at y 36            |
-| Chin                | (60, 84)                                                      |
-| Brows               | y 58 - 60, over each eye                                      |
-| Eyes                | left x 44 - 53, right x 66 - 75, y 63 - 73                    |
-| Cheeks / blush      | y 76, under each eye                                          |
-| Mouth               | x 56 - 63, y 79 - 82                                          |
-| Ears                | (36, 66) and (84, 66), usually under hair                     |
-| Neck                | x 55 - 65, y 80 - 92; choker line y 86 - 89                   |
-| Shoulders           | (46, 97) and (74, 97)                                         |
-| Torso               | y 92 - 125; neckline dips to y 95 at the centre               |
-| Hands               | (41, 123) and (79, 123)                                       |
-| Legs                | x 47 - 59 and 61 - 73; thigh y 120 - 131, shin y 131 - 143    |
-| Feet (ground = 149) | (52, 145) and (68, 145)                                       |
+| Landmark            | Where (x, y)                                                      |
+| ------------------- | ----------------------------------------------------------------- |
+| Headroom for hats   | y 0 - 30                                                          |
+| Cranium             | centre (63, 49), radius ~17.5: x 45 - 81, top at y 32             |
+| Chin                | (54, 68); the face sits toward the lower left                     |
+| Brows               | y 46 - 48                                                         |
+| Far eye (narrow)    | x 45 - 50, y 51 - 59                                              |
+| Near eye (full)     | x 54 - 61, y 51 - 59                                              |
+| Cheeks / blush      | y 61, under each eye                                              |
+| Mouth               | x 51 - 57, y 62 - 65                                              |
+| Ear                 | (79, 54), usually under hair                                      |
+| Neck                | x 56 - 66, y 63 - 75; choker line y 69 - 73                       |
+| Shoulders           | m: (47, 77) and (75, 77); f: (49, 77.5) and (73, 77.5)            |
+| Torso               | chest y 84, waist y 95, hips y 103; front centre x ~57            |
+| Hands               | m: far (43, 106), near (80, 106); f: (45, 106) and (78, 106)      |
+| Legs                | thighs y 104 - 121, shins y 121 - 138                             |
+| Feet (ground ~146)  | far (46, 141.5), near (65, 142.5), toes toward the left           |
 
 Items may go past the body (wings, cloaks, big hats, held props), but keep
 everything on the canvas.
@@ -208,9 +228,10 @@ legend:
 }
 ```
 
-Several parts can share a slot; they are drawn in the listed order.
-`mirror: yes` mirrors pixels, which flips the lighting too. Use it only for
-unshaded, symmetric details; for shaded forms, mirror the sculpt shapes instead.
+Several parts can share a slot; they are drawn in the listed order. A part
+can also have `"build": "f"` or `"m"` (fitted to one body) and `"sculpt"`
+(see Sculpting). Parts without a build suit both bodies.
+`mirror: yes` exists, but in 3/4 view almost nothing is symmetric; avoid it.
 
 ## Swappable faces
 
@@ -230,8 +251,8 @@ This is a horror arcade, not a mall. Every item must pass these:
   the brightest shade 4 there and almost nowhere else.
 - **Wraps around properly.** Hoods have an inside, capes have a back, long hair
   has strands behind the shoulders. Use the back slots.
-- **Not perfectly symmetric.** A face-on avatar gets stiff if every item is a
-  mirror image. A crooked hat tip, a swept fringe or a scar on one side adds life.
+- **Respects the turn.** The far side is narrower and partly hidden; the near
+  side is wider and overlaps. Check it doesn't look pasted on flat.
 - **Story.** Name it like loot ("Gravewarden Hood", not "Black Hood").
 - **Tiers:** common items are dyeable basics done well. Rare items change the
   silhouette (horns, wings, huge collars, tails). Legendary items add an
@@ -249,6 +270,7 @@ floating eyes, lantern-jaw anglerfish hood, graveyard mist aura.
 - [ ] `npm run art:avatar` passes.
 - [ ] Looked at the preview at 4x, and it still reads at 1x (squint).
 - [ ] Shown on at least two skin tones and two dye choices.
+- [ ] Clothing checked on both builds.
 - [ ] Worn with hair and with the other slots it overlaps (hood + hair, coat + held item).
 - [ ] No hand-drawn black lines inside shapes; shade 4 is used sparingly.
 - [ ] An outfit in `avatar-art/outfits/` shows it off.

@@ -1,1 +1,22 @@
-{ "name": "Hex Stockings", "category": "legs", "parts": [{ "slot": "legs", "file": "stockings.txt" }], "dyes": { "dye1": "night", "dye2": "violet" } }
+{
+  "name": "Hex Stockings",
+  "category": "legs",
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "stockings.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#stockings"
+    },
+    {
+      "slot": "legs",
+      "file": "stockings.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#stockings"
+    }
+  ],
+  "dyes": {
+    "dye1": "night",
+    "dye2": "violet"
+  }
+}

@@ -1,1 +1,22 @@
-{ "name": "Patched Trousers", "category": "legs", "parts": [{ "slot": "legs", "file": "trousers.txt" }], "dyes": { "dye1": "steel", "dye2": "blood" } }
+{
+  "name": "Patched Trousers",
+  "category": "legs",
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "trousers.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#trousers"
+    },
+    {
+      "slot": "legs",
+      "file": "trousers.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#trousers"
+    }
+  ],
+  "dyes": {
+    "dye1": "steel",
+    "dye2": "blood"
+  }
+}

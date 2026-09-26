@@ -1,8 +1,8 @@
-# Small smile.
-at: 57,80
+# Small smile, slightly toward the face side.
+at: 52,63
 outline: none
 legend:
   D = skin.1
 ---
-D....D
-.DDDD.
+D...D
+.DDD.

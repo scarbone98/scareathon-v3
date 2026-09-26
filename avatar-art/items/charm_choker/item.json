@@ -1,1 +1,15 @@
-{ "name": "Charm Choker", "category": "neck", "parts": [{ "slot": "neck", "file": "choker.txt" }], "dyes": { "dye1": "night", "dye2": "blood" } }
+{
+  "name": "Charm Choker",
+  "category": "neck",
+  "parts": [
+    {
+      "slot": "neck",
+      "file": "choker.txt",
+      "sculpt": "accessories.mjs#choker"
+    }
+  ],
+  "dyes": {
+    "dye1": "night",
+    "dye2": "blood"
+  }
+}

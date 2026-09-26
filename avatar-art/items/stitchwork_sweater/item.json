@@ -1,1 +1,22 @@
-{ "name": "Stitchwork Sweater", "category": "torso", "parts": [{ "slot": "torso", "file": "sweater.txt" }], "dyes": { "dye1": "moss", "dye2": "pumpkin" } }
+{
+  "name": "Stitchwork Sweater",
+  "category": "torso",
+  "parts": [
+    {
+      "slot": "torso",
+      "file": "sweater.f.txt",
+      "build": "f",
+      "sculpt": "clothing.mjs#sweater"
+    },
+    {
+      "slot": "torso",
+      "file": "sweater.m.txt",
+      "build": "m",
+      "sculpt": "clothing.mjs#sweater"
+    }
+  ],
+  "dyes": {
+    "dye1": "moss",
+    "dye2": "pumpkin"
+  }
+}

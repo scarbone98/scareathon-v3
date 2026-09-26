@@ -1,4 +1,5 @@
-// First-pass sculpts for the starter accessories. One export per part.
+// Sculpts for the starter accessories, fitted to the shared 3/4 head
+// (centre 63, 49) and the neck/shoulders both builds share.
 import { capsule, ellipsoid, sphere } from "../../scripts/avatar-art/sculpt.mjs";
 
 const chain = (group, points, material, extra = {}) =>
@@ -7,83 +8,75 @@ const chain = (group, points, material, extra = {}) =>
     return capsule([px, py, pz], [x, y, z], pr, r, { group, material, ...extra });
   });
 
+const scallop = (x, y, top, period) => y > top + 5 * Math.abs(Math.sin((x * Math.PI) / period));
+
 export const parts = {
   horns: {
-    comment: "Ram-curl horns (sculpted first pass: avatar-art/sculpts/accessories.mjs horns).",
+    comment: "Ram-curl horns (sculpted: avatar-art/sculpts/accessories.mjs horns).",
     blend: 3,
     shapes: [
-      ...[1, -1].flatMap((s) =>
-        chain(`horn${s}`, [[70, 38, 10, 4.6], [77, 30, 6, 3.8], [84, 27, 2, 3], [89, 31, 0, 2.2], [88, 37, 1, 1.2]].map(([x, ...rest]) => [60 + s * (x - 60), ...rest]), "dye1")
-      ),
+      ...chain("near", [[70.2, 33.9, 7.2, 3.8], [75.4, 27.6, 4.3, 3.1], [80.8, 25.2, 1.4, 2.5], [84.6, 28.3, 0, 1.8], [83.8, 33.2, 0.7, 0.9]], "dye1"),
+      ...chain("far", [[53.6, 33.2, 8.6, 3.5], [49.1, 26.9, 6.5, 2.9], [44.6, 25.2, 5, 2.2], [41.5, 28.3, 4.3, 1.6], [42.3, 32.4, 4.3, 0.8]], "dye1"),
     ],
   },
   witchHat: {
-    comment: "Crooked witch hat (sculpted first pass: avatar-art/sculpts/accessories.mjs witchHat).",
-    blend: 6,
+    comment: "Crooked witch hat (sculpted: avatar-art/sculpts/accessories.mjs witchHat).",
+    blend: 5,
     shapes: [
-      ellipsoid([60, 40, 0], [34, 3.2, 23], { group: "brim", material: "dye1", blend: 0 }),
+      ellipsoid([63, 35.3, 0], [25.5, 2.4, 17], { group: "brim", material: "dye1", blend: 0 }),
       ...chain(
         "cone",
-        [[60, 37, 0, 19], [61, 26, -2, 13], [64, 15, -3, 8], [71, 7, -4, 4.5], [80, 5, -4, 2.4], [86, 8, -3, 1]],
-        (x, y) => (y >= 30 && y <= 35 ? "dye2" : "dye1")
+        [[63, 33.2, 0, 14.3], [63.7, 25.2, -1.4, 9.8], [65.9, 17.3, -2.2, 6], [70.9, 11.6, -2.9, 3.4], [77.4, 10.1, -2.9, 1.8], [81.7, 12.3, -2.2, 0.7]],
+        (x, y) => (y >= 28 && y <= 31 ? "dye2" : "dye1")
       ),
       // a stubby candle stuck to the brim, with a wax drip
-      capsule([84, 38, 12], [84, 30, 12], 2.4, 2.2, { group: "candle", material: "bone", blend: 0 }),
-      sphere([85.5, 36, 13], 1.3, { group: "candle", material: "bone" }),
+      capsule([80.3, 33.9, 8.6], [80.3, 28.1, 8.6], 1.9, 1.8, { group: "candle", material: "bone", blend: 0 }),
+      sphere([81.5, 32.4, 9.4], 1, { group: "candle", material: "bone" }),
     ],
   },
   choker: {
-    comment: "Choker with a hanging charm (sculpted first pass: avatar-art/sculpts/accessories.mjs choker).",
+    comment: "Choker with a hanging charm (sculpted: avatar-art/sculpts/accessories.mjs choker).",
     blend: 0,
     shapes: [
-      ...chain("band", [[53, 86, 0, 1.6], [56, 88, 3, 1.6], [60, 89, 4, 1.6], [64, 88, 3, 1.6], [67, 86, 0, 1.6]], "dye1"),
-      sphere([60, 92.5, 6], 2.6, { group: "charm", material: "dye2" }),
-      capsule([60, 89, 5], [60, 91, 6], 0.8, 0.8, { group: "charm", material: "steel" }),
+      ...chain("band", [[55, 69.5, 0, 1.3], [57, 71.5, 3, 1.3], [60, 72.5, 4.5, 1.3], [63, 72, 3.5, 1.3], [66.5, 70, 0, 1.3]], "dye1"),
+      sphere([59.5, 75.8, 6], 2.1, { group: "charm", material: "dye2" }),
+      capsule([59.5, 73, 5], [59.5, 74.5, 6], 0.7, 0.7, { group: "charm", material: "steel" }),
     ],
   },
   wings: {
-    comment: "Tattered bat wings (sculpted first pass: avatar-art/sculpts/accessories.mjs wings).",
+    comment: "Tattered bat wings (sculpted: avatar-art/sculpts/accessories.mjs wings).",
     blend: 2,
-    shapes: [1, -1].flatMap((s) => {
-      const m = ([x, ...rest]) => [60 + s * (x - 60), ...rest];
-      const bone = (points) => chain(`bone${s}`, points.map(m), "dye2");
-      return [
-        // membrane: a flat ellipsoid with a scalloped lower edge
-        ellipsoid(m([27, 86, -12]), [22, 17, 2.5], {
-          group: `wing${s}`,
-          material: "dye1",
-          clip: (x) => {
-            const u = s === 1 ? x : 119 - x;
-            return u > 46;
-          },
-        }),
-        ...bone([[46, 92, -8, 2.2], [30, 74, -10, 1.8], [8, 78, -11, 1.2]]),
-        ...bone([[30, 74, -10, 1.4], [16, 94, -11, 0.9]]),
-        ...bone([[30, 74, -10, 1.4], [27, 97, -11, 0.9]]),
-      ];
-    }).map((shape) => {
-      if (!shape.group.startsWith("wing")) return shape;
-      const side = shape.group === "wing1" ? 1 : -1;
-      const inner = shape.clip;
-      return {
-        ...shape,
-        clip: (x, y, z) => {
-          const u = side === 1 ? x : 119 - x;
-          return inner(x, y, z) || y > 92 + 6 * Math.abs(Math.sin(((u - 5) * Math.PI) / 11));
-        },
-      };
-    }),
+    shapes: [
+      // membranes: flat ellipsoids with a scalloped lower edge
+      ellipsoid([29, 70, -12], [20, 15, 2.5], {
+        group: "farWing",
+        material: "dye1",
+        clip: (x, y) => scallop(x - 9, y, 74, 10) || x > 47,
+      }),
+      ellipsoid([93, 68, -14], [20, 16, 2.5], {
+        group: "nearWing",
+        material: "dye1",
+        clip: (x, y) => scallop(x - 73, y, 74, 10) || x < 75,
+      }),
+      // arm bones along the top edge and down into each scallop
+      ...chain("farBone", [[47, 76, -8, 2], [32, 58, -10, 1.6], [11, 62, -11, 1.1]], "dye2"),
+      ...chain("farBone", [[32, 58, -10, 1.3], [19, 76, -11, 0.8]], "dye2"),
+      ...chain("farBone", [[32, 58, -10, 1.3], [29, 79, -11, 0.8]], "dye2"),
+      ...chain("nearBone", [[75, 76, -10, 2], [90, 56, -12, 1.6], [111, 60, -13, 1.1]], "dye2"),
+      ...chain("nearBone", [[90, 56, -12, 1.3], [103, 76, -13, 0.8]], "dye2"),
+      ...chain("nearBone", [[90, 56, -12, 1.3], [92, 79, -13, 0.8]], "dye2"),
+    ],
   },
   mask: {
-    comment: "Cracked porcelain half-mask over the right eye (sculpted first pass: avatar-art/sculpts/accessories.mjs mask).",
+    comment: "Porcelain half-mask over the near eye (sculpted: avatar-art/sculpts/accessories.mjs mask).\nThe cracks are a separate hand-drawn part, cracks.txt.",
     blend: 0,
     contactLines: false,
     shapes: [
-      ellipsoid([60, 68, 9], [19, 15, 15], {
+      ellipsoid([60, 55.5, 7], [13.5, 11, 12], {
         group: "mask",
-        material: "bone",
-        // right half of the face, with a hole for the right eye
-        clip: (x, y) => x < 60 || y < 57 || y > 80 || ((x - 70.5) / 6.5) ** 2 + ((y - 68) / 6.5) ** 2 < 1 || x > 81 - (y - 57) * 0.25,
+        material: (x, y) => (x >= 72 - (y - 44) * 0.3 ? { ramp: "bone", shift: -1 } : "bone"),
+        clip: (x, y) =>
+          x < 53 || y < 44 || y > 65 || ((x + 0.5 - 57.5) / 4.6) ** 2 + ((y + 0.5 - 55) / 5.2) ** 2 < 1 || x > 75 - (y - 44) * 0.3,
       }),
     ],
   },

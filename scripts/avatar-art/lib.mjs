@@ -9,6 +9,9 @@ export const WIDTH = 120;
 export const HEIGHT = 150;
 export const CENTER_X = WIDTH / 2;
 
+// Body builds. Parts can be fitted to one build; unfitted parts suit both.
+export const BUILDS = ["f", "m"];
+
 // Draw order, back to front. An item can put parts in any of these.
 export const SLOTS = [
   "back_fx",

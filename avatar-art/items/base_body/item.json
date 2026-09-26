@@ -1,1 +1,8 @@
-{ "name": "Base Body", "category": "body", "parts": [{ "slot": "body", "file": "body.txt" }] }
+{
+  "name": "Base Body",
+  "category": "body",
+  "parts": [
+    { "slot": "body", "file": "body.f.txt", "build": "f", "sculpt": "base_body.mjs#body" },
+    { "slot": "body", "file": "body.m.txt", "build": "m", "sculpt": "base_body.mjs#body" }
+  ]
+}
