@@ -259,8 +259,31 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   add(new BoxGeometry(radius * 3.2 * 2.4, radius * 3.2, radius * 1.4), rubber, tie.x, tie.y, tie.z);
 
   // The scanner camera's lead, added once the camera is placed: off the back of
-  // its mount, up the cabinet's front, over the deck's lip and into the bottom
-  // of the housing's front, right of the terminal
+  // its mount, up the cabinet's front, over the deck's lip, then plugged into a
+  // socket low on the housing's front, right of the terminal
+  const housingFront = center.z + depth / 2;
+  const leadRadius = radius * 1.1;
+  const port = new Vector3(center.x + width * 0.12, deckY + height * 0.3, housingFront);
+  // The socket: a dark square panel with a steel ring round the hole
+  add(new BoxGeometry(leadRadius * 6, leadRadius * 6, plate * 0.4), rubber, port.x, port.y, housingFront + plate * 0.2);
+  const ring = add(new CylinderGeometry(leadRadius * 2.1, leadRadius * 2.1, plate * 0.6, 16), steel, port.x, port.y, housingFront + plate * 0.4);
+  ring.rotation.x = Math.PI / 2;
+  // The plug: a metal collar seated in the socket, and a moulded boot behind it
+  const collarLength = leadRadius * 1.6;
+  const bootLength = leadRadius * 4;
+  const collar = add(new CylinderGeometry(leadRadius * 1.7, leadRadius * 1.7, collarLength, 14), steel, port.x, port.y, housingFront + plate * 0.6 + collarLength / 2);
+  collar.rotation.x = Math.PI / 2;
+  const bootMaterial = track(new MeshStandardMaterial({ color: new Color("#2a2629"), roughness: 0.55 }));
+  const boot = add(
+    new CylinderGeometry(leadRadius * 1.25, leadRadius * 1.9, bootLength, 12),
+    bootMaterial,
+    port.x,
+    port.y,
+    housingFront + plate * 0.6 + collarLength + bootLength / 2
+  );
+  boot.rotation.x = -Math.PI / 2;
+  const plugBack = housingFront + plate * 0.6 + collarLength + bootLength;
+
   let lead: Mesh | null = null;
   const leadMaterial = track(new MeshStandardMaterial({ color: new Color("#1b1a1d"), roughness: 0.5 }));
   const plugScanner = (from: Vector3) => {
@@ -268,19 +291,20 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
       group.remove(lead);
       lead.geometry.dispose();
     }
-    const x = center.x + width * 0.12;
+    const x = port.x;
     const lip = deckAt(x, deckFront - 0.01);
     const midY = (from.y + lip) / 2;
-    const housingFront = center.z + depth / 2;
     const curve = new CatmullRomCurve3([
       new Vector3(from.x + radius, from.y, faceZ(from.x, from.y) + radius),
       new Vector3((from.x + x) / 2, midY, faceZ((from.x + x) / 2, midY) + radius * 1.2),
       new Vector3(x, lip + radius, deckFront + radius),
-      new Vector3(x, deckAt(x, (deckFront + housingFront) / 2) + radius, (deckFront + housingFront) / 2),
-      new Vector3(x, deckY + radius, housingFront + radius * 2),
-      new Vector3(x, deckY + height * 0.18, housingFront - 0.01),
+      new Vector3(x, deckAt(x, (deckFront + plugBack) / 2) + radius, (deckFront + plugBack) / 2),
+      // Rising off the deck to come in straight behind the plug
+      new Vector3(x, (deckY + port.y) / 2 + radius, plugBack + leadRadius * 4),
+      new Vector3(x, port.y, plugBack + leadRadius),
+      new Vector3(x, port.y, plugBack - leadRadius),
     ]);
-    lead = new Mesh(new TubeGeometry(curve, 60, radius * 1.1, 6), leadMaterial);
+    lead = new Mesh(new TubeGeometry(curve, 60, leadRadius, 6), leadMaterial);
     group.add(lead);
   };
 
