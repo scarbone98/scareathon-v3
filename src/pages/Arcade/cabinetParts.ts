@@ -111,8 +111,8 @@ export type ScreenVideo = ReturnType<typeof createScreenVideo>;
 
 // The cabinet screen is about 1.88:1. Draw the video inside a canvas with that
 // aspect ratio so portrait and 16:9 recordings keep their proportions.
-export function createScreenVideo(videoUrl: string, lightweight: boolean) {
-
+// posterUrl: an image to show until the video has a frame of its own.
+export function createScreenVideo(videoUrl: string, lightweight: boolean, posterUrl?: string) {
   const video = document.createElement("video");
   video.crossOrigin = "anonymous";
   video.src = videoUrl;
@@ -142,16 +142,23 @@ export function createScreenVideo(videoUrl: string, lightweight: boolean) {
 
   let frameRequest: number | undefined;
   let lastTime = -1;
+  let videoDrawn = false;
+  let posterDrawn = false;
   const drawFrame = () => {
     if (!context || !video.videoWidth || !video.videoHeight) return;
+    drawSource(video, video.videoWidth, video.videoHeight);
+    videoDrawn = true;
+  };
+  const drawSource = (source: CanvasImageSource, sourceWidth: number, sourceHeight: number) => {
+    if (!context) return;
 
     const fitScale = Math.min(
-      canvas.width / video.videoWidth,
-      canvas.height / video.videoHeight
+      canvas.width / sourceWidth,
+      canvas.height / sourceHeight
     );
     const fillScale = Math.max(
-      canvas.width / video.videoWidth,
-      canvas.height / video.videoHeight
+      canvas.width / sourceWidth,
+      canvas.height / sourceHeight
     );
 
     // Backdrop: the same footage filling the screen, blurred and dimmed, instead of black bars
@@ -159,10 +166,10 @@ export function createScreenVideo(videoUrl: string, lightweight: boolean) {
     context.fillRect(0, 0, canvas.width, canvas.height);
     if (backdropContext) {
       const backdropScale = fillScale * (backdrop.width / canvas.width);
-      const backdropWidth = video.videoWidth * backdropScale;
-      const backdropHeight = video.videoHeight * backdropScale;
+      const backdropWidth = sourceWidth * backdropScale;
+      const backdropHeight = sourceHeight * backdropScale;
       backdropContext.drawImage(
-        video,
+        source,
         (backdrop.width - backdropWidth) / 2,
         (backdrop.height - backdropHeight) / 2,
         backdropWidth,
@@ -177,14 +184,26 @@ export function createScreenVideo(videoUrl: string, lightweight: boolean) {
 
     // Foreground: the whole clip, a little larger than a strict fit but never past filling the screen
     const scale = Math.min(fitScale * SCREEN_VIDEO_ZOOM, fillScale);
-    const width = video.videoWidth * scale;
-    const height = video.videoHeight * scale;
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
     // When the zoom overflows vertically, trim mostly from the bottom: titles and logos sit at the top
     const top = height > canvas.height ? (canvas.height - height) * 0.2 : (canvas.height - height) / 2;
-    context.drawImage(video, (canvas.width - width) / 2, top, width, height);
+    context.drawImage(source, (canvas.width - width) / 2, top, width, height);
     texture.needsUpdate = true;
   };
   video.addEventListener("loadeddata", drawFrame);
+
+  let disposed = false;
+  if (posterUrl) {
+    const poster = new Image();
+    poster.decoding = "async";
+    poster.onload = () => {
+      if (videoDrawn || disposed) return;
+      drawSource(poster, poster.naturalWidth, poster.naturalHeight);
+      posterDrawn = true;
+    };
+    poster.src = posterUrl;
+  }
 
   const hasVideoFrameCallback =
     typeof video.requestVideoFrameCallback === "function";
@@ -201,6 +220,8 @@ export function createScreenVideo(videoUrl: string, lightweight: boolean) {
   return {
     video,
     texture,
+    // Whether the canvas holds a picture yet (a video frame or the poster)
+    hasPicture: () => videoDrawn || posterDrawn,
     updateFrame: () => {
       if (!hasVideoFrameCallback && video.currentTime !== lastTime) {
         lastTime = video.currentTime;
@@ -208,6 +229,7 @@ export function createScreenVideo(videoUrl: string, lightweight: boolean) {
       }
     },
     dispose: () => {
+      disposed = true;
       if (frameRequest !== undefined) video.cancelVideoFrameCallback(frameRequest);
       video.removeEventListener("loadeddata", drawFrame);
       video.pause();

@@ -23,11 +23,18 @@ export type Cartridge = {
   dispose: () => void;
 };
 
-const LABEL_WIDTH = 320;
-const LABEL_HEIGHT = 380;
-const PICTURE = { x: 22, y: 22, width: LABEL_WIDTH - 44, height: 262 };
+// Cartridges are landscape: height as a fraction of width
+export const CARTRIDGE_ASPECT = 0.7;
+
+const LABEL_WIDTH = 400;
+const LABEL_HEIGHT = 254;
+const STRIPE = 10;
+const PICTURE = { x: 12, y: 12, width: LABEL_WIDTH - 24, height: 180 };
 // The name sits centred in the strip between the picture and the bottom stripe
-const TITLE_Y = (PICTURE.y + PICTURE.height + LABEL_HEIGHT - 12) / 2;
+const TITLE_Y = (PICTURE.y + PICTURE.height + LABEL_HEIGHT - STRIPE) / 2;
+const TITLE_MAX = 40;
+// Stills are copied at about this size: enough for the label, small to keep
+const STILL_MAX = 480;
 
 function paintLabel(
   context: CanvasRenderingContext2D,
@@ -46,10 +53,31 @@ function paintLabel(
   context.roundRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height, 10);
   context.clip();
   if (picture) {
-    const scale = Math.max(PICTURE.width / picture.width, PICTURE.height / picture.height);
-    const w = picture.width * scale;
-    const h = picture.height * scale;
-    context.drawImage(picture.source, PICTURE.x + (PICTURE.width - w) / 2, PICTURE.y + (PICTURE.height - h) * 0.3, w, h);
+    // Like the cabinet screen: the still blurred behind, then the whole still
+    // on top, so portrait games aren't cropped to a thin slice
+    const cover = Math.max(PICTURE.width / picture.width, PICTURE.height / picture.height);
+    const blur = document.createElement("canvas");
+    blur.width = 24;
+    blur.height = Math.round((24 * PICTURE.height) / PICTURE.width);
+    const blurScale = cover * (blur.width / PICTURE.width);
+    blur
+      .getContext("2d")
+      ?.drawImage(
+        picture.source,
+        (blur.width - picture.width * blurScale) / 2,
+        (blur.height - picture.height * blurScale) / 2,
+        picture.width * blurScale,
+        picture.height * blurScale
+      );
+    context.imageSmoothingEnabled = true;
+    context.drawImage(blur, PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height);
+    context.fillStyle = "rgba(0, 0, 0, 0.4)";
+    context.fillRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height);
+    const fit = Math.min(Math.min(PICTURE.width / picture.width, PICTURE.height / picture.height) * 1.15, cover);
+    const w = picture.width * fit;
+    const h = picture.height * fit;
+    const top = h > PICTURE.height ? (PICTURE.height - h) * 0.2 : (PICTURE.height - h) / 2;
+    context.drawImage(picture.source, PICTURE.x + (PICTURE.width - w) / 2, PICTURE.y + top, w, h);
   } else {
     const wash = context.createLinearGradient(0, PICTURE.y, 0, PICTURE.y + PICTURE.height);
     wash.addColorStop(0, `${color}66`);
@@ -66,9 +94,9 @@ function paintLabel(
 
   // Name, shrunk to fit, in the game's own font
   const label = name.replace(/[‘’]/g, "'").toUpperCase();
-  let fontSize = 64;
+  let fontSize = TITLE_MAX;
   context.font = canvasFont(font, fontSize);
-  while (context.measureText(label).width > width - 40 && fontSize > 22) {
+  while (context.measureText(label).width > width - 32 && fontSize > 16) {
     fontSize -= 2;
     context.font = canvasFont(font, fontSize);
   }
@@ -82,7 +110,7 @@ function paintLabel(
 
   // Coloured stripe along the bottom edge
   context.fillStyle = color;
-  context.fillRect(0, height - 12, width, 12);
+  context.fillRect(0, height - STRIPE, width, STRIPE);
 }
 
 export function createCartridge(
@@ -138,7 +166,7 @@ export function createCartridge(
     emissiveMap: texture,
     emissiveIntensity: 0.35,
   });
-  const labelWidth = width * 0.84;
+  const labelWidth = width * 0.86;
   const labelGeometry = new PlaneGeometry(labelWidth, labelWidth * (LABEL_HEIGHT / LABEL_WIDTH));
   const labelMesh = new Mesh(labelGeometry, labelMaterial);
   labelMesh.position.set(0, -height * 0.06, depth / 2 + 0.002);
@@ -149,10 +177,10 @@ export function createCartridge(
     setPicture: (source, w, h) => {
       // Copy the frame now: the video element is released right after
       const copy = document.createElement("canvas");
-      copy.width = PICTURE.width;
-      copy.height = PICTURE.height;
-      const scale = Math.max(copy.width / w, copy.height / h);
-      copy.getContext("2d")?.drawImage(source, (copy.width - w * scale) / 2, (copy.height - h * scale) * 0.3, w * scale, h * scale);
+      const scale = Math.min(1, STILL_MAX / Math.max(w, h));
+      copy.width = Math.round(w * scale);
+      copy.height = Math.round(h * scale);
+      copy.getContext("2d")?.drawImage(source, 0, 0, copy.width, copy.height);
       picture = { source: copy, width: copy.width, height: copy.height };
       repaint();
     },

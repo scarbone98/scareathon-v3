@@ -34,7 +34,7 @@ import {
   type ScreenVideo,
 } from "../Arcade/cabinetParts.ts";
 import { createArcadeAmbience, type ArcadeAmbience } from "../Arcade/arcadeAmbience.ts";
-import { createCartridge, loadVideoStills, type Cartridge } from "./cartridge.ts";
+import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
 import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
@@ -182,11 +182,24 @@ export default function CartridgeArcade({
     let staticUntil = 0;
     let lastIdleBlink = -1;
     let screenVideo: ScreenVideo | null = null;
+    let waitingForPicture = false; // the screen shows snow until screenVideo has a frame
     let screenMaterial: MeshStandardMaterial | null = null;
 
     const paintScreen = (time: number) => {
-      if (!screenContext || screenMode === "video") return;
+      if (!screenContext) return;
       const { width, height } = screenCanvas;
+      if (screenMode === "video") {
+        // Keep the snow up until the clip (or its still) has a picture to show,
+        // rather than a black screen while it loads or if autoplay is refused
+        if (!screenVideo) return;
+        if (screenVideo.hasPicture()) {
+          if (waitingForPicture) {
+            waitingForPicture = false;
+            showOnScreen(screenVideo.texture);
+          }
+          return;
+        }
+      }
       if (screenMode === "power" || screenMode === "off") {
         // A CRT beam: a line that opens out to the full picture, or collapses back to a dot
         const t = Math.min((time - modeStart) / (screenMode === "power" ? POWER_ON : POWER_OFF), 1);
@@ -204,7 +217,7 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         return;
       }
-      if (screenMode === "static" && noiseContext) {
+      if ((screenMode === "static" || screenMode === "video") && noiseContext) {
         const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
         for (let i = 0; i < image.data.length; i += 4) {
           const v = Math.random() * 255;
@@ -269,9 +282,12 @@ export default function CartridgeArcade({
         showOnScreen(screenTexture);
         return;
       }
-      screenVideo = createScreenVideo(game.videoUrl, lightweight);
+      // The label still is small and usually cached already, so it stands in
+      // until the clip plays (and for good if the phone won't autoplay it)
+      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl));
       screenMode = "video";
-      showOnScreen(screenVideo.texture);
+      waitingForPicture = true;
+      showOnScreen(screenTexture);
       syncVideo();
     };
 
@@ -344,7 +360,7 @@ export default function CartridgeArcade({
     scene.add(shelfGroup);
     let shelfMeshes: Mesh[] = [];
     let layoutMode: Layout | null = null;
-    let cartSize = { width: 0.3, height: 0.36, depth: 0.08 };
+    let cartSize = { width: 0.3, height: 0.3 * CARTRIDGE_ASPECT, depth: 0.08 };
     let pitchX = 0.4;
     let wallColumns = 1;
     const scroll = { x: 0 };
@@ -783,7 +799,8 @@ export default function CartridgeArcade({
 
       const cabinetSize = cabinetBox.getSize(new Vector3());
       const cartWidth = cabinetSize.x * 0.2;
-      cartSize = { width: cartWidth, height: cartWidth * 1.2, depth: cartWidth * 0.26 };
+      // Landscape cartridges, wider than tall
+      cartSize = { width: cartWidth, height: cartWidth * CARTRIDGE_ASPECT, depth: cartWidth * 0.26 };
 
       // The cartridge port: a dark block with a neon rim, between the two sets of controls
       const panelCenter = panelBox.isEmpty() ? new Vector3(0, cabinetSize.y * 0.45, cabinetBox.max.z * 0.6) : panelBox.getCenter(new Vector3());
