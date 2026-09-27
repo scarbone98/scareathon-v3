@@ -62,37 +62,30 @@ export function botInput(g: Game, b: Bot, dt: number, opts: { roam: boolean }): 
   }
 
   let yaw = p.yaw;
-  let pitch = p.pitch * 0.9;
   let fire = false;
   if (target) {
     const want = Math.atan2(target.x - p.x, -(target.z - p.z));
-    const wantP = Math.atan2(target.y + 1.45 - 1.6, best);
-    yaw = p.yaw + wrap(want - p.yaw) * Math.min(1, dt * 7);
-    pitch = p.pitch + (wantP - p.pitch) * Math.min(1, dt * 7);
+    yaw = p.yaw + wrap(want - p.yaw) * Math.min(1, dt * 9);
     const off = Math.abs(wrap(want - yaw));
     b.aimT = off < 0.08 ? b.aimT + dt : 0;
     // Semi-automatics need the trigger let go between shots.
-    fire = b.aimT > 0.12 && (autoGun(g) || !b.fireHeld);
+    fire = b.aimT > 0.1 && (autoGun(g) || !b.fireHeld);
     b.fireHeld = fire;
-  } else if (opts.roam && d > 0.5) {
-    const want = Math.atan2(wx - p.x, -(wz - p.z));
-    yaw = p.yaw + wrap(want - p.yaw) * Math.min(1, dt * 2.5);
+  } else {
+    if (opts.roam && d > 0.5) yaw = p.yaw + wrap(Math.atan2(wx - p.x, -(wz - p.z)) - p.yaw) * Math.min(1, dt * 3);
     b.fireHeld = false;
   }
 
-  // Move in the world, whichever way it's looking.
-  const s = Math.sin(yaw);
-  const c = Math.cos(yaw);
-  const forward = mvx * s - mvz * c;
-  const strafe = mvx * c + mvz * s;
   const w = curWeapon(g);
+  const pace = target ? 0.75 : 0.6;
   return {
-    forward: forward * (target ? 0.7 : 0.55),
-    strafe: strafe * (target ? 0.7 : 0.55),
+    mx: mvx * pace,
+    mz: mvz * pace,
     yaw,
-    pitch,
-    fire,
+    pitch: 0,
+    flat: false,
     ads: false,
+    fire,
     reload: !target && w.mag < 4,
     use: false,
     knife: !!target && best < 1.4,

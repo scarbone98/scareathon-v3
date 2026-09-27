@@ -2,8 +2,8 @@
 // turning the sim's events into sound, callouts and the HUD.
 import { botInput, newBot, type Bot } from "./bot";
 import { PERKS, SPAWNS, type PerkId } from "./map";
-import { Renderer, type View } from "./render";
-import { aliveZombies, curWeapon, newGame, NO_INPUT, rayZombie, step, viewDir, type Game, type Input, type PowerKind } from "./sim";
+import { Renderer, type View, type ViewMode } from "./render";
+import { aliveZombies, curWeapon, newGame, NO_INPUT, rayZombie, rayZombie3D, step, type Game, type Input, type PowerKind } from "./sim";
 import { Sound } from "./sound";
 import { magOf, nameOf, WEAPONS } from "./weapons";
 
@@ -29,6 +29,8 @@ export type Hud = {
   headHit: boolean;
   ads: boolean;
   left: number; // zombies left this round
+  fps: number;
+  view: ViewMode;
 };
 
 export type Popup = { id: number; text: string; sub?: string; color: string; big?: boolean };
@@ -82,6 +84,13 @@ export class GameController {
   private headHit = false;
   private lastYaw = 0;
   private lastPitch = 0;
+  private viewMode: ViewMode = "fps";
+  // Top-down aiming: where the mouse is on screen.
+  private cursor: { x: number; y: number } | null = null;
+  private fpsFrames = 0;
+  private fpsTime = 0;
+  private fps = 60;
+  private slowSpells = 0;
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private cb: Callbacks) {
     this.renderer = new Renderer(canvas);
@@ -116,6 +125,7 @@ export class GameController {
     this.game = this.demoGame();
     this.renderer.resetBoards(this.game);
     this.view.deathT = 0;
+    this.view.snap = true;
     this.sound.setMood("menu");
   }
 
@@ -128,6 +138,7 @@ export class GameController {
     this.yaw = this.game.player.yaw;
     this.pitch = 0;
     this.view.deathT = 0;
+    this.view.snap = true;
     this.hurt = 0;
     this.renderer.resetBoards(this.game);
     this.clearInput();
@@ -135,12 +146,34 @@ export class GameController {
     this.lock();
   }
 
+  setView(mode: ViewMode) {
+    this.viewMode = mode;
+    this.renderer.setView(mode);
+    this.view.snap = true;
+    if (mode === "top" && document.pointerLockElement) document.exitPointerLock();
+    if (mode === "fps") {
+      this.pitch = 0;
+      this.lock();
+    }
+  }
+
+  get viewing() {
+    return this.viewMode;
+  }
+
+  // The twin-stick aim, from the right stick: screen up is north.
+  setAim(x: number, y: number) {
+    const mag = Math.hypot(x, y);
+    if (mag > 0.2) this.yaw = Math.atan2(x, -y);
+    this.touch.fire = mag > 0.55;
+  }
+
   get isTouch() {
     return window.matchMedia("(pointer: coarse)").matches;
   }
 
   lock() {
-    if (this.isTouch || this.mode !== "play") return;
+    if (this.isTouch || this.mode !== "play" || this.viewMode === "top") return;
     const c = this.canvas as HTMLCanvasElement & { requestPointerLock: (o?: unknown) => Promise<void> | void };
     try {
       const r = c.requestPointerLock();
@@ -224,12 +257,26 @@ export class GameController {
   private onBlur = () => this.clearInput();
 
   private onMouseMove = (e: MouseEvent) => {
+    if (this.viewMode === "top") {
+      const r = this.canvas.getBoundingClientRect();
+      this.cursor = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -(((e.clientY - r.top) / r.height) * 2 - 1) };
+      return;
+    }
     if (!this.locked || this.paused || this.mode !== "play") return;
     this.yaw += e.movementX * this.sensitivity;
     this.pitch = clamp(this.pitch - e.movementY * this.sensitivity, -1.35, 1.35);
   };
   private onMouseDown = (e: MouseEvent) => {
     if (this.mode !== "play" || this.paused || this.isTouch) return;
+    if (this.viewMode === "top") {
+      // Clicks on buttons aren't shots.
+      if (e.target !== this.canvas && !(e.target as HTMLElement)?.dataset?.grab) return;
+      if (e.button === 0) {
+        this.mouse.fire = true;
+        this.tapped.add("mouse0");
+      }
+      return;
+    }
     if (!this.locked) {
       // Only clicks on the game itself grab the mouse.
       if (e.target === this.canvas || (e.target as HTMLElement)?.dataset?.grab) this.lock();
@@ -246,7 +293,7 @@ export class GameController {
     if (e.button === 2) this.mouse.ads = false;
   };
   private onWheel = () => {
-    if (this.locked && this.mode === "play") this.wheelSwap = true;
+    if ((this.locked || this.viewMode === "top") && this.mode === "play") this.wheelSwap = true;
   };
   private onContext = (e: Event) => {
     if (this.mode === "play") e.preventDefault();
@@ -256,7 +303,7 @@ export class GameController {
     this.locked = document.pointerLockElement === this.canvas;
     this.mouse = { fire: false, ads: false };
     // Escape frees the mouse; take that as a pause.
-    if (was && !this.locked && this.mode === "play" && !this.paused) this.cb.onPause();
+    if (was && !this.locked && this.mode === "play" && !this.paused && this.viewMode === "fps") this.cb.onPause();
   };
 
   // The live game, for dev tools.
@@ -277,25 +324,51 @@ export class GameController {
     const tap = this.tapped;
     const has = (...n: string[]) => n.some((x) => k.has(x) || tap.has(x));
     const t = this.touch;
-    // Arrow keys turn, for anyone without a mouse to hand.
-    const turn = (has("arrowright") ? 1 : 0) - (has("arrowleft") ? 1 : 0);
-    const tilt = (has("arrowup") ? 1 : 0) - (has("arrowdown") ? 1 : 0);
-    this.yaw += turn * 2.4 * dt;
-    this.pitch = clamp(this.pitch + tilt * 1.6 * dt, -1.35, 1.35);
-    const fwd = (has("w") ? 1 : 0) - (has("s") ? 1 : 0) + t.mz;
-    const str = (has("d") ? 1 : 0) - (has("a") ? 1 : 0) + t.mx;
-    const fire = this.mouse.fire || has(" ", "j", "mouse0") || t.fire;
+    const top = this.viewMode === "top";
+    let fire = this.mouse.fire || has("j", "mouse0") || t.fire;
+    let mx = 0;
+    let mz = 0;
+    if (top) {
+      // Walk on the map's axes; aim at the mouse, or with the arrow keys.
+      mx = (has("d") ? 1 : 0) - (has("a") ? 1 : 0) + t.mx;
+      mz = (has("s") ? 1 : 0) - (has("w") ? 1 : 0) - t.mz;
+      const ax = (has("arrowright") ? 1 : 0) - (has("arrowleft") ? 1 : 0);
+      const az = (has("arrowdown") ? 1 : 0) - (has("arrowup") ? 1 : 0);
+      if (ax || az) {
+        this.yaw = Math.atan2(ax, -az);
+        fire = true;
+      } else if (this.cursor && !this.isTouch) {
+        const p = this.game.player;
+        const q = this.renderer.groundPoint(this.cursor.x, this.cursor.y);
+        if (Math.hypot(q.x - p.x, q.z - p.z) > 0.3) this.yaw = Math.atan2(q.x - p.x, -(q.z - p.z));
+      }
+      fire ||= has(" ");
+    } else {
+      // Arrow keys turn, for anyone without a mouse to hand.
+      const turn = (has("arrowright") ? 1 : 0) - (has("arrowleft") ? 1 : 0);
+      const tilt = (has("arrowup") ? 1 : 0) - (has("arrowdown") ? 1 : 0);
+      this.yaw += turn * 2.4 * dt;
+      this.pitch = clamp(this.pitch + tilt * 1.6 * dt, -1.35, 1.35);
+      const fwd = clamp((has("w") ? 1 : 0) - (has("s") ? 1 : 0) + t.mz, -1, 1);
+      const str = clamp((has("d") ? 1 : 0) - (has("a") ? 1 : 0) + t.mx, -1, 1);
+      const s = Math.sin(this.yaw);
+      const c = Math.cos(this.yaw);
+      mx = s * fwd + c * str;
+      mz = -c * fwd + s * str;
+      fire ||= has(" ");
+    }
     // A touch of aim assist on phones, while shooting.
     if (this.isTouch && fire) this.assist(dt);
     const swap = has("1", "2", "tab", "q") || this.wheelSwap || t.swap;
     this.wheelSwap = false;
-    const input = {
-      forward: clamp(fwd, -1, 1),
-      strafe: clamp(str, -1, 1),
+    const input: Input = {
+      mx: clamp(mx, -1, 1),
+      mz: clamp(mz, -1, 1),
       yaw: this.yaw,
       pitch: this.pitch,
+      flat: top,
+      ads: !top && (this.mouse.ads || has("z", "k") || t.ads),
       fire,
-      ads: this.mouse.ads || has("z", "k") || t.ads,
       reload: has("r") || t.reload,
       use: has("e", "f") || t.use,
       knife: has("v", "c") || t.knife,
@@ -309,26 +382,28 @@ export class GameController {
   private assist(dt: number) {
     const g = this.game;
     const p = g.player;
+    const top = this.viewMode === "top";
     let best: { yaw: number; pitch: number; off: number } | null = null;
     for (const z of g.zombies) {
       if (z.state === "dead" || z.state === "spawn") continue;
       const dx = z.x - p.x;
       const dz = z.z - p.z;
       const d = Math.hypot(dx, dz);
-      if (d > 30) continue;
+      if (d > (top ? 18 : 30)) continue;
       const yaw = Math.atan2(dx, -dz);
-      const pitch = Math.atan2(z.y + 1.3 - 1.6, d);
+      const pitch = top ? 0 : Math.atan2(z.y + 1.3 - 1.6, d);
       const dy = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
       const off = Math.hypot(dy, pitch - this.pitch);
-      if (off > 0.2) continue;
-      const dir = viewDir(yaw, pitch);
-      if (!rayZombie(z, p.x, 1.6, p.z, dir.x, dir.y, dir.z)) continue;
+      if (off > (top ? 0.3 : 0.2)) continue;
+      const cp = Math.cos(pitch);
+      const hit = top ? rayZombie(z, p.x, p.z, Math.sin(yaw), -Math.cos(yaw)) : rayZombie3D(z, p.x, 1.6, p.z, Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
+      if (!hit) continue;
       if (!best || off < best.off) best = { yaw: this.yaw + dy, pitch, off };
     }
     if (!best) return;
-    const k = Math.min(1, dt * 5);
+    const k = Math.min(1, dt * (top ? 8 : 5));
     this.yaw += (best.yaw - this.yaw) * k;
-    this.pitch += (best.pitch - this.pitch) * k;
+    if (!top) this.pitch += (best.pitch - this.pitch) * k;
   }
 
   // ---------- loop ----------
@@ -340,18 +415,39 @@ export class GameController {
   private frame = (now: number) => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.frame);
-    const dt = Math.min(0.05, Math.max(0, (now - this.last) / 1000));
+    const raw = Math.max(0, (now - this.last) / 1000);
+    const dt = Math.min(0.05, raw);
     this.last = now;
-    if (!this.paused) this.tick(dt);
+    if (!this.paused) {
+      this.tick(dt);
+      this.measure(raw);
+    }
     this.renderer.render();
   };
+
+  // Frames per second over the last second or so. Two slow spells in a row
+  // drop the quality a step.
+  private measure(raw: number) {
+    this.fpsFrames++;
+    this.fpsTime += raw;
+    if (this.fpsTime < 1) return;
+    this.fps = Math.round(this.fpsFrames / this.fpsTime);
+    this.fpsFrames = 0;
+    this.fpsTime = 0;
+    if (this.time < 3) return;
+    this.slowSpells = this.fps < 45 ? this.slowSpells + 1 : 0;
+    if (this.slowSpells >= 2 && this.renderer.qualityLevel < 2) {
+      this.renderer.setQuality(this.renderer.qualityLevel + 1);
+      this.slowSpells = 0;
+    }
+  }
 
   private tick(dt: number) {
     this.time += dt;
     const g = this.game;
     let input: Input;
     if (this.mode === "demo") {
-      input = botInput(g, this.bot, dt, { roam: true });
+      input = { ...botInput(g, this.bot, dt, { roam: true }), flat: this.viewMode === "top" };
       this.yaw = input.yaw;
       this.pitch = input.pitch;
     } else if (this.mode === "play") input = this.readInput(dt);
@@ -377,7 +473,8 @@ export class GameController {
     this.hitmarker = Math.max(0, this.hitmarker - dt);
 
     this.renderer.sync(g, dt, this.time, this.view);
-    this.sound.setListener(p.x, p.z, p.yaw);
+    this.view.snap = false;
+    this.sound.setListener(p.x, p.z, this.viewMode === "top" ? 0 : p.yaw);
     this.sound.setDanger(this.nearestZombie());
     this.sound.setLowHealth(p.hp / p.maxHp);
 
@@ -422,6 +519,8 @@ export class GameController {
       headHit: this.headHit,
       ads: p.ads,
       left: g.toSpawn + aliveZombies(g),
+      fps: this.fps,
+      view: this.viewMode,
     };
   }
 
@@ -438,7 +537,7 @@ export class GameController {
       switch (e.type) {
         case "shot":
           s.shot(WEAPONS[e.weapon].sound, e.pap);
-          if (live) {
+          if (live && this.viewMode === "fps") {
             this.view.kick = Math.min(1, this.view.kick + 0.6);
             this.pitch = clamp(this.pitch + e.kick, -1.35, 1.35);
             this.yaw += (Math.random() - 0.5) * e.kick * 0.5;

@@ -6,6 +6,11 @@ import "./muertos.css";
 const BEST_KEY = "muertos-best";
 const MUTE_KEY = "muertos-muted";
 const SENS_KEY = "muertos-sens";
+const VIEW_KEY = "muertos-view";
+const FPS_KEY = "muertos-fps";
+
+type ViewMode = "fps" | "top";
+const VIEW_NAMES: Record<ViewMode, string> = { fps: "FIRST PERSON", top: "TOP DOWN" };
 
 type View = "title" | "howto" | "play" | "result";
 
@@ -99,6 +104,71 @@ function Stick({ ctrl }: { ctrl: GameController | null }) {
   );
 }
 
+// Top-down's right stick: drag to aim, push past halfway to fire.
+function AimStick({ ctrl }: { ctrl: GameController | null }) {
+  const [knob, setKnob] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
+  const grip = useRef<{ id: number; cx: number; cy: number; ox: number; oy: number } | null>(null);
+  const R = 46;
+  const end = () => {
+    grip.current = null;
+    setKnob(null);
+    ctrl?.setAim(0, 0);
+  };
+  return (
+    <div
+      className="absolute bottom-0 right-0 top-[40%] w-1/2"
+      onPointerDown={(e) => {
+        if (grip.current) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const rect = e.currentTarget.getBoundingClientRect();
+        grip.current = { id: e.pointerId, cx: e.clientX, cy: e.clientY, ox: e.clientX - rect.left, oy: e.clientY - rect.top };
+        setKnob({ ox: grip.current.ox, oy: grip.current.oy, x: 0, y: 0 });
+      }}
+      onPointerMove={(e) => {
+        const g = grip.current;
+        if (!g || e.pointerId !== g.id) return;
+        let dx = e.clientX - g.cx;
+        let dy = e.clientY - g.cy;
+        const len = Math.hypot(dx, dy);
+        if (len > R) {
+          dx = (dx / len) * R;
+          dy = (dy / len) * R;
+        }
+        setKnob({ ox: g.ox, oy: g.oy, x: dx, y: dy });
+        ctrl?.setAim(dx / R, dy / R);
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+    >
+      {knob ? (
+        <div className="pointer-events-none absolute" style={{ left: knob.ox - R, top: knob.oy - R, width: R * 2, height: R * 2 }}>
+          <div className="absolute inset-0 rounded-full border-4 border-[#ff5a4a]/40 bg-black/30" />
+          <div className="absolute rounded-full border-4 border-black/70 bg-[#ffd84a]/85" style={{ width: 40, height: 40, left: R - 20 + knob.x, top: R - 20 + knob.y }} />
+        </div>
+      ) : (
+        <div className="mz-o pointer-events-none absolute bottom-10 right-6 text-right text-[9px] text-white/50">
+          drag to aim
+          <br />
+          push far to shoot
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TwinSticks({ ctrl, hud }: { ctrl: GameController | null; hud: Hud | null }) {
+  return (
+    <>
+      <Stick ctrl={ctrl} />
+      <AimStick ctrl={ctrl} />
+      <Pad label="R" ctrl={ctrl} color="#3a3440cc" className="right-4 top-[26%] h-12 w-12 text-[11px]" onChange={(d) => ctrl?.setButton("reload", d)} />
+      <Pad label="KNIFE" ctrl={ctrl} color="#3a3440cc" className="right-[72px] top-[26%] h-12 w-12 text-[7px]" onChange={(d) => ctrl?.setButton("knife", d)} />
+      <Pad label="SWAP" ctrl={ctrl} color="#3a3440cc" className="right-[128px] top-[26%] h-12 w-12 text-[7px]" onChange={(d) => ctrl?.setButton("swap", d)} />
+      {hud?.prompt && <Pad label="USE" ctrl={ctrl} color="#c89a2acc" className="bottom-[46%] left-1/2 h-16 w-16 -translate-x-1/2 text-[10px]" onChange={(d) => ctrl?.setButton("use", d)} />}
+    </>
+  );
+}
+
 // The right half turns the view; buttons sit on top of it.
 function LookPad({ ctrl }: { ctrl: GameController | null }) {
   const last = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -179,7 +249,7 @@ function TouchControls({ ctrl, hud }: { ctrl: GameController | null; hud: Hud | 
   );
 }
 
-function HudView({ hud, pops, touch, onPause }: { hud: Hud; pops: PointsPop[]; touch: boolean; onPause: () => void }) {
+function HudView({ hud, pops, touch, fps, onPause }: { hud: Hud; pops: PointsPop[]; touch: boolean; fps: number | null; onPause: () => void }) {
   const low = hud.mag <= Math.ceil(hud.magSize / 4);
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -187,12 +257,12 @@ function HudView({ hud, pops, touch, onPause }: { hud: Hud; pops: PointsPop[]; t
       <div className="absolute inset-0" style={{ boxShadow: `inset 0 0 ${60 + hud.hurt * 140}px ${hud.hurt * 60}px rgba(150,0,0,${hud.hurt * 0.85})` }} />
 
       {/* Crosshair and hitmarker. */}
-      {!hud.ads && (
+      {!hud.ads && hud.view === "fps" && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <div className="mz-cross" />
         </div>
       )}
-      {hud.hitmarker > 0 && (
+      {hud.hitmarker > 0 && hud.view === "fps" && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ opacity: Math.min(1, hud.hitmarker * 8) }}>
           <div className={`mz-hit ${hud.headHit ? "mz-hit-head" : ""}`} />
         </div>
@@ -202,6 +272,8 @@ function HudView({ hud, pops, touch, onPause }: { hud: Hud; pops: PointsPop[]; t
         <RoundMark round={hud.round} />
         {hud.phase === "between" && <div className="mz-o mt-1 text-[8px] text-[#f3d9a0]">NEXT ROUND…</div>}
       </div>
+
+      {fps !== null && <div className="mz-o absolute left-1/2 top-2 -translate-x-1/2 text-[9px] text-[#7dff9a]">{fps} FPS</div>}
 
       <button type="button" aria-label="Pause" onClick={onPause} className="mz-btn mz-stone pointer-events-auto absolute right-3 top-3 px-2 py-1.5 text-[10px]">
         II
@@ -215,7 +287,7 @@ function HudView({ hud, pops, touch, onPause }: { hud: Hud; pops: PointsPop[]; t
 
       {/* Prompt. */}
       {hud.prompt && (
-        <div className={`mz-o absolute left-1/2 ${touch ? "top-[30%]" : "top-[60%]"} w-[90%] max-w-md -translate-x-1/2 text-center text-[10px] leading-relaxed text-white`}>
+        <div className={`mz-o absolute left-1/2 ${touch ? (hud.view === "top" ? "bottom-[57%]" : "top-[30%]") : "top-[60%]"} w-[90%] max-w-md -translate-x-1/2 text-center text-[10px] leading-relaxed text-white`}>
           {touch ? "" : "Press E: "}
           {hud.prompt.text}
           {hud.prompt.cost !== undefined && <span className={hud.prompt.can ? "text-[#ffd84a]" : "text-[#ff6a5a]"}> [{hud.prompt.cost.toLocaleString()}]</span>}
@@ -277,8 +349,23 @@ function Popups({ popups }: { popups: Popup[] }) {
   );
 }
 
-function HowTo({ onBack, touch }: { onBack: () => void; touch: boolean }) {
-  const rows: [string, string][] = touch
+function HowTo({ onBack, touch, view }: { onBack: () => void; touch: boolean; view: ViewMode }) {
+  const rows: [string, string][] = view === "top"
+    ? touch
+      ? [
+          ["Left stick", "Move. Push far up to run."],
+          ["Right stick", "Aim. Push past halfway to shoot."],
+          ["USE", "Buy, open doors, rebuild windows (hold)."],
+          ["KNIFE / R / SWAP", "Stab, reload, change gun."],
+        ]
+      : [
+          ["WASD", "Move. Shift to run."],
+          ["Mouse", "Aim, click to shoot. Or aim and shoot with the arrow keys."],
+          ["E", "Buy, open doors, hold to rebuild windows."],
+          ["R / V / Q", "Reload, knife, swap guns."],
+          ["T", "Switch to first person."],
+        ]
+    : touch
     ? [
         ["Left side", "Drag to move. Push far up to run."],
         ["Right side", "Drag to look. FIRE and AIM look too."],
@@ -290,6 +377,7 @@ function HowTo({ onBack, touch }: { onBack: () => void; touch: boolean }) {
         ["WASD", "Move. Shift to run."],
         ["E", "Buy, open doors, hold to rebuild windows."],
         ["R / V / Q", "Reload, knife, swap guns."],
+        ["T", "Switch to top down."],
         ["Esc", "Pause."],
       ];
   return (
@@ -365,6 +453,14 @@ export default function Muertos() {
   const [muted, setMuted] = useState(() => localStorage.getItem(MUTE_KEY) === "1");
   const [sens, setSens] = useState(() => Number(localStorage.getItem(SENS_KEY)) || 1);
   const [touch] = useState(() => window.matchMedia("(pointer: coarse)").matches);
+  // Phones start top-down, where twin sticks play best; desktops start in
+  // first person. Either can switch.
+  const [camView, setCamView] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(VIEW_KEY);
+    if (saved === "fps" || saved === "top") return saved;
+    return window.matchMedia("(pointer: coarse)").matches ? "top" : "fps";
+  });
+  const [showFps, setShowFps] = useState(() => localStorage.getItem(FPS_KEY) === "1" || new URLSearchParams(window.location.search).has("fps"));
   const [attract] = useState(() => new URLSearchParams(window.location.search).has("attract"));
 
   useEffect(() => {
@@ -389,6 +485,10 @@ export default function Muertos() {
     });
     c.setMuted(localStorage.getItem(MUTE_KEY) === "1");
     c.setSensitivity(Number(localStorage.getItem(SENS_KEY)) || 1);
+    {
+      const saved = localStorage.getItem(VIEW_KEY);
+      c.setView(saved === "fps" || saved === "top" ? saved : window.matchMedia("(pointer: coarse)").matches ? "top" : "fps");
+    }
     setCtrl(c);
     // For screenshots and poking around in dev.
     if (import.meta.env.DEV) (window as unknown as { __muertos: GameController }).__muertos = c;
@@ -452,6 +552,27 @@ export default function Muertos() {
     ctrl?.unlockAudio();
   };
 
+  const toggleView = () => {
+    const v: ViewMode = camView === "fps" ? "top" : "fps";
+    setCamView(v);
+    localStorage.setItem(VIEW_KEY, v);
+    ctrl?.setView(v);
+  };
+
+  const toggleFps = () => {
+    setShowFps(!showFps);
+    localStorage.setItem(FPS_KEY, showFps ? "0" : "1");
+  };
+
+  // T switches views, any time.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "t" && !e.repeat) toggleView();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const cycleSens = () => {
     const steps = [0.5, 0.75, 1, 1.5, 2];
     const next = steps[(steps.indexOf(sens) + 1) % steps.length] ?? 1;
@@ -460,19 +581,19 @@ export default function Muertos() {
     ctrl?.setSensitivity(next);
   };
 
-  const needClick = view === "play" && !paused && !touch && ctrl && !ctrl.mouseLocked && hud !== null;
+  const needClick = view === "play" && !paused && !touch && camView === "fps" && ctrl && !ctrl.mouseLocked && hud !== null;
 
   return (
     <div className="mz-root fixed inset-0 z-50 overflow-hidden bg-black text-white" onPointerDown={() => ctrl?.unlockAudio()}>
       <div ref={hostRef} className="absolute inset-0">
-        <canvas ref={canvasRef} className="mz-canvas" />
+        <canvas ref={canvasRef} className="mz-canvas" style={{ cursor: camView === "top" && view === "play" ? "crosshair" : undefined }} />
       </div>
 
       {attract ? null : (
         <>
-          {view === "play" && hud && <HudView hud={hud} pops={pops} touch={touch} onPause={() => setPaused(true)} />}
+          {view === "play" && hud && <HudView hud={hud} pops={pops} touch={touch} fps={showFps ? hud.fps : null} onPause={() => setPaused(true)} />}
           {view === "play" && <Popups popups={popups} />}
-          {view === "play" && touch && !paused && hud && !hud.phase.startsWith("over") && <TouchControls ctrl={ctrl} hud={hud} />}
+          {view === "play" && touch && !paused && hud && !hud.phase.startsWith("over") && (camView === "top" ? <TwinSticks ctrl={ctrl} hud={hud} /> : <TouchControls ctrl={ctrl} hud={hud} />)}
           {needClick && (
             <div data-grab="1" className="mz-o absolute inset-x-0 bottom-[38%] cursor-pointer text-center text-[10px] text-white/80" onClick={() => ctrl?.lock()}>
               Click to aim with the mouse
@@ -487,6 +608,9 @@ export default function Muertos() {
                   <Btn className="py-4 text-lg" onClick={start}>
                     PLAY
                   </Btn>
+                  <Btn color="stone" className="text-[10px]" onClick={toggleView}>
+                    VIEW: {VIEW_NAMES[camView]}
+                  </Btn>
                   <div className="grid grid-cols-2 gap-3">
                     <Btn color="stone" className="text-[10px]" onClick={() => setView("howto")}>
                       HOW TO
@@ -500,7 +624,7 @@ export default function Muertos() {
               )}
             </div>
           )}
-          {view === "howto" && <HowTo touch={touch} onBack={() => setView("title")} />}
+          {view === "howto" && <HowTo touch={touch} view={camView} onBack={() => setView("title")} />}
 
           {view === "play" && paused && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/75 px-6">
@@ -511,12 +635,18 @@ export default function Muertos() {
               <Btn className="w-full max-w-xs" onClick={start}>
                 RESTART
               </Btn>
+              <Btn color="stone" className="w-full max-w-xs text-[10px]" onClick={toggleView}>
+                VIEW: {VIEW_NAMES[camView]}
+              </Btn>
               <div className="grid w-full max-w-xs grid-cols-2 gap-3">
+                <Btn color="stone" className="text-[10px]" onClick={toggleFps}>
+                  {showFps ? "FPS ON" : "FPS OFF"}
+                </Btn>
                 <Btn color="stone" className="text-[10px]" onClick={toggleMute}>
                   {muted ? "SOUND OFF" : "SOUND ON"}
                 </Btn>
-                {!touch && (
-                  <Btn color="stone" className="text-[10px]" onClick={cycleSens}>
+                {!touch && camView === "fps" && (
+                  <Btn color="stone" className="col-span-2 text-[10px]" onClick={cycleSens}>
                     MOUSE {sens}x
                   </Btn>
                 )}

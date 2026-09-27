@@ -40,12 +40,16 @@ import {
 } from "./weapons";
 
 export type Input = {
-  forward: number; // -1..1
-  strafe: number; // -1..1, right positive
+  // Which way to walk, on the ground: x east, z south, each -1..1.
+  mx: number;
+  mz: number;
+  // Which way to aim. Top-down shots fly flat; first person aims up and
+  // down too, and can look down the sights.
   yaw: number;
   pitch: number;
-  fire: boolean;
+  flat: boolean;
   ads: boolean;
+  fire: boolean;
   reload: boolean;
   use: boolean;
   knife: boolean;
@@ -53,7 +57,7 @@ export type Input = {
   sprint: boolean;
 };
 
-export const NO_INPUT: Input = { forward: 0, strafe: 0, yaw: 0, pitch: 0, fire: false, ads: false, reload: false, use: false, knife: false, swap: false, sprint: false };
+export const NO_INPUT: Input = { mx: 0, mz: 0, yaw: 0, pitch: 0, flat: false, ads: false, fire: false, reload: false, use: false, knife: false, swap: false, sprint: false };
 
 export type Gait = 0 | 1 | 2; // shamble, jog, sprint
 export type ZState = "spawn" | "window" | "climb" | "rise" | "walk" | "dead";
@@ -123,6 +127,7 @@ export type Player = {
   z: number;
   yaw: number;
   pitch: number;
+  ads: boolean;
   hp: number;
   maxHp: number;
   points: number;
@@ -143,7 +148,6 @@ export type Player = {
   slowT: number;
   moving: number; // 0..1
   sprinting: boolean;
-  ads: boolean;
   dead: boolean;
   deadT: number;
   repairT: number;
@@ -185,7 +189,6 @@ export const MAX_ALIVE = 24;
 export const WINDOW_BOARDS = 6;
 const PLAYER_R = 0.35;
 const ZOMBIE_R = 0.34;
-const EYE = 1.6;
 const WALK = 4.4;
 const SPRINT = 6.4;
 const GAIT_SPEED = [1.25, 2.5, 4.3];
@@ -237,6 +240,7 @@ export function newGame(opts: { demo?: boolean; seed?: number } = {}): Game {
       z: PLAYER_START.z,
       yaw: PLAYER_START.yaw,
       pitch: 0,
+      ads: false,
       hp: 100,
       maxHp: 100,
       points: 500,
@@ -257,7 +261,6 @@ export function newGame(opts: { demo?: boolean; seed?: number } = {}): Game {
       slowT: 0,
       moving: 0,
       sprinting: false,
-      ads: false,
       dead: false,
       deadT: 0,
       repairT: 0,
@@ -311,10 +314,9 @@ function spend(g: Game, cost: number) {
   return true;
 }
 
-export function viewDir(yaw: number, pitch: number) {
-  const cp = Math.cos(pitch);
-  return { x: Math.sin(yaw) * cp, y: Math.sin(pitch), z: -Math.cos(yaw) * cp };
-}
+// The gun's height, for shots fired flat across the ground.
+export const GUN_Y = 1.2;
+const EYE = 1.6;
 
 // ---------- the step ----------
 
@@ -427,7 +429,7 @@ function spawnZombie(g: Game) {
 function stepPlayer(g: Game, dt: number, input: Input) {
   const p = g.player;
   p.yaw = input.yaw;
-  p.pitch = input.pitch;
+  p.pitch = input.flat ? 0 : input.pitch;
   p.hurtT += dt;
   p.slowT = Math.max(0, p.slowT - dt);
   p.fireCd = Math.max(0, p.fireCd - dt);
@@ -448,22 +450,18 @@ function stepPlayer(g: Game, dt: number, input: Input) {
   // Moving.
   const w = curWeapon(g);
   const busy = p.busyT > 0;
-  const fwd = input.forward;
-  const str = input.strafe;
-  const len = Math.min(1, Math.hypot(fwd, str));
-  p.sprinting = input.sprint && fwd > 0.3 && !input.ads && !input.fire && p.knifeT <= 0;
-  p.ads = input.ads && !p.sprinting && !busy && p.switchT <= 0;
+  const len = Math.hypot(input.mx, input.mz);
+  p.sprinting = input.sprint && len > 0.3 && !input.fire && !input.ads && p.knifeT <= 0;
+  p.ads = !input.flat && input.ads && !p.sprinting && !busy && p.switchT <= 0;
   let speed = p.sprinting ? SPRINT : p.ads ? WALK * 0.6 : WALK;
-  if (p.slowT > 0) speed *= 0.6;
-  let wx = 0;
-  let wz = 0;
-  if (len > 0.01) {
-    const s = Math.sin(p.yaw);
-    const c = Math.cos(p.yaw);
-    // Forward is -z at yaw 0; right is +x.
-    wx = (s * fwd + c * str) / Math.max(1, Math.hypot(fwd, str));
-    wz = (-c * fwd + s * str) / Math.max(1, Math.hypot(fwd, str));
+  // Walking backwards from where you aim is slower.
+  if (len > 0.01 && !p.sprinting) {
+    const back = -(input.mx * Math.sin(p.yaw) - input.mz * Math.cos(p.yaw)) / len;
+    if (back > 0.3) speed *= 1 - (back - 0.3) * 0.35;
   }
+  if (p.slowT > 0) speed *= 0.6;
+  const wx = len > 1 ? input.mx / len : input.mx;
+  const wz = len > 1 ? input.mz / len : input.mz;
   const k = 1 - Math.exp(-14 * dt);
   p.vx += (wx * speed - p.vx) * k;
   p.vz += (wz * speed - p.vz) * k;
@@ -522,7 +520,7 @@ function stepPlayer(g: Game, dt: number, input: Input) {
   // Firing.
   const trigger = def.auto ? input.fire : input.fire && !g.prev.fire;
   if (trigger && canAct && p.reloadT <= 0 && p.fireCd <= 0) {
-    if (w.mag > 0) fire(g);
+    if (w.mag > 0) fire(g, input.flat);
     else if (!g.prev.fire) g.events.push({ type: "dry" });
   }
 
@@ -554,7 +552,7 @@ function knifeHit(g: Game) {
   damage(g, best, g.insta > 0 ? best.hp : KNIFE_DAMAGE, false, "knife");
 }
 
-function fire(g: Game) {
+function fire(g: Game, flat: boolean) {
   const p = g.player;
   const w = curWeapon(g);
   const def = WEAPONS[w.id];
@@ -563,9 +561,9 @@ function fire(g: Game) {
   p.fireCd = 60 / def.rpm / (cafe ? 1.33 : 1);
   const kick = def.kick * (p.ads ? 0.6 : 1);
   g.events.push({ type: "shot", weapon: w.id, pap: w.pap, kick });
-  const spread = def.spread * (p.ads ? (def.pellets > 1 ? 0.7 : 0.3) : 1) * (1 + p.moving * 0.6);
+  const spread = def.spread * (p.ads ? (def.pellets > 1 ? 0.7 : 0.3) : 1) * (1 + p.moving * (flat ? 0.4 : 0.6));
   const ox = p.x;
-  const oy = EYE;
+  const oy = flat ? GUN_Y : EYE;
   const oz = p.z;
   const dmgBase = def.damage * (w.pap ? 2 : 1) * (cafe ? 1.33 : 1);
   // Pellets that strike the same zombie add up, so a shotgun blast is one hit.
@@ -573,13 +571,16 @@ function fire(g: Game) {
   for (let i = 0; i < def.pellets; i++) {
     const a = g.rnd() * Math.PI * 2;
     const r = Math.sqrt(g.rnd()) * spread;
-    const d = viewDir(p.yaw + Math.cos(a) * r, p.pitch + Math.sin(a) * r);
+    const yaw = p.yaw + Math.cos(a) * r;
+    const pitch = flat ? 0 : p.pitch + Math.sin(a) * r;
+    const cp = Math.cos(pitch);
+    const d = { x: Math.sin(yaw) * cp, y: Math.sin(pitch), z: -Math.cos(yaw) * cp };
     const wallT = rayWall(g.walk, ox, oy, oz, d.x, d.y, d.z, 120);
     let hitZ: Zombie | null = null;
     let hitT = wallT;
     let head = false;
     for (const z of g.zombies) {
-      const h = rayZombie(z, ox, oy, oz, d.x, d.y, d.z);
+      const h = flat ? rayZombie(z, ox, oz, d.x, d.z) : rayZombie3D(z, ox, oy, oz, d.x, d.y, d.z);
       if (h && h.t < hitT) {
         hitT = h.t;
         hitZ = z;
@@ -616,8 +617,8 @@ function splash(g: Game, x: number, y: number, z: number, radius: number, dmg: n
   }
 }
 
-// A zombie is a head on a body: a sphere on a standing cylinder.
-export function rayZombie(z: Zombie, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number): { t: number; head: boolean } | null {
+// First person: a zombie is a head on a body, a sphere on a standing cylinder.
+export function rayZombie3D(z: Zombie, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number): { t: number; head: boolean } | null {
   if (z.state === "dead" || z.state === "spawn") return null;
   let best: { t: number; head: boolean } | null = null;
   if (!z.headless) {
@@ -653,6 +654,22 @@ export function rayZombie(z: Zombie, ox: number, oy: number, oz: number, dx: num
     }
   }
   return best;
+}
+
+// Top-down, shots fly flat, so a zombie is a standing circle. One that passes
+// close by the middle counts as a headshot.
+export function rayZombie(z: Zombie, ox: number, oz: number, dx: number, dz: number): { t: number; head: boolean } | null {
+  if (z.state === "dead" || z.state === "spawn") return null;
+  // Still mostly underground, or up on the wall below the gun.
+  if (z.y < -1.1 || z.y + 1.8 < GUN_Y) return null;
+  const px = z.x - ox;
+  const pz = z.z - oz;
+  const along = px * dx + pz * dz;
+  if (along <= 0) return null;
+  const off = Math.abs(px * dz - pz * dx);
+  const R = 0.38;
+  if (off > R) return null;
+  return { t: along - Math.sqrt(R * R - off * off), head: !z.headless && off < 0.08 };
 }
 
 function damage(g: Game, z: Zombie, amount: number, head: boolean, how: "gun" | "knife" | "nuke") {
