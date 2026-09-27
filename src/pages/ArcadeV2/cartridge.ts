@@ -3,13 +3,14 @@ import {
   BufferGeometry,
   CanvasTexture,
   Color,
+  ExtrudeGeometry,
   Group,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
+  Shape,
   SRGBColorSpace,
 } from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // A game cartridge: a plastic shell in the game's colour with a paper label on
@@ -115,6 +116,41 @@ function paintLabel(
   context.fillRect(0, height - STRIPE, width, STRIPE);
 }
 
+// The shell, N64/GBA style: the top corners cut off at an angle and a notch in
+// each side just above the connector, extruded with softly rounded edges.
+// Centred on the origin.
+function shellGeometry(width: number, height: number, depth: number) {
+  const bevel = depth * 0.12;
+  const x = width / 2 - bevel;
+  const top = height / 2 - bevel;
+  const bottom = -height / 2 + bevel;
+  const shoulder = width * 0.09;
+  const notchWidth = width * 0.05;
+  const notchHeight = height * 0.16;
+  const outline = new Shape();
+  outline.moveTo(-x + notchWidth, bottom);
+  outline.lineTo(x - notchWidth, bottom);
+  outline.lineTo(x - notchWidth, bottom + notchHeight);
+  outline.lineTo(x, bottom + notchHeight);
+  outline.lineTo(x, top - shoulder);
+  outline.lineTo(x - shoulder, top);
+  outline.lineTo(-x + shoulder, top);
+  outline.lineTo(-x, top - shoulder);
+  outline.lineTo(-x, bottom + notchHeight);
+  outline.lineTo(-x + notchWidth, bottom + notchHeight);
+  outline.closePath();
+  const core = depth - bevel * 2;
+  const geometry = new ExtrudeGeometry(outline, {
+    depth: core,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel,
+    bevelSegments: 3,
+  });
+  geometry.translate(0, 0, -core / 2);
+  return geometry;
+}
+
 export function createCartridge(
   name: string,
   color: string,
@@ -151,7 +187,7 @@ export function createCartridge(
   const connectorHeight = height * 0.1;
   const bodyHeight = height - connectorHeight;
   const bodyBottom = -height / 2 + connectorHeight;
-  addPart(new RoundedBoxGeometry(width, bodyHeight, depth, 3, depth * 0.22), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
+  addPart(shellGeometry(width, bodyHeight, depth), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
   addPart(new BoxGeometry(width * 0.78, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
   // Gold contacts along both faces of the connector
   addPart(new BoxGeometry(width * 0.7, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);

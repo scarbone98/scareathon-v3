@@ -36,7 +36,7 @@ import {
 import { createArcadeAmbience, type ArcadeAmbience } from "../Arcade/arcadeAmbience.ts";
 import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
 import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
-import { playClunk, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
+import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
@@ -81,6 +81,7 @@ const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep 
 // Pixels kept clear under the scene on tall screens for the info card (which
 // carries the site menu button there)
 const LEDGE_CARD_SPACE = 192;
+const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
 const POWER_OFF = 0.3;
 const STATIC = 0.4;
@@ -511,7 +512,15 @@ export default function CartridgeArcade({
         // Phones: the cabinet's sides meet the screen's edges. Size by its width at its
         // front face, then sit the ledge just above the card; on a short screen the top
         // of the cabinet crops rather than the whole thing shrinking.
-        const frontDistance = cabinetBox.getSize(new Vector3()).x / 2 / (tan * aspect);
+        const widthDistance = cabinetBox.getSize(new Vector3()).x / 2 / (tan * aspect);
+        // Taller screens have room to spare: come in closer (trimming a little off
+        // the cabinet's sides) until the cabinet top to the ledge fills the space
+        // above the card, rather than leaving a gap for the ledge to drop into
+        const ledgeBottom = carts.length ? carts[0].home.y - cartSize.height * 0.57 : box.min.y;
+        const freeFraction = (height - reserveBottom) / height;
+        const fillDistance =
+          center.z + (cabinetBox.max.y - ledgeBottom) / (2 * tan * freeFraction) - cabinetBox.max.z;
+        const frontDistance = Math.min(widthDistance, Math.max(fillDistance, widthDistance / MAX_LEDGE_ZOOM));
         const cameraZ = cabinetBox.max.z + frontDistance;
         const depth = cameraZ - center.z;
         const visibleHeight = 2 * tan * depth;
@@ -525,18 +534,25 @@ export default function CartridgeArcade({
         if (anchorTop) targetY = topAnchoredY;
         cameraTarget.set(center.x, targetY, center.z);
         cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
-        if (anchorTop) {
-          // Measure where the ledge's front edge lands on screen and drop the
-          // shelf until it tucks just under the top of the card
+        if (carts.length) {
+          // Measure where the ledge's front edge lands on screen. With room to
+          // spare, drop the shelf until it tucks just under the top of the card;
+          // on a short screen, move the camera so the ledge isn't hidden by it
           camera.position.copy(cameraBase);
           camera.lookAt(cameraTarget);
           camera.updateMatrixWorld();
-          const ledgeBottom = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
-          const edge = new Vector3(0, ledgeBottom, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
+          const ledgeEdge = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
+          const edge = new Vector3(0, ledgeEdge, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
           const edgePx = ((1 - edge.y) / 2) * height;
           const wantPx = height - reserveBottom + 10;
           const worldPerPx = (2 * tan * (cameraZ - shelfGroup.position.z)) / height;
-          shelfGroup.position.y = Math.min(0, -(wantPx - edgePx) * worldPerPx);
+          if (anchorTop) {
+            shelfGroup.position.y = Math.min(0, -(wantPx - edgePx) * worldPerPx);
+          } else if (edgePx > wantPx) {
+            const lift = (edgePx - wantPx) * worldPerPx;
+            cameraTarget.y -= lift;
+            cameraBase.y -= lift;
+          }
         }
         shelfLight.position.y = carts.length ? carts[0].home.y + shelfGroup.position.y + cartSize.height * 1.5 : shelfLight.position.y;
       } else {
@@ -711,15 +727,34 @@ export default function CartridgeArcade({
       flickerMarquee();
       if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
       old.where = "flying";
-      playTick();
-      // Spring up out of the port, then glide home
-      timeline.to(oldGroup.position, { y: seat.y + cartSize.height * 0.95, duration: 0.26, ease: "back.out(2.4)" });
-      timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.5, cartSize.height * 0.8, 0, "power2.inOut", -0.25));
+      const h = cartSize.height;
+      const color = new Color(games[old.cart.group.userData.cartIndex]?.cartridge.color ?? SHELF_NEON);
+      // Press in against the spring...
+      timeline.to(oldGroup.position, { y: seat.y - h * 0.08, duration: 0.07, ease: "power2.in" });
+      timeline.to(oldGroup.scale, { x: 1.07, y: 0.88, z: 1.07, duration: 0.07, ease: "power2.in" }, "<");
+      // ...then it kicks out with a jolt
+      timeline.call(() => {
+        playPop();
+        gsap.fromTo(shake, { value: h * 0.05 }, { value: 0, duration: 0.3, ease: "power2.out" });
+        gsap.fromTo(punch, { value: 0.025 }, { value: 0, duration: 0.5, ease: "power2.out" });
+        if (portLight) {
+          portLight.color.copy(color);
+          gsap.fromTo(portLight, { intensity: 4 }, { intensity: 0, duration: 0.6, ease: "power2.out" });
+        }
+      });
+      timeline.to(oldGroup.position, { y: seat.y + h * 1.15, duration: 0.17, ease: "power4.out" });
+      timeline.fromTo(oldGroup.scale, { x: 0.9, y: 1.16, z: 0.9 }, { x: 1, y: 1, z: 1, duration: 0.45, ease: "elastic.out(1.2, 0.35)" }, "<");
+      timeline.fromTo(oldGroup.rotation, { z: 0 }, { z: 0.14, duration: 0.17, ease: "power2.out" }, "<");
+      // A beat in the air, then home
+      timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.4, h * 0.7, 0, "power3.inOut", -0.2), "+=0.05");
       timeline.call(() => {
         shelfGroup.attach(oldGroup);
         oldGroup.position.copy(old.home);
         oldGroup.rotation.set(0, 0, 0);
         old.where = "shelf";
+        playTick();
+        // Lands with a little squash
+        gsap.fromTo(oldGroup.scale, { x: 1.08, y: 0.88, z: 1.08 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.1, 0.4)" });
       });
       return timeline;
     };

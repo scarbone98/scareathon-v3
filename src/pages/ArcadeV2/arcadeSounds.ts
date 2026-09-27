@@ -58,6 +58,23 @@ export function playClunk() {
   playNoise(0.05, "highpass", 3000, 6000, 0.18);
 }
 
+// Cartridge springing out of the slot: a rising thunk plus a plastic snap
+export function playPop() {
+  const ctx = audio();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(70, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.12);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.2);
+  playNoise(0.04, "highpass", 2500, 7000, 0.2);
+}
+
 // Screen static while the game boots
 export function playStatic() {
   playNoise(0.45, "highpass", 1200, 5000, 0.05);
