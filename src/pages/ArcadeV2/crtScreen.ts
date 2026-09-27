@@ -35,7 +35,7 @@ vec3 crtShade(vec2 uv) {
   float lines = 96.0;
   // Fade the lines out only where the screen is too small on screen to show them cleanly
   float perPixel = fwidth(uv.y) * lines;
-  float lineStrength = 0.75 * (1.0 - smoothstep(0.55, 0.9, perPixel));
+  float lineStrength = 0.6 * (1.0 - smoothstep(0.55, 0.9, perPixel));
   // Dark gaps between bright lines, rather than an even ripple
   float scan = 1.0 - lineStrength * pow(0.5 + 0.5 * cos(uv.y * lines * 6.2831853), 2.0);
   float column = mod(gl_FragCoord.x, 3.0);

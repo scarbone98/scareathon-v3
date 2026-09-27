@@ -160,12 +160,14 @@ export default function CartridgeArcade({
     renderer.domElement.style.display = "block";
     mount.appendChild(renderer.domElement);
 
-    const ambientLight = new AmbientLight(0xffffff, 0.5);
+    // Dim fixed lights, just enough to read the cabinet's shape: the screen does
+    // most of the lighting (screenLight, below)
+    const ambientLight = new AmbientLight(0xffffff, 0.16);
     scene.add(ambientLight);
-    const pointLight = new PointLight(0xffaa55, 1, 50);
+    const pointLight = new PointLight(0xffaa55, 0.5, 50);
     pointLight.position.set(0, 5, 5);
     scene.add(pointLight);
-    const directionalLight = new DirectionalLight(0xffffff, 4);
+    const directionalLight = new DirectionalLight(0xffffff, 1.4);
     directionalLight.position.set(5, 10, 5);
     scene.add(directionalLight);
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
@@ -473,6 +475,39 @@ export default function CartridgeArcade({
     let sceneHeight = 1;
     const parallax = { x: 0, y: 0, targetX: 0, targetY: 0 };
     let portLight: PointLight | null = null;
+    // The screen's own light, in front of the glass: it takes the colour and
+    // brightness of whatever the screen is showing
+    const screenLight = new PointLight(0xffffff, 0, 6, 1.6);
+    scene.add(screenLight);
+    const screenSample = document.createElement("canvas");
+    screenSample.width = screenSample.height = 1;
+    const screenSampler = screenSample.getContext("2d", { willReadFrequently: true });
+    const screenColor = new Color(0x000000);
+    const targetScreenColor = new Color(0x000000);
+    let lastSample = 0;
+    const SCREEN_LIGHT = 7;
+    const updateScreenLight = (time: number) => {
+      const source = screenMaterial?.map?.image as CanvasImageSource | undefined;
+      if (source && screenSampler && time - lastSample > 0.12) {
+        lastSample = time;
+        try {
+          // The whole picture averaged down to one pixel
+          screenSampler.drawImage(source, 0, 0, 1, 1);
+          const [red, green, blue] = screenSampler.getImageData(0, 0, 1, 1).data;
+          targetScreenColor.setRGB(red / 255, green / 255, blue / 255, SRGBColorSpace);
+        } catch {
+          // Unreadable picture: keep the last colour
+        }
+      }
+      // Ease toward it, so flickering footage doesn't strobe the room
+      screenColor.lerp(targetScreenColor, 0.15);
+      screenLight.color.copy(screenColor);
+      const brightness = Math.max(screenColor.r, screenColor.g, screenColor.b);
+      // Normalised colour, with its brightness carried in the intensity
+      if (brightness > 0.001) screenLight.color.multiplyScalar(1 / brightness);
+      const power = screenMaterial ? screenMaterial.emissiveIntensity / SCREEN_GLOW : 0;
+      screenLight.intensity = SCREEN_LIGHT * (0.15 + brightness) * power;
+    };
 
     // --- Scanner: a little camera on the cabinet reads the barcode sticker on the
     // back of the cartridge being previewed (that's how the screen knows what to
@@ -1073,6 +1108,9 @@ export default function CartridgeArcade({
           child.material = screenMaterial;
           // The glass alone, before its (larger) glow is attached
           screenBox.setFromObject(child, true);
+          // Out in front of the glass's middle, low enough to light the deck
+          const glassMiddle = screenBox.getCenter(new Vector3());
+          screenLight.position.set(glassMiddle.x, glassMiddle.y - (screenBox.max.y - screenBox.min.y) * 0.15, screenBox.max.z + 0.55);
           crtGlow = track(createCrtGlow(child));
           showOnScreen(screenTexture);
         } else if (material.name === "Marque") {
@@ -1335,6 +1373,7 @@ export default function CartridgeArcade({
       }
       if (screenMode === "static" && time > staticUntil && screenGame >= 0) startVideo(games[screenGame], true);
       paintScreen(time);
+      updateScreenLight(time);
       updateScanner(time);
       screenVideo?.updateFrame();
       // The glow swells with the picture when it flares on

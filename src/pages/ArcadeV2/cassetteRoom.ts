@@ -307,7 +307,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   const glass = new Mesh(track(new SphereGeometry(0.045, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#ffd9a0") })));
   glass.position.y = -0.46;
   bulb.add(glass);
-  const bulbLight = new PointLight("#ffb56b", 1.1, 4);
+  const bulbLight = new PointLight("#ffb56b", 0.55, 4);
   bulbLight.position.y = -0.5;
   bulb.add(bulbLight);
   room.add(bulb);
