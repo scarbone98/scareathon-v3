@@ -49,6 +49,7 @@ import GameCard from "./GameCard.tsx";
 import { createCassetteRoom, ROOM_FONT, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
+import { createSlotTerminal, type SlotTerminal } from "./slotTerminal.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
@@ -436,6 +437,15 @@ export default function CartridgeArcade({
     const carts: CartState[] = [];
     let focusIndex = -1;
     let insertedIndex = -1;
+    let terminal: SlotTerminal | null = null;
+    // What the slot's terminal prints for a picked cartridge
+    const terminalLines = (game: MachineData) => [
+      "> CART READ OK",
+      game.name.replace(/[‘’]/g, "'").slice(0, 20),
+      game.cartridge.about.genre.slice(0, 20),
+      game.cartridge.about.players.slice(0, 20),
+      `(C) ${game.cartridge.about.released} SCAREATHON`,
+    ];
     let busy = false;
     let room: CassetteRoom | null = null;
     const cameraBase = new Vector3();
@@ -835,6 +845,7 @@ export default function CartridgeArcade({
       gsap.to(scroll, { x: index * pitchX, duration: 0.35, ease: "power2.out" });
       if (fromUser) playTick();
       setFocused(index);
+      terminal?.print(terminalLines(games[index]));
       // Browsing the shelf previews each game on the screen
       if (insertedIndex < 0 && !busy) tuneScreen(index, 0.18);
     };
@@ -896,6 +907,7 @@ export default function CartridgeArcade({
       const oldGroup = old.cart.group;
       insertedIndex = -1;
       setInserted(-1);
+      terminal?.print(["> EJECT", "CARTRIDGE RELEASED"]);
       stopVideo();
       screenGame = -1;
       screenMode = "off";
@@ -944,6 +956,7 @@ export default function CartridgeArcade({
       const index = insertedIndex;
       ejectTimeline().eventCallback("onComplete", () => {
         busy = false;
+        terminal?.print(focusIndex >= 0 ? terminalLines(games[focusIndex]) : ["> INSERT CARTRIDGE"]);
         // Back to previewing whatever's focused once the tube has powered down
         gsap.delayedCall(0.15, () => {
           if (insertedIndex < 0) tuneScreen(focusIndex >= 0 ? focusIndex : index, 0.3);
@@ -973,6 +986,7 @@ export default function CartridgeArcade({
         state.where = "flying";
         scene.attach(group);
         playWhoosh();
+        terminal?.loading(games[index].name);
         // Off the scanner, so no preview: back to the idle screen until it's seated
         stopVideo();
         screenGame = -1;
@@ -1111,6 +1125,18 @@ export default function CartridgeArcade({
         end.position.set(side * cartSize.width * 0.62, portTop, panelCenter.z);
         scene.add(end);
       });
+      // The terminal, against the housing's lower left, its screen tipped up toward you
+      const terminalWidth = cartSize.width * 0.9;
+      const terminalHeight = terminalWidth * 0.62;
+      const terminalDepth = cartSize.depth * 1.4;
+      terminal = track(createSlotTerminal(terminalWidth, terminalHeight, terminalDepth));
+      terminal.group.position.set(
+        -cartSize.width * 0.61 - terminalWidth / 2 - cartSize.width * 0.03,
+        surfaceY + terminalHeight / 2,
+        panelCenter.z + cartSize.depth * 1.1 - terminalDepth / 2
+      );
+      terminal.group.rotation.x = -0.22;
+      scene.add(terminal.group);
       // Sunk far enough that the part left standing stays below the screen
       seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
       portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
@@ -1246,6 +1272,7 @@ export default function CartridgeArcade({
       const time = performance.now() / 1000;
       room?.update(time);
       finish.update(time);
+      terminal?.update(time);
 
       if (screenMode === "power" && time > modeStart + POWER_ON) {
         screenMode = "static";
