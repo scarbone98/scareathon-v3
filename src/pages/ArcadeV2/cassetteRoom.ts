@@ -23,15 +23,12 @@ import {
   type Texture,
   Vector3,
 } from "three";
-import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // The room the cabinet stands in: a hidden 70s tech den. Walnut-panelled walls
 // with a 70s stripe band, brown shag carpet, stacks of old TVs glowing with
-// static, colour bars and a terminal, shelves of cassettes and tapes, a neon
-// sign, and dust hanging in the warm light. Built cheap: painted textures, a
+// static, colour bars and a terminal, shelves of cassettes and tapes, and dust
+// hanging in the warm light. Built cheap: painted textures, a
 // few boxes, instanced tapes, no shadows.
-
-export const ROOM_FONT: ArcadeFont = { family: "Monoton" };
 
 const STRIPES = ["#f2b33d", "#e8772e", "#c9452c", "#7b3a1e"];
 const FOG = new Color("#0b0706");
@@ -190,26 +187,6 @@ function terminal() {
   return { texture, paint };
 }
 
-function neonSign(text: string, color: string, font: ArcadeFont) {
-  return canvasTexture(1024, 288, (context) => {
-    context.clearRect(0, 0, 1024, 288);
-    context.font = canvasFont(font, 150);
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillStyle = color;
-    for (const blur of [60, 30, 12]) {
-      context.shadowColor = color;
-      context.shadowBlur = blur;
-      context.fillText(text, 512, 150);
-    }
-    context.shadowBlur = 4;
-    context.shadowColor = "#ffffff";
-    context.fillStyle = "#ffe6f2";
-    context.globalAlpha = 0.8;
-    context.fillText(text, 512, 150);
-  });
-}
-
 function softDot() {
   return canvasTexture(64, 64, (context) => {
     const dot = context.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -346,25 +323,6 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
     room.add(unit);
   });
 
-  // The neon sign on the back wall, and the light it throws
-  const signMaterial = track(
-    new MeshBasicMaterial({ transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false })
-  );
-  const paintSign = () => {
-    signMaterial.map?.dispose();
-    signMaterial.map = neonSign("ARCADE", "#ff4fa3", ROOM_FONT);
-    signMaterial.needsUpdate = true;
-  };
-  paintSign();
-  whenFontReady(ROOM_FONT).then(() => {
-    if (room.parent) paintSign();
-  });
-  const sign = new Mesh(track(new PlaneGeometry(1.5, 0.42)), signMaterial);
-  sign.position.set(2.35, 2.45, WALL_Z + 0.02);
-  room.add(sign);
-  const signLight = new PointLight("#ff4fa3", 1.4, 4.5);
-  signLight.position.set(2.35, 2.4, WALL_Z + 0.6);
-  room.add(signLight);
   const tvLight = new PointLight("#7fd6ff", 0.8, 3.5);
   tvLight.position.set(-1.6, 0.8, -0.9);
   room.add(tvLight);
@@ -402,13 +360,11 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
       }
       // Dust drifts slowly
       dust.position.copy(origin).set(Math.sin(time * 0.05) * 0.2, Math.sin(time * 0.08) * 0.1, 0);
-      signMaterial.opacity = 0.92 + Math.sin(time * 40) * 0.03 + (Math.sin(time * 1.3) > 0.985 ? -0.5 : 0);
     },
     dispose() {
       scene.remove(room);
       scene.background = previousBackground;
       scene.fog = previousFog;
-      signMaterial.map?.dispose();
       disposables.forEach((item) => item.dispose());
     },
   };

@@ -46,7 +46,7 @@ import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type C
 import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
-import { createCassetteRoom, ROOM_FONT, type CassetteRoom } from "./cassetteRoom.ts";
+import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { createSlotTerminal, type SlotTerminal } from "./slotTerminal.ts";
@@ -167,7 +167,7 @@ export default function CartridgeArcade({
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
     scene.add(shelfLight);
 
-    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, ROOM_FONT]);
+    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT]);
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -1125,17 +1125,19 @@ export default function CartridgeArcade({
         end.position.set(side * cartSize.width * 0.62, portTop, panelCenter.z);
         scene.add(end);
       });
-      // The terminal, against the housing's lower left, its screen tipped up toward you
-      const terminalWidth = cartSize.width * 0.9;
-      const terminalHeight = terminalWidth * 0.62;
-      const terminalDepth = cartSize.depth * 1.4;
+      // The terminal, set into the bottom left of the housing's front face
+      const housingFront = panelCenter.z + cartSize.depth * 1.1;
+      const faceHeight = portTop - surfaceY;
+      const terminalHeight = Math.min(faceHeight * 0.72, cartSize.width * 0.3);
+      const terminalWidth = terminalHeight / 0.62;
+      const terminalDepth = cartSize.depth * 0.25;
+      const margin = faceHeight * 0.12;
       terminal = track(createSlotTerminal(terminalWidth, terminalHeight, terminalDepth));
       terminal.group.position.set(
-        -cartSize.width * 0.61 - terminalWidth / 2 - cartSize.width * 0.03,
-        surfaceY + terminalHeight / 2,
-        panelCenter.z + cartSize.depth * 1.1 - terminalDepth / 2
+        -cartSize.width * 0.61 + margin + terminalWidth / 2,
+        surfaceY + margin + terminalHeight / 2,
+        housingFront + terminalDepth / 2
       );
-      terminal.group.rotation.x = -0.22;
       scene.add(terminal.group);
       // Sunk far enough that the part left standing stays below the screen
       seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
