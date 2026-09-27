@@ -2,19 +2,25 @@ import {
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
+  CircleGeometry,
   Color,
+  CylinderGeometry,
   ExtrudeGeometry,
   Group,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
   Shape,
+  ShapeGeometry,
   SRGBColorSpace,
 } from "three";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
-// A game cartridge: a plastic shell in the game's colour with a paper label on
-// the front showing a still from its attract video and the game's name.
+// A game cartridge crossed with an audio cassette: a plastic shell in the
+// game's colour that tapers at the bottom like a cassette, over a gold edge
+// connector for the slot. On the front, a cassette-style paper label with the
+// game's name in a colour band and a still from its attract video, and below it
+// a smoky window onto two tape reels that turn while the game is picked or playing.
 
 export type CartridgeSize = { width: number; height: number; depth: number };
 
@@ -22,6 +28,7 @@ export type Cartridge = {
   group: Group;
   // Paint a frame from the attract video into the label's picture window.
   setPicture: (source: CanvasImageSource, width: number, height: number) => void;
+  // 0 on the shelf, 1 picked; also turns the reels, faster the higher it is
   setHighlight: (amount: number) => void;
   // The barcode sticker on the back, in the cartridge's own space (it faces -z)
   sticker: { width: number; height: number; y: number; z: number };
@@ -63,13 +70,15 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
   context.fillText(`SCR-${(seed % 90000) + 10000}  NOT FOR RESALE`, 12, 140);
 }
 
+// The label, cassette style: the name in a colour band with three stripes under
+// it, the picture, then a line of small print, all on cream paper
 const LABEL_WIDTH = 400;
-const LABEL_HEIGHT = 254;
-const STRIPE = 10;
-const PICTURE = { x: 12, y: 12, width: LABEL_WIDTH - 24, height: 180 };
-// The name sits centred in the strip between the picture and the bottom stripe
-const TITLE_Y = (PICTURE.y + PICTURE.height + LABEL_HEIGHT - STRIPE) / 2;
-const TITLE_MAX = 40;
+const LABEL_HEIGHT = 245;
+const BAND = 46;
+const PICTURE = { x: 12, y: BAND + 18, width: LABEL_WIDTH - 24, height: 150 };
+const TITLE_MAX = 34;
+const PAPER = "#efe6d2";
+const INK = "#2a2126";
 // Stills are copied at about this size: enough for the label, small to keep
 const STILL_MAX = 480;
 
@@ -81,13 +90,43 @@ function paintLabel(
   picture?: { source: CanvasImageSource; width: number; height: number }
 ) {
   const { width, height } = context.canvas;
-  context.fillStyle = "#16101c";
+  context.fillStyle = PAPER;
   context.fillRect(0, 0, width, height);
+
+  // The colour band, and three stripes in its shades under it
+  context.fillStyle = color;
+  context.fillRect(0, 0, width, BAND);
+  const shade = new Color(color);
+  [
+    [shade.clone().multiplyScalar(0.62), 5],
+    [shade.clone().lerp(new Color("#ffffff"), 0.35), 3],
+    [shade.clone().multiplyScalar(0.62), 2],
+  ].reduce((y, [tone, thickness]) => {
+    context.fillStyle = `#${(tone as Color).getHexString()}`;
+    context.fillRect(0, y, width, thickness as number);
+    return y + (thickness as number) + 2;
+  }, BAND + 2);
+
+  // Name, shrunk to fit, in the game's own font
+  const label = name.replace(/[‘’]/g, "'").toUpperCase();
+  let fontSize = TITLE_MAX;
+  context.font = canvasFont(font, fontSize);
+  while (context.measureText(label).width > width - 28 && fontSize > 14) {
+    fontSize -= 2;
+    context.font = canvasFont(font, fontSize);
+  }
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.shadowColor = "rgba(0, 0, 0, 0.55)";
+  context.shadowBlur = 6;
+  context.fillStyle = "#fff8ee";
+  context.fillText(label, width / 2, BAND / 2 + 1);
+  context.shadowBlur = 0;
 
   // Picture window: the attract video still, or a dim colour wash until it loads
   context.save();
   context.beginPath();
-  context.roundRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height, 10);
+  context.roundRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height, 6);
   context.clip();
   if (picture) {
     // Like the cabinet screen: the still blurred behind, then the whole still
@@ -123,55 +162,42 @@ function paintLabel(
     context.fillRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height);
   }
   context.restore();
-  context.strokeStyle = color;
-  context.lineWidth = 4;
+  context.strokeStyle = INK;
+  context.lineWidth = 2;
   context.beginPath();
-  context.roundRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height, 10);
+  context.roundRect(PICTURE.x, PICTURE.y, PICTURE.width, PICTURE.height, 6);
   context.stroke();
 
-  // Name, shrunk to fit, in the game's own font
-  const label = name.replace(/[‘’]/g, "'").toUpperCase();
-  let fontSize = TITLE_MAX;
-  context.font = canvasFont(font, fontSize);
-  while (context.measureText(label).width > width - 32 && fontSize > 16) {
-    fontSize -= 2;
-    context.font = canvasFont(font, fontSize);
-  }
-  context.textAlign = "center";
+  // Small print along the bottom, like a tape's side and length
+  const printY = (PICTURE.y + PICTURE.height + height) / 2;
+  context.fillStyle = INK;
+  context.font = "700 12px ui-monospace, Menlo, Consolas, monospace";
   context.textBaseline = "middle";
-  context.shadowColor = color;
-  context.shadowBlur = 16;
-  context.fillStyle = "#fff6ee";
-  context.fillText(label, width / 2, TITLE_Y);
-  context.shadowBlur = 0;
-
-  // Coloured stripe along the bottom edge
-  context.fillStyle = color;
-  context.fillRect(0, height - STRIPE, width, STRIPE);
+  context.textAlign = "left";
+  context.fillText("SIDE A", PICTURE.x + 2, printY);
+  context.textAlign = "right";
+  context.fillText("SCAREATHON · TYPE II", width - PICTURE.x - 2, printY);
 }
 
-// The shell, N64/GBA style: the top corners cut off at an angle and a notch in
-// each side just above the connector, extruded with softly rounded edges.
-// Centred on the origin.
-function shellGeometry(width: number, height: number, depth: number) {
+// The shell's outline, centred on the origin: square top corners softly rounded,
+// and the bottom tapering in like a cassette's, extruded with rounded edges.
+// `taperHeight` is how far up from the bottom the taper reaches.
+function shellGeometry(width: number, height: number, depth: number, taperHeight: number) {
   const bevel = depth * 0.12;
   const x = width / 2 - bevel;
   const top = height / 2 - bevel;
   const bottom = -height / 2 + bevel;
-  const shoulder = width * 0.09;
-  const notchWidth = width * 0.05;
-  const notchHeight = height * 0.16;
+  const taper = width * 0.09;
+  const corner = width * 0.045;
   const outline = new Shape();
-  outline.moveTo(-x + notchWidth, bottom);
-  outline.lineTo(x - notchWidth, bottom);
-  outline.lineTo(x - notchWidth, bottom + notchHeight);
-  outline.lineTo(x, bottom + notchHeight);
-  outline.lineTo(x, top - shoulder);
-  outline.lineTo(x - shoulder, top);
-  outline.lineTo(-x + shoulder, top);
-  outline.lineTo(-x, top - shoulder);
-  outline.lineTo(-x, bottom + notchHeight);
-  outline.lineTo(-x + notchWidth, bottom + notchHeight);
+  outline.moveTo(-x + taper, bottom);
+  outline.lineTo(x - taper, bottom);
+  outline.lineTo(x, bottom + taperHeight);
+  outline.lineTo(x, top - corner);
+  outline.quadraticCurveTo(x, top, x - corner, top);
+  outline.lineTo(-x + corner, top);
+  outline.quadraticCurveTo(-x, top, -x, top - corner);
+  outline.lineTo(-x, bottom + taperHeight);
   outline.closePath();
   const core = depth - bevel * 2;
   const geometry = new ExtrudeGeometry(outline, {
@@ -183,6 +209,53 @@ function shellGeometry(width: number, height: number, depth: number) {
   });
   geometry.translate(0, 0, -core / 2);
   return geometry;
+}
+
+// A tape reel's hub: a white ring with teeth pointing into its middle
+function hubCanvas() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const context = canvas.getContext("2d")!;
+  const c = 64;
+  context.fillStyle = "#f4efe4";
+  context.beginPath();
+  context.arc(c, c, 60, 0, Math.PI * 2);
+  context.fill();
+  context.globalCompositeOperation = "destination-out";
+  context.beginPath();
+  context.arc(c, c, 34, 0, Math.PI * 2);
+  context.fill();
+  context.globalCompositeOperation = "source-over";
+  context.fillStyle = "#f4efe4";
+  for (let i = 0; i < 6; i += 1) {
+    context.save();
+    context.translate(c, c);
+    context.rotate((i * Math.PI) / 3);
+    context.fillRect(-5, -36, 10, 14);
+    context.restore();
+  }
+  context.strokeStyle = "rgba(40, 30, 30, 0.5)";
+  context.lineWidth = 3;
+  context.beginPath();
+  context.arc(c, c, 59, 0, Math.PI * 2);
+  context.stroke();
+  return canvas;
+}
+
+function roundedRect(width: number, height: number, radius: number) {
+  const shape = new Shape();
+  const x = width / 2;
+  const y = height / 2;
+  shape.moveTo(-x + radius, -y);
+  shape.lineTo(x - radius, -y);
+  shape.quadraticCurveTo(x, -y, x, -y + radius);
+  shape.lineTo(x, y - radius);
+  shape.quadraticCurveTo(x, y, x - radius, y);
+  shape.lineTo(-x + radius, y);
+  shape.quadraticCurveTo(-x, y, -x, y - radius);
+  shape.lineTo(-x, -y + radius);
+  shape.quadraticCurveTo(-x, -y, -x + radius, -y);
+  return new ShapeGeometry(shape, 4);
 }
 
 export function createCartridge(
@@ -217,40 +290,66 @@ export function createCartridge(
     return mesh;
   };
 
-  // The shell: a rounded plastic body above an edge connector that goes into the slot
+  // The shell: a cassette-shaped plastic body above an edge connector that goes into the slot
   const connectorHeight = height * 0.1;
   const bodyHeight = height - connectorHeight;
   const bodyBottom = -height / 2 + connectorHeight;
-  addPart(shellGeometry(width, bodyHeight, depth), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
-  addPart(new BoxGeometry(width * 0.78, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
+  const bodyTop = height / 2;
+  const taperHeight = bodyHeight * 0.2;
+  const front = depth / 2;
+  addPart(shellGeometry(width, bodyHeight, depth, taperHeight), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
+  addPart(new BoxGeometry(width * 0.62, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
   // Gold contacts along both faces of the connector
-  addPart(new BoxGeometry(width * 0.7, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
+  addPart(new BoxGeometry(width * 0.56, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
 
-  // Grip ridges across the top of the front, above the label
-  const labelWidth = width * 0.8;
-  const labelHeight = labelWidth * (LABEL_HEIGHT / LABEL_WIDTH);
-  const labelY = bodyBottom + width * 0.035 + labelHeight / 2;
-  const gripTop = height / 2 - width * 0.025;
-  const gripBottom = labelY + labelHeight / 2 + width * 0.02;
-  const ridgeGeometry = new BoxGeometry(width * 0.62, width * 0.008, depth * 0.08);
-  geometries.push(ridgeGeometry);
-  for (let i = 0; i < 3; i += 1) {
-    const ridge = new Mesh(ridgeGeometry, trimMaterial);
-    ridge.position.set(0, gripBottom + ((gripTop - gripBottom) * (i + 0.5)) / 3, depth / 2 + depth * 0.02);
-    group.add(ridge);
-  }
-  // Ribs down both ends, for fingers to grip
-  const ribGeometry = new BoxGeometry(width * 0.02, bodyHeight * 0.5, depth * 0.1);
-  geometries.push(ribGeometry);
-  [-1, 1].forEach((side) => {
-    for (let i = 0; i < 3; i += 1) {
-      const rib = new Mesh(ribGeometry, trimMaterial);
-      rib.position.set(side * (width / 2 + width * 0.004), bodyBottom + bodyHeight * 0.5, (i - 1) * depth * 0.28);
-      group.add(rib);
-    }
+  // The label, set in a darker recess, filling the face above the taper
+  const labelWidth = width * 0.86;
+  const labelTop = bodyTop - width * 0.035;
+  const labelBottom = bodyBottom + taperHeight + width * 0.012;
+  const labelHeight = labelTop - labelBottom;
+  const labelY = (labelTop + labelBottom) / 2;
+  addPart(new PlaneGeometry(labelWidth + width * 0.03, labelHeight + width * 0.03), trimMaterial, 0, labelY, front + 0.001);
+
+  // The window onto the tape, in the taper: two reels, each a white hub with tape
+  // wound round it, fuller on the left as if partway through
+  const windowY = bodyBottom + taperHeight * 0.5;
+  const windowHeight = taperHeight * 0.72;
+  const reelSpacing = width * 0.13;
+  const hubRadius = windowHeight * 0.3;
+  const windowMaterial = new MeshStandardMaterial({ color: new Color("#140f15"), roughness: 0.18, metalness: 0.1 });
+  const tapeMaterial = new MeshStandardMaterial({ color: new Color("#3b2519"), roughness: 0.35, metalness: 0.2 });
+  const hubTexture = new CanvasTexture(hubCanvas());
+  hubTexture.colorSpace = SRGBColorSpace;
+  const hubMaterial = new MeshStandardMaterial({ map: hubTexture, transparent: true, roughness: 0.5, alphaTest: 0.1 });
+  const screwMaterial = new MeshStandardMaterial({ color: new Color("#b9b4ac"), roughness: 0.35, metalness: 0.8 });
+  const reelMaterials = [windowMaterial, tapeMaterial, hubMaterial, screwMaterial];
+  addPart(roundedRect(width * 0.46, windowHeight, windowHeight * 0.3), windowMaterial, 0, windowY, front + 0.001);
+  const hubs = [-1, 1].map((side) => {
+    const tape = windowHeight * (side < 0 ? 0.47 : 0.36);
+    addPart(new CircleGeometry(tape, 28), tapeMaterial, side * reelSpacing, windowY, front + 0.0015);
+    return addPart(new CircleGeometry(hubRadius, 20), hubMaterial, side * reelSpacing, windowY, front + 0.002);
   });
-  // A darker recess the label sits in
-  addPart(new PlaneGeometry(labelWidth * 1.05, labelHeight + labelWidth * 0.05), trimMaterial, 0, labelY, depth / 2 + 0.001);
+  // Reels turn at a speed set by setHighlight
+  let reelAngle = 0;
+  let reelTime = performance.now();
+  const spinReels = (amount: number) => {
+    const now = performance.now();
+    reelAngle -= Math.min((now - reelTime) / 1000, 0.1) * amount * 5;
+    reelTime = now;
+    hubs.forEach((hub) => {
+      hub.rotation.z = reelAngle;
+    });
+  };
+
+  // Screws, like a cassette's: at the top corners and either side of the window
+  const screwGeometry = new CylinderGeometry(width * 0.013, width * 0.013, depth * 0.06, 12);
+  const screwAt = (x: number, y: number) => {
+    addPart(screwGeometry, screwMaterial, x, y, front + depth * 0.01).rotation.x = Math.PI / 2;
+  };
+  [-1, 1].forEach((side) => {
+    screwAt(side * width * 0.458, bodyTop - width * 0.022);
+    screwAt(side * width * 0.33, windowY);
+  });
 
   // The paper label on the front
   const canvas = document.createElement("canvas");
@@ -271,7 +370,7 @@ export function createCartridge(
 
   const labelMaterial = new MeshStandardMaterial({
     map: texture,
-    roughness: 0.8,
+    roughness: 0.75,
     emissive: new Color("#ffffff"),
     emissiveMap: texture,
     emissiveIntensity: 0.35,
@@ -310,14 +409,16 @@ export function createCartridge(
       repaint();
     },
     setHighlight: (amount) => {
+      spinReels(amount);
       labelMaterial.emissiveIntensity = 0.35 + amount * 0.45;
       shellMaterial.emissive.copy(shellColor).multiplyScalar(0.18 + amount * 0.35);
     },
     dispose: () => {
       geometries.forEach((geometry) => geometry.dispose());
-      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial].forEach((material) =>
-        material.dispose()
+      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial, ...reelMaterials].forEach(
+        (material) => material.dispose()
       );
+      hubTexture.dispose();
       texture.dispose();
       stickerTexture.dispose();
     },
