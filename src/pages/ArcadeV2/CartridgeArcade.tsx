@@ -1127,11 +1127,16 @@ export default function CartridgeArcade({
           depth: cartSize.depth * 2.2,
           center: new Vector3(0, portTop - portHeight / 2, panelCenter.z),
           deckY: surfaceY,
-          surfaceZ: (x, y) => {
-            cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
-            const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
-            return hit ? hit.point.z : panelCenter.z - cartSize.depth;
+          // Drop a ray onto the deck, passing through the buttons and joysticks
+          deckAt: (x, z) => {
+            cabinetRay.set(new Vector3(x, portTop + cartSize.height * 0.5, z), new Vector3(0, -1, 0));
+            const hit = cabinetRay
+              .intersectObject(model, true)
+              .find((h) => !PANEL_MATERIALS.has(((h.object as Mesh).material as MeshStandardMaterial).name) && (h.object as Mesh).material !== screenMaterial);
+            return hit ? hit.point.y : surfaceY;
           },
+          deckFront: cabinetBox.max.z - cartSize.depth * 0.5,
+          deckEdge: cabinetBox.max.x - cartSize.width * 0.17,
         })
       );
       scene.add(rig.group);

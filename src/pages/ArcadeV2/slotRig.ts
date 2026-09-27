@@ -1,12 +1,10 @@
 import {
   BoxGeometry,
-  BufferAttribute,
   BufferGeometry,
   CanvasTexture,
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
-  DoubleSide,
   EquirectangularReflectionMapping,
   Group,
   Mesh,
@@ -21,8 +19,8 @@ import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 // The cartridge slot as a retrofit someone bodged into the cabinet to play
 // these cassette games: a box of bare silver sheet metal bolted onto the
 // deck with L-brackets, a strip of duct tape, a hand-written masking tape
-// label, a rainbow ribbon cable arcing into a hole hacked in the bezel, and
-// loose wires trailing across the deck into a grommet.
+// label, and bundles of loose wires sprawling off both ends and away round the
+// control panel's corners.
 
 export const MARKER_FONT: ArcadeFont = { family: "Permanent Marker" };
 
@@ -32,56 +30,12 @@ type RigOptions = {
   depth: number;
   center: Vector3; // the housing's centre
   deckY: number; // the control deck's surface under it
-  // The cabinet's front surface (its z) straight behind a point, for the cables to plug into
-  surfaceZ: (x: number, y: number) => number;
+  deckAt: (x: number, z: number) => number; // the deck's height at a point
+  deckFront: number; // z of the deck's front edge
+  deckEdge: number; // how far out from the centre the deck runs before the side panels
 };
 
 export type SlotRig = { group: Group; dispose: () => void };
-
-// A flat ribbon along a curve, lying across it rather than standing up
-function ribbonGeometry(curve: CatmullRomCurve3, width: number, segments: number) {
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  const up = new Vector3(0, 1, 0);
-  for (let i = 0; i <= segments; i += 1) {
-    const t = i / segments;
-    const point = curve.getPointAt(t);
-    const tangent = curve.getTangentAt(t);
-    const side = new Vector3().crossVectors(tangent, up);
-    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
-    side.normalize().multiplyScalar(width / 2);
-    positions.push(point.x - side.x, point.y - side.y, point.z - side.z, point.x + side.x, point.y + side.y, point.z + side.z);
-    uvs.push(0, t, 1, t);
-    if (i < segments) {
-      const a = i * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(new Float32Array(positions), 3));
-  geometry.setAttribute("uv", new BufferAttribute(new Float32Array(uvs), 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function ribbonTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 64;
-  canvas.height = 4;
-  const context = canvas.getContext("2d")!;
-  const colors = ["#8a2a1f", "#c84a26", "#e8952e", "#e9c94a", "#5c8f4a", "#3a6b9a", "#6a4a8a", "#9a9a9a", "#e8e2d4", "#2a2a2a"];
-  colors.forEach((color, i) => {
-    context.fillStyle = color;
-    context.fillRect((i * 64) / colors.length, 0, 64 / colors.length, 4);
-    context.fillStyle = "rgba(0, 0, 0, 0.35)";
-    context.fillRect(((i + 1) * 64) / colors.length - 1, 0, 1, 4);
-  });
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
-}
 
 function labelTexture() {
   const canvas = document.createElement("canvas");
@@ -139,7 +93,7 @@ function studioReflection() {
   return texture;
 }
 
-export function createSlotRig({ width, height, depth, center, deckY, surfaceZ }: RigOptions): SlotRig {
+export function createSlotRig({ width, height, depth, center, deckY, deckAt, deckFront, deckEdge }: RigOptions): SlotRig {
   const group = new Group();
   const disposables: { dispose: () => void }[] = [];
   const track = <T extends { dispose: () => void }>(item: T) => {
@@ -153,12 +107,12 @@ export function createSlotRig({ width, height, depth, center, deckY, surfaceZ }:
     return mesh;
   };
 
-  // Bare brushed steel. It reflects its own cool grey "studio", and drains the
+  // Matte brushed steel. It reflects its own cool grey "studio", and drains the
   // colour from whatever light falls on it, so under the room's orange lights it
   // still reads as silver rather than copper
   const studio = track(studioReflection());
   const metal = track(
-    new MeshStandardMaterial({ color: new Color("#c8ced4"), roughness: 0.35, metalness: 0.85, envMap: studio, envMapIntensity: 1.2 })
+    new MeshStandardMaterial({ color: new Color("#c8ced4"), roughness: 0.75, metalness: 0.6, envMap: studio, envMapIntensity: 0.8 })
   );
   metal.customProgramCacheKey = () => "slot-steel";
   metal.onBeforeCompile = (shader) => {
@@ -210,46 +164,44 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   const labelMesh = add(new PlaneGeometry(labelWidth, labelWidth * (80 / 256)), labelMaterial, center.x + halfWidth - labelWidth * 0.75, top - height * 0.62, front + plate * 0.3);
   labelMesh.rotation.z = -0.07;
 
-  // The ribbon cable: out of the housing's right side, just above the bracket,
-  // arcing back into a hole cut in the bezel
-  const ribbonY = top - height * 0.1;
-  const holeX = center.x + width * 0.74;
-  const holeY = top + height * 0.12;
-  const holeZ = surfaceZ(holeX, holeY);
-  const ribbonCurve = new CatmullRomCurve3([
-    new Vector3(center.x + halfWidth - plate, ribbonY, center.z),
-    new Vector3(center.x + halfWidth + width * 0.08, ribbonY, center.z + depth * 0.05),
-    new Vector3(center.x + halfWidth + width * 0.16, top + height * 0.1, (center.z + holeZ) / 2),
-    new Vector3(holeX, holeY + height * 0.05, holeZ + depth * 0.15),
-    new Vector3(holeX, holeY, holeZ - depth * 0.1),
-  ]);
-  const ribbonMap = track(ribbonTexture());
-  const ribbon = new Mesh(
-    track(ribbonGeometry(ribbonCurve, width * 0.26, 48)),
-    track(new MeshStandardMaterial({ map: ribbonMap, roughness: 0.5, side: DoubleSide }))
-  );
-  group.add(ribbon);
-  // The hacked hole: a rough dark gap
-  add(new PlaneGeometry(width * 0.34, height * 0.3), rubber, holeX, holeY, holeZ + 0.001);
-
-  // Loose wires off the housing's left end, across the deck and into a grommet
-  const grommetX = center.x - halfWidth - width * 0.16;
-  const grommetY = deckY + height * 0.55;
-  const grommetZ = surfaceZ(grommetX, grommetY);
-  const wireColors = ["#b3281e", "#151315", "#d9b83a"];
-  wireColors.forEach((color, i) => {
-    const offset = (i - 1) * plate * 1.6;
-    const curve = new CatmullRomCurve3([
-      new Vector3(center.x - halfWidth - plate, top - height * 0.3 + offset, center.z + depth * 0.1 + offset),
-      new Vector3(center.x - halfWidth - width * 0.05, deckY + plate * 2, center.z + depth * 0.15 + offset),
-      new Vector3(grommetX + width * 0.03, deckY + plate * 1.5, (center.z + grommetZ) / 2 + offset),
-      new Vector3(grommetX, grommetY + offset * 0.5, grommetZ - depth * 0.1),
-    ]);
-    const material = track(new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 }));
-    group.add(new Mesh(track(new TubeGeometry(curve, 40, plate * 0.75, 6)), material));
+  // Loose wiring: a bundle off each end of the housing, sprawling across the
+  // deck behind the buttons, along the side panel, over the control panel's
+  // front corner and away under its overhang, clear of the screen and the
+  // cartridges. Zip-tied here and there.
+  const bundles = [
+    { side: -1, colors: ["#b3281e", "#151315", "#d9b83a"] },
+    { side: 1, colors: ["#2f5d9a", "#3f8a4a", "#e6e0d2", "#c85a26"] },
+  ];
+  const radius = plate * 0.8;
+  bundles.forEach(({ side, colors }) => {
+    const x = (along: number) => center.x + side * along;
+    const on = (along: number, z: number, lift = radius) => new Vector3(x(along), deckAt(x(along), z) + lift, z);
+    colors.forEach((color, i) => {
+      const spread = (i - (colors.length - 1) / 2) * radius * 2.4;
+      // Each wire strays a little differently, so the bundle doesn't lie neatly
+      const stray = Math.sin(i * 2.3 + side * 1.7) * width * 0.05;
+      const curve = new CatmullRomCurve3([
+        new Vector3(x(halfWidth + plate), top - height * 0.35 + spread * 0.4, center.z + spread),
+        on(halfWidth + width * 0.07, center.z + depth * 0.3 + spread, radius * 2),
+        on(halfWidth + width * 0.55 + stray, center.z + depth * 0.7 + spread + stray * 0.5),
+        on(deckEdge - width * 0.08, center.z + depth * 0.9 + spread, radius * 1.4),
+        on(deckEdge - radius * 2 + spread * 0.3, (center.z + deckFront) / 2 + stray),
+        on(deckEdge - radius * 2 + spread * 0.3, deckFront - radius * 3),
+        new Vector3(x(deckEdge - radius * 2 + spread * 0.3), deckAt(x(deckEdge), deckFront - 0.01) - 0.02, deckFront + radius * 1.5),
+        new Vector3(x(deckEdge - radius * 3), deckAt(x(deckEdge), deckFront - 0.01) - 0.11, deckFront + radius),
+        new Vector3(x(deckEdge - radius * 4), deckAt(x(deckEdge), deckFront - 0.01) - 0.3, deckFront - 0.2),
+      ]);
+      const material = track(new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 }));
+      group.add(new Mesh(track(new TubeGeometry(curve, 90, radius, 6)), material));
+    });
+    // Zip ties round the bundle where it turns along the side panel and at the corner
+    [
+      on(deckEdge - width * 0.08, center.z + depth * 0.9, radius * 1.4),
+      on(deckEdge - radius * 2, deckFront - radius * 3),
+    ].forEach((at) => {
+      add(new BoxGeometry(radius * 3.2, radius * 3.2, radius * 1.4), rubber, at.x, at.y, at.z);
+    });
   });
-  const grommet = add(new CylinderGeometry(plate * 4, plate * 4, plate * 1.5, 12), rubber, grommetX, grommetY, grommetZ + plate * 0.4);
-  grommet.rotation.x = Math.PI / 2;
 
   return {
     group,
