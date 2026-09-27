@@ -30,11 +30,11 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       role="dialog"
       aria-modal="true"
       aria-label="All games"
-      className="fixed inset-0 z-40 flex flex-col p-2 sm:p-6"
+      className="fixed inset-0 z-40 flex flex-col p-2 sm:p-6 md:pt-24"
       style={{ background: "rgba(0, 0, 0, 0.7)" }}
       onClick={onClose}
     >
-      {/* The terminal's glass, filling the screen */}
+      {/* The terminal's glass, filling the screen (below the site nav on wide screens, which sits over everything) */}
       <div
         className="relative mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-hidden rounded-2xl border-[10px] border-[#b9ab8e]"
         style={{
