@@ -2,6 +2,38 @@ import { useEffect, useRef } from "react"; // added
 
 type GameRendererCleanup = void | (() => void) | (() => void)[];
 
+// Holding a virtual stick on a phone shouldn't start a text selection, the
+// long-press callout or a zoom. Cross-origin games have to handle this in
+// their own page; same-origin ones get this style injected.
+const NO_TOUCH_GESTURES_CSS = `
+  html, body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  canvas { touch-action: none; }
+`;
+
+// iOS Safari ignores user-scalable=no, so pinch zoom has to be cancelled by hand
+const preventGesture = (event: Event) => event.preventDefault();
+
+function guardFrameDocument(iframe: HTMLIFrameElement) {
+  let doc: Document | null = null;
+  try {
+    doc = iframe.contentDocument;
+  } catch {
+    return;
+  }
+  if (!doc?.head || doc.getElementById("arcade-no-touch-gestures")) return;
+  const style = doc.createElement("style");
+  style.id = "arcade-no-touch-gestures";
+  style.textContent = NO_TOUCH_GESTURES_CSS;
+  doc.head.appendChild(style);
+  doc.addEventListener("gesturestart", preventGesture);
+}
+
 type GameRendererProps = {
   url: string;
   onLoad?: (iframe: HTMLIFrameElement) => GameRendererCleanup;
@@ -30,6 +62,15 @@ function GameRenderer({
     iframe.style.overflow = "hidden";
     iframe.style.border = "0";
     iframe.style.display = "block";
+    iframe.style.userSelect = "none";
+    iframe.style.touchAction = "none";
+    iframe.style.setProperty("-webkit-user-select", "none");
+    iframe.style.setProperty("-webkit-touch-callout", "none");
+
+    const handleFrameLoad = () => guardFrameDocument(iframe);
+    iframe.addEventListener("load", handleFrameLoad);
+    handleFrameLoad();
+    document.addEventListener("gesturestart", preventGesture);
 
     const applyIframeSize = () => {
       const viewportHeight =
@@ -88,6 +129,8 @@ function GameRenderer({
 
     return () => {
       window.removeEventListener("resize", applyIframeSize);
+      iframe.removeEventListener("load", handleFrameLoad);
+      document.removeEventListener("gesturestart", preventGesture);
       resizeObserver?.disconnect();
 
       if (Array.isArray(functionsToRun)) {

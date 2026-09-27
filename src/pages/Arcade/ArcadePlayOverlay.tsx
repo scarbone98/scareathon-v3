@@ -41,10 +41,10 @@ export default function ArcadePlayOverlay({ machine, onClose, returnPath }: Arca
     <>
       {/* Solid black behind the game, edge to edge, so nothing shows around a
           game that doesn't fill the screen */}
-      <div className="fixed inset-0 z-40 bg-black" aria-hidden="true" />
+      <div className="fixed inset-0 z-40 touch-manipulation select-none bg-black" aria-hidden="true" />
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center bg-black"
-        style={{ top: headerHeight }}
+        className="fixed bottom-0 left-0 right-0 z-40 flex touch-manipulation select-none items-center justify-center bg-black"
+        style={{ top: headerHeight, WebkitTouchCallout: "none" }}
       >
         <div className="flex h-full w-fit flex-col items-center justify-start">
           <Toolbar
