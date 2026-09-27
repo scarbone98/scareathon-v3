@@ -53,17 +53,29 @@ const TEARS =
   "transparent 33% 46%, #000 46% 48%, transparent 48% 61%, #000 61% 69%, transparent 69% 78%, #000 78% 80%, " +
   "transparent 80% 91%, #000 91% 95%, transparent 95%)";
 
-const CRT_STYLES = `
-@keyframes crt-snow {
-  0% { transform: translate(0, 0); }
-  12.5% { transform: translate(-13%, 7%); }
-  25% { transform: translate(9%, -11%); }
-  37.5% { transform: translate(-6%, -17%); }
-  50% { transform: translate(17%, 4%); }
-  62.5% { transform: translate(-19%, 13%); }
-  75% { transform: translate(5%, 19%); }
-  87.5% { transform: translate(14%, -6%); }
+// Where the snow jumps to, in turn. Each position is held then cut to the next
+// with a pair of keyframes a hair apart and linear timing, rather than steps():
+// Safari won't run steps() animations off the main thread, so they froze there
+const SNOW_JUMPS = [
+  [0, 0], [-13, 7], [9, -11], [-6, -17], [17, 4], [-19, 13], [5, 19], [14, -6],
+];
+const TEAR_JUMPS = [[0, 0], [0, 9], [0, -6], [0, 14], [0, 3]];
+
+function jumps(positions: number[][]) {
+  const step = 100 / positions.length;
+  return positions
+    .map(([x, y], i) => {
+      const at = `translate(${x}%, ${y}%)`;
+      const from = i * step;
+      // Held until just before the next jump
+      const until = (i + 1) * step - 0.01;
+      return `${from.toFixed(2)}% { transform: ${at}; } ${until.toFixed(2)}% { transform: ${at}; }`;
+    })
+    .join(" ");
 }
+
+const CRT_STYLES = `
+@keyframes crt-snow {${jumps(SNOW_JUMPS)}}
 @keyframes crt-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes crt-snow-out {
   0% { opacity: 1; } 18% { opacity: 0.55; } 26% { opacity: 0.85; } 42% { opacity: 0.3; }
@@ -72,17 +84,14 @@ const CRT_STYLES = `
 @keyframes crt-tears-out {
   0% { opacity: 1; } 30% { opacity: 0.9; } 55% { opacity: 0.6; } 75% { opacity: 0.35; } 100% { opacity: 0; }
 }
-@keyframes crt-tears-jump {
-  0% { transform: translateY(0); } 20% { transform: translateY(9%); } 40% { transform: translateY(-6%); }
-  60% { transform: translateY(14%); } 80% { transform: translateY(3%); }
-}
+@keyframes crt-tears-jump {${jumps(TEAR_JUMPS)}}
 @keyframes crt-roll {
   from { transform: translateY(420%); } to { transform: translateY(-120%); }
 }
 @keyframes crt-roll-out { from { opacity: 0.6; } to { opacity: 0; } }
 .crt-snow {
   animation:
-    crt-snow 0.36s steps(1) infinite,
+    crt-snow 0.36s linear infinite,
     crt-in ${FADE_IN_MS}ms ease-out both,
     crt-snow-out ${TUNE_MS * 0.7}ms linear ${TUNE_AT}ms forwards;
 }
@@ -91,7 +100,7 @@ const CRT_STYLES = `
   -webkit-mask-image: ${TEARS};
   mask-image: ${TEARS};
   animation:
-    crt-tears-jump 0.3s steps(1) infinite,
+    crt-tears-jump 0.3s linear infinite,
     crt-tears-out ${TUNE_MS}ms linear ${TUNE_AT}ms forwards;
 }
 .crt-roll {

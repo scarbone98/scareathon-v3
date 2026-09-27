@@ -1078,7 +1078,7 @@ export default function CartridgeArcade({
         scene.add(end);
       });
       // Sunk far enough that the part left standing stays below the screen
-      seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.45, panelCenter.z);
+      seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
       portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
       portLight.position.set(0, portTop + cartSize.height * 0.3, panelCenter.z + cartSize.depth * 3);
       scene.add(portLight);
