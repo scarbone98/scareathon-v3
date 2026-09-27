@@ -220,7 +220,7 @@ function shellGeometry(style: CartridgeStyle, width: number, height: number, dep
   } else {
     // Small rounded corners, and a square notch out of the top right
     const corner = width * 0.03;
-    const cut = width * 0.16;
+    const cut = width * 0.09;
     outline.moveTo(-x + corner, bottom);
     outline.lineTo(x - corner, bottom);
     outline.quadraticCurveTo(x, bottom, x, bottom + corner);
