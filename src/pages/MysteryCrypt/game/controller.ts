@@ -4,8 +4,31 @@
 // the HUD.
 import { defaultMoves, HEROES, MOVES, STAGES, type HeroId, type ItemId, type MoveId, type UnitKind } from "./data.ts";
 import { loadAssets, Renderer } from "./render.ts";
-import type { StageReport } from "./save.ts";
-import { act, autoAction, isBossFloor, leader, MAP_W, newGame, onStairs, party, pathStep, report, xpToNext, type Action, type GameOptions, type GameState, type Unit } from "./sim.ts";
+import type { RosterEntry, StageReport } from "./save.ts";
+import {
+  act,
+  autoAction,
+  isBossFloor,
+  isFloor,
+  leader,
+  MAP_W,
+  newGame,
+  newMap,
+  onStairs,
+  party,
+  pathStep,
+  placeUnit,
+  report,
+  stepToward,
+  unitAt,
+  xpToNext,
+  type Action,
+  type GameOptions,
+  type GameState,
+  type MapDef,
+  type Unit,
+} from "./sim.ts";
+import { PARTNER_NAME, SPEAKERS, type Step } from "./story.ts";
 
 export interface Member {
   id: number;
@@ -17,6 +40,7 @@ export interface Member {
 }
 
 export interface Hud {
+  mode: GameState["mode"];
   stageName: string;
   floor: number;
   floors: number;
@@ -38,11 +62,36 @@ export interface StageResult {
   kills: number;
 }
 
+export interface Dialogue {
+  speaker: string;
+  name: string;
+  color: string;
+  text: string;
+  kind?: UnitKind;
+  sprite?: string;
+}
+
+// Story scenes to play during a stage, each the first time its moment comes.
+export interface StoryHooks {
+  start?: Step[];
+  enemy?: Step[];
+  stairs?: Step[];
+  floor2?: Step[];
+  boss?: Step[];
+}
+
 export interface GameCallbacks {
   onHud: (hud: Hud) => void;
+  onDialogue: (dialogue: Dialogue | null) => void;
+  onCard: (card: { title: string; sub?: string } | null) => void;
+  onFade: (fade: "out" | "in") => void;
+  onScene: (playing: boolean) => void;
+  onTalk: (who: string) => void;
   onMessage: (text: string, color?: string) => void;
   onFloor: (floor: number, boss: boolean) => void;
   onOver: (result: StageResult) => void;
+  // Space or Enter during a scene (the dialogue box decides what that does).
+  onAdvanceKey?: () => void;
 }
 
 type Dir = { dx: number; dy: number };
@@ -94,6 +143,10 @@ export class GameController {
   private held: Dir[] = [];
   private queued: Action | null = null;
   private walkTo: { x: number; y: number } | null = null;
+  // The story scene playing, if any.
+  private script: { steps: Step[]; i: number; t: number; wait: "tap" | "time" | "walk" | null; walkers: Record<string, { x: number; y: number }>; done?: () => void } | null = null;
+  private hooks: StoryHooks = {};
+  private hooksDone = new Set<keyof StoryHooks>();
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private cb: GameCallbacks) {
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -112,14 +165,27 @@ export class GameController {
   }
 
   // A stage to play, or null for the menu's attract mode.
-  async start(options: GameOptions | null, autoplay = false) {
+  async start(options: GameOptions | null, autoplay = false, hooks: StoryHooks = {}) {
+    await this.begin(() => newGame(options ?? demoOptions()), !options, autoplay, hooks);
+  }
+
+  // A hand-built map: the camp, or a story scene's stage.
+  async startMap(map: MapDef, roster: RosterEntry[]) {
+    await this.begin(() => newMap(map, roster), false, false, {});
+  }
+
+  private async begin(make: () => GameState, demo: boolean, autoplay: boolean, hooks: StoryHooks) {
     const assets = await loadAssets();
     if (this.disposed) return;
     this.renderer ??= new Renderer(this.canvas, assets);
     this.resize();
-    this.demo = !options;
+    this.demo = demo;
     this.autoplay = autoplay;
-    this.state = newGame(options ?? demoOptions());
+    this.hooks = hooks;
+    this.hooksDone = new Set();
+    this.script = null;
+    this.cb.onDialogue(null);
+    this.state = make();
     this.renderer.handleEvents(this.state, [{ type: "floor", floor: this.state.floor }]);
     this.flushEvents();
     this.paused = false;
@@ -137,6 +203,181 @@ export class GameController {
     this.paused = paused;
     this.held = [];
     this.last = performance.now();
+  }
+
+  // Plays a story scene; `done` runs when it ends.
+  runScript(steps: Step[], done?: () => void) {
+    this.script = { steps, i: -1, t: 0, wait: null, walkers: {}, done };
+    this.held = [];
+    this.queued = null;
+    this.walkTo = null;
+    this.cb.onScene(true);
+    this.nextStep();
+  }
+
+  // The player tapped through a line of dialogue.
+  advance() {
+    if (this.script?.wait === "tap") this.nextStep();
+  }
+
+  get inScene() {
+    return !!this.script;
+  }
+
+  private actor(id: string): Unit | null {
+    const s = this.state!;
+    if (id === "wick") return s.units.find((u) => u.name === PARTNER_NAME) ?? null;
+    if (id === "boss") return s.units.find((u) => u.boss) ?? null;
+    return s.units.find((u) => u.team === "party" && u.kind === id && !u.name) ?? null;
+  }
+
+  private actorPos(id: string) {
+    const u = this.actor(id);
+    if (u) return { x: u.x, y: u.y };
+    const p = this.state!.props.find((o) => o.id === id);
+    return p ? { x: p.x, y: p.y } : null;
+  }
+
+  // A free floor tile a few steps from Alex, for someone to walk in from.
+  private spotNear(from: { x: number; y: number }, min: number, max: number) {
+    const s = this.state!;
+    for (let r = min; r <= max; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.abs(dx) + Math.abs(dy) !== r) continue;
+          const x = from.x + dx;
+          const y = from.y + dy;
+          if (isFloor(s, x, y) && !unitAt(s, x, y)) return { x, y };
+        }
+      }
+    }
+    return null;
+  }
+
+  private nextStep() {
+    const sc = this.script!;
+    sc.i++;
+    sc.t = 0;
+    sc.wait = null;
+    const step = sc.steps[sc.i];
+    if (!step) {
+      this.script = null;
+      this.cb.onDialogue(null);
+      this.cb.onCard(null);
+      this.cb.onScene(false);
+      this.pushHud();
+      sc.done?.();
+      return;
+    }
+    const s = this.state!;
+    const r = this.renderer!;
+    this.cb.onDialogue(null);
+    if ("say" in step) {
+      const sp = SPEAKERS[step.say] ?? SPEAKERS.narrator;
+      // A stage's boss speaks as itself.
+      const boss = step.say === "boss" ? s.units.find((u) => u.boss) : null;
+      this.cb.onDialogue({
+        speaker: step.say,
+        name: boss?.boss ?? sp.name,
+        color: sp.color,
+        text: step.text,
+        kind: boss ? boss.kind : sp.kind,
+        sprite: sp.sprite,
+      });
+      sc.wait = "tap";
+    } else if ("walk" in step) {
+      sc.walkers = {};
+      for (const [id, to] of Object.entries(step.walk)) {
+        const target = to === "beside-alex" ? this.spotNear(this.actorPos("alex") ?? { x: 0, y: 0 }, 1, 2) : { x: to[0], y: to[1] };
+        if (target) sc.walkers[id] = target;
+      }
+      sc.wait = "walk";
+    } else if ("place" in step) {
+      const u = this.actor(step.place);
+      if (u) placeUnit(u, step.at[0], step.at[1]);
+      this.nextStep();
+    } else if ("face" in step) {
+      const u = this.actor(step.face);
+      if (u) {
+        u.dx = step.dir === "left" ? -1 : step.dir === "right" ? 1 : 0;
+        u.dy = step.dir === "up" ? -1 : step.dir === "down" ? 1 : 0;
+      }
+      this.nextStep();
+    } else if ("emote" in step) {
+      const at = this.actorPos(step.emote);
+      if (at) r.emote(at.x, at.y, step.icon);
+      sc.wait = "time";
+      sc.t = -0.55;
+    } else if ("wait" in step) {
+      sc.wait = "time";
+      sc.t = -step.wait;
+    } else if ("shake" in step) {
+      r.shakeFor(step.shake);
+      sc.wait = "time";
+      sc.t = -step.shake * 0.8;
+    } else if ("fade" in step) {
+      this.cb.onFade(step.fade);
+      sc.wait = "time";
+      sc.t = -0.7;
+    } else if ("prop" in step) {
+      s.props.push({ ...step.prop });
+      sc.wait = "time";
+      sc.t = -0.2;
+    } else if ("card" in step) {
+      this.cb.onCard({ title: step.card, sub: step.sub });
+      sc.wait = "time";
+      sc.t = -2.4;
+    }
+  }
+
+  private updateScript(dt: number) {
+    const sc = this.script!;
+    sc.t += dt;
+    if (sc.wait === "time" && sc.t >= 0) {
+      this.cb.onCard(null);
+      this.nextStep();
+    } else if (sc.wait === "walk" && sc.t >= 0.15) {
+      sc.t = 0;
+      const s = this.state!;
+      let moving = false;
+      for (const [id, to] of Object.entries(sc.walkers)) {
+        const u = this.actor(id);
+        if (!u) continue;
+        const step = stepToward(s, u, to.x, to.y);
+        if (!step) continue;
+        placeUnit(u, step.x, step.y);
+        moving = true;
+      }
+      if (!moving) this.nextStep();
+    }
+  }
+
+  // Runs a stage's story hook the first time its moment comes.
+  private checkHooks() {
+    const s = this.state!;
+    if (this.demo || this.script || s.over) return;
+    const run = (key: keyof StoryHooks, when: boolean) => {
+      const steps = this.hooks[key];
+      if (!steps || this.hooksDone.has(key) || !when) return false;
+      this.hooksDone.add(key);
+      this.runScript(steps);
+      return true;
+    };
+    const seen = (u: Unit) => s.visible[u.y * MAP_W + u.x] === 1;
+    if (run("start", true)) return;
+    if (run("boss", s.units.some((u) => u.boss && seen(u)))) return;
+    if (run("enemy", s.units.some((u) => u.team === "enemy" && seen(u)))) return;
+    if (run("floor2", s.floor >= 2)) return;
+    run("stairs", s.stairs.x >= 0 && s.visible[s.stairs.y * MAP_W + s.stairs.x] === 1);
+  }
+
+  // Moves the partner a few steps from Alex, so it can walk up to meet them.
+  setPartnerApart() {
+    const s = this.state!;
+    const wick = this.actor("wick");
+    const alex = leader(s);
+    const spot = wick && this.spotNear(alex, 3, 5);
+    if (wick && spot) placeUnit(wick, spot.x, spot.y);
   }
 
   // From the on-screen buttons.
@@ -197,9 +438,14 @@ export class GameController {
           else this.cb.onOver({ report: report(s), kills: s.kills });
         }
       }
+    } else if (this.script) {
+      if (!this.paused) this.updateScript(dt);
     } else if (!this.paused && this.readyForTurn()) {
-      const action = this.nextAction(dt);
-      if (action) this.play(action);
+      this.checkHooks();
+      if (!this.script) {
+        const action = this.nextAction(dt);
+        if (action) this.play(action);
+      }
     }
     r.draw(s, dt);
   };
@@ -278,7 +524,12 @@ export class GameController {
   private flushEvents() {
     const s = this.state!;
     this.renderer?.handleEvents(s, s.events);
-    if (!this.demo) for (const e of s.events) if (e.type === "msg") this.cb.onMessage(e.text, e.color);
+    if (!this.demo) {
+      for (const e of s.events) {
+        if (e.type === "msg") this.cb.onMessage(e.text, e.color);
+        if (e.type === "talk") this.cb.onTalk(e.talk);
+      }
+    }
     s.events.length = 0;
   }
 
@@ -288,6 +539,7 @@ export class GameController {
     const l = leader(s);
     const boss = s.units.find((u) => u.boss && s.visible[u.y * MAP_W + u.x]);
     this.cb.onHud({
+      mode: s.mode,
       stageName: s.def.name,
       floor: s.floor,
       floors: s.def.floors,
@@ -307,7 +559,7 @@ export class GameController {
 
   private onPointerDown = (e: PointerEvent) => {
     const s = this.state;
-    if (!s || this.demo || this.paused || s.over) return;
+    if (!s || this.demo || this.paused || s.over || this.script) return;
     const rect = this.canvas.getBoundingClientRect();
     const tile = this.renderer!.screenToTile(e.clientX - rect.left, e.clientY - rect.top);
     const l = leader(s);
@@ -324,6 +576,13 @@ export class GameController {
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (this.demo || this.paused || !this.state) return;
+    if (this.script) {
+      if (e.key === " " || e.key === "Enter" || e.key === "z") {
+        e.preventDefault();
+        this.cb.onAdvanceKey?.();
+      }
+      return;
+    }
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     const dir = KEY_DIRS[key];
     if (dir) {

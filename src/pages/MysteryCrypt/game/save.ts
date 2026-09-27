@@ -12,7 +12,7 @@ export function newSave(): Save {
   ) as Record<HeroId, SavedUnit>;
   return {
     version: SAVE_VERSION,
-    hero: "joe",
+    hero: "alex",
     heroes,
     monsters: [],
     team: [],
@@ -22,26 +22,61 @@ export function newSave(): Save {
     cleared: 0,
     best: [],
     submitted: 0,
+    story: { flags: [], partner: null },
   };
 }
 
 // One member of the team a stage starts with (or a recruit it ends with).
 export interface RosterEntry {
-  // Collection id; null for a monster recruited this stage.
+  // Collection id; null for the hero, or a monster recruited this stage.
   uid: number | null;
   kind: UnitKind;
+  name?: string;
   level: number;
   xp: number;
   moves: MoveId[];
 }
 
-export function startingRoster(save: Save): RosterEntry[] {
-  const hero = save.heroes[save.hero];
-  const team = save.team
+// Who goes into a stage: the hero, then the team. Story chapters are Alex's,
+// whoever's picked, and the partner always comes (first, after the hero).
+export function startingRoster(save: Save, story = false): RosterEntry[] {
+  const heroId: HeroId = story ? "alex" : save.hero;
+  const hero = save.heroes[heroId];
+  const partner = save.story.partner;
+  const uids = partner !== null ? [partner, ...save.team.filter((u) => u !== partner)] : save.team;
+  const team = uids
+    .slice(0, MAX_TEAM)
     .map((uid) => save.monsters.find((m) => m.uid === uid))
     .filter((m) => !!m)
-    .map((m) => ({ uid: m.uid, kind: m.kind, level: m.level, xp: m.xp, moves: [...m.moves] }));
-  return [{ uid: null, kind: save.hero, level: hero.level, xp: hero.xp, moves: [...hero.moves] }, ...team];
+    .map((m) => ({ uid: m.uid, kind: m.kind, name: m.name, level: m.level, xp: m.xp, moves: [...m.moves] }));
+  return [{ uid: null, kind: heroId, level: hero.level, xp: hero.xp, moves: [...hero.moves] }, ...team];
+}
+
+export function hasFlag(save: Save, flag: string) {
+  return save.story.flags.includes(flag);
+}
+
+export function withFlags(save: Save, ...flags: string[]): Save {
+  return { ...save, story: { ...save.story, flags: [...new Set([...save.story.flags, ...flags])] } };
+}
+
+// Alex is always playable; the others once the story finds them (or for
+// players who had them before the story existed).
+export function heroUnlocked(save: Save, hero: HeroId) {
+  return hero === "alex" || hasFlag(save, "veteran") || hasFlag(save, `found-${hero}`);
+}
+
+// Adds the partner to the collection and the front of the team.
+export function addPartner(save: Save, entry: RosterEntry): Save {
+  const uid = save.nextUid;
+  const monster = { uid, kind: entry.kind as MonsterId, name: entry.name, level: entry.level, xp: entry.xp, moves: [...entry.moves] };
+  return {
+    ...save,
+    nextUid: uid + 1,
+    monsters: [monster, ...save.monsters],
+    team: [uid, ...save.team].slice(0, MAX_TEAM),
+    story: { ...save.story, partner: uid },
+  };
 }
 
 export interface StageReport {
@@ -71,8 +106,9 @@ function learnNew(kind: UnitKind, was: number, level: number, moves: MoveId[]) {
 export function applyReport(save: Save, report: StageReport): Save {
   const next: Save = structuredClone(save);
   const [hero, ...team] = report.roster;
-  const savedHero = next.heroes[next.hero];
-  next.heroes[next.hero] = { level: hero.level, xp: hero.xp, moves: learnNew(hero.kind, savedHero.level, hero.level, savedHero.moves) };
+  const heroId = hero.kind as HeroId;
+  const savedHero = next.heroes[heroId];
+  next.heroes[heroId] = { level: hero.level, xp: hero.xp, moves: learnNew(heroId, savedHero.level, hero.level, savedHero.moves) };
   for (const member of team) {
     const m = next.monsters.find((o) => o.uid === member.uid);
     if (!m) continue;
@@ -89,10 +125,10 @@ export function applyReport(save: Save, report: StageReport): Save {
   }
   // Fainting loses the candy found on the way; clearing keeps it.
   next.bag = report.bag.slice(0, MAX_BAG);
-  if (report.cleared) {
-    next.candy += report.candy;
-    if (report.stage === next.cleared) next.cleared++;
-  }
+  if (report.cleared) next.candy += report.candy;
+  // The Prologue isn't a real stage: nothing to unlock or rank.
+  if (report.stage < 0) return next;
+  if (report.cleared && report.stage === next.cleared) next.cleared++;
   next.best[report.stage] = Math.max(next.best[report.stage] ?? 0, report.floor);
   for (let i = 0; i < next.best.length; i++) next.best[i] ??= 0;
   return next;
@@ -106,6 +142,8 @@ export function pickHero(save: Save, hero: HeroId): Save {
 
 // In or out of the team that goes into the next stage.
 export function toggleTeam(save: Save, uid: number): Save {
+  // The partner never stays behind.
+  if (uid === save.story.partner) return save;
   if (save.team.includes(uid)) return { ...save, team: save.team.filter((t) => t !== uid) };
   if (save.team.length >= MAX_TEAM || !save.monsters.some((m) => m.uid === uid)) return save;
   return { ...save, team: [...save.team, uid] };
@@ -137,5 +175,6 @@ export function buyItem(save: Save, item: ItemId, price: number): Save {
 }
 
 export function releaseMonster(save: Save, uid: number): Save {
+  if (uid === save.story.partner) return save;
   return { ...save, monsters: save.monsters.filter((m) => m.uid !== uid), team: save.team.filter((t) => t !== uid) };
 }

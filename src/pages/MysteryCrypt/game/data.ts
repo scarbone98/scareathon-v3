@@ -137,7 +137,8 @@ export interface StageDef {
   // Monster level on the first floor; +1 a floor.
   level: number;
   monsters: MonsterId[];
-  boss: MonsterId;
+  // No boss: the last floor's stairs lead out instead.
+  boss: MonsterId | null;
   bossName: string;
   // Dungeon colours (index into the renderer's themes).
   theme: number;
@@ -157,8 +158,13 @@ export const STAGES: StageDef[] = [
 
 const ALL_MONSTERS = Object.keys(MONSTERS) as MonsterId[];
 
+// The Prologue's short first dungeon, where you meet Wick.
+export const PROLOGUE_STAGE = -1;
+const PROLOGUE: StageDef = { name: "Under the Cemetery", about: "Where you landed.", floors: 2, level: 1, monsters: ["rat"], boss: null, bossName: "", theme: 0 };
+
 // Past the last stage, the Abyss goes on forever, a little harder each time.
 export function stageDef(index: number): StageDef {
+  if (index === PROLOGUE_STAGE) return PROLOGUE;
   if (index < STAGES.length) return STAGES[index];
   const depth = index - STAGES.length + 1;
   return {

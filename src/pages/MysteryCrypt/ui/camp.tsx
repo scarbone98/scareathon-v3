@@ -19,16 +19,21 @@ import {
   type MoveId,
   type UnitKind,
 } from "../game/data";
-import { buyItem, equipMove, pickHero, releaseMonster, toggleTeam, type Save } from "../game/save";
+import { buyItem, equipMove, heroUnlocked, pickHero, releaseMonster, toggleTeam, type Save, type SavedMonster } from "../game/save";
 import { xpToNext } from "../game/sim";
 import { MAX_BAG, MAX_TEAM } from "../../../../server/shared/mysteryCrypt/save.js";
 import { Bar, Candy, ItemIcon, MoveIcon, Row, UnitSprite } from "./parts";
 
-type Tab = "stages" | "team" | "shop";
+export type Tab = "stages" | "team" | "shop";
 
-function Header({ save, signedIn }: { save: Save; signedIn: boolean }) {
+const monsterName = (m: SavedMonster) => m.name ?? unitName(m.kind);
+
+function Header({ save, signedIn, onClose }: { save: Save; signedIn: boolean; onClose: () => void }) {
   return (
     <div className="flex items-center justify-between gap-2">
+      <button type="button" onClick={onClose} aria-label="Close" className="cc-sbtn cc-sbtn-stone cc-outline-sm shrink-0 px-2 py-0 text-sm">
+        <span>✕</span>
+      </button>
       <div className="cc-title leading-none" style={{ fontSize: 26, color: ORANGE, textShadow: "0 2px 0 #8a3a00, 0 4px 0 #140a1c" }}>
         <span style={{ color: "#c88cff", textShadow: "0 2px 0 #4a1a7a, 0 4px 0 #140a1c" }}>MYSTERY</span> CRYPT
       </div>
@@ -43,19 +48,26 @@ function Header({ save, signedIn }: { save: Save; signedIn: boolean }) {
 function HeroPicker({ save, onChange }: { save: Save; onChange: (s: Save) => void }) {
   return (
     <div className="mt-2 grid grid-cols-4 gap-1.5">
-      {(Object.keys(HEROES) as HeroId[]).map((id) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(pickHero(save, id))}
-          className={`flex flex-col items-center rounded-md border-2 px-1 pb-0.5 pt-1 ${id === save.hero ? "border-[#ffcf4a] bg-[#3a2254]" : "border-[#140a1c] bg-[#1c1128]/80 opacity-70"}`}
-        >
-          <UnitSprite kind={id} size={28} animate={id === save.hero} />
-          <span className="cc-outline-sm text-xs text-white">
-            {HEROES[id].name} <span className="text-[#ffcf4a]">{save.heroes[id].level}</span>
-          </span>
-        </button>
-      ))}
+      {(Object.keys(HEROES) as HeroId[]).map((id) =>
+        heroUnlocked(save, id) ? (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(pickHero(save, id))}
+            className={`flex flex-col items-center rounded-md border-2 px-1 pb-0.5 pt-1 ${id === save.hero ? "border-[#ffcf4a] bg-[#3a2254]" : "border-[#140a1c] bg-[#1c1128]/80 opacity-70"}`}
+          >
+            <UnitSprite kind={id} size={28} animate={id === save.hero} />
+            <span className="cc-outline-sm text-xs text-white">
+              {HEROES[id].name} <span className="text-[#ffcf4a]">{save.heroes[id].level}</span>
+            </span>
+          </button>
+        ) : (
+          <div key={id} className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-[#ffe9c4]/20 px-1 py-1 opacity-60">
+            <span className="cc-outline text-lg leading-none text-[#ffe9c4]/60">?</span>
+            <span className="cc-outline-sm text-[10px] text-[#ffe9c4]/60">Missing</span>
+          </div>
+        )
+      )}
     </div>
   );
 }
@@ -82,7 +94,7 @@ function Tabs({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   );
 }
 
-function StageList({ save, selected, onSelect }: { save: Save; selected: number; onSelect: (i: number) => void }) {
+function StageList({ save, selected, onSelect, story }: { save: Save; selected: number; onSelect: (i: number) => void; story: { stage: number; title: string; number: number } | null }) {
   const shown = Array.from({ length: save.cleared + 2 }, (_, i) => i);
   return (
     <div className="space-y-1.5">
@@ -92,12 +104,17 @@ function StageList({ save, selected, onSelect }: { save: Save; selected: number;
         const cleared = i < save.cleared;
         return (
           <Row key={i} onClick={locked ? undefined : () => onSelect(i)} selected={i === selected} className={locked ? "opacity-50" : ""}>
-            <div className="flex w-10 shrink-0 justify-center">{locked ? <span className="cc-outline text-2xl text-[#ffe9c4]/60">?</span> : <UnitSprite kind={def.boss} size={32} animate={i === selected} />}</div>
+            <div className="flex w-10 shrink-0 justify-center">{locked || !def.boss ? <span className="cc-outline text-2xl text-[#ffe9c4]/60">?</span> : <UnitSprite kind={def.boss} size={32} animate={i === selected} />}</div>
             <div className="min-w-0 flex-1">
               <div className="cc-outline-sm truncate text-white">
                 {i + 1}. {locked ? "Locked" : def.name}
                 {cleared && <span className="ml-1 text-[#7dffb0]">✓</span>}
               </div>
+              {story?.stage === i && (
+                <div className="cc-outline-sm text-[11px] leading-tight text-[#ffcf4a]">
+                  ★ Story: Chapter {story.number}, {story.title}
+                </div>
+              )}
               <div className="cc-outline-sm truncate text-[11px] leading-tight text-[#ffe9c4]/80">
                 {locked ? `Clear ${stageDef(i - 1).name} to open` : `${def.floors} floors · monsters Lv ${def.level}–${def.level + def.floors} · boss: ${def.bossName}`}
               </div>
@@ -146,11 +163,12 @@ function TeamTab({ save, onChange, onDetail }: { save: Save; onChange: (s: Save)
               <UnitSprite kind={m.kind} size={30} />
               <div className="flex-1">
                 <div className="cc-outline-sm text-white">
-                  {unitName(m.kind)} <span className="text-[#ffcf4a]">Lv {m.level}</span>
+                  {monsterName(m)} <span className="text-[#ffcf4a]">Lv {m.level}</span>
+                  {m.uid === save.story.partner && <span className="ml-1 text-[11px] text-[#ff9ad5]">partner</span>}
                 </div>
                 <MovesLine moves={m.moves} />
               </div>
-              <button
+              {m.uid !== save.story.partner && <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -159,7 +177,7 @@ function TeamTab({ save, onChange, onDetail }: { save: Save; onChange: (s: Save)
                 className="cc-sbtn cc-sbtn-stone cc-outline-sm shrink-0 px-2 py-0 text-xs"
               >
                 <span>Remove</span>
-              </button>
+              </button>}
             </Row>
           ) : (
             <Row key={`empty-${i}`} className="justify-center border-dashed py-2.5">
@@ -240,6 +258,7 @@ function Detail({ save, uid, onChange, onClose }: { save: Save; uid: number | nu
   const spare = known.filter((m) => !unit.moves.includes(m));
   const nextMove = learnset(kind).find(([at]) => at > unit.level);
   const inTeam = monster ? save.team.includes(monster.uid) : true;
+  const partner = !!monster && monster.uid === save.story.partner;
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0b0712]/80 px-4 py-4" onClick={onClose}>
       <Panel className="cc-pop max-h-full w-full max-w-sm overflow-y-auto">
@@ -250,7 +269,7 @@ function Detail({ save, uid, onChange, onClose }: { save: Save; uid: number | nu
             </div>
             <div className="flex-1">
               <div className="cc-outline text-xl text-white">
-                {unitName(kind)} <span className="text-[#ffcf4a]">Lv {unit.level}</span>
+                {monster ? monsterName(monster) : unitName(kind)} <span className="text-[#ffcf4a]">Lv {unit.level}</span>
               </div>
               <div className="cc-outline-sm text-xs text-[#ffe9c4]">
                 HP {stats.hp} · ATK {Math.round(stats.atk)} · DEF {Math.round(stats.def)}
@@ -298,7 +317,7 @@ function Detail({ save, uid, onChange, onClose }: { save: Save; uid: number | nu
             </p>
           )}
           <div className="mt-3 flex gap-2">
-            {monster && (
+            {monster && !partner && (
               <Button color={inTeam ? "stone" : "purple"} onClick={() => onChange(toggleTeam(save, monster.uid))} className="flex-1 py-0 text-sm" disabled={!inTeam && save.team.length >= MAX_TEAM}>
                 {inTeam ? "Remove from team" : save.team.length >= MAX_TEAM ? "Team full" : "Add to team"}
               </Button>
@@ -308,6 +327,7 @@ function Detail({ save, uid, onChange, onClose }: { save: Save; uid: number | nu
             </Button>
           </div>
           {monster &&
+            !partner &&
             (confirmRelease ? (
               <div className="mt-2 flex items-center gap-2">
                 <span className="cc-outline-sm flex-1 text-xs text-[#ff9a8a]">Release it for good?</span>
@@ -336,27 +356,45 @@ function Detail({ save, uid, onChange, onClose }: { save: Save; uid: number | nu
   );
 }
 
-export default function Camp({ save, signedIn, onChange, onEnter }: { save: Save; signedIn: boolean; onChange: (s: Save) => void; onEnter: (stage: number) => void }) {
-  const [tab, setTab] = useState<Tab>("stages");
-  const [stage, setStage] = useState(save.cleared);
+export default function Camp({
+  save,
+  signedIn,
+  initialTab,
+  story,
+  onChange,
+  onEnter,
+  onClose,
+}: {
+  save: Save;
+  signedIn: boolean;
+  initialTab: Tab;
+  // The chapter to play next, marked on its stage.
+  story: { stage: number; title: string; number: number } | null;
+  onChange: (s: Save) => void;
+  onEnter: (stage: number) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [stage, setStage] = useState(story?.stage ?? save.cleared);
   const [detail, setDetail] = useState<number | null | undefined>(undefined);
   const selected = Math.min(stage, save.cleared);
   const def = stageDef(selected);
+  const storyRun = story?.stage === selected;
   return (
-    <div className="absolute inset-0 flex flex-col px-3 pb-3 pt-3">
-      <Header save={save} signedIn={signedIn} />
+    <div className="absolute inset-0 z-10 flex flex-col bg-[#0b0712]/85 px-3 pb-3 pt-3">
+      <Header save={save} signedIn={signedIn} onClose={onClose} />
       <HeroPicker save={save} onChange={onChange} />
       <Tabs tab={tab} onTab={setTab} />
       <div className="-mt-px min-h-0 flex-1 overflow-y-auto rounded-b rounded-tr border-2 border-[#ffcf4a]/60 bg-[#0b0712]/70 p-2">
-        {tab === "stages" && <StageList save={save} selected={selected} onSelect={setStage} />}
+        {tab === "stages" && <StageList save={save} selected={selected} onSelect={setStage} story={story} />}
         {tab === "team" && <TeamTab save={save} onChange={onChange} onDetail={setDetail} />}
         {tab === "shop" && <ShopTab save={save} onChange={onChange} />}
       </div>
       <Button color="orange" onClick={() => onEnter(selected)} className="cc-shine relative mt-2 w-full shrink-0 overflow-hidden py-1 text-xl">
-        Enter {def.name}
+        {storyRun ? `Chapter ${story!.number}: ${story!.title}` : `Enter ${def.name}`}
       </Button>
       <div className="cc-outline-sm mt-1 flex shrink-0 items-center justify-center gap-1.5 text-[11px] text-[#ffe9c4]/80">
-        <UnitSprite kind={save.hero} size={16} animate={false} />
+        <UnitSprite kind={storyRun ? "alex" : save.hero} size={16} animate={false} />
         {save.team.map((uid) => {
           const m = save.monsters.find((o) => o.uid === uid);
           return m ? <UnitSprite key={uid} kind={m.kind} size={16} animate={false} /> : null;

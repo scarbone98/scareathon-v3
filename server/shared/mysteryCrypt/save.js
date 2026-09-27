@@ -27,6 +27,20 @@ const MAX_CANDY = 100_000_000;
 export const MAX_SAVE_BYTES = 40_000;
 
 const isInt = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
+const MAX_FLAGS = 100;
+// Story flags: short lowercase ids like "prologue" or "found-matt".
+const FLAG = /^[a-z0-9-]{1,32}$/;
+// Names the story gives monsters, like "Wick".
+const NAME = /^[A-Za-z][A-Za-z '-]{0,15}$/;
+
+// Saves from before the story have no `story`; they start it fresh.
+function cleanStory(story, uids) {
+    if (story === undefined) return { flags: [], partner: null };
+    if (!story || typeof story !== 'object') return null;
+    if (!Array.isArray(story.flags) || story.flags.length > MAX_FLAGS || !story.flags.every((f) => typeof f === 'string' && FLAG.test(f))) return null;
+    if (story.partner !== null && !uids.has(story.partner)) return null;
+    return { flags: [...new Set(story.flags)], partner: story.partner };
+}
 
 function cleanMoves(moves) {
     if (!Array.isArray(moves) || moves.length > MAX_MOVES) return null;
@@ -64,8 +78,9 @@ export function sanitizeSave(raw) {
         if (!unit || !MONSTER_IDS.includes(m.kind) || !isInt(m.uid, 1, 1_000_000_000) || uids.has(m.uid)) {
             return { error: 'Bad monster' };
         }
+        if (m.name !== undefined && (typeof m.name !== 'string' || !NAME.test(m.name))) return { error: 'Bad monster name' };
         uids.add(m.uid);
-        monsters.push({ uid: m.uid, kind: m.kind, ...unit });
+        monsters.push({ uid: m.uid, kind: m.kind, ...unit, ...(m.name ? { name: m.name } : {}) });
     }
 
     if (!Array.isArray(raw.team) || raw.team.length > MAX_TEAM || !raw.team.every((uid) => uids.has(uid)) || new Set(raw.team).size !== raw.team.length) {
@@ -77,6 +92,8 @@ export function sanitizeSave(raw) {
     if (!isInt(raw.cleared, 0, MAX_STAGE)) return { error: 'Bad cleared' };
     if (!Array.isArray(raw.best) || raw.best.length > MAX_STAGE + 1 || !raw.best.every((f) => isInt(f, 0, 100))) return { error: 'Bad best' };
     if (!isInt(raw.submitted, 0, 1_000_000_000)) return { error: 'Bad submitted' };
+    const story = cleanStory(raw.story, uids);
+    if (!story) return { error: 'Bad story' };
 
     return {
         save: {
@@ -91,6 +108,7 @@ export function sanitizeSave(raw) {
             cleared: raw.cleared,
             best: [...raw.best],
             submitted: raw.submitted,
+            story,
         },
     };
 }

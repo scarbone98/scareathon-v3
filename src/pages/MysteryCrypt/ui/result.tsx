@@ -8,23 +8,28 @@ import { Candy, MoveIcon, UnitSprite } from "./parts";
 
 interface Growth {
   kind: UnitKind;
+  name: string;
   from: number;
   to: number;
 }
 
 function growth(before: Save, after: Save): Growth[] {
   const out: Growth[] = [];
-  const hb = before.heroes[before.hero];
-  const ha = after.heroes[after.hero];
-  if (ha.level > hb.level) out.push({ kind: after.hero, from: hb.level, to: ha.level });
+  // Story chapters are Alex's whoever's picked, so check every hero.
+  for (const id of Object.keys(after.heroes) as (keyof Save["heroes"])[]) {
+    const was = before.heroes[id].level;
+    const now = after.heroes[id].level;
+    if (now > was) out.push({ kind: id, name: unitName(id), from: was, to: now });
+  }
   for (const m of after.monsters) {
     const was = before.monsters.find((o) => o.uid === m.uid);
-    if (was && m.level > was.level) out.push({ kind: m.kind, from: was.level, to: m.level });
+    if (was && m.level > was.level) out.push({ kind: m.kind, name: m.name ?? unitName(m.kind), from: was.level, to: m.level });
   }
   return out;
 }
 
-export default function Result({ result, before, after, onCamp, onNext }: { result: StageResult; before: Save; after: Save; onCamp: () => void; onNext: () => void }) {
+// Without `onNext` (a story chapter's end, which plays at camp) only "Back to camp" shows.
+export default function Result({ result, before, after, onCamp, onNext }: { result: StageResult; before: Save; after: Save; onCamp: () => void; onNext?: () => void }) {
   const { report } = result;
   const def = stageDef(report.stage);
   const grown = growth(before, after);
@@ -70,7 +75,7 @@ export default function Result({ result, before, after, onCamp, onNext }: { resu
                     <li key={i} className="cc-outline-sm flex items-center gap-2 text-sm text-white">
                       <UnitSprite kind={g.kind} size={20} animate={false} />
                       <span className="flex-1">
-                        {unitName(g.kind)} <span className="text-[#ffe9c4]/70">{g.from}</span> → <span className="text-[#7dffb0]">{g.to}</span>
+                        {g.name} <span className="text-[#ffe9c4]/70">{g.from}</span> → <span className="text-[#7dffb0]">{g.to}</span>
                       </span>
                       {learned.map((m) => (
                         <span key={m} className="flex items-center gap-0.5 text-[10px] text-[#ffcf4a]" title={MOVES[m].name}>
@@ -84,15 +89,17 @@ export default function Result({ result, before, after, onCamp, onNext }: { resu
             </>
           )}
         </Panel>
-        {nextIsNew && (
+        {nextIsNew && onNext && (
           <p className="cc-outline-sm mt-3 text-center text-sm text-[#ffcf4a]">
             New stage open: {stageDef(after.cleared).name}!
           </p>
         )}
-        <Button color="orange" onClick={onNext} className="mt-4 w-full max-w-xs shrink-0 py-1 text-xl">
-          {report.cleared ? (nextIsNew ? `Go to ${stageDef(after.cleared).name}` : "Play again") : "Try again"}
-        </Button>
-        <Button color="stone" onClick={onCamp} className="mt-2 w-full max-w-xs shrink-0 py-0 text-base">
+        {onNext && (
+          <Button color="orange" onClick={onNext} className="mt-4 w-full max-w-xs shrink-0 py-1 text-xl">
+            {report.cleared ? (nextIsNew ? `Go to ${stageDef(after.cleared).name}` : "Play again") : "Try again"}
+          </Button>
+        )}
+        <Button color={onNext ? "stone" : "orange"} onClick={onCamp} className={`w-full max-w-xs shrink-0 ${onNext ? "mt-2 py-0 text-base" : "mt-4 py-1 text-xl"}`}>
           Back to camp
         </Button>
       </div>

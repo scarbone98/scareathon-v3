@@ -10,6 +10,15 @@ export interface SavedUnit {
 export interface SavedMonster extends SavedUnit {
   uid: number;
   kind: MonsterId;
+  // Given by the story (Wick).
+  name?: string;
+}
+
+export interface Story {
+  // Beats done and things found, like "prologue", "ch1", "found-matt".
+  flags: string[];
+  // The partner monster's uid, who always comes along.
+  partner: number | null;
 }
 
 export interface Save {
@@ -29,6 +38,7 @@ export interface Save {
   best: number[];
   // Best progress score sent to the leaderboard.
   submitted: number;
+  story: Story;
 }
 
 export const SAVE_VERSION: 1;

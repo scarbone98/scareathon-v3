@@ -4,7 +4,7 @@
 // between tiles, so the turn-based rules feel smooth.
 // Reads the state; never changes it.
 import { isHero, type HeroId, type UnitKind } from "./data.ts";
-import { isFloor, leader, MAP_H, MAP_W, type GameEvent, type GameState, type Pickup, type Unit } from "./sim.ts";
+import { isGround as isFloor, leader, MAP_H, MAP_W, type GameEvent, type GameState, type Pickup, type Prop, type Unit } from "./sim.ts";
 
 const T = 16;
 const FONT = "CCDigits, Pixelify, monospace";
@@ -74,9 +74,24 @@ const FX_SHEETS = {
   fx_heart: sheet("/mystery-crypt/heartbeat.png", 64, 64, 8),
 };
 
+// Scenery and the camp's residents on hand-built maps.
+export const PROP_SHEETS = {
+  snail_king: sheet("/mystery-crypt/snail_king.png", 51, 57, 13, 0.45),
+  merchant: sheet("/mystery-crypt/merchant.png", 117, 99, 5, 0.3),
+  owl_tree: sheet("/mystery-crypt/owl_tree.png", 121, 108, 5, 0.42),
+  mausoleum: sheet("/royale/ui/mausoleum.png", 80, 116, 1, 0.3),
+  grave_cross: sheet("/mystery-crypt/grave_cross.png", 26, 29, 1, 0.62),
+  grave_small: sheet("/mystery-crypt/grave_small.png", 27, 26, 1, 0.62),
+  street_lamp: sheet("/mystery-crypt/street_lamp.png", 14, 61, 4, 0.55),
+  tree_a: sheet("/mystery-crypt/tree_a.png", 113, 105, 1, 0.42),
+  tree_b: sheet("/mystery-crypt/tree_b.png", 109, 98, 1, 0.42),
+  hand: sheet("/mystery-crypt/hand.png", 60, 80, 4, 0.3),
+};
+
 type FxSheet = keyof typeof FX_SHEETS;
-type SheetId = UnitKind | keyof typeof ITEM_SHEETS | keyof typeof RUN_SHEETS | FxSheet;
-const ALL_SHEETS: Record<SheetId, SheetDef> = { ...UNIT_SHEETS, ...ITEM_SHEETS, ...RUN_SHEETS, ...FX_SHEETS };
+type PropSheet = keyof typeof PROP_SHEETS;
+type SheetId = UnitKind | keyof typeof ITEM_SHEETS | keyof typeof RUN_SHEETS | FxSheet | PropSheet;
+const ALL_SHEETS: Record<SheetId, SheetDef> = { ...UNIT_SHEETS, ...ITEM_SHEETS, ...RUN_SHEETS, ...FX_SHEETS, ...PROP_SHEETS };
 
 // Colours for the bits that fly off when something is beaten.
 const GORE: Partial<Record<UnitKind, string>> = {
@@ -116,6 +131,8 @@ interface Theme {
   brick: [string, string];
   mortar: string;
   fog: string;
+  // Outdoors: grass underfoot, hedges for walls.
+  grass?: boolean;
 }
 
 // The look changes every four floors.
@@ -128,6 +145,10 @@ const THEMES: Theme[] = [
   { floor: ["#402326", "#381e21", "#4a2a2d"], seam: "#231013", wallTop: "#170709", wallRim: "#9a4a4a", brick: ["#5e2e30", "#522628"], mortar: "#2a1012", fog: "#0e0405" },
   // Frozen bone vault
   { floor: ["#343a4c", "#2e3344", "#3b4256"], seam: "#1c2030", wallTop: "#0c0f1a", wallRim: "#8aa6d6", brick: ["#465274", "#3d4766"], mortar: "#1e2438", fog: "#05070e" },
+  // The cemetery at night
+  { floor: ["#233626", "#1f3122", "#283d2b"], seam: "#172419", wallTop: "#08100a", wallRim: "#35573a", brick: ["#1b2e1f", "#16271a"], mortar: "#0c160e", fog: "#04080a", grass: true },
+  // The camp: a cavern lit by lamps
+  { floor: ["#3d3128", "#372c24", "#44372d"], seam: "#241c16", wallTop: "#140e0a", wallRim: "#8a6a4a", brick: ["#5a4434", "#4e3a2c"], mortar: "#2a1e16", fog: "#0c0806" },
 ];
 
 function themeFor(s: GameState) {
@@ -139,6 +160,43 @@ function hash(x: number, y: number, seed: number) {
   let h = Math.imul(x * 374761393 + y * 668265263 + seed * 2246822519, 3266489917);
   h = Math.imul(h ^ (h >>> 15), 2246822519);
   return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
+}
+
+// Grass, or hedges where there'd be walls.
+function paintOutdoorTile(g: CanvasRenderingContext2D, th: Theme, s: GameState, x: number, y: number, seed: number) {
+  const px = x * T;
+  const py = y * T;
+  if (isFloor(s, x, y)) {
+    g.fillStyle = th.floor[0];
+    g.fillRect(px, py, T, T);
+    for (let n = 0; n < 14; n++) {
+      const gx = Math.floor(hash(x, y, seed + n * 7) * 16);
+      const gy = Math.floor(hash(y, x, seed + n * 13) * 16);
+      g.fillStyle = n % 3 === 0 ? "#355a3a" : n % 3 === 1 ? th.floor[1] : th.floor[2];
+      g.fillRect(px + gx, py + gy, 1, n % 3 === 0 ? 2 : 1);
+    }
+    if (hash(x, y, seed + 99) > 0.94) {
+      g.fillStyle = hash(x, y, seed) > 0.5 ? "#c8b8ff" : "#ffcf8a";
+      g.fillRect(px + 6, py + 7, 1, 1);
+    }
+    if (!isFloor(s, x, y - 1)) {
+      g.fillStyle = "rgba(0,0,0,0.4)";
+      g.fillRect(px, py, T, 4);
+    }
+    return;
+  }
+  g.fillStyle = th.wallTop;
+  g.fillRect(px, py, T, T);
+  for (let n = 0; n < 10; n++) {
+    const gx = Math.floor(hash(x, y, seed + n * 5) * 15);
+    const gy = Math.floor(hash(y, x, seed + n * 11) * 15);
+    g.fillStyle = n % 2 ? th.brick[0] : th.brick[1];
+    g.fillRect(px + gx, py + gy, 2, 2);
+  }
+  if (isFloor(s, x, y + 1)) {
+    g.fillStyle = th.wallRim;
+    for (let i = 0; i < T; i += 3) g.fillRect(px + i, py + T - 3 - Math.floor(hash(x * 3 + i, y, seed) * 3), 2, 3);
+  }
 }
 
 function paintDungeon(s: GameState) {
@@ -156,7 +214,9 @@ function paintDungeon(s: GameState) {
       const px = x * T;
       const py = y * T;
       const r = hash(x, y, seed);
-      if (isFloor(s, x, y)) {
+      if (th.grass) {
+        paintOutdoorTile(g, th, s, x, y, seed);
+      } else if (isFloor(s, x, y)) {
         // Stone slabs in a few shades, a dark seam round each, and grit.
         g.fillStyle = th.floor[Math.floor(r * 3)];
         g.fillRect(px, py, T, T);
@@ -227,6 +287,7 @@ function paintDungeon(s: GameState) {
   }
 
   // The stairs down.
+  if (s.stairs.x < 0) return canvas;
   const sx = s.stairs.x * T;
   const sy = s.stairs.y * T;
   g.fillStyle = "#07040b";
@@ -643,9 +704,13 @@ export class Renderer {
     // Units, back to front. Enemies only when you can see them.
     const units = s.units
       .map((u) => ({ u, d: this.shown.get(u.id)! }))
-      .filter(({ u, d }) => d && (u.team === "party" || s.visible[u.y * MAP_W + u.x] || s.visible[Math.round(d.y) * MAP_W + Math.round(d.x)]))
-      .sort((a, b) => a.d.y - b.d.y);
-    for (const { u, d } of units) this.drawUnit(s, u, d);
+      .filter(({ u, d }) => d && (u.team === "party" || s.visible[u.y * MAP_W + u.x] || s.visible[Math.round(d.y) * MAP_W + Math.round(d.x)]));
+    const drawn: { y: number; draw: () => void }[] = [
+      ...units.map(({ u, d }) => ({ y: d.y, draw: () => this.drawUnit(s, u, d) })),
+      ...s.props.map((p) => ({ y: p.y, draw: () => this.drawProp(p) })),
+    ];
+    drawn.sort((a, b) => a.y - b.y);
+    for (const item of drawn) item.draw();
 
     // Thrown candy corn.
     this.projectiles = this.projectiles.filter((p) => (p.t += dt) < p.life);
@@ -703,7 +768,7 @@ export class Renderer {
     vignette.addColorStop(1, "rgba(0,0,0,0.6)");
     g.fillStyle = vignette;
     g.fillRect(0, 0, this.w, this.h);
-    this.drawMinimap(s);
+    if (s.mode === "dungeon") this.drawMinimap(s);
   }
 
   private paintFog(s: GameState) {
@@ -787,7 +852,7 @@ export class Renderer {
     }
 
     // Teammates (not the leader) wear a little heart; charmed monsters a pulsing one.
-    if (u.team === "party" && u.id !== s.leaderId) this.drawHeart(x, top - 3, 0.35, "#ff9ad5");
+    if (u.team === "party" && u.id !== s.leaderId && !hero) this.drawHeart(x, top - 3, 0.35, "#ff9ad5");
     if (u.charmed) this.drawHeart(x, top - 4 - Math.abs(Math.sin(this.time * 4)) * 2, 0.4, "#ff5aa8");
 
     // Health bars when hurt.
@@ -798,6 +863,42 @@ export class Renderer {
       g.fillStyle = u.team === "party" ? "#7dffb0" : "#ff5a6a";
       g.fillRect(x - bw / 2, y + 2, Math.max(0.5, (bw * u.hp) / u.maxHp), 1.5);
     }
+  }
+
+  private drawProp(p: Prop) {
+    const def = PROP_SHEETS[p.sprite as PropSheet];
+    if (!def) return;
+    const g = this.ctx;
+    const x = p.x * T + T / 2;
+    const y = p.y * T + T - 1;
+    g.fillStyle = "rgba(0,0,0,0.35)";
+    g.beginPath();
+    g.ellipse(x, y - 1, Math.min(14, def.fw * def.scale * 0.35), 2.5, 0, 0, Math.PI * 2);
+    g.fill();
+    this.drawSheet(p.sprite as PropSheet, x, y, false, Math.floor(this.time * 6 + p.x * 3));
+    if (p.talk) {
+      // A little speech bubble bobs over anyone you can talk to.
+      const def2 = ALL_SHEETS[p.sprite as PropSheet];
+      const top = y - def2.fh * def2.scale - 3 - Math.abs(Math.sin(this.time * 3 + p.x)) * 2;
+      g.fillStyle = "#140a1c";
+      g.fillRect(x - 4, top - 4, 8, 6);
+      g.fillStyle = "#ffe9c4";
+      g.fillRect(x - 3, top - 3, 6, 4);
+      g.fillRect(x - 1, top + 1, 2, 2);
+      g.fillStyle = "#140a1c";
+      g.fillRect(x - 2, top - 2, 1, 1);
+      g.fillRect(x, top - 2, 1, 1);
+      g.fillRect(x + 2, top - 2, 1, 1);
+    }
+  }
+
+  // A reaction over someone's head in a story scene.
+  emote(x: number, y: number, icon: string) {
+    this.float(icon, icon === "♥" ? "#ff9ad5" : icon === "!" ? "#ffcf4a" : "#ffe9c4", x, y - 0.6, true);
+  }
+
+  shakeFor(seconds: number) {
+    this.shake = Math.max(this.shake, seconds);
   }
 
   private drawFx(f: Fx) {

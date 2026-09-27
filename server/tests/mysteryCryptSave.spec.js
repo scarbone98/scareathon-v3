@@ -19,6 +19,7 @@ function validSave(extra = {}) {
         cleared: 2,
         best: [3, 4, 2],
         submitted: 0,
+        story: { flags: ['prologue'], partner: 2 },
         ...extra,
     };
 }
@@ -45,6 +46,25 @@ describe('Mystery Crypt saves', () => {
         ['too many monsters', { monsters: Array.from({ length: MAX_MONSTERS + 1 }, (_, i) => ({ uid: i + 1, kind: 'rat', level: 1, xp: 0, moves: [] })), team: [], nextUid: MAX_MONSTERS + 5 }],
     ])('reject %s', (_, change) => {
         expect(sanitizeSave(validSave(change)).error).toBeDefined();
+    });
+
+    test('give saves from before the story an empty one', () => {
+        const old = validSave();
+        delete old.story;
+        expect(sanitizeSave(old).save.story).toEqual({ flags: [], partner: null });
+    });
+
+    test('keep story names and reject bad ones', () => {
+        const named = validSave({ monsters: [{ uid: 1, kind: 'candle', level: 1, xp: 0, moves: [], name: 'Wick' }], team: [1], story: { flags: [], partner: 1 } });
+        expect(sanitizeSave(named).save.monsters[0].name).toBe('Wick');
+        expect(sanitizeSave(validSave({ monsters: [{ uid: 1, kind: 'rat', level: 1, xp: 0, moves: [], name: '<script>' }], team: [], story: { flags: [], partner: null } })).error).toMatch(/name/);
+    });
+
+    test.each([
+        ['a partner you don\'t have', { story: { flags: [], partner: 9 } }],
+        ['a bad flag', { story: { flags: ['Not A Flag!'], partner: null } }],
+    ])('reject %s', (_, change) => {
+        expect(sanitizeSave(validSave(change)).error).toMatch(/story/);
     });
 
     test('rank stages cleared first, then depth, then collection size', () => {

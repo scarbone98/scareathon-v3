@@ -70,6 +70,18 @@ export interface Unit {
   roster: number;
   // Enemies: turns until they may heal again.
   healWait: number;
+  // A story name (Wick).
+  name?: string;
+}
+
+// Scenery on hand-built maps: graves, trees, the camp's residents. It
+// blocks the way; `talk` ones start a conversation when walked into.
+export interface Prop {
+  id: string;
+  x: number;
+  y: number;
+  sprite: string;
+  talk?: string;
 }
 
 export interface Pickup {
@@ -103,9 +115,12 @@ export type GameEvent =
   | { type: "charm"; id: number }
   | { type: "pickup"; x: number; y: number; kind: Pickup["kind"]; value: number }
   | { type: "move"; id: number; move: MoveId; from: Pos; dx: number; dy: number; to: Pos; targets: Pos[] }
-  | { type: "floor"; floor: number };
+  | { type: "floor"; floor: number }
+  | { type: "talk"; talk: string };
 
 export interface GameState {
+  // A stage, or a hand-built map (the camp, story scenes) with no fighting.
+  mode: "dungeon" | "hub";
   seed: number;
   rng: () => number;
   stage: number;
@@ -119,6 +134,9 @@ export interface GameState {
   stairs: Pos;
   explored: Uint8Array;
   visible: Uint8Array;
+  // Tiles props stand on.
+  solid: Uint8Array;
+  props: Prop[];
   // Bumped whenever `explored` or `visible` change, so the renderer knows to redraw the fog.
   sightVersion: number;
   units: Unit[];
@@ -174,7 +192,13 @@ export const DIRS = [
   { dx: -1, dy: 0 },
 ] as const;
 
+// Walkable: floor with nothing standing on it.
 export function isFloor(s: GameState, x: number, y: number) {
+  return inMap(x, y) && s.tiles[idx(x, y)] === FLOOR && !s.solid[idx(x, y)];
+}
+
+// Floor to paint, props or not.
+export function isGround(s: GameState, x: number, y: number) {
   return inMap(x, y) && s.tiles[idx(x, y)] === FLOOR;
 }
 
@@ -191,12 +215,17 @@ export function party(s: GameState) {
 }
 
 export function isBossFloor(s: GameState) {
-  return s.floor === s.def.floors;
+  return s.mode === "dungeon" && s.def.boss !== null && s.floor === s.def.floors;
 }
 
 export function onStairs(s: GameState) {
   const l = leader(s);
   return !s.over && !!l && l.x === s.stairs.x && l.y === s.stairs.y;
+}
+
+// "Wick", or "Rat".
+export function nameOf(u: Unit) {
+  return u.name ?? unitName(u.kind);
 }
 
 // "the Rat", or a boss's own name.
@@ -258,16 +287,16 @@ function gainXp(s: GameState, u: Unit, amount: number) {
     u.level++;
     applyStats(u);
     s.events.push({ type: "level", id: u.id, x: u.x, y: u.y });
-    msg(s, `${unitName(u.kind)} grew to level ${u.level}!`, "#7dffb0");
+    msg(s, `${nameOf(u)} grew to level ${u.level}!`, "#7dffb0");
     // A new move goes in a free slot; otherwise it can be swapped in at camp.
     const learned = (isHero(u.kind) ? HEROES[u.kind].learns : MONSTERS[u.kind].learns).find(([at]) => at === u.level);
     if (learned && !u.moves.some((m) => m.id === learned[1])) {
       const move = learned[1];
       if (u.moves.length < 4) {
         u.moves.push({ id: move, pp: MOVES[move].pp });
-        msg(s, `${unitName(u.kind)} learned ${MOVES[move].name}!`, "#ffcf4a");
+        msg(s, `${nameOf(u)} learned ${MOVES[move].name}!`, "#ffcf4a");
       } else {
-        msg(s, `${unitName(u.kind)} can learn ${MOVES[move].name}. Swap it in at camp.`, "#ffcf4a");
+        msg(s, `${nameOf(u)} can learn ${MOVES[move].name}. Swap it in at camp.`, "#ffcf4a");
       }
     }
   }
@@ -282,6 +311,8 @@ function generateFloor(s: GameState) {
   s.rooms = [];
   s.explored = new Uint8Array(MAP_W * MAP_H);
   s.visible = new Uint8Array(MAP_W * MAP_H);
+  s.solid = new Uint8Array(MAP_W * MAP_H);
+  s.props = [];
   s.pickups = [];
 
   // A 3x3 grid of cells. Most hold a room; the rest are corridor bends.
@@ -443,7 +474,7 @@ function placeFloorContents(s: GameState) {
     // The boss waits in the room furthest from the start.
     const far = others.sort((a, b) => manhattan(roomCentre(s.rooms[b]), origin) - manhattan(roomCentre(s.rooms[a]), origin))[0];
     const at = randomRoomTile(s, far)!;
-    const boss = makeUnit(s, s.def.boss, "enemy", floorLevel(s) + 1, at.x, at.y);
+    const boss = makeUnit(s, s.def.boss!, "enemy", floorLevel(s) + 1, at.x, at.y);
     boss.boss = s.def.bossName;
     applyStats(boss);
     boss.hp = boss.maxHp;
@@ -595,15 +626,15 @@ function defeat(s: GameState, by: Unit | null, u: Unit) {
   if (u.team === "party") {
     syncRoster(s, u);
     if (u.id === s.leaderId) {
-      msg(s, `${unitName(u.kind)} fainted...`, "#ff5a6a");
+      msg(s, `${nameOf(u)} fainted...`, "#ff5a6a");
       s.over = true;
     } else {
-      msg(s, `${unitName(u.kind)} fainted and went back to camp.`, "#ff5a6a");
+      msg(s, `${nameOf(u)} fainted and went back to camp.`, "#ff5a6a");
     }
     return;
   }
   s.kills++;
-  msg(s, `${by ? unitName(by.kind) : "Your team"} beat ${theName(u)}!`);
+  msg(s, `${by ? nameOf(by) : "Your team"} beat ${theName(u)}!`);
   const xp = xpFor(u);
   for (const m of party(s)) gainXp(s, m, xp);
   if (!by || by.team === "party") tryRecruit(s, u);
@@ -633,7 +664,7 @@ function tryRecruit(s: GameState, beaten: Unit) {
     unit.dx = beaten.dx;
     s.units.push(unit);
     s.events.push({ type: "recruit", id: unit.id, x: unit.x, y: unit.y });
-    msg(s, `${unitName(unit.kind)} joined your team!`, "#ff9ad5");
+    msg(s, `${nameOf(unit)} joined your team!`, "#ff9ad5");
   } else {
     msg(s, `Your team is full, so the ${unitName(beaten.kind)} went to wait at camp.`, "#ff9ad5");
   }
@@ -740,7 +771,7 @@ function performMove(s: GameState, u: Unit, slot: MoveSlot, dx = u.dx, dy = u.dy
     to: end,
     targets: (def.shape === "heal" ? heals : hits).map((o) => ({ x: o.x, y: o.y })),
   });
-  if (u.team === "party") msg(s, `${unitName(u.kind)} used ${def.name}!`, def.color);
+  if (u.team === "party") msg(s, `${nameOf(u)} used ${def.name}!`, def.color);
   else msg(s, `${u.boss ?? `The ${unitName(u.kind)}`} used ${def.name}!`, "#ff9a8a");
 
   if (def.shape === "heal") {
@@ -803,7 +834,10 @@ export function act(s: GameState, action: Action) {
       l.dy = action.dy;
       const tx = l.x + action.dx;
       const ty = l.y + action.dy;
-      if (!isFloor(s, tx, ty)) return false;
+      if (!isFloor(s, tx, ty)) {
+        talkTo(s, tx, ty);
+        return false;
+      }
       const other = unitAt(s, tx, ty);
       if (other?.team === "enemy") {
         attack(s, l, other);
@@ -823,6 +857,7 @@ export function act(s: GameState, action: Action) {
       break;
     }
     case "attack": {
+      if (talkTo(s, l.x + l.dx, l.y + l.dy)) return false;
       const target = unitAt(s, l.x + l.dx, l.y + l.dy);
       if (target?.team === "enemy") attack(s, l, target);
       else s.events.push({ type: "attack", id: l.id, x: l.x + l.dx, y: l.y + l.dy });
@@ -831,7 +866,14 @@ export function act(s: GameState, action: Action) {
     case "wait":
       break;
     case "descend":
-      if (!onStairs(s)) return false;
+      if (!onStairs(s) || s.mode !== "dungeon") return false;
+      // No boss: the last floor's stairs lead out.
+      if (s.floor === s.def.floors) {
+        s.cleared = true;
+        s.over = true;
+        msg(s, "You made it out!", "#ffcf4a");
+        return true;
+      }
       nextFloor(s);
       return true;
     case "use":
@@ -853,6 +895,14 @@ export function act(s: GameState, action: Action) {
     }
   }
   if (!s.over) endTurn(s);
+  return true;
+}
+
+// Starts a conversation with whoever stands there, if anyone.
+function talkTo(s: GameState, x: number, y: number) {
+  const prop = s.props.find((p) => p.x === x && p.y === y && p.talk);
+  if (!prop) return false;
+  s.events.push({ type: "talk", talk: prop.talk! });
   return true;
 }
 
@@ -891,7 +941,7 @@ function applyItem(s: GameState, slot: number) {
     const amount = Math.min(l.maxHp - l.hp, Math.ceil(l.maxHp / 2));
     l.hp += amount;
     s.events.push({ type: "heal", id: l.id, x: l.x, y: l.y, amount });
-    msg(s, `${unitName(l.kind)} ate a Heart and got ${amount} HP back.`, "#7dffb0");
+    msg(s, `${nameOf(l)} ate a Heart and got ${amount} HP back.`, "#7dffb0");
   } else if (item === "lamp") {
     s.explored.fill(1);
     s.sightVersion++;
@@ -936,7 +986,7 @@ function throwCandyCorn(s: GameState, from: Unit) {
     const amount = Math.min(hit.maxHp - hit.hp, 10 + hit.level * 2);
     hit.hp += amount;
     s.events.push({ type: "heal", id: hit.id, x: hit.x, y: hit.y, amount });
-    msg(s, `${unitName(hit.kind)} caught the Candy Corn and got ${amount} HP back.`, "#7dffb0");
+    msg(s, `${nameOf(hit)} caught the Candy Corn and got ${amount} HP back.`, "#7dffb0");
   }
 }
 
@@ -959,6 +1009,13 @@ function nextFloor(s: GameState) {
 // ---------- everyone else's turn ----------
 
 function endTurn(s: GameState) {
+  if (s.mode === "hub") {
+    // No fighting at camp: the team just follows you round.
+    for (const ally of party(s)) if (ally.id !== s.leaderId) allyTurn(s, ally);
+    s.turn++;
+    updateSight(s);
+    return;
+  }
   for (const ally of party(s)) {
     if (s.over) break;
     if (ally.id !== s.leaderId && s.units.includes(ally)) allyTurn(s, ally);
@@ -1107,6 +1164,7 @@ export function newGame(options: GameOptions): GameState {
   const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
   const def = stageDef(options.stage);
   const s: GameState = {
+    mode: "dungeon",
     seed,
     rng: mulberry32(seed),
     stage: options.stage,
@@ -1118,6 +1176,8 @@ export function newGame(options: GameOptions): GameState {
     stairs: { x: -1, y: -1 },
     explored: new Uint8Array(0),
     visible: new Uint8Array(0),
+    solid: new Uint8Array(MAP_W * MAP_H),
+    props: [],
     sightVersion: 0,
     units: [],
     pickups: [],
@@ -1138,6 +1198,7 @@ export function newGame(options: GameOptions): GameState {
   s.roster.forEach((r, i) => {
     const u = makeUnit(s, r.kind, "party", r.level, 0, 0, r.moves);
     u.xp = r.xp;
+    u.name = r.name;
     u.roster = i;
     if (i === 0) s.leaderId = u.id;
     s.units.push(u);
@@ -1227,4 +1288,82 @@ export function autoAction(s: GameState): Action {
 function frontierStep(s: GameState) {
   const l = leader(s);
   return firstStep(s, l, (x, y) => DIRS.some((d) => isFloor(s, x + d.dx, y + d.dy) && !s.explored[idx(x + d.dx, y + d.dy)]), { throughUnits: true, explored: true });
+}
+
+// ---------- hand-built maps: the camp and story scenes ----------
+
+export interface MapDef {
+  name: string;
+  theme: number;
+  // "#" is wall, anything else floor.
+  rows: string[];
+  props: Prop[];
+  // Where the team stands, leader first.
+  spawn: Pos[];
+  // Stairs (the camp's way down into the crypt), if any.
+  exit?: Pos;
+}
+
+export function newMap(map: MapDef, roster: RosterEntry[]): GameState {
+  const s = newGame({ stage: 0, roster, bag: [], seed: 1 });
+  s.mode = "hub";
+  s.def = { name: map.name, about: "", floors: 1, level: 1, monsters: [], boss: null, bossName: "", theme: map.theme };
+  s.tiles = new Uint8Array(MAP_W * MAP_H);
+  s.roomOf = new Int16Array(MAP_W * MAP_H).fill(-1);
+  s.solid = new Uint8Array(MAP_W * MAP_H);
+  s.pickups = [];
+  s.props = map.props.map((p) => ({ ...p }));
+  let minX = MAP_W;
+  let minY = MAP_H;
+  let maxX = 0;
+  let maxY = 0;
+  map.rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch === "#" || !inMap(x, y)) return;
+      s.tiles[idx(x, y)] = FLOOR;
+      s.roomOf[idx(x, y)] = 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    });
+  });
+  // One big "room", so the whole map is in sight.
+  s.rooms = [{ x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 }];
+  for (const p of s.props) s.solid[idx(p.x, p.y)] = 1;
+  s.stairs = map.exit ?? { x: -1, y: -1 };
+  s.units = s.units.filter((u) => u.team === "party");
+  s.units.forEach((u, i) => {
+    const at = map.spawn[Math.min(i, map.spawn.length - 1)];
+    u.x = at.x + (i >= map.spawn.length ? i - map.spawn.length + 1 : 0);
+    u.y = at.y;
+  });
+  s.explored = new Uint8Array(MAP_W * MAP_H).fill(1);
+  s.visible = new Uint8Array(MAP_W * MAP_H);
+  s.events = [];
+  updateSight(s);
+  return s;
+}
+
+// Story scenes move people about directly.
+export function placeUnit(u: Unit, x: number, y: number) {
+  u.dx = Math.sign(x - u.x) || u.dx;
+  u.dy = Math.sign(y - u.y);
+  u.x = x;
+  u.y = y;
+}
+
+// One step of a walk to (x, y), through anyone in the way. Null when there.
+export function stepToward(s: GameState, u: Unit, x: number, y: number) {
+  if (u.x === x && u.y === y) return null;
+  const step = firstStep(s, u, (tx, ty) => tx === x && ty === y, { throughUnits: true });
+  return step ? { x: step.x, y: step.y } : null;
+}
+
+// Adds someone to the scene (a new party member, or a monster to talk to).
+export function addUnit(s: GameState, kind: UnitKind, team: Unit["team"], level: number, x: number, y: number, name?: string) {
+  const u = makeUnit(s, kind, team, level, x, y);
+  u.name = name;
+  s.units.push(u);
+  return u;
 }
