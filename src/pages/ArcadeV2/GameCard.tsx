@@ -177,7 +177,10 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
               textShadow: GLOW,
             }}
           >
-            <FittedTitle text={name} shown={shownName} cursor={typing.cursorAt === 0} />
+            {/* Clear of the corner key either side, so the name stays centred */}
+            <div className="px-10">
+              <FittedTitle text={name} shown={shownName} cursor={typing.cursorAt === 0} />
+            </div>
 
             {/* The pitch and leaderboard, or the info key's details: the same
                 height either way so the card doesn't jump */}
@@ -218,10 +221,12 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
                 <MenuKey />
               </div>
             )}
-            <div className="absolute bottom-1.5 right-2 z-10 flex text-xl">
+            <div className="absolute right-2 top-1.5 z-10 text-xl">
               <TerminalButton onClick={onBrowseAll} label="Show all games">
-                ALL
+                ^
               </TerminalButton>
+            </div>
+            <div className="absolute bottom-1.5 right-2 z-10 text-xl">
               <TerminalButton
                 onClick={() => setShowInfo(!showInfo)}
                 pressed={showInfo}

@@ -57,7 +57,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
             [ X ]
           </button>
         </div>
-        <ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-4">
+        <ul className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
           {games.map((game, index) => (
             <li key={game.name}>
               <button
@@ -87,7 +87,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                   />
                 </div>
                 <span
-                  className="truncate px-2 py-1 text-lg leading-5"
+                  className="truncate px-1.5 py-0.5 text-base leading-5 sm:px-2 sm:py-1 sm:text-lg"
                   style={{ color: PHOSPHOR, textShadow: GLOW, background: index === current ? "rgba(57, 255, 106, 0.15)" : undefined }}
                 >
                   {index === current ? "> " : ""}
