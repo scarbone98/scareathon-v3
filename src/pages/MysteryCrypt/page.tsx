@@ -46,7 +46,7 @@ function HudBar({ hud, onPause }: { hud: Hud; onPause: () => void }) {
           .filter((m) => !m.leader)
           .map((m) => (
             <div key={m.id} className="flex items-center gap-1 rounded border-2 border-[#140a1c] bg-[#1c1128]/85 px-1">
-              <UnitSprite kind={m.kind} size={18} />
+              <UnitSprite kind={m.kind} name={m.name} size={18} />
               <div className="flex flex-col">
                 <span className="cc-outline-sm text-[9px] leading-none text-white">Lv{m.level}</span>
                 <div className="mt-0.5 h-1 w-7 overflow-hidden rounded-sm bg-[#140a1c]">

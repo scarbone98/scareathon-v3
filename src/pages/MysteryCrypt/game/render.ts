@@ -48,6 +48,18 @@ const ITEM_SHEETS = {
   lamp: sheet("/royale/ui/lamp.png", 16, 64, 4, 0.3),
 };
 
+// Story sprites (first-pass stubs; see mystery-crypt-art/README.md). Bosses
+// are their monster with a crown, 6px taller.
+const STORY_SHEETS = {
+  wick: sheet("/mystery-crypt/wick.png", 16, 24, 4),
+  ...(Object.fromEntries(
+    (["rat", "pumpkin", "zombie", "candle", "scarecrow", "werewolf", "ufo", "shadowbeast", "swampthing"] as const).map((id) => {
+      const base: SheetDef = UNIT_SHEETS[id];
+      return [`boss_${id}`, sheet(`/mystery-crypt/bosses/${id}.png`, base.fw, base.fh + 6, base.frames, base.scale)];
+    })
+  ) as Record<`boss_${string}`, SheetDef>),
+};
+
 // The heroes' run cycles, for walking.
 const RUN_SHEETS: Record<`run_${HeroId}`, SheetDef> = {
   run_joe: sheet("/mystery-crypt/run_joe.png", 16, 24, 4),
@@ -90,8 +102,8 @@ export const PROP_SHEETS = {
 
 type FxSheet = keyof typeof FX_SHEETS;
 type PropSheet = keyof typeof PROP_SHEETS;
-type SheetId = UnitKind | keyof typeof ITEM_SHEETS | keyof typeof RUN_SHEETS | FxSheet | PropSheet;
-const ALL_SHEETS: Record<SheetId, SheetDef> = { ...UNIT_SHEETS, ...ITEM_SHEETS, ...RUN_SHEETS, ...FX_SHEETS, ...PROP_SHEETS };
+type SheetId = UnitKind | keyof typeof ITEM_SHEETS | keyof typeof RUN_SHEETS | FxSheet | PropSheet | keyof typeof STORY_SHEETS;
+const ALL_SHEETS: Record<SheetId, SheetDef> = { ...UNIT_SHEETS, ...ITEM_SHEETS, ...RUN_SHEETS, ...FX_SHEETS, ...PROP_SHEETS, ...STORY_SHEETS };
 
 // Colours for the bits that fly off when something is beaten.
 const GORE: Partial<Record<UnitKind, string>> = {
@@ -100,6 +112,14 @@ const GORE: Partial<Record<UnitKind, string>> = {
 };
 
 export type Assets = Record<SheetId, HTMLImageElement>;
+
+// Which sheet a unit is drawn with: Wick and bosses have their own.
+function unitSheet(u: { kind: UnitKind; name?: string; boss?: string | null }, running = false): SheetId {
+  if (u.name === "Wick") return "wick";
+  if (u.boss && `boss_${u.kind}` in STORY_SHEETS) return `boss_${u.kind}` as SheetId;
+  if (running && isHero(u.kind)) return `run_${u.kind}`;
+  return u.kind;
+}
 
 function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -342,6 +362,7 @@ interface Particle {
 
 interface Corpse {
   kind: UnitKind;
+  sheet: SheetId;
   x: number;
   y: number;
   flip: boolean;
@@ -471,7 +492,7 @@ export class Renderer {
         this.float("MISS", "#9a8ab0", e.x, e.y, false, delay);
       } else if (e.type === "die") {
         const u = this.shown.get(e.unit.id);
-        this.corpses.push({ kind: e.unit.kind, x: e.unit.x, y: e.unit.y, flip: u?.flip ?? false, t: -delay, boss: !!e.unit.boss });
+        this.corpses.push({ kind: e.unit.kind, sheet: unitSheet(e.unit), x: e.unit.x, y: e.unit.y, flip: u?.flip ?? false, t: -delay, boss: !!e.unit.boss });
         this.shown.delete(e.unit.id);
         this.burst(e.unit.x, e.unit.y, GORE[e.unit.kind] ?? "#ffcf4a", e.unit.boss ? 40 : 14, delay);
       } else if (e.type === "heal") {
@@ -697,7 +718,7 @@ export class Renderer {
     for (const c of this.corpses) {
       const k = Math.max(0, c.t) / 0.45;
       g.globalAlpha = 1 - k;
-      this.drawSprite(c.kind, c.x * T + T / 2, c.y * T + T - 2, c.flip, 0, (1 - k * 0.4) * (c.boss ? BOSS_SCALE : 1), c.t >= 0);
+      this.drawSprite(c.sheet, c.x * T + T / 2, c.y * T + T - 2, c.flip, 0, (1 - k * 0.4) * (c.boss ? BOSS_SCALE : 1), c.t >= 0);
       g.globalAlpha = 1;
     }
 
@@ -840,7 +861,7 @@ export class Renderer {
     g.ellipse(x, y, 5.5 * big, 2 * big, 0, 0, Math.PI * 2);
     g.fill();
 
-    const sheetId: SheetId = walking && hero ? `run_${u.kind as HeroId}` : u.kind;
+    const sheetId = unitSheet(u, walking && hero);
     const frame = walking && hero ? Math.floor((d.x + d.y) * 4) : Math.floor(this.time * 7 + d.phase);
     const scale = (d.joined > 0 ? 1 + Math.sin(d.joined * Math.PI) * 0.25 : 1) * big;
     const h = this.drawSprite(sheetId, x, y - hop, d.flip, frame, scale, d.flash > 0.08);

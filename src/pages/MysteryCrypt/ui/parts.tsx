@@ -9,8 +9,11 @@ const spriteOf = (kind: UnitKind) => {
   return { url: s.url, frameWidth: s.fw, frameHeight: s.fh, frames: s.frames, height: 1 };
 };
 
-export function UnitSprite({ kind, size, animate = true }: { kind: UnitKind; size: number; animate?: boolean }) {
-  return <Sprite sprite={spriteOf(kind)} size={size} fps={7} animate={animate} />;
+const WICK = { url: "/mystery-crypt/wick.png", frameWidth: 16, frameHeight: 24, frames: 4, height: 1 };
+
+// A unit's sprite; Wick (by name) has its own.
+export function UnitSprite({ kind, size, animate = true, name }: { kind: UnitKind; size: number; animate?: boolean; name?: string }) {
+  return <Sprite sprite={name === "Wick" ? WICK : spriteOf(kind)} size={size} fps={7} animate={animate} />;
 }
 
 export function MoveIcon({ move, size = 32, dim = false }: { move: MoveId; size?: number; dim?: boolean }) {

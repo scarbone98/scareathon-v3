@@ -1,0 +1,23 @@
+{
+  "files": [
+    "wick.png",
+    "portraits/alex.png",
+    "portraits/joe.png",
+    "portraits/matt.png",
+    "portraits/jon.png",
+    "portraits/wick.png",
+    "portraits/snail.png",
+    "portraits/merchant.png",
+    "portraits/owl.png",
+    "portraits/ratking.png",
+    "bosses/rat.png",
+    "bosses/pumpkin.png",
+    "bosses/zombie.png",
+    "bosses/candle.png",
+    "bosses/scarecrow.png",
+    "bosses/werewolf.png",
+    "bosses/ufo.png",
+    "bosses/shadowbeast.png",
+    "bosses/swampthing.png"
+  ]
+}

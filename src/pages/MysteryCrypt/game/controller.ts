@@ -28,11 +28,12 @@ import {
   type MapDef,
   type Unit,
 } from "./sim.ts";
-import { PARTNER_NAME, SPEAKERS, type Step } from "./story.ts";
+import { BOSS_PORTRAITS, PARTNER_NAME, SPEAKERS, type Face, type Step } from "./story.ts";
 
 export interface Member {
   id: number;
   kind: UnitKind;
+  name?: string;
   hp: number;
   maxHp: number;
   level: number;
@@ -64,6 +65,8 @@ export interface StageResult {
 
 export interface Dialogue {
   speaker: string;
+  portrait?: string;
+  face: Face;
   name: string;
   color: string;
   text: string;
@@ -111,7 +114,7 @@ const KEY_DIRS: Record<string, Dir> = {
 const DEMO_STEP = 0.16;
 
 function member(u: Unit, s: GameState): Member {
-  return { id: u.id, kind: u.kind, hp: u.hp, maxHp: u.maxHp, level: u.level, leader: u.id === s.leaderId };
+  return { id: u.id, kind: u.kind, name: u.name, hp: u.hp, maxHp: u.maxHp, level: u.level, leader: u.id === s.leaderId };
 }
 
 // The menu's background: a random hero and two monsters on a random early stage.
@@ -278,6 +281,8 @@ export class GameController {
       const boss = step.say === "boss" ? s.units.find((u) => u.boss) : null;
       this.cb.onDialogue({
         speaker: step.say,
+        portrait: boss ? BOSS_PORTRAITS[boss.kind as keyof typeof BOSS_PORTRAITS] : sp.portrait,
+        face: step.face ?? "normal",
         name: boss?.boss ?? sp.name,
         color: sp.color,
         text: step.text,

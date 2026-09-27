@@ -3,12 +3,22 @@ import { useEffect, useRef, useState } from "react";
 import { Sprite } from "../../Royale/ui/parts";
 import type { Dialogue } from "../game/controller";
 import { PROP_SHEETS } from "../game/render";
+import { FACES } from "../game/story";
 import { UnitSprite } from "./parts";
 
 // Letters appear this many per second; a tap shows the rest, the next tap moves on.
 const TYPE_SPEED = 55;
 
 function Portrait({ dialogue }: { dialogue: Dialogue }) {
+  if (dialogue.portrait) {
+    const frame = Math.max(0, FACES.indexOf(dialogue.face));
+    return (
+      <div
+        className="h-12 w-12"
+        style={{ backgroundImage: `url(/mystery-crypt/portraits/${dialogue.portrait}.png)`, backgroundPosition: `-${frame * 48}px 0`, backgroundSize: `${48 * FACES.length}px 48px`, imageRendering: "pixelated" }}
+      />
+    );
+  }
   if (dialogue.kind) return <UnitSprite kind={dialogue.kind} size={44} />;
   const def = dialogue.sprite ? PROP_SHEETS[dialogue.sprite as keyof typeof PROP_SHEETS] : null;
   if (!def) return null;

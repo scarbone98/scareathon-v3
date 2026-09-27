@@ -56,7 +56,7 @@ export default function Result({ result, before, after, onCamp, onNext }: { resu
               <div className="mt-1 flex flex-wrap gap-2">
                 {report.recruits.map((r, i) => (
                   <div key={i} className="flex flex-col items-center">
-                    <UnitSprite kind={r.kind} size={30} />
+                    <UnitSprite kind={r.kind} name={r.name} size={30} />
                     <span className="cc-outline-sm text-[10px] text-white">
                       {unitName(r.kind)} {r.level}
                     </span>
@@ -73,7 +73,7 @@ export default function Result({ result, before, after, onCamp, onNext }: { resu
                   const learned = knownMoves(g.kind, g.to).filter((m) => !knownMoves(g.kind, g.from).includes(m));
                   return (
                     <li key={i} className="cc-outline-sm flex items-center gap-2 text-sm text-white">
-                      <UnitSprite kind={g.kind} size={20} animate={false} />
+                      <UnitSprite kind={g.kind} name={g.name} size={20} animate={false} />
                       <span className="flex-1">
                         {g.name} <span className="text-[#ffe9c4]/70">{g.from}</span> → <span className="text-[#7dffb0]">{g.to}</span>
                       </span>

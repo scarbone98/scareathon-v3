@@ -160,7 +160,7 @@ function TeamTab({ save, onChange, onDetail }: { save: Save; onChange: (s: Save)
         {Array.from({ length: MAX_TEAM }, (_, i) => team[i]).map((m, i) =>
           m ? (
             <Row key={m.uid} onClick={() => onDetail(m.uid)}>
-              <UnitSprite kind={m.kind} size={30} />
+              <UnitSprite kind={m.kind} name={m.name} size={30} />
               <div className="flex-1">
                 <div className="cc-outline-sm text-white">
                   {monsterName(m)} <span className="text-[#ffcf4a]">Lv {m.level}</span>
@@ -201,7 +201,7 @@ function TeamTab({ save, onChange, onDetail }: { save: Save; onChange: (s: Save)
               onClick={() => onDetail(m.uid)}
               className={`flex flex-col items-center rounded border-2 pb-0.5 pt-1 ${save.team.includes(m.uid) ? "border-[#ffcf4a] bg-[#3a2254]" : "border-[#140a1c] bg-[#1c1128]/85"}`}
             >
-              <UnitSprite kind={m.kind} size={28} animate={false} />
+              <UnitSprite kind={m.kind} name={m.name} size={28} animate={false} />
               <span className="cc-outline-sm text-[11px] text-white">Lv {m.level}</span>
             </button>
           ))}
@@ -265,7 +265,7 @@ function Detail({ save, uid, onChange, onClose }: { save: Save; uid: number | nu
         <div onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center rounded bg-[#1c1128]">
-              <UnitSprite kind={kind} size={48} />
+              <UnitSprite kind={kind} name={monster?.name} size={48} />
             </div>
             <div className="flex-1">
               <div className="cc-outline text-xl text-white">
@@ -397,7 +397,7 @@ export default function Camp({
         <UnitSprite kind={storyRun ? "alex" : save.hero} size={16} animate={false} />
         {save.team.map((uid) => {
           const m = save.monsters.find((o) => o.uid === uid);
-          return m ? <UnitSprite key={uid} kind={m.kind} size={16} animate={false} /> : null;
+          return m ? <UnitSprite key={uid} kind={m.kind} name={m.name} size={16} animate={false} /> : null;
         })}
         <span>
           {save.team.length + 1} going · {save.bag.length} item{save.bag.length === 1 ? "" : "s"}
