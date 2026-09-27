@@ -945,8 +945,8 @@ export default function CartridgeArcade({
       timeline.to(oldGroup.position, { y: seat.y + h * 1.15, duration: 0.17, ease: "power4.out" });
       timeline.fromTo(oldGroup.scale, { x: 0.9, y: 1.16, z: 0.9 }, { x: 1, y: 1, z: 1, duration: 0.45, ease: "elastic.out(1.2, 0.35)" }, "<");
       timeline.fromTo(oldGroup.rotation, { z: 0 }, { z: 0.14, duration: 0.17, ease: "power2.out" }, "<");
-      // A beat in the air, then home
-      timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.4, h * 0.7, 0, "power3.inOut", -0.2), "+=0.05");
+      // A beat in the air, then home, spinning once on the way
+      timeline.add(flyTo(oldGroup, () => homeWorld(old), 0.5, h * 0.7, 1, "power3.inOut", -0.2), "+=0.05");
       timeline.call(() => {
         shelfGroup.attach(oldGroup);
         oldGroup.position.copy(old.home);
