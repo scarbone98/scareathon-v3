@@ -95,7 +95,7 @@ const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
 const WIDE_CARD_SPACE = 226; // the card on wide screens, with its keyboard hints
 const SCANNER_GREEN = "#33ff66"; // terminal phosphor
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
-const SCREEN_GLOW = 0.85; // the screen's usual emissive intensity
+const SCREEN_GLOW = 1.1; // the screen's usual emissive intensity
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
 const POWER_OFF = 0.3;
 const STATIC = 0.4;
@@ -270,6 +270,11 @@ export default function CartridgeArcade({
 
     const showOnScreen = (texture: CanvasTexture) => {
       if (!screenMaterial) return;
+      // The video frames are ordinary sRGB pictures; read as linear they wash out
+      if (texture.colorSpace !== SRGBColorSpace) {
+        texture.colorSpace = SRGBColorSpace;
+        texture.needsUpdate = true;
+      }
       screenMaterial.map = texture;
       screenMaterial.emissiveMap = texture;
       screenMaterial.needsUpdate = true;

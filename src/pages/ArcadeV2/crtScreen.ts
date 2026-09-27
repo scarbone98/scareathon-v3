@@ -30,13 +30,16 @@ export function applyCrtLook(material: MeshStandardMaterial) {
 ${CRT_SHAPE}
 // Scanlines, a phosphor mask and a vignette, as a brightness multiplier
 vec3 crtShade(vec2 uv) {
-  float lines = 180.0;
-  // Fade the lines out where the screen is too small on screen to show them cleanly
+  // Coarse, like a low-res tube: each line is a few pixels tall at the size the
+  // screen shows, so they read clearly without shimmering
+  float lines = 96.0;
+  // Fade the lines out only where the screen is too small on screen to show them cleanly
   float perPixel = fwidth(uv.y) * lines;
-  float lineStrength = 0.3 * (1.0 - smoothstep(0.25, 0.5, perPixel));
-  float scan = 1.0 - lineStrength * (0.5 + 0.5 * cos(uv.y * lines * 6.2831853));
+  float lineStrength = 0.55 * (1.0 - smoothstep(0.45, 0.8, perPixel));
+  // Dark gaps between bright lines, rather than an even ripple
+  float scan = 1.0 - lineStrength * pow(0.5 + 0.5 * cos(uv.y * lines * 6.2831853), 2.0);
   float column = mod(gl_FragCoord.x, 3.0);
-  vec3 mask = vec3(0.95) + 0.1 * vec3(step(column, 1.0), step(1.0, column) * step(column, 2.0), step(2.0, column));
+  vec3 mask = vec3(0.9) + 0.18 * vec3(step(column, 1.0), step(1.0, column) * step(column, 2.0), step(2.0, column));
   vec2 c = uv - 0.5;
   float vignette = 1.0 - dot(c, c) * 1.1;
   // Brighter overall, to make up for what the lines take away
@@ -49,7 +52,8 @@ vec3 crtShade(vec2 uv) {
   vec2 crtUv = crtWarp(vMapUv);
   float crtEdge = crtInside(crtUv);
   vec4 sampledDiffuseColor = texture2D(map, clamp(crtUv, 0.0, 1.0));
-  diffuseColor.rgb *= sampledDiffuseColor.rgb * crtShade(crtUv) * crtEdge;
+  // Glass barely reflects the room: the picture is almost all its own light
+  diffuseColor.rgb *= sampledDiffuseColor.rgb * crtShade(crtUv) * crtEdge * 0.08;
 #endif`
       )
       .replace(
