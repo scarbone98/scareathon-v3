@@ -161,7 +161,7 @@ export default function CartridgeArcade({
     mount.appendChild(renderer.domElement);
 
     // Dim fixed lights, just enough to read the cabinet's shape: the screen does
-    // most of the lighting (screenLight, below)
+    // most of the lighting (screenLights, below)
     const ambientLight = new AmbientLight(0xffffff, 0.16);
     scene.add(ambientLight);
     const pointLight = new PointLight(0xffaa55, 0.5, 50);
@@ -475,17 +475,23 @@ export default function CartridgeArcade({
     let sceneHeight = 1;
     const parallax = { x: 0, y: 0, targetX: 0, targetY: 0 };
     let portLight: PointLight | null = null;
-    // The screen's own light, in front of the glass: it takes the colour and
-    // brightness of whatever the screen is showing
-    const screenLight = new PointLight(0xffffff, 0, 6, 1.6);
-    scene.add(screenLight);
+    // The screen's own light, coming off the glass itself: two lights spread
+    // across its width, just in front of it, so the flat bezel round it only
+    // catches a glancing sheen while the deck, the cartridges and the room in
+    // front take the light. They take the colour and brightness of whatever
+    // the screen is showing.
+    const screenLights = [0, 1].map(() => {
+      const light = new PointLight(0xffffff, 0, 5, 1.4);
+      scene.add(light);
+      return light;
+    });
     const screenSample = document.createElement("canvas");
     screenSample.width = screenSample.height = 1;
     const screenSampler = screenSample.getContext("2d", { willReadFrequently: true });
     const screenColor = new Color(0x000000);
     const targetScreenColor = new Color(0x000000);
     let lastSample = 0;
-    const SCREEN_LIGHT = 7;
+    const SCREEN_LIGHT = 9;
     const updateScreenLight = (time: number) => {
       const source = screenMaterial?.map?.image as CanvasImageSource | undefined;
       if (source && screenSampler && time - lastSample > 0.12) {
@@ -501,12 +507,14 @@ export default function CartridgeArcade({
       }
       // Ease toward it, so flickering footage doesn't strobe the room
       screenColor.lerp(targetScreenColor, 0.15);
-      screenLight.color.copy(screenColor);
       const brightness = Math.max(screenColor.r, screenColor.g, screenColor.b);
-      // Normalised colour, with its brightness carried in the intensity
-      if (brightness > 0.001) screenLight.color.multiplyScalar(1 / brightness);
       const power = screenMaterial ? screenMaterial.emissiveIntensity / SCREEN_GLOW : 0;
-      screenLight.intensity = SCREEN_LIGHT * (0.15 + brightness) * power;
+      screenLights.forEach((light) => {
+        // Normalised colour, with its brightness carried in the intensity
+        light.color.copy(screenColor);
+        if (brightness > 0.001) light.color.multiplyScalar(1 / brightness);
+        light.intensity = (SCREEN_LIGHT / 2) * (0.15 + brightness) * power;
+      });
     };
 
     // --- Scanner: a little camera on the cabinet reads the barcode sticker on the
@@ -1108,9 +1116,12 @@ export default function CartridgeArcade({
           child.material = screenMaterial;
           // The glass alone, before its (larger) glow is attached
           screenBox.setFromObject(child, true);
-          // Out in front of the glass's middle, low enough to light the deck
+          // A hair in front of the glass, a third of the way in from each side
           const glassMiddle = screenBox.getCenter(new Vector3());
-          screenLight.position.set(glassMiddle.x, glassMiddle.y - (screenBox.max.y - screenBox.min.y) * 0.15, screenBox.max.z + 0.55);
+          const glassWidth = screenBox.max.x - screenBox.min.x;
+          screenLights.forEach((light, i) => {
+            light.position.set(glassMiddle.x + (i ? 1 : -1) * glassWidth * 0.2, glassMiddle.y, screenBox.max.z + 0.06);
+          });
           crtGlow = track(createCrtGlow(child));
           showOnScreen(screenTexture);
         } else if (material.name === "Marque") {

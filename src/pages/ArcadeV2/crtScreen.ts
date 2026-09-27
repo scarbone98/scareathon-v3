@@ -63,6 +63,13 @@ vec3 crtShade(vec2 uv) {
   vec3 crtPicture = texture2D(emissiveMap, clamp(crtUv, 0.0, 1.0)).rgb;
   totalEmissiveRadiance *= crtPicture * crtShade(crtUv) * crtEdge;
 #endif`
+      )
+      .replace(
+        "#include <opaque_fragment>",
+        `// No glints on the glass: the lights round it (the screen's own among them)
+// would otherwise show as hot spots on the picture
+outgoingLight = totalDiffuse + totalEmissiveRadiance;
+#include <opaque_fragment>`
       );
   };
   material.needsUpdate = true;
