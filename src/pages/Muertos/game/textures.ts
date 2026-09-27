@@ -21,7 +21,12 @@ export const TILE = {
   windowHole: 13,
   plaster: 14,
   planks: 15,
+  roof: 16,
+  roofPainted: 17,
 } as const;
+
+// The atlas is 4 tiles across and 5 down.
+const ATLAS_ROWS = 5;
 
 export function canvasTexture(w: number, h: number, draw: (x: CanvasRenderingContext2D) => void, repeat = false) {
   const cv = document.createElement("canvas");
@@ -42,13 +47,14 @@ export function tileUV(i: number): [number, number, number, number] {
   const cx = i % 4;
   const cy = Math.floor(i / 4);
   const e = 0.5 / 256;
-  return [cx / 4 + e, 1 - (cy + 1) / 4 + e, (cx + 1) / 4 - e, 1 - cy / 4 - e];
+  const f = 0.5 / (64 * ATLAS_ROWS);
+  return [cx / 4 + e, 1 - (cy + 1) / ATLAS_ROWS + f, (cx + 1) / 4 - e, 1 - cy / ATLAS_ROWS - f];
 }
 
 const hex = (r: number, g: number, b: number) => `rgb(${r | 0},${g | 0},${b | 0})`;
 
 export function atlasTexture() {
-  return canvasTexture(256, 256, (x) => {
+  return canvasTexture(256, 64 * ATLAS_ROWS, (x) => {
     const rnd = mulberry32(42);
     const tile = (i: number, draw: (ox: number, oy: number) => void) => {
       const ox = (i % 4) * 64;
@@ -243,6 +249,30 @@ export function atlasTexture() {
       }
       noise(ox, oy, 60, ["#4a2e18"]);
     });
+    // Flat roofs, seen from above: a parapet round the edge, patched
+    // concrete, a drain.
+    const roof = (i: number, base: string, patch: string[]) =>
+      tile(i, (ox, oy) => {
+        x.fillStyle = base;
+        x.fillRect(ox, oy, 64, 64);
+        noise(ox, oy, 220, patch, 2, 2);
+        for (let k = 0; k < 3; k++) {
+          x.fillStyle = "rgba(40,36,30,0.12)";
+          x.fillRect(ox + 6 + rnd() * 40, oy + 6 + rnd() * 40, 8 + rnd() * 14, 6 + rnd() * 10);
+        }
+        x.fillStyle = "#f4f1ea";
+        x.fillRect(ox, oy, 64, 3);
+        x.fillRect(ox, oy + 61, 64, 3);
+        x.fillRect(ox, oy, 3, 64);
+        x.fillRect(ox + 61, oy, 3, 64);
+        x.fillStyle = "rgba(0,0,0,0.22)";
+        x.fillRect(ox + 3, oy + 3, 58, 2);
+        x.fillRect(ox + 3, oy + 3, 2, 58);
+        x.fillStyle = "#3a3630";
+        x.fillRect(ox + 56, oy + 56, 3, 3);
+      });
+    roof(TILE.roof, "#c9c4b8", ["#b8b2a4", "#d6d1c6", "#aaa496", "#bfb9ab"]);
+    roof(TILE.roofPainted, "#b0543e", ["#a04a36", "#c0654c", "#984434", "#b85c46"]);
   });
 }
 

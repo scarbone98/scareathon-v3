@@ -227,6 +227,15 @@ export function papMachine() {
   ]);
 }
 
+// A soft dark blob on the ground under anyone standing, for top-down.
+const shadowGeo = new THREE.CircleGeometry(0.45, 10).rotateX(-Math.PI / 2).translate(0, 0.03, 0);
+const shadowMat = new THREE.MeshBasicMaterial({ color: "#000000", transparent: true, opacity: 0.4, depthWrite: false });
+const blob = () => {
+  const m = new THREE.Mesh(shadowGeo, shadowMat);
+  m.renderOrder = 1;
+  return m;
+};
+
 // ---------- zombies ----------
 
 const SKINS = ["#7d8f6a", "#8a9270", "#6f7d62", "#98927a", "#7a7466", "#8c8a6c"];
@@ -274,7 +283,7 @@ export class ZombieModel {
       return mesh;
     };
 
-    this.root.add(this.body);
+    this.root.add(this.body, blob());
     this.body.add(this.hips);
     this.hips.position.y = 0.92;
     this.hips.add(this.torso, this.legL, this.legR);
@@ -385,4 +394,72 @@ export function knifeGeometry() {
 
 export function bottleGeometry(color: string) {
   return merge([paint(cyl(0.035, 0.04, 0.16, 7, 0, 0.08, 0), C(color)), paint(cyl(0.015, 0.03, 0.07, 6, 0, 0.19, 0), C(color)), paint(box(0.075, 0.06, 0.02, 0, 0.08, -0.035), C("#fff4d0"))]);
+}
+
+// You: a survivor in a guayabera and a cap, gun held out in front. Faces
+// -z like everything else; the gun is swapped in by the renderer.
+export class PlayerModel {
+  readonly root = new THREE.Group();
+  readonly body = new THREE.Group();
+  readonly torso = new THREE.Group();
+  readonly legL = new THREE.Group();
+  readonly legR = new THREE.Group();
+  readonly armL = new THREE.Group();
+  readonly armR = new THREE.Group();
+  readonly gun: THREE.Mesh;
+  readonly hand = new THREE.Group();
+
+  constructor(mat: THREE.Material, gunMat: THREE.Material) {
+    const skin = C("#b98563");
+    const shirt = C("#f1ead6");
+    const pants = C("#34405a");
+    const cap = C("#b8120f");
+    const add = (parent: THREE.Object3D, geo: THREE.BufferGeometry) => {
+      const m = new THREE.Mesh(geo, mat);
+      parent.add(m);
+      return m;
+    };
+    // A ring round your feet, so you can find yourself in a crowd.
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.55, 0.68, 20).rotateX(-Math.PI / 2).translate(0, 0.04, 0),
+      new THREE.MeshBasicMaterial({ color: "#ffd84a", transparent: true, opacity: 0.75, depthWrite: false })
+    );
+    this.root.add(this.body, blob(), ring);
+    const hips = new THREE.Group();
+    hips.position.y = 0.9;
+    this.body.add(hips);
+    hips.add(this.torso, this.legL, this.legR);
+    for (const [leg, x] of [
+      [this.legL, -0.12],
+      [this.legR, 0.12],
+    ] as const) {
+      leg.position.x = x;
+      add(leg, merge([paint(box(0.19, 0.82, 0.21, 0, -0.41, 0), pants), paint(box(0.2, 0.12, 0.32, 0, -0.84, -0.05), C("#2a2020"))]));
+    }
+    add(this.torso, merge([paint(box(0.48, 0.62, 0.28, 0, 0.31, 0), shirt), paint(box(0.44, 0.1, 0.26, 0, 0.02, 0), C("#3a2a1a"))]));
+    add(
+      this.torso,
+      merge([
+        paint(box(0.26, 0.28, 0.27, 0, 0.83, 0), skin),
+        paint(box(0.3, 0.1, 0.31, 0, 0.99, 0.01), cap),
+        paint(box(0.24, 0.04, 0.16, 0, 0.95, -0.2), cap),
+      ])
+    );
+    for (const [arm, x] of [
+      [this.armL, -0.3],
+      [this.armR, 0.3],
+    ] as const) {
+      arm.position.set(x, 0.56, 0);
+      this.torso.add(arm);
+      add(arm, merge([paint(box(0.14, 0.3, 0.15, 0, -0.13, 0), shirt), paint(box(0.12, 0.34, 0.13, 0, -0.44, 0), skin)]));
+    }
+    // Arms out front, the gun between the hands.
+    this.armL.rotation.set(1.35, -0.35, 0);
+    this.armR.rotation.set(1.45, 0.15, 0);
+    this.hand.position.set(0.08, 0.38, -0.5);
+    this.torso.add(this.hand);
+    this.gun = new THREE.Mesh(undefined, gunMat);
+    this.gun.scale.setScalar(1.35);
+    this.hand.add(this.gun);
+  }
 }

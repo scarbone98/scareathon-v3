@@ -34,20 +34,26 @@ import {
   gunGeometry,
   knifeGeometry,
   lighthouse,
+  merge,
+  paint,
   palm,
   papMachine,
   perkMachine,
+  PlayerModel,
   rubble,
   statue,
   tomb,
   ZombieModel,
 } from "./models";
-import { mulberry32, WINDOW_BOARDS, type Ev, type Game, type PowerKind, type Zombie } from "./sim";
+import { rayWall } from "./map";
+import { GUN_Y, mulberry32, rayZombie, WINDOW_BOARDS, type Ev, type Game, type PowerKind, type Zombie } from "./sim";
 import { atlasTexture, chalkTexture, churchTexture, flashTexture, glowTexture, perkTexture, powerTexture, signTexture, TILE, tileUV } from "./textures";
 import { WEAPONS, type WeaponId } from "./weapons";
 
 const FOG = new THREE.Color("#1a1c36");
 const PIXELS = 320 * 240;
+// Pixel budgets, from full quality down.
+const QUALITY = [1, 0.7, 0.5];
 
 // Every material snaps its vertices to the pixel grid, the PS1 wobble.
 const snap = { value: new THREE.Vector2(160, 120) };
@@ -62,6 +68,52 @@ function psx<M extends THREE.Material>(m: M): M {
 }
 const lambert = (o: THREE.MeshLambertMaterialParameters) => psx(new THREE.MeshLambertMaterial(o));
 const basic = (o: THREE.MeshBasicMaterialParameters) => psx(new THREE.MeshBasicMaterial(o));
+
+// Top-down, buildings between the camera and the player are cut away in a
+// dithered hole so you can always see yourself.
+// Top-down also squashes the town to about half height above the ground
+// floor, so the houses don't hide the streets.
+const SQUASH_FROM = 3.2;
+const SQUASH = 0.35;
+const squashY = (y: number, on: boolean) => (on && y > SQUASH_FROM ? SQUASH_FROM + (y - SQUASH_FROM) * SQUASH : y);
+const cut = {
+  uCutCam: { value: new THREE.Vector3() },
+  uCutPlayer: { value: new THREE.Vector3() },
+  uCutR: { value: 0 },
+  uSquash: { value: 1 },
+};
+function cutaway<M extends THREE.Material>(m: M): M {
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uSnap = snap;
+    Object.assign(shader.uniforms, cut);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform vec2 uSnap;\nuniform float uSquash;\nvarying vec3 vCutWorld;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+        {
+          float wy = (modelMatrix * vec4(transformed, 1.0)).y;
+          if (wy > ${SQUASH_FROM.toFixed(2)}) transformed.y -= (wy - ${SQUASH_FROM.toFixed(2)}) * (1.0 - uSquash);
+        }`)
+      .replace(
+        "#include <project_vertex>",
+        "#include <project_vertex>\nvCutWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;\ngl_Position.xy = floor(gl_Position.xy / gl_Position.w * uSnap + 0.5) / uSnap * gl_Position.w;"
+      );
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uCutCam;\nuniform vec3 uCutPlayer;\nuniform float uCutR;\nvarying vec3 vCutWorld;").replace(
+      "void main() {",
+      `void main() {
+        if (uCutR > 0.0 && vCutWorld.y > 0.3) {
+          vec3 ab = uCutPlayer - uCutCam;
+          float t = clamp(dot(vCutWorld - uCutCam, ab) / dot(ab, ab), 0.0, 1.0);
+          float d = length(vCutWorld - (uCutCam + ab * t));
+          // Only what's on the camera's side of the player.
+          if (dot(vCutWorld - uCutPlayer, normalize(-ab)) > 0.6 && d < uCutR) {
+            float checker = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);
+            if (d < uCutR * 0.72 || checker < 1.0) discard;
+          }
+        }`
+    );
+  };
+  return m;
+}
 
 // ---------- baked light ----------
 
@@ -216,6 +268,8 @@ type Tracer = { line: THREE.Line; t: number };
 type Bolt = { sprite: THREE.Sprite; from: THREE.Vector3; to: THREE.Vector3; t: number };
 type FlyBoard = { mesh: THREE.Mesh; vx: number; vy: number; vz: number; spin: THREE.Vector3; t: number };
 
+export type ViewMode = "fps" | "top";
+
 export type View = {
   bob: number;
   kick: number;
@@ -224,6 +278,7 @@ export type View = {
   flash: number;
   deathT: number;
   shake: number;
+  snap?: boolean;
 };
 
 export class Renderer {
@@ -286,6 +341,19 @@ export class Renderer {
   private viewHemi = new THREE.HemisphereLight("#9aa6ff", "#2a2030", 1.2);
   private viewKey = new THREE.DirectionalLight("#ffd0a0", 1.4);
   private swapFrom = "";
+  private mode: ViewMode = "fps";
+  private player!: PlayerModel;
+  private playerGunKey = "";
+  private laser!: THREE.Line;
+  private worldFlash!: THREE.Sprite;
+  private aspect = 1;
+  private topDist = 30;
+  private camFollow = new THREE.Vector3();
+  private quality = 0;
+  private cssW = 1;
+  private cssH = 1;
+  private deadFall = 0;
+  private lampGlow!: THREE.Sprite;
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
@@ -310,8 +378,9 @@ export class Renderer {
 
     this.boardMat = lambert({ map: atlasTexture(), color: "#c9a27a" });
     const boardTex = (this.boardMat as THREE.MeshLambertMaterial).map!;
-    boardTex.repeat.set(0.25, 0.25);
-    boardTex.offset.set(0.75, 0);
+    const planks = tileUV(TILE.planks);
+    boardTex.repeat.set(planks[2] - planks[0], planks[3] - planks[1]);
+    boardTex.offset.set(planks[0], planks[1]);
     this.disposables.push(this.boardMat, boardTex);
 
     this.powerTex = { ammo: powerTexture("ammo"), insta: powerTexture("insta"), double: powerTexture("double"), nuke: powerTexture("nuke") };
@@ -350,6 +419,21 @@ export class Renderer {
     this.viewCam.add(this.hands);
     this.viewKey.position.set(-1, 2, 1);
     this.viewScene.add(this.viewCam, this.viewHemi, this.viewKey);
+
+    // You, seen from above.
+    const gunMat = lambert({ vertexColors: true });
+    this.player = new PlayerModel(this.zombieMat, gunMat);
+    this.player.root.visible = false;
+    this.scene.add(this.player.root);
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+    this.laser = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: "#ff3a2a", transparent: true, opacity: 0.45, depthWrite: false }));
+    this.laser.frustumCulled = false;
+    this.laser.visible = false;
+    this.worldFlash = new THREE.Sprite(this.flash.material);
+    this.worldFlash.scale.setScalar(1.1);
+    this.worldFlash.visible = false;
+    this.scene.add(this.laser, this.worldFlash);
   }
 
   private makePost() {
@@ -380,14 +464,17 @@ export class Renderer {
     return { scene, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), mat };
   }
 
-  resize(width: number, height: number) {
-    const scale = Math.sqrt(PIXELS / Math.max(1, width * height));
+  resize(width = this.cssW, height = this.cssH) {
+    this.cssW = width;
+    this.cssH = height;
+    const scale = Math.sqrt((PIXELS * QUALITY[this.quality]) / Math.max(1, width * height));
     const w = Math.max(64, Math.round(width * scale));
     const h = Math.max(48, Math.round(height * scale));
     this.gl.setSize(w, h, false);
     this.target.setSize(w, h);
     snap.value.set(w / 2, h / 2);
     const aspect = w / h;
+    this.aspect = aspect;
     this.camera.aspect = aspect;
     // Narrow screens see a bit wider.
     this.camera.fov = aspect < 1 ? 84 : 72;
@@ -395,6 +482,62 @@ export class Renderer {
     this.viewCam.aspect = aspect;
     this.viewCam.fov = aspect < 1 ? 70 : 58;
     this.viewCam.updateProjectionMatrix();
+    this.frameTop();
+  }
+
+  // How far back the top-down camera sits so the view is about as wide as
+  // a street on a phone, and a whole plaza on a monitor.
+  private frameTop() {
+    if (this.mode !== "top") return;
+    const vfov = 38;
+    this.camera.fov = vfov;
+    this.camera.near = 1;
+    this.camera.far = 400;
+    this.camera.updateProjectionMatrix();
+    const width = this.aspect < 1 ? 12.5 : 24;
+    const hfov = 2 * Math.atan(Math.tan(((vfov / 2) * Math.PI) / 180) * this.aspect);
+    this.topDist = width / 2 / Math.tan(hfov / 2);
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = this.topDist + 8;
+    fog.far = this.topDist + 60;
+  }
+
+  setView(mode: ViewMode) {
+    this.mode = mode;
+    const top = mode === "top";
+    this.player.root.visible = top;
+    cut.uCutR.value = top ? 3.2 : 0;
+    cut.uSquash.value = top ? SQUASH : 1;
+    // Things drawn outside the squashed town move down to match.
+    this.beam.position.y = squashY(13.8, top);
+    this.lampGlow.position.y = squashY(13.8, top);
+    this.boxBeam.visible = !top;
+    this.beam.visible = !top;
+    if (!top) {
+      const fog = this.scene.fog as THREE.Fog;
+      fog.near = 18;
+      fog.far = 95;
+      this.camera.near = 0.08;
+      this.camera.far = 500;
+    }
+    this.resize();
+  }
+
+  // 0 is full quality; each step down draws fewer pixels and less sea.
+  setQuality(level: number) {
+    this.quality = Math.max(0, Math.min(QUALITY.length - 1, level));
+    this.resize();
+  }
+  get qualityLevel() {
+    return this.quality;
+  }
+
+  // Where a point on screen (-1..1 each way) lands at gun height.
+  groundPoint(nx: number, ny: number) {
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
+    const t = (GUN_Y - ray.ray.origin.y) / (ray.ray.direction.y || -1e-6);
+    return ray.ray.origin.clone().addScaledVector(ray.ray.direction, Math.max(0, t));
   }
 
   // ---------- sky and sea ----------
@@ -563,10 +706,36 @@ export class Renderer {
             void n;
           }
         }
-        // Low walls have a top, and the lintels over the gates.
-        if (ch === "L") m.quad(V(x0, h, z0 + CELL), V(CELL, 0, 0), V(0, 0, -CELL), faceUV(TILE.fortWall), C("#f0e6d0"), 2, 2);
+        // Tops: low walls, the fortress walls' walkways, and flat roofs
+        // with a house-coloured tint, which top-down sees most of.
+        const top = V(x0, h, z0 + CELL);
+        if (ch === "L") m.quad(top, V(CELL, 0, 0), V(0, 0, -CELL), faceUV(TILE.fortWall), C("#f0e6d0"), 2, 2);
+        else if (ch === "W" || ch === "7") m.quad(top, V(CELL, 0, 0), V(0, 0, -CELL), faceUV(TILE.fortFloor), C("#d8ccb0"), 1, 1);
+        else if (ch === "C") m.quad(top, V(CELL, 0, 0), V(0, 0, -CELL), faceUV(TILE.plaster), C("#d6d2c8"), 1, 1);
+        else if (hs) {
+          const painted = hash(hs.id, 3) < 0.3;
+          m.quad(top, V(CELL, 0, 0), V(0, 0, -CELL), faceUV(painted ? TILE.roofPainted : TILE.roof), painted ? white : C("#ffffff").lerp(hs.color, 0.2), 1, 1);
+        }
       }
     }
+    // Beyond the map, more of the old city's roofs, so the world doesn't
+    // just stop at the edge when seen from above.
+    const rnd = mulberry32(77);
+    const W = COLS * CELL;
+    const H = ROWS * CELL;
+    for (let z = 0; z < H + 50; z += CELL * 2) {
+      for (let x = 0; x < W + 50; x += CELL * 2) {
+        const inside = x < W && z < H;
+        if (inside || (x < 48 && z < 58)) continue;
+        const painted = rnd() < 0.3;
+        const tint = painted ? white : C("#ffffff").lerp(C(PALETTE[Math.floor(rnd() * PALETTE.length)]), 0.2);
+        m.quad(V(x, 8.6, z + CELL * 2), V(CELL * 2, 0, 0), V(0, 0, -CELL * 2), tileUV(painted ? TILE.roofPainted : TILE.roof), tint, 1, 1);
+      }
+    }
+
+    // The strip of void between the grid and the skirt to the south.
+    for (let x = 0; x < W; x += CELL * 2) m.quad(V(x, 8.6, H), V(CELL * 2, 0, 0), V(0, 0, -CELL), tileUV(TILE.roof), white, 1, 1);
+
     // Stone lintels over the gates through the walls.
     for (const d of DOORS) {
       if (d.id === "a") continue;
@@ -591,10 +760,10 @@ export class Renderer {
     }
 
     const tex = atlasTexture();
-    const mat = basic({ map: tex, vertexColors: true });
+    const mat = cutaway(new THREE.MeshBasicMaterial({ map: tex, vertexColors: true }));
     this.scene.add(new THREE.Mesh(m.geometry(), mat));
     const ctex = churchTexture();
-    const cmat = basic({ map: ctex, vertexColors: true });
+    const cmat = cutaway(new THREE.MeshBasicMaterial({ map: ctex, vertexColors: true }));
     this.scene.add(new THREE.Mesh(church.geometry(), cmat));
     this.disposables.push(tex, mat, ctex, cmat);
   }
@@ -654,6 +823,17 @@ export class Renderer {
         else if (ch === "F" && GRID[r - 1]?.[c] !== "F" && GRID[r]?.[c - 1] !== "F") place(statue(), x + CELL / 2, 0, z + CELL / 2, Math.PI);
       }
     }
+    // Water tanks and the odd dish on the roofs.
+    const tank = merge([paint(new THREE.CylinderGeometry(0.55, 0.55, 1.1, 8).translate(0, 0.55, 0), C("#26262c")), paint(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 8).translate(0, 1.16, 0), C("#3a3a42"))]);
+    const tankW = merge([paint(new THREE.CylinderGeometry(0.5, 0.5, 1.0, 8).translate(0, 0.5, 0), C("#e8e6e0"))]);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (GRID[r][c] !== "#" || hash(c * 7, r * 13) > 0.1) continue;
+        const hh = house(c, r).h;
+        place(hash(r, c) < 0.5 ? tank : tankW, (c + 0.5) * CELL, hh, (r + 0.5) * CELL);
+      }
+    }
+
     // Garitas on the corners of the land walls too.
     for (const [c, r] of [
       [16, 12],
@@ -662,7 +842,7 @@ export class Renderer {
       place(gar, (c + 0.5) * CELL, 6.5, (r + 0.5) * CELL);
     place(espadana(), 41 * CELL, 14, 12 * CELL + 1.4);
     const geo = mergeAll(parts);
-    const mat = basic({ vertexColors: true, side: THREE.DoubleSide });
+    const mat = cutaway(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
     this.scene.add(new THREE.Mesh(geo, mat));
     this.disposables.push(geo, mat);
 
@@ -670,7 +850,7 @@ export class Renderer {
     const lh = findCells("H")[0];
     const lx = (lh[0] + 1) * CELL;
     const lz = (lh[1] + 1) * CELL;
-    const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,240,190,1)"), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    const lampGlow = (this.lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(255,240,190,1)"), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })));
     lampGlow.position.set(lx, 13.8, lz);
     lampGlow.scale.setScalar(5);
     const beamGeo = new THREE.ConeGeometry(4, 70, 10, 1, true).translate(0, -35, 0).rotateX(-Math.PI / 2);
@@ -704,7 +884,7 @@ export class Renderer {
   }
 
   private buildDoors() {
-    const mat = lambert({ vertexColors: true });
+    const mat = cutaway(new THREE.MeshLambertMaterial({ vertexColors: true }));
     for (const d of DOORS) {
       const ctr = doorCenter(d);
       const alongZ = d.cells.every(([c]) => c === d.cells[0][0]);
@@ -985,23 +1165,41 @@ export class Renderer {
     // Camera.
     const cam = this.camera;
     const die = Math.min(1, view.deathT / 1.1);
-    cam.position.set(p.x, 1.6 + view.bob - die * 1.2, p.z);
-    cam.rotation.set(p.pitch + die * 0.5, -p.yaw, die * 0.9);
+    if (this.mode === "top") {
+      // Looking down from the south, leading a little toward where you aim.
+      const lead = 2.2;
+      const tx = p.x + Math.sin(p.yaw) * lead;
+      const tz = p.z - Math.cos(p.yaw) * lead;
+      if (this.camFollow.lengthSq() === 0 || view.snap) this.camFollow.set(tx, 0, tz);
+      const k = 1 - Math.exp(-5 * dt);
+      this.camFollow.x += (tx - this.camFollow.x) * k;
+      this.camFollow.z += (tz - this.camFollow.z) * k;
+      const pitch = 1.22;
+      const dist = this.topDist * (1 - die * 0.35);
+      cam.position.set(this.camFollow.x, Math.sin(pitch) * dist, this.camFollow.z + Math.cos(pitch) * dist);
+      cam.rotation.set(-pitch, 0, 0);
+      cut.uCutCam.value.copy(cam.position);
+      cut.uCutPlayer.value.set(p.x, 1.0, p.z);
+    } else {
+      cam.position.set(p.x, 1.6 + view.bob - die * 1.2, p.z);
+      cam.rotation.set(p.pitch + die * 0.5, -p.yaw, die * 0.9);
+    }
     if (view.shake > 0) {
-      cam.position.x += (Math.random() - 0.5) * view.shake * 0.1;
-      cam.position.y += (Math.random() - 0.5) * view.shake * 0.1;
+      const amp = this.mode === "top" ? 0.3 : 0.1;
+      cam.position.x += (Math.random() - 0.5) * view.shake * amp;
+      cam.position.y += (Math.random() - 0.5) * view.shake * amp;
     }
     this.sky.position.copy(cam.position);
 
     // Sea swell.
     const sp = this.sea.geometry.getAttribute("position") as THREE.BufferAttribute;
-    for (let i = 0; i < sp.count; i++) {
+    for (let i = 0; i < (this.quality < 2 ? sp.count : 0); i++) {
       const x = this.seaBase[i * 3];
       const z = this.seaBase[i * 3 + 2];
       sp.setY(i, -17 + Math.sin(x * 0.07 + time * 0.9) * 0.6 + Math.cos(z * 0.09 + time * 0.7) * 0.5);
     }
     sp.needsUpdate = true;
-    this.sea.geometry.computeVertexNormals();
+    if (this.quality < 2) this.sea.geometry.computeVertexNormals();
     this.beam.rotation.y = time * 0.5;
     const boxIdle = g.box.state === "idle";
     (this.boxBeam.material as THREE.MeshBasicMaterial).opacity = boxIdle ? 0.12 + Math.sin(time * 2) * 0.03 : 0.25;
@@ -1029,8 +1227,63 @@ export class Renderer {
     this.syncPap(g, time);
     this.syncDrops(g, time);
     this.syncEffects(dt);
-    this.syncHands(g, dt, time, view);
+    if (this.mode === "fps") this.syncHands(g, dt, time, view);
+    else this.syncPlayer(g, dt, time);
+    this.hands.visible = this.mode === "fps" && !g.player.dead;
   }
+
+  private syncPlayer(g: Game, dt: number, time: number) {
+    const p = g.player;
+    const m = this.player;
+    const w = p.weapons[p.cur];
+    const key = `${w.id}:${w.pap}`;
+    if (key !== this.playerGunKey) {
+      this.playerGunKey = key;
+      m.gun.geometry = this.gunGeo(w.id, w.pap).geo;
+    }
+    m.root.position.set(p.x, 0, p.z);
+    m.root.rotation.y = -p.yaw;
+    // Legs walk; the body turns to aim.
+    const speed = Math.hypot(p.vx, p.vz);
+    this.walkPhase += dt * speed * 2.4;
+    const swing = Math.sin(this.walkPhase) * Math.min(1, speed / 3) * 0.7;
+    m.legL.rotation.x = swing;
+    m.legR.rotation.x = -swing;
+    const recoil = this.flashT > 0 ? 0.15 : 0;
+    m.torso.rotation.set(-recoil * 0.5, 0, 0);
+    m.gun.visible = p.busyKind === "";
+    m.gun.rotation.x = p.reloadT > 0 ? 0.8 : p.switchT > 0 ? 1.2 : 0;
+    m.armR.rotation.x = p.knifeT > 0 ? 1.45 + Math.sin((1 - p.knifeT / 0.55) * Math.PI) * 0.8 : 1.45;
+    if (p.dead) {
+      this.deadFall = Math.min(1, this.deadFall + dt * 2);
+      m.body.rotation.x = (this.deadFall * Math.PI) / 2.1;
+    } else {
+      this.deadFall = 0;
+      m.body.rotation.x = 0;
+    }
+    // Muzzle flash at the end of the gun, and a faint laser sight.
+    const gg = this.gunGeo(w.id, w.pap);
+    m.root.updateMatrixWorld(true);
+    const muzzle = gg.muzzle.clone().applyMatrix4(m.gun.matrixWorld);
+    this.worldFlash.visible = this.flashT > 0;
+    this.worldFlash.position.copy(muzzle);
+    const dx = Math.sin(p.yaw);
+    const dz = -Math.cos(p.yaw);
+    const reach = rayWall(g.walk, p.x, GUN_Y, p.z, dx, 0, dz, 14);
+    let end = reach;
+    for (const z of g.zombies) {
+      const h = rayZombie(z, p.x, p.z, dx, dz);
+      if (h && h.t < end) end = h.t;
+    }
+    const la = this.laser.geometry.getAttribute("position") as THREE.BufferAttribute;
+    la.setXYZ(0, muzzle.x, muzzle.y, muzzle.z);
+    la.setXYZ(1, p.x + dx * end, GUN_Y, p.z + dz * end);
+    la.needsUpdate = true;
+    this.laser.visible = !p.dead && p.busyKind === "";
+    void time;
+  }
+
+  private walkPhase = 0;
 
   private syncZombies(g: Game, dt: number, time: number) {
     const seen = new Set<number>();
@@ -1320,8 +1573,10 @@ export class Renderer {
     this.gl.setRenderTarget(this.target);
     this.gl.clear();
     this.gl.render(this.scene, this.camera);
-    this.gl.clearDepth();
-    this.gl.render(this.viewScene, this.viewCam);
+    if (this.mode === "fps") {
+      this.gl.clearDepth();
+      this.gl.render(this.viewScene, this.viewCam);
+    }
     this.gl.setRenderTarget(null);
     this.gl.clear();
     this.gl.render(this.post.scene, this.post.camera);
