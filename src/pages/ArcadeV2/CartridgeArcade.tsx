@@ -536,7 +536,7 @@ export default function CartridgeArcade({
         cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
         if (carts.length) {
           // Measure where the ledge's front edge lands on screen. With room to
-          // spare, drop the shelf until it tucks just under the top of the card;
+          // spare, drop the shelf until it rests on the top of the card;
           // on a short screen, move the camera so the ledge isn't hidden by it
           camera.position.copy(cameraBase);
           camera.lookAt(cameraTarget);
@@ -544,11 +544,14 @@ export default function CartridgeArcade({
           const ledgeEdge = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
           const edge = new Vector3(0, ledgeEdge, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
           const edgePx = ((1 - edge.y) / 2) * height;
-          const wantPx = height - reserveBottom + 10;
+          // The ledge's front edge just above the card, so no cartridge is covered
+          const wantPx = height - reserveBottom - 4;
           const worldPerPx = (2 * tan * (cameraZ - shelfGroup.position.z)) / height;
-          if (anchorTop) {
-            shelfGroup.position.y = Math.min(0, -(wantPx - edgePx) * worldPerPx);
+          if (anchorTop && edgePx <= wantPx) {
+            shelfGroup.position.y = -(wantPx - edgePx) * worldPerPx;
           } else if (edgePx > wantPx) {
+            // Too low (the card would cover it): move the camera instead, which
+            // lets the cabinet's top crop a touch
             const lift = (edgePx - wantPx) * worldPerPx;
             cameraTarget.y -= lift;
             cameraBase.y -= lift;
