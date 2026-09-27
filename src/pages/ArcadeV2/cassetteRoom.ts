@@ -18,23 +18,27 @@ import {
   Points,
   PointsMaterial,
   RepeatWrapping,
+  SphereGeometry,
   type Scene,
   SRGBColorSpace,
   type Texture,
   Vector3,
 } from "three";
 
-// The room the cabinet stands in: a hidden 70s tech den. Walnut-panelled walls
-// with a 70s stripe band, brown shag carpet, stacks of old TVs glowing with
-// static, colour bars and a terminal, shelves of cassettes and tapes, and dust
-// hanging in the warm light. Built cheap: painted textures, a
-// few boxes, instanced tapes, no shadows.
+// The room the cabinet stands in: a cramped, hidden 70s tech den, the cabinet
+// pushed up against its back wall. Walnut-panelled walls with a 70s stripe
+// band, brown shag carpet, a low drop ceiling with a bare bulb, a window onto
+// the night, stacks of old TVs glowing with static, colour bars and a
+// terminal crammed in beside the cabinet, shelves of tapes, and dust hanging
+// in the warm light. Built cheap: painted textures, a few boxes, instanced
+// tapes, no shadows.
 
 const STRIPES = ["#f2b33d", "#e8772e", "#c9452c", "#7b3a1e"];
 const FOG = new Color("#0b0706");
-const WALL_Z = -1.9;
-const ROOM_WIDTH = 16;
-const ROOM_HEIGHT = 6;
+const WALL_Z = -0.6; // right behind the cabinet
+const ROOM_WIDTH = 5.2;
+const ROOM_DEPTH = 6;
+const ROOM_HEIGHT = 2.9;
 
 export type CassetteRoom = {
   update: (time: number) => void;
@@ -187,6 +191,62 @@ function terminal() {
   return { texture, paint };
 }
 
+// The night outside the window: deep blue haze, stars, a hazy moon over a treeline
+function nightSky() {
+  return canvasTexture(256, 208, (context) => {
+    const random = seeded(5);
+    const sky = context.createLinearGradient(0, 0, 0, 208);
+    sky.addColorStop(0, "#03040c");
+    sky.addColorStop(0.6, "#0d1230");
+    sky.addColorStop(1, "#1c1638");
+    context.fillStyle = sky;
+    context.fillRect(0, 0, 256, 208);
+    for (let i = 0; i < 70; i += 1) {
+      context.fillStyle = `rgba(255, 255, 255, ${0.3 + random() * 0.6})`;
+      const size = random() < 0.15 ? 2 : 1;
+      context.fillRect(random() * 256, random() * 150, size, size);
+    }
+    const halo = context.createRadialGradient(178, 52, 4, 178, 52, 50);
+    halo.addColorStop(0, "rgba(220, 225, 255, 0.35)");
+    halo.addColorStop(1, "rgba(220, 225, 255, 0)");
+    context.fillStyle = halo;
+    context.fillRect(0, 0, 256, 208);
+    context.fillStyle = "#eef0ff";
+    context.beginPath();
+    context.arc(178, 52, 13, 0, Math.PI * 2);
+    context.fill();
+    // Pine tops along the bottom
+    context.fillStyle = "#020306";
+    context.beginPath();
+    context.moveTo(0, 208);
+    for (let x = 0; x <= 256; x += 8) {
+      context.lineTo(x, 196 - random() * 8);
+      context.lineTo(x + 4, 160 + random() * 30);
+    }
+    context.lineTo(256, 208);
+    context.fill();
+  });
+}
+
+// A drop ceiling: dark tiles in a grid
+function ceilingTexture() {
+  const texture = canvasTexture(128, 128, (context) => {
+    context.fillStyle = "#2a2522";
+    context.fillRect(0, 0, 128, 128);
+    const random = seeded(17);
+    for (let i = 0; i < 900; i += 1) {
+      context.fillStyle = random() > 0.5 ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 240, 220, 0.05)";
+      context.fillRect(random() * 128, random() * 128, 1.5, 1.5);
+    }
+    context.fillStyle = "#0f0c0b";
+    context.fillRect(0, 0, 128, 4);
+    context.fillRect(0, 0, 4, 128);
+  });
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.repeat.set(ROOM_WIDTH / 0.6, ROOM_DEPTH / 0.6);
+  return texture;
+}
+
 function softDot() {
   return canvasTexture(64, 64, (context) => {
     const dot = context.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -209,22 +269,75 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   const previousBackground = scene.background;
   const previousFog = scene.fog;
   scene.background = FOG;
-  scene.fog = new FogExp2(FOG.getHex(), 0.09);
+  scene.fog = new FogExp2(FOG.getHex(), 0.06);
 
-  // Walls and floor
-  const wall = new Mesh(
-    track(new PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT)),
-    track(new MeshStandardMaterial({ map: track(wallTexture()), roughness: 0.75, color: new Color("#7d6556") }))
-  );
+  // Walls, floor and a low drop ceiling, close in round the cabinet
+  const panelling = track(new MeshStandardMaterial({ map: track(wallTexture()), roughness: 0.75, color: new Color("#7d6556") }));
+  const wall = new Mesh(track(new PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT)), panelling);
   wall.position.set(0, ROOM_HEIGHT / 2, WALL_Z);
   room.add(wall);
+  const sideGeometry = track(new PlaneGeometry(ROOM_DEPTH, ROOM_HEIGHT));
+  [-1, 1].forEach((side) => {
+    const sideWall = new Mesh(sideGeometry, panelling);
+    sideWall.rotation.y = (-side * Math.PI) / 2;
+    sideWall.position.set((side * ROOM_WIDTH) / 2, ROOM_HEIGHT / 2, WALL_Z + ROOM_DEPTH / 2);
+    room.add(sideWall);
+  });
   const floor = new Mesh(
-    track(new PlaneGeometry(ROOM_WIDTH, 10)),
+    track(new PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH)),
     track(new MeshStandardMaterial({ map: track(carpetTexture()), roughness: 1, color: new Color("#9a7a66") }))
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(0, -0.005, WALL_Z + 5);
+  floor.position.set(0, -0.005, WALL_Z + ROOM_DEPTH / 2);
   room.add(floor);
+  const ceiling = new Mesh(
+    track(new PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH)),
+    track(new MeshStandardMaterial({ map: track(ceilingTexture()), roughness: 0.9 }))
+  );
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.set(0, ROOM_HEIGHT, WALL_Z + ROOM_DEPTH / 2);
+  room.add(ceiling);
+
+  // A bare bulb hanging on its flex, swaying a touch
+  const bulb = new Group();
+  bulb.position.set(0.3, ROOM_HEIGHT, WALL_Z + 2.4); // over the player, just out of frame
+  const flex = new Mesh(track(new BoxGeometry(0.008, 0.42, 0.008)), track(new MeshStandardMaterial({ color: new Color("#111111") })));
+  flex.position.y = -0.21;
+  bulb.add(flex);
+  const glass = new Mesh(track(new SphereGeometry(0.045, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#ffd9a0") })));
+  glass.position.y = -0.46;
+  bulb.add(glass);
+  const bulbLight = new PointLight("#ffb56b", 1.1, 4);
+  bulbLight.position.y = -0.5;
+  bulb.add(bulbLight);
+  room.add(bulb);
+
+  // A window onto the night, above the left-hand TVs
+  const windowWidth = 0.72;
+  const windowHeight = 0.58;
+  const windowAt = new Vector3(-1.22, 1.72, WALL_Z);
+  const sky = new Mesh(track(new PlaneGeometry(windowWidth, windowHeight)), track(new MeshBasicMaterial({ map: track(nightSky()) })));
+  sky.position.set(windowAt.x, windowAt.y, WALL_Z + 0.004);
+  room.add(sky);
+  const frameWood = track(new MeshStandardMaterial({ color: new Color("#3b2415"), roughness: 0.6 }));
+  const bar = 0.045;
+  const frameDepth = 0.06;
+  const frame = (w: number, h: number, x: number, y: number, z = WALL_Z + frameDepth / 2) => {
+    const piece = new Mesh(track(new BoxGeometry(w, h, frameDepth)), frameWood);
+    piece.position.set(windowAt.x + x, windowAt.y + y, z);
+    room.add(piece);
+  };
+  frame(windowWidth + bar * 2, bar, 0, windowHeight / 2 + bar / 2);
+  frame(windowWidth + bar * 2, bar, 0, -windowHeight / 2 - bar / 2);
+  frame(bar, windowHeight, -windowWidth / 2 - bar / 2, 0);
+  frame(bar, windowHeight, windowWidth / 2 + bar / 2, 0);
+  // Mullions, and a sill
+  frame(bar * 0.45, windowHeight, 0, 0);
+  frame(windowWidth, bar * 0.45, 0, 0);
+  frame(windowWidth + bar * 3.4, bar * 0.7, 0, -windowHeight / 2 - bar * 1.2, WALL_Z + 0.07);
+  const moonlight = new PointLight("#8ea8ff", 0.7, 3);
+  moonlight.position.set(windowAt.x, windowAt.y, WALL_Z + 0.5);
+  room.add(moonlight);
 
   // A pool of warm light on the carpet round the cabinet
   const dot = track(softDot());
@@ -248,13 +361,13 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   type Tv = { x: number; y: number; z: number; w: number; h: number; d: number; body: MeshStandardMaterial; picture: number; turn: number };
   const TV = 0.6; // the sets' scale against the cabinet
   const tvs: Tv[] = [
-    // Left stack
-    { x: -2.05, y: 0, z: -1.45, w: 0.95, h: 0.72, d: 0.7, body: walnut, picture: 1, turn: 0.35 },
-    { x: -2.03, y: 0.72, z: -1.47, w: 0.78, h: 0.6, d: 0.6, body: beige, picture: 0, turn: 0.3 },
-    { x: -2.08, y: 1.32, z: -1.5, w: 0.6, h: 0.46, d: 0.5, body: beige, picture: 2, turn: 0.42 },
+    // Left stack, crammed in beside the cabinet
+    { x: -1.0, y: 0, z: -0.3, w: 0.95, h: 0.72, d: 0.7, body: walnut, picture: 1, turn: 0.22 },
+    { x: -0.98, y: 0.72, z: -0.32, w: 0.78, h: 0.6, d: 0.6, body: beige, picture: 0, turn: 0.18 },
+    { x: -1.02, y: 1.32, z: -0.34, w: 0.6, h: 0.46, d: 0.5, body: beige, picture: 2, turn: 0.3 },
     // Right stack
-    { x: 2.05, y: 0, z: -1.5, w: 0.9, h: 0.68, d: 0.68, body: beige, picture: 0, turn: -0.35 },
-    { x: 2.02, y: 0.68, z: -1.47, w: 0.72, h: 0.56, d: 0.58, body: walnut, picture: 2, turn: -0.3 },
+    { x: 1.02, y: 0, z: -0.3, w: 0.9, h: 0.68, d: 0.68, body: beige, picture: 0, turn: -0.22 },
+    { x: 1.0, y: 0.68, z: -0.32, w: 0.72, h: 0.56, d: 0.58, body: walnut, picture: 2, turn: -0.18 },
   ].map((tv) => ({ ...tv, y: tv.y * TV, w: tv.w * TV, h: tv.h * TV, d: tv.d * TV }));
   const pictureMaterials = pictures.map((map) => track(new MeshBasicMaterial({ map, color: new Color("#cfcfcf") })));
   tvs.forEach((tv) => {
@@ -282,11 +395,12 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   const tapeGeometry = track(new BoxGeometry(0.028, 0.105, 0.07));
   const random = seeded(29);
   const tapeColors = ["#e8772e", "#f2b33d", "#c9452c", "#eadcc0", "#1d1b20", "#6b8f71", "#2f5d8a", "#7b3a1e", "#d8d0bf"];
-  [-3.1, 3.1].forEach((x) => {
+  // Into the corners
+  [-2.1, 2.1].forEach((x) => {
     const unit = new Group();
-    unit.position.set(x, 0, WALL_Z + 0.2);
-    const width = 1.3;
-    const rows = 5;
+    unit.position.set(x, 0, WALL_Z + 0.17);
+    const width = 0.9;
+    const rows = 4;
     const pitch = 0.36;
     for (let r = 0; r <= rows; r += 1) {
       const plank = new Mesh(track(new BoxGeometry(width, 0.025, 0.3)), shelfWood);
@@ -323,17 +437,17 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
     room.add(unit);
   });
 
-  const tvLight = new PointLight("#7fd6ff", 0.8, 3.5);
-  tvLight.position.set(-1.6, 0.8, -0.9);
+  const tvLight = new PointLight("#7fd6ff", 0.6, 2.5);
+  tvLight.position.set(-0.9, 0.6, 0.1);
   room.add(tvLight);
 
   // Dust hanging in the light
   const moteCount = 160;
   const motes = new Float32Array(moteCount * 3);
   for (let i = 0; i < moteCount; i += 1) {
-    motes[i * 3] = (random() - 0.5) * 7;
-    motes[i * 3 + 1] = random() * 3.5;
-    motes[i * 3 + 2] = WALL_Z + random() * 4;
+    motes[i * 3] = (random() - 0.5) * (ROOM_WIDTH - 0.4);
+    motes[i * 3 + 1] = random() * ROOM_HEIGHT;
+    motes[i * 3 + 2] = WALL_Z + random() * 3;
   }
   const moteGeometry = track(new BufferGeometry());
   moteGeometry.setAttribute("position", new BufferAttribute(motes, 3));
@@ -358,6 +472,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
         lastCursor = Math.floor(time * 2);
         screen.paint(cursorOn);
       }
+      bulb.rotation.z = Math.sin(time * 0.7) * 0.03;
       // Dust drifts slowly
       dust.position.copy(origin).set(Math.sin(time * 0.05) * 0.2, Math.sin(time * 0.08) * 0.1, 0);
     },
