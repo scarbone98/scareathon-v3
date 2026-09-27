@@ -47,6 +47,7 @@ import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type C
 import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
+import { createCabinetFinish } from "./cabinetFinish.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
@@ -1011,6 +1012,7 @@ export default function CartridgeArcade({
 
       const panelBox = new Box3();
       const screenBox = new Box3();
+      const finish = track(createCabinetFinish());
       model.traverse((child) => {
         if (!(child instanceof Mesh) || !child.material) return;
         const material = child.material as MeshStandardMaterial;
@@ -1031,6 +1033,9 @@ export default function CartridgeArcade({
           marqueeMaterial.emissive = new Color("#ffffff");
           marqueeMaterial.emissiveIntensity = MARQUEE_GLOW;
           child.material = marqueeMaterial;
+        } else if (material.name === "Panels.001") {
+          // The black body: textured laminate in place of the model's gloss
+          child.material = finish.material;
         } else if (material.name === "Lining" || material.name === "OrangeButton") {
           const own = track(material.clone());
           child.material = own;
