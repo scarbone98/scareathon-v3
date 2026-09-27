@@ -29,7 +29,7 @@ function MenuSkull({ className = "relative" }: { className?: string }) {
 
 type Props = {
   game: MachineData | undefined;
-  layout: "wall" | "ledge";
+  phone: boolean; // docks the site menu button into the card
   style?: CSSProperties;
   className?: string;
   onLeaderboard: (game: MachineData) => void;
@@ -79,7 +79,7 @@ function FittedTitle({ text, accent, font }: { text: string; accent: string; fon
   );
 }
 
-export default function GameCard({ game, layout, style, className = "", onLeaderboard }: Props) {
+export default function GameCard({ game, phone, style, className = "", onLeaderboard }: Props) {
   const accent = game?.cartridge.color ?? "#ff7a1a";
   // Stays on while browsing, so you can flick through every game's details
   const [showInfo, setShowInfo] = useState(false);
@@ -88,15 +88,15 @@ export default function GameCard({ game, layout, style, className = "", onLeader
     <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
       {game ? (
         <div
-          className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border bg-[#0b0710]/80 pb-3 pt-2 backdrop-blur-md transition-[border-color,box-shadow] duration-300 ${
-            // Phones: stretch to whatever room the ledge leaves, content centred
-            layout === "ledge" ? "flex flex-1 flex-col justify-center px-14" : "px-4"
+          // Stretches to whatever room the ledge leaves, content centred
+          className={`pointer-events-auto relative flex w-full flex-1 flex-col justify-center overflow-hidden rounded-2xl border bg-[#0b0710]/80 pb-3 pt-2 backdrop-blur-md transition-[border-color,box-shadow] duration-300 ${
+            phone ? "px-14" : "px-4"
           }`}
           style={{ borderColor: `${accent}aa`, boxShadow: `0 0 28px ${accent}55, inset 0 0 24px ${accent}18` }}
         >
           {/* The cartridge's colour, as a stripe along the top like its label */}
           <div className="absolute inset-x-0 top-0 h-1 transition-colors duration-300" style={{ background: accent }} />
-          {layout === "ledge" && <MenuSkull className="absolute left-2 top-1/2 z-10 -translate-y-1/2" />}
+          {phone && <MenuSkull className="absolute left-2 top-1/2 z-10 -translate-y-1/2" />}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={game.name}
@@ -164,9 +164,9 @@ export default function GameCard({ game, layout, style, className = "", onLeader
             <FaInfo aria-hidden="true" />
           </button>
 
-          {layout === "wall" && (
+          {!phone && (
             <p className="mt-2 h-4 font-sans text-[0.7rem] text-orange-100/50">
-              Click a cartridge to play ·{" "}
+              Click a cartridge to pick it, again to play ·{" "}
               <kbd className="rounded border border-white/20 px-1">←</kbd>{" "}
               <kbd className="rounded border border-white/20 px-1">→</kbd>{" "}
               <kbd className="rounded border border-white/20 px-1">Enter</kbd>
@@ -175,9 +175,9 @@ export default function GameCard({ game, layout, style, className = "", onLeader
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          {layout === "ledge" && <MenuSkull />}
+          {phone && <MenuSkull />}
           <p className="rounded-full border border-orange-500/30 bg-black/60 px-4 py-2 text-sm text-orange-100/80 backdrop-blur-sm">
-            {layout === "ledge" ? "Swipe the shelf and tap a cartridge to play" : "Click a cartridge to play"}
+            {phone ? "Swipe the shelf and tap a cartridge to play" : "Click a cartridge to play"}
           </p>
         </div>
       )}

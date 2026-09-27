@@ -52,9 +52,8 @@ import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
 // flies into the slot on the cabinet's control panel; the screen crackles to
-// life with that game's attract video. Wide screens get a two-row shelf beside
-// the cabinet; tall (phone) screens get one row on a ledge in front of it that
-// you swipe through.
+// life with that game's attract video. The cartridges sit in one row on a ledge
+// in front of the cabinet that you swipe, scroll or arrow through.
 
 type Props = {
   games: MachineData[];
@@ -67,12 +66,10 @@ type Props = {
 
 type World = {
   focus: (index: number, fromUser?: boolean) => void;
-  moveFocus: (dx: number, dy: number) => void;
+  moveFocus: (dx: number) => void;
   activate: (index: number) => void;
   setPaused: (paused: boolean) => void;
 };
-
-type Layout = "wall" | "ledge";
 
 type CartState = {
   cart: Cartridge;
@@ -86,22 +83,20 @@ const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall"
 const SHELF_NEON = "#ff7a1a";
 // The cabinet's trim and big buttons as modelled, before a game recolours them
 const CABINET_TRIM = "#ff7a1a";
-const TALL_ASPECT = 1.05; // narrower than this and the shelf becomes a swipeable ledge
+// Narrower than this is a phone: the cabinet fills the width and the site menu docks into the card
+const TALL_ASPECT = 1.05;
 const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
-// Pixels kept clear under the scene on tall screens for the info card (which
-// carries the site menu button there)
+// Pixels kept clear under the scene for the info card (which carries the site
+// menu button on phones)
 const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
+const WIDE_CARD_SPACE = 196; // the card on wide screens, with its keyboard hints
 const SCANNER_RED = "#ff2a3a";
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
 const POWER_OFF = 0.3;
 const STATIC = 0.4;
 
-// Where the info card sits on wide screens: centred over the top of the shelf, in px
-type CardAnchor = { x: number; y: number; width: number };
-
-const layoutFor = (width: number, height: number): Layout =>
-  width / Math.max(height, 1) < TALL_ASPECT ? "ledge" : "wall";
+const isTall = (width: number, height: number) => width / Math.max(height, 1) < TALL_ASPECT;
 
 // The cabinet model's screen UVs are flipped; video and idle canvases share this fix.
 function orientForScreen(texture: CanvasTexture) {
@@ -130,15 +125,14 @@ export default function CartridgeArcade({
   const [loading, setLoading] = useState(true);
   const [focused, setFocused] = useState(-1);
   const [inserted, setInserted] = useState(-1);
-  const [layout, setLayout] = useState<Layout>(() => layoutFor(window.innerWidth, window.innerHeight));
+  const [tall, setTall] = useState(() => isTall(window.innerWidth, window.innerHeight));
   // Phones: the site menu button lives in the info card instead of floating over the arcade
   const { setMobileNavDocked } = useNavigatorContext();
   useEffect(() => {
-    setMobileNavDocked(layout === "ledge");
+    setMobileNavDocked(tall);
     return () => setMobileNavDocked(false);
-  }, [layout, setMobileNavDocked]);
-  const [cardAnchor, setCardAnchor] = useState<CardAnchor | null>(null);
-  // Phones: where the card's top goes, just under the ledge, in px
+  }, [tall, setMobileNavDocked]);
+  // Where the card's top goes, just under the ledge, in px
   const [ledgeCardTop, setLedgeCardTop] = useState<number | null>(null);
 
   useEffect(() => {
@@ -370,10 +364,9 @@ export default function CartridgeArcade({
     const shelfGroup = new Group();
     scene.add(shelfGroup);
     let shelfMeshes: Mesh[] = [];
-    let layoutMode: Layout | null = null;
+    let tallMode = isTall(size().width, size().height);
     let cartSize = { width: 0.3, height: 0.3 * CARTRIDGE_ASPECT, depth: 0.054 };
     let pitchX = 0.4;
-    let wallColumns = 1;
     const scroll = { x: 0 };
     const seat = new Vector3();
     let cabinetBox = new Box3();
@@ -389,8 +382,6 @@ export default function CartridgeArcade({
     const punch = { value: 0 }; // brief push of the camera toward the cabinet when a cartridge seats
     let sceneHeight = 1;
     const parallax = { x: 0, y: 0, targetX: 0, targetY: 0 };
-    const shelfTop = new Vector3(); // top centre of the shelf, in the shelf group's space
-    let shelfWidth = 0;
     let portLight: PointLight | null = null;
 
     // --- Scanner: a little camera on the cabinet reads the barcode sticker on the
@@ -465,31 +456,21 @@ export default function CartridgeArcade({
     let scanAmount = 0;
     let scanned: CartState | null = null;
 
-    // Mount the camera on the cabinet, facing the cartridges: on its front above the
-    // ledge on phones, on its side facing the shelf on wide screens
+    // Mount the camera on the cabinet's front, above the ledge, facing the cartridges
     const placeScanner = () => {
       if (!cabinetModel || !carts.length) return;
       const h = cartSize.height;
       const size = h * 0.09;
       const ray = new Raycaster();
       const home = homeWorld(carts[0]);
-      if (layoutMode === "ledge") {
-        // Just under the controls, high enough that the beams show above the cartridge
-        const y = Math.max(home.y + h * 0.75, Math.min(panelBottom - h * 0.1, home.y + h * 1.6));
-        ray.set(new Vector3(0, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
-        const hit = ray.intersectObject(cabinetModel, true)[0];
-        const surface = hit ? hit.point.z : cabinetBox.max.z;
-        scannerCamera.position.set(0, y, surface + size * 1.4);
-        // Aim at the middle of the ledge, where the previewed cartridge sits
-        scannerCamera.lookAt(new Vector3(0, home.y, shelfGroup.position.z));
-      } else {
-        const y = home.y - h;
-        const z = cabinetBox.min.z * 0.2;
-        ray.set(new Vector3(cabinetBox.max.x + 1, y, z), new Vector3(-1, 0, 0));
-        const hit = ray.intersectObject(cabinetModel, true)[0];
-        scannerCamera.position.set((hit ? hit.point.x : cabinetBox.max.x) + size * 1.4, y, z);
-        scannerCamera.lookAt(homeWorld(carts[Math.min(carts.length - 1, 3)]));
-      }
+      // Just under the controls, high enough that the beams show above the cartridge
+      const y = Math.max(home.y + h * 0.75, Math.min(panelBottom - h * 0.1, home.y + h * 1.6));
+      ray.set(new Vector3(0, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
+      const hit = ray.intersectObject(cabinetModel, true)[0];
+      const surface = hit ? hit.point.z : cabinetBox.max.z;
+      scannerCamera.position.set(0, y, surface + size * 1.4);
+      // Aim at the middle of the ledge, where the previewed cartridge sits
+      scannerCamera.lookAt(new Vector3(0, home.y, shelfGroup.position.z));
       scannerCamera.scale.setScalar(size);
       scannerCamera.visible = true;
       scannerCamera.updateMatrixWorld(true);
@@ -573,8 +554,7 @@ export default function CartridgeArcade({
       });
     };
 
-    const buildShelf = (mode: Layout) => {
-      layoutMode = mode;
+    const buildShelf = () => {
       shelfMeshes.forEach((mesh) => {
         shelfGroup.remove(mesh);
         mesh.geometry.dispose();
@@ -592,54 +572,23 @@ export default function CartridgeArcade({
         shelfMeshes.push(mesh);
       };
 
-      if (mode === "wall") {
-        const rows = games.length > 4 ? 2 : 1;
-        wallColumns = Math.ceil(games.length / rows);
-        pitchX = w * 1.32;
-        const pitchY = h * 1.5;
-        const width = wallColumns * pitchX + w * 0.3;
-        const depth = d * 3.4;
-        const baseY = cabinetSize.y * 0.16;
-        const top = baseY + rows * pitchY;
-        shelfGroup.position.set(cabinetBox.max.x + cabinetSize.x * 0.35 + width / 2, 0, 0);
-        for (let r = 0; r <= rows; r += 1) {
-          const y = baseY + r * pitchY;
-          addBox(width, plankT, depth, 0, y, 0, wood);
-          addBox(width, plankT * 0.35, plankT * 0.35, 0, y + plankT * 0.2, depth / 2, neon);
-        }
-        addBox(width, top - baseY + plankT, plankT, 0, (baseY + top) / 2, -depth / 2, wood);
-        addBox(plankT, top + plankT / 2, depth, -width / 2, (top + plankT / 2) / 2, 0, wood);
-        addBox(plankT, top + plankT / 2, depth, width / 2, (top + plankT / 2) / 2, 0, wood);
-        shelfTop.set(0, top + plankT, 0);
-        shelfWidth = width;
-        carts.forEach((state, i) => {
-          const row = Math.floor(i / wallColumns);
-          const column = i % wallColumns;
-          state.home.set(
-            -width / 2 + w * 0.15 + pitchX * (column + 0.5),
-            baseY + (rows - 1 - row) * pitchY + plankT / 2 + h / 2,
-            0
-          );
-        });
-        shelfLight.position.set(shelfGroup.position.x, top + h, depth * 2);
-        scroll.x = 0;
-      } else {
-        pitchX = w * 1.45;
-        // Up under the control panel, so screen, controls and cartridges fit a phone together
-        // The cartridges' tops a little way below the controls, so they don't cover them
-        const cartTop = Number.isFinite(panelBottom) ? panelBottom - h * 0.4 : seat.y - h * 0.5;
-        const ledgeY = Math.max(cabinetSize.y * 0.2, cartTop - h - plankT / 2);
-        const depth = d * 3.4;
-        const span = (games.length - 1) * pitchX;
-        shelfGroup.position.set(0, 0, cabinetBox.max.z + d * 6);
-        addBox(span + pitchX * 2, plankT, depth, span / 2, ledgeY, 0, wood);
-        addBox(span + pitchX * 2, plankT * 0.35, plankT * 0.35, span / 2, ledgeY + plankT * 0.2, depth / 2, neon);
-        carts.forEach((state, i) => {
-          state.home.set(i * pitchX, ledgeY + plankT / 2 + h / 2, 0);
-        });
-        shelfLight.position.set(0, ledgeY + h * 2, shelfGroup.position.z + depth * 2);
-        scroll.x = Math.max(0, focusIndex) * pitchX;
-      }
+      pitchX = w * 1.45;
+      // Up under the control panel, so screen, controls and cartridges fit a screen together.
+      // The cartridges' tops a little way below the controls, so they don't cover them
+      const cartTop = Number.isFinite(panelBottom) ? panelBottom - h * 0.4 : seat.y - h * 0.5;
+      const ledgeY = Math.max(cabinetSize.y * 0.2, cartTop - h - plankT / 2);
+      const depth = d * 3.4;
+      const span = (games.length - 1) * pitchX;
+      shelfGroup.position.set(0, 0, cabinetBox.max.z + d * 6);
+      // Well past both ends, so a wide screen doesn't see the plank stop beside the first cartridge
+      const length = span + pitchX * 16;
+      addBox(length, plankT, depth, span / 2, ledgeY, 0, wood);
+      addBox(length, plankT * 0.35, plankT * 0.35, span / 2, ledgeY + plankT * 0.2, depth / 2, neon);
+      carts.forEach((state, i) => {
+        state.home.set(i * pitchX, ledgeY + plankT / 2 + h / 2, 0);
+      });
+      shelfLight.position.set(0, ledgeY + h * 2, shelfGroup.position.z + depth * 2);
+      scroll.x = Math.max(0, focusIndex) * pitchX;
       carts.forEach((state) => {
         if (state.where !== "shelf") return;
         shelfGroup.add(state.cart.group);
@@ -647,103 +596,103 @@ export default function CartridgeArcade({
       });
     };
 
+    // Where a world point lands on screen, in px from the top
+    const screenY = (point: Vector3) => ((1 - point.clone().project(camera).y) / 2) * size().height;
+    const ledgeEdgePoint = () =>
+      new Vector3(0, carts[0].home.y - cartSize.height * 0.57, shelfGroup.position.z + cartSize.depth * 1.7);
+
+    // Wide screens: set the camera's distance so the cabinet's top to the ledge's front
+    // edge exactly fills the band between the nav and the card, then slide it so the
+    // top sits just under the nav. Measured on screen, a few passes, as perspective
+    // makes a straight calculation miss.
+    const fitWide = (reserveTop: number, reserveBottom: number, startDistance: number) => {
+      const band = size().height - reserveTop - reserveBottom - 8;
+      const top = new Vector3(0, cabinetBox.max.y, cabinetBox.max.z);
+      let distance = startDistance;
+      for (let pass = 0; pass < 4; pass += 1) {
+        cameraBase.z = cabinetBox.max.z + distance;
+        camera.position.copy(cameraBase);
+        camera.lookAt(cameraTarget);
+        camera.updateMatrixWorld();
+        const topPx = Math.min(screenY(top), screenY(top.clone().setZ(cabinetBox.min.z)));
+        const edgePx = screenY(ledgeEdgePoint());
+        // Slide so the top lands just under the nav (raising the camera lowers the picture)
+        const shift = ((topPx - (reserveTop + 4)) * 2 * Math.tan((camera.fov * Math.PI) / 360) * distance) / size().height;
+        cameraBase.y -= shift;
+        cameraTarget.y -= shift;
+        distance *= (edgePx - topPx) / band;
+      }
+      cameraBase.z = cabinetBox.max.z + distance;
+    };
+
     const fitCamera = () => {
       const { width, height } = size();
       const aspect = width / height;
       camera.aspect = aspect;
       camera.updateProjectionMatrix();
+      // The ledge only needs to show its middle; it scrolls. Skip the floor under
+      // it so the cabinet can fill the width of a phone.
       const box = cabinetBox.clone();
-      if (layoutMode === "wall") {
-        box.union(new Box3().setFromObject(shelfGroup));
-      } else {
-        // The ledge only needs to show its middle; it scrolls. Skip the floor under
-        // it so the cabinet can fill the width of a phone.
-        box.expandByPoint(new Vector3(0, cartSize.height, shelfGroup.position.z + cartSize.depth));
-        const ledgeTop = carts.length ? carts[0].home.y - cartSize.height / 2 : box.min.y;
-        box.min.y = Math.max(box.min.y, ledgeTop - cartSize.height * 0.35);
-      }
+      box.expandByPoint(new Vector3(0, cartSize.height, shelfGroup.position.z + cartSize.depth));
+      const ledgeTop = carts.length ? carts[0].home.y - cartSize.height / 2 : box.min.y;
+      box.min.y = Math.max(box.min.y, ledgeTop - cartSize.height * 0.35);
       const extent = box.getSize(new Vector3());
       const center = box.getCenter(new Vector3());
       sceneHeight = extent.y;
       // Fit the scene into the band of screen the page's chrome leaves free: under
-      // the top nav on wide screens, above the info card on tall ones
-      const reserveTop = layoutMode === "wall" ? Math.min(NAV_CLEARANCE, height * 0.14) : 0;
-      // On phones, leave at least the card's room along the bottom; the card then
-      // grows up to meet the ledge
-      const reserveBottom = layoutMode === "wall" ? height * 0.02 : Math.min(LEDGE_CARD_SPACE, height * 0.42);
-      const freeShare = (height - reserveTop - reserveBottom) / height;
+      // the top nav on wide screens, and above at least the card's room along the
+      // bottom; the card then grows up to meet the ledge
+      const reserveTop = tallMode ? 0 : Math.min(NAV_CLEARANCE, height * 0.14);
+      const reserveBottom = tallMode ? Math.min(LEDGE_CARD_SPACE, height * 0.42) : Math.min(WIDE_CARD_SPACE, height * 0.32);
       const tan = Math.tan((camera.fov * Math.PI) / 360);
-      if (layoutMode === "ledge") {
-        // Phones: the cabinet's sides meet the screen's edges. Size by its width at its
-        // front face, then sit the ledge just above the card; on a short screen the top
-        // of the cabinet crops rather than the whole thing shrinking.
-        const widthDistance = cabinetBox.getSize(new Vector3()).x / 2 / (tan * aspect);
-        // Taller screens have room to spare: come in closer (trimming a little off
-        // the cabinet's sides) until the cabinet top to the ledge fills the space
-        // above the card, rather than leaving a gap for the ledge to drop into
-        const ledgeBottom = carts.length ? carts[0].home.y - cartSize.height * 0.57 : box.min.y;
-        const freeFraction = (height - reserveBottom) / height;
-        const fillDistance =
-          center.z + (cabinetBox.max.y - ledgeBottom) / (2 * tan * freeFraction) - cabinetBox.max.z;
-        const frontDistance = Math.min(widthDistance, Math.max(fillDistance, widthDistance / MAX_LEDGE_ZOOM));
-        const cameraZ = cabinetBox.max.z + frontDistance;
-        const depth = cameraZ - center.z;
-        const visibleHeight = 2 * tan * depth;
-        shelfGroup.position.y = 0;
-        let targetY = box.min.y + visibleHeight / 2 - (reserveBottom / height) * visibleHeight;
-        // When there's room, pin the cabinet's top to the top of the screen
-        // rather than leaving a gap above it; the card grows to fill below
-        const topAnchoredY = cabinetBox.max.y + visibleHeight * 0.01 - visibleHeight / 2;
-        const anchorTop = topAnchoredY < targetY && carts.length > 0;
-        if (anchorTop) targetY = topAnchoredY;
-        cameraTarget.set(center.x, targetY, center.z);
-        cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
-        if (carts.length) {
-          // Measure where the ledge's front edge lands on screen: the card starts
-          // just below it. If that leaves the card too little room, move the
-          // camera so the ledge sits higher, cropping a touch off the cabinet's top
-          camera.position.copy(cameraBase);
-          camera.lookAt(cameraTarget);
-          camera.updateMatrixWorld();
-          const ledgeEdge = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
-          const edge = new Vector3(0, ledgeEdge, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
-          let edgePx = ((1 - edge.y) / 2) * height;
-          const lowestPx = height - reserveBottom - 4;
-          const worldPerPx = (2 * tan * (cameraZ - shelfGroup.position.z)) / height;
-          if (edgePx > lowestPx) {
-            const lift = (edgePx - lowestPx) * worldPerPx;
-            cameraTarget.y -= lift;
-            cameraBase.y -= lift;
-            edgePx = lowestPx;
-          }
-          setLedgeCardTop(Math.round(edgePx + 4));
+      // Come in until the cabinet's top to the ledge fills the band between them
+      const ledgeBottom = carts.length ? carts[0].home.y - cartSize.height * 0.57 : box.min.y;
+      const freeFraction = (height - reserveTop - reserveBottom) / height;
+      const fillDistance = center.z + (cabinetBox.max.y - ledgeBottom) / (2 * tan * freeFraction) - cabinetBox.max.z;
+      // Phones: the cabinet's sides meet the screen's edges. Size by its width at its
+      // front face; a taller screen may come in a little closer (trimming the sides)
+      // to fill the height, and a short one crops the cabinet's top rather than
+      // shrinking the whole thing.
+      const widthDistance = cabinetBox.getSize(new Vector3()).x / 2 / (tan * aspect);
+      const frontDistance = tallMode
+        ? Math.min(widthDistance, Math.max(fillDistance, widthDistance / MAX_LEDGE_ZOOM))
+        : fillDistance;
+      const cameraZ = cabinetBox.max.z + frontDistance;
+      const depth = cameraZ - center.z;
+      const visibleHeight = 2 * tan * depth;
+      shelfGroup.position.y = 0;
+      let targetY = box.min.y + visibleHeight / 2 - (reserveBottom / height) * visibleHeight;
+      // When there's room, pin the cabinet's top to the top of the band rather than
+      // leaving a gap above it; the card grows to fill below. Wide screens always do.
+      const topAnchoredY = cabinetBox.max.y + visibleHeight * (0.01 + reserveTop / height) - visibleHeight / 2;
+      if (carts.length && (!tallMode || topAnchoredY < targetY)) targetY = topAnchoredY;
+      cameraTarget.set(center.x, targetY, center.z);
+      cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
+      if (carts.length && !tallMode) fitWide(reserveTop, reserveBottom, cameraZ - cabinetBox.max.z);
+      if (carts.length) {
+        // Measure where the ledge's front edge lands on screen: the card starts
+        // just below it. If that leaves the card too little room, move the
+        // camera so the ledge sits higher, cropping a touch off the cabinet's top
+        camera.position.copy(cameraBase);
+        camera.lookAt(cameraTarget);
+        camera.updateMatrixWorld();
+        const ledgeEdge = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
+        const edge = new Vector3(0, ledgeEdge, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
+        let edgePx = ((1 - edge.y) / 2) * height;
+        const lowestPx = height - reserveBottom - 4;
+        const worldPerPx = (2 * tan * (cameraZ - shelfGroup.position.z)) / height;
+        if (edgePx > lowestPx) {
+          const lift = (edgePx - lowestPx) * worldPerPx;
+          cameraTarget.y -= lift;
+          cameraBase.y -= lift;
+          edgePx = lowestPx;
         }
-        shelfLight.position.y = carts.length ? carts[0].home.y + shelfGroup.position.y + cartSize.height * 1.5 : shelfLight.position.y;
-      } else {
-        const distance = Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * 0.86 + extent.z / 2;
-        // Slide the camera so the scene's middle lands in the middle of that band
-        const visibleHeight = 2 * tan * distance;
-        const shiftY = ((reserveTop - reserveBottom) / 2 / height) * visibleHeight;
-        cameraTarget.set(center.x, center.y + shiftY, center.z);
-        cameraBase.set(center.x, center.y + shiftY + extent.y * 0.08, center.z + distance);
+        setLedgeCardTop(Math.round(edgePx + 4));
+        shelfLight.position.y = carts[0].home.y + shelfGroup.position.y + cartSize.height * 1.5;
       }
       camera.position.copy(cameraBase);
       camera.lookAt(cameraTarget);
       camera.updateMatrixWorld();
-
-      if (layoutMode === "wall") {
-        shelfGroup.updateMatrixWorld(true);
-        const project = (local: Vector3) => {
-          const p = shelfGroup.localToWorld(local.clone()).project(camera);
-          return { x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
-        };
-        const top = project(shelfTop);
-        const left = project(new Vector3(-shelfWidth / 2, shelfTop.y, 0));
-        const right = project(new Vector3(shelfWidth / 2, shelfTop.y, 0));
-        setCardAnchor({ x: top.x, y: top.y, width: right.x - left.x });
-      } else {
-        setCardAnchor(null);
-      }
       placeScanner();
     };
 
@@ -818,18 +767,17 @@ export default function CartridgeArcade({
       if (focusIndex >= 0) gsap.to(carts[focusIndex].focus, { value: 0, duration: 0.2 });
       focusIndex = index;
       gsap.to(carts[index].focus, { value: 1, duration: 0.2 });
-      if (layoutMode === "ledge") gsap.to(scroll, { x: index * pitchX, duration: 0.35, ease: "power2.out" });
+      gsap.to(scroll, { x: index * pitchX, duration: 0.35, ease: "power2.out" });
       if (fromUser) playTick();
       setFocused(index);
       // Browsing the shelf previews each game on the screen
       if (insertedIndex < 0 && !busy) tuneScreen(index, 0.18);
     };
 
-    const moveFocus = (dx: number, dy: number) => {
+    // One row, so only left and right move
+    const moveFocus = (dx: number) => {
       const start = focusIndex < 0 ? Math.max(insertedIndex, 0) : focusIndex;
-      let next = start + dx;
-      if (layoutMode === "wall") next += dy * wallColumns;
-      focus(Math.min(Math.max(next, 0), carts.length - 1), true);
+      focus(Math.min(Math.max(start + dx, 0), carts.length - 1), true);
     };
 
     const seatCartridge = (index: number, instant: boolean) => {
@@ -945,8 +893,7 @@ export default function CartridgeArcade({
       busy = true;
       // On the ledge, let the row finish sliding the cartridge to the middle before
       // anything takes off, so the row isn't moving under a cartridge in flight
-      const settle =
-        layoutMode === "ledge" && Math.abs(scroll.x - index * pitchX) > pitchX * 0.05 ? 0.3 : 0;
+      const settle = Math.abs(scroll.x - index * pitchX) > pitchX * 0.05 ? 0.3 : 0;
       focus(index);
       if (settle) gsap.to(scroll, { x: index * pitchX, duration: settle, ease: "power2.out", overwrite: true });
       const timeline = gsap.timeline({ delay: settle, onComplete: () => { busy = false; } });
@@ -1096,7 +1043,7 @@ export default function CartridgeArcade({
         disposables.push(cart);
       });
 
-      buildShelf(layoutFor(size().width, size().height));
+      buildShelf();
       fitCamera();
 
       ambience = createArcadeAmbience({
@@ -1168,7 +1115,7 @@ export default function CartridgeArcade({
     const onPointerMove = (event: PointerEvent) => {
       if (press) {
         const dx = event.clientX - press.x;
-        if (layoutMode === "ledge" && (press.dragging || Math.abs(dx) > 8)) {
+        if ((press.dragging || Math.abs(dx) > 8)) {
           press.dragging = true;
           gsap.killTweensOf(scroll);
           const dt = event.timeStamp - press.lastT;
@@ -1185,7 +1132,6 @@ export default function CartridgeArcade({
       parallax.targetX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       parallax.targetY = ((event.clientY - rect.top) / rect.height) * 2 - 1;
       const hit = pick(event.clientX, event.clientY);
-      if (hit?.kind === "cart" && carts[hit.index].where === "shelf") focus(hit.index);
       const clickable = hit?.kind === "cart" || (hit?.kind === "cabinet" && insertedIndex >= 0);
       renderer.domElement.style.cursor = clickable ? "pointer" : "default";
     };
@@ -1199,17 +1145,17 @@ export default function CartridgeArcade({
       }
       const hit = pick(event.clientX, event.clientY);
       if (hit?.kind === "cart") {
-        // A mouse has already focused it by hovering. On touch, the first tap picks a
-        // cartridge and slides it to the middle; tapping it again plugs it in.
+        // The first tap or click picks a cartridge and slides it to the middle;
+        // another plugs it in. (Hover can't pick: the row would slide out from under it.)
         const onShelf = carts[hit.index].where === "shelf";
-        if (event.pointerType !== "mouse" && onShelf && hit.index !== focusIndex) focus(hit.index, true);
+        if (onShelf && hit.index !== focusIndex) focus(hit.index, true);
         else activate(hit.index);
       }
       else if (hit?.kind === "cabinet" && insertedIndex >= 0) callbacksRef.current.onPlay(games[insertedIndex]);
     };
     const onWheel = (event: WheelEvent) => {
-      if (layoutMode !== "ledge" || Math.abs(event.deltaX) + Math.abs(event.deltaY) < 4) return;
-      moveFocus(Math.sign(event.deltaX || event.deltaY), 0);
+      if (Math.abs(event.deltaX) + Math.abs(event.deltaY) < 4) return;
+      moveFocus(Math.sign(event.deltaX || event.deltaY));
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointermove", onPointerMove);
@@ -1242,7 +1188,7 @@ export default function CartridgeArcade({
       screenVideo?.updateFrame();
       if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
 
-      if (layoutMode === "ledge") shelfGroup.position.x = -scroll.x;
+      shelfGroup.position.x = -scroll.x;
       carts.forEach((state, i) => {
         const f = state.focus.value;
         state.cart.setHighlight(state.where === "slot" ? 0.6 + 0.15 * Math.sin(time * 3) : f);
@@ -1264,7 +1210,7 @@ export default function CartridgeArcade({
       parallax.x += (parallax.targetX - parallax.x) * 0.05;
       parallax.y += (parallax.targetY - parallax.y) * 0.05;
       camera.position.copy(cameraBase);
-      if (layoutMode === "wall") {
+      if (!tallMode) {
         camera.position.x += parallax.x * sceneHeight * 0.03;
         camera.position.y -= parallax.y * sceneHeight * 0.015;
       }
@@ -1282,10 +1228,9 @@ export default function CartridgeArcade({
     const onResize = () => {
       const { width, height } = size();
       renderer.setSize(width, height);
-      const mode = layoutFor(width, height);
-      setLayout(mode);
+      tallMode = isTall(width, height);
+      setTall(tallMode);
       if (!carts.length) return;
-      if (mode !== layoutMode) buildShelf(mode);
       fitCamera();
     };
     const resizeObserver = new ResizeObserver(onResize);
@@ -1327,15 +1272,10 @@ export default function CartridgeArcade({
       if (target?.closest("button, input, textarea, select, a")) return;
       const world = worldRef.current;
       if (!world) return;
-      const moves: Record<string, [number, number]> = {
-        ArrowLeft: [-1, 0],
-        ArrowRight: [1, 0],
-        ArrowUp: [0, -1],
-        ArrowDown: [0, 1],
-      };
+      const moves: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
       if (moves[event.key]) {
         event.preventDefault();
-        world.moveFocus(...moves[event.key]);
+        world.moveFocus(moves[event.key]);
       } else if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         world.activate(focused >= 0 ? focused : inserted);
@@ -1356,26 +1296,11 @@ export default function CartridgeArcade({
       {!loading && (
         <GameCard
           game={shownGame}
-          layout={layout}
+          phone={tall}
           onLeaderboard={onLeaderboard}
-          // Wide screens: over the shelf. Tall screens: along the bottom, clear of the menu button
-          className={`absolute z-10 ${
-            layout === "ledge" || !cardAnchor
-              ? "bottom-3 left-1/2 w-[min(94vw,30rem)] -translate-x-1/2"
-              : "-translate-x-1/2 -translate-y-full"
-          }`}
-          style={
-            layout === "wall" && cardAnchor
-              ? {
-                  left: cardAnchor.x,
-                  top: Math.max(cardAnchor.y - 16, NAV_CLEARANCE + 220),
-                  width: Math.min(Math.max(cardAnchor.width, 320), 480),
-                }
-              : layout === "ledge" && ledgeCardTop !== null
-                ? // Phones: fill from just under the ledge down to the bottom
-                  { top: ledgeCardTop }
-                : undefined
-          }
+          // Fills from just under the ledge down to the bottom
+          className="absolute bottom-3 left-1/2 z-10 w-[min(94vw,30rem)] -translate-x-1/2"
+          style={ledgeCardTop !== null ? { top: ledgeCardTop } : undefined}
         />
       )}
 
