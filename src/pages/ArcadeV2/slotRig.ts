@@ -1,4 +1,5 @@
 import {
+  BackSide,
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
@@ -285,23 +286,45 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     new Vector3(center.x - (deckEdge - radius * 2), deckAt(center.x - (deckEdge - radius * 2), deckFront - radius * 3) + radius, deckFront - radius * 3),
   ].forEach((at) => add(new BoxGeometry(radius * 3.2, radius * 3.2, radius * 1.4), rubber, at.x, at.y, at.z));
 
-  // The vent: its grille cover prised off and hanging by one screw, a dark hole
-  // behind a few bent slats
+  // The vent: a steel collar standing proud of the bezel round a real opening,
+  // its grille cover prised off and hanging by one screw. Inside, a dark tunnel
+  // with a faint warm glow deep in the machine, and a rubber lip the wires
+  // squeeze in over.
   const ventWidth = width * 0.4;
   const ventHeight = width * 0.17;
   const ventZ = faceZ(vent.x, vent.y);
-  add(new PlaneGeometry(ventWidth, ventHeight), rubber, vent.x, vent.y, ventZ + 0.002);
-  const bar = plate * 0.9;
-  add(new BoxGeometry(ventWidth + bar * 2, bar, bar), steel, vent.x, vent.y + ventHeight / 2 + bar / 2, ventZ + bar / 2);
-  add(new BoxGeometry(ventWidth + bar * 2, bar, bar), steel, vent.x, vent.y - ventHeight / 2 - bar / 2, ventZ + bar / 2);
-  add(new BoxGeometry(bar, ventHeight, bar), steel, vent.x - ventWidth / 2 - bar / 2, vent.y, ventZ + bar / 2);
-  add(new BoxGeometry(bar, ventHeight, bar), steel, vent.x + ventWidth / 2 + bar / 2, vent.y, ventZ + bar / 2);
-  [0.25, 0.75].forEach((f, i) => {
-    const slat = add(new BoxGeometry(ventWidth * 0.95, bar * 0.5, bar * 0.6), steel, vent.x, vent.y + ventHeight * (f - 0.5), ventZ + bar * 0.3);
-    slat.rotation.z = i ? 0.12 : -0.05;
+  const collarDepth = plate * 7;
+  const ventFront = ventZ + collarDepth;
+  const bar = plate * 1.4;
+  // The tunnel: an inside-out box, so only its inner walls and back show. The
+  // part behind the bezel is hidden by it, leaving the collar's depth visible.
+  const tunnelMaterial = track(
+    new MeshStandardMaterial({ color: new Color("#0a0809"), roughness: 0.9, side: BackSide, emissive: new Color("#2a0d06"), emissiveIntensity: 0.6 })
+  );
+  const tunnelDepth = collarDepth + 0.05;
+  add(new BoxGeometry(ventWidth, ventHeight, tunnelDepth), tunnelMaterial, vent.x, vent.y, ventFront - tunnelDepth / 2);
+  // A dim glow at the back, as if something's running in there
+  const glow = add(new PlaneGeometry(ventWidth * 0.8, ventHeight * 0.7), track(new MeshBasicMaterial({ color: new Color("#5a1e0c") })), vent.x, vent.y, ventZ + plate);
+  glow.renderOrder = -1;
+  // The collar, in four thick pieces, with a screw in each corner
+  add(new BoxGeometry(ventWidth + bar * 2, bar, collarDepth), steel, vent.x, vent.y + ventHeight / 2 + bar / 2, ventZ + collarDepth / 2);
+  add(new BoxGeometry(ventWidth + bar * 2, bar, collarDepth), steel, vent.x, vent.y - ventHeight / 2 - bar / 2, ventZ + collarDepth / 2);
+  add(new BoxGeometry(bar, ventHeight, collarDepth), steel, vent.x - ventWidth / 2 - bar / 2, vent.y, ventZ + collarDepth / 2);
+  add(new BoxGeometry(bar, ventHeight, collarDepth), steel, vent.x + ventWidth / 2 + bar / 2, vent.y, ventZ + collarDepth / 2);
+  [-1, 1].forEach((sx) => {
+    [-1, 1].forEach((sy) => {
+      const bolt = add(new CylinderGeometry(bar * 0.35, bar * 0.35, plate * 0.8, 6), metal, vent.x + sx * (ventWidth / 2 + bar / 2), vent.y + sy * (ventHeight / 2 + bar / 2), ventFront + plate * 0.3);
+      bolt.rotation.x = Math.PI / 2;
+    });
   });
+  // One slat left, bent down across the opening
+  const slat = add(new BoxGeometry(ventWidth * 0.9, bar * 0.4, bar * 0.5), steel, vent.x - ventWidth * 0.05, vent.y + ventHeight * 0.3, ventFront - bar * 0.4);
+  slat.rotation.z = -0.18;
+  // The rubber lip along the bottom edge, where the wires go in
+  add(new BoxGeometry(ventWidth * 0.7, bar * 0.8, bar * 1.2), rubber, vent.x, vent.y - ventHeight / 2 + bar * 0.4, ventFront - bar * 0.2);
+
   const cover = new Group();
-  cover.position.set(vent.x + ventWidth / 2, vent.y - ventHeight / 2, ventZ + bar * 1.3);
+  cover.position.set(vent.x + ventWidth / 2 + bar, vent.y - ventHeight / 2 - bar, ventFront + plate * 0.4);
   // Hanging down off the vent, clear of the label above it
   cover.rotation.z = 1.25;
   const coverPlate = new Mesh(track(new BoxGeometry(ventWidth, ventHeight, plate * 0.4)), metal);
@@ -323,21 +346,24 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     const spread = (i - (right.length - 1) / 2) * radius * 2.4;
     const stray = Math.sin(i * 1.9 + 0.6) * width * 0.04;
     const deckPoint = (x: number, z: number, lift = radius) => new Vector3(x, deckAt(x, z) + lift, z);
-    const baseZ = ventZ + radius * 3;
+    const baseZ = ventFront + radius * 3;
     const curve = new CatmullRomCurve3([
       new Vector3(center.x + halfWidth + plate, top - height * 0.35 + spread * 0.4, center.z + spread),
       deckPoint(center.x + halfWidth + width * 0.08, center.z + depth * 0.35 + spread, radius * 2),
       deckPoint((center.x + halfWidth + climbX) / 2 + stray, center.z + depth * 0.55 + spread + stray),
       deckPoint(climbX + spread, baseZ + radius * 2),
       // Up the bezel, bowing out a little, and in through the hole
-      new Vector3(climbX + spread * 1.2, (deckAt(climbX, baseZ) + vent.y) / 2, ventZ + radius * 2.5),
-      new Vector3(vent.x + spread * 1.6, vent.y - ventHeight * 0.15, ventZ + radius * 1.2),
-      new Vector3(vent.x + spread * 1.8, vent.y, ventZ - 0.03),
+      new Vector3(climbX + spread * 1.2, (deckAt(climbX, baseZ) + vent.y) / 2 - ventHeight * 0.4, ventFront + radius * 4),
+      new Vector3(vent.x + spread * 1.5, vent.y - ventHeight * 0.55, ventFront + radius * 3),
+      // Over the lip and into the dark
+      new Vector3(vent.x + spread * 1.6, vent.y - ventHeight * 0.18, ventFront + radius),
+      new Vector3(vent.x + spread * 1.7, vent.y - ventHeight * 0.05, ventZ + collarDepth * 0.4),
+      new Vector3(vent.x + spread * 1.8, vent.y, ventZ - 0.04),
     ]);
     const material = track(new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 }));
     group.add(new Mesh(track(new TubeGeometry(curve, 90, radius, 6)), material));
   });
-  const tie = new Vector3(climbX, deckAt(climbX, ventZ + radius * 5) + radius * 1.5, ventZ + radius * 5);
+  const tie = new Vector3(climbX, deckAt(climbX, ventFront + radius * 5) + radius * 1.5, ventFront + radius * 5);
   add(new BoxGeometry(radius * 3.2 * 2.4, radius * 3.2, radius * 1.4), rubber, tie.x, tie.y, tie.z);
 
   // The scanner camera's lead, added once the camera is placed: off the back of
