@@ -19,7 +19,6 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
-  Quaternion,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -515,24 +514,6 @@ export default function CartridgeArcade({
       return [e, [at(-outer), 0], [at(-inner), 1], e, [at(-inner), 1], [at(inner), 1], e, [at(inner), 1], [at(outer), 0]];
     };
 
-    // When a cartridge is picked, the beams spin twice about the lens as they fade
-    const SPIN_SECONDS = 0.9;
-    let spinStart = -1;
-    const spinFrom = beams.map((beam) => ({
-      core: new Float32Array((beam.core.geometry.getAttribute("position") as Float32BufferAttribute).array.length),
-      glow: new Float32Array((beam.glow.geometry.getAttribute("position") as Float32BufferAttribute).array.length),
-    }));
-    const spinAxis = new Vector3();
-    const spinTurn = new Quaternion();
-    const spinFan = (mesh: Mesh, from: Float32Array) => {
-      const positions = mesh.geometry.getAttribute("position") as Float32BufferAttribute;
-      for (let i = 0; i < positions.count; i += 1) {
-        scanPoint.set(from[i * 3], from[i * 3 + 1], from[i * 3 + 2]).sub(emitter).applyQuaternion(spinTurn).add(emitter);
-        positions.setXYZ(i, scanPoint.x, scanPoint.y, scanPoint.z);
-      }
-      positions.needsUpdate = true;
-    };
-
     const updateScanner = (time: number) => {
       const focusedCart = focusIndex >= 0 ? carts[focusIndex] : null;
       const active = !pausedRef.current && insertedIndex < 0 && focusedCart?.where === "shelf";
@@ -542,38 +523,8 @@ export default function CartridgeArcade({
         beams.forEach((beam) => scanned!.cart.group.add(beam.line, beam.lineGlow));
       }
 
-      // The scanned cartridge just left the shelf for the slot: spin the beams out
-      if (!active && scanAmount > 0.5 && spinStart < 0 && !pausedRef.current && scanned && scanned.where !== "shelf") {
-        spinStart = time;
-        beams.forEach((beam, i) => {
-          spinFrom[i].core.set((beam.core.geometry.getAttribute("position") as Float32BufferAttribute).array);
-          spinFrom[i].glow.set((beam.glow.geometry.getAttribute("position") as Float32BufferAttribute).array);
-          beam.line.visible = beam.lineGlow.visible = false;
-        });
-        // Spin about the line from the lens to the middle of where the beam landed
-        const aim = spinFrom[0].core;
-        spinAxis.set((aim[12] + aim[15]) / 2, (aim[13] + aim[16]) / 2, (aim[14] + aim[17]) / 2).sub(emitter).normalize();
-      }
-      if (spinStart >= 0) {
-        const t = Math.min((time - spinStart) / SPIN_SECONDS, 1);
-        spinTurn.setFromAxisAngle(spinAxis, (1 - (1 - t) ** 3) * Math.PI * 4);
-        const fade = (1 - t) ** 1.5 * flicker;
-        beams.forEach((beam, i) => {
-          spinFan(beam.core, spinFrom[i].core);
-          spinFan(beam.glow, spinFrom[i].glow);
-          (beam.core.material as MeshBasicMaterial).opacity = 0.42 * fade;
-          (beam.glow.material as MeshBasicMaterial).opacity = 0.1 * fade;
-          beam.core.visible = beam.glow.visible = t < 1;
-        });
-        lensGlowMaterial.opacity = 0.35 + 0.65 * (1 - t);
-        if (t >= 1) {
-          spinStart = -1;
-          scanAmount = 0;
-        }
-        return;
-      }
-
-      scanAmount += ((active ? 1 : 0) - scanAmount) * 0.2;
+      // Warm up gently; switch off straight away when the cartridge leaves the shelf
+      scanAmount = active ? scanAmount + (1 - scanAmount) * 0.2 : 0;
       const visible = scanAmount > 0.02 && scanned !== null && scanned.where === "shelf";
       lensGlowMaterial.opacity = 0.35 + 0.65 * scanAmount;
       beams.forEach((beam) => {
@@ -1008,8 +959,14 @@ export default function CartridgeArcade({
         state.where = "flying";
         scene.attach(group);
         playWhoosh();
+        // Off the scanner, so no preview: back to the idle screen until it's seated
+        stopVideo();
+        screenGame = -1;
+        screenMode = "idle";
+        lastIdleBlink = -1;
+        showOnScreen(screenTexture);
       }, undefined, hadCartridge ? 0.35 : 0);
-      // Slide it off the shelf toward you, then arc over, spinning once and banking into the turn
+      // Slide it off the shelf toward you, then arc over, spinning twice and banking into the turn
       timeline.to(group.position, { z: `+=${d * 2.5}`, y: `+=${h * 0.12}`, duration: 0.16, ease: "power2.out" });
       const hover = seat.clone().add(new Vector3(0, h * 1.05, 0));
       timeline.add(flyTo(group, hover, 0.7, h * 1.1, 2, "power2.inOut", 0.35));
