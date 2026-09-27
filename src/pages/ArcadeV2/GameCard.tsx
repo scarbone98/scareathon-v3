@@ -85,11 +85,12 @@ export default function GameCard({ game, layout, style, className = "", onLeader
   const [showInfo, setShowInfo] = useState(false);
 
   return (
-    <div data-arcade-card className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
+    <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
       {game ? (
         <div
           className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border bg-[#0b0710]/80 pb-3 pt-2 backdrop-blur-md transition-[border-color,box-shadow] duration-300 ${
-            layout === "ledge" ? "px-14" : "px-4"
+            // Phones: stretch to whatever room the ledge leaves, content centred
+            layout === "ledge" ? "flex flex-1 flex-col justify-center px-14" : "px-4"
           }`}
           style={{ borderColor: `${accent}aa`, boxShadow: `0 0 28px ${accent}55, inset 0 0 24px ${accent}18` }}
         >

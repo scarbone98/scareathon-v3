@@ -21,6 +21,9 @@ import {
   PointLight,
   Raycaster,
   Scene,
+  SphereGeometry,
+  Sprite,
+  SpriteMaterial,
   SRGBColorSpace,
   Vector2,
   Vector3,
@@ -86,7 +89,7 @@ const TALL_ASPECT = 1.05; // narrower than this and the shelf becomes a swipeabl
 const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
 // Pixels kept clear under the scene on tall screens for the info card (which
 // carries the site menu button there)
-const LEDGE_CARD_SPACE = 192;
+const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
 const SCANNER_RED = "#ff2a3a";
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
@@ -134,6 +137,8 @@ export default function CartridgeArcade({
     return () => setMobileNavDocked(false);
   }, [layout, setMobileNavDocked]);
   const [cardAnchor, setCardAnchor] = useState<CardAnchor | null>(null);
+  // Phones: where the card's top goes, just under the ledge, in px
+  const [ledgeCardTop, setLedgeCardTop] = useState<number | null>(null);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -255,12 +260,9 @@ export default function CartridgeArcade({
         screenContext.shadowColor = SHELF_NEON;
         screenContext.shadowBlur = 18;
         screenContext.fillStyle = "#ffd2a8";
-        screenContext.fillText("INSERT CARTRIDGE", width / 2, height / 2 - 14);
+        screenContext.fillText("INSERT CARTRIDGE", width / 2, height / 2);
         screenContext.shadowBlur = 0;
       }
-      screenContext.font = "600 20px system-ui, sans-serif";
-      screenContext.fillStyle = "rgba(255, 220, 190, 0.6)";
-      screenContext.fillText("pick a game from the shelf", width / 2, height / 2 + 40);
       screenContext.fillStyle = "rgba(0, 0, 0, 0.28)";
       for (let y = 0; y < height; y += 4) screenContext.fillRect(0, y, width, 2);
       screenTexture.needsUpdate = true;
@@ -390,89 +392,152 @@ export default function CartridgeArcade({
     let shelfWidth = 0;
     let portLight: PointLight | null = null;
 
-    // --- Scanner: a red laser from the cabinet reads the barcode sticker on the back
-    // of the cartridge being previewed (that's how the screen knows what to show) ---
+    // --- Scanner: a little camera on the cabinet reads the barcode sticker on the
+    // back of the cartridge being previewed (that's how the screen knows what to
+    // show). Two red laser fans sweep the sticker, each with a soft glow. ------------
     let cabinetModel: Object3D | null = null;
     let panelBottom = Infinity; // underside of the control panel, world y
     const emitter = new Vector3();
-    const beamGeometry = track(new BufferGeometry());
-    beamGeometry.setAttribute("position", new Float32BufferAttribute(new Float32Array(9), 3));
-    const beamMaterial = track(
-      new MeshBasicMaterial({ color: new Color(SCANNER_RED), transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide })
+    const laserMaterial = (opacity: number) =>
+      track(
+        new MeshBasicMaterial({
+          color: new Color(SCANNER_RED),
+          transparent: true,
+          opacity,
+          blending: AdditiveBlending,
+          depthWrite: false,
+          side: DoubleSide,
+        })
+      );
+    // Each beam: a thin bright fan, and a thicker faint one around it for the glow
+    const makeFan = (triangles: number, material: MeshBasicMaterial) => {
+      const geometry = track(new BufferGeometry());
+      geometry.setAttribute("position", new Float32BufferAttribute(new Float32Array(triangles * 9), 3));
+      const mesh = new Mesh(geometry, material);
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      scene.add(mesh);
+      return mesh;
+    };
+    const beams = [0, 1].map(() => ({
+      core: makeFan(1, laserMaterial(0)),
+      glow: makeFan(2, laserMaterial(0)),
+      line: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
+      lineGlow: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
+    }));
+
+    // The camera: a dark ball on a short mount, a red lens, and a glow around the lens
+    const scannerCamera = new Group();
+    const shellMaterialDark = track(new MeshStandardMaterial({ color: new Color("#1b1720"), roughness: 0.35, metalness: 0.4 }));
+    const ball = new Mesh(track(new SphereGeometry(1, 24, 16)), shellMaterialDark);
+    scannerCamera.add(ball);
+    const cameraMount = new Mesh(track(new CylinderGeometry(0.45, 0.6, 0.9, 16)), shellMaterialDark);
+    cameraMount.rotation.x = Math.PI / 2;
+    cameraMount.position.z = -0.9;
+    scannerCamera.add(cameraMount);
+    const lensMesh = new Mesh(track(new SphereGeometry(0.42, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#ff4655") })));
+    lensMesh.position.z = 0.78;
+    scannerCamera.add(lensMesh);
+    const glowCanvas = document.createElement("canvas");
+    glowCanvas.width = glowCanvas.height = 64;
+    const glowContext = glowCanvas.getContext("2d");
+    if (glowContext) {
+      const gradient = glowContext.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0, "rgba(255, 90, 100, 1)");
+      gradient.addColorStop(0.35, "rgba(255, 40, 58, 0.45)");
+      gradient.addColorStop(1, "rgba(255, 40, 58, 0)");
+      glowContext.fillStyle = gradient;
+      glowContext.fillRect(0, 0, 64, 64);
+    }
+    const lensGlowMaterial = track(
+      new SpriteMaterial({ map: track(new CanvasTexture(glowCanvas)), blending: AdditiveBlending, depthWrite: false, transparent: true })
     );
-    const beam = new Mesh(beamGeometry, beamMaterial);
-    beam.frustumCulled = false;
-    beam.visible = false;
-    scene.add(beam);
-    const scanLineMaterial = track(
-      new MeshBasicMaterial({ color: new Color("#ff6a74"), transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide })
-    );
-    const scanLine = new Mesh(track(new PlaneGeometry(1, 1)), scanLineMaterial);
-    scanLine.visible = false;
-    const lens = new Mesh(
-      track(new CylinderGeometry(1, 1, 1, 20)),
-      track(new MeshBasicMaterial({ color: new Color(SCANNER_RED) }))
-    );
-    lens.visible = false;
-    scene.add(lens);
+    const lensGlow = new Sprite(lensGlowMaterial);
+    lensGlow.position.z = 0.9;
+    lensGlow.scale.setScalar(3.2);
+    scannerCamera.add(lensGlow);
+    scannerCamera.visible = false;
+    scene.add(scannerCamera);
     let scanAmount = 0;
     let scanned: CartState | null = null;
 
-    // Put the scanner's lens on the cabinet, facing the cartridges: on its front
-    // above the ledge on phones, on its side facing the shelf on wide screens
+    // Mount the camera on the cabinet, facing the cartridges: on its front above the
+    // ledge on phones, on its side facing the shelf on wide screens
     const placeScanner = () => {
       if (!cabinetModel || !carts.length) return;
       const h = cartSize.height;
+      const size = h * 0.09;
       const ray = new Raycaster();
+      const home = homeWorld(carts[0]);
       if (layoutMode === "ledge") {
-        // Just under the controls, high enough that the beam shows above the cartridge
-        const y = Math.max(homeWorld(carts[0]).y + h * 0.75, Math.min(panelBottom - h * 0.1, homeWorld(carts[0]).y + h * 1.6));
+        // Just under the controls, high enough that the beams show above the cartridge
+        const y = Math.max(home.y + h * 0.75, Math.min(panelBottom - h * 0.1, home.y + h * 1.6));
         ray.set(new Vector3(0, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
         const hit = ray.intersectObject(cabinetModel, true)[0];
-        emitter.set(0, y, (hit ? hit.point.z : cabinetBox.max.z) + h * 0.03);
-        lens.rotation.set(Math.PI / 2, 0, 0);
+        const surface = hit ? hit.point.z : cabinetBox.max.z;
+        scannerCamera.position.set(0, y, surface + size * 1.4);
+        // Aim at the middle of the ledge, where the previewed cartridge sits
+        scannerCamera.lookAt(new Vector3(0, home.y, shelfGroup.position.z));
       } else {
-        const y = homeWorld(carts[0]).y - h;
+        const y = home.y - h;
         const z = cabinetBox.min.z * 0.2;
         ray.set(new Vector3(cabinetBox.max.x + 1, y, z), new Vector3(-1, 0, 0));
         const hit = ray.intersectObject(cabinetModel, true)[0];
-        emitter.set((hit ? hit.point.x : cabinetBox.max.x) + h * 0.03, y, z);
-        lens.rotation.set(0, 0, Math.PI / 2);
+        scannerCamera.position.set((hit ? hit.point.x : cabinetBox.max.x) + size * 1.4, y, z);
+        scannerCamera.lookAt(homeWorld(carts[Math.min(carts.length - 1, 3)]));
       }
-      lens.position.copy(emitter);
-      lens.scale.set(h * 0.07, h * 0.04, h * 0.07);
-      lens.visible = true;
+      scannerCamera.scale.setScalar(size);
+      scannerCamera.visible = true;
+      scannerCamera.updateMatrixWorld(true);
+      lensMesh.getWorldPosition(emitter);
     };
 
     const scanPoint = new Vector3();
+    const setFan = (mesh: Mesh, points: Vector3[]) => {
+      const positions = mesh.geometry.getAttribute("position") as Float32BufferAttribute;
+      points.forEach((point, i) => positions.setXYZ(i, point.x, point.y, point.z));
+      positions.needsUpdate = true;
+    };
     const updateScanner = (time: number) => {
       const focusedCart = focusIndex >= 0 ? carts[focusIndex] : null;
       const active = !pausedRef.current && insertedIndex < 0 && focusedCart?.where === "shelf";
       if (active && focusedCart !== scanned) {
         scanned = focusedCart;
-        scanned.cart.group.add(scanLine);
+        beams.forEach((beam) => scanned!.cart.group.add(beam.line, beam.lineGlow));
       }
       scanAmount += ((active ? 1 : 0) - scanAmount) * 0.2;
       const visible = scanAmount > 0.02 && scanned !== null && scanned.where === "shelf";
-      beam.visible = scanLine.visible = visible;
+      lensGlowMaterial.opacity = 0.35 + 0.65 * scanAmount;
+      beams.forEach((beam) => {
+        beam.core.visible = beam.glow.visible = beam.line.visible = beam.lineGlow.visible = visible;
+      });
       if (!visible || !scanned) return;
       const { sticker, group } = scanned.cart;
-      // The line sweeps up and down the sticker, easing at each end
-      const y = sticker.y + (Math.sin(time * 4.2) * sticker.height * 0.46);
-      scanLine.position.set(0, y, sticker.z - 0.001);
-      scanLine.rotation.set(0, Math.PI, 0);
-      scanLine.scale.set(sticker.width * 1.04, cartSize.height * 0.012, 1);
       group.updateWorldMatrix(true, false);
-      const positions = beamGeometry.getAttribute("position") as Float32BufferAttribute;
-      positions.setXYZ(0, emitter.x, emitter.y, emitter.z);
-      group.localToWorld(scanPoint.set(-sticker.width / 2, y, sticker.z));
-      positions.setXYZ(1, scanPoint.x, scanPoint.y, scanPoint.z);
-      group.localToWorld(scanPoint.set(sticker.width / 2, y, sticker.z));
-      positions.setXYZ(2, scanPoint.x, scanPoint.y, scanPoint.z);
-      positions.needsUpdate = true;
+      // Spill a little past the cartridge's sides
+      const spread = cartSize.width * 0.58;
+      const glowHeight = cartSize.height * 0.07;
       const flicker = 0.85 + Math.random() * 0.15;
-      beamMaterial.opacity = 0.4 * scanAmount * flicker;
-      scanLineMaterial.opacity = scanAmount * flicker;
+      beams.forEach((beam, i) => {
+        // The two beams sweep the sticker out of step with each other
+        const y = sticker.y + Math.sin(time * 3.6 + i * Math.PI) * sticker.height * 0.46;
+        const at = (x: number, dy = 0) => group.localToWorld(scanPoint.set(x, y + dy, sticker.z)).clone();
+        const left = at(-spread);
+        const right = at(spread);
+        setFan(beam.core, [emitter, left, right]);
+        setFan(beam.glow, [emitter, at(-spread, glowHeight), at(spread, glowHeight), emitter, at(-spread, -glowHeight), at(spread, -glowHeight)]);
+        (beam.core.material as MeshBasicMaterial).opacity = 0.42 * scanAmount * flicker;
+        (beam.glow.material as MeshBasicMaterial).opacity = 0.1 * scanAmount * flicker;
+        // Where each beam lands: a bright line with a soft band around it
+        beam.line.position.set(0, y, sticker.z - 0.001);
+        beam.line.rotation.set(0, Math.PI, 0);
+        beam.line.scale.set(spread * 2, cartSize.height * 0.012, 1);
+        beam.lineGlow.position.set(0, y, sticker.z - 0.0015);
+        beam.lineGlow.rotation.set(0, Math.PI, 0);
+        beam.lineGlow.scale.set(spread * 2, glowHeight * 1.4, 1);
+        (beam.line.material as MeshBasicMaterial).opacity = scanAmount * flicker;
+        (beam.lineGlow.material as MeshBasicMaterial).opacity = 0.25 * scanAmount * flicker;
+      });
     };
 
     // --- Cabinet colour: the trim and big buttons take on the game's colour --------
@@ -543,7 +608,9 @@ export default function CartridgeArcade({
       } else {
         pitchX = w * 1.45;
         // Up under the control panel, so screen, controls and cartridges fit a phone together
-        const ledgeY = Math.max(cabinetSize.y * 0.2, seat.y - h * 1.5);
+        // The cartridges' tops a little way below the controls, so they don't cover them
+        const cartTop = Number.isFinite(panelBottom) ? panelBottom - h * 0.4 : seat.y - h * 0.5;
+        const ledgeY = Math.max(cabinetSize.y * 0.2, cartTop - h - plankT / 2);
         const depth = d * 3.4;
         const span = (games.length - 1) * pitchX;
         shelfGroup.position.set(0, 0, cabinetBox.max.z + d * 6);
@@ -562,7 +629,6 @@ export default function CartridgeArcade({
       });
     };
 
-    let observedCard: Element | null = null;
     const fitCamera = () => {
       const { width, height } = size();
       const aspect = width / height;
@@ -584,20 +650,9 @@ export default function CartridgeArcade({
       // Fit the scene into the band of screen the page's chrome leaves free: under
       // the top nav on wide screens, above the info card on tall ones
       const reserveTop = layoutMode === "wall" ? Math.min(NAV_CLEARANCE, height * 0.14) : 0;
-      // On phones, keep clear of the card along the bottom: measure it when it's there
-      const card = mount.parentElement?.querySelector("[data-arcade-card]");
-      const cardSpace = card ? mount.getBoundingClientRect().bottom - card.getBoundingClientRect().top : LEDGE_CARD_SPACE;
-      // Refit whenever the card changes size; it renders just after the model loads
-      if (card && card !== observedCard) {
-        observedCard = card;
-        resizeObserver.observe(card);
-      } else if (!card) {
-        requestAnimationFrame(() => {
-          if (!disposed) fitCamera();
-        });
-      }
-      const reserveBottom =
-        layoutMode === "wall" ? height * 0.02 : Math.min(cardSpace > 40 ? cardSpace : LEDGE_CARD_SPACE, height * 0.42);
+      // On phones, leave at least the card's room along the bottom; the card then
+      // grows up to meet the ledge
+      const reserveBottom = layoutMode === "wall" ? height * 0.02 : Math.min(LEDGE_CARD_SPACE, height * 0.42);
       const freeShare = (height - reserveTop - reserveBottom) / height;
       const tan = Math.tan((camera.fov * Math.PI) / 360);
       if (layoutMode === "ledge") {
@@ -618,36 +673,32 @@ export default function CartridgeArcade({
         const visibleHeight = 2 * tan * depth;
         shelfGroup.position.y = 0;
         let targetY = box.min.y + visibleHeight / 2 - (reserveBottom / height) * visibleHeight;
-        // When there's room, pin the cabinet's top to the top of the screen and
-        // lower the ledge to sit just above the card, rather than leaving a gap
-        // above the cabinet
+        // When there's room, pin the cabinet's top to the top of the screen
+        // rather than leaving a gap above it; the card grows to fill below
         const topAnchoredY = cabinetBox.max.y + visibleHeight * 0.01 - visibleHeight / 2;
         const anchorTop = topAnchoredY < targetY && carts.length > 0;
         if (anchorTop) targetY = topAnchoredY;
         cameraTarget.set(center.x, targetY, center.z);
         cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
         if (carts.length) {
-          // Measure where the ledge's front edge lands on screen. With room to
-          // spare, drop the shelf until it rests on the top of the card;
-          // on a short screen, move the camera so the ledge isn't hidden by it
+          // Measure where the ledge's front edge lands on screen: the card starts
+          // just below it. If that leaves the card too little room, move the
+          // camera so the ledge sits higher, cropping a touch off the cabinet's top
           camera.position.copy(cameraBase);
           camera.lookAt(cameraTarget);
           camera.updateMatrixWorld();
           const ledgeEdge = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
           const edge = new Vector3(0, ledgeEdge, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
-          const edgePx = ((1 - edge.y) / 2) * height;
-          // The ledge's front edge just above the card, so no cartridge is covered
-          const wantPx = height - reserveBottom - 4;
+          let edgePx = ((1 - edge.y) / 2) * height;
+          const lowestPx = height - reserveBottom - 4;
           const worldPerPx = (2 * tan * (cameraZ - shelfGroup.position.z)) / height;
-          if (anchorTop && edgePx <= wantPx) {
-            shelfGroup.position.y = -(wantPx - edgePx) * worldPerPx;
-          } else if (edgePx > wantPx) {
-            // Too low (the card would cover it): move the camera instead, which
-            // lets the cabinet's top crop a touch
-            const lift = (edgePx - wantPx) * worldPerPx;
+          if (edgePx > lowestPx) {
+            const lift = (edgePx - lowestPx) * worldPerPx;
             cameraTarget.y -= lift;
             cameraBase.y -= lift;
+            edgePx = lowestPx;
           }
+          setLedgeCardTop(Math.round(edgePx + 4));
         }
         shelfLight.position.y = carts.length ? carts[0].home.y + shelfGroup.position.y + cartSize.height * 1.5 : shelfLight.position.y;
       } else {
@@ -1027,8 +1078,9 @@ export default function CartridgeArcade({
         glowLevel: () => 1,
       });
 
+      // Start on the game the link names, or the first one, already previewing
       const initial = games.findIndex((game) => game.name === initialGameRef.current);
-      if (initial >= 0) focus(initial);
+      focus(Math.max(initial, 0));
       // Cartridges drop onto the shelf one after another
       carts.forEach((state, i) => {
         gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });
@@ -1290,7 +1342,10 @@ export default function CartridgeArcade({
                   top: Math.max(cardAnchor.y - 16, NAV_CLEARANCE + 220),
                   width: Math.min(Math.max(cardAnchor.width, 320), 480),
                 }
-              : undefined
+              : layout === "ledge" && ledgeCardTop !== null
+                ? // Phones: fill from just under the ledge down to the bottom
+                  { top: ledgeCardTop }
+                : undefined
           }
         />
       )}

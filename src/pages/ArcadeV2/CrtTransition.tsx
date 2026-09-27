@@ -2,7 +2,8 @@
 
 // Full-screen old-TV transition.
 // "on": static swells in, the game mounts underneath (onMidpoint), the static
-//   holds a while to cover the game's loading screen, then the channel tunes
+//   holds a while to cover the game's loading screen (as CSS, so it can't
+//   freeze while the game hogs the thread), then the channel tunes
 //   in: the snow breaks up into torn bands with a rolling bar and clears to the picture.
 // "off": the picture collapses to a line and a dot on black (onMidpoint, swap
 //   what's underneath then), and the black lifts.
@@ -22,10 +23,47 @@ const TUNE_MS = 900;
 const LINE_MS = 250;
 const LIFT_MS = 170;
 
+// The held snow is a still tile of noise that CSS jumps around. Transform
+// animations run off the main thread, so the snow keeps moving while a game is
+// busy loading underneath (which can stall requestAnimationFrame, especially on
+// iPhones where the game's frame shares the page's thread).
+let noiseTile: string | null = null;
+function noiseTileUrl() {
+  if (noiseTile) return noiseTile;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) return "";
+  const image = context.createImageData(128, 128);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const v = Math.random() * 255;
+    image.data[i] = image.data[i + 1] = image.data[i + 2] = v;
+    image.data[i + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  noiseTile = canvas.toDataURL();
+  return noiseTile;
+}
+const SNOW_STYLES = `
+@keyframes crt-snow {
+  0% { transform: translate(0, 0); }
+  12.5% { transform: translate(-13%, 7%); }
+  25% { transform: translate(9%, -11%); }
+  37.5% { transform: translate(-6%, -17%); }
+  50% { transform: translate(17%, 4%); }
+  62.5% { transform: translate(-19%, 13%); }
+  75% { transform: translate(5%, 19%); }
+  87.5% { transform: translate(14%, -6%); }
+}
+@keyframes crt-snow-in { from { opacity: 0; } to { opacity: 1; } }
+.crt-snow { animation: crt-snow 0.36s steps(1) infinite, crt-snow-in ${FADE_IN_MS}ms ease-out both; }
+`;
+
 export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const beamRef = useRef<HTMLDivElement | null>(null);
+  const snowRef = useRef<HTMLDivElement | null>(null);
   const callbacks = useRef({ onMidpoint, onDone });
   callbacks.current = { onMidpoint, onDone };
 
@@ -33,6 +71,7 @@ export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
     const root = rootRef.current;
     const canvas = canvasRef.current;
     const beam = beamRef.current;
+    const snow = snowRef.current;
     const context = canvas?.getContext("2d");
     if (!root || !canvas || !context) return;
     canvas.width = 160;
@@ -66,12 +105,12 @@ export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
           midpointSent = true;
           callbacks.current.onMidpoint();
         }
-        if (tuneStart < 0 && t >= STATIC_MS + HOLD_MS) tuneStart = now;
-        if (tuneStart < 0) {
-          // No signal yet: solid snow
-          const fade = Math.min(t / FADE_IN_MS, 1);
-          paintStatic(() => fade);
-        } else {
+        if (tuneStart < 0 && t >= STATIC_MS + HOLD_MS) {
+          // Hand over from the CSS snow to the canvas for the tuning effect
+          tuneStart = now;
+          if (snow) snow.style.display = "none";
+        }
+        if (tuneStart >= 0) {
           // Tuning in: the snow thins and tears into bands and a dark bar
           // rolls up the screen until the picture locks
           const k = Math.min((now - tuneStart) / TUNE_MS, 1);
@@ -128,6 +167,13 @@ export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
             style={{ opacity: 0 }}
           />
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ imageRendering: "pixelated" }} />
+          <style>{SNOW_STYLES}</style>
+          {/* Twice the screen's size, so it still covers as it jumps about */}
+          <div
+            ref={snowRef}
+            className="crt-snow absolute inset-[-50%]"
+            style={{ backgroundImage: `url(${noiseTileUrl()})`, backgroundSize: "384px 384px", imageRendering: "pixelated" }}
+          />
         </>
       ) : (
         // A frame of black around a shrinking white picture
