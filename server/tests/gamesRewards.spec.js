@@ -110,4 +110,12 @@ describe('validateScoreSubmission', () => {
             metricValue: 6420,
         })).toEqual({ ok: true });
     });
+
+    test('accepts Ghost Ridge scores', () => {
+        expect(validateScoreSubmission({
+            game: 'Ghost Ridge',
+            metricName: 'score',
+            metricValue: 31250,
+        })).toEqual({ ok: true });
+    });
 });

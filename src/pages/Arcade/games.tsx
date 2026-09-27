@@ -46,6 +46,7 @@ const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b42
 const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
+const GHOST_RIDGE_URL = "/ghost-ridge";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 
 type ArcadeMessage = {
@@ -334,6 +335,20 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Mystery Crypt", MYSTERY_CRYPT_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "Ghost Ridge",
+      cartridge: { color: "#2b2150", tagline: "Shred the haunted mountain.", font: { family: "Nosifer" } },
+      game: (
+        <GameRenderer
+          title="Ghost Ridge"
+          url={GHOST_RIDGE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Ghost Ridge", GHOST_RIDGE_URL)
           }
         />
       ),

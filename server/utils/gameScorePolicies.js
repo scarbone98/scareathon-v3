@@ -32,6 +32,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Mystery Crypt', {
         score: { min: 0, max: 10000000, integer: true },
     }],
+    // Trick points plus candy and a time bonus at the finish.
+    ['Ghost Ridge', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],
