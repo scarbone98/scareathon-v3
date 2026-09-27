@@ -4,7 +4,6 @@ import {
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
-  CatmullRomCurve3,
   Color,
   FogExp2,
   Group,
@@ -22,14 +21,13 @@ import {
   type Scene,
   SRGBColorSpace,
   type Texture,
-  TubeGeometry,
   Vector3,
 } from "three";
 
 // The room the cabinet stands in: a hidden 70s tech den. Walnut-panelled walls
 // with a 70s stripe band, brown shag carpet, stacks of old TVs glowing with
-// static, colour bars and a terminal, shelves of cassettes and tapes, cables
-// everywhere, and dust hanging in the warm light. Built cheap: painted textures, a
+// static, colour bars and a terminal, shelves of cassettes and tapes, and dust
+// hanging in the warm light. Built cheap: painted textures, a
 // few boxes, instanced tapes, no shadows.
 
 const STRIPES = ["#f2b33d", "#e8772e", "#c9452c", "#7b3a1e"];
@@ -328,80 +326,6 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   const tvLight = new PointLight("#7fd6ff", 0.8, 3.5);
   tvLight.position.set(-1.6, 0.8, -0.9);
   room.add(tvLight);
-
-  // Cables: bundles sagging across the back wall between hooks, leads trailing
-  // from the TV stacks over the carpet to behind the cabinet, and a coiled cord
-  const rubber = {
-    black: track(new MeshStandardMaterial({ color: new Color("#161315"), roughness: 0.45 })),
-    beige: track(new MeshStandardMaterial({ color: new Color("#c9bb98"), roughness: 0.5 })),
-    orange: track(new MeshStandardMaterial({ color: new Color("#c85a26"), roughness: 0.45 })),
-    red: track(new MeshStandardMaterial({ color: new Color("#8f2a20"), roughness: 0.45 })),
-    grey: track(new MeshStandardMaterial({ color: new Color("#4d4a48"), roughness: 0.5 })),
-  };
-  const cable = (points: [number, number, number][], radius: number, material: MeshStandardMaterial, segments = 80) => {
-    const curve = new CatmullRomCurve3(points.map(([x, y, z]) => new Vector3(x, y, z)));
-    room.add(new Mesh(track(new TubeGeometry(curve, segments, radius, 6)), material));
-  };
-  // Sagging between two points: a hanging curve dipping `sag` at its middle
-  const hang = (from: [number, number, number], to: [number, number, number], sag: number) => {
-    const points: [number, number, number][] = [];
-    for (let i = 0; i <= 8; i += 1) {
-      const t = i / 8;
-      points.push([
-        from[0] + (to[0] - from[0]) * t,
-        from[1] + (to[1] - from[1]) * t - sag * 4 * t * (1 - t),
-        from[2] + (to[2] - from[2]) * t,
-      ]);
-    }
-    return points;
-  };
-  const wallZ = WALL_Z + 0.04;
-  const hooks = [-4.6, -2.7, -0.9, 0.9, 2.7, 4.6];
-  const hookMaterial = rubber.grey;
-  hooks.forEach((x) => {
-    const hook = new Mesh(track(new BoxGeometry(0.05, 0.05, 0.06)), hookMaterial);
-    hook.position.set(x, 2.62, wallZ);
-    room.add(hook);
-  });
-  const wallRuns: [MeshStandardMaterial, number, number, number][] = [
-    // material, radius, height at the hooks, sag
-    [rubber.black, 0.014, 2.6, 0.32],
-    [rubber.beige, 0.011, 2.61, 0.22],
-    [rubber.orange, 0.009, 2.6, 0.4],
-    [rubber.grey, 0.012, 2.6, 0.15],
-  ];
-  for (let h = 0; h < hooks.length - 1; h += 1) {
-    wallRuns.forEach(([material, radius, y, sag], i) => {
-      // Not every cable runs every span
-      if ((h + i) % 3 === 2) return;
-      const drop = sag * (0.8 + ((h * 7 + i * 3) % 5) * 0.1);
-      cable(hang([hooks[h], y, wallZ + i * 0.012], [hooks[h + 1], y, wallZ + i * 0.012], drop), radius, material);
-    });
-  }
-  // One run drops from the last hook down the wall to the floor
-  cable(
-    [[4.6, 2.6, wallZ], [4.66, 2.1, wallZ], [4.62, 1.2, wallZ], [4.7, 0.3, wallZ + 0.02], [4.9, 0.012, wallZ + 0.3], [5.4, 0.012, wallZ + 0.5]],
-    0.014,
-    rubber.black
-  );
-  // Leads from the backs of the TV stacks, down to the carpet and off behind the cabinet
-  const floorY = 0.013;
-  cable([[-2.2, 0.3, -1.72], [-2.25, 0.1, -1.72], [-2.1, floorY, -1.55], [-1.5, floorY, -1.3], [-0.9, floorY, -1.1], [-0.35, floorY, -0.75]], 0.013, rubber.black);
-  cable([[-2.0, 0.55, -1.7], [-2.35, 0.2, -1.65], [-2.2, floorY, -1.35], [-1.7, floorY, -0.95], [-1.1, floorY, -0.85], [-0.45, floorY, -0.6]], 0.01, rubber.beige);
-  cable([[2.2, 0.25, -1.75], [2.28, 0.08, -1.7], [2.05, floorY, -1.45], [1.4, floorY, -1.35], [0.8, floorY, -1.05], [0.35, floorY, -0.8]], 0.013, rubber.black);
-  cable([[1.95, 0.5, -1.72], [2.4, 0.15, -1.55], [2.3, floorY, -1.1], [1.8, floorY, -0.7], [1.3, floorY, -0.75], [0.6, floorY, -0.5]], 0.009, rubber.red);
-  // A coiled cord hanging off the top TV of the left stack
-  const coil: [number, number, number][] = [];
-  const coilTop = 0.92;
-  const coilBottom = 0.12;
-  const turns = 22;
-  for (let i = 0; i <= turns * 10; i += 1) {
-    const a = (i / 10) * Math.PI * 2;
-    const y = coilTop - (coilTop - coilBottom) * (i / (turns * 10));
-    coil.push([-1.72 + Math.cos(a) * 0.022, y, -1.2 + Math.sin(a) * 0.022]);
-  }
-  coil.push([-1.7, floorY, -1.0], [-1.4, floorY, -0.8]);
-  cable(coil, 0.006, rubber.beige, 900);
 
   // Dust hanging in the light
   const moteCount = 160;

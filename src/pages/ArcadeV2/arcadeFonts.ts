@@ -3,6 +3,9 @@
 
 export type ArcadeFont = { family: string; weight?: number };
 
+// The info card's green-screen lettering
+export const TERMINAL_FONT: ArcadeFont = { family: "VT323" };
+
 const FALLBACK = "Zombie, Creepster, cursive";
 // Settles once the stylesheet (and so the @font-face rules) has arrived
 let stylesheet: Promise<void> | null = null;

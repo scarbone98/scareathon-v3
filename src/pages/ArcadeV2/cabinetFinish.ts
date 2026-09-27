@@ -16,8 +16,8 @@ import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 //           green marks an LED, blue marks glossy print
 
 export const CABINET_FONT: ArcadeFont = { family: "Michroma" };
-// The trim down the cabinet's edges
-export const CABINET_TRIM = "#d8642a";
+// The trim down the cabinet's edges: brushed aluminium T-moulding
+export const CABINET_TRIM = "#b4b1aa";
 // 70s stripes, top to bottom
 const STRIPES = ["#f2b33d", "#e8772e", "#c9452c", "#7b3a1e"];
 

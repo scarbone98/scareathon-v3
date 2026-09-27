@@ -43,7 +43,7 @@ import {
   type ScreenVideo,
 } from "../Arcade/cabinetParts.ts";
 import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
-import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
+import { linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
@@ -91,7 +91,7 @@ const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep 
 // Pixels kept clear under the scene for the info card (which carries the site
 // menu button on phones)
 const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
-const WIDE_CARD_SPACE = 196; // the card on wide screens, with its keyboard hints
+const WIDE_CARD_SPACE = 226; // the card on wide screens, with its keyboard hints
 const SCANNER_GREEN = "#33ff66"; // terminal phosphor
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
 const SCREEN_GLOW = 0.85; // the screen's usual emissive intensity
@@ -167,7 +167,7 @@ export default function CartridgeArcade({
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
     scene.add(shelfLight);
 
-    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT]);
+    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, TERMINAL_FONT]);
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -1078,7 +1078,9 @@ export default function CartridgeArcade({
         } else if (material.name === "Lining") {
           const trim = track(material.clone());
           trim.color.set(CABINET_TRIM);
-          trim.emissive.set(CABINET_TRIM).multiplyScalar(0.12);
+          trim.emissive.set(CABINET_TRIM).multiplyScalar(0.08);
+          trim.metalness = 0.35;
+          trim.roughness = 0.32;
           child.material = trim;
         } else if (material.name === "PurpleButton") {
           // The buttons' dark bezels

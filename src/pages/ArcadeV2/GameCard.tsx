@@ -1,9 +1,17 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { AnimatePresence, m as motion } from "framer-motion";
-import { FaInfo, FaTrophy } from "react-icons/fa";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { MachineData } from "../Arcade/games.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
-import { fontFamily, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
+import { TERMINAL_FONT, whenFontReady } from "./arcadeFonts.ts";
+
+// A green-screen terminal in a beige case, like the one on the cartridge slot:
+// it types out the picked game's name and pitch, and gives a way into its
+// leaderboard. Tapping or swiping the cartridges does the rest, so there's no
+// play button. Fixed row heights keep it the same size for every game.
+
+const TERMINAL_FAMILY = `"VT323", ui-monospace, Menlo, Consolas, monospace`;
+const PHOSPHOR = "#39ff6a";
+const GLOW = "0 0 6px rgba(57, 255, 106, 0.65), 0 0 1px rgba(57, 255, 106, 0.9)";
+const CHARS_PER_SECOND = 60;
 
 // The site's phone menu button, docked into the card so nothing floats over the arcade
 function MenuSkull({ className = "relative" }: { className?: string }) {
@@ -23,10 +31,6 @@ function MenuSkull({ className = "relative" }: { className?: string }) {
   );
 }
 
-// The card for the focused game: its name, its pitch, and a way into its
-// leaderboard. Tapping or swiping the cartridges does the rest, so there's no
-// play button. Fixed row heights keep it the same size for every game.
-
 type Props = {
   game: MachineData | undefined;
   phone: boolean; // docks the site menu button into the card
@@ -35,143 +39,190 @@ type Props = {
   onLeaderboard: (game: MachineData) => void;
 };
 
-const swap = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -4 },
-  transition: { duration: 0.14, ease: "easeOut" },
-} as const;
+// Types `parts` out one after another, a character at a time, starting over
+// whenever `resetKey` changes. Returns how much of each part shows.
+function useTypewriter(parts: string[], resetKey: string) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const [typed, setTyped] = useState(0);
+  useEffect(() => {
+    setTyped(0);
+    const start = performance.now();
+    const timer = window.setInterval(() => {
+      const count = Math.floor(((performance.now() - start) / 1000) * CHARS_PER_SECOND);
+      setTyped(Math.min(count, total));
+      if (count >= total) window.clearInterval(timer);
+    }, 16);
+    return () => window.clearInterval(timer);
+  }, [resetKey, total]);
+  let left = typed;
+  return {
+    shown: parts.map((part) => {
+      const shown = part.slice(0, Math.max(left, 0));
+      left -= part.length;
+      return shown;
+    }),
+    // Which part the cursor sits in: the one being typed, else the last
+    cursorAt: Math.min(
+      parts.findIndex((_, i) => parts.slice(0, i + 1).reduce((sum, part) => sum + part.length, 0) > typed),
+      parts.length - 1
+    ),
+    done: typed >= total,
+  };
+}
 
-// The game's name on one line: long names shrink to fit rather than wrapping
-function FittedTitle({ text, accent, font }: { text: string; accent: string; font: ArcadeFont }) {
+function Cursor() {
+  return <span className="ml-0.5 inline-block h-[0.85em] w-[0.5em] translate-y-[0.1em] animate-pulse" style={{ background: PHOSPHOR }} />;
+}
+
+// The game's name on one line: long names shrink to fit rather than wrapping.
+// Measured on the whole name, so it doesn't resize as it types out.
+function FittedTitle({ text, shown, cursor }: { text: string; shown: string; cursor: boolean }) {
   const boxRef = useRef<HTMLHeadingElement | null>(null);
-  const textRef = useRef<HTMLSpanElement | null>(null);
+  const measureRef = useRef<HTMLSpanElement | null>(null);
   const [scale, setScale] = useState(1);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
-    const span = textRef.current;
-    if (!box || !span) return;
-    // transform doesn't change the span's layout width, so this measures the unscaled text
-    const fit = () => setScale(Math.min(1, box.clientWidth / Math.max(span.offsetWidth, 1)));
+    const measure = measureRef.current;
+    if (!box || !measure) return;
+    const fit = () => setScale(Math.min(1, box.clientWidth / Math.max(measure.offsetWidth + 16, 1)));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
-    whenFontReady(font).then(fit);
+    whenFontReady(TERMINAL_FONT).then(fit);
     return () => observer.disconnect();
-  }, [text, font]);
+  }, [text]);
 
   return (
     <h2
       ref={boxRef}
-      className="flex h-10 w-full items-center justify-center overflow-hidden whitespace-nowrap text-3xl text-orange-50 sm:h-11 sm:text-4xl"
-      style={{
-        fontFamily: fontFamily(font),
-        fontWeight: font.weight ?? 400,
-        textShadow: `0 0 14px ${accent}, 0 0 2px ${accent}`,
-      }}
+      className="relative flex h-10 w-full items-center justify-center overflow-hidden whitespace-nowrap text-[2.4rem] leading-none sm:h-11 sm:text-[2.7rem]"
       title={text}
     >
-      <span ref={textRef} className="inline-block" style={{ transform: `scale(${scale})` }}>
+      <span ref={measureRef} aria-hidden="true" className="invisible absolute">
         {text}
+      </span>
+      <span className="inline-block" style={{ transform: `scale(${scale})` }}>
+        {shown}
+        {cursor && <Cursor />}
       </span>
     </h2>
   );
 }
 
+// A terminal key: bracketed, lighting up when pressed or hovered
+function TerminalButton({ children, onClick, pressed, label }: { children: string; onClick: () => void; pressed?: boolean; label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={pressed}
+      className="whitespace-nowrap px-1.5 leading-6 transition-colors hover:bg-[#39ff6a] hover:text-[#021407] focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407]"
+      style={pressed ? { background: PHOSPHOR, color: "#021407" } : undefined}
+    >
+      [ {children} ]
+    </button>
+  );
+}
+
 export default function GameCard({ game, phone, style, className = "", onLeaderboard }: Props) {
-  const accent = game?.cartridge.color ?? "#ff7a1a";
   // Stays on while browsing, so you can flick through every game's details
   const [showInfo, setShowInfo] = useState(false);
+  const name = game ? game.name.replace(/[‘’]/g, "'").toUpperCase() : "";
+  const lines = !game
+    ? []
+    : showInfo
+      ? [
+          `RELEASED ${game.cartridge.about.released}`,
+          `PLAYERS  ${game.cartridge.about.players.toUpperCase()}`,
+          `GENRE    ${game.cartridge.about.genre.toUpperCase()}`,
+        ]
+      : [`> ${game.cartridge.tagline}`];
+  const typing = useTypewriter([name, ...lines], `${name}|${showInfo}`);
+  const [shownName, ...shownLines] = typing.shown;
 
   return (
     <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
       {game ? (
+        // The beige case, stretching to whatever room the ledge leaves
         <div
-          // Stretches to whatever room the ledge leaves, content centred
-          className={`pointer-events-auto relative flex w-full flex-1 flex-col justify-center overflow-hidden rounded-2xl border bg-[#0b0710]/80 pb-3 pt-2 backdrop-blur-md transition-[border-color,box-shadow] duration-300 ${
-            phone ? "px-14" : "px-4"
-          }`}
-          style={{ borderColor: `${accent}aa`, boxShadow: `0 0 28px ${accent}55, inset 0 0 24px ${accent}18` }}
+          className="pointer-events-auto relative flex w-full flex-1 flex-col rounded-2xl p-2.5 pb-5"
+          style={{
+            background: "linear-gradient(#c9bc9f, #b3a585)",
+            boxShadow: "inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -3px 0 rgba(0,0,0,0.2), 0 10px 30px rgba(0,0,0,0.55)",
+          }}
         >
-          {/* The cartridge's colour, as a stripe along the top like its label */}
-          <div className="absolute inset-x-0 top-0 h-1 transition-colors duration-300" style={{ background: accent }} />
-          {phone && <MenuSkull className="absolute left-2 top-1/2 z-10 -translate-y-1/2" />}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={game.name}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.16, ease: "easeOut" }}
-              className="flex flex-col items-center gap-1"
-            >
-              <FittedTitle text={game.name} accent={accent} font={game.cartridge.font} />
-            </motion.div>
-          </AnimatePresence>
+          {/* The glass: scanlines, a vignette, and phosphor text */}
+          <div
+            className={`relative flex flex-1 flex-col justify-center overflow-hidden rounded-xl pb-2 pt-1 ${phone ? "px-14" : "px-4"}`}
+            style={{
+              background: "radial-gradient(ellipse at center, #06260f 0%, #021407 70%, #010a04 100%)",
+              boxShadow: "inset 0 0 22px rgba(0,0,0,0.9), inset 0 0 2px rgba(0,0,0,1), 0 0 0 3px #1a1614",
+              color: PHOSPHOR,
+              fontFamily: TERMINAL_FAMILY,
+              textShadow: GLOW,
+            }}
+          >
+            {phone && <MenuSkull className="absolute left-2 top-1/2 z-10 -translate-y-1/2" />}
+            <FittedTitle text={name} shown={shownName} cursor={typing.cursorAt === 0} />
 
-          {/* The pitch and leaderboard, or the info button's details: the same
-              height either way so the card doesn't jump */}
-          <div className="mt-1 h-20">
-            <AnimatePresence mode="wait" initial={false}>
+            {/* The pitch and leaderboard, or the info key's details: the same
+                height either way so the card doesn't jump */}
+            <div className="mt-1 flex h-[5.5rem] flex-col items-center justify-center text-xl leading-6">
               {showInfo ? (
-                <motion.dl
-                  key={`about-${game.name}`}
-                  {...swap}
-                  className="mx-auto grid h-full w-fit grid-cols-[auto_auto] content-center gap-x-4 gap-y-1 text-left font-sans text-sm leading-5"
-                >
-                  <dt className="text-orange-100/55">Released</dt>
-                  <dd className="font-medium text-orange-50">{game.cartridge.about.released}</dd>
-                  <dt className="text-orange-100/55">Players</dt>
-                  <dd className="font-medium text-orange-50">{game.cartridge.about.players}</dd>
-                  <dt className="text-orange-100/55">Genre</dt>
-                  <dd className="font-medium text-orange-50">{game.cartridge.about.genre}</dd>
-                </motion.dl>
+                <pre className="text-left" style={{ fontFamily: TERMINAL_FAMILY }}>
+                  {shownLines.map((line, i) => (
+                    <div key={i}>
+                      {line}
+                      {typing.cursorAt === i + 1 && !typing.done && <Cursor />}
+                    </div>
+                  ))}
+                  {typing.done && <Cursor />}
+                </pre>
               ) : (
-                <motion.div key={`summary-${game.name}`} {...swap} className="flex h-full flex-col items-center">
-                  {/* Room for two lines whether the tagline needs them or not */}
-                  <p className="flex h-10 items-center justify-center font-sans text-sm font-medium leading-5 text-orange-100/85">
-                    <span className="line-clamp-2">{game.cartridge.tagline}</span>
+                <>
+                  <p className="line-clamp-2 min-h-12">
+                    {shownLines[0]}
+                    {typing.cursorAt === 1 && <Cursor />}
                   </p>
-                  <div className="mt-1 flex h-9 items-center justify-center">
+                  <div className="mt-1 h-7">
                     {game.hasLeaderboard !== false ? (
-                      <motion.button
-                        type="button"
-                        onClick={() => onLeaderboard(game)}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-2 rounded-lg border px-4 py-1.5 font-sans text-sm font-semibold text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                        style={{ borderColor: accent, background: `${accent}2e` }}
-                      >
-                        <FaTrophy aria-hidden="true" /> Leaderboard
-                      </motion.button>
+                      <TerminalButton onClick={() => onLeaderboard(game)}>LEADERBOARD</TerminalButton>
                     ) : (
-                      <p className="font-sans text-xs text-orange-100/55">Just for fun: no scores kept</p>
+                      <span className="opacity-60">NO SCORES KEPT</span>
                     )}
                   </div>
-                </motion.div>
+                </>
               )}
-            </AnimatePresence>
+            </div>
+
+            {!phone && (
+              <p className="mt-1 h-5 text-base leading-5 opacity-55">CLICK A CART TO PICK · AGAIN TO PLAY · ← → ENTER</p>
+            )}
+
+            <div className="absolute bottom-1.5 right-2 z-10 text-xl">
+              <TerminalButton
+                onClick={() => setShowInfo(!showInfo)}
+                pressed={showInfo}
+                label={showInfo ? "Hide game details" : "Show game details"}
+              >
+                ?
+              </TerminalButton>
+            </div>
+
+            {/* Scanlines over everything */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.28) 0 1px, transparent 1px 3px)" }}
+            />
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowInfo(!showInfo)}
-            aria-label={showInfo ? "Hide game details" : "Show game details"}
-            aria-pressed={showInfo}
-            className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
-            style={{ borderColor: `${accent}aa`, background: showInfo ? accent : `${accent}22`, color: showInfo ? "#0b0710" : undefined }}
-          >
-            <FaInfo aria-hidden="true" />
-          </button>
-
-          {!phone && (
-            <p className="mt-2 h-4 font-sans text-[0.7rem] text-orange-100/50">
-              Click a cartridge to pick it, again to play ·{" "}
-              <kbd className="rounded border border-white/20 px-1">←</kbd>{" "}
-              <kbd className="rounded border border-white/20 px-1">→</kbd>{" "}
-              <kbd className="rounded border border-white/20 px-1">Enter</kbd>
-            </p>
-          )}
+          {/* The case's badge and power light */}
+          <div className="absolute inset-x-4 bottom-1 flex items-center justify-between font-sans text-[0.55rem] font-bold uppercase tracking-[0.2em] text-[#5a5040]">
+            <span>SA-86 Terminal</span>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: PHOSPHOR, boxShadow: `0 0 4px ${PHOSPHOR}` }} />
+          </div>
         </div>
       ) : (
         <div className="flex items-center gap-2">
