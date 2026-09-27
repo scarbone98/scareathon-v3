@@ -1,0 +1,174 @@
+/* Muertos's screens: blood-red zombie type and pixel HUD over a low-res 3D frame. */
+
+@font-face {
+  font-family: "MZPixel";
+  src: url("/fonts/PressStart2P.ttf") format("truetype");
+  font-display: block;
+}
+
+@font-face {
+  font-family: "MZZombie";
+  src: url("/fonts/zombie.ttf") format("truetype");
+  font-display: block;
+}
+
+.mz-root {
+  font-family: "MZPixel", monospace;
+  line-height: 1.25;
+  -webkit-font-smoothing: none;
+  font-variant-ligatures: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+.mz-canvas {
+  image-rendering: pixelated;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mz-title {
+  font-family: "MZZombie", "MZPixel", cursive;
+  line-height: 0.9;
+  letter-spacing: 0.03em;
+}
+
+.mz-drip {
+  text-shadow: 0 3px 0 #5a0606, 0 6px 0 #000, 0 0 30px #d8231f88;
+}
+
+.mz-o {
+  text-shadow:
+    -2px -2px 0 #000, 0 -2px 0 #000, 2px -2px 0 #000,
+    -2px 0 0 #000, 2px 0 0 #000,
+    -2px 2px 0 #000, 0 2px 0 #000, 2px 2px 0 #000;
+}
+
+.mz-points {
+  font-family: "MZPixel", monospace;
+  color: #ffd84a;
+  text-shadow: -2px -2px 0 #3a1a00, 2px -2px 0 #3a1a00, -2px 2px 0 #3a1a00, 2px 2px 0 #3a1a00, 0 3px 0 #000;
+}
+
+@keyframes mz-pointpop {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-34px); opacity: 0; }
+}
+.mz-pointpop {
+  font-family: "MZPixel", monospace;
+  animation: mz-pointpop 0.7s ease-out both;
+  text-shadow: 0 2px 0 #000;
+  white-space: nowrap;
+}
+
+.mz-tally {
+  width: 7px;
+  height: 44px;
+  background: #b8120f;
+  box-shadow: 0 0 6px #000, inset -2px 0 0 #6a0a08;
+  border-radius: 2px;
+}
+
+.mz-cross {
+  width: 18px;
+  height: 18px;
+  position: relative;
+}
+.mz-cross::before,
+.mz-cross::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+.mz-cross::before { left: 8px; top: 0; width: 2px; height: 18px; }
+.mz-cross::after { top: 8px; left: 0; height: 2px; width: 18px; }
+
+.mz-hit {
+  width: 26px;
+  height: 26px;
+  position: relative;
+}
+.mz-hit::before,
+.mz-hit::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: -2px;
+  width: 2px;
+  height: 30px;
+  background: linear-gradient(#fff 0 30%, transparent 30% 70%, #fff 70%);
+  transform: rotate(45deg);
+}
+.mz-hit::after { transform: rotate(-45deg); }
+.mz-hit-head::before,
+.mz-hit-head::after { background: linear-gradient(#ff4a3a 0 30%, transparent 30% 70%, #ff4a3a 70%); }
+
+.mz-btn {
+  font-family: "MZPixel", monospace;
+  border: 3px solid #000;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35), inset 0 3px 0 rgba(255, 255, 255, 0.25), 0 4px 0 #000;
+  color: #fff;
+  text-shadow: 0 2px 0 #000;
+  cursor: pointer;
+  transition: transform 0.05s;
+}
+.mz-btn:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.2), 0 1px 0 #000;
+}
+.mz-red { background: #b8120f; }
+.mz-green { background: #2f8e52; }
+.mz-stone { background: #3a3440; }
+
+.mz-panel {
+  background: rgba(10, 6, 8, 0.9);
+  border: 3px solid #000;
+  box-shadow: 0 0 0 3px #7a0c0a, 0 6px 0 3px #000;
+}
+
+.mz-perk {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #000;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 0 #000;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+}
+
+.mz-power {
+  font-family: "MZPixel", monospace;
+  font-size: 22px;
+  color: #ffd84a;
+  text-shadow: 0 0 12px #6aff5a, 0 2px 0 #000;
+}
+
+@keyframes mz-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  12% { transform: scale(1.1); opacity: 1; }
+  22% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.mz-pop { animation: mz-pop 2.2s ease-out both; }
+
+@keyframes mz-blink {
+  50% { opacity: 0.25; }
+}
+.mz-blink { animation: mz-blink 0.5s steps(1) infinite; }
+
+.mz-pad {
+  font-family: "MZPixel", monospace;
+  border: 3px solid rgba(0, 0, 0, 0.85);
+  border-radius: 999px;
+  color: #fff;
+  text-shadow: 0 2px 0 #000;
+  touch-action: none;
+}
+.mz-pad[data-down="true"] { filter: brightness(1.4); transform: scale(0.94); }
