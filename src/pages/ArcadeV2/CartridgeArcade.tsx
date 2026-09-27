@@ -314,13 +314,21 @@ export default function CartridgeArcade({
     };
 
     // --- Marquee ------------------------------------------------------------------------
-    // A split-flap sign: switching games flips it over column by column, each
-    // column's top flap falling to show the new name. Signs are painted off
+    // A split-flap sign: switching games flips its columns over in a jumble,
+    // each at its own moment and speed, the top flap falling to show the new name. Signs are painted off
     // screen and composited into the marquee's canvas while flipping.
     const MARQUEE_WIDTH = 2048;
     const MARQUEE_HEIGHT = 340;
     const FLAP_COLUMNS = 12;
-    const FLAP_LAG = 0.035; // each column starts this share of the flip after the one before
+    // Each flip, every column gets its own start and length, as shares of the flip
+    const flapStarts = new Array<number>(FLAP_COLUMNS).fill(0);
+    const flapSpans = new Array<number>(FLAP_COLUMNS).fill(1);
+    const shuffleFlaps = () => {
+      for (let i = 0; i < FLAP_COLUMNS; i += 1) {
+        flapSpans[i] = 0.3 + Math.random() * 0.3;
+        flapStarts[i] = Math.random() * (1 - flapSpans[i]);
+      }
+    };
     const makeSign = () => {
       const canvas = document.createElement("canvas");
       canvas.width = MARQUEE_WIDTH;
@@ -344,11 +352,10 @@ export default function CartridgeArcade({
       if (!marqueeContext) return;
       const half = MARQUEE_HEIGHT / 2;
       const column = MARQUEE_WIDTH / FLAP_COLUMNS;
-      const span = 1 - FLAP_LAG * (FLAP_COLUMNS - 1);
       for (let i = 0; i < FLAP_COLUMNS; i += 1) {
         const x = Math.floor(i * column);
         const w = Math.ceil(column) + 1;
-        const p = Math.min(Math.max((flip.t - i * FLAP_LAG) / span, 0), 1);
+        const p = Math.min(Math.max((flip.t - flapStarts[i]) / flapSpans[i], 0), 1);
         const piece = (source: HTMLCanvasElement, sy: number, dy: number, dh: number) =>
           marqueeContext.drawImage(source, x, sy, w, half, x, dy, w, dh);
         if (p <= 0 || p >= 1) {
@@ -383,8 +390,9 @@ export default function CartridgeArcade({
         // Start from what's on the sign, even partway through another flip
         shownSign.getContext("2d")?.drawImage(marqueeCanvas, 0, 0);
         gsap.killTweensOf(flip);
+        shuffleFlaps();
         flip.t = 0;
-        gsap.to(flip, { t: 1, duration: 0.55, ease: "none", onUpdate: composeMarquee });
+        gsap.to(flip, { t: 1, duration: 0.7, ease: "none", onUpdate: composeMarquee });
       }
       drawNeonMarquee(nextSign, text, color, marqueeFontName);
       composeMarquee();
