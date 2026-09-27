@@ -8,13 +8,13 @@ import { AdditiveBlending, Matrix3, Mesh, ShaderMaterial, type MeshStandardMater
 const CRT_SHAPE = /* glsl */ `
 vec2 crtWarp(vec2 uv) {
   vec2 c = uv - 0.5;
-  c *= 1.0 + dot(c, c) * 0.09;
+  c *= 1.0 + dot(c, c) * 0.22;
   return c + 0.5;
 }
 // 1 inside the tube's rounded rectangle, easing to 0 across its edge
 float crtInside(vec2 uv) {
   vec2 c = abs(uv - 0.5);
-  float radius = 0.06;
+  float radius = 0.1;
   float d = length(max(c - vec2(0.5 - radius), 0.0)) - radius;
   return 1.0 - smoothstep(-0.012, 0.0, d);
 }
@@ -35,15 +35,16 @@ vec3 crtShade(vec2 uv) {
   float lines = 96.0;
   // Fade the lines out only where the screen is too small on screen to show them cleanly
   float perPixel = fwidth(uv.y) * lines;
-  float lineStrength = 0.55 * (1.0 - smoothstep(0.45, 0.8, perPixel));
+  float lineStrength = 0.75 * (1.0 - smoothstep(0.55, 0.9, perPixel));
   // Dark gaps between bright lines, rather than an even ripple
   float scan = 1.0 - lineStrength * pow(0.5 + 0.5 * cos(uv.y * lines * 6.2831853), 2.0);
   float column = mod(gl_FragCoord.x, 3.0);
   vec3 mask = vec3(0.9) + 0.18 * vec3(step(column, 1.0), step(1.0, column) * step(column, 2.0), step(2.0, column));
   vec2 c = uv - 0.5;
-  float vignette = 1.0 - dot(c, c) * 1.1;
+  // Darker toward the edges, as the glass bulges away
+  float vignette = 1.0 - dot(c, c) * 1.8;
   // Brighter overall, to make up for what the lines take away
-  return scan * mask * vignette * (1.0 + lineStrength * 0.6);
+  return scan * mask * vignette * (1.0 + lineStrength * 0.7);
 }`
       )
       .replace(
