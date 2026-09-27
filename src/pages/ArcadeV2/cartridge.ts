@@ -39,7 +39,7 @@ export type Cartridge = {
 //   tape:  the bottom tapers in like an audio cassette, two reels in a window
 //   brick: boxy and square-cornered like a chunky VHS cart, grip ridges on top,
 //          a full-width window strip along the bottom with its reels far apart
-//   disc:  MiniDisc-like and lopsided, one corner cut off big, a sliding metal
+//   disc:  MiniDisc-like and lopsided, a square notch out of one corner, a sliding metal
 //          shutter across the bottom with a slot onto a single reel, a
 //          write-protect tab, index notches along the top
 export type CartridgeStyle = "tape" | "brick" | "disc";
@@ -218,13 +218,14 @@ function shellGeometry(style: CartridgeStyle, width: number, height: number, dep
     outline.lineTo(-x, top);
     outline.lineTo(-x, bottom + clip);
   } else {
-    // Small rounded corners, and the top right cut off big
+    // Small rounded corners, and a square notch out of the top right
     const corner = width * 0.03;
     const cut = width * 0.16;
     outline.moveTo(-x + corner, bottom);
     outline.lineTo(x - corner, bottom);
     outline.quadraticCurveTo(x, bottom, x, bottom + corner);
     outline.lineTo(x, top - cut);
+    outline.lineTo(x - cut, top - cut);
     outline.lineTo(x - cut, top);
     outline.lineTo(-x + corner, top);
     outline.quadraticCurveTo(-x, top, -x, top - corner);
@@ -334,18 +335,18 @@ export function createCartridge(
   const windowBand = bodyHeight * (style === "disc" ? 0.26 : style === "brick" ? 0.22 : 0.2);
   const front = depth / 2;
   addPart(shellGeometry(style, width, bodyHeight, depth, windowBand), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
-  addPart(new BoxGeometry(width * 0.62, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
+  addPart(new BoxGeometry(width * 0.74, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
   // Gold contacts along both faces of the connector
-  addPart(new BoxGeometry(width * 0.56, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
+  addPart(new BoxGeometry(width * 0.68, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
 
   // The label, set in a darker recess, filling the face above the window band.
-  // The brick's top carries grip ridges; the disc's label stops short of its cut corner.
+  // The brick's top carries grip ridges; the disc's label stops short of its notch.
   const labelWidth = width * (style === "disc" ? 0.74 : 0.86);
   const labelTop = bodyTop - width * (style === "brick" ? 0.085 : style === "disc" ? 0.06 : 0.035);
   const labelBottom = bodyBottom + windowBand + width * 0.012;
   const labelHeight = labelTop - labelBottom;
   const labelY = (labelTop + labelBottom) / 2;
-  // The disc's label sits left, away from its cut corner
+  // The disc's label sits left, away from its notch
   const labelX = style === "disc" ? -width * 0.05 : 0;
   addPart(new PlaneGeometry(labelWidth + width * 0.03, labelHeight + width * 0.03), trimMaterial, labelX, labelY, front + 0.001);
 
