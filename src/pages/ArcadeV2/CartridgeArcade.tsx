@@ -19,6 +19,7 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  Quaternion,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -409,10 +410,13 @@ export default function CartridgeArcade({
           side: DoubleSide,
         })
       );
-    // Each beam: a thin bright fan, and a thicker faint one around it for the glow
+    // Each beam: a thin bright fan, and a thicker faint one around it for the glow.
+    // Fans carry a per-corner alpha so the light spilling past the cartridge fades out
     const makeFan = (triangles: number, material: MeshBasicMaterial) => {
       const geometry = track(new BufferGeometry());
       geometry.setAttribute("position", new Float32BufferAttribute(new Float32Array(triangles * 9), 3));
+      geometry.setAttribute("color", new Float32BufferAttribute(new Float32Array(triangles * 12).fill(1), 4));
+      material.vertexColors = true;
       const mesh = new Mesh(geometry, material);
       mesh.frustumCulled = false;
       mesh.visible = false;
@@ -420,8 +424,8 @@ export default function CartridgeArcade({
       return mesh;
     };
     const beams = [0, 1].map(() => ({
-      core: makeFan(1, laserMaterial(0)),
-      glow: makeFan(2, laserMaterial(0)),
+      core: makeFan(3, laserMaterial(0)),
+      glow: makeFan(6, laserMaterial(0)),
       line: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
       lineGlow: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
     }));
@@ -493,18 +497,82 @@ export default function CartridgeArcade({
     };
 
     const scanPoint = new Vector3();
-    const setFan = (mesh: Mesh, points: Vector3[]) => {
+    // Fill a fan: each [point, alpha] corner in order, three per triangle
+    const setFan = (mesh: Mesh, corners: [Vector3, number][]) => {
       const positions = mesh.geometry.getAttribute("position") as Float32BufferAttribute;
-      points.forEach((point, i) => positions.setXYZ(i, point.x, point.y, point.z));
+      const colors = mesh.geometry.getAttribute("color") as Float32BufferAttribute;
+      corners.forEach(([point, alpha], i) => {
+        positions.setXYZ(i, point.x, point.y, point.z);
+        colors.setW(i, alpha);
+      });
+      positions.needsUpdate = true;
+      colors.needsUpdate = true;
+    };
+    // A fan from the lens to a line across the cartridge: solid across the
+    // cartridge itself, fading to nothing where it spills past the sides
+    const fanCorners = (at: (x: number) => Vector3, inner: number, outer: number): [Vector3, number][] => {
+      const e: [Vector3, number] = [emitter, 1];
+      return [e, [at(-outer), 0], [at(-inner), 1], e, [at(-inner), 1], [at(inner), 1], e, [at(inner), 1], [at(outer), 0]];
+    };
+
+    // When a cartridge is picked, the beams spin twice about the lens as they fade
+    const SPIN_SECONDS = 0.9;
+    let spinStart = -1;
+    const spinFrom = beams.map((beam) => ({
+      core: new Float32Array((beam.core.geometry.getAttribute("position") as Float32BufferAttribute).array.length),
+      glow: new Float32Array((beam.glow.geometry.getAttribute("position") as Float32BufferAttribute).array.length),
+    }));
+    const spinAxis = new Vector3();
+    const spinTurn = new Quaternion();
+    const spinFan = (mesh: Mesh, from: Float32Array) => {
+      const positions = mesh.geometry.getAttribute("position") as Float32BufferAttribute;
+      for (let i = 0; i < positions.count; i += 1) {
+        scanPoint.set(from[i * 3], from[i * 3 + 1], from[i * 3 + 2]).sub(emitter).applyQuaternion(spinTurn).add(emitter);
+        positions.setXYZ(i, scanPoint.x, scanPoint.y, scanPoint.z);
+      }
       positions.needsUpdate = true;
     };
+
     const updateScanner = (time: number) => {
       const focusedCart = focusIndex >= 0 ? carts[focusIndex] : null;
       const active = !pausedRef.current && insertedIndex < 0 && focusedCart?.where === "shelf";
+      const flicker = 0.85 + Math.random() * 0.15;
       if (active && focusedCart !== scanned) {
         scanned = focusedCart;
         beams.forEach((beam) => scanned!.cart.group.add(beam.line, beam.lineGlow));
       }
+
+      // The scanned cartridge just left the shelf for the slot: spin the beams out
+      if (!active && scanAmount > 0.5 && spinStart < 0 && !pausedRef.current && scanned && scanned.where !== "shelf") {
+        spinStart = time;
+        beams.forEach((beam, i) => {
+          spinFrom[i].core.set((beam.core.geometry.getAttribute("position") as Float32BufferAttribute).array);
+          spinFrom[i].glow.set((beam.glow.geometry.getAttribute("position") as Float32BufferAttribute).array);
+          beam.line.visible = beam.lineGlow.visible = false;
+        });
+        // Spin about the line from the lens to the middle of where the beam landed
+        const aim = spinFrom[0].core;
+        spinAxis.set((aim[12] + aim[15]) / 2, (aim[13] + aim[16]) / 2, (aim[14] + aim[17]) / 2).sub(emitter).normalize();
+      }
+      if (spinStart >= 0) {
+        const t = Math.min((time - spinStart) / SPIN_SECONDS, 1);
+        spinTurn.setFromAxisAngle(spinAxis, (1 - (1 - t) ** 3) * Math.PI * 4);
+        const fade = (1 - t) ** 1.5 * flicker;
+        beams.forEach((beam, i) => {
+          spinFan(beam.core, spinFrom[i].core);
+          spinFan(beam.glow, spinFrom[i].glow);
+          (beam.core.material as MeshBasicMaterial).opacity = 0.42 * fade;
+          (beam.glow.material as MeshBasicMaterial).opacity = 0.1 * fade;
+          beam.core.visible = beam.glow.visible = t < 1;
+        });
+        lensGlowMaterial.opacity = 0.35 + 0.65 * (1 - t);
+        if (t >= 1) {
+          spinStart = -1;
+          scanAmount = 0;
+        }
+        return;
+      }
+
       scanAmount += ((active ? 1 : 0) - scanAmount) * 0.2;
       const visible = scanAmount > 0.02 && scanned !== null && scanned.where === "shelf";
       lensGlowMaterial.opacity = 0.35 + 0.65 * scanAmount;
@@ -514,27 +582,25 @@ export default function CartridgeArcade({
       if (!visible || !scanned) return;
       const { sticker, group } = scanned.cart;
       group.updateWorldMatrix(true, false);
-      // Spill a little past the cartridge's sides
-      const spread = cartSize.width * 0.58;
+      // Solid across the cartridge, spilling a little past its sides
+      const inner = cartSize.width * 0.5;
+      const outer = cartSize.width * 0.66;
       const glowHeight = cartSize.height * 0.07;
-      const flicker = 0.85 + Math.random() * 0.15;
       beams.forEach((beam, i) => {
         // The two beams sweep the sticker out of step with each other
         const y = sticker.y + Math.sin(time * 3.6 + i * Math.PI) * sticker.height * 0.46;
-        const at = (x: number, dy = 0) => group.localToWorld(scanPoint.set(x, y + dy, sticker.z)).clone();
-        const left = at(-spread);
-        const right = at(spread);
-        setFan(beam.core, [emitter, left, right]);
-        setFan(beam.glow, [emitter, at(-spread, glowHeight), at(spread, glowHeight), emitter, at(-spread, -glowHeight), at(spread, -glowHeight)]);
+        const at = (dy: number) => (x: number) => group.localToWorld(scanPoint.set(x, y + dy, sticker.z)).clone();
+        setFan(beam.core, fanCorners(at(0), inner, outer));
+        setFan(beam.glow, [...fanCorners(at(glowHeight), inner, outer), ...fanCorners(at(-glowHeight), inner, outer)]);
         (beam.core.material as MeshBasicMaterial).opacity = 0.42 * scanAmount * flicker;
         (beam.glow.material as MeshBasicMaterial).opacity = 0.1 * scanAmount * flicker;
-        // Where each beam lands: a bright line with a soft band around it
+        // Where each beam lands on the cartridge: a bright line with a soft band around it
         beam.line.position.set(0, y, sticker.z - 0.001);
         beam.line.rotation.set(0, Math.PI, 0);
-        beam.line.scale.set(spread * 2, cartSize.height * 0.012, 1);
+        beam.line.scale.set(inner * 2, cartSize.height * 0.012, 1);
         beam.lineGlow.position.set(0, y, sticker.z - 0.0015);
         beam.lineGlow.rotation.set(0, Math.PI, 0);
-        beam.lineGlow.scale.set(spread * 2, glowHeight * 1.4, 1);
+        beam.lineGlow.scale.set(inner * 2, glowHeight * 1.4, 1);
         (beam.line.material as MeshBasicMaterial).opacity = scanAmount * flicker;
         (beam.lineGlow.material as MeshBasicMaterial).opacity = 0.25 * scanAmount * flicker;
       });
@@ -946,7 +1012,7 @@ export default function CartridgeArcade({
       // Slide it off the shelf toward you, then arc over, spinning once and banking into the turn
       timeline.to(group.position, { z: `+=${d * 2.5}`, y: `+=${h * 0.12}`, duration: 0.16, ease: "power2.out" });
       const hover = seat.clone().add(new Vector3(0, h * 1.05, 0));
-      timeline.add(flyTo(group, hover, 0.62, h * 1.1, 1, "power2.inOut", 0.35));
+      timeline.add(flyTo(group, hover, 0.7, h * 1.1, 2, "power2.inOut", 0.35));
       // Line up over the port for a beat, then push it home
       timeline.to(group.position, { y: hover.y + h * 0.05, duration: 0.1, ease: "sine.out" });
       timeline.to(group.position, { y: seat.y, duration: 0.14, ease: "power3.in" });
