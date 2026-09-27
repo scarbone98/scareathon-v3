@@ -36,6 +36,7 @@ type RigOptions = {
   deckEdge: number; // how far out from the centre the deck runs before the side panels
   faceZ: (x: number, y: number) => number; // the cabinet's front surface behind a point
   vent: Vector3; // where the vent under the screen is prised open (x, y)
+  scopeX: number; // where the instrument box sits along the deck
 };
 
 export type SlotRig = {
@@ -102,7 +103,7 @@ function studioReflection() {
   return texture;
 }
 
-export function createSlotRig({ width, height, depth, center, deckY, deckAt, deckFront, deckEdge, faceZ, vent }: RigOptions): SlotRig {
+export function createSlotRig({ width, height, depth, center, deckY, deckAt, deckFront, deckEdge, faceZ, vent, scopeX }: RigOptions): SlotRig {
   const group = new Group();
   const disposables: { dispose: () => void }[] = [];
   const track = <T extends { dispose: () => void }>(item: T) => {
@@ -184,7 +185,6 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   const scopeWidth = width * 0.38;
   const scopeHeight = width * 0.24;
   const scopeDepth = width * 0.2;
-  const scopeX = center.x - halfWidth - width * 0.1 - scopeWidth / 2;
   const scopeZ = center.z + depth * 0.6;
   const scopeY = deckAt(scopeX, scopeZ) + scopeHeight / 2;
   const scopeCase = track(new MeshStandardMaterial({ color: new Color("#2b2a2e"), roughness: 0.5, metalness: 0.3 }));

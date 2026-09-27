@@ -1204,6 +1204,8 @@ export default function CartridgeArcade({
           },
           // Under the screen's "AUTO TRACKING" label
           vent: new Vector3(screenBox.max.x - 0.1, screenBox.min.y - 0.1, 0),
+          // Under the screen's "CH 03" label
+          scopeX: screenBox.min.x + 0.15,
         })
       );
       scene.add(rig.group);
