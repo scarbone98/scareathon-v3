@@ -424,6 +424,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Black Ops One" },
         about: { released: "2026", players: "Single player", genre: "Zombie survival shooter" },
       },
+      videoUrl: "/game-recordings/Muertos.mp4",
       game: (
         <GameRenderer
           title="Muertos"

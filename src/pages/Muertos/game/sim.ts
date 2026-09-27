@@ -361,7 +361,7 @@ function stepRounds(g: Game, dt: number) {
   // Active.
   g.spawnT -= dt;
   const alive = aliveZombies(g);
-  const cap = g.demo ? 10 : MAX_ALIVE;
+  const cap = g.demo ? 14 : MAX_ALIVE;
   if (g.toSpawn > 0 && alive < cap && g.spawnT <= 0) {
     if (spawnZombie(g)) {
       g.toSpawn--;

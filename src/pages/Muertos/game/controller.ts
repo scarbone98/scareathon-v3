@@ -91,6 +91,8 @@ export class GameController {
   private fpsTime = 0;
   private fps = 60;
   private slowSpells = 0;
+  // Attract mode records on a stepped clock; its frame rate means nothing.
+  private autoQuality = !new URLSearchParams(window.location.search).has("attract");
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private cb: Callbacks) {
     this.renderer = new Renderer(canvas);
@@ -434,7 +436,7 @@ export class GameController {
     this.fps = Math.round(this.fpsFrames / this.fpsTime);
     this.fpsFrames = 0;
     this.fpsTime = 0;
-    if (this.time < 3) return;
+    if (this.time < 3 || !this.autoQuality) return;
     this.slowSpells = this.fps < 45 ? this.slowSpells + 1 : 0;
     if (this.slowSpells >= 2 && this.renderer.qualityLevel < 2) {
       this.renderer.setQuality(this.renderer.qualityLevel + 1);

@@ -535,6 +535,8 @@ export class Renderer {
     this.camera.updateProjectionMatrix();
     this.viewCam.aspect = aspect;
     this.viewCam.fov = aspect < 1 ? 70 : 58;
+    // Tall screens get a slightly smaller gun, so it doesn't fill the view.
+    this.hands.scale.setScalar(aspect < 1 ? 0.72 : 0.85);
     this.viewCam.updateProjectionMatrix();
     this.frameTop();
   }
