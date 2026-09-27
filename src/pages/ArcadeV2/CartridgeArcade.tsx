@@ -754,7 +754,7 @@ export default function CartridgeArcade({
     // Fly an object along an arc to a world position, spinning `turns` times on the way.
     // `bank` rolls it into the turn, peaking mid-flight. Pass a function for a target
     // that moves, like a slot on a ledge that's still scrolling.
-    const flyTo = (object: Object3D, target: Vector3 | (() => Vector3), duration: number, arc: number, turns: number, ease: string, bank = 0) => {
+    const flyTo = (object: Object3D, target: Vector3 | (() => Vector3), duration: number, arc: number, turns: number, ease: string, bank = 0, spinLag = 1) => {
       const targetNow = () => (typeof target === "function" ? target() : target);
       let to = new Vector3();
       const proxy = { t: 0 };
@@ -789,7 +789,8 @@ export default function CartridgeArcade({
             u * u * from.z + 2 * u * t * control.z + t * t * to.z
           );
           object.rotation.x = fromRotation.x * u;
-          object.rotation.y = fromRotation.y * u + turns * Math.PI * 2 * t;
+          // spinLag above 1 holds the spin back early, so the first turn is lazier than the last
+          object.rotation.y = fromRotation.y * u + turns * Math.PI * 2 * Math.pow(t, spinLag);
           object.rotation.z = bank * Math.sin(Math.PI * t);
         },
         onComplete: () => {
@@ -966,10 +967,10 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         showOnScreen(screenTexture);
       }, undefined, hadCartridge ? 0.35 : 0);
-      // Slide it off the shelf toward you, then arc over, spinning twice and banking into the turn
+      // Slide it off the shelf toward you, then arc over, spinning twice (a slow turn, then a quick one) and banking into the turn
       timeline.to(group.position, { z: `+=${d * 2.5}`, y: `+=${h * 0.12}`, duration: 0.16, ease: "power2.out" });
       const hover = seat.clone().add(new Vector3(0, h * 1.05, 0));
-      timeline.add(flyTo(group, hover, 0.7, h * 1.1, 2, "power2.inOut", 0.35));
+      timeline.add(flyTo(group, hover, 0.7, h * 1.1, 2, "power2.inOut", 0.35, 1.6));
       // Line up over the port for a beat, then push it home
       timeline.to(group.position, { y: hover.y + h * 0.05, duration: 0.1, ease: "sine.out" });
       timeline.to(group.position, { y: seat.y, duration: 0.14, ease: "power3.in" });
