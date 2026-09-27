@@ -11,7 +11,7 @@ import {
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // A game cartridge: a plastic shell in the game's colour with a paper label on
-// the front showing the game's name, tagline and a still from its attract video.
+// the front showing a still from its attract video and the game's name.
 
 export type CartridgeSize = { width: number; height: number; depth: number };
 
@@ -25,12 +25,13 @@ export type Cartridge = {
 
 const LABEL_WIDTH = 320;
 const LABEL_HEIGHT = 380;
-const PICTURE = { x: 22, y: 22, width: LABEL_WIDTH - 44, height: 196 };
+const PICTURE = { x: 22, y: 22, width: LABEL_WIDTH - 44, height: 262 };
+// The name sits centred in the strip between the picture and the bottom stripe
+const TITLE_Y = (PICTURE.y + PICTURE.height + LABEL_HEIGHT - 12) / 2;
 
 function paintLabel(
   context: CanvasRenderingContext2D,
   name: string,
-  tagline: string,
   color: string,
   font: ArcadeFont,
   picture?: { source: CanvasImageSource; width: number; height: number }
@@ -76,26 +77,8 @@ function paintLabel(
   context.shadowColor = color;
   context.shadowBlur = 16;
   context.fillStyle = "#fff6ee";
-  context.fillText(label, width / 2, 272);
+  context.fillText(label, width / 2, TITLE_Y);
   context.shadowBlur = 0;
-
-  // Tagline, wrapped onto up to two lines
-  context.font = "600 21px system-ui, sans-serif";
-  context.fillStyle = "rgba(255, 240, 230, 0.75)";
-  const words = tagline.split(" ");
-  const lines: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (context.measureText(next).width > width - 44 && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = next;
-    }
-  }
-  if (line) lines.push(line);
-  lines.slice(0, 2).forEach((text, i) => context.fillText(text, width / 2, 322 + i * 26));
 
   // Coloured stripe along the bottom edge
   context.fillStyle = color;
@@ -104,7 +87,6 @@ function paintLabel(
 
 export function createCartridge(
   name: string,
-  tagline: string,
   color: string,
   font: ArcadeFont,
   size: CartridgeSize
@@ -139,7 +121,7 @@ export function createCartridge(
   const context = canvas.getContext("2d");
   let picture: { source: CanvasImageSource; width: number; height: number } | undefined;
   const repaint = () => {
-    if (context) paintLabel(context, name, tagline, color, font, picture);
+    if (context) paintLabel(context, name, color, font, picture);
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);

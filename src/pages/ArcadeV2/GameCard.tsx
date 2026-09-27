@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, m as motion } from "framer-motion";
-import { FaTrophy } from "react-icons/fa";
+import { FaInfo, FaTrophy } from "react-icons/fa";
 import type { MachineData } from "../Arcade/games.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 import { fontFamily, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
@@ -34,6 +34,13 @@ type Props = {
   className?: string;
   onLeaderboard: (game: MachineData) => void;
 };
+
+const swap = {
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -4 },
+  transition: { duration: 0.14, ease: "easeOut" },
+} as const;
 
 // The game's name on one line: long names shrink to fit rather than wrapping
 function FittedTitle({ text, accent, font }: { text: string; accent: string; font: ArcadeFont }) {
@@ -74,6 +81,8 @@ function FittedTitle({ text, accent, font }: { text: string; accent: string; fon
 
 export default function GameCard({ game, layout, style, className = "", onLeaderboard }: Props) {
   const accent = game?.cartridge.color ?? "#ff7a1a";
+  // Stays on while browsing, so you can flick through every game's details
+  const [showInfo, setShowInfo] = useState(false);
 
   return (
     <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
@@ -97,28 +106,62 @@ export default function GameCard({ game, layout, style, className = "", onLeader
               className="flex flex-col items-center gap-1"
             >
               <FittedTitle text={game.name} accent={accent} font={game.cartridge.font} />
-              {/* Room for two lines whether the tagline needs them or not */}
-              <p className="flex h-10 items-center justify-center font-sans text-sm font-medium leading-5 text-orange-100/85">
-                <span className="line-clamp-2">{game.cartridge.tagline}</span>
-              </p>
             </motion.div>
           </AnimatePresence>
 
-          <div className="mt-1 flex h-9 items-center justify-center">
-            {game.hasLeaderboard !== false ? (
-              <motion.button
-                type="button"
-                onClick={() => onLeaderboard(game)}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 rounded-lg border px-4 py-1.5 font-sans text-sm font-semibold text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                style={{ borderColor: accent, background: `${accent}2e` }}
-              >
-                <FaTrophy aria-hidden="true" /> Leaderboard
-              </motion.button>
-            ) : (
-              <p className="font-sans text-xs text-orange-100/55">Just for fun: no scores kept</p>
-            )}
+          {/* The pitch and leaderboard, or the info button's details: the same
+              height either way so the card doesn't jump */}
+          <div className="mt-1 h-20">
+            <AnimatePresence mode="wait" initial={false}>
+              {showInfo ? (
+                <motion.dl
+                  key={`about-${game.name}`}
+                  {...swap}
+                  className="mx-auto grid h-full w-fit grid-cols-[auto_auto] content-center gap-x-4 gap-y-1 text-left font-sans text-sm leading-5"
+                >
+                  <dt className="text-orange-100/55">Released</dt>
+                  <dd className="font-medium text-orange-50">{game.cartridge.about.released}</dd>
+                  <dt className="text-orange-100/55">Players</dt>
+                  <dd className="font-medium text-orange-50">{game.cartridge.about.players}</dd>
+                  <dt className="text-orange-100/55">Genre</dt>
+                  <dd className="font-medium text-orange-50">{game.cartridge.about.genre}</dd>
+                </motion.dl>
+              ) : (
+                <motion.div key={`summary-${game.name}`} {...swap} className="flex h-full flex-col items-center">
+                  {/* Room for two lines whether the tagline needs them or not */}
+                  <p className="flex h-10 items-center justify-center font-sans text-sm font-medium leading-5 text-orange-100/85">
+                    <span className="line-clamp-2">{game.cartridge.tagline}</span>
+                  </p>
+                  <div className="mt-1 flex h-9 items-center justify-center">
+                    {game.hasLeaderboard !== false ? (
+                      <motion.button
+                        type="button"
+                        onClick={() => onLeaderboard(game)}
+                        whileTap={{ scale: 0.95 }}
+                        className="flex items-center gap-2 rounded-lg border px-4 py-1.5 font-sans text-sm font-semibold text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                        style={{ borderColor: accent, background: `${accent}2e` }}
+                      >
+                        <FaTrophy aria-hidden="true" /> Leaderboard
+                      </motion.button>
+                    ) : (
+                      <p className="font-sans text-xs text-orange-100/55">Just for fun: no scores kept</p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowInfo(!showInfo)}
+            aria-label={showInfo ? "Hide game details" : "Show game details"}
+            aria-pressed={showInfo}
+            className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs text-orange-50 transition hover:brightness-125 focus:outline-none focus:ring-2 focus:ring-orange-200"
+            style={{ borderColor: `${accent}aa`, background: showInfo ? accent : `${accent}22`, color: showInfo ? "#0b0710" : undefined }}
+          >
+            <FaInfo aria-hidden="true" />
+          </button>
 
           {layout === "wall" && (
             <p className="mt-2 h-4 font-sans text-[0.7rem] text-orange-100/50">

@@ -812,7 +812,7 @@ export default function CartridgeArcade({
       scene.add(portLight);
 
       games.forEach((game, index) => {
-        const cart = createCartridge(game.name, game.cartridge.tagline, game.cartridge.color, game.cartridge.font, cartSize);
+        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize);
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
         disposables.push(cart);

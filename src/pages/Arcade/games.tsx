@@ -27,7 +27,13 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
-  cartridge: { color: string; tagline: string; font: { family: string; weight?: number } };
+  // about: shown by the info button on the arcade's game card.
+  cartridge: {
+    color: string;
+    tagline: string;
+    font: { family: string; weight?: number };
+    about: { released: string; players: string; genre: string };
+  };
   game: ReactNode;
 };
 
@@ -159,7 +165,12 @@ export function createArcadeGames(): MachineData[] {
   return [
     {
       name: "8 Bit Evil Returns",
-      cartridge: { color: "#e0433b", tagline: "The pixel nightmare is back.", font: { family: "Press Start 2P" } },
+      cartridge: {
+        color: "#e0433b",
+        tagline: "The pixel nightmare is back.",
+        font: { family: "Press Start 2P" },
+        about: { released: "2024", players: "Single player", genre: "Retro action" },
+      },
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
       game: (
         <GameRenderer
@@ -206,7 +217,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Hemlock's Tower",
-      cartridge: { color: "#3fb68b", tagline: "Climb out from the deep.", font: { family: "Cinzel Decorative", weight: 700 } },
+      cartridge: {
+        color: "#3fb68b",
+        tagline: "Climb out from the deep.",
+        font: { family: "Cinzel Decorative", weight: 700 },
+        about: { released: "2024", players: "Single player", genre: "Vertical platformer" },
+      },
       videoUrl: "/game-recordings/Ascension.mp4",
       game: (
         <GameRenderer
@@ -221,7 +237,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Tlaloc’s Curse",
-      cartridge: { color: "#2f86d6", tagline: "Pinball under a storm god’s curse.", font: { family: "Tilt Warp" } },
+      cartridge: {
+        color: "#2f86d6",
+        tagline: "Pinball under a storm god’s curse.",
+        font: { family: "Tilt Warp" },
+        about: { released: "2025", players: "Single player", genre: "Pinball" },
+      },
       videoUrl: "/game-recordings/TlalocsCurse.mp4",
       game: (
         <GameRenderer
@@ -236,7 +257,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Ooidash",
-      cartridge: { color: "#f2a93b", tagline: "Dash for the high score.", font: { family: "Russo One" } },
+      cartridge: {
+        color: "#f2a93b",
+        tagline: "Dash for the high score.",
+        font: { family: "Russo One" },
+        about: { released: "2024", players: "Single player", genre: "Endless runner" },
+      },
       videoUrl: "/game-recordings/Ooidash.mp4",
       game: (
         <GameRenderer
@@ -251,7 +277,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Salmon Run 2",
-      cartridge: { color: "#f07a5a", tagline: "Race a salmon down a jungle river.", font: { family: "Luckiest Guy" } },
+      cartridge: {
+        color: "#f07a5a",
+        tagline: "Race a salmon down a jungle river.",
+        font: { family: "Luckiest Guy" },
+        about: { released: "2026", players: "Single player", genre: "Trick racer" },
+      },
       videoUrl: "/game-recordings/SalmonRun2.mp4",
       game: (
         <GameRenderer
@@ -267,7 +298,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "WirtWare",
-      cartridge: { color: "#a86ee0", tagline: "Tiny games, faster and faster.", font: { family: "Titan One" } },
+      cartridge: {
+        color: "#a86ee0",
+        tagline: "Tiny games, faster and faster.",
+        font: { family: "Titan One" },
+        about: { released: "2026", players: "Single player", genre: "Microgames" },
+      },
       videoUrl: "/game-recordings/WirtWare.mp4",
       game: (
         <GameRenderer
@@ -282,7 +318,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Crypt Clash",
-      cartridge: { color: "#7d8a99", tagline: "Last one standing wins.", font: { family: "Grenze Gotisch", weight: 700 } },
+      cartridge: {
+        color: "#7d8a99",
+        tagline: "Last one standing wins.",
+        font: { family: "Grenze Gotisch", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Lane card battler" },
+      },
       videoUrl: "/game-recordings/CryptClash.mp4",
       hasLeaderboard: false,
       game: (
@@ -295,7 +336,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Horde Rush",
-      cartridge: { color: "#c23b5a", tagline: "Grow your squad, blast the horde.", font: { family: "Black Ops One" } },
+      cartridge: {
+        color: "#c23b5a",
+        tagline: "Grow your squad, blast the horde.",
+        font: { family: "Black Ops One" },
+        about: { released: "2026", players: "Single player", genre: "Crowd-runner shooter" },
+      },
       videoUrl: "/game-recordings/HordeRush.mp4",
       game: (
         <GameRenderer
@@ -310,7 +356,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Frog Ball",
-      cartridge: { color: "#6cc04a", tagline: "Roll a frog through dream worlds.", font: { family: "Fredoka", weight: 600 } },
+      cartridge: {
+        color: "#6cc04a",
+        tagline: "Roll a frog through dream worlds.",
+        font: { family: "Fredoka", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Rolling platformer" },
+      },
       videoUrl: "/game-recordings/FrogBall.mp4",
       game: (
         <GameRenderer
@@ -326,7 +377,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Mystery Crypt",
-      cartridge: { color: "#5b3a8c", tagline: "Crawl the crypt, recruit the monsters.", font: { family: "Creepster" } },
+      cartridge: {
+        color: "#5b3a8c",
+        tagline: "Crawl the crypt, recruit the monsters.",
+        font: { family: "Creepster" },
+        about: { released: "2026", players: "Single player", genre: "Dungeon crawler" },
+      },
       videoUrl: "/game-recordings/MysteryCrypt.mp4",
       game: (
         <GameRenderer
@@ -341,7 +397,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Ghost Ridge",
-      cartridge: { color: "#2b2150", tagline: "Shred the haunted mountain.", font: { family: "Nosifer" } },
+      cartridge: {
+        color: "#2b2150",
+        tagline: "Shred the haunted mountain.",
+        font: { family: "Nosifer" },
+        about: { released: "2026", players: "Single player", genre: "Snowboarding" },
+      },
       videoUrl: "/game-recordings/GhostRidge.mp4",
       game: (
         <GameRenderer
@@ -356,7 +417,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "BOB",
-      cartridge: { color: "#f4f1e8", tagline: "Look after a stick figure.", font: { family: "Patrick Hand" } },
+      cartridge: {
+        color: "#f4f1e8",
+        tagline: "Look after a stick figure.",
+        font: { family: "Patrick Hand" },
+        about: { released: "2026", players: "Single player", genre: "Virtual pet sandbox" },
+      },
       videoUrl: "/game-recordings/BOB.mp4",
       hasLeaderboard: false,
       game: (
@@ -371,7 +437,12 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: ORIGINAL_EIGHT_BIT_EVIL,
-      cartridge: { color: "#9e2f2a", tagline: "Where it all began.", font: { family: "Silkscreen" } },
+      cartridge: {
+        color: "#9e2f2a",
+        tagline: "Where it all began.",
+        font: { family: "Silkscreen" },
+        about: { released: "Before 2024", players: "Single player", genre: "Retro action" },
+      },
       videoUrl: "/game-recordings/8BitEvil.mp4",
       availableOnMobile: false,
       game: (
