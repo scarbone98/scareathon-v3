@@ -22,7 +22,7 @@ type Props = {
 const STATIC_MS = 420;
 const FADE_IN_MS = 90; // the static swells in from the cabinet's rather than cutting on
 // Snow held over the game after it mounts, to hide its loading screen
-const HOLD_MS = 2500;
+const HOLD_MS = 1700;
 const TUNE_MS = 900;
 const TUNE_AT = STATIC_MS + HOLD_MS;
 const LINE_MS = 250;
