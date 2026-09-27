@@ -59,7 +59,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     look: { body: "#33363c", wood: "#5c3a1e", long: 0.64 },
   },
   ametralladora: {
-    id: "ametralladora", name: "Ametralladora", papName: "La Tormenta", cost: 0,
+    id: "ametralladora", name: "Ametralladora", papName: "La Tormenta", cost: 2800,
     damage: 130, pellets: 1, spread: 0.045, rpm: 560, auto: true, mag: 100, reserve: 400, reload: 4.2,
     headMult: 2.5, range: 80, kick: 0.014, sound: "lmg",
     look: { body: "#3b3f36", wood: "#4d3a24", long: 0.78 },

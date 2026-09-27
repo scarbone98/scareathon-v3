@@ -19,6 +19,8 @@
 //   = bridge          m dry moat         S fort masonry     A casemate
 //   R ramp wall       o cistern          r ramp up north    v ramp down south
 //   Z cathedral front
+//   I bar floor       E rooftop terrace  & bar counter      s u bar stairs
+//   X Mofongo Mule    N bar stair rail
 //   a b c w f h i j l   doors, solid until bought
 //   B Y       a boarded window, in a house or a casemate
 //   4-9       a wall buy painted on the wall
@@ -152,12 +154,39 @@ function build(): string[][] {
   each([[60, 44], [65, 44], [58, 48], [64, 48], [54, 36], [54, 41], [58, 35], [58, 40]], "B");
   each([[67, 51], [73, 51]], "y");
 
+  // Two of the old city's bars. La Factoría, on San Sebastián: a bar room,
+  // and stairs up to a rooftop terrace over Norzagaray and the sea.
+  rect(60, 27, 61, 27, "I");
+  rect(59, 24, 61, 26, "I");
+  set(62, 26, "I");
+  rect(62, 24, 62, 25, "N");
+  rect(63, 23, 63, 26, "s");
+  rect(59, 23, 62, 23, "L");
+  rect(58, 16, 64, 22, "E");
+  rect(58, 15, 64, 15, "L");
+  rect(59, 24, 60, 24, "&");
+  set(58, 16, "X");
+  set(57, 19, "2");
+  // El Batey, on Calle del Cristo: a dive bar, and a terrace over the park.
+  rect(72, 41, 72, 42, "I");
+  rect(73, 40, 74, 42, "I");
+  set(75, 40, "I");
+  rect(75, 41, 75, 42, "N");
+  rect(76, 40, 76, 43, "u");
+  rect(73, 43, 75, 43, "L");
+  rect(73, 44, 77, 47, "E");
+  rect(73, 48, 77, 48, "L");
+  set(73, 42, "&");
+  set(78, 44, "1");
+  set(78, 46, "B");
+  set(72, 46, "#");
+
   // Wall buys, perks, the box.
   set(68, 38, "4");
   set(59, 32, "5");
   set(61, 48, "8");
   set(72, 15, "9");
-  set(63, 27, "6");
+  set(65, 27, "6");
   set(40, 38, "7");
   set(59, 28, "M");
   set(62, 31, "J");
@@ -168,8 +197,8 @@ function build(): string[][] {
 
 export const GRID = build();
 
-const WALK = new Set([".", "p", "g", "d", "e", "y", "P", "U", "V", "t", "=", "r", "v"]);
-const HOUSE = new Set(["#", "B", "4", "5", "6", "8", "9"]);
+const WALK = new Set([".", "p", "g", "d", "e", "y", "P", "U", "V", "t", "=", "r", "v", "I", "E", "s", "u"]);
+const HOUSE = new Set(["#", "B", "1", "2", "4", "5", "6", "8", "9"]);
 const DOOR_CHARS = new Set(["a", "b", "c", "w", "f", "h", "i", "j", "l"]);
 
 export const isWalkChar = (ch: string) => WALK.has(ch);
@@ -180,11 +209,14 @@ export const at = (c: number, r: number) => (r >= 0 && r < ROWS && c >= 0 && c <
 // ---------- heights ----------
 
 // Floors: the terraces, and the two ramps, which climb along z.
-const FLAT: Record<string, number> = { U: 4.5, V: -4.5, m: -4 };
+const FLAT: Record<string, number> = { U: 4.5, V: -4.5, m: -4, E: 4.5 };
 const RAMP: Record<string, { z0: number; z1: number; h0: number; h1: number }> = {
   r: { z0: 15 * CELL, z1: 11 * CELL, h0: 0, h1: 4.5 },
   v: { z0: 29 * CELL, z1: 33 * CELL, h0: 0, h1: -4.5 },
+  s: { z0: 27 * CELL, z1: 23 * CELL, h0: 0, h1: 4.5 },
+  u: { z0: 40 * CELL, z1: 44 * CELL, h0: 0, h1: 4.5 },
 };
+export const isStairs = (ch: string) => ch === "s" || ch === "u";
 
 function cellFloor(ch: string, z: number) {
   const rp = RAMP[ch];
@@ -196,9 +228,9 @@ function cellFloor(ch: string, z: number) {
 }
 
 // How tall things stand above whatever they sit on.
-const STANDS: Record<string, number> = { L: 1.1, n: 0.9, T: 1.3, M: 1.1, F: 3.4, o: 1.0, Q: 3.2, J: 2.2, K: 2.2, D: 2.2, H: 15, k: 4.3 };
+const STANDS: Record<string, number> = { L: 1.1, n: 0.9, T: 1.3, M: 1.1, F: 3.4, o: 1.0, Q: 3.2, J: 2.2, K: 2.2, D: 2.2, X: 2.2, H: 15, k: 4.3, "&": 1.1 };
 // Masonry and walls stand to a fixed height.
-const ABS: Record<string, number> = { W: 6.5, "7": 6.5, C: 14, Z: 15, S: 4.5, A: 4.5, Y: 4.5, R: 5.6 };
+const ABS: Record<string, number> = { W: 6.5, "7": 6.5, C: 14, Z: 15, S: 4.5, A: 4.5, Y: 4.5, R: 5.6, N: 3.2 };
 
 const DIRS: [number, number][] = [
   [0, -1],
@@ -411,17 +443,18 @@ export const SPAWNS: SpawnDef[] = (() => {
 // ---------- things to buy ----------
 
 export type WallBuyDef = { weapon: string; x: number; z: number; face: number; cell: [number, number] };
-export type PerkId = "coqui" | "piragua" | "cafe";
+export type PerkId = "coqui" | "piragua" | "cafe" | "mule";
 export type PerkDef = { id: PerkId; name: string; cost: number; blurb: string; color: string };
 
 export const PERKS: Record<PerkId, PerkDef> = {
   coqui: { id: "coqui", name: "Coquí Cola", cost: 2500, blurb: "Take more hits", color: "#3fd46a" },
   piragua: { id: "piragua", name: "Piragua Punch", cost: 3000, blurb: "Reload faster", color: "#ff4fa0" },
   cafe: { id: "cafe", name: "Café Colao", cost: 2000, blurb: "Shoot faster, hit harder", color: "#c8894a" },
+  mule: { id: "mule", name: "Mofongo Mule", cost: 4000, blurb: "Carry a third gun", color: "#e0b030" },
 };
 
-const WALLBUY_WEAPON: Record<string, string> = { "4": "carabina", "5": "escopeta", "6": "metralleta", "7": "rifle", "8": "carabina", "9": "metralleta" };
-const PERK_AT: Record<string, PerkId> = { J: "coqui", K: "piragua", D: "cafe" };
+const WALLBUY_WEAPON: Record<string, string> = { "1": "ametralladora", "2": "escopeta", "4": "carabina", "5": "escopeta", "6": "metralleta", "7": "rifle", "8": "carabina", "9": "metralleta" };
+const PERK_AT: Record<string, PerkId> = { J: "coqui", K: "piragua", D: "cafe", X: "mule" };
 
 export type Spot = { x: number; z: number; face: number; cell: [number, number] };
 
@@ -467,16 +500,23 @@ export const LAMPS: Lamp[] = (() => {
   };
   const torch: [number, number, number] = [1, 0.5, 0.22];
   // The street.
-  for (const [c, r] of [[55, 27], [60, 27], [65, 27], [58, 32], [64, 32], [54, 32]]) add(c, r, 3.4);
+  for (const [c, r] of [[55, 27], [59, 27], [62, 27], [66, 27], [58, 32], [64, 32], [54, 32]]) add(c, r, 3.4);
   // The plaza.
   for (const [c, r] of [[66, 23], [66, 33], [75, 23], [75, 30], [75, 37], [67, 38], [73, 38], [69, 22], [72, 22]]) add(c, r, 3.6);
   // The city wall and the campo's south wall.
   for (const [c, r] of [[53, 17], [53, 24], [53, 28], [53, 31], [53, 36]]) add(c, r, 3.4, [1, 0.55, 0.25], 9, [-1, 0]);
   // Norzagaray and the alley.
-  for (const [c, r] of [[57, 15], [64, 15], [70, 15], [80, 15], [86, 15]]) add(c, r, 3.4, [1, 0.62, 0.28], 9, [0, -1]);
+  for (const [c, r] of [[57, 15], [65, 15], [70, 15], [80, 15], [86, 15]]) add(c, r, 3.4, [1, 0.62, 0.28], 9, [0, -1]);
+  // Inside the bars, and out on their terraces.
+  add(60, 23, 2.6, [1, 0.45, 0.3], 7, [0, 1]);
+  add(74, 43, 2.6, [1, 0.45, 0.3], 7, [0, -1]);
+  add(57, 18, 2.8, [1, 0.7, 0.4], 9, [1, 0]);
+  add(65, 21, 2.8, [1, 0.7, 0.4], 9, [-1, 0]);
+  add(78, 45, 2.8, [1, 0.7, 0.4], 9, [-1, 0]);
   for (const [c, r] of [[75, 17], [79, 21], [75, 22]]) add(c, r, 3.4);
   // Cristo, the park, Fortaleza and San Justo.
-  for (const [c, r] of [[72, 39], [72, 44], [68, 39]]) add(c, r, 3.4);
+  for (const [c, r] of [[72, 39], [68, 39]]) add(c, r, 3.4);
+  add(72, 44, 3.4, [1, 0.62, 0.28], 9, [-1, 0]);
   for (const [c, r] of [[64, 49], [77, 49], [70, 48]]) add(c, r, 3.4, [1, 0.62, 0.28], 10);
   for (const [c, r] of [[57, 44], [63, 44], [67, 44], [56, 48], [60, 48], [66, 48]]) add(c, r, 3.6, [1, 0.66, 0.34], 9);
   for (const [c, r] of [[54, 34], [58, 38], [54, 43], [58, 43]]) add(c, r, 3.4);

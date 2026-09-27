@@ -25,10 +25,14 @@ export const TILE = {
   roofPainted: 17,
   arcade: 18,
   stoneHole: 19,
+  barWall: 20,
+  barFloor: 21,
+  terrace: 22,
+  woodFloor: 23,
 } as const;
 
-// The atlas is 4 tiles across and 5 down.
-const ATLAS_ROWS = 5;
+// The atlas is 4 tiles across and 6 down.
+const ATLAS_ROWS = 6;
 
 export function canvasTexture(w: number, h: number, draw: (x: CanvasRenderingContext2D) => void, repeat = false) {
   const cv = document.createElement("canvas");
@@ -306,6 +310,63 @@ export function atlasTexture() {
       x.fillStyle = "#e0cfa4";
       x.fillRect(ox + 8, oy + m(2.45), 48, m(0.6) - m(2.45) + 2);
     });
+    // Bar rooms: wood wainscot, warm plaster, posters and bottle shelves.
+    tile(TILE.barWall, (ox, oy) => {
+      x.fillStyle = "#e8d8b8";
+      x.fillRect(ox, oy, 64, 64);
+      noise(ox, oy, 80, ["#dccaa6", "#f0e2c6"]);
+      x.fillStyle = "#5a3620";
+      x.fillRect(ox, oy + 40, 64, 24);
+      x.fillStyle = "#3e2414";
+      for (let i = 0; i < 8; i++) x.fillRect(ox + i * 8, oy + 40, 1, 24);
+      x.fillRect(ox, oy + 40, 64, 2);
+      // A shelf of bottles.
+      x.fillStyle = "#4a2c18";
+      x.fillRect(ox + 4, oy + 26, 56, 3);
+      for (let i = 0; i < 9; i++) {
+        x.fillStyle = ["#3a7a3a", "#8a3a1a", "#c9a23a", "#2a4a8a", "#e8e0d0"][Math.floor(rnd() * 5)];
+        x.fillRect(ox + 6 + i * 6, oy + 18 + Math.floor(rnd() * 3), 3, 8);
+      }
+      // A poster.
+      x.fillStyle = ["#d8231f", "#2e7ab8", "#e8a22a"][Math.floor(rnd() * 3)];
+      x.fillRect(ox + 20, oy + 3, 22, 13);
+      x.fillStyle = "#f4ead2";
+      x.fillRect(ox + 23, oy + 6, 16, 2);
+      x.fillRect(ox + 23, oy + 10, 10, 2);
+    });
+    // The old city's patterned floor tiles.
+    tile(TILE.barFloor, (ox, oy) => {
+      for (let r = 0; r < 8; r++)
+        for (let c = 0; c < 8; c++) {
+          x.fillStyle = (r + c) % 2 ? "#2a2a30" : "#e8e2d4";
+          x.fillRect(ox + c * 8, oy + r * 8, 8, 8);
+          x.fillStyle = "#b8412e";
+          if ((r + c) % 2 === 0) x.fillRect(ox + c * 8 + 3, oy + r * 8 + 3, 2, 2);
+        }
+    });
+    // Terracotta on the rooftop terraces.
+    tile(TILE.terrace, (ox, oy) => {
+      x.fillStyle = "#6a3424";
+      x.fillRect(ox, oy, 64, 64);
+      for (let r = 0; r < 4; r++)
+        for (let c = 0; c < 4; c++) {
+          const v = rnd();
+          x.fillStyle = hex(178 + v * 30, 92 + v * 20, 58 + v * 14);
+          x.fillRect(ox + c * 16 + 1, oy + r * 16 + 1, 14, 14);
+        }
+      noise(ox, oy, 90, ["#9a5034", "#c07048"]);
+    });
+    // Floorboards, for looking into houses from above.
+    tile(TILE.woodFloor, (ox, oy) => {
+      for (let i = 0; i < 8; i++) {
+        const v = rnd();
+        x.fillStyle = hex(120 + v * 30, 82 + v * 20, 50 + v * 12);
+        x.fillRect(ox, oy + i * 8, 64, 8);
+        x.fillStyle = "#3a2414";
+        x.fillRect(ox, oy + i * 8 + 7, 64, 1);
+        x.fillRect(ox + Math.floor(rnd() * 64), oy + i * 8, 1, 7);
+      }
+    });
     roof(TILE.roof, "#c9c4b8", ["#b8b2a4", "#d6d1c6", "#aaa496", "#bfb9ab"]);
     roof(TILE.roofPainted, "#b0543e", ["#a04a36", "#c0654c", "#984434", "#b85c46"]);
   });
@@ -395,6 +456,27 @@ export function cathedralTexture() {
       x.fillStyle = "#231e30";
       x.fillRect(px - 4, 82, 8, 20);
     }
+  });
+}
+
+// A bar's neon sign, glowing over its door.
+export function neonTexture(text: string, color: string) {
+  return canvasTexture(128, 32, (x) => {
+    x.fillStyle = "#120a10";
+    x.fillRect(0, 0, 128, 32);
+    x.strokeStyle = color;
+    x.lineWidth = 2;
+    x.strokeRect(3, 3, 122, 26);
+    x.shadowColor = color;
+    x.shadowBlur = 6;
+    x.fillStyle = "#fff6f0";
+    x.font = "bold italic 17px serif";
+    x.textAlign = "center";
+    x.textBaseline = "middle";
+    x.fillText(text, 64, 17);
+    x.fillStyle = color;
+    x.globalAlpha = 0.6;
+    x.fillText(text, 64, 17);
   });
 }
 

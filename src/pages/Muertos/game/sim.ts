@@ -887,7 +887,7 @@ function give(g: Game, id: WeaponId) {
   const have = p.weapons.findIndex((w) => w.id === id);
   if (have >= 0) {
     p.cur = have;
-  } else if (p.weapons.length < 2) {
+  } else if (p.weapons.length < (p.perks.includes("mule") ? 3 : 2)) {
     p.weapons.push(newWeapon(id));
     p.cur = p.weapons.length - 1;
   } else {

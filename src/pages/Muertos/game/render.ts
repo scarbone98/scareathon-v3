@@ -14,6 +14,7 @@ import {
   floorAt,
   GRID,
   isDoor,
+  isStairs,
   isHouse,
   isWalkChar,
   LAMPS,
@@ -38,12 +39,14 @@ import {
   gunGeometry,
   knifeGeometry,
   cistern,
+  counter,
   dome,
   lighthouse,
   merge,
   paint,
   palm,
   papMachine,
+  patioTable,
   perkMachine,
   PlayerModel,
   rubble,
@@ -54,7 +57,7 @@ import {
 } from "./models";
 import { rayWall } from "./map";
 import { GUN_Y, mulberry32, rayZombie, WINDOW_BOARDS, type Ev, type Game, type PowerKind, type Zombie } from "./sim";
-import { atlasTexture, cathedralTexture, chalkTexture, churchTexture, flashTexture, glowTexture, perkTexture, powerTexture, signTexture, TILE, tileUV } from "./textures";
+import { atlasTexture, cathedralTexture, chalkTexture, churchTexture, neonTexture, flashTexture, glowTexture, perkTexture, powerTexture, signTexture, TILE, tileUV } from "./textures";
 import { WEAPONS, type WeaponId } from "./weapons";
 
 const FOG = new THREE.Color("#1a1c36");
@@ -305,13 +308,24 @@ function skirtAt(x: number, z: number) {
   return x >= COLS * CELL && z >= 11 * CELL && z < 55 * CELL;
 }
 
+// The bars' names, over their doorways.
+const BAR_SIGNS: [string, string, [number, number][]][] = [
+  ["La Factoría", "#ff4fa0", [[60, 27], [61, 27]]],
+  ["El Batey", "#40d8ff", [[72, 41], [72, 42]]],
+];
+
 const CATHEDRAL_R0 = (() => {
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (GRID[r][c] === "Z") return r;
   return 0;
 })();
 
 const FORT_FLOOR = new Set(["P", "U", "V", "t", "=", "r", "v"]);
-const FLOOR_TILE: Record<string, number> = { ".": TILE.cobbles, p: TILE.plaza, g: TILE.grass, y: TILE.grass, d: TILE.earth, e: TILE.path, m: TILE.earth };
+const FLOOR_TILE: Record<string, number> = { ".": TILE.cobbles, p: TILE.plaza, g: TILE.grass, y: TILE.grass, d: TILE.earth, e: TILE.path, m: TILE.earth, I: TILE.barFloor, E: TILE.terrace, s: TILE.woodFloor, u: TILE.woodFloor };
+
+// Bars are one storey with a ceiling; the rooms under it.
+const CEILING = 3.2;
+const BAR_ROOF = 4.5;
+const UNDER_ROOF = new Set(["I", "&", "N"]);
 const floorTile = (ch: string) => FLOOR_TILE[ch] ?? (FORT_FLOOR.has(ch) ? TILE.fortFloor : TILE.fortFloor);
 
 type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; r: number; g: number; b: number; grav: number };
@@ -407,6 +421,10 @@ export class Renderer {
   private deadFall = 0;
   private lampGlow!: THREE.Sprite;
   private lampY = 13.8;
+  private townMat!: THREE.MeshBasicMaterial;
+  private roofMesh!: THREE.Mesh;
+  private roofProps!: THREE.Mesh;
+  private insideMesh!: THREE.Mesh;
   private camY = 0;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -564,7 +582,15 @@ export class Renderer {
     this.player.root.visible = top;
     cut.uCutR.value = top ? 3.2 : 0;
     cut.uSquash.value = top ? SQUASH : 1;
-    cut.uCutRoof.value = top ? 7 : 0;
+    // With the roofs off, nothing overhead needs cutting away.
+    cut.uCutRoof.value = 0;
+    // Top-down lifts the roofs off, like RuneScape: you look down into the
+    // streets, the bars and the rooms, with walls seen from both sides.
+    this.roofMesh.visible = !top;
+    this.roofProps.visible = !top;
+    this.insideMesh.visible = top;
+    this.townMat.side = top ? THREE.DoubleSide : THREE.FrontSide;
+    this.townMat.needsUpdate = true;
     // Things drawn outside the squashed town move down to match.
     this.beam.position.y = squashY(this.lampY, top);
     this.lampGlow.position.y = squashY(this.lampY, top);
@@ -682,6 +708,10 @@ export class Renderer {
     const m = new Mesher();
     const church = new Mesher();
     const cathedral = new Mesher();
+    // Roofs and ceilings, which top-down hides; and floors inside the
+    // houses, which only top-down shows.
+    const roofs = new Mesher();
+    const inside = new Mesher();
     const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
     const white = C("#ffffff");
     const stoneC = C("#f2ead8");
@@ -711,7 +741,13 @@ export class Renderer {
           const ys = floorAt(x0 + 1, z0 + CELL - 0.001);
           const yn = floorAt(x0 + 1, z0 + 0.001);
           const flat = STANDING.has(ch) ? BASE[r * COLS + c] : null;
-          m.quad(V(x0, flat ?? ys, z0 + CELL), V(CELL, 0, 0), V(0, flat === null ? yn - ys : 0, -CELL), tileUV(floorTile(fl)), tint, 2, 2);
+          if (isStairs(ch)) this.stairs(m, x0, z0);
+          else m.quad(V(x0, flat ?? ys, z0 + CELL), V(CELL, 0, 0), V(0, flat === null ? yn - ys : 0, -CELL), tileUV(floorTile(fl)), tint, 2, 2);
+        }
+        if (UNDER_ROOF.has(ch)) {
+          // The bar's ceiling, and its roof above.
+          roofs.quad(V(x0, CEILING, z0), V(CELL, 0, 0), V(0, 0, CELL), tileUV(TILE.planks), C("#8a6a50"), 1, 1);
+          roofs.quad(V(x0, BAR_ROOF, z0 + CELL), V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.roof), white, 1, 1);
         }
         if (ch === "L") {
           // Low walls under their top: the floor they sit on.
@@ -728,8 +764,14 @@ export class Renderer {
           const u = right.clone().multiplyScalar(CELL);
 
           if (me.open) {
+            // A bar doorway: a lintel over it, outside and in.
+            if (ch === "I" && n.open && !UNDER_ROOF.has(nch) && !isStairs(nch) && nch !== "x") {
+              const back = bottom.clone().addScaledVector(V(dc, 0, dr), -0.02);
+              m.quad(bottom.clone().setY(CEILING), u, V(0, BAR_ROOF - CEILING, 0), tileUV(TILE.plaster), C("#e8dcc4"), 1, 1);
+              m.quad(back.clone().addScaledVector(u, 1).setY(CEILING), u.clone().negate(), V(0, BAR_ROOF - CEILING, 0), tileUV(TILE.plaster), C("#b89878"), 1, 1);
+            }
             // A terrace edge, or the cliff under anything at the sea's edge.
-            const my = STANDING.has(ch) ? me.lo : me.lo;
+            const my = me.lo;
             if (nch === "x") {
               stoneFace(bottom, u, -18, my, TILE.cliff, cliffC);
             } else if (n.open && n.hi < my - 0.3) {
@@ -739,7 +781,16 @@ export class Renderer {
           }
 
           const top = me.hi;
-          const y0 = nch === "x" ? (hs ? 0 : -18) : n.lo;
+          let y0 = nch === "x" ? (hs ? 0 : -18) : n.lo;
+          // Walls round a bar room, or beside its stairs, are the bar's walls
+          // up to the ceiling; above that they're outside again.
+          if (UNDER_ROOF.has(nch) || (isStairs(nch) && y0 < CEILING)) {
+            const t = Math.min(top, CEILING);
+            if (t > y0) m.quad(bottom.clone().setY(y0), u, V(0, t - y0, 0), tileUV(TILE.barWall), white, 2, 1, [0, 0], [1, 1]);
+            if (ch === "N") continue;
+            y0 = UNDER_ROOF.has(nch) ? BAR_ROOF : Math.max(CEILING, n.hi);
+          }
+          if (ch === "N") continue;
           if (y0 >= top) continue;
 
           if (ch === "C" || ch === "Z") {
@@ -791,24 +842,24 @@ export class Renderer {
           }
         }
 
-        // Tops: walls' walkways, masonry, and flat roofs with a
-        // house-coloured tint, which top-down sees most of.
-        if (me.open || ch === "L") continue;
-        // A dark floor inside, for when the top-down cutaway looks in.
-        {
-          let lo = 0;
-          for (const [dc, dr] of DIRS) {
-            const n = span(c + dc, r + dr);
-            if (n.open && at(c + dc, r + dr) !== "x") lo = Math.min(lo, n.lo);
-          }
-          m.quad(V(x0, lo, z0 + CELL), V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.plaster), C("#2a2420"), 1, 1, [0, 0], [1, 1], 0.4);
-        }
+        // Tops: walls' walkways and masonry stay; roofs go in their own
+        // mesh, with floorboards under them for top-down to look down on.
+        if (me.open || ch === "L" || ch === "N") continue;
         const topQ = V(x0, me.hi, z0 + CELL);
-        if (STONE.has(ch)) m.quad(topQ, V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.fortFloor), C("#d8ccb0"), 1, 1);
-        else if (ch === "C" || ch === "Z") m.quad(topQ, V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.plaster), C("#d6d2c8"), 1, 1);
+        if (STONE.has(ch)) {
+          m.quad(topQ, V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.fortFloor), C("#d8ccb0"), 1, 1);
+          continue;
+        }
+        let lo = 0;
+        for (const [dc, dr] of DIRS) {
+          const n = span(c + dc, r + dr);
+          if (n.open && at(c + dc, r + dr) !== "x") lo = Math.min(lo, n.lo);
+        }
+        inside.quad(V(x0, lo + 0.02, z0 + CELL), V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.woodFloor), C("#b8a088"), 1, 1);
+        if (ch === "C" || ch === "Z") roofs.quad(topQ, V(CELL, 0, 0), V(0, 0, -CELL), tileUV(TILE.plaster), C("#d6d2c8"), 1, 1);
         else if (hs) {
           const painted = hash(hs.id, 3) < 0.3;
-          m.quad(topQ, V(CELL, 0, 0), V(0, 0, -CELL), tileUV(painted ? TILE.roofPainted : TILE.roof), painted ? white : C("#ffffff").lerp(hs.color, 0.2), 1, 1);
+          roofs.quad(topQ, V(CELL, 0, 0), V(0, 0, -CELL), tileUV(painted ? TILE.roofPainted : TILE.roof), painted ? white : C("#ffffff").lerp(hs.color, 0.2), 1, 1);
         }
       }
     }
@@ -847,7 +898,12 @@ export class Renderer {
 
     const tex = atlasTexture();
     const mat = cutaway(new THREE.MeshBasicMaterial({ map: tex, vertexColors: true }));
+    this.townMat = mat;
     this.scene.add(new THREE.Mesh(m.geometry(), mat));
+    this.roofMesh = new THREE.Mesh(roofs.geometry(), mat);
+    this.insideMesh = new THREE.Mesh(inside.geometry(), mat);
+    this.insideMesh.visible = false;
+    this.scene.add(this.roofMesh, this.insideMesh);
     const ctex = churchTexture();
     const cmat = cutaway(new THREE.MeshBasicMaterial({ map: ctex, vertexColors: true }));
     this.scene.add(new THREE.Mesh(church.geometry(), cmat));
@@ -855,6 +911,26 @@ export class Renderer {
     const kmat = cutaway(new THREE.MeshBasicMaterial({ map: ktex, vertexColors: true }));
     this.scene.add(new THREE.Mesh(cathedral.geometry(), kmat));
     this.disposables.push(tex, mat, ctex, cmat, ktex, kmat);
+  }
+
+  // Stairs up to the bar terraces: treads and risers over the ramp that
+  // the game walks on.
+  private stairs(m: Mesher, x0: number, z0: number) {
+    const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+    const STEPS = 4;
+    const d = CELL / STEPS;
+    const tread = tileUV(TILE.woodFloor);
+    const wood = C("#c8a888");
+    for (let k = 0; k < STEPS; k++) {
+      const za = z0 + k * d;
+      const h = floorAt(x0 + 1, za + d / 2);
+      m.quad(V(x0, h, za + d), V(CELL, 0, 0), V(0, 0, -d), tread, wood, 1, 1);
+      const prev = floorAt(x0 + 1, za - d / 2);
+      if (Math.abs(prev - h) < 0.01) continue;
+      // The riser faces down the stairs.
+      if (h > prev) m.quad(V(x0 + CELL, prev, za), V(-CELL, 0, 0), V(0, h - prev, 0), tread, wood.clone().multiplyScalar(0.7), 1, 1);
+      else m.quad(V(x0, h, za), V(CELL, 0, 0), V(0, prev - h, 0), tread, wood.clone().multiplyScalar(0.7), 1, 1);
+    }
   }
 
   // A boarded window's facade: plaster around a hole into a dark room.
@@ -888,6 +964,8 @@ export class Renderer {
 
   private buildProps() {
     const parts: THREE.BufferGeometry[] = [];
+    // Things overhead, which top-down hides with the roofs.
+    const overhead: THREE.BufferGeometry[] = [];
     const place = (geo: THREE.BufferGeometry, x: number, y: number, z: number, rotY = 0, s = 1) => {
       const g = geo.clone();
       g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY), new THREE.Vector3(s, s, s)));
@@ -910,6 +988,8 @@ export class Renderer {
           place(can, x, y, z, rot);
         } else if (ch === "T") place(tomb(seed++), x, y, z, hash(c, r) * 0.4 - 0.2);
         else if (ch === "y") place(palm(seed++), x + 0.6, floorAt(x, z), z - 0.5, hash(r, c) * 6);
+        else if (ch === "&") place(counter(seed++), x, y, z, GRID[r][c - 1] === "&" || GRID[r][c + 1] === "&" ? 0 : Math.PI / 2);
+        else if (ch === "E" && hash(c * 5, r * 3) < 0.12 && at(c, r - 1) !== "X" && at(c - 1, r) !== "X") place(patioTable(["#d8231f", "#2e9be8", "#f2c12e", "#3fcf6a"][Math.floor(hash(r, c) * 4)]), x, y, z);
         else if (ch === "o" && GRID[r - 1]?.[c] !== "o" && GRID[r]?.[c - 1] !== "o") place(cistern(), x + CELL / 2, y, z + CELL / 2);
         else if (ch === "H" && GRID[r - 1]?.[c] !== "H" && GRID[r]?.[c - 1] !== "H") place(lighthouse(), x + CELL / 2, y, z + CELL / 2);
         else if (ch === "F" && GRID[r - 1]?.[c] !== "F" && GRID[r]?.[c - 1] !== "F") place(statue(), x + CELL / 2, y, z + CELL / 2, Math.PI);
@@ -918,15 +998,20 @@ export class Renderer {
     // Water tanks and the odd dish on the roofs.
     const tank = merge([paint(new THREE.CylinderGeometry(0.55, 0.55, 1.1, 8).translate(0, 0.55, 0), C("#26262c")), paint(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 8).translate(0, 1.16, 0), C("#3a3a42"))]);
     const tankW = merge([paint(new THREE.CylinderGeometry(0.5, 0.5, 1.0, 8).translate(0, 0.5, 0), C("#e8e6e0"))]);
+    // They sit on the roofs, so they come off with them top-down.
+    const onRoofs = overhead;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (GRID[r][c] !== "#" || hash(c * 7, r * 13) > 0.1) continue;
         const hh = house(c, r).h;
-        place(hash(r, c) < 0.5 ? tank : tankW, (c + 0.5) * CELL, hh, (r + 0.5) * CELL);
+        const g = (hash(r, c) < 0.5 ? tank : tankW).clone().translate((c + 0.5) * CELL, hh, (r + 0.5) * CELL);
+        onRoofs.push(Mesher.bake(g));
       }
     }
 
-    // Calle Fortaleza's umbrellas, strung overhead in rows.
+
+    // Calle Fortaleza's umbrellas, strung overhead in rows. Like the roofs,
+    // they come off top-down.
     const palette = ["#e8322a", "#f2c12e", "#2e9be8", "#e84fa0", "#3fcf6a", "#ff8a1f", "#8a4fe8", "#ffffff"];
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
@@ -936,15 +1021,22 @@ export class Renderer {
           [1.5, 1.5],
         ]) {
           const k = Math.floor(hash(c * 2 + ox, r * 2 + oz) * palette.length);
-          place(umbrella(palette[k]), c * CELL + ox, 6.2 + hash(r, c + ox) * 0.4, r * CELL + oz, hash(c, r) * 3);
+          const g = umbrella(palette[k]);
+          g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(c * CELL + ox, 6.2 + hash(r, c + ox) * 0.4, r * CELL + oz), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), hash(c, r) * 3), new THREE.Vector3(1, 1, 1)));
+          overhead.push(Mesher.bake(g));
         }
       }
+    // String lights over the terraces.
+    this.buildFestoons();
+
     // The Cathedral's dome, behind its front.
-    place(dome(), 66.5 * CELL, 15, (CATHEDRAL_R0 + 2.5) * CELL);
+    overhead.push(Mesher.bake(dome().translate(66.5 * CELL, 15, (CATHEDRAL_R0 + 2.5) * CELL)));
 
     // The church's bell gable, over the middle of its front.
     const churchRow = findCells("C")[0][1];
     place(espadana(), (CHURCH_C0 + 4) * CELL, 14, churchRow * CELL + 1.4);
+    this.roofProps = new THREE.Mesh(mergeAll(overhead), cutaway(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+    this.scene.add(this.roofProps);
     const geo = mergeAll(parts);
     const mat = cutaway(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
     this.scene.add(new THREE.Mesh(geo, mat));
@@ -962,6 +1054,70 @@ export class Renderer {
     this.beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: "#fff2c0", transparent: true, opacity: 0.09, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
     this.beam.position.set(lx, this.lampY, lz);
     this.scene.add(lampGlow, this.beam);
+  }
+
+  // Bulbs strung zig-zag over each bar terrace, and a neon sign over each
+  // bar's door.
+  private buildFestoons() {
+    const bulbs: number[] = [];
+    const seen = new Set<number>();
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        if (GRID[r][c] !== "E" || seen.has(r * COLS + c)) continue;
+        // Flood the terrace to find its extent.
+        let c0 = c;
+        let c1 = c;
+        let r0 = r;
+        let r1 = r;
+        const q = [[c, r]];
+        seen.add(r * COLS + c);
+        while (q.length) {
+          const [qc, qr] = q.pop()!;
+          c0 = Math.min(c0, qc);
+          c1 = Math.max(c1, qc);
+          r0 = Math.min(r0, qr);
+          r1 = Math.max(r1, qr);
+          for (const [dc, dr] of DIRS) {
+            const nc = qc + dc;
+            const nr = qr + dr;
+            if (at(nc, nr) === "E" && !seen.has(nr * COLS + nc)) {
+              seen.add(nr * COLS + nc);
+              q.push([nc, nr]);
+            }
+          }
+        }
+        const y = BASE[r * COLS + c] + 3.2;
+        for (let zz = r0 * CELL + 1; zz <= (r1 + 1) * CELL - 1; zz += 3) {
+          for (let t = 0; t <= 1; t += 0.06) {
+            const x = c0 * CELL + 0.3 + t * ((c1 - c0 + 1) * CELL - 0.6);
+            bulbs.push(x, y - Math.sin(t * Math.PI) * 0.7, zz + Math.sin(t * Math.PI * 4) * 0.8);
+          }
+        }
+      }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(bulbs, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: "#ffe0a0", size: 3, sizeAttenuation: false }));
+    this.scene.add(pts);
+    // Neon over the doors.
+    for (const [text, color, cells] of BAR_SIGNS) {
+      const xs = cells.map(([c]) => c);
+      const zs = cells.map(([, r]) => r);
+      const cx = ((Math.min(...xs) + Math.max(...xs) + 1) / 2) * CELL;
+      const cz = ((Math.min(...zs) + Math.max(...zs) + 1) / 2) * CELL;
+      // Out the side that faces the street.
+      const [c0, r0] = cells[0];
+      let dir: [number, number] = [0, 1];
+      for (const [dc, dr] of DIRS) if (at(c0 + dc, r0 + dr) === "." || at(c0 + dc, r0 + dr) === "p") dir = [dc, dr];
+      const tex = neonTexture(text, color);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), new THREE.MeshBasicMaterial({ map: tex }));
+      sign.position.set(cx + dir[0] * 1.06, BAR_ROOF - 0.55, cz + dir[1] * 1.06);
+      sign.rotation.y = Math.atan2(dir[0], dir[1]);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(color), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      glow.position.copy(sign.position).add(new THREE.Vector3(dir[0] * 0.3, 0, dir[1] * 0.3));
+      glow.scale.set(5, 2.4, 1);
+      this.scene.add(sign, glow);
+      this.disposables.push(tex);
+    }
   }
 
   private buildLamps() {

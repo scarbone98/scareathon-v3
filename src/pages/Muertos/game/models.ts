@@ -159,6 +159,29 @@ export function espadana() {
   return merge(parts);
 }
 
+// A bar counter with bottles along it.
+export function counter(seed: number) {
+  const rnd = mulberry32(seed);
+  const parts = [paint(box(1.96, 1.0, 0.9, 0, 0.5, 0), C("#5a3420")), paint(box(2.0, 0.08, 1.0, 0, 1.04, 0), C("#2a1a10"))];
+  for (let i = 0; i < 5; i++) {
+    const col = ["#3a7a3a", "#8a3a1a", "#c9a23a", "#e8e0d0", "#2a4a8a"][Math.floor(rnd() * 5)];
+    parts.push(paint(cyl(0.04, 0.05, 0.28, 6, -0.8 + i * 0.4 + rnd() * 0.1, 1.22, (rnd() - 0.5) * 0.4), C(col)));
+  }
+  return merge(parts);
+}
+
+// A café table with a parasol, for the terraces.
+export function patioTable(color: string) {
+  return merge([
+    paint(cyl(0.45, 0.45, 0.06, 10, 0, 0.75, 0), C("#e8e2d4")),
+    paint(cyl(0.05, 0.08, 0.75, 6, 0, 0.37, 0), C("#2a2a2a")),
+    paint(cyl(0.03, 0.03, 1.6, 4, 0, 1.55, 0), C("#2a2a2a")),
+    paint(new THREE.ConeGeometry(1.3, 0.5, 8, 1, true).translate(0, 2.3, 0), C(color)),
+    paint(box(0.4, 0.45, 0.4, 0.7, 0.22, 0), C("#6a4028")),
+    paint(box(0.4, 0.45, 0.4, -0.7, 0.22, 0), C("#6a4028")),
+  ]);
+}
+
 // An open umbrella hung upside-up over Calle Fortaleza.
 export function umbrella(color: string) {
   const g = new THREE.ConeGeometry(0.75, 0.35, 8, 1, true).translate(0, 0.17, 0);
