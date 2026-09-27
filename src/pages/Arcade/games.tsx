@@ -342,6 +342,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Ghost Ridge",
       cartridge: { color: "#2b2150", tagline: "Shred the haunted mountain.", font: { family: "Nosifer" } },
+      videoUrl: "/game-recordings/GhostRidge.mp4",
       game: (
         <GameRenderer
           title="Ghost Ridge"

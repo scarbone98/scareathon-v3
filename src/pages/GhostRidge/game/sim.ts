@@ -59,6 +59,8 @@ export type Game = {
   events: GameEvent[];
   clock: number;
   acc: number;
+  // The title-screen rider passes through graves, trees and ghosts.
+  ghostly: boolean;
 };
 
 const GRABS = ["Indy", "Method", "Mute", "Stalefish", "Tail Grab", "Nose Grab", "Crail", "Graveyard Grab", "Mummy Wrap"];
@@ -102,6 +104,7 @@ export function newGame(course = sharedCourse()): Game {
     events: [],
     clock: 0,
     acc: 0,
+    ghostly: false,
   };
 }
 
@@ -152,7 +155,7 @@ function tick(g: Game, input: Input) {
   if (riding) {
     pickups(g);
     gates(g);
-    if (g.crashT <= 0) hits(g);
+    if (g.crashT <= 0 && !g.ghostly) hits(g);
   }
 }
 

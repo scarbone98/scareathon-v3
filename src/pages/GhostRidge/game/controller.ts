@@ -103,6 +103,7 @@ export class GameController {
     const g = newGame();
     g.status = "ride";
     g.time = 9999;
+    g.ghostly = true;
     g.v.z = -12;
     const at = import.meta.env.DEV ? Number(new URLSearchParams(window.location.search).get("at")) : 0;
     if (at > 0) {
