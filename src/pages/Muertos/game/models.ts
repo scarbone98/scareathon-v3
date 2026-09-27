@@ -159,6 +159,39 @@ export function espadana() {
   return merge(parts);
 }
 
+// An open umbrella hung upside-up over Calle Fortaleza.
+export function umbrella(color: string) {
+  const g = new THREE.ConeGeometry(0.75, 0.35, 8, 1, true).translate(0, 0.17, 0);
+  return merge([paint(g, C(color)), paint(cyl(0.02, 0.02, 0.6, 4, 0, -0.1, 0), C("#222"))]);
+}
+
+// The Cathedral's dome and lantern.
+export function dome() {
+  const white = C("#efe9dc");
+  return merge([
+    paint(cyl(3, 3, 1.4, 12, 0, 0.7, 0), white),
+    paint(new THREE.SphereGeometry(2.9, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.4, 0), C("#e6ddc8")),
+    paint(cyl(0.5, 0.6, 1.2, 8, 0, 4.8, 0), white),
+    paint(new THREE.SphereGeometry(0.55, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 5.4, 0), C("#e6ddc8")),
+    paint(box(0.08, 0.7, 0.08, 0, 6.2, 0), C("#c9a23a")),
+    paint(box(0.4, 0.08, 0.08, 0, 6.3, 0), C("#c9a23a")),
+  ]);
+}
+
+// The round cistern in the middle of El Morro's plaza.
+export function cistern() {
+  const stone = C("#cdbb90");
+  const dark = C("#2a2420");
+  return merge([
+    paint(cyl(1.7, 1.8, 0.9, 12, 0, 0.45, 0), stone),
+    paint(cyl(1.5, 1.5, 0.05, 12, 0, 0.92, 0), dark),
+    paint(box(0.2, 1.6, 0.2, -1.2, 1.6, 0), stone),
+    paint(box(0.2, 1.6, 0.2, 1.2, 1.6, 0), stone),
+    paint(box(2.8, 0.2, 0.2, 0, 2.4, 0), stone),
+    paint(cyl(0.18, 0.18, 0.4, 6, 0, 2.1, 0), C("#4a3a28")),
+  ]);
+}
+
 // Rubble across the street: carts, crates, sandbags, a fallen balcony.
 export function rubble() {
   const rnd = mulberry32(12);
@@ -323,6 +356,23 @@ export class ZombieModel {
     }
   }
 
+  // Top-down, a flat silhouette of each part draws wherever a roof or wall
+  // hides it.
+  readonly ghosts: THREE.Mesh[] = [];
+  addGhosts(mat: THREE.Material) {
+    for (const m of this.meshes) {
+      m.renderOrder = 10;
+      const g = new THREE.Mesh(m.geometry, mat);
+      g.renderOrder = 5;
+      g.visible = false;
+      m.parent!.add(g);
+      this.ghosts.push(g);
+    }
+  }
+  showGhosts(on: boolean) {
+    for (const g of this.ghosts) g.visible = on && g.parent!.visible !== false;
+  }
+
   dispose() {
     for (const m of this.meshes) m.geometry.dispose();
   }
@@ -409,14 +459,17 @@ export class PlayerModel {
   readonly gun: THREE.Mesh;
   readonly hand = new THREE.Group();
 
-  constructor(mat: THREE.Material, gunMat: THREE.Material) {
+  constructor(mat: THREE.Material, gunMat: THREE.Material, ghostMat: THREE.Material) {
     const skin = C("#b98563");
     const shirt = C("#f1ead6");
     const pants = C("#34405a");
     const cap = C("#b8120f");
     const add = (parent: THREE.Object3D, geo: THREE.BufferGeometry) => {
       const m = new THREE.Mesh(geo, mat);
-      parent.add(m);
+      m.renderOrder = 10;
+      const g = new THREE.Mesh(geo, ghostMat);
+      g.renderOrder = 5;
+      parent.add(m, g);
       return m;
     };
     // A ring round your feet, so you can find yourself in a crowd.

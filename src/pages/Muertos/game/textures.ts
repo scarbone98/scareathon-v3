@@ -23,6 +23,8 @@ export const TILE = {
   planks: 15,
   roof: 16,
   roofPainted: 17,
+  arcade: 18,
+  stoneHole: 19,
 } as const;
 
 // The atlas is 4 tiles across and 5 down.
@@ -271,6 +273,39 @@ export function atlasTexture() {
         x.fillStyle = "#3a3630";
         x.fillRect(ox + 56, oy + 56, 3, 3);
       });
+    // El Morro's casemates: sandstone with a deep arched doorway, and the
+    // same stone round a boarded window.
+    const ashlar = (ox: number, oy: number) => {
+      x.fillStyle = "#9c8660";
+      x.fillRect(ox, oy, 64, 64);
+      for (let r = 0; r < 6; r++)
+        for (let c = 0; c < 3; c++) {
+          const v = rnd();
+          x.fillStyle = hex(206 + v * 26, 186 + v * 22, 140 + v * 20);
+          x.fillRect(ox + c * 22 + (r % 2) * 11 - 11 + 1, oy + r * 11 + 1, 20, 9);
+        }
+      noise(ox, oy, 120, ["#8e7a58", "#b8a27a"]);
+    };
+    tile(TILE.arcade, (ox, oy) => {
+      ashlar(ox, oy);
+      x.fillStyle = "#e0cfa4";
+      x.fillRect(ox + 8, oy + 18, 48, 46);
+      x.beginPath();
+      x.arc(ox + 32, oy + 22, 24, Math.PI, 0);
+      x.fill();
+      x.fillStyle = "#1c1612";
+      x.fillRect(ox + 12, oy + 22, 40, 42);
+      x.beginPath();
+      x.arc(ox + 32, oy + 22, 20, Math.PI, 0);
+      x.fill();
+      x.fillStyle = "rgba(255,170,90,0.12)";
+      x.fillRect(ox + 14, oy + 50, 36, 14);
+    });
+    tile(TILE.stoneHole, (ox, oy) => {
+      ashlar(ox, oy);
+      x.fillStyle = "#e0cfa4";
+      x.fillRect(ox + 8, oy + m(2.45), 48, m(0.6) - m(2.45) + 2);
+    });
     roof(TILE.roof, "#c9c4b8", ["#b8b2a4", "#d6d1c6", "#aaa496", "#bfb9ab"]);
     roof(TILE.roofPainted, "#b0543e", ["#a04a36", "#c0654c", "#984434", "#b85c46"]);
   });
@@ -314,6 +349,51 @@ export function churchTexture() {
       x.fillRect(px - 7, 78, 14, 26);
       x.fillStyle = "#231e30";
       x.fillRect(px - 5, 80, 10, 22);
+    }
+  });
+}
+
+// The Cathedral of San Juan's front: cream plaster, pilasters, a tall door
+// and a round window, a touch grander than San José.
+export function cathedralTexture() {
+  return canvasTexture(80, 128, (x) => {
+    const rnd = mulberry32(19);
+    x.fillStyle = "#f3eadb";
+    x.fillRect(0, 0, 80, 128);
+    for (let i = 0; i < 260; i++) {
+      x.fillStyle = rnd() < 0.5 ? "#e6dac6" : "#fbf6ec";
+      x.fillRect(rnd() * 80, rnd() * 128, 1, 1);
+    }
+    x.fillStyle = "#d8c6a0";
+    for (const px of [3, 22, 55, 74]) x.fillRect(px, 14, 4, 114);
+    x.fillRect(0, 10, 80, 5);
+    x.fillRect(0, 62, 80, 4);
+    x.fillStyle = "#c7b184";
+    x.fillRect(28, 70, 24, 58);
+    x.fillStyle = "#3a2414";
+    x.fillRect(31, 80, 18, 48);
+    x.beginPath();
+    x.arc(40, 80, 9, Math.PI, 0);
+    x.fill();
+    x.fillStyle = "#c7b184";
+    x.beginPath();
+    x.arc(40, 38, 11, 0, Math.PI * 2);
+    x.fill();
+    x.fillStyle = "#2a2440";
+    x.beginPath();
+    x.arc(40, 38, 8, 0, Math.PI * 2);
+    x.fill();
+    x.fillStyle = "rgba(255,180,90,0.5)";
+    x.fillRect(38, 35, 4, 6);
+    for (const px of [12, 66]) {
+      x.fillStyle = "#c7b184";
+      x.fillRect(px - 6, 30, 12, 22);
+      x.fillStyle = "#231e30";
+      x.fillRect(px - 4, 32, 8, 18);
+      x.fillStyle = "#c7b184";
+      x.fillRect(px - 6, 80, 12, 24);
+      x.fillStyle = "#231e30";
+      x.fillRect(px - 4, 82, 8, 20);
     }
   });
 }

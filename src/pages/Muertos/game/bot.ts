@@ -4,26 +4,56 @@
 import { CELL, clearLine } from "./map";
 import { curWeapon, type Game, type Input } from "./sim";
 
+// A grand tour: the south loop, out across the campo, round El Morro's
+// terraces, back through the cemetery and along Norzagaray.
 const WAYPOINTS: [number, number][] = [
-  [40.5, 25],
-  [38.5, 17],
-  [37, 20],
-  [31, 20],
-  [25, 20],
-  [21, 20],
+  [70.5, 35],
+  [70, 37.5],
+  [70, 44],
+  [70.5, 50.5],
+  [70, 47],
+  [66, 46],
+  [56, 46],
+  [56, 36],
+  [56, 31],
+  [52, 30],
+  [40, 28],
+  [30, 21],
+  [26, 21],
+  [22, 21],
+  [16, 23],
   [16, 17],
-  [12.9, 14],
-  [12.9, 11],
-  [9, 9],
-  [6, 5.5],
-  [11, 5.5],
-  [12.9, 11],
   [12.9, 15],
-  [18, 21],
-  [24, 20],
-  [31, 20],
-  [38, 20],
-  [38.5, 24.5],
+  [12.9, 13],
+  [12.9, 9],
+  [8, 7.5],
+  [20, 8.5],
+  [13, 9],
+  [12.9, 13],
+  [12.9, 15],
+  [9.9, 26],
+  [9.9, 30],
+  [9.9, 34],
+  [4, 34],
+  [3.5, 17],
+  [4, 34],
+  [9.9, 34],
+  [9.9, 27],
+  [16, 22],
+  [22, 21],
+  [27, 21],
+  [40, 22],
+  [46, 16],
+  [50, 16],
+  [50.5, 12.5],
+  [53.5, 13.5],
+  [60, 13.5],
+  [77, 13.5],
+  [77, 20],
+  [77, 24.5],
+  [72, 24.5],
+  [68.5, 27],
+  [68.5, 34],
 ].map(([c, r]) => [c * CELL, r * CELL]);
 
 export type Bot = { wp: number; aimT: number; fireHeld: boolean; stuckT: number; lastD: number };
@@ -62,8 +92,10 @@ export function botInput(g: Game, b: Bot, dt: number, opts: { roam: boolean }): 
   }
 
   let yaw = p.yaw;
+  let pitch = 0;
   let fire = false;
   if (target) {
+    pitch = Math.atan2(target.gy + target.y + 1.5 - (p.y + 1.6), Math.max(best, 0.5));
     const want = Math.atan2(target.x - p.x, -(target.z - p.z));
     yaw = p.yaw + wrap(want - p.yaw) * Math.min(1, dt * 9);
     const off = Math.abs(wrap(want - yaw));
@@ -82,7 +114,7 @@ export function botInput(g: Game, b: Bot, dt: number, opts: { roam: boolean }): 
     mx: mvx * pace,
     mz: mvz * pace,
     yaw,
-    pitch: 0,
+    pitch,
     flat: false,
     ads: false,
     fire,

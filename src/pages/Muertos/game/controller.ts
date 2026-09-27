@@ -391,12 +391,12 @@ export class GameController {
       const d = Math.hypot(dx, dz);
       if (d > (top ? 18 : 30)) continue;
       const yaw = Math.atan2(dx, -dz);
-      const pitch = top ? 0 : Math.atan2(z.y + 1.3 - 1.6, d);
+      const pitch = top ? 0 : Math.atan2(z.gy + z.y + 1.3 - (p.y + 1.6), d);
       const dy = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
       const off = Math.hypot(dy, pitch - this.pitch);
       if (off > (top ? 0.3 : 0.2)) continue;
       const cp = Math.cos(pitch);
-      const hit = top ? rayZombie(z, p.x, p.z, Math.sin(yaw), -Math.cos(yaw)) : rayZombie3D(z, p.x, 1.6, p.z, Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
+      const hit = top ? rayZombie(z, p.x, p.z, Math.sin(yaw), -Math.cos(yaw), p.y) : rayZombie3D(z, p.x, p.y + 1.6, p.z, Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
       if (!hit) continue;
       if (!best || off < best.off) best = { yaw: this.yaw + dy, pitch, off };
     }
