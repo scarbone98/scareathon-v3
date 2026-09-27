@@ -48,6 +48,7 @@ import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
 import { createCabinetFinish } from "./cabinetFinish.ts";
+import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
@@ -92,6 +93,7 @@ const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
 const WIDE_CARD_SPACE = 196; // the card on wide screens, with its keyboard hints
 const SCANNER_RED = "#ff2a3a";
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
+const SCREEN_GLOW = 0.85; // the screen's usual emissive intensity
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
 const POWER_OFF = 0.3;
 const STATIC = 0.4;
@@ -192,6 +194,7 @@ export default function CartridgeArcade({
     let screenVideo: ScreenVideo | null = null;
     let waitingForPicture = false; // the screen shows snow until screenVideo has a frame
     let screenMaterial: MeshStandardMaterial | null = null;
+    let crtGlow: ReturnType<typeof createCrtGlow> | null = null;
 
     const paintScreen = (time: number) => {
       if (!screenContext) return;
@@ -268,6 +271,7 @@ export default function CartridgeArcade({
       screenMaterial.map = texture;
       screenMaterial.emissiveMap = texture;
       screenMaterial.needsUpdate = true;
+      crtGlow?.setPicture(texture);
     };
 
     const stopVideo = () => {
@@ -279,7 +283,7 @@ export default function CartridgeArcade({
       stopVideo();
       if (bloom && screenMaterial) {
         // The picture comes on bright and settles, like a tube warming up
-        gsap.fromTo(screenMaterial, { emissiveIntensity: 2.2 }, { emissiveIntensity: 0.85, duration: 0.7, ease: "power2.out" });
+        gsap.fromTo(screenMaterial, { emissiveIntensity: 2.2 }, { emissiveIntensity: SCREEN_GLOW, duration: 0.7, ease: "power2.out" });
       }
       if (!game.videoUrl) {
         screenMode = "idle";
@@ -968,8 +972,10 @@ export default function CartridgeArcade({
         if (material.name === "GreyScreen") {
           screenMaterial = material.clone();
           screenMaterial.emissive = new Color("#ffffff");
-          screenMaterial.emissiveIntensity = 0.85;
+          screenMaterial.emissiveIntensity = SCREEN_GLOW;
+          applyCrtLook(screenMaterial);
           child.material = screenMaterial;
+          crtGlow = track(createCrtGlow(child));
           screenBox.setFromObject(child);
           showOnScreen(screenTexture);
         } else if (material.name === "Marque") {
@@ -1186,6 +1192,8 @@ export default function CartridgeArcade({
       paintScreen(time);
       updateScanner(time);
       screenVideo?.updateFrame();
+      // The glow swells with the picture when it flares on
+      if (screenMaterial) crtGlow?.setStrength(screenMaterial.emissiveIntensity / SCREEN_GLOW);
       if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
 
       shelfGroup.position.x = -scroll.x;
