@@ -23,11 +23,45 @@ export type Cartridge = {
   // Paint a frame from the attract video into the label's picture window.
   setPicture: (source: CanvasImageSource, width: number, height: number) => void;
   setHighlight: (amount: number) => void;
+  // The barcode sticker on the back, in the cartridge's own space (it faces -z)
+  sticker: { width: number; height: number; y: number; z: number };
   dispose: () => void;
 };
 
 // Cartridges are landscape: height as a fraction of width
-export const CARTRIDGE_ASPECT = 0.7;
+export const CARTRIDGE_ASPECT = 0.8;
+
+const STICKER_WIDTH = 256;
+const STICKER_HEIGHT = 150;
+
+// The back sticker: white paper, the arcade's name, a barcode and the game's name
+function paintSticker(context: CanvasRenderingContext2D, name: string, color: string) {
+  const { width, height } = context.canvas;
+  context.fillStyle = "#f3efe6";
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = color;
+  context.fillRect(0, 0, width, 16);
+  context.fillStyle = "#1a1418";
+  context.font = "700 13px system-ui, sans-serif";
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.fillText("SCAREATHON ARCADE", 12, 30);
+  // Bars from the name, so every cartridge's code is its own
+  let seed = [...name].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 7);
+  let x = 14;
+  while (x < width - 18) {
+    seed = (seed * 1103515245 + 12345) >>> 0;
+    const bar = 1 + (seed % 4);
+    const gap = 1 + ((seed >> 8) % 3);
+    context.fillRect(x, 44, bar, 64);
+    x += bar + gap;
+  }
+  context.font = "600 12px ui-monospace, monospace";
+  context.fillText(name.replace(/[‘’]/g, "'").toUpperCase().slice(0, 28), 12, 124);
+  context.fillStyle = "rgba(26, 20, 24, 0.55)";
+  context.font = "10px ui-monospace, monospace";
+  context.fillText(`SCR-${(seed % 90000) + 10000}  NOT FOR RESALE`, 12, 140);
+}
 
 const LABEL_WIDTH = 400;
 const LABEL_HEIGHT = 254;
@@ -244,8 +278,27 @@ export function createCartridge(
   });
   addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, 0, labelY, depth / 2 + 0.002);
 
+  // A barcode sticker on the back: what the cabinet's scanner reads to preview the game
+  const stickerCanvas = document.createElement("canvas");
+  stickerCanvas.width = STICKER_WIDTH;
+  stickerCanvas.height = STICKER_HEIGHT;
+  const stickerContext = stickerCanvas.getContext("2d");
+  const stickerTexture = new CanvasTexture(stickerCanvas);
+  stickerTexture.colorSpace = SRGBColorSpace;
+  stickerTexture.anisotropy = 4;
+  if (stickerContext) paintSticker(stickerContext, name, color);
+  const stickerMaterial = new MeshStandardMaterial({ map: stickerTexture, roughness: 0.9 });
+  const sticker = {
+    width: width * 0.62,
+    height: width * 0.62 * (STICKER_HEIGHT / STICKER_WIDTH),
+    y: bodyBottom + bodyHeight * 0.5,
+    z: -depth / 2 - 0.002,
+  };
+  addPart(new PlaneGeometry(sticker.width, sticker.height), stickerMaterial, 0, sticker.y, sticker.z).rotation.y = Math.PI;
+
   return {
     group,
+    sticker,
     setPicture: (source, w, h) => {
       // Copy the frame now: the video element is released right after
       const copy = document.createElement("canvas");
@@ -262,8 +315,11 @@ export function createCartridge(
     },
     dispose: () => {
       geometries.forEach((geometry) => geometry.dispose());
-      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial].forEach((material) => material.dispose());
+      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial].forEach((material) =>
+        material.dispose()
+      );
       texture.dispose();
+      stickerTexture.dispose();
     },
   };
 }
