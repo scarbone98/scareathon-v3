@@ -214,7 +214,7 @@ export const Navigator = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               className={`absolute left-0 w-56 bg-black bg-opacity-95 shadow-lg rounded-lg overflow-hidden border ${
-                mobileNavDocked ? "bottom-40" : "bottom-full mb-2"
+                mobileNavDocked ? "bottom-14" : "bottom-full mb-2"
               }`}
               style={{
                 borderColor: selectedItem?.color || "red-500",

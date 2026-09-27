@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { MachineData } from "../Arcade/games.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 import { TERMINAL_FONT, whenFontReady } from "./arcadeFonts.ts";
@@ -13,21 +13,18 @@ const PHOSPHOR = "#39ff6a";
 const GLOW = "0 0 6px rgba(57, 255, 106, 0.65), 0 0 1px rgba(57, 255, 106, 0.9)";
 const CHARS_PER_SECOND = 60;
 
-// The site's phone menu button, docked into the card so nothing floats over the arcade
-function MenuSkull({ className = "relative" }: { className?: string }) {
+// The site's phone menu, docked into the terminal as a key of its own
+function MenuKey() {
   const { mobileMenuOpen, setMobileMenuOpen } = useNavigatorContext();
   return (
-    <button
-      type="button"
-      data-mobile-menu-toggle
+    <TerminalButton
       onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      aria-label="Site menu"
-      aria-expanded={mobileMenuOpen}
-      className={`pointer-events-auto h-12 w-12 shrink-0 focus:outline-none ${mobileMenuOpen ? "opacity-100" : "opacity-70"} ${className}`}
+      pressed={mobileMenuOpen}
+      label="Site menu"
+      menuToggle
     >
-      <span className="absolute inset-1 animate-pulse rounded-full bg-red-500/60 blur-md" />
-      <img src="/images/candleskull.gif" alt="" className="relative z-10 h-full w-full object-cover" />
-    </button>
+      ≡
+    </TerminalButton>
   );
 }
 
@@ -110,15 +107,30 @@ function FittedTitle({ text, shown, cursor }: { text: string; shown: string; cur
   );
 }
 
-// A terminal key: bracketed, lighting up when pressed or hovered
-function TerminalButton({ children, onClick, pressed, label }: { children: string; onClick: () => void; pressed?: boolean; label?: string }) {
+// A terminal key: bracketed, lighting up when pressed, or hovered where there's
+// a mouse (a tap on a phone would otherwise leave it lit after it's let go)
+function TerminalButton({
+  children,
+  onClick,
+  pressed,
+  label,
+  menuToggle = false,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  pressed?: boolean;
+  label?: string;
+  menuToggle?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      aria-pressed={pressed}
-      className="whitespace-nowrap px-1.5 leading-6 transition-colors hover:bg-[#39ff6a] hover:text-[#021407] focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407]"
+      aria-pressed={menuToggle ? undefined : pressed}
+      aria-expanded={menuToggle ? pressed : undefined}
+      data-mobile-menu-toggle={menuToggle || undefined}
+      className="whitespace-nowrap px-1.5 leading-6 transition-colors focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]"
       style={pressed ? { background: PHOSPHOR, color: "#021407" } : undefined}
     >
       [ {children} ]
@@ -155,7 +167,7 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
         >
           {/* The glass: scanlines, a vignette, and phosphor text */}
           <div
-            className={`relative flex flex-1 flex-col justify-center overflow-hidden rounded-xl pb-2 pt-1 ${phone ? "px-14" : "px-4"}`}
+            className="relative flex flex-1 flex-col justify-center overflow-hidden rounded-xl px-4 pb-2 pt-1"
             style={{
               background: "radial-gradient(ellipse at center, #06260f 0%, #021407 70%, #010a04 100%)",
               boxShadow: "inset 0 0 22px rgba(0,0,0,0.9), inset 0 0 2px rgba(0,0,0,1), 0 0 0 3px #1a1614",
@@ -164,7 +176,6 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
               textShadow: GLOW,
             }}
           >
-            {phone && <MenuSkull className="absolute left-2 top-1/2 z-10 -translate-y-1/2" />}
             <FittedTitle text={name} shown={shownName} cursor={typing.cursorAt === 0} />
 
             {/* The pitch and leaderboard, or the info key's details: the same
@@ -201,6 +212,11 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
               <p className="mt-1 h-5 text-base leading-5 opacity-55">CLICK A CART TO PICK · AGAIN TO PLAY · ← → ENTER</p>
             )}
 
+            {phone && (
+              <div className="absolute bottom-1.5 left-2 z-10 text-xl">
+                <MenuKey />
+              </div>
+            )}
             <div className="absolute bottom-1.5 right-2 z-10 text-xl">
               <TerminalButton
                 onClick={() => setShowInfo(!showInfo)}
@@ -226,7 +242,11 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          {phone && <MenuSkull />}
+          {phone && (
+            <div className="pointer-events-auto rounded bg-[#021407] text-xl" style={{ color: PHOSPHOR, fontFamily: TERMINAL_FAMILY }}>
+              <MenuKey />
+            </div>
+          )}
           <p className="rounded-full border border-orange-500/30 bg-black/60 px-4 py-2 text-sm text-orange-100/80 backdrop-blur-sm">
             {phone ? "Swipe the shelf and tap a cartridge to play" : "Click a cartridge to play"}
           </p>
