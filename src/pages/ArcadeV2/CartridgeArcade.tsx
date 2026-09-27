@@ -50,6 +50,7 @@ import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { createSlotTerminal, type SlotTerminal } from "./slotTerminal.ts";
+import { createSlotRig, MARKER_FONT } from "./slotRig.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
@@ -167,7 +168,7 @@ export default function CartridgeArcade({
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
     scene.add(shelfLight);
 
-    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, TERMINAL_FONT]);
+    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, TERMINAL_FONT, MARKER_FONT]);
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -1104,7 +1105,7 @@ export default function CartridgeArcade({
       // Landscape cartridges, wider than tall
       cartSize = { width: cartWidth, height: cartWidth * CARTRIDGE_ASPECT, depth: cartWidth * 0.18 };
 
-      // The cartridge port: a dark block with a neon rim, in the empty strip
+      // The cartridge port: a box with a neon rim, in the empty strip
       // between the controls and the screen so it doesn't sit on the buttons
       const panelCenter = panelBox.isEmpty() ? new Vector3(0, cabinetSize.y * 0.45, cabinetBox.max.z * 0.6) : panelBox.getCenter(new Vector3());
       if (!panelBox.isEmpty() && !screenBox.isEmpty()) {
@@ -1117,12 +1118,23 @@ export default function CartridgeArcade({
       // A raised housing, so the slot reads above the joysticks rather than among them
       const portTop = Math.max(surfaceY + cartSize.height * 0.12, panelBox.isEmpty() ? 0 : panelBox.max.y + cartSize.height * 0.08);
       const portHeight = portTop - surfaceY + cartSize.height * 0.05;
-      const port = new Mesh(
-        track(new BoxGeometry(cartSize.width * 1.22, portHeight, cartSize.depth * 2.2)),
-        track(new MeshStandardMaterial({ color: new Color("#0d0a10"), roughness: 0.6 }))
+      // ...retrofitted: bolted on, taped up, wired into the cabinet
+      const cabinetRay = new Raycaster();
+      const rig = track(
+        createSlotRig({
+          width: cartSize.width * 1.22,
+          height: portHeight,
+          depth: cartSize.depth * 2.2,
+          center: new Vector3(0, portTop - portHeight / 2, panelCenter.z),
+          deckY: surfaceY,
+          surfaceZ: (x, y) => {
+            cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
+            const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
+            return hit ? hit.point.z : panelCenter.z - cartSize.depth;
+          },
+        })
       );
-      port.position.set(0, portTop - portHeight / 2, panelCenter.z);
-      scene.add(port);
+      scene.add(rig.group);
       rimMaterial = track(new MeshBasicMaterial({ color: new Color(SHELF_NEON) }));
       const rimThickness = cartSize.depth * 0.18;
       const rimGeometryX = track(new BoxGeometry(cartSize.width * 1.26, rimThickness, rimThickness));
