@@ -1372,6 +1372,7 @@ export default function CartridgeArcade({
       room?.update(time);
       finish.update(time);
       terminal?.update(time);
+      slotRig?.update(time);
 
       if (screenMode === "power" && time > modeStart + POWER_ON) {
         screenMode = "static";

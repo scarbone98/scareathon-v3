@@ -8,6 +8,7 @@ import {
   EquirectangularReflectionMapping,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   SRGBColorSpace,
@@ -41,6 +42,7 @@ export type SlotRig = {
   group: Group;
   // Run the scanner camera's lead from where it's mounted to the slot
   plugScanner: (from: Vector3) => void;
+  update: (time: number) => void; // the instrument box's scrolling graph
   dispose: () => void;
 };
 
@@ -107,7 +109,7 @@ export function createSlotRig({ width, height, depth, center, deckY, deckAt, dec
     disposables.push(item);
     return item;
   };
-  const add = (geometry: BufferGeometry, material: MeshStandardMaterial, x: number, y: number, z: number) => {
+  const add = (geometry: BufferGeometry, material: MeshStandardMaterial | MeshBasicMaterial, x: number, y: number, z: number) => {
     const mesh = new Mesh(track(geometry), material);
     mesh.position.set(x, y, z);
     group.add(mesh);
@@ -177,6 +179,82 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   // prised open in the bezel under the screen. Zip-tied here and there; all of
   // it clear of the screen and the cartridges.
   const radius = plate * 0.8;
+  // Partway along, the left bundle runs through a little instrument box: a
+  // dark case with a green-screen scope drawing a scrolling line graph
+  const scopeWidth = width * 0.38;
+  const scopeHeight = width * 0.24;
+  const scopeDepth = width * 0.2;
+  const scopeX = center.x - halfWidth - width * 0.1 - scopeWidth / 2;
+  const scopeZ = center.z + depth * 0.6;
+  const scopeY = deckAt(scopeX, scopeZ) + scopeHeight / 2;
+  const scopeCase = track(new MeshStandardMaterial({ color: new Color("#2b2a2e"), roughness: 0.5, metalness: 0.3 }));
+  add(new BoxGeometry(scopeWidth, scopeHeight, scopeDepth), scopeCase, scopeX, scopeY, scopeZ);
+  const scopeFront = scopeZ + scopeDepth / 2;
+  const graphCanvas = document.createElement("canvas");
+  graphCanvas.width = 160;
+  graphCanvas.height = 96;
+  const graph = graphCanvas.getContext("2d")!;
+  const graphTexture = track(new CanvasTexture(graphCanvas));
+  graphTexture.colorSpace = SRGBColorSpace;
+  const graphMaterial = track(new MeshBasicMaterial({ map: graphTexture }));
+  add(new PlaneGeometry(scopeWidth * 0.62, scopeHeight * 0.66), rubber, scopeX - scopeWidth * 0.1, scopeY + scopeHeight * 0.02, scopeFront + 0.001);
+  add(new PlaneGeometry(scopeWidth * 0.56, scopeHeight * 0.58), graphMaterial, scopeX - scopeWidth * 0.1, scopeY + scopeHeight * 0.02, scopeFront + 0.002);
+  // Beside the screen: two LEDs and a knob
+  const ledMaterials = ["#ff3b2f", "#39ff6a"].map((color) => track(new MeshBasicMaterial({ color: new Color(color) })));
+  ledMaterials.forEach((material, i) => {
+    add(new BoxGeometry(plate * 1.1, plate * 1.1, plate * 0.6), material, scopeX + scopeWidth * 0.32, scopeY + scopeHeight * (0.25 - i * 0.18), scopeFront + plate * 0.3);
+  });
+  const knob = add(new CylinderGeometry(plate * 1.8, plate * 2, plate * 1.4, 12), steel, scopeX + scopeWidth * 0.32, scopeY - scopeHeight * 0.22, scopeFront + plate * 0.7);
+  knob.rotation.x = Math.PI / 2;
+  // Sockets either side, where the bundle plugs in and carries on
+  [1, -1].forEach((side) => {
+    const socket = add(new BoxGeometry(plate * 1.2, scopeHeight * 0.5, scopeDepth * 0.6), steel, scopeX + side * (scopeWidth / 2 + plate * 0.6), scopeY - scopeHeight * 0.12, scopeZ);
+    socket.rotation.y = 0;
+  });
+  // The trace: a wandering signal, a sample added every few frames
+  const trace: number[] = new Array(64).fill(0.5);
+  let lastTrace = 0;
+  let phase = 0;
+  const drawGraph = (time: number) => {
+    if (time - lastTrace < 0.05) return;
+    lastTrace = time;
+    phase += 0.35;
+    const noise = Math.sin(phase * 1.7) * 0.15 + Math.sin(phase * 0.43) * 0.2 + (Math.random() - 0.5) * 0.18;
+    trace.push(0.5 + noise + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.7 : 0));
+    trace.shift();
+    graph.fillStyle = "#021407";
+    graph.fillRect(0, 0, 160, 96);
+    graph.strokeStyle = "rgba(57, 255, 106, 0.18)";
+    graph.lineWidth = 1;
+    for (let gx = 0; gx <= 160; gx += 20) {
+      graph.beginPath();
+      graph.moveTo(gx, 0);
+      graph.lineTo(gx, 96);
+      graph.stroke();
+    }
+    for (let gy = 0; gy <= 96; gy += 24) {
+      graph.beginPath();
+      graph.moveTo(0, gy);
+      graph.lineTo(160, gy);
+      graph.stroke();
+    }
+    graph.strokeStyle = "#39ff6a";
+    graph.shadowColor = "#39ff6a";
+    graph.shadowBlur = 6;
+    graph.lineWidth = 2.5;
+    graph.beginPath();
+    trace.forEach((value, i) => {
+      const gx = (i / (trace.length - 1)) * 160;
+      const gy = 96 - Math.min(Math.max(value, 0.04), 0.96) * 96;
+      if (i === 0) graph.moveTo(gx, gy);
+      else graph.lineTo(gx, gy);
+    });
+    graph.stroke();
+    graph.shadowBlur = 0;
+    graphTexture.needsUpdate = true;
+  };
+  drawGraph(1);
+
   const left = ["#b3281e", "#151315", "#d9b83a"];
   left.forEach((color, i) => {
     const x = (along: number) => center.x - along;
@@ -186,8 +264,12 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     const stray = Math.sin(i * 2.3 - 1.7) * width * 0.05;
     const curve = new CatmullRomCurve3([
       new Vector3(x(halfWidth + plate), top - height * 0.35 + spread * 0.4, center.z + spread),
-      on(halfWidth + width * 0.07, center.z + depth * 0.3 + spread, radius * 2),
-      on(halfWidth + width * 0.55 + stray, center.z + depth * 0.7 + spread + stray * 0.5),
+      on(halfWidth + width * 0.05, center.z + depth * 0.3 + spread, radius * 2),
+      // Into the box's right socket, through it, and out of its left
+      new Vector3(scopeX + scopeWidth / 2 + plate * 2, scopeY - scopeHeight * 0.12 + spread * 0.3, scopeZ + spread * 0.5),
+      new Vector3(scopeX, scopeY - scopeHeight * 0.12, scopeZ),
+      new Vector3(scopeX - scopeWidth / 2 - plate * 2, scopeY - scopeHeight * 0.12 + spread * 0.3, scopeZ + spread * 0.5),
+      on(center.x - scopeX + scopeWidth / 2 + width * 0.12 + stray, center.z + depth * 0.8 + spread + stray * 0.5),
       on(deckEdge - width * 0.08, center.z + depth * 0.9 + spread, radius * 1.4),
       on(deckEdge - radius * 2 + spread * 0.3, (center.z + deckFront) / 2 + stray),
       on(deckEdge - radius * 2 + spread * 0.3, deckFront - radius * 3),
@@ -311,6 +393,7 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   return {
     group,
     plugScanner,
+    update: drawGraph,
     dispose() {
       lead?.geometry.dispose();
       disposables.forEach((item) => item.dispose());
