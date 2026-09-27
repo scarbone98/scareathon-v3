@@ -354,6 +354,8 @@ export function createCartridge(
   // hub with tape wound round it
   const windowY = bodyBottom + windowBand * 0.5;
   const windowHeight = windowBand * 0.72;
+  // Reels are sized off the tape shell's window, so they match across shells
+  const reelSize = bodyHeight * 0.2 * 0.72;
   const windowMaterial = new MeshStandardMaterial({ color: new Color("#140f15"), roughness: 0.18, metalness: 0.1 });
   const tapeMaterial = new MeshStandardMaterial({ color: new Color("#3b2519"), roughness: 0.35, metalness: 0.2 });
   const hubTexture = new CanvasTexture(hubCanvas());
@@ -365,8 +367,8 @@ export function createCartridge(
   const reels: { x: number; tape: number; hub: number }[] =
     style === "disc"
       ? [
-          { x: -width * 0.04, tape: windowHeight * 0.44, hub: windowHeight * 0.24 },
-          { x: width * 0.2, tape: windowHeight * 0.32, hub: windowHeight * 0.24 },
+          { x: -width * 0.04, tape: reelSize * 0.47, hub: reelSize * 0.3 },
+          { x: width * 0.2, tape: reelSize * 0.36, hub: reelSize * 0.3 },
         ]
       : style === "brick"
         ? [
