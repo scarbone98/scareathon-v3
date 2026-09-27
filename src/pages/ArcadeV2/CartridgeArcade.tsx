@@ -42,7 +42,7 @@ import {
   marqueeFlicker,
   type ScreenVideo,
 } from "../Arcade/cabinetParts.ts";
-import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
+import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
 import { linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
@@ -1173,7 +1173,9 @@ export default function CartridgeArcade({
       scene.add(portLight);
 
       games.forEach((game, index) => {
-        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize);
+        // Neighbours on the shelf never share a shell
+        const style = CARTRIDGE_STYLES[index % CARTRIDGE_STYLES.length];
+        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize, style);
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
         disposables.push(cart);

@@ -35,6 +35,15 @@ export type Cartridge = {
   dispose: () => void;
 };
 
+// Three shell styles, all cassette-meets-cartridge:
+//   tape:  the bottom tapers in like an audio cassette, two reels in a window
+//   brick: boxy and square-cornered like a chunky VHS cart, grip ridges on top,
+//          a full-width window strip along the bottom with its reels far apart
+//   pod:   heavily rounded with a finger notch in the top, one big reel behind
+//          a round porthole
+export type CartridgeStyle = "tape" | "brick" | "pod";
+export const CARTRIDGE_STYLES: CartridgeStyle[] = ["tape", "brick", "pod"];
+
 // Cartridges are landscape: height as a fraction of width
 export const CARTRIDGE_ASPECT = 0.8;
 
@@ -179,25 +188,52 @@ function paintLabel(
   context.fillText("SCAREATHON · TYPE II", width - PICTURE.x - 2, printY);
 }
 
-// The shell's outline, centred on the origin: square top corners softly rounded,
-// and the bottom tapering in like a cassette's, extruded with rounded edges.
-// `taperHeight` is how far up from the bottom the taper reaches.
-function shellGeometry(width: number, height: number, depth: number, taperHeight: number) {
+// The shell's outline for a style, centred on the origin, extruded with rounded
+// edges. `windowBand` is how far up from the bottom the reel window's band reaches.
+function shellGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number) {
   const bevel = depth * 0.12;
   const x = width / 2 - bevel;
   const top = height / 2 - bevel;
   const bottom = -height / 2 + bevel;
-  const taper = width * 0.09;
-  const corner = width * 0.045;
   const outline = new Shape();
-  outline.moveTo(-x + taper, bottom);
-  outline.lineTo(x - taper, bottom);
-  outline.lineTo(x, bottom + taperHeight);
-  outline.lineTo(x, top - corner);
-  outline.quadraticCurveTo(x, top, x - corner, top);
-  outline.lineTo(-x + corner, top);
-  outline.quadraticCurveTo(-x, top, -x, top - corner);
-  outline.lineTo(-x, bottom + taperHeight);
+  if (style === "tape") {
+    const taper = width * 0.09;
+    const corner = width * 0.045;
+    outline.moveTo(-x + taper, bottom);
+    outline.lineTo(x - taper, bottom);
+    outline.lineTo(x, bottom + windowBand);
+    outline.lineTo(x, top - corner);
+    outline.quadraticCurveTo(x, top, x - corner, top);
+    outline.lineTo(-x + corner, top);
+    outline.quadraticCurveTo(-x, top, -x, top - corner);
+    outline.lineTo(-x, bottom + windowBand);
+  } else if (style === "brick") {
+    // Square, with just the bottom corners clipped
+    const clip = width * 0.03;
+    outline.moveTo(-x + clip, bottom);
+    outline.lineTo(x - clip, bottom);
+    outline.lineTo(x, bottom + clip);
+    outline.lineTo(x, top);
+    outline.lineTo(-x, top);
+    outline.lineTo(-x, bottom + clip);
+  } else {
+    // Fat rounded corners, and a notch scooped out of the top middle
+    const corner = width * 0.13;
+    const notch = width * 0.16;
+    const dip = height * 0.07;
+    outline.moveTo(-x + corner, bottom);
+    outline.lineTo(x - corner, bottom);
+    outline.quadraticCurveTo(x, bottom, x, bottom + corner);
+    outline.lineTo(x, top - corner);
+    outline.quadraticCurveTo(x, top, x - corner, top);
+    outline.lineTo(notch, top);
+    outline.quadraticCurveTo(notch * 0.5, top - dip * 1.4, 0, top - dip);
+    outline.quadraticCurveTo(-notch * 0.5, top - dip * 1.4, -notch, top);
+    outline.lineTo(-x + corner, top);
+    outline.quadraticCurveTo(-x, top, -x, top - corner);
+    outline.lineTo(-x, bottom + corner);
+    outline.quadraticCurveTo(-x, bottom, -x + corner, bottom);
+  }
   outline.closePath();
   const core = depth - bevel * 2;
   const geometry = new ExtrudeGeometry(outline, {
@@ -206,6 +242,7 @@ function shellGeometry(width: number, height: number, depth: number, taperHeight
     bevelThickness: bevel,
     bevelSize: bevel,
     bevelSegments: 3,
+    curveSegments: 10,
   });
   geometry.translate(0, 0, -core / 2);
   return geometry;
@@ -262,7 +299,8 @@ export function createCartridge(
   name: string,
   color: string,
   font: ArcadeFont,
-  size: CartridgeSize
+  size: CartridgeSize,
+  style: CartridgeStyle = "tape"
 ): Cartridge {
   const group = new Group();
   const { width, height, depth } = size;
@@ -295,27 +333,27 @@ export function createCartridge(
   const bodyHeight = height - connectorHeight;
   const bodyBottom = -height / 2 + connectorHeight;
   const bodyTop = height / 2;
-  const taperHeight = bodyHeight * 0.2;
+  // The band along the bottom where the reels show; the label fills the face above it
+  const windowBand = bodyHeight * (style === "pod" ? 0.3 : style === "brick" ? 0.22 : 0.2);
   const front = depth / 2;
-  addPart(shellGeometry(width, bodyHeight, depth, taperHeight), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
+  addPart(shellGeometry(style, width, bodyHeight, depth, windowBand), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
   addPart(new BoxGeometry(width * 0.62, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
   // Gold contacts along both faces of the connector
   addPart(new BoxGeometry(width * 0.56, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
 
-  // The label, set in a darker recess, filling the face above the taper
-  const labelWidth = width * 0.86;
-  const labelTop = bodyTop - width * 0.035;
-  const labelBottom = bodyBottom + taperHeight + width * 0.012;
+  // The label, set in a darker recess, filling the face above the window band.
+  // The brick's top carries grip ridges; the pod's is notched.
+  const labelWidth = width * (style === "pod" ? 0.7 : 0.86);
+  const labelTop = bodyTop - width * (style === "brick" ? 0.085 : style === "pod" ? 0.1 : 0.035);
+  const labelBottom = bodyBottom + windowBand + width * 0.012;
   const labelHeight = labelTop - labelBottom;
   const labelY = (labelTop + labelBottom) / 2;
   addPart(new PlaneGeometry(labelWidth + width * 0.03, labelHeight + width * 0.03), trimMaterial, 0, labelY, front + 0.001);
 
-  // The window onto the tape, in the taper: two reels, each a white hub with tape
-  // wound round it, fuller on the left as if partway through
-  const windowY = bodyBottom + taperHeight * 0.5;
-  const windowHeight = taperHeight * 0.72;
-  const reelSpacing = width * 0.13;
-  const hubRadius = windowHeight * 0.3;
+  // The window onto the tape, in the band along the bottom: reels, each a white
+  // hub with tape wound round it
+  const windowY = bodyBottom + windowBand * 0.5;
+  const windowHeight = windowBand * 0.72;
   const windowMaterial = new MeshStandardMaterial({ color: new Color("#140f15"), roughness: 0.18, metalness: 0.1 });
   const tapeMaterial = new MeshStandardMaterial({ color: new Color("#3b2519"), roughness: 0.35, metalness: 0.2 });
   const hubTexture = new CanvasTexture(hubCanvas());
@@ -323,12 +361,40 @@ export function createCartridge(
   const hubMaterial = new MeshStandardMaterial({ map: hubTexture, transparent: true, roughness: 0.5, alphaTest: 0.1 });
   const screwMaterial = new MeshStandardMaterial({ color: new Color("#b9b4ac"), roughness: 0.35, metalness: 0.8 });
   const reelMaterials = [windowMaterial, tapeMaterial, hubMaterial, screwMaterial];
-  addPart(roundedRect(width * 0.46, windowHeight, windowHeight * 0.3), windowMaterial, 0, windowY, front + 0.001);
-  const hubs = [-1, 1].map((side) => {
-    const tape = windowHeight * (side < 0 ? 0.47 : 0.36);
-    addPart(new CircleGeometry(tape, 28), tapeMaterial, side * reelSpacing, windowY, front + 0.0015);
-    return addPart(new CircleGeometry(hubRadius, 20), hubMaterial, side * reelSpacing, windowY, front + 0.002);
+  // Where each style's reels sit, and how much tape is wound on each
+  const reels: { x: number; tape: number; hub: number }[] =
+    style === "pod"
+      ? [{ x: 0, tape: windowHeight * 0.46, hub: windowHeight * 0.2 }]
+      : style === "brick"
+        ? [
+            { x: -width * 0.27, tape: windowHeight * 0.46, hub: windowHeight * 0.26 },
+            { x: width * 0.27, tape: windowHeight * 0.32, hub: windowHeight * 0.26 },
+          ]
+        : [
+            { x: -width * 0.13, tape: windowHeight * 0.47, hub: windowHeight * 0.3 },
+            { x: width * 0.13, tape: windowHeight * 0.36, hub: windowHeight * 0.3 },
+          ];
+  if (style === "pod") {
+    // A round porthole
+    addPart(new CircleGeometry(windowHeight * 0.52, 32), windowMaterial, 0, windowY, front + 0.001);
+  } else {
+    const windowWidth = style === "brick" ? width * 0.8 : width * 0.46;
+    addPart(roundedRect(windowWidth, windowHeight, windowHeight * (style === "brick" ? 0.12 : 0.3)), windowMaterial, 0, windowY, front + 0.001);
+  }
+  const hubs = reels.map((reel) => {
+    addPart(new CircleGeometry(reel.tape, 28), tapeMaterial, reel.x, windowY, front + 0.0015);
+    return addPart(new CircleGeometry(reel.hub, 20), hubMaterial, reel.x, windowY, front + 0.002);
   });
+  // The brick's grip ridges across its top
+  if (style === "brick") {
+    const ridgeGeometry = new BoxGeometry(width * 0.7, width * 0.009, depth * 0.08);
+    geometries.push(ridgeGeometry);
+    for (let i = 0; i < 4; i += 1) {
+      const ridge = new Mesh(ridgeGeometry, trimMaterial);
+      ridge.position.set(0, bodyTop - width * 0.018 - i * width * 0.016, front + depth * 0.02);
+      group.add(ridge);
+    }
+  }
   // Reels turn at a speed set by setHighlight
   let reelAngle = 0;
   let reelTime = performance.now();
@@ -341,14 +407,21 @@ export function createCartridge(
     });
   };
 
-  // Screws, like a cassette's: at the top corners and either side of the window
+  // Screws, like a cassette's
   const screwGeometry = new CylinderGeometry(width * 0.013, width * 0.013, depth * 0.06, 12);
   const screwAt = (x: number, y: number) => {
     addPart(screwGeometry, screwMaterial, x, y, front + depth * 0.01).rotation.x = Math.PI / 2;
   };
   [-1, 1].forEach((side) => {
-    screwAt(side * width * 0.458, bodyTop - width * 0.022);
-    screwAt(side * width * 0.33, windowY);
+    if (style === "tape") {
+      screwAt(side * width * 0.458, bodyTop - width * 0.022);
+      screwAt(side * width * 0.33, windowY);
+    } else if (style === "brick") {
+      screwAt(side * width * 0.462, bodyTop - width * 0.03);
+      screwAt(side * width * 0.462, bodyBottom + width * 0.03);
+    } else {
+      screwAt(side * width * 0.4, windowY);
+    }
   });
 
   // The paper label on the front
