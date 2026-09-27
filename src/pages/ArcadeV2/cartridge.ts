@@ -39,10 +39,11 @@ export type Cartridge = {
 //   tape:  the bottom tapers in like an audio cassette, two reels in a window
 //   brick: boxy and square-cornered like a chunky VHS cart, grip ridges on top,
 //          a full-width window strip along the bottom with its reels far apart
-//   pod:   heavily rounded with a finger notch in the top, one big reel behind
-//          a round porthole
-export type CartridgeStyle = "tape" | "brick" | "pod";
-export const CARTRIDGE_STYLES: CartridgeStyle[] = ["tape", "brick", "pod"];
+//   disc:  MiniDisc-like and lopsided, one corner cut off big, a sliding metal
+//          shutter across the bottom with a slot onto a single reel, a
+//          write-protect tab, index notches along the top
+export type CartridgeStyle = "tape" | "brick" | "disc";
+export const CARTRIDGE_STYLES: CartridgeStyle[] = ["tape", "brick", "disc"];
 
 // Cartridges are landscape: height as a fraction of width
 export const CARTRIDGE_ASPECT = 0.8;
@@ -217,18 +218,14 @@ function shellGeometry(style: CartridgeStyle, width: number, height: number, dep
     outline.lineTo(-x, top);
     outline.lineTo(-x, bottom + clip);
   } else {
-    // Fat rounded corners, and a notch scooped out of the top middle
-    const corner = width * 0.13;
-    const notch = width * 0.16;
-    const dip = height * 0.07;
+    // Small rounded corners, and the top right cut off big
+    const corner = width * 0.03;
+    const cut = width * 0.16;
     outline.moveTo(-x + corner, bottom);
     outline.lineTo(x - corner, bottom);
     outline.quadraticCurveTo(x, bottom, x, bottom + corner);
-    outline.lineTo(x, top - corner);
-    outline.quadraticCurveTo(x, top, x - corner, top);
-    outline.lineTo(notch, top);
-    outline.quadraticCurveTo(notch * 0.5, top - dip * 1.4, 0, top - dip);
-    outline.quadraticCurveTo(-notch * 0.5, top - dip * 1.4, -notch, top);
+    outline.lineTo(x, top - cut);
+    outline.lineTo(x - cut, top);
     outline.lineTo(-x + corner, top);
     outline.quadraticCurveTo(-x, top, -x, top - corner);
     outline.lineTo(-x, bottom + corner);
@@ -334,7 +331,7 @@ export function createCartridge(
   const bodyBottom = -height / 2 + connectorHeight;
   const bodyTop = height / 2;
   // The band along the bottom where the reels show; the label fills the face above it
-  const windowBand = bodyHeight * (style === "pod" ? 0.3 : style === "brick" ? 0.22 : 0.2);
+  const windowBand = bodyHeight * (style === "disc" ? 0.26 : style === "brick" ? 0.22 : 0.2);
   const front = depth / 2;
   addPart(shellGeometry(style, width, bodyHeight, depth, windowBand), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
   addPart(new BoxGeometry(width * 0.62, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
@@ -342,13 +339,15 @@ export function createCartridge(
   addPart(new BoxGeometry(width * 0.56, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
 
   // The label, set in a darker recess, filling the face above the window band.
-  // The brick's top carries grip ridges; the pod's is notched.
-  const labelWidth = width * (style === "pod" ? 0.7 : 0.86);
-  const labelTop = bodyTop - width * (style === "brick" ? 0.085 : style === "pod" ? 0.1 : 0.035);
+  // The brick's top carries grip ridges; the disc's label stops short of its cut corner.
+  const labelWidth = width * (style === "disc" ? 0.74 : 0.86);
+  const labelTop = bodyTop - width * (style === "brick" ? 0.085 : style === "disc" ? 0.06 : 0.035);
   const labelBottom = bodyBottom + windowBand + width * 0.012;
   const labelHeight = labelTop - labelBottom;
   const labelY = (labelTop + labelBottom) / 2;
-  addPart(new PlaneGeometry(labelWidth + width * 0.03, labelHeight + width * 0.03), trimMaterial, 0, labelY, front + 0.001);
+  // The disc's label sits left, away from its cut corner
+  const labelX = style === "disc" ? -width * 0.05 : 0;
+  addPart(new PlaneGeometry(labelWidth + width * 0.03, labelHeight + width * 0.03), trimMaterial, labelX, labelY, front + 0.001);
 
   // The window onto the tape, in the band along the bottom: reels, each a white
   // hub with tape wound round it
@@ -363,8 +362,8 @@ export function createCartridge(
   const reelMaterials = [windowMaterial, tapeMaterial, hubMaterial, screwMaterial];
   // Where each style's reels sit, and how much tape is wound on each
   const reels: { x: number; tape: number; hub: number }[] =
-    style === "pod"
-      ? [{ x: 0, tape: windowHeight * 0.46, hub: windowHeight * 0.2 }]
+    style === "disc"
+      ? [{ x: width * 0.12, tape: windowHeight * 0.42, hub: windowHeight * 0.24 }]
       : style === "brick"
         ? [
             { x: -width * 0.27, tape: windowHeight * 0.46, hub: windowHeight * 0.26 },
@@ -374,9 +373,31 @@ export function createCartridge(
             { x: -width * 0.13, tape: windowHeight * 0.47, hub: windowHeight * 0.3 },
             { x: width * 0.13, tape: windowHeight * 0.36, hub: windowHeight * 0.3 },
           ];
-  if (style === "pod") {
-    // A round porthole
-    addPart(new CircleGeometry(windowHeight * 0.52, 32), windowMaterial, 0, windowY, front + 0.001);
+  if (style === "disc") {
+    // A sliding metal shutter across the band, grooved where it slides, with
+    // a slot cut through onto the reel
+    const shutter = new MeshStandardMaterial({ color: new Color("#b8bcc2"), roughness: 0.38, metalness: 0.75 });
+    reelMaterials.push(shutter);
+    const shutterWidth = width * 0.62;
+    const slotWidth = windowHeight * 1.05;
+    const reelX = width * 0.12;
+    const edgeL = -shutterWidth / 2 + width * 0.08;
+    const leftPart = reelX - slotWidth / 2 - edgeL;
+    const rightPart = edgeL + shutterWidth - (reelX + slotWidth / 2);
+    const shutterZ = front + depth * 0.03;
+    const plateDepth = depth * 0.04;
+    addPart(new BoxGeometry(leftPart, windowBand * 0.9, plateDepth), shutter, edgeL + leftPart / 2, windowY, shutterZ);
+    addPart(new BoxGeometry(rightPart, windowBand * 0.9, plateDepth), shutter, reelX + slotWidth / 2 + rightPart / 2, windowY, shutterZ);
+    addPart(new BoxGeometry(slotWidth, windowBand * 0.09, plateDepth), shutter, reelX, windowY + windowBand * 0.405, shutterZ);
+    addPart(new BoxGeometry(slotWidth, windowBand * 0.09, plateDepth), shutter, reelX, windowY - windowBand * 0.405, shutterZ);
+    addPart(roundedRect(slotWidth, windowHeight, windowHeight * 0.1), windowMaterial, reelX, windowY, front + 0.001);
+    // The groove it slides in
+    addPart(new BoxGeometry(width * 0.8, width * 0.006, depth * 0.02), trimMaterial, 0, windowY + windowBand * 0.5, front + depth * 0.01);
+    // Write-protect tab in the bottom left corner, and index notches along the top
+    addPart(new BoxGeometry(width * 0.06, width * 0.035, depth * 0.06), trimMaterial, -width * 0.42, bodyBottom + width * 0.045, front + depth * 0.02);
+    for (let n = 0; n < 3; n += 1) {
+      addPart(new BoxGeometry(width * 0.035, width * 0.012, depth * 0.06), trimMaterial, -width * (0.38 - n * 0.06), bodyTop - width * 0.022, front + depth * 0.02);
+    }
   } else {
     const windowWidth = style === "brick" ? width * 0.8 : width * 0.46;
     addPart(roundedRect(windowWidth, windowHeight, windowHeight * (style === "brick" ? 0.12 : 0.3)), windowMaterial, 0, windowY, front + 0.001);
@@ -419,8 +440,8 @@ export function createCartridge(
     } else if (style === "brick") {
       screwAt(side * width * 0.462, bodyTop - width * 0.03);
       screwAt(side * width * 0.462, bodyBottom + width * 0.03);
-    } else {
-      screwAt(side * width * 0.4, windowY);
+    } else if (side < 0) {
+      screwAt(-width * 0.44, bodyTop - width * 0.028);
     }
   });
 
@@ -448,7 +469,7 @@ export function createCartridge(
     emissiveMap: texture,
     emissiveIntensity: 0.35,
   });
-  addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, 0, labelY, depth / 2 + 0.002);
+  addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, labelX, labelY, depth / 2 + 0.002);
 
   // A barcode sticker on the back: what the cabinet's scanner reads to preview the game
   const stickerCanvas = document.createElement("canvas");

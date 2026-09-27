@@ -33,9 +33,16 @@ type RigOptions = {
   deckAt: (x: number, z: number) => number; // the deck's height at a point
   deckFront: number; // z of the deck's front edge
   deckEdge: number; // how far out from the centre the deck runs before the side panels
+  faceZ: (x: number, y: number) => number; // the cabinet's front surface behind a point
+  vent: Vector3; // where the vent under the screen is prised open (x, y)
 };
 
-export type SlotRig = { group: Group; dispose: () => void };
+export type SlotRig = {
+  group: Group;
+  // Run the scanner camera's lead from where it's mounted to the slot
+  plugScanner: (from: Vector3) => void;
+  dispose: () => void;
+};
 
 function labelTexture() {
   const canvas = document.createElement("canvas");
@@ -93,7 +100,7 @@ function studioReflection() {
   return texture;
 }
 
-export function createSlotRig({ width, height, depth, center, deckY, deckAt, deckFront, deckEdge }: RigOptions): SlotRig {
+export function createSlotRig({ width, height, depth, center, deckY, deckAt, deckFront, deckEdge, faceZ, vent }: RigOptions): SlotRig {
   const group = new Group();
   const disposables: { dispose: () => void }[] = [];
   const track = <T extends { dispose: () => void }>(item: T) => {
@@ -164,48 +171,124 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   const labelMesh = add(new PlaneGeometry(labelWidth, labelWidth * (80 / 256)), labelMaterial, center.x + halfWidth - labelWidth * 0.75, top - height * 0.62, front + plate * 0.3);
   labelMesh.rotation.z = -0.07;
 
-  // Loose wiring: a bundle off each end of the housing, sprawling across the
-  // deck behind the buttons, along the side panel, over the control panel's
-  // front corner and away under its overhang, clear of the screen and the
-  // cartridges. Zip-tied here and there.
-  const bundles = [
-    { side: -1, colors: ["#b3281e", "#151315", "#d9b83a"] },
-    { side: 1, colors: ["#2f5d9a", "#3f8a4a", "#e6e0d2", "#c85a26"] },
-  ];
+  // Loose wiring. The left bundle sprawls across the deck behind the buttons,
+  // along the side panel, over the control panel's front corner and away under
+  // its overhang. The right one wanders across the deck and climbs into a vent
+  // prised open in the bezel under the screen. Zip-tied here and there; all of
+  // it clear of the screen and the cartridges.
   const radius = plate * 0.8;
-  bundles.forEach(({ side, colors }) => {
-    const x = (along: number) => center.x + side * along;
+  const left = ["#b3281e", "#151315", "#d9b83a"];
+  left.forEach((color, i) => {
+    const x = (along: number) => center.x - along;
     const on = (along: number, z: number, lift = radius) => new Vector3(x(along), deckAt(x(along), z) + lift, z);
-    colors.forEach((color, i) => {
-      const spread = (i - (colors.length - 1) / 2) * radius * 2.4;
-      // Each wire strays a little differently, so the bundle doesn't lie neatly
-      const stray = Math.sin(i * 2.3 + side * 1.7) * width * 0.05;
-      const curve = new CatmullRomCurve3([
-        new Vector3(x(halfWidth + plate), top - height * 0.35 + spread * 0.4, center.z + spread),
-        on(halfWidth + width * 0.07, center.z + depth * 0.3 + spread, radius * 2),
-        on(halfWidth + width * 0.55 + stray, center.z + depth * 0.7 + spread + stray * 0.5),
-        on(deckEdge - width * 0.08, center.z + depth * 0.9 + spread, radius * 1.4),
-        on(deckEdge - radius * 2 + spread * 0.3, (center.z + deckFront) / 2 + stray),
-        on(deckEdge - radius * 2 + spread * 0.3, deckFront - radius * 3),
-        new Vector3(x(deckEdge - radius * 2 + spread * 0.3), deckAt(x(deckEdge), deckFront - 0.01) - 0.02, deckFront + radius * 1.5),
-        new Vector3(x(deckEdge - radius * 3), deckAt(x(deckEdge), deckFront - 0.01) - 0.11, deckFront + radius),
-        new Vector3(x(deckEdge - radius * 4), deckAt(x(deckEdge), deckFront - 0.01) - 0.3, deckFront - 0.2),
-      ]);
-      const material = track(new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 }));
-      group.add(new Mesh(track(new TubeGeometry(curve, 90, radius, 6)), material));
-    });
-    // Zip ties round the bundle where it turns along the side panel and at the corner
-    [
-      on(deckEdge - width * 0.08, center.z + depth * 0.9, radius * 1.4),
-      on(deckEdge - radius * 2, deckFront - radius * 3),
-    ].forEach((at) => {
-      add(new BoxGeometry(radius * 3.2, radius * 3.2, radius * 1.4), rubber, at.x, at.y, at.z);
-    });
+    const spread = (i - (left.length - 1) / 2) * radius * 2.4;
+    // Each wire strays a little differently, so the bundle doesn't lie neatly
+    const stray = Math.sin(i * 2.3 - 1.7) * width * 0.05;
+    const curve = new CatmullRomCurve3([
+      new Vector3(x(halfWidth + plate), top - height * 0.35 + spread * 0.4, center.z + spread),
+      on(halfWidth + width * 0.07, center.z + depth * 0.3 + spread, radius * 2),
+      on(halfWidth + width * 0.55 + stray, center.z + depth * 0.7 + spread + stray * 0.5),
+      on(deckEdge - width * 0.08, center.z + depth * 0.9 + spread, radius * 1.4),
+      on(deckEdge - radius * 2 + spread * 0.3, (center.z + deckFront) / 2 + stray),
+      on(deckEdge - radius * 2 + spread * 0.3, deckFront - radius * 3),
+      new Vector3(x(deckEdge - radius * 2 + spread * 0.3), deckAt(x(deckEdge), deckFront - 0.01) - 0.02, deckFront + radius * 1.5),
+      new Vector3(x(deckEdge - radius * 3), deckAt(x(deckEdge), deckFront - 0.01) - 0.11, deckFront + radius),
+      new Vector3(x(deckEdge - radius * 4), deckAt(x(deckEdge), deckFront - 0.01) - 0.3, deckFront - 0.2),
+    ]);
+    const material = track(new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 }));
+    group.add(new Mesh(track(new TubeGeometry(curve, 90, radius, 6)), material));
   });
+  [
+    new Vector3(center.x - (deckEdge - width * 0.08), deckAt(center.x - (deckEdge - width * 0.08), center.z + depth * 0.9) + radius * 1.4, center.z + depth * 0.9),
+    new Vector3(center.x - (deckEdge - radius * 2), deckAt(center.x - (deckEdge - radius * 2), deckFront - radius * 3) + radius, deckFront - radius * 3),
+  ].forEach((at) => add(new BoxGeometry(radius * 3.2, radius * 3.2, radius * 1.4), rubber, at.x, at.y, at.z));
+
+  // The vent: its grille cover prised off and hanging by one screw, a dark hole
+  // behind a few bent slats
+  const ventWidth = width * 0.4;
+  const ventHeight = width * 0.17;
+  const ventZ = faceZ(vent.x, vent.y);
+  add(new PlaneGeometry(ventWidth, ventHeight), rubber, vent.x, vent.y, ventZ + 0.002);
+  const bar = plate * 0.9;
+  add(new BoxGeometry(ventWidth + bar * 2, bar, bar), steel, vent.x, vent.y + ventHeight / 2 + bar / 2, ventZ + bar / 2);
+  add(new BoxGeometry(ventWidth + bar * 2, bar, bar), steel, vent.x, vent.y - ventHeight / 2 - bar / 2, ventZ + bar / 2);
+  add(new BoxGeometry(bar, ventHeight, bar), steel, vent.x - ventWidth / 2 - bar / 2, vent.y, ventZ + bar / 2);
+  add(new BoxGeometry(bar, ventHeight, bar), steel, vent.x + ventWidth / 2 + bar / 2, vent.y, ventZ + bar / 2);
+  [0.25, 0.75].forEach((f, i) => {
+    const slat = add(new BoxGeometry(ventWidth * 0.95, bar * 0.5, bar * 0.6), steel, vent.x, vent.y + ventHeight * (f - 0.5), ventZ + bar * 0.3);
+    slat.rotation.z = i ? 0.12 : -0.05;
+  });
+  const cover = new Group();
+  cover.position.set(vent.x + ventWidth / 2, vent.y - ventHeight / 2, ventZ + bar * 1.3);
+  // Hanging down off the vent, clear of the label above it
+  cover.rotation.z = 1.25;
+  const coverPlate = new Mesh(track(new BoxGeometry(ventWidth, ventHeight, plate * 0.4)), metal);
+  coverPlate.position.set(-ventWidth / 2, ventHeight / 2, 0);
+  cover.add(coverPlate);
+  for (let s = 0; s < 3; s += 1) {
+    const slot = new Mesh(track(new PlaneGeometry(ventWidth * 0.8, ventHeight * 0.12)), rubber);
+    slot.position.set(-ventWidth / 2, ventHeight * (0.25 + s * 0.25), plate * 0.21);
+    cover.add(slot);
+  }
+  const hinge = new Mesh(track(new CylinderGeometry(plate * 0.9, plate * 0.9, plate, 8)), steel);
+  hinge.rotation.x = Math.PI / 2;
+  cover.add(hinge);
+  group.add(cover);
+
+  const right = ["#2f5d9a", "#3f8a4a", "#e6e0d2", "#c85a26"];
+  const climbX = vent.x - ventWidth * 0.15;
+  right.forEach((color, i) => {
+    const spread = (i - (right.length - 1) / 2) * radius * 2.4;
+    const stray = Math.sin(i * 1.9 + 0.6) * width * 0.04;
+    const deckPoint = (x: number, z: number, lift = radius) => new Vector3(x, deckAt(x, z) + lift, z);
+    const baseZ = ventZ + radius * 3;
+    const curve = new CatmullRomCurve3([
+      new Vector3(center.x + halfWidth + plate, top - height * 0.35 + spread * 0.4, center.z + spread),
+      deckPoint(center.x + halfWidth + width * 0.08, center.z + depth * 0.35 + spread, radius * 2),
+      deckPoint((center.x + halfWidth + climbX) / 2 + stray, center.z + depth * 0.55 + spread + stray),
+      deckPoint(climbX + spread, baseZ + radius * 2),
+      // Up the bezel, bowing out a little, and in through the hole
+      new Vector3(climbX + spread * 1.2, (deckAt(climbX, baseZ) + vent.y) / 2, ventZ + radius * 2.5),
+      new Vector3(vent.x + spread * 1.6, vent.y - ventHeight * 0.15, ventZ + radius * 1.2),
+      new Vector3(vent.x + spread * 1.8, vent.y, ventZ - 0.03),
+    ]);
+    const material = track(new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 }));
+    group.add(new Mesh(track(new TubeGeometry(curve, 90, radius, 6)), material));
+  });
+  const tie = new Vector3(climbX, deckAt(climbX, ventZ + radius * 5) + radius * 1.5, ventZ + radius * 5);
+  add(new BoxGeometry(radius * 3.2 * 2.4, radius * 3.2, radius * 1.4), rubber, tie.x, tie.y, tie.z);
+
+  // The scanner camera's lead, added once the camera is placed: off the back of
+  // its mount, up the cabinet's front, over the deck's lip and into the bottom
+  // of the housing's front, right of the terminal
+  let lead: Mesh | null = null;
+  const leadMaterial = track(new MeshStandardMaterial({ color: new Color("#1b1a1d"), roughness: 0.5 }));
+  const plugScanner = (from: Vector3) => {
+    if (lead) {
+      group.remove(lead);
+      lead.geometry.dispose();
+    }
+    const x = center.x + width * 0.12;
+    const lip = deckAt(x, deckFront - 0.01);
+    const midY = (from.y + lip) / 2;
+    const housingFront = center.z + depth / 2;
+    const curve = new CatmullRomCurve3([
+      new Vector3(from.x + radius, from.y, faceZ(from.x, from.y) + radius),
+      new Vector3((from.x + x) / 2, midY, faceZ((from.x + x) / 2, midY) + radius * 1.2),
+      new Vector3(x, lip + radius, deckFront + radius),
+      new Vector3(x, deckAt(x, (deckFront + housingFront) / 2) + radius, (deckFront + housingFront) / 2),
+      new Vector3(x, deckY + radius, housingFront + radius * 2),
+      new Vector3(x, deckY + height * 0.18, housingFront - 0.01),
+    ]);
+    lead = new Mesh(new TubeGeometry(curve, 60, radius * 1.1, 6), leadMaterial);
+    group.add(lead);
+  };
 
   return {
     group,
+    plugScanner,
     dispose() {
+      lead?.geometry.dispose();
       disposables.forEach((item) => item.dispose());
     },
   };

@@ -50,7 +50,7 @@ import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { createSlotTerminal, type SlotTerminal } from "./slotTerminal.ts";
-import { createSlotRig, MARKER_FONT } from "./slotRig.ts";
+import { createSlotRig, MARKER_FONT, type SlotRig } from "./slotRig.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
@@ -447,6 +447,7 @@ export default function CartridgeArcade({
     let focusIndex = -1;
     let insertedIndex = -1;
     let terminal: SlotTerminal | null = null;
+    let slotRig: SlotRig | null = null;
     // What the slot's terminal prints for a picked cartridge
     const terminalLines = (game: MachineData) => [
       "> CART READ OK",
@@ -556,6 +557,8 @@ export default function CartridgeArcade({
       scannerCamera.visible = true;
       scannerCamera.updateMatrixWorld(true);
       lensMesh.getWorldPosition(emitter);
+      // Its lead runs off the back of the mount
+      slotRig?.plugScanner(cameraMount.getWorldPosition(new Vector3()));
     };
 
     const scanPoint = new Vector3();
@@ -1137,9 +1140,17 @@ export default function CartridgeArcade({
           },
           deckFront: cabinetBox.max.z - cartSize.depth * 0.5,
           deckEdge: cabinetBox.max.x - cartSize.width * 0.17,
+          faceZ: (x, y) => {
+            cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
+            const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
+            return hit ? hit.point.z : panelCenter.z - cartSize.depth;
+          },
+          // Under the screen's "AUTO TRACKING" label
+          vent: new Vector3(screenBox.max.x - 0.1, screenBox.min.y - 0.1, 0),
         })
       );
       scene.add(rig.group);
+      slotRig = rig;
       rimMaterial = track(new MeshBasicMaterial({ color: new Color(SHELF_NEON) }));
       const rimThickness = cartSize.depth * 0.18;
       const rimGeometryX = track(new BoxGeometry(cartSize.width * 1.26, rimThickness, rimThickness));
