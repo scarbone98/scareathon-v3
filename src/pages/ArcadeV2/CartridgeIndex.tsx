@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { MachineData } from "../Arcade/games.tsx";
 import { stillUrlFor } from "./cartridge.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
-// games' stills and names. Picking one jumps the shelf to it.
+// games' stills and names, with a search prompt along the bottom that filters
+// by name or genre. Picking one jumps the shelf to it.
 
 const PHOSPHOR = "#39ff6a";
 const TERMINAL_FAMILY = `"VT323", ui-monospace, Menlo, Consolas, monospace`;
@@ -24,6 +25,13 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
+
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  // Keep each game's place in the full list: that's what onPick takes
+  const shown = games
+    .map((game, index) => ({ game, index }))
+    .filter(({ game }) => !needle || `${game.name} ${game.cartridge.about.genre}`.toLowerCase().includes(needle));
 
   return (
     <div
@@ -47,7 +55,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 pb-1 pt-3 text-2xl leading-none">
-          <span className="truncate">{`> INDEX · ${games.length} CARTS`}</span>
+          <span className="truncate">{needle ? `> ${shown.length} OF ${games.length} CARTS` : `> INDEX · ${games.length} CARTS`}</span>
           <button
             type="button"
             onClick={onClose}
@@ -58,7 +66,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
           </button>
         </div>
         <ul className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
-          {games.map((game, index) => (
+          {shown.length === 0 && <li className="col-span-full py-6 text-xl">NO CARTRIDGE MATCHES "{query.toUpperCase()}"</li>}
+          {shown.map(({ game, index }) => (
             <li key={game.name}>
               <button
                 type="button"
@@ -97,6 +106,36 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
             </li>
           ))}
         </ul>
+        {/* The search prompt */}
+        <label className="flex items-center gap-2 border-t-2 border-[#39ff6a]/30 px-4 py-2 text-2xl leading-none">
+          <span aria-hidden="true">{"> SEARCH:"}</span>
+          <input
+            type="text"
+            enterKeyHint="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter picks the first match
+              if (event.key === "Enter" && shown.length > 0) onPick(shown[0].index);
+            }}
+            aria-label="Search games"
+            placeholder="_"
+            spellCheck={false}
+            autoComplete="off"
+            className="min-w-0 flex-1 bg-transparent uppercase caret-[#39ff6a] outline-none placeholder:text-[#39ff6a]/50"
+            style={{ color: PHOSPHOR, fontFamily: TERMINAL_FAMILY, textShadow: GLOW }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="shrink-0 px-1.5 leading-6 focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]"
+            >
+              [ CLR ]
+            </button>
+          )}
+        </label>
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
