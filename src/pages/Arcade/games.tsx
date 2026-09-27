@@ -53,6 +53,7 @@ const HORDE_RUSH_URL = "/horde-rush";
 const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
+const MUERTOS_URL = "/muertos";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 
 type ArcadeMessage = {
@@ -411,6 +412,25 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Ghost Ridge", GHOST_RIDGE_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "Muertos",
+      cartridge: {
+        color: "#7a0c0a",
+        tagline: "Survive the night in Old San Juan.",
+        font: { family: "Black Ops One" },
+        about: { released: "2026", players: "Single player", genre: "Zombie survival shooter" },
+      },
+      game: (
+        <GameRenderer
+          title="Muertos"
+          url={MUERTOS_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Muertos", MUERTOS_URL)
           }
         />
       ),

@@ -67,6 +67,8 @@ export class GameController {
   private yaw = 0;
   private pitch = 0;
   private keys = new Set<string>();
+  // Keys and clicks that came and went between two frames still count once.
+  private tapped = new Set<string>();
   private mouse = { fire: false, ads: false };
   private touch = { mx: 0, mz: 0, fire: false, ads: false, reload: false, use: false, knife: false, swap: false, sprint: false };
   private wheelSwap = false;
@@ -128,6 +130,7 @@ export class GameController {
     this.view.deathT = 0;
     this.hurt = 0;
     this.renderer.resetBoards(this.game);
+    this.clearInput();
     this.sound.setMood("play");
     this.lock();
   }
@@ -204,6 +207,7 @@ export class GameController {
 
   private clearInput() {
     this.keys.clear();
+    this.tapped.clear();
     this.mouse = { fire: false, ads: false };
     this.touch = { mx: 0, mz: 0, fire: false, ads: false, reload: false, use: false, knife: false, swap: false, sprint: false };
   }
@@ -214,6 +218,7 @@ export class GameController {
     if (e.repeat) return;
     if ((k === "escape" || k === "p") && this.mode === "play") this.cb.onPause();
     this.keys.add(k);
+    this.tapped.add(k);
   };
   private onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
   private onBlur = () => this.clearInput();
@@ -230,7 +235,10 @@ export class GameController {
       if (e.target === this.canvas || (e.target as HTMLElement)?.dataset?.grab) this.lock();
       return;
     }
-    if (e.button === 0) this.mouse.fire = true;
+    if (e.button === 0) {
+      this.mouse.fire = true;
+      this.tapped.add("mouse0");
+    }
     if (e.button === 2) this.mouse.ads = true;
   };
   private onMouseUp = (e: MouseEvent) => {
@@ -266,7 +274,8 @@ export class GameController {
 
   private readInput(dt: number): Input {
     const k = this.keys;
-    const has = (...n: string[]) => n.some((x) => k.has(x));
+    const tap = this.tapped;
+    const has = (...n: string[]) => n.some((x) => k.has(x) || tap.has(x));
     const t = this.touch;
     // Arrow keys turn, for anyone without a mouse to hand.
     const turn = (has("arrowright") ? 1 : 0) - (has("arrowleft") ? 1 : 0);
@@ -275,12 +284,12 @@ export class GameController {
     this.pitch = clamp(this.pitch + tilt * 1.6 * dt, -1.35, 1.35);
     const fwd = (has("w") ? 1 : 0) - (has("s") ? 1 : 0) + t.mz;
     const str = (has("d") ? 1 : 0) - (has("a") ? 1 : 0) + t.mx;
-    const fire = this.mouse.fire || has(" ", "j") || t.fire;
+    const fire = this.mouse.fire || has(" ", "j", "mouse0") || t.fire;
     // A touch of aim assist on phones, while shooting.
     if (this.isTouch && fire) this.assist(dt);
     const swap = has("1", "2", "tab", "q") || this.wheelSwap || t.swap;
     this.wheelSwap = false;
-    return {
+    const input = {
       forward: clamp(fwd, -1, 1),
       strafe: clamp(str, -1, 1),
       yaw: this.yaw,
@@ -293,6 +302,8 @@ export class GameController {
       swap,
       sprint: has("shift") || t.sprint,
     };
+    tap.clear();
+    return input;
   }
 
   private assist(dt: number) {
@@ -505,7 +516,7 @@ export class GameController {
           this.popup(POWER_NAMES[e.kind], "#ffd84a", undefined, true);
           break;
         case "perk":
-          s.perk(e.perk);
+          s.perk();
           this.popup(PERKS[e.perk].name, PERKS[e.perk].color, PERKS[e.perk].blurb);
           break;
         case "box":

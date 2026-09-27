@@ -36,6 +36,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Ghost Ridge', {
         score: { min: 0, max: 10000000, integer: true },
     }],
+    // Every point earned over the run, spent or not.
+    ['Muertos', {
+        score: { min: 0, max: 10000000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

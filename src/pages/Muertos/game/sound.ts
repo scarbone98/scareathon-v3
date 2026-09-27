@@ -427,7 +427,7 @@ export class Sound {
       notes.forEach((f, i) => this.tone(this.sfx, t + i * 0.09, 0.5, f, 0.15, "square"));
       if (kind === "nuke") this.noiseBurst(this.sfx, t, 2, 0.9, "lowpass", 1500, 1, 60);
     },
-    perk: (_id: string) => {
+    perk: () => {
       if (!this.ctx) return;
       const t = this.t;
       // A little salsa piano montuno.

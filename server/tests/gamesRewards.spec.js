@@ -118,4 +118,12 @@ describe('validateScoreSubmission', () => {
             metricValue: 31250,
         })).toEqual({ ok: true });
     });
+
+    test('accepts Muertos scores', () => {
+        expect(validateScoreSubmission({
+            game: 'Muertos',
+            metricName: 'score',
+            metricValue: 48210,
+        })).toEqual({ ok: true });
+    });
 });
