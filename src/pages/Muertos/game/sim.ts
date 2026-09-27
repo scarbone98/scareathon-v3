@@ -8,6 +8,7 @@ import {
   cellOf,
   collide,
   COLS,
+  floorAt,
   doorCenter,
   DOORS,
   flowField,
@@ -65,7 +66,10 @@ export type ZState = "spawn" | "window" | "climb" | "rise" | "walk" | "dead";
 export type Zombie = {
   id: number;
   x: number;
+  // Height off the ground (rising from graves, climbing walls), and the
+  // ground itself.
   y: number;
+  gy: number;
   z: number;
   yaw: number;
   vx: number;
@@ -124,6 +128,7 @@ export type Prompt = { text: string; cost?: number; can: boolean };
 
 export type Player = {
   x: number;
+  y: number; // the floor underfoot
   z: number;
   yaw: number;
   pitch: number;
@@ -237,6 +242,7 @@ export function newGame(opts: { demo?: boolean; seed?: number } = {}): Game {
     spawnT: 0,
     player: {
       x: PLAYER_START.x,
+      y: floorAt(PLAYER_START.x, PLAYER_START.z),
       z: PLAYER_START.z,
       yaw: PLAYER_START.yaw,
       pitch: 0,
@@ -399,6 +405,7 @@ function spawnZombie(g: Game) {
     id: g.nextId++,
     x: s.from.x,
     y: s.kind === "ground" ? -1.9 : s.kind === "climb" ? -2.4 : 0,
+    gy: floorAt(s.to.x, s.to.z),
     z: s.from.z,
     yaw: s.face,
     vx: 0,
@@ -468,6 +475,7 @@ function stepPlayer(g: Game, dt: number, input: Input) {
   p.x += p.vx * dt;
   p.z += p.vz * dt;
   collide(g.walk, p, PLAYER_R);
+  p.y = floorAt(p.x, p.z);
   p.moving = Math.min(1, Math.hypot(p.vx, p.vz) / WALK);
 
   if (g.demo) p.hp = p.maxHp;
@@ -537,7 +545,7 @@ function knifeHit(g: Game) {
   let best: Zombie | null = null;
   let bestD = 2.1;
   for (const z of g.zombies) {
-    if (z.state === "dead" || z.state === "spawn" || z.y < -0.8) continue;
+    if (z.state === "dead" || z.state === "spawn" || z.y < -0.8 || Math.abs(z.gy - p.y) > 1.5) continue;
     const dx = z.x - p.x;
     const dz = z.z - p.z;
     const d = Math.hypot(dx, dz);
@@ -563,7 +571,7 @@ function fire(g: Game, flat: boolean) {
   g.events.push({ type: "shot", weapon: w.id, pap: w.pap, kick });
   const spread = def.spread * (p.ads ? (def.pellets > 1 ? 0.7 : 0.3) : 1) * (1 + p.moving * (flat ? 0.4 : 0.6));
   const ox = p.x;
-  const oy = flat ? GUN_Y : EYE;
+  const oy = p.y + (flat ? GUN_Y : EYE);
   const oz = p.z;
   const dmgBase = def.damage * (w.pap ? 2 : 1) * (cafe ? 1.33 : 1);
   // Pellets that strike the same zombie add up, so a shotgun blast is one hit.
@@ -580,7 +588,7 @@ function fire(g: Game, flat: boolean) {
     let hitT = wallT;
     let head = false;
     for (const z of g.zombies) {
-      const h = flat ? rayZombie(z, ox, oz, d.x, d.z) : rayZombie3D(z, ox, oy, oz, d.x, d.y, d.z);
+      const h = flat ? rayZombie(z, ox, oz, d.x, d.z, p.y) : rayZombie3D(z, ox, oy, oz, d.x, d.y, d.z);
       if (h && h.t < hitT) {
         hitT = h.t;
         hitZ = z;
@@ -610,7 +618,7 @@ function splash(g: Game, x: number, y: number, z: number, radius: number, dmg: n
   g.events.push({ type: "splash", x, y, z });
   for (const zb of g.zombies) {
     if (zb.state === "dead" || zb.state === "spawn") continue;
-    const d = Math.hypot(zb.x - x, zb.y + 1 - y, zb.z - z);
+    const d = Math.hypot(zb.x - x, zb.gy + zb.y + 1 - y, zb.z - z);
     if (d > radius) continue;
     const f = 1 - (d / radius) * 0.6;
     damage(g, zb, g.insta > 0 ? zb.hp : dmg * f, false, "gun");
@@ -624,7 +632,7 @@ export function rayZombie3D(z: Zombie, ox: number, oy: number, oz: number, dx: n
   if (!z.headless) {
     const lean = z.state === "walk" ? 0.12 : 0;
     const hx = z.x + Math.sin(z.yaw) * lean - ox;
-    const hy = z.y + 1.62 - oy;
+    const hy = z.gy + z.y + 1.62 - oy;
     const hz = z.z - Math.cos(z.yaw) * lean - oz;
     const b = hx * dx + hy * dy + hz * dz;
     const c = hx * hx + hy * hy + hz * hz - 0.24 * 0.24;
@@ -646,7 +654,8 @@ export function rayZombie3D(z: Zombie, ox: number, oy: number, oz: number, dx: n
       for (const t of [(-b - s) / a, (-b + s) / a]) {
         if (t <= 0) continue;
         const y = oy + dy * t;
-        if (y >= Math.max(0, z.y) && y <= z.y + 1.45) {
+        const base = z.gy + z.y;
+        if (y >= Math.max(z.gy, base) && y <= base + 1.45) {
           if (!best || t < best.t) best = { t, head: false };
           break;
         }
@@ -658,10 +667,10 @@ export function rayZombie3D(z: Zombie, ox: number, oy: number, oz: number, dx: n
 
 // Top-down, shots fly flat, so a zombie is a standing circle. One that passes
 // close by the middle counts as a headshot.
-export function rayZombie(z: Zombie, ox: number, oz: number, dx: number, dz: number): { t: number; head: boolean } | null {
+export function rayZombie(z: Zombie, ox: number, oz: number, dx: number, dz: number, floor: number): { t: number; head: boolean } | null {
   if (z.state === "dead" || z.state === "spawn") return null;
-  // Still mostly underground, or up on the wall below the gun.
-  if (z.y < -1.1 || z.y + 1.8 < GUN_Y) return null;
+  // Still mostly underground, or on another level of the fort.
+  if (z.y < -1.1 || Math.abs(z.gy + Math.max(0, z.y) - floor) > 2.5) return null;
   const px = z.x - ox;
   const pz = z.z - oz;
   const along = px * dx + pz * dz;
@@ -1012,7 +1021,10 @@ function stepZombies(g: Game, dt: number) {
       b.z += (dz / d) * push;
     }
   }
-  for (const z of walkers) collide(g.walk, z, ZOMBIE_R);
+  for (const z of walkers) {
+    collide(g.walk, z, ZOMBIE_R);
+    z.gy = floorAt(z.x, z.z);
+  }
 
   // Dead bodies sink away.
   g.zombies = g.zombies.filter((z) => z.state !== "dead" || z.deadT < 4);
@@ -1028,7 +1040,8 @@ function walkZombie(g: Game, z: Zombie, dt: number, over: boolean) {
   const p = g.player;
   const dx = p.x - z.x;
   const dz = p.z - z.z;
-  const dist = Math.hypot(dx, dz);
+  const level = Math.abs(p.y - z.gy) < 1.2;
+  const dist = level ? Math.hypot(dx, dz) : Math.hypot(dx, dz) + 3;
 
   // Attacking.
   if (z.attackT > 0) {
@@ -1098,12 +1111,13 @@ function walkZombie(g: Game, z: Zombie, dt: number, over: boolean) {
   z.vz += (wz - z.vz) * k;
   z.x += z.vx * dt;
   z.z += z.vz * dt;
+  z.gy = floorAt(z.x, z.z);
   const face = dist < 3 ? Math.atan2(dx, -dz) : Math.atan2(z.vx, -z.vz);
   z.yaw += wrap(face - z.yaw) * (1 - Math.exp(-7 * dt));
   z.phase += dt * Math.hypot(z.vx, z.vz) * (z.gait === 0 ? 2.6 : 2.2);
 
   // Keep off the player.
-  if (dist < PLAYER_R + ZOMBIE_R && dist > 1e-4) {
+  if (level && dist < PLAYER_R + ZOMBIE_R && dist > 1e-4) {
     const push = PLAYER_R + ZOMBIE_R - dist;
     z.x -= (dx / dist) * push * 0.7;
     z.z -= (dz / dist) * push * 0.7;
