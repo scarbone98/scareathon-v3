@@ -272,7 +272,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   scene.fog = new FogExp2(FOG.getHex(), 0.06);
 
   // Walls, floor and a low drop ceiling, close in round the cabinet
-  const panelling = track(new MeshStandardMaterial({ map: track(wallTexture()), roughness: 0.75, color: new Color("#7d6556") }));
+  const panelling = track(new MeshStandardMaterial({ map: track(wallTexture()), roughness: 0.75, color: new Color("#3a2e28") }));
   const wall = new Mesh(track(new PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT)), panelling);
   wall.position.set(0, ROOM_HEIGHT / 2, WALL_Z);
   room.add(wall);
@@ -285,7 +285,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   });
   const floor = new Mesh(
     track(new PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH)),
-    track(new MeshStandardMaterial({ map: track(carpetTexture()), roughness: 1, color: new Color("#9a7a66") }))
+    track(new MeshStandardMaterial({ map: track(carpetTexture()), roughness: 1, color: new Color("#5a473b") }))
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, -0.005, WALL_Z + ROOM_DEPTH / 2);
@@ -319,7 +319,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   const sky = new Mesh(track(new PlaneGeometry(windowWidth, windowHeight)), track(new MeshBasicMaterial({ map: track(nightSky()) })));
   sky.position.set(windowAt.x, windowAt.y, WALL_Z + 0.004);
   room.add(sky);
-  const frameWood = track(new MeshStandardMaterial({ color: new Color("#3b2415"), roughness: 0.6 }));
+  const frameWood = track(new MeshStandardMaterial({ color: new Color("#26170d"), roughness: 0.6 }));
   const bar = 0.045;
   const frameDepth = 0.06;
   const frame = (w: number, h: number, x: number, y: number, z = WALL_Z + frameDepth / 2) => {
@@ -350,8 +350,8 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   room.add(pool);
 
   // Stacks of TVs either side: beige plastic and woodgrain, their pictures glowing
-  const beige = track(new MeshStandardMaterial({ color: new Color("#b9ab8e"), roughness: 0.6 }));
-  const walnut = track(new MeshStandardMaterial({ color: new Color("#4a2c18"), roughness: 0.55 }));
+  const beige = track(new MeshStandardMaterial({ color: new Color("#524a3d"), roughness: 0.6 }));
+  const walnut = track(new MeshStandardMaterial({ color: new Color("#2e1b10"), roughness: 0.55 }));
   const bezel = track(new MeshStandardMaterial({ color: new Color("#1a1614"), roughness: 0.4 }));
   const noise = track(staticNoise());
   const bars = track(colourBars());
@@ -369,7 +369,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
     { x: 1.02, y: 0, z: -0.3, w: 0.9, h: 0.68, d: 0.68, body: beige, picture: 0, turn: -0.22 },
     { x: 1.0, y: 0.68, z: -0.32, w: 0.72, h: 0.56, d: 0.58, body: walnut, picture: 2, turn: -0.18 },
   ].map((tv) => ({ ...tv, y: tv.y * TV, w: tv.w * TV, h: tv.h * TV, d: tv.d * TV }));
-  const pictureMaterials = pictures.map((map) => track(new MeshBasicMaterial({ map, color: new Color("#cfcfcf") })));
+  const pictureMaterials = pictures.map((map) => track(new MeshBasicMaterial({ map, color: new Color("#6a6a6a") })));
   tvs.forEach((tv) => {
     const set = new Group();
     set.position.set(tv.x, tv.y + tv.h / 2, tv.z);
@@ -391,7 +391,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   });
 
   // Shelves of tapes against the wall, left and right of the TVs
-  const shelfWood = track(new MeshStandardMaterial({ color: new Color("#3a2214"), roughness: 0.7 }));
+  const shelfWood = track(new MeshStandardMaterial({ color: new Color("#24150d"), roughness: 0.7 }));
   const tapeGeometry = track(new BoxGeometry(0.028, 0.105, 0.07));
   const random = seeded(29);
   const tapeColors = ["#e8772e", "#f2b33d", "#c9452c", "#eadcc0", "#1d1b20", "#6b8f71", "#2f5d8a", "#7b3a1e", "#d8d0bf"];
@@ -413,7 +413,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
       unit.add(upright);
     });
     const perRow = 38;
-    const tapes = new InstancedMesh(tapeGeometry, track(new MeshStandardMaterial({ roughness: 0.5 })), rows * perRow);
+    const tapes = new InstancedMesh(tapeGeometry, track(new MeshStandardMaterial({ roughness: 0.5, color: new Color("#6b6b6b") })), rows * perRow);
     const matrix = new Matrix4();
     let n = 0;
     for (let r = 0; r < rows; r += 1) {
@@ -437,7 +437,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
     room.add(unit);
   });
 
-  const tvLight = new PointLight("#7fd6ff", 0.6, 2.5);
+  const tvLight = new PointLight("#7fd6ff", 0.35, 2.5);
   tvLight.position.set(-0.9, 0.6, 0.1);
   room.add(tvLight);
 
@@ -453,7 +453,7 @@ export function createCassetteRoom(scene: Scene): CassetteRoom {
   moteGeometry.setAttribute("position", new BufferAttribute(motes, 3));
   const dust = new Points(
     moteGeometry,
-    track(new PointsMaterial({ map: dot, color: new Color("#ffcf99"), size: 0.035, transparent: true, opacity: 0.45, depthWrite: false, blending: AdditiveBlending }))
+    track(new PointsMaterial({ map: dot, color: new Color("#ffcf99"), size: 0.035, transparent: true, opacity: 0.3, depthWrite: false, blending: AdditiveBlending }))
   );
   room.add(dust);
 
