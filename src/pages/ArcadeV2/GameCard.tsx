@@ -34,6 +34,7 @@ type Props = {
   style?: CSSProperties;
   className?: string;
   onLeaderboard: (game: MachineData) => void;
+  onBrowseAll: () => void; // opens the index of every cartridge
 };
 
 // Types `parts` out one after another, a character at a time, starting over
@@ -138,7 +139,7 @@ function TerminalButton({
   );
 }
 
-export default function GameCard({ game, phone, style, className = "", onLeaderboard }: Props) {
+export default function GameCard({ game, phone, style, className = "", onLeaderboard, onBrowseAll }: Props) {
   // Stays on while browsing, so you can flick through every game's details
   const [showInfo, setShowInfo] = useState(false);
   const name = game ? game.name.replace(/[‘’]/g, "'").toUpperCase() : "";
@@ -209,7 +210,7 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
             </div>
 
             {!phone && (
-              <p className="mt-1 h-5 text-base leading-5 opacity-55">CLICK A CART TO PICK · AGAIN TO PLAY · ← → ENTER</p>
+              <p className="mt-1 h-5 text-base leading-5 opacity-55">CLICK TWICE TO PLAY · ← → ENTER</p>
             )}
 
             {phone && (
@@ -217,7 +218,10 @@ export default function GameCard({ game, phone, style, className = "", onLeaderb
                 <MenuKey />
               </div>
             )}
-            <div className="absolute bottom-1.5 right-2 z-10 text-xl">
+            <div className="absolute bottom-1.5 right-2 z-10 flex text-xl">
+              <TerminalButton onClick={onBrowseAll} label="Show all games">
+                ALL
+              </TerminalButton>
               <TerminalButton
                 onClick={() => setShowInfo(!showInfo)}
                 pressed={showInfo}

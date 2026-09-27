@@ -46,6 +46,7 @@ import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, s
 import { linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
+import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
@@ -136,6 +137,8 @@ export default function CartridgeArcade({
     setMobileNavDocked(tall);
     return () => setMobileNavDocked(false);
   }, [tall, setMobileNavDocked]);
+  // The index of every cartridge, open over the arcade
+  const [browsing, setBrowsing] = useState(false);
   // Where the card's top goes, just under the ledge, in px
   const [ledgeCardTop, setLedgeCardTop] = useState<number | null>(null);
 
@@ -1417,7 +1420,7 @@ export default function CartridgeArcade({
   // Keyboard: arrows browse, Enter inserts (or plays the inserted game)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (paused) return;
+      if (paused || browsing) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("button, input, textarea, select, a")) return;
       const world = worldRef.current;
@@ -1433,7 +1436,7 @@ export default function CartridgeArcade({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [paused, focused, inserted]);
+  }, [paused, browsing, focused, inserted]);
 
   const shown = focused >= 0 ? focused : inserted;
   const shownGame = games[shown];
@@ -1448,9 +1451,22 @@ export default function CartridgeArcade({
           game={shownGame}
           phone={tall}
           onLeaderboard={onLeaderboard}
+          onBrowseAll={() => setBrowsing(true)}
           // Fills from just under the ledge down to the bottom
           className="absolute bottom-3 left-1/2 z-10 w-[min(94vw,30rem)] -translate-x-1/2"
           style={ledgeCardTop !== null ? { top: ledgeCardTop } : undefined}
+        />
+      )}
+
+      {browsing && (
+        <CartridgeIndex
+          games={games}
+          current={shown}
+          onClose={() => setBrowsing(false)}
+          onPick={(index) => {
+            setBrowsing(false);
+            worldRef.current?.focus(index, true);
+          }}
         />
       )}
 
