@@ -15,6 +15,7 @@ import {
   GRID,
   isDoor,
   isStairs,
+  stairAxis,
   isHouse,
   isWalkChar,
   LAMPS,
@@ -40,6 +41,7 @@ import {
   knifeGeometry,
   cistern,
   counter,
+  hoop,
   dome,
   lighthouse,
   merge,
@@ -250,12 +252,21 @@ const hash = (a: number, b: number) => {
   return h - Math.floor(h);
 };
 // Houses come in blocks of a few cells, each its own colour and height.
+// La Perla's houses are smaller, brighter, and each its own.
+const PERLA_PALETTE = ["#ff5a5a", "#ffd23a", "#3ad0ff", "#7aee6a", "#ff8ad8", "#a07aff", "#ffa03a", "#3affc0", "#ff6ab0"];
+const inPerla = (c: number, r: number) => r <= 10 && c >= 45;
+
 function house(c: number, r: number) {
+  if (inPerla(c, r)) {
+    const k = hash(c * 1.7, r * 2.3);
+    const heights = [4.3, 4.8, 7.6];
+    return { color: C(PERLA_PALETTE[Math.floor(k * PERLA_PALETTE.length)]), h: heights[Math.floor(hash(r, c) * heights.length)], id: c * 100 + r, perla: true };
+  }
   const bc = Math.floor((c + (r % 2)) / 3);
   const br = Math.floor(r / 3);
   const k = hash(bc, br);
   const heights = [7.8, 8.6, 9.4, 11.6];
-  return { color: C(PALETTE[Math.floor(k * PALETTE.length)]), h: heights[Math.floor(hash(br, bc) * heights.length)], id: bc * 100 + br };
+  return { color: C(PALETTE[Math.floor(k * PALETTE.length)]), h: heights[Math.floor(hash(br, bc) * heights.length)], id: bc * 100 + br, perla: false };
 }
 
 const DIRS: [number, number][] = [
@@ -280,7 +291,7 @@ function span(c: number, r: number): { lo: number; hi: number; open: boolean } {
     return { lo: Math.min(a, b, BASE[i]), hi: Math.max(a, b, BASE[i]), open: true };
   }
   if (STANDING.has(ch)) return { lo: BASE[i], hi: BASE[i], open: true };
-  const top = isHouse(ch) ? house(c, r).h : TOP[i];
+  const top = isHouse(ch) ? BASE[i] + house(c, r).h : TOP[i];
   return { lo: top, hi: top, open: false };
 }
 
@@ -320,7 +331,7 @@ const CATHEDRAL_R0 = (() => {
 })();
 
 const FORT_FLOOR = new Set(["P", "U", "V", "t", "=", "r", "v"]);
-const FLOOR_TILE: Record<string, number> = { ".": TILE.cobbles, p: TILE.plaza, g: TILE.grass, y: TILE.grass, d: TILE.earth, e: TILE.path, m: TILE.earth, I: TILE.barFloor, E: TILE.terrace, s: TILE.woodFloor, u: TILE.woodFloor };
+const FLOOR_TILE: Record<string, number> = { ",": TILE.concrete, ":": TILE.court, "/": TILE.concrete, ".": TILE.cobbles, p: TILE.plaza, g: TILE.grass, y: TILE.grass, d: TILE.earth, e: TILE.path, m: TILE.earth, I: TILE.barFloor, E: TILE.terrace, s: TILE.woodFloor, u: TILE.woodFloor };
 
 // Bars are one storey with a ceiling; the rooms under it.
 const CEILING = 3.2;
@@ -741,7 +752,7 @@ export class Renderer {
           const ys = floorAt(x0 + 1, z0 + CELL - 0.001);
           const yn = floorAt(x0 + 1, z0 + 0.001);
           const flat = STANDING.has(ch) ? BASE[r * COLS + c] : null;
-          if (isStairs(ch)) this.stairs(m, x0, z0);
+          if (isStairs(ch)) this.stairs(m, x0, z0, stairAxis(c, r), ch === "/" ? TILE.concrete : TILE.woodFloor);
           else m.quad(V(x0, flat ?? ys, z0 + CELL), V(CELL, 0, 0), V(0, flat === null ? yn - ys : 0, -CELL), tileUV(floorTile(fl)), tint, 2, 2);
         }
         if (UNDER_ROOF.has(ch)) {
@@ -781,10 +792,13 @@ export class Renderer {
           }
 
           const top = me.hi;
-          let y0 = nch === "x" ? (hs ? 0 : -18) : n.lo;
+          const hb = BASE[r * COLS + c];
+          let y0 = nch === "x" ? (hs ? hb : -18) : n.lo;
+          // La Perla's houses at the sea's edge stand on the cliff.
+          if (hs && nch === "x" && hb < 0) stoneFace(bottom, u, -18, hb, TILE.cliff, cliffC);
           // Walls round a bar room, or beside its stairs, are the bar's walls
           // up to the ceiling; above that they're outside again.
-          if (UNDER_ROOF.has(nch) || (isStairs(nch) && y0 < CEILING)) {
+          if (UNDER_ROOF.has(nch) || ((nch === "s" || nch === "u") && y0 < CEILING)) {
             const t = Math.min(top, CEILING);
             if (t > y0) m.quad(bottom.clone().setY(y0), u, V(0, t - y0, 0), tileUV(TILE.barWall), white, 2, 1, [0, 0], [1, 1]);
             if (ch === "N") continue;
@@ -823,22 +837,33 @@ export class Renderer {
             continue;
           }
           if (hs) {
-            // Storeys: ground floor, upper floors, then the cornice.
-            const yFrom = Math.max(0, y0);
+            // Storeys from the house's own ground: the ground floor (or a
+            // boarded window at whatever level the lane beside it is), upper
+            // floors, then the cornice.
+            const yFrom = Math.max(hb, y0);
             const k = hash(c * 3 + dc, r * 5 + dr);
-            let y = 0;
-            const storeys = top >= 11 ? 3 : 2;
-            for (let st = 0; st < storeys; st++) {
-              const t = y + 3.5;
-              if (t > yFrom) {
-                let tile: number = st === 0 ? (k < 0.45 ? TILE.doorGround : TILE.windowGround) : hash(r, c + st) < 0.5 ? TILE.balcony : TILE.shutters;
-                if (st === 0 && ch !== "#") tile = TILE.windowGround;
-                if (st === 0 && ch === "B") this.windowFacade(m, bottom, u, hs.color, TILE.windowHole);
-                else m.quad(bottom.clone().setY(y), u, V(0, 3.5, 0), tileUV(tile), hs.color, 2, 2, [0, Math.max(0, (yFrom - y) / 3.5)], [1, 1]);
-              }
-              y = t;
+            let y = hb;
+            let st = 0;
+            if (ch === "B") {
+              const wy = Math.max(hb, n.lo);
+              if (wy > yFrom + 0.01) m.quad(bottom.clone().setY(yFrom), u, V(0, wy - yFrom, 0), tileUV(TILE.plaster), hs.color, 2, 1);
+              this.windowFacade(m, bottom.clone().setY(wy), u, hs.color, TILE.windowHole);
+              y = wy + 3.5;
+              st = 1;
             }
-            if (top > y) m.quad(bottom.clone().setY(y), u, V(0, top - y, 0), tileUV(TILE.cornice), hs.color, 2, 1, [0, Math.max(0, (yFrom - y) / (top - y))], [1, 1]);
+            for (; y + 3.5 <= top - 0.39; st++, y += 3.5) {
+              if (y + 3.5 <= yFrom) continue;
+              let tile: number = st === 0 ? (k < 0.45 ? TILE.doorGround : TILE.windowGround) : hash(r, c + st) < 0.5 ? TILE.balcony : TILE.shutters;
+              if (st === 0 && ch !== "#") tile = TILE.windowGround;
+              let color = hs.color;
+              if (st === 0 && hs.perla && k > 0.78) {
+                tile = k > 0.89 ? TILE.mural2 : TILE.mural;
+                color = white;
+              }
+              m.quad(bottom.clone().setY(y), u, V(0, 3.5, 0), tileUV(tile), color, 2, 2, [0, Math.max(0, (yFrom - y) / 3.5)], [1, 1]);
+            }
+            const from = Math.max(y, yFrom);
+            if (top > from + 0.01) m.quad(bottom.clone().setY(y), u, V(0, top - y, 0), tileUV(TILE.cornice), hs.color, 2, 1, [0, Math.max(0, (from - y) / (top - y))], [1, 1]);
           }
         }
 
@@ -915,21 +940,38 @@ export class Renderer {
 
   // Stairs up to the bar terraces: treads and risers over the ramp that
   // the game walks on.
-  private stairs(m: Mesher, x0: number, z0: number) {
+  private stairs(m: Mesher, x0: number, z0: number, axis: "x" | "z", tile: number) {
     const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
     const STEPS = 4;
     const d = CELL / STEPS;
-    const tread = tileUV(TILE.woodFloor);
-    const wood = C("#c8a888");
+    const tread = tileUV(tile);
+    const tone = tile === TILE.woodFloor ? C("#c8a888") : C("#e8e4dc");
+    const dark = tone.clone().multiplyScalar(0.7);
+    // Walk the flight in quarter-cell steps along its axis.
+    const at2 = (a: number, b: number) => (axis === "z" ? V(x0 + b, 0, z0 + a) : V(x0 + a, 0, z0 + b));
+    const floorAlong = (a: number) => {
+      const p = at2(a, 1);
+      return floorAt(p.x, p.z);
+    };
     for (let k = 0; k < STEPS; k++) {
-      const za = z0 + k * d;
-      const h = floorAt(x0 + 1, za + d / 2);
-      m.quad(V(x0, h, za + d), V(CELL, 0, 0), V(0, 0, -d), tread, wood, 1, 1);
-      const prev = floorAt(x0 + 1, za - d / 2);
+      const a = k * d;
+      const h = floorAlong(a + d / 2);
+      // The tread: along the axis by d, across by a whole cell.
+      if (axis === "z") m.quad(V(x0, h, z0 + a + d), V(CELL, 0, 0), V(0, 0, -d), tread, tone, 1, 1);
+      else m.quad(V(x0 + a, h, z0 + CELL), V(d, 0, 0), V(0, 0, -CELL), tread, tone, 1, 1);
+      const prev = floorAlong(a - d / 2);
       if (Math.abs(prev - h) < 0.01) continue;
       // The riser faces down the stairs.
-      if (h > prev) m.quad(V(x0 + CELL, prev, za), V(-CELL, 0, 0), V(0, h - prev, 0), tread, wood.clone().multiplyScalar(0.7), 1, 1);
-      else m.quad(V(x0, h, za), V(CELL, 0, 0), V(0, prev - h, 0), tread, wood.clone().multiplyScalar(0.7), 1, 1);
+      const lo = Math.min(prev, h);
+      const up = V(0, Math.abs(h - prev), 0);
+      const facesBack = h > prev;
+      if (axis === "z") {
+        if (facesBack) m.quad(V(x0 + CELL, lo, z0 + a), V(-CELL, 0, 0), up, tread, dark, 1, 1);
+        else m.quad(V(x0, lo, z0 + a), V(CELL, 0, 0), up, tread, dark, 1, 1);
+      } else {
+        if (facesBack) m.quad(V(x0 + a, lo, z0), V(0, 0, CELL), up, tread, dark, 1, 1);
+        else m.quad(V(x0 + a, lo, z0 + CELL), V(0, 0, -CELL), up, tread, dark, 1, 1);
+      }
     }
   }
 
@@ -1026,6 +1068,20 @@ export class Renderer {
           overhead.push(Mesher.bake(g));
         }
       }
+    // The court's hoops, at each end.
+    {
+      const court = findCells(":");
+      if (court.length) {
+        const c0 = Math.min(...court.map(([c]) => c));
+        const c1 = Math.max(...court.map(([c]) => c)) + 1;
+        const rs = court.map(([, r]) => r);
+        const zc = ((Math.min(...rs) + Math.max(...rs) + 1) / 2) * CELL;
+        const y = BASE[court[0][1] * COLS + court[0][0]];
+        place(hoop(), c0 * CELL + 0.4, y, zc, -Math.PI / 2);
+        place(hoop(), c1 * CELL - 0.4, y, zc, Math.PI / 2);
+      }
+    }
+
     // String lights over the terraces.
     this.buildFestoons();
 
@@ -1150,10 +1206,11 @@ export class Renderer {
       const ctr = doorCenter(d);
       const alongZ = d.cells.every(([c]) => c === d.cells[0][0]);
       const span = d.cells.length * CELL;
-      if (d.id === "a") {
+      if (d.id === "a" || d.id === "q" || d.id === "z") {
         const g = new THREE.Mesh(rubble(), mat);
         g.position.set(ctr.x, floorAt(ctr.x, ctr.z), ctr.z);
         g.rotation.y = alongZ ? 0 : Math.PI / 2;
+        g.scale.z = d.cells.length / 4;
         this.scene.add(g);
         this.doors.set(d.id, { parts: [g], openT: -1, kind: "rubble" });
       } else {

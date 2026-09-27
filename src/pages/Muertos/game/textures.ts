@@ -29,10 +29,14 @@ export const TILE = {
   barFloor: 21,
   terrace: 22,
   woodFloor: 23,
+  court: 24,
+  concrete: 25,
+  mural: 26,
+  mural2: 27,
 } as const;
 
-// The atlas is 4 tiles across and 6 down.
-const ATLAS_ROWS = 6;
+// The atlas is 4 tiles across and 7 down.
+const ATLAS_ROWS = 7;
 
 export function canvasTexture(w: number, h: number, draw: (x: CanvasRenderingContext2D) => void, repeat = false) {
   const cv = document.createElement("canvas");
@@ -367,6 +371,49 @@ export function atlasTexture() {
         x.fillRect(ox + Math.floor(rnd() * 64), oy + i * 8, 1, 7);
       }
     });
+    // La Perla: the painted court, bare concrete, and murals.
+    tile(TILE.court, (ox, oy) => {
+      x.fillStyle = "#2f7a5a";
+      x.fillRect(ox, oy, 64, 64);
+      noise(ox, oy, 120, ["#2a6e52", "#358462"]);
+      x.fillStyle = "#b8412e";
+      x.fillRect(ox + 16, oy + 16, 32, 32);
+      x.fillStyle = "#f4efe2";
+      x.fillRect(ox, oy, 64, 2);
+      x.fillRect(ox, oy, 2, 64);
+    });
+    tile(TILE.concrete, (ox, oy) => {
+      x.fillStyle = "#8e8a82";
+      x.fillRect(ox, oy, 64, 64);
+      noise(ox, oy, 300, ["#7e7a72", "#a09c94", "#6e6a64", "#b0aca2"], 2, 1);
+      x.fillStyle = "rgba(40,36,30,0.4)";
+      x.fillRect(ox + rnd() * 50, oy, 1, 64);
+      x.fillRect(ox, oy + 31, 64, 1);
+    });
+    const mural = (i: number, sky: string, sun: string, sea: string, word: string) =>
+      tile(i, (ox, oy) => {
+        x.fillStyle = sky;
+        x.fillRect(ox, oy, 64, 64);
+        x.fillStyle = sun;
+        x.beginPath();
+        x.arc(ox + 40, oy + 22, 11, 0, Math.PI * 2);
+        x.fill();
+        x.fillStyle = sea;
+        x.fillRect(ox, oy + 38, 64, 26);
+        x.fillStyle = "#1c7a3a";
+        for (let k = 0; k < 3; k++) {
+          const px = ox + 6 + k * 20;
+          x.fillRect(px, oy + 22, 2, 18);
+          x.fillRect(px - 5, oy + 20, 12, 3);
+        }
+        x.fillStyle = "#ffffff";
+        x.font = "bold 12px sans-serif";
+        x.fillText(word, ox + 4, oy + 58);
+        x.fillStyle = "rgba(0,0,0,0.25)";
+        x.fillRect(ox, oy + 60, 64, 4);
+      });
+    mural(TILE.mural, "#ff8a3a", "#ffe23a", "#2a7ad8", "PERLA");
+    mural(TILE.mural2, "#a04ae8", "#ff5ab0", "#1ab8c8", "BORICUA");
     roof(TILE.roof, "#c9c4b8", ["#b8b2a4", "#d6d1c6", "#aaa496", "#bfb9ab"]);
     roof(TILE.roofPainted, "#b0543e", ["#a04a36", "#c0654c", "#984434", "#b85c46"]);
   });

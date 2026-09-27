@@ -4,7 +4,10 @@
 // west along Calle Fortaleza under its umbrellas, and back up Calle San
 // Justo to Calle San Sebastián; or north up an alley to Calle Norzagaray on
 // the sea wall, through a gate into the cemetery, and back across the Campo
-// del Morro. West of the Campo, over the moat, stands El Morro. The fort stands in
+// del Morro. West of the Campo, over the moat, stands El Morro. Below
+// Norzagaray and the cemetery, between the city wall and the sea, La Perla
+// tumbles down in tiers of alleys and stairs to a basketball court on the
+// seafront. The fort stands in
 // terraces: the Plaza de Armas in the middle, ringed by casemates; a ramp
 // up to the Santa Bárbara battery and the lighthouse; and, through one more
 // gate, a ramp down to the water battery on the rocks, where the
@@ -21,7 +24,9 @@
 //   Z cathedral front
 //   I bar floor       E rooftop terrace  & bar counter      s u bar stairs
 //   X Mofongo Mule    N bar stair rail
-//   a b c w f h i j l   doors, solid until bought
+//   , concrete alley  : basketball court  / stairs (their slope comes from
+//   the floors at either end)
+//   a b c w f h i j l q z   doors, solid until bought
 //   B Y       a boarded window, in a house or a casemate
 //   4-9       a wall buy painted on the wall
 //   M box   J Coquí Cola   K Piragua Punch   D Café Colao   Q Pack-a-Punch
@@ -30,7 +35,7 @@ export const CELL = 2;
 export const COLS = 90;
 export const ROWS = 56;
 
-export type ZoneId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type ZoneId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export const ZONE_NAMES: Record<ZoneId, string> = {
   1: "Plaza de San José",
   2: "Calle San Sebastián",
@@ -40,7 +45,29 @@ export const ZONE_NAMES: Record<ZoneId, string> = {
   6: "Calle del Cristo",
   7: "Calle Fortaleza",
   8: "Calle Norzagaray",
+  9: "La Perla",
 };
+
+// La Perla, drawn as it stands: row 0 is the sea wall, row 10 the foot of
+// the city wall. Its alleys sit in tiers, stepping down to the sea.
+const PERLA_C0 = 45;
+const PERLA = [
+  "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+  "#,,,,,,,##,,,,,,,::::::::,,,,,,,,,,##,,,,,#",
+  "#,,##,,,##,,###,,::::::::,,,,#,#,,,##,,y,,#",
+  "##/##/####/####/###/####/#####/###/####/###",
+  "##/##/####/####/###/####/#####/###/####/###",
+  "#,,,,,,,,,,,,,#,,,,,,,,#,,,,,,,,,,,,,,,,,,#",
+  "#/#/#B#/##B##/#,##/#B#,#/##B#/##B#,#,##/#/#",
+  "#/#/###/#####/####/#####/####/####,####/#/#",
+  "#,,,,,,,##,,,,,,,,,,,,,,,,,,,,,,,##,,,,,,,#",
+  "###//B###B###B####B###B##//B###B######B####",
+  "###//####################//################",
+];
+const PERLA_TIER = [-6, -6, -6, -6, -6, -4, -4, -4, -2, -2, -2];
+
+// Floors that the cell's letter alone doesn't settle: La Perla's tiers.
+export const FLOOR_OVERRIDE = new Map<number, number>();
 
 function build(): string[][] {
   const g: string[][] = Array.from({ length: ROWS }, () => Array<string>(COLS).fill("x"));
@@ -141,6 +168,17 @@ function build(): string[][] {
   rect(75, 24, 75, 25, "j");
   rect(53, 12, 53, 14, "l");
 
+  // La Perla, and the two ways down: stairs from Norzagaray, and from the
+  // cemetery.
+  PERLA.forEach((line, r) => {
+    [...line].forEach((ch, i) => {
+      g[r][PERLA_C0 + i] = ch;
+      if (ch === "," || ch === ":" || ch === "y") FLOOR_OVERRIDE.set(r * COLS + PERLA_C0 + i, PERLA_TIER[r]);
+    });
+  });
+  rect(70, 11, 71, 11, "q");
+  rect(48, 11, 49, 11, "z");
+
   // Tombs and palms.
   each([[48, 14], [51, 14], [49, 17], [51, 17], [48, 20], [51, 20], [49, 13]], "T");
   each([[36, 25], [46, 27], [38, 33], [48, 35], [34, 36], [31, 15], [40, 14], [33, 20], [29, 31], [43, 19]], "y");
@@ -197,9 +235,9 @@ function build(): string[][] {
 
 export const GRID = build();
 
-const WALK = new Set([".", "p", "g", "d", "e", "y", "P", "U", "V", "t", "=", "r", "v", "I", "E", "s", "u"]);
+const WALK = new Set([".", "p", "g", "d", "e", "y", "P", "U", "V", "t", "=", "r", "v", "I", "E", "s", "u", ",", ":", "/"]);
 const HOUSE = new Set(["#", "B", "1", "2", "4", "5", "6", "8", "9"]);
-const DOOR_CHARS = new Set(["a", "b", "c", "w", "f", "h", "i", "j", "l"]);
+const DOOR_CHARS = new Set(["a", "b", "c", "w", "f", "h", "i", "j", "l", "q", "z"]);
 
 export const isWalkChar = (ch: string) => WALK.has(ch);
 export const isHouse = (ch: string) => HOUSE.has(ch);
@@ -216,16 +254,54 @@ const RAMP: Record<string, { z0: number; z1: number; h0: number; h1: number }> =
   s: { z0: 27 * CELL, z1: 23 * CELL, h0: 0, h1: 4.5 },
   u: { z0: 40 * CELL, z1: 44 * CELL, h0: 0, h1: 4.5 },
 };
-export const isStairs = (ch: string) => ch === "s" || ch === "u";
+export const isStairs = (ch: string) => ch === "s" || ch === "u" || ch === "/";
 
-function cellFloor(ch: string, z: number) {
+// A flight of '/' stairs, running along x or z from the floor at one end
+// to the floor at the other.
+type Flight = { axis: "x" | "z"; a0: number; a1: number; h0: number; h1: number };
+const FLIGHTS = new Map<number, Flight>();
+
+function plainFloor(c: number, r: number) {
+  const i = r * COLS + c;
+  const ch = GRID[r][c];
+  const o = FLOOR_OVERRIDE.get(i);
+  if (o !== undefined) return o;
+  const rp = RAMP[ch];
+  if (rp) return rp.h0 + (rp.h1 - rp.h0) * (((r + 0.5) * CELL - rp.z0) / (rp.z1 - rp.z0) > 0.5 ? 1 : 0);
+  return FLAT[ch] ?? 0;
+}
+
+// The floor at a point in a cell.
+function cellFloor(c: number, r: number, x: number, z: number) {
+  const ch = GRID[r][c];
   const rp = RAMP[ch];
   if (rp) {
     const k = Math.max(0, Math.min(1, (z - rp.z0) / (rp.z1 - rp.z0)));
     return rp.h0 + (rp.h1 - rp.h0) * k;
   }
-  return FLAT[ch] ?? 0;
+  if (ch === "/") {
+    const f = FLIGHTS.get(r * COLS + c);
+    if (!f) return 0;
+    const v = f.axis === "z" ? z : x;
+    const k = Math.max(0, Math.min(1, (v - f.a0) / (f.a1 - f.a0)));
+    return f.h0 + (f.h1 - f.h0) * k;
+  }
+  return plainFloor(c, r);
 }
+
+// A cell's lowest and highest floor, over its edges.
+function cellRange(c: number, r: number): [number, number] {
+  const x0 = c * CELL + 0.001;
+  const x1 = (c + 1) * CELL - 0.001;
+  const z0 = r * CELL + 0.001;
+  const z1 = (r + 1) * CELL - 0.001;
+  const xm = (c + 0.5) * CELL;
+  const zm = (r + 0.5) * CELL;
+  const hs = [cellFloor(c, r, xm, z0), cellFloor(c, r, xm, z1), cellFloor(c, r, x0, zm), cellFloor(c, r, x1, zm)];
+  return [Math.min(...hs), Math.max(...hs)];
+}
+
+export const stairAxis = (c: number, r: number): "x" | "z" => FLIGHTS.get(r * COLS + c)?.axis ?? "z";
 
 // How tall things stand above whatever they sit on.
 const STANDS: Record<string, number> = { L: 1.1, n: 0.9, T: 1.3, M: 1.1, F: 3.4, o: 1.0, Q: 3.2, J: 2.2, K: 2.2, D: 2.2, X: 2.2, H: 15, k: 4.3, "&": 1.1 };
@@ -244,13 +320,44 @@ const DIRS: [number, number][] = [
 export const BASE = new Float32Array(COLS * ROWS);
 export const TOP = new Float32Array(COLS * ROWS);
 (() => {
+  // Work out each flight of stairs from the floors at its ends.
+  const flat = (c: number, r: number) => {
+    const ch = at(c, r);
+    return (isWalkChar(ch) && ch !== "/") || isDoor(ch);
+  };
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (GRID[r][c] !== "/" || FLIGHTS.has(r * COLS + c)) continue;
+      let r0 = r;
+      while (at(c, r0 - 1) === "/") r0--;
+      let r1 = r;
+      while (at(c, r1 + 1) === "/") r1++;
+      let flight: Flight | null = null;
+      let cells: [number, number][] = [];
+      if (flat(c, r0 - 1) && flat(c, r1 + 1)) {
+        flight = { axis: "z", a0: r0 * CELL, a1: (r1 + 1) * CELL, h0: plainFloor(c, r0 - 1), h1: plainFloor(c, r1 + 1) };
+        for (let k = r0; k <= r1; k++) cells.push([c, k]);
+      } else {
+        let c0 = c;
+        while (at(c0 - 1, r) === "/") c0--;
+        let c1 = c;
+        while (at(c1 + 1, r) === "/") c1++;
+        if (flat(c0 - 1, r) && flat(c1 + 1, r)) {
+          flight = { axis: "x", a0: c0 * CELL, a1: (c1 + 1) * CELL, h0: plainFloor(c0 - 1, r), h1: plainFloor(c1 + 1, r) };
+          cells = [];
+          for (let k = c0; k <= c1; k++) cells.push([k, r]);
+        }
+      }
+      if (flight) for (const [cc, rr] of cells) FLIGHTS.set(rr * COLS + cc, flight);
+    }
+  }
   const known = new Uint8Array(COLS * ROWS);
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const i = r * COLS + c;
       const ch = GRID[r][c];
       if (isWalkChar(ch) || ch === "m" || isDoor(ch)) {
-        BASE[i] = cellFloor(ch, (r + 0.5) * CELL);
+        BASE[i] = cellFloor(c, r, (c + 0.5) * CELL, (r + 0.5) * CELL);
         known[i] = 1;
       } else if (!(ch in STANDS)) known[i] = 1;
     }
@@ -271,7 +378,7 @@ export const TOP = new Float32Array(COLS * ROWS);
           const nch = GRID[nr][nc];
           const ok = isWalkChar(nch) || (pass > 0 && known[n] === 2);
           if (!ok) continue;
-          const f = isWalkChar(nch) ? Math.max(cellFloor(nch, nr * CELL), cellFloor(nch, (nr + 1) * CELL)) : BASE[n];
+          const f = isWalkChar(nch) ? cellRange(nc, nr)[1] : BASE[n];
           best = Math.max(best, f);
         }
         if (best > -Infinity) {
@@ -281,11 +388,27 @@ export const TOP = new Float32Array(COLS * ROWS);
       }
     }
   }
+  // Houses stand on the lowest ground beside them (La Perla's step down
+  // the hill); those with no ground beside them follow their neighbours.
+  for (let pass = 0; pass < 4; pass++) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (!isHouse(GRID[r][c])) continue;
+        let low = BASE[r * COLS + c];
+        for (const [dc, dr] of DIRS) {
+          const nch = at(c + dc, r + dr);
+          if (pass === 0 && (isWalkChar(nch) || isDoor(nch))) low = Math.min(low, cellRange(c + dc, r + dr)[0]);
+          else if (pass > 0 && isHouse(nch)) low = Math.min(low, BASE[(r + dr) * COLS + c + dc]);
+        }
+        BASE[r * COLS + c] = low;
+      }
+    }
+  }
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const i = r * COLS + c;
       const ch = GRID[r][c];
-      if (isWalkChar(ch) || ch === "m" || isDoor(ch)) TOP[i] = Math.max(cellFloor(ch, r * CELL), cellFloor(ch, (r + 1) * CELL));
+      if (isWalkChar(ch) || ch === "m" || isDoor(ch)) TOP[i] = cellRange(c, r)[1];
       else if (ch === "x") TOP[i] = -18;
       else if (ch in STANDS) TOP[i] = BASE[i] + STANDS[ch];
       else if (ch in ABS) TOP[i] = ABS[ch];
@@ -300,7 +423,7 @@ export function floorAt(x: number, z: number) {
   const r = Math.floor(z / CELL);
   if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return 0;
   const ch = GRID[r][c];
-  if (RAMP[ch]) return cellFloor(ch, z);
+  if (RAMP[ch] || ch === "/") return cellFloor(c, r, x, z);
   return BASE[r * COLS + c];
 }
 
@@ -335,6 +458,8 @@ export const DOORS: DoorDef[] = [
   { id: "i", cells: [], cost: 1250, zones: [7, 2], label: "Clear the barricade" },
   { id: "j", cells: [], cost: 750, zones: [1, 8], label: "Open the alley" },
   { id: "l", cells: [], cost: 1000, zones: [8, 3], label: "Open the cemetery gate" },
+  { id: "q", cells: [], cost: 1250, zones: [8, 9], label: "Take the stairs down to La Perla" },
+  { id: "z", cells: [], cost: 1000, zones: [3, 9], label: "Open the way down to La Perla" },
 ];
 for (let r = 0; r < ROWS; r++) {
   for (let c = 0; c < COLS; c++) {
@@ -362,6 +487,7 @@ export const ZONE: Int8Array = (() => {
     [70, 44, 6],
     [60, 46, 7],
     [70, 13, 8],
+    [50, 8, 9],
   ];
   for (const [sc, sr, id] of seeds) {
     const q: [number, number][] = [[sc, sr]];
@@ -428,7 +554,7 @@ export const SPAWNS: SpawnDef[] = (() => {
     }
   }
   // Up over the sea walls from the rocks below.
-  for (const [c, r] of [[8, 4], [15, 4], [1, 7], [1, 17], [1, 28], [8, 36], [17, 36], [32, 11], [43, 11], [62, 11], [74, 11], [84, 11], [68, 54], [74, 54]] as [number, number][]) {
+  for (const [c, r] of [[8, 4], [15, 4], [1, 7], [1, 17], [1, 28], [8, 36], [17, 36], [32, 11], [43, 11], [62, 11], [74, 11], [84, 11], [68, 54], [74, 54], [50, 0], [58, 0], [66, 0], [76, 0], [84, 0]] as [number, number][]) {
     const [dc, dr] = openSide(c, r);
     list.push(entry(c, r, dc, dr, "climb", 1.6));
   }
@@ -513,6 +639,10 @@ export const LAMPS: Lamp[] = (() => {
   add(57, 18, 2.8, [1, 0.7, 0.4], 9, [1, 0]);
   add(65, 21, 2.8, [1, 0.7, 0.4], 9, [-1, 0]);
   add(78, 45, 2.8, [1, 0.7, 0.4], 9, [-1, 0]);
+  // La Perla: bare bulbs over the alleys, and the court's floodlights.
+  for (const [c, r] of [[52, 9], [61, 9], [65, 9], [79, 9]]) add(c, r, 2.8, [1, 0.72, 0.4], 8, [0, -1]);
+  for (const [c, r] of [[49, 6], [56, 6], [71, 6], [76, 6]]) add(c, r, 2.8, [1, 0.65, 0.35], 8, [0, -1]);
+  for (const [c, r] of [[52, 3], [72, 3], [82, 3]]) add(c, r, 3.2, [0.85, 0.9, 1], 10, [0, -1]);
   for (const [c, r] of [[75, 17], [79, 21], [75, 22]]) add(c, r, 3.4);
   // Cristo, the park, Fortaleza and San Justo.
   for (const [c, r] of [[72, 39], [68, 39]]) add(c, r, 3.4);

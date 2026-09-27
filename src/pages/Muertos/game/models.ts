@@ -159,6 +159,19 @@ export function espadana() {
   return merge(parts);
 }
 
+// A basketball hoop, facing -z: pole, backboard, orange rim, a ragged net.
+export function hoop() {
+  const rim = new THREE.TorusGeometry(0.23, 0.025, 4, 10).rotateX(Math.PI / 2).translate(0, 3.05, -0.95);
+  return merge([
+    paint(cyl(0.07, 0.09, 3.4, 6, 0, 1.7, 0), C("#3a3a40")),
+    paint(box(0.08, 0.08, 0.7, 0, 3.3, -0.35), C("#3a3a40")),
+    paint(box(1.6, 1.0, 0.06, 0, 3.4, -0.72), C("#f4f2ee")),
+    paint(box(0.6, 0.45, 0.07, 0, 3.25, -0.74), C("#d8231f")),
+    paint(rim, C("#ff7a1a")),
+    paint(new THREE.CylinderGeometry(0.22, 0.14, 0.4, 8, 1, true).translate(0, 2.83, -0.95), C("#e8e8e8")),
+  ]);
+}
+
 // A bar counter with bottles along it.
 export function counter(seed: number) {
   const rnd = mulberry32(seed);
