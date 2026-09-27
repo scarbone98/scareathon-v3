@@ -89,9 +89,14 @@ const CRT_STYLES = `
   from { transform: translateY(420%); } to { transform: translateY(-120%); }
 }
 @keyframes crt-roll-out { from { opacity: 0.6; } to { opacity: 0; } }
+@keyframes crt-flash {
+  0% { opacity: 1; } 32.99% { opacity: 1; } 33% { opacity: 0; } 65.99% { opacity: 0; }
+  66% { opacity: 1; } 82.99% { opacity: 1; } 83% { opacity: 0; } 100% { opacity: 0; }
+}
+.crt-snow-jump { animation: crt-snow 0.36s linear infinite; }
+.crt-snow-flash { animation: crt-flash 0.26s linear infinite; }
 .crt-snow {
   animation:
-    crt-snow 0.36s linear infinite,
     crt-in ${FADE_IN_MS}ms ease-out both,
     crt-snow-out ${TUNE_MS * 0.7}ms linear ${TUNE_AT}ms forwards;
 }
@@ -165,9 +170,17 @@ export default function CrtTransition({ mode, onMidpoint, onDone }: Props) {
       {mode === "on" ? (
         <>
           <style>{CRT_STYLES}</style>
-          {/* Both snow layers are twice the screen's size so they cover as they jump about */}
+          {/* The jumping snow layers are twice the screen's size so they cover as they jump about */}
           <div className="crt-tears absolute inset-[-50%]" style={noise} />
-          <div className="crt-snow absolute inset-[-50%]" style={noise} />
+          {/* Safari only draws the on-screen part of a big layer, and can't draw the
+              rest while the game loads, so the jumping snow opens gaps as it moves.
+              Two screen-sized layers, drawn in full before the game starts, sit
+              under it so a gap only ever shows more snow. */}
+          <div className="crt-snow absolute inset-0">
+            <div className="absolute inset-0" style={noise} />
+            <div className="crt-snow-flash absolute inset-0" style={{ ...noise, backgroundPosition: "171px 97px" }} />
+            <div className="crt-snow-jump absolute inset-[-50%]" style={noise} />
+          </div>
           {/* The rolling vertical-hold bar */}
           <div className="crt-roll absolute inset-x-0 top-0 h-1/4 bg-gradient-to-b from-transparent via-black to-transparent" />
         </>
