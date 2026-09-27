@@ -341,13 +341,13 @@ export function createCartridge(
 
   // The label, set in a darker recess, filling the face above the window band.
   // The brick's top carries grip ridges; the disc's label stops short of its notch.
-  const labelWidth = width * (style === "disc" ? 0.74 : 0.86);
-  const labelTop = bodyTop - width * (style === "brick" ? 0.085 : style === "disc" ? 0.06 : 0.035);
+  const labelWidth = width * (style === "disc" ? 0.8 : 0.86);
+  const labelTop = bodyTop - width * (style === "brick" ? 0.085 : 0.035);
   const labelBottom = bodyBottom + windowBand + width * 0.012;
   const labelHeight = labelTop - labelBottom;
   const labelY = (labelTop + labelBottom) / 2;
   // The disc's label sits left, away from its notch
-  const labelX = style === "disc" ? -width * 0.05 : 0;
+  const labelX = style === "disc" ? -width * 0.06 : 0;
   addPart(new PlaneGeometry(labelWidth + width * 0.03, labelHeight + width * 0.03), trimMaterial, labelX, labelY, front + 0.001);
 
   // The window onto the tape, in the band along the bottom: reels, each a white
@@ -364,7 +364,10 @@ export function createCartridge(
   // Where each style's reels sit, and how much tape is wound on each
   const reels: { x: number; tape: number; hub: number }[] =
     style === "disc"
-      ? [{ x: width * 0.12, tape: windowHeight * 0.42, hub: windowHeight * 0.24 }]
+      ? [
+          { x: -width * 0.04, tape: windowHeight * 0.44, hub: windowHeight * 0.24 },
+          { x: width * 0.2, tape: windowHeight * 0.32, hub: windowHeight * 0.24 },
+        ]
       : style === "brick"
         ? [
             { x: -width * 0.27, tape: windowHeight * 0.46, hub: windowHeight * 0.26 },
@@ -376,12 +379,12 @@ export function createCartridge(
           ];
   if (style === "disc") {
     // A sliding metal shutter across the band, grooved where it slides, with
-    // a slot cut through onto the reel
+    // a slot cut through onto the reels
     const shutter = new MeshStandardMaterial({ color: new Color("#b8bcc2"), roughness: 0.38, metalness: 0.75 });
     reelMaterials.push(shutter);
     const shutterWidth = width * 0.62;
-    const slotWidth = windowHeight * 1.05;
-    const reelX = width * 0.12;
+    const slotWidth = width * 0.44;
+    const reelX = width * 0.08; // the slot's middle, between the reels
     const edgeL = -shutterWidth / 2 + width * 0.08;
     const leftPart = reelX - slotWidth / 2 - edgeL;
     const rightPart = edgeL + shutterWidth - (reelX + slotWidth / 2);
@@ -394,10 +397,16 @@ export function createCartridge(
     addPart(roundedRect(slotWidth, windowHeight, windowHeight * 0.1), windowMaterial, reelX, windowY, front + 0.001);
     // The groove it slides in
     addPart(new BoxGeometry(width * 0.8, width * 0.006, depth * 0.02), trimMaterial, 0, windowY + windowBand * 0.5, front + depth * 0.01);
-    // Write-protect tab in the bottom left corner, and index notches along the top
+    // Write-protect tab in the bottom left corner
     addPart(new BoxGeometry(width * 0.06, width * 0.035, depth * 0.06), trimMaterial, -width * 0.42, bodyBottom + width * 0.045, front + depth * 0.02);
-    for (let n = 0; n < 3; n += 1) {
-      addPart(new BoxGeometry(width * 0.035, width * 0.012, depth * 0.06), trimMaterial, -width * (0.38 - n * 0.06), bodyTop - width * 0.022, front + depth * 0.02);
+    // Grip ridges down the strip right of the label, under the notch
+    const ridgeGeometry = new BoxGeometry(width * 0.075, width * 0.009, depth * 0.08);
+    geometries.push(ridgeGeometry);
+    const ridgeX = labelX + labelWidth / 2 + width * 0.015 + width * 0.05;
+    for (let y = bodyTop - width * 0.13; y > labelBottom + width * 0.01; y -= width * 0.016) {
+      const ridge = new Mesh(ridgeGeometry, trimMaterial);
+      ridge.position.set(ridgeX, y, front + depth * 0.02);
+      group.add(ridge);
     }
   } else {
     const windowWidth = style === "brick" ? width * 0.8 : width * 0.46;
