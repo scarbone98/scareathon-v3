@@ -38,44 +38,49 @@ export default function ArcadePlayOverlay({ machine, onClose, returnPath }: Arca
   if (!machine?.game) return null;
 
   return (
-    <div
-      className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center bg-black bg-opacity-50"
-      style={{ top: headerHeight }}
-    >
-      <div className="flex h-full w-fit flex-col items-center justify-start">
-        <Toolbar
-          currentGame={machine.name}
-          hasLeaderboard={machine.hasLeaderboard !== false}
-          onClose={onClose}
-        />
-        {machine.game}
-      </div>
-      {guestScore && (
-        <div
-          role="status"
-          className="fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,30rem)] -translate-x-1/2 items-center gap-3 rounded-lg border border-amber-400/60 bg-black/90 px-4 py-3 text-sm text-amber-100 shadow-2xl"
-        >
-          <span className="flex-1">
-            Nice run! <strong className="text-amber-300">{guestScore.score.toLocaleString()}</strong>{" "}
-            points. Sign in to save your scores and earn coins.
-          </span>
-          <Link
-            to="/authentication"
-            state={{ from: `${returnPath}?game=${encodeURIComponent(guestScore.game)}` }}
-            className="shrink-0 rounded bg-amber-500 px-3 py-2 font-bold text-black transition hover:bg-amber-400"
-          >
-            Sign in
-          </Link>
-          <button
-            type="button"
-            onClick={() => setGuestScore(null)}
-            aria-label="Dismiss"
-            className="shrink-0 px-1 text-lg leading-none text-amber-200/70 transition hover:text-amber-100"
-          >
-            ×
-          </button>
+    <>
+      {/* Solid black behind the game, edge to edge, so nothing shows around a
+          game that doesn't fill the screen */}
+      <div className="fixed inset-0 z-40 bg-black" aria-hidden="true" />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center bg-black"
+        style={{ top: headerHeight }}
+      >
+        <div className="flex h-full w-fit flex-col items-center justify-start">
+          <Toolbar
+            currentGame={machine.name}
+            hasLeaderboard={machine.hasLeaderboard !== false}
+            onClose={onClose}
+          />
+          {machine.game}
         </div>
-      )}
-    </div>
+        {guestScore && (
+          <div
+            role="status"
+            className="fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,30rem)] -translate-x-1/2 items-center gap-3 rounded-lg border border-amber-400/60 bg-black/90 px-4 py-3 text-sm text-amber-100 shadow-2xl"
+          >
+            <span className="flex-1">
+              Nice run! <strong className="text-amber-300">{guestScore.score.toLocaleString()}</strong>{" "}
+              points. Sign in to save your scores and earn coins.
+            </span>
+            <Link
+              to="/authentication"
+              state={{ from: `${returnPath}?game=${encodeURIComponent(guestScore.game)}` }}
+              className="shrink-0 rounded bg-amber-500 px-3 py-2 font-bold text-black transition hover:bg-amber-400"
+            >
+              Sign in
+            </Link>
+            <button
+              type="button"
+              onClick={() => setGuestScore(null)}
+              aria-label="Dismiss"
+              className="shrink-0 px-1 text-lg leading-none text-amber-200/70 transition hover:text-amber-100"
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

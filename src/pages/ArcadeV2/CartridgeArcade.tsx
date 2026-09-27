@@ -469,6 +469,7 @@ export default function CartridgeArcade({
       });
     };
 
+    let observedCard: Element | null = null;
     const fitCamera = () => {
       const { width, height } = size();
       const aspect = width / height;
@@ -490,7 +491,20 @@ export default function CartridgeArcade({
       // Fit the scene into the band of screen the page's chrome leaves free: under
       // the top nav on wide screens, above the info card on tall ones
       const reserveTop = layoutMode === "wall" ? Math.min(NAV_CLEARANCE, height * 0.14) : 0;
-      const reserveBottom = layoutMode === "wall" ? height * 0.02 : Math.min(LEDGE_CARD_SPACE, height * 0.42);
+      // On phones, keep clear of the card along the bottom: measure it when it's there
+      const card = mount.parentElement?.querySelector("[data-arcade-card]");
+      const cardSpace = card ? mount.getBoundingClientRect().bottom - card.getBoundingClientRect().top : LEDGE_CARD_SPACE;
+      // Refit whenever the card changes size; it renders just after the model loads
+      if (card && card !== observedCard) {
+        observedCard = card;
+        resizeObserver.observe(card);
+      } else if (!card) {
+        requestAnimationFrame(() => {
+          if (!disposed) fitCamera();
+        });
+      }
+      const reserveBottom =
+        layoutMode === "wall" ? height * 0.02 : Math.min(cardSpace > 40 ? cardSpace : LEDGE_CARD_SPACE, height * 0.42);
       const freeShare = (height - reserveTop - reserveBottom) / height;
       const tan = Math.tan((camera.fov * Math.PI) / 360);
       if (layoutMode === "ledge") {
@@ -501,9 +515,30 @@ export default function CartridgeArcade({
         const cameraZ = cabinetBox.max.z + frontDistance;
         const depth = cameraZ - center.z;
         const visibleHeight = 2 * tan * depth;
-        const targetY = box.min.y + visibleHeight / 2 - (reserveBottom / height) * visibleHeight;
+        shelfGroup.position.y = 0;
+        let targetY = box.min.y + visibleHeight / 2 - (reserveBottom / height) * visibleHeight;
+        // When there's room, pin the cabinet's top to the top of the screen and
+        // lower the ledge to sit just above the card, rather than leaving a gap
+        // above the cabinet
+        const topAnchoredY = cabinetBox.max.y + visibleHeight * 0.01 - visibleHeight / 2;
+        const anchorTop = topAnchoredY < targetY && carts.length > 0;
+        if (anchorTop) targetY = topAnchoredY;
         cameraTarget.set(center.x, targetY, center.z);
         cameraBase.set(center.x, targetY + extent.y * 0.04, cameraZ);
+        if (anchorTop) {
+          // Measure where the ledge's front edge lands on screen and drop the
+          // shelf until it tucks just under the top of the card
+          camera.position.copy(cameraBase);
+          camera.lookAt(cameraTarget);
+          camera.updateMatrixWorld();
+          const ledgeBottom = carts[0].home.y - cartSize.height / 2 - cartSize.height * 0.07;
+          const edge = new Vector3(0, ledgeBottom, shelfGroup.position.z + cartSize.depth * 1.7).project(camera);
+          const edgePx = ((1 - edge.y) / 2) * height;
+          const wantPx = height - reserveBottom + 10;
+          const worldPerPx = (2 * tan * (cameraZ - shelfGroup.position.z)) / height;
+          shelfGroup.position.y = Math.min(0, -(wantPx - edgePx) * worldPerPx);
+        }
+        shelfLight.position.y = carts.length ? carts[0].home.y + shelfGroup.position.y + cartSize.height * 1.5 : shelfLight.position.y;
       } else {
         const distance = Math.max(extent.y / 2 / (tan * freeShare), extent.x / 2 / (tan * aspect)) * 0.86 + extent.z / 2;
         // Slide the camera so the scene's middle lands in the middle of that band
@@ -769,6 +804,7 @@ export default function CartridgeArcade({
       cabinetBox = new Box3().setFromObject(holder);
 
       const panelBox = new Box3();
+      const screenBox = new Box3();
       model.traverse((child) => {
         if (!(child instanceof Mesh) || !child.material) return;
         const material = child.material as MeshStandardMaterial;
@@ -779,6 +815,7 @@ export default function CartridgeArcade({
           screenMaterial.emissive = new Color("#ffffff");
           screenMaterial.emissiveIntensity = 0.85;
           child.material = screenMaterial;
+          screenBox.setFromObject(child);
           showOnScreen(screenTexture);
         } else if (material.name === "Marque") {
           marqueeMaterial = material.clone();
@@ -802,14 +839,24 @@ export default function CartridgeArcade({
       // Landscape cartridges, wider than tall
       cartSize = { width: cartWidth, height: cartWidth * CARTRIDGE_ASPECT, depth: cartWidth * 0.26 };
 
-      // The cartridge port: a dark block with a neon rim, between the two sets of controls
+      // The cartridge port: a dark block with a neon rim, in the empty strip
+      // between the controls and the screen so it doesn't sit on the buttons
       const panelCenter = panelBox.isEmpty() ? new Vector3(0, cabinetSize.y * 0.45, cabinetBox.max.z * 0.6) : panelBox.getCenter(new Vector3());
-      const portTop = (panelBox.isEmpty() ? panelCenter.y : panelBox.min.y) + cartSize.height * 0.12;
+      if (!panelBox.isEmpty() && !screenBox.isEmpty()) {
+        panelCenter.z = screenBox.max.z + (panelBox.min.z - screenBox.max.z) * 0.35;
+      }
+      // Find the cabinet's surface there by dropping a ray onto it
+      const surfaceRay = new Raycaster(new Vector3(0, screenBox.isEmpty() ? cabinetBox.max.y : screenBox.min.y, panelCenter.z), new Vector3(0, -1, 0));
+      const surface = surfaceRay.intersectObject(model, true).find((hit) => (hit.object as Mesh).material !== screenMaterial);
+      const surfaceY = surface ? surface.point.y : panelBox.isEmpty() ? panelCenter.y : panelBox.min.y;
+      // A raised housing, so the slot reads above the joysticks rather than among them
+      const portTop = Math.max(surfaceY + cartSize.height * 0.12, panelBox.isEmpty() ? 0 : panelBox.max.y + cartSize.height * 0.08);
+      const portHeight = portTop - surfaceY + cartSize.height * 0.05;
       const port = new Mesh(
-        track(new BoxGeometry(cartSize.width * 1.22, cartSize.height * 0.3, cartSize.depth * 2.2)),
+        track(new BoxGeometry(cartSize.width * 1.22, portHeight, cartSize.depth * 2.2)),
         track(new MeshStandardMaterial({ color: new Color("#0d0a10"), roughness: 0.6 }))
       );
-      port.position.set(0, portTop - cartSize.height * 0.15, panelCenter.z);
+      port.position.set(0, portTop - portHeight / 2, panelCenter.z);
       scene.add(port);
       rimMaterial = track(new MeshBasicMaterial({ color: new Color(SHELF_NEON) }));
       const rimThickness = cartSize.depth * 0.18;
@@ -823,7 +870,8 @@ export default function CartridgeArcade({
         end.position.set(side * cartSize.width * 0.62, portTop, panelCenter.z);
         scene.add(end);
       });
-      seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.3, panelCenter.z);
+      // Sunk far enough that the part left standing stays below the screen
+      seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.45, panelCenter.z);
       portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
       portLight.position.set(0, portTop + cartSize.height * 0.3, panelCenter.z + cartSize.depth * 3);
       scene.add(portLight);

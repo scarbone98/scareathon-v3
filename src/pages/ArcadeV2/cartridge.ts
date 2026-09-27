@@ -1,5 +1,6 @@
 import {
   BoxGeometry,
+  BufferGeometry,
   CanvasTexture,
   Color,
   Group,
@@ -8,6 +9,7 @@ import {
   PlaneGeometry,
   SRGBColorSpace,
 } from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // A game cartridge: a plastic shell in the game's colour with a paper label on
@@ -129,18 +131,56 @@ export function createCartridge(
     metalness: 0.05,
     emissive: shellColor.clone().multiplyScalar(0.18),
   });
-  const shell = new Mesh(new BoxGeometry(width, height, depth), shellMaterial);
-  group.add(shell);
+  const trimMaterial = new MeshStandardMaterial({
+    color: shellColor.clone().multiplyScalar(0.45),
+    roughness: 0.7,
+    emissive: shellColor.clone().multiplyScalar(0.06),
+  });
+  const connectorMaterial = new MeshStandardMaterial({ color: new Color("#16131b"), roughness: 0.6 });
+  const goldMaterial = new MeshStandardMaterial({ color: new Color("#d8a93a"), roughness: 0.3, metalness: 0.9 });
+  const geometries: { dispose: () => void }[] = [];
+  const addPart = (geometry: BufferGeometry, material: MeshStandardMaterial, x: number, y: number, z: number) => {
+    geometries.push(geometry);
+    const mesh = new Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    group.add(mesh);
+    return mesh;
+  };
 
-  // Grip ridges across the top of the shell
-  const ridgeGeometry = new BoxGeometry(width * 0.86, height * 0.018, depth * 1.08);
-  const ridges: Mesh[] = [];
+  // The shell: a rounded plastic body above an edge connector that goes into the slot
+  const connectorHeight = height * 0.1;
+  const bodyHeight = height - connectorHeight;
+  const bodyBottom = -height / 2 + connectorHeight;
+  addPart(new RoundedBoxGeometry(width, bodyHeight, depth, 3, depth * 0.22), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
+  addPart(new BoxGeometry(width * 0.78, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
+  // Gold contacts along both faces of the connector
+  addPart(new BoxGeometry(width * 0.7, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
+
+  // Grip ridges across the top of the front, above the label
+  const labelWidth = width * 0.8;
+  const labelHeight = labelWidth * (LABEL_HEIGHT / LABEL_WIDTH);
+  const labelY = bodyBottom + width * 0.035 + labelHeight / 2;
+  const gripTop = height / 2 - width * 0.025;
+  const gripBottom = labelY + labelHeight / 2 + width * 0.02;
+  const ridgeGeometry = new BoxGeometry(width * 0.62, width * 0.008, depth * 0.08);
+  geometries.push(ridgeGeometry);
   for (let i = 0; i < 3; i += 1) {
-    const ridge = new Mesh(ridgeGeometry, shellMaterial);
-    ridge.position.y = height * (0.44 - i * 0.045);
+    const ridge = new Mesh(ridgeGeometry, trimMaterial);
+    ridge.position.set(0, gripBottom + ((gripTop - gripBottom) * (i + 0.5)) / 3, depth / 2 + depth * 0.02);
     group.add(ridge);
-    ridges.push(ridge);
   }
+  // Ribs down both ends, for fingers to grip
+  const ribGeometry = new BoxGeometry(width * 0.02, bodyHeight * 0.5, depth * 0.1);
+  geometries.push(ribGeometry);
+  [-1, 1].forEach((side) => {
+    for (let i = 0; i < 3; i += 1) {
+      const rib = new Mesh(ribGeometry, trimMaterial);
+      rib.position.set(side * (width / 2 + width * 0.004), bodyBottom + bodyHeight * 0.5, (i - 1) * depth * 0.28);
+      group.add(rib);
+    }
+  });
+  // A darker recess the label sits in
+  addPart(new PlaneGeometry(labelWidth * 1.05, labelHeight + labelWidth * 0.05), trimMaterial, 0, labelY, depth / 2 + 0.001);
 
   // The paper label on the front
   const canvas = document.createElement("canvas");
@@ -166,11 +206,7 @@ export function createCartridge(
     emissiveMap: texture,
     emissiveIntensity: 0.35,
   });
-  const labelWidth = width * 0.86;
-  const labelGeometry = new PlaneGeometry(labelWidth, labelWidth * (LABEL_HEIGHT / LABEL_WIDTH));
-  const labelMesh = new Mesh(labelGeometry, labelMaterial);
-  labelMesh.position.set(0, -height * 0.06, depth / 2 + 0.002);
-  group.add(labelMesh);
+  addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, 0, labelY, depth / 2 + 0.002);
 
   return {
     group,
@@ -189,11 +225,8 @@ export function createCartridge(
       shellMaterial.emissive.copy(shellColor).multiplyScalar(0.18 + amount * 0.35);
     },
     dispose: () => {
-      shell.geometry.dispose();
-      ridgeGeometry.dispose();
-      labelGeometry.dispose();
-      shellMaterial.dispose();
-      labelMaterial.dispose();
+      geometries.forEach((geometry) => geometry.dispose());
+      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial].forEach((material) => material.dispose());
       texture.dispose();
     },
   };
