@@ -42,12 +42,12 @@ import {
   marqueeFlicker,
   type ScreenVideo,
 } from "../Arcade/cabinetParts.ts";
-import { createArcadeAmbience, type ArcadeAmbience } from "../Arcade/arcadeAmbience.ts";
 import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
 import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
-import { CABINET_FONT, createCabinetFinish } from "./cabinetFinish.ts";
+import { createCassetteRoom, ROOM_FONT, type CassetteRoom } from "./cassetteRoom.ts";
+import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
@@ -82,8 +82,8 @@ type CartState = {
 
 const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"]);
 const SHELF_NEON = "#ff7a1a";
-// The cabinet's trim and big buttons as modelled, before a game recolours them
-const CABINET_TRIM = "#ff7a1a";
+// The big buttons' and LEDs' colour while no game is picked
+const IDLE_ACCENT = "#ff7a1a";
 // Narrower than this is a phone: the cabinet fills the width and the site menu docks into the card
 const TALL_ASPECT = 1.05;
 const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep the cabinet below it
@@ -91,7 +91,7 @@ const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep 
 // menu button on phones)
 const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
 const WIDE_CARD_SPACE = 196; // the card on wide screens, with its keyboard hints
-const SCANNER_CYAN = "#2ee6ff";
+const SCANNER_GREEN = "#33ff66"; // terminal phosphor
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
 const SCREEN_GLOW = 0.85; // the screen's usual emissive intensity
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
@@ -166,7 +166,7 @@ export default function CartridgeArcade({
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
     scene.add(shelfLight);
 
-    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT]);
+    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, ROOM_FONT]);
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -313,35 +313,93 @@ export default function CartridgeArcade({
     };
 
     // --- Marquee ------------------------------------------------------------------------
-    const marqueeCanvas = document.createElement("canvas");
-    marqueeCanvas.width = 2048;
-    marqueeCanvas.height = 340;
+    // A split-flap sign: switching games flips it over column by column, each
+    // column's top flap falling to show the new name. Signs are painted off
+    // screen and composited into the marquee's canvas while flipping.
+    const MARQUEE_WIDTH = 2048;
+    const MARQUEE_HEIGHT = 340;
+    const FLAP_COLUMNS = 12;
+    const FLAP_LAG = 0.035; // each column starts this share of the flip after the one before
+    const makeSign = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = MARQUEE_WIDTH;
+      canvas.height = MARQUEE_HEIGHT;
+      return canvas;
+    };
+    const marqueeCanvas = makeSign();
+    const marqueeContext = marqueeCanvas.getContext("2d");
     const marqueeTexture = track(new CanvasTexture(marqueeCanvas));
     marqueeTexture.colorSpace = SRGBColorSpace;
     marqueeTexture.anisotropy = 8;
+    const shownSign = makeSign(); // what the sign showed when the flip began
+    const nextSign = makeSign(); // what it's flipping to
+    const flip = { t: 1 };
     let marqueeText = "Scareathon";
     let marqueeColor = MARQUEE_NEON_COLORS[0];
     let marqueeFontName: string | undefined;
     let marqueeMaterial: MeshStandardMaterial | null = null;
-    const paintMarquee = (text: string, color: string, font?: ArcadeFont) => {
+
+    const composeMarquee = () => {
+      if (!marqueeContext) return;
+      const half = MARQUEE_HEIGHT / 2;
+      const column = MARQUEE_WIDTH / FLAP_COLUMNS;
+      const span = 1 - FLAP_LAG * (FLAP_COLUMNS - 1);
+      for (let i = 0; i < FLAP_COLUMNS; i += 1) {
+        const x = Math.floor(i * column);
+        const w = Math.ceil(column) + 1;
+        const p = Math.min(Math.max((flip.t - i * FLAP_LAG) / span, 0), 1);
+        const piece = (source: HTMLCanvasElement, sy: number, dy: number, dh: number) =>
+          marqueeContext.drawImage(source, x, sy, w, half, x, dy, w, dh);
+        if (p <= 0 || p >= 1) {
+          marqueeContext.drawImage(p >= 1 ? nextSign : shownSign, x, 0, w, MARQUEE_HEIGHT, x, 0, w, MARQUEE_HEIGHT);
+          continue;
+        }
+        // Behind the flap: the new top half is already showing, the old bottom half not yet covered
+        piece(nextSign, 0, 0, half);
+        piece(shownSign, half, half, half);
+        // The flap: the old top half folding down to the hinge, then the new bottom
+        // half folding down from it, darker the more edge-on it is
+        const fold = Math.cos(p * Math.PI);
+        const height = half * Math.abs(fold);
+        const top = fold > 0 ? half - height : half;
+        piece(fold > 0 ? shownSign : nextSign, fold > 0 ? 0 : half, top, height);
+        marqueeContext.fillStyle = `rgba(0, 0, 0, ${(1 - Math.abs(fold)) * 0.7})`;
+        marqueeContext.fillRect(x, top, w, height);
+        // The hinge, and the gap between columns
+        marqueeContext.fillStyle = "rgba(0, 0, 0, 0.85)";
+        marqueeContext.fillRect(x, half - 3, w, 6);
+        marqueeContext.fillRect(x, 0, 3, MARQUEE_HEIGHT);
+      }
+      marqueeTexture.needsUpdate = true;
+    };
+
+    // Paint the sign; `animate` flips over to it from whatever is showing now
+    const paintMarquee = (text: string, color: string, font?: ArcadeFont, animate = false) => {
       marqueeText = text;
       marqueeColor = color;
       marqueeFontName = font && marqueeFont(font);
-      drawNeonMarquee(marqueeCanvas, text, color, marqueeFontName);
-      marqueeTexture.needsUpdate = true;
+      if (animate) {
+        // Start from what's on the sign, even partway through another flip
+        shownSign.getContext("2d")?.drawImage(marqueeCanvas, 0, 0);
+        gsap.killTweensOf(flip);
+        flip.t = 0;
+        gsap.to(flip, { t: 1, duration: 0.55, ease: "none", onUpdate: composeMarquee });
+      }
+      drawNeonMarquee(nextSign, text, color, marqueeFontName);
+      composeMarquee();
       // Repaint once the game's font has arrived, if it's still the sign
       if (font) {
         whenFontReady(font).then(() => {
           if (disposed || marqueeText !== text) return;
-          drawNeonMarquee(marqueeCanvas, text, color, marqueeFontName);
-          marqueeTexture.needsUpdate = true;
+          drawNeonMarquee(nextSign, text, color, marqueeFontName);
+          composeMarquee();
         });
       }
     };
-    // Paint the sign for a game: its name, in its font and colour, and
-    // recolour the cabinet to match
+    // Show a game on the sign (flipping over to its name, font and colour), and
+    // light the buttons and LEDs in its colour
     const showGame = (game: MachineData) => {
-      paintMarquee(game.name, game.cartridge.color, game.cartridge.font);
+      if (game.name !== marqueeText) paintMarquee(game.name, game.cartridge.color, game.cartridge.font, true);
       tintCabinet(game.cartridge.color);
     };
     paintMarquee(marqueeText, marqueeColor);
@@ -379,7 +437,7 @@ export default function CartridgeArcade({
     let focusIndex = -1;
     let insertedIndex = -1;
     let busy = false;
-    let ambience: ArcadeAmbience | null = null;
+    let room: CassetteRoom | null = null;
     const cameraBase = new Vector3();
     const cameraTarget = new Vector3();
     const shake = { value: 0 };
@@ -397,7 +455,7 @@ export default function CartridgeArcade({
     const laserMaterial = (opacity: number) =>
       track(
         new MeshBasicMaterial({
-          color: new Color(SCANNER_CYAN),
+          color: new Color(SCANNER_GREEN),
           transparent: true,
           opacity,
           blending: AdditiveBlending,
@@ -425,7 +483,7 @@ export default function CartridgeArcade({
       lineGlow: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
     }));
 
-    // The camera: a dark ball on a short mount, a cyan lens, and a glow around the lens
+    // The camera: a dark ball on a short mount, a green lens, and a glow around the lens
     const scannerCamera = new Group();
     const shellMaterialDark = track(new MeshStandardMaterial({ color: new Color("#1b1720"), roughness: 0.35, metalness: 0.4 }));
     const ball = new Mesh(track(new SphereGeometry(1, 24, 16)), shellMaterialDark);
@@ -434,7 +492,7 @@ export default function CartridgeArcade({
     cameraMount.rotation.x = Math.PI / 2;
     cameraMount.position.z = -0.9;
     scannerCamera.add(cameraMount);
-    const lensMesh = new Mesh(track(new SphereGeometry(0.42, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#8ff6ff") })));
+    const lensMesh = new Mesh(track(new SphereGeometry(0.42, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#b8ffc9") })));
     lensMesh.position.z = 0.78;
     scannerCamera.add(lensMesh);
     const glowCanvas = document.createElement("canvas");
@@ -442,9 +500,9 @@ export default function CartridgeArcade({
     const glowContext = glowCanvas.getContext("2d");
     if (glowContext) {
       const gradient = glowContext.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gradient.addColorStop(0, "rgba(150, 246, 255, 1)");
-      gradient.addColorStop(0.35, "rgba(40, 220, 255, 0.45)");
-      gradient.addColorStop(1, "rgba(40, 220, 255, 0)");
+      gradient.addColorStop(0, "rgba(170, 255, 190, 1)");
+      gradient.addColorStop(0.35, "rgba(51, 255, 102, 0.45)");
+      gradient.addColorStop(1, "rgba(51, 255, 102, 0)");
       glowContext.fillStyle = gradient;
       glowContext.fillRect(0, 0, 64, 64);
     }
@@ -543,11 +601,10 @@ export default function CartridgeArcade({
       });
     };
 
-    // --- Cabinet colour: the trim and big buttons take on the game's colour --------
+    // --- Cabinet colour: fixed 70s trim; the big buttons and the LEDs take on the game's colour
     const tintMaterials: MeshStandardMaterial[] = [];
-    // The body's stripes and LEDs follow the trim
     const finish = track(createCabinetFinish());
-    let tintTarget = CABINET_TRIM;
+    let tintTarget = IDLE_ACCENT;
     const tintCabinet = (hex: string, instant = false) => {
       tintTarget = hex;
       const target = new Color(hex);
@@ -844,8 +901,8 @@ export default function CartridgeArcade({
       screenMode = "off";
       modeStart = performance.now() / 1000;
       showOnScreen(screenTexture);
-      paintMarquee("Scareathon", MARQUEE_NEON_COLORS[0]);
-      tintCabinet(CABINET_TRIM);
+      paintMarquee("Scareathon", MARQUEE_NEON_COLORS[0], undefined, true);
+      tintCabinet(IDLE_ACCENT);
       flickerMarquee();
       if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
       old.where = "flying";
@@ -996,7 +1053,17 @@ export default function CartridgeArcade({
         } else if (material.name === "Panels.001") {
           // The black body, dressed as cassette-futurism hardware
           child.material = finish.material;
-        } else if (material.name === "Lining" || material.name === "OrangeButton") {
+        } else if (material.name === "Lining") {
+          const trim = track(material.clone());
+          trim.color.set(CABINET_TRIM);
+          trim.emissive.set(CABINET_TRIM).multiplyScalar(0.12);
+          child.material = trim;
+        } else if (material.name === "PurpleButton") {
+          // The buttons' dark bezels
+          const bezel = track(material.clone());
+          bezel.color.set("#2a2226");
+          child.material = bezel;
+        } else if (material.name === "OrangeButton") {
           const own = track(material.clone());
           child.material = own;
           tintMaterials.push(own);
@@ -1060,13 +1127,7 @@ export default function CartridgeArcade({
       buildShelf();
       fitCamera();
 
-      ambience = createArcadeAmbience({
-        scene,
-        ambientLight,
-        machines: [holder],
-        neonColors: [SHELF_NEON],
-        glowLevel: () => 1,
-      });
+      room = createCassetteRoom(scene);
 
       // Start on the game the link names, or the first one, already previewing
       const initial = games.findIndex((game) => game.name === initialGameRef.current);
@@ -1179,13 +1240,12 @@ export default function CartridgeArcade({
 
     // --- Render loop -----------------------------------------------------------------
     let frame = 0;
-    let lastTime = performance.now() / 1000;
     const animate = () => {
       frame = requestAnimationFrame(animate);
       if (pausedRef.current) return; // a game is open on top; leave the GPU to it
       const time = performance.now() / 1000;
-      ambience?.update(time, Math.min(time - lastTime, 0.1));
-      lastTime = time;
+      room?.update(time);
+      finish.update(time);
 
       if (screenMode === "power" && time > modeStart + POWER_ON) {
         screenMode = "static";
@@ -1260,7 +1320,7 @@ export default function CartridgeArcade({
       document.removeEventListener("visibilitychange", syncVideo);
       stopStills?.();
       stopVideo();
-      gsap.killTweensOf([scroll, shake, punch, marqueeBoot]);
+      gsap.killTweensOf([scroll, shake, punch, marqueeBoot, flip]);
       if (screenMaterial) gsap.killTweensOf(screenMaterial);
       if (portLight) gsap.killTweensOf(portLight);
       if (rimMaterial) gsap.killTweensOf(rimMaterial.color);
@@ -1268,7 +1328,7 @@ export default function CartridgeArcade({
         gsap.killTweensOf([state.focus, state.intro, state.cart.group.position, state.cart.group.scale]);
       });
       shelfMeshes.forEach((mesh) => mesh.geometry.dispose());
-      ambience?.dispose();
+      room?.dispose();
       disposables.forEach((item) => item.dispose());
       renderer.dispose();
       mount.removeChild(renderer.domElement);
