@@ -47,7 +47,7 @@ import { CARTRIDGE_ASPECT, createCartridge, loadVideoStills, stillUrlFor, type C
 import { linkArcadeFonts, marqueeFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
-import { createCabinetFinish } from "./cabinetFinish.ts";
+import { CABINET_FONT, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
@@ -91,7 +91,7 @@ const NAV_CLEARANCE = 84; // px the site's top nav covers on wide screens; keep 
 // menu button on phones)
 const LEDGE_CARD_SPACE = 166; // the least room the phone card needs, in px
 const WIDE_CARD_SPACE = 196; // the card on wide screens, with its keyboard hints
-const SCANNER_RED = "#ff2a3a";
+const SCANNER_CYAN = "#2ee6ff";
 const MAX_LEDGE_ZOOM = 1.1; // how far past "cabinet exactly fills the width" a tall phone may zoom
 const SCREEN_GLOW = 0.85; // the screen's usual emissive intensity
 const POWER_ON = 0.26; // seconds for the CRT to warm up from a line to a full picture
@@ -166,7 +166,7 @@ export default function CartridgeArcade({
     const shelfLight = new PointLight(0xff8a3d, 2, 6);
     scene.add(shelfLight);
 
-    linkArcadeFonts(games.map((game) => game.cartridge.font));
+    linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT]);
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -397,7 +397,7 @@ export default function CartridgeArcade({
     const laserMaterial = (opacity: number) =>
       track(
         new MeshBasicMaterial({
-          color: new Color(SCANNER_RED),
+          color: new Color(SCANNER_CYAN),
           transparent: true,
           opacity,
           blending: AdditiveBlending,
@@ -425,7 +425,7 @@ export default function CartridgeArcade({
       lineGlow: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
     }));
 
-    // The camera: a dark ball on a short mount, a red lens, and a glow around the lens
+    // The camera: a dark ball on a short mount, a cyan lens, and a glow around the lens
     const scannerCamera = new Group();
     const shellMaterialDark = track(new MeshStandardMaterial({ color: new Color("#1b1720"), roughness: 0.35, metalness: 0.4 }));
     const ball = new Mesh(track(new SphereGeometry(1, 24, 16)), shellMaterialDark);
@@ -434,7 +434,7 @@ export default function CartridgeArcade({
     cameraMount.rotation.x = Math.PI / 2;
     cameraMount.position.z = -0.9;
     scannerCamera.add(cameraMount);
-    const lensMesh = new Mesh(track(new SphereGeometry(0.42, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#ff4655") })));
+    const lensMesh = new Mesh(track(new SphereGeometry(0.42, 16, 12)), track(new MeshBasicMaterial({ color: new Color("#8ff6ff") })));
     lensMesh.position.z = 0.78;
     scannerCamera.add(lensMesh);
     const glowCanvas = document.createElement("canvas");
@@ -442,9 +442,9 @@ export default function CartridgeArcade({
     const glowContext = glowCanvas.getContext("2d");
     if (glowContext) {
       const gradient = glowContext.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gradient.addColorStop(0, "rgba(255, 90, 100, 1)");
-      gradient.addColorStop(0.35, "rgba(255, 40, 58, 0.45)");
-      gradient.addColorStop(1, "rgba(255, 40, 58, 0)");
+      gradient.addColorStop(0, "rgba(150, 246, 255, 1)");
+      gradient.addColorStop(0.35, "rgba(40, 220, 255, 0.45)");
+      gradient.addColorStop(1, "rgba(40, 220, 255, 0)");
       glowContext.fillStyle = gradient;
       glowContext.fillRect(0, 0, 64, 64);
     }
@@ -545,6 +545,8 @@ export default function CartridgeArcade({
 
     // --- Cabinet colour: the trim and big buttons take on the game's colour --------
     const tintMaterials: MeshStandardMaterial[] = [];
+    // The body's stripes and LEDs follow the trim
+    const finish = track(createCabinetFinish());
     let tintTarget = CABINET_TRIM;
     const tintCabinet = (hex: string, instant = false) => {
       tintTarget = hex;
@@ -556,6 +558,8 @@ export default function CartridgeArcade({
         gsap.to(material.color, { r: target.r, g: target.g, b: target.b, duration, ease: "power2.out" });
         gsap.to(material.emissive, { r: glow.r, g: glow.g, b: glow.b, duration, ease: "power2.out" });
       });
+      gsap.killTweensOf(finish.accent);
+      gsap.to(finish.accent, { r: target.r, g: target.g, b: target.b, duration: instant ? 0 : 0.45, ease: "power2.out" });
     };
 
     const buildShelf = () => {
@@ -963,9 +967,10 @@ export default function CartridgeArcade({
 
       const panelBox = new Box3();
       const screenBox = new Box3();
-      const finish = track(createCabinetFinish());
+      const marqueeBox = new Box3();
       model.traverse((child) => {
-        if (!(child instanceof Mesh) || !child.material) return;
+        // (Skips the screen's glow, added below)
+        if (!(child instanceof Mesh) || !(child.material instanceof MeshStandardMaterial)) return;
         const material = child.material as MeshStandardMaterial;
         material.emissive = new Color(0x222222);
         material.emissiveIntensity = 0.25;
@@ -975,8 +980,9 @@ export default function CartridgeArcade({
           screenMaterial.emissiveIntensity = SCREEN_GLOW;
           applyCrtLook(screenMaterial);
           child.material = screenMaterial;
+          // The glass alone, before its (larger) glow is attached
+          screenBox.setFromObject(child, true);
           crtGlow = track(createCrtGlow(child));
-          screenBox.setFromObject(child);
           showOnScreen(screenTexture);
         } else if (material.name === "Marque") {
           marqueeMaterial = material.clone();
@@ -986,8 +992,9 @@ export default function CartridgeArcade({
           marqueeMaterial.emissive = new Color("#ffffff");
           marqueeMaterial.emissiveIntensity = MARQUEE_GLOW;
           child.material = marqueeMaterial;
+          marqueeBox.setFromObject(child, true);
         } else if (material.name === "Panels.001") {
-          // The black body: textured laminate in place of the model's gloss
+          // The black body, dressed as cassette-futurism hardware
           child.material = finish.material;
         } else if (material.name === "Lining" || material.name === "OrangeButton") {
           const own = track(material.clone());
@@ -997,6 +1004,7 @@ export default function CartridgeArcade({
         if (PANEL_MATERIALS.has(material.name)) panelBox.union(new Box3().setFromObject(child));
       });
       tintCabinet(tintTarget, true);
+      finish.decorate({ cabinet: cabinetBox, screen: screenBox, panel: panelBox, marquee: marqueeBox });
       cabinetModel = model;
       if (!panelBox.isEmpty()) panelBottom = panelBox.min.y;
 
