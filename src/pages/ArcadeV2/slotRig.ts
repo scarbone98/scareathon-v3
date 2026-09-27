@@ -172,15 +172,16 @@ export function createSlotRig({ width, height, depth, center, deckY, surfaceZ }:
   const labelMesh = add(new PlaneGeometry(labelWidth, labelWidth * (80 / 256)), labelMaterial, center.x + halfWidth - labelWidth * 0.75, top - height * 0.62, front + plate * 0.3);
   labelMesh.rotation.z = -0.07;
 
-  // The ribbon cable: off the housing's top, arcing back into a hole cut in the bezel
-  const ribbonStart = new Vector3(center.x + width * 0.28, top + plate, center.z - depth * 0.1);
-  const holeX = center.x + width * 0.78;
+  // The ribbon cable: out of the housing's right side, just above the bracket,
+  // arcing back into a hole cut in the bezel
+  const ribbonY = top - height * 0.1;
+  const holeX = center.x + width * 0.82;
   const holeY = top + height * 0.35;
   const holeZ = surfaceZ(holeX, holeY);
   const ribbonCurve = new CatmullRomCurve3([
-    ribbonStart,
-    new Vector3(center.x + width * 0.36, top + height * 0.55, center.z - depth * 0.05),
-    new Vector3(center.x + width * 0.58, top + height * 0.7, (center.z + holeZ) / 2),
+    new Vector3(center.x + halfWidth - plate, ribbonY, center.z),
+    new Vector3(center.x + halfWidth + width * 0.08, ribbonY, center.z + depth * 0.05),
+    new Vector3(center.x + halfWidth + width * 0.2, top + height * 0.3, (center.z + holeZ) / 2),
     new Vector3(holeX, holeY + height * 0.05, holeZ + depth * 0.15),
     new Vector3(holeX, holeY, holeZ - depth * 0.1),
   ]);
