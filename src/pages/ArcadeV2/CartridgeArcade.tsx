@@ -370,13 +370,25 @@ export default function CartridgeArcade({
       }
       // The label still is small and usually cached already, so it stands in
       // until the clip plays (and for good if the phone won't autoplay it)
-      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl));
+      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl), previewVideo);
       screenMode = "video";
       waitingForPicture = true;
       lastLoadingFrame = -1;
       showOnScreen(screenTexture);
       syncVideo();
     };
+
+    // One video element for every preview (see createScreenVideo), started from
+    // inside a tap whenever one comes along so iOS lets it play from then on
+    const previewVideo = document.createElement("video");
+    const playFromGesture = () => {
+      if (!screenVideo || pausedRef.current || document.hidden || !previewVideo.paused) return;
+      previewVideo.play().catch(() => {
+        // Still refused: the still stays up
+      });
+    };
+    document.addEventListener("pointerdown", playFromGesture, true);
+    document.addEventListener("touchend", playFromGesture, true);
 
     const syncVideo = () => {
       const video = screenVideo?.video;
@@ -1514,6 +1526,8 @@ export default function CartridgeArcade({
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", syncVideo);
+      document.removeEventListener("pointerdown", playFromGesture, true);
+      document.removeEventListener("touchend", playFromGesture, true);
       stopStills?.();
       stopVideo();
       gsap.killTweensOf([scroll, shake, punch, marqueeBoot, flip]);

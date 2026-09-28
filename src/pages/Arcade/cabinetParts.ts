@@ -112,8 +112,11 @@ export type ScreenVideo = ReturnType<typeof createScreenVideo>;
 // The cabinet screen is about 1.88:1. Draw the video inside a canvas with that
 // aspect ratio so portrait and 16:9 recordings keep their proportions.
 // posterUrl: an image to show until the video has a frame of its own.
-export function createScreenVideo(videoUrl: string, lightweight: boolean, posterUrl?: string) {
-  const video = document.createElement("video");
+// Pass `element` to reuse one video element across clips: iOS only lets a video
+// play without a tap (always, in Low Power Mode) once that same element has been
+// played from one, so a fresh element per clip would never get going.
+export function createScreenVideo(videoUrl: string, lightweight: boolean, posterUrl?: string, element?: HTMLVideoElement) {
+  const video = element ?? document.createElement("video");
   video.crossOrigin = "anonymous";
   video.src = videoUrl;
   video.loop = true;
