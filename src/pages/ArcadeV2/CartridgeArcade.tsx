@@ -1598,10 +1598,13 @@ export default function CartridgeArcade({
     };
     const lookAtCart = (state: CartState) => {
       inspecting = state;
-      inspect.yaw = 0;
+      // One full turn as it comes up, to show it off, settling face on
+      inspect.yaw = -Math.PI * 2;
       inspect.pitch = 0;
-      inspect.spinYaw = Math.PI * 2; // a spin as it comes up, to show it off
+      inspect.spinYaw = 0;
       inspect.spinPitch = 0;
+      gsap.killTweensOf(inspect);
+      gsap.to(inspect, { yaw: 0, duration: 0.9, ease: "power3.out" });
       gsap.killTweensOf(inspect.amount);
       gsap.to(inspect.amount, { value: 1, duration: 0.5, ease: "power3.out" });
       playWhoosh();
@@ -1617,6 +1620,7 @@ export default function CartridgeArcade({
       if (!inspecting) return;
       const state = inspecting;
       spin = null;
+      gsap.killTweensOf(inspect);
       // Home by the short way round
       inspect.yaw = Math.atan2(Math.sin(inspect.yaw), Math.cos(inspect.yaw));
       inspect.spinYaw = inspect.spinPitch = 0;
@@ -1852,6 +1856,7 @@ export default function CartridgeArcade({
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse") event.preventDefault(); // no text selection while held
       if (inspecting) {
+        gsap.killTweensOf(inspect); // hands off the turn it came up with
         spin = { x: event.clientX, y: event.clientY, t: event.timeStamp, moved: false };
         renderer.domElement.setPointerCapture(event.pointerId);
         return;
@@ -1892,6 +1897,7 @@ export default function CartridgeArcade({
     const onPointerMove = (event: PointerEvent) => {
       if (spin) {
         const dx = event.clientX - spin.x;
+        if (dx || event.clientY - spin.y) gsap.killTweensOf(inspect);
         const dy = event.clientY - spin.y;
         if (Math.abs(dx) + Math.abs(dy) > 6) spin.moved = true;
         const dt = Math.max(event.timeStamp - spin.t, 1) / 1000;
