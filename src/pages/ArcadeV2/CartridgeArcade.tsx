@@ -1580,7 +1580,7 @@ export default function CartridgeArcade({
     // Up close, a little above the middle of the view, big but clear of the edges
     const updateInspectPoint = () => {
       const tan = Math.tan((camera.fov * Math.PI) / 360);
-      const fit = 0.5; // of the view's width (or height) the cartridge takes up
+      const fit = 0.58; // of the view's width (or height) the cartridge takes up
       const distance = Math.max(cartSize.width / (fit * 2 * tan * camera.aspect), cartSize.height / (fit * 2 * tan));
       const ahead = cameraTarget.clone().sub(cameraBase).normalize();
       inspectPoint.copy(cameraBase).addScaledVector(ahead, distance);

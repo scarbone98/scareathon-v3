@@ -50,8 +50,8 @@ function grains() {
     for (let i = 0; i < size * size; i += 1) {
       const x = i % size;
       const y = Math.floor(i / size);
-      const mottle = Math.sin(x * 0.07) * Math.sin(y * 0.05) * 10;
-      const v = 150 + mottle + (Math.random() - 0.5) * 70;
+      const mottle = Math.sin(x * 0.07) * Math.sin(y * 0.05) * 18;
+      const v = 150 + mottle + (Math.random() - 0.5) * 120;
       image.data[i * 4] = image.data[i * 4 + 1] = image.data[i * 4 + 2] = v;
       image.data[i * 4 + 3] = 255;
     }
@@ -304,11 +304,11 @@ function paintLabel(
 
 // The shell's outline for a style, centred on the origin, extruded with rounded
 // edges. `windowBand` is how far up from the bottom the reel window's band reaches.
-function shellGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number) {
-  const bevel = depth * 0.12;
-  const x = width / 2 - bevel;
-  const top = height / 2 - bevel;
-  const bottom = -height / 2 + bevel;
+// The shell's face outline, pulled in by `inset` all round
+function shellOutline(style: CartridgeStyle, width: number, height: number, windowBand: number, inset: number) {
+  const x = width / 2 - inset;
+  const top = height / 2 - inset;
+  const bottom = -height / 2 + inset;
   const outline = new Shape();
   if (style === "tape") {
     const taper = width * 0.09;
@@ -346,6 +346,12 @@ function shellGeometry(style: CartridgeStyle, width: number, height: number, dep
     outline.quadraticCurveTo(-x, bottom, -x + corner, bottom);
   }
   outline.closePath();
+  return outline;
+}
+
+function shellGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number) {
+  const bevel = depth * 0.12;
+  const outline = shellOutline(style, width, height, windowBand, bevel);
   const core = depth - bevel * 2;
   const geometry = new ExtrudeGeometry(outline, {
     depth: core,
@@ -356,6 +362,19 @@ function shellGeometry(style: CartridgeStyle, width: number, height: number, dep
     curveSegments: 10,
   });
   geometry.translate(0, 0, -core / 2);
+  return geometry;
+}
+
+// Where the two halves of the shell meet, halfway through its depth: a thin dark
+// ring a hair proud of the outline all round, as if it could clam open
+function seamGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number) {
+  const out = 1.012;
+  const ring = shellOutline(style, width * out, height * out, windowBand * out, 0);
+  const inside = 0.965;
+  ring.holes.push(shellOutline(style, width * inside, height * inside, windowBand * inside, 0));
+  const thickness = depth * 0.035;
+  const geometry = new ExtrudeGeometry(ring, { depth: thickness, bevelEnabled: false, curveSegments: 10 });
+  geometry.translate(0, 0, -thickness / 2);
   return geometry;
 }
 
@@ -434,7 +453,7 @@ export function createCartridge(
         clearcoat: 1,
         clearcoatRoughness: 0.08,
         transparent: true,
-        opacity: 0.38,
+        opacity: 0.62,
         depthWrite: false,
         emissive: shellColor.clone().multiplyScalar(glow),
       })
@@ -443,7 +462,7 @@ export function createCartridge(
         roughness: 1,
         roughnessMap: grain.plastic,
         bumpMap: grain.plastic,
-        bumpScale: 1,
+        bumpScale: 2.4,
         metalness: 0.05,
         clearcoat: 0.3,
         clearcoatRoughness: 0.45,
@@ -454,7 +473,7 @@ export function createCartridge(
     roughness: 1,
     roughnessMap: grain.plastic,
     bumpMap: grain.plastic,
-    bumpScale: 1,
+    bumpScale: 2.4,
     emissive: shellColor.clone().multiplyScalar(0.06),
   });
   const connectorMaterial = new MeshStandardMaterial({ color: new Color("#16131b"), roughness: 0.6 });
@@ -477,9 +496,20 @@ export function createCartridge(
   const windowBand = bodyHeight * (style === "disc" ? 0.26 : style === "brick" ? 0.22 : 0.2);
   const front = depth / 2;
   addPart(shellGeometry(style, width, bodyHeight, depth, windowBand), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
-  addPart(new BoxGeometry(width * 0.74, connectorHeight * 1.2, depth * 0.55), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
-  // Gold contacts along both faces of the connector
-  addPart(new BoxGeometry(width * 0.68, connectorHeight * 0.6, depth * 0.58), goldMaterial, 0, bodyBottom - connectorHeight * 0.55, 0);
+  const seamMaterial = new MeshStandardMaterial({ color: new Color("#0d0b0e"), roughness: 0.8 });
+  addPart(seamGeometry(style, width, bodyHeight, depth, windowBand), seamMaterial, 0, bodyBottom + bodyHeight / 2, 0);
+  // The edge connector: a thin board, striped with gold contacts on both faces
+  const connectorDepth = depth * 0.26;
+  addPart(new BoxGeometry(width * 0.74, connectorHeight * 1.2, connectorDepth), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
+  const contacts = 16;
+  const pitch = (width * 0.68) / contacts;
+  const contactGeometry = new BoxGeometry(pitch * 0.58, connectorHeight * 0.62, connectorDepth * 1.12);
+  geometries.push(contactGeometry);
+  for (let i = 0; i < contacts; i += 1) {
+    const contact = new Mesh(contactGeometry, goldMaterial);
+    contact.position.set(-width * 0.34 + pitch * (i + 0.5), bodyBottom - connectorHeight * 0.62, 0);
+    group.add(contact);
+  }
 
   // The label, set in a darker recess, filling the face above the window band.
   // The brick's top carries grip ridges; the disc's label stops short of its notch.
@@ -607,6 +637,54 @@ export function createCartridge(
         -depth * 0.12 + depth * 0.06
       );
     });
+    // A microchip on the board's back, above the sticker: a black body with a
+    // row of silver legs down each long side and a dot by pin one
+    const legMaterial = new MeshStandardMaterial({ color: new Color("#c9ccd1"), roughness: 0.3, metalness: 0.9 });
+    const dotMaterial = new MeshStandardMaterial({ color: new Color("#d9d4c8"), roughness: 0.6 });
+    insideMaterials.push(legMaterial, dotMaterial);
+    const chipWidth = width * 0.24;
+    const chipHeight = labelHeight * 0.18;
+    const chipX = -width * 0.14;
+    const chipY = labelBottom + labelHeight * 0.8;
+    const boardBack = -depth * 0.12 - 0.0005;
+    const chipDepth = depth * 0.07;
+    addPart(new BoxGeometry(chipWidth, chipHeight, chipDepth), chip, chipX, chipY, boardBack - chipDepth / 2);
+    addPart(new CircleGeometry(chipHeight * 0.1, 10), dotMaterial, chipX - chipWidth * 0.4, chipY + chipHeight * 0.22, boardBack - chipDepth - 0.0003).rotation.y = Math.PI;
+    const legGeometry = new BoxGeometry(chipWidth * 0.035, chipHeight * 0.28, chipDepth * 0.5);
+    geometries.push(legGeometry);
+    for (let i = 0; i < 9; i += 1) {
+      [-1, 1].forEach((side) => {
+        const leg = new Mesh(legGeometry, legMaterial);
+        leg.position.set(chipX - chipWidth * 0.42 + (chipWidth * 0.84 * i) / 8, chipY + side * (chipHeight / 2 + chipHeight * 0.12), boardBack - chipDepth * 0.35);
+        group.add(leg);
+      });
+    }
+
+    // The tape's run, as in a cassette: off the bottom of one spool, round a
+    // guide roller in each bottom corner, along the bottom over a felt pressure
+    // pad on its spring, and back up onto the other
+    const felt = new MeshStandardMaterial({ color: new Color("#b89a6a"), roughness: 1 });
+    insideMaterials.push(felt);
+    const ribbon = depth * 0.42; // the tape's width, running through the shell
+    const tapeY = bodyBottom + windowBand * 0.14;
+    const rollerRadius = width * 0.018;
+    const [left, right] = [reels[0], reels[reels.length - 1]];
+    const rollerX = [left.x - left.tape * 0.9, right.x + right.tape * 0.9];
+    rollerX.forEach((x) => {
+      addPart(new CylinderGeometry(rollerRadius, rollerRadius, ribbon * 1.15, 14), spool, x, tapeY + rollerRadius, 0).rotation.x = Math.PI / 2;
+    });
+    const strand = (x0: number, y0: number, x1: number, y1: number) => {
+      const length = Math.hypot(x1 - x0, y1 - y0);
+      const piece = addPart(new BoxGeometry(length, width * 0.004, ribbon), tapeMaterial, (x0 + x1) / 2, (y0 + y1) / 2, 0);
+      piece.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+    };
+    strand(rollerX[0] - rollerRadius, tapeY + rollerRadius, left.x - left.tape, windowY);
+    strand(rollerX[0], tapeY, rollerX[1], tapeY);
+    strand(rollerX[1] + rollerRadius, tapeY + rollerRadius, right.x + right.tape, windowY);
+    const padX = (rollerX[0] + rollerX[1]) / 2;
+    addPart(new BoxGeometry(width * 0.07, windowBand * 0.08, ribbon * 0.8), felt, padX, tapeY + windowBand * 0.06, 0);
+    addPart(new BoxGeometry(width * 0.16, width * 0.004, ribbon * 0.6), legMaterial, padX, tapeY + windowBand * 0.12, 0).rotation.z = 0.04;
+
     // Each reel's tape as a spool through the shell's depth, on a white hub
     reels.forEach((reel) => {
       const spoolDepth = depth * 0.7;
@@ -643,6 +721,21 @@ export function createCartridge(
       screwAt(-width * 0.44, bodyTop - width * 0.028);
     }
   });
+
+  // Little screws in the back's corners, holding the halves together (the tape
+  // shell's bottom corners are tucked in by its taper; the disc's top right by its notch)
+  const back = -depth / 2 - depth * 0.01;
+  const backScrew = (x: number, y: number) => {
+    addPart(screwGeometry, screwMaterial, x, y, back).rotation.x = Math.PI / 2;
+  };
+  const cornerX = width * 0.43;
+  const topY = bodyTop - width * 0.04;
+  const bottomY = bodyBottom + width * 0.045;
+  const bottomX = style === "tape" ? cornerX - width * 0.08 : cornerX;
+  backScrew(-cornerX, topY);
+  backScrew(cornerX, style === "disc" ? topY - width * 0.09 : topY);
+  backScrew(-bottomX, bottomY);
+  backScrew(bottomX, bottomY);
 
   // The paper label on the front
   const canvas = document.createElement("canvas");
@@ -711,7 +804,7 @@ export function createCartridge(
     },
     dispose: () => {
       geometries.forEach((geometry) => geometry.dispose());
-      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial, ...reelMaterials, ...insideMaterials].forEach(
+      [shellMaterial, trimMaterial, seamMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial, ...reelMaterials, ...insideMaterials].forEach(
         (material) => material.dispose()
       );
       hubTexture.dispose();
