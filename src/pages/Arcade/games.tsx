@@ -27,7 +27,8 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
-  special?: "mystery" | "shuffle";
+  // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
+  special?: "mystery" | "shuffle" | "soon";
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
   // about: shown by the info button on the arcade's game card; developer is a GitHub handle.
@@ -600,6 +601,61 @@ export function createArcadeGames(): MachineData[] {
           />
         </Suspense>
       ),
+    },
+    // --- Coming soon: carts on the shelf before their games exist. There's no
+    // video, just a cover (the URL finds stills/<Name>.jpg); plugged in, the
+    // screen says COMING SOON and nothing launches.
+    {
+      name: "Jack O'Lantern",
+      cartridge: {
+        color: "#f07a1f",
+        tagline: "Carve your own jack-o'-lantern.",
+        font: { family: "Butcherman" },
+        about: { released: "Coming soon", players: "Single player", genre: "Pumpkin carving", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/JackOLantern.mp4",
+      hasLeaderboard: false,
+      special: "soon",
+      game: null,
+    },
+    {
+      name: "Fury From The Tomb",
+      cartridge: {
+        color: "#c9a24a",
+        tagline: "The book's cursed tomb, awake at last.",
+        font: { family: "Cinzel", weight: 700 },
+        about: { released: "Coming soon", players: "Single player", genre: "Adventure", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/FuryFromTheTomb.mp4",
+      hasLeaderboard: false,
+      special: "soon",
+      game: null,
+    },
+    {
+      name: "Satellite Sim",
+      cartridge: {
+        color: "#4a8cff",
+        tagline: "Real satellites, circling the Earth, live.",
+        font: { family: "Audiowide" },
+        about: { released: "Coming soon", players: "Single player", genre: "Simulation", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/SatelliteSim.mp4",
+      hasLeaderboard: false,
+      special: "soon",
+      game: null,
+    },
+    {
+      name: "Depth",
+      cartridge: {
+        color: "#3fd8e8",
+        tagline: "Go down. Keep going down.",
+        font: { family: "Pixelify Sans", weight: 700 },
+        about: { released: "Coming soon", players: "Single player", genre: "Metroidvania", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/Depth.mp4",
+      hasLeaderboard: false,
+      special: "soon",
+      game: null,
     },
     {
       name: "???",

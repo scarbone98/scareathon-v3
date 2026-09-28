@@ -210,7 +210,8 @@ export default function CartridgeArcade({
     // idle → power (CRT warming up) → static → video; eject runs off → idle.
     // "bars": the off-air test card, for a game with nothing to preview.
     // "mystery": the "???" cartridge's live cuts, once it's plugged in
-    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" = "idle";
+    // "soon": a coming-soon cart's cover (with COMING SOON over it once it's plugged in)
+    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" | "soon" = "idle";
     const mysteryScreen = createMysteryScreen("/game-recordings/stills/Mystery.jpg");
     const MYSTERY_STOP_CODE = "HEXUS_HANDSHAKE";
     let mysteryCrash: gsap.core.Tween | null = null; // the "???" cartridge's crash, on its way
@@ -353,6 +354,64 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
+    // A coming-soon cart: its cover fills the screen. Plugged in, the cover dims
+    // behind a band that blinks COMING SOON in the cart's colour.
+    const covers = new Map<string, HTMLImageElement>();
+    const coverFor = (url: string) => {
+      let image = covers.get(url);
+      if (!image) {
+        image = new Image();
+        image.src = url;
+        covers.set(url, image);
+      }
+      return image;
+    };
+    let soonCover: HTMLImageElement | null = null;
+    let soonPlugged = false;
+    let soonColor = SHELF_NEON;
+    let lastSoonFrame = -1;
+    const paintSoon = (time: number, width: number, height: number) => {
+      if (!screenContext) return;
+      const frame = Math.floor(time * 4);
+      if (frame === lastSoonFrame) return;
+      lastSoonFrame = frame;
+      screenContext.fillStyle = "#07040b";
+      screenContext.fillRect(0, 0, width, height);
+      if (soonCover?.complete && soonCover.naturalWidth) {
+        const scale = Math.max(width / soonCover.naturalWidth, height / soonCover.naturalHeight);
+        const w = soonCover.naturalWidth * scale;
+        const h = soonCover.naturalHeight * scale;
+        screenContext.imageSmoothingEnabled = false;
+        screenContext.drawImage(soonCover, (width - w) / 2, (height - h) / 2, w, h);
+        screenContext.imageSmoothingEnabled = true;
+      } else {
+        lastSoonFrame = -1; // try again once the cover has loaded
+      }
+      if (soonPlugged) {
+        screenContext.fillStyle = "rgba(4, 2, 8, 0.55)";
+        screenContext.fillRect(0, 0, width, height);
+        const band = height * 0.3;
+        screenContext.fillStyle = "rgba(4, 2, 8, 0.85)";
+        screenContext.fillRect(0, (height - band) / 2, width, band);
+        screenContext.fillStyle = soonColor;
+        screenContext.fillRect(0, (height - band) / 2, width, 3);
+        screenContext.fillRect(0, (height + band) / 2 - 3, width, 3);
+        if (frame % 4 !== 3) {
+          screenContext.font = canvasFont(TERMINAL_FONT, 44);
+          screenContext.textAlign = "center";
+          screenContext.textBaseline = "middle";
+          screenContext.shadowColor = soonColor;
+          screenContext.shadowBlur = 16;
+          screenContext.fillStyle = "#fff4e0";
+          screenContext.fillText("COMING SOON", width / 2, height / 2 + 2);
+          screenContext.shadowBlur = 0;
+        }
+      }
+      screenContext.fillStyle = "rgba(0, 0, 0, 0.22)";
+      for (let y = 0; y < height; y += 4) screenContext.fillRect(0, y, width, 2);
+      screenTexture.needsUpdate = true;
+    };
+
     // The off-air test card, like the colour bars on the TV in the corner
     const paintTestCard = (width: number, height: number) => {
       if (!screenContext) return;
@@ -442,6 +501,10 @@ export default function CartridgeArcade({
         if (mysteryScreen.paint(screenContext, time)) screenTexture.needsUpdate = true;
         return;
       }
+      if (screenMode === "soon") {
+        paintSoon(time, width, height);
+        return;
+      }
       if (screenMode === "bars") {
         // Painted once (lastIdleBlink marks it done, like the idle screen's blink)
         if (lastIdleBlink === 2) return;
@@ -518,6 +581,17 @@ export default function CartridgeArcade({
           });
         }
         lastIdleBlink = -1;
+        showOnScreen(screenTexture);
+        return;
+      }
+      // Not made yet: the cover on the screen, and COMING SOON once it's plugged in
+      if (game.special === "soon") {
+        screenMode = "soon";
+        soonCover = game.videoUrl ? coverFor(stillUrlFor(game.videoUrl)) : null;
+        soonPlugged = games.indexOf(game) === insertedIndex;
+        soonColor = game.cartridge.color;
+        if (soonPlugged) showTerminal({ kind: "message", lines: ["> COMING SOON", "NOT FINISHED YET", "CHECK BACK SOON"], at: nowSeconds() });
+        lastSoonFrame = -1;
         showOnScreen(screenTexture);
         return;
       }

@@ -41,9 +41,9 @@ export default function ArcadeV2() {
   }, []);
   // Full-screen TV power-on into a game, and power-off back out of it
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
-  // "???" isn't ready to play; Shuffle powers on into a random game instead of itself
+  // "???" and the coming-soon carts aren't ready to play; Shuffle powers on into a random game instead of itself
   const startGame = (game: MachineData) => {
-    if (game.special === "mystery") return;
+    if (game.special === "mystery" || game.special === "soon") return;
     setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(visibleGames) : game });
   };
   const leaveGame = () => setTransition({ mode: "off", game: null });
