@@ -63,6 +63,7 @@ const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
+const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=bbe6beb";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -539,6 +540,25 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Breedable Monsters"
           url={BREEDABLE_MONSTERS_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "The Simulatrix",
+      cartridge: {
+        color: "#3de0c4",
+        tagline: "A pocket physics lab. Poke the universe.",
+        font: { family: "Orbitron", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Physics sandbox", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/Simulatrix.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="The Simulatrix"
+          url={SIMULATRIX_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
