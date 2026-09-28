@@ -260,9 +260,23 @@ function paintLabel(
   name: string,
   color: string,
   font: ArcadeFont,
-  picture?: { source: CanvasImageSource; width: number; height: number }
+  picture?: { source: CanvasImageSource; width: number; height: number },
+  untitled = false
 ) {
   const { width, height } = context.canvas;
+  if (untitled) {
+    // No name, no print: the picture is the whole sticker, edge to edge
+    context.fillStyle = "#120d18";
+    context.fillRect(0, 0, width, height);
+    if (picture) {
+      const cover = Math.max(width / picture.width, height / picture.height);
+      const w = picture.width * cover;
+      const h = picture.height * cover;
+      context.drawImage(picture.source, (width - w) / 2, (height - h) / 2, w, h);
+    }
+    paperFibres(context);
+    return;
+  }
   context.fillStyle = PAPER;
   context.fillRect(0, 0, width, height);
 
@@ -488,10 +502,12 @@ export function createCartridge(
     clear = false,
     released = "",
     note = "",
+    untitled = false,
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
     note?: string; // written in on the back sticker: a cheat code, a hidden message
+    untitled?: boolean; // no name on the label: the picture fills it
   } = {}
 ): Cartridge {
   const group = new Group();
@@ -824,7 +840,7 @@ export function createCartridge(
   const context = canvas.getContext("2d");
   let picture: { source: CanvasImageSource; width: number; height: number } | undefined;
   const repaint = () => {
-    if (context) paintLabel(context, TAPE_TYPE[style], name, color, font, picture);
+    if (context) paintLabel(context, TAPE_TYPE[style], name, color, font, picture, untitled);
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);

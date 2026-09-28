@@ -1319,7 +1319,8 @@ export default function CartridgeArcade({
         putBack();
         return;
       }
-      if (carts[index]?.where === "slot") callbacksRef.current.onPlay(games[index]);
+      // Tapping the one in the slot pops it back out
+      if (carts[index]?.where === "slot") eject();
       else insert(index);
     };
 
@@ -1560,6 +1561,7 @@ export default function CartridgeArcade({
           clear,
           released: game.cartridge.about.released,
           note: game.cartridge.backNote,
+          untitled: game.special === "mystery",
         });
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
@@ -1939,7 +1941,7 @@ export default function CartridgeArcade({
         velocity: 0,
         cart: (() => {
           const hit = pick(event.clientX, event.clientY);
-          return hit?.kind === "cart" && carts[hit.index].where === "shelf" ? hit.index : -1;
+          return hit?.kind === "cart" && ["shelf", "slot"].includes(carts[hit.index].where) ? hit.index : -1;
         })(),
       };
       renderer.domElement.setPointerCapture(event.pointerId);
@@ -1981,6 +1983,13 @@ export default function CartridgeArcade({
       if (press) {
         const dx = event.clientX - press.x;
         const dy = event.clientY - press.y;
+        // Swiped the one in the slot, any way: pull it out
+        if (!press.dragging && press.cart >= 0 && carts[press.cart].where === "slot" && Math.hypot(dx, dy) > 40) {
+          press = null;
+          swiped = true;
+          eject();
+          return;
+        }
         // Flicked up (more up than sideways): plug it in
         if (!press.dragging && press.cart >= 0 && dy < -40 && -dy > Math.abs(dx) * 1.5) {
           const index = press.cart;
@@ -1991,7 +2000,8 @@ export default function CartridgeArcade({
           return;
         }
         if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancelHold();
-        if ((press.dragging || Math.abs(dx) > 8)) {
+        // (A finger on the slotted cartridge is swiping it out, not scrolling the shelf)
+        if ((press.dragging || Math.abs(dx) > 8) && carts[press.cart]?.where !== "slot") {
           press.dragging = true;
           gsap.killTweensOf(scroll);
           const dt = event.timeStamp - press.lastT;
