@@ -8,6 +8,7 @@ import {
   nowSeconds,
   PLAY_HINT,
   rebootView,
+  takeoverView,
   terminalControls,
   typedParts,
   typeOut,
@@ -142,8 +143,9 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     const typing = typeOut(parts, screen, time);
     const loading = screen.kind === "loading" ? loadingView(screen, time) : null;
     const reboot = screen.kind === "reboot" ? rebootView(screen, time) : null;
+    const takeover = screen.kind === "takeover" ? takeoverView(screen, time) : null;
     // Only redraw when something visible changed
-    const state = `${screen.at}|${options.details}|${options.phone}|${typing.shown.join("|")}|${cursorOn}|${JSON.stringify(loading)}|${JSON.stringify(reboot)}`;
+    const state = `${screen.at}|${options.details}|${options.phone}|${typing.shown.join("|")}|${cursorOn}|${JSON.stringify(loading)}|${JSON.stringify(reboot)}|${JSON.stringify(takeover)}`;
     if (state === lastKey) return;
     lastKey = state;
 
@@ -202,6 +204,23 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       context.font = font(20);
       text(loading.label, WIDTH / 2, bodyMiddle - 16 * S);
       bar(loading.blocks, bodyMiddle + 16 * S);
+    } else if (takeover) {
+      if (takeover.inverted) {
+        context.fillRect(0, 0, WIDTH, HEIGHT);
+        context.fillStyle = GLASS;
+        context.shadowBlur = 0;
+      }
+      if (takeover.heading) heading(takeover.heading, takeover.heading, false, false);
+      context.font = font(20);
+      const rows = takeover.lines.length + (takeover.bar === null ? 0 : 1);
+      takeover.lines.forEach((line, i) => {
+        const y = bodyMiddle + (i - (rows - 1) / 2) * 24 * S;
+        text(line, WIDTH / 2, y);
+        if (takeover.cursor && i === takeover.lines.length - 1) cursorAfter(line, WIDTH / 2, y, 20);
+      });
+      if (takeover.bar !== null) bar(Math.round(takeover.bar * LOADING_BLOCKS), bodyMiddle + ((rows - 1) / 2) * 24 * S);
+      if (takeover.cursor && takeover.lines.length === 0) cursorAfter("", WIDTH / 2, bodyMiddle, 20);
+      context.fillStyle = PHOSPHOR;
     } else if (reboot) {
       if (reboot.crashed) {
         heading("*** FATAL ERROR ***", reboot.blink ? "*** FATAL ERROR ***" : "", false, false);

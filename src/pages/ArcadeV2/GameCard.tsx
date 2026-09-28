@@ -10,6 +10,7 @@ import {
   PLAY_HINT,
   rebootView,
   settled,
+  takeoverView,
   terminalControls,
   typedParts,
   typeOut,
@@ -242,6 +243,29 @@ function ScreenBody({
         <div className={`${body} gap-2`}>
           <p>{loading.label}</p>
           <LoadingBar blocks={loading.blocks} />
+        </div>
+      </>
+    );
+  }
+  if (screen.kind === "takeover") {
+    const view = takeoverView(screen, now);
+    const ink = view.inverted ? { color: "#021407", textShadow: "none" } : undefined;
+    return (
+      <>
+        {/* An inverted burst: the whole glass lit, the text dark */}
+        {view.inverted && <div aria-hidden="true" className="absolute inset-0" style={{ background: PHOSPHOR }} />}
+        <div className="relative px-2" style={ink}>
+          <FittedTitle text={view.heading || " "} shown={view.heading} cursor={false} />
+        </div>
+        <div className={`${body} relative gap-1 whitespace-pre`} style={ink}>
+          {view.lines.map((line, i) => (
+            <p key={i} className="h-6 leading-6">
+              {line}
+              {view.cursor && i === view.lines.length - 1 && <Cursor />}
+            </p>
+          ))}
+          {view.cursor && view.lines.length === 0 && <Cursor />}
+          {view.bar !== null && <LoadingBar blocks={Math.round(view.bar * LOADING_BLOCKS)} />}
         </div>
       </>
     );

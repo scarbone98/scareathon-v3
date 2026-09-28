@@ -499,7 +499,12 @@ export default function CartridgeArcade({
       if (game.special === "mystery") {
         const plugged = games.indexOf(game) === insertedIndex;
         screenMode = plugged ? "mystery" : "bars";
-        if (plugged) mysteryScreen.reset(performance.now() / 1000);
+        if (plugged) {
+          // It takes over the whole machine: the screen, the terminal, the scope
+          mysteryScreen.reset(performance.now() / 1000);
+          showTerminal({ kind: "takeover", at: nowSeconds() });
+          slotRig?.setPossessed(true);
+        }
         lastIdleBlink = -1;
         showOnScreen(screenTexture);
         return;
@@ -1225,6 +1230,7 @@ export default function CartridgeArcade({
       insertedIndex = -1;
       setInserted(-1);
       showTerminal({ kind: "message", lines: ["> EJECT", "CARTRIDGE RELEASED"], at: nowSeconds() });
+      slotRig?.setPossessed(false);
       stopVideo();
       screenGame = -1;
       screenMode = "off";

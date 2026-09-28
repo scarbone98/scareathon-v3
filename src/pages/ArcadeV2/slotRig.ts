@@ -52,6 +52,8 @@ export type SlotRig = {
   sparks: (from?: Vector3) => void;
   // The scope flatlines while the machine is down
   setDead: (dead: boolean) => void;
+  // Something else has the machine (the "???" cartridge): the graph won't settle
+  setPossessed: (possessed: boolean) => void;
   dispose: () => void;
 };
 
@@ -235,21 +237,54 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   let phase = 0;
   let haywireUntil = 0; // poked: the signal thrashes about for a moment
   let dead = false; // the machine's crashed: a flat, dim line
+  // Possessed: the signal keeps changing what it's doing, every second or so
+  let possessed = false;
+  let fit: "sweep" | "slam" | "spikes" | "square" | "flat" = "sweep";
+  let fitUntil = 0;
+  let sweep = 0;
+  const possessedSample = (time: number) => {
+    if (time >= fitUntil) {
+      const fits = ["sweep", "sweep", "slam", "spikes", "square", "flat"] as const;
+      fit = fits[Math.floor(Math.random() * fits.length)];
+      fitUntil = time + (fit === "flat" ? 0.25 : 0.5 + Math.random());
+    }
+    sweep += 0.25 + Math.sin(time * 1.3) * 0.2 + (fit === "sweep" ? 0.35 : 0);
+    switch (fit) {
+      case "sweep":
+        return 0.5 + Math.sin(sweep) * (0.25 + 0.2 * Math.sin(time * 2.1));
+      case "slam":
+        return Math.random() < 0.5 ? Math.random() * 0.15 : 0.85 + Math.random() * 0.15;
+      case "spikes":
+        return Math.random() < 0.18 ? (Math.random() < 0.5 ? 0.05 : 0.95) : 0.5 + (Math.random() - 0.5) * 0.06;
+      case "square":
+        return Math.sin(sweep * 0.7) > 0 ? 0.8 : 0.2;
+      default:
+        return 0.5;
+    }
+  };
   const drawGraph = (time: number) => {
     const haywire = !dead && time < haywireUntil;
-    if (time - lastTrace < (haywire ? 0.016 : 0.05)) return;
+    const fast = haywire || (possessed && !dead);
+    if (time - lastTrace < (fast ? 0.016 : 0.05)) return;
     lastTrace = time;
     phase += 0.35;
     const noise = Math.sin(phase * 1.7) * 0.15 + Math.sin(phase * 0.43) * 0.2 + (Math.random() - 0.5) * 0.18;
-    if (haywire) {
-      // A few samples a frame, slamming between the rails
+    if (possessed && !dead && !haywire) {
       for (let i = 0; i < 3; i += 1) {
-        trace.push(Math.random() < 0.5 ? Math.random() * 0.15 : 0.85 + Math.random() * 0.15);
+        trace.push(possessedSample(time));
         trace.shift();
       }
+    } else {
+      if (haywire) {
+        // A few samples a frame, slamming between the rails
+        for (let i = 0; i < 3; i += 1) {
+          trace.push(Math.random() < 0.5 ? Math.random() * 0.15 : 0.85 + Math.random() * 0.15);
+          trace.shift();
+        }
+      }
+      trace.push(dead ? 0.5 : 0.5 + noise + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.7 : 0));
+      trace.shift();
     }
-    trace.push(dead ? 0.5 : 0.5 + noise + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.7 : 0));
-    trace.shift();
     graph.fillStyle = "#021407";
     graph.fillRect(0, 0, 160, 96);
     graph.strokeStyle = "rgba(57, 255, 106, 0.18)";
@@ -518,6 +553,10 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     sparks: burstSparks,
     setDead(next) {
       dead = next;
+    },
+    setPossessed(next) {
+      possessed = next;
+      fitUntil = 0;
     },
     dispose() {
       lead?.geometry.dispose();
