@@ -80,7 +80,7 @@ describe('8BitEvil API endpoint validation', () => {
     expect(JSON.parse(response.payload)).toEqual({ data: 'success' });
     expect(clientQuery).toHaveBeenCalledWith('BEGIN');
     expect(clientQuery).toHaveBeenCalledWith('COMMIT');
-    expect(clientQuery.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO leaderboards'))).toHaveLength(4);
+    expect(clientQuery.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO leaderboards'))).toHaveLength(3);
     expect(release).toHaveBeenCalled();
   });
 

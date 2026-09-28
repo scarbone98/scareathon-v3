@@ -246,7 +246,6 @@ export default async function (fastify, options) {
             await client.query('BEGIN');
             const gameId = await getGameId(client);
 
-            await insertLeaderboardMetric(client, gameId, userId, 'score', runTimeSeconds);
             await insertLeaderboardMetric(client, gameId, userId, 'runTimeSeconds', runTimeSeconds);
             await insertLeaderboardMetric(client, gameId, userId, 'kills', kills);
             await insertLeaderboardMetric(client, gameId, userId, 'candyCollected', candyCollected);

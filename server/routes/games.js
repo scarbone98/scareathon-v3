@@ -4,6 +4,8 @@ import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
 import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
 
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
+const RUN_START_LIMIT_PER_MINUTE = 30;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
 
 export function calculateRuleAward(rule, metricValue) {
@@ -64,6 +66,23 @@ export function validateScoreSubmission({ game, metricName, metricValue }) {
     }
 
     return { ok: true };
+}
+
+// Whether a score could have been earned in the time since its run ticket was
+// issued. Games without a pace (see gameScorePolicies.js) always pass.
+export function checkRunPace({ game, metricName, metricValue, elapsedSeconds }) {
+    const pace = GAME_SCORE_POLICIES.get(game)?.[metricName]?.pace;
+    if (!pace) return true;
+    return metricValue <= pace.burst + pace.perSecond * Math.max(0, elapsedSeconds);
+}
+
+async function issueRunTicket(client, userId, gameId) {
+    const result = await client.query(`
+        INSERT INTO arcade_runs (user_id, game_id)
+        VALUES ($1, $2)
+        RETURNING id
+    `, [userId, gameId]);
+    return result.rows[0].id;
 }
 
 function getGameLeaderboardCacheKey(game, metric, limit) {
@@ -140,11 +159,53 @@ async function routes(fastify, options) {
         }
     });
 
+    // A run ticket for one game. The arcade asks for one when a game opens;
+    // after that each saved score hands back the next.
+    fastify.post('/startRun', async (request, reply) => {
+        try {
+            const userId = request.user.sub;
+            const { game } = request.body ?? {};
+
+            if (!GAME_SCORE_POLICIES.has(game)) {
+                return reply.code(400).send({ error: 'Unsupported game' });
+            }
+
+            const gameResult = await pool.query('SELECT id FROM games WHERE name = $1 ORDER BY id ASC LIMIT 1', [game]);
+            if (gameResult.rows.length === 0) {
+                return reply.code(400).send({ error: 'Game not found' });
+            }
+
+            const recentRuns = await pool.query(`
+                SELECT COUNT(*)::int AS count
+                FROM arcade_runs
+                WHERE user_id = $1
+                  AND started_at >= now() - interval '1 minute'
+            `, [userId]);
+
+            if (Number(recentRuns.rows[0]?.count || 0) >= RUN_START_LIMIT_PER_MINUTE) {
+                return reply.code(429).send({ error: 'Too many runs started' });
+            }
+
+            // Tickets expire after a day, so there's no reason to keep them
+            await pool.query(`
+                DELETE FROM arcade_runs
+                WHERE user_id = $1
+                  AND started_at < now() - interval '1 day'
+            `, [userId]);
+
+            const runId = await issueRunTicket(pool, userId, gameResult.rows[0].id);
+            return { data: { runId } };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: error.message });
+        }
+    });
+
     fastify.post('/submitScore', async (request, reply) => {
         const client = await pool.connect();
         try {
             const userId = request.user.sub;
-            const { game, metricName, metricValue } = request.body;
+            const { game, metricName, metricValue, runId } = request.body;
             const numericMetricValue = Number(metricValue);
             const validation = validateScoreSubmission({
                 game,
@@ -154,6 +215,10 @@ async function routes(fastify, options) {
 
             if (!validation.ok) {
                 return reply.code(validation.statusCode).send({ error: validation.error });
+            }
+
+            if (typeof runId !== 'string' || !UUID_PATTERN.test(runId)) {
+                return reply.code(400).send({ error: 'A run ticket is required' });
             }
 
             await client.query('BEGIN');
@@ -178,6 +243,31 @@ async function routes(fastify, options) {
             if (Number(recentSubmissions.rows[0]?.count || 0) >= SCORE_SUBMISSION_LIMIT_PER_MINUTE) {
                 await client.query('ROLLBACK');
                 return reply.code(429).send({ error: 'Too many score submissions' });
+            }
+
+            // Use up the ticket; it has to be this player's, for this game, and fresh
+            const runResult = await client.query(`
+                UPDATE arcade_runs
+                SET used_at = now()
+                WHERE id = $1
+                  AND user_id = $2
+                  AND game_id = $3
+                  AND used_at IS NULL
+                  AND started_at > now() - interval '1 day'
+                RETURNING EXTRACT(EPOCH FROM now() - started_at)::float8 AS elapsed_seconds
+            `, [runId, userId, gameId]);
+
+            if (runResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return reply.code(409).send({ error: 'Run ticket is missing, used, or expired' });
+            }
+
+            const elapsedSeconds = Number(runResult.rows[0].elapsed_seconds);
+            if (!checkRunPace({ game, metricName, metricValue: numericMetricValue, elapsedSeconds })) {
+                await client.query('ROLLBACK');
+                fastify.log.warn({ userId, game, metricName, metricValue: numericMetricValue, elapsedSeconds },
+                    'Rejected a score too high for the time played');
+                return reply.code(400).send({ error: 'Score is too high for the time played' });
             }
 
             // Insert a new leaderboard entry
@@ -245,12 +335,15 @@ async function routes(fastify, options) {
                 fastify.log.warn({ err: error }, 'Unable to evaluate weekly challenge rewards');
             }
 
+            const nextRunId = await issueRunTicket(client, userId, gameId);
+
             await client.query('COMMIT');
             deleteCachePrefix(getGameLeaderboardCachePrefix(game, metricName));
 
             return {
                 data: {
                     ...scoreRow,
+                    nextRunId,
                     coinsAwarded,
                     coinBalance,
                     weeklyChallengeRewards,

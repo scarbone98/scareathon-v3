@@ -82,6 +82,40 @@ function isArcadeMessage(value: unknown): value is ArcadeMessage {
 export const GUEST_SCORE_EVENT = "arcade:guest-score";
 export type GuestScore = { game: string; score: number };
 
+// The server only saves a score with a run ticket for that game. Each game
+// gets one when it opens, and each saved score hands back the next.
+const runTickets = new Map<string, Promise<string | null>>();
+
+async function requestRunTicket(game: string): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return null;
+
+  try {
+    const response = await fetchWithAuth("/games/startRun", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ game }),
+    });
+    if (!response.ok) {
+      console.error(`Couldn't start a run for ${game}`, await response.text());
+      return null;
+    }
+    const data = await response.json();
+    return data.data?.runId ?? null;
+  } catch (error) {
+    console.error(`Couldn't start a run for ${game}`, error);
+    return null;
+  }
+}
+
+export function startArcadeRun(game: string) {
+  runTickets.set(game, requestRunTicket(game));
+}
+
 export async function submitArcadeScore(game: string, score: unknown) {
   const metricValue = Number(score);
   if (!Number.isFinite(metricValue) || metricValue < 0) return;
@@ -96,20 +130,42 @@ export async function submitArcadeScore(game: string, score: unknown) {
     return;
   }
 
-  const response = await fetchWithAuth("/games/submitScore", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      game,
-      metricName: "score",
-      metricValue,
-    }),
-  });
+  // Claim this run's ticket and hold the slot for the next one, so a second
+  // score arriving meanwhile waits for it instead of reusing this one
+  const ticket = runTickets.get(game) ?? Promise.resolve(null);
+  let nextRunId: string | null = null;
+  let settleNext: (runId: string | null) => void = () => {};
+  runTickets.set(game, new Promise((resolve) => (settleNext = resolve)));
 
-  if (!response.ok) {
-    console.error(`Score submission failed for ${game}`, await response.text());
+  try {
+    const runId = await ticket;
+    if (!runId) {
+      // Signed in mid-game, or the ticket request failed: this run can't be saved
+      console.error(`No run ticket for ${game}; score not saved`);
+      return;
+    }
+
+    const response = await fetchWithAuth("/games/submitScore", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        game,
+        metricName: "score",
+        metricValue,
+        runId,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`Score submission failed for ${game}`, await response.text());
+      return;
+    }
+    const data = await response.json();
+    nextRunId = data.data?.nextRunId ?? null;
+  } finally {
+    settleNext(nextRunId ?? (await requestRunTicket(game)));
   }
 }
 
@@ -127,6 +183,7 @@ function listenForPlayerDiedScores(
   gameUrl: string
 ) {
   const expectedOrigin = getUrlOrigin(gameUrl);
+  startArcadeRun(game);
 
   const handleMessage = async (event: MessageEvent) => {
     if (!isTrustedGameMessage(iframe, event, expectedOrigin)) return;
@@ -203,6 +260,7 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) => {
             const expectedOrigin = getUrlOrigin(EIGHT_BIT_EVIL_RETURNS_URL);
+            startArcadeRun("8 Bit Evil Returns");
 
             const handleMessage = async (e: MessageEvent) => {
               if (!isTrustedGameMessage(iframe, e, expectedOrigin)) return;
@@ -559,6 +617,7 @@ export function createArcadeGames(): MachineData[] {
         <Suspense fallback={<LoadingSpinner />}>
           <EightBitEvil
             onLoad={(gameInstance: GameInstance) => {
+              startArcadeRun(ORIGINAL_EIGHT_BIT_EVIL);
               if (!(window as CustomWindow).customFunctions) {
                 (window as CustomWindow).customFunctions = {};
               }
@@ -566,7 +625,7 @@ export function createArcadeGames(): MachineData[] {
               if ((window as CustomWindow).customFunctions) {
                 ((window as CustomWindow).customFunctions ??= {}).onDeath =
                   async (score: number) => {
-                    await submitArcadeScore("8 Bit Evil", score);
+                    await submitArcadeScore(ORIGINAL_EIGHT_BIT_EVIL, score);
                   };
               }
 

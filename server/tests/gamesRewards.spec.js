@@ -1,4 +1,4 @@
-import { calculateRuleAward, validateScoreSubmission } from '../routes/games.js';
+import { calculateRuleAward, checkRunPace, validateScoreSubmission } from '../routes/games.js';
 
 describe('calculateRuleAward', () => {
     test('returns fixed awards when the metric clears the threshold', () => {
@@ -125,5 +125,35 @@ describe('validateScoreSubmission', () => {
             metricName: 'score',
             metricValue: 48210,
         })).toEqual({ ok: true });
+    });
+});
+
+describe('checkRunPace', () => {
+    test('allows scores the time played could earn', () => {
+        // 8 Bit Evil Returns scores seconds survived: 60 up front plus 1 a second
+        expect(checkRunPace({
+            game: '8 Bit Evil Returns',
+            metricName: 'score',
+            metricValue: 360,
+            elapsedSeconds: 300,
+        })).toBe(true);
+    });
+
+    test('rejects scores too high for the time played', () => {
+        expect(checkRunPace({
+            game: '8 Bit Evil Returns',
+            metricName: 'score',
+            metricValue: 86400,
+            elapsedSeconds: 5,
+        })).toBe(false);
+    });
+
+    test('lets games without a pace through', () => {
+        expect(checkRunPace({
+            game: 'Mystery Crypt',
+            metricName: 'score',
+            metricValue: 10000000,
+            elapsedSeconds: 1,
+        })).toBe(true);
     });
 });
