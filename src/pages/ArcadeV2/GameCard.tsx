@@ -10,6 +10,7 @@ import {
   PLAY_HINT,
   rebootView,
   settled,
+  terminalControls,
   typedParts,
   typeOut,
   type TerminalScreen,
@@ -154,7 +155,19 @@ function LoadingBar({ blocks }: { blocks: number }) {
 
 // The terminal's heading and body for whatever it's showing; the same layout as
 // the little terminal on the slot draws
-function ScreenBody({ screen, details, now, onLeaderboard }: { screen: TerminalScreen; details: boolean; now: number; onLeaderboard: (game: MachineData) => void }) {
+function ScreenBody({
+  screen,
+  details,
+  phone,
+  now,
+  onLeaderboard,
+}: {
+  screen: TerminalScreen;
+  details: boolean;
+  phone: boolean;
+  now: number;
+  onLeaderboard: (game: MachineData) => void;
+}) {
   const parts = typedParts(screen, details);
   const typing = typeOut(parts, screen, now);
   const [shownFirst = "", ...shownRest] = typing.shown;
@@ -162,9 +175,12 @@ function ScreenBody({ screen, details, now, onLeaderboard }: { screen: TerminalS
 
   if (screen.kind === "game" && details) {
     // The details have the glass to themselves (the other keys and the hint hide),
-    // filling the heading's, body's and hint's room together
+    // in exactly the height of the usual screen so the card doesn't grow. Phones
+    // have no hint row to take over, so their lines sit a little tighter.
     return (
-      <div className="flex h-[9.75rem] items-center justify-center text-xl leading-6 sm:h-[10rem]">
+      <div
+        className={`flex items-center justify-center ${phone ? "h-[8.25rem] text-lg leading-5 sm:h-[8.5rem]" : "h-[9.75rem] text-xl leading-6 sm:h-[10rem]"}`}
+      >
         <pre className="max-w-full text-left" style={{ fontFamily: TERMINAL_FAMILY }}>
           {typing.shown.map((line, i) => (
             <div key={i} className="overflow-hidden text-ellipsis whitespace-pre">
@@ -256,8 +272,7 @@ function ScreenBody({ screen, details, now, onLeaderboard }: { screen: TerminalS
 
 export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails }: Props) {
   const now = useClock(screen, details);
-  // A game's details on screen: only the ? key stays, to put them away
-  const detailsShown = details && screen.kind === "game";
+  const controls = terminalControls(screen, details);
 
   return (
     <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
@@ -280,27 +295,33 @@ export default function GameCard({ screen, details, phone, style, className = ""
             textShadow: GLOW,
           }}
         >
-          <ScreenBody screen={screen} details={details} now={now} onLeaderboard={onLeaderboard} />
+          <ScreenBody screen={screen} details={details} phone={phone} now={now} onLeaderboard={onLeaderboard} />
 
-          {!phone && !detailsShown && <p className="mt-1 h-5 text-base leading-5 opacity-55">{PLAY_HINT}</p>}
+          {/* Hidden rather than removed while busy, so the card keeps its size (the
+              details take its row over) */}
+          {!phone && controls !== "details" && (
+            <p className={`mt-1 h-5 text-base leading-5 opacity-55 ${controls === "none" ? "invisible" : ""}`}>{PLAY_HINT}</p>
+          )}
 
-          {phone && !detailsShown && (
+          {phone && controls === "all" && (
             <div className="absolute bottom-1.5 left-2 z-10 text-xl">
               <MenuKey />
             </div>
           )}
-          {!detailsShown && (
+          {controls === "all" && (
             <div className="absolute right-2 top-1.5 z-10 text-xl">
               <TerminalButton onClick={onBrowseAll} label="Show all games">
                 ^
               </TerminalButton>
             </div>
           )}
-          <div className="absolute bottom-1.5 right-2 z-10 text-xl">
-            <TerminalButton onClick={onToggleDetails} pressed={details} label={details ? "Hide game details" : "Show game details"}>
-              ?
-            </TerminalButton>
-          </div>
+          {controls !== "none" && (
+            <div className="absolute bottom-1.5 right-2 z-10 text-xl">
+              <TerminalButton onClick={onToggleDetails} pressed={details} label={details ? "Hide game details" : "Show game details"}>
+                ?
+              </TerminalButton>
+            </div>
+          )}
 
           {/* Scanlines over everything */}
           <div

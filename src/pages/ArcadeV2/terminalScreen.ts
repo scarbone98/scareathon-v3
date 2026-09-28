@@ -88,6 +88,14 @@ export function rebootView(screen: TerminalScreen & { kind: "reboot" }, time: nu
   };
 }
 
+// Which keys (and the hint) show: all of them on a game's screen; only ? over its
+// details, to put them away; none while the terminal's busy (loading, ejecting,
+// rebooting, waiting for a cartridge)
+export function terminalControls(screen: TerminalScreen, details: boolean): "all" | "details" | "none" {
+  if (screen.kind !== "game") return "none";
+  return details ? "details" : "all";
+}
+
 // Whether the screen has stopped changing (so there's nothing more to redraw)
 export function settled(screen: TerminalScreen, details: boolean, time: number) {
   if (screen.kind === "reboot") return false;

@@ -8,6 +8,7 @@ import {
   nowSeconds,
   PLAY_HINT,
   rebootView,
+  terminalControls,
   typedParts,
   typeOut,
   type TerminalOptions,
@@ -211,17 +212,17 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       }
     }
 
-    const detailsShown = options.details && screen.kind === "game";
-    if (!options.phone && !detailsShown) {
+    const controls = terminalControls(screen, options.details);
+    if (!options.phone && controls === "all") {
       context.globalAlpha = 0.55;
       context.font = font(16);
       text(PLAY_HINT, WIDTH / 2, hintY);
       context.globalAlpha = 1;
     }
-    // The corner keys (a game's details keep only the ? key, to put them away)
-    if (!detailsShown) key("^", WIDTH - 10 * S, 14 * S, "right");
-    key("?", WIDTH - 10 * S, HEIGHT - 14 * S, "right", options.details);
-    if (options.phone && !detailsShown) key("≡", 10 * S, HEIGHT - 14 * S, "left");
+    // The corner keys
+    if (controls === "all") key("^", WIDTH - 10 * S, 14 * S, "right");
+    if (controls !== "none") key("?", WIDTH - 10 * S, HEIGHT - 14 * S, "right", options.details);
+    if (options.phone && controls === "all") key("≡", 10 * S, HEIGHT - 14 * S, "left");
 
     context.shadowBlur = 0;
     // Scanlines
