@@ -1703,9 +1703,12 @@ export default function CartridgeArcade({
 
       room = createCassetteRoom(scene);
 
-      // Start on the game the link names, or the first one, already previewing
+      // Start on the game the link names, or on Shuffle, already previewing
       const initial = games.findIndex((game) => game.name === initialGameRef.current);
-      focus(Math.max(initial, 0));
+      const shuffle = games.findIndex((game) => game.special === "shuffle");
+      const start = initial >= 0 ? initial : Math.max(shuffle, 0);
+      scroll.x = start * pitchX; // already there, no slide across on load
+      focus(start);
       // Cartridges drop onto the shelf one after another
       carts.forEach((state, i) => {
         gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });

@@ -177,8 +177,49 @@ export function useIsMobileArcade() {
 // Builds the list fresh; call it once per page (e.g. in useMemo).
 export function createArcadeGames(): MachineData[] {
   return [
+    // Not games so much as things to do: they sit left of Shuffle (where the shelf starts)
     {
-      // Always first on the shelf
+      name: "Wayside Gallery",
+      cartridge: {
+        color: "#b8894f",
+        tagline: "Walk through a gallery of Stewart's art.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Virtual gallery", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/WaysideGallery.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Wayside Gallery"
+          url={WAYSIDE_GALLERY_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Picto Box",
+      cartridge: {
+        color: "#e8853a",
+        tagline: "Snap a picto. Hang it on the wall for a day.",
+        font: { family: "Chewy" },
+        about: { released: "2026", players: "Everyone", genre: "Community camera", developer: "sclondon" },
+        backNote: "Say cheese!",
+      },
+      videoUrl: "/game-recordings/PictoBoxCamera.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Picto Box"
+          url={PICTO_BOX_URL}
+          desktopAspectRatio={4 / 5}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          allow="camera"
+        />
+      ),
+    },
+    {
+      // Where the shelf starts (the non-game carts sit to its left)
       name: "Shuffle",
       cartridge: {
         color: "#f2c14e",
@@ -510,25 +551,6 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     {
-      name: "Wayside Gallery",
-      cartridge: {
-        color: "#b8894f",
-        tagline: "Walk through a gallery of Stewart's art.",
-        font: { family: "Cormorant Garamond", weight: 600 },
-        about: { released: "2026", players: "Single player", genre: "Virtual gallery", developer: "sclondon" },
-      },
-      videoUrl: "/game-recordings/WaysideGallery.mp4",
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Wayside Gallery"
-          url={WAYSIDE_GALLERY_URL}
-          desktopAspectRatio={16 / 9}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-        />
-      ),
-    },
-    {
       name: "Breedable Monsters",
       cartridge: {
         color: "#3fc6c9",
@@ -601,27 +623,6 @@ export function createArcadeGames(): MachineData[] {
             }}
           />
         </Suspense>
-      ),
-    },
-    {
-      name: "Picto Box",
-      cartridge: {
-        color: "#e8853a",
-        tagline: "Snap a picto. Hang it on the wall for a day.",
-        font: { family: "Chewy" },
-        about: { released: "2026", players: "Everyone", genre: "Community camera", developer: "sclondon" },
-        backNote: "Say cheese!",
-      },
-      videoUrl: "/game-recordings/PictoBox.mp4",
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Picto Box"
-          url={PICTO_BOX_URL}
-          desktopAspectRatio={4 / 5}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          allow="camera"
-        />
       ),
     },
     // --- Coming soon: carts on the shelf before their games exist. There's no
