@@ -154,17 +154,17 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     context.textBaseline = "middle";
 
     if (screen.kind === "game" && options.details) {
-      // The details, small, filling the heading's and body's room together:
-      // left-aligned as a block, the block centred
-      context.font = font(18);
+      // The details have the glass to themselves (the other keys and the hint
+      // hide): left-aligned as a block, the block centred
+      context.font = font(20);
       const full = gameLines(screen.game, true);
       const left = Math.max((WIDTH - Math.max(...full.map((line) => context.measureText(line).width))) / 2, 20 * S);
-      const middle = (headingY - 22 * S + bodyTop + 88 * S) / 2;
+      const middle = HEIGHT / 2;
       typing.shown.forEach((line, i) => {
-        const y = middle + (i - (full.length - 1) / 2) * 20 * S;
+        const y = middle + (i - (full.length - 1) / 2) * 24 * S;
         text(line, left, y, "left");
         const here = typing.done ? i === typing.shown.length - 1 : typing.cursorAt === i;
-        if (cursorOn && here) cursorAfter(line, left, y, 18, "left");
+        if (cursorOn && here) cursorAfter(line, left, y, 20, "left");
       });
     } else if (screen.kind === "game") {
       const [shownName = "", ...shownLines] = typing.shown;
@@ -211,16 +211,17 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       }
     }
 
-    if (!options.phone) {
+    const detailsShown = options.details && screen.kind === "game";
+    if (!options.phone && !detailsShown) {
       context.globalAlpha = 0.55;
       context.font = font(16);
       text(PLAY_HINT, WIDTH / 2, hintY);
       context.globalAlpha = 1;
     }
-    // The corner keys
-    key("^", WIDTH - 10 * S, 14 * S, "right");
+    // The corner keys (a game's details keep only the ? key, to put them away)
+    if (!detailsShown) key("^", WIDTH - 10 * S, 14 * S, "right");
     key("?", WIDTH - 10 * S, HEIGHT - 14 * S, "right", options.details);
-    if (options.phone) key("≡", 10 * S, HEIGHT - 14 * S, "left");
+    if (options.phone && !detailsShown) key("≡", 10 * S, HEIGHT - 14 * S, "left");
 
     context.shadowBlur = 0;
     // Scanlines
