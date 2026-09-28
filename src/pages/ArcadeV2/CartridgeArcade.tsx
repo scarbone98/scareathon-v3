@@ -1595,6 +1595,12 @@ export default function CartridgeArcade({
       gsap.killTweensOf(inspect.amount);
       gsap.to(inspect.amount, { value: 1, duration: 0.5, ease: "power3.out" });
       playWhoosh();
+      // Out of the scanner's view: the screen drops the preview and asks for a cartridge
+      stopVideo();
+      screenGame = -1;
+      screenMode = "idle";
+      lastIdleBlink = -1;
+      showOnScreen(screenTexture);
       showTerminal({ kind: "message", lines: ["> INSPECT", "DRAG TO SPIN", terminalOptions.phone ? "TAP TO PUT BACK" : "CLICK TO PUT BACK"], at: nowSeconds() });
     };
     const putBack = () => {
@@ -1615,6 +1621,8 @@ export default function CartridgeArcade({
       });
       playTick();
       showGameOrIdle(focusIndex);
+      // Back in line: the screen picks its preview up again
+      if (insertedIndex < 0 && focusIndex >= 0) tuneScreen(focusIndex, 0.18);
     };
     const cancelHold = () => {
       window.clearTimeout(holdTimer);

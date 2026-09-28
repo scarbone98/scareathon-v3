@@ -51,7 +51,7 @@ function grains() {
       const x = i % size;
       const y = Math.floor(i / size);
       const mottle = Math.sin(x * 0.07) * Math.sin(y * 0.05) * 18;
-      const v = 150 + mottle + (Math.random() - 0.5) * 120;
+      const v = 150 + mottle + (Math.random() - 0.5) * 100;
       image.data[i * 4] = image.data[i * 4 + 1] = image.data[i * 4 + 2] = v;
       image.data[i * 4 + 3] = 255;
     }
@@ -349,8 +349,7 @@ function shellOutline(style: CartridgeStyle, width: number, height: number, wind
   return outline;
 }
 
-function shellGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number) {
-  const bevel = depth * 0.12;
+function shellGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number, bevel = depth * 0.12) {
   const outline = shellOutline(style, width, height, windowBand, bevel);
   const core = depth - bevel * 2;
   const geometry = new ExtrudeGeometry(outline, {
@@ -365,14 +364,14 @@ function shellGeometry(style: CartridgeStyle, width: number, height: number, dep
   return geometry;
 }
 
-// Where the two halves of the shell meet, halfway through its depth: a thin dark
-// ring a hair proud of the outline all round, as if it could clam open
+// Where the two halves of the shell meet, halfway through its depth: the halves
+// stand a hair apart with rounded edges, and this ring sits back in the gap
+// between them, so the seam reads as a groove all round, as if it could clam open
 function seamGeometry(style: CartridgeStyle, width: number, height: number, depth: number, windowBand: number) {
-  const out = 1.012;
-  const ring = shellOutline(style, width * out, height * out, windowBand * out, 0);
-  const inside = 0.965;
-  ring.holes.push(shellOutline(style, width * inside, height * inside, windowBand * inside, 0));
-  const thickness = depth * 0.035;
+  const recess = depth * 0.06; // how far in from the outline the groove's floor sits
+  const ring = shellOutline(style, width, height, windowBand, recess);
+  ring.holes.push(shellOutline(style, width, height, windowBand, recess + width * 0.03));
+  const thickness = depth * 0.08;
   const geometry = new ExtrudeGeometry(ring, { depth: thickness, bevelEnabled: false, curveSegments: 10 });
   geometry.translate(0, 0, -thickness / 2);
   return geometry;
@@ -462,7 +461,7 @@ export function createCartridge(
         roughness: 1,
         roughnessMap: grain.plastic,
         bumpMap: grain.plastic,
-        bumpScale: 2.4,
+        bumpScale: 1.8,
         metalness: 0.05,
         clearcoat: 0.3,
         clearcoatRoughness: 0.45,
@@ -473,7 +472,7 @@ export function createCartridge(
     roughness: 1,
     roughnessMap: grain.plastic,
     bumpMap: grain.plastic,
-    bumpScale: 2.4,
+    bumpScale: 1.8,
     emissive: shellColor.clone().multiplyScalar(0.06),
   });
   const connectorMaterial = new MeshStandardMaterial({ color: new Color("#16131b"), roughness: 0.6 });
@@ -495,8 +494,14 @@ export function createCartridge(
   // The band along the bottom where the reels show; the label fills the face above it
   const windowBand = bodyHeight * (style === "disc" ? 0.26 : style === "brick" ? 0.22 : 0.2);
   const front = depth / 2;
-  addPart(shellGeometry(style, width, bodyHeight, depth, windowBand), shellMaterial, 0, bodyBottom + bodyHeight / 2, 0);
-  const seamMaterial = new MeshStandardMaterial({ color: new Color("#0d0b0e"), roughness: 0.8 });
+  // Two halves, front and back, a hair apart at the seam
+  const gap = depth * 0.04;
+  const half = (depth - gap) / 2;
+  [-1, 1].forEach((side) => {
+    addPart(shellGeometry(style, width, bodyHeight, half, windowBand, depth * 0.1), shellMaterial, 0, bodyBottom + bodyHeight / 2, side * (gap + half) / 2);
+  });
+  // The groove: a darker shade of the shell
+  const seamMaterial = new MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.35), roughness: 0.75 });
   addPart(seamGeometry(style, width, bodyHeight, depth, windowBand), seamMaterial, 0, bodyBottom + bodyHeight / 2, 0);
   // The edge connector: a thin board, striped with gold contacts on both faces
   const connectorDepth = depth * 0.26;
@@ -529,12 +534,17 @@ export function createCartridge(
   // Reels are sized off the tape shell's window, so they match across shells
   const reelSize = bodyHeight * 0.2 * 0.72;
   const windowMaterial = new MeshStandardMaterial({
-    color: new Color("#140f15"),
+    color: new Color("#2c2328"),
     roughness: 0.18,
     metalness: 0.1,
     ...(clear ? { transparent: true, opacity: 0.2, depthWrite: false } : {}),
   });
-  const tapeMaterial = new MeshStandardMaterial({ color: new Color("#3b2519"), roughness: 0.35, metalness: 0.2 });
+  const tapeMaterial = new MeshStandardMaterial({
+    color: new Color("#7a4a2a"),
+    roughness: 0.25,
+    metalness: 0.35,
+    emissive: new Color("#3a1f0e"),
+  });
   const hubTexture = new CanvasTexture(hubCanvas());
   hubTexture.colorSpace = SRGBColorSpace;
   const hubMaterial = new MeshStandardMaterial({ map: hubTexture, transparent: true, roughness: 0.5, alphaTest: 0.1 });
@@ -590,6 +600,14 @@ export function createCartridge(
   } else {
     const windowWidth = style === "brick" ? width * 0.8 : width * 0.46;
     addPart(roundedRect(windowWidth, windowHeight, windowHeight * (style === "brick" ? 0.12 : 0.3)), windowMaterial, 0, windowY, front + 0.001);
+  }
+  // The tape's run between the reels, along the bottom of the window (a clear
+  // shell shows its whole run inside instead; the disc's slot is too narrow)
+  if (!clear && style !== "disc") {
+    const [first, last] = [reels[0], reels[reels.length - 1]];
+    const from = first.x - first.tape * 0.6;
+    const to = last.x + last.tape * 0.6;
+    addPart(new PlaneGeometry(to - from, windowHeight * 0.07), tapeMaterial, (from + to) / 2, windowY - windowHeight * 0.36, front + 0.0012);
   }
   const hubs = reels.map((reel) => {
     addPart(new CircleGeometry(reel.tape, 28), tapeMaterial, reel.x, windowY, front + 0.0015);
