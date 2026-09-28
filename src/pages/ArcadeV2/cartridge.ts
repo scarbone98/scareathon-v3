@@ -304,6 +304,9 @@ function paintLabel(
 
 // The shell's outline for a style, centred on the origin, extruded with rounded
 // edges. `windowBand` is how far up from the bottom the reel window's band reaches.
+// How big the disc shell's notch is, as a share of its width
+const DISC_NOTCH = 0.065;
+
 // The shell's face outline, pulled in by `inset` all round
 function shellOutline(style: CartridgeStyle, width: number, height: number, windowBand: number, inset: number) {
   const x = width / 2 - inset;
@@ -333,7 +336,7 @@ function shellOutline(style: CartridgeStyle, width: number, height: number, wind
   } else {
     // Small rounded corners, and a square notch out of the top right
     const corner = width * 0.03;
-    const cut = width * 0.09;
+    const cut = width * DISC_NOTCH;
     outline.moveTo(-x + corner, bottom);
     outline.lineTo(x - corner, bottom);
     outline.quadraticCurveTo(x, bottom, x, bottom + corner);
@@ -500,8 +503,8 @@ export function createCartridge(
   [-1, 1].forEach((side) => {
     addPart(shellGeometry(style, width, bodyHeight, half, windowBand, depth * 0.1), shellMaterial, 0, bodyBottom + bodyHeight / 2, side * (gap + half) / 2);
   });
-  // The groove: a darker shade of the shell
-  const seamMaterial = new MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.35), roughness: 0.75 });
+  // The groove: the shell's own colour, a touch darker
+  const seamMaterial = new MeshStandardMaterial({ color: shellColor.clone().multiplyScalar(0.85), roughness: 0.75 });
   addPart(seamGeometry(style, width, bodyHeight, depth, windowBand), seamMaterial, 0, bodyBottom + bodyHeight / 2, 0);
   // The edge connector: a thin board, striped with gold contacts on both faces
   const connectorDepth = depth * 0.26;
@@ -571,10 +574,11 @@ export function createCartridge(
     // a slot cut through onto the reels
     const shutter = new MeshStandardMaterial({ color: new Color("#b8bcc2"), roughness: 0.38, metalness: 0.75 });
     reelMaterials.push(shutter);
-    const shutterWidth = width * 0.62;
+    // Lined up with the label above it, edge to edge
+    const shutterWidth = labelWidth;
     const slotWidth = width * 0.44;
     const reelX = width * 0.08; // the slot's middle, between the reels
-    const edgeL = -shutterWidth / 2 + width * 0.08;
+    const edgeL = labelX - labelWidth / 2;
     const leftPart = reelX - slotWidth / 2 - edgeL;
     const rightPart = edgeL + shutterWidth - (reelX + slotWidth / 2);
     const shutterZ = front + depth * 0.03;
@@ -585,14 +589,14 @@ export function createCartridge(
     addPart(new BoxGeometry(slotWidth, windowBand * 0.09, plateDepth), shutter, reelX, windowY - windowBand * 0.405, shutterZ);
     addPart(roundedRect(slotWidth, windowHeight, windowHeight * 0.1), windowMaterial, reelX, windowY, front + 0.001);
     // The groove it slides in
-    addPart(new BoxGeometry(width * 0.8, width * 0.006, depth * 0.02), trimMaterial, 0, windowY + windowBand * 0.5, front + depth * 0.01);
-    // Write-protect tab in the bottom left corner
-    addPart(new BoxGeometry(width * 0.06, width * 0.035, depth * 0.06), trimMaterial, -width * 0.42, bodyBottom + width * 0.045, front + depth * 0.02);
-    // Grip ridges down the strip right of the label, under the notch
+    addPart(new BoxGeometry(labelWidth + width * 0.03, width * 0.006, depth * 0.02), trimMaterial, labelX, windowY + windowBand * 0.5, front + depth * 0.01);
+    // Grip ridges down the strip right of the label, from under the notch most
+    // of the way to the bottom, then the write-protect tab below them
     const ridgeGeometry = new BoxGeometry(width * 0.075, width * 0.009, depth * 0.08);
     geometries.push(ridgeGeometry);
     const ridgeX = labelX + labelWidth / 2 + width * 0.015 + width * 0.05;
-    for (let y = bodyTop - width * 0.13; y > labelBottom + width * 0.01; y -= width * 0.016) {
+    addPart(new BoxGeometry(width * 0.06, width * 0.035, depth * 0.06), trimMaterial, ridgeX, bodyBottom + width * 0.04, front + depth * 0.02);
+    for (let y = bodyTop - width * (DISC_NOTCH + 0.03); y > bodyBottom + width * 0.075; y -= width * 0.016) {
       const ridge = new Mesh(ridgeGeometry, trimMaterial);
       ridge.position.set(ridgeX, y, front + depth * 0.02);
       group.add(ridge);
@@ -751,7 +755,7 @@ export function createCartridge(
   const bottomY = bodyBottom + width * 0.045;
   const bottomX = style === "tape" ? cornerX - width * 0.08 : cornerX;
   backScrew(-cornerX, topY);
-  backScrew(cornerX, style === "disc" ? topY - width * 0.09 : topY);
+  backScrew(cornerX, style === "disc" ? topY - width * DISC_NOTCH : topY);
   backScrew(-bottomX, bottomY);
   backScrew(bottomX, bottomY);
 
