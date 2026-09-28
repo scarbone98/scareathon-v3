@@ -50,10 +50,21 @@ type Props = {
   className?: string;
   onLeaderboard: (game: MachineData) => void;
   onBrowseAll: () => void; // opens the index of every cartridge
+  onInspect: () => void; // lifts the picked cartridge up for a close look
 };
 
 // Types `parts` out one after another, a character at a time, starting over
 // whenever `resetKey` changes. Returns how much of each part shows.
+// A magnifying glass, in the key's text colour, sized to the text
+function MagnifierIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="inline-block h-[0.75em] w-[0.75em] align-[-0.05em]" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="6.5" cy="6.5" r="4.5" />
+      <path d="M10 10l4.5 4.5" strokeLinecap="square" />
+    </svg>
+  );
+}
+
 function Cursor() {
   return <span className="ml-0.5 inline-block h-[0.85em] w-[0.5em] translate-y-[0.1em] animate-pulse" style={{ background: PHOSPHOR }} />;
 }
@@ -270,7 +281,7 @@ function ScreenBody({
   );
 }
 
-export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails }: Props) {
+export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onInspect, onToggleDetails }: Props) {
   const now = useClock(screen, details);
   const controls = terminalControls(screen, details);
 
@@ -306,6 +317,13 @@ export default function GameCard({ screen, details, phone, style, className = ""
           {phone && controls === "all" && (
             <div className="absolute bottom-1.5 left-2 z-10 text-xl">
               <MenuKey />
+            </div>
+          )}
+          {controls === "all" && (
+            <div className="absolute left-2 top-1.5 z-10 text-xl">
+              <TerminalButton onClick={onInspect} label="Inspect the cartridge">
+                <MagnifierIcon />
+              </TerminalButton>
             </div>
           )}
           {controls === "all" && (

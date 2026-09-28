@@ -73,6 +73,7 @@ type Props = {
 
 type World = {
   setTerminalOptions: (options: TerminalOptions) => void;
+  inspect: () => void; // lift the picked cartridge up for a look, as a long press on it does
   focus: (index: number, fromUser?: boolean) => void;
   moveFocus: (dx: number) => void;
   activate: (index: number) => void;
@@ -1272,6 +1273,11 @@ export default function CartridgeArcade({
     };
 
     worldRef.current = {
+      inspect: () => {
+        const state = focusIndex >= 0 ? carts[focusIndex] : null;
+        if (!state || state.where !== "shelf" || inspecting || broken || busy || insertedIndex >= 0) return;
+        lookAtCart(state);
+      },
       setTerminalOptions: (options: TerminalOptions) => {
         const detailsChanged = options.details !== terminalOptions.details;
         terminalOptions = options;
@@ -1491,7 +1497,11 @@ export default function CartridgeArcade({
         // Neighbours on the shelf never share a shell
         const style = CARTRIDGE_STYLES[index % CARTRIDGE_STYLES.length];
         const clear = index % 4 === 1; // every fourth one's shell is see-through, whatever its style
-        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize, style, clear);
+        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize, style, {
+          clear,
+          released: game.cartridge.about.released,
+          note: game.cartridge.backNote,
+        });
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
         disposables.push(cart);
@@ -2185,6 +2195,7 @@ export default function CartridgeArcade({
           phone={tall}
           onLeaderboard={onLeaderboard}
           onBrowseAll={() => setBrowsing(true)}
+          onInspect={() => worldRef.current?.inspect()}
           // Fills from just under the ledge down to the bottom
           className="absolute bottom-3 left-1/2 z-10 w-[min(94vw,30rem)] -translate-x-1/2"
           style={ledgeCardTop !== null ? { top: ledgeCardTop } : undefined}

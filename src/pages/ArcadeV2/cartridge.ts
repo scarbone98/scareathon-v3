@@ -138,7 +138,12 @@ export const CARTRIDGE_STYLES: CartridgeStyle[] = ["tape", "brick", "disc"];
 export const CARTRIDGE_ASPECT = 0.8;
 
 const STICKER_WIDTH = 256;
-const STICKER_HEIGHT = 150;
+const STICKER_HEIGHT = 216;
+
+// Each shell style's tape type, printed on its label
+const TAPE_TYPE: Record<CartridgeStyle, string> = { tape: "TYPE I", brick: "TYPE II", disc: "TYPE III" };
+// The back sticker's notes are written in by hand
+const MARKER = { family: "Permanent Marker" };
 
 // Paper's look, printed over a finished label: faint fibres every which way and a
 // fleck or two, so it reads as paper next to the plastic
@@ -163,17 +168,27 @@ function paperFibres(context: CanvasRenderingContext2D) {
 }
 
 // The back sticker: white paper, the arcade's name, a barcode and the game's name
-function paintSticker(context: CanvasRenderingContext2D, name: string, color: string) {
+// The back sticker: cream paper, the arcade's name and the release year on a
+// colour band, a barcode, the game's name, and a box of notes: whatever's been
+// written in (a cheat code, a hidden message), or blank lines to write on
+function paintSticker(context: CanvasRenderingContext2D, name: string, color: string, released: string, note: string) {
   const { width, height } = context.canvas;
+  const ink = "#1a1418";
   context.fillStyle = "#f3efe6";
   context.fillRect(0, 0, width, height);
   context.fillStyle = color;
-  context.fillRect(0, 0, width, 16);
-  context.fillStyle = "#1a1418";
+  context.fillRect(0, 0, width, 20);
+  context.textBaseline = "middle";
+  if (released) {
+    context.fillStyle = "rgba(255, 255, 255, 0.92)";
+    context.font = "700 11px ui-monospace, monospace";
+    context.textAlign = "right";
+    context.fillText(`© ${released.toUpperCase()}`, width - 10, 11);
+  }
+  context.fillStyle = ink;
   context.font = "700 13px system-ui, sans-serif";
   context.textAlign = "left";
-  context.textBaseline = "middle";
-  context.fillText("SCAREATHON ARCADE", 12, 30);
+  context.fillText("SCAREATHON ARCADE", 12, 32);
   // Bars from the name, so every cartridge's code is its own
   let seed = [...name].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 7);
   let x = 14;
@@ -181,14 +196,49 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
     seed = (seed * 1103515245 + 12345) >>> 0;
     const bar = 1 + (seed % 4);
     const gap = 1 + ((seed >> 8) % 3);
-    context.fillRect(x, 44, bar, 64);
+    context.fillRect(x, 42, bar, 48);
     x += bar + gap;
   }
   context.font = "600 12px ui-monospace, monospace";
-  context.fillText(name.replace(/[‘’]/g, "'").toUpperCase().slice(0, 28), 12, 124);
+  context.fillText(name.replace(/[‘’]/g, "'").toUpperCase().slice(0, 28), 12, 102);
   context.fillStyle = "rgba(26, 20, 24, 0.55)";
   context.font = "10px ui-monospace, monospace";
-  context.fillText(`SCR-${(seed % 90000) + 10000}  NOT FOR RESALE`, 12, 140);
+  context.fillText(`SCR-${(seed % 90000) + 10000}  NOT FOR RESALE`, 12, 116);
+
+  // The notes box
+  const box = { x: 10, y: 126, width: width - 20, height: height - 134 };
+  context.strokeStyle = "rgba(26, 20, 24, 0.45)";
+  context.lineWidth = 1;
+  context.strokeRect(box.x + 0.5, box.y + 0.5, box.width, box.height);
+  context.fillStyle = "rgba(26, 20, 24, 0.6)";
+  context.font = "700 9px system-ui, sans-serif";
+  context.fillText("NOTES", box.x + 6, box.y + 9);
+  const lines = [box.y + 42, box.y + 66];
+  if (note) {
+    // Handwritten in blue marker, wrapped to the box
+    context.fillStyle = "#23408e";
+    context.font = canvasFont(MARKER, 15);
+    const words = note.split(" ");
+    const rows: string[] = [];
+    let row = "";
+    for (const word of words) {
+      const next = row ? `${row} ${word}` : word;
+      if (context.measureText(next).width > box.width - 16 && row) {
+        rows.push(row);
+        row = word;
+      } else row = next;
+    }
+    if (row) rows.push(row);
+    rows.slice(0, 3).forEach((text, i) => context.fillText(text, box.x + 8, box.y + 26 + i * 19));
+  } else {
+    context.strokeStyle = "rgba(26, 20, 24, 0.2)";
+    lines.forEach((y) => {
+      context.beginPath();
+      context.moveTo(box.x + 8, y + 0.5);
+      context.lineTo(box.x + box.width - 8, y + 0.5);
+      context.stroke();
+    });
+  }
   paperFibres(context);
 }
 
@@ -206,6 +256,7 @@ const STILL_MAX = 480;
 
 function paintLabel(
   context: CanvasRenderingContext2D,
+  type: string,
   name: string,
   color: string,
   font: ArcadeFont,
@@ -298,7 +349,7 @@ function paintLabel(
   context.textAlign = "left";
   context.fillText("SIDE A", PICTURE.x + 2, printY);
   context.textAlign = "right";
-  context.fillText("SCAREATHON · TYPE II", width - PICTURE.x - 2, printY);
+  context.fillText(`SCAREATHON · ${type}`, width - PICTURE.x - 2, printY);
   paperFibres(context);
 }
 
@@ -433,8 +484,15 @@ export function createCartridge(
   font: ArcadeFont,
   size: CartridgeSize,
   style: CartridgeStyle = "tape",
-  // A see-through shell in the game's colour, showing what's inside
-  clear = false
+  {
+    clear = false,
+    released = "",
+    note = "",
+  }: {
+    clear?: boolean; // a see-through shell in the game's colour, showing what's inside
+    released?: string; // the release year, for the back sticker
+    note?: string; // written in on the back sticker: a cheat code, a hidden message
+  } = {}
 ): Cartridge {
   const group = new Group();
   const { width, height, depth } = size;
@@ -766,7 +824,7 @@ export function createCartridge(
   const context = canvas.getContext("2d");
   let picture: { source: CanvasImageSource; width: number; height: number } | undefined;
   const repaint = () => {
-    if (context) paintLabel(context, name, color, font, picture);
+    if (context) paintLabel(context, TAPE_TYPE[style], name, color, font, picture);
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);
@@ -796,7 +854,13 @@ export function createCartridge(
   const stickerTexture = new CanvasTexture(stickerCanvas);
   stickerTexture.colorSpace = SRGBColorSpace;
   stickerTexture.anisotropy = 4;
-  if (stickerContext) paintSticker(stickerContext, name, color);
+  const paintBack = () => {
+    if (stickerContext) paintSticker(stickerContext, name, color, released, note);
+    stickerTexture.needsUpdate = true;
+  };
+  paintBack();
+  // The handwriting's font may arrive after the first paint
+  if (note) whenFontReady(MARKER).then(paintBack);
   const stickerMaterial = new MeshStandardMaterial({ map: stickerTexture, roughness: 0.92, bumpMap: grain.paper, bumpScale: 1.2 });
   const sticker = {
     width: width * 0.62,

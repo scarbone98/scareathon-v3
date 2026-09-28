@@ -119,6 +119,22 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     context.strokeRect(x, y - 10 * S, w, 20 * S);
     for (let i = 0; i < blocks; i += 1) context.fillRect(x + (4 + i * 16) * S, y - 6 * S, 12 * S, 12 * S);
   };
+  // "[ ⌕ ]": brackets round a drawn magnifying glass
+  const magnifierKey = (x: number, y: number) => {
+    context.font = font(20);
+    const value = "[   ]";
+    text(value, x, y, "left");
+    const w = context.measureText(value).width;
+    const cx = x + w / 2 - 2 * S;
+    const r = 5.5 * S;
+    context.strokeStyle = PHOSPHOR;
+    context.lineWidth = 2.2 * S;
+    context.beginPath();
+    context.arc(cx - 1.5 * S, y - 1.5 * S, r, 0, Math.PI * 2);
+    context.moveTo(cx - 1.5 * S + r * 0.7, y - 1.5 * S + r * 0.7);
+    context.lineTo(cx + 5 * S, y + 5 * S);
+    context.stroke();
+  };
   const key = (label: string, x: number, y: number, align: CanvasTextAlign, lit = false) => {
     context.font = font(20);
     const value = `[ ${label} ]`;
@@ -220,7 +236,10 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       context.globalAlpha = 1;
     }
     // The corner keys
-    if (controls === "all") key("^", WIDTH - 10 * S, 14 * S, "right");
+    if (controls === "all") {
+      magnifierKey(10 * S, 14 * S);
+      key("^", WIDTH - 10 * S, 14 * S, "right");
+    }
     if (controls !== "none") key("?", WIDTH - 10 * S, HEIGHT - 14 * S, "right", options.details);
     if (options.phone && controls === "all") key("≡", 10 * S, HEIGHT - 14 * S, "left");
 

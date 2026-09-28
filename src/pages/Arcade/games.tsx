@@ -33,6 +33,8 @@ export type MachineData = {
     tagline: string;
     font: { family: string; weight?: number };
     about: { released: string; players: string; genre: string; developer: string };
+    // Written in on the back sticker, by hand: a cheat code, a hidden message
+    backNote?: string;
   };
   game: ReactNode;
 };
