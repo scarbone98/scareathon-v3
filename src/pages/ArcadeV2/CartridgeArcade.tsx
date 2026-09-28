@@ -1209,7 +1209,8 @@ export default function CartridgeArcade({
         const center = box.getCenter(new Vector3());
         const pivot = new Group();
         base.parent!.add(pivot);
-        pivot.position.copy(base.parent!.worldToLocal(center.clone().setY(box.max.y)));
+        // The base part reaches up level with the ball, so tip from its bottom
+        pivot.position.copy(base.parent!.worldToLocal(center.clone().setY(box.min.y)));
         pivot.updateMatrixWorld(true);
         joysticks.push({ pivot, center });
       });
@@ -1439,7 +1440,7 @@ export default function CartridgeArcade({
       const timeline = gsap.timeline({ onUpdate: () => {
         stick.pivot.quaternion.setFromAxisAngle(axis, tilt.angle);
       } });
-      [0.38, -0.28, 0.18, -0.1, 0.04, 0].forEach((angle) => timeline.to(tilt, { angle, duration: 0.08, ease: "sine.inOut" }));
+      [0.3, -0.22, 0.14, -0.08, 0.03, 0].forEach((angle) => timeline.to(tilt, { angle, duration: 0.08, ease: "sine.inOut" }));
       playTick();
     };
     const pressButton = (point: Vector3) => {
