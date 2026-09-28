@@ -59,6 +59,7 @@ const MUERTOS_URL = "/muertos";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
+const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -500,6 +501,27 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Wayside Gallery"
           url={WAYSIDE_GALLERY_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Breedable Monsters",
+      cartridge: {
+        color: "#3fc6c9",
+        tagline: "Breed polymons, sell them, save the lab.",
+        font: { family: "Share Tech Mono" },
+        about: { released: "2026", players: "Single player", genre: "Breeding sim", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/BreedableMonsters.mp4",
+      // Right-drag to orbit and drag-and-drop between tanks need a mouse
+      availableOnMobile: false,
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Breedable Monsters"
+          url={BREEDABLE_MONSTERS_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
