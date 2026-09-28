@@ -206,8 +206,9 @@ export default function CartridgeArcade({
     noiseCanvas.width = 120;
     noiseCanvas.height = 64;
     const noiseContext = noiseCanvas.getContext("2d");
-    // idle → power (CRT warming up) → static → video; eject runs off → idle
-    let screenMode: "idle" | "power" | "static" | "video" | "off" = "idle";
+    // idle → power (CRT warming up) → static → video; eject runs off → idle.
+    // "bars": the off-air test card, for a game with nothing to preview
+    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" = "idle";
     let modeStart = 0;
     let screenGame = -1; // which game the screen is tuned to
     let staticUntil = 0;
@@ -346,6 +347,33 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
+    // The off-air test card, like the colour bars on the TV in the corner
+    const paintTestCard = (width: number, height: number) => {
+      if (!screenContext) return;
+      const colours = ["#c0c0c0", "#c0c000", "#00c0c0", "#00c000", "#c000c0", "#c00000", "#0000c0"];
+      const top = height * 0.67;
+      colours.forEach((color, i) => {
+        screenContext.fillStyle = color;
+        screenContext.fillRect((i * width) / colours.length, 0, width / colours.length + 1, top);
+      });
+      // The thin reversed strip under the bars
+      const strip = height * 0.08;
+      [...colours].reverse().forEach((color, i) => {
+        screenContext.fillStyle = i % 2 ? "#101010" : color;
+        screenContext.fillRect((i * width) / colours.length, top, width / colours.length + 1, strip);
+      });
+      screenContext.fillStyle = "#101010";
+      screenContext.fillRect(0, top + strip, width, height - top - strip);
+      screenContext.fillStyle = "#e8e8e8";
+      screenContext.font = canvasFont(TERMINAL_FONT, 30);
+      screenContext.textAlign = "center";
+      screenContext.textBaseline = "middle";
+      screenContext.fillText("SA-86  CH 03", width / 2, (top + strip + height) / 2);
+      screenContext.fillStyle = "rgba(0, 0, 0, 0.22)";
+      for (let y = 0; y < height; y += 4) screenContext.fillRect(0, y, width, 2);
+      screenTexture.needsUpdate = true;
+    };
+
     const paintScreen = (time: number) => {
       if (!screenContext) return;
       const { width, height } = screenCanvas;
@@ -401,6 +429,14 @@ export default function CartridgeArcade({
         screenContext.drawImage(noiseCanvas, 0, 0, width, height);
         if (screenHeld) paintTouch(time, width, height);
         screenTexture.needsUpdate = true;
+        lastIdleBlink = -1;
+        return;
+      }
+      if (screenMode === "bars") {
+        // Painted once (lastIdleBlink marks it done, like the idle screen's blink)
+        if (lastIdleBlink === 2) return;
+        lastIdleBlink = 2;
+        paintTestCard(width, height);
         return;
       }
       const blink = Math.floor(time * 1.6) % 2;
@@ -451,6 +487,13 @@ export default function CartridgeArcade({
       if (bloom && screenMaterial) {
         // The picture comes on bright and settles, like a tube warming up
         gsap.fromTo(screenMaterial, { emissiveIntensity: 2.2 }, { emissiveIntensity: SCREEN_GLOW, duration: 0.7, ease: "power2.out" });
+      }
+      // "???" has no preview: off air on the shelf, its loading loop once plugged in
+      if (game.special === "mystery" && games.indexOf(game) !== insertedIndex) {
+        screenMode = "bars";
+        lastIdleBlink = -1;
+        showOnScreen(screenTexture);
+        return;
       }
       if (!game.videoUrl) {
         screenMode = "idle";

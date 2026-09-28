@@ -173,6 +173,20 @@ export function useIsMobileArcade() {
 export function createArcadeGames(): MachineData[] {
   return [
     {
+      // Always first on the shelf
+      name: "Shuffle",
+      cartridge: {
+        color: "#f2c14e",
+        tagline: "Plays a random game.",
+        font: { family: "Bungee" },
+        about: { released: "2026", players: "Single player", genre: "Any of them", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/Shuffle.mp4",
+      hasLeaderboard: false,
+      special: "shuffle",
+      game: null,
+    },
+    {
       name: "8 Bit Evil Returns",
       cartridge: {
         color: "#e0433b",
@@ -566,25 +580,12 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     {
-      name: "Shuffle",
-      cartridge: {
-        color: "#f2c14e",
-        tagline: "Plays a random game.",
-        font: { family: "Bungee" },
-        about: { released: "2026", players: "Single player", genre: "Any of them", developer: "sclondon" },
-      },
-      videoUrl: "/game-recordings/Shuffle.mp4",
-      hasLeaderboard: false,
-      special: "shuffle",
-      game: null,
-    },
-    {
       name: "???",
       cartridge: {
         color: "#3a2a5c",
-        tagline: "Still loading.",
+        tagline: "ERROR READING CARTRIDGE",
         font: { family: "Creepster" },
-        about: { released: "???", players: "???", genre: "???", developer: "???" },
+        about: { released: "UNKNOWN", players: "UNKNOWN", genre: "UNKNOWN", developer: "UNKNOWN" },
       },
       videoUrl: "/game-recordings/Mystery.mp4",
       hasLeaderboard: false,
