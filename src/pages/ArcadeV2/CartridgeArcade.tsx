@@ -271,7 +271,9 @@ export default function CartridgeArcade({
     const paintScreen = (time: number) => {
       if (!screenContext) return;
       const { width, height } = screenCanvas;
-      if (screenMode === "video") {
+      if (screenHeld) {
+        if (screenMaterial && screenMaterial.map !== screenTexture) showOnScreen(screenTexture);
+      } else if (screenMode === "video") {
         // Snow until the clip (or its still) has a picture to show; a loading
         // screen only if that takes a while, so a quick load doesn't flash it
         if (!screenVideo) return;
@@ -287,7 +289,7 @@ export default function CartridgeArcade({
           return;
         }
       }
-      if (screenMode === "power" || screenMode === "off") {
+      if (!screenHeld && (screenMode === "power" || screenMode === "off")) {
         // A CRT beam: a line that opens out to the full picture, or collapses back to a dot
         const t = Math.min((time - modeStart) / (screenMode === "power" ? POWER_ON : POWER_OFF), 1);
         const k = screenMode === "power" ? t : 1 - t;
@@ -304,7 +306,7 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         return;
       }
-      if ((screenMode === "static" || screenMode === "video") && noiseContext) {
+      if ((screenHeld || screenMode === "static" || screenMode === "video") && noiseContext) {
         const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
         for (let i = 0; i < image.data.length; i += 4) {
           const v = Math.random() * 255;
@@ -519,6 +521,19 @@ export default function CartridgeArcade({
         .to(marqueeBoot, { value: 0.3, duration: 0.03 }, 0.38)
         .to(marqueeBoot, { value: 1, duration: 0.25 }, 0.45);
     };
+    // Poked: the neon stutters and a few of the flaps flip over, back to the same sign
+    const jostleMarquee = () => {
+      flickerMarquee();
+      if (flip.t < 1) return; // mid-flip to a new sign already
+      shownSign.getContext("2d")?.drawImage(marqueeCanvas, 0, 0);
+      for (let i = 0; i < FLAP_COLUMNS; i += 1) {
+        const flips = Math.random() < 0.4;
+        flapSpans[i] = flips ? 0.35 + Math.random() * 0.3 : 0.001;
+        flapStarts[i] = flips ? Math.random() * (1 - flapSpans[i]) : 0;
+      }
+      flip.t = 0;
+      gsap.to(flip, { t: 1, duration: 0.6, ease: "none", onUpdate: composeMarquee });
+    };
     document.fonts?.load("220px Zombie").then(() => {
       if (!disposed && !marqueeFontName) paintMarquee(marqueeText, marqueeColor);
     }).catch(() => {});
@@ -541,6 +556,11 @@ export default function CartridgeArcade({
     let insertedIndex = -1;
     let terminal: SlotTerminal | null = null;
     let slotRig: SlotRig | null = null;
+    // Parts of the cabinet that react to a click or tap
+    const joysticks: Mesh[] = [];
+    const buttons: Mesh[] = [];
+    let screenMesh: Mesh | null = null;
+    let screenHeld = false; // snow on the screen for as long as it's pressed
     // What the slot's terminal prints for a picked cartridge
     const terminalLines = (game: MachineData) => [
       "> CART READ OK",
@@ -783,15 +803,7 @@ export default function CartridgeArcade({
       shelfMeshes = [];
       const { width: w, height: h, depth: d } = cartSize;
       const cabinetSize = cabinetBox.getSize(new Vector3());
-      const wood = track(new MeshStandardMaterial({ color: new Color("#2b1a22"), roughness: 0.9 }));
-      const neon = track(new MeshBasicMaterial({ color: new Color(SHELF_NEON) }));
-      const plankT = h * 0.07;
-      const addBox = (sx: number, sy: number, sz: number, x: number, y: number, z: number, material: MeshStandardMaterial | MeshBasicMaterial) => {
-        const mesh = new Mesh(new BoxGeometry(sx, sy, sz), material);
-        mesh.position.set(x, y, z);
-        shelfGroup.add(mesh);
-        shelfMeshes.push(mesh);
-      };
+      const plankT = h * 0.07; // (no plank any more: the cartridges float where it was)
 
       pitchX = w * 1.45;
       // Up under the control panel, so screen, controls and cartridges fit a screen together.
@@ -799,12 +811,7 @@ export default function CartridgeArcade({
       const cartTop = Number.isFinite(panelBottom) ? panelBottom - h * 0.4 : seat.y - h * 0.5;
       const ledgeY = Math.max(cabinetSize.y * 0.2, cartTop - h - plankT / 2);
       const depth = d * 3.4;
-      const span = (games.length - 1) * pitchX;
       shelfGroup.position.set(0, 0, cabinetBox.max.z + d * 6);
-      // Well past both ends, so a wide screen doesn't see the plank stop beside the first cartridge
-      const length = span + pitchX * 16;
-      addBox(length, plankT, depth, span / 2, ledgeY, 0, wood);
-      addBox(length, plankT * 0.35, plankT * 0.35, span / 2, ledgeY + plankT * 0.2, depth / 2, neon);
       carts.forEach((state, i) => {
         state.home.set(i * pitchX, ledgeY + plankT / 2 + h / 2, 0);
       });
@@ -1193,6 +1200,7 @@ export default function CartridgeArcade({
         material.emissiveIntensity = 0.25;
         if (material.name === "GreyScreen") {
           screenMaterial = material.clone();
+          screenMesh = child;
           screenMaterial.emissive = new Color("#ffffff");
           screenMaterial.emissiveIntensity = SCREEN_GLOW;
           applyCrtLook(screenMaterial);
@@ -1236,6 +1244,8 @@ export default function CartridgeArcade({
           child.material = own;
           tintMaterials.push(own);
         }
+        if (material.name === "JoystickStick" || material.name === "JoystickBall") joysticks.push(child);
+        else if (material.name === "OrangeButton") buttons.push(child);
         if (PANEL_MATERIALS.has(material.name)) panelBox.union(new Box3().setFromObject(child));
       });
       tintCabinet(tintTarget, true);
@@ -1385,7 +1395,69 @@ export default function CartridgeArcade({
       else focus(clamped, true);
     };
 
+    // Poking the cabinet: joysticks jiggle, buttons click in, the scope goes haywire,
+    // the vent sparks, the screen snows while held and the marquee stutters
+    const pokeRay = new Raycaster();
+    const rest = (mesh: Mesh) => (mesh.userData.rest ??= mesh.position.clone()) as Vector3;
+    const jiggleJoystick = (point: Vector3) => {
+      const reach = cabinetBox.getSize(new Vector3()).x * 0.12;
+      const angle = Math.random() * Math.PI * 2;
+      joysticks.forEach((mesh) => {
+        const center = new Box3().setFromObject(mesh).getCenter(new Vector3());
+        if (Math.hypot(center.x - point.x, center.z - point.z) > reach) return;
+        const home = rest(mesh);
+        // The ball swings furthest; the shaft less, pivoting at the base
+        const swing = (cartSize.width * ((mesh.material as MeshStandardMaterial).name === "JoystickBall" ? 0.09 : 0.045)) / mesh.getWorldScale(new Vector3()).x;
+        gsap.killTweensOf(mesh.position);
+        const timeline = gsap.timeline();
+        [1, -0.75, 0.5, -0.3, 0.12, 0].forEach((k) =>
+          timeline.to(mesh.position, { x: home.x + Math.cos(angle) * swing * k, z: home.z + Math.sin(angle) * swing * k, duration: 0.07, ease: "sine.inOut" })
+        );
+      });
+      playTick();
+    };
+    const pressButton = (mesh: Mesh) => {
+      const home = rest(mesh);
+      const travel = (new Box3().setFromObject(mesh).getSize(new Vector3()).y * 0.45) / mesh.getWorldScale(new Vector3()).y;
+      gsap.killTweensOf(mesh.position);
+      gsap.timeline()
+        .set(mesh.position, { y: home.y })
+        .to(mesh.position, { y: home.y - travel, duration: 0.05, ease: "power2.in" })
+        .to(mesh.position, { y: home.y, duration: 0.16, ease: "back.out(3)" });
+      playTick();
+    };
+    const pokeCabinet = (clientX: number, clientY: number) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      pokeRay.setFromCamera(pointer, camera);
+      const targets: Object3D[] = [holder, ...carts.map((state) => state.cart.group)];
+      if (slotRig) targets.push(slotRig.group);
+      const hit = pokeRay.intersectObjects(targets, true)[0];
+      if (!hit) return;
+      const mesh = hit.object as Mesh;
+      for (let node: Object3D | null = mesh; node; node = node.parent) {
+        if (typeof node.userData.cartIndex === "number") return; // a cartridge in front
+        if (slotRig && node === slotRig.group) {
+          if (slotRig.poke(mesh, performance.now() / 1000) === "sparks") playPop();
+          return;
+        }
+      }
+      if (screenMesh && (mesh === screenMesh || mesh.parent === screenMesh)) {
+        screenHeld = true;
+        playStatic();
+      } else if (marqueeMaterial && mesh.material === marqueeMaterial) jostleMarquee();
+      else if (joysticks.includes(mesh) || (mesh.material as MeshStandardMaterial).name === "JoystickBase") jiggleJoystick(hit.point);
+      else if (buttons.includes(mesh)) pressButton(mesh);
+    };
+    const releaseScreen = () => {
+      if (!screenHeld) return;
+      screenHeld = false;
+      lastIdleBlink = -1;
+      if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
+    };
+
     const onPointerDown = (event: PointerEvent) => {
+      pokeCabinet(event.clientX, event.clientY);
       press = {
         x: event.clientX,
         y: event.clientY,
@@ -1421,6 +1493,7 @@ export default function CartridgeArcade({
       renderer.domElement.style.cursor = clickable ? "pointer" : "default";
     };
     const onPointerUp = (event: PointerEvent) => {
+      releaseScreen();
       const released = press;
       press = null;
       if (released?.dragging) {
@@ -1445,7 +1518,10 @@ export default function CartridgeArcade({
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("pointerup", onPointerUp);
-    renderer.domElement.addEventListener("pointercancel", () => { press = null; });
+    renderer.domElement.addEventListener("pointercancel", () => {
+      press = null;
+      releaseScreen();
+    });
     renderer.domElement.addEventListener("wheel", onWheel, { passive: true });
 
     // --- Render loop -----------------------------------------------------------------

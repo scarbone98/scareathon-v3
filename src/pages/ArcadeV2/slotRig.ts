@@ -11,6 +11,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  Object3D,
   PlaneGeometry,
   SRGBColorSpace,
   TubeGeometry,
@@ -44,7 +45,9 @@ export type SlotRig = {
   group: Group;
   // Run the scanner camera's lead from where it's mounted to the slot
   plugScanner: (from: Vector3) => void;
-  update: (time: number) => void; // the instrument box's scrolling graph
+  update: (time: number) => void; // the instrument box's scrolling graph, and any sparks
+  // A click or tap on part of the rig: the scope's graph goes haywire, the vent spits sparks
+  poke: (object: Object3D, time: number) => "scope" | "sparks" | null;
   dispose: () => void;
 };
 
@@ -181,6 +184,7 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   // prised open in the bezel under the screen. Zip-tied here and there; all of
   // it clear of the screen and the cartridges.
   const radius = plate * 0.8;
+  const scopeStart = group.children.length;
   // Partway along, the left bundle runs through a little instrument box: a
   // dark case with a green-screen scope drawing a scrolling line graph
   const scopeWidth = width * 0.38;
@@ -212,15 +216,25 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     const socket = add(new BoxGeometry(plate * 1.2, scopeHeight * 0.5, scopeDepth * 0.6), steel, scopeX + side * (scopeWidth / 2 + plate * 0.6), scopeY - scopeHeight * 0.12, scopeZ);
     socket.rotation.y = 0;
   });
+  const scopeParts = new Set(group.children.slice(scopeStart));
   // The trace: a wandering signal, a sample added every few frames
   const trace: number[] = new Array(64).fill(0.5);
   let lastTrace = 0;
   let phase = 0;
+  let haywireUntil = 0; // poked: the signal thrashes about for a moment
   const drawGraph = (time: number) => {
-    if (time - lastTrace < 0.05) return;
+    const haywire = time < haywireUntil;
+    if (time - lastTrace < (haywire ? 0.016 : 0.05)) return;
     lastTrace = time;
     phase += 0.35;
     const noise = Math.sin(phase * 1.7) * 0.15 + Math.sin(phase * 0.43) * 0.2 + (Math.random() - 0.5) * 0.18;
+    if (haywire) {
+      // A few samples a frame, slamming between the rails
+      for (let i = 0; i < 3; i += 1) {
+        trace.push(Math.random() < 0.5 ? Math.random() * 0.15 : 0.85 + Math.random() * 0.15);
+        trace.shift();
+      }
+    }
     trace.push(0.5 + noise + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.7 : 0));
     trace.shift();
     graph.fillStyle = "#021407";
@@ -286,6 +300,7 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     new Vector3(center.x - (deckEdge - radius * 2), deckAt(center.x - (deckEdge - radius * 2), deckFront - radius * 3) + radius, deckFront - radius * 3),
   ].forEach((at) => add(new BoxGeometry(radius * 3.2, radius * 3.2, radius * 1.4), rubber, at.x, at.y, at.z));
 
+  const ventStart = group.children.length;
   // The vent: a steel collar standing proud of the bezel round a real opening,
   // its grille cover prised off and hanging by one screw. Inside, a dark tunnel
   // with a faint warm glow deep in the machine, and a rubber lip the wires
@@ -339,6 +354,52 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   hinge.rotation.x = Math.PI / 2;
   cover.add(hinge);
   group.add(cover);
+  const ventParts = new Set(group.children.slice(ventStart));
+
+  // Sparks spat out of the vent when it's poked: little glowing chips that
+  // fly out, fall and fade
+  const sparkGeometry = track(new BoxGeometry(plate * 0.7, plate * 0.7, plate * 2.2));
+  const sparks = Array.from({ length: 36 }, () => {
+    const material = track(new MeshBasicMaterial({ color: new Color("#ffd36b"), transparent: true }));
+    const mesh = new Mesh(sparkGeometry, material);
+    mesh.visible = false;
+    group.add(mesh);
+    return { mesh, material, velocity: new Vector3(), life: 0, age: 0 };
+  });
+  let lastSparkTime = 0;
+  const burstSparks = () => {
+    const speed = width * 2.2;
+    sparks.forEach((spark) => {
+      spark.mesh.position.set(vent.x + (Math.random() - 0.5) * ventWidth * 0.6, vent.y + (Math.random() - 0.5) * ventHeight * 0.5, ventFront);
+      spark.velocity.set((Math.random() - 0.5) * speed * 0.9, (0.2 + Math.random() * 0.8) * speed * 0.7, (0.5 + Math.random() * 0.8) * speed);
+      spark.age = 0;
+      spark.life = 0.35 + Math.random() * 0.5;
+      spark.mesh.visible = true;
+    });
+  };
+  const moveSparks = (time: number) => {
+    const dt = Math.min(time - lastSparkTime, 0.05);
+    lastSparkTime = time;
+    sparks.forEach((spark) => {
+      if (!spark.mesh.visible) return;
+      spark.age += dt;
+      if (spark.age >= spark.life) {
+        spark.mesh.visible = false;
+        return;
+      }
+      spark.velocity.y -= width * 9 * dt;
+      spark.mesh.position.addScaledVector(spark.velocity, dt);
+      // Streaking along its path, white-hot cooling to orange
+      spark.mesh.lookAt(spark.mesh.position.clone().add(spark.velocity));
+      const cool = spark.age / spark.life;
+      spark.material.opacity = 1 - cool;
+      spark.material.color.setRGB(1, 0.95 - cool * 0.55, 0.7 - cool * 0.65);
+    });
+  };
+  const partOf = (object: Object3D, parts: Set<Object3D>) => {
+    for (let node: Object3D | null = object; node && node !== group; node = node.parent) if (parts.has(node)) return true;
+    return false;
+  };
 
   const right = ["#2f5d9a", "#3f8a4a", "#e6e0d2", "#c85a26"];
   const climbX = vent.x - ventWidth * 0.15;
@@ -419,7 +480,21 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   return {
     group,
     plugScanner,
-    update: drawGraph,
+    update(time) {
+      drawGraph(time);
+      moveSparks(time);
+    },
+    poke(object, time) {
+      if (partOf(object, scopeParts)) {
+        haywireUntil = time + 1.4;
+        return "scope";
+      }
+      if (partOf(object, ventParts)) {
+        burstSparks();
+        return "sparks";
+      }
+      return null;
+    },
     dispose() {
       lead?.geometry.dispose();
       disposables.forEach((item) => item.dispose());
