@@ -7,9 +7,12 @@ import {
   CylinderGeometry,
   ExtrudeGeometry,
   Group,
+  DoubleSide,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
+  RepeatWrapping,
   Shape,
   ShapeGeometry,
   SRGBColorSpace,
@@ -21,8 +24,94 @@ import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 // connector for the slot. On the front, a cassette-style paper label with the
 // game's name in a colour band and a still from its attract video, and below it
 // a smoky window onto two tape reels that turn while the game is picked or playing.
+// The plastic has a fine moulded grain and the paper a matte, fibrous one; some
+// shells are clear, showing the circuit board and the tape spools inside.
 
 export type CartridgeSize = { width: number; height: number; depth: number };
+
+// Grey noise on a canvas, tiled: the plastic's moulded speckle, or the paper's fibres
+function noiseTexture(paint: (context: CanvasRenderingContext2D, size: number) => void) {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context) paint(context, size);
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+}
+// Shared by every cartridge, made on first use
+let plasticGrain: CanvasTexture | null = null;
+let paperGrain: CanvasTexture | null = null;
+function grains() {
+  plasticGrain ??= noiseTexture((context, size) => {
+    // Fine speckle over a faint mottle, around mid grey (the roughness map reads it too)
+    const image = context.createImageData(size, size);
+    for (let i = 0; i < size * size; i += 1) {
+      const x = i % size;
+      const y = Math.floor(i / size);
+      const mottle = Math.sin(x * 0.07) * Math.sin(y * 0.05) * 10;
+      const v = 150 + mottle + (Math.random() - 0.5) * 70;
+      image.data[i * 4] = image.data[i * 4 + 1] = image.data[i * 4 + 2] = v;
+      image.data[i * 4 + 3] = 255;
+    }
+    context.putImageData(image, 0, 0);
+  });
+  paperGrain ??= noiseTexture((context, size) => {
+    // Short fibres every which way over a pale ground
+    context.fillStyle = "rgb(220, 220, 220)";
+    context.fillRect(0, 0, size, size);
+    context.lineWidth = 1;
+    for (let i = 0; i < 2600; i += 1) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const angle = Math.random() * Math.PI;
+      const length = 3 + Math.random() * 9;
+      context.strokeStyle = Math.random() < 0.5 ? "rgba(90, 90, 90, 0.18)" : "rgba(255, 255, 255, 0.25)";
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+      context.stroke();
+    }
+  });
+  return { plastic: plasticGrain, paper: paperGrain };
+}
+
+// The inside of a clear cartridge: a green circuit board with gold traces, a
+// row of pads down to the edge connector, and a silkscreened name
+function paintBoard(context: CanvasRenderingContext2D, name: string) {
+  const { width, height } = context.canvas;
+  context.fillStyle = "#0f5a34";
+  context.fillRect(0, 0, width, height);
+  // Traces: runs across, then turning down to the connector's pads
+  context.strokeStyle = "#c9a23c";
+  context.lineWidth = 2;
+  let seed = [...name].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 11);
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) >>> 0;
+    return (seed % 1000) / 1000;
+  };
+  for (let i = 0; i < 26; i += 1) {
+    const x = 10 + random() * (width - 20);
+    const y = 10 + random() * (height * 0.6);
+    const across = (random() - 0.5) * width * 0.4;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x + across, y);
+    context.lineTo(x + across, height - 6);
+    context.stroke();
+    context.fillStyle = "#e0bb55";
+    context.beginPath();
+    context.arc(x, y, 3, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.fillStyle = "#d8b24a";
+  for (let x = 12; x < width - 12; x += 12) context.fillRect(x, height - 14, 7, 14);
+  context.fillStyle = "rgba(235, 240, 230, 0.85)";
+  context.font = "700 13px ui-monospace, monospace";
+  context.fillText(`SCR-86 ${name.replace(/[‘’]/g, "'").toUpperCase().slice(0, 16)}`, 12, 20);
+  context.fillText("REV B", width - 58, 20);
+}
 
 export type Cartridge = {
   group: Group;
@@ -51,6 +140,28 @@ export const CARTRIDGE_ASPECT = 0.8;
 const STICKER_WIDTH = 256;
 const STICKER_HEIGHT = 150;
 
+// Paper's look, printed over a finished label: faint fibres every which way and a
+// fleck or two, so it reads as paper next to the plastic
+function paperFibres(context: CanvasRenderingContext2D) {
+  const { width, height } = context.canvas;
+  context.save();
+  context.lineWidth = 1;
+  for (let i = 0; i < (width * height) / 60; i += 1) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const angle = Math.random() * Math.PI;
+    const length = 2 + Math.random() * 7;
+    context.strokeStyle = Math.random() < 0.55 ? "rgba(70, 55, 40, 0.07)" : "rgba(255, 255, 255, 0.035)";
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    context.stroke();
+  }
+  context.fillStyle = "rgba(60, 45, 30, 0.12)";
+  for (let i = 0; i < 40; i += 1) context.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random(), 1 + Math.random());
+  context.restore();
+}
+
 // The back sticker: white paper, the arcade's name, a barcode and the game's name
 function paintSticker(context: CanvasRenderingContext2D, name: string, color: string) {
   const { width, height } = context.canvas;
@@ -78,6 +189,7 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
   context.fillStyle = "rgba(26, 20, 24, 0.55)";
   context.font = "10px ui-monospace, monospace";
   context.fillText(`SCR-${(seed % 90000) + 10000}  NOT FOR RESALE`, 12, 140);
+  paperFibres(context);
 }
 
 // The label, cassette style: the name in a colour band with three stripes under
@@ -187,6 +299,7 @@ function paintLabel(
   context.fillText("SIDE A", PICTURE.x + 2, printY);
   context.textAlign = "right";
   context.fillText("SCAREATHON · TYPE II", width - PICTURE.x - 2, printY);
+  paperFibres(context);
 }
 
 // The shell's outline for a style, centred on the origin, extruded with rounded
@@ -298,21 +411,50 @@ export function createCartridge(
   color: string,
   font: ArcadeFont,
   size: CartridgeSize,
-  style: CartridgeStyle = "tape"
+  style: CartridgeStyle = "tape",
+  // A see-through shell in the game's colour, showing what's inside
+  clear = false
 ): Cartridge {
   const group = new Group();
   const { width, height, depth } = size;
   const shellColor = new Color(color);
 
-  const shellMaterial = new MeshStandardMaterial({
-    color: shellColor,
-    roughness: 0.55,
-    metalness: 0.05,
-    emissive: shellColor.clone().multiplyScalar(0.18),
-  });
+  // The plastic's grain, tiled a couple of times across the face (the shell's UVs are
+  // in world units)
+  const grain = grains();
+  grain.plastic.repeat.set(1 / (width * 0.55), 1 / (width * 0.55));
+  // Moulded plastic: a fine speckle, satin with a thin clear coat. A clear shell
+  // is smooth, glossy and tinted, and doesn't hide what's behind it.
+  const glow = clear ? 0.08 : 0.18;
+  const shellMaterial = clear
+    ? new MeshPhysicalMaterial({
+        color: shellColor.clone().lerp(new Color("#ffffff"), 0.25),
+        roughness: 0.12,
+        metalness: 0,
+        clearcoat: 1,
+        clearcoatRoughness: 0.08,
+        transparent: true,
+        opacity: 0.38,
+        depthWrite: false,
+        emissive: shellColor.clone().multiplyScalar(glow),
+      })
+    : new MeshPhysicalMaterial({
+        color: shellColor,
+        roughness: 1,
+        roughnessMap: grain.plastic,
+        bumpMap: grain.plastic,
+        bumpScale: 1,
+        metalness: 0.05,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.45,
+        emissive: shellColor.clone().multiplyScalar(glow),
+      });
   const trimMaterial = new MeshStandardMaterial({
     color: shellColor.clone().multiplyScalar(0.45),
-    roughness: 0.7,
+    roughness: 1,
+    roughnessMap: grain.plastic,
+    bumpMap: grain.plastic,
+    bumpScale: 1,
     emissive: shellColor.clone().multiplyScalar(0.06),
   });
   const connectorMaterial = new MeshStandardMaterial({ color: new Color("#16131b"), roughness: 0.6 });
@@ -356,7 +498,12 @@ export function createCartridge(
   const windowHeight = windowBand * 0.72;
   // Reels are sized off the tape shell's window, so they match across shells
   const reelSize = bodyHeight * 0.2 * 0.72;
-  const windowMaterial = new MeshStandardMaterial({ color: new Color("#140f15"), roughness: 0.18, metalness: 0.1 });
+  const windowMaterial = new MeshStandardMaterial({
+    color: new Color("#140f15"),
+    roughness: 0.18,
+    metalness: 0.1,
+    ...(clear ? { transparent: true, opacity: 0.2, depthWrite: false } : {}),
+  });
   const tapeMaterial = new MeshStandardMaterial({ color: new Color("#3b2519"), roughness: 0.35, metalness: 0.2 });
   const hubTexture = new CanvasTexture(hubCanvas());
   hubTexture.colorSpace = SRGBColorSpace;
@@ -428,6 +575,46 @@ export function createCartridge(
       group.add(ridge);
     }
   }
+  // A clear shell's insides: the circuit board behind the label, down into the
+  // connector, a couple of chips on it, and the tape spools right through the band
+  const insideMaterials: MeshStandardMaterial[] = [];
+  let boardTexture: CanvasTexture | null = null;
+  if (clear) {
+    const boardCanvas = document.createElement("canvas");
+    boardCanvas.width = 256;
+    boardCanvas.height = 160;
+    const boardContext = boardCanvas.getContext("2d");
+    if (boardContext) paintBoard(boardContext, name);
+    boardTexture = new CanvasTexture(boardCanvas);
+    boardTexture.colorSpace = SRGBColorSpace;
+    const board = new MeshStandardMaterial({ map: boardTexture, roughness: 0.6, side: DoubleSide });
+    const chip = new MeshStandardMaterial({ color: new Color("#141216"), roughness: 0.45 });
+    const spool = new MeshStandardMaterial({ color: new Color("#e9e4da"), roughness: 0.4 });
+    insideMaterials.push(board, chip, spool);
+    const boardBottom = bodyBottom - connectorHeight * 0.2;
+    const boardTop = labelBottom + labelHeight * 0.85;
+    addPart(new PlaneGeometry(width * 0.8, boardTop - boardBottom), board, 0, (boardTop + boardBottom) / 2, -depth * 0.12);
+    [
+      [-0.2, 0.62, 0.22, 0.2],
+      [0.18, 0.7, 0.14, 0.14],
+      [0.05, 0.4, 0.3, 0.1],
+    ].forEach(([x, y, w, h]) => {
+      addPart(
+        new BoxGeometry(width * w, labelHeight * h, depth * 0.1),
+        chip,
+        width * x,
+        labelBottom + labelHeight * y,
+        -depth * 0.12 + depth * 0.06
+      );
+    });
+    // Each reel's tape as a spool through the shell's depth, on a white hub
+    reels.forEach((reel) => {
+      const spoolDepth = depth * 0.7;
+      addPart(new CylinderGeometry(reel.tape, reel.tape, spoolDepth, 28), tapeMaterial, reel.x, windowY, 0).rotation.x = Math.PI / 2;
+      addPart(new CylinderGeometry(reel.hub * 1.1, reel.hub * 1.1, spoolDepth * 1.1, 20), spool, reel.x, windowY, 0).rotation.x = Math.PI / 2;
+    });
+  }
+
   // Reels turn at a speed set by setHighlight
   let reelAngle = 0;
   let reelTime = performance.now();
@@ -474,9 +661,12 @@ export function createCartridge(
   // The first paint may use a fallback font; repaint once the game's font is ready
   whenFontReady(font).then(repaint);
 
+  // Paper: matte, with a fibrous grain that catches the light differently from the plastic
   const labelMaterial = new MeshStandardMaterial({
     map: texture,
-    roughness: 0.75,
+    roughness: 0.92,
+    bumpMap: grain.paper,
+    bumpScale: 1.2,
     emissive: new Color("#ffffff"),
     emissiveMap: texture,
     emissiveIntensity: 0.35,
@@ -492,7 +682,7 @@ export function createCartridge(
   stickerTexture.colorSpace = SRGBColorSpace;
   stickerTexture.anisotropy = 4;
   if (stickerContext) paintSticker(stickerContext, name, color);
-  const stickerMaterial = new MeshStandardMaterial({ map: stickerTexture, roughness: 0.9 });
+  const stickerMaterial = new MeshStandardMaterial({ map: stickerTexture, roughness: 0.92, bumpMap: grain.paper, bumpScale: 1.2 });
   const sticker = {
     width: width * 0.62,
     height: width * 0.62 * (STICKER_HEIGHT / STICKER_WIDTH),
@@ -517,16 +707,17 @@ export function createCartridge(
     setHighlight: (amount) => {
       spinReels(amount);
       labelMaterial.emissiveIntensity = 0.35 + amount * 0.45;
-      shellMaterial.emissive.copy(shellColor).multiplyScalar(0.18 + amount * 0.35);
+      shellMaterial.emissive.copy(shellColor).multiplyScalar(glow + amount * 0.35);
     },
     dispose: () => {
       geometries.forEach((geometry) => geometry.dispose());
-      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial, ...reelMaterials].forEach(
+      [shellMaterial, trimMaterial, connectorMaterial, goldMaterial, labelMaterial, stickerMaterial, ...reelMaterials, ...insideMaterials].forEach(
         (material) => material.dispose()
       );
       hubTexture.dispose();
       texture.dispose();
       stickerTexture.dispose();
+      boardTexture?.dispose();
     },
   };
 }

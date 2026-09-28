@@ -19,6 +19,7 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  SpotLight,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -1489,7 +1490,8 @@ export default function CartridgeArcade({
       games.forEach((game, index) => {
         // Neighbours on the shelf never share a shell
         const style = CARTRIDGE_STYLES[index % CARTRIDGE_STYLES.length];
-        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize, style);
+        const clear = index % 4 === 1; // every fourth one's shell is see-through, whatever its style
+        const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize, style, clear);
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
         disposables.push(cart);
@@ -1539,6 +1541,42 @@ export default function CartridgeArcade({
     let spin: { x: number; y: number; t: number; moved: boolean } | null = null;
     let holdTimer = 0;
     const inspectPoint = new Vector3();
+    // While one's up: a dark veil hung just behind it dims everything else, and a
+    // spotlight from above and in front picks it out
+    const dimmer = new Mesh(
+      new PlaneGeometry(1, 1),
+      new MeshBasicMaterial({ color: new Color("#000000"), transparent: true, opacity: 0, depthWrite: false })
+    );
+    dimmer.frustumCulled = false;
+    dimmer.visible = false;
+    scene.add(dimmer);
+    disposables.push(dimmer.geometry, dimmer.material as MeshBasicMaterial);
+    const spotlight = new SpotLight(0xfff1dc, 0, 0, 0.32, 0.55, 0);
+    scene.add(spotlight, spotlight.target);
+    // Around wherever the cartridge is now, on its way up or back down
+    const held = new Vector3();
+    const placeSpotlight = (k: number) => {
+      if (inspecting) inspecting.cart.group.getWorldPosition(held);
+      const toCamera = cameraBase.clone().sub(held);
+      const distance = toCamera.length();
+      const ahead = toCamera.clone().normalize().negate();
+      dimmer.visible = k > 0.001;
+      if (!dimmer.visible) {
+        spotlight.intensity = 0;
+        return;
+      }
+      // Behind the cartridge, square to the view, big enough to fill it
+      dimmer.position.copy(held).addScaledVector(ahead, cartSize.width * 0.75);
+      dimmer.lookAt(cameraBase);
+      dimmer.scale.setScalar(distance * 6);
+      (dimmer.material as MeshBasicMaterial).opacity = 0.7 * k;
+      spotlight.position.copy(held).addScaledVector(toCamera.normalize(), distance * 0.45);
+      spotlight.position.y += distance * 0.7;
+      spotlight.target.position.copy(held);
+      // Fading out just past the cartridge, so it doesn't light up the room behind
+      spotlight.distance = spotlight.position.distanceTo(held) + cartSize.width * 0.8;
+      spotlight.intensity = 3.2 * k;
+    };
     // Up close, a little above the middle of the view, big but clear of the edges
     const updateInspectPoint = () => {
       const tan = Math.tan((camera.fov * Math.PI) / 360);
@@ -2014,6 +2052,7 @@ export default function CartridgeArcade({
           state.home.z + cartSize.width * 0.9 * f
         );
         // The focused cartridge tips toward you and sways a little, as if held up
+        if (!gsap.isTweening(group.scale)) group.scale.setScalar(1 + 0.1 * f);
         group.rotation.x = 0.15 * f;
         group.rotation.y = 0.12 * f * Math.sin(time * 2.2 + i);
         group.rotation.z = 0.25 * drop * (i % 2 ? 1 : -1);
@@ -2035,6 +2074,8 @@ export default function CartridgeArcade({
           );
         }
       });
+
+      placeSpotlight(inspecting ? inspect.amount.value : 0);
 
       // Ease toward the pointer for a touch of depth
       parallax.x += (parallax.targetX - parallax.x) * 0.05;
