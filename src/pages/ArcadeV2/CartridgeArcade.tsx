@@ -832,7 +832,7 @@ export default function CartridgeArcade({
 
     const updateScanner = (time: number) => {
       const focusedCart = focusIndex >= 0 ? carts[focusIndex] : null;
-      const active = !pausedRef.current && !broken && insertedIndex < 0 && focusedCart?.where === "shelf";
+      const active = !pausedRef.current && !broken && !inspecting && insertedIndex < 0 && focusedCart?.where === "shelf";
       const flicker = 0.85 + Math.random() * 0.15;
       if (active && focusedCart !== scanned) {
         scanned = focusedCart;
@@ -1088,6 +1088,10 @@ export default function CartridgeArcade({
 
     const focus = (index: number, fromUser = false) => {
       if (broken) return;
+      if (inspecting) {
+        putBack();
+        return;
+      }
       if (index < 0 || index >= carts.length || index === focusIndex) return;
       if (focusIndex >= 0) gsap.to(carts[focusIndex].focus, { value: 0, duration: 0.2 });
       focusIndex = index;
@@ -1258,6 +1262,10 @@ export default function CartridgeArcade({
 
     const activate = (index: number) => {
       if (index < 0 || broken) return;
+      if (inspecting) {
+        putBack();
+        return;
+      }
       if (carts[index]?.where === "slot") callbacksRef.current.onPlay(games[index]);
       else insert(index);
     };
@@ -1523,6 +1531,58 @@ export default function CartridgeArcade({
       return null;
     };
 
+    // --- Inspecting: hold the picked cartridge to lift it up close and spin it --------
+    const HOLD = 0.45; // seconds of holding still
+    let inspecting: CartState | null = null;
+    const inspect = { amount: { value: 0 }, yaw: 0, pitch: 0, spinYaw: 0, spinPitch: 0 };
+    // The drag that's spinning it, and whether it's moved (a still tap puts it back)
+    let spin: { x: number; y: number; t: number; moved: boolean } | null = null;
+    let holdTimer = 0;
+    const inspectPoint = new Vector3();
+    // Up close, a little above the middle of the view, big but clear of the edges
+    const updateInspectPoint = () => {
+      const tan = Math.tan((camera.fov * Math.PI) / 360);
+      const fit = 0.5; // of the view's width (or height) the cartridge takes up
+      const distance = Math.max(cartSize.width / (fit * 2 * tan * camera.aspect), cartSize.height / (fit * 2 * tan));
+      const ahead = cameraTarget.clone().sub(cameraBase).normalize();
+      inspectPoint.copy(cameraBase).addScaledVector(ahead, distance);
+      inspectPoint.y += distance * tan * 0.12;
+    };
+    const lookAtCart = (state: CartState) => {
+      inspecting = state;
+      inspect.yaw = 0;
+      inspect.pitch = 0;
+      inspect.spinYaw = Math.PI * 2; // a spin as it comes up, to show it off
+      inspect.spinPitch = 0;
+      gsap.killTweensOf(inspect.amount);
+      gsap.to(inspect.amount, { value: 1, duration: 0.5, ease: "power3.out" });
+      playWhoosh();
+      showTerminal({ kind: "message", lines: ["> INSPECT", "DRAG TO SPIN", terminalOptions.phone ? "TAP TO PUT BACK" : "CLICK TO PUT BACK"], at: nowSeconds() });
+    };
+    const putBack = () => {
+      if (!inspecting) return;
+      const state = inspecting;
+      spin = null;
+      // Home by the short way round
+      inspect.yaw = Math.atan2(Math.sin(inspect.yaw), Math.cos(inspect.yaw));
+      inspect.spinYaw = inspect.spinPitch = 0;
+      gsap.killTweensOf(inspect.amount);
+      gsap.to(inspect.amount, {
+        value: 0,
+        duration: 0.45,
+        ease: "power2.inOut",
+        onComplete: () => {
+          if (inspecting === state) inspecting = null;
+        },
+      });
+      playTick();
+      showGameOrIdle(focusIndex);
+    };
+    const cancelHold = () => {
+      window.clearTimeout(holdTimer);
+      holdTimer = 0;
+    };
+
     // `cart`: the cartridge it started on (-1 if none), which a swipe up plugs in
     let press: { x: number; y: number; scroll: number; dragging: boolean; lastX: number; lastT: number; velocity: number; cart: number } | null = null;
     const worldPerPixel = () => {
@@ -1735,6 +1795,11 @@ export default function CartridgeArcade({
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse") event.preventDefault(); // no text selection while held
+      if (inspecting) {
+        spin = { x: event.clientX, y: event.clientY, t: event.timeStamp, moved: false };
+        renderer.domElement.setPointerCapture(event.pointerId);
+        return;
+      }
       pokeCabinet(event.clientX, event.clientY);
       if (screenHeld || broken) {
         // Rubbing the screen (or the machine's down), not dragging the row
@@ -1755,8 +1820,36 @@ export default function CartridgeArcade({
         })(),
       };
       renderer.domElement.setPointerCapture(event.pointerId);
+      // Held still on the picked cartridge for a moment: lift it up for a look
+      const held = press?.cart ?? -1;
+      if (held >= 0 && held === focusIndex && insertedIndex < 0 && !busy) {
+        holdTimer = window.setTimeout(() => {
+          holdTimer = 0;
+          if (!press || press.dragging || press.cart !== held || carts[held].where !== "shelf") return;
+          press = null;
+          // The finger that's still down carries straight on into spinning it
+          spin = { x: event.clientX, y: event.clientY, t: performance.now(), moved: true };
+          lookAtCart(carts[held]);
+        }, HOLD * 1000);
+      }
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (spin) {
+        const dx = event.clientX - spin.x;
+        const dy = event.clientY - spin.y;
+        if (Math.abs(dx) + Math.abs(dy) > 6) spin.moved = true;
+        const dt = Math.max(event.timeStamp - spin.t, 1) / 1000;
+        const perPixel = 0.012;
+        inspect.yaw += dx * perPixel;
+        inspect.pitch = Math.min(Math.max(inspect.pitch + dy * perPixel, -1.2), 1.2);
+        // Carries on spinning when let go, at the speed it was flicked
+        inspect.spinYaw = (dx * perPixel) / dt;
+        inspect.spinPitch = (dy * perPixel) / dt;
+        spin.x = event.clientX;
+        spin.y = event.clientY;
+        spin.t = event.timeStamp;
+        return;
+      }
       if (screenHeld) {
         touchScreen(event.clientX, event.clientY);
         return;
@@ -1773,6 +1866,7 @@ export default function CartridgeArcade({
           activate(index);
           return;
         }
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancelHold();
         if ((press.dragging || Math.abs(dx) > 8)) {
           press.dragging = true;
           gsap.killTweensOf(scroll);
@@ -1795,6 +1889,15 @@ export default function CartridgeArcade({
     };
     let swiped = false; // the press just plugged a cartridge in: its release does nothing more
     const onPointerUp = (event: PointerEvent) => {
+      cancelHold();
+      if (inspecting) {
+        const tapped = spin && !spin.moved;
+        // Let go without a flick: it stops rather than keeping the last drag's speed
+        if (spin && event.timeStamp - spin.t > 80) inspect.spinYaw = inspect.spinPitch = 0;
+        spin = null;
+        if (tapped) putBack();
+        return;
+      }
       if (swiped) {
         swiped = false;
         return;
@@ -1819,7 +1922,7 @@ export default function CartridgeArcade({
       else if (hit?.kind === "cabinet" && insertedIndex >= 0) callbacksRef.current.onPlay(games[insertedIndex]);
     };
     const onWheel = (event: WheelEvent) => {
-      if (broken || Math.abs(event.deltaX) + Math.abs(event.deltaY) < 4) return;
+      if (broken || inspecting || Math.abs(event.deltaX) + Math.abs(event.deltaY) < 4) return;
       moveFocus(Math.sign(event.deltaX || event.deltaY));
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
@@ -1827,6 +1930,8 @@ export default function CartridgeArcade({
     renderer.domElement.addEventListener("pointerup", onPointerUp);
     renderer.domElement.addEventListener("pointercancel", () => {
       press = null;
+      spin = null;
+      cancelHold();
       releaseScreen();
     });
     renderer.domElement.addEventListener("wheel", onWheel, { passive: true });
@@ -1883,6 +1988,19 @@ export default function CartridgeArcade({
       }
       lastScroll = scroll.x;
       shelfGroup.position.x = -scroll.x;
+      if (inspecting) {
+        // Coasting after a flick, slowing; and it drifts back upright
+        if (!spin) {
+          const decay = Math.exp(-dt * (Math.abs(inspect.spinYaw) > Math.PI * 1.5 ? 1.2 : 2.5));
+          inspect.yaw += inspect.spinYaw * dt;
+          inspect.pitch = Math.min(Math.max(inspect.pitch + inspect.spinPitch * dt, -1.2), 1.2);
+          inspect.spinYaw *= decay;
+          inspect.spinPitch *= decay;
+          inspect.pitch *= Math.exp(-dt * 0.8);
+        }
+        updateInspectPoint();
+        shelfGroup.updateMatrixWorld();
+      }
       carts.forEach((state, i) => {
         const f = state.focus.value;
         state.cart.setHighlight(state.where === "slot" ? 0.6 + 0.15 * Math.sin(time * 3) : f);
@@ -1892,7 +2010,8 @@ export default function CartridgeArcade({
         group.position.set(
           state.home.x,
           state.home.y + cartSize.height * (0.08 * f + 1.4 * drop),
-          state.home.z + cartSize.depth * 1.8 * f
+          // The picked one comes forward, a little bigger than the rest
+          state.home.z + cartSize.width * 0.9 * f
         );
         // The focused cartridge tips toward you and sways a little, as if held up
         group.rotation.x = 0.15 * f;
@@ -1903,6 +2022,18 @@ export default function CartridgeArcade({
         group.rotation.z += lean;
         group.position.x -= (Math.sin(lean) * cartSize.height) / 2;
         group.position.y -= ((1 - Math.cos(lean)) * cartSize.height) / 2;
+        // Bobbing gently in line, each on its own beat
+        group.position.y += cartSize.height * 0.02 * Math.sin(time * 1.1 + i * 1.7) * (1 - drop);
+        // Up close for a look
+        if (state === inspecting) {
+          const k = inspect.amount.value;
+          group.position.lerp(shelfGroup.worldToLocal(inspectPoint.clone()), k);
+          group.rotation.set(
+            group.rotation.x * (1 - k) + inspect.pitch * k,
+            group.rotation.y * (1 - k) + inspect.yaw * k,
+            group.rotation.z * (1 - k)
+          );
+        }
       });
 
       // Ease toward the pointer for a touch of depth
