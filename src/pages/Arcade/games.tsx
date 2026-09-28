@@ -475,6 +475,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Mountains of Christmas", weight: 700 },
         about: { released: "2026", players: "Single player", genre: "Toy sandbox", developer: "sclondon" },
       },
+      videoUrl: "/game-recordings/SnowGlobe.mp4",
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -493,6 +494,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Cormorant Garamond", weight: 600 },
         about: { released: "2026", players: "Single player", genre: "Virtual gallery", developer: "sclondon" },
       },
+      videoUrl: "/game-recordings/WaysideGallery.mp4",
       hasLeaderboard: false,
       game: (
         <GameRenderer
