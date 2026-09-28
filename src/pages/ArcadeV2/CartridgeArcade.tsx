@@ -51,6 +51,7 @@ import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { createSlotTerminal, type SlotTerminal } from "./slotTerminal.ts";
+import { nowSeconds, type TerminalOptions, type TerminalScreen } from "./terminalScreen.ts";
 import { splitParts } from "./splitParts.ts";
 import { createSlotRig, MARKER_FONT, type SlotRig } from "./slotRig.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
@@ -70,6 +71,7 @@ type Props = {
 };
 
 type World = {
+  setTerminalOptions: (options: TerminalOptions) => void;
   focus: (index: number, fromUser?: boolean) => void;
   moveFocus: (dx: number) => void;
   activate: (index: number) => void;
@@ -140,6 +142,13 @@ export default function CartridgeArcade({
   }, [tall, setMobileNavDocked]);
   // The index of every cartridge, open over the arcade
   const [browsing, setBrowsing] = useState(false);
+  // What the slot's terminal shows; the info card shows the same, up close
+  const [terminalScreen, setTerminalScreen] = useState<TerminalScreen>(() => ({ kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() }));
+  // The terminal's ? key; stays on while browsing, so you can flick through every game's details
+  const [details, setDetails] = useState(false);
+  // Read when the scene's built; kept in step after through setTerminalOptions
+  const terminalOptionsRef = useRef<TerminalOptions>({ details, phone: tall });
+  terminalOptionsRef.current = { details, phone: tall };
   // Where the card's top goes, just under the ledge, in px
   const [ledgeCardTop, setLedgeCardTop] = useState<number | null>(null);
 
@@ -630,6 +639,16 @@ export default function CartridgeArcade({
     let focusIndex = -1;
     let insertedIndex = -1;
     let terminal: SlotTerminal | null = null;
+    let terminalScreenNow: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
+    let terminalOptions: TerminalOptions = terminalOptionsRef.current;
+    // Put something on the terminal, and on the card that mirrors it
+    const showTerminal = (screen: TerminalScreen) => {
+      terminalScreenNow = screen;
+      terminal?.show(screen);
+      setTerminalScreen(screen);
+    };
+    const showGameOrIdle = (index: number) =>
+      showTerminal(index >= 0 ? { kind: "game", game: games[index], at: nowSeconds() } : { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() });
     let slotRig: SlotRig | null = null;
     // Parts of the cabinet that react to a click or tap
     const joysticks: { pivot: Group; center: Vector3 }[] = []; // each tips over at its base
@@ -646,14 +665,6 @@ export default function CartridgeArcade({
     let pokeTimes: number[] = [];
     let nextGlitch = 0;
     const touch = { u: 0.5, v: 0.5, start: 0 }; // where on the glass, in its UVs
-    // What the slot's terminal prints for a picked cartridge
-    const terminalLines = (game: MachineData) => [
-      "> CART READ OK",
-      game.name.replace(/[‘’]/g, "'").slice(0, 20),
-      game.cartridge.about.genre.slice(0, 20),
-      game.cartridge.about.players.slice(0, 20),
-      `(C) ${game.cartridge.about.released} SCAREATHON`,
-    ];
     let busy = false;
     let room: CassetteRoom | null = null;
     const cameraBase = new Vector3();
@@ -1084,7 +1095,7 @@ export default function CartridgeArcade({
       gsap.to(scroll, { x: index * pitchX, duration: 0.35, ease: "power2.out" });
       if (fromUser) playTick();
       setFocused(index);
-      terminal?.print(terminalLines(games[index]));
+      showGameOrIdle(index);
       // Browsing the shelf previews each game on the screen
       if (insertedIndex < 0 && !busy) tuneScreen(index, 0.18);
     };
@@ -1147,7 +1158,7 @@ export default function CartridgeArcade({
       const oldGroup = old.cart.group;
       insertedIndex = -1;
       setInserted(-1);
-      terminal?.print(["> EJECT", "CARTRIDGE RELEASED"]);
+      showTerminal({ kind: "message", lines: ["> EJECT", "CARTRIDGE RELEASED"], at: nowSeconds() });
       stopVideo();
       screenGame = -1;
       screenMode = "off";
@@ -1197,7 +1208,7 @@ export default function CartridgeArcade({
       const index = insertedIndex;
       ejectTimeline().eventCallback("onComplete", () => {
         busy = false;
-        terminal?.print(focusIndex >= 0 ? terminalLines(games[focusIndex]) : ["> INSERT CARTRIDGE"]);
+        showGameOrIdle(focusIndex);
         // Back to previewing whatever's focused once the tube has powered down
         gsap.delayedCall(0.15, () => {
           if (insertedIndex < 0) tuneScreen(focusIndex >= 0 ? focusIndex : index, 0.3);
@@ -1227,7 +1238,7 @@ export default function CartridgeArcade({
         state.where = "flying";
         scene.attach(group);
         playWhoosh();
-        terminal?.loading(games[index].name);
+        showTerminal({ kind: "loading", title: games[index].name, at: nowSeconds() });
         // Off the scanner, so no preview: back to the idle screen until it's seated
         stopVideo();
         screenGame = -1;
@@ -1252,6 +1263,13 @@ export default function CartridgeArcade({
     };
 
     worldRef.current = {
+      setTerminalOptions: (options: TerminalOptions) => {
+        const detailsChanged = options.details !== terminalOptions.details;
+        terminalOptions = options;
+        terminal?.setOptions(options);
+        // The ? key retypes the game's lines, on both
+        if (detailsChanged && terminalScreenNow.kind === "game") showTerminal({ ...terminalScreenNow, at: nowSeconds() });
+      },
       focus,
       moveFocus,
       activate,
@@ -1452,6 +1470,8 @@ export default function CartridgeArcade({
         housingFront + terminalDepth / 2
       );
       cabinet.add(terminal.group);
+      terminal.show(terminalScreenNow);
+      terminal.setOptions(terminalOptions);
       // Sunk far enough that the part left standing stays below the screen
       seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
       portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
@@ -1503,7 +1523,8 @@ export default function CartridgeArcade({
       return null;
     };
 
-    let press: { x: number; y: number; scroll: number; dragging: boolean; lastX: number; lastT: number; velocity: number } | null = null;
+    // `cart`: the cartridge it started on (-1 if none), which a swipe up plugs in
+    let press: { x: number; y: number; scroll: number; dragging: boolean; lastX: number; lastT: number; velocity: number; cart: number } | null = null;
     const worldPerPixel = () => {
       const distance = camera.position.z - shelfGroup.position.z;
       const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * distance;
@@ -1585,7 +1606,8 @@ export default function CartridgeArcade({
     const cabinetFlash = new PointLight(0xffffff, 0, 4, 1.5);
     scene.add(cabinetFlash);
     const rock = { angle: 0 };
-    const jiggleCabinet = (point: Vector3) => {
+    // `strength` scales the rock and the flash: taps in quick succession build it up
+    const jiggleCabinet = (point: Vector3, strength = 1) => {
       const away = point.x > 0 ? 1 : -1;
       gsap.killTweensOf(rock);
       const timeline = gsap.timeline({
@@ -1594,11 +1616,11 @@ export default function CartridgeArcade({
           cabinet.rotation.x = -Math.abs(rock.angle) * 0.5;
         },
       });
-      [0.03, -0.022, 0.014, -0.007, 0.003, 0].forEach((angle, i) => timeline.to(rock, { angle: angle * away, duration: i ? 0.08 : 0.05, ease: "sine.inOut" }));
+      [0.03, -0.022, 0.014, -0.007, 0.003, 0].forEach((angle, i) => timeline.to(rock, { angle: angle * away * strength, duration: i ? 0.08 : 0.05, ease: "sine.inOut" }));
       cabinetFlash.color.set(tintTarget).lerp(new Color("#ffffff"), 0.4);
       cabinetFlash.position.copy(point).add(new Vector3(0, 0, cartSize.depth * 5));
       gsap.killTweensOf(cabinetFlash);
-      gsap.fromTo(cabinetFlash, { intensity: 8 }, { intensity: 0, duration: 0.4, ease: "power2.out" });
+      gsap.fromTo(cabinetFlash, { intensity: 8 * Math.min(strength, 1.2) }, { intensity: 0, duration: 0.4, ease: "power2.out" });
       playClunk();
     };
     // Count pokes; too many too fast and it breaks (true when that's just happened)
@@ -1626,9 +1648,9 @@ export default function CartridgeArcade({
         if (!disposed) slotRig?.sparks();
       });
       slotRig?.setDead(true);
-      jiggleCabinet(point);
+      jiggleCabinet(point, 1.6);
       gsap.fromTo(shake, { value: cartSize.width * 0.06 }, { value: 0, duration: 0.9, ease: "power2.out" });
-      terminal?.reboot(REBOOT);
+      showTerminal({ kind: "reboot", seconds: REBOOT, at: brokenAt });
       // The marquee jams halfway through a flip
       shownSign.getContext("2d")?.drawImage(marqueeCanvas, 0, 0);
       gsap.killTweensOf(flip);
@@ -1646,8 +1668,7 @@ export default function CartridgeArcade({
       flickerMarquee();
       lastIdleBlink = -1;
       if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
-      const shown = insertedIndex >= 0 ? insertedIndex : focusIndex;
-      terminal?.print(shown >= 0 ? terminalLines(games[shown]) : ["> INSERT CARTRIDGE"]);
+      showGameOrIdle(insertedIndex >= 0 ? insertedIndex : focusIndex);
       playTick();
     };
 
@@ -1666,7 +1687,7 @@ export default function CartridgeArcade({
       if (broken) {
         // Kicking it while it's down only gets sparks
         slotRig?.sparks(hit.point);
-        jiggleCabinet(hit.point);
+        jiggleCabinet(hit.point, 0.6);
         return;
       }
       if (notePoke()) {
@@ -1688,7 +1709,8 @@ export default function CartridgeArcade({
       } else if (marqueeMaterial && mesh.material === marqueeMaterial) jostleMarquee();
       else if (name.startsWith("Joystick") || nearJoystick(hit.point)) jiggleJoystick(hit.point);
       else if (name.endsWith("Button") || nearButton(hit.point)) pressButtons(hit.point);
-      else jiggleCabinet(hit.point);
+      // Small at first, harder with each tap in a quick run of them
+      else jiggleCabinet(hit.point, 0.3 + 0.9 * Math.min((pokeTimes.length - 1) / (BREAK_TAPS - 2), 1));
     };
     // Follow the finger across the glass (the glass itself: its glow has UVs of its own)
     const touchScreen = (clientX: number, clientY: number) => {
@@ -1727,6 +1749,10 @@ export default function CartridgeArcade({
         lastX: event.clientX,
         lastT: event.timeStamp,
         velocity: 0,
+        cart: (() => {
+          const hit = pick(event.clientX, event.clientY);
+          return hit?.kind === "cart" && carts[hit.index].where === "shelf" ? hit.index : -1;
+        })(),
       };
       renderer.domElement.setPointerCapture(event.pointerId);
     };
@@ -1737,6 +1763,16 @@ export default function CartridgeArcade({
       }
       if (press) {
         const dx = event.clientX - press.x;
+        const dy = event.clientY - press.y;
+        // Flicked up (more up than sideways): plug it in
+        if (!press.dragging && press.cart >= 0 && dy < -40 && -dy > Math.abs(dx) * 1.5) {
+          const index = press.cart;
+          press = null;
+          swiped = true;
+          if (index !== focusIndex) focus(index, true);
+          activate(index);
+          return;
+        }
         if ((press.dragging || Math.abs(dx) > 8)) {
           press.dragging = true;
           gsap.killTweensOf(scroll);
@@ -1757,7 +1793,12 @@ export default function CartridgeArcade({
       const clickable = hit?.kind === "cart" || (hit?.kind === "cabinet" && insertedIndex >= 0);
       renderer.domElement.style.cursor = clickable ? "pointer" : "default";
     };
+    let swiped = false; // the press just plugged a cartridge in: its release does nothing more
     const onPointerUp = (event: PointerEvent) => {
+      if (swiped) {
+        swiped = false;
+        return;
+      }
       // A long press on the screen was for the static; don't start a game off it
       if (releaseScreen() > 0.3 || broken) return;
       const released = press;
@@ -1924,6 +1965,10 @@ export default function CartridgeArcade({
     worldRef.current?.setPaused(paused);
   }, [paused]);
 
+  useEffect(() => {
+    worldRef.current?.setTerminalOptions({ details, phone: tall });
+  }, [details, tall]);
+
   // Keyboard: arrows browse, Enter inserts (or plays the inserted game)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1946,7 +1991,6 @@ export default function CartridgeArcade({
   }, [paused, browsing, focused, inserted]);
 
   const shown = focused >= 0 ? focused : inserted;
-  const shownGame = games[shown];
 
   return (
     <div className="relative h-[100dvh] w-screen overflow-hidden bg-black">
@@ -1955,7 +1999,9 @@ export default function CartridgeArcade({
 
       {!loading && (
         <GameCard
-          game={shownGame}
+          screen={terminalScreen}
+          details={details}
+          onToggleDetails={() => setDetails((on) => !on)}
           phone={tall}
           onLeaderboard={onLeaderboard}
           onBrowseAll={() => setBrowsing(true)}
