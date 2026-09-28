@@ -206,6 +206,8 @@ export default function CartridgeArcade({
     // While a preview loads: the game's name, "LOADING PREVIEW" and a bar of
     // blocks with a light chasing along it, in the game's colour
     let lastLoadingFrame = -1;
+    let waitStart = 0;
+    const LOADING_AFTER = 1; // seconds of snow before the loading screen shows
     const paintLoading = (time: number) => {
       if (!screenContext) return;
       const frame = Math.floor(time * 20);
@@ -270,8 +272,8 @@ export default function CartridgeArcade({
       if (!screenContext) return;
       const { width, height } = screenCanvas;
       if (screenMode === "video") {
-        // A loading screen until the clip (or its still) has a picture to show,
-        // rather than a black screen while it loads or if autoplay is refused
+        // Snow until the clip (or its still) has a picture to show; a loading
+        // screen only if that takes a while, so a quick load doesn't flash it
         if (!screenVideo) return;
         if (screenVideo.hasPicture()) {
           if (waitingForPicture) {
@@ -280,8 +282,10 @@ export default function CartridgeArcade({
           }
           return;
         }
-        paintLoading(time);
-        return;
+        if (time - waitStart > LOADING_AFTER) {
+          paintLoading(time);
+          return;
+        }
       }
       if (screenMode === "power" || screenMode === "off") {
         // A CRT beam: a line that opens out to the full picture, or collapses back to a dot
@@ -300,7 +304,7 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         return;
       }
-      if (screenMode === "static" && noiseContext) {
+      if ((screenMode === "static" || screenMode === "video") && noiseContext) {
         const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
         for (let i = 0; i < image.data.length; i += 4) {
           const v = Math.random() * 255;
@@ -374,6 +378,7 @@ export default function CartridgeArcade({
       screenMode = "video";
       waitingForPicture = true;
       lastLoadingFrame = -1;
+      waitStart = performance.now() / 1000;
       showOnScreen(screenTexture);
       syncVideo();
     };
