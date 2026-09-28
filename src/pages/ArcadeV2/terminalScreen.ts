@@ -17,7 +17,7 @@ export type TerminalOptions = {
 };
 
 export const TERMINAL_CPS = 60; // characters typed a second
-export const PLAY_HINT = "CLICK TWICE TO PLAY · ← → ENTER";
+export const PLAY_HINT = "CLICK TWICE TO PLAY";
 export const LOADING_BLOCKS = 14;
 const LOADING_BLOCKS_PER_SECOND = 6;
 const REBOOT_CRASH = 1.4; // seconds of fault report before the reboot starts

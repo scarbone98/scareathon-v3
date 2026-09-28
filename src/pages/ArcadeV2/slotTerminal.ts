@@ -19,10 +19,12 @@ import {
 // what the info card does (the card is this terminal seen up close), laid out
 // the same way: the heading, the pitch or details, the keys in the corners.
 
-// The glass's proportions, so nothing's stretched; sizes below are the card's
-// CSS px scaled up by S
+// The terminal's height as a share of its width
+export const TERMINAL_ASPECT = 0.56;
+// The glass's proportions (it's 84% of the case wide, 74% high), so nothing's
+// stretched; sizes below are the card's CSS px scaled up by S
 const WIDTH = 512;
-const HEIGHT = 280;
+const HEIGHT = Math.round((WIDTH * 0.74 * TERMINAL_ASPECT) / 0.84);
 const S = 1.19;
 const PHOSPHOR = "#39ff6a";
 const GLASS = "#021407";
@@ -86,7 +88,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
   };
   // The heading, shrunk to fit between the corner keys rather than wrapping
   const heading = (full: string, shown: string, cursor: boolean, cursorOn: boolean) => {
-    const room = WIDTH - 2 * 52 * S;
+    const room = WIDTH - 2 * 22 * S;
     let px = 43;
     context.font = font(px);
     const w = context.measureText(full).width;
@@ -120,12 +122,14 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     for (let i = 0; i < blocks; i += 1) context.fillRect(x + (4 + i * 16) * S, y - 6 * S, 12 * S, 12 * S);
   };
   // "[ ⌕ ]": brackets round a drawn magnifying glass
-  const magnifierKey = (x: number, y: number) => {
+  // Each key draws from x on its `align` side and returns how wide it is
+  const magnifierKey = (x: number, y: number, align: CanvasTextAlign) => {
     context.font = font(20);
     const value = "[   ]";
-    text(value, x, y, "left");
     const w = context.measureText(value).width;
-    const cx = x + w / 2 - 2 * S;
+    const left = align === "right" ? x - w : x;
+    text(value, left, y, "left");
+    const cx = left + w / 2 - 2 * S;
     const r = 5.5 * S;
     context.strokeStyle = PHOSPHOR;
     context.lineWidth = 2.2 * S;
@@ -134,18 +138,20 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     context.moveTo(cx - 1.5 * S + r * 0.7, y - 1.5 * S + r * 0.7);
     context.lineTo(cx + 5 * S, y + 5 * S);
     context.stroke();
+    return w;
   };
   const key = (label: string, x: number, y: number, align: CanvasTextAlign, lit = false) => {
     context.font = font(20);
     const value = `[ ${label} ]`;
+    const w = context.measureText(value).width;
     if (lit) {
-      const w = context.measureText(value).width;
       const left = align === "right" ? x - w : align === "center" ? x - w / 2 : x;
       context.fillRect(left - 3 * S, y - 12 * S, w + 6 * S, 24 * S);
       context.fillStyle = GLASS;
       text(value, x, y, align);
       context.fillStyle = PHOSPHOR;
     } else text(value, x, y, align);
+    return w;
   };
 
   const paint = (time: number) => {
@@ -235,13 +241,18 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       text(PLAY_HINT, WIDTH / 2, hintY);
       context.globalAlpha = 1;
     }
-    // The corner keys
+    // The keys, along the bottom: the site menu (phones) and all games on the
+    // left, inspect and details on the right
+    const row = HEIGHT - 11 * S;
+    const gap = 2 * S;
     if (controls === "all") {
-      magnifierKey(5 * S, 11 * S);
-      key("^", WIDTH - 5 * S, 11 * S, "right");
+      const menu = options.phone ? key("≡", 5 * S, row, "left") + gap : 0;
+      key("^", 5 * S + menu, row, "left");
     }
-    if (controls !== "none") key("?", WIDTH - 5 * S, HEIGHT - 11 * S, "right", options.details);
-    if (options.phone && controls === "all") key("≡", 5 * S, HEIGHT - 11 * S, "left");
+    if (controls !== "none") {
+      const details = key("?", WIDTH - 5 * S, row, "right", options.details);
+      if (controls === "all") magnifierKey(WIDTH - 5 * S - details - gap, row, "right");
+    }
 
     context.shadowBlur = 0;
     // Scanlines

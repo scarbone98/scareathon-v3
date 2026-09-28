@@ -206,7 +206,7 @@ function ScreenBody({
   if (screen.kind === "game") {
     return (
       <>
-        <div className="px-10">
+        <div className="px-2">
           <FittedTitle text={gameTitle(screen.game)} shown={shownFirst} cursor={typing.cursorAt === 0} />
         </div>
         <div className={body}>
@@ -228,7 +228,7 @@ function ScreenBody({
   if (screen.kind === "message") {
     return (
       <>
-        <div className="px-10">
+        <div className="px-2">
           <FittedTitle text={screen.lines[0] ?? ""} shown={shownFirst} cursor={typing.cursorAt === 0} />
         </div>
         <div className={body}>
@@ -247,7 +247,7 @@ function ScreenBody({
     const title = screen.title.replace(/[‘’]/g, "'").toUpperCase();
     return (
       <>
-        <div className="px-10">
+        <div className="px-2">
           <FittedTitle text={title} shown={title} cursor={false} />
         </div>
         <div className={`${body} gap-2`}>
@@ -260,7 +260,7 @@ function ScreenBody({
   const reboot = rebootView(screen, now);
   return reboot.crashed ? (
     <>
-      <div className="px-10">
+      <div className="px-2">
         <FittedTitle text="*** FATAL ERROR ***" shown={reboot.blink ? "*** FATAL ERROR ***" : ""} cursor={false} />
       </div>
       <div className={body}>
@@ -270,7 +270,7 @@ function ScreenBody({
     </>
   ) : (
     <>
-      <div className="px-10">
+      <div className="px-2">
         <FittedTitle text="> REBOOTING..." shown={`> REBOOTING${reboot.dots}`} cursor={false} />
       </div>
       <div className={`${body} gap-2`}>
@@ -314,27 +314,23 @@ export default function GameCard({ screen, details, phone, style, className = ""
             <p className={`mt-1 h-5 text-base leading-5 opacity-55 ${controls === "none" ? "invisible" : ""}`}>{PLAY_HINT}</p>
           )}
 
-          {phone && controls === "all" && (
-            <div className="absolute bottom-0.5 left-1 z-10 text-xl">
-              <MenuKey />
-            </div>
-          )}
+          {/* The keys, along the bottom: the site menu (phones) and all games on the
+              left, inspect and details on the right */}
           {controls === "all" && (
-            <div className="absolute left-1 top-0.5 z-10 text-xl">
-              <TerminalButton onClick={onInspect} label="Inspect the cartridge">
-                <MagnifierIcon />
-              </TerminalButton>
-            </div>
-          )}
-          {controls === "all" && (
-            <div className="absolute right-1 top-0.5 z-10 text-xl">
+            <div className="absolute bottom-0.5 left-1 z-10 flex text-xl">
+              {phone && <MenuKey />}
               <TerminalButton onClick={onBrowseAll} label="Show all games">
                 ^
               </TerminalButton>
             </div>
           )}
           {controls !== "none" && (
-            <div className="absolute bottom-0.5 right-1 z-10 text-xl">
+            <div className="absolute bottom-0.5 right-1 z-10 flex text-xl">
+              {controls === "all" && (
+                <TerminalButton onClick={onInspect} label="Inspect the cartridge">
+                  <MagnifierIcon />
+                </TerminalButton>
+              )}
               <TerminalButton onClick={onToggleDetails} pressed={details} label={details ? "Hide game details" : "Show game details"}>
                 ?
               </TerminalButton>

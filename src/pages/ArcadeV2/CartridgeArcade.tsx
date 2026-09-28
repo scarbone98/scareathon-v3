@@ -51,7 +51,7 @@ import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
-import { createSlotTerminal, type SlotTerminal } from "./slotTerminal.ts";
+import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
 import { nowSeconds, type TerminalOptions, type TerminalScreen } from "./terminalScreen.ts";
 import { splitParts } from "./splitParts.ts";
 import { createSlotRig, MARKER_FONT, type SlotRig } from "./slotRig.ts";
@@ -1475,7 +1475,7 @@ export default function CartridgeArcade({
       const housingFront = panelCenter.z + cartSize.depth * 1.1;
       const faceHeight = portTop - surfaceY;
       const terminalHeight = Math.min(faceHeight * 0.72, cartSize.width * 0.3);
-      const terminalWidth = terminalHeight / 0.62;
+      const terminalWidth = terminalHeight / TERMINAL_ASPECT;
       const terminalDepth = cartSize.depth * 0.25;
       const margin = faceHeight * 0.12;
       terminal = track(createSlotTerminal(terminalWidth, terminalHeight, terminalDepth));
