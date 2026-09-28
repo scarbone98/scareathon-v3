@@ -27,12 +27,12 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
-  // about: shown by the info button on the arcade's game card.
+  // about: shown by the info button on the arcade's game card; developer is a GitHub handle.
   cartridge: {
     color: string;
     tagline: string;
     font: { family: string; weight?: number };
-    about: { released: string; players: string; genre: string };
+    about: { released: string; players: string; genre: string; developer: string };
   };
   game: ReactNode;
 };
@@ -170,7 +170,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#e0433b",
         tagline: "The pixel nightmare is back.",
         font: { family: "Press Start 2P" },
-        about: { released: "2024", players: "Single player", genre: "Retro action" },
+        about: { released: "2024", players: "Single player", genre: "Retro action", developer: "sclondon + scarbone98" },
       },
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
       game: (
@@ -222,7 +222,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#3fb68b",
         tagline: "Climb out from the deep.",
         font: { family: "Cinzel Decorative", weight: 700 },
-        about: { released: "2024", players: "Single player", genre: "Vertical platformer" },
+        about: { released: "2024", players: "Single player", genre: "Vertical platformer", developer: "sclondon" },
       },
       videoUrl: "/game-recordings/Ascension.mp4",
       game: (
@@ -242,7 +242,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#2f86d6",
         tagline: "Pinball under a storm god’s curse.",
         font: { family: "Tilt Warp" },
-        about: { released: "2025", players: "Single player", genre: "Pinball" },
+        about: { released: "2025", players: "Single player", genre: "Pinball", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/TlalocsCurse.mp4",
       game: (
@@ -262,7 +262,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#f2a93b",
         tagline: "Dash for the high score.",
         font: { family: "Russo One" },
-        about: { released: "2024", players: "Single player", genre: "Endless runner" },
+        about: { released: "2024", players: "Single player", genre: "Endless runner", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/Ooidash.mp4",
       game: (
@@ -282,7 +282,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#f07a5a",
         tagline: "Race a salmon down a jungle river.",
         font: { family: "Luckiest Guy" },
-        about: { released: "2026", players: "Single player", genre: "Trick racer" },
+        about: { released: "2026", players: "Single player", genre: "Trick racer", developer: "sclondon" },
       },
       videoUrl: "/game-recordings/SalmonRun2.mp4",
       game: (
@@ -303,7 +303,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#a86ee0",
         tagline: "Tiny games, faster and faster.",
         font: { family: "Titan One" },
-        about: { released: "2026", players: "Single player", genre: "Microgames" },
+        about: { released: "2026", players: "Single player", genre: "Microgames", developer: "sclondon" },
       },
       videoUrl: "/game-recordings/WirtWare.mp4",
       game: (
@@ -323,7 +323,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#7d8a99",
         tagline: "Last one standing wins.",
         font: { family: "Grenze Gotisch", weight: 700 },
-        about: { released: "2026", players: "Single player", genre: "Lane card battler" },
+        about: { released: "2026", players: "Single player", genre: "Lane card battler", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/CryptClash.mp4",
       hasLeaderboard: false,
@@ -341,7 +341,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#c23b5a",
         tagline: "Grow your squad, blast the horde.",
         font: { family: "Black Ops One" },
-        about: { released: "2026", players: "Single player", genre: "Crowd-runner shooter" },
+        about: { released: "2026", players: "Single player", genre: "Crowd-runner shooter", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/HordeRush.mp4",
       game: (
@@ -361,7 +361,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#6cc04a",
         tagline: "Roll a frog through dream worlds.",
         font: { family: "Fredoka", weight: 600 },
-        about: { released: "2026", players: "Single player", genre: "Rolling platformer" },
+        about: { released: "2026", players: "Single player", genre: "Rolling platformer", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/FrogBall.mp4",
       game: (
@@ -382,7 +382,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#5b3a8c",
         tagline: "Crawl the crypt, recruit the monsters.",
         font: { family: "Creepster" },
-        about: { released: "2026", players: "Single player", genre: "Dungeon crawler" },
+        about: { released: "2026", players: "Single player", genre: "Dungeon crawler", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/MysteryCrypt.mp4",
       game: (
@@ -402,7 +402,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#2b2150",
         tagline: "Shred the haunted mountain.",
         font: { family: "Nosifer" },
-        about: { released: "2026", players: "Single player", genre: "Snowboarding" },
+        about: { released: "2026", players: "Single player", genre: "Snowboarding", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/GhostRidge.mp4",
       game: (
@@ -422,7 +422,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#7a0c0a",
         tagline: "Survive the night in Old San Juan.",
         font: { family: "Black Ops One" },
-        about: { released: "2026", players: "Single player", genre: "Zombie survival shooter" },
+        about: { released: "2026", players: "Single player", genre: "Zombie survival shooter", developer: "scarbone98" },
       },
       videoUrl: "/game-recordings/Muertos.mp4",
       game: (
@@ -442,7 +442,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#f4f1e8",
         tagline: "Look after a stick figure.",
         font: { family: "Patrick Hand" },
-        about: { released: "2026", players: "Single player", genre: "Virtual pet sandbox" },
+        about: { released: "2026", players: "Single player", genre: "Virtual pet sandbox", developer: "sclondon" },
       },
       videoUrl: "/game-recordings/BOB.mp4",
       hasLeaderboard: false,
@@ -462,7 +462,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#9e2f2a",
         tagline: "Where it all began.",
         font: { family: "Silkscreen" },
-        about: { released: "Before 2024", players: "Single player", genre: "Retro action" },
+        about: { released: "Before 2024", players: "Single player", genre: "Retro action", developer: "sclondon + scarbone98" },
       },
       videoUrl: "/game-recordings/8BitEvil.mp4",
       availableOnMobile: false,

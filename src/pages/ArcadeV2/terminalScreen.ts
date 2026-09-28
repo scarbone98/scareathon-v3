@@ -31,13 +31,13 @@ export const gameTitle = (game: MachineData) => game.name.replace(/[‘’]/g, "
 export function gameLines(game: MachineData, details: boolean) {
   return details
     ? [
-        `TITLE    ${gameTitle(game)}`,
-        `GENRE    ${game.cartridge.about.genre.toUpperCase()}`,
-        `RELEASED ${game.cartridge.about.released.toUpperCase()}`,
-        `PLAYERS  ${game.cartridge.about.players.toUpperCase()}`,
-        `SCORES   ${game.hasLeaderboard !== false ? "ON THE LEADERBOARD" : "NOT KEPT"}`,
-        `PLAYS ON ${game.availableOnMobile !== false ? "DESKTOP + MOBILE" : "DESKTOP ONLY"}`,
-      ]
+        ["TITLE", gameTitle(game)],
+        ["GENRE", game.cartridge.about.genre],
+        ["RELEASED", game.cartridge.about.released],
+        ["PLAYERS", game.cartridge.about.players],
+        ["SCORES", game.hasLeaderboard !== false ? "ON THE LEADERBOARD" : "NOT KEPT"],
+        ["DEVELOPER", game.cartridge.about.developer],
+      ].map(([label, value]) => `${label.padEnd(10)}${value.toUpperCase()}`)
     : [`> ${game.cartridge.tagline}`];
 }
 
