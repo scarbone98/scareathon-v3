@@ -86,7 +86,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
   };
   // The heading, shrunk to fit between the corner keys rather than wrapping
   const heading = (full: string, shown: string, cursor: boolean, cursorOn: boolean) => {
-    const room = WIDTH - 2 * 58 * S;
+    const room = WIDTH - 2 * 52 * S;
     let px = 43;
     context.font = font(px);
     const w = context.measureText(full).width;
@@ -237,11 +237,11 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     }
     // The corner keys
     if (controls === "all") {
-      magnifierKey(10 * S, 14 * S);
-      key("^", WIDTH - 10 * S, 14 * S, "right");
+      magnifierKey(5 * S, 11 * S);
+      key("^", WIDTH - 5 * S, 11 * S, "right");
     }
-    if (controls !== "none") key("?", WIDTH - 10 * S, HEIGHT - 14 * S, "right", options.details);
-    if (options.phone && controls === "all") key("≡", 10 * S, HEIGHT - 14 * S, "left");
+    if (controls !== "none") key("?", WIDTH - 5 * S, HEIGHT - 11 * S, "right", options.details);
+    if (options.phone && controls === "all") key("≡", 5 * S, HEIGHT - 11 * S, "left");
 
     context.shadowBlur = 0;
     // Scanlines

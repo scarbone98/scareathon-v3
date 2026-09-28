@@ -289,7 +289,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
     <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
       {/* The beige case, stretching to whatever room the ledge leaves */}
       <div
-        className="pointer-events-auto relative flex w-full flex-1 flex-col rounded-2xl p-2.5 pb-5"
+        className="pointer-events-auto relative flex w-full flex-1 flex-col rounded-2xl p-1.5 pb-4"
         style={{
           background: "linear-gradient(#c9bc9f, #b3a585)",
           boxShadow: "inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -3px 0 rgba(0,0,0,0.2), 0 10px 30px rgba(0,0,0,0.55)",
@@ -297,7 +297,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
       >
         {/* The glass: scanlines, a vignette, and phosphor text */}
         <div
-          className="relative flex flex-1 flex-col justify-center overflow-hidden rounded-xl px-4 pb-2 pt-1"
+          className="relative flex flex-1 flex-col justify-center overflow-hidden rounded-xl px-3 pb-1.5 pt-1"
           style={{
             background: "radial-gradient(ellipse at center, #06260f 0%, #021407 70%, #010a04 100%)",
             boxShadow: "inset 0 0 22px rgba(0,0,0,0.9), inset 0 0 2px rgba(0,0,0,1), 0 0 0 3px #1a1614",
@@ -315,26 +315,26 @@ export default function GameCard({ screen, details, phone, style, className = ""
           )}
 
           {phone && controls === "all" && (
-            <div className="absolute bottom-1.5 left-2 z-10 text-xl">
+            <div className="absolute bottom-0.5 left-1 z-10 text-xl">
               <MenuKey />
             </div>
           )}
           {controls === "all" && (
-            <div className="absolute left-2 top-1.5 z-10 text-xl">
+            <div className="absolute left-1 top-0.5 z-10 text-xl">
               <TerminalButton onClick={onInspect} label="Inspect the cartridge">
                 <MagnifierIcon />
               </TerminalButton>
             </div>
           )}
           {controls === "all" && (
-            <div className="absolute right-2 top-1.5 z-10 text-xl">
+            <div className="absolute right-1 top-0.5 z-10 text-xl">
               <TerminalButton onClick={onBrowseAll} label="Show all games">
                 ^
               </TerminalButton>
             </div>
           )}
           {controls !== "none" && (
-            <div className="absolute bottom-1.5 right-2 z-10 text-xl">
+            <div className="absolute bottom-0.5 right-1 z-10 text-xl">
               <TerminalButton onClick={onToggleDetails} pressed={details} label={details ? "Hide game details" : "Show game details"}>
                 ?
               </TerminalButton>
@@ -349,7 +349,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
           />
         </div>
         {/* The case's badge and power light */}
-        <div className="absolute inset-x-4 bottom-1 flex items-center justify-between font-sans text-[0.55rem] font-bold uppercase tracking-[0.2em] text-[#5a5040]">
+        <div className="absolute inset-x-3.5 bottom-0.5 flex items-center justify-between font-sans text-[0.55rem] font-bold uppercase tracking-[0.2em] text-[#5a5040]">
           <span>SA-86 Terminal</span>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: PHOSPHOR, boxShadow: `0 0 4px ${PHOSPHOR}` }} />
         </div>
