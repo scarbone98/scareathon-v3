@@ -48,6 +48,10 @@ export type SlotRig = {
   update: (time: number) => void; // the instrument box's scrolling graph, and any sparks
   // A click or tap on part of the rig: the scope's graph goes haywire, the vent spits sparks
   poke: (object: Object3D, point: Vector3, time: number) => "scope" | "sparks" | null;
+  // A shower of sparks from a point (the vent, by default)
+  sparks: (from?: Vector3) => void;
+  // The scope flatlines while the machine is down
+  setDead: (dead: boolean) => void;
   dispose: () => void;
 };
 
@@ -230,8 +234,9 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   let lastTrace = 0;
   let phase = 0;
   let haywireUntil = 0; // poked: the signal thrashes about for a moment
+  let dead = false; // the machine's crashed: a flat, dim line
   const drawGraph = (time: number) => {
-    const haywire = time < haywireUntil;
+    const haywire = !dead && time < haywireUntil;
     if (time - lastTrace < (haywire ? 0.016 : 0.05)) return;
     lastTrace = time;
     phase += 0.35;
@@ -243,7 +248,7 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
         trace.shift();
       }
     }
-    trace.push(0.5 + noise + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.7 : 0));
+    trace.push(dead ? 0.5 : 0.5 + noise + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.7 : 0));
     trace.shift();
     graph.fillStyle = "#021407";
     graph.fillRect(0, 0, 160, 96);
@@ -261,8 +266,8 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
       graph.lineTo(160, gy);
       graph.stroke();
     }
-    graph.strokeStyle = "#39ff6a";
-    graph.shadowColor = "#39ff6a";
+    graph.strokeStyle = dead ? "#1c6b33" : "#39ff6a";
+    graph.shadowColor = dead ? "transparent" : "#39ff6a";
     graph.shadowBlur = 6;
     graph.lineWidth = 2.5;
     graph.beginPath();
@@ -367,7 +372,7 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   // Sparks spat out of the vent when it's poked: little glowing chips that
   // fly out, fall and fade
   const sparkGeometry = track(new BoxGeometry(plate * 0.7, plate * 0.7, plate * 2.2));
-  const sparks = Array.from({ length: 36 }, () => {
+  const sparks = Array.from({ length: 108 }, () => {
     const material = track(new MeshBasicMaterial({ color: new Color("#ffd36b"), transparent: true }));
     const mesh = new Mesh(sparkGeometry, material);
     mesh.visible = false;
@@ -375,10 +380,15 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     return { mesh, material, velocity: new Vector3(), life: 0, age: 0 };
   });
   let lastSparkTime = 0;
-  const burstSparks = () => {
+  let nextSpark = 0;
+  // A burst takes the next 36 sparks in the pool, so a few can be in the air at once
+  const burstSparks = (from?: Vector3) => {
     const speed = width * 2.2;
-    sparks.forEach((spark) => {
-      spark.mesh.position.set(vent.x + (Math.random() - 0.5) * ventWidth * 0.6, vent.y + (Math.random() - 0.5) * ventHeight * 0.5, ventFront);
+    const burst = Array.from({ length: 36 }, (_, i) => sparks[(nextSpark + i) % sparks.length]);
+    nextSpark = (nextSpark + 36) % sparks.length;
+    burst.forEach((spark) => {
+      if (from) spark.mesh.position.copy(from).add(new Vector3((Math.random() - 0.5) * plate * 4, (Math.random() - 0.5) * plate * 4, plate * 2));
+      else spark.mesh.position.set(vent.x + (Math.random() - 0.5) * ventWidth * 0.6, vent.y + (Math.random() - 0.5) * ventHeight * 0.5, ventFront);
       spark.velocity.set((Math.random() - 0.5) * speed * 0.9, (0.2 + Math.random() * 0.8) * speed * 0.7, (0.5 + Math.random() * 0.8) * speed);
       spark.age = 0;
       spark.life = 0.35 + Math.random() * 0.5;
@@ -493,7 +503,7 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
       moveSparks(time);
     },
     poke(object, point, time) {
-      if (partOf(object, scopeParts)) {
+      if (partOf(object, scopeParts) && !dead) {
         haywireUntil = time + 1.4;
         return "scope";
       }
@@ -504,6 +514,10 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
         return "sparks";
       }
       return null;
+    },
+    sparks: burstSparks,
+    setDead(next) {
+      dead = next;
     },
     dispose() {
       lead?.geometry.dispose();

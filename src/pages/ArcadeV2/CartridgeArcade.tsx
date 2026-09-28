@@ -303,9 +303,44 @@ export default function CartridgeArcade({
       screenContext.globalCompositeOperation = "source-over";
     };
 
+    // The crash screen: blue, a sad face and a fault report, with a glitch now and then
+    let lastBrokenFrame = -1;
+    const paintBroken = (time: number, width: number, height: number) => {
+      if (!screenContext) return;
+      const frame = Math.floor(time * 12);
+      if (frame === lastBrokenFrame) return;
+      lastBrokenFrame = frame;
+      screenContext.fillStyle = "#0b2fc9";
+      screenContext.fillRect(0, 0, width, height);
+      screenContext.fillStyle = "#ffffff";
+      screenContext.textAlign = "left";
+      screenContext.textBaseline = "top";
+      screenContext.font = "700 56px ui-monospace, Menlo, Consolas, monospace";
+      screenContext.fillText(":(", 36, 22);
+      screenContext.font = "700 20px ui-monospace, Menlo, Consolas, monospace";
+      const percent = Math.min(Math.floor(((time - brokenAt) / REBOOT) * 100), 100);
+      ["SCAREATHON-86 RAN INTO A PROBLEM", "AND NEEDS TO RESTART.", "", "STOP CODE: EXCESSIVE_TAPPING", `RESTARTING... ${percent}%`].forEach((line, i) =>
+        screenContext.fillText(line, 36, 100 + i * 26)
+      );
+      // A torn band or two
+      if (Math.random() < 0.35) {
+        const y = Math.random() * height;
+        const band = 6 + Math.random() * 24;
+        screenContext.drawImage(screenCanvas, 0, y, width, band, (Math.random() - 0.5) * 60, y, width, band);
+      }
+      screenContext.fillStyle = "rgba(0, 0, 0, 0.22)";
+      for (let y = 0; y < height; y += 4) screenContext.fillRect(0, y, width, 2);
+      screenTexture.needsUpdate = true;
+    };
+
     const paintScreen = (time: number) => {
       if (!screenContext) return;
       const { width, height } = screenCanvas;
+      if (broken) {
+        if (screenMaterial && screenMaterial.map !== screenTexture) showOnScreen(screenTexture);
+        paintBroken(time, width, height);
+        return;
+      }
       if (screenHeld) {
         if (screenMaterial && screenMaterial.map !== screenTexture) showOnScreen(screenTexture);
       } else if (screenMode === "video") {
@@ -601,6 +636,15 @@ export default function CartridgeArcade({
     const buttonSides: Mesh[][] = []; // each player's buttons, both rows
     let screenMesh: Mesh | null = null;
     let screenHeld = false; // snow on the screen for as long as it's pressed
+    // Tapped too hard, the machine crashes: blue screen, dead scope, no scanner,
+    // the marquee jammed mid-flip, until the terminal's reboot finishes
+    const BREAK_TAPS = 10; // this many pokes...
+    const BREAK_WINDOW = 2.5; // ...within this many seconds
+    const REBOOT = 8; // seconds until it's back
+    let broken = false;
+    let brokenAt = 0;
+    let pokeTimes: number[] = [];
+    let nextGlitch = 0;
     const touch = { u: 0.5, v: 0.5, start: 0 }; // where on the glass, in its UVs
     // What the slot's terminal prints for a picked cartridge
     const terminalLines = (game: MachineData) => [
@@ -777,7 +821,7 @@ export default function CartridgeArcade({
 
     const updateScanner = (time: number) => {
       const focusedCart = focusIndex >= 0 ? carts[focusIndex] : null;
-      const active = !pausedRef.current && insertedIndex < 0 && focusedCart?.where === "shelf";
+      const active = !pausedRef.current && !broken && insertedIndex < 0 && focusedCart?.where === "shelf";
       const flicker = 0.85 + Math.random() * 0.15;
       if (active && focusedCart !== scanned) {
         scanned = focusedCart;
@@ -1032,6 +1076,7 @@ export default function CartridgeArcade({
     };
 
     const focus = (index: number, fromUser = false) => {
+      if (broken) return;
       if (index < 0 || index >= carts.length || index === focusIndex) return;
       if (focusIndex >= 0) gsap.to(carts[focusIndex].focus, { value: 0, duration: 0.2 });
       focusIndex = index;
@@ -1201,7 +1246,7 @@ export default function CartridgeArcade({
     };
 
     const activate = (index: number) => {
-      if (index < 0) return;
+      if (index < 0 || broken) return;
       if (carts[index]?.where === "slot") callbacksRef.current.onPlay(games[index]);
       else insert(index);
     };
@@ -1479,7 +1524,7 @@ export default function CartridgeArcade({
     const worldCenter = (object: Object3D) => new Box3().setFromObject(object).getCenter(new Vector3());
     // Generous targets: a tap near enough a joystick or button counts as on it
     const cabinetWidth = () => cabinetBox.max.x - cabinetBox.min.x;
-    const nearJoystick = (point: Vector3) => joysticks.some((j) => j.center.distanceTo(point) < cabinetWidth() * 0.11);
+    const nearJoystick = (point: Vector3) => joysticks.some((j) => j.center.distanceTo(point) < cabinetWidth() * 0.14);
     const nearButton = (point: Vector3) =>
       buttonSides.some((side) => side.some((button) => worldCenter(button).distanceTo(point) < cabinetWidth() * 0.12));
     const jiggleJoystick = (point: Vector3) => {
@@ -1556,6 +1601,56 @@ export default function CartridgeArcade({
       gsap.fromTo(cabinetFlash, { intensity: 8 }, { intensity: 0, duration: 0.4, ease: "power2.out" });
       playClunk();
     };
+    // Count pokes; too many too fast and it breaks (true when that's just happened)
+    const notePoke = () => {
+      const now = performance.now() / 1000;
+      pokeTimes = pokeTimes.filter((t) => now - t < BREAK_WINDOW);
+      pokeTimes.push(now);
+      return pokeTimes.length >= BREAK_TAPS;
+    };
+    const breakDown = (point: Vector3) => {
+      broken = true;
+      brokenAt = performance.now() / 1000;
+      pokeTimes = [];
+      lastBrokenFrame = -1;
+      screenHeld = false;
+      playStatic();
+      playPop();
+      // Sparks off the vent, where it was hit, and round the controls
+      slotRig?.sparks();
+      slotRig?.sparks(point);
+      joysticks.forEach((stick, i) => gsap.delayedCall(0.15 + i * 0.2, () => {
+        if (!disposed) slotRig?.sparks(stick.center);
+      }));
+      gsap.delayedCall(0.5, () => {
+        if (!disposed) slotRig?.sparks();
+      });
+      slotRig?.setDead(true);
+      jiggleCabinet(point);
+      gsap.fromTo(shake, { value: cartSize.width * 0.06 }, { value: 0, duration: 0.9, ease: "power2.out" });
+      terminal?.reboot(REBOOT);
+      // The marquee jams halfway through a flip
+      shownSign.getContext("2d")?.drawImage(marqueeCanvas, 0, 0);
+      gsap.killTweensOf(flip);
+      shuffleFlaps();
+      flip.t = 0;
+      gsap.to(flip, { t: 0.5, duration: 0.35, ease: "none", onUpdate: composeMarquee });
+    };
+    const recover = () => {
+      broken = false;
+      slotRig?.setDead(false);
+      gsap.killTweensOf(flip);
+      gsap.to(flip, { t: 1, duration: 0.5, ease: "none", onUpdate: composeMarquee });
+      gsap.killTweensOf(marqueeBoot);
+      marqueeBoot.value = 1;
+      flickerMarquee();
+      lastIdleBlink = -1;
+      if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
+      const shown = insertedIndex >= 0 ? insertedIndex : focusIndex;
+      terminal?.print(shown >= 0 ? terminalLines(games[shown]) : ["> INSERT CARTRIDGE"]);
+      playTick();
+    };
+
     const pokeCabinet = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -1567,6 +1662,16 @@ export default function CartridgeArcade({
       const mesh = hit.object as Mesh;
       for (let node: Object3D | null = mesh; node; node = node.parent) {
         if (typeof node.userData.cartIndex === "number") return; // a cartridge in front
+      }
+      if (broken) {
+        // Kicking it while it's down only gets sparks
+        slotRig?.sparks(hit.point);
+        jiggleCabinet(hit.point);
+        return;
+      }
+      if (notePoke()) {
+        breakDown(hit.point);
+        return;
       }
       // The rig's scope and vent (the vent answers taps anywhere around its opening)
       const poked = slotRig?.poke(mesh, hit.point, performance.now() / 1000);
@@ -1609,8 +1714,8 @@ export default function CartridgeArcade({
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse") event.preventDefault(); // no text selection while held
       pokeCabinet(event.clientX, event.clientY);
-      if (screenHeld) {
-        // Rubbing the screen, not dragging the row
+      if (screenHeld || broken) {
+        // Rubbing the screen (or the machine's down), not dragging the row
         renderer.domElement.setPointerCapture(event.pointerId);
         return;
       }
@@ -1654,7 +1759,7 @@ export default function CartridgeArcade({
     };
     const onPointerUp = (event: PointerEvent) => {
       // A long press on the screen was for the static; don't start a game off it
-      if (releaseScreen() > 0.3) return;
+      if (releaseScreen() > 0.3 || broken) return;
       const released = press;
       press = null;
       if (released?.dragging) {
@@ -1673,7 +1778,7 @@ export default function CartridgeArcade({
       else if (hit?.kind === "cabinet" && insertedIndex >= 0) callbacksRef.current.onPlay(games[insertedIndex]);
     };
     const onWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaX) + Math.abs(event.deltaY) < 4) return;
+      if (broken || Math.abs(event.deltaX) + Math.abs(event.deltaY) < 4) return;
       moveFocus(Math.sign(event.deltaX || event.deltaY));
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
@@ -1718,6 +1823,13 @@ export default function CartridgeArcade({
       screenVideo?.updateFrame();
       // The glow swells with the picture when it flares on
       if (screenMaterial) crtGlow?.setStrength(screenMaterial.emissiveIntensity / SCREEN_GLOW);
+      if (broken && time > brokenAt + REBOOT) recover();
+      if (broken && time > nextGlitch) {
+        flip.t = 0.42 + Math.random() * 0.16;
+        composeMarquee();
+        marqueeBoot.value = Math.random() < 0.35 ? 0.1 + Math.random() * 0.3 : 1;
+        nextGlitch = time + 0.06 + Math.random() * 0.3;
+      }
       if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
 
       const dt = lastFrame ? Math.min(time - lastFrame, 0.05) : 0;
