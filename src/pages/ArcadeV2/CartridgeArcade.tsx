@@ -541,7 +541,11 @@ export default function CartridgeArcade({
 
     // --- State filled in once the cabinet model loads --------------------------------
     const holder = new Group(); // the cabinet, moved so it stands on y = 0 centred on x = z = 0
-    scene.add(holder);
+    // Everything bolted to the cabinet, so a poke rocks it all together. It sits at
+    // the origin, the cabinet's foot, and is otherwise left untransformed
+    const cabinet = new Group();
+    scene.add(cabinet);
+    cabinet.add(holder);
     const shelfGroup = new Group();
     scene.add(shelfGroup);
     let shelfMeshes: Mesh[] = [];
@@ -559,7 +563,7 @@ export default function CartridgeArcade({
     let slotRig: SlotRig | null = null;
     // Parts of the cabinet that react to a click or tap
     const joysticks: { pivot: Group; center: Vector3 }[] = []; // each tips over at its base
-    const buttons: Mesh[] = [];
+    const buttonSides: Mesh[][] = []; // each player's buttons, both rows
     let screenMesh: Mesh | null = null;
     let screenHeld = false; // snow on the screen for as long as it's pressed
     // What the slot's terminal prints for a picked cartridge
@@ -1014,6 +1018,7 @@ export default function CartridgeArcade({
       const state = carts[index];
       const game = games[index];
       state.where = "slot";
+      cabinet.attach(state.cart.group);
       insertedIndex = index;
       setInserted(index);
       showGame(game);
@@ -1072,6 +1077,7 @@ export default function CartridgeArcade({
       flickerMarquee();
       if (rimMaterial) rimMaterial.color.set(SHELF_NEON);
       old.where = "flying";
+      scene.attach(old.cart.group);
       const h = cartSize.height;
       const color = new Color(games[old.cart.group.userData.cartIndex]?.cartridge.color ?? SHELF_NEON);
       // Press in against the spring...
@@ -1193,32 +1199,42 @@ export default function CartridgeArcade({
       const panelBox = new Box3();
       const screenBox = new Box3();
       const marqueeBox = new Box3();
-      // The buttons and joysticks come merged into one mesh each; split them up so
-      // each button presses and each stick tips on its own
+      // The buttons and joysticks come merged into one mesh each; split them up
       const merged: Record<string, Mesh[]> = {};
       model.traverse((child) => {
         const name = child instanceof Mesh ? (child.material as MeshStandardMaterial).name : "";
-        if (name === "OrangeButton" || name.startsWith("Joystick")) (merged[name] ??= []).push(child as Mesh);
+        if (name.endsWith("Button") || name.startsWith("Joystick")) (merged[name] ??= []).push(child as Mesh);
       });
       const partsOf = (name: string) => (merged[name] ?? []).flatMap(splitParts);
-      buttons.push(...partsOf("OrangeButton"));
-      const sticks = [...partsOf("JoystickStick"), ...partsOf("JoystickBall")];
       holder.updateMatrixWorld(true);
-      partsOf("JoystickBase").forEach((base) => {
-        const box = new Box3().setFromObject(base);
+      const centerOf = (object: Object3D) => new Box3().setFromObject(object).getCenter(new Vector3());
+      // Two players' buttons, split where the gap between them is widest
+      const allButtons = [...partsOf("OrangeButton"), ...partsOf("PurpleButton")]
+        .map((mesh) => ({ mesh, x: centerOf(mesh).x }))
+        .sort((a, b) => a.x - b.x);
+      let split = 1;
+      allButtons.forEach((button, i) => {
+        if (i > 1 && button.x - allButtons[i - 1].x > allButtons[split].x - allButtons[split - 1].x) split = i;
+      });
+      if (allButtons.length > 1) buttonSides.push(allButtons.slice(0, split).map((b) => b.mesh), allButtons.slice(split).map((b) => b.mesh));
+      // Each joystick tips over from the foot of its stick, carrying the ball and the
+      // little cap under it (which is part of the base's mesh)
+      partsOf("JoystickStick").forEach((stick) => {
+        const box = new Box3().setFromObject(stick);
         const center = box.getCenter(new Vector3());
         const pivot = new Group();
-        base.parent!.add(pivot);
-        // The base part reaches up level with the ball, so tip from its bottom
-        pivot.position.copy(base.parent!.worldToLocal(center.clone().setY(box.min.y)));
+        stick.parent!.add(pivot);
+        pivot.position.copy(stick.parent!.worldToLocal(center.clone().setY(box.min.y)));
         pivot.updateMatrixWorld(true);
+        pivot.attach(stick);
         joysticks.push({ pivot, center });
       });
-      sticks.forEach((part) => {
-        const at = new Box3().setFromObject(part).getCenter(new Vector3());
+      [...partsOf("JoystickBall"), ...partsOf("JoystickBase")].forEach((part) => {
+        const at = centerOf(part);
         const flat = (v: Vector3) => Math.hypot(v.x - at.x, v.z - at.z);
         const owner = joysticks.reduce<(typeof joysticks)[number] | null>((best, j) => (best && flat(best.center) <= flat(j.center) ? best : j), null);
-        owner?.pivot.attach(part);
+        // The base's plate stays put; only what sits up by the ball swings
+        if (owner && at.y > owner.center.y) owner.pivot.attach(part);
       });
       model.traverse((child) => {
         // (Skips the screen's glow, added below)
@@ -1327,7 +1343,7 @@ export default function CartridgeArcade({
           scopeX: screenBox.min.x + 0.15,
         })
       );
-      scene.add(rig.group);
+      cabinet.add(rig.group);
       slotRig = rig;
       rimMaterial = track(new MeshBasicMaterial({ color: new Color(SHELF_NEON) }));
       const rimThickness = cartSize.depth * 0.18;
@@ -1336,10 +1352,10 @@ export default function CartridgeArcade({
       [-1, 1].forEach((side) => {
         const front = new Mesh(rimGeometryX, rimMaterial!);
         front.position.set(0, portTop, panelCenter.z + side * cartSize.depth * 1.1);
-        scene.add(front);
+        cabinet.add(front);
         const end = new Mesh(rimGeometryZ, rimMaterial!);
         end.position.set(side * cartSize.width * 0.62, portTop, panelCenter.z);
-        scene.add(end);
+        cabinet.add(end);
       });
       // The terminal, set into the bottom left of the housing's front face
       const housingFront = panelCenter.z + cartSize.depth * 1.1;
@@ -1354,12 +1370,12 @@ export default function CartridgeArcade({
         surfaceY + margin + terminalHeight / 2,
         housingFront + terminalDepth / 2
       );
-      scene.add(terminal.group);
+      cabinet.add(terminal.group);
       // Sunk far enough that the part left standing stays below the screen
       seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
       portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
       portLight.position.set(0, portTop + cartSize.height * 0.3, panelCenter.z + cartSize.depth * 3);
-      scene.add(portLight);
+      cabinet.add(portLight);
 
       games.forEach((game, index) => {
         // Neighbours on the shelf never share a shell
@@ -1424,41 +1440,80 @@ export default function CartridgeArcade({
     // Poking the cabinet: joysticks jiggle, buttons click in, the scope goes haywire,
     // the vent sparks, the screen snows while held and the marquee stutters
     const pokeRay = new Raycaster();
-    const nearest = <T,>(items: T[], at: (item: T) => Vector3, point: Vector3) =>
-      items.reduce<T | null>((best, item) => (best && at(best).distanceTo(point) <= at(item).distanceTo(point) ? best : item), null);
     const worldCenter = (object: Object3D) => new Box3().setFromObject(object).getCenter(new Vector3());
     const jiggleJoystick = (point: Vector3) => {
-      const stick = nearest(joysticks, (j) => j.center, point);
+      const stick = joysticks.reduce<(typeof joysticks)[number] | null>((best, j) => (best && best.center.distanceTo(point) <= j.center.distanceTo(point) ? best : j), null);
       if (!stick) return;
-      // Tip it over about a random horizontal axis, worked into the model's own frame
+      // Knocked over about a random level axis, worked into the model's own frame
       const toLocal = stick.pivot.parent!.matrixWorld.clone().invert();
       const heading = Math.random() * Math.PI * 2;
       const axis = new Vector3(Math.cos(heading), 0, Math.sin(heading)).transformDirection(toLocal);
-      const tilt = { angle: 0 };
-      gsap.killTweensOf(stick.pivot.userData);
-      stick.pivot.userData.tilt = tilt;
-      const timeline = gsap.timeline({ onUpdate: () => {
-        stick.pivot.quaternion.setFromAxisAngle(axis, tilt.angle);
-      } });
-      [0.3, -0.22, 0.14, -0.08, 0.03, 0].forEach((angle) => timeline.to(tilt, { angle, duration: 0.08, ease: "sine.inOut" }));
+      const tilt = (stick.pivot.userData.tilt ??= { angle: 0 }) as { angle: number };
+      gsap.killTweensOf(tilt);
+      const timeline = gsap.timeline({
+        onUpdate: () => {
+          stick.pivot.quaternion.setFromAxisAngle(axis, tilt.angle);
+        },
+      });
+      [0.5, -0.36, 0.22, -0.12, 0.05, 0].forEach((angle, i) => timeline.to(tilt, { angle, duration: i ? 0.09 : 0.05, ease: "sine.inOut" }));
       playTick();
     };
-    const pressButton = (point: Vector3) => {
-      const button = nearest(buttons, worldCenter, point);
-      if (!button) return;
-      const home = (button.userData.rest ??= button.position.clone()) as Vector3;
-      // Straight down in the world, however the model is turned
-      const parent = button.parent!;
-      const top = worldCenter(button);
-      const travel = new Box3().setFromObject(button).getSize(new Vector3()).y * 0.35;
-      const down = parent.worldToLocal(top.clone().setY(top.y - travel)).sub(parent.worldToLocal(top.clone()));
-      const pressed = home.clone().add(down);
-      gsap.killTweensOf(button.position);
-      gsap.timeline()
-        .set(button.position, { x: home.x, y: home.y, z: home.z })
-        .to(button.position, { x: pressed.x, y: pressed.y, z: pressed.z, duration: 0.05, ease: "power2.in" })
-        .to(button.position, { x: home.x, y: home.y, z: home.z, duration: 0.16, ease: "back.out(3)" });
+    // A button lights up: the front row brightens its own colour, the dark back
+    // row takes on the game's colour for a moment
+    const lightButton = (material: MeshStandardMaterial) => {
+      const tinted = tintMaterials.includes(material);
+      const glow = new Color(tintTarget);
+      const dark = new Color(0x222222);
+      const lit = (material.userData.lit ??= { value: 0 }) as { value: number };
+      gsap.killTweensOf(lit);
+      const apply = () => {
+        if (!tinted) material.emissive.copy(dark).lerp(glow, lit.value);
+        material.emissiveIntensity = 0.25 + lit.value * (tinted ? 4 : 1.6);
+      };
+      lit.value = 1;
+      apply();
+      gsap.to(lit, { value: 0, duration: 0.5, delay: 0.1, ease: "power2.out", onUpdate: apply });
+    };
+    // Hitting any button on a side presses (and lights) every button on that side
+    const pressButtons = (point: Vector3) => {
+      const reach = (side: Mesh[]) => Math.min(...side.map((button) => worldCenter(button).distanceTo(point)));
+      const side = buttonSides.reduce<Mesh[] | null>((best, each) => (best && reach(best) <= reach(each) ? best : each), null);
+      side?.forEach((button, i) => {
+        const home = (button.userData.rest ??= button.position.clone()) as Vector3;
+        // Straight down in the world, however the model is turned
+        const parent = button.parent!;
+        const top = worldCenter(button);
+        const travel = new Box3().setFromObject(button).getSize(new Vector3()).y * 0.4;
+        const down = parent.worldToLocal(top.clone().setY(top.y - travel)).sub(parent.worldToLocal(top.clone()));
+        const pressed = home.clone().add(down);
+        gsap.killTweensOf(button.position);
+        gsap.timeline({ delay: i * 0.012 })
+          .set(button.position, { x: home.x, y: home.y, z: home.z })
+          .to(button.position, { x: pressed.x, y: pressed.y, z: pressed.z, duration: 0.05, ease: "power2.in" })
+          .to(button.position, { x: home.x, y: home.y, z: home.z, duration: 0.18, ease: "back.out(3)" });
+        lightButton(button.material as MeshStandardMaterial);
+      });
       playTick();
+    };
+    // Anywhere else on the cabinet: it rocks on its foot and a flash lights its face
+    const cabinetFlash = new PointLight(0xffffff, 0, 4, 1.5);
+    scene.add(cabinetFlash);
+    const rock = { angle: 0 };
+    const jiggleCabinet = (point: Vector3) => {
+      const away = point.x > 0 ? 1 : -1;
+      gsap.killTweensOf(rock);
+      const timeline = gsap.timeline({
+        onUpdate: () => {
+          cabinet.rotation.z = rock.angle;
+          cabinet.rotation.x = -Math.abs(rock.angle) * 0.5;
+        },
+      });
+      [0.03, -0.022, 0.014, -0.007, 0.003, 0].forEach((angle, i) => timeline.to(rock, { angle: angle * away, duration: i ? 0.08 : 0.05, ease: "sine.inOut" }));
+      cabinetFlash.color.set(tintTarget).lerp(new Color("#ffffff"), 0.4);
+      cabinetFlash.position.copy(point).add(new Vector3(0, 0, cartSize.depth * 5));
+      gsap.killTweensOf(cabinetFlash);
+      gsap.fromTo(cabinetFlash, { intensity: 8 }, { intensity: 0, duration: 0.4, ease: "power2.out" });
+      playClunk();
     };
     const pokeCabinet = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -1484,7 +1539,8 @@ export default function CartridgeArcade({
         playStatic();
       } else if (marqueeMaterial && mesh.material === marqueeMaterial) jostleMarquee();
       else if (name.startsWith("Joystick")) jiggleJoystick(hit.point);
-      else if (name === "OrangeButton" || name === "PurpleButton") pressButton(hit.point);
+      else if (name.endsWith("Button")) pressButtons(hit.point);
+      else jiggleCabinet(hit.point);
     };
     const releaseScreen = () => {
       if (!screenHeld) return;
@@ -1564,6 +1620,10 @@ export default function CartridgeArcade({
 
     // --- Render loop -----------------------------------------------------------------
     let frame = 0;
+    // The cartridges swing with the row: trailing the way it moves, wobbling when it stops
+    const sway = { angle: 0, velocity: 0 };
+    let lastScroll = 0;
+    let lastFrame = 0;
     const animate = () => {
       frame = requestAnimationFrame(animate);
       if (pausedRef.current) return; // a game is open on top; leave the GPU to it
@@ -1591,6 +1651,15 @@ export default function CartridgeArcade({
       if (screenMaterial) crtGlow?.setStrength(screenMaterial.emissiveIntensity / SCREEN_GLOW);
       if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
 
+      const dt = lastFrame ? Math.min(time - lastFrame, 0.05) : 0;
+      lastFrame = time;
+      if (dt > 0 && pitchX > 0) {
+        const speed = (scroll.x - lastScroll) / dt / pitchX; // cartridges a second
+        const target = Math.max(-0.35, Math.min(0.35, -speed * 0.05));
+        sway.velocity += ((target - sway.angle) * 160 - sway.velocity * 6) * dt;
+        sway.angle += sway.velocity * dt;
+      }
+      lastScroll = scroll.x;
       shelfGroup.position.x = -scroll.x;
       carts.forEach((state, i) => {
         const f = state.focus.value;
@@ -1607,6 +1676,11 @@ export default function CartridgeArcade({
         group.rotation.x = 0.15 * f;
         group.rotation.y = 0.12 * f * Math.sin(time * 2.2 + i);
         group.rotation.z = 0.25 * drop * (i % 2 ? 1 : -1);
+        // Swinging about its bottom edge, each a little differently
+        const lean = sway.angle * (0.8 + 0.4 * ((i * 0.618) % 1));
+        group.rotation.z += lean;
+        group.position.x -= (Math.sin(lean) * cartSize.height) / 2;
+        group.position.y -= ((1 - Math.cos(lean)) * cartSize.height) / 2;
       });
 
       // Ease toward the pointer for a touch of depth

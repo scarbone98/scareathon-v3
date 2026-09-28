@@ -191,7 +191,15 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
   const scopeHeight = width * 0.24;
   const scopeDepth = width * 0.2;
   const scopeZ = center.z + depth * 0.6;
-  const scopeY = deckAt(scopeX, scopeZ) + scopeHeight / 2;
+  // Stood up on a pair of short legs, so it rides a little above the deck
+  const scopeLift = scopeHeight * 0.55;
+  const scopeY = deckAt(scopeX, scopeZ) + scopeLift + scopeHeight / 2;
+  [-1, 1].forEach((side) => {
+    const legX = scopeX + side * scopeWidth * 0.34;
+    const foot = deckAt(legX, scopeZ);
+    const legHeight = scopeY - scopeHeight / 2 - foot;
+    add(new BoxGeometry(plate * 1.4, legHeight, scopeDepth * 0.7), steel, legX, foot + legHeight / 2, scopeZ);
+  });
   const scopeCase = track(new MeshStandardMaterial({ color: new Color("#2b2a2e"), roughness: 0.5, metalness: 0.3 }));
   add(new BoxGeometry(scopeWidth, scopeHeight, scopeDepth), scopeCase, scopeX, scopeY, scopeZ);
   const scopeFront = scopeZ + scopeDepth / 2;
