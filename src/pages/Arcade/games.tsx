@@ -173,6 +173,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "The pixel nightmare is back.",
         font: { family: "Press Start 2P" },
         about: { released: "2024", players: "Single player", genre: "Retro action", developer: "sclondon + scarbone98" },
+        backNote: "Beat it with the lights off. Twice.",
       },
       videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
       game: (
@@ -225,6 +226,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Climb out from the deep.",
         font: { family: "Cinzel Decorative", weight: 700 },
         about: { released: "2024", players: "Single player", genre: "Vertical platformer", developer: "sclondon" },
+        backNote: "Don't look down past floor 40. Something looks back.",
       },
       videoUrl: "/game-recordings/Ascension.mp4",
       game: (
@@ -245,6 +247,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Pinball under a storm god’s curse.",
         font: { family: "Tilt Warp" },
         about: { released: "2025", players: "Single player", genre: "Pinball", developer: "scarbone98" },
+        backNote: "Tilt it during a storm. Trust me.",
       },
       videoUrl: "/game-recordings/TlalocsCurse.mp4",
       game: (
@@ -285,6 +288,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Race a salmon down a jungle river.",
         font: { family: "Luckiest Guy" },
         about: { released: "2026", players: "Single player", genre: "Trick racer", developer: "sclondon" },
+        backNote: "Up up down down flip flip. Works on the 3rd river.",
       },
       videoUrl: "/game-recordings/SalmonRun2.mp4",
       game: (
@@ -306,6 +310,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Tiny games, faster and faster.",
         font: { family: "Titan One" },
         about: { released: "2026", players: "Single player", genre: "Microgames", developer: "sclondon" },
+        backNote: "If it asks you a question, lie.",
       },
       videoUrl: "/game-recordings/WirtWare.mp4",
       game: (
@@ -385,6 +390,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Crawl the crypt, recruit the monsters.",
         font: { family: "Creepster" },
         about: { released: "2026", players: "Single player", genre: "Dungeon crawler", developer: "scarbone98" },
+        backNote: "The 4th door on the left was never there.",
       },
       videoUrl: "/game-recordings/MysteryCrypt.mp4",
       game: (
@@ -425,6 +431,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Survive the night in Old San Juan.",
         font: { family: "Black Ops One" },
         about: { released: "2026", players: "Single player", genre: "Zombie survival shooter", developer: "scarbone98" },
+        backNote: "Property of the night shift. DO NOT RETURN.",
       },
       videoUrl: "/game-recordings/Muertos.mp4",
       game: (
@@ -465,6 +472,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Where it all began.",
         font: { family: "Silkscreen" },
         about: { released: "Before 2024", players: "Single player", genre: "Retro action", developer: "sclondon + scarbone98" },
+        backNote: "Where it all began. Mine, 1986 - J.",
       },
       videoUrl: "/game-recordings/8BitEvil.mp4",
       availableOnMobile: false,
