@@ -587,6 +587,8 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Creepster" },
         about: { released: "UNKNOWN", players: "UNKNOWN", genre: "UNKNOWN", developer: "UNKNOWN" },
       },
+      // There's no video: the cabinet draws this one's screen live (ArcadeV2/mysteryScreen.ts).
+      // The URL is only there to find its label picture, stills/Mystery.jpg.
       videoUrl: "/game-recordings/Mystery.mp4",
       hasLeaderboard: false,
       special: "mystery",

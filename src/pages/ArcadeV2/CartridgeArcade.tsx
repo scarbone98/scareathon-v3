@@ -54,6 +54,7 @@ import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
 import { nowSeconds, type TerminalOptions, type TerminalScreen } from "./terminalScreen.ts";
 import { splitParts } from "./splitParts.ts";
+import { createMysteryScreen } from "./mysteryScreen.ts";
 import { createSlotRig, MARKER_FONT, type SlotRig } from "./slotRig.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
@@ -207,8 +208,10 @@ export default function CartridgeArcade({
     noiseCanvas.height = 64;
     const noiseContext = noiseCanvas.getContext("2d");
     // idle → power (CRT warming up) → static → video; eject runs off → idle.
-    // "bars": the off-air test card, for a game with nothing to preview
-    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" = "idle";
+    // "bars": the off-air test card, for a game with nothing to preview.
+    // "mystery": the "???" cartridge's live cuts, once it's plugged in
+    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" = "idle";
+    const mysteryScreen = createMysteryScreen("/game-recordings/stills/Mystery.jpg");
     let modeStart = 0;
     let screenGame = -1; // which game the screen is tuned to
     let staticUntil = 0;
@@ -432,6 +435,10 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         return;
       }
+      if (screenMode === "mystery") {
+        if (mysteryScreen.paint(screenContext, time)) screenTexture.needsUpdate = true;
+        return;
+      }
       if (screenMode === "bars") {
         // Painted once (lastIdleBlink marks it done, like the idle screen's blink)
         if (lastIdleBlink === 2) return;
@@ -489,8 +496,10 @@ export default function CartridgeArcade({
         gsap.fromTo(screenMaterial, { emissiveIntensity: 2.2 }, { emissiveIntensity: SCREEN_GLOW, duration: 0.7, ease: "power2.out" });
       }
       // "???" has no preview: off air on the shelf, its loading loop once plugged in
-      if (game.special === "mystery" && games.indexOf(game) !== insertedIndex) {
-        screenMode = "bars";
+      if (game.special === "mystery") {
+        const plugged = games.indexOf(game) === insertedIndex;
+        screenMode = plugged ? "mystery" : "bars";
+        if (plugged) mysteryScreen.reset(performance.now() / 1000);
         lastIdleBlink = -1;
         showOnScreen(screenTexture);
         return;
