@@ -1,4 +1,4 @@
-import { Box3, CanvasTexture, Color, LinearFilter, LinearMipmapLinearFilter, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, Vector3 } from "three";
+import { Box3, CanvasTexture, Color, LinearFilter, LinearMipmapLinearFilter, Matrix4, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, Vector3 } from "three";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // The cabinet's black body, dressed as cassette-futurism hardware: graphite
@@ -415,20 +415,22 @@ export function createCabinetFinish() {
     boxSize: { value: new Vector3(1, 1, 1) },
     accent: { value: accent },
     time: { value: 0 },
+    // World → the cabinet's resting frame, so the decals move with it when it rocks
+    frame: { value: new Matrix4() },
   };
 
   const material = new MeshStandardMaterial({ color: new Color("#ffffff"), roughness: 0.6, metalness: 0.05 });
   material.name = "CabinetFinish";
   material.emissive = new Color(0x222222);
   material.emissiveIntensity = 0.25;
-  material.customProgramCacheKey = () => "cabinet-finish-2";
+  material.customProgramCacheKey = () => "cabinet-finish-3";
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vFinishPos;\nvarying vec3 vFinishNormal;")
+      .replace("#include <common>", "#include <common>\nuniform mat4 frame;\nvarying vec3 vFinishPos;\nvarying vec3 vFinishNormal;")
       .replace(
         "#include <begin_vertex>",
-        "#include <begin_vertex>\nvFinishPos = (modelMatrix * vec4(position, 1.0)).xyz;\nvFinishNormal = normalize(mat3(modelMatrix) * normal);"
+        "#include <begin_vertex>\nvFinishPos = (frame * modelMatrix * vec4(position, 1.0)).xyz;\nvFinishNormal = normalize(mat3(frame) * mat3(modelMatrix) * normal);"
       );
 
     shader.fragmentShader = shader.fragmentShader
@@ -533,6 +535,10 @@ totalEmissiveRadiance += accent * data.g * chase * 3.0;`
     accent,
     update(seconds: number) {
       uniforms.time.value = seconds;
+    },
+    // Where the cabinet stands now (its group's world matrix), so the paint moves with it
+    setFrame(cabinetMatrix: Matrix4) {
+      uniforms.frame.value.copy(cabinetMatrix).invert();
     },
     // Paint the sheets for the loaded model; again once the lettering's font arrives
     decorate(cabinetParts: CabinetParts) {

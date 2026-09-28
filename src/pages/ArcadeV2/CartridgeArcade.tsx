@@ -269,6 +269,40 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
+    // The finger on the glass: a hot spot under it, rings rolling out from it and
+    // bright tears across the lines it's on, in the cabinet's colour
+    const paintTouch = (time: number, width: number, height: number) => {
+      if (!screenContext) return;
+      // (The screen's texture is flipped to suit the model's UVs)
+      const x = touch.u * width;
+      const y = touch.v * height;
+      const color = new Color(tintTarget).lerp(new Color("#ffffff"), 0.25);
+      const rgb = `${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}`;
+      const age = time - touch.start;
+      screenContext.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 6; i += 1) {
+        screenContext.fillStyle = `rgba(${rgb}, ${0.3 + Math.random() * 0.5})`;
+        screenContext.fillRect(0, y + (Math.random() - 0.5) * height * 0.25, width, 1 + Math.random() * 3);
+      }
+      const reach = height * 0.7;
+      screenContext.lineWidth = 6;
+      for (let k = 0; k < 3; k += 1) {
+        const radius = (age * reach * 0.9 + (k * reach) / 3) % reach;
+        screenContext.strokeStyle = `rgba(${rgb}, ${(1 - radius / reach) * 1})`;
+        screenContext.beginPath();
+        screenContext.arc(x, y, radius, 0, Math.PI * 2);
+        screenContext.stroke();
+      }
+      const spot = height * (0.38 + 0.04 * Math.sin(time * 18));
+      const glow = screenContext.createRadialGradient(x, y, 0, x, y, spot);
+      glow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      glow.addColorStop(0.3, `rgba(${rgb}, 0.65)`);
+      glow.addColorStop(1, `rgba(${rgb}, 0)`);
+      screenContext.fillStyle = glow;
+      screenContext.fillRect(x - spot, y - spot, spot * 2, spot * 2);
+      screenContext.globalCompositeOperation = "source-over";
+    };
+
     const paintScreen = (time: number) => {
       if (!screenContext) return;
       const { width, height } = screenCanvas;
@@ -317,6 +351,7 @@ export default function CartridgeArcade({
         noiseContext.putImageData(image, 0, 0);
         screenContext.imageSmoothingEnabled = false;
         screenContext.drawImage(noiseCanvas, 0, 0, width, height);
+        if (screenHeld) paintTouch(time, width, height);
         screenTexture.needsUpdate = true;
         return;
       }
@@ -566,6 +601,7 @@ export default function CartridgeArcade({
     const buttonSides: Mesh[][] = []; // each player's buttons, both rows
     let screenMesh: Mesh | null = null;
     let screenHeld = false; // snow on the screen for as long as it's pressed
+    const touch = { u: 0.5, v: 0.5, start: 0 }; // where on the glass, in its UVs
     // What the slot's terminal prints for a picked cartridge
     const terminalLines = (game: MachineData) => [
       "> CART READ OK",
@@ -1441,6 +1477,11 @@ export default function CartridgeArcade({
     // the vent sparks, the screen snows while held and the marquee stutters
     const pokeRay = new Raycaster();
     const worldCenter = (object: Object3D) => new Box3().setFromObject(object).getCenter(new Vector3());
+    // Generous targets: a tap near enough a joystick or button counts as on it
+    const cabinetWidth = () => cabinetBox.max.x - cabinetBox.min.x;
+    const nearJoystick = (point: Vector3) => joysticks.some((j) => j.center.distanceTo(point) < cabinetWidth() * 0.11);
+    const nearButton = (point: Vector3) =>
+      buttonSides.some((side) => side.some((button) => worldCenter(button).distanceTo(point) < cabinetWidth() * 0.12));
     const jiggleJoystick = (point: Vector3) => {
       const stick = joysticks.reduce<(typeof joysticks)[number] | null>((best, j) => (best && best.center.distanceTo(point) <= j.center.distanceTo(point) ? best : j), null);
       if (!stick) return;
@@ -1536,22 +1577,43 @@ export default function CartridgeArcade({
       const name = (mesh.material as MeshStandardMaterial).name;
       if (screenMesh && (mesh === screenMesh || mesh.parent === screenMesh)) {
         screenHeld = true;
+        touch.start = performance.now() / 1000;
+        touchScreen(clientX, clientY);
         playStatic();
       } else if (marqueeMaterial && mesh.material === marqueeMaterial) jostleMarquee();
-      else if (name.startsWith("Joystick")) jiggleJoystick(hit.point);
-      else if (name.endsWith("Button")) pressButtons(hit.point);
+      else if (name.startsWith("Joystick") || nearJoystick(hit.point)) jiggleJoystick(hit.point);
+      else if (name.endsWith("Button") || nearButton(hit.point)) pressButtons(hit.point);
       else jiggleCabinet(hit.point);
     };
+    // Follow the finger across the glass (the glass itself: its glow has UVs of its own)
+    const touchScreen = (clientX: number, clientY: number) => {
+      if (!screenMesh) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      pokeRay.setFromCamera(pointer, camera);
+      const hit = pokeRay.intersectObject(screenMesh, false)[0];
+      if (hit?.uv) {
+        touch.u = hit.uv.x;
+        touch.v = hit.uv.y;
+      }
+    };
+    // How long the screen was held, in seconds (0 if it wasn't)
     const releaseScreen = () => {
-      if (!screenHeld) return;
+      if (!screenHeld) return 0;
       screenHeld = false;
       lastIdleBlink = -1;
       if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
+      return performance.now() / 1000 - touch.start;
     };
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse") event.preventDefault(); // no text selection while held
       pokeCabinet(event.clientX, event.clientY);
+      if (screenHeld) {
+        // Rubbing the screen, not dragging the row
+        renderer.domElement.setPointerCapture(event.pointerId);
+        return;
+      }
       press = {
         x: event.clientX,
         y: event.clientY,
@@ -1564,6 +1626,10 @@ export default function CartridgeArcade({
       renderer.domElement.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (screenHeld) {
+        touchScreen(event.clientX, event.clientY);
+        return;
+      }
       if (press) {
         const dx = event.clientX - press.x;
         if ((press.dragging || Math.abs(dx) > 8)) {
@@ -1587,7 +1653,8 @@ export default function CartridgeArcade({
       renderer.domElement.style.cursor = clickable ? "pointer" : "default";
     };
     const onPointerUp = (event: PointerEvent) => {
-      releaseScreen();
+      // A long press on the screen was for the static; don't start a game off it
+      if (releaseScreen() > 0.3) return;
       const released = press;
       press = null;
       if (released?.dragging) {
@@ -1630,6 +1697,8 @@ export default function CartridgeArcade({
       const time = performance.now() / 1000;
       room?.update(time);
       finish.update(time);
+      cabinet.updateMatrixWorld();
+      finish.setFrame(cabinet.matrixWorld);
       terminal?.update(time);
       slotRig?.update(time);
 
