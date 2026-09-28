@@ -25,6 +25,9 @@ export type MachineData = {
   availableOnMobile?: boolean;
   // Games that don't submit scores hide the Leaderboard button.
   hasLeaderboard?: boolean;
+  // Cartridges that aren't a game of their own: "mystery" only shows its
+  // screen and can't be played; "shuffle" plays a random other game.
+  special?: "mystery" | "shuffle";
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
   // about: shown by the info button on the arcade's game card; developer is a GitHub handle.
@@ -562,5 +565,38 @@ export function createArcadeGames(): MachineData[] {
         </Suspense>
       ),
     },
+    {
+      name: "Shuffle",
+      cartridge: {
+        color: "#f2c14e",
+        tagline: "Plays a random game.",
+        font: { family: "Bungee" },
+        about: { released: "2026", players: "Single player", genre: "Any of them", developer: "sclondon" },
+      },
+      videoUrl: "/game-recordings/Shuffle.mp4",
+      hasLeaderboard: false,
+      special: "shuffle",
+      game: null,
+    },
+    {
+      name: "???",
+      cartridge: {
+        color: "#3a2a5c",
+        tagline: "Still loading.",
+        font: { family: "Creepster" },
+        about: { released: "???", players: "???", genre: "???", developer: "???" },
+      },
+      videoUrl: "/game-recordings/Mystery.mp4",
+      hasLeaderboard: false,
+      special: "mystery",
+      game: null,
+    },
   ];
+}
+
+// Shuffle's pick: any real game in the list (on phones, the list already
+// leaves out the ones that need a desktop)
+export function pickShuffleGame(games: MachineData[]) {
+  const playable = games.filter((game) => !game.special);
+  return playable[Math.floor(Math.random() * playable.length)];
 }

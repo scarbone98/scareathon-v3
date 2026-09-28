@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import ArcadePlayOverlay from "../Arcade/ArcadePlayOverlay.tsx";
 import LeaderboardDialog from "../Arcade/LeaderboardDialog.tsx";
-import { createArcadeGames, useIsMobileArcade, type MachineData } from "../Arcade/games.tsx";
+import { createArcadeGames, pickShuffleGame, useIsMobileArcade, type MachineData } from "../Arcade/games.tsx";
 import { useArcadeSelection } from "../Arcade/useArcadeSelection.ts";
 
 import CrtTransition from "./CrtTransition.tsx";
@@ -41,7 +41,11 @@ export default function ArcadeV2() {
   }, []);
   // Full-screen TV power-on into a game, and power-off back out of it
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
-  const startGame = (game: MachineData) => setTransition({ mode: "on", game });
+  // "???" isn't ready to play; Shuffle powers on into a random game instead of itself
+  const startGame = (game: MachineData) => {
+    if (game.special === "mystery") return;
+    setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(visibleGames) : game });
+  };
   const leaveGame = () => setTransition({ mode: "off", game: null });
 
   return (

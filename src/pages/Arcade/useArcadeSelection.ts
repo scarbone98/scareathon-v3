@@ -10,6 +10,9 @@ export function useArcadeSelection(games: MachineData[], isMobileArcade: boolean
   const requestedGameName = searchParams.get("game") || "";
 
   const initialMachineName = useMemo(() => {
+    // Exact first: a name that's all punctuation ("???") normalizes to nothing
+    const exact = games.find((machine) => machine.name === requestedGameName);
+    if (exact) return exact.name;
     const normalizedRequestedGame = normalizeMachineName(requestedGameName);
     if (!normalizedRequestedGame) return undefined;
 
