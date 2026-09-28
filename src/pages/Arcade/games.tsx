@@ -58,6 +58,7 @@ const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
+const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -480,6 +481,24 @@ export function createArcadeGames(): MachineData[] {
           title="Snow Globe"
           url={SNOW_GLOBE_URL}
           allow="accelerometer; gyroscope"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Wayside Gallery",
+      cartridge: {
+        color: "#b8894f",
+        tagline: "Walk through a gallery of Stewart's art.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Virtual gallery", developer: "sclondon" },
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Wayside Gallery"
+          url={WAYSIDE_GALLERY_URL}
+          desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
