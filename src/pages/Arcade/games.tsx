@@ -65,7 +65,7 @@ const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
-const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=bbe6beb";
+const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
 
 type ArcadeMessage = {
   type?: unknown;

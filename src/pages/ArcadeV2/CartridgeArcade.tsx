@@ -507,6 +507,8 @@ export default function CartridgeArcade({
           mysteryScreen.reset(performance.now() / 1000);
           showTerminal({ kind: "takeover", at: nowSeconds(), seed: Math.floor(Math.random() * 0x7fffffff) });
           slotRig?.setPossessed(true);
+          marqueePossessed = true;
+          nextMarqueeGlitch = performance.now() / 1000 + 0.8;
           // ...but only for a few seconds: then the handshake fails, the whole machine
           // blue-screens and reboots, and spits the cartridge back out
           mysteryCrash?.kill();
@@ -684,6 +686,31 @@ export default function CartridgeArcade({
       }
       flip.t = 0;
       gsap.to(flip, { t: 1, duration: 0.6, ease: "none", onUpdate: composeMarquee });
+    };
+    // The "???" cartridge has the sign too: every so often it flips over to
+    // something it shouldn't say, in the wrong colour and the wrong hand, or a
+    // few flaps turn over on their own, or the neon sags nearly out
+    let marqueePossessed = false;
+    let nextMarqueeGlitch = 0;
+    const POSSESSED_WORDS = ["???", "0CT0VL", "HEXUS", "HANDSHAKE", "LET ME IN", "IT SEES YOU", "NOT YET", "HELLO AGAIN", "LOOK UP", "SC4R3ATH0N"];
+    const POSSESSED_COLORS = ["#e9c46a", "#8a5cff", "#ff3b3b", "#e8e4f4", "#39ff88"];
+    const POSSESSED_FONTS: ArcadeFont[] = [{ family: "Creepster" }, { family: "Silkscreen" }, { family: "Nosifer" }, { family: "Grenze Gotisch", weight: 700 }];
+    const scramble = (length: number) =>
+      Array.from({ length }, () => "▓▒░#@%&?!0123456789ABCDEF"[Math.floor(Math.random() * 24)]).join("");
+    const possessMarquee = (time: number) => {
+      const roll = Math.random();
+      if (roll < 0.5) {
+        const text = Math.random() < 0.25 ? scramble(4 + Math.floor(Math.random() * 6)) : POSSESSED_WORDS[Math.floor(Math.random() * POSSESSED_WORDS.length)];
+        const color = POSSESSED_COLORS[Math.floor(Math.random() * POSSESSED_COLORS.length)];
+        paintMarquee(text, color, POSSESSED_FONTS[Math.floor(Math.random() * POSSESSED_FONTS.length)], true);
+      } else if (roll < 0.8) {
+        jostleMarquee();
+      } else {
+        // Nearly goes out, then catches again
+        gsap.killTweensOf(marqueeBoot);
+        gsap.timeline().to(marqueeBoot, { value: 0.06, duration: 0.12 }).to(marqueeBoot, { value: 1, duration: 0.5 }, `+=${0.2 + Math.random() * 0.6}`);
+      }
+      nextMarqueeGlitch = time + 0.4 + Math.random() * 1.6;
     };
     document.fonts?.load("220px Zombie").then(() => {
       if (!disposed && !marqueeFontName) paintMarquee(marqueeText, marqueeColor);
@@ -1241,6 +1268,7 @@ export default function CartridgeArcade({
       setInserted(-1);
       showTerminal({ kind: "message", lines: ["> EJECT", "CARTRIDGE RELEASED"], at: nowSeconds() });
       slotRig?.setPossessed(false);
+      marqueePossessed = false;
       mysteryCrash?.kill();
       mysteryCrash = null;
       stopVideo();
@@ -1889,6 +1917,7 @@ export default function CartridgeArcade({
       if (cartridgeCrashedIt && insertedIndex >= 0 && games[insertedIndex]?.special === "mystery") {
         // Back up without it: the machine won't run it again, so out it comes
         slotRig?.setPossessed(false);
+        marqueePossessed = false;
         screenMode = "idle";
         eject();
         return;
@@ -2151,7 +2180,10 @@ export default function CartridgeArcade({
         marqueeBoot.value = Math.random() < 0.35 ? 0.1 + Math.random() * 0.3 : 1;
         nextGlitch = time + 0.06 + Math.random() * 0.3;
       }
-      if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value;
+      if (marqueePossessed && !broken && time > nextMarqueeGlitch) possessMarquee(time);
+      // Possessed, the neon never quite settles: it sags and surges (slowly, not a strobe)
+      const unrest = marqueePossessed && !broken ? 0.72 + 0.28 * Math.sin(time * 5.3) * Math.sin(time * 1.7 + 1) : 1;
+      if (marqueeMaterial) marqueeMaterial.emissiveIntensity = MARQUEE_GLOW * marqueeFlicker(time, 0) * marqueeBoot.value * unrest;
 
       const dt = lastFrame ? Math.min(time - lastFrame, 0.05) : 0;
       lastFrame = time;
