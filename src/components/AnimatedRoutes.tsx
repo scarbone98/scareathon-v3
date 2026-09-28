@@ -42,6 +42,8 @@ const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 const GhostRidge = lazy(() => import("../pages/GhostRidge/page"));
 const Muertos = lazy(() => import("../pages/Muertos/page"));
 const PictoBox = lazy(() => import("../pages/PictoBox/page"));
+// The 3D station, at /station while it is built (the rest of the site is unchanged)
+const Station = lazy(() => import("../station/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -244,6 +246,14 @@ export const AnimatedRoutes = () => {
           element={
             // Where the cartridge arcade lived before it became /arcade; keeps ?game= links working
             <Navigate to={{ pathname: "/arcade", search: location.search }} replace />
+          }
+        />
+        <Route
+          path="/station"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Station />
+            </Suspense>
           }
         />
         <Route
