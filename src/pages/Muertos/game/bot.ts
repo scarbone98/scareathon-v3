@@ -71,8 +71,8 @@ const WAYPOINTS: [number, number][] = [
   [68.5, 34],
 ].map(([c, r]) => [c * CELL, r * CELL]);
 
-export type Bot = { wp: number; aimT: number; fireHeld: boolean; stuckT: number; lastD: number };
-export const newBot = (): Bot => ({ wp: 1, aimT: 0, fireHeld: false, stuckT: 0, lastD: 1e9 });
+export type Bot = { wp: number; aimT: number; fireHeld: boolean; knifeTap: boolean; stuckT: number; lastD: number };
+export const newBot = (): Bot => ({ wp: 1, aimT: 0, fireHeld: false, knifeTap: false, stuckT: 0, lastD: 1e9 });
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -115,8 +115,9 @@ export function botInput(g: Game, b: Bot, dt: number, opts: { roam: boolean }): 
     yaw = p.yaw + wrap(want - p.yaw) * Math.min(1, dt * 9);
     const off = Math.abs(wrap(want - yaw));
     b.aimT = off < 0.08 ? b.aimT + dt : 0;
-    // Semi-automatics need the trigger let go between shots.
-    fire = b.aimT > 0.1 && (autoGun(g) || !b.fireHeld);
+    // Semi-automatics need the trigger let go between shots. Up close,
+    // just shoot.
+    fire = (b.aimT > 0.1 || best < 2.2) && (autoGun(g) || !b.fireHeld);
     b.fireHeld = fire;
   } else {
     if (opts.roam && d > 0.5) yaw = p.yaw + wrap(Math.atan2(wx - p.x, -(wz - p.z)) - p.yaw) * Math.min(1, dt * 3);
@@ -135,7 +136,8 @@ export function botInput(g: Game, b: Bot, dt: number, opts: { roam: boolean }): 
     fire,
     reload: !target && w.mag < 4,
     use: false,
-    knife: !!target && best < 1.4,
+    // The knife swings on a fresh press, so tap it.
+    knife: !!target && best < 1.4 && (b.knifeTap = !b.knifeTap),
     swap: false,
     sprint: false,
   };
