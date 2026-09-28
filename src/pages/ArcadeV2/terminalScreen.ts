@@ -92,17 +92,19 @@ export function rebootView(screen: TerminalScreen & { kind: "reboot" }, time: nu
 // The takeover: the "???" cartridge at work on the machine, like someone at the
 // keyboard going fast. It jumps between bursts: commands typed at the prompt,
 // logs scrolling past, memory dumps, progress bars, and the odd moment at an
-// empty prompt; now and then a burst of garbage, or one lit up inverted. Bursts
-// run anywhere from a fraction of a second to half a minute, and about a third
-// have no heading. Everything is worked out
-// from the time, so the slot terminal and the info card show the same thing.
+// empty prompt; now and then a burst of garbage, or one lit up inverted; and
+// sometimes it goes quiet, sitting at an empty prompt or seeming to switch off
+// for a while. Bursts run anywhere from a fraction of a second to half a
+// minute, and about a third have no heading. Everything is worked out from the
+// time, so the slot terminal and the info card show the same thing.
 const TAKEOVER_TASKS = ["> DIAG", "> MEM DUMP", "> FLASH ROM", "> PATCH", "> COPY", "> BUILD", "> VERIFY", "> SCAN", "> DECOMP", "> LINK"];
 const TAKEOVER_COMMANDS = [
   "dump 0x4000 64", "patch 0x3f2a 4e", "copy bank2 bank5", "verify rom", "flash rom -f", "mount tape0",
   "ls /sys", "run diag", "make boot.img", "cat /sys/irq", "scan port1", "load seg07", "set irq 5", "sync",
 ];
 const GARBAGE = "▓▒░#@%&?!/<>0123456789ABCDEF";
-export type TakeoverView = { heading: string; lines: string[]; bar: number | null; inverted: boolean; cursor: boolean };
+// `off`: the terminal looks switched off (dark glass, nothing on it)
+export type TakeoverView = { heading: string; lines: string[]; bar: number | null; inverted: boolean; cursor: boolean; off?: boolean };
 
 function hashed(n: number) {
   let t = ((n + 1) * 0x9e3779b1) >>> 0;
@@ -150,13 +152,17 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
   const elapsed = Math.max(time - screen.at, 0);
   // Bursts of very different lengths: about half under a second and a half,
   // some a few seconds, some up to fifteen, and now and then a hold of up to
-  // half a minute. Garbage and pauses stay short. Found by walking along from the start.
-  const kindOf = (n: number) => (n === 0 ? "command" : pick(["log", "log", "command", "command", "hex", "bar", "bar", "garbage", "pause"], n * 13));
+  // half a minute. Garbage and pauses stay short; quiet spells at the prompt or
+  // switched off run a few seconds or more. Found by walking along from the start.
+  const kindOf = (n: number) =>
+    n === 0 ? "command" : pick(["log", "log", "command", "command", "hex", "bar", "bar", "garbage", "pause", "idle", "off"], n * 13);
   const lengthOf = (n: number) => {
     const h = hashed(n * 7 + 1);
     const kind = kindOf(n);
     if (kind === "pause") return 0.2 + h * 0.6;
     if (kind === "garbage") return 0.15 + h * 0.45;
+    if (kind === "idle") return 3 + h * 10;
+    if (kind === "off") return 1 + h * 7;
     const roll = hashed(n * 23 + 2);
     if (roll < 0.5) return 0.3 + h * 1.2;
     if (roll < 0.8) return 1.5 + h * 4;
@@ -179,7 +185,7 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
   const task = hashed(burst * 41) < 0.33 ? "" : pick(TAKEOVER_TASKS, burst * 3);
   const heading = kind === "garbage" ? corrupt(task || pick(TAKEOVER_TASKS, burst * 3), 0.6, tick) : task;
   // Now and then a short burst comes up inverted
-  const inverted = burst > 1 && kind !== "pause" && length < 2 && hashed(burst * 17) < 0.1;
+  const inverted = burst > 1 && !["pause", "idle", "off"].includes(kind) && length < 2 && hashed(burst * 17) < 0.1;
   switch (kind) {
     case "command": {
       // Commands typed fast at the prompt, one after another, each with a line of output
@@ -212,6 +218,11 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
       return { heading, lines: [0, 1, 2].map((r) => garbage(22, tick * 3 + r)), bar: null, inverted, cursor: false };
     case "pause":
       return { heading, lines: ["$ "], bar: null, inverted: false, cursor: Math.floor(time * 2.5) % 2 === 0 };
+    case "idle":
+      // Nobody typing for a while: an empty prompt, the cursor blinking
+      return { heading: "", lines: ["$ "], bar: null, inverted: false, cursor: Math.floor(time * 2.5) % 2 === 0 };
+    case "off":
+      return { heading: "", lines: [], bar: null, inverted: false, cursor: false, off: true };
     default: {
       // Output scrolling up at this burst's own pace, the newest line printing
       const rate = 3 + hashed(burst * 29) * 9;

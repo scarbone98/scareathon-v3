@@ -205,6 +205,13 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       text(loading.label, WIDTH / 2, bodyMiddle - 16 * S);
       bar(loading.blocks, bodyMiddle + 16 * S);
     } else if (takeover) {
+      if (takeover.off) {
+        // Switched off: the glass dark, no glow
+        context.fillStyle = "#010402";
+        context.fillRect(0, 0, WIDTH, HEIGHT);
+        context.fillStyle = PHOSPHOR;
+        context.shadowBlur = 0;
+      }
       if (takeover.inverted) {
         // The whole glass lit, the text dark
         context.fillRect(0, 0, WIDTH, HEIGHT);

@@ -254,6 +254,8 @@ function ScreenBody({
       <>
         {/* An inverted burst: the whole glass lit, the text dark */}
         {view.inverted && <div aria-hidden="true" className="absolute inset-0" style={{ background: PHOSPHOR }} />}
+        {/* Switched off: the glass dark, no glow */}
+        {view.off && <div aria-hidden="true" className="absolute inset-0" style={{ background: "#010402" }} />}
         <div className="relative px-2" style={ink}>
           <FittedTitle text={view.heading || " "} shown={view.heading} cursor={false} />
         </div>
@@ -297,6 +299,8 @@ function ScreenBody({
 export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails }: Props) {
   const now = useClock(screen, details);
   const controls = terminalControls(screen, details);
+  // The takeover can seem to switch the terminal off, power light and all
+  const poweredOff = screen.kind === "takeover" && Boolean(takeoverView(screen, now).off);
 
   return (
     <div className={`pointer-events-none flex flex-col items-center gap-2 text-center ${className}`} style={style}>
@@ -355,7 +359,10 @@ export default function GameCard({ screen, details, phone, style, className = ""
         {/* The case's badge and power light */}
         <div className="absolute inset-x-3.5 bottom-0.5 flex items-center justify-between font-sans text-[0.55rem] font-bold uppercase tracking-[0.2em] text-[#5a5040]">
           <span>SA-86 Terminal</span>
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: PHOSPHOR, boxShadow: `0 0 4px ${PHOSPHOR}` }} />
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={poweredOff ? { background: "#1c3a24" } : { background: PHOSPHOR, boxShadow: `0 0 4px ${PHOSPHOR}` }}
+          />
         </div>
       </div>
     </div>
