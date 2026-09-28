@@ -47,7 +47,7 @@ export type SlotRig = {
   plugScanner: (from: Vector3) => void;
   update: (time: number) => void; // the instrument box's scrolling graph, and any sparks
   // A click or tap on part of the rig: the scope's graph goes haywire, the vent spits sparks
-  poke: (object: Object3D, time: number) => "scope" | "sparks" | null;
+  poke: (object: Object3D, point: Vector3, time: number) => "scope" | "sparks" | null;
   dispose: () => void;
 };
 
@@ -484,12 +484,14 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
       drawGraph(time);
       moveSparks(time);
     },
-    poke(object, time) {
+    poke(object, point, time) {
       if (partOf(object, scopeParts)) {
         haywireUntil = time + 1.4;
         return "scope";
       }
-      if (partOf(object, ventParts)) {
+      // Anywhere round the vent, not just its thin collar
+      const nearVent = Math.abs(point.x - vent.x) < ventWidth && Math.abs(point.y - vent.y) < ventHeight * 1.8;
+      if (partOf(object, ventParts) || nearVent) {
         burstSparks();
         return "sparks";
       }
