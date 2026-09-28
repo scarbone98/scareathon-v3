@@ -57,6 +57,7 @@ const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
+const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -461,6 +462,24 @@ export function createArcadeGames(): MachineData[] {
           url={BOB_URL}
           allow="accelerometer; gyroscope"
           desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Snow Globe",
+      cartridge: {
+        color: "#8fc9e8",
+        tagline: "Build a snow globe, then shake it.",
+        font: { family: "Mountains of Christmas", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Toy sandbox", developer: "sclondon" },
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Snow Globe"
+          url={SNOW_GLOBE_URL}
+          allow="accelerometer; gyroscope"
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
