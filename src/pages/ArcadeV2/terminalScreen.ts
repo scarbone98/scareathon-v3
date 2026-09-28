@@ -9,7 +9,9 @@ export type TerminalScreen = { at: number } & (
   | { kind: "loading"; title: string } // a cartridge on its way into the slot
   // tapped till it crashed (or the "???" cartridge crashed it, with its stop code): a fault, then a reboot
   | { kind: "reboot"; seconds: number; code?: string }
-  | { kind: "takeover" } // the "???" cartridge has the machine: logs, dumps and garbage, fast
+  // the "???" cartridge has the machine: logs, dumps and garbage, fast. seed: this
+  // plug-in's own run of it (a fresh one every time)
+  | { kind: "takeover"; seed?: number }
 );
 
 // How the terminal is set up, apart from what it's showing
@@ -108,8 +110,10 @@ const GARBAGE = "▓▒░#@%&?!/<>0123456789ABCDEF";
 // `off`: the terminal looks switched off (dark glass, nothing on it)
 export type TakeoverView = { heading: string; lines: string[]; bar: number | null; inverted: boolean; cursor: boolean; off?: boolean };
 
+// Each takeover mixes its own seed into every roll, so no two runs play alike
+let salt = 0;
 function hashed(n: number) {
-  let t = ((n + 1) * 0x9e3779b1) >>> 0;
+  let t = (Math.imul(n + 1, 0x9e3779b1) ^ salt) >>> 0;
   t = Math.imul(t ^ (t >>> 16), 0x85ebca6b);
   t = Math.imul(t ^ (t >>> 13), 0xc2b2ae35);
   return ((t ^ (t >>> 16)) >>> 0) / 4294967296;
@@ -151,13 +155,22 @@ function logLine(n: number) {
 }
 
 export function takeoverView(screen: TerminalScreen, time: number): TakeoverView {
+  salt = screen.kind === "takeover" ? (screen.seed ?? 0) : 0;
+  const view = takeoverFrame(screen, time);
+  salt = 0;
+  return view;
+}
+
+function takeoverFrame(screen: TerminalScreen, time: number): TakeoverView {
   const elapsed = Math.max(time - screen.at, 0);
   // Bursts of very different lengths: about half under a second and a half,
   // some a few seconds, some up to fifteen, and now and then a hold of up to
   // half a minute. Garbage and pauses stay short; quiet spells at the prompt or
   // switched off run a few seconds or more. Found by walking along from the start.
   const kindOf = (n: number) =>
-    n === 0 ? "command" : pick(["log", "log", "command", "command", "hex", "bar", "bar", "garbage", "pause", "idle", "off"], n * 13);
+    n === 0
+      ? pick(["log", "command", "hex", "bar", "garbage"], 1) // it starts out busy, never idle or off
+      : pick(["log", "log", "command", "command", "hex", "bar", "bar", "garbage", "pause", "idle", "off"], n * 13);
   const lengthOf = (n: number) => {
     const h = hashed(n * 7 + 1);
     const kind = kindOf(n);

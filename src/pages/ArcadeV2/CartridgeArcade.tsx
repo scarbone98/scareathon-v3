@@ -505,13 +505,13 @@ export default function CartridgeArcade({
         if (plugged) {
           // It takes over the whole machine: the screen, the terminal, the scope
           mysteryScreen.reset(performance.now() / 1000);
-          showTerminal({ kind: "takeover", at: nowSeconds() });
+          showTerminal({ kind: "takeover", at: nowSeconds(), seed: Math.floor(Math.random() * 0x7fffffff) });
           slotRig?.setPossessed(true);
           // ...but only for a few seconds: then the handshake fails, the whole machine
           // blue-screens and reboots, and spits the cartridge back out
           mysteryCrash?.kill();
           const index = insertedIndex;
-          mysteryCrash = gsap.delayedCall(4 + Math.random() * 4, () => {
+          mysteryCrash = gsap.delayedCall(3 + Math.random() * 12, () => {
             if (!disposed && insertedIndex === index && !broken) breakDown(undefined, MYSTERY_STOP_CODE);
           });
         }

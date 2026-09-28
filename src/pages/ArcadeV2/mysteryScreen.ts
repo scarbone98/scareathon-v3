@@ -74,9 +74,9 @@ export function createMysteryScreen(labelUrl: string) {
     cut = { scene, start: time, length: cutLength(scene), seed: Math.floor(Math.random() * 1e9) };
   };
 
-  // Plugged in again: start from the dark
+  // Plugged in again: a moment of dark, never quite the same length, then its own cuts
   const reset = (time: number) => {
-    cut = { scene: "dark", start: time, length: 1.3, seed: 1 };
+    cut = { scene: "dark", start: time, length: 0.3 + Math.random() * 1.4, seed: 1 };
     lastFrame = -1;
   };
 
