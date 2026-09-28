@@ -73,7 +73,9 @@ type Props = {
 
 type World = {
   setTerminalOptions: (options: TerminalOptions) => void;
-  inspect: () => void; // lift the picked cartridge up for a look, as a long press on it does
+  // The ? key: lift the picked cartridge up for a look (its details on the terminal), or
+  // put it back; with nothing to lift (a game's plugged in), just the details
+  pressDetails: () => void;
   focus: (index: number, fromUser?: boolean) => void;
   moveFocus: (dx: number) => void;
   activate: (index: number) => void;
@@ -648,6 +650,12 @@ export default function CartridgeArcade({
       terminalScreenNow = screen;
       terminal?.show(screen);
       setTerminalScreen(screen);
+    };
+    // The terminal's details view (the ? key lit), on the card too
+    const showDetails = (on: boolean) => {
+      terminalOptions = { ...terminalOptions, details: on };
+      terminal?.setOptions(terminalOptions);
+      setDetails(on);
     };
     const showGameOrIdle = (index: number) =>
       showTerminal(index >= 0 ? { kind: "game", game: games[index], at: nowSeconds() } : { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() });
@@ -1273,10 +1281,18 @@ export default function CartridgeArcade({
     };
 
     worldRef.current = {
-      inspect: () => {
+      pressDetails: () => {
+        if (inspecting) {
+          putBack();
+          return;
+        }
         const state = focusIndex >= 0 ? carts[focusIndex] : null;
-        if (!state || state.where !== "shelf" || inspecting || broken || busy || insertedIndex >= 0) return;
-        lookAtCart(state);
+        if (state && state.where === "shelf" && !broken && !busy && insertedIndex < 0) {
+          lookAtCart(state);
+          return;
+        }
+        showDetails(!terminalOptions.details);
+        if (terminalScreenNow.kind === "game") showTerminal({ ...terminalScreenNow, at: nowSeconds() });
       },
       setTerminalOptions: (options: TerminalOptions) => {
         const detailsChanged = options.details !== terminalOptions.details;
@@ -1614,7 +1630,9 @@ export default function CartridgeArcade({
       screenMode = "idle";
       lastIdleBlink = -1;
       showOnScreen(screenTexture);
-      showTerminal({ kind: "message", lines: ["> INSPECT", "DRAG TO SPIN", terminalOptions.phone ? "TAP TO PUT BACK" : "CLICK TO PUT BACK"], at: nowSeconds() });
+      // The terminal shows its details while it's up
+      showDetails(true);
+      showTerminal({ kind: "game", game: games[state.cart.group.userData.cartIndex], at: nowSeconds() });
     };
     const putBack = () => {
       if (!inspecting) return;
@@ -1634,6 +1652,7 @@ export default function CartridgeArcade({
         },
       });
       playTick();
+      showDetails(false);
       showGameOrIdle(focusIndex);
       // Back in line: the screen picks its preview up again
       if (insertedIndex < 0 && focusIndex >= 0) tuneScreen(focusIndex, 0.18);
@@ -2197,11 +2216,10 @@ export default function CartridgeArcade({
         <GameCard
           screen={terminalScreen}
           details={details}
-          onToggleDetails={() => setDetails((on) => !on)}
+          onToggleDetails={() => worldRef.current?.pressDetails()}
           phone={tall}
           onLeaderboard={onLeaderboard}
           onBrowseAll={() => setBrowsing(true)}
-          onInspect={() => worldRef.current?.inspect()}
           // Fills from just under the ledge down to the bottom
           className="absolute bottom-3 left-1/2 z-10 w-[min(94vw,30rem)] -translate-x-1/2"
           style={ledgeCardTop !== null ? { top: ledgeCardTop } : undefined}

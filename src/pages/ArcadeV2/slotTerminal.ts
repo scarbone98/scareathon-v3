@@ -121,25 +121,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     context.strokeRect(x, y - 10 * S, w, 20 * S);
     for (let i = 0; i < blocks; i += 1) context.fillRect(x + (4 + i * 16) * S, y - 6 * S, 12 * S, 12 * S);
   };
-  // "[ ⌕ ]": brackets round a drawn magnifying glass
   // Each key draws from x on its `align` side and returns how wide it is
-  const magnifierKey = (x: number, y: number, align: CanvasTextAlign) => {
-    context.font = font(20);
-    const value = "[   ]";
-    const w = context.measureText(value).width;
-    const left = align === "right" ? x - w : x;
-    text(value, left, y, "left");
-    const cx = left + w / 2 - 2 * S;
-    const r = 5.5 * S;
-    context.strokeStyle = PHOSPHOR;
-    context.lineWidth = 2.2 * S;
-    context.beginPath();
-    context.arc(cx - 1.5 * S, y - 1.5 * S, r, 0, Math.PI * 2);
-    context.moveTo(cx - 1.5 * S + r * 0.7, y - 1.5 * S + r * 0.7);
-    context.lineTo(cx + 5 * S, y + 5 * S);
-    context.stroke();
-    return w;
-  };
   const key = (label: string, x: number, y: number, align: CanvasTextAlign, lit = false) => {
     context.font = font(20);
     const value = `[ ${label} ]`;
@@ -242,17 +224,14 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       context.globalAlpha = 1;
     }
     // The keys, along the bottom: the site menu (phones) and all games on the
-    // left, inspect and details on the right
+    // left, ? on the right
     const row = HEIGHT - 11 * S;
     const gap = 2 * S;
     if (controls === "all") {
       const menu = options.phone ? key("≡", 5 * S, row, "left") + gap : 0;
       key("^", 5 * S + menu, row, "left");
     }
-    if (controls !== "none") {
-      const details = key("?", WIDTH - 5 * S, row, "right", options.details);
-      if (controls === "all") magnifierKey(WIDTH - 5 * S - details - gap, row, "right");
-    }
+    if (controls !== "none") key("?", WIDTH - 5 * S, row, "right", options.details);
 
     context.shadowBlur = 0;
     // Scanlines
