@@ -43,7 +43,7 @@ import {
   type ScreenVideo,
 } from "../Arcade/cabinetParts.ts";
 import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, stillUrlFor, type Cartridge } from "./cartridge.ts";
-import { linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
+import { canvasFont, linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
 import CartridgeIndex from "./CartridgeIndex.tsx";
@@ -203,11 +203,74 @@ export default function CartridgeArcade({
     let screenMaterial: MeshStandardMaterial | null = null;
     let crtGlow: ReturnType<typeof createCrtGlow> | null = null;
 
+    // While a preview loads: the game's name, "LOADING PREVIEW" and a bar of
+    // blocks with a light chasing along it, in the game's colour
+    let lastLoadingFrame = -1;
+    const paintLoading = (time: number) => {
+      if (!screenContext) return;
+      const frame = Math.floor(time * 20);
+      if (frame === lastLoadingFrame) return;
+      lastLoadingFrame = frame;
+      const { width, height } = screenCanvas;
+      const game = games[screenGame];
+      const color = game?.cartridge.color ?? SHELF_NEON;
+      screenContext.fillStyle = "#050308";
+      screenContext.fillRect(0, 0, width, height);
+      const glow = screenContext.createRadialGradient(width / 2, height / 2, 10, width / 2, height / 2, width * 0.6);
+      glow.addColorStop(0, `${color}33`);
+      glow.addColorStop(1, `${color}00`);
+      screenContext.fillStyle = glow;
+      screenContext.fillRect(0, 0, width, height);
+      screenContext.textAlign = "center";
+      screenContext.textBaseline = "middle";
+      screenContext.shadowColor = color;
+      screenContext.shadowBlur = 14;
+      screenContext.fillStyle = color;
+      // The game's name, shrunk to fit
+      const name = (game?.name ?? "").replace(/[‘’]/g, "'").toUpperCase();
+      let size = 40;
+      screenContext.font = canvasFont(TERMINAL_FONT, size);
+      while (size > 20 && screenContext.measureText(name).width > width * 0.84) {
+        size -= 2;
+        screenContext.font = canvasFont(TERMINAL_FONT, size);
+      }
+      screenContext.fillText(name, width / 2, height * 0.3);
+      // "LOADING PREVIEW" with ticking dots, the text kept centred without them
+      screenContext.font = canvasFont(TERMINAL_FONT, 30);
+      screenContext.fillStyle = "#f4efe6";
+      const label = "LOADING PREVIEW";
+      const labelWidth = screenContext.measureText(label).width;
+      screenContext.textAlign = "left";
+      screenContext.fillText(label + ".".repeat(Math.floor(time * 3) % 4), (width - labelWidth) / 2, height * 0.52);
+      // The bar: a light chasing back and forth along a row of blocks
+      const blocks = 16;
+      const blockWidth = 18;
+      const gap = 5;
+      const barWidth = blocks * blockWidth + (blocks - 1) * gap;
+      const barX = (width - barWidth) / 2;
+      const barY = height * 0.68;
+      const sweep = (Math.sin(time * 3.2) * 0.5 + 0.5) * (blocks - 1);
+      screenContext.strokeStyle = color;
+      screenContext.lineWidth = 2;
+      screenContext.strokeRect(barX - 6, barY - 6, barWidth + 12, 26);
+      for (let i = 0; i < blocks; i += 1) {
+        const lit = Math.max(0, 1 - Math.abs(i - sweep) / 2.5);
+        screenContext.globalAlpha = 0.18 + lit * 0.82;
+        screenContext.fillStyle = color;
+        screenContext.fillRect(barX + i * (blockWidth + gap), barY, blockWidth, 14);
+      }
+      screenContext.globalAlpha = 1;
+      screenContext.shadowBlur = 0;
+      screenContext.fillStyle = "rgba(0, 0, 0, 0.28)";
+      for (let y = 0; y < height; y += 4) screenContext.fillRect(0, y, width, 2);
+      screenTexture.needsUpdate = true;
+    };
+
     const paintScreen = (time: number) => {
       if (!screenContext) return;
       const { width, height } = screenCanvas;
       if (screenMode === "video") {
-        // Keep the snow up until the clip (or its still) has a picture to show,
+        // A loading screen until the clip (or its still) has a picture to show,
         // rather than a black screen while it loads or if autoplay is refused
         if (!screenVideo) return;
         if (screenVideo.hasPicture()) {
@@ -217,6 +280,8 @@ export default function CartridgeArcade({
           }
           return;
         }
+        paintLoading(time);
+        return;
       }
       if (screenMode === "power" || screenMode === "off") {
         // A CRT beam: a line that opens out to the full picture, or collapses back to a dot
@@ -235,7 +300,7 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         return;
       }
-      if ((screenMode === "static" || screenMode === "video") && noiseContext) {
+      if (screenMode === "static" && noiseContext) {
         const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
         for (let i = 0; i < image.data.length; i += 4) {
           const v = Math.random() * 255;
@@ -308,6 +373,7 @@ export default function CartridgeArcade({
       screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl));
       screenMode = "video";
       waitingForPicture = true;
+      lastLoadingFrame = -1;
       showOnScreen(screenTexture);
       syncVideo();
     };
