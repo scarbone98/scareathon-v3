@@ -233,8 +233,8 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       if (reboot.crashed) {
         heading("*** FATAL ERROR ***", reboot.blink ? "*** FATAL ERROR ***" : "", false, false);
         context.font = font(20);
-        text("TILT DETECTED", WIDTH / 2, bodyMiddle - 12 * S);
-        text("CORE DUMPED", WIDTH / 2, bodyMiddle + 12 * S);
+        text(reboot.faults[0], WIDTH / 2, bodyMiddle - 12 * S);
+        text(reboot.faults[1], WIDTH / 2, bodyMiddle + 12 * S);
       } else {
         heading("> REBOOTING...", `> REBOOTING${reboot.dots}`, false, false);
         bar(reboot.blocks, bodyMiddle - 14 * S);

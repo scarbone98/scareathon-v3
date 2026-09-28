@@ -7,7 +7,8 @@ export type TerminalScreen = { at: number } & (
   | { kind: "game"; game: MachineData } // the picked (or plugged-in) game
   | { kind: "message"; lines: string[] } // e.g. "> EJECT"; the first line is the heading
   | { kind: "loading"; title: string } // a cartridge on its way into the slot
-  | { kind: "reboot"; seconds: number } // tapped till it crashed: a fault, then a reboot
+  // tapped till it crashed (or the "???" cartridge crashed it, with its stop code): a fault, then a reboot
+  | { kind: "reboot"; seconds: number; code?: string }
   | { kind: "takeover" } // the "???" cartridge has the machine: logs, dumps and garbage, fast
 );
 
@@ -82,6 +83,7 @@ export function rebootView(screen: TerminalScreen & { kind: "reboot" }, time: nu
   const passed = REBOOT_CHECKS.filter((_, i) => progress > 0.3 * (i + 1));
   return {
     crashed: elapsed < REBOOT_CRASH,
+    faults: screen.code ? ["HANDSHAKE REFUSED", screen.code] : ["TILT DETECTED", "CORE DUMPED"],
     blink: Math.floor(time * 4) % 2 === 0,
     dots: ".".repeat(Math.floor(time * 3) % 4),
     blocks: Math.floor(progress * LOADING_BLOCKS),

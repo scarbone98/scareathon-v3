@@ -38,6 +38,8 @@ export type MachineData = {
     about: { released: string; players: string; genre: string; developer: string };
     // Written in on the back sticker, by hand: a cheat code, a hidden message
     backNote?: string;
+    // No sticker on the back at all: just a strip of masking tape with this in marker
+    backTape?: string;
   };
   game: ReactNode;
 };
@@ -604,6 +606,7 @@ export function createArcadeGames(): MachineData[] {
       cartridge: {
         color: "#3a2a5c",
         tagline: "ERROR READING CARTRIDGE",
+        backTape: "0ct0VL",
         font: { family: "Creepster" },
         about: { released: "UNKNOWN", players: "UNKNOWN", genre: "UNKNOWN", developer: "UNKNOWN" },
       },

@@ -279,8 +279,8 @@ function ScreenBody({
         <FittedTitle text="*** FATAL ERROR ***" shown={reboot.blink ? "*** FATAL ERROR ***" : ""} cursor={false} />
       </div>
       <div className={body}>
-        <p>TILT DETECTED</p>
-        <p>CORE DUMPED</p>
+        <p>{reboot.faults[0]}</p>
+        <p>{reboot.faults[1]}</p>
       </div>
     </>
   ) : (

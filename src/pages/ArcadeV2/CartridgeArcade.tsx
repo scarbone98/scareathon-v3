@@ -212,6 +212,9 @@ export default function CartridgeArcade({
     // "mystery": the "???" cartridge's live cuts, once it's plugged in
     let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" = "idle";
     const mysteryScreen = createMysteryScreen("/game-recordings/stills/Mystery.jpg");
+    const MYSTERY_STOP_CODE = "HEXUS_HANDSHAKE";
+    let mysteryCrash: gsap.core.Tween | null = null; // the "???" cartridge's crash, on its way
+    let crashCode: string | null = null; // the blue screen's stop code, when it isn't the tapping one
     let modeStart = 0;
     let screenGame = -1; // which game the screen is tuned to
     let staticUntil = 0;
@@ -336,7 +339,7 @@ export default function CartridgeArcade({
       screenContext.fillText(":(", 36, 22);
       screenContext.font = "700 20px ui-monospace, Menlo, Consolas, monospace";
       const percent = Math.min(Math.floor(((time - brokenAt) / REBOOT) * 100), 100);
-      ["SCAREATHON-86 RAN INTO A PROBLEM", "AND NEEDS TO RESTART.", "", "STOP CODE: EXCESSIVE_TAPPING", `RESTARTING... ${percent}%`].forEach((line, i) =>
+      ["SCAREATHON-86 RAN INTO A PROBLEM", "AND NEEDS TO RESTART.", "", `STOP CODE: ${crashCode ?? "EXCESSIVE_TAPPING"}`, `RESTARTING... ${percent}%`].forEach((line, i) =>
         screenContext.fillText(line, 36, 100 + i * 26)
       );
       // A torn band or two
@@ -504,6 +507,13 @@ export default function CartridgeArcade({
           mysteryScreen.reset(performance.now() / 1000);
           showTerminal({ kind: "takeover", at: nowSeconds() });
           slotRig?.setPossessed(true);
+          // ...but only for a few seconds: then the handshake fails, the whole machine
+          // blue-screens and reboots, and spits the cartridge back out
+          mysteryCrash?.kill();
+          const index = insertedIndex;
+          mysteryCrash = gsap.delayedCall(4 + Math.random() * 4, () => {
+            if (!disposed && insertedIndex === index && !broken) breakDown(undefined, MYSTERY_STOP_CODE);
+          });
         }
         lastIdleBlink = -1;
         showOnScreen(screenTexture);
@@ -1231,6 +1241,8 @@ export default function CartridgeArcade({
       setInserted(-1);
       showTerminal({ kind: "message", lines: ["> EJECT", "CARTRIDGE RELEASED"], at: nowSeconds() });
       slotRig?.setPossessed(false);
+      mysteryCrash?.kill();
+      mysteryCrash = null;
       stopVideo();
       screenGame = -1;
       screenMode = "off";
@@ -1576,6 +1588,7 @@ export default function CartridgeArcade({
           clear,
           released: game.cartridge.about.released,
           note: game.cartridge.backNote,
+          tape: game.cartridge.backTape,
           untitled: game.special === "mystery",
         });
         cart.group.userData.cartIndex = index;
@@ -1829,7 +1842,11 @@ export default function CartridgeArcade({
       pokeTimes.push(now);
       return pokeTimes.length >= BREAK_TAPS;
     };
-    const breakDown = (point: Vector3) => {
+    // point: where it was hit (the screen, when nothing hit it). code: the stop code, when it
+    // wasn't tapping that did it
+    const breakDown = (hitAt?: Vector3, code?: string) => {
+      const point = hitAt ?? (screenMesh ? screenMesh.getWorldPosition(new Vector3()) : cabinet.getWorldPosition(new Vector3()));
+      crashCode = code ?? null;
       broken = true;
       brokenAt = performance.now() / 1000;
       pokeTimes = [];
@@ -1849,7 +1866,7 @@ export default function CartridgeArcade({
       slotRig?.setDead(true);
       jiggleCabinet(point, 1.6);
       gsap.fromTo(shake, { value: cartSize.width * 0.06 }, { value: 0, duration: 0.9, ease: "power2.out" });
-      showTerminal({ kind: "reboot", seconds: REBOOT, at: brokenAt });
+      showTerminal({ kind: "reboot", seconds: REBOOT, at: brokenAt, code });
       // The marquee jams halfway through a flip
       shownSign.getContext("2d")?.drawImage(marqueeCanvas, 0, 0);
       gsap.killTweensOf(flip);
@@ -1867,6 +1884,15 @@ export default function CartridgeArcade({
       flickerMarquee();
       lastIdleBlink = -1;
       if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
+      const cartridgeCrashedIt = crashCode === MYSTERY_STOP_CODE;
+      crashCode = null;
+      if (cartridgeCrashedIt && insertedIndex >= 0 && games[insertedIndex]?.special === "mystery") {
+        // Back up without it: the machine won't run it again, so out it comes
+        slotRig?.setPossessed(false);
+        screenMode = "idle";
+        eject();
+        return;
+      }
       showGameOrIdle(insertedIndex >= 0 ? insertedIndex : focusIndex);
       playTick();
     };

@@ -242,6 +242,55 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
   paperFibres(context);
 }
 
+// A strip of masking tape, torn off the roll at both ends, with a word in black
+// marker: all some cartridges have on the back
+const TAPE_WIDTH = 256;
+const TAPE_HEIGHT = 84;
+function paintTape(context: CanvasRenderingContext2D, text: string) {
+  const { width, height } = context.canvas;
+  context.clearRect(0, 0, width, height);
+  const top = 12;
+  const bottom = height - 12;
+  // Ragged torn ends, the long edges straight
+  const tornEnd = (x: number, inward: number) => {
+    const points: number[][] = [];
+    for (let y = top; y <= bottom; y += 6) points.push([x + inward * Math.random() * 7, y]);
+    points.push([x + inward * Math.random() * 7, bottom]);
+    return points;
+  };
+  const right = tornEnd(width - 10, -1); // top to bottom
+  const left = tornEnd(10, 1).reverse(); // bottom to top
+  context.beginPath();
+  [...right, ...left].forEach(([x, y], i) => (i ? context.lineTo(x, y) : context.moveTo(x, y)));
+  context.closePath();
+  context.fillStyle = "rgba(226, 208, 160, 0.94)";
+  context.fill();
+  context.save();
+  context.clip();
+  // Crepe paper's crinkle, running across the strip
+  for (let x = 0; x < width; x += 3) {
+    context.fillStyle = `rgba(120, 95, 50, ${Math.random() * 0.08})`;
+    context.fillRect(x, top, 1 + Math.random() * 2, bottom - top);
+  }
+  // Grime along the edges, where it's been handled
+  const grime = context.createLinearGradient(0, top, 0, bottom);
+  grime.addColorStop(0, "rgba(90, 70, 40, 0.18)");
+  grime.addColorStop(0.2, "rgba(90, 70, 40, 0)");
+  grime.addColorStop(0.8, "rgba(90, 70, 40, 0)");
+  grime.addColorStop(1, "rgba(90, 70, 40, 0.18)");
+  context.fillStyle = grime;
+  context.fillRect(0, 0, width, height);
+  // Scrawled on in a hurry, a little crooked
+  context.translate(width / 2, height / 2 + 2);
+  context.rotate(-0.05);
+  context.fillStyle = "#141014";
+  context.font = canvasFont(MARKER, 40);
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, 0, 0);
+  context.restore();
+}
+
 // The label, cassette style: the name in a colour band with three stripes under
 // it, the picture, then a line of small print, all on cream paper
 const LABEL_WIDTH = 400;
@@ -503,11 +552,13 @@ export function createCartridge(
     released = "",
     note = "",
     untitled = false,
+    tape = "",
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
     note?: string; // written in on the back sticker: a cheat code, a hidden message
     untitled?: boolean; // no name on the label: the picture fills it
+    tape?: string; // no sticker on the back, just a strip of masking tape with this written on
   } = {}
 ): Cartridge {
   const group = new Group();
@@ -863,28 +914,42 @@ export function createCartridge(
   addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, labelX, labelY, depth / 2 + 0.002);
 
   // A barcode sticker on the back: what the cabinet's scanner reads to preview the game
+  // (or, with `tape`, no sticker: a strip of masking tape with a word on it)
   const stickerCanvas = document.createElement("canvas");
-  stickerCanvas.width = STICKER_WIDTH;
-  stickerCanvas.height = STICKER_HEIGHT;
+  stickerCanvas.width = tape ? TAPE_WIDTH : STICKER_WIDTH;
+  stickerCanvas.height = tape ? TAPE_HEIGHT : STICKER_HEIGHT;
   const stickerContext = stickerCanvas.getContext("2d");
   const stickerTexture = new CanvasTexture(stickerCanvas);
   stickerTexture.colorSpace = SRGBColorSpace;
   stickerTexture.anisotropy = 4;
   const paintBack = () => {
-    if (stickerContext) paintSticker(stickerContext, name, color, released, note);
+    if (stickerContext) {
+      if (tape) paintTape(stickerContext, tape);
+      else paintSticker(stickerContext, name, color, released, note);
+    }
     stickerTexture.needsUpdate = true;
   };
   paintBack();
   // The handwriting's font may arrive after the first paint
-  if (note) whenFontReady(MARKER).then(paintBack);
-  const stickerMaterial = new MeshStandardMaterial({ map: stickerTexture, roughness: 0.92, bumpMap: grain.paper, bumpScale: 1.2 });
+  if (note || tape) whenFontReady(MARKER).then(paintBack);
+  const stickerMaterial = new MeshStandardMaterial({
+    map: stickerTexture,
+    roughness: tape ? 0.8 : 0.92,
+    bumpMap: grain.paper,
+    bumpScale: 1.2,
+    transparent: Boolean(tape),
+    alphaTest: tape ? 0.05 : 0,
+  });
+  const stickerWidth = width * (tape ? 0.5 : 0.62);
   const sticker = {
-    width: width * 0.62,
-    height: width * 0.62 * (STICKER_HEIGHT / STICKER_WIDTH),
-    y: bodyBottom + bodyHeight * 0.5,
+    width: stickerWidth,
+    height: stickerWidth * (stickerCanvas.height / stickerCanvas.width),
+    y: bodyBottom + bodyHeight * (tape ? 0.58 : 0.5),
     z: -depth / 2 - 0.002,
   };
-  addPart(new PlaneGeometry(sticker.width, sticker.height), stickerMaterial, 0, sticker.y, sticker.z).rotation.y = Math.PI;
+  const backing = addPart(new PlaneGeometry(sticker.width, sticker.height), stickerMaterial, 0, sticker.y, sticker.z);
+  backing.rotation.y = Math.PI;
+  if (tape) backing.rotation.z = 0.06; // slapped on crooked
 
   return {
     group,
