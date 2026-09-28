@@ -68,6 +68,7 @@ const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
 const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
+const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=a530cf9";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -625,22 +626,29 @@ export function createArcadeGames(): MachineData[] {
         </Suspense>
       ),
     },
-    // --- Coming soon: carts on the shelf before their games exist. There's no
-    // video, just a cover (the URL finds stills/<Name>.jpg); plugged in, the
-    // screen says COMING SOON and nothing launches.
     {
       name: "Jack O'Lantern",
       cartridge: {
         color: "#f07a1f",
-        tagline: "Carve your own jack-o'-lantern.",
+        tagline: "Grow it, carve it, light it up.",
         font: { family: "Butcherman" },
-        about: { released: "Coming soon", players: "Single player", genre: "Pumpkin carving", developer: "sclondon" },
+        about: { released: "2026", players: "Single player", genre: "Pumpkin carving", developer: "sclondon" },
+        backNote: "Mirror on for matching eyes.",
       },
-      videoUrl: "/game-recordings/JackOLantern.mp4",
+      videoUrl: "/game-recordings/JackOLanternGame.mp4",
       hasLeaderboard: false,
-      special: "soon",
-      game: null,
+      game: (
+        <GameRenderer
+          title="Jack O'Lantern"
+          url={JACK_O_LANTERN_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
     },
+    // --- Coming soon: carts on the shelf before their games exist. There's no
+    // video, just a cover (the URL finds stills/<Name>.jpg); plugged in, the
+    // screen says COMING SOON and nothing launches.
     {
       name: "Fury From The Tomb",
       cartridge: {
