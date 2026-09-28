@@ -1,5 +1,8 @@
 // Which requests skip or soften the Supabase JWT check in index.js.
 
+// A Picto Box photo's picture, /picto-box/photos/<uuid>.jpg (loaded by <img>, so no token)
+const PICTO_BOX_IMAGE = /^\/picto-box\/photos\/[0-9a-f-]{36}\.jpg(\?.*)?$/i;
+
 // No token needed and none checked.
 export function isPublicRoute(method, url) {
     const isLegacyEightBitEvilRoute =
@@ -19,6 +22,7 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && url.startsWith('/crypt-clash/ws')) ||
         // So are Frog Ball co-op rooms.
         (method === 'GET' && url.startsWith('/frog-ball/ws')) ||
+        (method === 'GET' && PICTO_BOX_IMAGE.test(url)) ||
         method === 'OPTIONS'
     );
 }
@@ -26,5 +30,9 @@ export function isPublicRoute(method, url) {
 // Guests may read these; a token, when sent, is still verified so the
 // signed-in player's own entry can be highlighted.
 export function isOptionalAuthRoute(method, url) {
-    return method === 'GET' && url.startsWith('/games/getLeaderboard');
+    return method === 'GET' && (
+        url.startsWith('/games/getLeaderboard') ||
+        // The Picto Box wall: anyone can look; signed in, you can take your own down
+        url === '/picto-box/photos' || url.startsWith('/picto-box/photos?')
+    );
 }

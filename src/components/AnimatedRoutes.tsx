@@ -41,6 +41,7 @@ const MysteryCrypt = lazy(() => import("../pages/MysteryCrypt/page"));
 const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 const GhostRidge = lazy(() => import("../pages/GhostRidge/page"));
 const Muertos = lazy(() => import("../pages/Muertos/page"));
+const PictoBox = lazy(() => import("../pages/PictoBox/page"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -292,6 +293,14 @@ export const AnimatedRoutes = () => {
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <Muertos />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/picto-box"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <PictoBox />
             </Suspense>
           }
         />

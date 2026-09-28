@@ -62,6 +62,7 @@ const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
+const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
@@ -600,6 +601,27 @@ export function createArcadeGames(): MachineData[] {
             }}
           />
         </Suspense>
+      ),
+    },
+    {
+      name: "Picto Box",
+      cartridge: {
+        color: "#e8853a",
+        tagline: "Snap a picto. Hang it on the wall for a day.",
+        font: { family: "Chewy" },
+        about: { released: "2026", players: "Everyone", genre: "Community camera", developer: "sclondon" },
+        backNote: "Say cheese!",
+      },
+      videoUrl: "/game-recordings/PictoBox.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Picto Box"
+          url={PICTO_BOX_URL}
+          desktopAspectRatio={4 / 5}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          allow="camera"
+        />
       ),
     },
     // --- Coming soon: carts on the shelf before their games exist. There's no

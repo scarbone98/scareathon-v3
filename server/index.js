@@ -20,6 +20,7 @@ import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js
 import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
 import mysteryCryptRoutes from './routes/mysteryCrypt.js';
+import pictoBoxRoutes from './routes/pictoBox.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 
@@ -157,6 +158,7 @@ async function main() {
         fastify.register(adminStrapiRoutes, { prefix: '/admin/strapi' });
         fastify.register(homeRoutes, { prefix: '/home' });
         fastify.register(mysteryCryptRoutes, { prefix: '/mystery-crypt' });
+        fastify.register(pictoBoxRoutes, { prefix: '/picto-box' });
         if (isMonsterBashEnabled()) {
             fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
         }
