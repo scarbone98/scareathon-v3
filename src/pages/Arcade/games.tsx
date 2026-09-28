@@ -68,7 +68,7 @@ const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
 const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
-const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=a530cf9";
+const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=46bc846";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -635,7 +635,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Pumpkin carving", developer: "sclondon" },
         backNote: "Mirror on for matching eyes.",
       },
-      videoUrl: "/game-recordings/JackOLanternGame.mp4",
+      videoUrl: "/game-recordings/JackOLanternCarve.mp4",
       hasLeaderboard: false,
       game: (
         <GameRenderer
