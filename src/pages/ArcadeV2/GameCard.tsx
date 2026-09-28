@@ -160,6 +160,21 @@ function ScreenBody({ screen, details, now, onLeaderboard }: { screen: TerminalS
   const [shownFirst = "", ...shownRest] = typing.shown;
   const body = "mt-1 flex h-[5.5rem] flex-col items-center justify-center text-xl leading-6";
 
+  if (screen.kind === "game" && details) {
+    // The details fill the heading's and body's room together, as small lines
+    return (
+      <div className="flex h-[8.25rem] items-center justify-center text-lg leading-5 sm:h-[8.5rem]">
+        <pre className="max-w-full text-left" style={{ fontFamily: TERMINAL_FAMILY }}>
+          {typing.shown.map((line, i) => (
+            <div key={i} className="overflow-hidden text-ellipsis whitespace-pre">
+              {line}
+              {(typing.done ? i === typing.shown.length - 1 : typing.cursorAt === i) && <Cursor />}
+            </div>
+          ))}
+        </pre>
+      </div>
+    );
+  }
   if (screen.kind === "game") {
     return (
       <>
@@ -167,30 +182,17 @@ function ScreenBody({ screen, details, now, onLeaderboard }: { screen: TerminalS
           <FittedTitle text={gameTitle(screen.game)} shown={shownFirst} cursor={typing.cursorAt === 0} />
         </div>
         <div className={body}>
-          {details ? (
-            <pre className="text-left" style={{ fontFamily: TERMINAL_FAMILY }}>
-              {shownRest.map((line, i) => (
-                <div key={i}>
-                  {line}
-                  {(typing.done ? i === shownRest.length - 1 : typing.cursorAt === i + 1) && <Cursor />}
-                </div>
-              ))}
-            </pre>
-          ) : (
-            <>
-              <p className="line-clamp-2 min-h-12">
-                {shownRest[0]}
-                {typing.cursorAt === 1 && <Cursor />}
-              </p>
-              <div className="mt-1 h-7">
-                {screen.game.hasLeaderboard !== false ? (
-                  <TerminalButton onClick={() => onLeaderboard(screen.game)}>LEADERBOARD</TerminalButton>
-                ) : (
-                  <span className="opacity-60">NO SCORES KEPT</span>
-                )}
-              </div>
-            </>
-          )}
+          <p className="line-clamp-2 min-h-12">
+            {shownRest[0]}
+            {typing.cursorAt === 1 && <Cursor />}
+          </p>
+          <div className="mt-1 h-7">
+            {screen.game.hasLeaderboard !== false ? (
+              <TerminalButton onClick={() => onLeaderboard(screen.game)}>LEADERBOARD</TerminalButton>
+            ) : (
+              <span className="opacity-60">NO SCORES KEPT</span>
+            )}
+          </div>
         </div>
       </>
     );

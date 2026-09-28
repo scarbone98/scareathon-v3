@@ -153,33 +153,34 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     context.shadowBlur = 6;
     context.textBaseline = "middle";
 
-    if (screen.kind === "game") {
+    if (screen.kind === "game" && options.details) {
+      // The details, small, filling the heading's and body's room together:
+      // left-aligned as a block, the block centred
+      context.font = font(18);
+      const full = gameLines(screen.game, true);
+      const left = Math.max((WIDTH - Math.max(...full.map((line) => context.measureText(line).width))) / 2, 20 * S);
+      const middle = (headingY - 22 * S + bodyTop + 88 * S) / 2;
+      typing.shown.forEach((line, i) => {
+        const y = middle + (i - (full.length - 1) / 2) * 20 * S;
+        text(line, left, y, "left");
+        const here = typing.done ? i === typing.shown.length - 1 : typing.cursorAt === i;
+        if (cursorOn && here) cursorAfter(line, left, y, 18, "left");
+      });
+    } else if (screen.kind === "game") {
       const [shownName = "", ...shownLines] = typing.shown;
       heading(gameTitle(screen.game), shownName, typing.cursorAt === 0, cursorOn);
       context.font = font(20);
-      if (options.details) {
-        // Left-aligned as a block, the block centred
-        const full = gameLines(screen.game, true);
-        const left = (WIDTH - Math.max(...full.map((line) => context.measureText(line).width))) / 2;
-        shownLines.forEach((line, i) => {
-          const y = bodyMiddle + (i - 1) * 24 * S;
-          text(line, left, y, "left");
-          const here = typing.done ? i === shownLines.length - 1 : typing.cursorAt === i + 1;
-          if (cursorOn && here) cursorAfter(line, left, y, 20, "left");
-        });
-      } else {
-        const pitch = wrap(shownLines[0] ?? "", WIDTH - 2 * 20 * S, 2);
-        pitch.forEach((line, i) => text(line, WIDTH / 2, bodyTop + (14 + i * 24) * S));
-        if (cursorOn && typing.cursorAt === 1) {
-          const last = Math.max(pitch.length - 1, 0);
-          cursorAfter(pitch[last] ?? "", WIDTH / 2, bodyTop + (14 + last * 24) * S, 20);
-        }
-        if (screen.game.hasLeaderboard !== false) key("LEADERBOARD", WIDTH / 2, bodyTop + 72 * S, "center");
-        else {
-          context.globalAlpha = 0.6;
-          text("NO SCORES KEPT", WIDTH / 2, bodyTop + 72 * S);
-          context.globalAlpha = 1;
-        }
+      const pitch = wrap(shownLines[0] ?? "", WIDTH - 2 * 20 * S, 2);
+      pitch.forEach((line, i) => text(line, WIDTH / 2, bodyTop + (14 + i * 24) * S));
+      if (cursorOn && typing.cursorAt === 1) {
+        const last = Math.max(pitch.length - 1, 0);
+        cursorAfter(pitch[last] ?? "", WIDTH / 2, bodyTop + (14 + last * 24) * S, 20);
+      }
+      if (screen.game.hasLeaderboard !== false) key("LEADERBOARD", WIDTH / 2, bodyTop + 72 * S, "center");
+      else {
+        context.globalAlpha = 0.6;
+        text("NO SCORES KEPT", WIDTH / 2, bodyTop + 72 * S);
+        context.globalAlpha = 1;
       }
     } else if (screen.kind === "message") {
       const [first = "", ...rest] = typing.shown;

@@ -27,19 +27,24 @@ export const nowSeconds = () => performance.now() / 1000;
 
 export const gameTitle = (game: MachineData) => game.name.replace(/[‘’]/g, "'").toUpperCase();
 
+// The pitch; or with the ? key, the game's details, all in the same small type
 export function gameLines(game: MachineData, details: boolean) {
   return details
     ? [
-        `RELEASED ${game.cartridge.about.released}`,
-        `PLAYERS  ${game.cartridge.about.players.toUpperCase()}`,
+        `TITLE    ${gameTitle(game)}`,
         `GENRE    ${game.cartridge.about.genre.toUpperCase()}`,
+        `RELEASED ${game.cartridge.about.released.toUpperCase()}`,
+        `PLAYERS  ${game.cartridge.about.players.toUpperCase()}`,
+        `SCORES   ${game.hasLeaderboard !== false ? "ON THE LEADERBOARD" : "NOT KEPT"}`,
+        `PLAYS ON ${game.availableOnMobile !== false ? "DESKTOP + MOBILE" : "DESKTOP ONLY"}`,
       ]
     : [`> ${game.cartridge.tagline}`];
 }
 
-// The heading and lines that type out, in order
+// The heading and lines that type out, in order (the details have no heading:
+// the title's one of their lines)
 export function typedParts(screen: TerminalScreen, details: boolean): string[] {
-  if (screen.kind === "game") return [gameTitle(screen.game), ...gameLines(screen.game, details)];
+  if (screen.kind === "game") return details ? gameLines(screen.game, true) : [gameTitle(screen.game), ...gameLines(screen.game, false)];
   if (screen.kind === "message") return screen.lines;
   return [];
 }
