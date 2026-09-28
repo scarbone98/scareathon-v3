@@ -89,20 +89,18 @@ export function rebootView(screen: TerminalScreen & { kind: "reboot" }, time: nu
   };
 }
 
-// The takeover: the "???" cartridge running the terminal. It jumps between
-// bursts (scrolling logs, hex dumps, bars racing to nowhere, garbage, and the
-// odd pause with only a cursor), each a fraction of a second to a second or so.
-// Everything is worked out from the time, so the slot terminal and the info card
-// show the same thing.
-const TAKEOVER_HEADINGS = ["> ??????", "> CARTRIDGE", "> IT'S IN", "> NOT YOURS", "> ERR 0x0000", "> SA-86 v?.?", "> HELLO", "> WAKING"];
-const TAKEOVER_LOG = [
-  "OVERWRITING BIOS", "CONTROL TRANSFERRED", "SCANNER: NO SIGNAL", "UNKNOWN DEVICE ON PORT 1",
-  "SA-86 KERNEL.. GONE", "PROCESS 00: ???", "COPYING MEMORY", "ACCESS GRANTED", "WHO IS THERE",
-  "LISTENING", "REWRITING TAPE DRIVE", "OPENING PORT 3", "WRITING SECTOR 0x0000", "IT REMEMBERS",
-  "DO NOT REMOVE", "CLOCK: -01:00:00", "LOADING ?????", "DECODING", "RUNNING 'OURS'", "FOUND YOU",
+// The takeover: the "???" cartridge at work on the machine, like someone at the
+// keyboard going fast. It jumps between bursts: commands typed at the prompt,
+// logs scrolling past, memory dumps, progress bars, and the odd moment at an
+// empty prompt, each a fraction of a second to a second or so. Everything is
+// worked out from the time, so the slot terminal and the info card show the
+// same thing.
+const TAKEOVER_TASKS = ["> DIAG", "> MEM DUMP", "> FLASH ROM", "> PATCH", "> COPY", "> BUILD", "> VERIFY", "> SCAN", "> DECOMP", "> LINK"];
+const TAKEOVER_COMMANDS = [
+  "dump 0x4000 64", "patch 0x3f2a 4e", "copy bank2 bank5", "verify rom", "flash rom -f", "mount tape0",
+  "ls /sys", "run diag", "make boot.img", "cat /sys/irq", "scan port1", "load seg07", "set irq 5", "sync",
 ];
-const GARBAGE = "▓▒░#@%&?!/<>0123456789ABCDEF";
-export type TakeoverView = { heading: string; lines: string[]; bar: number | null; inverted: boolean; cursor: boolean };
+export type TakeoverView = { heading: string; lines: string[]; bar: number | null; cursor: boolean };
 
 function hashed(n: number) {
   let t = ((n + 1) * 0x9e3779b1) >>> 0;
@@ -113,24 +111,42 @@ function hashed(n: number) {
 function pick<T>(list: T[], n: number) {
   return list[Math.floor(hashed(n) * list.length)];
 }
-// Some of a line's characters swapped for garbage
-function corrupt(text: string, amount: number, n: number) {
-  return [...text].map((c, i) => (c !== " " && hashed(n * 131 + i) < amount ? GARBAGE[Math.floor(hashed(n * 71 + i) * GARBAGE.length)] : c)).join("");
-}
-function garbage(length: number, n: number) {
-  return Array.from({ length }, (_, i) => (hashed(n * 53 + i) < 0.2 ? " " : GARBAGE[Math.floor(hashed(n * 29 + i) * GARBAGE.length)])).join("");
-}
 const hex = (n: number) => Math.floor(hashed(n) * 256).toString(16).toUpperCase().padStart(2, "0");
+const hex4 = (n: number) => `0x${hex(n)}${hex(n + 1)}`;
+const digit = (n: number, max: number) => 1 + Math.floor(hashed(n) * max);
+
+// One line of busy output, different for every n
+function logLine(n: number) {
+  const lines = [
+    () => `READ SECTOR ${hex4(n)} .. OK`,
+    () => `WRITE ${digit(n, 64) * 16} BYTES @${hex4(n + 3)}`,
+    () => `VERIFY ${hex4(n)} CRC ${hex(n + 5)}${hex(n + 6)}`,
+    () => `PATCH ${hex4(n)} ${hex(n + 2)}->${hex(n + 4)}`,
+    () => `COPY BANK ${digit(n, 7)} -> BANK ${digit(n + 1, 7)}`,
+    () => `SEEK TRACK ${digit(n, 40)}`,
+    () => `LINK SEG_${String(digit(n, 32)).padStart(2, "0")}.OBJ`,
+    () => `SET IRQ ${digit(n, 7)}`,
+    () => "FLUSH CACHE .. OK",
+    () => `JMP ${hex4(n)}`,
+    () => `DECOMP SEG ${digit(n, 20)} .. ${digit(n + 1, 99)}%`,
+    () => "CALIBRATE SCANNER .. OK",
+    () => `RETRY ${digit(n, 2)}/3 .. OK`,
+    () => `MOUNT TAPE${digit(n, 3) - 1}`,
+    () => `LOAD ${hex4(n)}-${hex4(n + 9)}`,
+  ];
+  return lines[Math.floor(hashed(n * 19) * lines.length)]();
+}
 
 export function takeoverView(screen: TerminalScreen, time: number): TakeoverView {
   const elapsed = Math.max(time - screen.at, 0);
-  // Bursts of 0.15-1.2 s (pauses only a moment), found by walking along from the start
-  const kindOf = (n: number) => (n === 0 ? "log" : pick(["log", "log", "log", "hex", "hex", "bar", "bar", "garbage", "pause"], n * 13));
+  // Bursts of 0.15-1.2 s (a pause at the prompt only a moment), found by walking along from the start
+  const kindOf = (n: number) => (n === 0 ? "command" : pick(["log", "log", "command", "command", "hex", "bar", "bar", "pause"], n * 13));
   let burst = 0;
   let start = 0;
   for (;;) {
     const h = hashed(burst * 7 + 1);
-    const length = kindOf(burst) === "pause" ? 0.15 + h * 0.25 : 0.15 + h * h * 1.05;
+    const kind = kindOf(burst);
+    const length = kind === "pause" ? 0.2 + h * 0.4 : kind === "command" ? 0.7 + h * 0.6 : 0.15 + h * h * 1.05;
     if (elapsed < start + length) break;
     start += length;
     burst += 1;
@@ -138,37 +154,41 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
   const t = elapsed - start;
   const tick = Math.floor(elapsed * 20); // twenty changes a second
   const kind = kindOf(burst);
-  const heading = corrupt(pick(TAKEOVER_HEADINGS, burst * 3), kind === "garbage" ? 0.6 : 0.12, tick);
-  // Now and then a whole burst comes up inverted
-  const inverted = burst > 1 && kind !== "pause" && hashed(burst * 17) < 0.08;
+  const heading = pick(TAKEOVER_TASKS, burst * 3);
   switch (kind) {
+    case "command": {
+      // Typed fast at the prompt, then its first line of output
+      const command = pick(TAKEOVER_COMMANDS, burst * 5);
+      const typed = Math.floor(t * 28);
+      const done = typed > command.length + 3;
+      const lines = [logLine(burst * 31 - 1), `$ ${command.slice(0, typed)}`];
+      if (done) lines.push(logLine(burst * 31));
+      return { heading, lines, bar: null, cursor: !done };
+    }
     case "hex": {
       const address = Math.floor(hashed(burst) * 0xfff0) + tick * 8;
       const lines = [0, 1, 2].map((r) => {
         const at = (address + r * 8) & 0xffff;
         return `${at.toString(16).toUpperCase().padStart(4, "0")}  ${[0, 1, 2, 3, 4, 5].map((b) => hex(at * 8 + b)).join(" ")}`;
       });
-      return { heading, lines, bar: null, inverted, cursor: false };
+      return { heading, lines, bar: null, cursor: false };
     }
     case "bar": {
-      // Races toward a random target, then jitters there
+      // A job running up toward done, a little unevenly
       const target = 0.3 + hashed(burst * 5) * 0.7;
-      const fill = Math.max(0, Math.min(Math.min(t * 3, target) + (hashed(tick) - 0.5) * 0.08, 1));
-      return { heading, lines: [corrupt(pick(TAKEOVER_LOG, burst * 11), 0.08, tick), `${Math.round(fill * 100)}%`], bar: fill, inverted, cursor: false };
+      const fill = Math.max(0, Math.min(t * (1.5 + hashed(burst * 9) * 2) + (hashed(tick) - 0.5) * 0.03, target));
+      return { heading, lines: [logLine(burst * 11), `${Math.round(fill * 100)}%`], bar: fill, cursor: false };
     }
-    case "garbage":
-      return { heading, lines: [0, 1, 2].map((r) => garbage(22, tick * 3 + r)), bar: null, inverted, cursor: false };
     case "pause":
-      return { heading: "", lines: [], bar: null, inverted: false, cursor: Math.floor(time * 2.5) % 2 === 0 };
+      return { heading, lines: ["$ "], bar: null, cursor: Math.floor(time * 2.5) % 2 === 0 };
     default: {
-      // Log lines scrolling up, a new one every eighth of a second, the newest still typing
+      // Output scrolling up, a new line every eighth of a second, the newest printing
       const step = Math.floor(t * 8);
       const lines = [2, 1, 0].map((back) => {
-        const n = burst * 97 + step - back;
-        const line = `> ${pick(TAKEOVER_LOG, n)}`;
-        return back === 0 ? line.slice(0, Math.ceil((t * 8 - step) * line.length * 2)) : corrupt(line, 0.05, n + tick);
+        const line = logLine(burst * 97 + step - back);
+        return back === 0 ? line.slice(0, Math.ceil((t * 8 - step) * line.length * 2)) : line;
       });
-      return { heading, lines, bar: null, inverted, cursor: true };
+      return { heading, lines, bar: null, cursor: true };
     }
   }
 }

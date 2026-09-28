@@ -249,15 +249,12 @@ function ScreenBody({
   }
   if (screen.kind === "takeover") {
     const view = takeoverView(screen, now);
-    const ink = view.inverted ? { color: "#021407", textShadow: "none" } : undefined;
     return (
       <>
-        {/* An inverted burst: the whole glass lit, the text dark */}
-        {view.inverted && <div aria-hidden="true" className="absolute inset-0" style={{ background: PHOSPHOR }} />}
-        <div className="relative px-2" style={ink}>
+        <div className="px-2">
           <FittedTitle text={view.heading || " "} shown={view.heading} cursor={false} />
         </div>
-        <div className={`${body} relative gap-1 whitespace-pre`} style={ink}>
+        <div className={`${body} gap-1 whitespace-pre`}>
           {view.lines.map((line, i) => (
             <p key={i} className="h-6 leading-6">
               {line}
