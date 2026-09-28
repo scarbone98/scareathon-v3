@@ -206,7 +206,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Everyone", genre: "Community camera", developer: "sclondon" },
         backNote: "Say cheese!",
       },
-      videoUrl: "/game-recordings/PictoBoxCamera.mp4",
+      videoUrl: "/game-recordings/PictoBoxLogo.mp4",
       hasLeaderboard: false,
       game: (
         <GameRenderer
