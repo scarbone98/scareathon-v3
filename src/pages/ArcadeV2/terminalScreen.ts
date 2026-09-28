@@ -92,15 +92,16 @@ export function rebootView(screen: TerminalScreen & { kind: "reboot" }, time: nu
 // The takeover: the "???" cartridge at work on the machine, like someone at the
 // keyboard going fast. It jumps between bursts: commands typed at the prompt,
 // logs scrolling past, memory dumps, progress bars, and the odd moment at an
-// empty prompt, each a fraction of a second to a second or so. Everything is
-// worked out from the time, so the slot terminal and the info card show the
-// same thing.
+// empty prompt; now and then a burst of garbage, or one lit up inverted. Each
+// burst is a fraction of a second to a second or so. Everything is worked out
+// from the time, so the slot terminal and the info card show the same thing.
 const TAKEOVER_TASKS = ["> DIAG", "> MEM DUMP", "> FLASH ROM", "> PATCH", "> COPY", "> BUILD", "> VERIFY", "> SCAN", "> DECOMP", "> LINK"];
 const TAKEOVER_COMMANDS = [
   "dump 0x4000 64", "patch 0x3f2a 4e", "copy bank2 bank5", "verify rom", "flash rom -f", "mount tape0",
   "ls /sys", "run diag", "make boot.img", "cat /sys/irq", "scan port1", "load seg07", "set irq 5", "sync",
 ];
-export type TakeoverView = { heading: string; lines: string[]; bar: number | null; cursor: boolean };
+const GARBAGE = "▓▒░#@%&?!/<>0123456789ABCDEF";
+export type TakeoverView = { heading: string; lines: string[]; bar: number | null; inverted: boolean; cursor: boolean };
 
 function hashed(n: number) {
   let t = ((n + 1) * 0x9e3779b1) >>> 0;
@@ -110,6 +111,13 @@ function hashed(n: number) {
 }
 function pick<T>(list: T[], n: number) {
   return list[Math.floor(hashed(n) * list.length)];
+}
+// Some of a line's characters swapped for garbage
+function corrupt(text: string, amount: number, n: number) {
+  return [...text].map((c, i) => (c !== " " && hashed(n * 131 + i) < amount ? GARBAGE[Math.floor(hashed(n * 71 + i) * GARBAGE.length)] : c)).join("");
+}
+function garbage(length: number, n: number) {
+  return Array.from({ length }, (_, i) => (hashed(n * 53 + i) < 0.2 ? " " : GARBAGE[Math.floor(hashed(n * 29 + i) * GARBAGE.length)])).join("");
 }
 const hex = (n: number) => Math.floor(hashed(n) * 256).toString(16).toUpperCase().padStart(2, "0");
 const hex4 = (n: number) => `0x${hex(n)}${hex(n + 1)}`;
@@ -140,7 +148,7 @@ function logLine(n: number) {
 export function takeoverView(screen: TerminalScreen, time: number): TakeoverView {
   const elapsed = Math.max(time - screen.at, 0);
   // Bursts of 0.15-1.2 s (a pause at the prompt only a moment), found by walking along from the start
-  const kindOf = (n: number) => (n === 0 ? "command" : pick(["log", "log", "command", "command", "hex", "bar", "bar", "pause"], n * 13));
+  const kindOf = (n: number) => (n === 0 ? "command" : pick(["log", "log", "command", "command", "hex", "bar", "bar", "garbage", "pause"], n * 13));
   let burst = 0;
   let start = 0;
   for (;;) {
@@ -154,7 +162,9 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
   const t = elapsed - start;
   const tick = Math.floor(elapsed * 20); // twenty changes a second
   const kind = kindOf(burst);
-  const heading = pick(TAKEOVER_TASKS, burst * 3);
+  const heading = kind === "garbage" ? corrupt(pick(TAKEOVER_TASKS, burst * 3), 0.6, tick) : pick(TAKEOVER_TASKS, burst * 3);
+  // Now and then a whole burst comes up inverted
+  const inverted = burst > 1 && kind !== "pause" && hashed(burst * 17) < 0.08;
   switch (kind) {
     case "command": {
       // Typed fast at the prompt, then its first line of output
@@ -163,7 +173,7 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
       const done = typed > command.length + 3;
       const lines = [logLine(burst * 31 - 1), `$ ${command.slice(0, typed)}`];
       if (done) lines.push(logLine(burst * 31));
-      return { heading, lines, bar: null, cursor: !done };
+      return { heading, lines, bar: null, inverted, cursor: !done };
     }
     case "hex": {
       const address = Math.floor(hashed(burst) * 0xfff0) + tick * 8;
@@ -171,16 +181,18 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
         const at = (address + r * 8) & 0xffff;
         return `${at.toString(16).toUpperCase().padStart(4, "0")}  ${[0, 1, 2, 3, 4, 5].map((b) => hex(at * 8 + b)).join(" ")}`;
       });
-      return { heading, lines, bar: null, cursor: false };
+      return { heading, lines, bar: null, inverted, cursor: false };
     }
     case "bar": {
       // A job running up toward done, a little unevenly
       const target = 0.3 + hashed(burst * 5) * 0.7;
       const fill = Math.max(0, Math.min(t * (1.5 + hashed(burst * 9) * 2) + (hashed(tick) - 0.5) * 0.03, target));
-      return { heading, lines: [logLine(burst * 11), `${Math.round(fill * 100)}%`], bar: fill, cursor: false };
+      return { heading, lines: [logLine(burst * 11), `${Math.round(fill * 100)}%`], bar: fill, inverted, cursor: false };
     }
+    case "garbage":
+      return { heading, lines: [0, 1, 2].map((r) => garbage(22, tick * 3 + r)), bar: null, inverted, cursor: false };
     case "pause":
-      return { heading, lines: ["$ "], bar: null, cursor: Math.floor(time * 2.5) % 2 === 0 };
+      return { heading, lines: ["$ "], bar: null, inverted: false, cursor: Math.floor(time * 2.5) % 2 === 0 };
     default: {
       // Output scrolling up, a new line every eighth of a second, the newest printing
       const step = Math.floor(t * 8);
@@ -188,7 +200,7 @@ export function takeoverView(screen: TerminalScreen, time: number): TakeoverView
         const line = logLine(burst * 97 + step - back);
         return back === 0 ? line.slice(0, Math.ceil((t * 8 - step) * line.length * 2)) : line;
       });
-      return { heading, lines, bar: null, cursor: true };
+      return { heading, lines, bar: null, inverted, cursor: true };
     }
   }
 }

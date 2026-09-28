@@ -205,6 +205,12 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       text(loading.label, WIDTH / 2, bodyMiddle - 16 * S);
       bar(loading.blocks, bodyMiddle + 16 * S);
     } else if (takeover) {
+      if (takeover.inverted) {
+        // The whole glass lit, the text dark
+        context.fillRect(0, 0, WIDTH, HEIGHT);
+        context.fillStyle = GLASS;
+        context.shadowBlur = 0;
+      }
       if (takeover.heading) heading(takeover.heading, takeover.heading, false, false);
       context.font = font(20);
       const rows = takeover.lines.length + (takeover.bar === null ? 0 : 1);
