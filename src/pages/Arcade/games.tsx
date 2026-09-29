@@ -62,6 +62,7 @@ const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
+const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=0dadc49";
 const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
@@ -509,6 +510,25 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Muertos", MUERTOS_URL)
           }
+        />
+      ),
+    },
+    {
+      name: "Deep Time",
+      cartridge: {
+        color: "#4d5e3a",
+        tagline: "Film what lived 300 million years ago. Don't let it feel you.",
+        font: { family: "VT323" },
+        about: { released: "2026", players: "Single player", genre: "Prehistoric found-footage horror", developer: "scarbone98" },
+        backNote: "It can't see you. Stand still.",
+      },
+      videoUrl: "/game-recordings/DeepTime.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Deep Time"
+          url={DEEP_TIME_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
