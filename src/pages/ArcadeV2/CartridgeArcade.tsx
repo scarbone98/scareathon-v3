@@ -70,6 +70,8 @@ type Props = {
   onInsert: (game: MachineData) => void;
   onPlay: (game: MachineData) => void;
   onLeaderboard: (game: MachineData) => void;
+  // The cassette room around the cabinet; Wayside Station leaves it out and supplies its own
+  withRoom?: boolean;
 };
 
 type World = {
@@ -125,6 +127,7 @@ export default function CartridgeArcade({
   onInsert,
   onPlay,
   onLeaderboard,
+  withRoom = true,
 }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<World | null>(null);
@@ -1701,7 +1704,7 @@ export default function CartridgeArcade({
       buildShelf();
       fitCamera();
 
-      room = createCassetteRoom(scene);
+      if (withRoom) room = createCassetteRoom(scene);
 
       // Start on the game the link names, or on Shuffle, already previewing
       const initial = games.findIndex((game) => game.name === initialGameRef.current);
@@ -2377,7 +2380,7 @@ export default function CartridgeArcade({
       mount.removeChild(renderer.domElement);
       worldRef.current = null;
     };
-  }, [games]);
+  }, [games, withRoom]);
 
   useEffect(() => {
     worldRef.current?.setPaused(paused);

@@ -1,27 +1,31 @@
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import AnimatedPage from "../components/AnimatedPage";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
-import { createArcadeGames, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
+import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
+import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useContentLoop, useScareboard, useSession, useTodayMovie } from "./data.ts";
 import { HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
-import { plate, sans, serif, stubButton } from "./panels/theme.ts";
+import { useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
+import { PaperReader } from "./board/PaperReader.tsx";
+import { plate, sans, serif } from "./panels/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import type { Boards } from "./StationScene.tsx";
 
 const StationScene = lazy(() => import("./StationScene.tsx"));
-const HomePanel = lazy(() => import("./panels/HomePanel.tsx"));
+const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx"));
 const EventsPanel = lazy(() => import("./panels/EventsPanel.tsx"));
 const DeparturesPanel = lazy(() => import("./panels/DeparturesPanel.tsx"));
 const KioskPanel = lazy(() => import("./panels/KioskPanel.tsx"));
-const ArcadePanel = lazy(() => import("./panels/ArcadePanel.tsx"));
 
-// Wayside Station: the whole site as one train platform. Every object opens a panel that
-// does what a page of the classic site does, with the same data, and nothing here leads
-// back to the classic pages. Where the visitor is lives in the URL (?at= an object,
-// ?open= a tab or game there, ?face= which way they face), so Back walks them back.
+// Wayside Station: the whole site as one train platform, and nothing here leads back to
+// the classic pages. The board's papers are the home page; the arcade cabinet is the
+// arcade, exactly as it works at /arcade; the other objects open a panel beside them.
+// Where the visitor is lives in the URL (?at= an object, ?open= a tab or game there,
+// ?face= which way they face), so Back walks them back.
 
 // Links into the classic site that turn up inside reused components go to the matching
 // place in the station instead
@@ -39,15 +43,19 @@ function stationPlaceFor(path: string): [StopId, string?] {
   return ["bulletin"];
 }
 
-// Paint the boards in the scene from live data: headlines on the notices, the Scareboard,
-// tonight's film or the countdown on the departure board, and the poster over the table
-function useBoards(signedIn: boolean): Boards {
+// Paint the boards in the scene from live data: the papers' headlines (under their crisp
+// HTML), the Scareboard, tonight's film or the countdown on the departure board, and the
+// poster over the events table
+function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   const { isLive, daysUntil, year } = eventState();
   const { data: items = [] } = useContentLoop();
   const { data: scoreboard } = useScareboard(null, signedIn);
   const { data: movie } = useTodayMovie(isLive && signedIn);
+  // Keyed on the text, so the board is only repainted when a paper's headline changes
+  const noticeKey = papers.map((paper) => `${paper.kind}\u0000${paper.title}`).join("\u0001");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const notices = useMemo(() => papers.map((paper) => ({ kind: paper.kind, title: paper.title })), [noticeKey]);
   return useMemo(() => {
-    const notices = items.slice(0, 6).map((item) => ({ kind: item.type === "weekly_challenge" ? "CHALLENGE" : "NOTICE", title: item.title }));
     const lines: string[] = [];
     if (movie?.data?.title) lines.push(`TONIGHT  ${movie.data.title}`);
     (scoreboard?.leaderboard.data ?? []).slice(0, 3 - lines.length).forEach((row) => lines.push(`${String(row.rank).padStart(2)}  ${row.name}  ${row.total ?? ""}`));
@@ -58,7 +66,7 @@ function useBoards(signedIn: boolean): Boards {
     const film = movie?.data;
     const poster = film ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" } : { image: null, title: "Scare-athon", line: isLive ? "Showing all October" : `October 1 to 31, ${year}` };
     return { notices, departures: lines.slice(0, 3), poster };
-  }, [items, scoreboard, movie, isLive, daysUntil, year]);
+  }, [notices, items, scoreboard, movie, isLive, daysUntil, year]);
 }
 
 // Direction signs for turning: a pointed enamel plate
@@ -87,10 +95,8 @@ export default function StationPage() {
   const open = params.get("open") ?? undefined;
   const at: StopId | null = isStopId(atParam) ? atParam : null;
   const heading: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
-  const view = VIEWS[heading];
   const session = useSession();
   const signedIn = Boolean(session);
-  const boards = useBoards(signedIn);
 
   const faceParams = (face: Heading): Record<string, string> => (face === "front" ? {} : { face });
   const select = (id: StopId | null, openThere?: string) =>
@@ -101,30 +107,73 @@ export default function StationPage() {
     setParams(faceParams(next), { replace: true });
   };
 
-  // Playing a game: a CRT power-on into it, and power-off back out, as in the arcade
+  // The board's papers, and the one taken down to read
+  const papers = useBoardPapers(signedIn, goTo);
+  const [reading, setReading] = useState<string | null>(null);
+  const readingPaper = papers.find((paper) => paper.id === reading) ?? null;
+  const closeReader = useCallback(() => setReading(null), []);
+  useEffect(() => {
+    if (at !== "bulletin") setReading(null);
+  }, [at]);
+  const boards = useBoards(signedIn, papers);
+
+  // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
   const isMobileArcade = useIsMobileArcade();
   const games = useMemo(() => createArcadeGames().filter((g) => !isMobileArcade || g.availableOnMobile !== false), [isMobileArcade]);
+  const [atCabinet, setAtCabinet] = useState(false);
+  useEffect(() => {
+    if (at !== "arcade") {
+      setAtCabinet(false);
+      return;
+    }
+    const arrive = window.setTimeout(() => setAtCabinet(true), 950); // the walk to the cabinet
+    return () => window.clearTimeout(arrive);
+  }, [at]);
+  const initialGame = useMemo(() => {
+    const wanted = open ? normalizeMachineName(open) : null;
+    return games.find((game) => normalizeMachineName(game.name) === wanted)?.name;
+    // Read when the cabinet opens; inserting a cartridge updates ?open= and mustn't rebuild it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [games, atCabinet]);
+  const [leaderboardGame, setLeaderboardGame] = useState<MachineData | null>(null);
+
+  // Playing a game: a CRT power-on into it, and power-off back out, as in the arcade
   const [playing, setPlaying] = useState<MachineData | null>(null);
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
-  const play = (game: MachineData) => setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(games) : game });
+  const play = (game: MachineData) => {
+    if (game.special === "mystery" || game.special === "soon") return;
+    setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(games) : game });
+  };
   const stopPlaying = () => setTransition({ mode: "off", game: null });
 
+  // On phones the arcade's terminal has a key for the site menu; here it steps back to the platform
+  const { mobileMenuOpen, setMobileMenuOpen } = useNavigatorContext();
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    setMobileMenuOpen(false);
+    if (at) select(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileMenuOpen]);
+
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back
-  const keys = useRef({ at, view, select, turn, playing });
-  keys.current = { at, view, select, turn, playing };
+  const keys = useRef({ at, heading, select, turn, playing, reading });
+  keys.current = { at, heading, select, turn, playing, reading };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (keys.current.playing) return;
+      const { at: current, heading: facing, select: go, turn: face, playing: inGame, reading: inReader } = keys.current;
+      if (inGame || inReader) return;
       if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
-      const inPanel = Boolean(target?.closest("[data-station-panel]"));
       // A focused button or link keeps Enter for itself
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
-      const { at: current, view: ahead, select: go, turn: face } = keys.current;
+      const ahead = VIEWS[facing].focus;
+      const inPanel = Boolean(target?.closest("[data-station-panel]"));
       if (!current && event.key === "ArrowLeft") face(-1);
       else if (!current && event.key === "ArrowRight") face(1);
-      else if (!current && (event.key === "ArrowUp" || event.key === "Enter") && ahead.focus) go(ahead.focus);
-      else if (current && (event.key === "Escape" || (event.key === "ArrowDown" && !inPanel))) go(null);
+      else if (!current && (event.key === "ArrowUp" || event.key === "Enter") && ahead) go(ahead);
+      else if (current && event.key === "Escape") go(null);
+      // The arcade has its own arrow keys
+      else if (current && current !== "arcade" && event.key === "ArrowDown" && !inPanel) go(null);
       else return;
       event.preventDefault();
     };
@@ -148,12 +197,13 @@ export default function StationPage() {
     };
   }, []);
 
-  // The panel covers part of the screen; the scene shifts so the object stays in view beside it
+  // A panel covers part of the screen; the scene shifts so the object stays in view beside it
+  const hasPanel = at === "events" || at === "departures" || at === "tickets";
   const panelRef = useRef<HTMLElement | null>(null);
   const [inset, setInset] = useState({ right: 0, bottom: 0 });
   useLayoutEffect(() => {
     const panel = panelRef.current;
-    if (!at || !panel) {
+    if (!hasPanel || !panel) {
       setInset({ right: 0, bottom: 0 });
       return;
     }
@@ -165,7 +215,7 @@ export default function StationPage() {
     observer.observe(panel);
     measure();
     return () => observer.disconnect();
-  }, [at]);
+  }, [hasPanel, at]);
 
   // Keep every click inside the station: site links go to the matching object instead
   const keepInStation = (event: ReactMouseEvent) => {
@@ -183,14 +233,44 @@ export default function StationPage() {
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <div className="fixed inset-0 bg-black" onClickCapture={keepInStation} style={sans}>
         <Suspense fallback={<LoadingSpinner />}>
-          <StationScene at={at} heading={heading} onSelect={select} onTurn={turn} boards={boards} inset={inset} paused={Boolean(playing)} />
+          <StationScene
+            at={at}
+            heading={heading}
+            onSelect={select}
+            onTurn={turn}
+            boards={boards}
+            inset={inset}
+            paused={Boolean(playing) || atCabinet}
+            papers={papers.map((paper) => ({ id: paper.id, tint: paper.tint, node: paper.pinned }))}
+            onPaper={(i) => setReading(papers[i]?.id ?? null)}
+          />
         </Suspense>
+
+        {/* The arcade, as it is at /arcade, without its room */}
+        {atCabinet && (
+          <div className="station-arrive absolute inset-0 z-10 bg-black">
+            <Suspense fallback={<LoadingSpinner />}>
+              <CartridgeArcade
+                games={games}
+                initialGameName={initialGame}
+                paused={Boolean(playing)}
+                onInsert={(game) => setParams({ at: "arcade", open: game.name }, { replace: true })}
+                onPlay={play}
+                onLeaderboard={setLeaderboardGame}
+                withRoom={false}
+              />
+            </Suspense>
+          </div>
+        )}
+        {leaderboardGame && (
+          <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
+        )}
 
         {at && (
           <button
             type="button"
             onClick={() => select(null)}
-            className={`${plate} absolute left-4 top-4 z-10 rounded-[3px] px-3 py-1.5 text-sm uppercase tracking-[0.2em]`}
+            className={`${plate} absolute left-4 top-4 z-20 rounded-[3px] px-3 py-1.5 text-sm uppercase tracking-[0.2em]`}
             style={serif}
           >
             ◂ Platform
@@ -205,40 +285,24 @@ export default function StationPage() {
           </div>
         )}
 
-        {at ? (
+        {hasPanel && (
           <aside
             key={at}
             ref={panelRef}
             data-station-panel
-            aria-label={STOPS[at].label}
+            aria-label={at ? STOPS[at].label : undefined}
             className="absolute inset-x-0 bottom-0 h-[64%] overflow-y-auto overscroll-contain rounded-t-md border-t-2 border-[#f2ead2]/30 bg-[#0d131b]/95 px-5 pb-10 pt-5 text-stone-200 shadow-[0_-10px_40px_rgba(0,0,0,0.6)] backdrop-blur md:inset-x-auto md:right-0 md:top-0 md:h-auto md:w-[min(32rem,46vw)] md:rounded-none md:border-l-2 md:border-t-0 md:pb-8"
             style={{ touchAction: "pan-y" }}
           >
             <Suspense fallback={<LoadingSpinner />}>
-              {at === "bulletin" && <HomePanel signedIn={signedIn} goTo={goTo} />}
               {at === "events" && <EventsPanel {...panelProps} />}
               {at === "departures" && <DeparturesPanel {...panelProps} />}
               {at === "tickets" && <KioskPanel signedIn={session === undefined ? undefined : signedIn} open={open} />}
-              {at === "arcade" && <ArcadePanel open={open} onPlay={play} />}
             </Suspense>
           </aside>
-        ) : (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-            <div className={`${plate} pointer-events-auto w-full max-w-md rounded-[3px] px-5 py-4 text-center`}>
-              <h1 className="text-xl uppercase tracking-[0.2em]" style={serif}>
-                {view.title}
-              </h1>
-              <p className="mt-1 text-sm italic text-[#f2ead2]/75" style={serif}>
-                {view.blurb}
-              </p>
-              {view.focus && (
-                <button type="button" onClick={() => view.focus && select(view.focus)} className={`${stubButton} mt-3`}>
-                  Go closer
-                </button>
-              )}
-            </div>
-          </div>
         )}
+
+        <PaperReader paper={readingPaper} onClose={closeReader} />
 
         {/* Real controls for keyboard and screen-reader users: the canvas is only a picture */}
         <nav className="sr-only" aria-label="Station objects">
@@ -247,6 +311,12 @@ export default function StationPage() {
               {STOPS[id].label}
             </button>
           ))}
+          {at === "bulletin" &&
+            papers.map((paper) => (
+              <button key={paper.id} type="button" onClick={() => setReading(paper.id)}>
+                Read: {paper.title}
+              </button>
+            ))}
         </nav>
 
         <StationPlay machine={playing} onClose={stopPlaying} onSignIn={() => { stopPlaying(); select("tickets"); }} />
@@ -257,6 +327,13 @@ export default function StationPage() {
             onDone={() => setTransition(null)}
           />
         )}
+        <style>{`
+          @keyframes station-arrive { from { opacity: 0 } to { opacity: 1 } }
+          .station-arrive { animation: station-arrive 0.45s ease-out both }
+          @keyframes station-lift { from { opacity: 0; transform: translateY(24px) rotate(-1.5deg) scale(0.92) } to { opacity: 1; transform: none } }
+          .station-lift { animation: station-lift 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both }
+          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-lift { animation: none } }
+        `}</style>
       </div>
     </AnimatedPage>
   );
