@@ -62,7 +62,7 @@ const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
-const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=e0e10a8";
+const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=529edae";
 const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
@@ -517,7 +517,7 @@ export function createArcadeGames(): MachineData[] {
       name: "Deep Time",
       cartridge: {
         color: "#4d5e3a",
-        tagline: "Steal eggs from prehistory. Spend the haul on hats.",
+        tagline: "Steal dinosaur eggs. Make quota. Buy hats.",
         font: { family: "VT323" },
         about: { released: "2026", players: "Single player", genre: "Prehistoric heist horror", developer: "scarbone98" },
         backNote: "It can't see you. Stand still.",
