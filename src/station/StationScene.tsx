@@ -36,20 +36,25 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
-import { STOPS, type StopId } from "./stops.ts";
+import { HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 
-// The Wayside Station scene: an abandoned platform with train tracks running past it,
-// a station building behind, and one object per page of the site. The camera moves
-// between fixed stops (see stops.ts); dragging only looks around a little.
+// The Wayside Station scene, played like Inscryption: the visitor stands on the platform
+// and turns between four fixed headings, and walks up to an object to look at it.
+// Rendered at a low resolution and scaled up with hard pixels, under a vignette and grain.
 
 type Props = {
-  selected: StopId;
-  onSelect: (id: StopId) => void;
+  at: StopId | null;
+  heading: Heading;
+  onSelect: (id: StopId | null) => void;
+  onTurn: (direction: 1 | -1) => void;
 };
 
 const WALL_Z = -2.2;
-const UP = new Vector3(0, 1, 0);
+const RENDER_HEIGHT = 420; // rows of pixels the scene is drawn at, whatever the screen size
+const LAMP_IDLE = 9;
+const LAMP_LIT = 26;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 // A small canvas painter for signs, flyers and textures
 function paint(width: number, height: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
@@ -81,8 +86,8 @@ function signTexture(text: string, fg: string, bg: string, font = "700 96px Geor
 function glowTexture() {
   return paint(128, 128, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
-    g.addColorStop(0, "rgba(255,190,110,0.9)");
-    g.addColorStop(0.4, "rgba(255,150,60,0.35)");
+    g.addColorStop(0, "rgba(255,230,180,1)");
+    g.addColorStop(0.25, "rgba(255,190,110,0.6)");
     g.addColorStop(1, "rgba(255,120,40,0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
@@ -120,6 +125,61 @@ function brickTexture() {
   return texture;
 }
 
+// A notice pinned to the board: a heading and a few scribbled lines
+function noticeTexture(title: string, paper: string) {
+  return paint(128, 168, (ctx, w, h) => {
+    ctx.fillStyle = paper;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#2a1d14";
+    ctx.font = "700 18px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText(title, w / 2, 30, w - 16);
+    ctx.fillStyle = "rgba(42,29,20,0.55)";
+    for (let y = 50; y < h - 16; y += 14) ctx.fillRect(14, y, 60 + Math.random() * 40, 4);
+    ctx.fillStyle = "#8a1d1d";
+    ctx.beginPath();
+    ctx.arc(w / 2, 8, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// A bare tree against the sky, for the far side of the tracks
+function treeTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    ctx.strokeStyle = "#07080c";
+    ctx.lineCap = "round";
+    const branch = (x: number, y: number, angle: number, length: number, width: number) => {
+      if (length < 6) return;
+      const x2 = x + Math.cos(angle) * length;
+      const y2 = y + Math.sin(angle) * length;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      branch(x2, y2, angle - 0.35 - Math.random() * 0.3, length * 0.72, width * 0.65);
+      branch(x2, y2, angle + 0.3 + Math.random() * 0.3, length * 0.68, width * 0.65);
+    };
+    branch(w / 2, h, -Math.PI / 2, 70, 12);
+  });
+}
+
+// Film grain for the overlay, tiled and nudged every frame by CSS
+function grainDataUrl() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  const image = ctx.createImageData(128, 128);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const v = Math.random() * 255;
+    image.data[i] = image.data[i + 1] = image.data[i + 2] = v;
+    image.data[i + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas.toDataURL();
+}
+
 const standard = (color: string, roughness = 0.9, map?: Texture) =>
   new MeshStandardMaterial({ color, roughness, metalness: 0.05, map });
 
@@ -135,22 +195,6 @@ const plane = (w: number, h: number, material: Material, x = 0, y = 0, z = 0) =>
   return mesh;
 };
 
-// A floating name above an object so visitors can find every page at a glance
-function label(text: string, y: number) {
-  const material = new SpriteMaterial({
-    map: signTexture(text, "#ffd9a0", "#120d08", "700 72px Georgia, serif"),
-    transparent: true,
-    opacity: 0.92,
-    fog: false,
-    depthWrite: false,
-  });
-  const sprite = new Sprite(material);
-  sprite.scale.set(1.1, 0.28, 1);
-  sprite.position.set(0, y, 0);
-  sprite.userData.label = true;
-  return sprite;
-}
-
 // An invisible, slightly generous box that catches taps for one object
 function hitBox(w: number, h: number, d: number, y: number) {
   const mesh = new Mesh(new BoxGeometry(w, h, d), new MeshBasicMaterial({ visible: false }));
@@ -158,28 +202,81 @@ function hitBox(w: number, h: number, d: number, y: number) {
   return mesh;
 }
 
+// Each object has its own lamp, which brightens when the object is hovered or visited
+function addLamp(group: Group, x: number, y: number, z: number) {
+  const lamp = new PointLight("#ffb060", LAMP_IDLE, 6, 2);
+  lamp.position.set(x, y, z);
+  group.add(lamp);
+  group.userData.lamp = lamp;
+}
+
 function buildBulletin() {
   const group = new Group();
-  group.position.set(-5, 1.65, WALL_Z + 0.15);
-  group.add(box(2.5, 1.55, 0.08, standard("#3a2a1c")));
-  const cork = plane(2.35, 1.4, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045);
-  group.add(cork);
-  const paper = ["#f2ead2", "#e8d9a8", "#d7c9b0", "#cfd8c8", "#f0d6c0", "#e6e2d8"];
-  paper.forEach((color, i) => {
-    const note = plane(0.42, 0.55, standard(color, 1), -0.85 + (i % 3) * 0.85, 0.32 - Math.floor(i / 3) * 0.7, 0.06);
+  group.position.set(-0.4, 1.72, WALL_Z + 0.05);
+  group.add(box(2.4, 1.5, 0.08, standard("#3a2a1c")));
+  group.add(plane(2.25, 1.35, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
+  const notices: [string, string][] = [
+    ["NEWS", "#f2ead2"],
+    ["LOST", "#e8d9a8"],
+    ["LAST TRAIN", "#d7c9b0"],
+    ["SCARE-ATHON", "#f0c9a0"],
+    ["DO NOT WAIT", "#e6e2d8"],
+    ["FOUND", "#cfd8c8"],
+  ];
+  notices.forEach(([title, paper], i) => {
+    const note = plane(0.42, 0.55, standard("#ffffff", 1, noticeTexture(title, paper)), -0.8 + (i % 3) * 0.8, 0.3 - Math.floor(i / 3) * 0.66, 0.06);
     note.rotation.z = ((i * 37) % 11) / 60 - 0.09;
     group.add(note);
   });
-  group.add(plane(1.6, 0.25, new MeshBasicMaterial({ map: signTexture("WAYSIDE STATION", "#ffd9a0", "#120d08", "700 64px Georgia, serif") }), 0, 0.98, 0.02));
-  group.add(label("BULLETIN", 1.5));
-  group.add(hitBox(2.7, 1.9, 0.6, 0.1));
+  group.add(plane(1.3, 0.24, standard("#ffffff", 0.8, signTexture("NOTICES", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 0.95, 0.02));
+  addLamp(group, 0, 1.5, 1.1);
+  group.add(hitBox(2.6, 1.9, 0.6, 0.1));
   group.userData.stopId = "bulletin";
+  return group;
+}
+
+function buildEvents() {
+  const group = new Group();
+  group.position.set(0.9, 0, -1.25);
+  const wood = standard("#4a3524");
+  group.add(box(1.5, 0.07, 0.8, wood, 0, 0.82, 0));
+  [-0.65, 0.65].forEach((x) => [-0.3, 0.3].forEach((z) => group.add(box(0.07, 0.82, 0.07, wood, x, 0.41, z))));
+  const flyers: [string, string, string, number][] = [
+    ["SCARE-ATHON", "#ff7a1a", "#1a0d05", -0.45],
+    ["COMING SOON", "#2a2f3a", "#9aa4b8", 0.05],
+    ["COMING SOON", "#2a2f3a", "#9aa4b8", 0.5],
+  ];
+  flyers.forEach(([title, bg, fg, x], i) => {
+    const material = standard("#ffffff", 1, paint(256, 340, (ctx, w, h) => {
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = fg;
+      ctx.lineWidth = 6;
+      ctx.strokeRect(10, 10, w - 20, h - 20);
+      ctx.fillStyle = fg;
+      ctx.font = "700 44px Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText(title, w / 2, h / 2, w - 40);
+    }));
+    const flyer = plane(0.34, 0.45, material, x, 0.86, 0.05);
+    flyer.rotation.x = -Math.PI / 2;
+    flyer.rotation.z = (i - 1) * 0.25;
+    group.add(flyer);
+  });
+  // A folded card standing on the table names it
+  const card = plane(0.5, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 0.93, -0.22);
+  card.rotation.x = -0.25;
+  group.add(card);
+  addLamp(group, 0, 2.2, 0.7);
+  group.add(hitBox(1.7, 0.9, 1.0, 0.6));
+  group.userData.stopId = "events";
   return group;
 }
 
 function buildArcade() {
   const group = new Group();
-  group.position.set(-2, 0, -1.7);
+  group.position.set(-4.2, 0, 0);
+  group.rotation.y = Math.PI / 2; // faces down the platform, towards the visitor
   const placeholder = new Group();
   placeholder.add(box(0.85, 1.9, 0.8, standard("#2b1a3a"), 0, 0.95, 0));
   placeholder.add(plane(0.6, 0.45, new MeshBasicMaterial({ color: "#5cffb1" }), 0, 1.3, 0.41));
@@ -193,8 +290,7 @@ function buildArcade() {
       gltf.scene.rotation.set(Math.PI / 2, Math.PI, 0);
       model.add(gltf.scene);
       const size = new Box3().setFromObject(model).getSize(new Vector3());
-      const scale = 1.9 / Math.max(size.y, 0.001);
-      model.scale.setScalar(scale);
+      model.scale.setScalar(1.9 / Math.max(size.y, 0.001));
       const bounds = new Box3().setFromObject(model);
       const center = bounds.getCenter(new Vector3());
       model.position.set(-center.x, -bounds.min.y, -center.z);
@@ -204,55 +300,23 @@ function buildArcade() {
     undefined,
     () => undefined
   );
-  group.add(label("ARCADE", 2.25));
+  // A sign hung from the canopy above it
+  group.add(plane(1.0, 0.25, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), 0, 2.55, 0));
+  [-0.4, 0.4].forEach((x) => group.add(box(0.02, 1.4, 0.02, standard("#222"), x, 3.35, 0)));
+  addLamp(group, 0, 2.4, 1.3);
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
   return group;
 }
 
-function buildEvents() {
-  const group = new Group();
-  group.position.set(1, 0, -1.0);
-  const wood = standard("#4a3524");
-  group.add(box(1.7, 0.07, 0.9, wood, 0, 0.82, 0));
-  [-0.75, 0.75].forEach((x) => [-0.35, 0.35].forEach((z) => group.add(box(0.07, 0.82, 0.07, wood, x, 0.41, z))));
-  const flyers: [string, string, string, number][] = [
-    ["SCARE-ATHON", "#ff7a1a", "#1a0d05", -0.5],
-    ["COMING SOON", "#2a2f3a", "#9aa4b8", 0.05],
-    ["COMING SOON", "#2a2f3a", "#9aa4b8", 0.55],
-  ];
-  flyers.forEach(([title, bg, fg, x], i) => {
-    const material = new MeshBasicMaterial({
-      map: paint(256, 340, (ctx, w, h) => {
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = fg;
-        ctx.lineWidth = 6;
-        ctx.strokeRect(10, 10, w - 20, h - 20);
-        ctx.fillStyle = fg;
-        ctx.font = "700 44px Georgia, serif";
-        ctx.textAlign = "center";
-        ctx.fillText(title, w / 2, h / 2, w - 40);
-      }),
-    });
-    const flyer = plane(0.36, 0.48, material, x, 0.86, 0.02);
-    flyer.rotation.x = -Math.PI / 2;
-    flyer.rotation.z = (i - 1) * 0.25;
-    group.add(flyer);
-  });
-  group.add(label("EVENTS", 1.35));
-  group.add(hitBox(1.9, 0.9, 1.1, 0.6));
-  group.userData.stopId = "events";
-  return group;
-}
-
 function buildDepartures() {
   const group = new Group();
-  group.position.set(4, 2.8, WALL_Z + 0.2);
-  group.add(box(2.7, 1.05, 0.1, standard("#15181f")));
-  const face = paint(512, 200, (ctx, w, h) => {
+  group.position.set(3.4, 2.95, -0.1);
+  group.rotation.y = -Math.PI / 2; // faces back along the platform, towards the visitor
+  group.add(box(2.1, 0.85, 0.1, standard("#15181f")));
+  const face = paint(512, 200, (ctx, w) => {
     ctx.fillStyle = "#0a0c10";
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, w, 200);
     ctx.fillStyle = "#ffb03a";
     ctx.font = "700 30px monospace";
     ctx.fillText("DEPARTURES", 20, 40);
@@ -261,167 +325,252 @@ function buildDepartures() {
     ctx.fillText("22:15  CALENDAR      DELAYED", 20, 128);
     ctx.fillText("23:59  ARCADE        BOARDING", 20, 168);
   });
-  group.add(plane(2.55, 0.95, new MeshBasicMaterial({ map: face }), 0, 0, 0.056));
-  [-1.1, 1.1].forEach((x) => group.add(box(0.03, 0.9, 0.03, standard("#222"), x, 0.95, 0)));
-  group.add(label("DEPARTURES", 0.85));
-  group.add(hitBox(2.9, 1.3, 0.6, 0));
+  group.add(plane(2.0, 0.76, new MeshBasicMaterial({ map: face }), 0, 0, 0.056));
+  [-0.9, 0.9].forEach((x) => group.add(box(0.03, 0.8, 0.03, standard("#222"), x, 0.8, 0)));
+  addLamp(group, 0, -0.3, 1.0);
+  group.add(hitBox(2.3, 1.1, 0.6, 0));
   group.userData.stopId = "departures";
   return group;
 }
 
 function buildTickets() {
   const group = new Group();
-  group.position.set(7, 0, -1.85);
-  group.add(box(1.9, 2.5, 0.5, standard("#2a2f3a"), 0, 1.25, 0));
-  group.add(plane(1.05, 0.8, new MeshBasicMaterial({ color: "#ffcf80" }), 0, 1.55, 0.26));
-  group.add(box(1.3, 0.06, 0.35, standard("#4a3524"), 0, 1.1, 0.38));
-  group.add(plane(1.4, 0.35, new MeshBasicMaterial({ map: signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif") }), 0, 2.15, 0.26));
-  group.add(label("TICKETS", 2.75));
-  group.add(hitBox(2.1, 2.7, 0.9, 1.3));
+  group.position.set(4.8, 0, -0.1);
+  group.rotation.y = -Math.PI / 2;
+  group.add(box(1.9, 2.4, 0.9, standard("#2a2f3a"), 0, 1.2, 0));
+  group.add(box(2.1, 0.12, 1.1, standard("#1c1f26"), 0, 2.46, 0));
+  // Through the window: a lit booth, and someone who may or may not be there
+  const windowView = paint(200, 150, (ctx, w, h) => {
+    const g = ctx.createRadialGradient(w / 2, h * 0.3, 10, w / 2, h / 2, w * 0.7);
+    g.addColorStop(0, "#ffe3a8");
+    g.addColorStop(1, "#b8783a");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(20,12,8,0.85)";
+    ctx.beginPath();
+    ctx.arc(w * 0.62, h * 0.42, 17, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(w * 0.62, h * 1.02, 44, 50, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = "#3a2412";
+    ctx.font = "700 15px Georgia, serif";
+    ctx.fillText("COINS ONLY", 10, 22);
+  });
+  group.add(plane(1.0, 0.75, new MeshBasicMaterial({ map: windowView }), 0, 1.5, 0.456));
+  group.add(box(1.2, 0.06, 0.3, standard("#4a3524"), 0, 1.08, 0.55));
+  group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.12, 0.456));
+  addLamp(group, 0, 2.2, 1.2);
+  group.add(hitBox(2.1, 2.6, 1.2, 1.3));
   group.userData.stopId = "tickets";
   return group;
 }
 
-export default function StationScene({ selected, onSelect }: Props) {
+// The empty train that passes now and then: dark carriages with a few lit windows
+function buildTrain() {
+  const train = new Group();
+  const body = standard("#1b1e24", 0.7);
+  const lit = new MeshBasicMaterial({ color: "#ffd9a0" });
+  const dark = new MeshBasicMaterial({ color: "#0c0e12" });
+  for (let car = 0; car < 3; car += 1) {
+    const x = -car * 12;
+    train.add(box(11.4, 2.9, 2.8, body, x, 1.0, 3.3));
+    for (let w = 0; w < 6; w += 1) {
+      const pane = plane(1.1, 0.75, (car * 6 + w) % 4 === 1 ? dark : lit, x - 4.5 + w * 1.8, 1.45, 3.3 - 1.41);
+      pane.rotation.y = Math.PI; // face the platform
+      train.add(pane);
+    }
+  }
+  const headlight = new Sprite(new SpriteMaterial({ map: glowTexture(), blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
+  headlight.scale.set(3, 3, 1);
+  headlight.position.set(5.9, 0.4, 3.3);
+  train.add(headlight);
+  train.visible = false;
+  return train;
+}
+
+export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const goRef = useRef<((id: StopId) => void) | null>(null);
-  const onSelectRef = useRef(onSelect);
-  onSelectRef.current = onSelect;
-  const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  const grainRef = useRef<HTMLDivElement | null>(null);
+  const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
+  const latest = useRef({ at, heading, onSelect, onTurn });
+  latest.current = { at, heading, onSelect, onTurn };
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
     const lightweight = isLightweightDevice();
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (grainRef.current) grainRef.current.style.backgroundImage = `url(${grainDataUrl()})`;
 
-    const renderer = new WebGLRenderer({ antialias: !lightweight });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, lightweight ? 1.5 : 2));
+    // Drawn small and scaled up with hard pixels: the look, and cheap on phones
+    const renderer = new WebGLRenderer({ antialias: false });
+    renderer.domElement.style.imageRendering = "pixelated";
     mount.appendChild(renderer.domElement);
 
     const scene = new Scene();
-    const night = new Color("#080b12");
-    scene.background = night;
-    scene.fog = new FogExp2(night, 0.07);
+    // A night sky that is a little lighter at the horizon, so silhouettes read against it
+    scene.background = paint(4, 256, (ctx, w, h) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "#020308");
+      g.addColorStop(0.55, "#0b1020");
+      g.addColorStop(0.72, "#1a2236");
+      g.addColorStop(1, "#07090e");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    });
+    scene.fog = new FogExp2(new Color("#0c1019"), 0.08);
     const camera = new PerspectiveCamera(60, 1, 0.1, 200);
+    camera.rotation.order = "YXZ";
 
-    // Light: a cold wash and a few warm lamps under the canopy
-    scene.add(new HemisphereLight("#8fa0c8", "#241a12", 1.1));
-    const lamps: PointLight[] = [];
-    [-9, -2, 5, 12].forEach((x, i) => {
-      const lamp = new PointLight("#ffb060", 28, 12, 2);
+    // Light: a faint cold wash; the warm light comes from the lamps
+    scene.add(new HemisphereLight("#6f7fa8", "#1a120c", 0.45));
+    const overhead = new PointLight("#ffb060", 16, 7, 2); // the lamp over the visitor, which flickers
+    overhead.position.set(0, 3.5, -0.4);
+    scene.add(overhead);
+    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, -0.4));
+    [-9, 9].forEach((x) => {
+      const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
       scene.add(lamp);
-      lamps.push(lamp);
-      const bulb = box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: i === 2 ? "#ffd9a0" : "#ffe2b8" }), x, 3.75, -0.6);
-      scene.add(bulb);
+      scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), x, 3.95, -0.6));
     });
 
     // Platform, building, canopy
     const floorTex = speckle("#4a4a4c", ["#3c3c3e", "#57575a", "#444"], 1400, 2);
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
     floorTex.repeat.set(30, 2);
-    const platform = box(60, 0.85, 3.4, standard("#555", 0.95, floorTex), 10, -0.425, -0.5);
-    scene.add(platform);
-    scene.add(box(60, 5, 0.2, standard("#8a7f78", 1, brickTexture()), 10, 2.5, WALL_Z - 0.1));
-    scene.add(box(60, 0.12, 4.2, standard("#1c1f26"), 10, 4.1, -0.3));
-    // Posts stand just outside the overview's frame so none of them blocks an object
-    for (let x = -14; x <= 36; x += 10) scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, 1.0));
-    const line = plane(60, 0.12, new MeshBasicMaterial({ color: "#c9a227" }), 10, 0.006, 0.95);
+    scene.add(box(60, 0.85, 3.4, standard("#555", 0.95, floorTex), 0, -0.425, -0.5));
+    scene.add(box(60, 5, 0.2, standard("#8a7f78", 1, brickTexture()), 0, 2.5, WALL_Z - 0.1));
+    scene.add(box(60, 0.12, 4.2, standard("#1c1f26"), 0, 4.1, -0.3));
+    // Posts stand well away from the visitor, so none of them crosses a view
+    [-26, -18, -10, 10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, 1.0)));
+    const line = plane(60, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), 0, 0.006, 0.95);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
 
     // Tracks: gravel bed, two rails, sleepers running off into the fog
-    const bed = plane(200, 40, standard("#25221f", 1, speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2)), 10, -0.85, 21);
+    const bed = plane(200, 40, standard("#25221f", 1, speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2)), 0, -0.85, 21);
     bed.rotation.x = -Math.PI / 2;
     scene.add(bed);
     const railMaterial = standard("#6b6f78", 0.5);
-    [2.6, 4.035].forEach((z) => scene.add(box(200, 0.15, 0.1, railMaterial, 10, -0.72, z)));
+    [2.6, 4.035].forEach((z) => scene.add(box(200, 0.15, 0.1, railMaterial, 0, -0.72, z)));
     const sleepers = new InstancedMesh(new BoxGeometry(0.28, 0.12, 2.3), standard("#2e2218"), 260);
     const m = new Matrix4();
     for (let i = 0; i < 260; i += 1) {
-      m.makeTranslation(-50 + i * 0.7, -0.79, 3.3);
+      m.makeTranslation(-90 + i * 0.7, -0.79, 3.3);
       sleepers.setMatrixAt(i, m);
     }
     scene.add(sleepers);
+
+    // The far side: a fence, the station's name, bare trees and the moon
+    const fence = new InstancedMesh(new BoxGeometry(0.08, 1.1, 0.08), standard("#2a2622"), 40);
+    for (let i = 0; i < 40; i += 1) {
+      m.makeTranslation(-30 + i * 1.5, -0.3, 6.5);
+      fence.setMatrixAt(i, m);
+    }
+    scene.add(fence);
+    scene.add(box(60, 0.06, 0.05, standard("#2a2622"), 0, 0.05, 6.5));
+    const nameSign = plane(2.6, 0.55, standard("#ffffff", 0.8, signTexture("WAYSIDE", "#f2ead2", "#1d2a3a", "700 92px Georgia, serif")), 0.6, 1.3, 6.4);
+    nameSign.rotation.y = Math.PI;
+    scene.add(nameSign);
+    [-0.6, 1.8].forEach((x) => scene.add(box(0.08, 2.2, 0.08, standard("#20232b"), x, 0.2, 6.45)));
+    const signLamp = new PointLight("#cfe0ff", 6, 5, 2);
+    signLamp.position.set(0.6, 2.4, 5.6);
+    scene.add(signLamp);
+    const treeMap = treeTexture();
+    [-14, -6, 3, 9, 17, 24].forEach((x, i) => {
+      const tree = new Sprite(new SpriteMaterial({ map: treeMap, transparent: true, depthWrite: false, fog: false }));
+      const size = 6 + (i % 3) * 2;
+      tree.scale.set(size, size, 1);
+      tree.position.set(x, size / 2 - 0.9, 12 + (i % 2) * 5);
+      scene.add(tree);
+    });
+    const moon = new Sprite(new SpriteMaterial({ map: paint(128, 128, (ctx) => {
+      ctx.fillStyle = "#e8e2cf";
+      ctx.beginPath();
+      ctx.arc(64, 64, 50, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(160,150,130,0.5)";
+      [[48, 50, 10], [80, 76, 7], [70, 40, 5]].forEach(([x, y, r]) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); });
+    }), fog: false, depthWrite: false }));
+    moon.scale.set(7, 7, 1);
+    moon.position.set(-16, 17, 70);
+    scene.add(moon);
 
     // Stars
     const starPositions: number[] = [];
     for (let i = 0; i < 160; i += 1) {
       const a = Math.random() * Math.PI * 2;
-      const e = 0.15 + Math.random() * 1.2;
+      const e = 0.12 + Math.random() * 1.2;
       starPositions.push(Math.cos(a) * Math.cos(e) * 90, Math.sin(e) * 90, Math.sin(a) * Math.cos(e) * 90);
     }
     const starGeometry = new BufferGeometry();
     starGeometry.setAttribute("position", new Float32BufferAttribute(starPositions, 3));
-    scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.6, sizeAttenuation: false, fog: false })));
+    scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false })));
 
-    // A train's headlights now and then, far down the line
-    const headlight = new Sprite(new SpriteMaterial({ map: glowTexture(), blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
-    headlight.scale.set(2.2, 2.2, 1);
-    headlight.visible = false;
-    scene.add(headlight);
+    const train = buildTrain();
+    scene.add(train);
 
     // The objects
-    const objects = [buildBulletin(), buildArcade(), buildEvents(), buildDepartures(), buildTickets()];
+    const objects = [buildBulletin(), buildEvents(), buildArcade(), buildDepartures(), buildTickets()];
     objects.forEach((o) => scene.add(o));
-    // Name labels only help in the overview; close up they would sit in front of the camera
-    const labels: Sprite[] = [];
-    objects.forEach((o) => o.traverse((child) => child.userData.label && labels.push(child as Sprite)));
-    const glowMap = glowTexture();
-    const glows = objects.map((o) => {
-      const sprite = new Sprite(new SpriteMaterial({ map: glowMap, blending: AdditiveBlending, transparent: true, opacity: 0, fog: false, depthWrite: false }));
-      sprite.scale.set(2.6, 2.6, 1);
-      const stop = STOPS[o.userData.stopId as StopId];
-      sprite.position.set(stop.target[0], stop.target[1] - 0.2, WALL_Z + 0.9);
-      scene.add(sprite);
-      return sprite;
-    });
+    let hovered: StopId | null = null;
 
-    // Camera: fixed stops, tweened. `pull` backs close-ups off on tall phone screens.
-    const view = { px: 0, py: 0, pz: 0, tx: 0, ty: 0, tz: 0 };
-    const look = { yaw: 0, pitch: 0 };
+    // Camera: a pose (position, yaw, pitch) tweened between the hub's headings and the stops.
+    // `pull` backs close-ups off, and moves the hub towards the platform edge, on tall screens.
+    const cam = { x: HUB.pos[0], y: HUB.pos[1], z: HUB.pos[2], yaw: 0, pitch: 0 };
+    const look = { yaw: 0, pitch: 0, toYaw: 0, toPitch: 0 };
     let pull = 1;
-    const poseFor = (id: StopId) => {
-      const stop = STOPS[id];
+    const poseFor = (stopId: StopId | null, facing: Heading) => {
+      if (!stopId) {
+        const [x, y, z] = HUB.pos;
+        const hubZ = z + (pull - 1) * 1.4;
+        // Turn to face the view's object, so it is centred on any screen shape
+        const focus = VIEWS[facing].focus;
+        const yaw = focus ? Math.atan2(-(STOPS[focus].target[0] - x), -(STOPS[focus].target[2] - hubZ)) : HUB.yaw[facing];
+        return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
+      }
+      const stop = STOPS[stopId];
       const target = new Vector3(...stop.target);
-      const pos = new Vector3(...stop.pos);
-      pos.sub(target).multiplyScalar(pull).add(target);
-      return { pos, target };
+      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull).add(target);
+      const dir = target.clone().sub(pos);
+      return { x: pos.x, y: pos.y, z: pos.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) };
     };
-    const goTo = (id: StopId, instant = false) => {
-      const { pos, target } = poseFor(id);
-      const duration = instant || reduced ? 0 : 0.9;
-      gsap.killTweensOf(view);
-      gsap.killTweensOf(look);
-      gsap.to(view, { px: pos.x, py: pos.y, pz: pos.z, tx: target.x, ty: target.y, tz: target.z, duration, ease: "power2.inOut" });
-      gsap.to(look, { yaw: 0, pitch: 0, duration: duration ? 0.6 : 0 });
+    let lastAt: StopId | null = latest.current.at;
+    const goTo = (stopId: StopId | null, facing: Heading, instant = false) => {
+      const pose = poseFor(stopId, facing);
+      const yaw = cam.yaw + wrapAngle(pose.yaw - cam.yaw); // turn the short way round
+      const walking = stopId !== lastAt;
+      lastAt = stopId;
+      const duration = instant || reduced ? 0 : walking ? 1.0 : 0.55;
+      gsap.killTweensOf(cam);
+      gsap.to(cam, { ...pose, yaw, duration, ease: walking ? "power1.inOut" : "power2.inOut" });
     };
-    goRef.current = (id) => goTo(id);
+    goRef.current = (stopId, facing) => goTo(stopId, facing);
 
     const onResize = () => {
       const width = Math.max(mount.clientWidth, 1);
       const height = Math.max(mount.clientHeight, 1);
+      renderer.setPixelRatio(clamp(RENDER_HEIGHT / height, 0.25, lightweight ? 1 : 2));
       renderer.setSize(width, height);
       const aspect = width / height;
       camera.aspect = aspect;
-      camera.fov = aspect < 0.8 ? 78 : aspect < 1.2 ? 68 : 60;
+      camera.fov = aspect < 0.8 ? 80 : aspect < 1.2 ? 68 : 60;
       pull = aspect < 0.8 ? 1.5 : aspect < 1.2 ? 1.2 : 1;
       camera.updateProjectionMatrix();
-      goTo(selectedRef.current, true);
+      goTo(latest.current.at, latest.current.heading, true);
     };
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(mount);
     onResize();
 
-    // Input: tap an object to go to it, drag to look around a little
+    // Input: tap an object to walk to it, swipe to turn, and on desktop the view leans
+    // a little towards the pointer
     const raycaster = new Raycaster();
     const pointer = new Vector2();
     const canvas = renderer.domElement;
     let down: { x: number; y: number; t: number } | null = null;
-    let last = { x: 0, y: 0 };
-    let dragging = false;
     const pick = (clientX: number, clientY: number): StopId | null => {
       const rect = canvas.getBoundingClientRect();
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -436,36 +585,39 @@ export default function StationScene({ selected, onSelect }: Props) {
     };
     const onPointerDown = (event: PointerEvent) => {
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
-      last = { x: event.clientX, y: event.clientY };
-      dragging = false;
       canvas.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
-      if (!down) {
-        canvas.style.cursor = event.pointerType === "mouse" && pick(event.clientX, event.clientY) ? "pointer" : "grab";
-        return;
-      }
-      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) dragging = true;
-      if (dragging) {
-        gsap.killTweensOf(look);
-        look.yaw = clamp(look.yaw + (event.clientX - last.x) * 0.004, -0.6, 0.6);
-        look.pitch = clamp(look.pitch + (event.clientY - last.y) * 0.003, -0.25, 0.25);
-      }
-      last = { x: event.clientX, y: event.clientY };
+      if (event.pointerType !== "mouse" || down) return;
+      const rect = canvas.getBoundingClientRect();
+      look.toYaw = -(((event.clientX - rect.left) / rect.width) * 2 - 1) * 0.06;
+      look.toPitch = -(((event.clientY - rect.top) / rect.height) * 2 - 1) * 0.04;
+      hovered = pick(event.clientX, event.clientY);
+      canvas.style.cursor = hovered ? "pointer" : "default";
     };
     const onPointerUp = (event: PointerEvent) => {
-      if (down && !dragging && performance.now() - down.t < 500) {
+      if (!down) return;
+      const dx = event.clientX - down.x;
+      const dy = event.clientY - down.y;
+      const { at: current, onSelect: select, onTurn: turn } = latest.current;
+      if (!current && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        turn(dx < 0 ? 1 : -1); // drag the world: swiping left turns right
+      } else if (Math.hypot(dx, dy) < 10 && performance.now() - down.t < 500) {
         const id = pick(event.clientX, event.clientY);
-        if (id) onSelectRef.current(id);
-        else if (selectedRef.current !== "platform") onSelectRef.current("platform");
+        if (id && id !== current) select(id);
+        else if (!id && current) select(null);
       }
       down = null;
-      dragging = false;
+    };
+    const onPointerLeave = () => {
+      look.toYaw = look.toPitch = 0;
+      hovered = null;
     };
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("pointercancel", onPointerUp);
+    canvas.addEventListener("pointerleave", onPointerLeave);
 
     // Render loop; paused while the tab is hidden
     let frame = 0;
@@ -474,24 +626,25 @@ export default function StationScene({ selected, onSelect }: Props) {
       frame = requestAnimationFrame(animate);
       if (document.hidden) return;
       const t = (performance.now() - start) / 1000;
-      camera.position.set(view.px, view.py + Math.sin(t * 0.6) * 0.008, view.pz);
-      camera.lookAt(view.tx, view.ty, view.tz);
-      camera.rotateOnWorldAxis(UP, look.yaw);
-      camera.rotateX(look.pitch);
+      look.yaw += (look.toYaw - look.yaw) * 0.06;
+      look.pitch += (look.toPitch - look.pitch) * 0.06;
+      const sway = reduced ? 0 : 1;
+      camera.position.set(cam.x, cam.y + Math.sin(t * 0.9) * 0.01 * sway, cam.z);
+      camera.rotation.set(cam.pitch + look.pitch + Math.sin(t * 0.5) * 0.004 * sway, cam.yaw + look.yaw + Math.sin(t * 0.37) * 0.006 * sway, 0);
 
-      lamps[2].intensity = 28 * (0.82 + 0.18 * Math.sin(t * 7.3) * Math.sin(t * 2.1 + 1)); // a tired lamp
-      const overview = selectedRef.current === "platform";
-      glows.forEach((glow, i) => {
-        const pulse = 0.35 + 0.2 * Math.sin(t * 1.6 + i);
-        glow.material.opacity += ((overview ? pulse : 0) - glow.material.opacity) * 0.1;
+      // The overhead lamp is tired; it stays under three flickers a second
+      overhead.intensity = reduced ? 16 : 16 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
+      const current = latest.current.at;
+      objects.forEach((o) => {
+        const lamp = o.userData.lamp as PointLight;
+        const lit = o.userData.stopId === current || o.userData.stopId === hovered;
+        lamp.intensity += ((lit ? LAMP_LIT : LAMP_IDLE) - lamp.intensity) * 0.08;
       });
-      labels.forEach((sprite) => {
-        sprite.material.opacity += ((overview ? 0.92 : 0) - sprite.material.opacity) * 0.15;
-        sprite.visible = sprite.material.opacity > 0.02;
-      });
-      const cycle = (t % 34) / 34; // a train's lights cross the far distance every ~34 s
-      headlight.visible = cycle < 0.5;
-      if (headlight.visible) headlight.position.set(-70 + cycle * 2 * 150, -0.2, 3.3);
+
+      // The empty train comes through every 45 s (first after about 10 s), at about 80 km/h
+      const cycle = (t + 20) % 45;
+      train.visible = cycle > 30;
+      if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
 
       renderer.render(scene, camera);
     };
@@ -504,8 +657,8 @@ export default function StationScene({ selected, onSelect }: Props) {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
-      gsap.killTweensOf(view);
-      gsap.killTweensOf(look);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
+      gsap.killTweensOf(cam);
       goRef.current = null;
       scene.traverse((object) => {
         const item = object as Mesh;
@@ -522,8 +675,26 @@ export default function StationScene({ selected, onSelect }: Props) {
   }, []);
 
   useEffect(() => {
-    goRef.current?.(selected);
-  }, [selected]);
+    goRef.current?.(at, heading);
+  }, [at, heading]);
 
-  return <div ref={mountRef} className="absolute inset-0 select-none" style={{ touchAction: "none" }} />;
+  return (
+    <div className="absolute inset-0 select-none" style={{ touchAction: "none" }}>
+      <style>{`
+        @keyframes station-grain { 0% { transform: translate(0, 0) } 25% { transform: translate(-31px, 17px) }
+          50% { transform: translate(23px, -41px) } 75% { transform: translate(-13px, -23px) } 100% { transform: translate(0, 0) } }
+        @media (prefers-reduced-motion: reduce) { .station-grain { animation: none !important } }
+      `}</style>
+      <div ref={mountRef} className="absolute inset-0" />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 75%, rgba(0,0,0,0.9) 100%)" }}
+      />
+      <div
+        ref={grainRef}
+        className="station-grain pointer-events-none absolute -inset-16 opacity-[0.07] mix-blend-overlay"
+        style={{ animation: "station-grain 0.5s steps(4) infinite" }}
+      />
+    </div>
+  );
 }
