@@ -14,6 +14,7 @@ export type Stop = {
   heading: Heading; // the way the visitor faces when they step back from it
   pos: [number, number, number]; // camera position for the close-up
   target: [number, number, number]; // what the camera looks at
+  fit?: number; // metres that must fit across the screen, stepping back on narrow ones
 };
 
 // Clockwise, so "turn right" is the next entry
@@ -44,8 +45,9 @@ export const STOPS: Record<StopId, Stop> = {
     href: "/",
     cta: "Home",
     heading: "front",
-    pos: [-0.9, 1.9, -0.2],
-    target: [-0.9, 1.95, -2.1],
+    pos: [-0.9, 1.9, 0.35],
+    target: [-0.9, 1.9, -2.1],
+    fit: 3.3,
   },
   events: {
     id: "events",

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { CSS3DObject, CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 import {
   AdditiveBlending,
   Box3,
@@ -51,6 +53,9 @@ type Props = {
   boards: Boards;
   inset: { right: number; bottom: number }; // screen covered by a panel, in CSS pixels
   paused?: boolean; // a game is playing over the scene
+  // What's on the board's papers, drawn crisply over them; tappable when standing at the board
+  papers: { id: string; tint: string; node: ReactNode }[];
+  onPaper: (index: number) => void;
 };
 
 // Live text for the boards in the scene
@@ -296,25 +301,40 @@ const IDLE_NOTICES = [
   ["NOTICE", "FOUND: ONE KEY"],
 ];
 
+// Where each of the six papers hangs on the board (local x, y, tilt), and its size
+const PAPER_SPOTS: [number, number, number][] = [
+  [-1.0, 0.43, -0.03],
+  [0, 0.45, 0.02],
+  [1.0, 0.42, -0.015],
+  [-1.0, -0.46, 0.025],
+  [0, -0.45, -0.02],
+  [1.0, -0.47, 0.03],
+];
+const PAPER_W = 0.86;
+const PAPER_H = 0.78;
+// The papers' own text is HTML laid onto the board (CSS3D), this many px to a metre
+const PAPER_PX = { width: 344, height: 312 };
+
 function buildBulletin() {
   const group = new Group();
   group.position.set(-0.9, 1.72, WALL_Z + 0.05);
-  group.add(box(2.4, 1.5, 0.08, standard("#3a2a1c")));
-  group.add(plane(2.25, 1.35, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
-  group.userData.notes = PAPERS.map((paper, i) => {
+  group.add(box(3.15, 2.0, 0.08, standard("#3a2a1c")));
+  group.add(plane(3.0, 1.86, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
+  // Painted papers: the picture from afar, and a stand-in whenever the HTML can't line up
+  group.userData.notes = PAPER_SPOTS.map(([x, y, tilt], i) => {
     const [kind, title] = IDLE_NOTICES[i];
-    const texture = paint(128, 168, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, paper));
-    const note = plane(0.42, 0.55, standard("#ffffff", 1, texture), -0.8 + (i % 3) * 0.8, 0.3 - Math.floor(i / 3) * 0.66, 0.06);
-    note.rotation.z = ((i * 37) % 11) / 60 - 0.09;
+    const texture = paint(176, 160, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, PAPERS[i]));
+    const note = plane(PAPER_W, PAPER_H, standard("#ffffff", 1, texture), x, y, 0.06);
+    note.rotation.z = tilt;
     group.add(note);
     return texture;
   });
   // The station's name, in enamel, over the board
-  group.add(box(2.7, 0.52, 0.04, standard("#11161e"), 0, 1.2, 0.0));
+  group.add(box(2.7, 0.52, 0.04, standard("#11161e"), 0, 1.36, 0.0));
   // Unlit, so the lamps' warm light doesn't turn the navy enamel brown
-  group.add(plane(2.6, 0.44, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.2, 0.025));
+  group.add(plane(2.6, 0.44, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.36, 0.025));
   addLamp(group, 0, 1.5, 1.1);
-  group.add(hitBox(2.7, 2.4, 0.6, 0.35));
+  group.add(hitBox(3.3, 2.7, 0.6, 0.3));
   group.userData.stopId = "bulletin";
   return group;
 }
@@ -500,9 +520,11 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, inset, paused = false }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, inset, paused = false, papers, onPaper }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const paperLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
+  const [paperSlots, setPaperSlots] = useState<HTMLDivElement[]>([]);
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const latest = useRef({ at, heading, onSelect, onTurn, inset, boards, paused });
@@ -629,6 +651,31 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
     const departures = buildDepartures();
     const events = buildEvents();
     const objects = [bulletin, events, buildArcade(), departures, buildTickets()];
+
+    // The board's papers as HTML, placed in 3D over the painted ones so their text is crisp
+    const paperRenderer = new CSS3DRenderer();
+    const paperLayer = paperRenderer.domElement;
+    paperLayer.style.position = "absolute";
+    paperLayer.style.inset = "0";
+    paperLayer.style.pointerEvents = "none";
+    paperLayerRef.current?.appendChild(paperLayer);
+    const slots = PAPER_SPOTS.map(([x, y, tilt]) => {
+      const slot = document.createElement("div");
+      slot.style.width = `${PAPER_PX.width}px`;
+      slot.style.height = `${PAPER_PX.height}px`;
+      const object = new CSS3DObject(slot);
+      // CSS3DObject makes its element catch clicks; the paper inside decides (see the portals)
+      slot.style.pointerEvents = "none";
+      object.scale.setScalar(PAPER_W / PAPER_PX.width);
+      object.position.set(x, y, 0.07);
+      object.rotation.z = tilt;
+      bulletin.add(object);
+      return slot;
+    });
+    setPaperSlots(slots);
+    const boardCentre = new Vector3();
+    const toBoard = new Vector3();
+    const facing = new Vector3();
     const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
     const paintedPoster = poster.material.map as CanvasTexture;
     let posterImage = "";
@@ -679,6 +726,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       const { right, bottom } = latest.current.inset;
       const room = right > 0 || bottom > 0 ? 1.35 : 1;
       const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull * room).add(target);
+      if (stop.fit) {
+        // Far enough back that the whole object fits across the screen
+        const halfWidth = Math.atan(Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect);
+        const needed = stop.fit / 2 / Math.tan(halfWidth);
+        const away = pos.clone().sub(target);
+        if (away.length() < needed) pos.copy(target).add(away.setLength(needed));
+      }
       const dir = target.clone().sub(pos);
       return { x: pos.x, y: pos.y, z: pos.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) };
     };
@@ -703,6 +757,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       offset.dirty = true;
       renderer.setPixelRatio(clamp(RENDER_HEIGHT / height, 0.25, lightweight ? 1 : 2));
       renderer.setSize(width, height);
+      paperRenderer.setSize(width, height);
       const aspect = width / height;
       camera.aspect = aspect;
       camera.fov = aspect < 0.8 ? 80 : aspect < 1.2 ? 68 : 60;
@@ -808,6 +863,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       }
 
       renderer.render(scene, camera);
+
+      // The crisp papers only while they can line up with the picture: the board ahead,
+      // and the view not slid aside for a panel (the painted papers stand in otherwise)
+      bulletin.getWorldPosition(boardCentre);
+      toBoard.subVectors(boardCentre, camera.position).normalize();
+      camera.getWorldDirection(facing);
+      const showPapers = toBoard.dot(facing) > 0.45 && Math.abs(offset.x) < 0.5 && Math.abs(offset.y) < 0.5;
+      paperLayer.style.display = showPapers ? "" : "none";
+      if (showPapers) {
+        paperLayer.style.pointerEvents = "none";
+        paperRenderer.render(scene, camera);
+      }
     };
     animate();
 
@@ -833,6 +900,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       });
       renderer.dispose();
       mount.removeChild(canvas);
+      paperLayer.remove();
+      setPaperSlots([]);
     };
   }, []);
 
@@ -853,6 +922,34 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
         @media (prefers-reduced-motion: reduce) { .station-grain { animation: none !important } }
       `}</style>
       <div ref={mountRef} className="absolute inset-0" />
+      <div ref={paperLayerRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
+      {paperSlots.map((slot, i) =>
+        createPortal(
+          papers[i] ? (
+            <div
+              role="button"
+              tabIndex={at === "bulletin" ? 0 : -1}
+              aria-label="Take the paper down to read it"
+              onClick={() => onPaper(i)}
+              onKeyDown={(event) => event.key === "Enter" && onPaper(i)}
+              className="relative h-full w-full cursor-pointer overflow-hidden px-5 pb-4 pt-6 shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-105"
+              style={{
+                background: papers[i].tint,
+                // Standing at the board you can use them; from further off a tap walks you there
+                pointerEvents: at === "bulletin" ? "auto" : "none",
+                // Dim to the board's lamplight
+                filter: "brightness(0.9) sepia(0.12)",
+                fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+              }}
+            >
+              <span className="absolute left-1/2 top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+              {papers[i].node}
+            </div>
+          ) : null,
+          slot,
+          papers[i]?.id ?? `empty-${i}`
+        )
+      )}
       <div
         className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 75%, rgba(0,0,0,0.9) 100%)" }}
