@@ -134,6 +134,9 @@ export const Navigator = () => {
     </>
   );
 
+  // Wayside Station is the whole site in one scene, with its own way around
+  if (location.pathname.startsWith("/station")) return null;
+
   return (
     <nav className="font-zombie">
       {/* Desktop Navigation */}

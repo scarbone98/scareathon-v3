@@ -29,6 +29,7 @@ import {
   SpriteMaterial,
   SRGBColorSpace,
   Texture,
+  TextureLoader,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -47,6 +48,16 @@ type Props = {
   heading: Heading;
   onSelect: (id: StopId | null) => void;
   onTurn: (direction: 1 | -1) => void;
+  boards: Boards;
+  inset: { right: number; bottom: number }; // screen covered by a panel, in CSS pixels
+  paused?: boolean; // a game is playing over the scene
+};
+
+// Live text for the boards in the scene
+export type Boards = {
+  notices: { kind: string; title: string }[];
+  departures: string[];
+  poster: { image?: string | null; title: string; line: string };
 };
 
 const WALL_Z = -2.2;
@@ -80,6 +91,28 @@ function signTexture(text: string, fg: string, bg: string, font = "700 96px Geor
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, w / 2, h / 2 + 4, w - 40);
+  });
+}
+
+// A railway name board: cream letters on navy enamel, a cream rule, and four bolts
+function stationSign(text: string) {
+  return paint(1024, 174, (ctx, w, h) => {
+    ctx.fillStyle = "#1d2a3a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#f2ead2";
+    ctx.lineWidth = 7;
+    ctx.strokeRect(14, 14, w - 28, h - 28);
+    ctx.fillStyle = "#f2ead2";
+    ctx.font = "700 92px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, w / 2, h / 2 + 5, w - 120);
+    ctx.fillStyle = "#8a8f98";
+    [[34, 34], [w - 34, 34], [34, h - 34], [w - 34, h - 34]].forEach(([x, y]) => {
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fill();
+    });
   });
 }
 
@@ -125,22 +158,64 @@ function brickTexture() {
   return texture;
 }
 
-// A notice pinned to the board: a heading and a few scribbled lines
-function noticeTexture(title: string, paper: string) {
-  return paint(128, 168, (ctx, w, h) => {
-    ctx.fillStyle = paper;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#2a1d14";
-    ctx.font = "700 18px Georgia, serif";
-    ctx.textAlign = "center";
-    ctx.fillText(title, w / 2, 30, w - 16);
-    ctx.fillStyle = "rgba(42,29,20,0.55)";
-    for (let y = 50; y < h - 16; y += 14) ctx.fillRect(14, y, 60 + Math.random() * 40, 4);
-    ctx.fillStyle = "#8a1d1d";
-    ctx.beginPath();
-    ctx.arc(w / 2, 8, 5, 0, Math.PI * 2);
-    ctx.fill();
-  });
+// Split text into lines that fit a width, at most maxLines (the last one trimmed)
+function wrap(ctx: CanvasRenderingContext2D, text: string, width: number, maxLines: number) {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/)) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width <= width || !line) line = next;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+    lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s+\S*$/, "")}…`;
+  }
+  return lines;
+}
+
+// A notice pinned to the board: a small label, a headline, and a few scribbled lines
+function drawNotice(ctx: CanvasRenderingContext2D, w: number, h: number, kind: string, title: string, paper: string) {
+  ctx.fillStyle = paper;
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(42,29,20,0.6)";
+  ctx.font = "700 11px Georgia, serif";
+  ctx.fillText(kind, w / 2, 26);
+  ctx.fillStyle = "#2a1d14";
+  ctx.font = "700 17px Georgia, serif";
+  const lines = wrap(ctx, title, w - 18, 4);
+  lines.forEach((text, i) => ctx.fillText(text, w / 2, 48 + i * 19));
+  ctx.fillStyle = "rgba(42,29,20,0.45)";
+  for (let y = 58 + lines.length * 19; y < h - 12; y += 12) ctx.fillRect(16, y, 50 + ((y * 7) % 45), 3);
+  ctx.fillStyle = "#8a1d1d";
+  ctx.beginPath();
+  ctx.arc(w / 2, 9, 5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// The departure board: a header and three lines of amber type
+function drawDepartures(ctx: CanvasRenderingContext2D, w: number, h: number, lines: string[]) {
+  ctx.fillStyle = "#0a0c10";
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#ffb03a";
+  ctx.font = "700 30px monospace";
+  ctx.fillText("DEPARTURES", 20, 40);
+  ctx.font = "26px monospace";
+  lines.slice(0, 3).forEach((line, i) => ctx.fillText(line.toUpperCase(), 20, 88 + i * 40, w - 40));
+}
+
+function repaint(texture: CanvasTexture, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
+  const canvas = texture.image as HTMLCanvasElement;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  draw(ctx, canvas.width, canvas.height);
+  texture.needsUpdate = true;
 }
 
 // A bare tree against the sky, for the far side of the tracks
@@ -210,34 +285,71 @@ function addLamp(group: Group, x: number, y: number, z: number) {
   group.userData.lamp = lamp;
 }
 
+const PAPERS = ["#f2ead2", "#e8d9a8", "#d7c9b0", "#f0c9a0", "#e6e2d8", "#cfd8c8"];
+// Shown until the real news arrives, and in the gaps if there's little of it
+const IDLE_NOTICES = [
+  ["NOTICE", "NEWS"],
+  ["NOTICE", "LOST: ONE UMBRELLA"],
+  ["NOTICE", "LAST TRAIN ??:??"],
+  ["EVENT", "SCARE-ATHON"],
+  ["NOTICE", "DO NOT WAIT HERE AFTER DARK"],
+  ["NOTICE", "FOUND: ONE KEY"],
+];
+
 function buildBulletin() {
   const group = new Group();
-  group.position.set(-0.4, 1.72, WALL_Z + 0.05);
+  group.position.set(-0.9, 1.72, WALL_Z + 0.05);
   group.add(box(2.4, 1.5, 0.08, standard("#3a2a1c")));
   group.add(plane(2.25, 1.35, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
-  const notices: [string, string][] = [
-    ["NEWS", "#f2ead2"],
-    ["LOST", "#e8d9a8"],
-    ["LAST TRAIN", "#d7c9b0"],
-    ["SCARE-ATHON", "#f0c9a0"],
-    ["DO NOT WAIT", "#e6e2d8"],
-    ["FOUND", "#cfd8c8"],
-  ];
-  notices.forEach(([title, paper], i) => {
-    const note = plane(0.42, 0.55, standard("#ffffff", 1, noticeTexture(title, paper)), -0.8 + (i % 3) * 0.8, 0.3 - Math.floor(i / 3) * 0.66, 0.06);
+  group.userData.notes = PAPERS.map((paper, i) => {
+    const [kind, title] = IDLE_NOTICES[i];
+    const texture = paint(128, 168, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, paper));
+    const note = plane(0.42, 0.55, standard("#ffffff", 1, texture), -0.8 + (i % 3) * 0.8, 0.3 - Math.floor(i / 3) * 0.66, 0.06);
     note.rotation.z = ((i * 37) % 11) / 60 - 0.09;
     group.add(note);
+    return texture;
   });
-  group.add(plane(1.3, 0.24, standard("#ffffff", 0.8, signTexture("NOTICES", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 0.95, 0.02));
+  // The station's name, in enamel, over the board
+  group.add(box(2.7, 0.52, 0.04, standard("#11161e"), 0, 1.2, 0.0));
+  // Unlit, so the lamps' warm light doesn't turn the navy enamel brown
+  group.add(plane(2.6, 0.44, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.2, 0.025));
   addLamp(group, 0, 1.5, 1.1);
-  group.add(hitBox(2.6, 1.9, 0.6, 0.1));
+  group.add(hitBox(2.7, 2.4, 0.6, 0.35));
   group.userData.stopId = "bulletin";
   return group;
 }
 
+// The poster frame over the events table shows tonight's film, or the event's own poster
+function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, line: string) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#1a0d05");
+  g.addColorStop(1, "#3a1405");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = "#ff7a1a";
+  ctx.beginPath();
+  ctx.arc(w / 2, h * 0.36, w * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#1a0d05";
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.62);
+  for (let x = 0; x <= w; x += 16) ctx.lineTo(x, h * 0.56 - Math.abs(Math.sin(x * 0.07)) * 26 - (x % 48 === 0 ? 30 : 0));
+  ctx.lineTo(w, h * 0.62);
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ffd9a0";
+  ctx.font = "700 40px Georgia, serif";
+  wrap(ctx, title.toUpperCase(), w - 30, 2).forEach((text, i) => ctx.fillText(text, w / 2, h * 0.72 + i * 42, w - 30));
+  ctx.font = "italic 20px Georgia, serif";
+  ctx.fillText(line, w / 2, h - 28, w - 30);
+  ctx.strokeStyle = "#ffd9a0";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(10, 10, w - 20, h - 20);
+}
+
 function buildEvents() {
   const group = new Group();
-  group.position.set(0.9, 0, -1.25);
+  group.position.set(1.9, 0, -1.45);
   const wood = standard("#4a3524");
   group.add(box(1.5, 0.07, 0.8, wood, 0, 0.82, 0));
   [-0.65, 0.65].forEach((x) => [-0.3, 0.3].forEach((z) => group.add(box(0.07, 0.82, 0.07, wood, x, 0.41, z))));
@@ -267,16 +379,25 @@ function buildEvents() {
   const card = plane(0.5, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 0.93, -0.22);
   card.rotation.x = -0.25;
   group.add(card);
-  addLamp(group, 0, 2.2, 0.7);
+  // The poster on the wall above (the building's wall is 0.75 behind the table's centre)
+  const posterZ = WALL_Z + 0.03 - group.position.z;
+  group.add(box(0.98, 1.38, 0.04, standard("#2a1d14", 0.7), 0, 1.95, posterZ));
+  const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
+  const poster = plane(0.86, 1.26, standard("#ffffff", 0.8, posterTexture), 0, 1.95, posterZ + 0.025);
+  group.add(poster);
+  group.userData.poster = poster;
+  addLamp(group, 0, 2.3, 0.6);
   group.add(hitBox(1.7, 0.9, 1.0, 0.6));
+  const posterHit = hitBox(1.1, 1.5, 0.3, 1.95);
+  posterHit.position.z = posterZ + 0.1;
+  group.add(posterHit);
   group.userData.stopId = "events";
   return group;
 }
 
 function buildArcade() {
   const group = new Group();
-  group.position.set(-4.2, 0, 0);
-  group.rotation.y = Math.PI / 2; // faces down the platform, towards the visitor
+  group.position.set(-3.6, 0, -1.75); // against the wall, left of the board
   const placeholder = new Group();
   placeholder.add(box(0.85, 1.9, 0.8, standard("#2b1a3a"), 0, 0.95, 0));
   placeholder.add(plane(0.6, 0.45, new MeshBasicMaterial({ color: "#5cffb1" }), 0, 1.3, 0.41));
@@ -300,10 +421,9 @@ function buildArcade() {
     undefined,
     () => undefined
   );
-  // A sign hung from the canopy above it
-  group.add(plane(1.0, 0.25, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), 0, 2.55, 0));
-  [-0.4, 0.4].forEach((x) => group.add(box(0.02, 1.4, 0.02, standard("#222"), x, 3.35, 0)));
-  addLamp(group, 0, 2.4, 1.3);
+  // Its sign on the wall above
+  group.add(plane(1.0, 0.25, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), 0, 2.3, WALL_Z + 0.03 - group.position.z));
+  addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
   return group;
@@ -314,18 +434,9 @@ function buildDepartures() {
   group.position.set(3.4, 2.95, -0.1);
   group.rotation.y = -Math.PI / 2; // faces back along the platform, towards the visitor
   group.add(box(2.1, 0.85, 0.1, standard("#15181f")));
-  const face = paint(512, 200, (ctx, w) => {
-    ctx.fillStyle = "#0a0c10";
-    ctx.fillRect(0, 0, w, 200);
-    ctx.fillStyle = "#ffb03a";
-    ctx.font = "700 30px monospace";
-    ctx.fillText("DEPARTURES", 20, 40);
-    ctx.font = "26px monospace";
-    ctx.fillText("19:31  SCAREBOARD    ON TIME", 20, 88);
-    ctx.fillText("22:15  CALENDAR      DELAYED", 20, 128);
-    ctx.fillText("23:59  ARCADE        BOARDING", 20, 168);
-  });
+  const face = paint(512, 200, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
   group.add(plane(2.0, 0.76, new MeshBasicMaterial({ map: face }), 0, 0, 0.056));
+  group.userData.face = face;
   [-0.9, 0.9].forEach((x) => group.add(box(0.03, 0.8, 0.03, standard("#222"), x, 0.8, 0)));
   addLamp(group, 0, -0.3, 1.0);
   group.add(hitBox(2.3, 1.1, 0.6, 0));
@@ -389,12 +500,13 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, inset, paused = false }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn });
-  latest.current = { at, heading, onSelect, onTurn };
+  const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
+  const latest = useRef({ at, heading, onSelect, onTurn, inset, boards, paused });
+  latest.current = { at, heading, onSelect, onTurn, inset, boards, paused };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -513,7 +625,36 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
     scene.add(train);
 
     // The objects
-    const objects = [buildBulletin(), buildEvents(), buildArcade(), buildDepartures(), buildTickets()];
+    const bulletin = buildBulletin();
+    const departures = buildDepartures();
+    const events = buildEvents();
+    const objects = [bulletin, events, buildArcade(), departures, buildTickets()];
+    const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
+    const paintedPoster = poster.material.map as CanvasTexture;
+    let posterImage = "";
+    paintBoardsRef.current = ({ notices, departures: lines, poster: sheet }) => {
+      (bulletin.userData.notes as CanvasTexture[]).forEach((texture, i) => {
+        const [kind, title] = notices[i] ? [notices[i].kind, notices[i].title] : IDLE_NOTICES[i];
+        repaint(texture, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, PAPERS[i]));
+      });
+      repaint(departures.userData.face as CanvasTexture, (ctx, w, h) => drawDepartures(ctx, w, h, lines));
+      // The poster: a real one-sheet when there is an image, the painted event poster otherwise
+      repaint(paintedPoster, (ctx, w, h) => drawEventPoster(ctx, w, h, sheet.title, sheet.line));
+      if (sheet.image === posterImage) return;
+      posterImage = sheet.image ?? "";
+      if (poster.material.map !== paintedPoster) poster.material.map?.dispose();
+      poster.material.map = paintedPoster;
+      if (sheet.image) {
+        const url = sheet.image;
+        new TextureLoader().setCrossOrigin("anonymous").load(url, (texture) => {
+          if (posterImage !== url) return texture.dispose();
+          texture.colorSpace = SRGBColorSpace;
+          poster.material.map = texture;
+          poster.material.needsUpdate = true;
+        });
+      }
+    };
+    paintBoardsRef.current(latest.current.boards);
     objects.forEach((o) => scene.add(o));
     let hovered: StopId | null = null;
 
@@ -526,14 +667,18 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
       if (!stopId) {
         const [x, y, z] = HUB.pos;
         const hubZ = z + (pull - 1) * 1.4;
-        // Turn to face the view's object, so it is centred on any screen shape
-        const focus = VIEWS[facing].focus;
-        const yaw = focus ? Math.atan2(-(STOPS[focus].target[0] - x), -(STOPS[focus].target[2] - hubZ)) : HUB.yaw[facing];
+        // Wide screens take in the whole view; tall ones turn to face its object
+        const { focus, aim } = VIEWS[facing];
+        const point = pull === 1 && aim ? aim : focus ? STOPS[focus].target : null;
+        const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
       }
       const stop = STOPS[stopId];
       const target = new Vector3(...stop.target);
-      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull).add(target);
+      // Step back further while a panel covers part of the screen
+      const { right, bottom } = latest.current.inset;
+      const room = right > 0 || bottom > 0 ? 1.35 : 1;
+      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull * room).add(target);
       const dir = target.clone().sub(pos);
       return { x: pos.x, y: pos.y, z: pos.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) };
     };
@@ -549,9 +694,13 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
     };
     goRef.current = (stopId, facing) => goTo(stopId, facing);
 
+    let width = 1;
+    let height = 1;
+    const offset = { x: 0, y: 0, dirty: true };
     const onResize = () => {
-      const width = Math.max(mount.clientWidth, 1);
-      const height = Math.max(mount.clientHeight, 1);
+      width = Math.max(mount.clientWidth, 1);
+      height = Math.max(mount.clientHeight, 1);
+      offset.dirty = true;
       renderer.setPixelRatio(clamp(RENDER_HEIGHT / height, 0.25, lightweight ? 1 : 2));
       renderer.setSize(width, height);
       const aspect = width / height;
@@ -624,7 +773,7 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      if (document.hidden) return;
+      if (document.hidden || latest.current.paused) return;
       const t = (performance.now() - start) / 1000;
       look.yaw += (look.toYaw - look.yaw) * 0.06;
       look.pitch += (look.toPitch - look.pitch) * 0.06;
@@ -646,6 +795,18 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
       train.visible = cycle > 30;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
 
+      // Slide the picture aside while a panel covers part of the screen
+      const { right, bottom } = latest.current.inset;
+      const ox = offset.x + (right / 2 - offset.x) * 0.12;
+      const oy = offset.y + (bottom / 2 - offset.y) * 0.12;
+      if (offset.dirty || Math.abs(ox - offset.x) > 0.05 || Math.abs(oy - offset.y) > 0.05) {
+        offset.x = ox;
+        offset.y = oy;
+        offset.dirty = false;
+        if (Math.abs(ox) < 0.5 && Math.abs(oy) < 0.5) camera.clearViewOffset();
+        else camera.setViewOffset(width, height, ox, oy, width, height);
+      }
+
       renderer.render(scene, camera);
     };
     animate();
@@ -660,6 +821,7 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
       canvas.removeEventListener("pointerleave", onPointerLeave);
       gsap.killTweensOf(cam);
       goRef.current = null;
+      paintBoardsRef.current = null;
       scene.traverse((object) => {
         const item = object as Mesh;
         item.geometry?.dispose();
@@ -674,9 +836,14 @@ export default function StationScene({ at, heading, onSelect, onTurn }: Props) {
     };
   }, []);
 
+  const panelOpen = inset.right > 0 || inset.bottom > 0;
   useEffect(() => {
     goRef.current?.(at, heading);
-  }, [at, heading]);
+  }, [at, heading, panelOpen]);
+
+  useEffect(() => {
+    paintBoardsRef.current?.(boards);
+  }, [boards]);
 
   return (
     <div className="absolute inset-0 select-none" style={{ touchAction: "none" }}>
