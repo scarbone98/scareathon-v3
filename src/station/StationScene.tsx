@@ -147,6 +147,7 @@ function label(text: string, y: number) {
   const sprite = new Sprite(material);
   sprite.scale.set(1.1, 0.28, 1);
   sprite.position.set(0, y, 0);
+  sprite.userData.label = true;
   return sprite;
 }
 
@@ -187,7 +188,10 @@ function buildArcade() {
   new GLTFLoader().load(
     "/models/ArcadeCabinet.glb",
     (gltf) => {
-      const model = gltf.scene;
+      // The model is authored lying down; stand it up the way CartridgeArcade does
+      const model = new Group();
+      gltf.scene.rotation.set(Math.PI / 2, Math.PI, 0);
+      model.add(gltf.scene);
       const size = new Box3().setFromObject(model).getSize(new Vector3());
       const scale = 1.9 / Math.max(size.y, 0.001);
       model.scale.setScalar(scale);
@@ -322,7 +326,8 @@ export default function StationScene({ selected, onSelect }: Props) {
     scene.add(platform);
     scene.add(box(60, 5, 0.2, standard("#8a7f78", 1, brickTexture()), 10, 2.5, WALL_Z - 0.1));
     scene.add(box(60, 0.12, 4.2, standard("#1c1f26"), 10, 4.1, -0.3));
-    for (let x = -8; x <= 32; x += 6) scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, 1.0));
+    // Posts stand just outside the overview's frame so none of them blocks an object
+    for (let x = -14; x <= 36; x += 10) scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, 1.0));
     const line = plane(60, 0.12, new MeshBasicMaterial({ color: "#c9a227" }), 10, 0.006, 0.95);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
@@ -361,6 +366,9 @@ export default function StationScene({ selected, onSelect }: Props) {
     // The objects
     const objects = [buildBulletin(), buildArcade(), buildEvents(), buildDepartures(), buildTickets()];
     objects.forEach((o) => scene.add(o));
+    // Name labels only help in the overview; close up they would sit in front of the camera
+    const labels: Sprite[] = [];
+    objects.forEach((o) => o.traverse((child) => child.userData.label && labels.push(child as Sprite)));
     const glowMap = glowTexture();
     const glows = objects.map((o) => {
       const sprite = new Sprite(new SpriteMaterial({ map: glowMap, blending: AdditiveBlending, transparent: true, opacity: 0, fog: false, depthWrite: false }));
@@ -379,7 +387,7 @@ export default function StationScene({ selected, onSelect }: Props) {
       const stop = STOPS[id];
       const target = new Vector3(...stop.target);
       const pos = new Vector3(...stop.pos);
-      if (id !== "platform") pos.copy(target).add(pos.clone().sub(target).multiplyScalar(pull));
+      pos.sub(target).multiplyScalar(pull).add(target);
       return { pos, target };
     };
     const goTo = (id: StopId, instant = false) => {
@@ -476,6 +484,10 @@ export default function StationScene({ selected, onSelect }: Props) {
       glows.forEach((glow, i) => {
         const pulse = 0.35 + 0.2 * Math.sin(t * 1.6 + i);
         glow.material.opacity += ((overview ? pulse : 0) - glow.material.opacity) * 0.1;
+      });
+      labels.forEach((sprite) => {
+        sprite.material.opacity += ((overview ? 0.92 : 0) - sprite.material.opacity) * 0.15;
+        sprite.visible = sprite.material.opacity > 0.02;
       });
       const cycle = (t % 34) / 34; // a train's lights cross the far distance every ~34 s
       headlight.visible = cycle < 0.5;

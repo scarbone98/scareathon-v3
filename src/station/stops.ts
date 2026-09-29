@@ -19,8 +19,8 @@ export const STOPS: Record<StopId, Stop> = {
     id: "platform",
     label: "Platform",
     blurb: "Tap an object to look closer.",
-    pos: [-9, 1.7, 0.3],
-    target: [3, 1.5, -0.6],
+    pos: [1, 2.4, 5.8], // over the tracks, facing the wall so every object is in view
+    target: [1, 1.5, -2],
   },
   bulletin: {
     id: "bulletin",
