@@ -12,7 +12,7 @@ import type { AvatarLook, AvatarResponse } from "../../components/avatar/types";
 import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import { useSummary } from "../data.ts";
 import { Loading, PanelHeading, Problem, Tabs } from "./ui.tsx";
-import { serif } from "./theme.ts";
+import { plateButton, serif, stubButton } from "./theme.ts";
 
 // The ticket kiosk: sign in (or buy a ticket, i.e. sign up), then the visitor's own
 // things: coins, the shop, dressing up, the inbox and the account. The shop, wardrobe
@@ -22,9 +22,9 @@ const AvatarShop = lazy(() => import("../../components/avatar/AvatarShop").then(
 const AvatarEditor = lazy(() => import("../../components/avatar/AvatarEditor").then((m) => ({ default: m.AvatarEditor })));
 const InboxContent = lazy(() => import("../../pages/Inbox/page").then((m) => ({ default: m.InboxContent })));
 
-const field = "w-full rounded-sm border border-amber-200/20 bg-black/40 px-3 py-2 text-sm text-amber-50 placeholder:text-stone-500 focus:border-amber-300/60 focus:outline-none";
-const primary = "rounded-full bg-amber-300 px-5 py-2 text-sm font-semibold text-stone-900 transition hover:bg-amber-200 disabled:opacity-60";
-const secondary = "rounded-full px-4 py-1.5 text-sm text-amber-100/80 ring-1 ring-amber-200/25 transition hover:bg-amber-100/5";
+const field = "w-full rounded-[3px] border border-[#f2ead2]/25 bg-[#0b1017]/70 px-3 py-2 text-sm text-[#f2ead2] placeholder:text-stone-500 focus:border-[#f2ead2]/70 focus:outline-none";
+const primary = stubButton;
+const secondary = plateButton;
 
 function authErrorMessage(error: unknown) {
   if (isRetryableAuthError(error) || error instanceof TypeError) return "The line to headquarters is down. Check your connection and try again in a moment.";
@@ -91,11 +91,11 @@ function SignIn() {
         One account for the arcade, the October marathon, and your own spooky little avatar. Save your scores, earn coins as you play, and spend them here.
       </PanelHeading>
       <form onSubmit={submit} className="space-y-3" aria-busy={busy}>
-        <label className="block text-xs uppercase tracking-widest text-amber-200/60">
+        <label className="block text-xs uppercase tracking-widest text-[#f2ead2]/60">
           Email
           <input className={`${field} mt-1 normal-case tracking-normal`} type="email" autoComplete="email" required value={email} disabled={busy} onChange={(e) => { setEmail(e.target.value); setError(null); }} />
         </label>
-        <label className="block text-xs uppercase tracking-widest text-amber-200/60">
+        <label className="block text-xs uppercase tracking-widest text-[#f2ead2]/60">
           Password
           <input
             className={`${field} mt-1 normal-case tracking-normal`}
@@ -221,8 +221,10 @@ function Account() {
 
 type Tab = "shop" | "wardrobe" | "inbox" | "account";
 
-function TicketHolder() {
-  const [tab, setTab] = useState<Tab>("shop");
+const isTab = (value?: string): value is Tab => value === "shop" || value === "wardrobe" || value === "inbox" || value === "account";
+
+function TicketHolder({ open }: { open?: string }) {
+  const [tab, setTab] = useState<Tab>(isTab(open) ? open : "shop");
   const [previewLook, setPreviewLook] = useState<AvatarLook | null>(null);
   const { data: summary } = useSummary();
   const unread = useInboxUnreadCount();
@@ -278,7 +280,7 @@ function TicketHolder() {
   );
 }
 
-export default function KioskPanel({ signedIn }: { signedIn: boolean | undefined }) {
+export default function KioskPanel({ signedIn, open }: { signedIn: boolean | undefined; open?: string }) {
   if (signedIn === undefined) return <Loading label="Opening the window" />;
-  return signedIn ? <TicketHolder /> : <SignIn />;
+  return signedIn ? <TicketHolder open={open} /> : <SignIn />;
 }

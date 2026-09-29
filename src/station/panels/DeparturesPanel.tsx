@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { eventState, needsSignIn, useCalendar, useScareboard } from "../data.ts";
-import type { StopId } from "../stops.ts";
+import type { GoTo } from "../stops.ts";
 import { Loading, PanelHeading, Problem, SignInFirst, Tabs } from "./ui.tsx";
 import { serif } from "./theme.ts";
 
 // The departure board: the Scareboard as a split-flap board, and the October
 // schedule as a timetable.
 
-type Props = { signedIn: boolean; goTo: (id: StopId) => void };
+type Props = { signedIn: boolean; goTo: GoTo };
 
 const flap = "rounded-[2px] bg-[#0a0c10] font-mono uppercase text-[#ffb03a] shadow-[inset_0_-1px_0_rgba(255,255,255,0.06)]";
 
@@ -133,8 +133,8 @@ function Timetable({ signedIn, goTo }: Props) {
   );
 }
 
-export default function DeparturesPanel({ signedIn, goTo }: Props) {
-  const [tab, setTab] = useState<"standings" | "timetable">("standings");
+export default function DeparturesPanel({ signedIn, goTo, open }: Props & { open?: string }) {
+  const [tab, setTab] = useState<"standings" | "timetable">(open === "timetable" ? "timetable" : "standings");
   return (
     <>
       <PanelHeading eyebrow="Departure board" title="Standings and timetable" />

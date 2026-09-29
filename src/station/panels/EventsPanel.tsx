@@ -2,14 +2,15 @@ import { useState } from "react";
 import MovieInfo from "../../pages/Home/MovieInfo";
 import StreamingProviders from "../../pages/Home/StreamingProviders";
 import { challengeTarget, eventState, formatShortDate, needsSignIn, useContentLoop, useRewardStatus, useTodayMovie } from "../data.ts";
-import type { StopId } from "../stops.ts";
+import type { GoTo } from "../stops.ts";
 import { Loading, PanelHeading, Paper, Problem, SignInFirst, Tabs } from "./ui.tsx";
 import { serif } from "./theme.ts";
 
 // The events table: the Scareathon flyer (where it stands, this week's challenge),
 // tonight's film, and the rules. Scareathon is the only event for now.
 
-type Props = { signedIn: boolean; goTo: (id: StopId) => void };
+type Props = { signedIn: boolean; goTo: GoTo };
+const isTab = (value?: string): value is Tab => value === "event" || value === "tonight" || value === "rules";
 type Tab = "event" | "tonight" | "rules";
 
 const RULES = [
@@ -26,8 +27,8 @@ function Overview({ signedIn, goTo, showTab }: Props & { showTab: (tab: Tab) => 
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-4 rounded border border-orange-500/30 bg-orange-950/20 p-4">
-        <div className="min-w-[5.5rem] rounded-sm bg-orange-500 px-3 py-2 text-center text-stone-950 shadow-[3px_3px_0_rgba(0,0,0,0.5)]">
+      <div className="flex items-center gap-4 rounded bg-[#1d2a3a]/60 p-4 ring-1 ring-[#f2ead2]/20">
+        <div className="min-w-[5.5rem] rounded-sm bg-[#efe3c8] px-3 py-2 text-center text-[#1d2a3a] shadow-[3px_3px_0_rgba(0,0,0,0.5)]">
           <p className="text-[10px] font-bold uppercase tracking-widest">{isLive ? "Day" : "Starts in"}</p>
           <p className="text-3xl font-bold leading-none" style={serif}>
             {isLive ? day : daysUntil}
@@ -58,13 +59,13 @@ function Overview({ signedIn, goTo, showTab }: Props & { showTab: (tab: Tab) => 
           </div>
           <div className="mt-3 flex gap-3 text-sm">
             {!signedIn && challenge.rewardCoins ? (
-              <button type="button" onClick={() => goTo("tickets")} className="rounded-sm bg-stone-900 px-3 py-1 text-amber-100 hover:bg-stone-700">
+              <button type="button" onClick={() => goTo("tickets")} className="rounded-sm bg-[#1d2a3a] px-3 py-1 text-[#f2ead2] hover:bg-[#2a3b50]">
                 Sign in to earn
               </button>
             ) : null}
             {challenge.gameName && (
-              <button type="button" onClick={() => goTo("arcade")} className="underline decoration-stone-500 underline-offset-4">
-                Go to the arcade
+              <button type="button" onClick={() => goTo("arcade", challenge.gameName ?? undefined)} className="underline decoration-stone-500 underline-offset-4">
+                Play it
               </button>
             )}
           </div>
@@ -82,7 +83,7 @@ function Overview({ signedIn, goTo, showTab }: Props & { showTab: (tab: Tab) => 
             key={link.label}
             type="button"
             onClick={link.action}
-            className="rounded-sm px-3 py-2 text-left text-amber-100/90 ring-1 ring-amber-200/15 transition hover:bg-amber-100/5"
+            className="rounded-[3px] px-3 py-2 text-left text-[#f2ead2]/90 ring-1 ring-[#f2ead2]/20 transition hover:bg-[#f2ead2]/5"
             style={serif}
           >
             {link.label} →
@@ -107,7 +108,7 @@ function Tonight({ signedIn, goTo }: Props) {
       {movie.lowResUrl ? (
         <img src={movie.lowResUrl} alt={movie.title} className="mx-auto h-72 rounded shadow-[4px_5px_0_rgba(0,0,0,0.5)]" />
       ) : null}
-      <p className="mt-4 text-2xl text-amber-100" style={serif}>
+      <p className="mt-4 text-2xl text-[#f2ead2]" style={serif}>
         {movie.title}
       </p>
       <MovieInfo runtime={movie.runtime} year={movie.year} rating={movie.rating} genres={movie.genres || []} />
@@ -116,8 +117,8 @@ function Tonight({ signedIn, goTo }: Props) {
   );
 }
 
-export default function EventsPanel({ signedIn, goTo }: Props) {
-  const [tab, setTab] = useState<Tab>("event");
+export default function EventsPanel({ signedIn, goTo, open }: Props & { open?: string }) {
+  const [tab, setTab] = useState<Tab>(isTab(open) ? open : "event");
   const { year } = eventState();
   return (
     <>
@@ -137,7 +138,7 @@ export default function EventsPanel({ signedIn, goTo }: Props) {
         <ol className="space-y-3">
           {RULES.map((rule, i) => (
             <li key={rule} className="flex gap-3 text-sm leading-relaxed text-stone-200">
-              <span className="text-amber-300" style={serif}>
+              <span className="text-[#f2ead2]/60" style={serif}>
                 {i + 1}.
               </span>
               <span>{rule}</span>

@@ -24,11 +24,13 @@ export const HEADINGS: Heading[] = ["front", "right", "back", "left"];
 export const HUB = {
   pos: [0, 1.6, 0.6] as [number, number, number],
   yaw: { front: 0, right: -Math.PI / 2, back: Math.PI, left: Math.PI / 2 } as Record<Heading, number>,
-  pitch: { front: -0.13, right: 0.06, back: -0.06, left: -0.05 } as Record<Heading, number>,
+  pitch: { front: 0.05, right: 0.06, back: -0.06, left: -0.05 } as Record<Heading, number>,
 };
 
-export const VIEWS: Record<Heading, { title: string; blurb: string; focus: StopId | null }> = {
-  front: { title: "Notice board", blurb: "News, flyers and what's on.", focus: "bulletin" },
+// `aim` is where a wide screen looks (to take in the whole wall); tall screens look
+// straight at the view's object
+export const VIEWS: Record<Heading, { title: string; blurb: string; focus: StopId | null; aim?: [number, number, number] }> = {
+  front: { title: "Wayside Station", blurb: "The station board: news, what's on, and your ticket.", focus: "bulletin", aim: [-0.1, 1.6, -2.2] },
   right: { title: "Ticket kiosk", blurb: "The shop, and the departure board above it.", focus: "tickets" },
   back: { title: "The tracks", blurb: "The last train left a long time ago. Mostly.", focus: null },
   left: { title: "Arcade cabinet", blurb: "Someone left it plugged in.", focus: "arcade" },
@@ -37,13 +39,13 @@ export const VIEWS: Record<Heading, { title: string; blurb: string; focus: StopI
 export const STOPS: Record<StopId, Stop> = {
   bulletin: {
     id: "bulletin",
-    label: "Notice board",
-    blurb: "News, announcements and what's on.",
-    href: "/announcements",
-    cta: "Read the news",
+    label: "Station board",
+    blurb: "News, what's on, and your ticket.",
+    href: "/",
+    cta: "Home",
     heading: "front",
-    pos: [-0.4, 1.72, -0.55],
-    target: [-0.4, 1.72, -2.1],
+    pos: [-0.9, 1.9, -0.2],
+    target: [-0.9, 1.95, -2.1],
   },
   events: {
     id: "events",
@@ -52,8 +54,8 @@ export const STOPS: Record<StopId, Stop> = {
     href: "/scareathon",
     cta: "See Scareathon",
     heading: "front",
-    pos: [0.9, 1.8, -0.1],
-    target: [0.9, 0.85, -1.25],
+    pos: [1.9, 1.7, 0.25],
+    target: [1.9, 1.35, -1.7],
   },
   arcade: {
     id: "arcade",
@@ -62,8 +64,8 @@ export const STOPS: Record<StopId, Stop> = {
     href: "/arcade",
     cta: "Play the arcade",
     heading: "left",
-    pos: [-2.5, 1.55, 0],
-    target: [-4.2, 1.3, 0],
+    pos: [-3.6, 1.55, 0.35],
+    target: [-3.6, 1.3, -1.75],
   },
   departures: {
     id: "departures",
@@ -94,3 +96,6 @@ export const isStopId = (value: string | null): value is StopId =>
 
 export const isHeading = (value: string | null): value is Heading =>
   value !== null && (HEADINGS as string[]).includes(value);
+
+// Walks to an object, optionally opening something there (a tab, or a game in the arcade)
+export type GoTo = (id: StopId, open?: string) => void;
