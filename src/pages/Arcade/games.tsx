@@ -62,7 +62,7 @@ const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
-const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=7717ec2";
+const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=cffaa05";
 const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
@@ -517,9 +517,9 @@ export function createArcadeGames(): MachineData[] {
       name: "Deep Time",
       cartridge: {
         color: "#4d5e3a",
-        tagline: "Film your way down through deep time. Something is always watching.",
+        tagline: "Steal eggs from prehistory. Spend the haul on hats.",
         font: { family: "VT323" },
-        about: { released: "2026", players: "Single player", genre: "Prehistoric found-footage horror", developer: "scarbone98" },
+        about: { released: "2026", players: "Single player", genre: "Prehistoric heist horror", developer: "scarbone98" },
         backNote: "It can't see you. Stand still.",
       },
       videoUrl: "/game-recordings/DeepTime.mp4",
