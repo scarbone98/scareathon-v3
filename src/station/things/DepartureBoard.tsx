@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { eventState, needsSignIn, useCalendar, useScareboard } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 
-// The departure board's face: the Scareboard and the October timetable, in amber
-// split-flap rows. Readable from the platform; stand under it to flip between them,
-// pick a year, and scroll.
+// The scoreboard on the wall over the ticket counter (the Scareboard, with years and past
+// winners), and the October calendar, which lives at the flyer stand: amber split-flap
+// rows, both.
 
-type Props = { signedIn: boolean; goTo: GoTo; open?: string };
+type Props = { signedIn: boolean; goTo: GoTo };
 
 const AMBER = "#ffb03a";
 const flap = "rounded-[2px] bg-[#111419] px-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.06),inset_0_1px_0_rgba(0,0,0,0.6)]";
@@ -96,31 +96,45 @@ function Timetable({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-export default function DepartureBoard({ signedIn, goTo, open }: Props) {
-  const [tab, setTab] = useState<"scareboard" | "timetable">(open === "timetable" ? "timetable" : "scareboard");
+// The board on the wall: the Scareboard
+export default function DepartureBoard({ signedIn, goTo }: Props) {
   return (
     <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3 font-mono" style={{ color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
-      <div className="mb-2 flex items-center justify-between gap-3 border-b border-[#ffb03a]/25 pb-2">
-        <span className="text-[26px] font-bold tracking-wide">DEPARTURES</span>
-        <div className="flex gap-1.5">
-          <Key active={tab === "scareboard"} onClick={() => setTab("scareboard")}>
-            SCAREBOARD
-          </Key>
-          <Key active={tab === "timetable"} onClick={() => setTab("timetable")}>
-            OCTOBER
-          </Key>
-        </div>
+      <div className="mb-2 border-b border-[#ffb03a]/25 pb-2">
+        <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
         {signedIn ? (
-          tab === "scareboard" ? <Standings signedIn={signedIn} /> : <Timetable signedIn={signedIn} />
+          <Standings signedIn={signedIn} />
         ) : (
           <>
-            <Line>SCAREBOARD ........ TICKET HOLDERS ONLY</Line>
-            <Line>OCTOBER TIMETABLE . TICKET HOLDERS ONLY</Line>
+            <Line>STANDINGS ......... TICKET HOLDERS ONLY</Line>
             <Line dim>ARCADE ............ BOARDING ALL NIGHT</Line>
             <button type="button" onClick={() => goTo("tickets")} className={`${flap} mt-3 py-1 text-[17px] hover:text-[#ffd27a]`}>
-              ▸ SIGN IN AT THE TICKET KIOSK
+              ▸ GET A TICKET AT THE COUNTER
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The October calendar, on its own card at the flyer stand: the same split-flap rows
+export function CalendarBoard({ signedIn, goTo }: Props) {
+  return (
+    <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3 font-mono" style={{ color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
+      <div className="mb-2 border-b border-[#ffb03a]/25 pb-2">
+        <span className="text-[26px] font-bold tracking-wide">OCTOBER</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
+        {signedIn ? (
+          <Timetable signedIn={signedIn} />
+        ) : (
+          <>
+            <Line>THE CALENDAR IS FOR TICKET HOLDERS</Line>
+            <button type="button" onClick={() => goTo("tickets")} className={`${flap} mt-3 py-1 text-[17px] hover:text-[#ffd27a]`}>
+              ▸ GET A TICKET AT THE COUNTER
             </button>
           </>
         )}

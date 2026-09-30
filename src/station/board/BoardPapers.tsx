@@ -115,7 +115,7 @@ function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full
       <p className="my-1.5 text-[14px] opacity-60">⁂</p>
       <p className={`text-[16px] leading-snug ${quiet} ${full ? "" : "line-clamp-2"}`}>
         {signedIn
-          ? "Your ticket is in order. Coins may be spent at the counter; letters await you in the pigeonholes."
+          ? "Your ticket is in order. Coins may be spent at the counter; your inbox is in the pigeonholes."
           : "A horror film a night through October, and an arcade all year. Tickets at the counter: save your scores, earn coins."}
       </p>
       <div className="mt-auto flex flex-wrap justify-center gap-2 pt-2">
@@ -125,7 +125,7 @@ function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full
               {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} coins` : "Coins"}
             </button>
             <button type="button" className={action} onClick={act(() => goTo("mail", "letters"))}>
-              {summary?.unreadCount ? `${summary.unreadCount} letter${summary.unreadCount === 1 ? "" : "s"}` : "Letters"}
+              {summary?.unreadCount ? `Inbox (${summary.unreadCount})` : "Inbox"}
             </button>
           </>
         ) : (
@@ -423,8 +423,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
 
 // A paper as it hangs on the board. Tap it to look closer: the camera comes up to it and
 // it shows everything it says (scrolling if there's more), usable where it hangs.
-export function PinnedPaper({ paper, onOpen, onClose, zoomed = false }: { paper: Paper; onOpen: () => void; onClose: () => void; zoomed?: boolean }) {
-  const dark = paper.id === "scareathon";
+export function PinnedPaper({ paper, onOpen, zoomed = false }: { paper: Paper; onOpen: () => void; zoomed?: boolean }) {
   return (
     <div
       role={zoomed ? undefined : "button"}
@@ -436,16 +435,6 @@ export function PinnedPaper({ paper, onOpen, onClose, zoomed = false }: { paper:
       style={{ backgroundColor: paper.tint, backgroundImage: PAPER_GRAIN, ...typewriter, ...paper.sheet }}
     >
       <span className="absolute left-1/2 top-1.5 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
-      {zoomed && (
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Back to the board"
-          className={`absolute right-1 top-0 z-10 flex h-10 w-10 items-center justify-center text-2xl leading-none ${dark ? "text-[#f2e2c2]/70 hover:text-[#f2e2c2]" : "text-[#2a1d14]/55 hover:text-[#2a1d14]"}`}
-        >
-          ×
-        </button>
-      )}
       <div className={`h-full ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`} style={{ touchAction: zoomed ? "pan-y" : undefined }}>
         {zoomed ? paper.full : paper.pinned}
       </div>

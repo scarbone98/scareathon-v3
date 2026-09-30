@@ -38,7 +38,7 @@ export const HUB = {
 export const VIEWS: Record<Heading, { title: string; focus: StopId | null; aim?: [number, number, number] }> = {
   front: { title: "Wayside Station", focus: "bulletin", aim: [-0.9, 1.75, -2.2] },
   table: { title: "Flyer stand", focus: "events" },
-  mail: { title: "Pigeonholes", focus: "mail" },
+  mail: { title: "Inbox", focus: "mail" },
   right: { title: "Ticket counter", focus: "tickets", aim: [4.6, 1.8, -0.8] },
   lockers: { title: "Left luggage", focus: "lockers" },
   back: { title: "The tracks", focus: null },
@@ -79,9 +79,9 @@ export const STOPS: Record<StopId, Stop> = {
     label: "Flyer stand",
     heading: "table",
     pos: [1.45, 1.75, 0.3],
-    target: [1.45, 1.75, -1.9],
-    fit: 1.05,
-    fitHeight: 3.25,
+    target: [1.45, 1.6, -1.9],
+    fit: 1.3,
+    fitHeight: 3.1,
     snug: true,
   },
   tickets: {
@@ -95,7 +95,7 @@ export const STOPS: Record<StopId, Stop> = {
   },
   departures: {
     id: "departures",
-    label: "Departure board",
+    label: "Scoreboard",
     heading: "right",
     pos: [2.6, 2.9, -0.85],
     target: [5.2, 3.35, -0.85],

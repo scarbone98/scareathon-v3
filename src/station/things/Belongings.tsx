@@ -9,12 +9,13 @@ import { AvatarView } from "../../components/avatar/AvatarView";
 import { lookFromAvatar } from "../../components/avatar/look";
 import type { AvatarLook, AvatarResponse } from "../../components/avatar/types";
 import { useSummary } from "../data.ts";
+import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
-// at the ticket kiosk, clothes in your left-luggage locker, letters in your pigeonhole,
+// at the ticket counter, clothes in your left-luggage locker, letters in your pigeonhole,
 // and your name in the station register beside it. The shop, wardrobe and inbox are the
 // classic site's own components, so they behave exactly the same.
 
@@ -47,7 +48,7 @@ function TicketHoldersOnly({ what, goTo, dark = true }: { what: string; goTo: Go
         {what} are for ticket holders.
       </p>
       <button type="button" onClick={() => goTo("tickets")} className={`${stubButton} mt-3`}>
-        Get a ticket at the kiosk
+        Get a ticket at the counter
       </button>
     </div>
   );
@@ -86,6 +87,7 @@ function Classic({ children }: { children: ReactNode }) {
 
 export function Shop({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const [preview, setPreview] = useState<AvatarLook | null>(null);
+  const unread = useInboxUnreadCount();
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
   return (
@@ -94,13 +96,17 @@ export function Shop({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
       <Classic>
         <AvatarShop onPreviewLookChange={setPreview} />
       </Classic>
-      <p className="mt-4 text-sm text-stone-400">
-        Bought something?{" "}
-        <button type="button" className="text-amber-300 underline underline-offset-4" onClick={() => goTo("lockers")}>
-          It's waiting in your locker
+      <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
+        <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
+          Your locker: dress up
         </button>
-        .
-      </p>
+        <button type="button" className={plateButton} onClick={() => goTo("mail", "letters")}>
+          Inbox{unread ? ` (${unread})` : ""}
+        </button>
+        <button type="button" className={plateButton} onClick={() => goTo("mail", "register")}>
+          Settings
+        </button>
+      </div>
     </>
   );
 }
@@ -120,10 +126,10 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
 }
 
 export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
-  if (!signedIn) return <TicketHoldersOnly what="Pigeonholes" goTo={goTo} />;
+  if (!signedIn) return <TicketHoldersOnly what="Inboxes" goTo={goTo} />;
   return (
     <>
-      <p className="mb-3 text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Your pigeonhole</p>
+      <p className="mb-3 text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Inbox</p>
       <Classic>
         <InboxContent />
       </Classic>
@@ -164,17 +170,17 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
       queryClient.setQueryData(["user"], data);
       void queryClient.invalidateQueries({ queryKey: ["home-v2", "summary"] });
       setEditing(false);
-      setMessage("Signed, in fresh ink.");
+      setMessage("Name updated.");
     },
   });
 
-  if (!signedIn) return <TicketHoldersOnly what="The register's pages" goTo={goTo} />;
+  if (!signedIn) return <TicketHoldersOnly what="Settings" goTo={goTo} />;
   return (
     <div className="space-y-6 text-sm text-stone-300">
       <section>
-        <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">The station register</p>
+        <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Settings</p>
         <h3 className="mt-1 text-xl text-[#f2ead2]" style={serif}>
-          The name you signed
+          Your name
         </h3>
         <p className="mt-1 text-stone-400">It's how other passengers see you.</p>
         {editing ? (
@@ -191,7 +197,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
             {error && <Problem message={error.message} />}
             <div className="flex gap-2">
               <button type="submit" className={stubButton} disabled={!name || invalid || isPending}>
-                {isPending ? "Signing…" : "Sign it"}
+                {isPending ? "Saving…" : "Save name"}
               </button>
               <button type="button" className={plateButton} onClick={() => setEditing(false)}>
                 Cancel
@@ -204,7 +210,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
               {user?.data?.username ?? "…"}
             </strong>
             <button type="button" className={plateButton} onClick={() => { setName(user?.data?.username || ""); setEditing(true); setMessage(null); }}>
-              Cross it out and sign again
+              Change name
             </button>
           </div>
         )}
@@ -214,7 +220,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
         <h3 className="text-base text-[#f2ead2]" style={serif}>
           Heading out?
         </h3>
-        <p className="mt-1 text-stone-400">Sign out of the register. Your locker and letters will be here when you get back.</p>
+        <p className="mt-1 text-stone-400">Your locker and inbox will be here when you get back.</p>
         <button type="button" className={`${plateButton} mt-3`} onClick={() => void supabase.auth.signOut()}>
           Sign out
         </button>

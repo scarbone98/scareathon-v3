@@ -5,6 +5,7 @@ import MovieInfo from "../../pages/Home/MovieInfo";
 import StreamingProviders from "../../pages/Home/StreamingProviders";
 import { challengeTarget, eventState, formatShortDate, needsSignIn, useContentLoop, useRewardStatus, useTodayMovie } from "../data.ts";
 import type { GoTo } from "../stops.ts";
+import { CalendarBoard } from "./DepartureBoard.tsx";
 import type { SheetContent } from "../Sheet.tsx";
 import { PAPER_GRAIN, serif, stubButton, typewriter } from "../style/theme.ts";
 
@@ -85,8 +86,8 @@ function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
         <button type="button" className={stubButton} onClick={() => goTo("departures")}>
           The Scareboard
         </button>
-        <button type="button" className={stubButton} onClick={() => goTo("departures", "timetable")}>
-          October timetable
+        <button type="button" className={stubButton} onClick={() => goTo("events", "calendar")}>
+          October calendar
         </button>
       </div>
     </div>
@@ -198,6 +199,18 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
           </div>
         ),
       },
+    },
+    {
+      id: "calendar",
+      title: "The October calendar",
+      tint: "#1d2a3a",
+      ink: "#f2ead2",
+      face: (
+        <Face label="Every night's film" title="OCTOBER">
+          The whole month's films, night by night.
+        </Face>
+      ),
+      sheet: { id: "calendar", title: "The October calendar", tone: "board", body: <CalendarBoard signedIn={signedIn} goTo={goTo} /> },
     },
   ];
   return { flyers, tonight };

@@ -1,6 +1,5 @@
 import { useRef, type ReactNode } from "react";
 import { PAPER_GRAIN, pixel, sans, typewriter } from "./style/theme.ts";
-import PixelArrow from "./style/PixelArrow.tsx";
 
 // Phones: standing at an object, the scene shows the object in the top of the screen and
 // this card fills the rest with the thing you're holding (a paper off the board, a flyer
@@ -16,7 +15,7 @@ export type HeldItem = {
   tint?: string;
 };
 
-type Props = { items: HeldItem[]; index: number; onIndex: (index: number) => void; onBack: () => void };
+type Props = { items: HeldItem[]; index: number; onIndex: (index: number) => void };
 
 const TONES = {
   paper: { text: "text-[#2a1d14]", rule: "border-[#2a1d14]/15", quiet: "text-[#2a1d14]/55", dot: "bg-[#2a1d14]" },
@@ -24,7 +23,7 @@ const TONES = {
   board: { text: "text-[#ffb03a]", rule: "border-[#ffb03a]/20", quiet: "text-[#ffb03a]/60", dot: "bg-[#ffb03a]" },
 };
 
-export default function HeldCard({ items, index, onIndex, onBack }: Props) {
+export default function HeldCard({ items, index, onIndex }: Props) {
   const item = items[Math.min(index, items.length - 1)];
   const swipe = useRef<{ x: number; y: number } | null>(null);
   if (!item) return null;
@@ -55,10 +54,6 @@ export default function HeldCard({ items, index, onIndex, onBack }: Props) {
       }}
     >
       <header className={`flex shrink-0 items-center gap-1 border-b px-1.5 pt-1.5 ${tone.rule}`}>
-        {/* Back to the platform lives here, in the card, rather than over the scene */}
-        <button type="button" onClick={onBack} aria-label="Back to the platform" title="Back to the platform" className="flex h-11 shrink-0 items-center px-1.5 opacity-85 hover:opacity-100">
-          <PixelArrow className="h-6 w-10" />
-        </button>
         {many ? (
           <button type="button" aria-label="Previous" onClick={() => step(-1)} className="flex h-11 w-11 items-center justify-center text-2xl" style={pixel}>
             ‹

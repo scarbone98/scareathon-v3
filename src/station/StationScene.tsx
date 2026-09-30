@@ -248,7 +248,7 @@ function drawDepartures(ctx: CanvasRenderingContext2D, w: number, h: number, lin
   ctx.textAlign = "left";
   ctx.fillStyle = "#ffb03a";
   ctx.font = "700 30px monospace";
-  ctx.fillText("DEPARTURES", 20, 40);
+  ctx.fillText("SCOREBOARD", 20, 40);
   ctx.font = "26px monospace";
   lines.slice(0, 3).forEach((line, i) => ctx.fillText(line.toUpperCase(), 20, 88 + i * 40, w - 40));
 }
@@ -356,9 +356,10 @@ const PAPER_H = 0.78;
 // The flyers on the events table, leaning in their stands (local x, y, z, lean back)
 // The flyers in their stand, top to bottom (local x, y, z, lean back)
 const FLYER_SPOTS: [number, number, number, number][] = [
-  [0, 1.62, 0.07, -0.16],
-  [0, 1.06, 0.07, -0.16],
-  [0, 0.5, 0.07, -0.16],
+  [-0.22, 1.36, 0.07, -0.16],
+  [0.22, 1.36, 0.07, -0.16],
+  [-0.22, 0.74, 0.07, -0.16],
+  [0.22, 0.74, 0.07, -0.16],
 ];
 const FLYER_W = 0.4;
 const FLYER_H = 0.52;
@@ -443,18 +444,19 @@ function buildEvents() {
   group.position.set(1.45, 0, WALL_Z + 0.3);
   const wood = standard("#4a3524");
   // A tall wooden rack against the wall, three shelves with lips holding the flyers
-  group.add(box(0.62, 1.95, 0.04, standard("#3a2a1c"), 0, 0.975, -0.06));
-  [-0.3, 0.3].forEach((x) => group.add(box(0.05, 2.0, 0.2, wood, x, 1.0, 0)));
-  [0.22, 0.78, 1.34].forEach((y) => {
-    group.add(box(0.56, 0.03, 0.2, wood, 0, y, 0.01));
-    group.add(box(0.56, 0.06, 0.02, wood, 0, y + 0.03, 0.1));
+  group.add(box(0.98, 1.72, 0.04, standard("#3a2a1c"), 0, 0.86, -0.06));
+  [-0.48, 0.48].forEach((x) => group.add(box(0.05, 1.78, 0.2, wood, x, 0.89, 0)));
+  [0.46, 1.08].forEach((y) => {
+    group.add(box(0.92, 0.03, 0.2, wood, 0, y, 0.01));
+    group.add(box(0.92, 0.06, 0.02, wood, 0, y + 0.03, 0.1));
   });
-  group.add(plane(0.5, 0.12, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.99, 0.02));
+  group.add(plane(0.6, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.76, 0.02));
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
     ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["TONIGHT", "#2a2f3a", "#e6e2d8"],
     ["THE RULES", "#efe3c8", "#2a1d14"],
+    ["OCTOBER", "#1d2a3a", "#f2ead2"],
   ];
   flyers.forEach(([title, bg, fg], i) => {
     const [x, y, z, lean] = FLYER_SPOTS[i];
@@ -473,15 +475,15 @@ function buildEvents() {
   });
   // The poster on the wall above the stand
   const posterZ = WALL_Z + 0.03 - group.position.z;
-  group.add(box(0.8, 1.12, 0.04, standard("#2a1d14", 0.7), 0, 2.85, posterZ));
+  group.add(box(0.8, 1.12, 0.04, standard("#2a1d14", 0.7), 0, 2.6, posterZ));
   const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
-  const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.85, posterZ + 0.025);
+  const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.6, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
   addLamp(group, 0, 2.4, 1.0);
-  group.add(hitBox(0.75, 2.05, 0.45, 1.0));
+  group.add(hitBox(1.1, 1.85, 0.45, 0.9));
   // Tapping the poster up close picks it up (see `part` in pick)
-  const posterHit = hitBox(0.9, 1.2, 0.3, 2.85);
+  const posterHit = hitBox(0.9, 1.2, 0.3, 2.6);
   posterHit.position.z = posterZ + 0.1;
   posterHit.userData.part = "poster";
   group.add(posterHit);
@@ -657,7 +659,7 @@ function buildMail() {
   cubby.position.set(mx, my, 0.2);
   cubby.userData.part = "letters";
   group.add(cubby);
-  group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("LETTERS"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
+  group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("INBOX"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
   // The station register on its lectern
   const lectern = new Group();
   lectern.position.set(1.25, 0, 0.35);

@@ -10,7 +10,7 @@ import type { GoTo } from "../stops.ts";
 import { useAvatarLook } from "./Belongings.tsx";
 import { serif, stubButton, typewriter } from "../style/theme.ts";
 
-// The ticket kiosk. Its window is where you sign in (or buy a ticket, i.e. sign up), and
+// The ticket counter. Its window is where you sign in (or buy a ticket, i.e. sign up), and
 // once you have a ticket it shows yours, with the way to the item shop.
 
 const field =
@@ -148,7 +148,7 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
               Your locker
             </button>
             <button type="button" className="underline decoration-[#2a1d14]/40 underline-offset-4" onClick={() => goTo("mail")}>
-              {unread ? `${unread} letter${unread === 1 ? "" : "s"} waiting` : "Your pigeonhole"}
+              {unread ? `Inbox (${unread})` : "Inbox"}
             </button>
           </div>
         </div>

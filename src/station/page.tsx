@@ -27,7 +27,7 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 
 // Wayside Station: the whole site as one train platform, with one way of using it: the
 // things in the station. The board's papers are the home page; the events table's flyers
-// and poster are the event; the departure board shows the Scareboard and timetable; the
+// and poster are the event and its calendar; the scoreboard shows the Scareboard; the
 // kiosk window is your ticket and the item shop; your locker holds your clothes; your
 // pigeonhole your letters, and the register beside it your name; the cabinet is the
 // arcade, exactly as at /arcade. Nothing here leads back to the classic pages.
@@ -51,7 +51,7 @@ function stationPlaceFor(path: string): [StopId, string?] {
   if (path.startsWith("/authentication")) return ["tickets"];
   if (path.startsWith("/arcade")) return ["arcade"];
   if (path.includes("scareboard")) return ["departures"];
-  if (path.includes("calendar")) return ["departures", "timetable"];
+  if (path.includes("calendar")) return ["events", "calendar"];
   if (path.includes("rules")) return ["events", "rules"];
   if (path.startsWith("/scareathon/today")) return ["events", "tonight"];
   if (path.startsWith("/scareathon")) return ["events"];
@@ -195,13 +195,13 @@ export default function StationPage() {
     if (!held) return null;
     if (held.kind === "flyer") return flyers.find((f) => f.id === held.id)?.sheet ?? (held.id === "tonight" ? tonight : null);
     if (held.kind === "departures")
-      return { id: "departures", title: "Departure board", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> };
+      return { id: "departures", title: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "window")
       return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", body: <Shop signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
-    if (held.kind === "letters") return { id: "letters", title: "Your letters", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
-    return { id: "register", title: "The station register", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
+    if (held.kind === "letters") return { id: "letters", title: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
+    return { id: "register", title: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
   })();
 
   // A tap on a thing in the scene: a paper, look closer at it; otherwise on phones, hold it
@@ -212,7 +212,7 @@ export default function StationPage() {
       return;
     }
     if (part === "window") {
-      setHeld({ kind: "window" });
+      setHeld(signedIn ? { kind: "shop" } : { kind: "window" });
       return;
     }
     if (compact) {
@@ -237,13 +237,13 @@ export default function StationPage() {
   };
 
   const surfaces: Record<string, ReactNode> = {
-    departures: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} />,
+    departures: <DepartureBoard signedIn={signedIn} goTo={goTo} />,
     "locker-photo": <LockerPhoto signedIn={signedIn} />,
   };
   papers.forEach(
     (paper, i) =>
       (surfaces[`paper-${i}`] = (
-        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => setZoom(i)} onClose={() => setZoom(null)} />
+        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => setZoom(i)} />
       ))
   );
   flyers.forEach(
@@ -260,13 +260,13 @@ export default function StationPage() {
       : at === "events"
           ? flyers.map((flyer) => ({ id: flyer.id, label: flyer.title, tone: flyer.sheet.tone ?? "paper", tint: flyer.sheet.tint, body: flyer.sheet.body }))
           : at === "departures"
-            ? [{ id: "departures", label: "Departures", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> }]
+            ? [{ id: "departures", label: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> }]
             : at === "lockers"
               ? [{ id: "wardrobe", label: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> }]
               : at === "mail"
                 ? [
-                    { id: "letters", label: "Letters", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
-                    { id: "register", label: "The register", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },
+                    { id: "letters", label: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
+                    { id: "register", label: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },
                   ]
                 : null;
 
@@ -385,7 +385,7 @@ export default function StationPage() {
             onPart={onPart}
           />
         </Suspense>
-        {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} onBack={stepBack} />}
+        {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
 
         {/* The arcade, as it is at /arcade, without its room */}
         {atCabinet && (
@@ -407,14 +407,15 @@ export default function StationPage() {
           <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
 
-        {at && !cardItems && !(compact && at === "arcade") && !(at === "bulletin" && zoom !== null) && (
+        {/* The way back: always in the same place, top left */}
+        {at && (
           <button
             type="button"
             onClick={stepBack}
-            aria-label="Back to the platform"
-            title="Back to the platform"
+            aria-label="Back"
+            title="Back"
             className="absolute left-2 z-20 flex min-h-11 items-center p-1 opacity-90 transition hover:opacity-100 active:translate-y-px md:left-3"
-            style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+            style={{ top: "max(0.5rem, env(safe-area-inset-top))" }}
           >
             <PixelArrow className="h-8 w-[3.3rem]" />
           </button>
@@ -458,8 +459,8 @@ export default function StationPage() {
             </button>
           )}
           {at === "tickets" && (
-            <button type="button" onClick={() => setHeld({ kind: "window" })}>
-              Go to the window
+            <button type="button" onClick={() => setHeld(signedIn ? { kind: "shop" } : { kind: "window" })}>
+              {signedIn ? "The item shop" : "Get a ticket"}
             </button>
           )}
           {at === "lockers" && (
@@ -470,10 +471,10 @@ export default function StationPage() {
           {at === "mail" && (
             <>
               <button type="button" onClick={() => setHeld({ kind: "letters" })}>
-                Take your letters
+                Open your inbox
               </button>
               <button type="button" onClick={() => setHeld({ kind: "register" })}>
-                Open the register
+                Settings
               </button>
             </>
           )}
