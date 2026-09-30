@@ -14,7 +14,7 @@ export const STATION_FONTS =
 
 // Paper grain, laid over a paper's own colour
 export const PAPER_GRAIN =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.25  0 0 0 0 0.17  0 0 0 0 0.08  0 0 0 0.45 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>\")";
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.25  0 0 0 0 0.17  0 0 0 0 0.08  0 0 0 0.16 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>\")";
 export const paperStyle = (tint: string) => ({ backgroundColor: tint, backgroundImage: PAPER_GRAIN, ...typewriter });
 
 // A small enamel plate: navy, a hard cream rule, a hard shadow

@@ -1,8 +1,9 @@
 // The station's layout. The visitor stands on the platform (the hub) and turns between
 // headings, Inscryption-style; each object is a close-up stop they walk up to. Everything
 // stands against the station building's wall, left to right: the left-luggage lockers,
-// the arcade cabinet, the station board, the events table, the ticket kiosk (with the
-// departure board above it) and the pigeonhole wall.
+// the arcade cabinet, the station board, the events table and the pigeonhole wall; then
+// a side wall runs out towards the tracks, with the ticket counter let into it and the
+// departure board above.
 
 export type StopId = "lockers" | "arcade" | "bulletin" | "events" | "tickets" | "departures" | "mail";
 export type Heading = "front" | "table" | "right" | "mail" | "back" | "lockers" | "left";
@@ -21,7 +22,7 @@ export type Stop = {
 // Clockwise, so "turn right" is the next entry. Wide screens take in the wall in three
 // views (left, front, right); phones turn to each object on its own.
 export const HEADINGS: Heading[] = ["front", "right", "back", "left"];
-export const PHONE_HEADINGS: Heading[] = ["front", "table", "right", "mail", "back", "lockers", "left"];
+export const PHONE_HEADINGS: Heading[] = ["front", "table", "mail", "right", "back", "lockers", "left"];
 
 // Where the visitor stands, and how they look along each heading. The camera looks
 // down -z at yaw 0; the building's wall is at z = -2.2 and the tracks run along +z.
@@ -37,7 +38,7 @@ export const HUB = {
 export const VIEWS: Record<Heading, { title: string; focus: StopId | null; aim?: [number, number, number] }> = {
   front: { title: "Wayside Station", focus: "bulletin", aim: [0.3, 1.8, -2.2] },
   table: { title: "Events table", focus: "events" },
-  right: { title: "Ticket kiosk", focus: "tickets", aim: [5.9, 1.9, -2.2] },
+  right: { title: "Ticket counter", focus: "tickets", aim: [7.4, 1.9, -1.2] },
   mail: { title: "Pigeonholes", focus: "mail" },
   back: { title: "The tracks", focus: null },
   lockers: { title: "Left luggage", focus: "lockers" },
@@ -66,10 +67,10 @@ export const STOPS: Record<StopId, Stop> = {
     label: "Station board",
     heading: "front",
     pos: [-0.9, 1.9, 0.35],
-    target: [-0.9, 2.02, -2.1],
+    target: [-0.9, 1.85, -2.1],
     // The tall board and its sign: just their width across a phone, so they fill most of it
-    fit: 2.2,
-    fitHeight: 3.55,
+    fit: 2.18,
+    fitHeight: 3.2,
     snug: true,
   },
   events: {
@@ -83,19 +84,19 @@ export const STOPS: Record<StopId, Stop> = {
   },
   tickets: {
     id: "tickets",
-    label: "Ticket kiosk",
+    label: "Ticket counter",
     heading: "right",
-    pos: [4.5, 1.6, 0.2],
-    target: [4.5, 1.65, -1.3],
-    fit: 1.35,
-    fitHeight: 1.5,
+    pos: [7.2, 1.6, -0.35],
+    target: [9.55, 1.6, -0.35],
+    fit: 1.9,
+    fitHeight: 1.9,
   },
   departures: {
     id: "departures",
     label: "Departure board",
     heading: "right",
-    pos: [4.5, 2.9, 0.4],
-    target: [4.5, 3.3, -2.1],
+    pos: [6.7, 2.9, -0.35],
+    target: [9.5, 3.35, -0.35],
     fit: 2.8,
     fitHeight: 1.4,
   },

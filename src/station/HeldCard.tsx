@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { PAPER_GRAIN, pixel, sans, typewriter } from "./style/theme.ts";
+import PixelArrow from "./style/PixelArrow.tsx";
 
 // Phones: standing at an object, the scene shows the object in the top of the screen and
 // this card fills the rest with the thing you're holding (a paper off the board, a flyer
@@ -55,8 +56,8 @@ export default function HeldCard({ items, index, onIndex, onBack }: Props) {
     >
       <header className={`flex shrink-0 items-center gap-1 border-b px-1.5 pt-1.5 ${tone.rule}`}>
         {/* Back to the platform lives here, in the card, rather than over the scene */}
-        <button type="button" onClick={onBack} className="flex h-11 shrink-0 items-center gap-1 px-2 text-[13px] uppercase tracking-[0.1em] opacity-75 hover:opacity-100" style={pixel}>
-          ◂ <span>Platform</span>
+        <button type="button" onClick={onBack} aria-label="Back to the platform" title="Back to the platform" className="flex h-11 shrink-0 items-center px-1.5 opacity-85 hover:opacity-100">
+          <PixelArrow className="h-6 w-10" />
         </button>
         {many ? (
           <button type="button" aria-label="Previous" onClick={() => step(-1)} className="flex h-11 w-11 items-center justify-center text-2xl" style={pixel}>

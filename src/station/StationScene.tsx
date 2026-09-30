@@ -79,6 +79,8 @@ const WALL_Z = -2.2;
 const EDGE_Z = 3.2; // the platform's edge
 const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
 const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
+const SIDE_X = 9.7; // the side wall, past the pigeonholes, running out from the station wall
+const TICKET_Z = -0.35; // where the ticket counter is let into it
 const RENDER_HEIGHT = 420; // rows of pixels the scene is drawn at, whatever the screen size
 const LAMP_IDLE = 9;
 const LAMP_LIT = 26;
@@ -375,7 +377,6 @@ const SURFACES: SurfaceSpec[] = [
   ...PAPER_SPOTS.map(([x, y, tilt], i): SurfaceSpec => ({ id: `paper-${i}`, stop: "bulletin", at: [x, y, 0.07], w: PAPER_W, px: [344, 312], tilt, lamplit: true })),
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 330] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
-  { id: "window", stop: "tickets", at: [0, 1.55, 0.462], w: 1.2, px: [480, 360] },
   { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true },
 ];
 
@@ -395,9 +396,9 @@ function buildBulletin() {
     return texture;
   });
   // The station's name, in enamel, over the board
-  group.add(box(2.4, 0.46, 0.04, standard("#11161e"), 0, 1.8, 0.0));
+  group.add(box(1.84, 0.35, 0.04, standard("#11161e"), 0, 1.66, 0.0));
   // Unlit, so the lamps' warm light doesn't turn the navy enamel brown
-  group.add(plane(2.3, 0.39, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.8, 0.025));
+  group.add(plane(1.76, 0.3, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.66, 0.025));
   addLamp(group, 0, 1.9, 1.9); // far enough out to light the whole board evenly
   group.add(hitBox(2.4, 3.6, 0.6, 0.3));
   group.userData.stopId = "bulletin";
@@ -515,9 +516,10 @@ function buildArcade() {
 
 function buildDepartures() {
   const group = new Group();
-  // On the wall over the ticket kiosk, as at a booking office; its face is HTML laid over
-  // this (SURFACES)
-  group.position.set(4.5, 3.3, WALL_Z + 0.08);
+  // On the side wall over the ticket counter, as at a booking office; its face is HTML laid
+  // over this (SURFACES)
+  group.position.set(SIDE_X - 0.18, 3.35, TICKET_Z);
+  group.rotation.y = -Math.PI / 2;
   group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
   const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
   const faceMesh = plane(2.5, 1.1, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
@@ -682,37 +684,40 @@ function buildMail() {
   return group;
 }
 
+// The ticket counter, built into the side wall past the pigeonholes: a dark window with
+// nothing to see behind it, a worn counter, and the sign. Tap the window to be served.
 function buildTickets() {
   const group = new Group();
-  group.position.set(4.5, 0, WALL_Z + 0.45); // against the wall
-  group.add(box(1.9, 2.4, 0.9, standard("#2a2f3a"), 0, 1.2, 0));
-  group.add(box(2.1, 0.12, 1.1, standard("#1c1f26"), 0, 2.46, 0));
-  // Through the window: a lit booth, and someone who may or may not be there
-  const windowView = paint(200, 150, (ctx, w, h) => {
-    const g = ctx.createRadialGradient(w / 2, h * 0.3, 10, w / 2, h / 2, w * 0.7);
-    g.addColorStop(0, "#ffe3a8");
-    g.addColorStop(1, "#b8783a");
+  group.position.set(SIDE_X - 0.13, 0, TICKET_Z);
+  group.rotation.y = -Math.PI / 2; // faces back along the platform, towards the visitor
+  const wood = standard("#3a2a1c", 0.8);
+  // The frame round the opening
+  group.add(box(1.5, 0.1, 0.12, wood, 0, 2.02, 0));
+  group.add(box(1.5, 0.12, 0.12, wood, 0, 1.06, 0));
+  [-0.7, 0.7].forEach((x) => group.add(box(0.1, 1.06, 0.12, wood, x, 1.54, 0)));
+  // The void: black, a faint grille, and a slot at the bottom for coins
+  const voidTexture = paint(64, 48, (ctx, w, h) => {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#07080b");
+    g.addColorStop(1, "#010102");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(20,12,8,0.85)";
-    ctx.beginPath();
-    ctx.arc(w * 0.62, h * 0.42, 17, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(w * 0.62, h * 1.02, 44, 50, 0, Math.PI, 0);
-    ctx.fill();
-    ctx.fillStyle = "#3a2412";
-    ctx.font = "700 15px Georgia, serif";
-    ctx.fillText("COINS ONLY", 10, 22);
+    ctx.fillStyle = "rgba(160,150,120,0.07)";
+    for (let x = 4; x < w; x += 6) ctx.fillRect(x, 0, 1, h - 6);
   });
-  // The window; what's held up behind the glass is HTML laid over it (SURFACES)
-  const windowMesh = plane(1.2, 0.9, new MeshBasicMaterial({ map: windowView }), 0, 1.55, 0.456);
+  const windowMesh = plane(1.3, 0.92, new MeshBasicMaterial({ map: voidTexture }), 0, 1.54, -0.02);
   windowMesh.userData.part = "window";
   group.add(windowMesh);
-  group.add(box(1.2, 0.06, 0.3, standard("#4a3524"), 0, 1.08, 0.55));
-  group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.2, 0.456));
-  addLamp(group, 0, 2.2, 1.2);
-  group.add(hitBox(2.1, 2.6, 1.2, 1.3));
+  group.add(box(0.36, 0.035, 0.02, standard("#050506"), 0, 1.14, 0.065));
+  // The counter
+  group.add(box(1.7, 0.07, 0.45, standard("#4a3524", 0.7), 0, 1.06, 0.26));
+  group.add(box(1.5, 1.04, 0.05, wood, 0, 0.52, 0.06));
+  group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.3, 0.02));
+  addLamp(group, 0, 2.4, 1.2);
+  const windowHit = hitBox(1.35, 1.0, 0.3, 1.54);
+  windowHit.userData.part = "window";
+  group.add(windowHit);
+  group.add(hitBox(1.9, 2.6, 0.8, 1.3));
   group.userData.stopId = "tickets";
   return group;
 }
@@ -796,6 +801,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     floorTex.repeat.set(30, 2);
     scene.add(box(60, 0.85, EDGE_Z - WALL_Z, standard("#555", 0.95, floorTex), 0, -0.425, (EDGE_Z + WALL_Z) / 2));
     scene.add(box(60, 5, 0.2, standard("#8a7f78", 1, brickTexture()), 0, 2.5, WALL_Z - 0.1));
+    const sideBricks = brickTexture();
+    sideBricks.repeat.set(2, 3);
+    scene.add(box(0.2, 5, 4.4, standard("#8a7f78", 1, sideBricks), SIDE_X + 0.1, 2.5, WALL_Z + 2.2));
     scene.add(box(60, 0.12, EDGE_Z - WALL_Z + 0.8, standard("#1c1f26"), 0, 4.1, (EDGE_Z + WALL_Z) / 2 + 0.4));
     // Posts stand well away from the visitor, so none of them crosses a view
     [-26, -18, -10, 10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, EDGE_Z - 0.2)));
@@ -1181,7 +1189,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
               // Standing at its object you can use it; from further off a tap walks you there
               pointerEvents: surfacesInteractive && at === spec.stop ? "auto" : "none",
               // Dim to the lamplight around it
-              filter: spec.lamplit ? "brightness(0.88) sepia(0.2) contrast(1.05) blur(0.3px)" : "blur(0.25px)",
+              filter:
+                zoom !== null && spec.id === `paper-${zoom}`
+                  ? "brightness(0.97) sepia(0.08)"
+                  : spec.lamplit
+                    ? "brightness(0.88) sepia(0.2) contrast(1.05) blur(0.3px)"
+                    : "blur(0.25px)",
             }}
           >
             {content}
@@ -1196,8 +1209,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       />
       <div
         ref={grainRef}
-        className="station-grain pointer-events-none absolute -inset-16 opacity-[0.07] mix-blend-overlay"
-        style={{ animation: "station-grain 0.5s steps(4) infinite" }}
+        className="station-grain pointer-events-none absolute -inset-16 mix-blend-overlay transition-opacity duration-500"
+        style={{ animation: "station-grain 0.5s steps(4) infinite", opacity: zoom !== null ? 0.015 : 0.045 }}
       />
     </div>
   );

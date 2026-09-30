@@ -17,8 +17,9 @@ import { KioskWindow } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe, useAvatarLook } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
-import { STATION_FONTS, plate, sans } from "./style/theme.ts";
+import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
+import PixelArrow from "./style/PixelArrow.tsx";
 import type { Boards } from "./StationScene.tsx";
 
 const StationScene = lazy(() => import("./StationScene.tsx"));
@@ -87,23 +88,7 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
 // How much of a phone's screen the held card takes, under the object
 const CARD_FRACTION = 0.58;
 
-// Direction signs for turning: a pointed enamel plate, drawn in big pixels like the scene
-// (one character per pixel: o outline, c cream, n navy, a the arrow)
-const ARROW_PIXELS = [
-  "....ooooooooooooooo",
-  "...occcccccccccccco",
-  "..ocnnnnnnnnnnnnnco",
-  ".ocnnnnnannnnnnnnco",
-  "ocnnnnnaannnnnnnnco",
-  "ocnnnnaaaaaaaaannco",
-  "ocnnnnnaannnnnnnnco",
-  ".ocnnnnnannnnnnnnco",
-  "..ocnnnnnnnnnnnnnco",
-  "...occcccccccccccco",
-  "....ooooooooooooooo",
-];
-const ARROW_COLOURS: Record<string, string> = { o: "#05070c", c: "#e8dcbc", n: "#1d2a3a", a: "#e8dcbc" };
-
+// Direction signs for turning
 function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => void }) {
   const left = direction === -1;
   return (
@@ -113,15 +98,7 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
       onClick={onClick}
       className={`pointer-events-auto p-1 transition active:translate-y-px ${left ? "md:hover:-translate-x-1" : "md:hover:translate-x-1"}`}
     >
-      <svg viewBox="0 0 20 12" shapeRendering="crispEdges" className="h-9 w-[3.75rem] md:h-10 md:w-[4.2rem]" style={{ transform: left ? undefined : "scaleX(-1)" }}>
-        {/* a hard shadow, one pixel down and right */}
-        {ARROW_PIXELS.map((row, y) =>
-          [...row].map((cell, x) => (cell === "." ? null : <rect key={`s${x}-${y}`} x={x + 1} y={y + 1} width={1} height={1} fill="rgba(0,0,0,0.55)" />))
-        )}
-        {ARROW_PIXELS.map((row, y) =>
-          [...row].map((cell, x) => (cell === "." ? null : <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={ARROW_COLOURS[cell]} />))
-        )}
-      </svg>
+      <PixelArrow pointing={left ? "left" : "right"} className="h-9 w-[3.75rem] md:h-10 md:w-[4.2rem]" />
     </button>
   );
 }
@@ -220,7 +197,7 @@ export default function StationPage() {
     if (held.kind === "departures")
       return { id: "departures", title: "Departure board", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> };
     if (held.kind === "window")
-      return { id: "window", title: "Ticket kiosk", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} /> };
+      return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", body: <Shop signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "letters") return { id: "letters", title: "Your letters", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
@@ -232,6 +209,10 @@ export default function StationPage() {
   const onPart = (part: string) => {
     if (part.startsWith("paper-")) {
       setZoom(Number(part.slice(6)));
+      return;
+    }
+    if (part === "window") {
+      setHeld({ kind: "window" });
       return;
     }
     if (compact) {
@@ -257,7 +238,6 @@ export default function StationPage() {
 
   const surfaces: Record<string, ReactNode> = {
     departures: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} />,
-    window: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} />,
     "locker-photo": <LockerPhoto signedIn={signedIn} />,
   };
   papers.forEach(
@@ -275,7 +255,7 @@ export default function StationPage() {
 
   // Phones: what the card under the object can hold
   const cardItems: HeldItem[] | null =
-    !compact || !at || at === "arcade" || at === "bulletin"
+    !compact || !at || at === "arcade" || at === "bulletin" || at === "tickets"
       ? null
       : at === "events"
           ? flyers.map((flyer) => ({ id: flyer.id, label: flyer.title, tone: flyer.sheet.tone ?? "paper", tint: flyer.sheet.tint, body: flyer.sheet.body }))
@@ -288,15 +268,7 @@ export default function StationPage() {
                     { id: "letters", label: "Letters", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
                     { id: "register", label: "The register", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },
                   ]
-                : [
-                    {
-                      id: "window",
-                      label: "Ticket kiosk",
-                      tone: "paper",
-                      tint: "#efe3c8",
-                      body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} />,
-                    },
-                  ];
+                : null;
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
   const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
@@ -439,10 +411,12 @@ export default function StationPage() {
           <button
             type="button"
             onClick={stepBack}
-            className={`${plate} absolute left-3 z-20 flex min-h-11 items-center px-3 text-[15px] uppercase tracking-[0.08em] opacity-90 transition hover:opacity-100 md:left-4`}
-            style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            aria-label="Back to the platform"
+            title="Back to the platform"
+            className="absolute left-2 z-20 flex min-h-11 items-center p-1 opacity-90 transition hover:opacity-100 active:translate-y-px md:left-3"
+            style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
           >
-            ◂ Platform
+            <PixelArrow className="h-8 w-[3.3rem]" />
           </button>
         )}
 
