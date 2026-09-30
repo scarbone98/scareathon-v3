@@ -315,29 +315,18 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
-    // The finger on the glass: a hot spot under it, rings rolling out from it and
-    // bright tears across the lines it's on, in the cabinet's colour
+    // The finger on the glass: a white hot spot under it, and bright tears across the
+    // lines it's on
     const paintTouch = (time: number, width: number, height: number) => {
       if (!screenContext) return;
       // (The screen's texture is flipped to suit the model's UVs)
       const x = touch.u * width;
       const y = touch.v * height;
-      const color = new Color(tintTarget).lerp(new Color("#ffffff"), 0.25);
-      const rgb = `${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)}`;
-      const age = time - touch.start;
+      const rgb = "255, 255, 255";
       screenContext.globalCompositeOperation = "lighter";
       for (let i = 0; i < 6; i += 1) {
         screenContext.fillStyle = `rgba(${rgb}, ${0.3 + Math.random() * 0.5})`;
         screenContext.fillRect(0, y + (Math.random() - 0.5) * height * 0.25, width, 1 + Math.random() * 3);
-      }
-      const reach = height * 0.7;
-      screenContext.lineWidth = 6;
-      for (let k = 0; k < 3; k += 1) {
-        const radius = (age * reach * 0.9 + (k * reach) / 3) % reach;
-        screenContext.strokeStyle = `rgba(${rgb}, ${(1 - radius / reach) * 1})`;
-        screenContext.beginPath();
-        screenContext.arc(x, y, radius, 0, Math.PI * 2);
-        screenContext.stroke();
       }
       const spot = height * (0.38 + 0.04 * Math.sin(time * 18));
       const glow = screenContext.createRadialGradient(x, y, 0, x, y, spot);
