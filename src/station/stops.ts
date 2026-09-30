@@ -25,7 +25,7 @@ export const HEADINGS: Heading[] = ["front", "right", "back", "left"];
 export const HUB = {
   pos: [0, 1.6, 0.6] as [number, number, number],
   yaw: { front: 0, right: -Math.PI / 2, back: Math.PI, left: Math.PI / 2 } as Record<Heading, number>,
-  pitch: { front: 0.05, right: 0.06, back: -0.06, left: -0.05 } as Record<Heading, number>,
+  pitch: { front: 0.05, right: 0.12, back: -0.06, left: -0.05 } as Record<Heading, number>,
 };
 
 // `aim` is where a wide screen looks (to take in the whole wall); tall screens look
@@ -56,8 +56,9 @@ export const STOPS: Record<StopId, Stop> = {
     href: "/scareathon",
     cta: "See Scareathon",
     heading: "front",
-    pos: [1.9, 1.7, 0.25],
-    target: [1.9, 1.35, -1.7],
+    pos: [1.9, 1.75, 0.2],
+    target: [1.9, 1.4, -1.6],
+    fit: 1.8,
   },
   arcade: {
     id: "arcade",
@@ -76,8 +77,9 @@ export const STOPS: Record<StopId, Stop> = {
     href: "/scareathon/scareboard",
     cta: "View the Scareboard",
     heading: "right",
-    pos: [1.7, 2.3, -0.1],
-    target: [3.4, 2.95, -0.1],
+    pos: [1.6, 2.75, -0.1],
+    target: [3.4, 3.3, -0.1],
+    fit: 2.8,
   },
   tickets: {
     id: "tickets",
@@ -86,8 +88,9 @@ export const STOPS: Record<StopId, Stop> = {
     href: "/profile/shop",
     cta: "Visit the shop",
     heading: "right",
-    pos: [2.3, 1.65, -0.1],
-    target: [4.8, 1.45, -0.1],
+    pos: [3.2, 1.6, -0.1],
+    target: [4.8, 1.55, -0.1],
+    fit: 1.35,
   },
 };
 
@@ -101,3 +104,8 @@ export const isHeading = (value: string | null): value is Heading =>
 
 // Walks to an object, optionally opening something there (a tab, or a game in the arcade)
 export type GoTo = (id: StopId, open?: string) => void;
+
+// The kiosk's catalogue: what ?open= can name at the ticket kiosk
+export type CatalogueTab = "shop" | "wardrobe" | "inbox" | "account";
+export const isCatalogueTab = (value?: string | null): value is CatalogueTab =>
+  value === "shop" || value === "wardrobe" || value === "inbox" || value === "account";

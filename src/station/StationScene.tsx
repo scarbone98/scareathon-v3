@@ -51,11 +51,13 @@ type Props = {
   onSelect: (id: StopId | null) => void;
   onTurn: (direction: 1 | -1) => void;
   boards: Boards;
-  inset: { right: number; bottom: number }; // screen covered by a panel, in CSS pixels
   paused?: boolean; // a game is playing over the scene
-  // What's on the board's papers, drawn crisply over them; tappable when standing at the board
-  papers: { id: string; tint: string; node: ReactNode }[];
-  onPaper: (index: number) => void;
+  // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
+  surfaces: Record<string, ReactNode>;
+  // Whether the surfaces take taps themselves (desktop); on phones a tap picks the thing up instead
+  surfacesInteractive: boolean;
+  // A tap on a marked part of the object you're standing at, e.g. the events poster
+  onPart: (part: string) => void;
 };
 
 // Live text for the boards in the scene
@@ -312,8 +314,33 @@ const PAPER_SPOTS: [number, number, number][] = [
 ];
 const PAPER_W = 0.86;
 const PAPER_H = 0.78;
-// The papers' own text is HTML laid onto the board (CSS3D), this many px to a metre
-const PAPER_PX = { width: 344, height: 312 };
+// The flyers on the events table, leaning in their stands (local x, y, z, lean back)
+const FLYER_SPOTS: [number, number, number, number][] = [
+  [-0.47, 1.095, -0.01, -0.45],
+  [0, 1.095, -0.01, -0.45],
+  [0.47, 1.095, -0.01, -0.45],
+];
+const FLYER_W = 0.4;
+const FLYER_H = 0.52;
+
+// Surfaces: HTML laid onto objects in 3D (CSS3D) so their text is crisp. `at` is local to
+// the stop's object; px is the HTML's size, which is scaled to w metres across.
+type SurfaceSpec = {
+  id: string;
+  stop: StopId;
+  at: [number, number, number];
+  w: number;
+  px: [number, number];
+  lean?: number;
+  tilt?: number;
+  lamplit?: boolean; // dimmed to the lamps; the departure board glows on its own
+};
+const SURFACES: SurfaceSpec[] = [
+  ...PAPER_SPOTS.map(([x, y, tilt], i): SurfaceSpec => ({ id: `paper-${i}`, stop: "bulletin", at: [x, y, 0.07], w: PAPER_W, px: [344, 312], tilt, lamplit: true })),
+  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 330] },
+  ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
+  { id: "window", stop: "tickets", at: [0, 1.55, 0.462], w: 1.2, px: [480, 360] },
+];
 
 function buildBulletin() {
   const group = new Group();
@@ -325,6 +352,7 @@ function buildBulletin() {
     const [kind, title] = IDLE_NOTICES[i];
     const texture = paint(176, 160, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, PAPERS[i]));
     const note = plane(PAPER_W, PAPER_H, standard("#ffffff", 1, texture), x, y, 0.06);
+    note.userData.part = `paper-${i}`;
     note.rotation.z = tilt;
     group.add(note);
     return texture;
@@ -373,32 +401,29 @@ function buildEvents() {
   const wood = standard("#4a3524");
   group.add(box(1.5, 0.07, 0.8, wood, 0, 0.82, 0));
   [-0.65, 0.65].forEach((x) => [-0.3, 0.3].forEach((z) => group.add(box(0.07, 0.82, 0.07, wood, x, 0.41, z))));
-  const flyers: [string, string, string, number][] = [
-    ["SCARE-ATHON", "#ff7a1a", "#1a0d05", -0.45],
-    ["COMING SOON", "#2a2f3a", "#9aa4b8", 0.05],
-    ["COMING SOON", "#2a2f3a", "#9aa4b8", 0.5],
+  // Three flyers leaning in stands (their text is HTML laid over these, see SURFACES)
+  const flyers: [string, string, string][] = [
+    ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
+    ["TONIGHT", "#2a2f3a", "#e6e2d8"],
+    ["THE RULES", "#efe3c8", "#2a1d14"],
   ];
-  flyers.forEach(([title, bg, fg, x], i) => {
-    const material = standard("#ffffff", 1, paint(256, 340, (ctx, w, h) => {
+  flyers.forEach(([title, bg, fg], i) => {
+    const [x, y, z, lean] = FLYER_SPOTS[i];
+    const material = standard("#ffffff", 1, paint(240, 312, (ctx, w, h) => {
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = fg;
-      ctx.lineWidth = 6;
-      ctx.strokeRect(10, 10, w - 20, h - 20);
       ctx.fillStyle = fg;
-      ctx.font = "700 44px Georgia, serif";
+      ctx.font = "700 40px Georgia, serif";
       ctx.textAlign = "center";
-      ctx.fillText(title, w / 2, h / 2, w - 40);
+      ctx.fillText(title, w / 2, h / 3, w - 30);
     }));
-    const flyer = plane(0.34, 0.45, material, x, 0.86, 0.05);
-    flyer.rotation.x = -Math.PI / 2;
-    flyer.rotation.z = (i - 1) * 0.25;
+    const flyer = plane(FLYER_W, FLYER_H, material, x, y, z);
+    flyer.userData.part = `flyer-${i}`;
+    flyer.rotation.x = lean;
     group.add(flyer);
+    const stand = box(FLYER_W * 0.9, 0.04, 0.12, standard("#1c1f26"), x, 0.88, 0.06);
+    group.add(stand);
   });
-  // A folded card standing on the table names it
-  const card = plane(0.5, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 0.93, -0.22);
-  card.rotation.x = -0.25;
-  group.add(card);
   // The poster on the wall above (the building's wall is 0.75 behind the table's centre)
   const posterZ = WALL_Z + 0.03 - group.position.z;
   group.add(box(0.98, 1.38, 0.04, standard("#2a1d14", 0.7), 0, 1.95, posterZ));
@@ -407,9 +432,11 @@ function buildEvents() {
   group.add(poster);
   group.userData.poster = poster;
   addLamp(group, 0, 2.3, 0.6);
-  group.add(hitBox(1.7, 0.9, 1.0, 0.6));
+  group.add(hitBox(1.7, 1.2, 1.0, 0.7));
+  // Tapping the poster up close picks it up (see `part` in pick)
   const posterHit = hitBox(1.1, 1.5, 0.3, 1.95);
   posterHit.position.z = posterZ + 0.1;
+  posterHit.userData.part = "poster";
   group.add(posterHit);
   group.userData.stopId = "events";
   return group;
@@ -451,15 +478,18 @@ function buildArcade() {
 
 function buildDepartures() {
   const group = new Group();
-  group.position.set(3.4, 2.95, -0.1);
+  // High enough to clear the kiosk behind it; its face is HTML laid over this (SURFACES)
+  group.position.set(3.4, 3.3, -0.1);
   group.rotation.y = -Math.PI / 2; // faces back along the platform, towards the visitor
-  group.add(box(2.1, 0.85, 0.1, standard("#15181f")));
-  const face = paint(512, 200, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
-  group.add(plane(2.0, 0.76, new MeshBasicMaterial({ map: face }), 0, 0, 0.056));
+  group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
+  const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
+  const faceMesh = plane(2.5, 1.1, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
+  faceMesh.userData.part = "departures";
+  group.add(faceMesh);
   group.userData.face = face;
-  [-0.9, 0.9].forEach((x) => group.add(box(0.03, 0.8, 0.03, standard("#222"), x, 0.8, 0)));
-  addLamp(group, 0, -0.3, 1.0);
-  group.add(hitBox(2.3, 1.1, 0.6, 0));
+  [-1.1, 1.1].forEach((x) => group.add(box(0.03, 0.3, 0.03, standard("#222"), x, 0.7, 0)));
+  addLamp(group, 0, -0.5, 1.0);
+  group.add(hitBox(2.8, 1.4, 0.6, 0));
   group.userData.stopId = "departures";
   return group;
 }
@@ -488,9 +518,12 @@ function buildTickets() {
     ctx.font = "700 15px Georgia, serif";
     ctx.fillText("COINS ONLY", 10, 22);
   });
-  group.add(plane(1.0, 0.75, new MeshBasicMaterial({ map: windowView }), 0, 1.5, 0.456));
+  // The window; what's held up behind the glass is HTML laid over it (SURFACES)
+  const windowMesh = plane(1.2, 0.9, new MeshBasicMaterial({ map: windowView }), 0, 1.55, 0.456);
+  windowMesh.userData.part = "window";
+  group.add(windowMesh);
   group.add(box(1.2, 0.06, 0.3, standard("#4a3524"), 0, 1.08, 0.55));
-  group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.12, 0.456));
+  group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.2, 0.456));
   addLamp(group, 0, 2.2, 1.2);
   group.add(hitBox(2.1, 2.6, 1.2, 1.3));
   group.userData.stopId = "tickets";
@@ -520,15 +553,15 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, inset, paused = false, papers, onPaper }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, surfaces, surfacesInteractive, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const paperLayerRef = useRef<HTMLDivElement | null>(null);
+  const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
-  const [paperSlots, setPaperSlots] = useState<HTMLDivElement[]>([]);
+  const [surfaceSlots, setSurfaceSlots] = useState<Record<string, HTMLDivElement>>({});
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, inset, boards, paused });
-  latest.current = { at, heading, onSelect, onTurn, inset, boards, paused };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, boards, paused });
+  latest.current = { at, heading, onSelect, onTurn, onPart, boards, paused };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -650,31 +683,35 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
     const bulletin = buildBulletin();
     const departures = buildDepartures();
     const events = buildEvents();
-    const objects = [bulletin, events, buildArcade(), departures, buildTickets()];
+    const tickets = buildTickets();
+    const objects = [bulletin, events, buildArcade(), departures, tickets];
 
-    // The board's papers as HTML, placed in 3D over the painted ones so their text is crisp
-    const paperRenderer = new CSS3DRenderer();
-    const paperLayer = paperRenderer.domElement;
-    paperLayer.style.position = "absolute";
-    paperLayer.style.inset = "0";
-    paperLayer.style.pointerEvents = "none";
-    paperLayerRef.current?.appendChild(paperLayer);
-    const slots = PAPER_SPOTS.map(([x, y, tilt]) => {
+    // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
+    // are HTML placed in 3D over their painted stand-ins, so their text is crisp
+    const surfaceRenderer = new CSS3DRenderer();
+    const surfaceLayer = surfaceRenderer.domElement;
+    surfaceLayer.style.position = "absolute";
+    surfaceLayer.style.inset = "0";
+    surfaceLayer.style.pointerEvents = "none";
+    surfaceLayerRef.current?.appendChild(surfaceLayer);
+    const parents: Record<StopId, Group> = { bulletin, events, departures, tickets, arcade: objects[2] };
+    const placed = SURFACES.map((spec) => {
       const slot = document.createElement("div");
-      slot.style.width = `${PAPER_PX.width}px`;
-      slot.style.height = `${PAPER_PX.height}px`;
+      slot.style.width = `${spec.px[0]}px`;
+      slot.style.height = `${spec.px[1]}px`;
       const object = new CSS3DObject(slot);
-      // CSS3DObject makes its element catch clicks; the paper inside decides (see the portals)
+      // CSS3DObject makes its element catch clicks; the content inside decides (see the portals)
       slot.style.pointerEvents = "none";
-      object.scale.setScalar(PAPER_W / PAPER_PX.width);
-      object.position.set(x, y, 0.07);
-      object.rotation.z = tilt;
-      bulletin.add(object);
-      return slot;
+      object.scale.setScalar(spec.w / spec.px[0]);
+      object.position.set(...spec.at);
+      object.rotation.set(spec.lean ?? 0, 0, spec.tilt ?? 0);
+      parents[spec.stop].add(object);
+      return { spec, slot, object };
     });
-    setPaperSlots(slots);
-    const boardCentre = new Vector3();
-    const toBoard = new Vector3();
+    setSurfaceSlots(Object.fromEntries(placed.map(({ spec, slot }) => [spec.id, slot])));
+    const surfaceCentre = new Vector3();
+    const toCamera = new Vector3();
+    const surfaceNormal = new Vector3();
     const facing = new Vector3();
     const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
     const paintedPoster = poster.material.map as CanvasTexture;
@@ -722,10 +759,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       }
       const stop = STOPS[stopId];
       const target = new Vector3(...stop.target);
-      // Step back further while a panel covers part of the screen
-      const { right, bottom } = latest.current.inset;
-      const room = right > 0 || bottom > 0 ? 1.35 : 1;
-      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull * room).add(target);
+      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull).add(target);
       if (stop.fit) {
         // Far enough back that the whole object fits across the screen
         const halfWidth = Math.atan(Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect);
@@ -750,14 +784,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
 
     let width = 1;
     let height = 1;
-    const offset = { x: 0, y: 0, dirty: true };
     const onResize = () => {
       width = Math.max(mount.clientWidth, 1);
       height = Math.max(mount.clientHeight, 1);
-      offset.dirty = true;
       renderer.setPixelRatio(clamp(RENDER_HEIGHT / height, 0.25, lightweight ? 1 : 2));
       renderer.setSize(width, height);
-      paperRenderer.setSize(width, height);
+      surfaceRenderer.setSize(width, height);
       const aspect = width / height;
       camera.aspect = aspect;
       camera.fov = aspect < 0.8 ? 80 : aspect < 1.2 ? 68 : 60;
@@ -775,18 +807,32 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
     const pointer = new Vector2();
     const canvas = renderer.domElement;
     let down: { x: number; y: number; t: number } | null = null;
-    const pick = (clientX: number, clientY: number): StopId | null => {
+    // The object under the pointer, and the marked part of it (e.g. "poster"), if any
+    const pickPart = (clientX: number, clientY: number): { stop: StopId; part?: string } | null => {
       const rect = canvas.getBoundingClientRect();
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(objects, true)[0];
-      let node: Object3D | null = hit ? hit.object : null;
-      while (node) {
-        if (node.userData.stopId) return node.userData.stopId as StopId;
-        node = node.parent;
+      const owner = (object: Object3D) => {
+        let node: Object3D | null = object;
+        let part: string | undefined;
+        while (node) {
+          part ??= node.userData.part;
+          if (node.userData.stopId) return { stop: node.userData.stopId as StopId, part };
+          node = node.parent;
+        }
+        return null;
+      };
+      const hits = raycaster.intersectObjects(objects, true);
+      const first = hits[0] ? owner(hits[0].object) : null;
+      if (!first || first.part) return first;
+      // The generous tap boxes sit in front; look behind them for the part that was tapped
+      for (const hit of hits) {
+        const found = owner(hit.object);
+        if (found?.stop === first.stop && found.part) return found;
       }
-      return null;
+      return first;
     };
+    const pick = (clientX: number, clientY: number) => pickPart(clientX, clientY)?.stop ?? null;
     const onPointerDown = (event: PointerEvent) => {
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
       canvas.setPointerCapture(event.pointerId);
@@ -803,13 +849,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       if (!down) return;
       const dx = event.clientX - down.x;
       const dy = event.clientY - down.y;
-      const { at: current, onSelect: select, onTurn: turn } = latest.current;
+      const { at: current, onSelect: select, onTurn: turn, onPart: partTapped } = latest.current;
       if (!current && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
         turn(dx < 0 ? 1 : -1); // drag the world: swiping left turns right
       } else if (Math.hypot(dx, dy) < 10 && performance.now() - down.t < 500) {
-        const id = pick(event.clientX, event.clientY);
-        if (id && id !== current) select(id);
-        else if (!id && current) select(null);
+        const hit = pickPart(event.clientX, event.clientY);        if (hit && hit.stop !== current) select(hit.stop);
+        else if (hit?.part) partTapped(hit.part);
+        else if (!hit && current) select(null);
       }
       down = null;
     };
@@ -850,31 +896,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       train.visible = cycle > 30;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
 
-      // Slide the picture aside while a panel covers part of the screen
-      const { right, bottom } = latest.current.inset;
-      const ox = offset.x + (right / 2 - offset.x) * 0.12;
-      const oy = offset.y + (bottom / 2 - offset.y) * 0.12;
-      if (offset.dirty || Math.abs(ox - offset.x) > 0.05 || Math.abs(oy - offset.y) > 0.05) {
-        offset.x = ox;
-        offset.y = oy;
-        offset.dirty = false;
-        if (Math.abs(ox) < 0.5 && Math.abs(oy) < 0.5) camera.clearViewOffset();
-        else camera.setViewOffset(width, height, ox, oy, width, height);
-      }
-
       renderer.render(scene, camera);
 
-      // The crisp papers only while they can line up with the picture: the board ahead,
-      // and the view not slid aside for a panel (the painted papers stand in otherwise)
-      bulletin.getWorldPosition(boardCentre);
-      toBoard.subVectors(boardCentre, camera.position).normalize();
+      // Each surface only while it's ahead of the camera and facing it (HTML behind the
+      // camera or seen from the back would draw wrongly); its painted stand-in shows otherwise
       camera.getWorldDirection(facing);
-      const showPapers = toBoard.dot(facing) > 0.45 && Math.abs(offset.x) < 0.5 && Math.abs(offset.y) < 0.5;
-      paperLayer.style.display = showPapers ? "" : "none";
-      if (showPapers) {
-        paperLayer.style.pointerEvents = "none";
-        paperRenderer.render(scene, camera);
-      }
+      placed.forEach(({ object }) => {
+        object.getWorldPosition(surfaceCentre);
+        toCamera.subVectors(camera.position, surfaceCentre).normalize();
+        object.getWorldDirection(surfaceNormal);
+        object.visible = surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35;
+      });
+      surfaceRenderer.render(scene, camera);
     };
     animate();
 
@@ -900,15 +933,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
       });
       renderer.dispose();
       mount.removeChild(canvas);
-      paperLayer.remove();
-      setPaperSlots([]);
+      surfaceLayer.remove();
+      setSurfaceSlots({});
     };
   }, []);
 
-  const panelOpen = inset.right > 0 || inset.bottom > 0;
   useEffect(() => {
     goRef.current?.(at, heading);
-  }, [at, heading, panelOpen]);
+  }, [at, heading]);
 
   useEffect(() => {
     paintBoardsRef.current?.(boards);
@@ -922,34 +954,28 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, in
         @media (prefers-reduced-motion: reduce) { .station-grain { animation: none !important } }
       `}</style>
       <div ref={mountRef} className="absolute inset-0" />
-      <div ref={paperLayerRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
-      {paperSlots.map((slot, i) =>
-        createPortal(
-          papers[i] ? (
-            <div
-              role="button"
-              tabIndex={at === "bulletin" ? 0 : -1}
-              aria-label="Take the paper down to read it"
-              onClick={() => onPaper(i)}
-              onKeyDown={(event) => event.key === "Enter" && onPaper(i)}
-              className="relative h-full w-full cursor-pointer overflow-hidden px-5 pb-4 pt-6 shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-105"
-              style={{
-                background: papers[i].tint,
-                // Standing at the board you can use them; from further off a tap walks you there
-                pointerEvents: at === "bulletin" ? "auto" : "none",
-                // Dim to the board's lamplight
-                filter: "brightness(0.9) sepia(0.12)",
-                fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-              }}
-            >
-              <span className="absolute left-1/2 top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
-              {papers[i].node}
-            </div>
-          ) : null,
+      <div ref={surfaceLayerRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
+      {SURFACES.map((spec) => {
+        const slot = surfaceSlots[spec.id];
+        const content = surfaces[spec.id];
+        if (!slot || !content) return null;
+        return createPortal(
+          <div
+            className="h-full w-full"
+            aria-hidden={!surfacesInteractive || at !== spec.stop}
+            style={{
+              // Standing at its object you can use it; from further off a tap walks you there
+              pointerEvents: surfacesInteractive && at === spec.stop ? "auto" : "none",
+              // Dim to the lamplight around it
+              filter: spec.lamplit ? "brightness(0.9) sepia(0.12)" : undefined,
+            }}
+          >
+            {content}
+          </div>,
           slot,
-          papers[i]?.id ?? `empty-${i}`
-        )
-      )}
+          spec.id
+        );
+      })}
       <div
         className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 75%, rgba(0,0,0,0.9) 100%)" }}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Toolbar from "../pages/Arcade/Toolbar.tsx";
 import { GUEST_SCORE_EVENT, type GuestScore, type MachineData } from "../pages/Arcade/games.tsx";
-import { stubButton } from "./panels/theme.ts";
+import { stubButton } from "./style/theme.ts";
 
 // A game being played at the station: the arcade's own toolbar (leaderboard, close) over
 // the game frame, filling the screen. Guests who finish a run are pointed to the kiosk

@@ -1,5 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import AnimatedPage from "../components/AnimatedPage";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -8,23 +8,30 @@ import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useContentLoop, useScareboard, useSession, useTodayMovie } from "./data.ts";
-import { HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
-import { useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
-import { PaperReader } from "./board/PaperReader.tsx";
-import { plate, sans, serif } from "./panels/theme.ts";
+import { HEADINGS, isCatalogueTab, isHeading, isStopId, STOPS, STOP_IDS, type CatalogueTab, type GoTo, type Heading, type StopId } from "./stops.ts";
+import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
+import { FlyerFace, useEventThings } from "./things/EventThings.tsx";
+import DepartureBoard from "./things/DepartureBoard.tsx";
+import { Catalogue, KioskWindow } from "./things/Kiosk.tsx";
+import Sheet, { type SheetContent } from "./Sheet.tsx";
+import { plate, sans, serif } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import type { Boards } from "./StationScene.tsx";
 
 const StationScene = lazy(() => import("./StationScene.tsx"));
 const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx"));
-const EventsPanel = lazy(() => import("./panels/EventsPanel.tsx"));
-const DeparturesPanel = lazy(() => import("./panels/DeparturesPanel.tsx"));
-const KioskPanel = lazy(() => import("./panels/KioskPanel.tsx"));
 
-// Wayside Station: the whole site as one train platform, and nothing here leads back to
-// the classic pages. The board's papers are the home page; the arcade cabinet is the
-// arcade, exactly as it works at /arcade; the other objects open a panel beside them.
-// Where the visitor is lives in the URL (?at= an object, ?open= a tab or game there,
+// Wayside Station: the whole site as one train platform, with one way of using it: the
+// things in the station. The board's papers are the home page; the events table's flyers
+// and poster are the event; the departure board shows the Scareboard and timetable; the
+// kiosk window is your ticket; the cabinet is the arcade, exactly as at /arcade. Nothing
+// here leads back to the classic pages.
+//
+// Phones first: there a tap picks a thing up into a Sheet sliding up from the bottom,
+// big enough to read and use. On wider screens you can read and use the things where
+// they stand, and pick up what's worth a closer look.
+//
+// Where the visitor is lives in the URL (?at= an object, ?open= something there,
 // ?face= which way they face), so Back walks them back.
 
 // Links into the classic site that turn up inside reused components go to the matching
@@ -43,9 +50,8 @@ function stationPlaceFor(path: string): [StopId, string?] {
   return ["bulletin"];
 }
 
-// Paint the boards in the scene from live data: the papers' headlines (under their crisp
-// HTML), the Scareboard, tonight's film or the countdown on the departure board, and the
-// poster over the events table
+// Paint the scene's own textures from live data: the papers' headlines (the stand-ins
+// under their HTML), the departure board as seen from afar, and the poster
 function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   const { isLive, daysUntil, year } = eventState();
   const { data: items = [] } = useContentLoop();
@@ -77,9 +83,9 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
       type="button"
       aria-label={left ? "Turn left" : "Turn right"}
       onClick={onClick}
-      className={`pointer-events-auto drop-shadow-[0_6px_10px_rgba(0,0,0,0.6)] transition hover:scale-105 ${left ? "hover:-translate-x-1" : "hover:translate-x-1"}`}
+      className={`pointer-events-auto p-1 drop-shadow-[0_6px_10px_rgba(0,0,0,0.6)] transition active:scale-95 md:hover:scale-105 ${left ? "md:hover:-translate-x-1" : "md:hover:translate-x-1"}`}
     >
-      <svg viewBox="0 0 72 44" className="h-11 w-[4.5rem]" style={{ transform: left ? undefined : "scaleX(-1)" }}>
+      <svg viewBox="0 0 72 44" className="h-10 w-16 md:h-11 md:w-[4.5rem]" style={{ transform: left ? undefined : "scaleX(-1)" }}>
         <path d="M3 22 L20 3 H69 V41 H20 Z" fill="#1d2a3a" stroke="#0b1017" strokeWidth="3" strokeLinejoin="round" />
         <path d="M9 22 L22.5 7.5 H64 V36.5 H22.5 Z" fill="none" stroke="#f2ead2" strokeWidth="2" strokeLinejoin="round" />
         <path d="M52 22 H30 M38 14 L30 22 L38 30" fill="none" stroke="#f2ead2" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -87,6 +93,14 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
     </button>
   );
 }
+
+// What's taken up to look at: a key, turned into content each render so it stays live
+type Held =
+  | { kind: "paper"; id: string }
+  | { kind: "flyer"; id: string }
+  | { kind: "departures" }
+  | { kind: "window" }
+  | { kind: "catalogue"; tab: CatalogueTab };
 
 export default function StationPage() {
   const [params, setParams] = useSearchParams();
@@ -97,6 +111,8 @@ export default function StationPage() {
   const heading: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
   const session = useSession();
   const signedIn = Boolean(session);
+  // Phones and tablets (and anything touch-first): tap to pick things up
+  const compact = useIsMobileArcade();
 
   const faceParams = (face: Heading): Record<string, string> => (face === "front" ? {} : { face });
   const select = (id: StopId | null, openThere?: string) =>
@@ -107,19 +123,62 @@ export default function StationPage() {
     setParams(faceParams(next), { replace: true });
   };
 
-  // The board's papers, and the one taken down to read
+  // Everything that can be read or used
   const papers = useBoardPapers(signedIn, goTo);
-  const [reading, setReading] = useState<string | null>(null);
-  const readingPaper = papers.find((paper) => paper.id === reading) ?? null;
-  const closeReader = useCallback(() => setReading(null), []);
-  useEffect(() => {
-    if (at !== "bulletin") setReading(null);
-  }, [at]);
+  const { flyers, tonight } = useEventThings(signedIn, goTo);
   const boards = useBoards(signedIn, papers);
+  const [held, setHeld] = useState<Held | null>(null);
+  const putBack = useCallback(() => setHeld(null), []);
+
+  // Arriving with ?open= picks the named thing up (e.g. the shop, or tonight's film)
+  useEffect(() => {
+    setHeld(null);
+    if (at === "events" && (open === "event" || open === "tonight" || open === "rules")) setHeld({ kind: "flyer", id: open });
+    if (at === "tickets" && signedIn && isCatalogueTab(open)) setHeld({ kind: "catalogue", tab: open });
+    // On phones the board's face and the kiosk window are too small to use where they
+    // are, so arriving at them picks them up once the walk is done
+    if (!compact || (at !== "departures" && at !== "tickets") || (at === "tickets" && signedIn && isCatalogueTab(open))) return;
+    const arrive = window.setTimeout(() => setHeld(at === "departures" ? { kind: "departures" } : { kind: "window" }), 900);
+    return () => window.clearTimeout(arrive);
+  }, [at, open, signedIn, compact]);
+
+  const openCatalogue = (tab: CatalogueTab) => setHeld({ kind: "catalogue", tab });
+  const sheet: SheetContent | null = (() => {
+    if (!held) return null;
+    if (held.kind === "paper") {
+      const paper = papers.find((p) => p.id === held.id);
+      return paper ? { id: paper.id, title: paper.title, tint: paper.tint, body: paper.full } : null;
+    }
+    if (held.kind === "flyer") return flyers.find((f) => f.id === held.id)?.sheet ?? (held.id === "tonight" ? tonight : null);
+    if (held.kind === "departures")
+      return { id: "departures", title: "Departure board", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> };
+    if (held.kind === "window")
+      return { id: "window", title: "Ticket kiosk", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} /> };
+    return { id: `catalogue-${held.tab}`, title: "Ticket kiosk", tone: "ledger", body: <Catalogue key={held.tab} initialTab={held.tab} /> };
+  })();
+
+  // A tap on a thing in the scene (phones, or where the HTML isn't drawn): pick it up
+  const onPart = (part: string) => {
+    if (part.startsWith("paper-")) {
+      const paper = papers[Number(part.slice(6))];
+      if (paper) setHeld({ kind: "paper", id: paper.id });
+    } else if (part.startsWith("flyer-")) {
+      const flyer = flyers[Number(part.slice(6))];
+      if (flyer) setHeld({ kind: "flyer", id: flyer.id });
+    } else if (part === "poster") setHeld({ kind: "flyer", id: "tonight" });
+    else if (part === "departures") setHeld({ kind: "departures" });
+    else if (part === "window") setHeld({ kind: "window" });
+  };
+
+  const surfaces: Record<string, ReactNode> = {
+    departures: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} />,
+    window: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} />,
+  };
+  papers.forEach((paper, i) => (surfaces[`paper-${i}`] = <PinnedPaper paper={paper} onOpen={() => setHeld({ kind: "paper", id: paper.id })} />));
+  flyers.forEach((flyer, i) => (surfaces[`flyer-${i}`] = <FlyerFace flyer={flyer} onOpen={() => setHeld({ kind: "flyer", id: flyer.id })} />));
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
-  const isMobileArcade = useIsMobileArcade();
-  const games = useMemo(() => createArcadeGames().filter((g) => !isMobileArcade || g.availableOnMobile !== false), [isMobileArcade]);
+  const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
   const [atCabinet, setAtCabinet] = useState(false);
   useEffect(() => {
     if (at !== "arcade") {
@@ -156,24 +215,23 @@ export default function StationPage() {
   }, [mobileMenuOpen]);
 
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back
-  const keys = useRef({ at, heading, select, turn, playing, reading });
-  keys.current = { at, heading, select, turn, playing, reading };
+  const keys = useRef({ at, heading, select, turn, busy: false });
+  keys.current = { at, heading, select, turn, busy: Boolean(playing || held) };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const { at: current, heading: facing, select: go, turn: face, playing: inGame, reading: inReader } = keys.current;
-      if (inGame || inReader) return;
+      const { at: current, heading: facing, select: go, turn: face, busy } = keys.current;
+      if (busy) return;
       if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
       // A focused button or link keeps Enter for itself
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
-      const ahead = VIEWS[facing].focus;
-      const inPanel = Boolean(target?.closest("[data-station-panel]"));
+      const ahead = { front: "bulletin", right: "tickets", back: null, left: "arcade" }[facing] as StopId | null;
       if (!current && event.key === "ArrowLeft") face(-1);
       else if (!current && event.key === "ArrowRight") face(1);
       else if (!current && (event.key === "ArrowUp" || event.key === "Enter") && ahead) go(ahead);
       else if (current && event.key === "Escape") go(null);
       // The arcade has its own arrow keys
-      else if (current && current !== "arcade" && event.key === "ArrowDown" && !inPanel) go(null);
+      else if (current && current !== "arcade" && event.key === "ArrowDown") go(null);
       else return;
       event.preventDefault();
     };
@@ -197,26 +255,6 @@ export default function StationPage() {
     };
   }, []);
 
-  // A panel covers part of the screen; the scene shifts so the object stays in view beside it
-  const hasPanel = at === "events" || at === "departures" || at === "tickets";
-  const panelRef = useRef<HTMLElement | null>(null);
-  const [inset, setInset] = useState({ right: 0, bottom: 0 });
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    if (!hasPanel || !panel) {
-      setInset({ right: 0, bottom: 0 });
-      return;
-    }
-    const measure = () => {
-      const wide = window.innerWidth >= 768;
-      setInset(wide ? { right: panel.offsetWidth, bottom: 0 } : { right: 0, bottom: panel.offsetHeight });
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(panel);
-    measure();
-    return () => observer.disconnect();
-  }, [hasPanel, at]);
-
   // Keep every click inside the station: site links go to the matching object instead
   const keepInStation = (event: ReactMouseEvent) => {
     const link = (event.target as HTMLElement).closest("a");
@@ -226,8 +264,6 @@ export default function StationPage() {
     const [id, openThere] = stationPlaceFor(href);
     select(id, openThere);
   };
-
-  const panelProps = { signedIn, goTo, open };
 
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
@@ -239,10 +275,10 @@ export default function StationPage() {
             onSelect={select}
             onTurn={turn}
             boards={boards}
-            inset={inset}
             paused={Boolean(playing) || atCabinet}
-            papers={papers.map((paper) => ({ id: paper.id, tint: paper.tint, node: paper.pinned }))}
-            onPaper={(i) => setReading(papers[i]?.id ?? null)}
+            surfaces={surfaces}
+            surfacesInteractive={!compact}
+            onPart={onPart}
           />
         </Suspense>
 
@@ -270,39 +306,25 @@ export default function StationPage() {
           <button
             type="button"
             onClick={() => select(null)}
-            className={`${plate} absolute left-4 top-4 z-20 rounded-[3px] px-3 py-1.5 text-sm uppercase tracking-[0.2em]`}
-            style={serif}
+            className={`${plate} absolute left-3 z-20 flex min-h-11 items-center rounded-[3px] px-3 text-sm uppercase tracking-[0.2em] md:left-4`}
+            style={{ ...serif, top: "max(0.75rem, env(safe-area-inset-top))" }}
           >
             ◂ Platform
           </button>
         )}
 
-        {/* Turning: direction signs at the edges, like Inscryption's arrows */}
+        {/* Turning: direction signs, low on phones where thumbs are, mid-height on desktop */}
         {!at && (
-          <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-between px-3">
+          <div
+            className="pointer-events-none absolute inset-x-0 flex justify-between px-2 md:top-1/2 md:-translate-y-1/2 md:px-3"
+            style={compact ? { bottom: "max(1.25rem, env(safe-area-inset-bottom))" } : undefined}
+          >
             <ArrowSign direction={-1} onClick={() => turn(-1)} />
             <ArrowSign direction={1} onClick={() => turn(1)} />
           </div>
         )}
 
-        {hasPanel && (
-          <aside
-            key={at}
-            ref={panelRef}
-            data-station-panel
-            aria-label={at ? STOPS[at].label : undefined}
-            className="absolute inset-x-0 bottom-0 h-[64%] overflow-y-auto overscroll-contain rounded-t-md border-t-2 border-[#f2ead2]/30 bg-[#0d131b]/95 px-5 pb-10 pt-5 text-stone-200 shadow-[0_-10px_40px_rgba(0,0,0,0.6)] backdrop-blur md:inset-x-auto md:right-0 md:top-0 md:h-auto md:w-[min(32rem,46vw)] md:rounded-none md:border-l-2 md:border-t-0 md:pb-8"
-            style={{ touchAction: "pan-y" }}
-          >
-            <Suspense fallback={<LoadingSpinner />}>
-              {at === "events" && <EventsPanel {...panelProps} />}
-              {at === "departures" && <DeparturesPanel {...panelProps} />}
-              {at === "tickets" && <KioskPanel signedIn={session === undefined ? undefined : signedIn} open={open} />}
-            </Suspense>
-          </aside>
-        )}
-
-        <PaperReader paper={readingPaper} onClose={closeReader} />
+        <Sheet sheet={sheet} onClose={putBack} />
 
         {/* Real controls for keyboard and screen-reader users: the canvas is only a picture */}
         <nav className="sr-only" aria-label="Station objects">
@@ -313,10 +335,26 @@ export default function StationPage() {
           ))}
           {at === "bulletin" &&
             papers.map((paper) => (
-              <button key={paper.id} type="button" onClick={() => setReading(paper.id)}>
+              <button key={paper.id} type="button" onClick={() => setHeld({ kind: "paper", id: paper.id })}>
                 Read: {paper.title}
               </button>
             ))}
+          {at === "events" &&
+            flyers.map((flyer) => (
+              <button key={flyer.id} type="button" onClick={() => setHeld({ kind: "flyer", id: flyer.id })}>
+                Pick up: {flyer.title}
+              </button>
+            ))}
+          {at === "departures" && (
+            <button type="button" onClick={() => setHeld({ kind: "departures" })}>
+              Read the departure board
+            </button>
+          )}
+          {at === "tickets" && (
+            <button type="button" onClick={() => setHeld({ kind: "window" })}>
+              Go to the window
+            </button>
+          )}
         </nav>
 
         <StationPlay machine={playing} onClose={stopPlaying} onSignIn={() => { stopPlaying(); select("tickets"); }} />
@@ -330,9 +368,11 @@ export default function StationPage() {
         <style>{`
           @keyframes station-arrive { from { opacity: 0 } to { opacity: 1 } }
           .station-arrive { animation: station-arrive 0.45s ease-out both }
-          @keyframes station-lift { from { opacity: 0; transform: translateY(24px) rotate(-1.5deg) scale(0.92) } to { opacity: 1; transform: none } }
-          .station-lift { animation: station-lift 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both }
-          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-lift { animation: none } }
+          @keyframes station-sheet-up { from { transform: translateY(100%) } to { transform: none } }
+          @keyframes station-sheet-lift { from { opacity: 0; transform: translateY(24px) rotate(-1.5deg) scale(0.92) } to { opacity: 1; transform: none } }
+          .station-sheet { animation: station-sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both }
+          @media (min-width: 768px) { .station-sheet { animation-name: station-sheet-lift; animation-duration: 0.28s } }
+          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-sheet { animation: none } }
         `}</style>
       </div>
     </AnimatedPage>
