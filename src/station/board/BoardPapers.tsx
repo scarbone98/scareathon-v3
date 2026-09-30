@@ -5,6 +5,7 @@ import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
 import {
   challengeTarget,
+  eventState,
   formatShortDate,
   needsSignIn,
   strapiUrl,
@@ -12,6 +13,7 @@ import {
   usePosts,
   useRewardStatus,
   useSummary,
+  useTodayMovie,
   type ContentLoopItem,
 } from "../data.ts";
 import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/games";
@@ -38,6 +40,8 @@ export type Paper = {
   tint: string;
   // How the paper itself is cut and printed; its contents bring their own padding
   sheet?: CSSProperties;
+  // Read where it hangs; there's nothing more to come up close for (the welcome)
+  noZoom?: boolean;
 };
 
 const SEPIA = "sepia(0.85) contrast(1.08) brightness(0.92) saturate(0.9)";
@@ -123,45 +127,87 @@ function EnvelopeIcon() {
 
 // ---- The welcome: a long railway company notice across the top of the board
 
-function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: boolean }) {
-  const { data: summary } = useSummary();
-  const spotlight = useSpotlightGame();
-  const button =
-    "flex flex-1 items-center justify-center gap-2 rounded-[2px] bg-[#1d2a3a] px-3 py-2 text-[18px] leading-none text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
+// A button cut like a ticket: notched at both ends, with a perforated line inside
+const ticketCut: CSSProperties = {
+  WebkitMask:
+    "radial-gradient(circle at 0 50%, transparent 7px, #000 7.5px) left / 51% 100% no-repeat, radial-gradient(circle at 100% 50%, transparent 7px, #000 7.5px) right / 51% 100% no-repeat",
+  mask: "radial-gradient(circle at 0 50%, transparent 7px, #000 7.5px) left / 51% 100% no-repeat, radial-gradient(circle at 100% 50%, transparent 7px, #000 7.5px) right / 51% 100% no-repeat",
+};
+
+function TicketButton({ label, onClick, children }: { label: string; onClick: (event: React.MouseEvent) => void; children: ReactNode }) {
   return (
-    <div className={`m-1.5 border-[3px] border-double border-[#2a1d14]/70 px-4 py-2 ${ink} ${full ? "" : "h-[calc(100%-0.75rem)]"}`}>
-      <p className="text-[12px] uppercase tracking-[0.35em]" style={serif}>
-        Wayside Station <span className="opacity-60">· passenger notice</span>
-      </p>
-      <p className={`mt-0.5 truncate leading-none ${full ? "text-[38px]" : "text-[32px]"}`} style={serif}>
-        {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
-      </p>
-      <div className="mt-2 flex gap-2">
+    <button type="button" aria-label={label} title={label} onClick={onClick} className="flex-1 bg-[#1d2a3a] p-[3px] transition hover:bg-[#2a3b50]" style={ticketCut}>
+      <span className="flex h-full items-center justify-center gap-1.5 border border-dashed border-[#efe3c8]/45 px-4 py-1.5 text-[18px] leading-none text-[#f2ead2]" style={pixel}>
+        {children}
+      </span>
+    </button>
+  );
+}
+
+function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
+  const { data: summary } = useSummary();
+  return (
+    <div className={`m-1 flex h-[calc(100%-0.5rem)] items-center gap-4 border-[3px] border-double border-[#2a1d14]/70 px-4 ${ink}`}>
+      <div className="min-w-0 shrink">
+        <p className="text-[11px] uppercase tracking-[0.35em]" style={serif}>
+          Wayside Station
+        </p>
+        <p className="truncate text-[28px] leading-none" style={serif}>
+          {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
+        </p>
+      </div>
+      <div className="ml-auto flex min-w-0 flex-1 gap-2">
         {signedIn ? (
           <>
-            <button type="button" className={button} aria-label="Tickets: the item shop" title="Tickets" onClick={act(() => goTo("tickets", "shop"))}>
-              <TicketIcon />
-              {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}
-            </button>
-            <button type="button" className={button} aria-label="Inbox" title="Inbox" onClick={act(() => goTo("mail", "letters"))}>
-              <EnvelopeIcon />
-              {summary?.unreadCount ?? 0}
-            </button>
-            <button type="button" className={button} aria-label="Your locker" title="Your locker" onClick={act(() => goTo("lockers"))}>
+            <TicketButton label="Your locker" onClick={act(() => goTo("lockers"))}>
               <PersonIcon />
-            </button>
+            </TicketButton>
+            <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))}>
+              {summary?.unreadCount ?? 0}×<EnvelopeIcon />
+            </TicketButton>
+            <TicketButton label="Tickets: the item shop" onClick={act(() => goTo("tickets", "shop"))}>
+              {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}×<TicketIcon />
+            </TicketButton>
           </>
         ) : (
-          <>
-            <p className={`flex-1 self-center text-[15px] leading-snug ${quiet}`}>A horror film a night through October, and an arcade all year.</p>
-            <button type="button" className={`${button} flex-none`} onClick={act(() => goTo("tickets"))}>
-              Sign in
-            </button>
-          </>
+          <TicketButton label="Sign in" onClick={act(() => goTo("tickets"))}>
+            Sign in
+          </TicketButton>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---- The arcade post: this week's challenge, and the game on tonight
+
+function SpotlightHandbill({ spotlight, goTo, full }: { spotlight: GameCard; goTo: GoTo; full: boolean }) {
+  return (
+    <div className={`flex h-full flex-col ${ink}`}>
+      <Photo picture={spotlight.picture} moving={full} className={full ? "aspect-video w-full" : "h-[52%] w-full shrink-0"} />
+      <div className="h-2.5 shrink-0" style={{ background: spotlight.color }} />
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-2">
+        <p className="text-[12px] uppercase tracking-[0.25em] opacity-70">Tonight in the arcade</p>
+        <p className="mt-1 text-[22px] uppercase leading-none" style={pixel}>
+          {spotlight.name.replace(/’/g, "'")}
+        </p>
+        <div className="mt-auto pt-2">
+          <button type="button" className={action} onClick={act(() => goTo("arcade", spotlight.name))}>
+            Play
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ArcadePost({ challenge, game, spotlight, signedIn, goTo, full }: { challenge?: ContentLoopItem; game: GameCard | null; spotlight: GameCard | null; signedIn: boolean; goTo: GoTo; full: boolean }) {
+  if (!challenge) return spotlight ? <SpotlightHandbill spotlight={spotlight} goTo={goTo} full={full} /> : null;
+  return (
+    <>
+      <Challenge item={challenge} game={game} signedIn={signedIn} goTo={goTo} full={full} />
       {full && spotlight && (
-        <div className="mt-3 border-t border-[#2a1d14]/25 pt-3">
+        <div className="mx-4 mb-4 border-t border-[#2a1d14]/25 pt-3">
           <p className="text-[12px] uppercase tracking-[0.25em] opacity-60">Tonight in the arcade</p>
           <Photo picture={spotlight.picture} moving className="mt-2 aspect-video w-full" />
           <p className="mt-2 text-[16px]">
@@ -172,6 +218,48 @@ function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full
           </p>
         </div>
       )}
+    </>
+  );
+}
+
+// ---- The event post: the Scareathon, as a film poster
+
+function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture: Picture }) {
+  const { isLive, daysUntil, year, day } = eventState();
+  const count = isLive ? `Night ${day} of 31` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`;
+  return (
+    <div className="relative flex h-full min-h-full flex-col bg-[#1a0f08] text-[#f2e2c2]">
+      <Photo picture={picture} className={full ? "aspect-[4/3] w-full" : "absolute inset-0"} fade="linear-gradient(to bottom, rgba(26,15,8,0.1) 30%, rgba(26,15,8,0.92) 78%)" />
+      <div className={`${full ? "" : "absolute inset-x-0 bottom-0"} px-4 pb-3 pt-2 text-center`}>
+        <p className="text-[12px] uppercase tracking-[0.4em] opacity-80">October {year}</p>
+        <p className="text-[42px] uppercase leading-[0.9] text-[#ffb070] [text-shadow:0_2px_0_#000]" style={serif}>
+          Scare-athon
+        </p>
+        <p className="mt-1 inline-block -rotate-2 border-2 border-[#ffb070] px-2 text-[14px] uppercase tracking-[0.2em] text-[#ffb070]" style={pixel}>
+          {count}
+        </p>
+        {full && (
+          <p className="mt-3 text-left text-[17px] leading-snug" style={typewriter}>
+            {isLive
+              ? "One horror film every night through Halloween. Watch along, finish the weekly challenges, and climb the Scareboard."
+              : "Starting October 1: a horror film every night through Halloween, weekly challenges, and a Scareboard for the whole month."}{" "}
+            Watch the night's film for a point, finish the week's challenge for another, and wear a costume on Halloween for one more.
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <button type="button" className={action} onClick={act(() => goTo("events", "tonight"))}>
+            {isLive ? "Tonight's film" : "How it works"}
+          </button>
+          <button type="button" className={action} onClick={act(() => goTo("departures"))}>
+            Scoreboard
+          </button>
+          {full && (
+            <button type="button" className={action} onClick={act(() => goTo("events", "calendar"))}>
+              Calendar
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -347,30 +435,45 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const challenge = items.find((item) => item.type === "weekly_challenge");
   const notices = items.filter((item) => item.type === "announcement").slice(0, 2);
   const challengeGame = useGame(challenge?.gameName);
+  const spotlight = useSpotlightGame();
+  const { isLive } = eventState();
+  const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: posts } = usePosts(signedIn);
   const postImage = strapiUrl(posts?.data?.find((post) => post.Image?.[0]?.url)?.Image?.[0]?.url);
   const postPicture: Picture = { src: postImage ?? "/images/candleskull.gif" };
+  const eventPicture: Picture = movie?.data?.lowResUrl ? { src: movie.data.lowResUrl } : { src: "/images/emptyTheater.jpg" };
 
   const papers: Paper[] = [
     {
       id: "welcome",
       kind: "NOTICE",
       title: "WAYSIDE STATION",
-      pinned: <Welcome signedIn={signedIn} goTo={goTo} full={false} />,
-      full: <Welcome signedIn={signedIn} goTo={goTo} full />,
+      pinned: <Welcome signedIn={signedIn} goTo={goTo} />,
+      full: <Welcome signedIn={signedIn} goTo={goTo} />,
       tint: "#d9cba6",
+      noZoom: true,
+    },
+    // Top left: the arcade's post
+    {
+      id: "arcade",
+      kind: challenge ? "CHALLENGE" : "ARCADE",
+      title: challenge?.title ?? spotlight?.name ?? "THE ARCADE",
+      pinned: <ArcadePost challenge={challenge} game={challengeGame} spotlight={spotlight} signedIn={signedIn} goTo={goTo} full={false} />,
+      full: <ArcadePost challenge={challenge} game={challengeGame} spotlight={spotlight} signedIn={signedIn} goTo={goTo} full />,
+      tint: "#dccd9f",
+    },
+    // Top right: the event's post
+    {
+      id: "event",
+      kind: "EVENT",
+      title: "SCARE-ATHON",
+      pinned: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
+      full: <EventPost goTo={goTo} full picture={eventPicture} />,
+      tint: "#1a0f08",
+      sheet: { backgroundImage: "none" },
     },
   ];
-  if (challenge) {
-    papers.push({
-      id: challenge.id,
-      kind: "CHALLENGE",
-      title: challenge.title,
-      pinned: <Challenge item={challenge} game={challengeGame} signedIn={signedIn} goTo={goTo} full={false} />,
-      full: <Challenge item={challenge} game={challengeGame} signedIn={signedIn} goTo={goTo} full />,
-      tint: "#dccd9f",
-    });
-  }
+  // Below: two for anything (the latest notices; the Post when there are fewer)
   notices.forEach((item, i) => {
     const picture = { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] };
     papers.push({
@@ -400,15 +503,22 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
 export function PinnedPaper({ paper, onOpen, zoomed = false }: { paper: Paper; onOpen: () => void; zoomed?: boolean }) {
   return (
     <div
-      role={zoomed ? undefined : "button"}
-      tabIndex={zoomed ? undefined : 0}
+      role={zoomed || paper.noZoom ? undefined : "button"}
+      tabIndex={zoomed || paper.noZoom ? undefined : 0}
       aria-label={zoomed ? paper.title : `Look closer: ${paper.title}`}
-      onClick={zoomed ? undefined : onOpen}
+      onClick={zoomed || paper.noZoom ? undefined : onOpen}
       onKeyDown={(event) => !zoomed && event.key === "Enter" && event.target === event.currentTarget && onOpen()}
-      className={`relative h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition ${zoomed ? "" : "cursor-pointer hover:brightness-105"}`}
+      className={`relative h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition ${zoomed || paper.noZoom ? "" : "cursor-pointer hover:brightness-105"}`}
       style={{ backgroundColor: paper.tint, backgroundImage: PAPER_GRAIN, ...typewriter, ...paper.sheet }}
     >
-      <span className="absolute left-1/2 top-1.5 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+      {paper.noZoom ? (
+        <>
+          <span className="absolute left-2 top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+          <span className="absolute right-2 top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+        </>
+      ) : (
+        <span className="absolute left-1/2 top-1.5 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+      )}
       <div
         className={`h-full ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`}
         style={{ touchAction: zoomed ? "none" : undefined }}

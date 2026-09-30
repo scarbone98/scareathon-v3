@@ -183,6 +183,10 @@ export default function StationPage() {
 
   // At the board, the paper the camera has come up to (by index), if any
   const [zoom, setZoom] = useState<number | null>(null);
+  // Papers read where they hang (the welcome) aren't zoomed into
+  const zoomTo = (i: number) => {
+    if (papers[i] && !papers[i].noZoom) setZoom(i);
+  };
   useEffect(() => setZoom(null), [at]);
 
   // On phones, which of the object's things the card holds, and whether the walk there is done
@@ -226,11 +230,15 @@ export default function StationPage() {
   // in the card, and on wide screens (where the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
     if (part.startsWith("paper-")) {
-      setZoom(Number(part.slice(6)));
+      zoomTo(Number(part.slice(6)));
       return;
     }
     if (part === "window") {
       setHeld(signedIn ? { kind: "shop" } : { kind: "window" });
+      return;
+    }
+    if (part.startsWith("advert-")) {
+      select("arcade", part.slice(7));
       return;
     }
     if (compact) {
@@ -261,7 +269,7 @@ export default function StationPage() {
   papers.forEach(
     (paper, i) =>
       (surfaces[`paper-${i}`] = (
-        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => setZoom(i)} />
+        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => zoomTo(i)} />
       ))
   );
   flyers.slice(1).forEach(
@@ -329,8 +337,8 @@ export default function StationPage() {
 
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
   // paper, the arrows move across and down the board
-  const keys = useRef({ at, heading, select, turn, stepBack, zoom, setZoom, busy: false });
-  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom, busy: Boolean(playing || held) };
+  const keys = useRef({ at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: false });
+  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: Boolean(playing || held) };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;

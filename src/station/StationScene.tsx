@@ -7,6 +7,8 @@ import {
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
+  CircleGeometry,
+  CylinderGeometry,
   Color,
   Float32BufferAttribute,
   FogExp2,
@@ -81,7 +83,7 @@ const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
 const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
 const TICKET_Z = 0; // the ticket counter is let into the middle of it
-const SIGN_Y = 3.38; // the line the signs along the wall hang on, level with the station's name
+const SIGN_Y = 3.22; // the line the signs along the wall hang on, level with the station's name
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
 const PLATFORM_MID = (30 + END_X) / 2;
@@ -344,11 +346,11 @@ const IDLE_NOTICES = [
 // The papers on the board (local x, y, tilt, width, height): the welcome, a long notice
 // across the top, and four below it
 const PAPER_SPOTS: [number, number, number, number, number][] = [
-  [0, 1.05, -0.006, 1.86, 0.48],
-  [-0.49, 0.25, 0.02, 0.86, 0.96],
-  [0.49, 0.24, -0.015, 0.86, 0.96],
-  [-0.49, -0.83, -0.01, 0.86, 0.96],
-  [0.49, -0.84, 0.02, 0.86, 0.96],
+  [0, 1.12, -0.006, 1.86, 0.34],
+  [-0.49, 0.36, 0.02, 0.86, 1.02],
+  [0.49, 0.35, -0.015, 0.86, 1.02],
+  [-0.49, -0.74, -0.01, 0.86, 1.02],
+  [0.49, -0.75, 0.02, 0.86, 1.02],
 ];
 // Where the board hangs: its centre, just off the wall
 const BOARD_POS = new Vector3(-0.9, 1.72, -2.15);
@@ -388,7 +390,7 @@ const SURFACES: SurfaceSpec[] = [
     tilt,
     lamplit: true,
   })),
-  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 330] },
+  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
   { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true },
 ];
@@ -482,16 +484,16 @@ function buildEvents() {
   });
   // The poster on the wall above the stand
   const posterZ = WALL_Z + 0.03 - group.position.z;
-  group.add(box(0.8, 1.12, 0.04, standard("#2a1d14", 0.7), 0, 2.55, posterZ));
+  group.add(box(1.0, 1.4, 0.04, standard("#2a1d14", 0.7), 0, 2.38, posterZ));
   const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
-  const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.55, posterZ + 0.025);
+  const poster = plane(0.88, 1.28, standard("#ffffff", 0.8, posterTexture), 0, 2.38, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
   group.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif")), 0, SIGN_Y, posterZ + 0.02));
   addLamp(group, 0, 2.4, 1.0);
   group.add(hitBox(1.55, 1.7, 0.5, 0.85));
   // Tapping the poster up close picks it up (see `part` in pick)
-  const posterHit = hitBox(0.9, 1.2, 0.3, 2.55);
+  const posterHit = hitBox(1.1, 1.5, 0.3, 2.38);
   posterHit.position.z = posterZ + 0.1;
   posterHit.userData.part = "poster";
   group.add(posterHit);
@@ -539,14 +541,14 @@ function buildDepartures() {
   // On the wall over the arcade, under its sign; its face is HTML laid over this (SURFACES)
   group.position.set(-3.1, 2.5, WALL_Z + 0.08);
   group.scale.setScalar(0.66);
-  group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
-  const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
-  const faceMesh = plane(2.5, 1.1, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
+  group.add(box(2.65, 1.6, 0.1, standard("#15181f")));
+  const face = paint(750, 435, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
+  const faceMesh = plane(2.5, 1.45, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
   faceMesh.userData.part = "departures";
   group.add(faceMesh);
   group.userData.face = face;
   addLamp(group, 0, -0.5, 1.0);
-  group.add(hitBox(2.8, 1.4, 0.6, 0));
+  group.add(hitBox(2.8, 1.75, 0.6, 0));
   group.userData.stopId = "departures";
   return group;
 }
@@ -568,6 +570,47 @@ function plateTexture(text: string, fg: string, bg: string) {
 // you look taped inside (HTML, see SURFACES); it's where your clothes are kept.
 const LOCKER_W = 0.5;
 const LOCKER_H = 0.95;
+// A railway clock face: cream, Roman-free bold numerals, minute ticks, black hands
+function drawClock(ctx: CanvasRenderingContext2D, w: number, h: number, now: Date) {
+  const c = Math.min(w, h) / 2;
+  ctx.fillStyle = "#f2ead2";
+  ctx.beginPath();
+  ctx.arc(c, c, c - 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#1a1512";
+  for (let i = 0; i < 60; i += 1) {
+    const a = (i / 60) * Math.PI * 2;
+    const long = i % 5 === 0;
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.rotate(a);
+    ctx.fillRect(-(long ? 3 : 1), -(c - 10), long ? 6 : 2, long ? 18 : 8);
+    ctx.restore();
+  }
+  ctx.font = "700 26px Georgia, serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let n = 1; n <= 12; n += 1) {
+    const a = (n / 12) * Math.PI * 2;
+    ctx.fillText(String(n), c + Math.sin(a) * (c - 46), c - Math.cos(a) * (c - 46));
+  }
+  ctx.font = "italic 13px Georgia, serif";
+  ctx.fillText("WAYSIDE", c, c + 40);
+  const hand = (angle: number, length: number, width: number) => {
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.rotate(angle);
+    ctx.fillRect(-width / 2, -length, width, length + 14);
+    ctx.restore();
+  };
+  const minutes = now.getMinutes() + now.getSeconds() / 60;
+  hand(((now.getHours() % 12) + minutes / 60) / 12 * Math.PI * 2, c * 0.5, 9);
+  hand((minutes / 60) * Math.PI * 2, c * 0.75, 6);
+  ctx.beginPath();
+  ctx.arc(c, c, 8, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function buildLockers() {
   const group = new Group();
   group.position.set(-5.3, 0, WALL_Z + 0.25); // left of the arcade
@@ -603,7 +646,19 @@ function buildLockers() {
       }
     })
   );
-  group.add(plane(1.4, 0.3, new MeshBasicMaterial({ map: stationSign("LEFT LUGGAGE"), color: "#c9c9c9" }), 0, 2.38, -0.2));
+  // An old station clock on the wall above, keeping real time
+  const clockFace = paint(256, 256, (ctx, w, h) => drawClock(ctx, w, h, new Date()));
+  const clock = new Group();
+  clock.position.set(0, 2.78, -0.2);
+  const rim = new Mesh(new CylinderGeometry(0.36, 0.36, 0.08, 32), standard("#2a1d14", 0.6));
+  rim.rotation.x = Math.PI / 2;
+  clock.add(rim);
+  const face = new Mesh(new CircleGeometry(0.32, 32), new MeshBasicMaterial({ map: clockFace, color: "#d8d0bc" }));
+  face.position.z = 0.045;
+  clock.add(face);
+  clock.add(box(0.06, 0.3, 0.06, standard("#2a1d14", 0.6), 0, 0.46, -0.02));
+  group.add(clock);
+  group.userData.clockFace = clockFace;
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.7, 2.3, 0.7, 1.1));
   group.userData.stopId = "lockers";
@@ -707,6 +762,52 @@ function buildMail() {
 
 // The ticket counter, built into the side wall past the pigeonholes: a dark window with
 // nothing to see behind it, a worn counter, and the sign. Tap the window to be served.
+// Adverts pasted up over the ticket counter: the arcade's games, old railway style, a
+// different three each day. Tap one to go and play it.
+const ADVERTS: [string, string, string][] = [
+  ["Ooidash", "Dash! Dodge! Survive!", "#c8452d"],
+  ["FrogBall", "Two frogs. One ball.", "#3f7d4a"],
+  ["GhostRidge", "Ride the haunted hills.", "#3d5a80"],
+  ["HordeRush", "Hold the line.", "#8a3b2a"],
+  ["DeepTime", "A prehistoric heist.", "#b07a2a"],
+  ["Muertos", "Dance with the dead.", "#a0467a"],
+  ["SalmonRun2", "Upstream, with style.", "#2f6f8f"],
+];
+function advertTexture(name: string, tagline: string, colour: string) {
+  const draw = (ctx: CanvasRenderingContext2D, w: number, h: number, still?: HTMLImageElement) => {
+    ctx.fillStyle = "#e7d9b6";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = colour;
+    ctx.fillRect(10, 10, w - 20, 44);
+    ctx.fillStyle = "#f4ead0";
+    ctx.font = "700 20px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText("NOW IN THE ARCADE", w / 2, 39, w - 30);
+    ctx.fillStyle = "#3a2a1a";
+    ctx.fillRect(18, 66, w - 36, 150);
+    if (still) {
+      ctx.filter = "sepia(0.85) contrast(1.1) brightness(0.9)";
+      const scale = Math.max((w - 36) / still.width, 150 / still.height);
+      const sw = (w - 36) / scale;
+      const sh = 150 / scale;
+      ctx.drawImage(still, (still.width - sw) / 2, (still.height - sh) / 2, sw, sh, 18, 66, w - 36, 150);
+      ctx.filter = "none";
+    }
+    ctx.fillStyle = "#2a1d14";
+    ctx.font = "700 30px Georgia, serif";
+    ctx.fillText(name.replace(/([a-z])([A-Z0-9])/g, "$1 $2").toUpperCase(), w / 2, 256, w - 24);
+    ctx.font = "italic 17px Georgia, serif";
+    ctx.fillText(tagline, w / 2, 284, w - 24);
+    ctx.fillStyle = colour;
+    ctx.fillRect(10, h - 22, w - 20, 10);
+  };
+  const texture = paint(220, 310, (ctx, w, h) => draw(ctx, w, h));
+  const still = new Image();
+  still.onload = () => repaint(texture, (ctx, w, h) => draw(ctx, w, h, still));
+  still.src = `/game-recordings/stills/${name}.jpg`;
+  return texture;
+}
+
 function buildTickets() {
   const group = new Group();
   group.position.set(SIDE_X - 0.13, 0, TICKET_Z);
@@ -734,6 +835,15 @@ function buildTickets() {
   group.add(box(1.7, 0.07, 0.45, standard("#4a3524", 0.7), 0, 1.06, 0.26));
   group.add(box(1.5, 1.04, 0.05, wood, 0, 0.52, 0.06));
   group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.3, 0.02));
+  // Three adverts pasted up above
+  const day = Math.floor(Date.now() / 86_400_000);
+  [-0.72, 0, 0.72].forEach((x, i) => {
+    const [name, tagline, colour] = ADVERTS[(day + i * 2) % ADVERTS.length];
+    const ad = plane(0.58, 0.82, standard("#ffffff", 0.95, advertTexture(name, tagline, colour)), x, 3.08, 0.015);
+    ad.rotation.z = [0.02, -0.012, 0.018][i];
+    ad.userData.part = `advert-${name}`;
+    group.add(ad);
+  });
   addLamp(group, 0, 2.4, 1.2);
   const windowHit = hitBox(1.35, 1.0, 0.3, 1.54);
   windowHit.userData.part = "window";
@@ -977,6 +1087,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const events = buildEvents();
     const tickets = buildTickets();
     const lockers = buildLockers();
+    let lastMinute = 0;
     const mail = buildMail();
     const arcade = buildArcade();
     const objects = [bench, lockers, arcade, bulletin, events, tickets, departures, mail];
@@ -1194,6 +1305,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       camera.rotation.set(cam.pitch + look.pitch + Math.sin(t * 0.5) * 0.004 * sway, cam.yaw + look.yaw + Math.sin(t * 0.37) * 0.006 * sway, 0);
 
       // The overhead lamp is tired; it stays under three flickers a second
+      // The clock moves on each minute
+      const minute = Math.floor(Date.now() / 60_000);
+      if (minute !== lastMinute) {
+        lastMinute = minute;
+        repaint(lockers.userData.clockFace as CanvasTexture, (ctx, w, h) => drawClock(ctx, w, h, new Date()));
+      }
+
       overhead.intensity = reduced ? 16 : 16 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       const current = latest.current.at;
       objects.forEach((o) => {
