@@ -355,10 +355,9 @@ const PAPER_H = 0.78;
 // The flyers on the events table, leaning in their stands (local x, y, z, lean back)
 // The flyers in their stand, top to bottom (local x, y, z, lean back)
 const FLYER_SPOTS: [number, number, number, number][] = [
-  [-0.69, 1.3, 0.09, -0.28],
-  [-0.23, 1.3, 0.09, -0.28],
-  [0.23, 1.3, 0.09, -0.28],
-  [0.69, 1.3, 0.09, -0.28],
+  [-0.46, 1.3, 0.09, -0.28],
+  [0, 1.3, 0.09, -0.28],
+  [0.46, 1.3, 0.09, -0.28],
 ];
 const FLYER_W = 0.4;
 const FLYER_H = 0.52;
@@ -444,16 +443,15 @@ function buildEvents() {
   const wood = standard("#4a3524");
   // A display stand: a slanted board on two legs, a lip along the bottom, the flyers side
   // by side on it at eye level
-  const board = box(1.92, 0.7, 0.04, standard("#3a2a1c"), 0, 1.3, 0.04);
+  const board = box(1.46, 0.7, 0.04, standard("#3a2a1c"), 0, 1.3, 0.04);
   board.rotation.x = -0.28;
   group.add(board);
-  group.add(box(1.92, 0.05, 0.08, wood, 0, 0.99, 0.2));
-  [-0.9, 0.9].forEach((x) => group.add(box(0.06, 1.6, 0.06, wood, x, 0.8, 0)));
-  group.add(box(1.86, 0.04, 0.04, wood, 0, 0.35, 0));
+  group.add(box(1.46, 0.05, 0.08, wood, 0, 0.99, 0.2));
+  [-0.68, 0.68].forEach((x) => group.add(box(0.06, 1.6, 0.06, wood, x, 0.8, 0)));
+  group.add(box(1.4, 0.04, 0.04, wood, 0, 0.35, 0));
   group.add(plane(0.6, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.72, -0.04));
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
-    ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["TONIGHT", "#2a2f3a", "#e6e2d8"],
     ["THE RULES", "#efe3c8", "#2a1d14"],
     ["OCTOBER", "#1d2a3a", "#f2ead2"],
@@ -481,7 +479,7 @@ function buildEvents() {
   group.add(poster);
   group.userData.poster = poster;
   addLamp(group, 0, 2.4, 1.0);
-  group.add(hitBox(2.0, 1.7, 0.5, 0.85));
+  group.add(hitBox(1.55, 1.7, 0.5, 0.85));
   // Tapping the poster up close picks it up (see `part` in pick)
   const posterHit = hitBox(0.9, 1.2, 0.3, 2.55);
   posterHit.position.z = posterZ + 0.1;
@@ -518,7 +516,8 @@ function buildArcade() {
     () => undefined
   );
   // Its sign on the wall above
-  group.add(plane(1.0, 0.25, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), 0, 2.3, WALL_Z + 0.03 - group.position.z));
+  // Its sign on the wall high above, over the scoreboard
+  group.add(plane(1.0, 0.25, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, 3.88, WALL_Z + 0.03 - group.position.z));
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
@@ -527,10 +526,9 @@ function buildArcade() {
 
 function buildDepartures() {
   const group = new Group();
-  // On the side wall over the ticket counter, as at a booking office; its face is HTML laid
-  // over this (SURFACES)
-  group.position.set(SIDE_X - 0.18, 3.35, TICKET_Z);
-  group.rotation.y = -Math.PI / 2;
+  // On the wall over the arcade, under its sign; its face is HTML laid over this (SURFACES)
+  group.position.set(-3.1, 2.65, WALL_Z + 0.08);
+  group.scale.setScalar(0.78);
   group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
   const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
   const faceMesh = plane(2.5, 1.1, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
@@ -660,7 +658,9 @@ function buildMail() {
   group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("INBOX"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
   // The station register on its lectern
   const lectern = new Group();
-  lectern.position.set(1.25, 0, 0.35);
+  // Tucked into the corner by the side wall, turned to face the platform
+  lectern.position.set(1.28, 0, 0.1);
+  lectern.rotation.y = -Math.PI / 4;
   lectern.add(box(0.1, 1.0, 0.1, wood, 0, 0.5, 0));
   lectern.add(box(0.5, 0.05, 0.36, wood, 0, 1.02, 0));
   const ledger = paint(300, 210, (ctx, w, h) => {
@@ -825,8 +825,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     bench.position.set(END_X + 1.0, 0, 0.9);
     bench.rotation.y = Math.PI / 2; // facing out over the railing
     bench.add(box(1.4, 0.06, 0.42, standard("#4a3524"), 0, 0.45, 0));
-    bench.add(box(1.4, 0.4, 0.05, standard("#4a3524"), 0, 0.8, -0.2));
     [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
+    bench.add(hitBox(1.6, 0.9, 0.7, 0.4));
+    bench.userData.stopId = "bench";
+    addLamp(bench, 0, 1.6, 0.6);
     scene.add(bench);
     scene.add(box(0.08, 3.4, 0.08, iron, END_X + 0.3, 1.7, EDGE_Z - 0.4));
     const endLamp = new PointLight("#ffb060", 10, 7, 2);
@@ -930,7 +932,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lockers = buildLockers();
     const mail = buildMail();
     const arcade = buildArcade();
-    const objects = [lockers, arcade, bulletin, events, tickets, departures, mail];
+    const objects = [bench, lockers, arcade, bulletin, events, tickets, departures, mail];
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
     // are HTML placed in 3D over their painted stand-ins, so their text is crisp
@@ -940,7 +942,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     surfaceLayer.style.inset = "0";
     surfaceLayer.style.pointerEvents = "none";
     surfaceLayerRef.current?.appendChild(surfaceLayer);
-    const parents: Record<StopId, Group> = { lockers, arcade, bulletin, events, tickets, departures, mail };
+    const parents: Record<StopId, Group> = { bench, lockers, arcade, bulletin, events, tickets, departures, mail };
     const placed = SURFACES.map((spec) => {
       const slot = document.createElement("div");
       slot.style.width = `${spec.px[0]}px`;
@@ -996,14 +998,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let pull = 1;
     const poseFor = (stopId: StopId | null, facing: Heading) => {
       if (!stopId) {
-        const { focus, aim, spot } = VIEWS[facing];
-        // A view with a spot of its own (the scenic view): go and stand there
-        if (spot) return { x: spot[0], y: spot[1], z: spot[2], yaw: HUB.yaw[facing], pitch: HUB.pitch[facing] };
+        const { focus, aim } = VIEWS[facing];
         const [x, y, z] = HUB.pos;
+        // Phones stand further back, to take in as much as a wide screen does
         const hubZ = pull > 1 ? EDGE_Z - 0.5 : z;
-        // Wide screens take in the whole view; tall ones turn to face its object (but the
-        // front view always faces the board)
-        const point = (pull === 1 || facing === "front") && aim ? aim : focus ? STOPS[focus].target : null;
+        const point = aim ?? (focus ? STOPS[focus].target : null);
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
       }

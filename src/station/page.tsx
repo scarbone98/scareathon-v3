@@ -9,7 +9,7 @@ import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { AvatarView } from "../components/avatar/AvatarView";
 import { eventState, useContentLoop, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
-import { HEADINGS, PHONE_HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
+import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
@@ -113,9 +113,6 @@ type Held =
   | { kind: "letters" }
   | { kind: "register" };
 
-// Wide screens take in the wall in three views; the objects phones turn to on their own
-// belong to one of them
-const WIDE_HEADING: Partial<Record<Heading, Heading>> = { table: "front", mail: "right", lockers: "left" };
 
 // The photo taped inside your locker door: how you look now
 function LockerPhoto({ signedIn }: { signedIn: boolean }) {
@@ -142,10 +139,10 @@ export default function StationPage() {
   const signedIn = Boolean(session);
   // Phones and tablets (and anything touch-first)
   const compact = useIsMobileArcade();
-  // Phones turn to each object on its own; wide screens take in the wall three views wide
-  const headings = compact ? PHONE_HEADINGS : HEADINGS;
+  // The same four views on every screen
+  const headings = HEADINGS;
   const wanted: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
-  const heading: Heading = headings.includes(wanted) ? wanted : WIDE_HEADING[wanted] ?? "front";
+  const heading: Heading = headings.includes(wanted) ? wanted : FOLD[wanted] ?? "front";
 
   const faceParams = (face: Heading): Record<string, string> => (face === "front" ? {} : { face });
   const select = (id: StopId | null, openThere?: string) =>
@@ -155,6 +152,23 @@ export default function StationPage() {
     const next = headings[(headings.indexOf(heading) + direction + headings.length) % headings.length];
     setParams(faceParams(next), { replace: true });
   };
+
+  // Arriving at the station: the platform for a beat, then up to the board. Only on the
+  // way in with nowhere named; anything the visitor does first cancels it.
+  const intro = useRef(!params.has("at") && !params.has("face"));
+  useEffect(() => {
+    if (!intro.current) return;
+    // The visitor went somewhere themselves: no walk
+    if (params.toString() !== "") {
+      intro.current = false;
+      return;
+    }
+    const walk = window.setTimeout(() => {
+      intro.current = false;
+      setParams({ at: "bulletin" }, { replace: true });
+    }, 1400);
+    return () => window.clearTimeout(walk);
+  }, [params, setParams]);
 
   // Everything that can be read or used
   const papers = useBoardPapers(signedIn, goTo);
@@ -180,7 +194,7 @@ export default function StationPage() {
   // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film)
   useEffect(() => {
     setHeld(null);
-    const flyerIndex = flyers.findIndex((flyer) => flyer.id === open);
+    const flyerIndex = flyers.findIndex((flyer) => flyer.id === open || (open === "event" && flyer.id === "event"));
     setCardIndex(at === "events" && flyerIndex >= 0 ? flyerIndex : at === "mail" && open === "register" ? 1 : 0);
     if (at === "events" && flyerIndex >= 0 && !compact) setHeld({ kind: "flyer", id: flyers[flyerIndex].id });
     if (at === "tickets" && open === "shop") setHeld({ kind: "shop" });
@@ -217,9 +231,9 @@ export default function StationPage() {
     }
     if (compact) {
       const index = part.startsWith("flyer-")
-        ? Number(part.slice(6))
+        ? Number(part.slice(6)) + 1
         : part === "poster"
-          ? flyers.findIndex((f) => f.id === "tonight")
+          ? 0
           : part === "register"
             ? 1
             : 0;
@@ -227,9 +241,9 @@ export default function StationPage() {
       return;
     }
     if (part.startsWith("flyer-")) {
-      const flyer = flyers[Number(part.slice(6))];
+      const flyer = flyers[Number(part.slice(6)) + 1];
       if (flyer) setHeld({ kind: "flyer", id: flyer.id });
-    } else if (part === "poster") setHeld({ kind: "flyer", id: "tonight" });
+    } else if (part === "poster") setHeld({ kind: "flyer", id: "event" });
     else if (part === "departures") setHeld({ kind: "departures" });
     else if (part === "window") setHeld({ kind: "window" });
     else if (part === "locker") setHeld({ kind: "wardrobe" });
@@ -246,10 +260,10 @@ export default function StationPage() {
         <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => setZoom(i)} />
       ))
   );
-  flyers.forEach(
+  flyers.slice(1).forEach(
     (flyer, i) =>
       (surfaces[`flyer-${i}`] = (
-        <FlyerFace flyer={flyer} held={compact && at === "events" && cardIndex === i} onOpen={() => setHeld({ kind: "flyer", id: flyer.id })} />
+        <FlyerFace flyer={flyer} held={compact && at === "events" && cardIndex === i + 1} onOpen={() => setHeld({ kind: "flyer", id: flyer.id })} />
       ))
   );
 
@@ -415,14 +429,14 @@ export default function StationPage() {
             aria-label="Back"
             title="Back"
             className="absolute left-2 z-20 flex min-h-11 items-center p-1 opacity-90 transition hover:opacity-100 active:translate-y-px md:left-3"
-            style={{ top: "max(0.5rem, env(safe-area-inset-top))" }}
+            style={{ bottom: `calc(${cardItems ? "58%" : "0px"} + max(0.5rem, env(safe-area-inset-bottom)))` }}
           >
             <PixelArrow className="h-8 w-[3.3rem]" />
           </button>
         )}
 
         {/* Turning: direction signs, low on phones where thumbs are, mid-height on desktop */}
-        {!at && (
+        {!at && !compact && (
           <div
             className="pointer-events-none absolute inset-x-0 flex justify-between px-2 md:top-1/2 md:-translate-y-1/2 md:px-3"
             style={compact ? { bottom: "max(1.25rem, env(safe-area-inset-bottom))" } : undefined}
