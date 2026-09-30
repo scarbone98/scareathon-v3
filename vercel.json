@@ -33,5 +33,29 @@
             "source": "/((?!assets/).*)",
             "destination": "/index.html"
         }
+    ],
+    "redirects": [
+        {
+            "source": "/",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station",
+            "permanent": false
+        },
+        {
+            "source": "/",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station",
+            "permanent": false
+        }
     ]
 }
