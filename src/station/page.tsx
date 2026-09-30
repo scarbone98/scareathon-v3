@@ -451,7 +451,16 @@ export default function StationPage() {
         {arcadeBuilt && (
           <div
             className="absolute inset-0 z-10 transition-[opacity,background-color] duration-500 ease-out"
-            style={{ opacity: atCabinet ? 1 : 0, pointerEvents: atCabinet ? "auto" : "none", backgroundColor: atCabinet ? "rgba(3,4,8,0.55)" : "transparent" }}
+            style={{
+              opacity: atCabinet ? 1 : 0,
+              pointerEvents: atCabinet ? "auto" : "none",
+              backgroundColor: atCabinet ? "rgba(3,4,8,0.55)" : "transparent",
+              // Hidden, it must take no touches at all: its terminal card sets pointer-events
+              // of its own, which would otherwise catch taps and swipes meant for the station
+              visibility: atCabinet ? "visible" : "hidden",
+              transitionProperty: "opacity, background-color, visibility",
+              transitionDelay: atCabinet ? "0s" : "0s, 0s, 0.5s",
+            }}
           >
             <Suspense fallback={null}>
               <CartridgeArcade

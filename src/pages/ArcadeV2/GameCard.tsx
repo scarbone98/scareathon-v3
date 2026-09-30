@@ -418,23 +418,30 @@ function ScreenBody({
   );
 }
 
-// The glass jolting when the machine's knocked (animated in place, so nothing in it resets)
+// The glass when the machine's knocked: interference. The text splits into red and blue
+// and the tube flickers while a couple of bright bands roll down; the glass stays put.
+const split = (px: number) => `${-px}px 0 rgba(255, 50, 90, 0.85), ${px}px 0 rgba(60, 200, 255, 0.85), ${GLOW}`;
 const GLITCH_FRAMES: Keyframe[] = [
-  { transform: "translate(0, 0) skewX(0deg)", filter: "none" },
-  { transform: "translate(-6px, 1px) skewX(-4deg)", filter: "brightness(1.6)" },
-  { transform: "translate(5px, -1px) skewX(3deg)", filter: "brightness(0.6)" },
-  { transform: "translate(-3px, 0) skewX(-2deg)", clipPath: "inset(18% 0 30% 0)" },
-  { transform: "translate(2px, 1px) skewX(1deg)", clipPath: "inset(0 0 0 0)", filter: "brightness(1.3)" },
-  { transform: "translate(-1px, 0)" },
-  { transform: "none", filter: "none" },
+  { textShadow: GLOW, filter: "none" },
+  { textShadow: split(3), filter: "brightness(1.5) contrast(1.15)" },
+  { textShadow: split(-2), filter: "brightness(0.75)" },
+  { textShadow: split(4), filter: "brightness(1.3)" },
+  { textShadow: split(-1), filter: "brightness(0.9)" },
+  { textShadow: GLOW, filter: "none" },
+];
+const ROLL_FRAMES: Keyframe[] = [
+  { transform: "translateY(-20%)", opacity: 0.9 },
+  { transform: "translateY(110%)", opacity: 0.4 },
 ];
 
 export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit, reaction, glitch = 0 }: Props) {
   const now = useClock(screen, details);
   const glass = useRef<HTMLDivElement>(null);
+  const roll = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!glitch) return;
-    glass.current?.animate(GLITCH_FRAMES, { duration: 400, easing: "steps(8)" });
+    glass.current?.animate(GLITCH_FRAMES, { duration: 400, easing: "steps(6)" });
+    roll.current?.animate(ROLL_FRAMES, { duration: 400, easing: "linear" });
   }, [glitch]);
   const controls = terminalControls(screen, details);
   // The takeover can seem to switch the terminal off, power light and all
@@ -500,6 +507,12 @@ export default function GameCard({ screen, details, phone, style, className = ""
               </TerminalButton>
             </div>
           )}
+
+          {/* The bands that roll down the glass when it's knocked (out of sight otherwise) */}
+          <div ref={roll} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-full" style={{ transform: "translateY(110%)", opacity: 0 }}>
+            <div className="h-[3px] w-full" style={{ background: PHOSPHOR, boxShadow: `0 0 8px ${PHOSPHOR}`, opacity: 0.7 }} />
+            <div className="mt-6 h-[10px] w-full" style={{ background: "rgba(57, 255, 106, 0.18)" }} />
+          </div>
 
           {/* Scanlines over everything */}
           <div

@@ -2080,8 +2080,16 @@ export default function CartridgeArcade({
       dropDust(Math.round(50 + strength * 60));
     };
     let lastMotion: { x: number; y: number; z: number } | null = null;
+    const SHAKE_AT = 11; // m/s² of the phone's own movement (a firm shake; walking doesn't)
     const onMotion = (event: DeviceMotionEvent) => {
-      // The jolt between one reading and the next (gravity cancels out), in m/s²
+      // The phone's movement with gravity taken out, where it reports that...
+      const a = event.acceleration;
+      if (a && a.x !== null && a.y !== null && a.z !== null) {
+        const force = Math.hypot(a.x, a.y, a.z);
+        if (force > SHAKE_AT) shakeMachine(Math.min((force - SHAKE_AT) / 15, 1));
+        return;
+      }
+      // ...or else how sharply the reading (gravity and all) changes from one to the next
       const g = event.accelerationIncludingGravity;
       if (!g || g.x === null || g.y === null || g.z === null) return;
       const now = { x: g.x, y: g.y, z: g.z };
@@ -2089,15 +2097,26 @@ export default function CartridgeArcade({
       lastMotion = now;
       if (!before) return;
       const jolt = Math.hypot(now.x - before.x, now.y - before.y, now.z - before.z);
-      if (jolt > 14) shakeMachine(Math.min((jolt - 14) / 20, 1));
+      if (jolt > SHAKE_AT) shakeMachine(Math.min((jolt - SHAKE_AT) / 15, 1));
     };
     window.addEventListener("devicemotion", onMotion);
-    // iOS only reports motion once asked, from inside a tap
+    // iOS only reports motion once asked, and only from a finished tap (a click), so ask on
+    // taps until there's an answer either way
+    let motionAnswered = false;
     const askForMotion = () => {
+      if (motionAnswered) return;
       const Motion = window.DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> } | undefined;
-      if (typeof Motion?.requestPermission === "function") Motion.requestPermission().catch(() => undefined);
+      if (typeof Motion?.requestPermission !== "function") {
+        motionAnswered = true; // nothing to ask (Android, desktop): it just works
+        return;
+      }
+      Motion.requestPermission()
+        .then((answer) => {
+          if (answer === "granted" || answer === "denied") motionAnswered = true;
+        })
+        .catch(() => undefined);
     };
-    renderer.domElement.addEventListener("pointerdown", askForMotion, { once: true });
+    renderer.domElement.addEventListener("click", askForMotion);
 
     // Count pokes; too many too fast and it breaks (true when that's just happened)
     const notePoke = () => {
@@ -2557,6 +2576,7 @@ export default function CartridgeArcade({
       disposed = true;
       cancelAnimationFrame(frame);
       window.removeEventListener("devicemotion", onMotion);
+      renderer.domElement.removeEventListener("click", askForMotion);
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", syncVideo);
       document.removeEventListener("pointerdown", playFromGesture, true);
