@@ -2091,6 +2091,7 @@ export default function CartridgeArcade({
       pokeRay.setFromCamera(pointer, camera);
       const targets: Object3D[] = [holder, ...carts.map((state) => state.cart.group)];
       if (slotRig) targets.push(slotRig.group);
+      if (terminal) targets.push(terminal.group);
       const hit = pokeRay.intersectObjects(targets, true)[0];
       if (!hit) return;
       const mesh = hit.object as Mesh;
@@ -2106,6 +2107,14 @@ export default function CartridgeArcade({
       if (notePoke()) {
         breakDown(hit.point);
         return;
+      }
+      // The little terminal answers back
+      for (let node: Object3D | null = mesh; node; node = node.parent) {
+        if (terminal && node === terminal.group) {
+          terminal.react(performance.now() / 1000);
+          playTick();
+          return;
+        }
       }
       // The rig's scope and vent (the vent answers taps anywhere around its opening)
       const poked = slotRig?.poke(mesh, hit.point, performance.now() / 1000);

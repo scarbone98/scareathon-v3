@@ -30,8 +30,76 @@ const S = 1.19;
 const PHOSPHOR = "#39ff6a";
 const GLASS = "#021407";
 
+// Poked, it answers for a moment: a word, or a little picture in big pixels
+const PICTURES: Record<string, string[]> = {
+  heart: [
+    ".XX...XX.",
+    "XXXX.XXXX",
+    "XXXXXXXXX",
+    "XXXXXXXXX",
+    ".XXXXXXX.",
+    "..XXXXX..",
+    "...XXX...",
+    "....X....",
+  ],
+  thumbs: [
+    "....XX...",
+    "...XXX...",
+    "...XX....",
+    "XX.XXXXXX",
+    "XX.XXXXXX",
+    "XX.XXXXX.",
+    "XX.XXXXX.",
+    "XX..XXXX.",
+  ],
+  smile: [
+    "..XXXXX..",
+    ".X.....X.",
+    "X..X.X..X",
+    "X.......X",
+    "X.X...X.X",
+    "X..XXX..X",
+    ".X.....X.",
+    "..XXXXX..",
+  ],
+  star: [
+    "....X....",
+    "....X....",
+    "...XXX...",
+    "XXXXXXXXX",
+    ".XXXXXXX.",
+    "..XXXXX..",
+    ".XX...XX.",
+    "XX.....XX",
+  ],
+  ghost: [
+    "..XXXXX..",
+    ".XXXXXXX.",
+    "XX..X..XX",
+    "XX..X..XX",
+    "XXXXXXXXX",
+    "XXXXXXXXX",
+    "XXXXXXXXX",
+    "X.XX.XX.X",
+  ],
+  skull: [
+    ".XXXXXXX.",
+    "XXXXXXXXX",
+    "X..XXX..X",
+    "X..XXX..X",
+    "XXXX.XXXX",
+    ".XXXXXXX.",
+    "..X.X.X..",
+    "..XXXXX..",
+  ],
+};
+const WORDS = ["HI!", "HELLO", "BEEP BOOP", "HEY THERE", "THAT TICKLES", "OW!", ":)", "<3", "STILL HERE", "PLAY ME", "BOO!", "*WHIRR*"];
+const REACTION_TIME = 1.6; // seconds it answers for
+
 export type SlotTerminal = {
   group: Group;
+  // Poked: a word or a picture for a moment, then back to what it was showing
+  react: (time: number) => void;
   show: (screen: TerminalScreen) => void;
   setOptions: (options: TerminalOptions) => void;
   update: (time: number) => void;
@@ -63,6 +131,8 @@ export function createSlotTerminal(width: number, height: number, depth: number)
   group.add(glass);
 
   let screen: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
+  let reaction: { word?: string; picture?: string[]; at: number } | null = null;
+  let lastReaction = "";
   let options: TerminalOptions = { details: false, phone: false };
   let lastKey = "";
   whenFontReady(TERMINAL_FONT).then(() => {
@@ -137,7 +207,58 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     return w;
   };
 
+  // A reaction fills the glass: the picture in big pixels (with a little bounce), or the word
+  const paintReaction = (time: number) => {
+    if (!reaction) return;
+    const age = time - reaction.at;
+    const frame = Math.floor(age * 12);
+    const key = `reaction|${reaction.at}|${frame}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    context.fillStyle = GLASS;
+    context.fillRect(0, 0, WIDTH, HEIGHT);
+    context.fillStyle = PHOSPHOR;
+    context.shadowColor = PHOSPHOR;
+    context.shadowBlur = 10;
+    const pop = age < 0.15 ? 0.6 + (age / 0.15) * 0.5 : age < 0.25 ? 1.1 - ((age - 0.15) / 0.1) * 0.1 : 1;
+    const bob = Math.sin(age * 9) * 4 * S;
+    if (reaction.picture) {
+      const rows = reaction.picture.length;
+      const cols = reaction.picture[0].length;
+      const cell = Math.floor(((HEIGHT * 0.66) / rows) * pop);
+      const x0 = (WIDTH - cols * cell) / 2;
+      const y0 = (HEIGHT - rows * cell) / 2 + bob;
+      reaction.picture.forEach((line, r) =>
+        [...line].forEach((ch, c) => {
+          if (ch === "X") context.fillRect(x0 + c * cell, y0 + r * cell, cell - 2, cell - 2);
+        })
+      );
+    } else if (reaction.word) {
+      let px = 64 * pop;
+      context.font = font(px);
+      const w = context.measureText(reaction.word).width;
+      if (w > WIDTH * 0.86) {
+        px *= (WIDTH * 0.86) / w;
+        context.font = font(px);
+      }
+      context.textBaseline = "middle";
+      text(reaction.word, WIDTH / 2, HEIGHT / 2 + bob);
+    }
+    context.shadowBlur = 0;
+    context.fillStyle = "rgba(0, 0, 0, 0.28)";
+    for (let row = 0; row < HEIGHT; row += 3) context.fillRect(0, row, WIDTH, 1);
+    texture.needsUpdate = true;
+  };
+
   const paint = (time: number) => {
+    if (reaction && time - reaction.at < REACTION_TIME) {
+      paintReaction(time);
+      return;
+    }
+    if (reaction) {
+      reaction = null;
+      lastKey = "";
+    }
     const cursorOn = Math.floor(time * 2.5) % 2 === 0;
     const parts = typedParts(screen, options.details);
     const typing = typeOut(parts, screen, time);
@@ -250,13 +371,10 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       text(PLAY_HINT, WIDTH / 2, hintY);
       context.globalAlpha = 1;
     }
-    // The keys, along the bottom: the site menu (phones) and all games on the
-    // left, ? on the right
+    // The keys, along the bottom: all the games (≡) on the left, ? on the right
     const row = HEIGHT - 11 * S;
-    const gap = 2 * S;
     if (controls === "all") {
-      const menu = options.phone ? key("≡", 5 * S, row, "left") + gap : 0;
-      key("^", 5 * S + menu, row, "left");
+      key("≡", 5 * S, row, "left");
     }
     if (controls !== "none") key("?", WIDTH - 5 * S, row, "right", options.details);
 
@@ -269,6 +387,14 @@ export function createSlotTerminal(width: number, height: number, depth: number)
 
   return {
     group,
+    react(time) {
+      // Never the same answer twice running
+      const choices = [...Object.keys(PICTURES).map((name) => `#${name}`), ...WORDS].filter((choice) => choice !== lastReaction);
+      const pick = choices[Math.floor(Math.random() * choices.length)];
+      lastReaction = pick;
+      reaction = pick.startsWith("#") ? { picture: PICTURES[pick.slice(1)], at: time } : { word: pick, at: time };
+      lastKey = "";
+    },
     show(next) {
       screen = next;
       lastKey = "";
