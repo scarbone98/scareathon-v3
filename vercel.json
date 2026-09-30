@@ -16,16 +16,16 @@
             ]
         },
         {
-            "source": "/assets/:path*",
+            "source": "/:path*.:ext(js|mjs|css|map|woff2|ttf|otf|eot|svg|jpg|jpeg|png|webp|gif)",
             "headers": [
                 {
                     "key": "Cache-Control",
-                    "value": "public, max-age=31536000, immutable"
+                    "value": "public, max-age=3600"
                 }
             ]
         },
         {
-            "source": "/:path*.:ext(js|mjs|css|map|woff2|ttf|otf|eot|svg|jpg|jpeg|png|webp|gif)",
+            "source": "/assets/:path*",
             "headers": [
                 {
                     "key": "Cache-Control",
@@ -42,6 +42,33 @@
     ],
     "redirects": [
         {
+            "source": "/arcade",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                },
+                {
+                    "type": "query",
+                    "key": "game",
+                    "value": "(?<game>.+)"
+                }
+            ],
+            "destination": "/station?at=arcade&open=:game",
+            "permanent": false
+        },
+        {
+            "source": "/arcade",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=arcade",
+            "permanent": false
+        },
+        {
             "source": "/",
             "has": [
                 {
@@ -53,6 +80,231 @@
             "permanent": false
         },
         {
+            "source": "/profile/shop",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=tickets&open=shop",
+            "permanent": false
+        },
+        {
+            "source": "/profile/avatar",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=lockers",
+            "permanent": false
+        },
+        {
+            "source": "/profile/inbox",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=mail&open=letters",
+            "permanent": false
+        },
+        {
+            "source": "/inbox",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=mail&open=letters",
+            "permanent": false
+        },
+        {
+            "source": "/profile/settings",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=mail&open=register",
+            "permanent": false
+        },
+        {
+            "source": "/profile",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=lockers",
+            "permanent": false
+        },
+        {
+            "source": "/authentication",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=tickets",
+            "permanent": false
+        },
+        {
+            "source": "/arcade-v2",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=arcade",
+            "permanent": false
+        },
+        {
+            "source": "/scareboard",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=departures",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/scareboard",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=departures",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/calendar",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=calendar",
+            "permanent": false
+        },
+        {
+            "source": "/calendar",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=calendar",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/rules",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=rules",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/today",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=tonight",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events",
+            "permanent": false
+        },
+        {
+            "source": "/post/:id",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=bulletin",
+            "permanent": false
+        },
+        {
+            "source": "/announcements/:path*",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=bulletin",
+            "permanent": false
+        },
+        {
+            "source": "/announcements",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=bulletin",
+            "permanent": false
+        },
+        {
+            "source": "/arcade",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                },
+                {
+                    "type": "query",
+                    "key": "game",
+                    "value": "(?<game>.+)"
+                }
+            ],
+            "destination": "/station?at=arcade&open=:game",
+            "permanent": false
+        },
+        {
+            "source": "/arcade",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=arcade",
+            "permanent": false
+        },
+        {
             "source": "/",
             "has": [
                 {
@@ -61,6 +313,204 @@
                 }
             ],
             "destination": "/station",
+            "permanent": false
+        },
+        {
+            "source": "/profile/shop",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=tickets&open=shop",
+            "permanent": false
+        },
+        {
+            "source": "/profile/avatar",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=lockers",
+            "permanent": false
+        },
+        {
+            "source": "/profile/inbox",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=mail&open=letters",
+            "permanent": false
+        },
+        {
+            "source": "/inbox",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=mail&open=letters",
+            "permanent": false
+        },
+        {
+            "source": "/profile/settings",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=mail&open=register",
+            "permanent": false
+        },
+        {
+            "source": "/profile",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=lockers",
+            "permanent": false
+        },
+        {
+            "source": "/authentication",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=tickets",
+            "permanent": false
+        },
+        {
+            "source": "/arcade-v2",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=arcade",
+            "permanent": false
+        },
+        {
+            "source": "/scareboard",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=departures",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/scareboard",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=departures",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/calendar",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=calendar",
+            "permanent": false
+        },
+        {
+            "source": "/calendar",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=calendar",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/rules",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=rules",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon/today",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=tonight",
+            "permanent": false
+        },
+        {
+            "source": "/scareathon",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events",
+            "permanent": false
+        },
+        {
+            "source": "/post/:id",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=bulletin",
+            "permanent": false
+        },
+        {
+            "source": "/announcements/:path*",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=bulletin",
+            "permanent": false
+        },
+        {
+            "source": "/announcements",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=bulletin",
             "permanent": false
         }
     ]

@@ -46,7 +46,10 @@ function SignInCard() {
         const { error: signInError } = await supabase.auth.signInWithPassword(credentials);
         if (signInError) throw signInError;
       } else {
-        const { data, error: signUpError } = await supabase.auth.signUp(credentials);
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          ...credentials,
+          options: { emailRedirectTo: new URL("/station?at=tickets", window.location.origin).toString() },
+        });
         if (signUpError) throw signUpError;
         if (!data.session && data.user) {
           setSentConfirmation(true);

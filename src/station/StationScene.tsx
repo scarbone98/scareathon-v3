@@ -708,7 +708,11 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       group.userData.video = video;
     },
     undefined,
-    () => undefined
+    (error) => {
+      // The placeholder box stays; the station carries on without the real cabinet
+      console.error("[station] the arcade cabinet model didn't load", error);
+      group.userData.failed = true;
+    }
   );
   // Its sign on the wall above
   // Its sign on the wall high above, over the scoreboard
@@ -1776,7 +1780,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       } else if (arrival.phase === "stopped") {
         // The lurch as it stops, then waiting on the station
         cam.z = INSIDE_Z + Math.sin(Math.min(t / 0.35, 1) * Math.PI) * 0.06;
-        const cabinetIn = Boolean(arcadeObject.userData.cabinet);
+        const cabinetIn = Boolean(arcadeObject.userData.cabinet || arcadeObject.userData.failed);
         // Meanwhile, get the arcade's cartridges onto the graphics card, so the first walk
         // over to it doesn't stall putting them there
         const row = arcadeObject.userData.row as Group | undefined;

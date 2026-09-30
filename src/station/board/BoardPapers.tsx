@@ -91,6 +91,16 @@ const ink = "text-[#2a1d14]";
 const quiet = "text-[#2a1d14]/70";
 const action =
   "rounded-[2px] bg-[#1d2a3a] px-3 py-1.5 text-[15px] text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
+// Links from the CMS: web pages and the site's own paths only (never javascript: and the like)
+function safeHref(url: string) {
+  if (url.startsWith("/") && !url.startsWith("//")) return url;
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:" ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const link = "underline decoration-[#2a1d14]/40 underline-offset-4 hover:decoration-[#2a1d14]";
 
 // Buttons on a paper act without also bringing you up to it
@@ -404,7 +414,7 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
                     blocks={{
                       list: ({ children }) => <ul className="list-inside list-disc">{children}</ul>,
                       link: ({ children, url }) => (
-                        <a href={url} className={link}>
+                        <a href={safeHref(url)} className={link}>
                           {children}
                         </a>
                       ),

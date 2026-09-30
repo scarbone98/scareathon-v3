@@ -43,14 +43,14 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 
 // Links into the classic site that turn up inside reused components go to the matching
 // place in the station instead
-function stationPlaceFor(path: string): [StopId, string?] {
+function stationPlaceFor(path: string, search = ""): [StopId, string?] {
   if (path.startsWith("/profile/shop")) return ["tickets", "shop"];
   if (path.startsWith("/profile/avatar")) return ["lockers"];
   if (path.startsWith("/profile/inbox") || path.startsWith("/inbox")) return ["mail", "letters"];
   if (path.startsWith("/profile/settings")) return ["mail", "register"];
   if (path.startsWith("/profile")) return ["lockers"];
   if (path.startsWith("/authentication")) return ["tickets"];
-  if (path.startsWith("/arcade")) return ["arcade"];
+  if (path.startsWith("/arcade")) return ["arcade", new URLSearchParams(search).get("game") ?? undefined];
   if (path.includes("scareboard")) return ["departures"];
   if (path.includes("calendar")) return ["events", "calendar"];
   if (path.includes("rules")) return ["events", "rules"];
@@ -435,13 +435,23 @@ export default function StationPage() {
     };
   }, []);
 
+  // The tab says where you are
+  useEffect(() => {
+    const before = document.title;
+    document.title = "Wayside Station";
+    return () => {
+      document.title = before;
+    };
+  }, []);
+
   // Keep every click inside the station: site links go to the matching object instead
   const keepInStation = (event: ReactMouseEvent) => {
     const link = (event.target as HTMLElement).closest("a");
     const href = link?.getAttribute("href");
     if (!link || !href || !href.startsWith("/") || href.startsWith("//") || href.startsWith("/station") || link.target === "_blank") return;
     event.preventDefault();
-    const [id, openThere] = stationPlaceFor(href);
+    const url = new URL(href, window.location.origin);
+    const [id, openThere] = stationPlaceFor(url.pathname, url.search);
     select(id, openThere);
   };
 
