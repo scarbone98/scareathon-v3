@@ -2073,6 +2073,9 @@ export default function CartridgeArcade({
       const point = hitAt ?? (screenMesh ? screenMesh.getWorldPosition(new Vector3()) : cabinet.getWorldPosition(new Vector3()));
       crashCode = code ?? null;
       broken = true;
+      // Whatever the terminal was saying, the crash cuts it off
+      terminal?.clearReaction();
+      setReaction(null);
       brokenAt = performance.now() / 1000;
       pokeTimes = [];
       lastBrokenFrame = -1;

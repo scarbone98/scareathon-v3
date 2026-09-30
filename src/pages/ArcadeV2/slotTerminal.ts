@@ -101,6 +101,7 @@ export type SlotTerminal = {
   group: Group;
   // Poked: a word or a picture for a moment, then back to what it was showing
   react: (time: number) => Reaction;
+  clearReaction: () => void; // the machine crashed: back to its screen at once
   show: (screen: TerminalScreen) => void;
   setOptions: (options: TerminalOptions) => void;
   update: (time: number) => void;
@@ -396,6 +397,11 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       reaction = pick.startsWith("#") ? { picture: PICTURES[pick.slice(1)], at: time } : { word: pick, at: time };
       lastKey = "";
       return reaction;
+    },
+    clearReaction() {
+      if (!reaction) return;
+      reaction = null;
+      lastKey = "";
     },
     show(next) {
       screen = next;
