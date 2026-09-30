@@ -88,7 +88,7 @@ export const STOPS: Record<StopId, Stop> = {
   events: {
     id: "events",
     label: "Flyer stand",
-    heading: "table",
+    heading: "right", // stepping back, you face the right-hand view it stands in
     pos: [1.2, 1.75, 0.3],
     target: [1.2, 1.8, -1.9],
     fit: 2.1,
