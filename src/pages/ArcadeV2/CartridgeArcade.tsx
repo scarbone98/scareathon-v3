@@ -72,7 +72,14 @@ type Props = {
   onLeaderboard: (game: MachineData) => void;
   // The cassette room around the cabinet; Wayside Station leaves it out and supplies its own
   withRoom?: boolean;
+  // Draw over whatever is behind the page (no black backdrop): Wayside Station's platform
+  transparent?: boolean;
+  // Where the cabinet lands on screen, in px, each time the camera is fitted: so a scene
+  // behind can line its own cabinet up with this one
+  onFramed?: (frame: CabinetFrame) => void;
 };
+
+export type CabinetFrame = { top: number; bottom: number; centerX: number; width: number; height: number };
 
 type World = {
   setTerminalOptions: (options: TerminalOptions) => void;
@@ -128,7 +135,11 @@ export default function CartridgeArcade({
   onPlay,
   onLeaderboard,
   withRoom = true,
+  transparent = false,
+  onFramed,
 }: Props) {
+  const onFramedRef = useRef(onFramed);
+  onFramedRef.current = onFramed;
   const mountRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<World | null>(null);
   const pausedRef = useRef(paused);
@@ -172,7 +183,8 @@ export default function CartridgeArcade({
 
     const scene = new Scene();
     const camera = new PerspectiveCamera(40, size().width / size().height, 0.05, 200);
-    const renderer = new WebGLRenderer({ antialias: !lightweight });
+    const renderer = new WebGLRenderer({ antialias: !lightweight, alpha: transparent });
+    if (transparent) renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, lightweight ? 1.5 : 2));
     renderer.setSize(size().width, size().height);
     renderer.domElement.style.display = "block";
@@ -1199,6 +1211,19 @@ export default function CartridgeArcade({
       camera.lookAt(cameraTarget);
       camera.updateMatrixWorld();
       placeScanner();
+      if (onFramedRef.current && !cabinetBox.isEmpty()) {
+        const front = cabinetBox.max.z;
+        const mid = cabinetBox.getCenter(new Vector3());
+        const topP = new Vector3(mid.x, cabinetBox.max.y, front).project(camera);
+        const bottomP = new Vector3(mid.x, cabinetBox.min.y, front).project(camera);
+        onFramedRef.current({
+          top: ((1 - topP.y) / 2) * height,
+          bottom: ((1 - bottomP.y) / 2) * height,
+          centerX: ((topP.x + 1) / 2) * width,
+          width,
+          height,
+        });
+      }
     };
 
     const homeWorld = (state: CartState) => {
@@ -1563,7 +1588,7 @@ export default function CartridgeArcade({
           screenLights.forEach((light, i) => {
             light.position.set(glassMiddle.x + (i ? 1 : -1) * glassWidth * 0.2, glassMiddle.y, screenBox.max.z + 0.06);
           });
-          crtGlow = track(createCrtGlow(child));
+          crtGlow = track(createCrtGlow(child, { keepAlpha: transparent }));
           showOnScreen(screenTexture);
         } else if (material.name === "Marque") {
           marqueeMaterial = material.clone();
@@ -2380,7 +2405,7 @@ export default function CartridgeArcade({
       mount.removeChild(renderer.domElement);
       worldRef.current = null;
     };
-  }, [games, withRoom]);
+  }, [games, withRoom, transparent]);
 
   useEffect(() => {
     worldRef.current?.setPaused(paused);
@@ -2414,7 +2439,7 @@ export default function CartridgeArcade({
   const shown = focused >= 0 ? focused : inserted;
 
   return (
-    <div className="relative h-[100dvh] w-screen overflow-hidden bg-black">
+    <div className={`relative h-[100dvh] w-screen overflow-hidden ${transparent ? "" : "bg-black"}`}>
       <div ref={mountRef} className="absolute inset-0 select-none" style={{ touchAction: "none", WebkitTouchCallout: "none" }} />
       {loading && <LoadingSpinner />}
 

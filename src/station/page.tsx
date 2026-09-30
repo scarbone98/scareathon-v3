@@ -5,6 +5,7 @@ import AnimatedPage from "../components/AnimatedPage";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
+import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { AvatarView } from "../components/avatar/AvatarView";
@@ -298,13 +299,17 @@ export default function StationPage() {
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
   const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
+  // The arcade mounts (hidden) as you set off for the cabinet, so it can say where its
+  // cabinet will be on screen; the walk ends with the station's there, and the arcade
+  // fades in over it
   const [atCabinet, setAtCabinet] = useState(false);
+  const [arcadeFrame, setArcadeFrame] = useState<CabinetFrame | null>(null);
   useEffect(() => {
     if (at !== "arcade") {
       setAtCabinet(false);
       return;
     }
-    const arrive = window.setTimeout(() => setAtCabinet(true), 950); // the walk to the cabinet
+    const arrive = window.setTimeout(() => setAtCabinet(true), 1050); // the walk to the cabinet
     return () => window.clearTimeout(arrive);
   }, [at]);
   const initialGame = useMemo(() => {
@@ -402,6 +407,8 @@ export default function StationPage() {
             onTurn={turn}
             boards={boards}
             paused={Boolean(playing) || atCabinet}
+            arcadeFrame={at === "arcade" ? arcadeFrame : null}
+            hideArcade={atCabinet}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read
             surfacesInteractive={!compact || at === "bulletin"}
@@ -414,10 +421,15 @@ export default function StationPage() {
         {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
 
         {/* The arcade, as it is at /arcade, without its room */}
-        {atCabinet && (
-          <div className="station-arrive absolute inset-0 z-10 bg-black">
-            <Suspense fallback={<LoadingSpinner />}>
+        {at === "arcade" && (
+          <div
+            className="absolute inset-0 z-10 transition-[opacity,background-color] duration-500 ease-out"
+            style={{ opacity: atCabinet ? 1 : 0, pointerEvents: atCabinet ? "auto" : "none", backgroundColor: atCabinet ? "rgba(3,4,8,0.55)" : "transparent" }}
+          >
+            <Suspense fallback={null}>
               <CartridgeArcade
+                transparent
+                onFramed={setArcadeFrame}
                 games={games}
                 initialGameName={initialGame}
                 paused={Boolean(playing)}

@@ -9,6 +9,7 @@ import {
   CanvasTexture,
   CircleGeometry,
   CylinderGeometry,
+  DoubleSide,
   ExtrudeGeometry,
   Shape,
   SphereGeometry,
@@ -38,6 +39,7 @@ import {
   SRGBColorSpace,
   Texture,
   TextureLoader,
+  VideoTexture,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -45,6 +47,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
+import { createArcadeGames } from "../pages/Arcade/games.tsx";
 import { HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
@@ -57,7 +60,11 @@ type Props = {
   onSelect: (id: StopId | null) => void;
   onTurn: (direction: 1 | -1) => void;
   boards: Boards;
-  paused?: boolean; // a game is playing over the scene
+  paused?: boolean; // the scene is covered (a game, the arcade): draw one last frame, then rest
+  // Where the arcade will draw its cabinet on screen, so the walk up to the cabinet ends
+  // with this one exactly there; and whether to hide this one (the arcade's is on top)
+  arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number } | null;
+  hideArcade?: boolean;
   // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
   surfaces: Record<string, ReactNode>;
   // Whether the surfaces take taps themselves (desktop); on phones a tap picks the thing up instead
@@ -87,6 +94,7 @@ const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
 const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
 const TICKET_Z = 0; // the ticket counter is let into the middle of it
+const ARCADE_POS = new Vector3(-3.0, 0, -1.75);
 const SIGN_Y = 3.22; // the line the signs along the wall hang on, level with the station's name
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
@@ -508,7 +516,7 @@ function buildEvents() {
 
 function buildArcade() {
   const group = new Group();
-  group.position.set(-3.0, 0, -1.75); // against the wall, left of the board
+  group.position.copy(ARCADE_POS); // against the wall, left of the board
   const placeholder = new Group();
   placeholder.add(box(0.85, 1.9, 0.8, standard("#2b1a3a"), 0, 0.95, 0));
   placeholder.add(plane(0.6, 0.45, new MeshBasicMaterial({ color: "#5cffb1" }), 0, 1.3, 0.41));
@@ -526,6 +534,24 @@ function buildArcade() {
       const bounds = new Box3().setFromObject(model);
       const center = bounds.getCenter(new Vector3());
       model.position.set(-center.x, -bounds.min.y, -center.z);
+      // On its screen, a random game's preview, as the arcade would show one
+      const games = createArcadeGames().filter((game) => game.game && game.videoUrl && !game.special);
+      const pick = games[Math.floor(Math.random() * games.length)];
+      if (pick?.videoUrl) {
+        const video = document.createElement("video");
+        Object.assign(video, { src: pick.videoUrl, muted: true, loop: true, playsInline: true, autoplay: true, crossOrigin: "anonymous" });
+        video.setAttribute("playsinline", "");
+        void video.play().catch(() => undefined);
+        const texture = new VideoTexture(video);
+        texture.colorSpace = SRGBColorSpace;
+        model.traverse((child) => {
+          const mesh = child as Mesh;
+          const material = mesh.material as MeshStandardMaterial | undefined;
+          if (!mesh.isMesh || material?.name !== "GreyScreen") return;
+          mesh.material = new MeshBasicMaterial({ map: texture, color: "#d8d8d8" });
+        });
+        group.userData.video = video;
+      }
       group.remove(placeholder);
       group.add(model);
     },
@@ -912,15 +938,15 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
   const [surfaceSlots, setSurfaceSlots] = useState<Record<string, HTMLDivElement>>({});
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -951,13 +977,88 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     // Light: a faint cold wash; the warm light comes from the lamps
     scene.add(new HemisphereLight("#6f7fa8", "#1a120c", 0.45));
-    const overhead = new PointLight("#ffb060", 16, 7, 2); // the lamp over the visitor, which flickers
+    const overhead = new PointLight("#ffb060", 11, 7, 2); // the lamp over the visitor, which flickers
     // Centred over where you stand, a little way towards the board so it's in view from a phone
     const lampX = HUB.pos[0];
     const lampZ = -0.3;
     overhead.position.set(lampX, 3.5, lampZ);
     scene.add(overhead);
-    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), lampX, 3.95, lampZ)); // like the others
+    // Like the others, but turned down: a dim glass behind a wire guard
+    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#9a8158" }), lampX, 3.95, lampZ));
+    [-0.1, 0, 0.1].forEach((dx) => scene.add(box(0.012, 0.11, 0.32, standard("#1c1a17", 0.5), lampX + dx, 3.93, lampZ)));
+
+    // Underfoot: a soft pool of the lamp's light, a few dead leaves blown in off the
+    // tracks, and a dropped ticket
+    const pool = plane(3.2, 3.2, new MeshBasicMaterial({ map: glowTexture(), transparent: true, opacity: 0.22, depthWrite: false, blending: AdditiveBlending }), lampX, 0.012, lampZ + 0.4);
+    pool.rotation.x = -Math.PI / 2;
+    scene.add(pool);
+    const leafTexture = paint(32, 32, (ctx) => {
+      ctx.fillStyle = "#8a5a2c";
+      ctx.beginPath();
+      ctx.ellipse(16, 16, 13, 7, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#3a2410";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(6, 23);
+      ctx.lineTo(26, 9);
+      ctx.stroke();
+    });
+    const leafMaterial = new MeshStandardMaterial({ map: leafTexture, transparent: true, alphaTest: 0.3, roughness: 1 });
+    [[-1.1, 0.9, 0.4], [-0.85, 1.15, 2.1], [0.7, 0.2, 1.2], [1.3, 1.35, 5.3], [0.2, -0.9, 3.6]].forEach(([dx, z, turn]) => {
+      const leaf = plane(0.16, 0.16, leafMaterial, lampX + dx, 0.015, z);
+      leaf.rotation.set(-Math.PI / 2, 0, turn);
+      scene.add(leaf);
+    });
+    const stubTexture = paint(64, 32, (ctx, w, h) => {
+      ctx.fillStyle = "#cdbf9a";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#8a2a1f";
+      ctx.fillRect(0, 0, w, 6);
+      ctx.strokeStyle = "rgba(60,40,20,0.6)";
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(18, 6);
+      ctx.lineTo(18, h);
+      ctx.stroke();
+      ctx.fillStyle = "#3a2a1a";
+      ctx.font = "700 9px Georgia, serif";
+      ctx.fillText("ADMIT ONE", 22, 20);
+    });
+    const stub = plane(0.16, 0.08, standard("#ffffff", 1, stubTexture), lampX - 0.45, 0.016, 0.45);
+    stub.rotation.set(-Math.PI / 2, 0, 0.5);
+    scene.add(stub);
+
+    // Overhead: cobwebs in the corners where the canopy's beams meet the wall
+    const webTexture = paint(128, 128, (ctx, w, h) => {
+      ctx.strokeStyle = "rgba(210,205,190,0.55)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 6; i += 1) {
+        const a = (i / 6) * (Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * w, Math.sin(a) * h);
+        ctx.stroke();
+      }
+      for (let r = 18; r < w; r += 17) {
+        ctx.beginPath();
+        for (let i = 0; i <= 6; i += 1) {
+          const a = (i / 6) * (Math.PI / 2);
+          const rr = r * (0.92 + 0.08 * Math.sin(i * 2.3 + r));
+          if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+          else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.stroke();
+      }
+    });
+    const webMaterial = new MeshBasicMaterial({ map: webTexture, transparent: true, opacity: 0.5, depthWrite: false, side: DoubleSide });
+    [[lampX - 1.6, 1], [lampX + 1.6, -1]].forEach(([x, flip]) => {
+      const web = plane(0.7, 0.7, webMaterial, x, 3.7, WALL_Z + 0.02);
+      web.rotation.z = flip > 0 ? Math.PI / 2 : Math.PI;
+      web.position.x += flip > 0 ? -0.35 : 0.35;
+      web.position.y += 0.02;
+      scene.add(web);
+    });
     // A lamp either side of where you stand, the same distance off
     [HUB.pos[0] - 4.6, HUB.pos[0] + 4.6].forEach((x) => {
       const lamp = new PointLight("#ffb060", 18, 9, 2);
@@ -1189,6 +1290,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let lastMinute = 0;
     const mail = buildMail();
     const arcade = buildArcade();
+    const arcadeObject = arcade;
     const objects = [bench, lockers, arcade, bulletin, events, tickets, departures, mail];
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
@@ -1274,6 +1376,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         return { x: paper.x, y: paper.y, z: paper.z + distance, yaw: 0, pitch: 0 };
       }
       const stop = STOPS[stopId];
+      // The arcade: stand where this cabinet fills the same part of the screen the
+      // arcade's will, looking straight at it, so the one hands over to the other
+      const frame = latest.current.arcadeFrame;
+      if (stopId === "arcade" && frame && frame.bottom > frame.top) {
+        const tan = Math.tan(((camera.fov * Math.PI) / 180) / 2);
+        const cabinetH = 1.9;
+        const front = new Vector3(...STOPS.arcade.target).setY(0);
+        front.z = ARCADE_POS.z + 0.4;
+        const distance = (cabinetH * frame.height) / (2 * tan * (frame.bottom - frame.top));
+        const y = cabinetH - ((frame.height / 2 - frame.top) * 2 * distance * tan) / frame.height;
+        const x = front.x - ((frame.centerX - frame.width / 2) * 2 * distance * tan * camera.aspect) / frame.width;
+        return { x, y, z: front.z + distance, yaw: 0, pitch: 0 };
+      }
       const target = new Vector3(...stop.target);
       const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(stop.seat ? 1 : pull).add(target);
       if (stop.fit || stop.fitHeight) {
@@ -1393,10 +1508,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     // Render loop; paused while the tab is hidden
     let frame = 0;
+    let restingDrawn = false;
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      if (document.hidden || latest.current.paused) return;
+      if (document.hidden) return;
+      // Covered: one last frame (with the cabinet hidden, if the arcade's is over it), then rest
+      if (latest.current.paused) {
+        if (restingDrawn) return;
+        restingDrawn = true;
+      } else restingDrawn = false;
+      arcadeObject.visible = !latest.current.hideArcade;
       const t = (performance.now() - start) / 1000;
       look.yaw += (look.toYaw - look.yaw) * 0.06;
       look.pitch += (look.toPitch - look.pitch) * 0.06;
@@ -1412,7 +1534,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         repaint(lockers.userData.clockFace as CanvasTexture, (ctx, w, h) => drawClock(ctx, w, h, new Date()));
       }
 
-      overhead.intensity = reduced ? 16 : 16 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
+      overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       const current = latest.current.at;
       objects.forEach((o) => {
         const lamp = o.userData.lamp as PointLight;
@@ -1469,6 +1591,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           material.dispose();
         });
       });
+      (arcadeObject.userData.video as HTMLVideoElement | undefined)?.pause();
       renderer.dispose();
       mount.removeChild(canvas);
       surfaceLayer.remove();
@@ -1478,7 +1601,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
   useEffect(() => {
     goRef.current?.(at, heading);
-  }, [at, heading, cardFraction, zoom]);
+  }, [at, heading, cardFraction, zoom, arcadeFrame]);
 
   useEffect(() => {
     paintBoardsRef.current?.(boards);

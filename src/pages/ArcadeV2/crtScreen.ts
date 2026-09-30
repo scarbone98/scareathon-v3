@@ -1,4 +1,4 @@
-import { AdditiveBlending, Matrix3, Mesh, ShaderMaterial, type MeshStandardMaterial, type Texture } from "three";
+import { AdditiveBlending, CustomBlending, OneFactor, SrcAlphaFactor, ZeroFactor, Matrix3, Mesh, ShaderMaterial, type MeshStandardMaterial, type Texture } from "three";
 
 // The cabinet's screen as a glass tube: a touch of curvature with rounded, dark
 // corners, scanlines and a faint phosphor mask, and a soft glow of the picture's
@@ -80,13 +80,16 @@ const GLOW_SPREAD = 1.35;
 
 // A soft halo of the picture's colours around and over the screen. Add it to the
 // screen mesh: it shares the mesh's quad, scaled up a little and lifted off the glass.
-export function createCrtGlow(screen: Mesh) {
+export function createCrtGlow(screen: Mesh, { keepAlpha = false }: { keepAlpha?: boolean } = {}) {
   const material = new ShaderMaterial({
     transparent: true,
     depthWrite: false,
     // The screen sits recessed behind its bezel; the glow has to reach over it
     depthTest: false,
-    blending: AdditiveBlending,
+    // Add light; over a see-through canvas, add it without changing the canvas's alpha
+    ...(keepAlpha
+      ? { blending: CustomBlending, blendSrc: SrcAlphaFactor, blendDst: OneFactor, blendSrcAlpha: ZeroFactor, blendDstAlpha: OneFactor }
+      : { blending: AdditiveBlending }),
     uniforms: {
       map: { value: null as Texture | null },
       uvTransform: { value: new Matrix3() },
