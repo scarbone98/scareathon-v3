@@ -102,6 +102,7 @@ export type SlotTerminal = {
   // Poked: a word or a picture for a moment, then back to what it was showing
   react: (time: number) => Reaction;
   clearReaction: () => void; // the machine crashed: back to its screen at once
+  glitch: (time: number) => void; // the machine was knocked: the picture tears for a moment
   show: (screen: TerminalScreen) => void;
   setOptions: (options: TerminalOptions) => void;
   update: (time: number) => void;
@@ -134,6 +135,24 @@ export function createSlotTerminal(width: number, height: number, depth: number)
 
   let screen: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
   let reaction: Reaction | null = null;
+  let glitchUntil = 0;
+  const GLITCH_TIME = 0.4;
+  // Tears the picture: bands slid sideways, a bright line, the odd dropped row
+  const tear = () => {
+    const bands = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < bands; i += 1) {
+      const y = Math.random() * HEIGHT;
+      const h = 4 + Math.random() * HEIGHT * 0.12;
+      const dx = (Math.random() - 0.5) * WIDTH * 0.12;
+      context.drawImage(canvas, 0, y, WIDTH, h, dx, y, WIDTH, h);
+    }
+    context.fillStyle = "rgba(57, 255, 106, 0.55)";
+    context.fillRect(0, Math.random() * HEIGHT, WIDTH, 2 + Math.random() * 3);
+    if (Math.random() < 0.5) {
+      context.fillStyle = GLASS;
+      context.fillRect(0, Math.random() * HEIGHT, WIDTH, 3 + Math.random() * 8);
+    }
+  };
   let lastReaction = "";
   let options: TerminalOptions = { details: false, phone: false };
   let lastKey = "";
@@ -253,8 +272,18 @@ export function createSlotTerminal(width: number, height: number, depth: number)
   };
 
   const paint = (time: number) => {
+    const glitching = time < glitchUntil;
+    if (glitching) lastKey = "";
+    else if (glitchUntil) {
+      glitchUntil = 0;
+      lastKey = "";
+    }
     if (reaction && time - reaction.at < REACTION_TIME) {
       paintReaction(time);
+      if (glitching) {
+        tear();
+        texture.needsUpdate = true;
+      }
       return;
     }
     if (reaction) {
@@ -384,6 +413,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     // Scanlines
     context.fillStyle = "rgba(0, 0, 0, 0.28)";
     for (let row = 0; row < HEIGHT; row += 3) context.fillRect(0, row, WIDTH, 1);
+    if (glitching) tear();
     texture.needsUpdate = true;
   };
 
@@ -397,6 +427,9 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       reaction = pick.startsWith("#") ? { picture: PICTURES[pick.slice(1)], at: time } : { word: pick, at: time };
       lastKey = "";
       return reaction;
+    },
+    glitch(time) {
+      glitchUntil = time + GLITCH_TIME;
     },
     clearReaction() {
       if (!reaction) return;

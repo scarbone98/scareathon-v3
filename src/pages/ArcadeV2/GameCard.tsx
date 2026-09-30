@@ -70,6 +70,7 @@ type Props = {
   onCodeSubmit?: (entry: string) => void;
   // The little terminal on the cabinet answering a poke: shown here too
   reaction?: Reaction | null;
+  glitch?: number; // goes up by one each time the machine's knocked: the glass jolts
 };
 
 function ReactionView({ reaction }: { reaction: Reaction }) {
@@ -417,8 +418,24 @@ function ScreenBody({
   );
 }
 
-export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit, reaction }: Props) {
+// The glass jolting when the machine's knocked (animated in place, so nothing in it resets)
+const GLITCH_FRAMES: Keyframe[] = [
+  { transform: "translate(0, 0) skewX(0deg)", filter: "none" },
+  { transform: "translate(-6px, 1px) skewX(-4deg)", filter: "brightness(1.6)" },
+  { transform: "translate(5px, -1px) skewX(3deg)", filter: "brightness(0.6)" },
+  { transform: "translate(-3px, 0) skewX(-2deg)", clipPath: "inset(18% 0 30% 0)" },
+  { transform: "translate(2px, 1px) skewX(1deg)", clipPath: "inset(0 0 0 0)", filter: "brightness(1.3)" },
+  { transform: "translate(-1px, 0)" },
+  { transform: "none", filter: "none" },
+];
+
+export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit, reaction, glitch = 0 }: Props) {
   const now = useClock(screen, details);
+  const glass = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!glitch) return;
+    glass.current?.animate(GLITCH_FRAMES, { duration: 400, easing: "steps(8)" });
+  }, [glitch]);
   const controls = terminalControls(screen, details);
   // The takeover can seem to switch the terminal off, power light and all
   const poweredOff = screen.kind === "takeover" && Boolean(takeoverView(screen, now).off);
@@ -435,6 +452,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
       >
         {/* The glass: scanlines, a vignette, and phosphor text */}
         <div
+          ref={glass}
           className="relative flex flex-1 flex-col justify-center overflow-hidden rounded-xl px-3 pb-1.5 pt-1"
           style={{
             background: "radial-gradient(ellipse at center, #06260f 0%, #021407 70%, #010a04 100%)",

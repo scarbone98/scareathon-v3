@@ -177,6 +177,7 @@ export default function CartridgeArcade({
   // The terminal's ? key; stays on while browsing, so you can flick through every game's details
   const [details, setDetails] = useState(false);
   const [reaction, setReaction] = useState<Reaction | null>(null);
+  const [glitch, setGlitch] = useState(0); // counts knocks: each one jolts the card
   // Read when the scene's built; kept in step after through setTerminalOptions
   const terminalOptionsRef = useRef<TerminalOptions>({ details, phone: tall });
   terminalOptionsRef.current = { details, phone: tall };
@@ -2049,6 +2050,10 @@ export default function CartridgeArcade({
     // `strength` scales the rock and the flash: taps in quick succession build it up
     const jiggleCabinet = (point: Vector3, strength = 1) => {
       const away = point.x > 0 ? 1 : -1;
+      // Knocked: the terminals and the marquee glitch
+      terminal?.glitch(performance.now() / 1000);
+      setGlitch((count) => count + 1);
+      if (!broken) jostleMarquee();
       gsap.killTweensOf(rock);
       const timeline = gsap.timeline({
         onUpdate: () => {
@@ -2687,6 +2692,7 @@ export default function CartridgeArcade({
           onBrowseAll={() => setBrowsing(true)}
           onBack={onBack}
           reaction={reaction}
+          glitch={glitch}
           onCodeChange={(entry) => worldRef.current?.typeCode(entry)}
           onCodeSubmit={(entry) => worldRef.current?.enterCode(entry)}
           // Fills from just under the ledge down to the bottom
