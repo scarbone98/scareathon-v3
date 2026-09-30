@@ -2086,18 +2086,24 @@ export default function CartridgeArcade({
       if (any) dustGeometry.attributes.position.needsUpdate = true;
     };
 
-    // Shaking the phone shakes the machine: it rocks, the picture jumps and dust comes down
+    // Shaking the phone shakes the machine: it rocks, the picture jumps and dust comes down.
+    // It takes SHAKES_TO_CRASH shakes in a row to crash it; a pause of SHAKE_FORGET seconds
+    // and it forgets (so ten shakes over an evening of walking about don't add up)
+    const SHAKES_TO_CRASH = 10;
+    const SHAKE_FORGET = 4;
     let lastShake = 0;
+    let shakes = 0;
     const shakeMachine = (strength: number) => {
       const now = performance.now() / 1000;
       if (pausedRef.current || disposed || now - lastShake < 0.6) return;
+      shakes = now - lastShake > SHAKE_FORGET ? 1 : shakes + 1;
       lastShake = now;
       const side = new Vector3((Math.random() < 0.5 ? -1 : 1) * cabinetWidth(), (cabinetBox.min.y + cabinetBox.max.y) / 2, cabinetBox.max.z);
       jiggleCabinet(side, 0.8 + strength * 0.8);
       gsap.fromTo(shake, { value: cartSize.width * 0.04 * (0.6 + strength) }, { value: 0, duration: 0.6, ease: "power2.out" });
       dropDust(Math.round(50 + strength * 60));
-      // ...and it doesn't like it: a shake is enough to crash it
-      if (!broken) breakDown(side, SHAKE_STOP_CODE);
+      // ...and it doesn't like it: keep it up and it crashes
+      if (!broken && shakes >= SHAKES_TO_CRASH) breakDown(side, SHAKE_STOP_CODE);
     };
     let lastMotion: { x: number; y: number; z: number } | null = null;
     const SHAKE_AT = 11; // m/s² of the phone's own movement (a firm shake; walking doesn't)
