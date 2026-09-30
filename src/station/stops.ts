@@ -109,7 +109,7 @@ export const STOPS: Record<StopId, Stop> = {
     label: "Scoreboard",
     heading: "left",
     pos: [-3.1, 2.75, 0.3],
-    target: [-3.1, 2.5, -2.1],
+    target: [-3.1, 2.4, -2.1],
     fit: 2.8,
     fitHeight: 1.4,
   },

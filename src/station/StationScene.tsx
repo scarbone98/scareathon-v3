@@ -89,7 +89,7 @@ const SIGN_Y = 3.22; // the line the signs along the wall hang on, level with th
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
 const PLATFORM_MID = (30 + END_X) / 2;
-const RENDER_HEIGHT = 540; // rows of pixels the scene is drawn at, whatever the screen size
+const RENDER_HEIGHT = 640; // rows of pixels the scene is drawn at, whatever the screen size
 const LAMP_IDLE = 9;
 const LAMP_LIT = 26;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -542,8 +542,8 @@ function buildArcade() {
 function buildDepartures() {
   const group = new Group();
   // On the wall over the arcade, under its sign; its face is HTML laid over this (SURFACES)
-  group.position.set(-3.1, 2.5, WALL_Z + 0.08);
-  group.scale.setScalar(0.66);
+  group.position.set(-3.1, 2.4, WALL_Z + 0.08);
+  group.scale.setScalar(0.6);
   group.add(box(2.65, 1.6, 0.1, standard("#15181f")));
   const face = paint(750, 435, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
   const faceMesh = plane(2.5, 1.45, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
@@ -1449,8 +1449,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
                 zoom !== null && spec.id === `paper-${zoom}`
                   ? "brightness(0.97) sepia(0.08)"
                   : spec.lamplit
-                    ? "brightness(0.88) sepia(0.2) contrast(1.05) blur(0.3px)"
-                    : "blur(0.25px)",
+                    ? "brightness(0.88) sepia(0.2) contrast(1.05)"
+                    : undefined,
             }}
           >
             {content}
