@@ -1024,7 +1024,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     scene.add(line);
 
     // Tracks: gravel bed, two rails, sleepers running off into the fog
-    const bed = plane(200, 40, standard("#25221f", 1, speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2)), 0, -0.85, EDGE_Z + 20);
+    // The fields all round: dark earth and dead grass, reaching well past the platform's end
+    const fieldTex = speckle("#1d1f17", ["#252a1c", "#16170f", "#2b2a1d", "#1a1c14"], 1800, 3);
+    fieldTex.wrapS = fieldTex.wrapT = RepeatWrapping;
+    fieldTex.repeat.set(40, 30);
+    const fields = plane(260, 200, standard("#8a8a7a", 1, fieldTex), 0, -0.9, 0);
+    fields.rotation.x = -Math.PI / 2;
+    scene.add(fields);
+    // The gravel bed, only under the line
+    const ballast = speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2);
+    ballast.wrapS = ballast.wrapT = RepeatWrapping;
+    ballast.repeat.set(60, 1.5);
+    const bed = plane(200, 4.6, standard("#25221f", 1, ballast), 0, -0.85, TRACK_Z);
     bed.rotation.x = -Math.PI / 2;
     scene.add(bed);
     const railMaterial = standard("#6b6f78", 0.5);
