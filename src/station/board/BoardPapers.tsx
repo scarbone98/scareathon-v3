@@ -104,6 +104,14 @@ function TicketIcon() {
     </svg>
   );
 }
+function PersonIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-5 w-5" aria-hidden>
+      <circle cx="8" cy="4.5" r="3.2" fill="#efe3c8" />
+      <path d="M2 15.5c0-3.6 2.7-6 6-6s6 2.4 6 6z" fill="#efe3c8" />
+    </svg>
+  );
+}
 function EnvelopeIcon() {
   return (
     <svg viewBox="0 0 24 16" className="h-5 w-7" aria-hidden>
@@ -118,39 +126,39 @@ function EnvelopeIcon() {
 function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: boolean }) {
   const { data: summary } = useSummary();
   const spotlight = useSpotlightGame();
-  const iconButton = "flex items-center gap-1.5 rounded-[2px] bg-[#1d2a3a] px-2.5 py-1.5 text-[18px] leading-none text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
+  const button =
+    "flex flex-1 items-center justify-center gap-2 rounded-[2px] bg-[#1d2a3a] px-3 py-2 text-[18px] leading-none text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
   return (
-    <div className={`m-2 border-[3px] border-double border-[#2a1d14]/70 px-4 py-2.5 ${ink} ${full ? "" : "h-[calc(100%-1rem)]"}`}>
-      <div className="flex h-full items-center gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-[12px] uppercase tracking-[0.35em]" style={serif}>
-            Wayside Station <span className="opacity-60">· passenger notice</span>
-          </p>
-          <p className={`mt-0.5 truncate leading-none ${full ? "text-[40px]" : "text-[34px]"}`} style={serif}>
-            {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
-          </p>
-          {!signedIn && (
-            <p className={`mt-1 text-[15px] leading-snug ${quiet}`}>A horror film a night through October, and an arcade all year.</p>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col gap-1.5">
-          {signedIn ? (
-            <>
-              <button type="button" className={iconButton} aria-label="Tickets: the item shop" title="Tickets" onClick={act(() => goTo("tickets", "shop"))}>
-                <TicketIcon />
-                {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}
-              </button>
-              <button type="button" className={iconButton} aria-label="Inbox" title="Inbox" onClick={act(() => goTo("mail", "letters"))}>
-                <EnvelopeIcon />
-                {summary?.unreadCount ?? 0}
-              </button>
-            </>
-          ) : (
-            <button type="button" className={action} onClick={act(() => goTo("tickets"))}>
+    <div className={`m-1.5 border-[3px] border-double border-[#2a1d14]/70 px-4 py-2 ${ink} ${full ? "" : "h-[calc(100%-0.75rem)]"}`}>
+      <p className="text-[12px] uppercase tracking-[0.35em]" style={serif}>
+        Wayside Station <span className="opacity-60">· passenger notice</span>
+      </p>
+      <p className={`mt-0.5 truncate leading-none ${full ? "text-[38px]" : "text-[32px]"}`} style={serif}>
+        {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
+      </p>
+      <div className="mt-2 flex gap-2">
+        {signedIn ? (
+          <>
+            <button type="button" className={button} aria-label="Tickets: the item shop" title="Tickets" onClick={act(() => goTo("tickets", "shop"))}>
+              <TicketIcon />
+              {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}
+            </button>
+            <button type="button" className={button} aria-label="Inbox" title="Inbox" onClick={act(() => goTo("mail", "letters"))}>
+              <EnvelopeIcon />
+              {summary?.unreadCount ?? 0}
+            </button>
+            <button type="button" className={button} aria-label="Your locker" title="Your locker" onClick={act(() => goTo("lockers"))}>
+              <PersonIcon />
+            </button>
+          </>
+        ) : (
+          <>
+            <p className={`flex-1 self-center text-[15px] leading-snug ${quiet}`}>A horror film a night through October, and an arcade all year.</p>
+            <button type="button" className={`${button} flex-none`} onClick={act(() => goTo("tickets"))}>
               Sign in
             </button>
-          )}
-        </div>
+          </>
+        )}
       </div>
       {full && spotlight && (
         <div className="mt-3 border-t border-[#2a1d14]/25 pt-3">
@@ -350,7 +358,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       title: "WAYSIDE STATION",
       pinned: <Welcome signedIn={signedIn} goTo={goTo} full={false} />,
       full: <Welcome signedIn={signedIn} goTo={goTo} full />,
-      tint: "#efe6cf",
+      tint: "#d9cba6",
     },
   ];
   if (challenge) {
@@ -360,7 +368,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       title: challenge.title,
       pinned: <Challenge item={challenge} game={challengeGame} signedIn={signedIn} goTo={goTo} full={false} />,
       full: <Challenge item={challenge} game={challengeGame} signedIn={signedIn} goTo={goTo} full />,
-      tint: "#f3ead0",
+      tint: "#dccd9f",
     });
   }
   notices.forEach((item, i) => {
@@ -371,7 +379,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       title: item.title,
       pinned: <Clipping item={item} full={false} picture={picture} />,
       full: <Clipping item={item} full picture={picture} />,
-      tint: "#e4ddcc",
+      tint: "#cfc3a4",
       // Cut out of a newspaper, not quite straight
       sheet: { clipPath: "polygon(0 1%, 3% 0, 97% 1.5%, 100% 0, 99% 98%, 96% 100%, 4% 99%, 0 100%)" },
     });
@@ -382,7 +390,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
     title: "THE SCAREATHON POST",
     pinned: <Post signedIn={signedIn} goTo={goTo} full={false} picture={postPicture} />,
     full: <Post signedIn={signedIn} goTo={goTo} full picture={postPicture} />,
-    tint: "#ebe4d2",
+    tint: "#d6c9a8",
   });
   return papers.slice(0, 5);
 }

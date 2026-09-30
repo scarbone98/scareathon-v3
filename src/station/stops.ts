@@ -19,6 +19,7 @@ export type Stop = {
   fit?: number; // metres that must fit across the screen, stepping back on narrow ones
   fitHeight?: number; // metres that must fit top to bottom, above a phone's held card
   snug?: boolean; // stand exactly where it fits (closer too), not just far enough back
+  seat?: boolean; // a place to sit: exactly here on every screen (no stepping back on phones)
 };
 
 // Clockwise, so "turn right" is the next entry: the board, the right, the tracks, the left
@@ -53,8 +54,9 @@ export const STOPS: Record<StopId, Stop> = {
     id: "bench",
     label: "The bench",
     heading: "left",
-    pos: [-5.95, 1.25, 0.9],
-    target: [-40, 3.0, 0.9],
+    pos: [-5.45, 1.25, 0.9],
+    target: [-9.45, 1.5, 0.9],
+    seat: true,
   },
   lockers: {
     id: "lockers",

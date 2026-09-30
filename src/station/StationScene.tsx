@@ -85,7 +85,7 @@ const SIGN_Y = 3.38; // the line the signs along the wall hang on, level with th
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
 const PLATFORM_MID = (30 + END_X) / 2;
-const RENDER_HEIGHT = 420; // rows of pixels the scene is drawn at, whatever the screen size
+const RENDER_HEIGHT = 540; // rows of pixels the scene is drawn at, whatever the screen size
 const LAMP_IDLE = 9;
 const LAMP_LIT = 26;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -344,11 +344,11 @@ const IDLE_NOTICES = [
 // The papers on the board (local x, y, tilt, width, height): the welcome, a long notice
 // across the top, and four below it
 const PAPER_SPOTS: [number, number, number, number, number][] = [
-  [0, 0.96, -0.006, 1.86, 0.64],
-  [-0.49, 0.15, 0.02, 0.86, 0.78],
-  [0.49, 0.14, -0.015, 0.86, 0.78],
-  [-0.49, -0.8, -0.01, 0.86, 0.78],
-  [0.49, -0.81, 0.02, 0.86, 0.78],
+  [0, 1.05, -0.006, 1.86, 0.48],
+  [-0.49, 0.25, 0.02, 0.86, 0.96],
+  [0.49, 0.24, -0.015, 0.86, 0.96],
+  [-0.49, -0.83, -0.01, 0.86, 0.96],
+  [0.49, -0.84, 0.02, 0.86, 0.96],
 ];
 // Where the board hangs: its centre, just off the wall
 const BOARD_POS = new Vector3(-0.9, 1.72, -2.15);
@@ -869,7 +869,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     for (let z = WALL_Z + 0.15; z <= EDGE_Z - 0.05; z += 0.45) scene.add(box(0.05, 1.05, 0.05, iron, END_X + 0.08, 0.52, z));
     [0.5, 1.02].forEach((y) => scene.add(box(0.06, 0.05, EDGE_Z - WALL_Z - 0.15, iron, END_X + 0.08, y, (EDGE_Z + WALL_Z) / 2 + 0.05)));
     const bench = new Group();
-    bench.position.set(END_X + 1.0, 0, 0.9);
+    bench.position.set(END_X + 1.5, 0, 0.9);
     bench.rotation.y = Math.PI / 2; // facing out over the railing
     bench.add(box(1.4, 0.06, 0.42, standard("#4a3524"), 0, 0.45, 0));
     [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
@@ -1064,7 +1064,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       const stop = STOPS[stopId];
       const target = new Vector3(...stop.target);
-      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull).add(target);
+      const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(stop.seat ? 1 : pull).add(target);
       if (stop.fit || stop.fitHeight) {
         // Far enough back that the whole object fits the view, across and top to bottom
         const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
