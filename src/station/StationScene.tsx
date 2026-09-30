@@ -79,8 +79,12 @@ const WALL_Z = -2.2;
 const EDGE_Z = 3.2; // the platform's edge
 const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
 const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
-const SIDE_X = 9.7; // the side wall, past the pigeonholes, running out from the station wall
-const TICKET_Z = -0.35; // where the ticket counter is let into it
+const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
+const TICKET_Z = -1.0; // where the ticket counter is let into it
+const LOCKER_Z = 0.95; // and the left-luggage lockers, nearer the tracks
+const END_X = -5.0; // the platform's far end, left of the arcade: a railing, and a view
+const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
+const PLATFORM_MID = (30 + END_X) / 2;
 const RENDER_HEIGHT = 420; // rows of pixels the scene is drawn at, whatever the screen size
 const LAMP_IDLE = 9;
 const LAMP_LIT = 26;
@@ -350,10 +354,11 @@ const BOARD_POS = new Vector3(-0.9, 1.72, -2.15);
 const PAPER_W = 0.86;
 const PAPER_H = 0.78;
 // The flyers on the events table, leaning in their stands (local x, y, z, lean back)
+// The flyers in their stand, top to bottom (local x, y, z, lean back)
 const FLYER_SPOTS: [number, number, number, number][] = [
-  [-0.47, 1.095, -0.01, -0.45],
-  [0, 1.095, -0.01, -0.45],
-  [0.47, 1.095, -0.01, -0.45],
+  [0, 1.62, 0.07, -0.16],
+  [0, 1.06, 0.07, -0.16],
+  [0, 0.5, 0.07, -0.16],
 ];
 const FLYER_W = 0.4;
 const FLYER_H = 0.52;
@@ -435,11 +440,17 @@ function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, ti
 
 function buildEvents() {
   const group = new Group();
-  group.position.set(1.9, 0, -1.45);
+  group.position.set(1.45, 0, WALL_Z + 0.3);
   const wood = standard("#4a3524");
-  group.add(box(1.5, 0.07, 0.8, wood, 0, 0.82, 0));
-  [-0.65, 0.65].forEach((x) => [-0.3, 0.3].forEach((z) => group.add(box(0.07, 0.82, 0.07, wood, x, 0.41, z))));
-  // Three flyers leaning in stands (their text is HTML laid over these, see SURFACES)
+  // A tall wooden rack against the wall, three shelves with lips holding the flyers
+  group.add(box(0.62, 1.95, 0.04, standard("#3a2a1c"), 0, 0.975, -0.06));
+  [-0.3, 0.3].forEach((x) => group.add(box(0.05, 2.0, 0.2, wood, x, 1.0, 0)));
+  [0.22, 0.78, 1.34].forEach((y) => {
+    group.add(box(0.56, 0.03, 0.2, wood, 0, y, 0.01));
+    group.add(box(0.56, 0.06, 0.02, wood, 0, y + 0.03, 0.1));
+  });
+  group.add(plane(0.5, 0.12, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.99, 0.02));
+  // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
     ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["TONIGHT", "#2a2f3a", "#e6e2d8"],
@@ -459,20 +470,18 @@ function buildEvents() {
     flyer.userData.part = `flyer-${i}`;
     flyer.rotation.x = lean;
     group.add(flyer);
-    const stand = box(FLYER_W * 0.9, 0.04, 0.12, standard("#1c1f26"), x, 0.88, 0.06);
-    group.add(stand);
   });
-  // The poster on the wall above (the building's wall is 0.75 behind the table's centre)
+  // The poster on the wall above the stand
   const posterZ = WALL_Z + 0.03 - group.position.z;
-  group.add(box(0.98, 1.38, 0.04, standard("#2a1d14", 0.7), 0, 1.95, posterZ));
+  group.add(box(0.8, 1.12, 0.04, standard("#2a1d14", 0.7), 0, 2.85, posterZ));
   const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
-  const poster = plane(0.86, 1.26, standard("#ffffff", 0.8, posterTexture), 0, 1.95, posterZ + 0.025);
+  const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.85, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
-  addLamp(group, 0, 2.3, 0.6);
-  group.add(hitBox(1.7, 1.2, 1.0, 0.7));
+  addLamp(group, 0, 2.4, 1.0);
+  group.add(hitBox(0.75, 2.05, 0.45, 1.0));
   // Tapping the poster up close picks it up (see `part` in pick)
-  const posterHit = hitBox(1.1, 1.5, 0.3, 1.95);
+  const posterHit = hitBox(0.9, 1.2, 0.3, 2.85);
   posterHit.position.z = posterZ + 0.1;
   posterHit.userData.part = "poster";
   group.add(posterHit);
@@ -482,7 +491,7 @@ function buildEvents() {
 
 function buildArcade() {
   const group = new Group();
-  group.position.set(-3.6, 0, -1.75); // against the wall, left of the board
+  group.position.set(-3.3, 0, -1.75); // against the wall, left of the board
   const placeholder = new Group();
   placeholder.add(box(0.85, 1.9, 0.8, standard("#2b1a3a"), 0, 0.95, 0));
   placeholder.add(plane(0.6, 0.45, new MeshBasicMaterial({ color: "#5cffb1" }), 0, 1.3, 0.41));
@@ -518,7 +527,7 @@ function buildDepartures() {
   const group = new Group();
   // On the side wall over the ticket counter, as at a booking office; its face is HTML laid
   // over this (SURFACES)
-  group.position.set(SIDE_X - 0.18, 3.35, TICKET_Z);
+  group.position.set(SIDE_X - 0.18, 3.35, TICKET_Z + 0.15);
   group.rotation.y = -Math.PI / 2;
   group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
   const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
@@ -551,7 +560,9 @@ const LOCKER_W = 0.5;
 const LOCKER_H = 0.95;
 function buildLockers() {
   const group = new Group();
-  group.position.set(-6.4, 0, WALL_Z + 0.25);
+  // On the side wall, beside the ticket counter
+  group.position.set(SIDE_X - 0.25, 0, LOCKER_Z);
+  group.rotation.y = -Math.PI / 2;
   const steel = standard("#26302c", 0.55);
   const dark = standard("#0e1014", 1);
   group.add(box(3 * LOCKER_W + 0.08, 0.12, 0.5, standard("#23272e"), 0, 0.06, 0));
@@ -598,7 +609,7 @@ function buildLockers() {
 const MY_CUBBY: [number, number] = [0.125, 1.45];
 function buildMail() {
   const group = new Group();
-  group.position.set(7.6, 0, WALL_Z + 0.2);
+  group.position.set(3.4, 0, WALL_Z + 0.2); // next to the flyer stand
   const cols = 6;
   const rows = 5;
   const cabinetW = 1.9;
@@ -788,7 +799,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     overhead.position.set(0, 3.5, 0.6);
     scene.add(overhead);
     scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, 0.6));
-    [-9, 9].forEach((x) => {
+    [-3, 9].forEach((x) => {
       const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
       scene.add(lamp);
@@ -799,15 +810,32 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const floorTex = speckle("#4a4a4c", ["#3c3c3e", "#57575a", "#444"], 1400, 2);
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
     floorTex.repeat.set(30, 2);
-    scene.add(box(60, 0.85, EDGE_Z - WALL_Z, standard("#555", 0.95, floorTex), 0, -0.425, (EDGE_Z + WALL_Z) / 2));
-    scene.add(box(60, 5, 0.2, standard("#8a7f78", 1, brickTexture()), 0, 2.5, WALL_Z - 0.1));
+    scene.add(box(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, standard("#555", 0.95, floorTex), PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
+    scene.add(box(PLATFORM_W, 5, 0.2, standard("#8a7f78", 1, brickTexture()), PLATFORM_MID, 2.5, WALL_Z - 0.1));
     const sideBricks = brickTexture();
     sideBricks.repeat.set(2, 3);
     scene.add(box(0.2, 5, 4.4, standard("#8a7f78", 1, sideBricks), SIDE_X + 0.1, 2.5, WALL_Z + 2.2));
-    scene.add(box(60, 0.12, EDGE_Z - WALL_Z + 0.8, standard("#1c1f26"), 0, 4.1, (EDGE_Z + WALL_Z) / 2 + 0.4));
+    scene.add(box(PLATFORM_W, 0.12, EDGE_Z - WALL_Z + 0.8, standard("#1c1f26"), PLATFORM_MID, 4.1, (EDGE_Z + WALL_Z) / 2 + 0.4));
+
+    // The end of the platform: a railing, a bench and a lamp, and the night beyond
+    const iron = standard("#1a1d22", 0.6);
+    for (let z = WALL_Z + 0.15; z <= EDGE_Z - 0.05; z += 0.45) scene.add(box(0.05, 1.05, 0.05, iron, END_X + 0.08, 0.52, z));
+    [0.5, 1.02].forEach((y) => scene.add(box(0.06, 0.05, EDGE_Z - WALL_Z - 0.15, iron, END_X + 0.08, y, (EDGE_Z + WALL_Z) / 2 + 0.05)));
+    const bench = new Group();
+    bench.position.set(END_X + 1.0, 0, 0.9);
+    bench.rotation.y = Math.PI / 2; // facing out over the railing
+    bench.add(box(1.4, 0.06, 0.42, standard("#4a3524"), 0, 0.45, 0));
+    bench.add(box(1.4, 0.4, 0.05, standard("#4a3524"), 0, 0.8, -0.2));
+    [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
+    scene.add(bench);
+    scene.add(box(0.08, 3.4, 0.08, iron, END_X + 0.3, 1.7, EDGE_Z - 0.4));
+    const endLamp = new PointLight("#ffb060", 10, 7, 2);
+    endLamp.position.set(END_X + 0.5, 3.2, EDGE_Z - 0.4);
+    scene.add(endLamp);
+    scene.add(box(0.3, 0.12, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), END_X + 0.5, 3.35, EDGE_Z - 0.4));
     // Posts stand well away from the visitor, so none of them crosses a view
-    [-26, -18, -10, 10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, EDGE_Z - 0.2)));
-    const line = plane(60, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), 0, 0.006, EDGE_Z - 0.25);
+    [10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, EDGE_Z - 0.2)));
+    const line = plane(PLATFORM_W, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), PLATFORM_MID, 0.006, EDGE_Z - 0.25);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
 

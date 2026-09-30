@@ -1,6 +1,6 @@
 // The papers' content components live beside the hook that picks them; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
 import {
@@ -18,37 +18,44 @@ import {
 } from "../data.ts";
 import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/games";
 import type { GoTo } from "../stops.ts";
-import { paperStyle, serif } from "../style/theme.ts";
+import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
 
-// The station board is the home page, and its papers are the content: a welcome (your
-// ticket, coins and mail), the Scareathon, this week's challenge, the latest two
-// announcements, and The Scareathon Post. They're flyers: each has a picture, in sepia,
-// and some of them move, like the photographs in a wizard's newspaper. Pinned up, a flyer
-// shows its picture and headline; tapping it brings you up close to read the rest.
+// The station board is the home page, and its papers are the content. Each kind of paper
+// looks like what it is, so they read at a glance from across the platform:
+//   the welcome   - a railway company notice: ruled border, centred, "By order"
+//   the event     - a film poster: the picture fills it, the title over it
+//   a challenge   - an arcade handbill: the game's picture and colour, a stamp, the score
+//   a notice      - a newspaper cutting: dateline, headline, a column of text, a photo
+//   the Post      - the Scareathon Post's front page
+// Pictures are sepia, and the games' move when you're up close, like the photographs in
+// a wizard's newspaper. Tap a paper to come up close and read the rest.
 
 export type Picture = { src: string; video?: string };
 
 export type Paper = {
   id: string;
-  kind: string; // the small label at the top, e.g. NOTICE
-  title: string; // also painted on the board's own texture, for when the paper can't be drawn crisply
+  kind: string; // the small label painted on the board's stand-in texture, e.g. NOTICE
+  title: string; // also painted on the stand-in, for when the paper can't be drawn crisply
   pinned: ReactNode; // on the board
   full: ReactNode; // up close
   tint: string;
-  picture?: Picture;
+  // How the paper itself is cut and printed; its contents bring their own padding
+  sheet?: CSSProperties;
 };
 
-// A photograph printed on the flyer: sepia, softly vignetted, and moving if it's a film
-function Photo({ picture, tall = false }: { picture: Picture; tall?: boolean }) {
-  const sepia = { filter: "sepia(0.85) contrast(1.08) brightness(0.92) saturate(0.9)" };
+const SEPIA = "sepia(0.85) contrast(1.08) brightness(0.92) saturate(0.9)";
+
+// A photograph: sepia, softly vignetted, and moving if it's a film (and `moving`)
+function Photo({ picture, moving = false, className = "", fade }: { picture: Picture; moving?: boolean; className?: string; fade?: string }) {
   return (
-    <div className={`relative w-full overflow-hidden bg-[#3a2a1a] ${tall ? "aspect-video" : "h-full"}`}>
-      {picture.video ? (
-        <video className="h-full w-full object-cover" style={sepia} src={picture.video} poster={picture.src} autoPlay muted loop playsInline />
+    <div className={`relative overflow-hidden bg-[#3a2a1a] ${className}`}>
+      {moving && picture.video ? (
+        <video className="h-full w-full object-cover" style={{ filter: SEPIA }} src={picture.video} poster={picture.src} autoPlay muted loop playsInline />
       ) : (
-        <img className="h-full w-full object-cover" style={sepia} src={picture.src} alt="" loading="lazy" draggable={false} />
+        <img className="h-full w-full object-cover" style={{ filter: SEPIA }} src={picture.src} alt="" loading="lazy" draggable={false} />
       )}
       <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_24px_rgba(40,24,8,0.7)]" />
+      {fade && <div className="pointer-events-none absolute inset-0" style={{ background: fade }} />}
     </div>
   );
 }
@@ -59,21 +66,23 @@ function stillFor(videoUrl: string) {
   return `${videoUrl.slice(0, slash)}/stills/${videoUrl.slice(slash + 1).replace(/\.mp4$/i, ".jpg")}`;
 }
 
-// One game from the arcade for the welcome flyer, a different one each day
-function useSpotlightGame() {
+type GameCard = { name: string; color: string; picture: Picture };
+
+// One game from the arcade for the welcome, a different one each day
+function useSpotlightGame(): GameCard | null {
   return useMemo(() => {
     const games = createArcadeGames().filter((game) => game.game && !game.special && game.videoUrl);
     const today = new Date();
     const pick = games[(today.getFullYear() * 400 + today.getMonth() * 31 + today.getDate()) % Math.max(games.length, 1)];
-    return pick?.videoUrl ? { name: pick.name, picture: { src: stillFor(pick.videoUrl), video: pick.videoUrl } } : null;
+    return pick?.videoUrl ? { name: pick.name, color: pick.cartridge.color, picture: { src: stillFor(pick.videoUrl), video: pick.videoUrl } } : null;
   }, []);
 }
 
-function useGamePicture(name?: string | null): Picture | undefined {
+function useGame(name?: string | null): GameCard | null {
   return useMemo(() => {
-    if (!name) return undefined;
+    if (!name) return null;
     const game = createArcadeGames().find((g) => normalizeMachineName(g.name) === normalizeMachineName(name));
-    return game?.videoUrl ? { src: stillFor(game.videoUrl), video: game.videoUrl } : undefined;
+    return game?.videoUrl ? { name: game.name, color: game.cartridge.color, picture: { src: stillFor(game.videoUrl), video: game.videoUrl } } : null;
   }, [name]);
 }
 
@@ -83,83 +92,40 @@ const action =
   "rounded-[2px] bg-[#1d2a3a] px-3 py-1.5 text-[15px] text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
 const link = "underline decoration-[#2a1d14]/40 underline-offset-4 hover:decoration-[#2a1d14]";
 
-function Label({ children }: { children: ReactNode }) {
-  return <p className={`text-[13px] font-semibold uppercase tracking-[0.18em] ${quiet}`}>{children}</p>;
-}
-
-function Headline({ children, big = false }: { children: ReactNode; big?: boolean }) {
-  return (
-    <h3 className={`${ink} ${big ? "text-[34px]" : "text-[26px]"} mt-1 leading-[1.05]`} style={serif}>
-      {children}
-    </h3>
-  );
-}
-
-// Buttons on a paper act without also lifting the paper
+// Buttons on a paper act without also bringing you up to it
 const act = (fn: () => void) => (event: React.MouseEvent) => {
   event.stopPropagation();
   fn();
 };
 
-function Challenge({ item, signedIn, goTo, full }: { item: ContentLoopItem; signedIn: boolean; goTo: GoTo; full: boolean }) {
-  const { data: reward } = useRewardStatus(item, signedIn);
-  const target = challengeTarget(item);
-  return (
-    <>
-      <Label>
-        Weekly challenge{item.startsAt && item.endsAt ? ` · ${formatShortDate(item.startsAt)} – ${formatShortDate(item.endsAt)}` : ""}
-      </Label>
-      <Headline big={full}>{item.title}</Headline>
-      {full && item.summary && <p className={`mt-2 text-[17px] leading-snug ${quiet}`}>{item.summary}</p>}
-      {full && target && <p className={`mt-2 text-[17px] leading-snug ${ink}`}>{target}</p>}
-      <p className={`mt-2 text-[13px] ${quiet}`}>
-        {item.points || 1} point{item.rewardCoins ? ` · ${item.rewardCoins.toLocaleString()} coins` : ""}
-        {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Completed</strong> : null}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {item.gameName && (
-          <button type="button" className={action} onClick={act(() => goTo("arcade", item.gameName ?? undefined))}>
-            Play {item.gameName.replace(/[‘’]/g, "'")}
-          </button>
-        )}
-        {!signedIn && item.rewardCoins && item.isActive !== false ? (
-          <button type="button" className={action} onClick={act(() => goTo("tickets"))}>
-            Sign in to earn
-          </button>
-        ) : null}
-      </div>
-    </>
-  );
-}
+// ---- The welcome: a railway company notice
 
 function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: boolean }) {
   const { data: summary } = useSummary();
   const spotlight = useSpotlightGame();
   return (
-    <>
-      <Label>Wayside Station</Label>
-      <Headline big={full}>{signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}.` : "Welcome, traveller."}</Headline>
-      <p className={`mt-2 text-[17px] leading-snug ${quiet} ${full ? "" : "line-clamp-2"}`}>
-        {signedIn
-          ? "Your ticket's in order. Spend your coins at the kiosk, or see who's written."
-          : "A horror film a night through October, and an arcade all year. Get a ticket at the kiosk to save scores and earn coins."}
+    <div className={`m-2 flex min-h-[calc(100%-1rem)] flex-col items-center border-[3px] border-double border-[#2a1d14]/70 px-4 py-3 text-center ${ink}`}>
+      <p className="text-[12px] uppercase tracking-[0.35em]" style={serif}>
+        Wayside Station
       </p>
-      {full && spotlight && (
-        <p className={`mt-2 text-[15px] italic ${quiet}`}>
-          Pictured: {spotlight.name.replace(/’/g, "'")}, tonight in the arcade.{" "}
-          <button type="button" className={link} onClick={act(() => goTo("arcade", spotlight.name))}>
-            Play it
-          </button>
-        </p>
-      )}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <p className="-mt-0.5 text-[10px] uppercase tracking-[0.3em] opacity-60">Passenger notice</p>
+      <p className={`mt-2 leading-none ${full ? "text-[40px]" : "text-[30px]"}`} style={serif}>
+        {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
+      </p>
+      <p className="my-1.5 text-[14px] opacity-60">⁂</p>
+      <p className={`text-[16px] leading-snug ${quiet} ${full ? "" : "line-clamp-2"}`}>
+        {signedIn
+          ? "Your ticket is in order. Coins may be spent at the counter; letters await you in the pigeonholes."
+          : "A horror film a night through October, and an arcade all year. Tickets at the counter: save your scores, earn coins."}
+      </p>
+      <div className="mt-auto flex flex-wrap justify-center gap-2 pt-2">
         {signedIn ? (
           <>
             <button type="button" className={action} onClick={act(() => goTo("tickets", "shop"))}>
               {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} coins` : "Coins"}
             </button>
             <button type="button" className={action} onClick={act(() => goTo("mail", "letters"))}>
-              {summary?.unreadCount ? `${summary.unreadCount} unread` : "Inbox"}
+              {summary?.unreadCount ? `${summary.unreadCount} letter${summary.unreadCount === 1 ? "" : "s"}` : "Letters"}
             </button>
           </>
         ) : (
@@ -168,95 +134,197 @@ function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full
           </button>
         )}
       </div>
-    </>
+      {full && spotlight && (
+        <div className="mt-4 w-full border-t border-[#2a1d14]/25 pt-3 text-left">
+          <p className="text-[12px] uppercase tracking-[0.25em] opacity-60">Tonight in the arcade</p>
+          <Photo picture={spotlight.picture} moving className="mt-2 aspect-video w-full" />
+          <p className="mt-2 text-[16px]">
+            {spotlight.name.replace(/’/g, "'")}.{" "}
+            <button type="button" className={link} onClick={act(() => goTo("arcade", spotlight.name))}>
+              Play it
+            </button>
+          </p>
+        </div>
+      )}
+      <p className="mt-3 self-end text-[11px] italic opacity-55" style={serif}>
+        By order, the Station Master
+      </p>
+    </div>
   );
 }
 
-function Scareathon({ goTo, full }: { goTo: GoTo; full: boolean }) {
+// ---- The event: a film poster
+
+function Scareathon({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture: Picture }) {
   const { isLive, daysUntil, year, day } = eventState();
+  const count = isLive ? `Night ${day} of 31` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`;
   return (
-    <>
-      <Label>Scareathon {year}</Label>
-      <p className={`${ink} mt-1 ${full ? "text-5xl" : "text-3xl"} leading-none`} style={serif}>
-        {isLive ? day : daysUntil}
-        <span className="ml-2 align-middle text-base">{isLive ? "of 31" : daysUntil === 1 ? "day to go" : "days to go"}</span>
-      </p>
-      <p className={`mt-2 text-[17px] leading-snug ${quiet} ${full ? "" : "line-clamp-2"}`}>
-        {isLive ? "One horror film a night through Halloween." : "Starts October 1: a horror film every night, weekly challenges and the Scareboard."}
-        {full ? " Watch the night's film to earn a point, finish the weekly challenge for another, and wear a costume on Halloween for one more." : ""}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" className={action} onClick={act(() => goTo("events", "tonight"))}>
-          {isLive ? "Tonight's film" : "How it works"}
-        </button>
-        <button type="button" className={action} onClick={act(() => goTo("departures"))}>
-          Scareboard
-        </button>
+    <div className="relative flex h-full min-h-full flex-col bg-[#1a0f08] text-[#f2e2c2]">
+      <Photo picture={picture} className={full ? "aspect-[4/3] w-full" : "absolute inset-0"} fade="linear-gradient(to bottom, rgba(26,15,8,0.1) 30%, rgba(26,15,8,0.92) 78%)" />
+      <div className={`${full ? "" : "absolute inset-x-0 bottom-0"} px-4 pb-3 pt-2 text-center`}>
+        <p className="text-[12px] uppercase tracking-[0.4em] opacity-80">October {year}</p>
+        <p className="text-[44px] uppercase leading-[0.9] text-[#ffb070] [text-shadow:0_2px_0_#000]" style={serif}>
+          Scare-athon
+        </p>
+        <p className="mt-1 inline-block -rotate-2 border-2 border-[#ffb070] px-2 text-[14px] uppercase tracking-[0.2em] text-[#ffb070]" style={pixel}>
+          {count}
+        </p>
+        {full && (
+          <p className="mt-3 text-left text-[17px] leading-snug" style={typewriter}>
+            {isLive
+              ? "One horror film every night through Halloween. Watch along, finish the weekly challenges, and climb the Scareboard."
+              : "Starting October 1: a horror film every night through Halloween, weekly challenges, and a Scareboard for the whole month."}{" "}
+            Watch the night's film for a point, finish the week's challenge for another, and wear a costume on Halloween for one more.
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <button type="button" className={action} onClick={act(() => goTo("events", "tonight"))}>
+            {isLive ? "Tonight's film" : "How it works"}
+          </button>
+          <button type="button" className={action} onClick={act(() => goTo("departures"))}>
+            Scareboard
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
-function Announcement({ item, full }: { item: ContentLoopItem; full: boolean }) {
+// ---- A challenge: an arcade handbill
+
+function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem; game: GameCard | null; signedIn: boolean; goTo: GoTo; full: boolean }) {
+  const { data: reward } = useRewardStatus(item, signedIn);
+  const target = challengeTarget(item);
+  const colour = game?.color ?? "#e0433b";
+  const bigNumber = item.targetMetricValue != null ? item.targetMetricValue.toLocaleString() : null;
   return (
-    <>
-      <Label>Notice · {formatShortDate(item.publishedAt) ?? "Latest"}</Label>
-      <Headline big={full}>{item.title}</Headline>
-      {item.summary && <p className={`mt-2 text-[17px] leading-snug ${quiet} ${full ? "" : "line-clamp-2"}`}>{item.summary}</p>}
-    </>
+    <div className={`flex h-full flex-col ${ink}`}>
+      <div className="relative shrink-0" style={{ height: full ? undefined : "46%" }}>
+        {game ? <Photo picture={game.picture} moving={full} className={full ? "aspect-video w-full" : "h-full w-full"} /> : <div className="h-full w-full bg-[#1a1a1a]" />}
+        {/* the stamp */}
+        <p className="absolute right-2 top-2 rotate-[8deg] border-[3px] border-[#b3261e] bg-[#efe3c8]/85 px-1.5 text-[12px] uppercase leading-tight tracking-[0.15em] text-[#b3261e]" style={pixel}>
+          Weekly
+          <br />
+          challenge
+        </p>
+      </div>
+      <div className="h-2.5 shrink-0" style={{ background: colour }} />
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="truncate text-[20px] uppercase leading-none" style={pixel}>
+            {(item.gameName ?? item.title).replace(/[‘’]/g, "'")}
+          </p>
+          {bigNumber && (
+            <p className="shrink-0 text-[13px] uppercase" style={pixel}>
+              score <span className="text-[26px] leading-none" style={{ color: colour }}>{bigNumber}</span>
+            </p>
+          )}
+        </div>
+        <p className="mt-1 text-[13px] opacity-70">
+          {item.startsAt && item.endsAt ? `${formatShortDate(item.startsAt)} – ${formatShortDate(item.endsAt)} · ` : ""}
+          {item.points || 1} point{item.rewardCoins ? ` · ${item.rewardCoins.toLocaleString()} coins` : ""}
+          {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Done</strong> : null}
+        </p>
+        {full && (
+          <>
+            <p className="mt-3 text-[20px] leading-tight" style={serif}>
+              {item.title}
+            </p>
+            {item.summary && <p className={`mt-2 text-[17px] leading-snug ${quiet}`}>{item.summary}</p>}
+            {target && <p className="mt-2 text-[17px] leading-snug">{target}</p>}
+          </>
+        )}
+        <div className="mt-auto flex flex-wrap gap-2 pt-2">
+          {item.gameName && (
+            <button type="button" className={action} onClick={act(() => goTo("arcade", item.gameName ?? undefined))}>
+              Play
+            </button>
+          )}
+          {!signedIn && item.rewardCoins && item.isActive !== false ? (
+            <button type="button" className={action} onClick={act(() => goTo("tickets"))}>
+              Sign in to earn
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function Post({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: boolean }) {
+// ---- A notice: a cutting from a newspaper
+
+function Clipping({ item, full, picture }: { item: ContentLoopItem; full: boolean; picture: Picture }) {
+  const date = formatShortDate(item.publishedAt);
+  return (
+    <div className={`h-full px-4 pb-3 pt-5 ${ink}`} style={serif}>
+      <p className="border-b border-[#2a1d14]/40 pb-0.5 text-[11px] uppercase tracking-[0.3em] opacity-70">Station notices</p>
+      <p className={`mt-1.5 font-bold leading-[1.02] ${full ? "text-[30px]" : "text-[23px]"}`}>{item.title}</p>
+      <div className="mt-2 text-[15px] leading-snug" style={{ ...typewriter, textAlign: "justify", hyphens: "auto" }}>
+        <Photo picture={picture} className={`float-right mb-1 ml-2 ${full ? "h-32 w-40" : "h-[4.5rem] w-24"}`} />
+        <span className="font-bold uppercase">Wayside{date ? `, ${date}` : ""}. — </span>
+        <span className={full ? "" : "line-clamp-4"}>{item.summary}</span>
+      </div>
+    </div>
+  );
+}
+
+// ---- The Post: its front page
+
+function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo; full: boolean; picture: Picture }) {
   const { data, isLoading, error } = usePosts(signedIn);
   const [open, setOpen] = useState<number | null>(null);
   const posts = data?.data ?? [];
   const masthead = (
-    <div className="border-b-2 border-double border-[#2a1d14]/60 pb-1 text-center">
-      <p className={`${ink} ${full ? "text-3xl" : "text-2xl"}`} style={{ ...serif, fontVariant: "small-caps", letterSpacing: "0.04em" }}>
+    <div className="border-b-[3px] border-double border-[#2a1d14]/70 pb-1 text-center">
+      <p className="text-[10px] uppercase tracking-[0.3em] opacity-60">Est. 2023 · One penny</p>
+      <p className={`${ink} ${full ? "text-[34px]" : "text-[27px]"} leading-none`} style={{ ...serif, fontVariant: "small-caps" }}>
         The Scareathon Post
       </p>
     </div>
   );
   if (!signedIn || needsSignIn(error)) {
     return (
-      <>
+      <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>
         {masthead}
-        <p className={`mt-3 text-[17px] leading-snug ${quiet}`}>For ticket holders. Sign in at the kiosk to read the paper.</p>
-        <button type="button" className={`${action} mt-3`} onClick={act(() => goTo("tickets"))}>
+        <Photo picture={picture} className="mt-2 h-24 w-full" />
+        <p className={`mt-2 text-[16px] leading-snug ${quiet}`}>For ticket holders. Get a ticket at the counter to read the paper.</p>
+        <button type="button" className={`${action} mt-2`} onClick={act(() => goTo("tickets"))}>
           Get a ticket
         </button>
-      </>
+      </div>
     );
   }
   if (!full) {
     return (
-      <>
+      <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>
         {masthead}
-        <ul className="mt-2 space-y-1.5">
-          {(isLoading ? [] : posts.slice(0, 2)).map((post) => (
-            <li key={post.id} className={`${ink} line-clamp-1 text-[17px] leading-snug`} style={serif}>
-              {post.Title}
-            </li>
-          ))}
-          {isLoading && <li className={quiet}>Printing…</li>}
-        </ul>
-      </>
+        <div className="mt-2 flex gap-2">
+          <Photo picture={picture} className="h-24 w-24 shrink-0" />
+          <ul className="min-w-0 space-y-1.5" style={serif}>
+            {(isLoading ? [] : posts.slice(0, 3)).map((post) => (
+              <li key={post.id} className="line-clamp-2 border-b border-[#2a1d14]/15 pb-1 text-[16px] leading-tight">
+                {post.Title}
+              </li>
+            ))}
+            {isLoading && <li className={quiet}>Printing…</li>}
+          </ul>
+        </div>
+      </div>
     );
   }
   return (
-    <>
+    <div className={`px-4 pb-3 pt-5 ${ink}`}>
       {masthead}
       {posts.map((post) => {
         const expanded = open === post.id;
         const image = strapiUrl(post.Image?.[0]?.url);
         return (
           <article key={post.id} className="border-b border-[#2a1d14]/20 py-4">
-            <p className={`text-[11px] uppercase tracking-widest ${quiet}`}>{new Date(post.publishedAt).toLocaleDateString()}</p>
-            <h4 className={`${ink} mt-1 text-xl leading-tight`} style={serif}>
+            <p className={`text-[12px] uppercase tracking-widest ${quiet}`}>{new Date(post.publishedAt).toLocaleDateString()}</p>
+            <h4 className="mt-1 text-[22px] leading-tight" style={serif}>
               {post.Title}
             </h4>
-            {image && <img src={image} alt={post.Image?.[0]?.alternativeText || ""} className="mt-3 max-h-60 w-full object-contain" loading="lazy" />}
+            {image && <Photo picture={{ src: image }} className="mt-3 max-h-60 w-full" />}
             {post.Content ? (
               <>
                 <div className={`prose prose-sm mt-2 max-w-none text-[#2a1d14] ${expanded ? "" : "max-h-28 overflow-hidden [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"}`}>
@@ -272,7 +340,7 @@ function Post({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: b
                     }}
                   />
                 </div>
-                <button type="button" onClick={() => setOpen(expanded ? null : post.id)} className={`mt-1 text-sm ${link} ${ink}`}>
+                <button type="button" onClick={() => setOpen(expanded ? null : post.id)} className={`mt-1 text-sm ${link}`}>
                   {expanded ? "Less" : "Read on"}
                 </button>
               </>
@@ -280,42 +348,43 @@ function Post({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: b
           </article>
         );
       })}
-    </>
+    </div>
   );
 }
 
-const TINTS = ["#f2ead2", "#f0c9a0", "#e8d9a8", "#e6e2d8", "#d7c9b0", "#ece4cf"];
+// ---- Which papers are up
+
+const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
 
 export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
   const notices = items.filter((item) => item.type === "announcement").slice(0, 2);
   const { isLive, daysUntil, year } = eventState();
-  const spotlight = useSpotlightGame();
-  const challengePicture = useGamePicture(challenge?.gameName);
+  const challengeGame = useGame(challenge?.gameName);
   const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: posts } = usePosts(signedIn);
   const postImage = strapiUrl(posts?.data?.find((post) => post.Image?.[0]?.url)?.Image?.[0]?.url);
-  const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
+  const eventPicture: Picture = movie?.data?.lowResUrl ? { src: movie.data.lowResUrl } : { src: "/images/emptyTheater.jpg" };
+  const postPicture: Picture = { src: postImage ?? "/images/candleskull.gif" };
 
   const papers: Paper[] = [
     {
       id: "welcome",
-      kind: "WELCOME",
+      kind: "NOTICE",
       title: "WAYSIDE STATION",
       pinned: <Welcome signedIn={signedIn} goTo={goTo} full={false} />,
       full: <Welcome signedIn={signedIn} goTo={goTo} full />,
-      tint: TINTS[0],
-      picture: spotlight?.picture ?? { src: "/images/home_bg.png" },
+      tint: "#efe6cf",
     },
     {
       id: "scareathon",
       kind: "EVENT",
       title: isLive ? `SCAREATHON ${year}` : `SCAREATHON IN ${daysUntil} DAYS`,
-      pinned: <Scareathon goTo={goTo} full={false} />,
-      full: <Scareathon goTo={goTo} full />,
-      tint: TINTS[1],
-      picture: movie?.data?.lowResUrl ? { src: movie.data.lowResUrl } : { src: "/images/emptyTheater.jpg" },
+      pinned: <Scareathon goTo={goTo} full={false} picture={eventPicture} />,
+      full: <Scareathon goTo={goTo} full picture={eventPicture} />,
+      tint: "#1a0f08",
+      sheet: { backgroundImage: "none" },
     },
   ];
   if (challenge) {
@@ -323,31 +392,31 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       id: challenge.id,
       kind: "CHALLENGE",
       title: challenge.title,
-      pinned: <Challenge item={challenge} signedIn={signedIn} goTo={goTo} full={false} />,
-      full: <Challenge item={challenge} signedIn={signedIn} goTo={goTo} full />,
-      tint: TINTS[2],
-      picture: challengePicture,
+      pinned: <Challenge item={challenge} game={challengeGame} signedIn={signedIn} goTo={goTo} full={false} />,
+      full: <Challenge item={challenge} game={challengeGame} signedIn={signedIn} goTo={goTo} full />,
+      tint: "#f3ead0",
     });
   }
-  notices.forEach((item, i) =>
+  notices.forEach((item, i) => {
+    const picture = { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] };
     papers.push({
       id: item.id,
       kind: "NOTICE",
       title: item.title,
-      pinned: <Announcement item={item} full={false} />,
-      full: <Announcement item={item} full />,
-      tint: TINTS[3 + i],
-      picture: { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] },
-    })
-  );
+      pinned: <Clipping item={item} full={false} picture={picture} />,
+      full: <Clipping item={item} full picture={picture} />,
+      tint: "#e4ddcc",
+      // Cut out of a newspaper, not quite straight
+      sheet: { clipPath: "polygon(0 1%, 3% 0, 97% 1.5%, 100% 0, 99% 98%, 96% 100%, 4% 99%, 0 100%)" },
+    });
+  });
   papers.push({
     id: "post",
     kind: "THE POST",
     title: "THE SCAREATHON POST",
-    pinned: <Post signedIn={signedIn} goTo={goTo} full={false} />,
-    full: <Post signedIn={signedIn} goTo={goTo} full />,
-    tint: TINTS[5],
-    picture: { src: postImage ?? "/images/candleskull.gif" },
+    pinned: <Post signedIn={signedIn} goTo={goTo} full={false} picture={postPicture} />,
+    full: <Post signedIn={signedIn} goTo={goTo} full picture={postPicture} />,
+    tint: "#ebe4d2",
   });
   return papers.slice(0, 6);
 }
@@ -355,7 +424,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
 // A paper as it hangs on the board. Tap it to look closer: the camera comes up to it and
 // it shows everything it says (scrolling if there's more), usable where it hangs.
 export function PinnedPaper({ paper, onOpen, onClose, zoomed = false }: { paper: Paper; onOpen: () => void; onClose: () => void; zoomed?: boolean }) {
-  const picture = paper.picture;
+  const dark = paper.id === "scareathon";
   return (
     <div
       role={zoomed ? undefined : "button"}
@@ -364,22 +433,21 @@ export function PinnedPaper({ paper, onOpen, onClose, zoomed = false }: { paper:
       onClick={zoomed ? undefined : onOpen}
       onKeyDown={(event) => !zoomed && event.key === "Enter" && event.target === event.currentTarget && onOpen()}
       className={`relative h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition ${zoomed ? "" : "cursor-pointer hover:brightness-105"}`}
-      style={paperStyle(paper.tint)}
+      style={{ backgroundColor: paper.tint, backgroundImage: PAPER_GRAIN, ...typewriter, ...paper.sheet }}
     >
-      <span className="absolute left-1/2 top-2 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+      <span className="absolute left-1/2 top-1.5 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
       {zoomed && (
         <button
           type="button"
           onClick={onClose}
           aria-label="Back to the board"
-          className="absolute right-1 top-0 z-10 flex h-10 w-10 items-center justify-center text-2xl leading-none text-[#2a1d14]/55 hover:text-[#2a1d14]"
+          className={`absolute right-1 top-0 z-10 flex h-10 w-10 items-center justify-center text-2xl leading-none ${dark ? "text-[#f2e2c2]/70 hover:text-[#f2e2c2]" : "text-[#2a1d14]/55 hover:text-[#2a1d14]"}`}
         >
           ×
         </button>
       )}
-      <div className={`flex h-full flex-col px-4 pb-3 pt-6 ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`} style={{ touchAction: zoomed ? "pan-y" : undefined }}>
-        {picture && (zoomed ? <div className="mb-3 shrink-0"><Photo picture={picture} tall /></div> : <div className="mb-2 h-[42%] shrink-0"><Photo picture={{ src: picture.src }} /></div>)}
-        <div className={zoomed ? "" : "min-h-0 flex-1 overflow-hidden"}>{zoomed ? paper.full : paper.pinned}</div>
+      <div className={`h-full ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`} style={{ touchAction: zoomed ? "pan-y" : undefined }}>
+        {zoomed ? paper.full : paper.pinned}
       </div>
     </div>
   );
