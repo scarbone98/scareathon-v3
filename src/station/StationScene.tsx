@@ -734,8 +734,13 @@ function buildMail() {
         ctx.fillText(names[r * cols + c] ?? "", c * cw + cw / 2, r * ch + ch - 9, cw - 30);
       }
   });
-  group.add(box(cabinetW + 0.08, cabinetH + 0.08, 0.36, wood, cx, bottom + cabinetH / 2, -0.02));
-  group.add(plane(cabinetW, cabinetH, standard("#ffffff", 0.9, front), cx, bottom + cabinetH / 2, 0.165));
+  // The whole cabinet takes you to your letters, not just your cubbyhole
+  const cabinet = box(cabinetW + 0.08, cabinetH + 0.08, 0.36, wood, cx, bottom + cabinetH / 2, -0.02);
+  cabinet.userData.part = "letters";
+  group.add(cabinet);
+  const cabinetFront = plane(cabinetW, cabinetH, standard("#ffffff", 0.9, front), cx, bottom + cabinetH / 2, 0.165);
+  cabinetFront.userData.part = "letters";
+  group.add(cabinetFront);
   // Yours: a brass plate, lit a little brighter, and envelopes when there's mail
   const [mx, my] = MY_CUBBY;
   group.add(plane(0.22, 0.06, new MeshBasicMaterial({ map: plateTexture("YOU", "#2a1d14", "#e2b659") }), mx, my - 0.14, 0.17));

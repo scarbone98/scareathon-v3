@@ -91,7 +91,7 @@ export default function HeldCard({ items, index, onIndex }: Props) {
       <div
         key={item.id}
         className={`station-card-body min-h-0 flex-1 ${item.tone === "board" ? "flex flex-col" : "overflow-y-auto overscroll-contain px-5 pb-6 pt-4"}`}
-        style={{ paddingBottom: item.tone === "board" ? "env(safe-area-inset-bottom)" : "max(1.5rem, env(safe-area-inset-bottom))", touchAction: "pan-y" }}
+        style={{ paddingBottom: item.tone === "board" ? "calc(3.5rem + env(safe-area-inset-bottom))" : "calc(4rem + env(safe-area-inset-bottom))", touchAction: "pan-y" }}
       >
         {item.body}
       </div>

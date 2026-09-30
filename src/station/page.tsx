@@ -441,7 +441,7 @@ export default function StationPage() {
             aria-label="Back"
             title="Back"
             className="absolute left-2 z-20 flex min-h-11 items-center p-1 opacity-90 transition hover:opacity-100 active:translate-y-px md:left-3"
-            style={{ bottom: `calc(${cardItems ? "58%" : "0px"} + max(0.5rem, env(safe-area-inset-bottom)))` }}
+            style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
           >
             <PixelArrow className="h-8 w-[3.3rem]" />
           </button>
