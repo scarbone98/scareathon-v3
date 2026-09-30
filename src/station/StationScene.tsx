@@ -74,6 +74,7 @@ type Props = {
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
   arcadeGames?: MachineData[]; // the arcade's cartridges, so this cabinet's row matches its
+  onReady?: () => void; // the station's drawn, cabinet and all (the train's doors can open)
 
   previewPlaying?: boolean; // the cabinet is in view; its preview is paused otherwise
   // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
@@ -1139,7 +1140,7 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -1147,8 +1148,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -1745,6 +1746,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let frame = 0;
     let restingDrawn = false;
     let rowSince: number | null = null; // when the walk to the arcade began
+    let reported = false; // told the page it's ready
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
@@ -1755,6 +1757,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         restingDrawn = true;
       } else restingDrawn = false;
       arcadeObject.visible = !latest.current.hideArcade;
+      // Ready once the cabinet's in (the last thing to load); this frame draws it
+      if (!reported && arcadeObject.userData.cabinet) {
+        reported = true;
+        requestAnimationFrame(() => latest.current.onReady?.());
+      }
       // The arcade's own parts: its scope and terminal keep ticking; its row of cartridges
       // shows on the way up to it
       const dressing = arcadeObject.userData.dressing as SlotDressing | undefined;

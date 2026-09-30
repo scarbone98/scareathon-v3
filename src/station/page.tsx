@@ -17,6 +17,7 @@ import { KioskWindow } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
+import TrainArrival from "./TrainArrival.tsx";
 import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
@@ -151,8 +152,13 @@ export default function StationPage() {
   // Arriving at the station: the platform for a beat, then up to the board. Only on the
   // way in with nowhere named; anything the visitor does first cancels it.
   const intro = useRef(!params.has("at") && !params.has("face"));
+  // Coming in by train: the doors open once the station's loaded, and you step off
+  const [stationReady, setStationReady] = useState(false);
+  const [onPlatform, setOnPlatform] = useState(false);
+  const markReady = useCallback(() => setStationReady(true), []);
+  const stepOff = useCallback(() => setOnPlatform(true), []);
   useEffect(() => {
-    if (!intro.current) return;
+    if (!intro.current || !onPlatform) return;
     // The visitor went somewhere themselves: no walk
     if (params.toString() !== "") {
       intro.current = false;
@@ -161,9 +167,9 @@ export default function StationPage() {
     const walk = window.setTimeout(() => {
       intro.current = false;
       setParams({ at: "bulletin" }, { replace: true });
-    }, 900);
+    }, 500);
     return () => window.clearTimeout(walk);
-  }, [params, setParams]);
+  }, [params, setParams, onPlatform]);
 
   // Everything that can be read or used
   const papers = useBoardPapers(signedIn, goTo);
@@ -435,6 +441,7 @@ export default function StationPage() {
             hideArcade={atCabinet}
             preview={preview}
             arcadeGames={games}
+            onReady={markReady}
             previewPlaying={heading === "left" || at === "arcade"}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read
@@ -479,6 +486,8 @@ export default function StationPage() {
             </Suspense>
           </div>
         )}
+        {/* Arriving by train, over everything till you've stepped off */}
+        {!onPlatform && <TrainArrival ready={stationReady} onDone={stepOff} />}
         {leaderboardGame && (
           <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
