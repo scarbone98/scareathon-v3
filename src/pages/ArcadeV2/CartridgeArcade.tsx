@@ -47,6 +47,7 @@ import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, s
 import { canvasFont, linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
+import type { Reaction } from "./slotTerminal.ts";
 import { createWaysideScreen, runCode, type WaysideState } from "./waysideOS.ts";
 import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
@@ -95,6 +96,7 @@ type World = {
   setPaused: (paused: boolean) => void;
   // WaysideOS, when it's plugged in: the code as it's typed, and entered
   typeCode: (entry: string) => void;
+  pokeTerminal: () => void; // the card's glass tapped: the terminal answers
   enterCode: (entry: string) => void;
 };
 
@@ -172,6 +174,7 @@ export default function CartridgeArcade({
   const [terminalScreen, setTerminalScreen] = useState<TerminalScreen>(() => ({ kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() }));
   // The terminal's ? key; stays on while browsing, so you can flick through every game's details
   const [details, setDetails] = useState(false);
+  const [reaction, setReaction] = useState<Reaction | null>(null);
   // Read when the scene's built; kept in step after through setTerminalOptions
   const terminalOptionsRef = useRef<TerminalOptions>({ details, phone: tall });
   terminalOptionsRef.current = { details, phone: tall };
@@ -328,10 +331,10 @@ export default function CartridgeArcade({
         screenContext.fillStyle = `rgba(${rgb}, ${0.3 + Math.random() * 0.5})`;
         screenContext.fillRect(0, y + (Math.random() - 0.5) * height * 0.25, width, 1 + Math.random() * 3);
       }
-      const spot = height * (0.38 + 0.04 * Math.sin(time * 18));
+      const spot = height * (0.2 + 0.02 * Math.sin(time * 18));
       const glow = screenContext.createRadialGradient(x, y, 0, x, y, spot);
       glow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-      glow.addColorStop(0.3, `rgba(${rgb}, 0.65)`);
+      glow.addColorStop(0.3, `rgba(${rgb}, 0.5)`);
       glow.addColorStop(1, `rgba(${rgb}, 0)`);
       screenContext.fillStyle = glow;
       screenContext.fillRect(x - spot, y - spot, spot * 2, spot * 2);
@@ -1524,6 +1527,7 @@ export default function CartridgeArcade({
     };
 
     worldRef.current = {
+      pokeTerminal: () => pokeTerminal(),
       typeCode: (entry) => {
         wayside.entry = entry;
         if (entry) wayside.reply = null;
@@ -2085,6 +2089,13 @@ export default function CartridgeArcade({
       playTick();
     };
 
+    // Poked (on the cabinet or the card): it answers, on both at once
+    const pokeTerminal = () => {
+      if (!terminal || broken) return;
+      setReaction(terminal.react(performance.now() / 1000));
+      playTick();
+    };
+
     const pokeCabinet = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -2111,8 +2122,7 @@ export default function CartridgeArcade({
       // The little terminal answers back
       for (let node: Object3D | null = mesh; node; node = node.parent) {
         if (terminal && node === terminal.group) {
-          terminal.react(performance.now() / 1000);
-          playTick();
+          pokeTerminal();
           return;
         }
       }
@@ -2527,6 +2537,8 @@ export default function CartridgeArcade({
           onLeaderboard={onLeaderboard}
           onBrowseAll={() => setBrowsing(true)}
           onBack={onBack}
+          reaction={reaction}
+          onPoke={() => worldRef.current?.pokeTerminal()}
           onCodeChange={(entry) => worldRef.current?.typeCode(entry)}
           onCodeSubmit={(entry) => worldRef.current?.enterCode(entry)}
           // Fills from just under the ledge down to the bottom

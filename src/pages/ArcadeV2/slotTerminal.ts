@@ -31,7 +31,7 @@ const PHOSPHOR = "#39ff6a";
 const GLASS = "#021407";
 
 // Poked, it answers for a moment: a word, or a little picture in big pixels
-const PICTURES: Record<string, string[]> = {
+export const PICTURES: Record<string, string[]> = {
   heart: [
     ".XX...XX.",
     "XXXX.XXXX",
@@ -94,12 +94,13 @@ const PICTURES: Record<string, string[]> = {
   ],
 };
 const WORDS = ["HI!", "HELLO", "BEEP BOOP", "HEY THERE", "THAT TICKLES", "OW!", ":)", "<3", "STILL HERE", "PLAY ME", "BOO!", "*WHIRR*"];
-const REACTION_TIME = 1.6; // seconds it answers for
+export const REACTION_TIME = 1.6; // seconds it answers for
+export type Reaction = { word?: string; picture?: string[]; at: number };
 
 export type SlotTerminal = {
   group: Group;
   // Poked: a word or a picture for a moment, then back to what it was showing
-  react: (time: number) => void;
+  react: (time: number) => Reaction;
   show: (screen: TerminalScreen) => void;
   setOptions: (options: TerminalOptions) => void;
   update: (time: number) => void;
@@ -131,7 +132,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
   group.add(glass);
 
   let screen: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
-  let reaction: { word?: string; picture?: string[]; at: number } | null = null;
+  let reaction: Reaction | null = null;
   let lastReaction = "";
   let options: TerminalOptions = { details: false, phone: false };
   let lastKey = "";
@@ -394,6 +395,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       lastReaction = pick;
       reaction = pick.startsWith("#") ? { picture: PICTURES[pick.slice(1)], at: time } : { word: pick, at: time };
       lastKey = "";
+      return reaction;
     },
     show(next) {
       screen = next;

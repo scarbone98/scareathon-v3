@@ -3,6 +3,7 @@ import type { MachineData } from "../Arcade/games.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 import { TERMINAL_FONT, whenFontReady } from "./arcadeFonts.ts";
 import { cleanCode, MAX_CODE } from "./waysideOS.ts";
+import { REACTION_TIME, type Reaction } from "./slotTerminal.ts";
 import {
   gameTitle,
   LOADING_BLOCKS,
@@ -67,7 +68,48 @@ type Props = {
   // WaysideOS: each keystroke of a code, and the code once entered
   onCodeChange?: (entry: string) => void;
   onCodeSubmit?: (entry: string) => void;
+  // The terminal answering a poke (the little one on the cabinet shows the same), and a
+  // tap on the glass itself
+  reaction?: Reaction | null;
+  onPoke?: () => void;
 };
+
+function ReactionView({ reaction }: { reaction: Reaction }) {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    setShown(true);
+    const timer = window.setTimeout(() => setShown(false), REACTION_TIME * 1000);
+    return () => window.clearTimeout(timer);
+  }, [reaction]);
+  if (!shown) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className="terminal-reaction pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+      style={{ background: "radial-gradient(ellipse at center, #06260f 0%, #021407 70%, #010a04 100%)" }}
+    >
+      <style>{`
+        @keyframes terminal-reaction-pop { 0% { transform: scale(0.6) } 60% { transform: scale(1.1) } 100% { transform: scale(1) } }
+        @keyframes terminal-reaction-bob { 0%, 100% { translate: 0 -3px } 50% { translate: 0 3px } }
+        .terminal-reaction > * { animation: terminal-reaction-pop 0.25s ease-out, terminal-reaction-bob 0.7s ease-in-out infinite }
+      `}</style>
+      {reaction.picture ? (
+        <svg
+          viewBox={`0 0 ${reaction.picture[0].length} ${reaction.picture.length}`}
+          className="h-[62%]"
+          shapeRendering="crispEdges"
+          style={{ filter: "drop-shadow(0 0 6px rgba(57,255,106,0.7))" }}
+        >
+          {reaction.picture.flatMap((line, r) =>
+            [...line].map((ch, col) => (ch === "X" ? <rect key={`${r}-${col}`} x={col + 0.06} y={r + 0.06} width={0.88} height={0.88} fill={PHOSPHOR} /> : null))
+          )}
+        </svg>
+      ) : (
+        <p className="text-5xl">{reaction.word}</p>
+      )}
+    </div>
+  );
+}
 
 // WaysideOS's prompt: typed here, shown big on the cabinet's screen too
 function CodePrompt({
@@ -377,7 +419,7 @@ function ScreenBody({
   );
 }
 
-export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit }: Props) {
+export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit, reaction, onPoke }: Props) {
   const now = useClock(screen, details);
   const controls = terminalControls(screen, details);
   // The takeover can seem to switch the terminal off, power light and all
@@ -403,7 +445,13 @@ export default function GameCard({ screen, details, phone, style, className = ""
             fontFamily: TERMINAL_FAMILY,
             textShadow: GLOW,
           }}
+          // A tap on the glass itself (not a key, a link or the code field) pokes it
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("button, a, input, label, form")) return;
+            onPoke?.();
+          }}
         >
+          {reaction && <ReactionView reaction={reaction} />}
           {screen.kind === "code" ? (
             <CodePrompt reply={screen.reply} onChange={onCodeChange} onSubmit={onCodeSubmit} phone={phone} />
           ) : (
