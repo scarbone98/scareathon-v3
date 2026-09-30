@@ -170,7 +170,7 @@ export default function StationPage() {
     const walk = window.setTimeout(() => {
       intro.current = false;
       setParams({ at: "bulletin" }, { replace: true });
-    }, 1400);
+    }, 900);
     return () => window.clearTimeout(walk);
   }, [params, setParams]);
 
