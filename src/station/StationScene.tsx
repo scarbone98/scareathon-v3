@@ -760,10 +760,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const stop = STOPS[stopId];
       const target = new Vector3(...stop.target);
       const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull).add(target);
-      if (stop.fit) {
-        // Far enough back that the whole object fits across the screen
-        const halfWidth = Math.atan(Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect);
-        const needed = stop.fit / 2 / Math.tan(halfWidth);
+      if (stop.fit || stop.fitHeight) {
+        // Far enough back that the whole object fits the view, across and top to bottom
+        const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
+        const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
+        const needed = Math.max(
+          stop.fit ? stop.fit / 2 / Math.tan(halfWidth) : 0,
+          stop.fitHeight ? stop.fitHeight / 2 / Math.tan(halfHeight) : 0
+        );
         const away = pos.clone().sub(target);
         if (away.length() < needed) pos.copy(target).add(away.setLength(needed));
       }

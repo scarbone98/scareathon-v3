@@ -183,9 +183,10 @@ function TicketCard({ onOpen }: { onOpen: (tab: CatalogueTab) => void }) {
 }
 
 // What's behind the kiosk's glass
-export function KioskWindow({ signedIn, onOpen }: { signedIn: boolean | undefined; onOpen: (tab: CatalogueTab) => void }) {
+// `glass`: drawn as the card behind the kiosk's glass; off when a phone holds it in its own card
+export function KioskWindow({ signedIn, onOpen, glass = true }: { signedIn: boolean | undefined; onOpen: (tab: CatalogueTab) => void; glass?: boolean }) {
   return (
-    <div className="h-full w-full bg-[#efe3c8]/90 p-4 shadow-[inset_0_0_30px_rgba(120,70,20,0.35)]" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
+    <div className={glass ? "h-full w-full bg-[#efe3c8]/90 p-4 shadow-[inset_0_0_30px_rgba(120,70,20,0.35)]" : "h-full w-full"} style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
       {signedIn === undefined ? <p className="italic opacity-60">…</p> : signedIn ? <TicketCard onOpen={onOpen} /> : <SignInCard />}
     </div>
   );

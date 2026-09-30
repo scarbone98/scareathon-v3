@@ -8,12 +8,13 @@ import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useContentLoop, useScareboard, useSession, useTodayMovie } from "./data.ts";
-import { HEADINGS, isCatalogueTab, isHeading, isStopId, STOPS, STOP_IDS, type CatalogueTab, type GoTo, type Heading, type StopId } from "./stops.ts";
+import { HEADINGS, PHONE_HEADINGS, isCatalogueTab, isHeading, isStopId, STOPS, STOP_IDS, type CatalogueTab, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
 import { Catalogue, KioskWindow } from "./things/Kiosk.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
+import HeldCard, { type HeldItem } from "./HeldCard.tsx";
 import { plate, sans, serif } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import type { Boards } from "./StationScene.tsx";
@@ -27,9 +28,10 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 // kiosk window is your ticket; the cabinet is the arcade, exactly as at /arcade. Nothing
 // here leads back to the classic pages.
 //
-// Phones first: there a tap picks a thing up into a Sheet sliding up from the bottom,
-// big enough to read and use. On wider screens you can read and use the things where
-// they stand, and pick up what's worth a closer look.
+// Phones first: standing at an object, the object sits in the top of the screen and the
+// thing you're holding fills the rest (HeldCard), as the arcade's card sits under its
+// cabinet; taps in the scene choose what you hold. On wider screens you read and use the
+// things where they stand, and pick up what's worth a closer look (Sheet).
 //
 // Where the visitor is lives in the URL (?at= an object, ?open= something there,
 // ?face= which way they face), so Back walks them back.
@@ -108,18 +110,21 @@ export default function StationPage() {
   const faceParam = params.get("face");
   const open = params.get("open") ?? undefined;
   const at: StopId | null = isStopId(atParam) ? atParam : null;
-  const heading: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
   const session = useSession();
   const signedIn = Boolean(session);
-  // Phones and tablets (and anything touch-first): tap to pick things up
+  // Phones and tablets (and anything touch-first)
   const compact = useIsMobileArcade();
+  // Phones turn to the events table on its own; wide screens see it with the board
+  const headings = compact ? PHONE_HEADINGS : HEADINGS;
+  const wanted: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
+  const heading: Heading = headings.includes(wanted) ? wanted : "front";
 
   const faceParams = (face: Heading): Record<string, string> => (face === "front" ? {} : { face });
   const select = (id: StopId | null, openThere?: string) =>
     setParams(id ? { at: id, ...(openThere ? { open: openThere } : {}) } : faceParams(heading));
   const goTo: GoTo = (id, openThere) => select(id, openThere);
   const turn = (direction: 1 | -1) => {
-    const next = HEADINGS[(HEADINGS.indexOf(heading) + direction + HEADINGS.length) % HEADINGS.length];
+    const next = headings[(headings.indexOf(heading) + direction + headings.length) % headings.length];
     setParams(faceParams(next), { replace: true });
   };
 
@@ -130,16 +135,25 @@ export default function StationPage() {
   const [held, setHeld] = useState<Held | null>(null);
   const putBack = useCallback(() => setHeld(null), []);
 
-  // Arriving with ?open= picks the named thing up (e.g. the shop, or tonight's film)
+  // On phones, which of the object's things the card holds, and whether the walk there is done
+  const [cardIndex, setCardIndex] = useState(0);
+  const [atArrived, setAtArrived] = useState(false);
+  useEffect(() => {
+    setAtArrived(false);
+    if (!at) return;
+    const arrive = window.setTimeout(() => setAtArrived(true), 500);
+    return () => window.clearTimeout(arrive);
+  }, [at]);
+
+  // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film)
   useEffect(() => {
     setHeld(null);
-    if (at === "events" && (open === "event" || open === "tonight" || open === "rules")) setHeld({ kind: "flyer", id: open });
+    const flyerIndex = flyers.findIndex((flyer) => flyer.id === open);
+    setCardIndex(at === "events" && flyerIndex >= 0 ? flyerIndex : 0);
+    if (at === "events" && flyerIndex >= 0 && !compact) setHeld({ kind: "flyer", id: flyers[flyerIndex].id });
     if (at === "tickets" && signedIn && isCatalogueTab(open)) setHeld({ kind: "catalogue", tab: open });
-    // On phones the board's face and the kiosk window are too small to use where they
-    // are, so arriving at them picks them up once the walk is done
-    if (!compact || (at !== "departures" && at !== "tickets") || (at === "tickets" && signedIn && isCatalogueTab(open))) return;
-    const arrive = window.setTimeout(() => setHeld(at === "departures" ? { kind: "departures" } : { kind: "window" }), 900);
-    return () => window.clearTimeout(arrive);
+    // The flyers are rebuilt every render; only arriving (or ?open= changing) should do this
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, open, signedIn, compact]);
 
   const openCatalogue = (tab: CatalogueTab) => setHeld({ kind: "catalogue", tab });
@@ -157,8 +171,15 @@ export default function StationPage() {
     return { id: `catalogue-${held.tab}`, title: "Ticket kiosk", tone: "ledger", body: <Catalogue key={held.tab} initialTab={held.tab} /> };
   })();
 
-  // A tap on a thing in the scene (phones, or where the HTML isn't drawn): pick it up
+  // A tap on a thing in the scene: on phones, hold it in the card; on wide screens (where
+  // the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
+    if (compact) {
+      const index =
+        part.startsWith("paper-") || part.startsWith("flyer-") ? Number(part.slice(6)) : part === "poster" ? flyers.findIndex((f) => f.id === "tonight") : 0;
+      if (index >= 0) setCardIndex(index);
+      return;
+    }
     if (part.startsWith("paper-")) {
       const paper = papers[Number(part.slice(6))];
       if (paper) setHeld({ kind: "paper", id: paper.id });
@@ -174,8 +195,44 @@ export default function StationPage() {
     departures: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} />,
     window: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} />,
   };
-  papers.forEach((paper, i) => (surfaces[`paper-${i}`] = <PinnedPaper paper={paper} onOpen={() => setHeld({ kind: "paper", id: paper.id })} />));
-  flyers.forEach((flyer, i) => (surfaces[`flyer-${i}`] = <FlyerFace flyer={flyer} onOpen={() => setHeld({ kind: "flyer", id: flyer.id })} />));
+  papers.forEach(
+    (paper, i) =>
+      (surfaces[`paper-${i}`] = (
+        <PinnedPaper paper={paper} held={compact && at === "bulletin" && cardIndex === i} onOpen={() => setHeld({ kind: "paper", id: paper.id })} />
+      ))
+  );
+  flyers.forEach(
+    (flyer, i) =>
+      (surfaces[`flyer-${i}`] = (
+        <FlyerFace flyer={flyer} held={compact && at === "events" && cardIndex === i} onOpen={() => setHeld({ kind: "flyer", id: flyer.id })} />
+      ))
+  );
+
+  // Phones: what the card under the object can hold
+  const cardItems: HeldItem[] | null =
+    !compact || !at || at === "arcade"
+      ? null
+      : at === "bulletin"
+        ? papers.map((paper) => ({
+            id: paper.id,
+            label: paper.kind === "THE POST" ? "The Scareathon Post" : paper.kind.toLowerCase(),
+            tone: "paper" as const,
+            tint: paper.tint,
+            body: paper.full,
+          }))
+        : at === "events"
+          ? flyers.map((flyer) => ({ id: flyer.id, label: flyer.title, tone: flyer.sheet.tone ?? "paper", tint: flyer.sheet.tint, body: flyer.sheet.body }))
+          : at === "departures"
+            ? [{ id: "departures", label: "Departures", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> }]
+            : [
+                {
+                  id: "window",
+                  label: "Ticket kiosk",
+                  tone: "paper",
+                  tint: "#efe3c8",
+                  body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} glass={false} />,
+                },
+              ];
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
   const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
@@ -225,7 +282,7 @@ export default function StationPage() {
       if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
       // A focused button or link keeps Enter for itself
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
-      const ahead = { front: "bulletin", right: "tickets", back: null, left: "arcade" }[facing] as StopId | null;
+      const ahead = { front: "bulletin", table: "events", right: "tickets", back: null, left: "arcade" }[facing] as StopId | null;
       if (!current && event.key === "ArrowLeft") face(-1);
       else if (!current && event.key === "ArrowRight") face(1);
       else if (!current && (event.key === "ArrowUp" || event.key === "Enter") && ahead) go(ahead);
@@ -268,8 +325,10 @@ export default function StationPage() {
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <div className="fixed inset-0 bg-black" onClickCapture={keepInStation} style={sans}>
-        <Suspense fallback={<LoadingSpinner />}>
-          <StationScene
+        {/* On phones the scene gives the bottom of the screen to the held card */}
+        <div className="absolute inset-x-0 top-0 transition-[bottom] duration-300 ease-out" style={{ bottom: cardItems ? "58%" : 0 }}>
+          <Suspense fallback={<LoadingSpinner />}>
+            <StationScene
             at={at}
             heading={heading}
             onSelect={select}
@@ -279,8 +338,10 @@ export default function StationPage() {
             surfaces={surfaces}
             surfacesInteractive={!compact}
             onPart={onPart}
-          />
-        </Suspense>
+            />
+          </Suspense>
+        </div>
+        {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
 
         {/* The arcade, as it is at /arcade, without its room */}
         {atCabinet && (
@@ -368,11 +429,15 @@ export default function StationPage() {
         <style>{`
           @keyframes station-arrive { from { opacity: 0 } to { opacity: 1 } }
           .station-arrive { animation: station-arrive 0.45s ease-out both }
+          @keyframes station-card-up { from { transform: translateY(100%) } to { transform: none } }
+          .station-card { animation: station-card-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both }
+          @keyframes station-card-in { from { opacity: 0 } to { opacity: 1 } }
+          .station-card-body { animation: station-card-in 0.2s ease-out both }
           @keyframes station-sheet-up { from { transform: translateY(100%) } to { transform: none } }
           @keyframes station-sheet-lift { from { opacity: 0; transform: translateY(24px) rotate(-1.5deg) scale(0.92) } to { opacity: 1; transform: none } }
           .station-sheet { animation: station-sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both }
           @media (min-width: 768px) { .station-sheet { animation-name: station-sheet-lift; animation-duration: 0.28s } }
-          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-sheet { animation: none } }
+          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-sheet, .station-card, .station-card-body { animation: none } }
         `}</style>
       </div>
     </AnimatedPage>

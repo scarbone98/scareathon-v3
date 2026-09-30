@@ -290,8 +290,9 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   return papers.slice(0, 6);
 }
 
-// A paper as it hangs on the board: tap it (standing at the board) to take it down
-export function PinnedPaper({ paper, onOpen }: { paper: Paper; onOpen: () => void }) {
+// A paper as it hangs on the board: tap it (standing at the board) to take it down.
+// `held` marks the one a phone is showing in its card below.
+export function PinnedPaper({ paper, onOpen, held = false }: { paper: Paper; onOpen: () => void; held?: boolean }) {
   return (
     <div
       role="button"
@@ -299,7 +300,7 @@ export function PinnedPaper({ paper, onOpen }: { paper: Paper; onOpen: () => voi
       aria-label={`Take down: ${paper.title}`}
       onClick={onOpen}
       onKeyDown={(event) => event.key === "Enter" && event.target === event.currentTarget && onOpen()}
-      className="relative h-full w-full cursor-pointer overflow-hidden px-5 pb-4 pt-6 shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-105"
+      className={`relative h-full w-full cursor-pointer overflow-hidden px-5 pb-4 pt-6 shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-105${held ? " outline outline-[6px] outline-offset-4 outline-[#ffcf7a] shadow-[0_0_40px_rgba(255,190,90,0.7)]" : ""}`}
       style={{ background: paper.tint, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
     >
       <span className="absolute left-1/2 top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />

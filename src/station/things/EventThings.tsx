@@ -204,7 +204,7 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
 }
 
 // A flyer standing on the table: tap it (standing at the table) to pick it up
-export function FlyerFace({ flyer, onOpen }: { flyer: Flyer; onOpen: () => void }) {
+export function FlyerFace({ flyer, onOpen, held = false }: { flyer: Flyer; onOpen: () => void; held?: boolean }) {
   return (
     <div
       role="button"
@@ -212,7 +212,7 @@ export function FlyerFace({ flyer, onOpen }: { flyer: Flyer; onOpen: () => void 
       aria-label={`Pick up: ${flyer.title}`}
       onClick={onOpen}
       onKeyDown={(event) => event.key === "Enter" && onOpen()}
-      className="h-full w-full cursor-pointer overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-110"
+      className={`h-full w-full cursor-pointer overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-110${held ? " outline outline-[6px] outline-offset-4 outline-[#ffcf7a] shadow-[0_0_40px_rgba(255,190,90,0.7)]" : ""}`}
       style={{ background: flyer.tint, color: flyer.ink, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
     >
       {flyer.face}
