@@ -1751,6 +1751,7 @@ export default function CartridgeArcade({
         const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, cartSize, style, {
           clear,
           released: game.cartridge.about.released,
+          developer: game.cartridge.about.developer,
           note: game.cartridge.backNote,
           tape: game.cartridge.backTape,
           untitled: game.special === "mystery",

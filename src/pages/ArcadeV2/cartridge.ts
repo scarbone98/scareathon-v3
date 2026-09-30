@@ -171,7 +171,7 @@ function paperFibres(context: CanvasRenderingContext2D) {
 // The back sticker: cream paper, the arcade's name and the release year on a
 // colour band, a barcode, the game's name, and a box of notes: whatever's been
 // written in (a cheat code, a hidden message), or blank lines to write on
-function paintSticker(context: CanvasRenderingContext2D, name: string, color: string, released: string, note: string) {
+function paintSticker(context: CanvasRenderingContext2D, name: string, color: string, released: string, note: string, developer: string) {
   const { width, height } = context.canvas;
   const ink = "#1a1418";
   context.fillStyle = "#f3efe6";
@@ -185,10 +185,17 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
     context.textAlign = "right";
     context.fillText(`© ${released.toUpperCase()}`, width - 10, 11);
   }
+  // Who made it, shrunk to fit if it's a long credit
   context.fillStyle = ink;
-  context.font = "700 13px system-ui, sans-serif";
   context.textAlign = "left";
-  context.fillText("SCAREATHON ARCADE", 12, 32);
+  const credit = (developer || "Scareathon Arcade").toUpperCase();
+  let size = 13;
+  context.font = `700 ${size}px system-ui, sans-serif`;
+  while (size > 8 && context.measureText(credit).width > width - 24) {
+    size -= 1;
+    context.font = `700 ${size}px system-ui, sans-serif`;
+  }
+  context.fillText(credit, 12, 32);
   // Bars from the name, so every cartridge's code is its own
   let seed = [...name].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 7);
   let x = 14;
@@ -551,12 +558,14 @@ export function createCartridge(
     clear = false,
     released = "",
     note = "",
+    developer = "",
     untitled = false,
     tape = "",
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
     note?: string; // written in on the back sticker: a cheat code, a hidden message
+    developer?: string; // who made it, printed on the back sticker
     untitled?: boolean; // no name on the label: the picture fills it
     tape?: string; // no sticker on the back, just a strip of masking tape with this written on
   } = {}
@@ -925,7 +934,7 @@ export function createCartridge(
   const paintBack = () => {
     if (stickerContext) {
       if (tape) paintTape(stickerContext, tape);
-      else paintSticker(stickerContext, name, color, released, note);
+      else paintSticker(stickerContext, name, color, released, note, developer);
     }
     stickerTexture.needsUpdate = true;
   };
