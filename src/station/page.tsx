@@ -313,12 +313,25 @@ export default function StationPage() {
   // The arcade is built in the background once the station has settled, and kept (paused
   // while out of sight), so walking up to the cabinet doesn't stall on loading it
   const [arcadeBuilt, setArcadeBuilt] = useState(at === "arcade");
+  // Building it takes the main thread for a moment, so not while you're moving: once you've
+  // left the screen alone for a few seconds, or have settled on the arcade's view
   useEffect(() => {
     if (arcadeBuilt) return;
     const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
-    const start = window.setTimeout(() => (idle ? idle(() => setArcadeBuilt(true), { timeout: 2000 }) : setArcadeBuilt(true)), 2500);
-    return () => window.clearTimeout(start);
-  }, [arcadeBuilt]);
+    const build = () => (idle ? idle(() => setArcadeBuilt(true), { timeout: 1500 }) : setArcadeBuilt(true));
+    let timer = window.setTimeout(build, heading === "left" ? 900 : 3500);
+    const wait = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(build, heading === "left" ? 900 : 3500);
+    };
+    window.addEventListener("pointerdown", wait);
+    window.addEventListener("keydown", wait);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", wait);
+      window.removeEventListener("keydown", wait);
+    };
+  }, [arcadeBuilt, heading]);
   useEffect(() => {
     if (at === "arcade") setArcadeBuilt(true);
   }, [at]);
@@ -432,6 +445,7 @@ export default function StationPage() {
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
             preview={preview}
+            previewPlaying={heading === "left" || at === "arcade"}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read
             surfacesInteractive={!compact || at === "bulletin"}

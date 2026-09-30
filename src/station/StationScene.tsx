@@ -69,6 +69,7 @@ type Props = {
   hideArcade?: boolean;
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
+  previewPlaying?: boolean; // the cabinet is in view; its preview is paused otherwise
   // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
   surfaces: Record<string, ReactNode>;
   // Whether the surfaces take taps themselves (desktop); on phones a tap picks the thing up instead
@@ -1046,13 +1047,14 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
   const [surfaceSlots, setSurfaceSlots] = useState<Record<string, HTMLDivElement>>({});
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
+  const sceneArcadeRef = useRef<Group | null>(null);
   const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview });
   latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview };
 
@@ -1408,6 +1410,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const mail = buildMail();
     const arcade = buildArcade(latest.current.preview);
     const arcadeObject = arcade;
+    sceneArcadeRef.current = arcade;
     const objects = [bench, lockers, arcade, bulletin, events, tickets, departures, mail];
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
@@ -1732,6 +1735,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   useEffect(() => {
     paintBoardsRef.current?.(boards);
   }, [boards]);
+
+  // The cabinet's preview only plays while the cabinet's in view
+  const previewRef = useRef(previewPlaying);
+  previewRef.current = previewPlaying;
+  useEffect(() => {
+    const check = window.setInterval(() => {
+      const clip = sceneArcadeRef.current?.userData.video as HTMLVideoElement | undefined;
+      if (!clip) return;
+      if (previewRef.current && clip.paused) void clip.play().catch(() => undefined);
+      else if (!previewRef.current && !clip.paused) clip.pause();
+    }, 400);
+    return () => window.clearInterval(check);
+  }, []);
 
   return (
     <div className="absolute inset-0 select-none">
