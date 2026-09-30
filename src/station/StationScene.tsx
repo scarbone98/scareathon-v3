@@ -950,7 +950,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     overhead.position.set(0, 3.5, 0.6);
     scene.add(overhead);
     scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, 0.6));
-    [-5.5, 9].forEach((x) => {
+    // A lamp either side of where you stand, the same distance off
+    [HUB.pos[0] - 4.6, HUB.pos[0] + 4.6].forEach((x) => {
       const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
       scene.add(lamp);
@@ -1021,7 +1022,33 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Posts stand well away from the visitor, so none of them crosses a view
     // An arcade along the track side holding up the canopy: stone columns, and round
     // arches between them
-    const stone = standard("#5d544d", 0.95);
+    // Dressed stone: courses of blocks, each a little different, with pale mortar and wear
+    const stoneBlocks = (repeatX: number, repeatY: number) => {
+      const texture = paint(256, 256, (ctx, w, h) => {
+        ctx.fillStyle = "#3b342f";
+        ctx.fillRect(0, 0, w, h);
+        const rows = 4;
+        const rh = h / rows;
+        for (let r = 0; r < rows; r += 1) {
+          const bw = w / 2;
+          for (let c = -1; c < 3; c += 1) {
+            const tone = 88 + Math.floor(Math.random() * 26);
+            ctx.fillStyle = `rgb(${tone}, ${tone - 8}, ${tone - 16})`;
+            ctx.fillRect(c * bw + (r % 2 ? bw / 2 : 0) + 3, r * rh + 3, bw - 6, rh - 6);
+          }
+        }
+        for (let i = 0; i < 1400; i += 1) {
+          ctx.fillStyle = `rgba(${Math.random() < 0.5 ? "30,24,20" : "160,150,135"}, 0.25)`;
+          ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+        }
+      });
+      texture.wrapS = texture.wrapT = RepeatWrapping;
+      texture.repeat.set(repeatX, repeatY);
+      return texture;
+    };
+    // The arches' faces are measured in metres, one texture to a metre; the columns' are one to a face
+    const stone = standard("#ffffff", 0.95, stoneBlocks(1, 1));
+    const columnStone = standard("#ffffff", 0.95, stoneBlocks(0.4, 2));
     // From a column in the corner by the railing, bays spaced so the view behind you
     // looks out through the middle of one
     const firstCol = END_X + 0.2;
@@ -1039,7 +1066,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const archGeometry = new ExtrudeGeometry(archShape, { depth: 0.28, bevelEnabled: false, curveSegments: 16 });
     const colZ = EDGE_Z - 0.2;
     for (let x = firstCol; x <= 30; x += bay) {
-      scene.add(box(0.36, spring, 0.36, stone, x, spring / 2, colZ));
+      scene.add(box(0.36, spring, 0.36, columnStone, x, spring / 2, colZ));
       scene.add(box(0.46, 0.1, 0.46, stone, x, spring - 0.05, colZ)); // a capital
       if (x + bay <= 30.5) {
         const arch = new Mesh(archGeometry, stone);
