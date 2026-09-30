@@ -88,7 +88,7 @@ export function rebootView(screen: TerminalScreen & { kind: "reboot" }, time: nu
   const passed = REBOOT_CHECKS.filter((_, i) => progress > 0.3 * (i + 1));
   return {
     crashed: elapsed < REBOOT_CRASH,
-    faults: screen.code ? ["HANDSHAKE REFUSED", screen.code] : ["TILT DETECTED", "CORE DUMPED"],
+    faults: screen.code?.includes("HANDSHAKE") ? ["HANDSHAKE REFUSED", screen.code] : screen.code ? ["TILT DETECTED", screen.code] : ["TILT DETECTED", "CORE DUMPED"],
     blink: Math.floor(time * 4) % 2 === 0,
     dots: ".".repeat(Math.floor(time * 3) % 4),
     blocks: Math.floor(progress * LOADING_BLOCKS),

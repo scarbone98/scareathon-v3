@@ -243,6 +243,7 @@ export default function CartridgeArcade({
     const wayside: WaysideState = { plugged: false, entry: "", reply: null, bootAt: 0 };
     const mysteryScreen = createMysteryScreen("/game-recordings/stills/Mystery.jpg");
     const MYSTERY_STOP_CODE = "HEXUS_HANDSHAKE";
+    const SHAKE_STOP_CODE = "EXCESSIVE_SHAKING";
     let mysteryCrash: gsap.core.Tween | null = null; // the "???" cartridge's crash, on its way
     let crashCode: string | null = null; // the blue screen's stop code, when it isn't the tapping one
     let modeStart = 0;
@@ -2006,11 +2007,26 @@ export default function CartridgeArcade({
     // Dust shaken down from the ceiling: specks that drift down across the view and settle
     // out of it. A pool of them; each shake sends down the next handful.
     const DUST = 240;
+    // Each speck a little soft round mote
+    const moteCanvas = document.createElement("canvas");
+    moteCanvas.width = moteCanvas.height = 16;
+    const moteContext = moteCanvas.getContext("2d");
+    if (moteContext) {
+      const soft = moteContext.createRadialGradient(8, 8, 0, 8, 8, 8);
+      soft.addColorStop(0, "rgba(255,255,255,1)");
+      soft.addColorStop(0.6, "rgba(255,255,255,0.8)");
+      soft.addColorStop(1, "rgba(255,255,255,0)");
+      moteContext.fillStyle = soft;
+      moteContext.beginPath();
+      moteContext.arc(8, 8, 8, 0, Math.PI * 2);
+      moteContext.fill();
+    }
+    const dustMote = track(new CanvasTexture(moteCanvas));
     const dustPositions = new Float32Array(DUST * 3);
     const dustGeometry = track(new BufferGeometry());
     dustGeometry.setAttribute("position", new BufferAttribute(dustPositions, 3));
     const dustMaterial = track(
-      new PointsMaterial({ color: new Color("#d9cfbb"), size: cartSize.width * 0.075, transparent: true, opacity: 0.9, depthWrite: false })
+      new PointsMaterial({ color: new Color("#d9cfbb"), size: cartSize.width * 0.03, map: dustMote, alphaTest: 0.2, transparent: true, opacity: 0.85, depthWrite: false })
     );
     const dust = new Points(dustGeometry, dustMaterial);
     dust.frustumCulled = false;
@@ -2080,6 +2096,8 @@ export default function CartridgeArcade({
       jiggleCabinet(side, 0.8 + strength * 0.8);
       gsap.fromTo(shake, { value: cartSize.width * 0.04 * (0.6 + strength) }, { value: 0, duration: 0.6, ease: "power2.out" });
       dropDust(Math.round(50 + strength * 60));
+      // ...and it doesn't like it: a shake is enough to crash it
+      if (!broken) breakDown(side, SHAKE_STOP_CODE);
     };
     let lastMotion: { x: number; y: number; z: number } | null = null;
     const SHAKE_AT = 11; // m/s² of the phone's own movement (a firm shake; walking doesn't)
