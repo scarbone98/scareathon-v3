@@ -68,10 +68,8 @@ type Props = {
   // WaysideOS: each keystroke of a code, and the code once entered
   onCodeChange?: (entry: string) => void;
   onCodeSubmit?: (entry: string) => void;
-  // The terminal answering a poke (the little one on the cabinet shows the same), and a
-  // tap on the glass itself
+  // The little terminal on the cabinet answering a poke: shown here too
   reaction?: Reaction | null;
-  onPoke?: () => void;
 };
 
 function ReactionView({ reaction }: { reaction: Reaction }) {
@@ -419,7 +417,7 @@ function ScreenBody({
   );
 }
 
-export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit, reaction, onPoke }: Props) {
+export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit, reaction }: Props) {
   const now = useClock(screen, details);
   const controls = terminalControls(screen, details);
   // The takeover can seem to switch the terminal off, power light and all
@@ -444,11 +442,6 @@ export default function GameCard({ screen, details, phone, style, className = ""
             color: PHOSPHOR,
             fontFamily: TERMINAL_FAMILY,
             textShadow: GLOW,
-          }}
-          // A tap on the glass itself (not a key, a link or the code field) pokes it
-          onClick={(event) => {
-            if ((event.target as HTMLElement).closest("button, a, input, label, form")) return;
-            onPoke?.();
           }}
         >
           {reaction && <ReactionView reaction={reaction} />}

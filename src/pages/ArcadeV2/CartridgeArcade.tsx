@@ -96,7 +96,6 @@ type World = {
   setPaused: (paused: boolean) => void;
   // WaysideOS, when it's plugged in: the code as it's typed, and entered
   typeCode: (entry: string) => void;
-  pokeTerminal: () => void; // the card's glass tapped: the terminal answers
   enterCode: (entry: string) => void;
 };
 
@@ -1563,7 +1562,6 @@ export default function CartridgeArcade({
     };
 
     worldRef.current = {
-      pokeTerminal: () => pokeTerminal(),
       typeCode: (entry) => {
         wayside.entry = entry;
         if (entry) wayside.reply = null;
@@ -2125,7 +2123,7 @@ export default function CartridgeArcade({
       playTick();
     };
 
-    // Poked (on the cabinet or the card): it answers, on both at once
+    // The little terminal poked: it answers, and the card shows the same
     const pokeTerminal = () => {
       if (!terminal || broken) return;
       setReaction(terminal.react(performance.now() / 1000));
@@ -2583,7 +2581,6 @@ export default function CartridgeArcade({
           onBrowseAll={() => setBrowsing(true)}
           onBack={onBack}
           reaction={reaction}
-          onPoke={() => worldRef.current?.pokeTerminal()}
           onCodeChange={(entry) => worldRef.current?.typeCode(entry)}
           onCodeSubmit={(entry) => worldRef.current?.enterCode(entry)}
           // Fills from just under the ledge down to the bottom
