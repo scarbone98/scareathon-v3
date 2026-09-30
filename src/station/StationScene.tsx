@@ -1224,7 +1224,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const [x, y, z] = HUB.pos;
         // Phones stand further back, to take in as much as a wide screen does; looking out
         // over the tracks, you step back from the arcade so its arches frame the view
-        const hubZ = facing === "back" ? (pull > 1 ? -1.3 : -0.1) : pull > 1 ? EDGE_Z - 0.5 : z;
+        const hubZ = facing === "back" ? (pull > 1 ? 0.5 : -0.1) : pull > 1 ? EDGE_Z - 0.5 : z;
         const point = aim ?? (focus ? STOPS[focus].target : null);
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
