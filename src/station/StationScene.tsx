@@ -1302,7 +1302,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       })}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 75%, rgba(0,0,0,0.9) 100%)" }}
+        style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,0.3) 82%, rgba(0,0,0,0.6) 100%)" }}
       />
       <div
         ref={grainRef}
