@@ -9,6 +9,7 @@ import {
   CanvasTexture,
   CircleGeometry,
   CylinderGeometry,
+  DoubleSide,
   ExtrudeGeometry,
   Shape,
   SphereGeometry,
@@ -947,9 +948,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Light: a faint cold wash; the warm light comes from the lamps
     scene.add(new HemisphereLight("#6f7fa8", "#1a120c", 0.45));
     const overhead = new PointLight("#ffb060", 16, 7, 2); // the lamp over the visitor, which flickers
-    overhead.position.set(0, 3.5, 0.6);
+    // Centred over where you stand, a little way towards the board, hanging on a drop so
+    // it's in view from the platform
+    const lampX = HUB.pos[0];
+    const lampZ = -0.3;
+    overhead.position.set(lampX, 3.2, lampZ);
     scene.add(overhead);
-    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, 0.6));
+    scene.add(box(0.025, 0.55, 0.025, standard("#1c1a17", 0.5), lampX, 3.77, lampZ)); // the drop
+    const shade = new Mesh(new CylinderGeometry(0.08, 0.3, 0.18, 16, 1, true), standard("#1f2a22", 0.5));
+    shade.material.side = DoubleSide;
+    shade.position.set(lampX, 3.42, lampZ);
+    scene.add(shade);
+    scene.add(new Mesh(new SphereGeometry(0.09, 12, 8), new MeshBasicMaterial({ color: "#ffe2b8" })).translateX(lampX).translateY(3.36).translateZ(lampZ));
     // A lamp either side of where you stand, the same distance off
     [HUB.pos[0] - 4.6, HUB.pos[0] + 4.6].forEach((x) => {
       const lamp = new PointLight("#ffb060", 18, 9, 2);
