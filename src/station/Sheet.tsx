@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { PAPER_GRAIN, pixel, sans, typewriter } from "./style/theme.ts";
 
 // Something taken up to look at closely: a paper off the board, a flyer off the table,
 // the departure board or the kiosk's window up close, a catalogue slid across the counter.
@@ -56,8 +57,9 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
       <div
         className={`station-sheet relative flex max-h-[90dvh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] md:max-h-[88vh] md:rounded-[3px] md:shadow-[6px_10px_0_rgba(0,0,0,0.5)] ${toneClass}`}
         style={{
-          background: light ? sheet.tint ?? "#f2ead2" : undefined,
-          fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+          backgroundColor: light ? sheet.tint ?? "#f2ead2" : undefined,
+          backgroundImage: light ? PAPER_GRAIN : undefined,
+          ...(light ? typewriter : sans),
           paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
         }}
         onClick={(event) => event.stopPropagation()}
@@ -69,6 +71,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
           type="button"
           onClick={onClose}
           aria-label="Put it back"
+          style={pixel}
           className={`absolute right-2 top-1 flex h-11 w-11 items-center justify-center text-3xl leading-none ${light ? "text-[#2a1d14]/60 hover:text-[#2a1d14]" : "text-[#f2ead2]/70 hover:text-[#f2ead2]"}`}
         >
           ×

@@ -15,6 +15,7 @@ export type Stop = {
   target: [number, number, number]; // what the camera looks at
   fit?: number; // metres that must fit across the screen, stepping back on narrow ones
   fitHeight?: number; // metres that must fit top to bottom, above a phone's held card
+  snug?: boolean; // stand exactly where it fits (closer too), not just far enough back
 };
 
 // Clockwise, so "turn right" is the next entry. Wide screens take in the wall in three
@@ -65,9 +66,11 @@ export const STOPS: Record<StopId, Stop> = {
     label: "Station board",
     heading: "front",
     pos: [-0.9, 1.9, 0.35],
-    target: [-0.9, 2.0, -2.1],
-    fit: 2.4, // the tall board, two papers wide
-    fitHeight: 3.7,
+    target: [-0.9, 2.02, -2.1],
+    // The tall board and its sign: just their width across a phone, so they fill most of it
+    fit: 2.2,
+    fitHeight: 3.55,
+    snug: true,
   },
   events: {
     id: "events",

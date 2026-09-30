@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { serif } from "./style/theme.ts";
+import { PAPER_GRAIN, pixel, sans, typewriter } from "./style/theme.ts";
 
 // Phones: standing at an object, the scene shows the object in the top of the screen and
 // this card fills the rest with the thing you're holding (a paper off the board, a flyer
@@ -37,7 +37,11 @@ export default function HeldCard({ items, index, onIndex, onBack }: Props) {
       className={`station-card absolute inset-x-0 bottom-0 z-10 flex h-[58%] flex-col rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.55)] ${tone.text} ${
         item.tone === "ledger" ? "bg-[#0d131b]" : item.tone === "board" ? "bg-[#0a0c10]" : ""
       }`}
-      style={{ background: item.tone === "paper" ? item.tint ?? "#f2ead2" : undefined, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
+      style={{
+        backgroundColor: item.tone === "paper" ? item.tint ?? "#f2ead2" : undefined,
+        backgroundImage: item.tone === "paper" ? PAPER_GRAIN : undefined,
+        ...(item.tone === "paper" ? typewriter : sans),
+      }}
       onPointerDown={(event) => {
         swipe.current = { x: event.clientX, y: event.clientY };
       }}
@@ -51,18 +55,18 @@ export default function HeldCard({ items, index, onIndex, onBack }: Props) {
     >
       <header className={`flex shrink-0 items-center gap-1 border-b px-1.5 pt-1.5 ${tone.rule}`}>
         {/* Back to the platform lives here, in the card, rather than over the scene */}
-        <button type="button" onClick={onBack} className="flex h-11 shrink-0 items-center gap-1 rounded px-2 text-[11px] uppercase tracking-[0.2em] opacity-75 hover:opacity-100" style={serif}>
+        <button type="button" onClick={onBack} className="flex h-11 shrink-0 items-center gap-1 px-2 text-[13px] uppercase tracking-[0.1em] opacity-75 hover:opacity-100" style={pixel}>
           ◂ <span>Platform</span>
         </button>
         {many ? (
-          <button type="button" aria-label="Previous" onClick={() => step(-1)} className="flex h-11 w-11 items-center justify-center text-2xl">
+          <button type="button" aria-label="Previous" onClick={() => step(-1)} className="flex h-11 w-11 items-center justify-center text-2xl" style={pixel}>
             ‹
           </button>
         ) : (
           <span className="w-11" />
         )}
         <div className="min-w-0 flex-1 text-center">
-          <p className="truncate text-[13px] uppercase tracking-[0.25em]" style={serif}>
+          <p className="truncate text-[15px] uppercase tracking-[0.12em]" style={pixel}>
             {item.label}
           </p>
           {many && (
@@ -74,14 +78,14 @@ export default function HeldCard({ items, index, onIndex, onBack }: Props) {
                   aria-label={other.label}
                   aria-current={i === index}
                   onClick={() => onIndex(i)}
-                  className={`h-1.5 rounded-full transition-all ${tone.dot} ${i === index ? "w-5 opacity-80" : "w-1.5 opacity-30"}`}
+                  className={`h-1.5 transition-all ${tone.dot} ${i === index ? "w-5 opacity-80" : "w-1.5 opacity-30"}`}
                 />
               ))}
             </div>
           )}
         </div>
         {many ? (
-          <button type="button" aria-label="Next" onClick={() => step(1)} className="flex h-11 w-11 items-center justify-center text-2xl">
+          <button type="button" aria-label="Next" onClick={() => step(1)} className="flex h-11 w-11 items-center justify-center text-2xl" style={pixel}>
             ›
           </button>
         ) : (

@@ -16,7 +16,7 @@ import {
   type ContentLoopItem,
 } from "../data.ts";
 import type { GoTo } from "../stops.ts";
-import { serif } from "../style/theme.ts";
+import { paperStyle, serif } from "../style/theme.ts";
 
 // The station board is the home page, and its papers are the content: a welcome (your
 // ticket, coins and mail), the Scareathon, this week's challenge, the latest two
@@ -301,7 +301,7 @@ export function PinnedPaper({ paper, onOpen, onClose, zoomed = false }: { paper:
       onClick={zoomed ? undefined : onOpen}
       onKeyDown={(event) => !zoomed && event.key === "Enter" && event.target === event.currentTarget && onOpen()}
       className={`relative h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition ${zoomed ? "" : "cursor-pointer hover:brightness-105"}`}
-      style={{ background: paper.tint, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
+      style={paperStyle(paper.tint)}
     >
       <span className="absolute left-1/2 top-2 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
       {zoomed && (

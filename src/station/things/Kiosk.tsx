@@ -8,7 +8,7 @@ import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import { useSummary } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 import { useAvatarLook } from "./Belongings.tsx";
-import { serif, stubButton } from "../style/theme.ts";
+import { serif, stubButton, typewriter } from "../style/theme.ts";
 
 // The ticket kiosk. Its window is where you sign in (or buy a ticket, i.e. sign up), and
 // once you have a ticket it shows yours, with the way to the item shop.
@@ -161,7 +161,7 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
 // phone holds it in its own card
 export function KioskWindow({ signedIn, onShop, goTo, glass = true }: { signedIn: boolean | undefined; onShop: () => void; goTo: GoTo; glass?: boolean }) {
   return (
-    <div className={glass ? "h-full w-full bg-[#efe3c8]/90 p-4 shadow-[inset_0_0_30px_rgba(120,70,20,0.35)]" : "h-full w-full"} style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
+    <div className={glass ? "h-full w-full bg-[#efe3c8]/90 p-4 shadow-[inset_0_0_30px_rgba(120,70,20,0.35)]" : "h-full w-full"} style={typewriter}>
       {signedIn === undefined ? <p className="italic opacity-60">…</p> : signedIn ? <TicketCard onShop={onShop} goTo={goTo} /> : <SignInCard />}
     </div>
   );

@@ -145,6 +145,25 @@ function glowTexture() {
   });
 }
 
+// Cork: light and warm, packed with granules of every shade, and the odd old pin hole
+function corkTexture() {
+  const texture = paint(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#a9784a";
+    ctx.fillRect(0, 0, w, h);
+    const shades = ["#946a3f", "#c49a6a", "#7d5732", "#d2ad7c", "#a37446", "#6a4828", "#b98b58"];
+    for (let i = 0; i < 9000; i += 1) {
+      ctx.fillStyle = shades[i % shades.length];
+      const size = 1 + ((i * 7) % 3);
+      ctx.fillRect(Math.random() * w, Math.random() * h, size, size);
+    }
+    ctx.fillStyle = "rgba(40,24,10,0.55)";
+    for (let i = 0; i < 40; i += 1) ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  });
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.repeat.set(2, 3);
+  return texture;
+}
+
 function speckle(base: string, dots: string[], count: number, size: number) {
   return paint(256, 256, (ctx, w, h) => {
     ctx.fillStyle = base;
@@ -364,7 +383,7 @@ function buildBulletin() {
   const group = new Group();
   group.position.copy(BOARD_POS);
   group.add(box(2.12, 2.86, 0.08, standard("#3a2a1c")));
-  group.add(plane(1.98, 2.72, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
+  group.add(plane(1.98, 2.72, standard("#ffffff", 1, corkTexture()), 0, 0, 0.045));
   // Painted papers: the picture from afar, and a stand-in whenever the HTML can't line up
   group.userData.notes = PAPER_SPOTS.map(([x, y, tilt], i) => {
     const [kind, title] = IDLE_NOTICES[i];
@@ -379,7 +398,7 @@ function buildBulletin() {
   group.add(box(2.4, 0.46, 0.04, standard("#11161e"), 0, 1.8, 0.0));
   // Unlit, so the lamps' warm light doesn't turn the navy enamel brown
   group.add(plane(2.3, 0.39, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.8, 0.025));
-  addLamp(group, 0, 1.5, 1.1);
+  addLamp(group, 0, 1.9, 1.9); // far enough out to light the whole board evenly
   group.add(hitBox(2.4, 3.6, 0.6, 0.3));
   group.userData.stopId = "bulletin";
   return group;
@@ -950,7 +969,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           stop.fitHeight ? stop.fitHeight / 2 / (Math.tan(halfHeight) * (1 - latest.current.cardFraction)) : 0
         );
         const away = pos.clone().sub(target);
-        if (away.length() < needed) pos.copy(target).add(away.setLength(needed));
+        if (stop.snug || away.length() < needed) pos.copy(target).add(away.setLength(needed));
       }
       const dir = target.clone().sub(pos);
       return { x: pos.x, y: pos.y, z: pos.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) };
@@ -1162,7 +1181,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
               // Standing at its object you can use it; from further off a tap walks you there
               pointerEvents: surfacesInteractive && at === spec.stop ? "auto" : "none",
               // Dim to the lamplight around it
-              filter: spec.lamplit ? "brightness(0.9) sepia(0.12)" : undefined,
+              filter: spec.lamplit ? "brightness(0.88) sepia(0.2) contrast(1.05) blur(0.3px)" : "blur(0.25px)",
             }}
           >
             {content}

@@ -6,7 +6,7 @@ import StreamingProviders from "../../pages/Home/StreamingProviders";
 import { challengeTarget, eventState, formatShortDate, needsSignIn, useContentLoop, useRewardStatus, useTodayMovie } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 import type { SheetContent } from "../Sheet.tsx";
-import { serif, stubButton } from "../style/theme.ts";
+import { PAPER_GRAIN, serif, stubButton, typewriter } from "../style/theme.ts";
 
 // The events table: three flyers standing on it (the event, tonight's film, the rules)
 // and the poster above, which is tonight's film too. Each flyer's face says what it is;
@@ -213,7 +213,7 @@ export function FlyerFace({ flyer, onOpen, held = false }: { flyer: Flyer; onOpe
       onClick={onOpen}
       onKeyDown={(event) => event.key === "Enter" && onOpen()}
       className={`h-full w-full cursor-pointer overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-110${held ? " outline outline-[6px] outline-offset-4 outline-[#ffcf7a] shadow-[0_0_40px_rgba(255,190,90,0.7)]" : ""}`}
-      style={{ background: flyer.tint, color: flyer.ink, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
+      style={{ backgroundColor: flyer.tint, backgroundImage: PAPER_GRAIN, color: flyer.ink, ...typewriter }}
     >
       {flyer.face}
     </div>

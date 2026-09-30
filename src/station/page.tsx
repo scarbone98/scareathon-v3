@@ -17,7 +17,7 @@ import { KioskWindow } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe, useAvatarLook } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
-import { plate, sans, serif } from "./style/theme.ts";
+import { STATION_FONTS, plate, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import type { Boards } from "./StationScene.tsx";
 
@@ -87,7 +87,23 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
 // How much of a phone's screen the held card takes, under the object
 const CARD_FRACTION = 0.58;
 
-// Direction signs for turning: a pointed enamel plate
+// Direction signs for turning: a pointed enamel plate, drawn in big pixels like the scene
+// (one character per pixel: o outline, c cream, n navy, a the arrow)
+const ARROW_PIXELS = [
+  "....ooooooooooooooo",
+  "...occcccccccccccco",
+  "..ocnnnnnnnnnnnnnco",
+  ".ocnnnnnannnnnnnnco",
+  "ocnnnnnaannnnnnnnco",
+  "ocnnnnaaaaaaaaannco",
+  "ocnnnnnaannnnnnnnco",
+  ".ocnnnnnannnnnnnnco",
+  "..ocnnnnnnnnnnnnnco",
+  "...occcccccccccccco",
+  "....ooooooooooooooo",
+];
+const ARROW_COLOURS: Record<string, string> = { o: "#05070c", c: "#e8dcbc", n: "#1d2a3a", a: "#e8dcbc" };
+
 function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => void }) {
   const left = direction === -1;
   return (
@@ -95,12 +111,16 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
       type="button"
       aria-label={left ? "Turn left" : "Turn right"}
       onClick={onClick}
-      className={`pointer-events-auto p-1 drop-shadow-[0_6px_10px_rgba(0,0,0,0.6)] transition active:scale-95 md:hover:scale-105 ${left ? "md:hover:-translate-x-1" : "md:hover:translate-x-1"}`}
+      className={`pointer-events-auto p-1 transition active:translate-y-px ${left ? "md:hover:-translate-x-1" : "md:hover:translate-x-1"}`}
     >
-      <svg viewBox="0 0 72 44" className="h-10 w-16 md:h-11 md:w-[4.5rem]" style={{ transform: left ? undefined : "scaleX(-1)" }}>
-        <path d="M3 22 L20 3 H69 V41 H20 Z" fill="#1d2a3a" stroke="#0b1017" strokeWidth="3" strokeLinejoin="round" />
-        <path d="M9 22 L22.5 7.5 H64 V36.5 H22.5 Z" fill="none" stroke="#f2ead2" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M52 22 H30 M38 14 L30 22 L38 30" fill="none" stroke="#f2ead2" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <svg viewBox="0 0 20 12" shapeRendering="crispEdges" className="h-9 w-[3.75rem] md:h-10 md:w-[4.2rem]" style={{ transform: left ? undefined : "scaleX(-1)" }}>
+        {/* a hard shadow, one pixel down and right */}
+        {ARROW_PIXELS.map((row, y) =>
+          [...row].map((cell, x) => (cell === "." ? null : <rect key={`s${x}-${y}`} x={x + 1} y={y + 1} width={1} height={1} fill="rgba(0,0,0,0.55)" />))
+        )}
+        {ARROW_PIXELS.map((row, y) =>
+          [...row].map((cell, x) => (cell === "." ? null : <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={ARROW_COLOURS[cell]} />))
+        )}
       </svg>
     </button>
   );
@@ -419,8 +439,8 @@ export default function StationPage() {
           <button
             type="button"
             onClick={stepBack}
-            className={`${plate} absolute left-3 z-20 flex min-h-11 items-center rounded-[3px] px-3 text-xs uppercase tracking-[0.2em] opacity-85 transition hover:opacity-100 md:left-4`}
-            style={{ ...serif, bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            className={`${plate} absolute left-3 z-20 flex min-h-11 items-center px-3 text-[15px] uppercase tracking-[0.08em] opacity-90 transition hover:opacity-100 md:left-4`}
+            style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
           >
             ◂ Platform
           </button>
@@ -494,6 +514,7 @@ export default function StationPage() {
           />
         )}
         <style>{`
+          @import url('${STATION_FONTS}');
           @keyframes station-arrive { from { opacity: 0 } to { opacity: 1 } }
           .station-arrive { animation: station-arrive 0.45s ease-out both }
           @keyframes station-card-up { from { transform: translateY(100%) } to { transform: none } }
