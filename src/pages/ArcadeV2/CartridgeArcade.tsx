@@ -507,6 +507,33 @@ export default function CartridgeArcade({
         lastIdleBlink = -1;
         return;
       }
+      // Held: whatever was showing stays under the finger (the preview live), snow and the
+      // touch laid over it rather than wiping it out
+      const heldPicture =
+        screenHeld && screenMode === "video" && screenVideo?.hasPicture()
+          ? (screenVideo.texture.image as CanvasImageSource)
+          : screenHeld && heldBaseReady && screenMode !== "static" && screenMode !== "power" && screenMode !== "off"
+            ? heldBase
+            : null;
+      if (heldPicture && noiseContext) {
+        screenContext.imageSmoothingEnabled = true;
+        screenContext.drawImage(heldPicture, 0, 0, width, height);
+        const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
+        for (let i = 0; i < image.data.length; i += 4) {
+          const v = Math.random() * 255;
+          image.data[i] = image.data[i + 1] = image.data[i + 2] = v;
+          image.data[i + 3] = 255;
+        }
+        noiseContext.putImageData(image, 0, 0);
+        screenContext.imageSmoothingEnabled = false;
+        screenContext.globalAlpha = 0.28;
+        screenContext.drawImage(noiseCanvas, 0, 0, width, height);
+        screenContext.globalAlpha = 1;
+        paintTouch(time, width, height);
+        screenTexture.needsUpdate = true;
+        lastIdleBlink = -1;
+        return;
+      }
       if ((screenHeld || screenMode === "static" || screenMode === "video") && noiseContext) {
         const image = noiseContext.createImageData(noiseCanvas.width, noiseCanvas.height);
         for (let i = 0; i < image.data.length; i += 4) {
@@ -871,6 +898,9 @@ export default function CartridgeArcade({
     const buttonSides: Mesh[][] = []; // each player's buttons, both rows
     let screenMesh: Mesh | null = null;
     let screenHeld = false; // snow on the screen for as long as it's pressed
+    // What the screen's own canvas showed when it was pressed, to keep under the touch
+    const heldBase = document.createElement("canvas");
+    let heldBaseReady = false;
     // Tapped too hard, the machine crashes: blue screen, dead scope, no scanner,
     // the marquee jammed mid-flip, until the terminal's reboot finishes
     const BREAK_TAPS = 10; // this many pokes...
@@ -2096,11 +2126,19 @@ export default function CartridgeArcade({
       }
       const name = (mesh.material as MeshStandardMaterial).name;
       if (screenMesh && (mesh === screenMesh || mesh.parent === screenMesh)) {
+        heldBase.width = screenCanvas.width;
+        heldBase.height = screenCanvas.height;
+        heldBase.getContext("2d")?.drawImage(screenCanvas, 0, 0);
+        heldBaseReady = true;
         screenHeld = true;
         touch.start = performance.now() / 1000;
         touchScreen(clientX, clientY);
         playStatic();
-      } else if (marqueeMaterial && mesh.material === marqueeMaterial) jostleMarquee();
+      } else if (marqueeMaterial && mesh.material === marqueeMaterial) {
+        jostleMarquee();
+        slotRig?.sparks(hit.point);
+        playPop();
+      }
       else if (name.startsWith("Joystick") || nearJoystick(hit.point)) jiggleJoystick(hit.point);
       else if (name.endsWith("Button") || nearButton(hit.point)) pressButtons(hit.point);
       // Small at first, harder with each tap in a quick run of them
@@ -2122,7 +2160,11 @@ export default function CartridgeArcade({
     const releaseScreen = () => {
       if (!screenHeld) return 0;
       screenHeld = false;
+      heldBaseReady = false;
+      // The screens that only redraw on a change: draw them afresh, over the touch
       lastIdleBlink = -1;
+      lastSoonFrame = -1;
+      paintWayside.invalidate();
       if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
       return performance.now() / 1000 - touch.start;
     };

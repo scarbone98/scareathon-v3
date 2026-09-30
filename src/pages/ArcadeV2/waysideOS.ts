@@ -34,7 +34,7 @@ export type WaysideState = {
 // Draws a frame; false when nothing's changed since the last one (the caller skips the upload)
 export function createWaysideScreen() {
   let last = "";
-  return (ctx: CanvasRenderingContext2D, width: number, height: number, time: number, state: WaysideState) => {
+  const paint = (ctx: CanvasRenderingContext2D, width: number, height: number, time: number, state: WaysideState) => {
     const booting = state.plugged && time - state.bootAt < 1.4;
     const cursorOn = Math.floor(time * 2) % 2 === 0;
     const replyAge = state.reply ? time - state.reply.at : Infinity;
@@ -122,4 +122,9 @@ export function createWaysideScreen() {
     for (let y = 0; y < height; y += 4) ctx.fillRect(0, y, width, 2);
     return true;
   };
+  // Draw the next frame whatever (something else drew over the screen meanwhile)
+  paint.invalidate = () => {
+    last = "";
+  };
+  return paint;
 }
