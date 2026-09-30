@@ -2054,13 +2054,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       // Each surface only while it's ahead of the camera and facing it (HTML behind the
       // camera or seen from the back would draw wrongly); its painted stand-in shows otherwise
       camera.getWorldDirection(facing);
+      const onTrain = arrival.active && !(arrival.phase === "stepping" && cam.z < CAR_NEAR - 0.2);
       placed.forEach(({ object, spec }) => {
         object.getWorldPosition(surfaceCentre);
         toCamera.subVectors(camera.position, surfaceCentre).normalize();
         object.getWorldDirection(surfaceNormal);
         object.visible =
           surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35 &&
-          !(latest.current.at && spec.hiddenAt?.includes(latest.current.at));
+          !(latest.current.at && spec.hiddenAt?.includes(latest.current.at)) &&
+          // (Still aboard the train: its walls would be behind them otherwise)
+          !onTrain;
       });
       surfaceRenderer.render(scene, camera);
     };
