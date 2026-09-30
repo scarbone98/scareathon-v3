@@ -50,6 +50,10 @@ import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
 import { CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
 import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
+import { dressSlot, focusedPose, shelfLayout, type SlotDressing } from "../pages/ArcadeV2/slotDressing.ts";
+import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } from "../pages/ArcadeV2/cartridge.ts";
+import { linkArcadeFonts } from "../pages/ArcadeV2/arcadeFonts.ts";
+import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
@@ -69,6 +73,8 @@ type Props = {
   hideArcade?: boolean;
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
+  arcadeGames?: MachineData[]; // the arcade's cartridges, so this cabinet's row matches its
+
   previewPlaying?: boolean; // the cabinet is in view; its preview is paused otherwise
   // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
   surfaces: Record<string, ReactNode>;
@@ -512,7 +518,7 @@ function buildEvents() {
 
 // Painted as the arcade paints its cabinet (the same finish, trim, bezels and buttons), with
 // the preview game on its screen and marquee, so the arcade's own can take over unnoticed
-function buildArcade(preview: { name: string; video: string; color: string } | null) {
+function buildArcade(preview: { name: string; video: string; color: string } | null, games: MachineData[]) {
   const group = new Group();
   group.position.copy(ARCADE_POS); // against the wall, left of the board
   const placeholder = new Group();
@@ -541,6 +547,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       const panelBox = new Box3();
       const marqueeBox = new Box3();
       let video: HTMLVideoElement | null = null;
+      let glassMaterial: MeshStandardMaterial | null = null;
       const screenTexture = (() => {
         if (!preview) return null;
         const clip = document.createElement("video");
@@ -595,6 +602,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
           glass.emissiveIntensity = 1.1;
           applyCrtLook(glass);
           mesh.material = glass;
+          glassMaterial = glass;
           screenBox.setFromObject(mesh, true);
         } else if (material.name === "Marque") {
           const sign = material.clone();
@@ -628,6 +636,55 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       });
       finish.accent.set(preview?.color ?? "#ff7a1a");
       finish.decorate({ cabinet: cabinetBox, screen: screenBox, panel: panelBox, marquee: marqueeBox });
+      // What the arcade bolts on round its slot, built by the same code in the same places
+      const dressing = dressSlot({ model, cabinetBox, panelBox, screenBox, screenMaterial: glassMaterial });
+      cabinet.add(dressing.rig.group, dressing.terminal.group, ...dressing.rims);
+      group.userData.dressing = dressing;
+      // The terminal shows the game the arcade will open on, as the arcade's will
+      const start = Math.max(
+        games.findIndex((game) => game.name === preview?.name),
+        preview ? -1 : games.findIndex((game) => game.special === "shuffle"),
+        0
+      );
+      const phone = window.innerWidth / Math.max(window.innerHeight, 1) < 0.8;
+      if (games[start]) dressing.terminal.show({ kind: "game", game: games[start], at: 0 });
+      dressing.terminal.setOptions({ details: false, phone });
+      // ...and the row of cartridges floating in front, the picked one up (only shown on
+      // the way to the cabinet: from the platform, the rack beside it stands in for them)
+      if (games.length) {
+        linkArcadeFonts(games.map((game) => game.cartridge.font));
+        const layout = shelfLayout(dressing.cartSize, cabinetBox, panelBox.isEmpty() ? Infinity : panelBox.min.y, dressing.seat.y);
+        const row = new Group();
+        row.visible = false;
+        const carts: Cartridge[] = [];
+        const shown: number[] = [];
+        for (let i = Math.max(0, start - 4); i <= Math.min(games.length - 1, start + 4); i += 1) {
+          const game = games[i];
+          const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, dressing.cartSize, CARTRIDGE_STYLES[i % CARTRIDGE_STYLES.length], {
+            clear: i % 4 === 1,
+            released: game.cartridge.about.released,
+            developer: game.cartridge.about.developer,
+            note: game.cartridge.backNote,
+            tape: game.cartridge.backTape,
+            untitled: game.special === "mystery",
+          });
+          const pose = focusedPose(dressing.cartSize, i === start ? 1 : 0);
+          cart.group.position.set((i - start) * layout.pitchX, layout.homeY + pose.lift, layout.z + pose.forward);
+          cart.group.scale.setScalar(pose.scale);
+          cart.group.rotation.x = pose.tip;
+          cart.setHighlight(i === start ? 1 : 0);
+          row.add(cart.group);
+          carts.push(cart);
+          shown.push(i);
+        }
+        cabinet.add(row);
+        const stopStills = loadVideoStills(shown.map((i) => games[i].videoUrl), (n, source, width, height) => carts[n]?.setPicture(source, width, height));
+        group.userData.row = row;
+        group.userData.disposeRow = () => {
+          stopStills();
+          carts.forEach((cart) => cart.dispose());
+        };
+      }
       // Then sized to stand 1.9 m tall on the platform
       cabinet.scale.setScalar(1.9 / Math.max(cabinetBox.getSize(new Vector3()).y, 0.001));
       group.remove(placeholder);
@@ -644,6 +701,38 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
+  return group;
+}
+
+// A little wall rack beside the arcade: every cartridge on it, stood on end like tapes,
+// its spine in its game's colour
+function buildCartRack(games: MachineData[]) {
+  const group = new Group();
+  const tiers = 3;
+  const width = 0.5;
+  const tierH = 0.15;
+  const depth = 0.13;
+  group.position.set(-4.02, 1.05, WALL_Z + depth / 2 + 0.01);
+  const wood = standard("#4a3322", 0.8);
+  // The back board, the shelves and the sides
+  group.add(box(width + 0.04, tiers * tierH + 0.04, 0.015, standard("#3a281b", 0.9), 0, (tiers * tierH) / 2, -depth / 2));
+  for (let t = 0; t <= tiers; t += 1) group.add(box(width + 0.04, 0.015, depth, wood, 0, t * tierH, 0));
+  [-1, 1].forEach((side) => group.add(box(0.015, tiers * tierH + 0.015, depth, wood, side * (width / 2 + 0.012), (tiers * tierH) / 2, 0)));
+  // The cartridges, left to right and top to bottom, in the arcade's order
+  const perTier = Math.max(1, Math.ceil(games.length / tiers));
+  const spine = Math.min(0.032, (width - 0.02) / perTier);
+  games.forEach((game, i) => {
+    const tier = tiers - 1 - Math.floor(i / perTier);
+    const col = i % perTier;
+    const h = tierH * (0.68 + ((i * 37) % 7) / 70);
+    const x = -width / 2 + 0.01 + spine * (col + 0.5);
+    const cart = box(spine - 0.004, h, depth * 0.8, standard(game.cartridge.color, 0.55), x, tier * tierH + 0.0075 + h / 2, 0.005);
+    group.add(cart);
+    // A pale label band across each spine
+    group.add(box(spine - 0.003, h * 0.22, 0.002, standard("#efe6cf", 0.8), x, tier * tierH + 0.0075 + h * 0.62, 0.005 + depth * 0.4));
+  });
+  group.add(hitBox(width + 0.1, tiers * tierH + 0.1, depth + 0.1, (tiers * tierH) / 2));
+  group.userData.stopId = "arcade"; // a tap walks you over to the machine
   return group;
 }
 
@@ -1045,7 +1134,7 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -1053,8 +1142,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -1406,10 +1495,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lockers = buildLockers();
     let lastMinute = 0;
     const mail = buildMail();
-    const arcade = buildArcade(latest.current.preview);
+    const arcade = buildArcade(latest.current.preview, latest.current.arcadeGames);
+    const cartRack = buildCartRack(latest.current.arcadeGames);
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
-    const objects = [bench, lockers, arcade, bulletin, events, tickets, departures, mail];
+    const objects = [bench, lockers, arcade, cartRack, bulletin, events, tickets, departures, mail];
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
     // are HTML placed in 3D over their painted stand-ins, so their text is crisp
@@ -1659,6 +1749,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         restingDrawn = true;
       } else restingDrawn = false;
       arcadeObject.visible = !latest.current.hideArcade;
+      // The arcade's own parts: its scope and terminal keep ticking; its row of cartridges
+      // shows on the way up to it
+      const dressing = arcadeObject.userData.dressing as SlotDressing | undefined;
+      if (dressing) {
+        const now = performance.now() / 1000;
+        dressing.rig.update(now);
+        dressing.terminal.update(now);
+      }
+      const row = arcadeObject.userData.row as Group | undefined;
+      if (row) row.visible = latest.current.at === "arcade";
       // The cabinet's finish shimmers with time, and is painted in the cabinet's own frame
       const cabinetFinish = arcadeObject.userData.finish as ReturnType<typeof createCabinetFinish>;
       const cabinetNode = arcadeObject.userData.cabinet as Group | undefined;
@@ -1685,7 +1785,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       const current = latest.current.at;
       objects.forEach((o) => {
-        const lamp = o.userData.lamp as PointLight;
+        const lamp = o.userData.lamp as PointLight | undefined;
+        if (!lamp) return; // (the cartridge rack shares the arcade's)
         const lit = o.userData.stopId === current || o.userData.stopId === hovered;
         lamp.intensity += ((lit ? LAMP_LIT : LAMP_IDLE) - lamp.intensity) * 0.08;
       });
@@ -1742,6 +1843,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         });
       });
       (arcadeObject.userData.video as HTMLVideoElement | undefined)?.pause();
+      (arcadeObject.userData.dressing as SlotDressing | undefined)?.dispose();
+      (arcadeObject.userData.disposeRow as (() => void) | undefined)?.();
       (arcadeObject.userData.finish as ReturnType<typeof createCabinetFinish>).dispose?.();
       renderer.dispose();
       mount.removeChild(canvas);

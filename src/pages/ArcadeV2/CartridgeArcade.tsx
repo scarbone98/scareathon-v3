@@ -6,7 +6,6 @@ import {
   PointsMaterial,
   AmbientLight,
   Box3,
-  BoxGeometry,
   BufferGeometry,
   CanvasTexture,
   Color,
@@ -50,17 +49,18 @@ import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, s
 import { canvasFont, linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
+import { dressSlot, PANEL_MATERIALS, SHELF_NEON, shelfLayout } from "./slotDressing.ts";
 import type { Reaction } from "./slotTerminal.ts";
 import { createWaysideScreen, runCode, type WaysideState } from "./waysideOS.ts";
 import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
-import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
+import type { SlotTerminal } from "./slotTerminal.ts";
 import { nowSeconds, type TerminalOptions, type TerminalScreen } from "./terminalScreen.ts";
 import { splitParts } from "./splitParts.ts";
 import { createMysteryScreen } from "./mysteryScreen.ts";
-import { createSlotRig, MARKER_FONT, type SlotRig } from "./slotRig.ts";
+import { MARKER_FONT, type SlotRig } from "./slotRig.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 
 // One arcade cabinet and a shelf of game cartridges. Pick a cartridge and it
@@ -110,8 +110,6 @@ type CartState = {
   where: "shelf" | "flying" | "slot";
 };
 
-const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"]);
-const SHELF_NEON = "#ff7a1a";
 // The big buttons' and LEDs' colour while no game is picked
 const IDLE_ACCENT = "#ff7a1a";
 // Narrower than this is a phone: the cabinet fills the width and the site menu docks into the card
@@ -1174,21 +1172,15 @@ export default function CartridgeArcade({
         mesh.geometry.dispose();
       });
       shelfMeshes = [];
-      const { width: w, height: h, depth: d } = cartSize;
-      const cabinetSize = cabinetBox.getSize(new Vector3());
-      const plankT = h * 0.07; // (no plank any more: the cartridges float where it was)
-
-      pitchX = w * 1.45;
-      // Up under the control panel, so screen, controls and cartridges fit a screen together.
-      // The cartridges' tops a little way below the controls, so they don't cover them
-      const cartTop = Number.isFinite(panelBottom) ? panelBottom - h * 0.4 : seat.y - h * 0.5;
-      const ledgeY = Math.max(cabinetSize.y * 0.2, cartTop - h - plankT / 2);
-      const depth = d * 3.4;
-      shelfGroup.position.set(0, 0, cabinetBox.max.z + d * 6);
+      const { height: h } = cartSize;
+      // (The same row Wayside Station's cabinet has in front of it)
+      const layout = shelfLayout(cartSize, cabinetBox, panelBottom, seat.y);
+      pitchX = layout.pitchX;
+      shelfGroup.position.set(0, 0, layout.z);
       carts.forEach((state, i) => {
-        state.home.set(i * pitchX, ledgeY + plankT / 2 + h / 2, 0);
+        state.home.set(i * pitchX, layout.homeY, 0);
       });
-      shelfLight.position.set(0, ledgeY + h * 2, shelfGroup.position.z + depth * 2);
+      shelfLight.position.set(0, layout.ledgeY + h * 2, shelfGroup.position.z + layout.depth * 2);
       scroll.x = Math.max(0, focusIndex) * pitchX;
       carts.forEach((state) => {
         if (state.where !== "shelf") return;
@@ -1721,86 +1713,19 @@ export default function CartridgeArcade({
       cabinetModel = model;
       if (!panelBox.isEmpty()) panelBottom = panelBox.min.y;
 
-      const cabinetSize = cabinetBox.getSize(new Vector3());
-      const cartWidth = cabinetSize.x * 0.2;
-      // Landscape cartridges, wider than tall
-      cartSize = { width: cartWidth, height: cartWidth * CARTRIDGE_ASPECT, depth: cartWidth * 0.18 };
-
-      // The cartridge port: a box with a neon rim, in the empty strip
-      // between the controls and the screen so it doesn't sit on the buttons
-      const panelCenter = panelBox.isEmpty() ? new Vector3(0, cabinetSize.y * 0.45, cabinetBox.max.z * 0.6) : panelBox.getCenter(new Vector3());
-      if (!panelBox.isEmpty() && !screenBox.isEmpty()) {
-        panelCenter.z = screenBox.max.z + (panelBox.min.z - screenBox.max.z) * 0.35;
-      }
-      // Find the cabinet's surface there by dropping a ray onto it
-      const surfaceRay = new Raycaster(new Vector3(0, screenBox.isEmpty() ? cabinetBox.max.y : screenBox.min.y, panelCenter.z), new Vector3(0, -1, 0));
-      const surface = surfaceRay.intersectObject(model, true).find((hit) => (hit.object as Mesh).material !== screenMaterial);
-      const surfaceY = surface ? surface.point.y : panelBox.isEmpty() ? panelCenter.y : panelBox.min.y;
-      // A raised housing, so the slot reads above the joysticks rather than among them
-      const portTop = Math.max(surfaceY + cartSize.height * 0.12, panelBox.isEmpty() ? 0 : panelBox.max.y + cartSize.height * 0.08);
-      const portHeight = portTop - surfaceY + cartSize.height * 0.05;
-      // ...retrofitted: bolted on, taped up, wired into the cabinet
-      const cabinetRay = new Raycaster();
-      const rig = track(
-        createSlotRig({
-          width: cartSize.width * 1.22,
-          height: portHeight,
-          depth: cartSize.depth * 2.2,
-          center: new Vector3(0, portTop - portHeight / 2, panelCenter.z),
-          deckY: surfaceY,
-          // Drop a ray onto the deck, passing through the buttons and joysticks
-          deckAt: (x, z) => {
-            cabinetRay.set(new Vector3(x, portTop + cartSize.height * 0.5, z), new Vector3(0, -1, 0));
-            const hit = cabinetRay
-              .intersectObject(model, true)
-              .find((h) => !PANEL_MATERIALS.has(((h.object as Mesh).material as MeshStandardMaterial).name) && (h.object as Mesh).material !== screenMaterial);
-            return hit ? hit.point.y : surfaceY;
-          },
-          deckFront: cabinetBox.max.z - cartSize.depth * 0.5,
-          deckEdge: cabinetBox.max.x - cartSize.width * 0.17,
-          faceZ: (x, y) => {
-            cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
-            const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
-            return hit ? hit.point.z : panelCenter.z - cartSize.depth;
-          },
-          // Under the screen's "AUTO TRACKING" label
-          vent: new Vector3(screenBox.max.x - 0.1, screenBox.min.y - 0.1, 0),
-          // Under the screen's "CH 03" label
-          scopeX: screenBox.min.x + 0.15,
-        })
-      );
-      cabinet.add(rig.group);
-      slotRig = rig;
-      rimMaterial = track(new MeshBasicMaterial({ color: new Color(SHELF_NEON) }));
-      const rimThickness = cartSize.depth * 0.18;
-      const rimGeometryX = track(new BoxGeometry(cartSize.width * 1.26, rimThickness, rimThickness));
-      const rimGeometryZ = track(new BoxGeometry(rimThickness, rimThickness, cartSize.depth * 2.24));
-      [-1, 1].forEach((side) => {
-        const front = new Mesh(rimGeometryX, rimMaterial!);
-        front.position.set(0, portTop, panelCenter.z + side * cartSize.depth * 1.1);
-        cabinet.add(front);
-        const end = new Mesh(rimGeometryZ, rimMaterial!);
-        end.position.set(side * cartSize.width * 0.62, portTop, panelCenter.z);
-        cabinet.add(end);
-      });
-      // The terminal, set into the bottom left of the housing's front face
-      const housingFront = panelCenter.z + cartSize.depth * 1.1;
-      const faceHeight = portTop - surfaceY;
-      const terminalHeight = Math.min(faceHeight * 0.72, cartSize.width * 0.3);
-      const terminalWidth = terminalHeight / TERMINAL_ASPECT;
-      const terminalDepth = cartSize.depth * 0.25;
-      const margin = faceHeight * 0.12;
-      terminal = track(createSlotTerminal(terminalWidth, terminalHeight, terminalDepth));
-      terminal.group.position.set(
-        -cartSize.width * 0.61 + margin + terminalWidth / 2,
-        surfaceY + margin + terminalHeight / 2,
-        housingFront + terminalDepth / 2
-      );
+      // The port, its rig and the little terminal (the same as Wayside Station's cabinet)
+      const dressing = track(dressSlot({ model, cabinetBox, panelBox, screenBox, screenMaterial }));
+      cartSize = dressing.cartSize;
+      const { portTop, panelCenter } = dressing;
+      slotRig = dressing.rig;
+      cabinet.add(dressing.rig.group);
+      rimMaterial = dressing.rimMaterial;
+      dressing.rims.forEach((rim) => cabinet.add(rim));
+      terminal = dressing.terminal;
       cabinet.add(terminal.group);
       terminal.show(terminalScreenNow);
       terminal.setOptions(terminalOptions);
-      // Sunk far enough that the part left standing stays below the screen
-      seat.set(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
+      seat.copy(dressing.seat);
       portLight = new PointLight(SHELF_NEON, 0, cartSize.height * 5);
       portLight.position.set(0, portTop + cartSize.height * 0.3, panelCenter.z + cartSize.depth * 3);
       cabinet.add(portLight);
@@ -1833,10 +1758,18 @@ export default function CartridgeArcade({
       const start = initial >= 0 ? initial : Math.max(shuffle, 0);
       scroll.x = start * pitchX; // already there, no slide across on load
       focus(start);
-      // Cartridges drop onto the shelf one after another
-      carts.forEach((state, i) => {
-        gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });
-      });
+      if (!withRoom) {
+        // Taking over from Wayside Station's cabinet, whose cartridges are already sitting
+        // just so: no drop, the picked one already up
+        gsap.killTweensOf(carts[start].focus);
+        carts[start].focus.value = 1;
+        carts.forEach((state) => (state.intro.value = 1));
+      } else {
+        // Cartridges drop onto the shelf one after another
+        carts.forEach((state, i) => {
+          gsap.to(state.intro, { value: 1, duration: 0.6, delay: 0.15 + i * 0.05, ease: "back.out(1.7)" });
+        });
+      }
 
       stopStills = loadVideoStills(games.map((game) => game.videoUrl), (index, source, width, height) => {
         carts[index]?.cart.setPicture(source, width, height);

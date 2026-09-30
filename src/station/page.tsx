@@ -434,6 +434,7 @@ export default function StationPage() {
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
             preview={preview}
+            arcadeGames={games}
             previewPlaying={heading === "left" || at === "arcade"}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read

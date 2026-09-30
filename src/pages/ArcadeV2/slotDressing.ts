@@ -1,0 +1,156 @@
+// What's bolted onto the cabinet around its cartridge slot: the raised port with its neon
+// rim, the rig (wires, scope, vent) and the little terminal; and where the row of
+// cartridges floats in front of it. Shared by the arcade and Wayside Station's cabinet, so
+// the two are the same machine and nothing pops in when one hands over to the other.
+import { Box3, BoxGeometry, Color, Mesh, MeshBasicMaterial, Object3D, Raycaster, Vector3, type Material } from "three";
+import { CARTRIDGE_ASPECT } from "./cartridge.ts";
+import { createSlotRig, type SlotRig } from "./slotRig.ts";
+import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
+
+// The control panel's parts (the rig's wires drape over them rather than landing on them)
+export const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"]);
+export const SHELF_NEON = "#ff7a1a";
+
+export type CartSize = { width: number; height: number; depth: number };
+
+export type SlotDressing = {
+  cartSize: CartSize;
+  rig: SlotRig;
+  terminal: SlotTerminal;
+  rimMaterial: MeshBasicMaterial;
+  rims: Mesh[];
+  portTop: number;
+  surfaceY: number;
+  panelCenter: Vector3;
+  seat: Vector3; // where a plugged-in cartridge sits
+  dispose: () => void;
+};
+
+// Builds it all in the cabinet's own space (the space `cabinetBox` was measured in); the
+// caller adds `rig.group`, `rims` and `terminal.group` to the cabinet
+export function dressSlot({
+  model,
+  cabinetBox,
+  panelBox,
+  screenBox,
+  screenMaterial,
+}: {
+  model: Object3D;
+  cabinetBox: Box3;
+  panelBox: Box3;
+  screenBox: Box3;
+  screenMaterial: Material | null;
+}): SlotDressing {
+  const cabinetSize = cabinetBox.getSize(new Vector3());
+  const cartWidth = cabinetSize.x * 0.2;
+  // Landscape cartridges, wider than tall
+  const cartSize = { width: cartWidth, height: cartWidth * CARTRIDGE_ASPECT, depth: cartWidth * 0.18 };
+
+  // The cartridge port: a box with a neon rim, in the empty strip
+  // between the controls and the screen so it doesn't sit on the buttons
+  const panelCenter = panelBox.isEmpty() ? new Vector3(0, cabinetSize.y * 0.45, cabinetBox.max.z * 0.6) : panelBox.getCenter(new Vector3());
+  if (!panelBox.isEmpty() && !screenBox.isEmpty()) {
+    panelCenter.z = screenBox.max.z + (panelBox.min.z - screenBox.max.z) * 0.35;
+  }
+  // Find the cabinet's surface there by dropping a ray onto it
+  const surfaceRay = new Raycaster(new Vector3(0, screenBox.isEmpty() ? cabinetBox.max.y : screenBox.min.y, panelCenter.z), new Vector3(0, -1, 0));
+  const surface = surfaceRay.intersectObject(model, true).find((hit) => (hit.object as Mesh).material !== screenMaterial);
+  const surfaceY = surface ? surface.point.y : panelBox.isEmpty() ? panelCenter.y : panelBox.min.y;
+  // A raised housing, so the slot reads above the joysticks rather than among them
+  const portTop = Math.max(surfaceY + cartSize.height * 0.12, panelBox.isEmpty() ? 0 : panelBox.max.y + cartSize.height * 0.08);
+  const portHeight = portTop - surfaceY + cartSize.height * 0.05;
+  // ...retrofitted: bolted on, taped up, wired into the cabinet
+  const cabinetRay = new Raycaster();
+  const rig = createSlotRig({
+    width: cartSize.width * 1.22,
+    height: portHeight,
+    depth: cartSize.depth * 2.2,
+    center: new Vector3(0, portTop - portHeight / 2, panelCenter.z),
+    deckY: surfaceY,
+    // Drop a ray onto the deck, passing through the buttons and joysticks
+    deckAt: (x, z) => {
+      cabinetRay.set(new Vector3(x, portTop + cartSize.height * 0.5, z), new Vector3(0, -1, 0));
+      const hit = cabinetRay
+        .intersectObject(model, true)
+        .find((h) => !PANEL_MATERIALS.has(((h.object as Mesh).material as Material).name) && (h.object as Mesh).material !== screenMaterial);
+      return hit ? hit.point.y : surfaceY;
+    },
+    deckFront: cabinetBox.max.z - cartSize.depth * 0.5,
+    deckEdge: cabinetBox.max.x - cartSize.width * 0.17,
+    faceZ: (x, y) => {
+      cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
+      const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
+      return hit ? hit.point.z : panelCenter.z - cartSize.depth;
+    },
+    // Under the screen's "AUTO TRACKING" label
+    vent: new Vector3(screenBox.max.x - 0.1, screenBox.min.y - 0.1, 0),
+    // Under the screen's "CH 03" label
+    scopeX: screenBox.min.x + 0.15,
+  });
+  const rimMaterial = new MeshBasicMaterial({ color: new Color(SHELF_NEON) });
+  const rimThickness = cartSize.depth * 0.18;
+  const rimGeometryX = new BoxGeometry(cartSize.width * 1.26, rimThickness, rimThickness);
+  const rimGeometryZ = new BoxGeometry(rimThickness, rimThickness, cartSize.depth * 2.24);
+  const rims: Mesh[] = [];
+  [-1, 1].forEach((side) => {
+    const front = new Mesh(rimGeometryX, rimMaterial);
+    front.position.set(0, portTop, panelCenter.z + side * cartSize.depth * 1.1);
+    rims.push(front);
+    const end = new Mesh(rimGeometryZ, rimMaterial);
+    end.position.set(side * cartSize.width * 0.62, portTop, panelCenter.z);
+    rims.push(end);
+  });
+  // The terminal, set into the bottom left of the housing's front face
+  const housingFront = panelCenter.z + cartSize.depth * 1.1;
+  const faceHeight = portTop - surfaceY;
+  const terminalHeight = Math.min(faceHeight * 0.72, cartSize.width * 0.3);
+  const terminalWidth = terminalHeight / TERMINAL_ASPECT;
+  const terminalDepth = cartSize.depth * 0.25;
+  const margin = faceHeight * 0.12;
+  const terminal = createSlotTerminal(terminalWidth, terminalHeight, terminalDepth);
+  terminal.group.position.set(-cartSize.width * 0.61 + margin + terminalWidth / 2, surfaceY + margin + terminalHeight / 2, housingFront + terminalDepth / 2);
+  // Sunk far enough that the part left standing stays below the screen
+  const seat = new Vector3(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
+
+  return {
+    cartSize,
+    rig,
+    terminal,
+    rimMaterial,
+    rims,
+    portTop,
+    surfaceY,
+    panelCenter,
+    seat,
+    dispose() {
+      rig.dispose();
+      terminal.dispose();
+      rimMaterial.dispose();
+      rimGeometryX.dispose();
+      rimGeometryZ.dispose();
+    },
+  };
+}
+
+// The row of cartridges: how far apart, how high, and how far out in front of the cabinet
+// (x is the index times `pitchX`, from the one in the middle)
+export function shelfLayout(cartSize: CartSize, cabinetBox: Box3, panelBottom: number, seatY: number) {
+  const { width: w, height: h, depth: d } = cartSize;
+  const cabinetSize = cabinetBox.getSize(new Vector3());
+  const plankT = h * 0.07; // (no plank any more: the cartridges float where it was)
+  // Up under the control panel, so screen, controls and cartridges fit a screen together.
+  // The cartridges' tops a little way below the controls, so they don't cover them
+  const cartTop = Number.isFinite(panelBottom) ? panelBottom - h * 0.4 : seatY - h * 0.5;
+  const ledgeY = Math.max(cabinetSize.y * 0.2, cartTop - h - plankT / 2);
+  return { pitchX: w * 1.45, ledgeY, homeY: ledgeY + plankT / 2 + h / 2, z: cabinetBox.max.z + d * 6, depth: d * 3.4, plankT };
+}
+
+// The picked cartridge's pose on the shelf, `f` of the way up (0 resting, 1 picked)
+export function focusedPose(cartSize: CartSize, f: number) {
+  return {
+    lift: cartSize.height * 0.08 * f,
+    forward: cartSize.width * 0.9 * f,
+    scale: 1 + 0.1 * f,
+    tip: 0.15 * f,
+  };
+}
