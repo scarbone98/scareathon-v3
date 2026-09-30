@@ -51,6 +51,8 @@ type Props = {
   className?: string;
   onLeaderboard: (game: MachineData) => void;
   onBrowseAll: () => void; // opens the index of every cartridge
+  // A way out, as the first key (in place of the site menu): Wayside Station's way back
+  onBack?: () => void;
 };
 
 // Types `parts` out one after another, a character at a time, starting over
@@ -296,7 +298,7 @@ function ScreenBody({
   );
 }
 
-export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails }: Props) {
+export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack }: Props) {
   const now = useClock(screen, details);
   const controls = terminalControls(screen, details);
   // The takeover can seem to switch the terminal off, power light and all
@@ -333,12 +335,20 @@ export default function GameCard({ screen, details, phone, style, className = ""
 
           {/* The keys, along the bottom: the site menu (phones) and all games on the
               left; on the right ?, which lifts the cartridge up for a look */}
-          {controls === "all" && (
+          {(controls === "all" || onBack) && (
             <div className="absolute bottom-0.5 left-1 z-10 flex text-xl">
-              {phone && <MenuKey />}
-              <TerminalButton onClick={onBrowseAll} label="Show all games">
-                ^
-              </TerminalButton>
+              {onBack ? (
+                <TerminalButton onClick={onBack} label="Back">
+                  &lt;
+                </TerminalButton>
+              ) : (
+                phone && <MenuKey />
+              )}
+              {controls === "all" && (
+                <TerminalButton onClick={onBrowseAll} label="Show all games">
+                  ^
+                </TerminalButton>
+              )}
             </div>
           )}
           {controls !== "none" && (

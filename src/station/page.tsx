@@ -457,6 +457,7 @@ export default function StationPage() {
                 key={initialGame}
                 transparent
                 onFramed={setArcadeFrame}
+                onBack={stepBack}
                 games={games}
                 initialGameName={initialGame}
                 paused={Boolean(playing) || !atCabinet}
@@ -472,8 +473,8 @@ export default function StationPage() {
           <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
 
-        {/* The way back: always in the same place, top left */}
-        {at && (
+        {/* The way back: always in the same place, bottom left (at the arcade, a key on its terminal) */}
+        {at && !(at === "arcade" && atCabinet) && (
           <button
             type="button"
             onClick={stepBack}

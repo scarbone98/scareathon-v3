@@ -77,6 +77,8 @@ type Props = {
   // Where the cabinet lands on screen, in px, each time the camera is fitted: so a scene
   // behind can line its own cabinet up with this one
   onFramed?: (frame: CabinetFrame) => void;
+  // A back key on the terminal (in place of the site menu)
+  onBack?: () => void;
 };
 
 export type CabinetFrame = { top: number; bottom: number; centerX: number; width: number; height: number };
@@ -137,6 +139,7 @@ export default function CartridgeArcade({
   withRoom = true,
   transparent = false,
   onFramed,
+  onBack,
 }: Props) {
   const onFramedRef = useRef(onFramed);
   onFramedRef.current = onFramed;
@@ -2451,6 +2454,7 @@ export default function CartridgeArcade({
           phone={tall}
           onLeaderboard={onLeaderboard}
           onBrowseAll={() => setBrowsing(true)}
+          onBack={onBack}
           // Fills from just under the ledge down to the bottom
           className="absolute bottom-3 left-1/2 z-10 w-[min(94vw,30rem)] -translate-x-1/2"
           style={ledgeCardTop !== null ? { top: ledgeCardTop } : undefined}
