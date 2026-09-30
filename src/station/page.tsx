@@ -153,8 +153,14 @@ export default function StationPage() {
   const select = (id: StopId | null, openThere?: string) =>
     setParams(id ? { at: id, ...(openThere ? { open: openThere } : {}) } : faceParams(heading));
   const goTo: GoTo = (id, openThere) => select(id, openThere);
-  const turn = (direction: 1 | -1) => {
-    const next = headings[(headings.indexOf(heading) + direction + headings.length) % headings.length];
+  // Counting on from the last turn asked for, so quick presses aren't lost
+  const aimed = useRef(heading);
+  const settled = useRef(heading);
+  if (settled.current !== heading) settled.current = aimed.current = heading;
+  const turn = (to: Heading | 1 | -1) => {
+    const next = typeof to === "string" ? to : headings[(headings.indexOf(aimed.current) + to + headings.length) % headings.length];
+    if (next === aimed.current) return;
+    aimed.current = next;
     setParams(faceParams(next), { replace: true });
   };
 
@@ -319,10 +325,10 @@ export default function StationPage() {
     if (arcadeBuilt) return;
     const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
     const build = () => (idle ? idle(() => setArcadeBuilt(true), { timeout: 1500 }) : setArcadeBuilt(true));
-    let timer = window.setTimeout(build, heading === "left" ? 900 : 3500);
+    let timer = window.setTimeout(build, heading === "left" ? 2500 : 3500);
     const wait = () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(build, heading === "left" ? 900 : 3500);
+      timer = window.setTimeout(build, heading === "left" ? 2500 : 3500);
     };
     window.addEventListener("pointerdown", wait);
     window.addEventListener("keydown", wait);
