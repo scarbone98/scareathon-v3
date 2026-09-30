@@ -304,6 +304,24 @@ export default function StationPage() {
   // fades in over it
   const [atCabinet, setAtCabinet] = useState(false);
   const [arcadeFrame, setArcadeFrame] = useState<CabinetFrame | null>(null);
+  // The game the cabinet previews from the platform; the arcade opens on the same one
+  const [preview] = useState(() => {
+    const pool = createArcadeGames().filter((game) => game.game && game.videoUrl && !game.special);
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    return pick?.videoUrl ? { name: pick.name, video: pick.videoUrl, color: pick.cartridge.color } : null;
+  });
+  // The arcade is built in the background once the station has settled, and kept (paused
+  // while out of sight), so walking up to the cabinet doesn't stall on loading it
+  const [arcadeBuilt, setArcadeBuilt] = useState(at === "arcade");
+  useEffect(() => {
+    if (arcadeBuilt) return;
+    const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    const start = window.setTimeout(() => (idle ? idle(() => setArcadeBuilt(true), { timeout: 2000 }) : setArcadeBuilt(true)), 2500);
+    return () => window.clearTimeout(start);
+  }, [arcadeBuilt]);
+  useEffect(() => {
+    if (at === "arcade") setArcadeBuilt(true);
+  }, [at]);
   useEffect(() => {
     if (at !== "arcade") {
       setAtCabinet(false);
@@ -312,12 +330,16 @@ export default function StationPage() {
     const arrive = window.setTimeout(() => setAtCabinet(true), 1050); // the walk to the cabinet
     return () => window.clearTimeout(arrive);
   }, [at]);
-  const initialGame = useMemo(() => {
-    const wanted = open ? normalizeMachineName(open) : null;
-    return games.find((game) => normalizeMachineName(game.name) === wanted)?.name;
-    // Read when the cabinet opens; inserting a cartridge updates ?open= and mustn't rebuild it
+  // Which game the arcade starts on: the preview, unless you're sent to another (a "Play"
+  // button elsewhere), in which case it's rebuilt on that one
+  const [initialGame, setInitialGame] = useState<string | undefined>(preview?.name);
+  useEffect(() => {
+    if (at !== "arcade" || !open) return;
+    const wanted = games.find((game) => normalizeMachineName(game.name) === normalizeMachineName(open))?.name;
+    if (wanted && wanted !== initialGame && !atCabinet) setInitialGame(wanted);
+    // Inserting a cartridge updates ?open= too; only arriving should rebuild
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [games, atCabinet]);
+  }, [at]);
   const [leaderboardGame, setLeaderboardGame] = useState<MachineData | null>(null);
 
   // Playing a game: a CRT power-on into it, and power-off back out, as in the arcade
@@ -409,6 +431,7 @@ export default function StationPage() {
             paused={Boolean(playing) || atCabinet}
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
+            preview={preview}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read
             surfacesInteractive={!compact || at === "bulletin"}
@@ -421,18 +444,19 @@ export default function StationPage() {
         {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
 
         {/* The arcade, as it is at /arcade, without its room */}
-        {at === "arcade" && (
+        {arcadeBuilt && (
           <div
             className="absolute inset-0 z-10 transition-[opacity,background-color] duration-500 ease-out"
             style={{ opacity: atCabinet ? 1 : 0, pointerEvents: atCabinet ? "auto" : "none", backgroundColor: atCabinet ? "rgba(3,4,8,0.55)" : "transparent" }}
           >
             <Suspense fallback={null}>
               <CartridgeArcade
+                key={initialGame}
                 transparent
                 onFramed={setArcadeFrame}
                 games={games}
                 initialGameName={initialGame}
-                paused={Boolean(playing)}
+                paused={Boolean(playing) || !atCabinet}
                 onInsert={(game) => setParams({ at: "arcade", open: game.name }, { replace: true })}
                 onPlay={play}
                 onLeaderboard={setLeaderboardGame}

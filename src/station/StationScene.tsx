@@ -47,7 +47,9 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
-import { createArcadeGames } from "../pages/Arcade/games.tsx";
+import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
+import { CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
+import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
 import { HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
@@ -65,6 +67,8 @@ type Props = {
   // with this one exactly there; and whether to hide this one (the arcade's is on top)
   arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number } | null;
   hideArcade?: boolean;
+  // The game the cabinet shows on its screen and marquee from the platform
+  preview?: { name: string; video: string; color: string } | null;
   // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
   surfaces: Record<string, ReactNode>;
   // Whether the surfaces take taps themselves (desktop); on phones a tap picks the thing up instead
@@ -514,46 +518,117 @@ function buildEvents() {
   return group;
 }
 
-function buildArcade() {
+// Painted as the arcade paints its cabinet (the same finish, trim, bezels and buttons), with
+// the preview game on its screen and marquee, so the arcade's own can take over unnoticed
+function buildArcade(preview: { name: string; video: string; color: string } | null) {
   const group = new Group();
   group.position.copy(ARCADE_POS); // against the wall, left of the board
   const placeholder = new Group();
   placeholder.add(box(0.85, 1.9, 0.8, standard("#2b1a3a"), 0, 0.95, 0));
-  placeholder.add(plane(0.6, 0.45, new MeshBasicMaterial({ color: "#5cffb1" }), 0, 1.3, 0.41));
   group.add(placeholder);
-  // Reuse the arcade's cabinet model; keep the placeholder if it can't load
+  const finish = createCabinetFinish();
+  group.userData.finish = finish;
   new GLTFLoader().load(
     "/models/ArcadeCabinet.glb",
     (gltf) => {
-      // The model is authored lying down; stand it up the way CartridgeArcade does
-      const model = new Group();
-      gltf.scene.rotation.set(Math.PI / 2, Math.PI, 0);
-      model.add(gltf.scene);
-      const size = new Box3().setFromObject(model).getSize(new Vector3());
-      model.scale.setScalar(1.9 / Math.max(size.y, 0.001));
-      const bounds = new Box3().setFromObject(model);
-      const center = bounds.getCenter(new Vector3());
-      model.position.set(-center.x, -bounds.min.y, -center.z);
-      // On its screen, a random game's preview, as the arcade would show one
-      const games = createArcadeGames().filter((game) => game.game && game.videoUrl && !game.special);
-      const pick = games[Math.floor(Math.random() * games.length)];
-      if (pick?.videoUrl) {
-        const video = document.createElement("video");
-        Object.assign(video, { src: pick.videoUrl, muted: true, loop: true, playsInline: true, autoplay: true, crossOrigin: "anonymous" });
+      // Set up as CartridgeArcade does: the model scaled and stood up in a holder, centred
+      const model = gltf.scene;
+      model.scale.set(0.5, 0.5, 0.5);
+      model.rotation.set(Math.PI / 2, Math.PI, -Math.PI * 2);
+      const holder = new Group();
+      holder.add(model);
+      holder.updateMatrixWorld(true);
+      const raw = new Box3().setFromObject(holder);
+      const rawCenter = raw.getCenter(new Vector3());
+      holder.position.set(-rawCenter.x, -raw.min.y, -rawCenter.z);
+      const cabinet = new Group();
+      cabinet.add(holder);
+      cabinet.updateMatrixWorld(true);
+      const cabinetBox = new Box3().setFromObject(cabinet);
+      const screenBox = new Box3();
+      const panelBox = new Box3();
+      const marqueeBox = new Box3();
+      let video: HTMLVideoElement | null = null;
+      const screenTexture = (() => {
+        if (!preview) return null;
+        video = document.createElement("video");
+        Object.assign(video, { src: preview.video, muted: true, loop: true, playsInline: true, autoplay: true });
         video.setAttribute("playsinline", "");
         void video.play().catch(() => undefined);
         const texture = new VideoTexture(video);
         texture.colorSpace = SRGBColorSpace;
-        model.traverse((child) => {
-          const mesh = child as Mesh;
-          const material = mesh.material as MeshStandardMaterial | undefined;
-          if (!mesh.isMesh || material?.name !== "GreyScreen") return;
-          mesh.material = new MeshBasicMaterial({ map: texture, color: "#d8d8d8" });
-        });
-        group.userData.video = video;
-      }
+        return texture;
+      })();
+      const marquee = paint(512, 128, (ctx, w, h) => {
+        ctx.fillStyle = "#0c0a0a";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = preview?.color ?? "#f2c14e";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(14, 14, w - 28, h - 28);
+        ctx.fillStyle = "#fff4d0";
+        ctx.shadowColor = preview?.color ?? "#f2c14e";
+        ctx.shadowBlur = 18;
+        ctx.font = "700 58px 'Michroma', 'Arial Black', sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText((preview?.name ?? "ARCADE").replace(/’/g, "'").toUpperCase(), w / 2, h / 2 + 3, w - 60);
+      });
+      model.traverse((child) => {
+        const mesh = child as Mesh;
+        if (!mesh.isMesh || !(mesh.material instanceof MeshStandardMaterial)) return;
+        const material = mesh.material;
+        material.emissive = new Color(0x222222);
+        material.emissiveIntensity = 0.25;
+        if (material.name === "GreyScreen") {
+          const glass = material.clone();
+          if (screenTexture) {
+            glass.map = screenTexture;
+            glass.emissiveMap = screenTexture;
+          }
+          glass.color = new Color("#ffffff");
+          glass.emissive = new Color("#ffffff");
+          glass.emissiveIntensity = 1.1;
+          applyCrtLook(glass);
+          mesh.material = glass;
+          screenBox.setFromObject(mesh, true);
+        } else if (material.name === "Marque") {
+          const sign = material.clone();
+          sign.map = marquee;
+          sign.emissiveMap = marquee;
+          sign.color = new Color("#ffffff");
+          sign.emissive = new Color("#ffffff");
+          sign.emissiveIntensity = MARQUEE_GLOW;
+          mesh.material = sign;
+          marqueeBox.setFromObject(mesh, true);
+        } else if (material.name === "Panels.001") {
+          mesh.material = finish.material;
+        } else if (material.name === "Lining") {
+          const trim = material.clone();
+          trim.color.set(CABINET_TRIM);
+          trim.emissive.set(CABINET_TRIM).multiplyScalar(0.08);
+          trim.metalness = 0.35;
+          trim.roughness = 0.32;
+          mesh.material = trim;
+        } else if (material.name === "PurpleButton") {
+          const bezel = material.clone();
+          bezel.color.set("#2a2226");
+          mesh.material = bezel;
+        } else if (material.name === "OrangeButton") {
+          const own = material.clone();
+          own.color.set(preview?.color ?? "#ff7a1a");
+          own.emissive.set(preview?.color ?? "#ff7a1a").multiplyScalar(0.35);
+          mesh.material = own;
+        }
+        if (["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"].includes(material.name)) panelBox.union(new Box3().setFromObject(mesh));
+      });
+      finish.accent.set(preview?.color ?? "#ff7a1a");
+      finish.decorate({ cabinet: cabinetBox, screen: screenBox, panel: panelBox, marquee: marqueeBox });
+      // Then sized to stand 1.9 m tall on the platform
+      cabinet.scale.setScalar(1.9 / Math.max(cabinetBox.getSize(new Vector3()).y, 0.001));
       group.remove(placeholder);
-      group.add(model);
+      group.add(cabinet);
+      group.userData.cabinet = cabinet;
+      group.userData.video = video;
     },
     undefined,
     () => undefined
@@ -938,15 +1013,15 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
   const [surfaceSlots, setSurfaceSlots] = useState<Record<string, HTMLDivElement>>({});
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -977,15 +1052,20 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     // Light: a faint cold wash; the warm light comes from the lamps
     scene.add(new HemisphereLight("#6f7fa8", "#1a120c", 0.45));
+    // The canopy's lamps, all alike: a dim glass behind a wire guard
+    const lampGuard = standard("#1c1a17", 0.5);
+    const lampGlass = new MeshBasicMaterial({ color: "#9a8158" });
+    const ceilingLamp = (x: number, z: number) => {
+      scene.add(box(0.3, 0.1, 0.3, lampGlass, x, 3.95, z));
+      [-0.1, 0, 0.1].forEach((dx) => scene.add(box(0.012, 0.11, 0.32, lampGuard, x + dx, 3.93, z)));
+    };
     const overhead = new PointLight("#ffb060", 11, 7, 2); // the lamp over the visitor, which flickers
     // Centred over where you stand, a little way towards the board so it's in view from a phone
     const lampX = HUB.pos[0];
     const lampZ = -0.3;
     overhead.position.set(lampX, 3.5, lampZ);
     scene.add(overhead);
-    // Like the others, but turned down: a dim glass behind a wire guard
-    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#9a8158" }), lampX, 3.95, lampZ));
-    [-0.1, 0, 0.1].forEach((dx) => scene.add(box(0.012, 0.11, 0.32, standard("#1c1a17", 0.5), lampX + dx, 3.93, lampZ)));
+    ceilingLamp(lampX, lampZ);
 
     // Underfoot: a soft pool of the lamp's light, a few dead leaves blown in off the
     // tracks, and a dropped ticket
@@ -1030,33 +1110,37 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     scene.add(stub);
 
     // Overhead: cobwebs in the corners where the canopy's beams meet the wall
-    const webTexture = paint(128, 128, (ctx, w, h) => {
-      ctx.strokeStyle = "rgba(210,205,190,0.55)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 6; i += 1) {
-        const a = (i / 6) * (Math.PI / 2);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(Math.cos(a) * w, Math.sin(a) * h);
-        ctx.stroke();
-      }
-      for (let r = 18; r < w; r += 17) {
-        ctx.beginPath();
-        for (let i = 0; i <= 6; i += 1) {
-          const a = (i / 6) * (Math.PI / 2);
-          const rr = r * (0.92 + 0.08 * Math.sin(i * 2.3 + r));
-          if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
-          else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    // Each web its own: its own number of spokes, spacing and sag, and a torn edge
+    const webTexture = (spokes: number, gap: number, sag: number, torn: number) =>
+      paint(128, 128, (ctx, w, h) => {
+        ctx.strokeStyle = "rgba(210,205,190,0.55)";
+        ctx.lineWidth = 1;
+        const angle = (i: number) => (i / spokes) * (Math.PI / 2) * (1 + 0.08 * Math.sin(i * 1.7));
+        for (let i = 0; i <= spokes; i += 1) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(angle(i)) * w, Math.sin(angle(i)) * h);
+          ctx.stroke();
         }
-        ctx.stroke();
-      }
-    });
-    const webMaterial = new MeshBasicMaterial({ map: webTexture, transparent: true, opacity: 0.5, depthWrite: false, side: DoubleSide });
-    [[lampX - 1.6, 1], [lampX + 1.6, -1]].forEach(([x, flip]) => {
-      const web = plane(0.7, 0.7, webMaterial, x, 3.7, WALL_Z + 0.02);
-      web.rotation.z = flip > 0 ? Math.PI / 2 : Math.PI;
-      web.position.x += flip > 0 ? -0.35 : 0.35;
-      web.position.y += 0.02;
+        for (let r = gap; r < w * torn; r += gap) {
+          ctx.beginPath();
+          for (let i = 0; i <= spokes; i += 1) {
+            const rr = r * (1 - sag * Math.sin((i / spokes) * Math.PI)) * (0.94 + 0.06 * Math.sin(i * 2.3 + r));
+            if (i === 0) ctx.moveTo(Math.cos(angle(i)) * rr, Math.sin(angle(i)) * rr);
+            else ctx.lineTo(Math.cos(angle(i)) * rr, Math.sin(angle(i)) * rr);
+          }
+          ctx.stroke();
+        }
+      });
+    const webs: [number, number, number, number, number, number, number][] = [
+      // x, size, corner (1 = top left, -1 = top right), spokes, gap, sag, torn
+      [lampX - 1.75, 0.8, 1, 7, 15, 0.12, 1],
+      [lampX + 1.3, 0.48, -1, 5, 21, 0.2, 0.7],
+    ];
+    webs.forEach(([x, size, corner, spokes, gap, sag, torn]) => {
+      const material = new MeshBasicMaterial({ map: webTexture(spokes, gap, sag, torn), transparent: true, opacity: 0.5, depthWrite: false, side: DoubleSide });
+      const web = plane(size, size, material, x + (corner > 0 ? -size / 2 : size / 2), 3.72 - (size - 0.7) / 2, WALL_Z + 0.02);
+      web.rotation.z = corner > 0 ? Math.PI / 2 : Math.PI;
       scene.add(web);
     });
     // A lamp either side of where you stand, the same distance off
@@ -1064,7 +1148,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
       scene.add(lamp);
-      scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), x, 3.95, -0.6));
+      ceilingLamp(x, -0.6);
     });
 
     // Platform, building, canopy
@@ -1289,7 +1373,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lockers = buildLockers();
     let lastMinute = 0;
     const mail = buildMail();
-    const arcade = buildArcade();
+    const arcade = buildArcade(latest.current.preview);
     const arcadeObject = arcade;
     const objects = [bench, lockers, arcade, bulletin, events, tickets, departures, mail];
 
@@ -1519,6 +1603,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         restingDrawn = true;
       } else restingDrawn = false;
       arcadeObject.visible = !latest.current.hideArcade;
+      // The cabinet's finish shimmers with time, and is painted in the cabinet's own frame
+      const cabinetFinish = arcadeObject.userData.finish as ReturnType<typeof createCabinetFinish>;
+      const cabinetNode = arcadeObject.userData.cabinet as Group | undefined;
+      cabinetFinish.update(performance.now() / 1000);
+      if (cabinetNode) {
+        cabinetNode.updateMatrixWorld();
+        cabinetFinish.setFrame(cabinetNode.matrixWorld);
+      }
       const t = (performance.now() - start) / 1000;
       look.yaw += (look.toYaw - look.yaw) * 0.06;
       look.pitch += (look.toPitch - look.pitch) * 0.06;
@@ -1592,6 +1684,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         });
       });
       (arcadeObject.userData.video as HTMLVideoElement | undefined)?.pause();
+      (arcadeObject.userData.finish as ReturnType<typeof createCabinetFinish>).dispose?.();
       renderer.dispose();
       mount.removeChild(canvas);
       surfaceLayer.remove();
