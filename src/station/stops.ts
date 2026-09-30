@@ -54,8 +54,8 @@ export const STOPS: Record<StopId, Stop> = {
     id: "bench",
     label: "The bench",
     heading: "left",
-    pos: [-5.45, 1.25, 0.9],
-    target: [-9.45, 1.5, 0.9],
+    pos: [-5.75, 1.25, 0.3],
+    target: [-9.75, 1.55, 0.3],
     seat: true,
   },
   lockers: {

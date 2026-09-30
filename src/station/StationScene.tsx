@@ -9,6 +9,8 @@ import {
   CanvasTexture,
   CircleGeometry,
   CylinderGeometry,
+  ExtrudeGeometry,
+  Shape,
   SphereGeometry,
   TorusGeometry,
   Color,
@@ -1008,7 +1010,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     for (let z = WALL_Z + 0.15; z <= EDGE_Z - 0.05; z += 0.45) scene.add(box(0.05, 1.05, 0.05, iron, END_X + 0.08, 0.52, z));
     [0.5, 1.02].forEach((y) => scene.add(box(0.06, 0.05, EDGE_Z - WALL_Z - 0.15, iron, END_X + 0.08, y, (EDGE_Z + WALL_Z) / 2 + 0.05)));
     const bench = new Group();
-    bench.position.set(END_X + 1.5, 0, 0.9);
+    bench.position.set(END_X + 1.2, 0, 0.3);
     bench.rotation.y = Math.PI / 2; // facing out over the railing
     bench.add(box(1.4, 0.06, 0.42, standard("#4a3524"), 0, 0.45, 0));
     [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
@@ -1016,13 +1018,33 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     bench.userData.stopId = "bench";
     addLamp(bench, 0, 1.6, 0.6);
     scene.add(bench);
-    scene.add(box(0.08, 3.4, 0.08, iron, END_X + 0.3, 1.7, EDGE_Z - 0.4));
-    const endLamp = new PointLight("#ffb060", 10, 7, 2);
-    endLamp.position.set(END_X + 0.5, 3.2, EDGE_Z - 0.4);
-    scene.add(endLamp);
-    scene.add(box(0.3, 0.12, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), END_X + 0.5, 3.35, EDGE_Z - 0.4));
     // Posts stand well away from the visitor, so none of them crosses a view
-    [10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, EDGE_Z - 0.2)));
+    // An arcade along the track side holding up the canopy: stone columns, and round
+    // arches between them
+    const stone = standard("#5d544d", 0.95);
+    const bay = 3.0;
+    const archR = 1.3; // the arch's inner radius
+    const spring = 4.04 - archR - 0.12; // where each arch springs from its columns
+    const archShape = new Shape();
+    archShape.moveTo(-bay / 2, 0);
+    archShape.lineTo(-archR, 0);
+    archShape.absarc(0, 0, archR, Math.PI, 0, true);
+    archShape.lineTo(bay / 2, 0);
+    archShape.lineTo(bay / 2, 4.04 - spring);
+    archShape.lineTo(-bay / 2, 4.04 - spring);
+    archShape.closePath();
+    const archGeometry = new ExtrudeGeometry(archShape, { depth: 0.28, bevelEnabled: false, curveSegments: 16 });
+    const colZ = EDGE_Z - 0.2;
+    // Spaced so the platform view behind you looks out through the middle of an arch
+    for (let x = HUB.pos[0] - bay * 1.5; x <= 30; x += bay) {
+      scene.add(box(0.36, spring, 0.36, stone, x, spring / 2, colZ));
+      scene.add(box(0.46, 0.1, 0.46, stone, x, spring - 0.05, colZ)); // a capital
+      if (x + bay <= 30.5) {
+        const arch = new Mesh(archGeometry, stone);
+        arch.position.set(x + bay / 2, spring, colZ - 0.14);
+        scene.add(arch);
+      }
+    }
     const line = plane(PLATFORM_W, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), PLATFORM_MID, 0.006, EDGE_Z - 0.25);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
@@ -1085,7 +1107,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     }), fog: false, depthWrite: false }));
     moon.scale.set(7, 7, 1);
     // Low over the fields past the end of the platform, where the scenic view looks
-    moon.position.set(-75, 13, 8);
+    moon.position.set(-75, 19, 8);
     scene.add(moon);
 
     // The scenic view: bare trees in the fields, and a signal by the line, its lamp red
@@ -1097,7 +1119,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       scene.add(tree);
     });
     const signal = new Group();
-    signal.position.set(END_X - 7, -0.85, TRACK_Z - 1.6);
+    signal.position.set(END_X - 3.6, -0.85, TRACK_Z - 1.6);
     signal.add(box(0.12, 4.2, 0.12, standard("#1a1d22", 0.6), 0, 2.1, 0));
     signal.add(box(0.45, 0.8, 0.3, standard("#101216", 0.7), 0, 4.0, 0));
     signal.add(box(0.14, 0.14, 0.05, new MeshBasicMaterial({ color: "#ff3a2a" }), 0, 4.15, -0.16));
