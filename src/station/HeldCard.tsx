@@ -15,7 +15,7 @@ export type HeldItem = {
   tint?: string;
 };
 
-type Props = { items: HeldItem[]; index: number; onIndex: (index: number) => void };
+type Props = { items: HeldItem[]; index: number; onIndex: (index: number) => void; onBack: () => void };
 
 const TONES = {
   paper: { text: "text-[#2a1d14]", rule: "border-[#2a1d14]/15", quiet: "text-[#2a1d14]/55", dot: "bg-[#2a1d14]" },
@@ -23,7 +23,7 @@ const TONES = {
   board: { text: "text-[#ffb03a]", rule: "border-[#ffb03a]/20", quiet: "text-[#ffb03a]/60", dot: "bg-[#ffb03a]" },
 };
 
-export default function HeldCard({ items, index, onIndex }: Props) {
+export default function HeldCard({ items, index, onIndex, onBack }: Props) {
   const item = items[Math.min(index, items.length - 1)];
   const swipe = useRef<{ x: number; y: number } | null>(null);
   if (!item) return null;
@@ -49,13 +49,17 @@ export default function HeldCard({ items, index, onIndex }: Props) {
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(event.clientY - start.y) * 1.5) step(dx < 0 ? 1 : -1);
       }}
     >
-      <header className={`flex shrink-0 items-center gap-2 border-b px-2 pt-1.5 ${tone.rule}`}>
+      <header className={`flex shrink-0 items-center gap-1 border-b px-1.5 pt-1.5 ${tone.rule}`}>
+        {/* Back to the platform lives here, in the card, rather than over the scene */}
+        <button type="button" onClick={onBack} className="flex h-11 shrink-0 items-center gap-1 rounded px-2 text-[11px] uppercase tracking-[0.2em] opacity-75 hover:opacity-100" style={serif}>
+          ◂ <span>Platform</span>
+        </button>
         {many ? (
           <button type="button" aria-label="Previous" onClick={() => step(-1)} className="flex h-11 w-11 items-center justify-center text-2xl">
             ‹
           </button>
         ) : (
-          <span className="w-3" />
+          <span className="w-11" />
         )}
         <div className="min-w-0 flex-1 text-center">
           <p className="truncate text-[13px] uppercase tracking-[0.25em]" style={serif}>
@@ -81,7 +85,7 @@ export default function HeldCard({ items, index, onIndex }: Props) {
             ›
           </button>
         ) : (
-          <span className="w-3" />
+          <span className="w-11" />
         )}
       </header>
       <div

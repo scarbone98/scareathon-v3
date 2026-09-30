@@ -25,7 +25,7 @@ export const PHONE_HEADINGS: Heading[] = ["front", "table", "right", "back", "le
 // Where the visitor stands, and how they look along each heading. The camera looks
 // down -z at yaw 0; the building's wall is at z = -2.2 and the tracks run along +z.
 export const HUB = {
-  pos: [0, 1.6, 0.6] as [number, number, number],
+  pos: [0, 1.6, 2.2] as [number, number, number],
   yaw: { front: 0, table: -0.6, right: -Math.PI / 2, back: Math.PI, left: Math.PI / 2 } as Record<Heading, number>,
   pitch: { front: 0.05, table: 0.02, right: 0.12, back: -0.06, left: -0.05 } as Record<Heading, number>,
 };
@@ -33,7 +33,7 @@ export const HUB = {
 // `aim` is where a wide screen looks (to take in the whole wall); tall screens look
 // straight at the view's object
 export const VIEWS: Record<Heading, { title: string; blurb: string; focus: StopId | null; aim?: [number, number, number] }> = {
-  front: { title: "Wayside Station", blurb: "The station board: news, what's on, and your ticket.", focus: "bulletin", aim: [-0.1, 1.6, -2.2] },
+  front: { title: "Wayside Station", blurb: "The station board: news, what's on, and your ticket.", focus: "bulletin", aim: [0.3, 1.8, -2.2] },
   table: { title: "Events table", blurb: "Scareathon, tonight's film, and the rules.", focus: "events" },
   right: { title: "Ticket kiosk", blurb: "The shop, and the departure board above it.", focus: "tickets" },
   back: { title: "The tracks", blurb: "The last train left a long time ago. Mostly.", focus: null },
@@ -49,9 +49,9 @@ export const STOPS: Record<StopId, Stop> = {
     cta: "Home",
     heading: "front",
     pos: [-0.9, 1.9, 0.35],
-    target: [-0.9, 1.92, -2.1],
-    fit: 3.3,
-    fitHeight: 2.5,
+    target: [-0.9, 2.0, -2.1],
+    fit: 2.4, // the tall board, two papers wide
+    fitHeight: 3.7,
   },
   events: {
     id: "events",

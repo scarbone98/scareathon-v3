@@ -56,6 +56,13 @@ type Props = {
   surfaces: Record<string, ReactNode>;
   // Whether the surfaces take taps themselves (desktop); on phones a tap picks the thing up instead
   surfacesInteractive: boolean;
+  // Share of the screen's height a phone's held card covers at the bottom; the view frames
+  // the object in the space above it
+  cardFraction: number;
+  // At the board: the paper zoomed in on (by index), or null for the whole board
+  zoom: number | null;
+  // A tap on nothing in particular; by default it steps back to the platform
+  onEmptyTap?: () => void;
   // A tap on a marked part of the object you're standing at, e.g. the events poster
   onPart: (part: string) => void;
 };
@@ -68,6 +75,9 @@ export type Boards = {
 };
 
 const WALL_Z = -2.2;
+const EDGE_Z = 3.2; // the platform's edge
+const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
+const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const RENDER_HEIGHT = 420; // rows of pixels the scene is drawn at, whatever the screen size
 const LAMP_IDLE = 9;
 const LAMP_LIT = 26;
@@ -304,14 +314,17 @@ const IDLE_NOTICES = [
 ];
 
 // Where each of the six papers hangs on the board (local x, y, tilt), and its size
+// Two columns of three, reading across: a tall board, the shape of a phone's screen
 const PAPER_SPOTS: [number, number, number][] = [
-  [-1.0, 0.43, -0.03],
-  [0, 0.45, 0.02],
-  [1.0, 0.42, -0.015],
-  [-1.0, -0.46, 0.025],
-  [0, -0.45, -0.02],
-  [1.0, -0.47, 0.03],
+  [-0.49, 0.92, -0.02],
+  [0.49, 0.93, 0.015],
+  [-0.49, 0.01, 0.02],
+  [0.49, 0.0, -0.015],
+  [-0.49, -0.91, -0.01],
+  [0.49, -0.92, 0.02],
 ];
+// Where the board hangs: its centre, just off the wall
+const BOARD_POS = new Vector3(-0.9, 1.72, -2.15);
 const PAPER_W = 0.86;
 const PAPER_H = 0.78;
 // The flyers on the events table, leaning in their stands (local x, y, z, lean back)
@@ -344,9 +357,9 @@ const SURFACES: SurfaceSpec[] = [
 
 function buildBulletin() {
   const group = new Group();
-  group.position.set(-0.9, 1.72, WALL_Z + 0.05);
-  group.add(box(3.15, 2.0, 0.08, standard("#3a2a1c")));
-  group.add(plane(3.0, 1.86, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
+  group.position.copy(BOARD_POS);
+  group.add(box(2.12, 2.86, 0.08, standard("#3a2a1c")));
+  group.add(plane(1.98, 2.72, standard("#8a6a44", 1, speckle("#8a6a44", ["#755738", "#9c7b52", "#6a4d30"], 900, 3)), 0, 0, 0.045));
   // Painted papers: the picture from afar, and a stand-in whenever the HTML can't line up
   group.userData.notes = PAPER_SPOTS.map(([x, y, tilt], i) => {
     const [kind, title] = IDLE_NOTICES[i];
@@ -358,11 +371,11 @@ function buildBulletin() {
     return texture;
   });
   // The station's name, in enamel, over the board
-  group.add(box(2.7, 0.52, 0.04, standard("#11161e"), 0, 1.36, 0.0));
+  group.add(box(2.4, 0.46, 0.04, standard("#11161e"), 0, 1.8, 0.0));
   // Unlit, so the lamps' warm light doesn't turn the navy enamel brown
-  group.add(plane(2.6, 0.44, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.36, 0.025));
+  group.add(plane(2.3, 0.39, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.8, 0.025));
   addLamp(group, 0, 1.5, 1.1);
-  group.add(hitBox(3.3, 2.7, 0.6, 0.3));
+  group.add(hitBox(2.4, 3.6, 0.6, 0.3));
   group.userData.stopId = "bulletin";
   return group;
 }
@@ -538,30 +551,30 @@ function buildTrain() {
   const dark = new MeshBasicMaterial({ color: "#0c0e12" });
   for (let car = 0; car < 3; car += 1) {
     const x = -car * 12;
-    train.add(box(11.4, 2.9, 2.8, body, x, 1.0, 3.3));
+    train.add(box(11.4, 2.9, 2.8, body, x, 1.0, TRACK_Z));
     for (let w = 0; w < 6; w += 1) {
-      const pane = plane(1.1, 0.75, (car * 6 + w) % 4 === 1 ? dark : lit, x - 4.5 + w * 1.8, 1.45, 3.3 - 1.41);
+      const pane = plane(1.1, 0.75, (car * 6 + w) % 4 === 1 ? dark : lit, x - 4.5 + w * 1.8, 1.45, TRACK_Z - 1.41);
       pane.rotation.y = Math.PI; // face the platform
       train.add(pane);
     }
   }
   const headlight = new Sprite(new SpriteMaterial({ map: glowTexture(), blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
   headlight.scale.set(3, 3, 1);
-  headlight.position.set(5.9, 0.4, 3.3);
+  headlight.position.set(5.9, 0.4, TRACK_Z);
   train.add(headlight);
   train.visible = false;
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, surfaces, surfacesInteractive, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
   const [surfaceSlots, setSurfaceSlots] = useState<Record<string, HTMLDivElement>>({});
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, boards, paused });
-  latest.current = { at, heading, onSelect, onTurn, onPart, boards, paused };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -593,9 +606,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Light: a faint cold wash; the warm light comes from the lamps
     scene.add(new HemisphereLight("#6f7fa8", "#1a120c", 0.45));
     const overhead = new PointLight("#ffb060", 16, 7, 2); // the lamp over the visitor, which flickers
-    overhead.position.set(0, 3.5, -0.4);
+    overhead.position.set(0, 3.5, 0.6);
     scene.add(overhead);
-    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, -0.4));
+    scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, 0.6));
     [-9, 9].forEach((x) => {
       const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
@@ -607,25 +620,25 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const floorTex = speckle("#4a4a4c", ["#3c3c3e", "#57575a", "#444"], 1400, 2);
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
     floorTex.repeat.set(30, 2);
-    scene.add(box(60, 0.85, 3.4, standard("#555", 0.95, floorTex), 0, -0.425, -0.5));
+    scene.add(box(60, 0.85, EDGE_Z - WALL_Z, standard("#555", 0.95, floorTex), 0, -0.425, (EDGE_Z + WALL_Z) / 2));
     scene.add(box(60, 5, 0.2, standard("#8a7f78", 1, brickTexture()), 0, 2.5, WALL_Z - 0.1));
-    scene.add(box(60, 0.12, 4.2, standard("#1c1f26"), 0, 4.1, -0.3));
+    scene.add(box(60, 0.12, EDGE_Z - WALL_Z + 0.8, standard("#1c1f26"), 0, 4.1, (EDGE_Z + WALL_Z) / 2 + 0.4));
     // Posts stand well away from the visitor, so none of them crosses a view
-    [-26, -18, -10, 10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, 1.0)));
-    const line = plane(60, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), 0, 0.006, 0.95);
+    [-26, -18, -10, 10, 18, 26].forEach((x) => scene.add(box(0.14, 4.1, 0.14, standard("#20232b"), x, 2.05, EDGE_Z - 0.2)));
+    const line = plane(60, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), 0, 0.006, EDGE_Z - 0.25);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
 
     // Tracks: gravel bed, two rails, sleepers running off into the fog
-    const bed = plane(200, 40, standard("#25221f", 1, speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2)), 0, -0.85, 21);
+    const bed = plane(200, 40, standard("#25221f", 1, speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2)), 0, -0.85, EDGE_Z + 20);
     bed.rotation.x = -Math.PI / 2;
     scene.add(bed);
     const railMaterial = standard("#6b6f78", 0.5);
-    [2.6, 4.035].forEach((z) => scene.add(box(200, 0.15, 0.1, railMaterial, 0, -0.72, z)));
+    [TRACK_Z - 0.7175, TRACK_Z + 0.7175].forEach((z) => scene.add(box(200, 0.15, 0.1, railMaterial, 0, -0.72, z)));
     const sleepers = new InstancedMesh(new BoxGeometry(0.28, 0.12, 2.3), standard("#2e2218"), 260);
     const m = new Matrix4();
     for (let i = 0; i < 260; i += 1) {
-      m.makeTranslation(-90 + i * 0.7, -0.79, 3.3);
+      m.makeTranslation(-90 + i * 0.7, -0.79, TRACK_Z);
       sleepers.setMatrixAt(i, m);
     }
     scene.add(sleepers);
@@ -633,24 +646,24 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // The far side: a fence, the station's name, bare trees and the moon
     const fence = new InstancedMesh(new BoxGeometry(0.08, 1.1, 0.08), standard("#2a2622"), 40);
     for (let i = 0; i < 40; i += 1) {
-      m.makeTranslation(-30 + i * 1.5, -0.3, 6.5);
+      m.makeTranslation(-30 + i * 1.5, -0.3, FAR_Z);
       fence.setMatrixAt(i, m);
     }
     scene.add(fence);
-    scene.add(box(60, 0.06, 0.05, standard("#2a2622"), 0, 0.05, 6.5));
-    const nameSign = plane(2.6, 0.55, standard("#ffffff", 0.8, signTexture("WAYSIDE", "#f2ead2", "#1d2a3a", "700 92px Georgia, serif")), 0.6, 1.3, 6.4);
+    scene.add(box(60, 0.06, 0.05, standard("#2a2622"), 0, 0.05, FAR_Z));
+    const nameSign = plane(2.6, 0.55, standard("#ffffff", 0.8, signTexture("WAYSIDE", "#f2ead2", "#1d2a3a", "700 92px Georgia, serif")), 0.6, 1.3, FAR_Z - 0.1);
     nameSign.rotation.y = Math.PI;
     scene.add(nameSign);
-    [-0.6, 1.8].forEach((x) => scene.add(box(0.08, 2.2, 0.08, standard("#20232b"), x, 0.2, 6.45)));
+    [-0.6, 1.8].forEach((x) => scene.add(box(0.08, 2.2, 0.08, standard("#20232b"), x, 0.2, FAR_Z - 0.05)));
     const signLamp = new PointLight("#cfe0ff", 6, 5, 2);
-    signLamp.position.set(0.6, 2.4, 5.6);
+    signLamp.position.set(0.6, 2.4, FAR_Z - 0.9);
     scene.add(signLamp);
     const treeMap = treeTexture();
     [-14, -6, 3, 9, 17, 24].forEach((x, i) => {
       const tree = new Sprite(new SpriteMaterial({ map: treeMap, transparent: true, depthWrite: false, fog: false }));
       const size = 6 + (i % 3) * 2;
       tree.scale.set(size, size, 1);
-      tree.position.set(x, size / 2 - 0.9, 12 + (i % 2) * 5);
+      tree.position.set(x, size / 2 - 0.9, FAR_Z + 5.5 + (i % 2) * 5);
       scene.add(tree);
     });
     const moon = new Sprite(new SpriteMaterial({ map: paint(128, 128, (ctx) => {
@@ -757,6 +770,15 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
       }
+      const zoomed = stopId === "bulletin" ? latest.current.zoom : null;
+      if (zoomed !== null && PAPER_SPOTS[zoomed]) {
+        const [x, y] = PAPER_SPOTS[zoomed];
+        const paper = new Vector3(BOARD_POS.x + x, BOARD_POS.y + y, BOARD_POS.z + 0.07);
+        const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
+        const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
+        const distance = Math.max((PAPER_W * 1.08) / 2 / Math.tan(halfWidth), (PAPER_H * 1.12) / 2 / Math.tan(halfHeight));
+        return { x: paper.x, y: paper.y, z: paper.z + distance, yaw: 0, pitch: 0 };
+      }
       const stop = STOPS[stopId];
       const target = new Vector3(...stop.target);
       const pos = new Vector3(...stop.pos).sub(target).multiplyScalar(pull).add(target);
@@ -766,7 +788,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
         const needed = Math.max(
           stop.fit ? stop.fit / 2 / Math.tan(halfWidth) : 0,
-          stop.fitHeight ? stop.fitHeight / 2 / Math.tan(halfHeight) : 0
+          stop.fitHeight ? stop.fitHeight / 2 / (Math.tan(halfHeight) * (1 - latest.current.cardFraction)) : 0
         );
         const away = pos.clone().sub(target);
         if (away.length() < needed) pos.copy(target).add(away.setLength(needed));
@@ -788,6 +810,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     let width = 1;
     let height = 1;
+    let shift = 0;
     const onResize = () => {
       width = Math.max(mount.clientWidth, 1);
       height = Math.max(mount.clientHeight, 1);
@@ -810,6 +833,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const raycaster = new Raycaster();
     const pointer = new Vector2();
     const canvas = renderer.domElement;
+    canvas.style.touchAction = "none";
     let down: { x: number; y: number; t: number } | null = null;
     // The object under the pointer, and the marked part of it (e.g. "poster"), if any
     const pickPart = (clientX: number, clientY: number): { stop: StopId; part?: string } | null => {
@@ -853,13 +877,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (!down) return;
       const dx = event.clientX - down.x;
       const dy = event.clientY - down.y;
-      const { at: current, onSelect: select, onTurn: turn, onPart: partTapped } = latest.current;
+      const { at: current, onSelect: select, onTurn: turn, onPart: partTapped, onEmptyTap: emptyTapped } = latest.current;
       if (!current && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
         turn(dx < 0 ? 1 : -1); // drag the world: swiping left turns right
       } else if (Math.hypot(dx, dy) < 10 && performance.now() - down.t < 500) {
         const hit = pickPart(event.clientX, event.clientY);        if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
-        else if (!hit && current) select(null);
+        else if (!hit && current) (emptyTapped ?? (() => select(null)))();
       }
       down = null;
     };
@@ -899,6 +923,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const cycle = (t + 20) % 45;
       train.visible = cycle > 30;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
+
+      // Ease the picture up above the held card (or back down), in step with the walk
+      const wantShift = (latest.current.cardFraction * height) / 2;
+      if (Math.abs(wantShift - shift) > 0.3) {
+        shift += (wantShift - shift) * 0.1;
+        if (Math.abs(shift) < 0.5) camera.clearViewOffset();
+        else camera.setViewOffset(width, height, 0, shift, width, height); // the HTML layer follows this too
+      }
 
       renderer.render(scene, camera);
 
@@ -944,14 +976,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
   useEffect(() => {
     goRef.current?.(at, heading);
-  }, [at, heading]);
+  }, [at, heading, cardFraction, zoom]);
 
   useEffect(() => {
     paintBoardsRef.current?.(boards);
   }, [boards]);
 
   return (
-    <div className="absolute inset-0 select-none" style={{ touchAction: "none" }}>
+    <div className="absolute inset-0 select-none">
       <style>{`
         @keyframes station-grain { 0% { transform: translate(0, 0) } 25% { transform: translate(-31px, 17px) }
           50% { transform: translate(23px, -41px) } 75% { transform: translate(-13px, -23px) } 100% { transform: translate(0, 0) } }

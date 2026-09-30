@@ -77,6 +77,9 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   }, [notices, items, scoreboard, movie, isLive, daysUntil, year]);
 }
 
+// How much of a phone's screen the held card takes, under the object
+const CARD_FRACTION = 0.58;
+
 // Direction signs for turning: a pointed enamel plate
 function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => void }) {
   const left = direction === -1;
@@ -98,7 +101,6 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
 
 // What's taken up to look at: a key, turned into content each render so it stays live
 type Held =
-  | { kind: "paper"; id: string }
   | { kind: "flyer"; id: string }
   | { kind: "departures" }
   | { kind: "window" }
@@ -135,6 +137,10 @@ export default function StationPage() {
   const [held, setHeld] = useState<Held | null>(null);
   const putBack = useCallback(() => setHeld(null), []);
 
+  // At the board, the paper the camera has come up to (by index), if any
+  const [zoom, setZoom] = useState<number | null>(null);
+  useEffect(() => setZoom(null), [at]);
+
   // On phones, which of the object's things the card holds, and whether the walk there is done
   const [cardIndex, setCardIndex] = useState(0);
   const [atArrived, setAtArrived] = useState(false);
@@ -159,10 +165,6 @@ export default function StationPage() {
   const openCatalogue = (tab: CatalogueTab) => setHeld({ kind: "catalogue", tab });
   const sheet: SheetContent | null = (() => {
     if (!held) return null;
-    if (held.kind === "paper") {
-      const paper = papers.find((p) => p.id === held.id);
-      return paper ? { id: paper.id, title: paper.title, tint: paper.tint, body: paper.full } : null;
-    }
     if (held.kind === "flyer") return flyers.find((f) => f.id === held.id)?.sheet ?? (held.id === "tonight" ? tonight : null);
     if (held.kind === "departures")
       return { id: "departures", title: "Departure board", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> };
@@ -171,19 +173,20 @@ export default function StationPage() {
     return { id: `catalogue-${held.tab}`, title: "Ticket kiosk", tone: "ledger", body: <Catalogue key={held.tab} initialTab={held.tab} /> };
   })();
 
-  // A tap on a thing in the scene: on phones, hold it in the card; on wide screens (where
-  // the HTML isn't drawn, or for the poster), pick it up
+  // A tap on a thing in the scene: a paper, look closer at it; otherwise on phones, hold it
+  // in the card, and on wide screens (where the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
+    if (part.startsWith("paper-")) {
+      setZoom(Number(part.slice(6)));
+      return;
+    }
     if (compact) {
       const index =
         part.startsWith("paper-") || part.startsWith("flyer-") ? Number(part.slice(6)) : part === "poster" ? flyers.findIndex((f) => f.id === "tonight") : 0;
       if (index >= 0) setCardIndex(index);
       return;
     }
-    if (part.startsWith("paper-")) {
-      const paper = papers[Number(part.slice(6))];
-      if (paper) setHeld({ kind: "paper", id: paper.id });
-    } else if (part.startsWith("flyer-")) {
+    if (part.startsWith("flyer-")) {
       const flyer = flyers[Number(part.slice(6))];
       if (flyer) setHeld({ kind: "flyer", id: flyer.id });
     } else if (part === "poster") setHeld({ kind: "flyer", id: "tonight" });
@@ -198,7 +201,7 @@ export default function StationPage() {
   papers.forEach(
     (paper, i) =>
       (surfaces[`paper-${i}`] = (
-        <PinnedPaper paper={paper} held={compact && at === "bulletin" && cardIndex === i} onOpen={() => setHeld({ kind: "paper", id: paper.id })} />
+        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => setZoom(i)} onClose={() => setZoom(null)} />
       ))
   );
   flyers.forEach(
@@ -210,17 +213,9 @@ export default function StationPage() {
 
   // Phones: what the card under the object can hold
   const cardItems: HeldItem[] | null =
-    !compact || !at || at === "arcade"
+    !compact || !at || at === "arcade" || at === "bulletin"
       ? null
-      : at === "bulletin"
-        ? papers.map((paper) => ({
-            id: paper.id,
-            label: paper.kind === "THE POST" ? "The Scareathon Post" : paper.kind.toLowerCase(),
-            tone: "paper" as const,
-            tint: paper.tint,
-            body: paper.full,
-          }))
-        : at === "events"
+      : at === "events"
           ? flyers.map((flyer) => ({ id: flyer.id, label: flyer.title, tone: flyer.sheet.tone ?? "paper", tint: flyer.sheet.tint, body: flyer.sheet.body }))
           : at === "departures"
             ? [{ id: "departures", label: "Departures", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> }]
@@ -271,22 +266,29 @@ export default function StationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mobileMenuOpen]);
 
-  // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back
-  const keys = useRef({ at, heading, select, turn, busy: false });
-  keys.current = { at, heading, select, turn, busy: Boolean(playing || held) };
+  const stepBack = () => (at === "bulletin" && zoom !== null ? setZoom(null) : select(null));
+
+  // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
+  // paper, the arrows move across and down the board
+  const keys = useRef({ at, heading, select, turn, stepBack, zoom, setZoom, busy: false });
+  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom, busy: Boolean(playing || held) };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const { at: current, heading: facing, select: go, turn: face, busy } = keys.current;
+      const { at: current, heading: facing, select: go, turn: face, stepBack: back, zoom: reading, setZoom: read, busy } = keys.current;
       if (busy) return;
       if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
       // A focused button or link keeps Enter for itself
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
       const ahead = { front: "bulletin", table: "events", right: "tickets", back: null, left: "arcade" }[facing] as StopId | null;
-      if (!current && event.key === "ArrowLeft") face(-1);
+      const moveBy = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 }[event.key];
+      if (reading !== null && moveBy !== undefined) {
+        const next = reading + moveBy;
+        if (next >= 0 && next < 6) read(next);
+      } else if (!current && event.key === "ArrowLeft") face(-1);
       else if (!current && event.key === "ArrowRight") face(1);
       else if (!current && (event.key === "ArrowUp" || event.key === "Enter") && ahead) go(ahead);
-      else if (current && event.key === "Escape") go(null);
+      else if (current && event.key === "Escape") back();
       // The arcade has its own arrow keys
       else if (current && current !== "arcade" && event.key === "ArrowDown") go(null);
       else return;
@@ -325,10 +327,8 @@ export default function StationPage() {
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
       <div className="fixed inset-0 bg-black" onClickCapture={keepInStation} style={sans}>
-        {/* On phones the scene gives the bottom of the screen to the held card */}
-        <div className="absolute inset-x-0 top-0 transition-[bottom] duration-300 ease-out" style={{ bottom: cardItems ? "58%" : 0 }}>
-          <Suspense fallback={<LoadingSpinner />}>
-            <StationScene
+        <Suspense fallback={<LoadingSpinner />}>
+          <StationScene
             at={at}
             heading={heading}
             onSelect={select}
@@ -336,12 +336,15 @@ export default function StationPage() {
             boards={boards}
             paused={Boolean(playing) || atCabinet}
             surfaces={surfaces}
-            surfacesInteractive={!compact}
+            // On phones things are used through the held card, except a paper being read
+            surfacesInteractive={!compact || (at === "bulletin" && zoom !== null)}
+            cardFraction={cardItems ? CARD_FRACTION : 0}
+            zoom={at === "bulletin" ? zoom : null}
+            onEmptyTap={stepBack}
             onPart={onPart}
-            />
-          </Suspense>
-        </div>
-        {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
+          />
+        </Suspense>
+        {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} onBack={stepBack} />}
 
         {/* The arcade, as it is at /arcade, without its room */}
         {atCabinet && (
@@ -363,12 +366,12 @@ export default function StationPage() {
           <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
 
-        {at && (
+        {at && !cardItems && !(compact && at === "arcade") && !(at === "bulletin" && zoom !== null) && (
           <button
             type="button"
-            onClick={() => select(null)}
-            className={`${plate} absolute left-3 z-20 flex min-h-11 items-center rounded-[3px] px-3 text-sm uppercase tracking-[0.2em] md:left-4`}
-            style={{ ...serif, top: "max(0.75rem, env(safe-area-inset-top))" }}
+            onClick={stepBack}
+            className={`${plate} absolute left-3 z-20 flex min-h-11 items-center rounded-[3px] px-3 text-xs uppercase tracking-[0.2em] opacity-85 transition hover:opacity-100 md:left-4`}
+            style={{ ...serif, bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
           >
             ◂ Platform
           </button>
@@ -396,7 +399,7 @@ export default function StationPage() {
           ))}
           {at === "bulletin" &&
             papers.map((paper) => (
-              <button key={paper.id} type="button" onClick={() => setHeld({ kind: "paper", id: paper.id })}>
+              <button key={paper.id} type="button" onClick={() => setZoom(papers.indexOf(paper))}>
                 Read: {paper.title}
               </button>
             ))}

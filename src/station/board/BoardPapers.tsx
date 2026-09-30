@@ -290,21 +290,33 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   return papers.slice(0, 6);
 }
 
-// A paper as it hangs on the board: tap it (standing at the board) to take it down.
-// `held` marks the one a phone is showing in its card below.
-export function PinnedPaper({ paper, onOpen, held = false }: { paper: Paper; onOpen: () => void; held?: boolean }) {
+// A paper as it hangs on the board. Tap it to look closer: the camera comes up to it and
+// it shows everything it says (scrolling if there's more), usable where it hangs.
+export function PinnedPaper({ paper, onOpen, onClose, zoomed = false }: { paper: Paper; onOpen: () => void; onClose: () => void; zoomed?: boolean }) {
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Take down: ${paper.title}`}
-      onClick={onOpen}
-      onKeyDown={(event) => event.key === "Enter" && event.target === event.currentTarget && onOpen()}
-      className={`relative h-full w-full cursor-pointer overflow-hidden px-5 pb-4 pt-6 shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-105${held ? " outline outline-[6px] outline-offset-4 outline-[#ffcf7a] shadow-[0_0_40px_rgba(255,190,90,0.7)]" : ""}`}
+      role={zoomed ? undefined : "button"}
+      tabIndex={zoomed ? undefined : 0}
+      aria-label={zoomed ? paper.title : `Look closer: ${paper.title}`}
+      onClick={zoomed ? undefined : onOpen}
+      onKeyDown={(event) => !zoomed && event.key === "Enter" && event.target === event.currentTarget && onOpen()}
+      className={`relative h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition ${zoomed ? "" : "cursor-pointer hover:brightness-105"}`}
       style={{ background: paper.tint, fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
     >
-      <span className="absolute left-1/2 top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
-      {paper.pinned}
+      <span className="absolute left-1/2 top-2 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
+      {zoomed && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Back to the board"
+          className="absolute right-1 top-0 z-10 flex h-10 w-10 items-center justify-center text-2xl leading-none text-[#2a1d14]/55 hover:text-[#2a1d14]"
+        >
+          ×
+        </button>
+      )}
+      <div className={`h-full px-5 pb-4 pt-6 ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`} style={{ touchAction: zoomed ? "pan-y" : undefined }}>
+        {zoomed ? paper.full : paper.pinned}
+      </div>
     </div>
   );
 }
