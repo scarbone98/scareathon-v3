@@ -182,6 +182,21 @@ export function createArcadeGames(): MachineData[] {
   return [
     // Not games so much as things to do: they sit left of Shuffle (where the shelf starts)
     {
+      name: "WaysideOS",
+      cartridge: {
+        color: "#3f6e8c",
+        tagline: "Boots to a prompt. Know any codes?",
+        font: { family: "VT323" },
+        about: { released: "2026", players: "Single player", genre: "Operating system", developer: "sclondon" },
+        backNote: "try HELP",
+      },
+      // No video: the cabinet draws its screen live. The URL finds its label, stills/WaysideOS.jpg
+      videoUrl: "/game-recordings/WaysideOS.mp4",
+      hasLeaderboard: false,
+      special: "wayside",
+      game: null,
+    },
+    {
       name: "Wayside Gallery",
       cartridge: {
         color: "#b8894f",
@@ -220,21 +235,6 @@ export function createArcadeGames(): MachineData[] {
           allow="camera"
         />
       ),
-    },
-    {
-      name: "WaysideOS",
-      cartridge: {
-        color: "#3f6e8c",
-        tagline: "Boots to a prompt. Know any codes?",
-        font: { family: "VT323" },
-        about: { released: "2026", players: "Single player", genre: "Operating system", developer: "sclondon" },
-        backNote: "try HELP",
-      },
-      // No video: the cabinet draws its screen live. The URL finds its label, stills/WaysideOS.jpg
-      videoUrl: "/game-recordings/WaysideOS.mp4",
-      hasLeaderboard: false,
-      special: "wayside",
-      game: null,
     },
     {
       // Where the shelf starts (the non-game carts sit to its left)

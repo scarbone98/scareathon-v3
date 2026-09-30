@@ -28,6 +28,16 @@ const TERMINAL_FAMILY = `"VT323", ui-monospace, Menlo, Consolas, monospace`;
 const PHOSPHOR = "#39ff6a";
 const GLOW = "0 0 6px rgba(57, 255, 106, 0.65), 0 0 1px rgba(57, 255, 106, 0.9)";
 
+// A power symbol, drawn so it sits in the terminal's type like a character
+function PowerIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="inline-block h-[0.8em] w-[0.8em] align-[-0.05em]" aria-hidden="true" style={{ filter: "drop-shadow(0 0 3px rgba(57,255,106,0.65))" }}>
+      <path d="M5 3.8a5.6 5.6 0 1 0 6 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+      <path d="M8 1v6.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+    </svg>
+  );
+}
+
 // The site's phone menu, docked into the terminal as a key of its own
 function MenuKey() {
   const { mobileMenuOpen, setMobileMenuOpen } = useNavigatorContext();
@@ -411,15 +421,15 @@ export default function GameCard({ screen, details, phone, style, className = ""
           {(controls === "all" || onBack || screen.kind === "code") && (
             <div className="absolute bottom-0.5 left-1 z-10 flex text-xl">
               {onBack ? (
-                <TerminalButton onClick={onBack} label="Back">
-                  &lt;
+                <TerminalButton onClick={onBack} label="Back (power off)">
+                  <PowerIcon />
                 </TerminalButton>
               ) : (
                 phone && <MenuKey />
               )}
               {(controls === "all" || screen.kind === "code") && (
                 <TerminalButton onClick={onBrowseAll} label="Show all games">
-                  ^
+                  ≡
                 </TerminalButton>
               )}
             </div>
