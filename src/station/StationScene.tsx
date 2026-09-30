@@ -106,6 +106,9 @@ const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
 const TICKET_Z = 0; // the ticket counter is let into the middle of it
 const ARCADE_POS = new Vector3(-3.0, 0, -1.75);
+// The walk up to the arcade takes a second; its cartridges slide in over the end of it
+const ROW_DELAY = 0.45;
+const ROW_SLIDE = 0.4;
 const SIGN_Y = 3.22; // the line the signs along the wall hang on, level with the station's name
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
@@ -672,12 +675,14 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
           cart.group.position.set((i - start) * layout.pitchX, layout.homeY + pose.lift, layout.z + pose.forward);
           cart.group.scale.setScalar(pose.scale);
           cart.group.rotation.x = pose.tip;
+          cart.group.userData.home = cart.group.position.clone();
           cart.setHighlight(i === start ? 1 : 0);
           row.add(cart.group);
           carts.push(cart);
           shown.push(i);
         }
         cabinet.add(row);
+        group.userData.rowSlide = layout.pitchX * 9; // how far off to the left they start
         const stopStills = loadVideoStills(shown.map((i) => games[i].videoUrl), (n, source, width, height) => carts[n]?.setPicture(source, width, height));
         group.userData.row = row;
         group.userData.disposeRow = () => {
@@ -1739,6 +1744,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Render loop; paused while the tab is hidden
     let frame = 0;
     let restingDrawn = false;
+    let rowSince: number | null = null; // when the walk to the arcade began
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
@@ -1757,8 +1763,27 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         dressing.rig.update(now);
         dressing.terminal.update(now);
       }
+      // The row of cartridges: nothing from across the platform; near the end of the walk up
+      // they slide in from the left, one after another, settling as the arcade takes over
       const row = arcadeObject.userData.row as Group | undefined;
-      if (row) row.visible = latest.current.at === "arcade";
+      if (row) {
+        const walking = latest.current.at === "arcade";
+        if (walking && rowSince === null) rowSince = performance.now() / 1000;
+        if (!walking) rowSince = null;
+        const since = rowSince === null ? -1 : performance.now() / 1000 - rowSince;
+        const slide = arcadeObject.userData.rowSlide as number;
+        row.visible = since > ROW_DELAY;
+        if (row.visible) {
+          const count = row.children.length;
+          row.children.forEach((cart, i) => {
+            // The rightmost leads; each a moment behind the one before
+            const k = Math.min(Math.max((since - ROW_DELAY - (count - 1 - i) * 0.025) / ROW_SLIDE, 0), 1);
+            const eased = 1 - (1 - k) ** 3;
+            const home = cart.userData.home as Vector3;
+            cart.position.x = home.x - (1 - eased) * slide;
+          });
+        }
+      }
       // The cabinet's finish shimmers with time, and is painted in the cabinet's own frame
       const cabinetFinish = arcadeObject.userData.finish as ReturnType<typeof createCabinetFinish>;
       const cabinetNode = arcadeObject.userData.cabinet as Group | undefined;
