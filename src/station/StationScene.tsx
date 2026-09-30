@@ -9,6 +9,8 @@ import {
   CanvasTexture,
   CircleGeometry,
   CylinderGeometry,
+  SphereGeometry,
+  TorusGeometry,
   Color,
   Float32BufferAttribute,
   FogExp2,
@@ -379,6 +381,7 @@ type SurfaceSpec = {
   lean?: number;
   tilt?: number;
   lamplit?: boolean; // dimmed to the lamps; the departure board glows on its own
+  onlyAt?: boolean; // shown only when standing at its object (where nothing can be in front of it)
 };
 const SURFACES: SurfaceSpec[] = [
   ...PAPER_SPOTS.map(([x, y, tilt, w, h], i): SurfaceSpec => ({
@@ -392,7 +395,7 @@ const SURFACES: SurfaceSpec[] = [
   })),
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
-  { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true },
+  { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true, onlyAt: true },
 ];
 
 function buildBulletin() {
@@ -646,17 +649,39 @@ function buildLockers() {
       }
     })
   );
-  // An old station clock on the wall above, keeping real time
+  // An old station clock, keeping real time, hung out from the wall above on a scrolled
+  // iron bracket, with a face on each side
   const clockFace = paint(256, 256, (ctx, w, h) => drawClock(ctx, w, h, new Date()));
+  const iron = standard("#1c1a17", 0.5);
+  const wallZ = -0.25; // the wall, in the lockers' own space
+  const armY = 3.12;
+  const out = 0.55; // how far the clock hangs out from the wall
+  group.add(box(0.16, 0.36, 0.03, iron, 0, armY - 0.1, wallZ + 0.015)); // the plate on the wall
+  group.add(box(0.035, 0.035, out + 0.05, iron, 0, armY, wallZ + (out + 0.05) / 2)); // the arm
+  const brace = box(0.03, 0.03, 0.5, iron, 0, armY - 0.18, wallZ + 0.2); // the diagonal brace
+  brace.rotation.x = 0.75;
+  group.add(brace);
+  // Scrolls, curling under the arm
+  [[0.14, 0.07], [0.33, 0.055]].forEach(([z, r]) => {
+    const curl = new Mesh(new TorusGeometry(r, 0.012, 6, 16, Math.PI * 1.5), iron);
+    curl.rotation.y = Math.PI / 2;
+    curl.position.set(0, armY - r - 0.01, wallZ + z);
+    group.add(curl);
+  });
+  group.add(box(0.02, 0.1, 0.02, iron, 0, armY - 0.07, wallZ + out)); // the rod it hangs from
   const clock = new Group();
-  clock.position.set(0, 2.78, -0.2);
-  const rim = new Mesh(new CylinderGeometry(0.36, 0.36, 0.08, 32), standard("#2a1d14", 0.6));
+  clock.position.set(0, armY - 0.47, wallZ + out);
+  clock.rotation.y = Math.PI / 2; // face across the platform, not out from the wall
+  const rim = new Mesh(new CylinderGeometry(0.34, 0.34, 0.09, 32), standard("#2a1d14", 0.6));
   rim.rotation.x = Math.PI / 2;
   clock.add(rim);
-  const face = new Mesh(new CircleGeometry(0.32, 32), new MeshBasicMaterial({ map: clockFace, color: "#d8d0bc" }));
-  face.position.z = 0.045;
-  clock.add(face);
-  clock.add(box(0.06, 0.3, 0.06, standard("#2a1d14", 0.6), 0, 0.46, -0.02));
+  [0.047, -0.047].forEach((z) => {
+    const face = new Mesh(new CircleGeometry(0.3, 32), new MeshBasicMaterial({ map: clockFace, color: "#d8d0bc" }));
+    face.position.z = z;
+    if (z < 0) face.rotation.y = Math.PI;
+    clock.add(face);
+  });
+  clock.add(new Mesh(new SphereGeometry(0.03, 8, 6), iron).translateY(0.36));
   group.add(clock);
   group.userData.clockFace = clockFace;
   addLamp(group, 0, 2.6, 1.0);
@@ -931,11 +956,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const floorTex = paint(256, 256, (ctx, w, h) => {
       ctx.fillStyle = "#1c1b1a";
       ctx.fillRect(0, 0, w, h);
-      for (let r = 0; r < 2; r += 1)
-        for (let c = 0; c < 2; c += 1) {
-          const tone = 70 + Math.floor(Math.random() * 22);
+      for (let r = 0; r < 4; r += 1)
+        for (let c = 0; c < 4; c += 1) {
+          const tone = 78 + Math.floor(Math.random() * 7);
           ctx.fillStyle = `rgb(${tone}, ${tone - 2}, ${tone - 6})`;
-          ctx.fillRect(c * 128 + 3, r * 128 + 3, 122, 122);
+          ctx.fillRect(c * 64 + 2, r * 64 + 2, 61, 61);
         }
       for (let i = 0; i < 2600; i += 1) {
         const v = 50 + Math.random() * 60;
@@ -950,7 +975,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       ctx.stroke();
     });
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
-    floorTex.repeat.set(PLATFORM_W / 1.4, (EDGE_Z - WALL_Z) / 1.4);
+    floorTex.repeat.set(PLATFORM_W / 2.8, (EDGE_Z - WALL_Z) / 2.8);
     scene.add(box(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, standard("#bdb5aa", 0.95, floorTex), PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
     scene.add(box(PLATFORM_W, 5, 0.2, standard("#8a7f78", 1, brickTexture()), PLATFORM_MID, 2.5, WALL_Z - 0.1));
     const sideBricks = brickTexture();
@@ -1338,11 +1363,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       // Each surface only while it's ahead of the camera and facing it (HTML behind the
       // camera or seen from the back would draw wrongly); its painted stand-in shows otherwise
       camera.getWorldDirection(facing);
-      placed.forEach(({ object }) => {
+      placed.forEach(({ object, spec }) => {
         object.getWorldPosition(surfaceCentre);
         toCamera.subVectors(camera.position, surfaceCentre).normalize();
         object.getWorldDirection(surfaceNormal);
-        object.visible = surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35;
+        object.visible =
+          surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35 && (!spec.onlyAt || latest.current.at === spec.stop);
       });
       surfaceRenderer.render(scene, camera);
     };

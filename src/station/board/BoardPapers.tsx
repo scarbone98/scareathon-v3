@@ -147,16 +147,13 @@ function TicketButton({ label, onClick, children }: { label: string; onClick: (e
 function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const { data: summary } = useSummary();
   return (
-    <div className={`m-1 flex h-[calc(100%-0.5rem)] items-center gap-4 border-[3px] border-double border-[#2a1d14]/70 px-4 ${ink}`}>
-      <div className="min-w-0 shrink">
-        <p className="text-[11px] uppercase tracking-[0.35em]" style={serif}>
-          Wayside Station
-        </p>
+    <div className={`m-1 flex h-[calc(100%-0.5rem)] flex-col justify-center gap-1.5 border-[3px] border-double border-[#2a1d14]/70 px-5 ${ink}`}>
+      <div className="flex min-w-0 items-baseline gap-3">
         <p className="truncate text-[28px] leading-none" style={serif}>
           {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
         </p>
       </div>
-      <div className="ml-auto flex min-w-0 flex-1 gap-2">
+      <div className="flex gap-2">
         {signedIn ? (
           <>
             <TicketButton label="Your locker" onClick={act(() => goTo("lockers"))}>
