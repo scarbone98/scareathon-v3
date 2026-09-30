@@ -7,12 +7,14 @@ import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
-import { eventState, useContentLoop, useScareboard, useSession, useTodayMovie } from "./data.ts";
-import { HEADINGS, PHONE_HEADINGS, isCatalogueTab, isHeading, isStopId, STOPS, STOP_IDS, type CatalogueTab, type GoTo, type Heading, type StopId } from "./stops.ts";
+import { AvatarView } from "../components/avatar/AvatarView";
+import { eventState, useContentLoop, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
+import { HEADINGS, PHONE_HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
-import { Catalogue, KioskWindow } from "./things/Kiosk.tsx";
+import { KioskWindow } from "./things/Kiosk.tsx";
+import { Letters, Register, Shop, Wardrobe, useAvatarLook } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
 import { plate, sans, serif } from "./style/theme.ts";
@@ -25,8 +27,9 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 // Wayside Station: the whole site as one train platform, with one way of using it: the
 // things in the station. The board's papers are the home page; the events table's flyers
 // and poster are the event; the departure board shows the Scareboard and timetable; the
-// kiosk window is your ticket; the cabinet is the arcade, exactly as at /arcade. Nothing
-// here leads back to the classic pages.
+// kiosk window is your ticket and the item shop; your locker holds your clothes; your
+// pigeonhole your letters, and the register beside it your name; the cabinet is the
+// arcade, exactly as at /arcade. Nothing here leads back to the classic pages.
 //
 // Phones first: standing at an object, the object sits in the top of the screen and the
 // thing you're holding fills the rest (HeldCard), as the arcade's card sits under its
@@ -40,9 +43,11 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 // place in the station instead
 function stationPlaceFor(path: string): [StopId, string?] {
   if (path.startsWith("/profile/shop")) return ["tickets", "shop"];
-  if (path.startsWith("/profile/avatar")) return ["tickets", "wardrobe"];
-  if (path.startsWith("/profile/inbox") || path.startsWith("/inbox")) return ["tickets", "inbox"];
-  if (path.startsWith("/profile") || path.startsWith("/authentication")) return ["tickets"];
+  if (path.startsWith("/profile/avatar")) return ["lockers"];
+  if (path.startsWith("/profile/inbox") || path.startsWith("/inbox")) return ["mail", "letters"];
+  if (path.startsWith("/profile/settings")) return ["mail", "register"];
+  if (path.startsWith("/profile")) return ["lockers"];
+  if (path.startsWith("/authentication")) return ["tickets"];
   if (path.startsWith("/arcade")) return ["arcade"];
   if (path.includes("scareboard")) return ["departures"];
   if (path.includes("calendar")) return ["departures", "timetable"];
@@ -59,6 +64,8 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   const { data: items = [] } = useContentLoop();
   const { data: scoreboard } = useScareboard(null, signedIn);
   const { data: movie } = useTodayMovie(isLive && signedIn);
+  const { data: summary } = useSummary();
+  const unread = signedIn ? summary?.unreadCount ?? 0 : 0;
   // Keyed on the text, so the board is only repainted when a paper's headline changes
   const noticeKey = papers.map((paper) => `${paper.kind}\u0000${paper.title}`).join("\u0001");
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,8 +80,8 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
     lines.push("ARCADE  ALL NIGHT  BOARDING");
     const film = movie?.data;
     const poster = film ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" } : { image: null, title: "Scare-athon", line: isLive ? "Showing all October" : `October 1 to 31, ${year}` };
-    return { notices, departures: lines.slice(0, 3), poster };
-  }, [notices, items, scoreboard, movie, isLive, daysUntil, year]);
+    return { notices, departures: lines.slice(0, 3), poster, unread };
+  }, [notices, items, scoreboard, movie, isLive, daysUntil, year, unread]);
 }
 
 // How much of a phone's screen the held card takes, under the object
@@ -104,7 +111,29 @@ type Held =
   | { kind: "flyer"; id: string }
   | { kind: "departures" }
   | { kind: "window" }
-  | { kind: "catalogue"; tab: CatalogueTab };
+  | { kind: "shop" }
+  | { kind: "wardrobe" }
+  | { kind: "letters" }
+  | { kind: "register" };
+
+// Wide screens take in the wall in three views; the objects phones turn to on their own
+// belong to one of them
+const WIDE_HEADING: Partial<Record<Heading, Heading>> = { table: "front", mail: "right", lockers: "left" };
+
+// The photo taped inside your locker door: how you look now
+function LockerPhoto({ signedIn }: { signedIn: boolean }) {
+  const look = useAvatarLook(signedIn);
+  return (
+    <div className="flex h-full w-full flex-col bg-[#f4efe2] p-2 shadow-[2px_3px_0_rgba(0,0,0,0.5)]">
+      <div className="flex flex-1 items-end justify-center overflow-hidden bg-gradient-to-b from-[#2a2238] to-[#0b1017]">
+        {signedIn ? <AvatarView look={look} height={180} /> : <span className="mb-8 text-sm italic text-[#f2ead2]/50">empty</span>}
+      </div>
+      <p className="pt-1 text-center text-[13px] italic text-[#2a1d14]" style={{ fontFamily: "Georgia, serif" }}>
+        {signedIn ? "me, lately" : "No. 13"}
+      </p>
+    </div>
+  );
+}
 
 export default function StationPage() {
   const [params, setParams] = useSearchParams();
@@ -116,10 +145,10 @@ export default function StationPage() {
   const signedIn = Boolean(session);
   // Phones and tablets (and anything touch-first)
   const compact = useIsMobileArcade();
-  // Phones turn to the events table on its own; wide screens see it with the board
+  // Phones turn to each object on its own; wide screens take in the wall three views wide
   const headings = compact ? PHONE_HEADINGS : HEADINGS;
   const wanted: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
-  const heading: Heading = headings.includes(wanted) ? wanted : "front";
+  const heading: Heading = headings.includes(wanted) ? wanted : WIDE_HEADING[wanted] ?? "front";
 
   const faceParams = (face: Heading): Record<string, string> => (face === "front" ? {} : { face });
   const select = (id: StopId | null, openThere?: string) =>
@@ -155,22 +184,27 @@ export default function StationPage() {
   useEffect(() => {
     setHeld(null);
     const flyerIndex = flyers.findIndex((flyer) => flyer.id === open);
-    setCardIndex(at === "events" && flyerIndex >= 0 ? flyerIndex : 0);
+    setCardIndex(at === "events" && flyerIndex >= 0 ? flyerIndex : at === "mail" && open === "register" ? 1 : 0);
     if (at === "events" && flyerIndex >= 0 && !compact) setHeld({ kind: "flyer", id: flyers[flyerIndex].id });
-    if (at === "tickets" && signedIn && isCatalogueTab(open)) setHeld({ kind: "catalogue", tab: open });
+    if (at === "tickets" && open === "shop") setHeld({ kind: "shop" });
+    if (at === "mail" && !compact && (open === "letters" || open === "register")) setHeld({ kind: open });
+    if (at === "lockers" && !compact && open) setHeld({ kind: "wardrobe" });
     // The flyers are rebuilt every render; only arriving (or ?open= changing) should do this
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, open, signedIn, compact]);
 
-  const openCatalogue = (tab: CatalogueTab) => setHeld({ kind: "catalogue", tab });
+  const openShop = () => setHeld({ kind: "shop" });
   const sheet: SheetContent | null = (() => {
     if (!held) return null;
     if (held.kind === "flyer") return flyers.find((f) => f.id === held.id)?.sheet ?? (held.id === "tonight" ? tonight : null);
     if (held.kind === "departures")
       return { id: "departures", title: "Departure board", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> };
     if (held.kind === "window")
-      return { id: "window", title: "Ticket kiosk", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} /> };
-    return { id: `catalogue-${held.tab}`, title: "Ticket kiosk", tone: "ledger", body: <Catalogue key={held.tab} initialTab={held.tab} /> };
+      return { id: "window", title: "Ticket kiosk", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} /> };
+    if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", body: <Shop signedIn={signedIn} goTo={goTo} /> };
+    if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
+    if (held.kind === "letters") return { id: "letters", title: "Your letters", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
+    return { id: "register", title: "The station register", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
   })();
 
   // A tap on a thing in the scene: a paper, look closer at it; otherwise on phones, hold it
@@ -181,8 +215,13 @@ export default function StationPage() {
       return;
     }
     if (compact) {
-      const index =
-        part.startsWith("paper-") || part.startsWith("flyer-") ? Number(part.slice(6)) : part === "poster" ? flyers.findIndex((f) => f.id === "tonight") : 0;
+      const index = part.startsWith("flyer-")
+        ? Number(part.slice(6))
+        : part === "poster"
+          ? flyers.findIndex((f) => f.id === "tonight")
+          : part === "register"
+            ? 1
+            : 0;
       if (index >= 0) setCardIndex(index);
       return;
     }
@@ -192,11 +231,14 @@ export default function StationPage() {
     } else if (part === "poster") setHeld({ kind: "flyer", id: "tonight" });
     else if (part === "departures") setHeld({ kind: "departures" });
     else if (part === "window") setHeld({ kind: "window" });
+    else if (part === "locker") setHeld({ kind: "wardrobe" });
+    else if (part === "letters" || part === "register") setHeld({ kind: part });
   };
 
   const surfaces: Record<string, ReactNode> = {
     departures: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} />,
-    window: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} />,
+    window: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} />,
+    "locker-photo": <LockerPhoto signedIn={signedIn} />,
   };
   papers.forEach(
     (paper, i) =>
@@ -219,15 +261,22 @@ export default function StationPage() {
           ? flyers.map((flyer) => ({ id: flyer.id, label: flyer.title, tone: flyer.sheet.tone ?? "paper", tint: flyer.sheet.tint, body: flyer.sheet.body }))
           : at === "departures"
             ? [{ id: "departures", label: "Departures", tone: "board", body: <DepartureBoard key={open} signedIn={signedIn} goTo={goTo} open={open} /> }]
-            : [
-                {
-                  id: "window",
-                  label: "Ticket kiosk",
-                  tone: "paper",
-                  tint: "#efe3c8",
-                  body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onOpen={openCatalogue} glass={false} />,
-                },
-              ];
+            : at === "lockers"
+              ? [{ id: "wardrobe", label: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> }]
+              : at === "mail"
+                ? [
+                    { id: "letters", label: "Letters", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
+                    { id: "register", label: "The register", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },
+                  ]
+                : [
+                    {
+                      id: "window",
+                      label: "Ticket kiosk",
+                      tone: "paper",
+                      tint: "#efe3c8",
+                      body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} />,
+                    },
+                  ];
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
   const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
@@ -280,7 +329,7 @@ export default function StationPage() {
       if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
       // A focused button or link keeps Enter for itself
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
-      const ahead = { front: "bulletin", table: "events", right: "tickets", back: null, left: "arcade" }[facing] as StopId | null;
+      const ahead = VIEWS[facing].focus;
       const moveBy = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 }[event.key];
       if (reading !== null && moveBy !== undefined) {
         const next = reading + moveBy;
@@ -418,6 +467,21 @@ export default function StationPage() {
             <button type="button" onClick={() => setHeld({ kind: "window" })}>
               Go to the window
             </button>
+          )}
+          {at === "lockers" && (
+            <button type="button" onClick={() => setHeld({ kind: "wardrobe" })}>
+              Open your locker
+            </button>
+          )}
+          {at === "mail" && (
+            <>
+              <button type="button" onClick={() => setHeld({ kind: "letters" })}>
+                Take your letters
+              </button>
+              <button type="button" onClick={() => setHeld({ kind: "register" })}>
+                Open the register
+              </button>
+            </>
           )}
         </nav>
 

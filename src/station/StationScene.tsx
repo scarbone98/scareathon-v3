@@ -71,6 +71,7 @@ type Props = {
 export type Boards = {
   notices: { kind: string; title: string }[];
   departures: string[];
+  unread: number; // letters waiting in your pigeonhole
   poster: { image?: string | null; title: string; line: string };
 };
 
@@ -336,6 +337,9 @@ const FLYER_SPOTS: [number, number, number, number][] = [
 const FLYER_W = 0.4;
 const FLYER_H = 0.52;
 
+// Your left-luggage locker, in the lockers' own space: top row, middle
+const MY_LOCKER: [number, number] = [0, 1.58];
+
 // Surfaces: HTML laid onto objects in 3D (CSS3D) so their text is crisp. `at` is local to
 // the stop's object; px is the HTML's size, which is scaled to w metres across.
 type SurfaceSpec = {
@@ -353,6 +357,7 @@ const SURFACES: SurfaceSpec[] = [
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 330] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
   { id: "window", stop: "tickets", at: [0, 1.55, 0.462], w: 1.2, px: [480, 360] },
+  { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true },
 ];
 
 function buildBulletin() {
@@ -491,26 +496,176 @@ function buildArcade() {
 
 function buildDepartures() {
   const group = new Group();
-  // High enough to clear the kiosk behind it; its face is HTML laid over this (SURFACES)
-  group.position.set(3.4, 3.3, -0.1);
-  group.rotation.y = -Math.PI / 2; // faces back along the platform, towards the visitor
+  // On the wall over the ticket kiosk, as at a booking office; its face is HTML laid over
+  // this (SURFACES)
+  group.position.set(4.5, 3.3, WALL_Z + 0.08);
   group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
   const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
   const faceMesh = plane(2.5, 1.1, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
   faceMesh.userData.part = "departures";
   group.add(faceMesh);
   group.userData.face = face;
-  [-1.1, 1.1].forEach((x) => group.add(box(0.03, 0.3, 0.03, standard("#222"), x, 0.7, 0)));
   addLamp(group, 0, -0.5, 1.0);
   group.add(hitBox(2.8, 1.4, 0.6, 0));
   group.userData.stopId = "departures";
   return group;
 }
 
+// A little painted enamel plate, e.g. a locker's number
+function plateTexture(text: string, fg: string, bg: string) {
+  return paint(96, 64, (ctx, w, h) => {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = fg;
+    ctx.font = "700 38px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, w / 2, h / 2 + 2);
+  });
+}
+
+// Left luggage: a bank of six lockers. Yours (No. 13) stands open, with a photo of how
+// you look taped inside (HTML, see SURFACES); it's where your clothes are kept.
+const LOCKER_W = 0.5;
+const LOCKER_H = 0.95;
+function buildLockers() {
+  const group = new Group();
+  group.position.set(-6.4, 0, WALL_Z + 0.25);
+  const steel = standard("#26302c", 0.55);
+  const dark = standard("#0e1014", 1);
+  group.add(box(3 * LOCKER_W + 0.08, 0.12, 0.5, standard("#23272e"), 0, 0.06, 0));
+  [-1, 0, 1].forEach((col) =>
+    [0, 1].forEach((row) => {
+      const x = col * LOCKER_W;
+      const y = 0.12 + LOCKER_H / 2 + row * (LOCKER_H + 0.02);
+      const number = String(9 + row * 3 + col + 1); // 9 to 14; yours is 13
+      const mine = col === 0 && row === 1;
+      group.add(box(LOCKER_W - 0.02, LOCKER_H, 0.46, mine ? dark : steel, x, y, 0));
+      if (mine) {
+        // The door swung open on its hinge
+        const door = new Group();
+        door.position.set(x - LOCKER_W / 2 + 0.01, y, 0.24);
+        door.rotation.y = -1.25;
+        door.add(box(LOCKER_W - 0.03, LOCKER_H - 0.02, 0.02, steel, (LOCKER_W - 0.03) / 2, 0, 0));
+        door.add(plane(0.12, 0.08, standard("#ffffff", 0.6, plateTexture(number, "#1d2a3a", "#d9c58a")), (LOCKER_W - 0.03) / 2, 0.3, 0.012));
+        group.add(door);
+        // A coat on a hanger, dimly
+        group.add(box(0.28, 0.02, 0.02, standard("#6b5a3a"), x, y + 0.33, -0.05));
+        group.add(box(0.3, 0.5, 0.06, standard("#2a2238", 1), x, y + 0.05, -0.1));
+        const inside = hitBox(LOCKER_W - 0.04, LOCKER_H - 0.04, 0.1, y);
+        inside.position.set(x, y, 0.2);
+        inside.userData.part = "locker";
+        group.add(inside);
+      } else {
+        // Louvres and a number plate on the closed ones
+        [0.3, 0.26, 0.22].forEach((dy) => group.add(box(0.26, 0.012, 0.01, dark, x, y + dy, 0.235)));
+        group.add(plane(0.12, 0.08, standard("#ffffff", 0.6, plateTexture(number, "#1d2a3a", "#d9c58a")), x, y - 0.05, 0.232));
+      }
+    })
+  );
+  group.add(plane(1.4, 0.3, new MeshBasicMaterial({ map: stationSign("LEFT LUGGAGE"), color: "#c9c9c9" }), 0, 2.38, -0.2));
+  addLamp(group, 0, 2.6, 1.0);
+  group.add(hitBox(1.7, 2.3, 0.7, 1.1));
+  group.userData.stopId = "lockers";
+  return group;
+}
+
+// The pigeonhole wall: a cabinet of named cubbyholes. Yours has a brass plate, and
+// envelopes stick out of it when you have letters. Beside it the station register lies
+// open on a lectern.
+// Your cubbyhole: third row down, fifth across (see the painted grid in buildMail)
+const MY_CUBBY: [number, number] = [0.125, 1.45];
+function buildMail() {
+  const group = new Group();
+  group.position.set(7.6, 0, WALL_Z + 0.2);
+  const cols = 6;
+  const rows = 5;
+  const cabinetW = 1.9;
+  const cabinetH = 1.7;
+  const cx = -0.35;
+  const bottom = 0.6;
+  const wood = standard("#4a3524", 0.85);
+  // The cubbyholes, painted: dark holes, name labels, the odd letter left behind
+  const names = ["ASH", "VOSS", "M. GRAY", "HOLLIS", "E. MOR", "", "CRANE", "", "DELL", "PIKE", "", "OKAFOR", "BRAM", "QUILL", "", "SAGE", "", "", "", "LUND", "WREN", "", "HART", "", "KESTREL", "", "NOLL", "", "FENN", "ORR"];
+  const front = paint(570, 510, (ctx, w, h) => {
+    ctx.fillStyle = "#4a3524";
+    ctx.fillRect(0, 0, w, h);
+    const cw = w / cols;
+    const ch = h / rows;
+    for (let r = 0; r < rows; r += 1)
+      for (let c = 0; c < cols; c += 1) {
+        ctx.fillStyle = "#0f0a07";
+        ctx.fillRect(c * cw + 6, r * ch + 6, cw - 12, ch - 26);
+        if ((r * 7 + c * 3) % 5 === 0) {
+          ctx.fillStyle = "#d8ccb0";
+          ctx.fillRect(c * cw + 16, r * ch + ch - 44, cw - 40, 14);
+        }
+        ctx.fillStyle = "#c8b98f";
+        ctx.fillRect(c * cw + 14, r * ch + ch - 18, cw - 28, 12);
+        ctx.fillStyle = "#2a1d14";
+        ctx.font = "700 10px Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.fillText(names[r * cols + c] ?? "", c * cw + cw / 2, r * ch + ch - 9, cw - 30);
+      }
+  });
+  group.add(box(cabinetW + 0.08, cabinetH + 0.08, 0.36, wood, cx, bottom + cabinetH / 2, -0.02));
+  group.add(plane(cabinetW, cabinetH, standard("#ffffff", 0.9, front), cx, bottom + cabinetH / 2, 0.165));
+  // Yours: a brass plate, lit a little brighter, and envelopes when there's mail
+  const [mx, my] = MY_CUBBY;
+  group.add(plane(0.22, 0.06, new MeshBasicMaterial({ map: plateTexture("YOU", "#2a1d14", "#e2b659") }), mx, my - 0.14, 0.17));
+  const envelopes = [0, 1, 2].map((i) => {
+    const envelope = box(0.22, 0.14, 0.01, standard("#efe3c8", 1), mx - 0.02 + i * 0.02, my + 0.02 + i * 0.02, 0.17 + i * 0.012);
+    envelope.rotation.z = (i - 1) * 0.12;
+    envelope.visible = false;
+    group.add(envelope);
+    return envelope;
+  });
+  group.userData.envelopes = envelopes;
+  const cubby = hitBox(0.36, 0.34, 0.2, my);
+  cubby.position.set(mx, my, 0.2);
+  cubby.userData.part = "letters";
+  group.add(cubby);
+  group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("LETTERS"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
+  // The station register on its lectern
+  const lectern = new Group();
+  lectern.position.set(1.25, 0, 0.35);
+  lectern.add(box(0.1, 1.0, 0.1, wood, 0, 0.5, 0));
+  lectern.add(box(0.5, 0.05, 0.36, wood, 0, 1.02, 0));
+  const ledger = paint(300, 210, (ctx, w, h) => {
+    ctx.fillStyle = "#e9dcbc";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#2a1d14";
+    ctx.fillRect(w / 2 - 1, 0, 2, h);
+    ctx.font = "700 14px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText("REGISTER", w / 4, 20);
+    ctx.fillStyle = "rgba(42,29,20,0.35)";
+    for (let y = 34; y < h - 8; y += 14) {
+      ctx.fillRect(10, y, w / 2 - 20, 1);
+      ctx.fillRect(w / 2 + 10, y, w / 2 - 20, 1);
+    }
+    ctx.fillStyle = "rgba(20,30,70,0.7)";
+    ctx.font = "italic 13px Georgia, serif";
+    ctx.textAlign = "left";
+    ["E. Vane", "the gardener", "no one", "M.", "Hollis"].forEach((n, i) => ctx.fillText(n, 16 + (i % 2) * w / 2, 46 + i * 28));
+  });
+  const book = plane(0.5, 0.35, standard("#ffffff", 0.9, ledger), 0, 1.08, 0);
+  book.rotation.x = -1.0;
+  book.userData.part = "register";
+  lectern.add(book);
+  const bookHit = hitBox(0.55, 0.3, 0.4, 1.1);
+  bookHit.userData.part = "register";
+  lectern.add(bookHit);
+  group.add(lectern);
+  addLamp(group, 0.2, 2.6, 1.0);
+  group.add(hitBox(3.0, 2.4, 0.9, 1.3));
+  group.userData.stopId = "mail";
+  return group;
+}
+
 function buildTickets() {
   const group = new Group();
-  group.position.set(4.8, 0, -0.1);
-  group.rotation.y = -Math.PI / 2;
+  group.position.set(4.5, 0, WALL_Z + 0.45); // against the wall
   group.add(box(1.9, 2.4, 0.9, standard("#2a2f3a"), 0, 1.2, 0));
   group.add(box(2.1, 0.12, 1.1, standard("#1c1f26"), 0, 2.46, 0));
   // Through the window: a lit booth, and someone who may or may not be there
@@ -697,7 +852,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const departures = buildDepartures();
     const events = buildEvents();
     const tickets = buildTickets();
-    const objects = [bulletin, events, buildArcade(), departures, tickets];
+    const lockers = buildLockers();
+    const mail = buildMail();
+    const arcade = buildArcade();
+    const objects = [lockers, arcade, bulletin, events, tickets, departures, mail];
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
     // are HTML placed in 3D over their painted stand-ins, so their text is crisp
@@ -707,7 +865,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     surfaceLayer.style.inset = "0";
     surfaceLayer.style.pointerEvents = "none";
     surfaceLayerRef.current?.appendChild(surfaceLayer);
-    const parents: Record<StopId, Group> = { bulletin, events, departures, tickets, arcade: objects[2] };
+    const parents: Record<StopId, Group> = { lockers, arcade, bulletin, events, tickets, departures, mail };
     const placed = SURFACES.map((spec) => {
       const slot = document.createElement("div");
       slot.style.width = `${spec.px[0]}px`;
@@ -729,7 +887,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
     const paintedPoster = poster.material.map as CanvasTexture;
     let posterImage = "";
-    paintBoardsRef.current = ({ notices, departures: lines, poster: sheet }) => {
+    paintBoardsRef.current = ({ notices, departures: lines, poster: sheet, unread }) => {
+      (mail.userData.envelopes as Mesh[]).forEach((envelope, i) => (envelope.visible = i < unread));
       (bulletin.userData.notes as CanvasTexture[]).forEach((texture, i) => {
         const [kind, title] = notices[i] ? [notices[i].kind, notices[i].title] : IDLE_NOTICES[i];
         repaint(texture, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, PAPERS[i]));

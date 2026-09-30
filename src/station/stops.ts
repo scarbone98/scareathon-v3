@@ -1,15 +1,15 @@
 // The station's layout. The visitor stands on the platform (the hub) and turns between
-// headings, Inscryption-style; each object is a close-up stop they walk up to.
+// headings, Inscryption-style; each object is a close-up stop they walk up to. Everything
+// stands against the station building's wall, left to right: the left-luggage lockers,
+// the arcade cabinet, the station board, the events table, the ticket kiosk (with the
+// departure board above it) and the pigeonhole wall.
 
-export type StopId = "bulletin" | "events" | "arcade" | "departures" | "tickets";
-export type Heading = "front" | "table" | "right" | "back" | "left";
+export type StopId = "lockers" | "arcade" | "bulletin" | "events" | "tickets" | "departures" | "mail";
+export type Heading = "front" | "table" | "right" | "mail" | "back" | "lockers" | "left";
 
 export type Stop = {
   id: StopId;
   label: string;
-  blurb: string;
-  href: string;
-  cta: string;
   heading: Heading; // the way the visitor faces when they step back from it
   pos: [number, number, number]; // camera position for the close-up
   target: [number, number, number]; // what the camera looks at
@@ -17,36 +17,52 @@ export type Stop = {
   fitHeight?: number; // metres that must fit top to bottom, above a phone's held card
 };
 
-// Clockwise, so "turn right" is the next entry. Wide screens see the board and the events
-// table in one view; phones turn to each on its own.
+// Clockwise, so "turn right" is the next entry. Wide screens take in the wall in three
+// views (left, front, right); phones turn to each object on its own.
 export const HEADINGS: Heading[] = ["front", "right", "back", "left"];
-export const PHONE_HEADINGS: Heading[] = ["front", "table", "right", "back", "left"];
+export const PHONE_HEADINGS: Heading[] = ["front", "table", "right", "mail", "back", "lockers", "left"];
 
 // Where the visitor stands, and how they look along each heading. The camera looks
 // down -z at yaw 0; the building's wall is at z = -2.2 and the tracks run along +z.
+// A view with an object faces it (or its `aim`, on wide screens); these are the rest.
 export const HUB = {
   pos: [0, 1.6, 2.2] as [number, number, number],
-  yaw: { front: 0, table: -0.6, right: -Math.PI / 2, back: Math.PI, left: Math.PI / 2 } as Record<Heading, number>,
-  pitch: { front: 0.05, table: 0.02, right: 0.12, back: -0.06, left: -0.05 } as Record<Heading, number>,
+  yaw: { front: 0, table: -0.6, right: -0.9, mail: -1.1, back: Math.PI, lockers: 1.0, left: 0.8 } as Record<Heading, number>,
+  pitch: { front: 0.05, table: 0.02, right: 0.12, mail: 0.02, back: -0.06, lockers: 0.02, left: 0.02 } as Record<Heading, number>,
 };
 
-// `aim` is where a wide screen looks (to take in the whole wall); tall screens look
+// `aim` is where a wide screen looks (to take in a stretch of wall); tall screens look
 // straight at the view's object
-export const VIEWS: Record<Heading, { title: string; blurb: string; focus: StopId | null; aim?: [number, number, number] }> = {
-  front: { title: "Wayside Station", blurb: "The station board: news, what's on, and your ticket.", focus: "bulletin", aim: [0.3, 1.8, -2.2] },
-  table: { title: "Events table", blurb: "Scareathon, tonight's film, and the rules.", focus: "events" },
-  right: { title: "Ticket kiosk", blurb: "The shop, and the departure board above it.", focus: "tickets" },
-  back: { title: "The tracks", blurb: "The last train left a long time ago. Mostly.", focus: null },
-  left: { title: "Arcade cabinet", blurb: "Someone left it plugged in.", focus: "arcade" },
+export const VIEWS: Record<Heading, { title: string; focus: StopId | null; aim?: [number, number, number] }> = {
+  front: { title: "Wayside Station", focus: "bulletin", aim: [0.3, 1.8, -2.2] },
+  table: { title: "Events table", focus: "events" },
+  right: { title: "Ticket kiosk", focus: "tickets", aim: [5.9, 1.9, -2.2] },
+  mail: { title: "Pigeonholes", focus: "mail" },
+  back: { title: "The tracks", focus: null },
+  lockers: { title: "Left luggage", focus: "lockers" },
+  left: { title: "Arcade cabinet", focus: "arcade", aim: [-5.0, 1.5, -2.2] },
 };
 
 export const STOPS: Record<StopId, Stop> = {
+  lockers: {
+    id: "lockers",
+    label: "Left luggage",
+    heading: "lockers",
+    pos: [-6.4, 1.55, 0.4],
+    target: [-6.4, 1.3, -2.0],
+    fit: 2.2,
+    fitHeight: 2.4,
+  },
+  arcade: {
+    id: "arcade",
+    label: "Arcade cabinet",
+    heading: "left",
+    pos: [-3.6, 1.55, 0.35],
+    target: [-3.6, 1.3, -1.75],
+  },
   bulletin: {
     id: "bulletin",
     label: "Station board",
-    blurb: "News, what's on, and your ticket.",
-    href: "/",
-    cta: "Home",
     heading: "front",
     pos: [-0.9, 1.9, 0.35],
     target: [-0.9, 2.0, -2.1],
@@ -56,48 +72,38 @@ export const STOPS: Record<StopId, Stop> = {
   events: {
     id: "events",
     label: "Events table",
-    blurb: "Flyers for the events at the station.",
-    href: "/scareathon",
-    cta: "See Scareathon",
     heading: "table",
     pos: [1.9, 1.75, 0.2],
     target: [1.9, 1.5, -1.6],
     fit: 1.8,
     fitHeight: 2.0,
   },
-  arcade: {
-    id: "arcade",
-    label: "Arcade cabinet",
-    blurb: "Pick a cartridge, play, climb the leaderboards.",
-    href: "/arcade",
-    cta: "Play the arcade",
-    heading: "left",
-    pos: [-3.6, 1.55, 0.35],
-    target: [-3.6, 1.3, -1.75],
+  tickets: {
+    id: "tickets",
+    label: "Ticket kiosk",
+    heading: "right",
+    pos: [4.5, 1.6, 0.2],
+    target: [4.5, 1.65, -1.3],
+    fit: 1.35,
+    fitHeight: 1.5,
   },
   departures: {
     id: "departures",
     label: "Departure board",
-    blurb: "Standings, the calendar and what leaves next.",
-    href: "/scareathon/scareboard",
-    cta: "View the Scareboard",
     heading: "right",
-    pos: [1.6, 2.75, -0.1],
-    target: [3.4, 3.3, -0.1],
+    pos: [4.5, 2.9, 0.4],
+    target: [4.5, 3.3, -2.1],
     fit: 2.8,
     fitHeight: 1.4,
   },
-  tickets: {
-    id: "tickets",
-    label: "Ticket kiosk",
-    blurb: "Spend your coins on avatar pieces and more.",
-    href: "/profile/shop",
-    cta: "Visit the shop",
-    heading: "right",
-    pos: [3.2, 1.6, -0.1],
-    target: [4.8, 1.65, -0.1],
-    fit: 1.35,
-    fitHeight: 1.5,
+  mail: {
+    id: "mail",
+    label: "Pigeonholes",
+    heading: "mail",
+    pos: [7.75, 1.5, 0.4],
+    target: [7.75, 1.35, -2.0],
+    fit: 3.4, // the pigeonholes and the register beside them
+    fitHeight: 2.3,
   },
 };
 
@@ -111,8 +117,3 @@ export const isHeading = (value: string | null): value is Heading =>
 
 // Walks to an object, optionally opening something there (a tab, or a game in the arcade)
 export type GoTo = (id: StopId, open?: string) => void;
-
-// The kiosk's catalogue: what ?open= can name at the ticket kiosk
-export type CatalogueTab = "shop" | "wardrobe" | "inbox" | "account";
-export const isCatalogueTab = (value?: string | null): value is CatalogueTab =>
-  value === "shop" || value === "wardrobe" || value === "inbox" || value === "account";

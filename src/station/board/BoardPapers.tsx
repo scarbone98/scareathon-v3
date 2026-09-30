@@ -104,7 +104,7 @@ function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full
             <button type="button" className={action} onClick={act(() => goTo("tickets", "shop"))}>
               {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} coins` : "Coins"}
             </button>
-            <button type="button" className={action} onClick={act(() => goTo("tickets", "inbox"))}>
+            <button type="button" className={action} onClick={act(() => goTo("mail", "letters"))}>
               {summary?.unreadCount ? `${summary.unreadCount} unread` : "Inbox"}
             </button>
           </>
