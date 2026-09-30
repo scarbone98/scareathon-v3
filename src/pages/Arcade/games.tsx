@@ -52,7 +52,7 @@ export const GAME_TOOLBAR_HEIGHT = 56;
 const EIGHT_BIT_EVIL_RETURNS_URL =
   "https://scarbone98.github.io/8BitEvilReturnsBuild/";
 const HEMLOCKS_TOWER_URL =
-  "https://sclondon.github.io/Ascension/build/AscensionOutFromTheDeep.html?v=bf5239f";
+  "https://sclondon.github.io/HemlocksTower/build/HemlocksTower.html?v=1e66d06";
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
@@ -312,7 +312,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2024", players: "Single player", genre: "Vertical platformer", developer: "sclondon" },
         backNote: "Don't look down past floor 40. Something looks back.",
       },
-      videoUrl: "/game-recordings/Ascension.mp4",
+      videoUrl: "/game-recordings/HemlocksTower.mp4",
       game: (
         <GameRenderer
           title="Hemlock's Tower"
