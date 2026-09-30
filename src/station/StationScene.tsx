@@ -50,7 +50,7 @@ import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
 import { CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
 import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
-import { HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
+import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
 // and turns between four fixed headings, and walks up to an object to look at it.
@@ -1526,8 +1526,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       return { x: pos.x, y: pos.y, z: pos.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) };
     };
     let lastAt: StopId | null = latest.current.at;
+    let goal: { x: number; y: number; z: number; yaw: number; pitch: number } | null = null;
     const goTo = (stopId: StopId | null, facing: Heading, instant = false) => {
       const pose = poseFor(stopId, facing);
+      const same =
+        goal && Math.abs(goal.x - pose.x) + Math.abs(goal.y - pose.y) + Math.abs(goal.z - pose.z) + Math.abs(wrapAngle(goal.yaw - pose.yaw)) + Math.abs(goal.pitch - pose.pitch) < 1e-4;
+      if (same && !instant && gsap.isTweening(cam)) return;
+      goal = pose;
       const yaw = cam.yaw + wrapAngle(pose.yaw - cam.yaw); // turn the short way round
       const walking = stopId !== lastAt;
       lastAt = stopId;
@@ -1563,7 +1568,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const pointer = new Vector2();
     const canvas = renderer.domElement;
     canvas.style.touchAction = "none";
-    let down: { x: number; y: number; t: number } | null = null;
+    let down: { x: number; y: number; t: number; yaw: number; dragging: boolean } | null = null;
     // The object under the pointer, and the marked part of it (e.g. "poster"), if any
     const pickPart = (clientX: number, clientY: number): { stop: StopId; part?: string } | null => {
       const rect = canvas.getBoundingClientRect();
@@ -1591,10 +1596,25 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     const pick = (clientX: number, clientY: number) => pickPart(clientX, clientY)?.stop ?? null;
     const onPointerDown = (event: PointerEvent) => {
-      down = { x: event.clientX, y: event.clientY, t: performance.now() };
+      down = { x: event.clientX, y: event.clientY, t: performance.now(), yaw: cam.yaw, dragging: false };
       canvas.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (down && event.pointerType !== "mouse" && !latest.current.at) {
+        const dx = event.clientX - down.x;
+        if (!down.dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(event.clientY - down.y)) {
+          down.dragging = true;
+          gsap.killTweensOf(cam);
+          goal = null;
+          down.yaw = cam.yaw;
+          down.x = event.clientX;
+        }
+        if (down.dragging) {
+          const across = 2 * Math.atan(Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect);
+          cam.yaw = down.yaw + clamp(((event.clientX - down.x) / width) * across * 0.6, -1.2, 1.2);
+        }
+        return;
+      }
       if (event.pointerType !== "mouse" || down) return;
       const rect = canvas.getBoundingClientRect();
       look.toYaw = -(((event.clientX - rect.left) / rect.width) * 2 - 1) * 0.06;
@@ -1607,8 +1627,15 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const dx = event.clientX - down.x;
       const dy = event.clientY - down.y;
       const { at: current, onSelect: select, onTurn: turn, onPart: partTapped, onEmptyTap: emptyTapped } = latest.current;
-      if (!current && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-        turn(dx < 0 ? 1 : -1); // drag the world: swiping left turns right
+      const quick = Math.abs(dx) / Math.max(performance.now() - down.t, 1) > 0.3; // a flick
+      if (!current && (Math.abs(dx) > 40 || (quick && Math.abs(dx) > 20)) && Math.abs(dx) > Math.abs(dy)) {
+        // Drag the world: swiping left turns right. Start turning now; the page catches up
+        const direction = dx < 0 ? 1 : -1;
+        const index = HEADINGS.indexOf(latest.current.heading);
+        if (index >= 0) goTo(null, HEADINGS[(index + direction + HEADINGS.length) % HEADINGS.length]);
+        turn(direction);
+      } else if (down.dragging) {
+        goTo(current, latest.current.heading); // not far enough: settle back
       } else if (Math.hypot(dx, dy) < 10 && performance.now() - down.t < 500) {
         const hit = pickPart(event.clientX, event.clientY);        if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
@@ -1623,6 +1650,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
+    const onPointerCancel = () => {
+      if (down?.dragging) goTo(latest.current.at, latest.current.heading);
+      down = null;
+    };
+    canvas.addEventListener("pointercancel", onPointerCancel);
     canvas.addEventListener("pointercancel", onPointerUp);
     canvas.addEventListener("pointerleave", onPointerLeave);
 
@@ -1705,6 +1737,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("pointercancel", onPointerUp);
       canvas.removeEventListener("pointerleave", onPointerLeave);
       gsap.killTweensOf(cam);
