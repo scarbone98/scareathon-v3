@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AdditiveBlending,
+  BufferAttribute,
+  Points,
+  PointsMaterial,
   AmbientLight,
   Box3,
   BoxGeometry,
@@ -2060,6 +2063,104 @@ export default function CartridgeArcade({
       gsap.fromTo(cabinetFlash, { intensity: 8 * Math.min(strength, 1.2) }, { intensity: 0, duration: 0.4, ease: "power2.out" });
       playClunk();
     };
+    // Dust shaken down from the ceiling: specks that drift down across the view and settle
+    // out of it. A pool of them; each shake sends down the next handful.
+    const DUST = 240;
+    const dustPositions = new Float32Array(DUST * 3);
+    const dustGeometry = track(new BufferGeometry());
+    dustGeometry.setAttribute("position", new BufferAttribute(dustPositions, 3));
+    const dustMaterial = track(
+      new PointsMaterial({ color: new Color("#d9cfbb"), size: cartSize.width * 0.075, transparent: true, opacity: 0.9, depthWrite: false })
+    );
+    const dust = new Points(dustGeometry, dustMaterial);
+    dust.frustumCulled = false;
+    scene.add(dust);
+    const dustMotes = Array.from({ length: DUST }, () => ({ alive: false, fall: 0, sway: 0, phase: 0, x: 0, until: 0 }));
+    const hideMote = (i: number) => dustPositions.fill(-1e4, i * 3, i * 3 + 3);
+    for (let i = 0; i < DUST; i += 1) hideMote(i);
+    let nextMote = 0;
+    const dropDust = (amount: number) => {
+      // Spread across the top of the view, at depths between the camera and the cabinet
+      const forward = new Vector3();
+      camera.getWorldDirection(forward);
+      const up = camera.up.clone().applyQuaternion(camera.quaternion).normalize();
+      const right = new Vector3().crossVectors(forward, up).normalize();
+      const reach = camera.position.distanceTo(cameraTarget);
+      const tan = Math.tan(((camera.fov * Math.PI) / 180) / 2);
+      const now = performance.now() / 1000;
+      for (let n = 0; n < amount; n += 1) {
+        const i = nextMote;
+        nextMote = (nextMote + 1) % DUST;
+        const depth = reach * (0.3 + Math.random() * 0.75);
+        const halfH = depth * tan;
+        const halfW = halfH * camera.aspect;
+        const spot = camera.position
+          .clone()
+          .addScaledVector(forward, depth)
+          .addScaledVector(up, halfH * (1.02 + Math.random() * 0.5))
+          .addScaledVector(right, (Math.random() * 2 - 1) * halfW);
+        dustPositions.set([spot.x, spot.y, spot.z], i * 3);
+        const mote = dustMotes[i];
+        mote.alive = true;
+        mote.fall = halfH * (0.35 + Math.random() * 0.45); // per second: slow, like dust
+        mote.sway = halfW * 0.02 * (0.5 + Math.random());
+        mote.phase = Math.random() * Math.PI * 2;
+        mote.x = spot.x;
+        mote.until = now + (2 * halfH * 1.6) / mote.fall; // well past the bottom of the view
+      }
+      dustGeometry.attributes.position.needsUpdate = true;
+    };
+    let lastDustTime = 0;
+    const moveDust = (time: number) => {
+      const dt = Math.min(time - lastDustTime, 0.05);
+      lastDustTime = time;
+      let any = false;
+      dustMotes.forEach((mote, i) => {
+        if (!mote.alive) return;
+        if (time > mote.until) {
+          mote.alive = false;
+          hideMote(i);
+          any = true;
+          return;
+        }
+        dustPositions[i * 3 + 1] -= mote.fall * dt;
+        dustPositions[i * 3] = mote.x + Math.sin(time * 2.2 + mote.phase) * mote.sway;
+        any = true;
+      });
+      if (any) dustGeometry.attributes.position.needsUpdate = true;
+    };
+
+    // Shaking the phone shakes the machine: it rocks, the picture jumps and dust comes down
+    let lastShake = 0;
+    const shakeMachine = (strength: number) => {
+      const now = performance.now() / 1000;
+      if (pausedRef.current || disposed || now - lastShake < 0.6) return;
+      lastShake = now;
+      const side = new Vector3((Math.random() < 0.5 ? -1 : 1) * cabinetWidth(), (cabinetBox.min.y + cabinetBox.max.y) / 2, cabinetBox.max.z);
+      jiggleCabinet(side, 0.8 + strength * 0.8);
+      gsap.fromTo(shake, { value: cartSize.width * 0.04 * (0.6 + strength) }, { value: 0, duration: 0.6, ease: "power2.out" });
+      dropDust(Math.round(50 + strength * 60));
+    };
+    let lastMotion: { x: number; y: number; z: number } | null = null;
+    const onMotion = (event: DeviceMotionEvent) => {
+      // The jolt between one reading and the next (gravity cancels out), in m/s²
+      const g = event.accelerationIncludingGravity;
+      if (!g || g.x === null || g.y === null || g.z === null) return;
+      const now = { x: g.x, y: g.y, z: g.z };
+      const before = lastMotion;
+      lastMotion = now;
+      if (!before) return;
+      const jolt = Math.hypot(now.x - before.x, now.y - before.y, now.z - before.z);
+      if (jolt > 14) shakeMachine(Math.min((jolt - 14) / 20, 1));
+    };
+    window.addEventListener("devicemotion", onMotion);
+    // iOS only reports motion once asked, from inside a tap
+    const askForMotion = () => {
+      const Motion = window.DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> } | undefined;
+      if (typeof Motion?.requestPermission === "function") Motion.requestPermission().catch(() => undefined);
+    };
+    renderer.domElement.addEventListener("pointerdown", askForMotion, { once: true });
+
     // Count pokes; too many too fast and it breaks (true when that's just happened)
     const notePoke = () => {
       const now = performance.now() / 1000;
@@ -2495,6 +2596,7 @@ export default function CartridgeArcade({
         camera.position.x += (Math.random() - 0.5) * shake.value;
         camera.position.y += (Math.random() - 0.5) * shake.value;
       }
+      moveDust(time);
       camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
     };
@@ -2516,6 +2618,7 @@ export default function CartridgeArcade({
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      window.removeEventListener("devicemotion", onMotion);
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", syncVideo);
       document.removeEventListener("pointerdown", playFromGesture, true);
