@@ -80,9 +80,8 @@ const EDGE_Z = 3.2; // the platform's edge
 const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
 const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
-const TICKET_Z = -1.0; // where the ticket counter is let into it
-const LOCKER_Z = 0.95; // and the left-luggage lockers, nearer the tracks
-const END_X = -5.0; // the platform's far end, left of the arcade: a railing, and a view
+const TICKET_Z = 0; // the ticket counter is let into the middle of it
+const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
 const PLATFORM_MID = (30 + END_X) / 2;
 const RENDER_HEIGHT = 420; // rows of pixels the scene is drawn at, whatever the screen size
@@ -356,10 +355,10 @@ const PAPER_H = 0.78;
 // The flyers on the events table, leaning in their stands (local x, y, z, lean back)
 // The flyers in their stand, top to bottom (local x, y, z, lean back)
 const FLYER_SPOTS: [number, number, number, number][] = [
-  [-0.22, 1.36, 0.07, -0.16],
-  [0.22, 1.36, 0.07, -0.16],
-  [-0.22, 0.74, 0.07, -0.16],
-  [0.22, 0.74, 0.07, -0.16],
+  [-0.69, 1.3, 0.09, -0.28],
+  [-0.23, 1.3, 0.09, -0.28],
+  [0.23, 1.3, 0.09, -0.28],
+  [0.69, 1.3, 0.09, -0.28],
 ];
 const FLYER_W = 0.4;
 const FLYER_H = 0.52;
@@ -441,16 +440,17 @@ function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, ti
 
 function buildEvents() {
   const group = new Group();
-  group.position.set(1.45, 0, WALL_Z + 0.3);
+  group.position.set(1.2, 0, WALL_Z + 0.35);
   const wood = standard("#4a3524");
-  // A tall wooden rack against the wall, three shelves with lips holding the flyers
-  group.add(box(0.98, 1.72, 0.04, standard("#3a2a1c"), 0, 0.86, -0.06));
-  [-0.48, 0.48].forEach((x) => group.add(box(0.05, 1.78, 0.2, wood, x, 0.89, 0)));
-  [0.46, 1.08].forEach((y) => {
-    group.add(box(0.92, 0.03, 0.2, wood, 0, y, 0.01));
-    group.add(box(0.92, 0.06, 0.02, wood, 0, y + 0.03, 0.1));
-  });
-  group.add(plane(0.6, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.76, 0.02));
+  // A display stand: a slanted board on two legs, a lip along the bottom, the flyers side
+  // by side on it at eye level
+  const board = box(1.92, 0.7, 0.04, standard("#3a2a1c"), 0, 1.3, 0.04);
+  board.rotation.x = -0.28;
+  group.add(board);
+  group.add(box(1.92, 0.05, 0.08, wood, 0, 0.99, 0.2));
+  [-0.9, 0.9].forEach((x) => group.add(box(0.06, 1.6, 0.06, wood, x, 0.8, 0)));
+  group.add(box(1.86, 0.04, 0.04, wood, 0, 0.35, 0));
+  group.add(plane(0.6, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.72, -0.04));
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
     ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
@@ -475,15 +475,15 @@ function buildEvents() {
   });
   // The poster on the wall above the stand
   const posterZ = WALL_Z + 0.03 - group.position.z;
-  group.add(box(0.8, 1.12, 0.04, standard("#2a1d14", 0.7), 0, 2.6, posterZ));
+  group.add(box(0.8, 1.12, 0.04, standard("#2a1d14", 0.7), 0, 2.55, posterZ));
   const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
-  const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.6, posterZ + 0.025);
+  const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.55, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
   addLamp(group, 0, 2.4, 1.0);
-  group.add(hitBox(1.1, 1.85, 0.45, 0.9));
+  group.add(hitBox(2.0, 1.7, 0.5, 0.85));
   // Tapping the poster up close picks it up (see `part` in pick)
-  const posterHit = hitBox(0.9, 1.2, 0.3, 2.6);
+  const posterHit = hitBox(0.9, 1.2, 0.3, 2.55);
   posterHit.position.z = posterZ + 0.1;
   posterHit.userData.part = "poster";
   group.add(posterHit);
@@ -493,7 +493,7 @@ function buildEvents() {
 
 function buildArcade() {
   const group = new Group();
-  group.position.set(-3.3, 0, -1.75); // against the wall, left of the board
+  group.position.set(-3.0, 0, -1.75); // against the wall, left of the board
   const placeholder = new Group();
   placeholder.add(box(0.85, 1.9, 0.8, standard("#2b1a3a"), 0, 0.95, 0));
   placeholder.add(plane(0.6, 0.45, new MeshBasicMaterial({ color: "#5cffb1" }), 0, 1.3, 0.41));
@@ -529,7 +529,7 @@ function buildDepartures() {
   const group = new Group();
   // On the side wall over the ticket counter, as at a booking office; its face is HTML laid
   // over this (SURFACES)
-  group.position.set(SIDE_X - 0.18, 3.35, TICKET_Z + 0.15);
+  group.position.set(SIDE_X - 0.18, 3.35, TICKET_Z);
   group.rotation.y = -Math.PI / 2;
   group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
   const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
@@ -562,9 +562,7 @@ const LOCKER_W = 0.5;
 const LOCKER_H = 0.95;
 function buildLockers() {
   const group = new Group();
-  // On the side wall, beside the ticket counter
-  group.position.set(SIDE_X - 0.25, 0, LOCKER_Z);
-  group.rotation.y = -Math.PI / 2;
+  group.position.set(-5.3, 0, WALL_Z + 0.25); // left of the arcade
   const steel = standard("#26302c", 0.55);
   const dark = standard("#0e1014", 1);
   group.add(box(3 * LOCKER_W + 0.08, 0.12, 0.5, standard("#23272e"), 0, 0.06, 0));
@@ -611,7 +609,7 @@ function buildLockers() {
 const MY_CUBBY: [number, number] = [0.125, 1.45];
 function buildMail() {
   const group = new Group();
-  group.position.set(3.4, 0, WALL_Z + 0.2); // next to the flyer stand
+  group.position.set(3.75, 0, WALL_Z + 0.2); // next to the flyer stand
   const cols = 6;
   const rows = 5;
   const cabinetW = 1.9;
@@ -801,7 +799,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     overhead.position.set(0, 3.5, 0.6);
     scene.add(overhead);
     scene.add(box(0.3, 0.1, 0.3, new MeshBasicMaterial({ color: "#ffe2b8" }), 0, 3.95, 0.6));
-    [-3, 9].forEach((x) => {
+    [-5.5, 9].forEach((x) => {
       const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
       scene.add(lamp);
@@ -887,8 +885,28 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       [[48, 50, 10], [80, 76, 7], [70, 40, 5]].forEach(([x, y, r]) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); });
     }), fog: false, depthWrite: false }));
     moon.scale.set(7, 7, 1);
-    moon.position.set(-16, 17, 70);
+    // Low over the fields past the end of the platform, where the scenic view looks
+    moon.position.set(-75, 13, 8);
     scene.add(moon);
+
+    // The scenic view: bare trees in the fields, and a signal by the line, its lamp red
+    [[-16, -6], [-22, 4], [-30, -12], [-38, 9], [-47, -3], [-26, 16]].forEach(([x, z], i) => {
+      const tree = new Sprite(new SpriteMaterial({ map: treeMap, transparent: true, depthWrite: false, fog: false }));
+      const size = 5 + (i % 3) * 2.5;
+      tree.scale.set(size, size, 1);
+      tree.position.set(x, size / 2 - 0.9, z);
+      scene.add(tree);
+    });
+    const signal = new Group();
+    signal.position.set(END_X - 7, -0.85, TRACK_Z - 1.6);
+    signal.add(box(0.12, 4.2, 0.12, standard("#1a1d22", 0.6), 0, 2.1, 0));
+    signal.add(box(0.45, 0.8, 0.3, standard("#101216", 0.7), 0, 4.0, 0));
+    signal.add(box(0.14, 0.14, 0.05, new MeshBasicMaterial({ color: "#ff3a2a" }), 0, 4.15, -0.16));
+    const signalGlow = new Sprite(new SpriteMaterial({ map: glowTexture(), color: "#ff4a3a", blending: AdditiveBlending, transparent: true, depthWrite: false }));
+    signalGlow.scale.set(1.6, 1.6, 1);
+    signalGlow.position.set(0, 4.15, -0.2);
+    signal.add(signalGlow);
+    scene.add(signal);
 
     // Stars
     const starPositions: number[] = [];
@@ -978,11 +996,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let pull = 1;
     const poseFor = (stopId: StopId | null, facing: Heading) => {
       if (!stopId) {
+        const { focus, aim, spot } = VIEWS[facing];
+        // A view with a spot of its own (the scenic view): go and stand there
+        if (spot) return { x: spot[0], y: spot[1], z: spot[2], yaw: HUB.yaw[facing], pitch: HUB.pitch[facing] };
         const [x, y, z] = HUB.pos;
-        const hubZ = z + (pull - 1) * 1.4;
-        // Wide screens take in the whole view; tall ones turn to face its object
-        const { focus, aim } = VIEWS[facing];
-        const point = pull === 1 && aim ? aim : focus ? STOPS[focus].target : null;
+        const hubZ = pull > 1 ? EDGE_Z - 0.5 : z;
+        // Wide screens take in the whole view; tall ones turn to face its object (but the
+        // front view always faces the board)
+        const point = (pull === 1 || facing === "front") && aim ? aim : focus ? STOPS[focus].target : null;
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
       }
@@ -1035,7 +1056,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       surfaceRenderer.setSize(width, height);
       const aspect = width / height;
       camera.aspect = aspect;
-      camera.fov = aspect < 0.8 ? 80 : aspect < 1.2 ? 68 : 60;
+      camera.fov = aspect < 0.8 ? 86 : aspect < 1.2 ? 68 : 60;
       pull = aspect < 0.8 ? 1.5 : aspect < 1.2 ? 1.2 : 1;
       camera.updateProjectionMatrix();
       goTo(latest.current.at, latest.current.heading, true);

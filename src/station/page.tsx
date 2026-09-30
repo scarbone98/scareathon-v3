@@ -115,7 +115,7 @@ type Held =
 
 // Wide screens take in the wall in three views; the objects phones turn to on their own
 // belong to one of them
-const WIDE_HEADING: Partial<Record<Heading, Heading>> = { table: "front", mail: "right", lockers: "right" };
+const WIDE_HEADING: Partial<Record<Heading, Heading>> = { table: "front", mail: "right", lockers: "left" };
 
 // The photo taped inside your locker door: how you look now
 function LockerPhoto({ signedIn }: { signedIn: boolean }) {
