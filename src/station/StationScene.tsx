@@ -41,6 +41,7 @@ import {
   TextureLoader,
   VideoTexture,
   Vector2,
+  Plane,
   Vector3,
   WebGLRenderer,
 } from "three";
@@ -842,13 +843,14 @@ function buildLockers() {
       const mine = col === 0 && row === 1;
       group.add(box(LOCKER_W - 0.02, LOCKER_H, 0.46, mine ? dark : steel, x, y, 0));
       if (mine) {
-        // The door swung open on its hinge
+        // The door, on its hinge: shut, and swung open while you're at your locker
         const door = new Group();
         door.position.set(x - LOCKER_W / 2 + 0.01, y, 0.24);
-        door.rotation.y = -1.25;
         door.add(box(LOCKER_W - 0.03, LOCKER_H - 0.02, 0.02, steel, (LOCKER_W - 0.03) / 2, 0, 0));
         door.add(plane(0.12, 0.08, standard("#ffffff", 0.6, plateTexture(number, "#1d2a3a", "#d9c58a")), (LOCKER_W - 0.03) / 2, 0.3, 0.012));
+        [0.3, 0.26, 0.22].forEach((dy) => door.add(box(0.26, 0.012, 0.01, dark, (LOCKER_W - 0.03) / 2, dy, 0.012)));
         group.add(door);
+        group.userData.myDoor = door;
         // A coat on a hanger, dimly
         group.add(box(0.28, 0.02, 0.02, standard("#6b5a3a"), x, y + 0.33, -0.05));
         group.add(box(0.3, 0.5, 0.06, standard("#2a2238", 1), x, y + 0.05, -0.1));
@@ -1278,9 +1280,27 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // The canopy's lamps, all alike: a dim glass behind a wire guard
     const lampGuard = standard("#1c1a17", 0.5);
     const lampGlass = new MeshBasicMaterial({ color: "#9a8158" });
-    const ceilingLamp = (x: number, z: number) => {
-      scene.add(box(0.3, 0.1, 0.3, lampGlass, x, 3.95, z));
+    // Each lamp: its glass (its own, to dim), its light, and a generous box to tap it by.
+    // Tapped, it stutters off and on for a moment.
+    const lamps: { light: PointLight; glass: MeshBasicMaterial; base: number; tappedAt: number; seed: number; hit: Mesh }[] = [];
+    const ceilingLamp = (x: number, z: number, light: PointLight) => {
+      const glass = lampGlass.clone();
+      scene.add(box(0.3, 0.1, 0.3, glass, x, 3.95, z));
       [-0.1, 0, 0.1].forEach((dx) => scene.add(box(0.012, 0.11, 0.32, lampGuard, x + dx, 3.93, z)));
+      const hit = hitBox(0.9, 0.6, 0.9, 3.85);
+      hit.position.x = x;
+      hit.position.z = z;
+      scene.add(hit);
+      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit });
+    };
+    const LAMP_FLICKER = 1.1; // s
+    // How lit a tapped lamp is, t seconds after the tap: mostly out, catching now and then
+    const flickerAt = (t: number, seed: number) => {
+      if (t >= LAMP_FLICKER) return 1;
+      if (t > 0.85) return 0.5 + 0.5 * ((t - 0.85) / (LAMP_FLICKER - 0.85)); // coming back up
+      const step = Math.floor(t * 16);
+      const roll = Math.abs(Math.sin(step * 12.9898 + seed) * 43758.5453) % 1;
+      return roll > 0.62 ? 0.85 : roll > 0.4 ? 0.3 : 0.03;
     };
     const overhead = new PointLight("#ffb060", 11, 7, 2); // the lamp over the visitor, which flickers
     // Centred over where you stand, a little way towards the board so it's in view from a phone
@@ -1288,7 +1308,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lampZ = -0.3;
     overhead.position.set(lampX, 3.5, lampZ);
     scene.add(overhead);
-    ceilingLamp(lampX, lampZ);
+    ceilingLamp(lampX, lampZ, overhead);
 
     // Underfoot: a soft pool of the lamp's light, a few dead leaves blown in off the
     // tracks, and a dropped ticket
@@ -1308,11 +1328,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       ctx.stroke();
     });
     const leafMaterial = new MeshStandardMaterial({ map: leafTexture, transparent: true, alphaTest: 0.3, roughness: 1 });
-    [[-1.1, 0.9, 0.4], [-0.85, 1.15, 2.1], [0.7, 0.2, 1.2], [1.3, 1.35, 5.3], [0.2, -0.9, 3.6]].forEach(([dx, z, turn]) => {
-      const leaf = plane(0.16, 0.16, leafMaterial, lampX + dx, 0.015, z);
-      leaf.rotation.set(-Math.PI / 2, 0, turn);
-      scene.add(leaf);
-    });
+    // (Litter: see below, once the stub and the scraps are painted too)
     const stubTexture = paint(64, 32, (ctx, w, h) => {
       ctx.fillStyle = "#cdbf9a";
       ctx.fillRect(0, 0, w, h);
@@ -1328,9 +1344,125 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       ctx.font = "700 9px Georgia, serif";
       ctx.fillText("ADMIT ONE", 22, 20);
     });
-    const stub = plane(0.16, 0.08, standard("#ffffff", 1, stubTexture), lampX - 0.45, 0.016, 0.45);
-    stub.rotation.set(-Math.PI / 2, 0, 0.5);
-    scene.add(stub);
+    const stubMaterial = standard("#ffffff", 1, stubTexture);
+    // A torn scrap of newspaper, and a folded timetable
+    const scrapTexture = paint(64, 64, (ctx, w, h) => {
+      ctx.fillStyle = "#d8cfb8";
+      ctx.beginPath();
+      ctx.moveTo(4, 6);
+      ctx.lineTo(58, 2);
+      ctx.lineTo(62, 40);
+      ctx.lineTo(50, 60);
+      ctx.lineTo(8, 58);
+      ctx.lineTo(2, 30);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "rgba(40,30,20,0.55)";
+      for (let y = 12; y < h - 10; y += 6) ctx.fillRect(10, y, w - 22 - ((y * 7) % 11), 2);
+    });
+    const scrapMaterial = new MeshStandardMaterial({ map: scrapTexture, transparent: true, alphaTest: 0.3, roughness: 1 });
+    // The litter: a handful of leaves, a couple of stubs and scraps, strewn somewhere new each
+    // visit over the open platform. Tapped, one skips away; swept by a finger, it's pushed along.
+    const litter: { mesh: Mesh; vx: number; vz: number; spin: number; y: number; vy: number; rest: number }[] = [];
+    const strew = (width: number, depth: number, material: Material, count: number) => {
+      for (let i = 0; i < count; i += 1) {
+        const size = 0.8 + Math.random() * 0.45;
+        const rest = 0.013 + litter.length * 0.0004; // a hair apart, so none flicker through another
+        const mesh = plane(width * size, depth * size, material, -5.6 + Math.random() * 9.5, rest, 0.1 + Math.random() * 2.8);
+        mesh.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
+        scene.add(mesh);
+        litter.push({ mesh, vx: 0, vz: 0, spin: 0, y: 0, vy: 0, rest });
+      }
+    };
+    strew(0.16, 0.16, leafMaterial, 9);
+    strew(0.16, 0.08, stubMaterial, 2);
+    strew(0.22, 0.22, scrapMaterial, 2);
+    const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
+    const floorAt = (clientX: number, clientY: number) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      return raycaster.ray.intersectPlane(floorPlane, new Vector3());
+    };
+    // A tap on (or right by) a piece: it skips off, away from you, turning as it goes
+    const flickLitter = (clientX: number, clientY: number) => {
+      const at = floorAt(clientX, clientY);
+      if (!at) return false;
+      let nearest: (typeof litter)[number] | null = null;
+      let best = 0.32;
+      litter.forEach((piece) => {
+        const d = Math.hypot(piece.mesh.position.x - at.x, piece.mesh.position.z - at.z);
+        if (d < best) {
+          best = d;
+          nearest = piece;
+        }
+      });
+      if (!nearest) return false;
+      const piece = nearest as (typeof litter)[number];
+      const away = new Vector3(piece.mesh.position.x - camera.position.x, 0, piece.mesh.position.z - camera.position.z).normalize();
+      const angle = Math.atan2(away.z, away.x) + (Math.random() - 0.5) * 1.2;
+      const speed = 1.4 + Math.random() * 1.2;
+      piece.vx = Math.cos(angle) * speed;
+      piece.vz = Math.sin(angle) * speed;
+      piece.vy = 1.1 + Math.random() * 0.8;
+      piece.spin = (Math.random() - 0.5) * 18;
+      return true;
+    };
+    // A finger dragged across the floor pushes along whatever it passes over
+    let sweptFrom: { at: Vector3; t: number } | null = null;
+    const sweepLitter = (clientX: number, clientY: number) => {
+      const at = floorAt(clientX, clientY);
+      const now = performance.now() / 1000;
+      if (!at) return;
+      if (sweptFrom && now > sweptFrom.t) {
+        const dt = Math.max(now - sweptFrom.t, 1 / 120);
+        const vx = (at.x - sweptFrom.at.x) / dt;
+        const vz = (at.z - sweptFrom.at.z) / dt;
+        const fast = Math.hypot(vx, vz);
+        const scale = fast > 5 ? 5 / fast : 1;
+        litter.forEach((piece) => {
+          if (Math.hypot(piece.mesh.position.x - at.x, piece.mesh.position.z - at.z) > 0.3) return;
+          piece.vx = vx * scale * 0.8;
+          piece.vz = vz * scale * 0.8;
+          if (piece.y <= 0) piece.vy = 0.4 + Math.random() * 0.4;
+          piece.spin += (Math.random() - 0.5) * 10;
+        });
+      }
+      sweptFrom = { at, t: now };
+    };
+    let lastLitter = performance.now() / 1000;
+    const moveLitter = () => {
+      const now = performance.now() / 1000;
+      const dt = Math.min(now - lastLitter, 0.05);
+      lastLitter = now;
+      litter.forEach((piece) => {
+        if (!piece.vx && !piece.vz && !piece.vy && piece.y <= 0 && !piece.spin) return;
+        const p = piece.mesh.position;
+        p.x += piece.vx * dt;
+        p.z += piece.vz * dt;
+        // Airborne a moment, then sliding to a stop on the slabs
+        piece.vy -= 9 * dt;
+        piece.y = Math.max(0, piece.y + piece.vy * dt);
+        if (piece.y === 0) piece.vy = 0;
+        const drag = Math.exp(-(piece.y > 0 ? 1.2 : 4.5) * dt);
+        piece.vx *= drag;
+        piece.vz *= drag;
+        piece.spin *= Math.exp(-3 * dt);
+        piece.mesh.rotation.z += piece.spin * dt;
+        // Kept on the open platform: off the walls and the edge
+        if (p.x < END_X + 0.3 || p.x > SIDE_X - 0.3) {
+          p.x = Math.min(Math.max(p.x, END_X + 0.3), SIDE_X - 0.3);
+          piece.vx *= -0.4;
+        }
+        if (p.z < WALL_Z + 0.35 || p.z > EDGE_Z - 0.4) {
+          p.z = Math.min(Math.max(p.z, WALL_Z + 0.35), EDGE_Z - 0.4);
+          piece.vz *= -0.4;
+        }
+        p.y = piece.rest + piece.y;
+        if (Math.hypot(piece.vx, piece.vz) < 0.01) piece.vx = piece.vz = 0;
+        if (Math.abs(piece.spin) < 0.05) piece.spin = 0;
+      });
+    };
 
     // Overhead: cobwebs in the corners where the canopy's beams meet the wall
     // Each web its own: its own number of spokes, spacing and sag, and a torn edge
@@ -1371,7 +1503,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const lamp = new PointLight("#ffb060", 18, 9, 2);
       lamp.position.set(x, 3.6, -0.6);
       scene.add(lamp);
-      ceilingLamp(x, -0.6);
+      ceilingLamp(x, -0.6, lamp);
     });
 
     // Platform, building, canopy
@@ -1889,10 +2021,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const pick = (clientX: number, clientY: number) => pickPart(clientX, clientY)?.stop ?? null;
     const onPointerDown = (event: PointerEvent) => {
       if (arrival.active) return;
+      sweptFrom = null;
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
       canvas.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (down) sweepLitter(event.clientX, event.clientY);
       if (event.pointerType !== "mouse" || down) return;
       const rect = canvas.getBoundingClientRect();
       look.toYaw = -(((event.clientX - rect.left) / rect.width) * 2 - 1) * 0.06;
@@ -1915,6 +2049,22 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           turn(aimed);
         }
       } else if (Math.hypot(dx, dy) < 10 && performance.now() - down.t < 500) {
+        const rect = canvas.getBoundingClientRect();
+        pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+        raycaster.setFromCamera(pointer, camera);
+        if (flickLitter(event.clientX, event.clientY)) {
+          down = null;
+          return;
+        }
+        raycaster.setFromCamera(pointer, camera);
+        const lampHit = raycaster.intersectObjects(lamps.map((lamp) => lamp.hit), false)[0];
+        const lamp = lampHit && lamps.find((each) => each.hit === lampHit.object);
+        if (lamp) {
+          lamp.tappedAt = performance.now() / 1000;
+          lamp.seed = Math.random() * 100;
+          down = null;
+          return;
+        }
         const hit = pickPart(event.clientX, event.clientY);        if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
         else if (!hit && current) (emptyTapped ?? (() => select(null)))();
@@ -1950,6 +2100,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         restingDrawn = true;
       } else restingDrawn = false;
       arcadeObject.visible = !latest.current.hideArcade;
+      // Your locker's door opens as you get to it, and shuts behind you
+      const myDoor = lockers.userData.myDoor as Group;
+      const doorTo = latest.current.at === "lockers" ? -1.25 : 0;
+      if (Math.abs(myDoor.rotation.y - doorTo) > 0.001) myDoor.rotation.y += (doorTo - myDoor.rotation.y) * (reduced ? 1 : 0.08);
       // Ready once the cabinet's in (the last thing to load); this frame draws it
       if (!reported && arcadeObject.userData.cabinet) {
         reported = true;
@@ -2015,6 +2169,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       look.yaw += (look.toYaw - look.yaw) * 0.06;
       look.pitch += (look.toPitch - look.pitch) * 0.06;
       updateArrival(performance.now() / 1000);
+      moveLitter();
       const sway = reduced ? 0 : 1;
       camera.position.set(cam.x, cam.y + Math.sin(t * 0.9) * 0.01 * sway, cam.z);
       camera.rotation.set(cam.pitch + look.pitch + Math.sin(t * 0.5) * 0.004 * sway, cam.yaw + look.yaw + Math.sin(t * 0.37) * 0.006 * sway, 0);
@@ -2028,6 +2183,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
+      // Tapped lamps stutter
+      const nowSec = performance.now() / 1000;
+      lamps.forEach((lamp) => {
+        const f = flickerAt(nowSec - lamp.tappedAt, lamp.seed);
+        const base = lamp.light === overhead ? overhead.intensity : lamp.base;
+        lamp.light.intensity = base * f;
+        lamp.glass.color.copy(lampGlass.color).multiplyScalar(0.25 + 0.75 * f);
+      });
       const current = latest.current.at;
       objects.forEach((o) => {
         const lamp = o.userData.lamp as PointLight | undefined;
