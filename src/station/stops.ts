@@ -33,7 +33,7 @@ export const FOLD: Partial<Record<Heading, Heading>> = { table: "front", mail: "
 export const HUB = {
   pos: [-0.9, 1.6, 0.95] as [number, number, number],
   yaw: { front: 0, table: -0.6, mail: -0.9, right: -1.1, back: Math.PI, lockers: 0.9, left: 0.9 } as Record<Heading, number>,
-  pitch: { front: 0.05, table: 0.02, mail: 0.02, right: 0.08, back: -0.06, lockers: 0.02, left: 0.04 } as Record<Heading, number>,
+  pitch: { front: 0.05, table: 0.02, mail: 0.02, right: 0.08, back: 0.04, lockers: 0.02, left: 0.04 } as Record<Heading, number>,
 };
 
 // `aim` is where a view looks (to take in a stretch of wall), on any screen

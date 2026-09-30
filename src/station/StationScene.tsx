@@ -1022,9 +1022,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // An arcade along the track side holding up the canopy: stone columns, and round
     // arches between them
     const stone = standard("#5d544d", 0.95);
-    const bay = 3.0;
-    const archR = 1.3; // the arch's inner radius
-    const spring = 4.04 - archR - 0.12; // where each arch springs from its columns
+    // From a column in the corner by the railing, bays spaced so the view behind you
+    // looks out through the middle of one
+    const firstCol = END_X + 0.2;
+    const bay = (HUB.pos[0] - firstCol) / 2.5;
+    const archR = bay / 2 - 0.18; // the arch's inner radius
+    const spring = 2.0; // where each arch springs from its columns; the wall runs on up above
     const archShape = new Shape();
     archShape.moveTo(-bay / 2, 0);
     archShape.lineTo(-archR, 0);
@@ -1035,8 +1038,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     archShape.closePath();
     const archGeometry = new ExtrudeGeometry(archShape, { depth: 0.28, bevelEnabled: false, curveSegments: 16 });
     const colZ = EDGE_Z - 0.2;
-    // Spaced so the platform view behind you looks out through the middle of an arch
-    for (let x = HUB.pos[0] - bay * 1.5; x <= 30; x += bay) {
+    for (let x = firstCol; x <= 30; x += bay) {
       scene.add(box(0.36, spring, 0.36, stone, x, spring / 2, colZ));
       scene.add(box(0.46, 0.1, 0.46, stone, x, spring - 0.05, colZ)); // a capital
       if (x + bay <= 30.5) {
@@ -1220,8 +1222,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (!stopId) {
         const { focus, aim } = VIEWS[facing];
         const [x, y, z] = HUB.pos;
-        // Phones stand further back, to take in as much as a wide screen does
-        const hubZ = pull > 1 ? EDGE_Z - 0.5 : z;
+        // Phones stand further back, to take in as much as a wide screen does; looking out
+        // over the tracks, you step back from the arcade so its arches frame the view
+        const hubZ = facing === "back" ? (pull > 1 ? -1.3 : -0.1) : pull > 1 ? EDGE_Z - 0.5 : z;
         const point = aim ?? (focus ? STOPS[focus].target : null);
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
