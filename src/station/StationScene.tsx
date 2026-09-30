@@ -376,7 +376,6 @@ const FLYER_W = 0.4;
 const FLYER_H = 0.52;
 
 // Your left-luggage locker, in the lockers' own space: top row, middle
-const MY_LOCKER: [number, number] = [0, 1.58];
 
 // Surfaces: HTML laid onto objects in 3D (CSS3D) so their text is crisp. `at` is local to
 // the stop's object; px is the HTML's size, which is scaled to w metres across.
@@ -389,7 +388,7 @@ type SurfaceSpec = {
   lean?: number;
   tilt?: number;
   lamplit?: boolean; // dimmed to the lamps; the departure board glows on its own
-  onlyAt?: boolean; // shown only when standing at its object (where nothing can be in front of it)
+  hiddenAt?: StopId[]; // left to its painted stand-in from here (something stands in front of it)
 };
 const SURFACES: SurfaceSpec[] = [
   ...PAPER_SPOTS.map(([x, y, tilt, w, h], i): SurfaceSpec => ({
@@ -401,9 +400,8 @@ const SURFACES: SurfaceSpec[] = [
     tilt,
     lamplit: true,
   })),
-  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435] },
+  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], hiddenAt: ["arcade"] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
-  { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true, onlyAt: true },
 ];
 
 function buildBulletin() {
@@ -1715,7 +1713,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         toCamera.subVectors(camera.position, surfaceCentre).normalize();
         object.getWorldDirection(surfaceNormal);
         object.visible =
-          surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35 && (!spec.onlyAt || latest.current.at === spec.stop);
+          surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35 &&
+          !(latest.current.at && spec.hiddenAt?.includes(latest.current.at));
       });
       surfaceRenderer.render(scene, camera);
     };

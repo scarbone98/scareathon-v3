@@ -8,14 +8,13 @@ import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
-import { AvatarView } from "../components/avatar/AvatarView";
 import { eventState, useContentLoop, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
 import { KioskWindow } from "./things/Kiosk.tsx";
-import { Letters, Register, Shop, Wardrobe, useAvatarLook } from "./things/Belongings.tsx";
+import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
 import { STATION_FONTS, sans } from "./style/theme.ts";
@@ -118,21 +117,6 @@ type Held =
   | { kind: "letters" }
   | { kind: "register" };
 
-
-// The photo taped inside your locker door: how you look now
-function LockerPhoto({ signedIn }: { signedIn: boolean }) {
-  const look = useAvatarLook(signedIn);
-  return (
-    <div className="flex h-full w-full flex-col bg-[#f4efe2] p-2 shadow-[2px_3px_0_rgba(0,0,0,0.5)]">
-      <div className="flex flex-1 items-end justify-center overflow-hidden bg-gradient-to-b from-[#2a2238] to-[#0b1017]">
-        {signedIn ? <AvatarView look={look} height={180} /> : <span className="mb-8 text-sm italic text-[#f2ead2]/50">empty</span>}
-      </div>
-      <p className="pt-1 text-center text-[13px] italic text-[#2a1d14]" style={{ fontFamily: "Georgia, serif" }}>
-        {signedIn ? "me, lately" : "No. 13"}
-      </p>
-    </div>
-  );
-}
 
 export default function StationPage() {
   const [params, setParams] = useSearchParams();
@@ -271,7 +255,6 @@ export default function StationPage() {
 
   const surfaces: Record<string, ReactNode> = {
     departures: <DepartureBoard signedIn={signedIn} goTo={goTo} />,
-    "locker-photo": <LockerPhoto signedIn={signedIn} />,
   };
   papers.forEach(
     (paper, i) =>
