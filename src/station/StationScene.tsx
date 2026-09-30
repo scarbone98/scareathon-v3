@@ -81,6 +81,7 @@ const TRACK_Z = EDGE_Z + 2.1; // the middle of the track
 const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
 const TICKET_Z = 0; // the ticket counter is let into the middle of it
+const SIGN_Y = 3.38; // the line the signs along the wall hang on, level with the station's name
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
 const PLATFORM_MID = (30 + END_X) / 2;
@@ -340,18 +341,18 @@ const IDLE_NOTICES = [
 
 // Where each of the six papers hangs on the board (local x, y, tilt), and its size
 // Two columns of three, reading across: a tall board, the shape of a phone's screen
-const PAPER_SPOTS: [number, number, number][] = [
-  [-0.49, 0.92, -0.02],
-  [0.49, 0.93, 0.015],
-  [-0.49, 0.01, 0.02],
-  [0.49, 0.0, -0.015],
-  [-0.49, -0.91, -0.01],
-  [0.49, -0.92, 0.02],
+// The papers on the board (local x, y, tilt, width, height): the welcome, a long notice
+// across the top, and four below it
+const PAPER_SPOTS: [number, number, number, number, number][] = [
+  [0, 0.96, -0.006, 1.86, 0.64],
+  [-0.49, 0.15, 0.02, 0.86, 0.78],
+  [0.49, 0.14, -0.015, 0.86, 0.78],
+  [-0.49, -0.8, -0.01, 0.86, 0.78],
+  [0.49, -0.81, 0.02, 0.86, 0.78],
 ];
 // Where the board hangs: its centre, just off the wall
 const BOARD_POS = new Vector3(-0.9, 1.72, -2.15);
-const PAPER_W = 0.86;
-const PAPER_H = 0.78;
+const PAPER_PX_PER_M = 400; // the papers' HTML, in px per metre of paper
 // The flyers on the events table, leaning in their stands (local x, y, z, lean back)
 // The flyers in their stand, top to bottom (local x, y, z, lean back)
 const FLYER_SPOTS: [number, number, number, number][] = [
@@ -378,7 +379,15 @@ type SurfaceSpec = {
   lamplit?: boolean; // dimmed to the lamps; the departure board glows on its own
 };
 const SURFACES: SurfaceSpec[] = [
-  ...PAPER_SPOTS.map(([x, y, tilt], i): SurfaceSpec => ({ id: `paper-${i}`, stop: "bulletin", at: [x, y, 0.07], w: PAPER_W, px: [344, 312], tilt, lamplit: true })),
+  ...PAPER_SPOTS.map(([x, y, tilt, w, h], i): SurfaceSpec => ({
+    id: `paper-${i}`,
+    stop: "bulletin",
+    at: [x, y, 0.07],
+    w,
+    px: [Math.round(w * PAPER_PX_PER_M), Math.round(h * PAPER_PX_PER_M)],
+    tilt,
+    lamplit: true,
+  })),
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 330] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
   { id: "locker-photo", stop: "lockers", at: [MY_LOCKER[0] + 0.03, MY_LOCKER[1] + 0.04, -0.06], w: 0.3, px: [176, 232], tilt: 0.05, lamplit: true },
@@ -390,10 +399,10 @@ function buildBulletin() {
   group.add(box(2.12, 2.86, 0.08, standard("#3a2a1c")));
   group.add(plane(1.98, 2.72, standard("#ffffff", 1, corkTexture()), 0, 0, 0.045));
   // Painted papers: the picture from afar, and a stand-in whenever the HTML can't line up
-  group.userData.notes = PAPER_SPOTS.map(([x, y, tilt], i) => {
+  group.userData.notes = PAPER_SPOTS.map(([x, y, tilt, w, h], i) => {
     const [kind, title] = IDLE_NOTICES[i];
     const texture = paint(176, 160, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, PAPERS[i]));
-    const note = plane(PAPER_W, PAPER_H, standard("#ffffff", 1, texture), x, y, 0.06);
+    const note = plane(w, h, standard("#ffffff", 1, texture), x, y, 0.06);
     note.userData.part = `paper-${i}`;
     note.rotation.z = tilt;
     group.add(note);
@@ -449,10 +458,10 @@ function buildEvents() {
   group.add(box(1.46, 0.05, 0.08, wood, 0, 0.99, 0.2));
   [-0.68, 0.68].forEach((x) => group.add(box(0.06, 1.6, 0.06, wood, x, 0.8, 0)));
   group.add(box(1.4, 0.04, 0.04, wood, 0, 0.35, 0));
-  group.add(plane(0.6, 0.14, standard("#ffffff", 1, signTexture("EVENTS", "#2a1d14", "#efe3c8", "700 84px Georgia, serif")), 0, 1.72, -0.04));
+
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
-    ["TONIGHT", "#2a2f3a", "#e6e2d8"],
+    ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["THE RULES", "#efe3c8", "#2a1d14"],
     ["OCTOBER", "#1d2a3a", "#f2ead2"],
   ];
@@ -478,6 +487,7 @@ function buildEvents() {
   const poster = plane(0.7, 1.02, standard("#ffffff", 0.8, posterTexture), 0, 2.55, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
+  group.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif")), 0, SIGN_Y, posterZ + 0.02));
   addLamp(group, 0, 2.4, 1.0);
   group.add(hitBox(1.55, 1.7, 0.5, 0.85));
   // Tapping the poster up close picks it up (see `part` in pick)
@@ -517,7 +527,7 @@ function buildArcade() {
   );
   // Its sign on the wall above
   // Its sign on the wall high above, over the scoreboard
-  group.add(plane(1.0, 0.25, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, 3.88, WALL_Z + 0.03 - group.position.z));
+  group.add(plane(0.84, 0.21, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, SIGN_Y, WALL_Z + 0.03 - group.position.z));
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
@@ -527,8 +537,8 @@ function buildArcade() {
 function buildDepartures() {
   const group = new Group();
   // On the wall over the arcade, under its sign; its face is HTML laid over this (SURFACES)
-  group.position.set(-3.1, 2.65, WALL_Z + 0.08);
-  group.scale.setScalar(0.78);
+  group.position.set(-3.1, 2.5, WALL_Z + 0.08);
+  group.scale.setScalar(0.66);
   group.add(box(2.65, 1.25, 0.1, standard("#15181f")));
   const face = paint(750, 330, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
   const faceMesh = plane(2.5, 1.1, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
@@ -807,15 +817,52 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     });
 
     // Platform, building, canopy
-    const floorTex = speckle("#4a4a4c", ["#3c3c3e", "#57575a", "#444"], 1400, 2);
+    // Worn stone slabs, a little uneven in tone, with dark joints
+    const floorTex = paint(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = "#1c1b1a";
+      ctx.fillRect(0, 0, w, h);
+      for (let r = 0; r < 2; r += 1)
+        for (let c = 0; c < 2; c += 1) {
+          const tone = 70 + Math.floor(Math.random() * 22);
+          ctx.fillStyle = `rgb(${tone}, ${tone - 2}, ${tone - 6})`;
+          ctx.fillRect(c * 128 + 3, r * 128 + 3, 122, 122);
+        }
+      for (let i = 0; i < 2600; i += 1) {
+        const v = 50 + Math.random() * 60;
+        ctx.fillStyle = `rgba(${v}, ${v - 3}, ${v - 8}, 0.5)`;
+        ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+      }
+      ctx.strokeStyle = "rgba(20,18,16,0.6)";
+      ctx.beginPath();
+      ctx.moveTo(40, 150);
+      ctx.lineTo(70, 170);
+      ctx.lineTo(96, 166);
+      ctx.stroke();
+    });
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
-    floorTex.repeat.set(30, 2);
-    scene.add(box(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, standard("#555", 0.95, floorTex), PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
+    floorTex.repeat.set(PLATFORM_W / 1.4, (EDGE_Z - WALL_Z) / 1.4);
+    scene.add(box(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, standard("#bdb5aa", 0.95, floorTex), PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
     scene.add(box(PLATFORM_W, 5, 0.2, standard("#8a7f78", 1, brickTexture()), PLATFORM_MID, 2.5, WALL_Z - 0.1));
     const sideBricks = brickTexture();
     sideBricks.repeat.set(2, 3);
     scene.add(box(0.2, 5, 4.4, standard("#8a7f78", 1, sideBricks), SIDE_X + 0.1, 2.5, WALL_Z + 2.2));
-    scene.add(box(PLATFORM_W, 0.12, EDGE_Z - WALL_Z + 0.8, standard("#1c1f26"), PLATFORM_MID, 4.1, (EDGE_Z + WALL_Z) / 2 + 0.4));
+    // The canopy's underside: painted boards on beams
+    const boardsTex = paint(256, 256, (ctx, w, h) => {
+      for (let i = 0; i < 8; i += 1) {
+        const tone = 44 + Math.floor(Math.random() * 14);
+        ctx.fillStyle = `rgb(${tone}, ${tone + 4}, ${tone + 10})`;
+        ctx.fillRect(0, i * 32, w, 30);
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        for (let k = 0; k < 20; k += 1) ctx.fillRect(Math.random() * w, i * 32 + Math.random() * 30, 20 + Math.random() * 40, 1);
+      }
+      ctx.fillStyle = "#101216";
+      for (let i = 0; i < 8; i += 1) ctx.fillRect(0, i * 32 + 30, w, 2);
+      ctx.fillStyle = "#15171c";
+      ctx.fillRect(0, 0, 14, h);
+    });
+    boardsTex.wrapS = boardsTex.wrapT = RepeatWrapping;
+    boardsTex.repeat.set(PLATFORM_W / 2.5, 2);
+    scene.add(box(PLATFORM_W, 0.12, EDGE_Z - WALL_Z + 0.8, standard("#b8bcc6", 0.9, boardsTex), PLATFORM_MID, 4.1, (EDGE_Z + WALL_Z) / 2 + 0.4));
 
     // The end of the platform: a railing, a bench and a lamp, and the night beyond
     const iron = standard("#1a1d22", 0.6);
@@ -1008,11 +1055,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       const zoomed = stopId === "bulletin" ? latest.current.zoom : null;
       if (zoomed !== null && PAPER_SPOTS[zoomed]) {
-        const [x, y] = PAPER_SPOTS[zoomed];
+        const [x, y, , paperW, paperH] = PAPER_SPOTS[zoomed];
         const paper = new Vector3(BOARD_POS.x + x, BOARD_POS.y + y, BOARD_POS.z + 0.07);
         const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
         const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
-        const distance = Math.max((PAPER_W * 1.08) / 2 / Math.tan(halfWidth), (PAPER_H * 1.12) / 2 / Math.tan(halfHeight));
+        const distance = Math.max((paperW * 1.08) / 2 / Math.tan(halfWidth), (paperH * 1.12) / 2 / Math.tan(halfHeight));
         return { x: paper.x, y: paper.y, z: paper.z + distance, yaw: 0, pitch: 0 };
       }
       const stop = STOPS[stopId];

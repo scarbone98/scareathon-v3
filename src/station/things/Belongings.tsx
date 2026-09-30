@@ -45,10 +45,10 @@ function TicketHoldersOnly({ what, goTo, dark = true }: { what: string; goTo: Go
   return (
     <div className={`py-4 text-center ${dark ? "text-stone-300" : "text-[#2a1d14]"}`}>
       <p className="text-lg" style={serif}>
-        {what} are for ticket holders.
+        {what} are for passengers.
       </p>
       <button type="button" onClick={() => goTo("tickets")} className={`${stubButton} mt-3`}>
-        Get a ticket at the counter
+        Sign in at the counter
       </button>
     </div>
   );
@@ -68,7 +68,7 @@ function Mirror({ look, eyebrow, note }: { look: AvatarLook | null; eyebrow: str
           {summary?.username ?? "…"}
         </p>
         <p className="text-sm text-amber-300">
-          {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} coins` : "…"}
+          {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
           {note}
         </p>
       </div>

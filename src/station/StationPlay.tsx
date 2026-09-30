@@ -35,7 +35,7 @@ export default function StationPlay({ machine, onClose, onSignIn }: Props) {
           className="fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,30rem)] -translate-x-1/2 items-center gap-3 rounded-[3px] bg-[#1d2a3a] px-4 py-3 text-sm text-[#f2ead2] shadow-2xl ring-1 ring-inset ring-[#f2ead2]/60"
         >
           <span className="flex-1">
-            Nice run! <strong className="text-amber-300">{guestScore.score.toLocaleString()}</strong> points. Get a ticket to save your scores and earn coins.
+            Nice run! <strong className="text-amber-300">{guestScore.score.toLocaleString()}</strong> points. Sign in to save your scores and earn coins.
           </span>
           <button type="button" onClick={onSignIn} className={stubButton}>
             Kiosk

@@ -40,7 +40,7 @@ export const VIEWS: Record<Heading, { title: string; focus: StopId | null; aim?:
   front: { title: "Wayside Station", focus: "bulletin", aim: [-0.9, 1.75, -2.2] },
   table: { title: "Flyer stand", focus: "events" },
   mail: { title: "Inbox", focus: "mail" },
-  right: { title: "Ticket counter", focus: "tickets", aim: [4.6, 1.8, -0.4] },
+  right: { title: "Ticket counter", focus: "tickets", aim: [3.1, 1.9, -1.3] },
   back: { title: "The tracks", focus: null },
   lockers: { title: "Left luggage", focus: "lockers" },
   // The bench at the end, the lockers, the arcade and the scoreboard over it
@@ -107,7 +107,7 @@ export const STOPS: Record<StopId, Stop> = {
     label: "Scoreboard",
     heading: "left",
     pos: [-3.1, 2.75, 0.3],
-    target: [-3.1, 2.65, -2.1],
+    target: [-3.1, 2.5, -2.1],
     fit: 2.8,
     fitHeight: 1.4,
   },

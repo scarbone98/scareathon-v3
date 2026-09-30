@@ -108,10 +108,10 @@ export default function DepartureBoard({ signedIn, goTo }: Props) {
           <Standings signedIn={signedIn} />
         ) : (
           <>
-            <Line>STANDINGS ......... TICKET HOLDERS ONLY</Line>
+            <Line>STANDINGS ......... SIGNED-IN PASSENGERS</Line>
             <Line dim>ARCADE ............ BOARDING ALL NIGHT</Line>
             <button type="button" onClick={() => goTo("tickets")} className={`${flap} mt-3 py-1 text-[17px] hover:text-[#ffd27a]`}>
-              ▸ GET A TICKET AT THE COUNTER
+              ▸ SIGN IN AT THE COUNTER
             </button>
           </>
         )}
@@ -132,9 +132,9 @@ export function CalendarBoard({ signedIn, goTo }: Props) {
           <Timetable signedIn={signedIn} />
         ) : (
           <>
-            <Line>THE CALENDAR IS FOR TICKET HOLDERS</Line>
+            <Line>THE CALENDAR IS FOR SIGNED-IN PASSENGERS</Line>
             <button type="button" onClick={() => goTo("tickets")} className={`${flap} mt-3 py-1 text-[17px] hover:text-[#ffd27a]`}>
-              ▸ GET A TICKET AT THE COUNTER
+              ▸ SIGN IN AT THE COUNTER
             </button>
           </>
         )}

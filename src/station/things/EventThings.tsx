@@ -65,7 +65,7 @@ function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
           </p>
           {target && <p className="mt-1 text-[15px]">{target}</p>}
           <p className="mt-1 text-[13px] opacity-75">
-            {challenge.points || 1} point{challenge.rewardCoins ? ` · ${challenge.rewardCoins.toLocaleString()} coins` : ""}
+            {challenge.points || 1} point{challenge.rewardCoins ? ` · ${challenge.rewardCoins.toLocaleString()} tickets` : ""}
             {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Completed</strong> : null}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -115,10 +115,10 @@ function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
       <>
         {heading}
         <p className="mt-2 text-lg text-[#f2ead2]" style={serif}>
-          Tonight's film is for ticket holders.
+          Tonight's film is for passengers.
         </p>
         <button type="button" className={`${stubButton} mt-3`} onClick={() => goTo("tickets")}>
-          Get a ticket
+          Sign in
         </button>
       </>
     );
@@ -145,7 +145,7 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
   const flyers: Flyer[] = [
     {
       id: "event",
-      title: "Scareathon (the poster)",
+      title: "Scareathon",
       tint: "#ff7a1a",
       ink: "#1a0d05",
       face: (
@@ -213,7 +213,10 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
       sheet: { id: "calendar", title: "The October calendar", tone: "board", body: <CalendarBoard signedIn={signedIn} goTo={goTo} /> },
     },
   ];
-  return { flyers, tonight };
+  // Tonight's film is the poster on the wall; the stand holds the rest
+  const tonightFlyer = flyers.find((flyer) => flyer.id === "tonight");
+  const ordered = tonightFlyer ? [tonightFlyer, ...flyers.filter((flyer) => flyer !== tonightFlyer)] : flyers;
+  return { flyers: ordered, tonight };
 }
 
 // A flyer standing on the table: tap it (standing at the table) to pick it up

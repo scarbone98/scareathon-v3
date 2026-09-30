@@ -5,7 +5,6 @@ import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
 import {
   challengeTarget,
-  eventState,
   formatShortDate,
   needsSignIn,
   strapiUrl,
@@ -13,7 +12,6 @@ import {
   usePosts,
   useRewardStatus,
   useSummary,
-  useTodayMovie,
   type ContentLoopItem,
 } from "../data.ts";
 import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/games";
@@ -23,7 +21,6 @@ import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
 // The station board is the home page, and its papers are the content. Each kind of paper
 // looks like what it is, so they read at a glance from across the platform:
 //   the welcome   - a railway company notice: ruled border, centred, "By order"
-//   the event     - a film poster: the picture fills it, the title over it
 //   a challenge   - an arcade handbill: the game's picture and colour, a stamp, the score
 //   a notice      - a newspaper cutting: dateline, headline, a column of text, a photo
 //   the Post      - the Scareathon Post's front page
@@ -98,44 +95,65 @@ const act = (fn: () => void) => (event: React.MouseEvent) => {
   fn();
 };
 
-// ---- The welcome: a railway company notice
+// A small ticket, and an envelope: the welcome's buttons, drawn rather than written
+function TicketIcon() {
+  return (
+    <svg viewBox="0 0 24 16" className="h-5 w-7" aria-hidden>
+      <path d="M1 3h22v3.2a1.8 1.8 0 0 0 0 3.6V13H1V9.8a1.8 1.8 0 0 0 0-3.6z" fill="#efe3c8" stroke="#efe3c8" strokeWidth="1" />
+      <path d="M8 3.5v9" stroke="#1d2a3a" strokeWidth="1.2" strokeDasharray="1.4 1.2" />
+    </svg>
+  );
+}
+function EnvelopeIcon() {
+  return (
+    <svg viewBox="0 0 24 16" className="h-5 w-7" aria-hidden>
+      <rect x="1.5" y="2" width="21" height="12" fill="#efe3c8" />
+      <path d="M2 2.5l10 7 10-7" fill="none" stroke="#1d2a3a" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+// ---- The welcome: a long railway company notice across the top of the board
 
 function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full: boolean }) {
   const { data: summary } = useSummary();
   const spotlight = useSpotlightGame();
+  const iconButton = "flex items-center gap-1.5 rounded-[2px] bg-[#1d2a3a] px-2.5 py-1.5 text-[18px] leading-none text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
   return (
-    <div className={`m-2 flex min-h-[calc(100%-1rem)] flex-col items-center border-[3px] border-double border-[#2a1d14]/70 px-4 py-3 text-center ${ink}`}>
-      <p className="text-[12px] uppercase tracking-[0.35em]" style={serif}>
-        Wayside Station
-      </p>
-      <p className="-mt-0.5 text-[10px] uppercase tracking-[0.3em] opacity-60">Passenger notice</p>
-      <p className={`mt-2 leading-none ${full ? "text-[40px]" : "text-[30px]"}`} style={serif}>
-        {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
-      </p>
-      <p className="my-1.5 text-[14px] opacity-60">⁂</p>
-      <p className={`text-[16px] leading-snug ${quiet} ${full ? "" : "line-clamp-2"}`}>
-        {signedIn
-          ? "Your ticket is in order. Coins may be spent at the counter; your inbox is in the pigeonholes."
-          : "A horror film a night through October, and an arcade all year. Tickets at the counter: save your scores, earn coins."}
-      </p>
-      <div className="mt-auto flex flex-wrap justify-center gap-2 pt-2">
-        {signedIn ? (
-          <>
-            <button type="button" className={action} onClick={act(() => goTo("tickets", "shop"))}>
-              {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} coins` : "Coins"}
+    <div className={`m-2 border-[3px] border-double border-[#2a1d14]/70 px-4 py-2.5 ${ink} ${full ? "" : "h-[calc(100%-1rem)]"}`}>
+      <div className="flex h-full items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] uppercase tracking-[0.35em]" style={serif}>
+            Wayside Station <span className="opacity-60">· passenger notice</span>
+          </p>
+          <p className={`mt-0.5 truncate leading-none ${full ? "text-[40px]" : "text-[34px]"}`} style={serif}>
+            {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
+          </p>
+          {!signedIn && (
+            <p className={`mt-1 text-[15px] leading-snug ${quiet}`}>A horror film a night through October, and an arcade all year.</p>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-col gap-1.5">
+          {signedIn ? (
+            <>
+              <button type="button" className={iconButton} aria-label="Tickets: the item shop" title="Tickets" onClick={act(() => goTo("tickets", "shop"))}>
+                <TicketIcon />
+                {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}
+              </button>
+              <button type="button" className={iconButton} aria-label="Inbox" title="Inbox" onClick={act(() => goTo("mail", "letters"))}>
+                <EnvelopeIcon />
+                {summary?.unreadCount ?? 0}
+              </button>
+            </>
+          ) : (
+            <button type="button" className={action} onClick={act(() => goTo("tickets"))}>
+              Sign in
             </button>
-            <button type="button" className={action} onClick={act(() => goTo("mail", "letters"))}>
-              {summary?.unreadCount ? `Inbox (${summary.unreadCount})` : "Inbox"}
-            </button>
-          </>
-        ) : (
-          <button type="button" className={action} onClick={act(() => goTo("tickets"))}>
-            Get a ticket
-          </button>
-        )}
+          )}
+        </div>
       </div>
       {full && spotlight && (
-        <div className="mt-4 w-full border-t border-[#2a1d14]/25 pt-3 text-left">
+        <div className="mt-3 border-t border-[#2a1d14]/25 pt-3">
           <p className="text-[12px] uppercase tracking-[0.25em] opacity-60">Tonight in the arcade</p>
           <Photo picture={spotlight.picture} moving className="mt-2 aspect-video w-full" />
           <p className="mt-2 text-[16px]">
@@ -146,46 +164,6 @@ function Welcome({ signedIn, goTo, full }: { signedIn: boolean; goTo: GoTo; full
           </p>
         </div>
       )}
-      <p className="mt-3 self-end text-[11px] italic opacity-55" style={serif}>
-        By order, the Station Master
-      </p>
-    </div>
-  );
-}
-
-// ---- The event: a film poster
-
-function Scareathon({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture: Picture }) {
-  const { isLive, daysUntil, year, day } = eventState();
-  const count = isLive ? `Night ${day} of 31` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`;
-  return (
-    <div className="relative flex h-full min-h-full flex-col bg-[#1a0f08] text-[#f2e2c2]">
-      <Photo picture={picture} className={full ? "aspect-[4/3] w-full" : "absolute inset-0"} fade="linear-gradient(to bottom, rgba(26,15,8,0.1) 30%, rgba(26,15,8,0.92) 78%)" />
-      <div className={`${full ? "" : "absolute inset-x-0 bottom-0"} px-4 pb-3 pt-2 text-center`}>
-        <p className="text-[12px] uppercase tracking-[0.4em] opacity-80">October {year}</p>
-        <p className="text-[44px] uppercase leading-[0.9] text-[#ffb070] [text-shadow:0_2px_0_#000]" style={serif}>
-          Scare-athon
-        </p>
-        <p className="mt-1 inline-block -rotate-2 border-2 border-[#ffb070] px-2 text-[14px] uppercase tracking-[0.2em] text-[#ffb070]" style={pixel}>
-          {count}
-        </p>
-        {full && (
-          <p className="mt-3 text-left text-[17px] leading-snug" style={typewriter}>
-            {isLive
-              ? "One horror film every night through Halloween. Watch along, finish the weekly challenges, and climb the Scareboard."
-              : "Starting October 1: a horror film every night through Halloween, weekly challenges, and a Scareboard for the whole month."}{" "}
-            Watch the night's film for a point, finish the week's challenge for another, and wear a costume on Halloween for one more.
-          </p>
-        )}
-        <div className="mt-2 flex flex-wrap justify-center gap-2">
-          <button type="button" className={action} onClick={act(() => goTo("events", "tonight"))}>
-            {isLive ? "Tonight's film" : "How it works"}
-          </button>
-          <button type="button" className={action} onClick={act(() => goTo("departures"))}>
-            Scareboard
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -222,7 +200,7 @@ function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem
         </div>
         <p className="mt-1 text-[13px] opacity-70">
           {item.startsAt && item.endsAt ? `${formatShortDate(item.startsAt)} – ${formatShortDate(item.endsAt)} · ` : ""}
-          {item.points || 1} point{item.rewardCoins ? ` · ${item.rewardCoins.toLocaleString()} coins` : ""}
+          {item.points || 1} point{item.rewardCoins ? ` · ${item.rewardCoins.toLocaleString()} tickets` : ""}
           {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Done</strong> : null}
         </p>
         {full && (
@@ -287,9 +265,9 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
       <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>
         {masthead}
         <Photo picture={picture} className="mt-2 h-24 w-full" />
-        <p className={`mt-2 text-[16px] leading-snug ${quiet}`}>For ticket holders. Get a ticket at the counter to read the paper.</p>
+        <p className={`mt-2 text-[16px] leading-snug ${quiet}`}>For passengers. Sign in at the counter to read the paper.</p>
         <button type="button" className={`${action} mt-2`} onClick={act(() => goTo("tickets"))}>
-          Get a ticket
+          Sign in
         </button>
       </div>
     );
@@ -360,12 +338,9 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
   const notices = items.filter((item) => item.type === "announcement").slice(0, 2);
-  const { isLive, daysUntil, year } = eventState();
   const challengeGame = useGame(challenge?.gameName);
-  const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: posts } = usePosts(signedIn);
   const postImage = strapiUrl(posts?.data?.find((post) => post.Image?.[0]?.url)?.Image?.[0]?.url);
-  const eventPicture: Picture = movie?.data?.lowResUrl ? { src: movie.data.lowResUrl } : { src: "/images/emptyTheater.jpg" };
   const postPicture: Picture = { src: postImage ?? "/images/candleskull.gif" };
 
   const papers: Paper[] = [
@@ -376,15 +351,6 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       pinned: <Welcome signedIn={signedIn} goTo={goTo} full={false} />,
       full: <Welcome signedIn={signedIn} goTo={goTo} full />,
       tint: "#efe6cf",
-    },
-    {
-      id: "scareathon",
-      kind: "EVENT",
-      title: isLive ? `SCAREATHON ${year}` : `SCAREATHON IN ${daysUntil} DAYS`,
-      pinned: <Scareathon goTo={goTo} full={false} picture={eventPicture} />,
-      full: <Scareathon goTo={goTo} full picture={eventPicture} />,
-      tint: "#1a0f08",
-      sheet: { backgroundImage: "none" },
     },
   ];
   if (challenge) {
@@ -418,7 +384,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
     full: <Post signedIn={signedIn} goTo={goTo} full picture={postPicture} />,
     tint: "#ebe4d2",
   });
-  return papers.slice(0, 6);
+  return papers.slice(0, 5);
 }
 
 // A paper as it hangs on the board. Tap it to look closer: the camera comes up to it and
@@ -435,7 +401,23 @@ export function PinnedPaper({ paper, onOpen, zoomed = false }: { paper: Paper; o
       style={{ backgroundColor: paper.tint, backgroundImage: PAPER_GRAIN, ...typewriter, ...paper.sheet }}
     >
       <span className="absolute left-1/2 top-1.5 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
-      <div className={`h-full ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`} style={{ touchAction: zoomed ? "pan-y" : undefined }}>
+      <div
+        className={`h-full ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`}
+        style={{ touchAction: zoomed ? "none" : undefined }}
+        onTouchStart={(event) => {
+          if (zoomed) (event.currentTarget as HTMLElement).dataset.touchY = String(event.touches[0].clientY);
+        }}
+        onTouchMove={(event) => {
+          if (!zoomed) return;
+          const el = event.currentTarget as HTMLElement;
+          const last = Number(el.dataset.touchY ?? event.touches[0].clientY);
+          const y = event.touches[0].clientY;
+          // The paper is drawn smaller than its HTML; scroll by the drawn distance
+          const scale = el.getBoundingClientRect().height / el.offsetHeight || 1;
+          el.scrollTop += (last - y) / scale;
+          el.dataset.touchY = String(y);
+        }}
+      >
         {zoomed ? paper.full : paper.pinned}
       </div>
     </div>

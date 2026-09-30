@@ -80,7 +80,11 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
     if (challenge?.gameName) lines.push(`CHALLENGE  ${challenge.gameName}`);
     lines.push("ARCADE  ALL NIGHT  BOARDING");
     const film = movie?.data;
-    const poster = film ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" } : { image: null, title: "Scare-athon", line: isLive ? "Showing all October" : `October 1 to 31, ${year}` };
+    const poster = film
+      ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" }
+      : isLive
+        ? { image: null, title: "Showing tonight", line: "Sign in to see what's on" }
+        : { image: null, title: "Dark tonight", line: `The first reel: October 1, ${year}` };
     return { notices, departures: lines.slice(0, 3), poster, unread };
   }, [notices, items, scoreboard, movie, isLive, daysUntil, year, unread]);
 }
@@ -243,7 +247,7 @@ export default function StationPage() {
     if (part.startsWith("flyer-")) {
       const flyer = flyers[Number(part.slice(6)) + 1];
       if (flyer) setHeld({ kind: "flyer", id: flyer.id });
-    } else if (part === "poster") setHeld({ kind: "flyer", id: "event" });
+    } else if (part === "poster") setHeld({ kind: "flyer", id: "tonight" });
     else if (part === "departures") setHeld({ kind: "departures" });
     else if (part === "window") setHeld({ kind: "window" });
     else if (part === "locker") setHeld({ kind: "wardrobe" });
@@ -392,7 +396,7 @@ export default function StationPage() {
             paused={Boolean(playing) || atCabinet}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read
-            surfacesInteractive={!compact || (at === "bulletin" && zoom !== null)}
+            surfacesInteractive={!compact || at === "bulletin"}
             cardFraction={cardItems ? CARD_FRACTION : 0}
             zoom={at === "bulletin" ? zoom : null}
             onEmptyTap={stepBack}
@@ -474,7 +478,7 @@ export default function StationPage() {
           )}
           {at === "tickets" && (
             <button type="button" onClick={() => setHeld(signedIn ? { kind: "shop" } : { kind: "window" })}>
-              {signedIn ? "The item shop" : "Get a ticket"}
+              {signedIn ? "The item shop" : "Sign in"}
             </button>
           )}
           {at === "lockers" && (

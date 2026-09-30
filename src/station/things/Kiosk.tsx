@@ -83,7 +83,7 @@ function SignInCard() {
       <p className="text-[22px] leading-tight" style={serif}>
         {isLogin ? "Show your ticket" : "Buy a ticket (it's free)"}
       </p>
-      <p className="text-[13px] opacity-70">Save scores, earn coins, dress your avatar.</p>
+      <p className="text-[13px] opacity-70">Save scores, earn tickets, dress your avatar.</p>
       <form onSubmit={submit} className="mt-2 space-y-1.5" aria-busy={busy}>
         <input className={field} type="email" autoComplete="email" placeholder="Email" aria-label="Email" required value={email} disabled={busy} onChange={(e) => { setEmail(e.target.value); setError(null); }} />
         <input
@@ -134,11 +134,11 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
         <AvatarView look={look} height={150} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="text-[11px] uppercase tracking-[0.25em] opacity-60">Ticket holder</p>
+        <p className="text-[11px] uppercase tracking-[0.25em] opacity-60">Passenger</p>
         <p className="truncate text-[26px] leading-tight" style={serif}>
           {summary?.username ?? "…"}
         </p>
-        <p className="text-[16px] font-semibold">{summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} coins` : "…"}</p>
+        <p className="text-[16px] font-semibold">{summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}</p>
         <div className="mt-auto space-y-1.5">
           <button type="button" className={`${stubButton} w-full justify-center`} onClick={onShop}>
             Item shop
