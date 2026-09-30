@@ -347,15 +347,8 @@ function addLamp(group: Group, x: number, y: number, z: number) {
 }
 
 const PAPERS = ["#f2ead2", "#e8d9a8", "#d7c9b0", "#f0c9a0", "#e6e2d8", "#cfd8c8"];
-// Shown until the real news arrives, and in the gaps if there's little of it
-const IDLE_NOTICES = [
-  ["NOTICE", "NEWS"],
-  ["NOTICE", "LOST: ONE UMBRELLA"],
-  ["NOTICE", "LAST TRAIN ??:??"],
-  ["EVENT", "SCARE-ATHON"],
-  ["NOTICE", "DO NOT WAIT HERE AFTER DARK"],
-  ["NOTICE", "FOUND: ONE KEY"],
-];
+// Painted under each paper's crisp HTML until the real news arrives: plain, unwritten notices
+const IDLE_NOTICES = Array.from({ length: 6 }, () => ["NOTICE", ""]);
 
 // Where each of the six papers hangs on the board (local x, y, tilt), and its size
 // Two columns of three, reading across: a tall board, the shape of a phone's screen
@@ -551,10 +544,23 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       let video: HTMLVideoElement | null = null;
       const screenTexture = (() => {
         if (!preview) return null;
-        video = document.createElement("video");
-        Object.assign(video, { src: preview.video, muted: true, loop: true, playsInline: true, autoplay: true });
-        video.setAttribute("playsinline", "");
-        void video.play().catch(() => undefined);
+        const clip = document.createElement("video");
+        video = clip;
+        clip.muted = true;
+        clip.defaultMuted = true;
+        clip.loop = true;
+        clip.playsInline = true;
+        clip.autoplay = true;
+        clip.preload = "auto";
+        clip.setAttribute("muted", "");
+        clip.setAttribute("playsinline", "");
+        clip.setAttribute("webkit-playsinline", "");
+        clip.src = preview.video;
+        const start = () => void clip.play().catch(() => undefined);
+        start();
+        clip.addEventListener("canplay", start, { once: true });
+        window.addEventListener("pointerdown", start, { once: true });
+        window.addEventListener("touchend", start, { once: true });
         const texture = new VideoTexture(video);
         texture.colorSpace = SRGBColorSpace;
         return texture;
@@ -949,6 +955,33 @@ function buildTickets() {
   const group = new Group();
   group.position.set(SIDE_X - 0.13, 0, TICKET_Z);
   group.rotation.y = -Math.PI / 2; // faces back along the platform, towards the visitor
+  // A worn red runner in front of the counter, its middle trodden pale
+  const mat = paint(256, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#5a1d17";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#c9a45a";
+    ctx.lineWidth = 5;
+    ctx.strokeRect(12, 12, w - 24, h - 24);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(22, 22, w - 44, h - 44);
+    const worn = ctx.createRadialGradient(w / 2, h / 2, 6, w / 2, h / 2, w * 0.42);
+    worn.addColorStop(0, "rgba(150,110,90,0.45)");
+    worn.addColorStop(1, "rgba(150,110,90,0)");
+    ctx.fillStyle = worn;
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 900; i += 1) {
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,0.18)" : "rgba(255,220,180,0.08)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    ctx.fillStyle = "#c9a45a";
+    for (let x = 4; x < w; x += 8) {
+      ctx.fillRect(x, 0, 3, 5);
+      ctx.fillRect(x, h - 5, 3, 5);
+    }
+  });
+  const rug = plane(1.9, 0.95, standard("#ffffff", 1, mat), 0, 0.012, 0.95);
+  rug.rotation.x = -Math.PI / 2;
+  group.add(rug);
   const wood = standard("#3a2a1c", 0.8);
   // The frame round the opening
   group.add(box(1.5, 0.1, 0.12, wood, 0, 2.02, 0));
