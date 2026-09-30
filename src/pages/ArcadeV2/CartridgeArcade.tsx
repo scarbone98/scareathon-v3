@@ -456,12 +456,48 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
+    // The vent held: the picture drops out to the test card, NO SIGNAL, till it's let go
+    let noSignal = false;
+    let lastNoSignalFrame = -1;
+    const endNoSignal = () => {
+      if (!noSignal) return;
+      noSignal = false;
+      lastIdleBlink = -1;
+      lastSoonFrame = -1;
+      paintWayside.invalidate();
+      if (screenMode === "video" && screenVideo?.hasPicture()) showOnScreen(screenVideo.texture);
+    };
+
     const paintScreen = (time: number) => {
       if (!screenContext) return;
       const { width, height } = screenCanvas;
       if (broken) {
         if (screenMaterial && screenMaterial.map !== screenTexture) showOnScreen(screenTexture);
         paintBroken(time, width, height);
+        return;
+      }
+      if (noSignal) {
+        if (screenMaterial && screenMaterial.map !== screenTexture) showOnScreen(screenTexture);
+        // The bars, and a NO SIGNAL box that blinks
+        const frame = Math.floor(time * 2);
+        if (frame === lastNoSignalFrame) return;
+        lastNoSignalFrame = frame;
+        paintTestCard(width, height);
+        if (frame % 2 === 0) {
+          const boxW = width * 0.5;
+          const boxH = height * 0.2;
+          screenContext.fillStyle = "#101010";
+          screenContext.fillRect((width - boxW) / 2, height * 0.33 - boxH / 2, boxW, boxH);
+          screenContext.strokeStyle = "#e8e8e8";
+          screenContext.lineWidth = 3;
+          screenContext.strokeRect((width - boxW) / 2 + 4, height * 0.33 - boxH / 2 + 4, boxW - 8, boxH - 8);
+          screenContext.fillStyle = "#e8e8e8";
+          screenContext.font = canvasFont(TERMINAL_FONT, 36);
+          screenContext.textAlign = "center";
+          screenContext.textBaseline = "middle";
+          screenContext.fillText("NO SIGNAL", width / 2, height * 0.33 + 2);
+        }
+        screenTexture.needsUpdate = true;
         return;
       }
       if (screenHeld) {
@@ -2129,7 +2165,11 @@ export default function CartridgeArcade({
       // The rig's scope and vent (the vent answers taps anywhere around its opening)
       const poked = slotRig?.poke(mesh, hit.point, performance.now() / 1000);
       if (poked) {
-        if (poked === "sparks") playPop();
+        if (poked === "sparks") {
+          playPop();
+          noSignal = true;
+          lastNoSignalFrame = -1;
+        }
         return;
       }
       const name = (mesh.material as MeshStandardMaterial).name;
@@ -2186,7 +2226,7 @@ export default function CartridgeArcade({
         return;
       }
       pokeCabinet(event.clientX, event.clientY);
-      if (screenHeld || broken) {
+      if (screenHeld || broken || noSignal) {
         // Rubbing the screen (or the machine's down), not dragging the row
         renderer.domElement.setPointerCapture(event.pointerId);
         return;
@@ -2296,6 +2336,10 @@ export default function CartridgeArcade({
         swiped = false;
         return;
       }
+      if (noSignal) {
+        endNoSignal();
+        return;
+      }
       // A long press on the screen was for the static; don't start a game off it
       if (releaseScreen() > 0.3 || broken) return;
       const released = press;
@@ -2327,6 +2371,7 @@ export default function CartridgeArcade({
       spin = null;
       cancelHold();
       releaseScreen();
+      endNoSignal();
     });
     renderer.domElement.addEventListener("wheel", onWheel, { passive: true });
 
