@@ -74,7 +74,13 @@ type Props = {
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
   arcadeGames?: MachineData[]; // the arcade's cartridges, so this cabinet's row matches its
-  onReady?: () => void; // the station's drawn, cabinet and all (the train's doors can open)
+  onReady?: () => void; // the station's drawn, cabinet and all
+  // Coming in by train (read once, on the way in): it pulls in with you aboard, stops, opens
+  // its doors once the page says so, and you step off onto the platform
+  arrive?: boolean;
+  doorsMayOpen?: boolean; // the page has done its heavy lifting (the arcade) while you wait
+  onTrainStopped?: () => void;
+  onArrived?: () => void; // on the platform: the station's yours
 
   previewPlaying?: boolean; // the cabinet is in view; its preview is paused otherwise
   // What's on each surface (see SURFACES), drawn crisply over it; usable when standing at its object
@@ -1122,6 +1128,90 @@ function buildTickets() {
   return group;
 }
 
+// The carriage you arrive in: a lit shell of thin walls (so it reads from inside and out),
+// its doors in the middle of the platform side, with a dark carriage coupled either end.
+// Its own x is 0 at the doors.
+const CAR_LEN = 12;
+const CAR_NEAR = EDGE_Z + 0.3; // its platform-side wall
+const CAR_FAR = TRACK_Z + 1.35;
+const CAR_H = 2.4;
+const DOOR_W = 1.3;
+const DOOR_H = 2.1;
+function buildArrivalCar() {
+  const car = new Group();
+  const steel = standard("#2b3038", 0.6);
+  const inside = standard("#46473f", 0.85);
+  const trim = standard("#8b8f94", 0.4);
+  const glass = new MeshBasicMaterial({ color: "#9fb4c8", transparent: true, opacity: 0.07, depthWrite: false });
+  const depth = CAR_FAR - CAR_NEAR;
+  const midZ = (CAR_NEAR + CAR_FAR) / 2;
+  // The platform side: solid under the windows and over them, pillars between, the doorway open
+  const sill = 0.95;
+  const head = 1.8;
+  const side = (from: number, to: number) => {
+    const dir = Math.sign(to - from);
+    const len = Math.abs(to - from);
+    const mid = (from + to) / 2;
+    car.add(box(len, sill, 0.06, steel, mid, sill / 2, CAR_NEAR));
+    car.add(box(len, CAR_H - head, 0.06, steel, mid, (head + CAR_H) / 2, CAR_NEAR));
+    // Windows 1.3 wide with 0.4 pillars, starting from the doorway
+    for (let at = 0; at < len; at += 1.7) {
+      const pillarAt = from + dir * (at + 0.2);
+      car.add(box(0.4, head - sill, 0.06, steel, pillarAt, (sill + head) / 2, CAR_NEAR));
+      const paneAt = from + dir * (at + 0.4 + 0.65);
+      if (at + 1.7 <= len) car.add(plane(1.3, head - sill, glass, paneAt, (sill + head) / 2, CAR_NEAR - 0.01));
+    }
+  };
+  side(-DOOR_W / 2, -CAR_LEN / 2);
+  side(DOOR_W / 2, CAR_LEN / 2);
+  car.add(box(DOOR_W, CAR_H - DOOR_H, 0.06, steel, 0, (DOOR_H + CAR_H) / 2, CAR_NEAR));
+  // The rest of the shell
+  car.add(box(CAR_LEN, 0.08, depth, standard("#1d1a18", 1), 0, -0.04, midZ)); // floor
+  car.add(box(CAR_LEN, 0.08, depth, steel, 0, CAR_H + 0.04, midZ)); // roof
+  car.add(box(CAR_LEN, CAR_H, 0.06, inside, 0, CAR_H / 2, CAR_FAR)); // far wall
+  [-1, 1].forEach((end) => car.add(box(0.06, CAR_H, depth, inside, (end * CAR_LEN) / 2, CAR_H / 2, midZ)));
+  // A strip light down the middle, bench seats along the far wall, poles by the doors
+  car.add(box(CAR_LEN - 1, 0.04, 0.22, new MeshBasicMaterial({ color: "#ffe6bf" }), 0, CAR_H - 0.03, midZ));
+  const seat = standard("#5b2a26", 0.9);
+  [-1, 1].forEach((end) => {
+    car.add(box(4.2, 0.12, 0.5, seat, end * 3.3, 0.48, CAR_FAR - 0.3));
+    car.add(box(4.2, 0.5, 0.1, seat, end * 3.3, 0.8, CAR_FAR - 0.08));
+    car.add(box(0.04, CAR_H, 0.04, trim, end * (DOOR_W / 2 + 0.25), CAR_H / 2, CAR_NEAR + 0.35));
+  });
+  car.add(box(CAR_LEN - 1, 0.03, 0.03, trim, 0, 2.0, CAR_NEAR + 0.55)); // the grab rail
+  const light = new PointLight("#ffd9a8", 7, 7, 2);
+  light.position.set(0, CAR_H - 0.3, midZ);
+  car.add(light);
+  // The doors: two leaves, each with a window, sliding apart along the outside
+  const leaves = [-1, 1].map((dir) => {
+    const leaf = new Group();
+    const w = DOOR_W / 2;
+    leaf.add(box(w, 1.05, 0.04, trim, 0, 0.525, 0));
+    leaf.add(box(w, DOOR_H - 1.8, 0.04, trim, 0, (1.8 + DOOR_H) / 2, 0));
+    leaf.add(box(0.09, 0.75, 0.04, trim, -w / 2 + 0.045, 1.425, 0));
+    leaf.add(box(0.09, 0.75, 0.04, trim, w / 2 - 0.045, 1.425, 0));
+    leaf.add(plane(w - 0.18, 0.75, glass, 0, 1.425, 0.021));
+    leaf.add(box(0.03, DOOR_H, 0.05, standard("#111", 1), -dir * (w / 2 - 0.015), DOOR_H / 2, 0)); // the rubber edge
+    leaf.position.set((dir * w) / 2, 0, CAR_NEAR - 0.06);
+    car.add(leaf);
+    return leaf;
+  });
+  car.userData.leaves = leaves;
+  // Dark carriages coupled either end
+  const body = standard("#1b1e24", 0.7);
+  const lit = new MeshBasicMaterial({ color: "#ffd9a0" });
+  [-1, 1].forEach((end) => {
+    const x = end * (CAR_LEN + 0.4);
+    car.add(box(CAR_LEN, CAR_H + 0.1, depth, body, x, CAR_H / 2, midZ));
+    for (let w = 0; w < 6; w += 1) {
+      const pane = plane(1.1, 0.75, w % 3 === 1 ? lit : standard("#0c0e12", 1), x - 4.5 + w * 1.8, 1.4, CAR_NEAR - 0.02);
+      pane.rotation.y = Math.PI;
+      car.add(pane);
+    }
+  });
+  return car;
+}
+
 // The empty train that passes now and then: dark carriages with a few lit windows
 function buildTrain() {
   const train = new Group();
@@ -1145,7 +1235,7 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -1153,8 +1243,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -1496,6 +1586,102 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false })));
 
     const train = buildTrain();
+    // Arriving: riding in, stopped (doors shut till the page is ready), doors opening, stepping
+    // off, then the train pulls away behind you
+    const DOOR_X = HUB.pos[0];
+    const arrivalCar = buildArrivalCar();
+    scene.add(arrivalCar);
+    const leaves = arrivalCar.userData.leaves as Group[];
+    const arrival = {
+      active: latest.current.arrive,
+      phase: "riding" as "riding" | "stopped" | "opening" | "stepping" | "leaving" | "gone",
+      since: performance.now() / 1000,
+      from: { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 },
+      to: { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 },
+      warmed: false,
+    };
+    const RIDE = 3.0; // s pulling in
+    const RIDE_FROM = 34; // m down the line it starts
+    const INSIDE_Z = CAR_FAR - 0.55; // where you stand in the carriage, back from the doors
+    if (!arrival.active) {
+      arrival.phase = "gone";
+      arrivalCar.visible = false;
+    }
+    const setPhase = (phase: typeof arrival.phase) => {
+      arrival.phase = phase;
+      arrival.since = performance.now() / 1000;
+    };
+    const updateArrival = (now: number) => {
+      if (arrival.phase === "gone") return;
+      const t = now - arrival.since;
+      const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+      if (arrival.phase === "riding") {
+        const k = reduced ? 1 : clamp01(t / RIDE);
+        const along = RIDE_FROM * (1 - k) ** 3; // braking all the way in
+        arrivalCar.position.x = DOOR_X + along;
+        Object.assign(cam, { x: DOOR_X + along, y: HUB.pos[1] + Math.sin(t * 23) * 0.006 * (1 - k), z: INSIDE_Z, yaw: 0, pitch: -0.02 });
+        if (k >= 1) {
+          setPhase("stopped");
+          latest.current.onTrainStopped?.();
+        }
+      } else if (arrival.phase === "stopped") {
+        // The lurch as it stops, then waiting on the station
+        cam.z = INSIDE_Z + Math.sin(Math.min(t / 0.35, 1) * Math.PI) * 0.06;
+        const cabinetIn = Boolean(arcadeObject.userData.cabinet);
+        // Meanwhile, get the arcade's cartridges onto the graphics card, so the first walk
+        // over to it doesn't stall putting them there
+        const row = arcadeObject.userData.row as Group | undefined;
+        if (cabinetIn && row && !arrival.warmed) {
+          arrival.warmed = true;
+          row.traverse((node) => {
+            const mesh = node as Mesh;
+            const materials = mesh.isMesh ? ([] as Material[]).concat(mesh.material) : [];
+            materials.forEach((material) => {
+              const map = (material as MeshStandardMaterial).map;
+              if (map) renderer.initTexture(map);
+            });
+          });
+        }
+        if ((cabinetIn && latest.current.doorsMayOpen && t > 0.5) || t > 8) setPhase("opening");
+      } else if (arrival.phase === "opening") {
+        const k = reduced ? 1 : clamp01(t / 0.8);
+        const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        leaves.forEach((leaf, i) => (leaf.position.x = (i ? 1 : -1) * (DOOR_W / 4 + (DOOR_W / 2 + 0.05) * e)));
+        if (k >= 1) {
+          setPhase("stepping");
+          arrival.from = { ...cam };
+          arrival.to = poseFor(null, latest.current.heading);
+        }
+      } else if (arrival.phase === "stepping") {
+        const k = reduced ? 1 : clamp01(t / 1.5);
+        const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        const { from, to } = arrival;
+        cam.x = from.x + (to.x - from.x) * e;
+        cam.z = from.z + (to.z - from.z) * e;
+        cam.y = from.y + (to.y - from.y) * e + Math.abs(Math.sin(e * Math.PI * 3)) * 0.035 * (1 - e); // footsteps
+        cam.yaw = from.yaw + wrapAngle(to.yaw - from.yaw) * e;
+        cam.pitch = from.pitch + (to.pitch - from.pitch) * e;
+        if (k >= 1) {
+          // On the platform: the camera's the visitor's again
+          arrival.active = false;
+          goal = to;
+          lastAt = null;
+          setPhase("leaving");
+          latest.current.onArrived?.();
+          goTo(latest.current.at, latest.current.heading);
+        }
+      } else if (arrival.phase === "leaving") {
+        // The doors shut, and it pulls away
+        const shut = clamp01(t / 0.6);
+        leaves.forEach((leaf, i) => (leaf.position.x = (i ? 1 : -1) * (DOOR_W / 4 + (DOOR_W / 2 + 0.05) * (1 - shut))));
+        const k = clamp01((t - 1.2) / 6);
+        arrivalCar.position.x = DOOR_X - 60 * k * k;
+        if (k >= 1) {
+          arrivalCar.visible = false;
+          setPhase("gone");
+        }
+      }
+    };
     scene.add(train);
 
     // The objects
@@ -1627,6 +1813,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let lastAt: StopId | null = latest.current.at;
     let goal: { x: number; y: number; z: number; yaw: number; pitch: number } | null = null;
     const goTo = (stopId: StopId | null, facing: Heading, instant = false) => {
+      if (arrival.active) return; // riding in: where to go is picked up on stepping off
       const pose = poseFor(stopId, facing);
       const same =
         goal && Math.abs(goal.x - pose.x) + Math.abs(goal.y - pose.y) + Math.abs(goal.z - pose.z) + Math.abs(wrapAngle(goal.yaw - pose.yaw)) + Math.abs(goal.pitch - pose.pitch) < 1e-4;
@@ -1701,6 +1888,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     const pick = (clientX: number, clientY: number) => pickPart(clientX, clientY)?.stop ?? null;
     const onPointerDown = (event: PointerEvent) => {
+      if (arrival.active) return;
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
       canvas.setPointerCapture(event.pointerId);
     };
@@ -1826,6 +2014,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const t = (performance.now() - start) / 1000;
       look.yaw += (look.toYaw - look.yaw) * 0.06;
       look.pitch += (look.toPitch - look.pitch) * 0.06;
+      updateArrival(performance.now() / 1000);
       const sway = reduced ? 0 : 1;
       camera.position.set(cam.x, cam.y + Math.sin(t * 0.9) * 0.01 * sway, cam.z);
       camera.rotation.set(cam.pitch + look.pitch + Math.sin(t * 0.5) * 0.004 * sway, cam.yaw + look.yaw + Math.sin(t * 0.37) * 0.006 * sway, 0);
@@ -1847,8 +2036,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         lamp.intensity += ((lit ? LAMP_LIT : LAMP_IDLE) - lamp.intensity) * 0.08;
       });
 
-      // The empty train comes through every 45 s (first after about 10 s), at about 80 km/h
-      const cycle = (t + 20) % 45;
+      // The empty train comes through every 45 s (first after about 25 s), at about 80 km/h
+      const cycle = (t + 5) % 45;
       train.visible = cycle > 30;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
 

@@ -1601,6 +1601,7 @@ export default function CartridgeArcade({
 
     // --- Load the cabinet, then build everything around it ----------------------------------
     let stopStills: (() => void) | null = null;
+    let built = false; // the cabinet and everything round it are in
     new GLTFLoader().load("/models/ArcadeCabinet.glb", (gltf) => {
       if (disposed) return;
       const model = gltf.scene;
@@ -1771,6 +1772,7 @@ export default function CartridgeArcade({
         });
       }
 
+      built = true;
       stopStills = loadVideoStills(games.map((game) => game.videoUrl), (index, source, width, height) => {
         carts[index]?.cart.setPicture(source, width, height);
       });
@@ -2440,9 +2442,13 @@ export default function CartridgeArcade({
     const sway = { angle: 0, velocity: 0 };
     let lastScroll = 0;
     let lastFrame = 0;
+    let warmedUp = false;
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      if (pausedRef.current) return; // a game is open on top; leave the GPU to it
+      // A game is open on top, or it's hidden: leave the GPU be. (But draw once as soon as it's
+      // built, hidden or not, to warm it up.)
+      if (pausedRef.current && (warmedUp || !built)) return;
+      if (built) warmedUp = true;
       const time = performance.now() / 1000;
       room?.update(time);
       finish.update(time);

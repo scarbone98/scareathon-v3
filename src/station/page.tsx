@@ -17,7 +17,6 @@ import { KioskWindow } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
-import TrainArrival from "./TrainArrival.tsx";
 import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
@@ -152,10 +151,13 @@ export default function StationPage() {
   // Arriving at the station: the platform for a beat, then up to the board. Only on the
   // way in with nowhere named; anything the visitor does first cancels it.
   const intro = useRef(!params.has("at") && !params.has("face"));
-  // Coming in by train: the doors open once the station's loaded, and you step off
-  const [stationReady, setStationReady] = useState(false);
-  const [onPlatform, setOnPlatform] = useState(false);
-  const markReady = useCallback(() => setStationReady(true), []);
+  // Coming in by train: while it stands at the platform, doors shut, the arcade's built
+  // behind the scenes; then the doors open and you step off
+  const [arriving] = useState(() => !params.has("at"));
+  const [onPlatform, setOnPlatform] = useState(!arriving);
+  const [trainStopped, setTrainStopped] = useState(false);
+  const [doorsMayOpen, setDoorsMayOpen] = useState(false);
+  const stopTrain = useCallback(() => setTrainStopped(true), []);
   const stepOff = useCallback(() => setOnPlatform(true), []);
   useEffect(() => {
     if (!intro.current || !onPlatform) return;
@@ -308,10 +310,24 @@ export default function StationPage() {
   // The arcade is built in the background once the station has settled, and kept (paused
   // while out of sight), so walking up to the cabinet doesn't stall on loading it
   const [arcadeBuilt, setArcadeBuilt] = useState(at === "arcade");
+  // The train stands at the platform: build it now, behind the shut doors, and open them
+  // once it's up (it says where its cabinet sits when it is)
+  useEffect(() => {
+    if (trainStopped) setArcadeBuilt(true);
+  }, [trainStopped]);
+  useEffect(() => {
+    if (!trainStopped) return;
+    if (arcadeFrame) {
+      setDoorsMayOpen(true);
+      return;
+    }
+    const giveUp = window.setTimeout(() => setDoorsMayOpen(true), 6000);
+    return () => window.clearTimeout(giveUp);
+  }, [trainStopped, arcadeFrame]);
   // Building it takes the main thread for a moment, so not while you're moving: once you've
   // left the screen alone for a few seconds, or have settled on the arcade's view
   useEffect(() => {
-    if (arcadeBuilt) return;
+    if (arcadeBuilt || (arriving && !trainStopped)) return; // (not while the train pulls in)
     const idle = (window as unknown as { requestIdleCallback?: (fn: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
     const build = () => (idle ? idle(() => setArcadeBuilt(true), { timeout: 1500 }) : setArcadeBuilt(true));
     let timer = window.setTimeout(build, heading === "left" ? 2500 : 3500);
@@ -326,7 +342,7 @@ export default function StationPage() {
       window.removeEventListener("pointerdown", wait);
       window.removeEventListener("keydown", wait);
     };
-  }, [arcadeBuilt, heading]);
+  }, [arcadeBuilt, heading, arriving, trainStopped]);
   useEffect(() => {
     if (at === "arcade") setArcadeBuilt(true);
   }, [at]);
@@ -441,7 +457,10 @@ export default function StationPage() {
             hideArcade={atCabinet}
             preview={preview}
             arcadeGames={games}
-            onReady={markReady}
+            arrive={arriving}
+            doorsMayOpen={doorsMayOpen}
+            onTrainStopped={stopTrain}
+            onArrived={stepOff}
             previewPlaying={heading === "left" || at === "arcade"}
             surfaces={surfaces}
             // On phones things are used through the held card, except a paper being read
@@ -486,8 +505,6 @@ export default function StationPage() {
             </Suspense>
           </div>
         )}
-        {/* Arriving by train, over everything till you've stepped off */}
-        {!onPlatform && <TrainArrival ready={stationReady} onDone={stepOff} />}
         {leaderboardGame && (
           <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
