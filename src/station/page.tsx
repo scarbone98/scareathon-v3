@@ -348,7 +348,7 @@ export default function StationPage() {
   const [playing, setPlaying] = useState<MachineData | null>(null);
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
   const play = (game: MachineData) => {
-    if (game.special === "mystery" || game.special === "soon") return;
+    if (game.special === "mystery" || game.special === "soon" || game.special === "wayside") return;
     setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(games) : game });
   };
   const stopPlaying = () => setTransition({ mode: "off", game: null });

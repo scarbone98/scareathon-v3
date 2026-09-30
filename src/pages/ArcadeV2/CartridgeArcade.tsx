@@ -47,6 +47,7 @@ import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, s
 import { canvasFont, linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
+import { createWaysideScreen, runCode, type WaysideState } from "./waysideOS.ts";
 import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
@@ -92,6 +93,9 @@ type World = {
   moveFocus: (dx: number) => void;
   activate: (index: number) => void;
   setPaused: (paused: boolean) => void;
+  // WaysideOS, when it's plugged in: the code as it's typed, and entered
+  typeCode: (entry: string) => void;
+  enterCode: (entry: string) => void;
 };
 
 type CartState = {
@@ -229,7 +233,10 @@ export default function CartridgeArcade({
     // "bars": the off-air test card, for a game with nothing to preview.
     // "mystery": the "???" cartridge's live cuts, once it's plugged in
     // "soon": a coming-soon cart's cover (with COMING SOON over it once it's plugged in)
-    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" | "soon" = "idle";
+    // "wayside": WaysideOS: its logo on the shelf, its code prompt once it's plugged in
+    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" | "soon" | "wayside" = "idle";
+    const paintWayside = createWaysideScreen();
+    const wayside: WaysideState = { plugged: false, entry: "", reply: null, bootAt: 0 };
     const mysteryScreen = createMysteryScreen("/game-recordings/stills/Mystery.jpg");
     const MYSTERY_STOP_CODE = "HEXUS_HANDSHAKE";
     let mysteryCrash: gsap.core.Tween | null = null; // the "???" cartridge's crash, on its way
@@ -523,6 +530,10 @@ export default function CartridgeArcade({
         paintSoon(time, width, height);
         return;
       }
+      if (screenMode === "wayside") {
+        if (paintWayside(screenContext, width, height, time, wayside)) screenTexture.needsUpdate = true;
+        return;
+      }
       if (screenMode === "bars") {
         // Painted once (lastIdleBlink marks it done, like the idle screen's blink)
         if (lastIdleBlink === 2) return;
@@ -599,6 +610,15 @@ export default function CartridgeArcade({
           });
         }
         lastIdleBlink = -1;
+        showOnScreen(screenTexture);
+        return;
+      }
+      // WaysideOS: boots to its code prompt once plugged in; the terminal takes the typing
+      if (game.special === "wayside") {
+        screenMode = "wayside";
+        const plugged = games.indexOf(game) === insertedIndex;
+        Object.assign(wayside, { plugged, entry: "", reply: null, bootAt: performance.now() / 1000 });
+        if (plugged) showTerminal({ kind: "code", at: nowSeconds() });
         showOnScreen(screenTexture);
         return;
       }
@@ -1485,6 +1505,17 @@ export default function CartridgeArcade({
     };
 
     worldRef.current = {
+      typeCode: (entry) => {
+        wayside.entry = entry;
+        if (entry) wayside.reply = null;
+      },
+      enterCode: (entry) => {
+        if (screenMode !== "wayside" || !wayside.plugged) return;
+        const result = runCode(entry);
+        wayside.entry = "";
+        wayside.reply = { ...result, at: performance.now() / 1000 };
+        showTerminal({ kind: "code", reply: result, at: nowSeconds() });
+      },
       pressDetails: () => {
         if (inspecting) {
           putBack();
@@ -2455,6 +2486,8 @@ export default function CartridgeArcade({
           onLeaderboard={onLeaderboard}
           onBrowseAll={() => setBrowsing(true)}
           onBack={onBack}
+          onCodeChange={(entry) => worldRef.current?.typeCode(entry)}
+          onCodeSubmit={(entry) => worldRef.current?.enterCode(entry)}
           // Fills from just under the ledge down to the bottom
           className="absolute bottom-3 left-1/2 z-10 w-[min(94vw,30rem)] -translate-x-1/2"
           style={ledgeCardTop !== null ? { top: ledgeCardTop } : undefined}

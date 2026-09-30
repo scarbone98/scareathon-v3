@@ -12,6 +12,8 @@ export type TerminalScreen = { at: number } & (
   // the "???" cartridge has the machine: logs, dumps and garbage, fast. seed: this
   // plug-in's own run of it (a fresh one every time)
   | { kind: "takeover"; seed?: number }
+  // WaysideOS: a code prompt, and what the last code got back
+  | { kind: "code"; reply?: { ok: boolean; lines: string[] } }
 );
 
 // How the terminal is set up, apart from what it's showing
@@ -50,6 +52,7 @@ export function gameLines(game: MachineData, details: boolean) {
 export function typedParts(screen: TerminalScreen, details: boolean): string[] {
   if (screen.kind === "game") return details ? gameLines(screen.game, true) : [gameTitle(screen.game), ...gameLines(screen.game, false)];
   if (screen.kind === "message") return screen.lines;
+  if (screen.kind === "code") return ["> WAYSIDE OS", ...(screen.reply?.lines ?? ["ENTER CODE"])];
   return [];
 }
 

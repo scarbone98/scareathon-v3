@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import type { MachineData } from "../Arcade/games.tsx";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 import { TERMINAL_FONT, whenFontReady } from "./arcadeFonts.ts";
+import { cleanCode, MAX_CODE } from "./waysideOS.ts";
 import {
   gameTitle,
   LOADING_BLOCKS,
@@ -53,7 +54,74 @@ type Props = {
   onBrowseAll: () => void; // opens the index of every cartridge
   // A way out, as the first key (in place of the site menu): Wayside Station's way back
   onBack?: () => void;
+  // WaysideOS: each keystroke of a code, and the code once entered
+  onCodeChange?: (entry: string) => void;
+  onCodeSubmit?: (entry: string) => void;
 };
+
+// WaysideOS's prompt: typed here, shown big on the cabinet's screen too
+function CodePrompt({
+  reply,
+  onChange,
+  onSubmit,
+  phone,
+}: {
+  reply?: { ok: boolean; lines: string[] };
+  onChange?: (entry: string) => void;
+  onSubmit?: (entry: string) => void;
+  phone: boolean;
+}) {
+  const [entry, setEntry] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!phone) input.current?.focus(); // phones wait for a tap, rather than throwing a keyboard up
+  }, [phone]);
+  return (
+    <>
+      <div className="px-2">
+        <FittedTitle text="> WAYSIDE OS" shown="> WAYSIDE OS" cursor={false} />
+      </div>
+      <form
+        className="mt-1 flex h-[5.5rem] flex-col items-center justify-center gap-1 text-xl leading-6"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!entry) return;
+          onSubmit?.(entry);
+          setEntry("");
+          onChange?.("");
+        }}
+      >
+        <label className="flex items-center gap-2">
+          <span>CODE:</span>
+          <input
+            ref={input}
+            value={entry}
+            onChange={(event) => {
+              const next = cleanCode(event.target.value);
+              setEntry(next);
+              onChange?.(next);
+            }}
+            maxLength={MAX_CODE}
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            aria-label="Code"
+            className="w-[8.5em] border-b-2 border-current bg-transparent px-1 uppercase tracking-[0.15em] outline-none"
+            style={{ fontFamily: TERMINAL_FAMILY, color: PHOSPHOR, textShadow: GLOW, fontSize: 22 }}
+          />
+          <button type="submit" className="px-1 [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]">
+            [ OK ]
+          </button>
+        </label>
+        <p className="h-6" style={reply && !reply.ok ? { color: "#ff6a4a", textShadow: "0 0 6px rgba(255,106,74,0.6)" } : undefined}>
+          {reply ? reply.lines.join(" ") : "TYPE A CODE, THEN ENTER"}
+        </p>
+      </form>
+    </>
+  );
+}
 
 // Types `parts` out one after another, a character at a time, starting over
 // whenever `resetKey` changes. Returns how much of each part shows.
@@ -274,6 +342,7 @@ function ScreenBody({
       </>
     );
   }
+  if (screen.kind === "code") return null; // WaysideOS has its own prompt (CodePrompt)
   const reboot = rebootView(screen, now);
   return reboot.crashed ? (
     <>
@@ -298,7 +367,7 @@ function ScreenBody({
   );
 }
 
-export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack }: Props) {
+export default function GameCard({ screen, details, phone, style, className = "", onLeaderboard, onBrowseAll, onToggleDetails, onBack, onCodeChange, onCodeSubmit }: Props) {
   const now = useClock(screen, details);
   const controls = terminalControls(screen, details);
   // The takeover can seem to switch the terminal off, power light and all
@@ -325,7 +394,11 @@ export default function GameCard({ screen, details, phone, style, className = ""
             textShadow: GLOW,
           }}
         >
-          <ScreenBody screen={screen} details={details} phone={phone} now={now} onLeaderboard={onLeaderboard} />
+          {screen.kind === "code" ? (
+            <CodePrompt reply={screen.reply} onChange={onCodeChange} onSubmit={onCodeSubmit} phone={phone} />
+          ) : (
+            <ScreenBody screen={screen} details={details} phone={phone} now={now} onLeaderboard={onLeaderboard} />
+          )}
 
           {/* Hidden rather than removed while busy, so the card keeps its size (the
               details take its row over) */}
@@ -335,7 +408,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
 
           {/* The keys, along the bottom: the site menu (phones) and all games on the
               left; on the right ?, which lifts the cartridge up for a look */}
-          {(controls === "all" || onBack) && (
+          {(controls === "all" || onBack || screen.kind === "code") && (
             <div className="absolute bottom-0.5 left-1 z-10 flex text-xl">
               {onBack ? (
                 <TerminalButton onClick={onBack} label="Back">
@@ -344,7 +417,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
               ) : (
                 phone && <MenuKey />
               )}
-              {controls === "all" && (
+              {(controls === "all" || screen.kind === "code") && (
                 <TerminalButton onClick={onBrowseAll} label="Show all games">
                   ^
                 </TerminalButton>

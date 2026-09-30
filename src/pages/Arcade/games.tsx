@@ -28,7 +28,8 @@ export type MachineData = {
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
   // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
-  special?: "mystery" | "shuffle" | "soon";
+  // "wayside": WaysideOS, a code prompt on the cabinet's screen (ArcadeV2/waysideOS.ts).
+  special?: "mystery" | "shuffle" | "soon" | "wayside";
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
   // about: shown by the info button on the arcade's game card; developer is a GitHub handle.
@@ -219,6 +220,21 @@ export function createArcadeGames(): MachineData[] {
           allow="camera"
         />
       ),
+    },
+    {
+      name: "WaysideOS",
+      cartridge: {
+        color: "#3f6e8c",
+        tagline: "Boots to a prompt. Know any codes?",
+        font: { family: "VT323" },
+        about: { released: "2026", players: "Single player", genre: "Operating system", developer: "sclondon" },
+        backNote: "try HELP",
+      },
+      // No video: the cabinet draws its screen live. The URL finds its label, stills/WaysideOS.jpg
+      videoUrl: "/game-recordings/WaysideOS.mp4",
+      hasLeaderboard: false,
+      special: "wayside",
+      game: null,
     },
     {
       // Where the shelf starts (the non-game carts sit to its left)

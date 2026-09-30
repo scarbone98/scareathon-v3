@@ -189,9 +189,9 @@ export function createSlotTerminal(width: number, height: number, depth: number)
         text("NO SCORES KEPT", WIDTH / 2, bodyTop + 72 * S);
         context.globalAlpha = 1;
       }
-    } else if (screen.kind === "message") {
+    } else if (screen.kind === "message" || screen.kind === "code") {
       const [first = "", ...rest] = typing.shown;
-      heading(screen.lines[0] ?? "", first, typing.cursorAt === 0, cursorOn);
+      heading(screen.kind === "code" ? "> WAYSIDE OS" : (screen.lines[0] ?? ""), first, typing.cursorAt === 0, cursorOn);
       context.font = font(20);
       rest.forEach((line, i) => {
         const y = bodyMiddle + (i - (rest.length - 1) / 2) * 24 * S;

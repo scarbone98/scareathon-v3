@@ -81,7 +81,7 @@ function useShowcaseGames() {
   return useMemo<ShowcaseGame[]>(
     () =>
       createArcadeGames()
-        .filter((game) => !isMobile || game.availableOnMobile !== false)
+        .filter((game) => game.special !== "wayside" && (!isMobile || game.availableOnMobile !== false))
         .map((game) => ({
           name: game.name,
           tagline: game.cartridge.tagline,

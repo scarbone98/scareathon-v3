@@ -43,7 +43,7 @@ export default function ArcadeV2() {
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
   // "???" and the coming-soon carts aren't ready to play; Shuffle powers on into a random game instead of itself
   const startGame = (game: MachineData) => {
-    if (game.special === "mystery" || game.special === "soon") return;
+    if (game.special === "mystery" || game.special === "soon" || game.special === "wayside") return;
     setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(visibleGames) : game });
   };
   const leaveGame = () => setTransition({ mode: "off", game: null });
