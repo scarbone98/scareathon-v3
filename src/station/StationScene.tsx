@@ -652,23 +652,27 @@ function buildLockers() {
   // An old station clock, keeping real time, hung out from the wall above on a scrolled
   // iron bracket, with a face on each side
   const clockFace = paint(256, 256, (ctx, w, h) => drawClock(ctx, w, h, new Date()));
+  // In the corner, towards the end of the platform
+  const hanger = new Group();
+  hanger.position.x = -1.3;
+  group.add(hanger);
   const iron = standard("#1c1a17", 0.5);
   const wallZ = -0.25; // the wall, in the lockers' own space
-  const armY = 3.12;
+  const armY = 3.62; // high up, just under the canopy
   const out = 0.55; // how far the clock hangs out from the wall
-  group.add(box(0.16, 0.36, 0.03, iron, 0, armY - 0.1, wallZ + 0.015)); // the plate on the wall
-  group.add(box(0.035, 0.035, out + 0.05, iron, 0, armY, wallZ + (out + 0.05) / 2)); // the arm
+  hanger.add(box(0.16, 0.36, 0.03, iron, 0, armY - 0.1, wallZ + 0.015)); // the plate on the wall
+  hanger.add(box(0.035, 0.035, out + 0.05, iron, 0, armY, wallZ + (out + 0.05) / 2)); // the arm
   const brace = box(0.03, 0.03, 0.5, iron, 0, armY - 0.18, wallZ + 0.2); // the diagonal brace
   brace.rotation.x = 0.75;
-  group.add(brace);
+  hanger.add(brace);
   // Scrolls, curling under the arm
   [[0.14, 0.07], [0.33, 0.055]].forEach(([z, r]) => {
     const curl = new Mesh(new TorusGeometry(r, 0.012, 6, 16, Math.PI * 1.5), iron);
     curl.rotation.y = Math.PI / 2;
     curl.position.set(0, armY - r - 0.01, wallZ + z);
-    group.add(curl);
+    hanger.add(curl);
   });
-  group.add(box(0.02, 0.1, 0.02, iron, 0, armY - 0.07, wallZ + out)); // the rod it hangs from
+  hanger.add(box(0.02, 0.1, 0.02, iron, 0, armY - 0.07, wallZ + out)); // the rod it hangs from
   const clock = new Group();
   clock.position.set(0, armY - 0.47, wallZ + out);
   clock.rotation.y = Math.PI / 2; // face across the platform, not out from the wall
@@ -682,7 +686,7 @@ function buildLockers() {
     clock.add(face);
   });
   clock.add(new Mesh(new SphereGeometry(0.03, 8, 6), iron).translateY(0.36));
-  group.add(clock);
+  hanger.add(clock);
   group.userData.clockFace = clockFace;
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.7, 2.3, 0.7, 1.1));
