@@ -5,8 +5,10 @@
 // stand, the pigeonhole wall; then a side wall runs out towards the tracks, with the
 // ticket counter let into its middle and the scoreboard above.
 
-export type StopId = "lockers" | "arcade" | "bulletin" | "events" | "tickets" | "departures" | "mail";
-export type Heading = "front" | "table" | "mail" | "right" | "scenic" | "lockers" | "left";
+export type StopId = "bench" | "lockers" | "arcade" | "bulletin" | "events" | "tickets" | "departures" | "mail";
+// The four views you turn between (left, the board, right, and the tracks behind you);
+// the others are just where a stop steps back to, folded into one of the four
+export type Heading = "front" | "right" | "back" | "left" | "table" | "mail" | "lockers";
 
 export type Stop = {
   id: StopId;
@@ -19,34 +21,41 @@ export type Stop = {
   snug?: boolean; // stand exactly where it fits (closer too), not just far enough back
 };
 
-// Clockwise, so "turn right" is the next entry. Wide screens take in the wall in three
-// views (left, front, right); phones turn to each object on its own.
-export const HEADINGS: Heading[] = ["front", "right", "scenic", "left"];
-export const PHONE_HEADINGS: Heading[] = ["front", "table", "mail", "right", "scenic", "lockers", "left"];
+// Clockwise, so "turn right" is the next entry: the board, the right, the tracks, the left
+export const HEADINGS: Heading[] = ["front", "right", "back", "left"];
+// Where each stop's heading turns up among the four
+export const FOLD: Partial<Record<Heading, Heading>> = { table: "front", mail: "right", lockers: "left" };
 
 // Where the visitor stands, and how they look along each heading. The camera looks
 // down -z at yaw 0; the building's wall is at z = -2.2 and the tracks run along +z.
 // A view with an object faces it (or its `aim`, on wide screens); these are the rest.
 export const HUB = {
   pos: [-0.9, 1.6, 0.95] as [number, number, number],
-  yaw: { front: 0, table: -0.6, mail: -0.9, right: -1.1, scenic: Math.PI / 2, lockers: 0.9, left: 0.7 } as Record<Heading, number>,
-  pitch: { front: 0.05, table: 0.02, mail: 0.02, right: 0.08, scenic: 0.02, lockers: 0.02, left: 0.02 } as Record<Heading, number>,
+  yaw: { front: 0, table: -0.6, mail: -0.9, right: -1.1, back: Math.PI, lockers: 0.9, left: 0.9 } as Record<Heading, number>,
+  pitch: { front: 0.05, table: 0.02, mail: 0.02, right: 0.08, back: -0.06, lockers: 0.02, left: 0.04 } as Record<Heading, number>,
 };
 
-// `aim` is where a wide screen looks (to take in a stretch of wall); tall screens look
-// straight at the view's object. `spot` is where to stand for a view that has one.
-export const VIEWS: Record<Heading, { title: string; focus: StopId | null; aim?: [number, number, number]; spot?: [number, number, number] }> = {
+// `aim` is where a view looks (to take in a stretch of wall), on any screen
+export const VIEWS: Record<Heading, { title: string; focus: StopId | null; aim?: [number, number, number] }> = {
   front: { title: "Wayside Station", focus: "bulletin", aim: [-0.9, 1.75, -2.2] },
   table: { title: "Flyer stand", focus: "events" },
   mail: { title: "Inbox", focus: "mail" },
   right: { title: "Ticket counter", focus: "tickets", aim: [4.6, 1.8, -0.4] },
-  // At the railing at the end of the platform, looking straight out
-  scenic: { title: "The scenic view", focus: null, spot: [-5.2, 1.6, 0.7] },
+  back: { title: "The tracks", focus: null },
   lockers: { title: "Left luggage", focus: "lockers" },
-  left: { title: "Arcade cabinet", focus: "arcade", aim: [-4.1, 1.4, -1.8] },
+  // The bench at the end, the lockers, the arcade and the scoreboard over it
+  left: { title: "Arcade cabinet", focus: "arcade", aim: [-4.4, 1.6, -1.0] },
 };
 
 export const STOPS: Record<StopId, Stop> = {
+  // Sitting on the bench at the end of the platform, looking straight out: the scenic view
+  bench: {
+    id: "bench",
+    label: "The bench",
+    heading: "left",
+    pos: [-5.95, 1.25, 0.9],
+    target: [-40, 3.0, 0.9],
+  },
   lockers: {
     id: "lockers",
     label: "Left luggage",
@@ -96,9 +105,9 @@ export const STOPS: Record<StopId, Stop> = {
   departures: {
     id: "departures",
     label: "Scoreboard",
-    heading: "right",
-    pos: [2.6, 2.9, 0],
-    target: [5.2, 3.35, 0],
+    heading: "left",
+    pos: [-3.1, 2.75, 0.3],
+    target: [-3.1, 2.65, -2.1],
     fit: 2.8,
     fitHeight: 1.4,
   },
@@ -119,7 +128,7 @@ export const isStopId = (value: string | null): value is StopId =>
   value !== null && Object.prototype.hasOwnProperty.call(STOPS, value);
 
 export const isHeading = (value: string | null): value is Heading =>
-  value !== null && (PHONE_HEADINGS as string[]).includes(value);
+  value !== null && (HEADINGS as string[]).includes(value);
 
 // Walks to an object, optionally opening something there (a tab, or a game in the arcade)
 export type GoTo = (id: StopId, open?: string) => void;

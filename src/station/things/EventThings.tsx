@@ -145,7 +145,7 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
   const flyers: Flyer[] = [
     {
       id: "event",
-      title: "Scareathon",
+      title: "Scareathon (the poster)",
       tint: "#ff7a1a",
       ink: "#1a0d05",
       face: (
