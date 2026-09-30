@@ -114,9 +114,9 @@ const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out fro
 const TICKET_Z = 0; // the ticket counter is let into the middle of it
 const ARCADE_POS = new Vector3(-3.0, 0, -1.75);
 // The walk up to the arcade takes a second; its cartridges slide in over the end of it
-const ROW_DELAY = 0.3; // before the first leaves the rack
-const ROW_FLY = 0.45; // each one's flight
-const ROW_STAGGER = 0.02; // between one and the next
+const ROW_DELAY = 0; // before the first leaves the rack (straight away)
+const ROW_FLY = 0.6; // each one's flight
+const ROW_STAGGER = 0.03; // between one and the next
 const ROW_PICK = 0.12; // the picked one tipping forward at the end
 const SIGN_Y = 3.22; // the line the signs along the wall hang on, level with the station's name
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
@@ -1975,7 +1975,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const cabinetNode = arcadeObject.userData.cabinet as Group | undefined;
         const cabinetScale = cabinetNode?.scale.x ?? 1;
         const cartWidth = arcadeObject.userData.cartWidth as number;
-        row.visible = since > ROW_DELAY;
+        row.visible = since >= ROW_DELAY;
         row.children.forEach((cart, n) => {
           const spot = spots[cart.userData.gameIndex as number];
           // Out of the rack one after another, the nearest first

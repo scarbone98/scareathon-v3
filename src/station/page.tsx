@@ -301,9 +301,10 @@ export default function StationPage() {
   // fades in over it
   const [atCabinet, setAtCabinet] = useState(false);
   const [arcadeFrame, setArcadeFrame] = useState<CabinetFrame | null>(null);
-  // The game the cabinet previews from the platform; the arcade opens on the same one
+  // The game the cabinet previews from the platform; the arcade opens on the same one, so
+  // it's one of the arcade's own (phones don't get the desktop-only ones)
   const [preview] = useState(() => {
-    const pool = createArcadeGames().filter((game) => game.game && game.videoUrl && !game.special);
+    const pool = games.filter((game) => game.game && game.videoUrl && !game.special);
     const pick = pool[Math.floor(Math.random() * pool.length)];
     return pick?.videoUrl ? { name: pick.name, video: pick.videoUrl, color: pick.cartridge.color } : null;
   });
