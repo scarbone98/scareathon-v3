@@ -28,10 +28,10 @@ const RULES = [
 ];
 
 const small = "text-[12px] uppercase tracking-[0.2em] opacity-70";
-// The rules' bullet: a printer's ornament, a red lozenge between two dots
+// The rules' bullet: a printer's ornament, a lozenge between two dots
 function Ornament() {
   return (
-    <svg viewBox="0 0 24 12" className="mt-[0.35em] h-3 w-6 shrink-0 text-[#7a1f1a]" aria-hidden>
+    <svg viewBox="0 0 24 12" className="mt-[0.35em] h-3 w-6 shrink-0 text-[#d9a441]" aria-hidden>
       <circle cx="2.5" cy="6" r="1.5" fill="currentColor" />
       <path d="M12 1 L17 6 L12 11 L7 6 Z" fill="currentColor" />
       <circle cx="21.5" cy="6" r="1.5" fill="currentColor" />
@@ -157,16 +157,16 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
     {
       id: "rules",
       title: "The rules",
-      tint: "#efe3c8",
-      ink: "#2a1d14",
+      tint: "#0e0c0b",
+      ink: "#f2ece0",
       content: () => (
-        // Set like a posted decree: a blackletter heading over old italic print
-        <div className="text-center text-[#2a1d14]">
+        // Set like a posted decree: a blackletter heading over old italic print, white on black
+        <div className="text-center text-[#f2ece0]">
           <p className={small}>The Scareathon</p>
           <p className="mt-1 text-[46px] leading-none" style={decree}>
             The Rules
           </p>
-          <p className="mx-auto mt-2 w-16 border-t-2 border-[#2a1d14]/40" />
+          <p className="mx-auto mt-2 w-16 border-t-2 border-[#f2ece0]/40" />
           <ol className="mt-4 space-y-3 text-left">
             {RULES.map((rule) => (
               <li key={rule} className="flex gap-3 text-[18px] italic leading-snug" style={serif}>

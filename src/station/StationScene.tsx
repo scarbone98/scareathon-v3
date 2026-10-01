@@ -565,7 +565,7 @@ function buildEvents() {
 
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
-    ["THE RULES", "#efe3c8", "#2a1d14"],
+    ["THE RULES", "#0e0c0b", "#f2ece0"],
     ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["OCTOBER", "#1d2a3a", "#f2ead2"],
   ];
