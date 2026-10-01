@@ -9,5 +9,8 @@ export const ROW_STAGGER = 0.08; // between one and the next (their spacing in t
 export const ROW_PICK = 0.12; // the picked one tipping forward at the end
 export const ROW_CARTS = 9; // how many ride: the picked one and up to four either side
 
-// When the last has landed and the picked one tipped up: the arcade takes over then, in ms
-export const ROW_DONE_MS = Math.round((ROW_DELAY + (ROW_CARTS - 1) * ROW_STAGGER + ROW_FLY + ROW_PICK) * 1000);
+export const ROW_HANDOFF_EARLY = 0.5; // the arcade fades in over the last cartridges landing
+
+// When the arcade takes over, in ms: as the last cartridges land (the arcade's own row is
+// already in the same places, so it can fade in over the end of the trip)
+export const ROW_DONE_MS = Math.round((ROW_DELAY + (ROW_CARTS - 1) * ROW_STAGGER + ROW_FLY + ROW_PICK - ROW_HANDOFF_EARLY) * 1000);
