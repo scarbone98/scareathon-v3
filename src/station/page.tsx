@@ -9,7 +9,7 @@ import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
-import { eventState, useContentLoop, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
+import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
@@ -46,8 +46,7 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 // Paint the scene's own textures from live data: the papers' headlines (the stand-ins
 // under their HTML), the departure board as seen from afar, and the poster
 function useBoards(signedIn: boolean, papers: Paper[]): Boards {
-  const { isLive, daysUntil, year } = eventState();
-  const { data: items = [] } = useContentLoop();
+  const { isLive, year } = eventState();
   const { data: scoreboard } = useScareboard(null, signedIn);
   const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: summary } = useSummary();
@@ -58,21 +57,24 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const notices = useMemo(() => papers.map((paper) => ({ kind: paper.kind, title: paper.title })), [noticeKey]);
   return useMemo(() => {
-    const lines: string[] = [];
-    if (movie?.data?.title) lines.push(`TONIGHT  ${movie.data.title}`);
-    (scoreboard?.leaderboard.data ?? []).slice(0, 3 - lines.length).forEach((row) => lines.push(`${String(row.rank).padStart(2)}  ${row.name}  ${row.total ?? ""}`));
-    if (!isLive) lines.push(`SCAREATHON  OCT 01  IN ${daysUntil} ${daysUntil === 1 ? "DAY" : "DAYS"}`);
-    const challenge = items.find((item) => item.type === "weekly_challenge");
-    if (challenge?.gameName) lines.push(`CHALLENGE  ${challenge.gameName}`);
-    lines.push("ARCADE  ALL NIGHT  BOARDING");
+    // The scoreboard's painted face shows what its HTML one does (see DepartureBoard)
+    const meta = scoreboard?.leaderboard.meta;
+    const rows = (scoreboard?.leaderboard.data ?? []).map((row) => ({ rank: row.rank, name: row.name, total: String(row.total ?? "") }));
+    const departures = signedIn
+      ? {
+          label: meta ? (meta.isLive ? "LIVE STANDINGS" : meta.isPreseason ? "PRESEASON - STARTS OCT 01" : "HISTORICAL") : "",
+          rows,
+          lines: !scoreboard ? ["FLIPPING..."] : rows.length ? [] : [meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"],
+        }
+      : { label: "", rows: [], lines: ["STANDINGS ......... SIGNED-IN PASSENGERS", "ARCADE ............ BOARDING ALL NIGHT"] };
     const film = movie?.data;
     const poster = film
       ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" }
       : isLive
         ? { image: null, title: "Showing tonight", line: "Sign in to see what's on" }
         : { image: null, title: "Dark tonight", line: `The first reel: October 1, ${year}` };
-    return { notices, departures: lines.slice(0, 3), poster, unread, rune };
-  }, [notices, items, scoreboard, movie, isLive, daysUntil, year, unread, rune]);
+    return { notices, departures, poster, unread, rune };
+  }, [notices, scoreboard, signedIn, movie, isLive, year, unread, rune]);
 }
 
 // How much of a phone's screen the held card takes, under the object

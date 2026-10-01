@@ -107,7 +107,9 @@ type Props = {
 // Live text for the boards in the scene
 export type Boards = {
   notices: { kind: string; title: string }[];
-  departures: string[];
+  // The scoreboard as its HTML face shows it, for the painted stand-in: a label and the
+  // standings rows, or (signed out) a few lines
+  departures: { label: string; rows: { rank: number; name: string; total: string }[]; lines: string[] };
   unread: number; // letters waiting in your pigeonhole
   poster: { image?: string | null; title: string; line: string };
   rune: string | null; // the day's code, for the rune tablet over the track-side arch
@@ -281,15 +283,54 @@ function drawNotice(ctx: CanvasRenderingContext2D, w: number, h: number, kind: s
 }
 
 // The departure board: a header and three lines of amber type
-function drawDepartures(ctx: CanvasRenderingContext2D, w: number, h: number, lines: string[]) {
+// The scoreboard's painted face, laid out as its HTML one is (DepartureBoard), so swapping
+// between them (as when the arcade's cartridges pass in front) changes nothing you can see
+function drawDepartures(ctx: CanvasRenderingContext2D, w: number, h: number, board: Boards["departures"]) {
+  const amber = "#ffb03a";
   ctx.fillStyle = "#0a0c10";
   ctx.fillRect(0, 0, w, h);
   ctx.textAlign = "left";
-  ctx.fillStyle = "#ffb03a";
-  ctx.font = "700 30px monospace";
-  ctx.fillText("SCOREBOARD", 20, 40);
-  ctx.font = "26px monospace";
-  lines.slice(0, 3).forEach((line, i) => ctx.fillText(line.toUpperCase(), 20, 88 + i * 40, w - 40));
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = amber;
+  ctx.font = "700 26px monospace";
+  ctx.fillText("SCOREBOARD", 16, 30);
+  ctx.fillStyle = "rgba(255,176,58,0.25)";
+  ctx.fillRect(16, 52, w - 32, 1);
+  const flap = (x: number, y: number, width: number) => {
+    ctx.fillStyle = "#111419";
+    ctx.fillRect(x, y - 11, width, 22);
+  };
+  let y = 76;
+  if (board.label) {
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = amber;
+    ctx.font = "13px monospace";
+    ctx.fillText(board.label, 16, y);
+    ctx.globalAlpha = 1;
+    y += 30;
+  }
+  ctx.font = "19px monospace";
+  board.rows.slice(0, 12).forEach((row) => {
+    const bright = row.rank <= 3 ? "#ffd27a" : amber;
+    flap(16, y, 36);
+    flap(62, y, w - 62 - 16 - 64 - 8);
+    flap(w - 16 - 64, y, 64);
+    ctx.fillStyle = bright;
+    ctx.textAlign = "center";
+    ctx.fillText(String(row.rank), 34, y + 1);
+    ctx.textAlign = "left";
+    ctx.fillText(row.name.toUpperCase(), 68, y + 1, w - 62 - 16 - 64 - 20);
+    ctx.textAlign = "right";
+    ctx.fillText(row.total, w - 22, y + 1);
+    ctx.textAlign = "left";
+    y += 25;
+  });
+  ctx.fillStyle = amber;
+  board.lines.forEach((line) => {
+    ctx.fillText(line.toUpperCase(), 16, y, w - 32);
+    y += 25;
+  });
+  ctx.textBaseline = "alphabetic";
 }
 
 function repaint(texture: CanvasTexture, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
@@ -839,7 +880,7 @@ function buildDepartures() {
   group.position.set(-3.1, 2.4, WALL_Z + 0.08);
   group.scale.setScalar(0.6);
   group.add(box(2.65, 1.6, 0.1, standard("#15181f")));
-  const face = paint(750, 435, (ctx, w, h) => drawDepartures(ctx, w, h, ["SCAREBOARD    ON TIME", "CALENDAR      DELAYED", "ARCADE        BOARDING"]));
+  const face = paint(750, 435, (ctx, w, h) => drawDepartures(ctx, w, h, { label: "", rows: [], lines: ["FLIPPING..."] }));
   const faceMesh = plane(2.5, 1.45, new MeshBasicMaterial({ map: face }), 0, 0, 0.056);
   faceMesh.userData.part = "departures";
   group.add(faceMesh);
@@ -2089,10 +2130,52 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // day's code (painted in with the boards)
     const runeTexture = paint(768, 256, (ctx, w, h) => drawRuneTablet(ctx, w, h, null));
     const runeArchX = firstCol + Math.floor((HUB.pos[0] - firstCol) / bay) * bay + bay / 2;
-    const runeTablet = plane(1.5, 0.5, standard("#ffffff", 0.9, runeTexture), runeArchX, (spring + archR + 4.04) / 2, colZ - 0.15);
+    const runeTablet = plane(0.9, 0.3, standard("#ffffff", 0.9, runeTexture), runeArchX, (spring + archR + 4.04) / 2, colZ - 0.15);
     runeTablet.rotation.y = Math.PI; // facing the platform
     scene.add(runeTablet);
     let runeCarved: string | null = null;
+    // A round rug in the middle of the platform, where you stand: muted purple, rings round
+    // its edge, worn pale in the middle
+    const rugTexture = paint(256, 256, (ctx, w, h) => {
+      const c = w / 2;
+      const ring = (r: number, colour: string) => {
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        ctx.arc(c, c, r, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      ring(c, "#3d2f45");
+      ring(c - 8, "#6b5776");
+      ring(c - 14, "#4a3a55");
+      ring(c - 34, "#5c4968");
+      ring(c - 40, "#4a3a55");
+      // A band of little diamonds
+      ctx.fillStyle = "#7d6a86";
+      for (let i = 0; i < 28; i += 1) {
+        const angle = (i / 28) * Math.PI * 2;
+        const x = c + Math.cos(angle) * (c - 24);
+        const y = c + Math.sin(angle) * (c - 24);
+        ctx.beginPath();
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x + 5, y);
+        ctx.lineTo(x, y + 5);
+        ctx.lineTo(x - 5, y);
+        ctx.fill();
+      }
+      const worn = ctx.createRadialGradient(c, c, 4, c, c, c - 40);
+      worn.addColorStop(0, "rgba(150,130,150,0.35)");
+      worn.addColorStop(1, "rgba(150,130,150,0)");
+      ctx.fillStyle = worn;
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 2500; i += 1) {
+        ctx.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,0.12)" : "rgba(220,200,230,0.06)";
+        ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+      }
+    });
+    const rug = new Mesh(new CircleGeometry(1.25, 48), standard("#ffffff", 1, rugTexture));
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(HUB.pos[0], 0.011, 0.45);
+    scene.add(rug);
     const line = plane(PLATFORM_W, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), PLATFORM_MID, 0.006, EDGE_Z - 0.25);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
@@ -2342,7 +2425,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
     const paintedPoster = poster.material.map as CanvasTexture;
     let posterImage = "";
-    paintBoardsRef.current = ({ notices, departures: lines, poster: sheet, unread, rune }) => {
+    paintBoardsRef.current = ({ notices, departures: board, poster: sheet, unread, rune }) => {
       if (rune !== runeCarved) {
         runeCarved = rune;
         repaint(runeTexture, (ctx, w, h) => drawRuneTablet(ctx, w, h, rune));
@@ -2352,7 +2435,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const [kind, title] = notices[i] ? [notices[i].kind, notices[i].title] : IDLE_NOTICES[i];
         repaint(texture, (ctx, w, h) => drawNotice(ctx, w, h, kind, title, PAPERS[i]));
       });
-      repaint(departures.userData.face as CanvasTexture, (ctx, w, h) => drawDepartures(ctx, w, h, lines));
+      repaint(departures.userData.face as CanvasTexture, (ctx, w, h) => drawDepartures(ctx, w, h, board));
       // The poster: a real one-sheet when there is an image, the painted event poster otherwise
       repaint(paintedPoster, (ctx, w, h) => drawEventPoster(ctx, w, h, sheet.title, sheet.line));
       if (sheet.image === posterImage) return;

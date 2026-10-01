@@ -1,6 +1,6 @@
 // The rune tablet over the track-side arch: a weathered stone carved with the day's code
-// in Elder Futhark runes (one for each letter, as usually transliterated), the grooves
-// faintly aglow. Decoded and typed into WaysideOS, the code pays out tickets.
+// in Elder Futhark runes (one for each letter, as usually transliterated).
+// Decoded and typed into WaysideOS, the code pays out tickets.
 
 // Each rune as straight strokes in a box 0.6 wide by 1 tall (x right, y down)
 type Stroke = [number, number, number, number];
@@ -55,24 +55,22 @@ export function drawRuneTablet(ctx: CanvasRenderingContext2D, w: number, h: numb
   const y0 = (h - glyphH) / 2;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  // Each stroke twice: the cut (dark, wide), then the glow in its bottom
+  // Each stroke cut into the stone: a pale lip where the light catches its lower edge, then
+  // the groove itself, dark
   [
-    { colour: "#16120e", width: glyphH * 0.11, blur: 0 },
-    { colour: "#9dffd6", width: glyphH * 0.035, blur: glyphH * 0.12 },
-  ].forEach(({ colour, width, blur }) => {
+    { colour: "rgba(205,195,175,0.55)", width: glyphH * 0.1, dy: glyphH * 0.025 },
+    { colour: "#1e1914", width: glyphH * 0.085, dy: 0 },
+  ].forEach(({ colour, width, dy }) => {
     ctx.strokeStyle = colour;
     ctx.lineWidth = width;
-    ctx.shadowColor = blur ? "#4dffb0" : "transparent";
-    ctx.shadowBlur = blur;
     letters.forEach((letter, i) => {
       const x = x0 + i * (glyphW + gap);
       ctx.beginPath();
       RUNES[letter].forEach(([ax, ay, bx, by]) => {
-        ctx.moveTo(x + (ax / 0.6) * glyphW, y0 + ay * glyphH);
-        ctx.lineTo(x + (bx / 0.6) * glyphW, y0 + by * glyphH);
+        ctx.moveTo(x + (ax / 0.6) * glyphW, y0 + ay * glyphH + dy);
+        ctx.lineTo(x + (bx / 0.6) * glyphW, y0 + by * glyphH + dy);
       });
       ctx.stroke();
     });
   });
-  ctx.shadowBlur = 0;
 }

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { formatLeaderboardScore, useLeaderboard } from "./leaderboard.ts";
 
-// Top 10 scores for one game, on the arcade terminal's green screen (like the cartridge
-// index): rank, name and score in phosphor rows. Mount it to show it.
+// Top 10 scores for one game: the arcade terminal opened out to fill the screen, just as
+// the cartridge index (ALL) does, with rank, name and score in phosphor rows. Mount it to
+// show it.
 
 const PHOSPHOR = "#39ff6a";
 const TERMINAL_FAMILY = `"VT323", ui-monospace, Menlo, Consolas, monospace`;
@@ -41,13 +42,13 @@ export default function LeaderboardDialog({
     "shrink-0 whitespace-nowrap px-1.5 leading-6 focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]";
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-2 sm:p-6" style={{ background: "rgba(0, 0, 0, 0.7)" }} onClick={onClose}>
-      {/* The terminal's glass */}
+    <div className="fixed inset-0 z-40 flex flex-col p-2 sm:p-6 md:pt-24" style={{ background: "rgba(0, 0, 0, 0.7)" }} onClick={onClose}>
+      {/* The terminal's glass, filling the screen (as the index does) */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="leaderboard-title"
-        className="relative flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border-[10px] border-[#b9ab8e]"
+        className="relative mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-hidden rounded-2xl border-[10px] border-[#b9ab8e]"
         style={{
           background: "radial-gradient(ellipse at center, #06260f 0%, #021407 70%, #010a04 100%)",
           boxShadow: "inset 0 0 30px rgba(0,0,0,0.9), 0 10px 40px rgba(0,0,0,0.7)",

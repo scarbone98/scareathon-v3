@@ -16,8 +16,8 @@ import {
   Vector3,
 } from "three";
 
-// Halloween decorations for the station, up through October only: a garland of paper
-// bats along the ceiling corners, and jack-o'-lanterns about the platform. Everything is
+// Halloween decorations for the station, up through October only: a garland of black and
+// orange paper bats along the ceiling corners, and jack-o'-lanterns about the platform. Everything is
 // in this file; to take them down for good, delete it and the lines marked HALLOWEEN in
 // StationScene.
 
@@ -87,12 +87,12 @@ function batGarland(from: Vector3, to: Vector3, sag: number, span: number, facin
   const points = Array.from({ length: swags * 24 + 1 }, (_, i) => at(i / (swags * 24)));
   group.add(new Line(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color: "#2a2018" })));
   const black = new MeshBasicMaterial({ map: batTexture("#111111", "#000000"), transparent: true, side: DoubleSide, alphaTest: 0.3, color: "#9a9a9a" });
-  const white = new MeshBasicMaterial({ map: batTexture("#e8e2d2", "#2a2420"), transparent: true, side: DoubleSide, alphaTest: 0.3, color: "#b8b0a0" });
+  const orange = new MeshBasicMaterial({ map: batTexture("#e8701e", "#5a2208"), transparent: true, side: DoubleSide, alphaTest: 0.3, color: "#c8c0b0" });
   const bats: Mesh[] = [];
   const count = Math.floor(length / 0.32);
   for (let i = 1; i < count; i += 1) {
     const k = i / count;
-    const bat = new Mesh(new PlaneGeometry(0.24, 0.12), i % 2 ? black : white);
+    const bat = new Mesh(new PlaneGeometry(0.24, 0.12), i % 2 ? black : orange);
     bat.position.copy(at(k)).add(new Vector3(0, -0.07, 0));
     bat.rotation.y = facing;
     bat.userData.seed = i * 1.7;
@@ -191,7 +191,7 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt }: Stat
   const bats = [...(back.userData.bats as Mesh[]), ...(side.userData.bats as Mesh[])];
 
   // Jack-o'-lanterns: by the lockers, under the board, either side of the events table,
-  // by the bench, and one on the ticket counter
+  // and one on the ticket counter
   const lanterns: Group[] = [];
   const place = (x: number, y: number, z: number, size: number, turn = 0) => {
     const lantern = jackOLantern(size, lanterns.length);
@@ -201,10 +201,12 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt }: Stat
     lanterns.push(lantern);
   };
   place(-4.35, 0, wallZ + 0.45, 0.17, 0.15);
-  place(-0.15, 0, wallZ + 0.35, 0.13, -0.1);
-  place(0.15, 0, wallZ + 0.75, 0.2, 0.2);
+  // (the board's two right up against the wall, under it: their tops peep in when you're
+  // reading its bottom papers)
+  place(-1.5, 0, wallZ + 0.24, 0.15, 0.1);
+  place(-0.25, 0, wallZ + 0.22, 0.13, -0.1);
+  place(0.28, 0, wallZ + 0.3, 0.18, 0.2);
   place(2.25, 0, wallZ + 0.7, 0.15, -0.25);
-  place(endX + 2.1, 0, 0.9, 0.16, 0.6);
   // The counter faces back along the platform: its top, to one side of the coin slot
   place(ticketsAt[0] - 0.3, ticketsAt[1], ticketsAt[2] - 0.5, 0.11, -Math.PI / 2);
 
