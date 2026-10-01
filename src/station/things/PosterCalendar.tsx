@@ -5,8 +5,9 @@ import { serif, stubButton } from "../style/theme.ts";
 import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
 
 // The October calendar flyer: the month laid out as a wall calendar, every night's film
-// poster in its square. On the stand it's a picture of the month; read up close, tap a
-// film to see what it is and tick it off (each tick is a point on the Scareboard).
+// poster in its square, and the picked night's film under it. It looks the same on the
+// stand and up close; up close, tap a film to see what it is and tick it off (each tick is
+// a point on the Scareboard). `zoomed` only decides whether it can be pressed.
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -39,9 +40,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
       <p className="mt-1 px-1 text-[12px] uppercase tracking-[0.18em] opacity-60">
         {!signedIn || needsSignIn(error)
           ? "Sign in to see the films"
-          : zoomed
-            ? "Tap a film to tick it off"
-            : "Every night's film"}
+          : "Tap a film to tick it off"}
       </p>
       <div className="mt-2 grid grid-cols-7 gap-[5px] px-px text-center text-[11px] opacity-60">
         {WEEKDAYS.map((letter, i) => (
@@ -76,7 +75,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
           );
           const frame = `relative overflow-hidden rounded-[2px] shadow-[1px_2px_0_rgba(0,0,0,0.5)] ${faded ? "opacity-45" : ""} ${
             isTonight ? "outline outline-2 outline-offset-1 outline-[#ffcf7a]" : ""
-          } ${zoomed && selected === date ? "ring-2 ring-[#f2ead2]" : ""}`;
+          } ${selected === date ? "ring-2 ring-[#f2ead2]" : ""}`;
           return zoomed && films ? (
             <button
               key={date}
@@ -96,7 +95,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
         })}
       </div>
 
-      {zoomed && (
+      {(
         <div className="mt-3 flex min-h-[64px] items-center gap-3 border-t border-[#f2ead2]/20 px-1 pt-3">
           {!films ? (
             !signedIn || needsSignIn(error) ? (

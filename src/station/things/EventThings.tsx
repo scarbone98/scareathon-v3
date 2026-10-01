@@ -14,10 +14,10 @@ import { PAPER_GRAIN, sans, serif, stubButton, typewriter } from "../style/theme
 // and the poster above, which is tonight's film too. Each flyer's face says what it is;
 // picking one up (a Sheet) has the rest.
 
-// A flyer on the stand. Its face is what you see from the table; read up close (the camera
-// comes up to it, as at the bulletin board) it shows its sheet. A full-bleed flyer (the
-// calendar) draws both itself, at the flyer's full size.
-export type Flyer = { id: string; title: string; tint: string; ink: string; face: ReactNode; sheet: SheetContent; fullBleed?: boolean };
+// A flyer on the stand. What's printed on it is the same from the table and up close (the
+// camera comes up to read it, as at the bulletin board); up close it can be used and scrolled.
+// A full-bleed flyer (the calendar) lays itself out edge to edge.
+export type Flyer = { id: string; title: string; tint: string; ink: string; content: (zoomed: boolean) => ReactNode; fullBleed?: boolean };
 
 const RULES = [
   "Every night's film you watch, ticked off on the October calendar: 1 point.",
@@ -26,21 +26,6 @@ const RULES = [
 ];
 
 const small = "text-[12px] uppercase tracking-[0.2em] opacity-70";
-
-function Face({ label, title, children }: { label: string; title: string; children?: ReactNode }) {
-  return (
-    <div className="flex h-full flex-col p-4">
-      <p className={small}>{label}</p>
-      <p className="mt-1 text-[30px] font-bold leading-[1.05]" style={serif}>
-        {title}
-      </p>
-      <div className="mt-2 text-[15px] leading-snug opacity-85">{children}</div>
-      <p className="mt-auto text-[12px] italic opacity-60" style={serif}>
-        Take one
-      </p>
-    </div>
-  );
-}
 
 function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const { isLive, daysUntil, year, day } = eventState();
@@ -152,74 +137,41 @@ function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
 }
 
 export function useEventThings(signedIn: boolean, goTo: GoTo) {
-  const { isLive, daysUntil, year, day } = eventState();
-  const { data: movie } = useTodayMovie(isLive && signedIn);
   const tonight: SheetContent = { id: "tonight", title: "Tonight's film", tone: "ledger", body: <TonightSheet signedIn={signedIn} goTo={goTo} /> };
   const flyers: Flyer[] = [
-    {
-      id: "event",
-      title: "Scareathon",
-      tint: "#ff7a1a",
-      ink: "#1a0d05",
-      face: (
-        <Face label={`October ${year}`} title="SCARE-ATHON">
-          {isLive ? `Night ${day} of 31.` : `Starts in ${daysUntil} ${daysUntil === 1 ? "day" : "days"}.`} A horror film every night, weekly challenges, and the Scareboard.
-        </Face>
-      ),
-      sheet: { id: "event", title: `Scareathon ${year}`, tint: "#f0c9a0", body: <EventSheet signedIn={signedIn} goTo={goTo} /> },
-    },
-    {
-      id: "tonight",
-      title: "Tonight's film",
-      tint: "#2a2f3a",
-      ink: "#e6e2d8",
-      face: (
-        <Face label="Showing tonight" title={isLive ? movie?.data?.title ?? "Tonight's film" : "Dark until Oct 1"}>
-          {isLive ? "Where to watch it, and how long it runs." : "The projector's first reel is October 1."}
-        </Face>
-      ),
-      sheet: tonight,
-    },
+    { id: "event", title: "Scareathon", tint: "#ff7a1a", ink: "#1a0d05", content: () => <EventSheet signedIn={signedIn} goTo={goTo} /> },
+    // Tonight's film is the poster over the table (see PosterSheet), not a flyer on the stand
+    { id: "tonight", title: "Tonight's film", tint: "#0d131b", ink: "#e6e2d8", content: () => tonight.body },
     {
       id: "rules",
       title: "The rules",
       tint: "#efe3c8",
       ink: "#2a1d14",
-      face: (
-        <Face label="How to score" title="THE RULES">
-          Three ways to earn points in October.
-        </Face>
+      content: () => (
+        <div className="text-[#2a1d14]">
+          <p className={small}>Scareathon</p>
+          <p className="mt-1 text-3xl" style={serif}>
+            The rules
+          </p>
+          <ol className="mt-4 space-y-3">
+            {RULES.map((rule, i) => (
+              <li key={rule} className="flex gap-3 text-[16px] leading-relaxed">
+                <span className="opacity-60" style={serif}>
+                  {i + 1}.
+                </span>
+                <span>{rule}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
       ),
-      sheet: {
-        id: "rules",
-        title: "The rules",
-        body: (
-          <div className="text-[#2a1d14]">
-            <p className={small}>Scareathon</p>
-            <p className="mt-1 text-3xl" style={serif}>
-              The rules
-            </p>
-            <ol className="mt-4 space-y-3">
-              {RULES.map((rule, i) => (
-                <li key={rule} className="flex gap-3 text-[16px] leading-relaxed">
-                  <span className="opacity-60" style={serif}>
-                    {i + 1}.
-                  </span>
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ),
-      },
     },
     {
       id: "calendar",
       title: "The October calendar",
       tint: "#1d2a3a",
       ink: "#f2ead2",
-      face: <PosterCalendar signedIn={signedIn} goTo={goTo} zoomed={false} />,
-      sheet: { id: "calendar", title: "The October calendar", tone: "board", body: <PosterCalendar signedIn={signedIn} goTo={goTo} zoomed /> },
+      content: (zoomed) => <PosterCalendar signedIn={signedIn} goTo={goTo} zoomed={zoomed} />,
       fullBleed: true,
     },
   ];
@@ -228,10 +180,6 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
   const ordered = tonightFlyer ? [tonightFlyer, ...flyers.filter((flyer) => flyer !== tonightFlyer)] : flyers;
   return { flyers: ordered, tonight };
 }
-
-// The flyer's pixels (see SURFACES in StationScene) and its face's, which is scaled up to fit
-const FLYER_PX = 400;
-const FACE_PX = 240;
 
 // Read up close, a flyer (or the poster) scrolls if its sheet is longer than it is. Touch
 // scrolling is done by hand: the surface is drawn smaller than its HTML
@@ -257,35 +205,23 @@ function ReadingArea({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
-// A flyer standing on the table: tap it to come up close and read it where it stands
+// A flyer standing on the table: tap it to come up close and read it where it stands. It
+// looks the same either way; only up close can its buttons be pressed and its text scrolled
 export function FlyerFace({ flyer, onOpen, zoomed = false }: { flyer: Flyer; onOpen: () => void; zoomed?: boolean }) {
-  if (zoomed) {
-    const paper = !flyer.fullBleed;
-    return (
-      <div
-        className="h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)]"
-        style={{ backgroundColor: paper ? flyer.sheet.tint ?? "#f2ead2" : flyer.tint, backgroundImage: PAPER_GRAIN, color: paper ? "#2a1d14" : flyer.ink, ...typewriter }}
-      >
-        {paper ? <ReadingArea className="p-6">{flyer.sheet.body}</ReadingArea> : flyer.sheet.body}
-      </div>
-    );
-  }
-  const scale = FLYER_PX / FACE_PX;
+  const content = flyer.content(zoomed);
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Read: ${flyer.title}`}
-      onClick={onOpen}
-      onKeyDown={(event) => event.key === "Enter" && onOpen()}
-      className="h-full w-full cursor-pointer overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-110"
+      role={zoomed ? undefined : "button"}
+      tabIndex={zoomed ? undefined : 0}
+      aria-label={zoomed ? flyer.title : `Read: ${flyer.title}`}
+      onClick={zoomed ? undefined : onOpen}
+      onKeyDown={(event) => !zoomed && event.key === "Enter" && onOpen()}
+      className={`h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition ${zoomed ? "" : "cursor-pointer hover:brightness-110"}`}
       style={{ backgroundColor: flyer.tint, backgroundImage: PAPER_GRAIN, color: flyer.ink, ...typewriter }}
     >
-      {flyer.fullBleed ? (
-        flyer.face
-      ) : (
-        <div style={{ width: `${100 / scale}%`, height: `${100 / scale}%`, transform: `scale(${scale})`, transformOrigin: "0 0" }}>{flyer.face}</div>
-      )}
+      <div className="h-full" style={{ pointerEvents: zoomed ? "auto" : "none" }}>
+        {flyer.fullBleed ? content : zoomed ? <ReadingArea className="p-6">{content}</ReadingArea> : <div className="h-full overflow-hidden p-6">{content}</div>}
+      </div>
     </div>
   );
 }

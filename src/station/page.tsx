@@ -93,7 +93,6 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
 
 // What's taken up to look at: a key, turned into content each render so it stays live
 type Held =
-  | { kind: "flyer"; id: string }
   | { kind: "departures" }
   | { kind: "window" }
   | { kind: "shop" }
@@ -202,7 +201,6 @@ export default function StationPage() {
   const openShop = () => setHeld({ kind: "shop" });
   const sheet: SheetContent | null = (() => {
     if (!held) return null;
-    if (held.kind === "flyer") return flyers.find((f) => f.id === held.id)?.sheet ?? (held.id === "tonight" ? tonight : null);
     if (held.kind === "departures")
       return { id: "departures", title: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "window")
@@ -243,11 +241,7 @@ export default function StationPage() {
       if (index >= 0) setCardIndex(index);
       return;
     }
-    if (part.startsWith("flyer-")) {
-      const flyer = flyers[Number(part.slice(6)) + 1];
-      if (flyer) setHeld({ kind: "flyer", id: flyer.id });
-    } else if (part === "poster") setHeld({ kind: "flyer", id: "tonight" });
-    else if (part === "departures") setHeld({ kind: "departures" });
+    if (part === "departures") setHeld({ kind: "departures" });
     else if (part === "window") setHeld({ kind: "window" });
     else if (part === "locker") setHeld({ kind: "wardrobe" });
     else if (part === "letters" || part === "register") setHeld({ kind: part });
