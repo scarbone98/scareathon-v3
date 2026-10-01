@@ -45,8 +45,17 @@ function Line({ children, dim = false, bright = false }: { children: React.React
   return <div className={`flex items-center gap-2 py-[3px] text-[19px] leading-none ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`}>{children}</div>;
 }
 
+// The points behind a total: films watched, arcade challenges, and anything else
+const POINT_COLUMNS: [string, string][] = [
+  ["movies", "MOVIES"],
+  ["weekly", "ARCADE"],
+  ["bonus", "BONUS"],
+];
+
 function Standings({ signedIn }: { signedIn: boolean }) {
   const [year, setYear] = useState<number | null>(null);
+  // Just the totals, unless the passenger asks for the points behind them
+  const [breakdown, setBreakdown] = useState(false);
   const { data, isLoading, error } = useScareboard(year, signedIn);
   const { data: me } = useScareathonMe(signedIn);
   if (!signedIn || needsSignIn(error)) return null;
@@ -64,7 +73,23 @@ function Standings({ signedIn }: { signedIn: boolean }) {
             {String(y)}
           </Key>
         ))}
+        <span className="ml-auto" />
+        <Key active={breakdown} onClick={() => setBreakdown((on) => !on)}>
+          POINTS
+        </Key>
       </div>
+      {breakdown && rows.length > 0 && (
+        <Line dim>
+          <span className="w-9" />
+          <span className="min-w-0 flex-1" />
+          {POINT_COLUMNS.map(([, label]) => (
+            <span key={label} className="w-10 text-right text-[10px] sm:w-16 sm:text-[13px]">
+              {label}
+            </span>
+          ))}
+          <span className="w-12 text-right text-[10px] sm:w-16 sm:text-[13px]">TOTAL</span>
+        </Line>
+      )}
       {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
       {rows.map((row) => (
         <Line key={row.name} bright={row.rank <= 3}>
@@ -78,7 +103,13 @@ function Standings({ signedIn }: { signedIn: boolean }) {
               </span>
             ))}
           </span>
-          <span className={`${flap} w-16 text-right`}>{row.total}</span>
+          {breakdown &&
+            POINT_COLUMNS.map(([key]) => (
+              <span key={key} className={`${flap} w-10 text-right opacity-75 sm:w-16`}>
+                {row[key] ?? "-"}
+              </span>
+            ))}
+          <span className={`${flap} ${breakdown ? "w-12 sm:w-16" : "w-16"} text-right`}>{row.total}</span>
         </Line>
       ))}
       {me?.isAdmin && <ScareathonAdminPanel className="mt-4" />}

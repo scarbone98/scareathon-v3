@@ -205,6 +205,15 @@ export default function StationPage() {
     return () => window.clearTimeout(arrive);
   }, [at]);
 
+  // Walking up to your locker opens it: once you're there and the door's swung open, the
+  // wardrobe comes up by itself (closing it leaves you standing at the open locker)
+  useEffect(() => {
+    if (at !== "lockers") return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const open = window.setTimeout(() => setHeld((current) => current ?? { kind: "wardrobe" }), reduced ? 0 : 1100);
+    return () => window.clearTimeout(open);
+  }, [at]);
+
   // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film)
   useEffect(() => {
     setHeld(null);
