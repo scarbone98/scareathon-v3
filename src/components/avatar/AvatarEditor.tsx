@@ -85,7 +85,9 @@ type AvatarEditorProps = {
 export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
   const queryClient = useQueryClient();
   const { data: manifest, error: manifestError } = useAvatarManifest();
-  const [activeTab, setActiveTab] = useState("body");
+  const [activeTab, setActiveTab] = useState("all");
+  // Skin, eyes and hair colour sit behind a button, so your items come first
+  const [editingLook, setEditingLook] = useState(false);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -205,6 +207,9 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
         <span>
           MY ITEMS <strong>{owned.length}</strong>
         </span>
+        <button type="button" className="profile-secondary-button" onClick={() => setEditingLook((on) => !on)} aria-pressed={editingLook}>
+          <span>{editingLook ? "Done" : "Edit look"}</span>
+        </button>
         <button type="button" className="profile-secondary-button" onClick={randomize} disabled={saveMutation.isPending}>
           <FaDiceFive aria-hidden="true" />
           <span>Randomize</span>
@@ -231,7 +236,7 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
             ))}
           </div>
 
-          {tab.key === "body" && (
+          {editingLook && (
             <div className="wardrobe-body-panel">
               <div>
                 <h4>Skin</h4>
@@ -245,7 +250,6 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
                 <h4>Hair colour</h4>
                 <Swatches manifest={manifest} ramps={manifest.hairColors} value={draft.profile.hair} onChange={(hair) => setProfile({ hair })} label="Hair colour" />
               </div>
-              <h4>Bodies</h4>
             </div>
           )}
 

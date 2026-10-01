@@ -254,10 +254,10 @@ function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture
           </p>
         )}
         <div className="mt-2 flex flex-wrap justify-center gap-2">
-          <button type="button" className={action} onClick={act(() => goTo("events", "tonight"))}>
+          <button type="button" className={`${action} px-4 py-2.5 text-[17px]`} onClick={act(() => goTo("events", "tonight"))}>
             {isLive ? "Tonight's film" : "How it works"}
           </button>
-          <button type="button" className={action} onClick={act(() => goTo("departures"))}>
+          <button type="button" className={`${action} px-4 py-2.5 text-[17px]`} onClick={act(() => goTo("departures"))}>
             Scoreboard
           </button>
           {full && (
@@ -273,7 +273,9 @@ function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture
 
 // ---- A challenge: an arcade handbill
 
-function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem; game: GameCard | null; signedIn: boolean; goTo: GoTo; full: boolean }) {
+// `detailed`: the pinned layout, with the challenge spelled out too (the daily post reads
+// the same pinned up as up close)
+function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { item: ContentLoopItem; game: GameCard | null; signedIn: boolean; goTo: GoTo; full: boolean; detailed?: boolean }) {
   const { data: reward } = useRewardStatus(item, signedIn);
   const target = challengeTarget(item);
   const colour = game?.color ?? "#e0433b";
@@ -312,6 +314,14 @@ function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem
             .join(" · ")}
           {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Done</strong> : null}
         </p>
+        {detailed && !full && (
+          <>
+            <p className="mt-2 text-[16px] leading-tight" style={serif}>
+              {item.title}
+            </p>
+            {item.summary && <p className={`mt-1 text-[13px] leading-snug ${quiet}`}>{item.summary}</p>}
+          </>
+        )}
         {full && (
           <>
             <p className="mt-3 text-[20px] leading-tight" style={serif}>
@@ -494,8 +504,9 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       id: "daily",
       kind: "CHALLENGE",
       title: daily.title,
-      pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />,
-      full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full />,
+      // (the same pinned up as read up close: coming closer changes nothing on it)
+      pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} detailed />,
+      full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} detailed />,
       tint: "#d8ccab",
     });
   }

@@ -55,13 +55,13 @@ function TicketHoldersOnly({ what, goTo, dark = true }: { what: string; goTo: Go
 }
 
 // You, as you look now (or as you'd look in what you're trying on), and your coins
-function Mirror({ look, eyebrow, note, large = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean }) {
+function Mirror({ look, eyebrow, note, large = false, roomy = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean }) {
   const { data: summary } = useSummary();
   if (large)
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex h-[22rem] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
-          <AvatarView look={look} height={320} />
+        <div className="flex h-[30rem] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
+          <AvatarView look={look} height={440} />
         </div>
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
@@ -77,8 +77,8 @@ function Mirror({ look, eyebrow, note, large = false }: { look: AvatarLook | nul
     );
   return (
     <div className="mb-4 flex items-center gap-4">
-      <div className="flex h-24 w-20 shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
-        <AvatarView look={look} height={96} />
+      <div className={`flex ${roomy ? "h-36 w-28" : "h-24 w-20"} shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20`}>
+        <AvatarView look={look} height={roomy ? 144 : 96} />
       </div>
       <div className="min-w-0">
         <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
@@ -139,9 +139,9 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
   // only the clothes scroll, so whatever you try on shows at once
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
-      <div className="shrink-0 md:w-64">
+      <div className="shrink-0 md:w-80">
         <div className="md:hidden">
-          <Mirror look={look} eyebrow="Your locker" note={note} />
+          <Mirror look={look} eyebrow="Your locker" note={note} roomy />
         </div>
         <div className="hidden md:block">
           <Mirror look={look} eyebrow="Your locker" note={note} large />

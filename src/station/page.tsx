@@ -177,6 +177,11 @@ export default function StationPage() {
   const boards = useBoards(signedIn, papers);
   const [held, setHeld] = useState<Held | null>(null);
   const putBack = useCallback(() => setHeld(null), []);
+  // Shutting the wardrobe shuts the locker too: back to the platform, looking left
+  const closeSheet = () => {
+    if (held?.kind === "wardrobe" && at === "lockers") setParams(faceParams("left"));
+    putBack();
+  };
 
   // What the camera has come up to read, if anything: a paper on the board ("paper-2"), a
   // flyer on the events stand ("flyer-0") or the poster over it ("poster")
@@ -582,7 +587,7 @@ export default function StationPage() {
           </div>
         )}
 
-        <Sheet sheet={sheet} onClose={putBack} />
+        <Sheet sheet={sheet} onClose={closeSheet} />
 
         {/* Real controls for keyboard and screen-reader users: the canvas is only a picture */}
         <nav className="sr-only" aria-label="Station objects">

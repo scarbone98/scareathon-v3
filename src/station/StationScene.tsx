@@ -13,6 +13,7 @@ import {
   DoubleSide,
   ExtrudeGeometry,
   Shape,
+  Path,
   SphereGeometry,
   TorusGeometry,
   Color,
@@ -30,6 +31,7 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  SpotLight,
   Points,
   PointsMaterial,
   Raycaster,
@@ -589,6 +591,16 @@ function buildEvents() {
   const poster = plane(0.88, 1.28, standard("#ffffff", 0.8, posterTexture), 0, 2.38, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
+  // A brass footlight along its bottom edge, as on a cinema's display case, throwing a
+  // warm wash up the poster (under it, so it never covers the sign above)
+  const lampY = POSTER_Y - 0.74;
+  group.add(box(0.8, 0.07, 0.12, brass, 0, lampY, posterZ + 0.08)); // the trough
+  group.add(box(0.74, 0.012, 0.05, new MeshBasicMaterial({ color: "#fff1c8" }), 0, lampY + 0.036, posterZ + 0.1)); // its tube, lit
+  const display = new SpotLight("#ffd9a0", 9, 2.2, 0.75, 0.6, 1.4);
+  display.position.set(0, lampY + 0.05, posterZ + 0.22);
+  display.target.position.set(0, POSTER_Y + 0.2, posterZ);
+  group.add(display, display.target);
+  group.add(plane(1.2, 0.5, new MeshBasicMaterial({ map: glowTexture(), color: "#ffcf8a", transparent: true, opacity: 0.25, blending: AdditiveBlending, depthWrite: false }), 0, lampY + 0.12, posterZ + 0.03));
   group.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif")), 0, SIGN_Y, posterZ + 0.02));
   addLamp(group, 0, 2.4, 1.0);
   group.add(hitBox(1.55, 1.7, 0.5, 0.85));
@@ -998,7 +1010,7 @@ function buildLockers() {
   const hanger = new Group();
   hanger.position.x = -1.3;
   // A transom window up in the wall over the lockers
-  const transom = buildTransom(1.5, 0.42);
+  const transom = buildTransom(TRANSOM_W, TRANSOM_H);
   transom.position.set(0, TRANSOM_Y, WALL_Z + 0.02 - group.position.z);
   group.add(transom);
   group.add(hanger);
@@ -1045,28 +1057,17 @@ function buildLockers() {
 // open on a lectern.
 // Your cubbyhole: third row down, fifth across (see the painted grid in buildMail)
 const MY_CUBBY: [number, number] = [0.125, 1.45];
-// A transom window let into the wall: a wooden frame of three lights, the night beyond.
-// They all sit at the one height.
+// A transom window let into the wall: a wooden frame of three lights over an opening
+// through the brick, the night sky beyond. They're all one size, at the one height: over
+// the lockers and over the mail (the back wall is cut to match, see TRANSOM_XS)
 const TRANSOM_Y = 3.15;
+const TRANSOM_W = 1.5;
+const TRANSOM_H = 0.42;
+const TRANSOM_XS = [-5.3, 3.4];
 function buildTransom(w: number, h: number) {
   const group = new Group();
-  const night = paint(192, 64, (ctx, cw, ch) => {
-    const sky = ctx.createLinearGradient(0, 0, 0, ch);
-    sky.addColorStop(0, "#0b1226");
-    sky.addColorStop(1, "#1c2a44");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, cw, ch);
-    ctx.fillStyle = "rgba(230,235,255,0.8)";
-    for (let i = 0; i < 14; i += 1) ctx.fillRect(Math.random() * cw, Math.random() * ch * 0.8, 1, 1);
-    // Old glass: a little uneven, with grime in the corners
-    const grime = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.3, cw / 2, ch / 2, cw * 0.6);
-    grime.addColorStop(0, "rgba(40,30,20,0)");
-    grime.addColorStop(1, "rgba(40,30,20,0.45)");
-    ctx.fillStyle = grime;
-    ctx.fillRect(0, 0, cw, ch);
-  });
-  // Unlit: it's the night outside, not lamplight on the glass
-  group.add(plane(w, h, new MeshBasicMaterial({ map: night, color: "#9aa3b8" }), 0, 0, 0.005));
+  // Clear old glass over a real opening in the wall: the sky (and its stars) beyond
+  group.add(plane(w, h, new MeshBasicMaterial({ color: "#9fb4c8", transparent: true, opacity: 0.07, depthWrite: false }), 0, 0, 0.005));
   const wood = standard("#3a2a1c", 0.8);
   const frame = 0.06;
   group.add(box(w + frame * 2, frame, 0.06, wood, 0, h / 2 + frame / 2, 0.02));
@@ -1133,7 +1134,7 @@ function buildMail() {
   group.add(cubby);
   group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("MAIL"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
   // A transom window up in the wall above
-  const transom = buildTransom(1.5, 0.42);
+  const transom = buildTransom(TRANSOM_W, TRANSOM_H);
   transom.position.set(cx, TRANSOM_Y, WALL_Z + 0.02 - group.position.z);
   group.add(transom);
   // The station register on its lectern
@@ -2130,7 +2131,31 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
     floorTex.repeat.set(PLATFORM_W / 2.8, (EDGE_Z - WALL_Z) / 2.8);
     scene.add(box(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, standard("#bdb5aa", 0.95, floorTex), PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
-    scene.add(box(PLATFORM_W, 5, 0.2, standard("#8a7f78", 1, brickTexture()), PLATFORM_MID, 2.5, WALL_Z - 0.1));
+    // The back wall, brick, with the transoms' openings cut right through it
+    const wallLeft = PLATFORM_MID - PLATFORM_W / 2;
+    const wallShape = new Shape();
+    wallShape.moveTo(0, 0);
+    wallShape.lineTo(PLATFORM_W, 0);
+    wallShape.lineTo(PLATFORM_W, 5);
+    wallShape.lineTo(0, 5);
+    wallShape.closePath();
+    TRANSOM_XS.forEach((x) => {
+      const [x0, x1] = [x - wallLeft - TRANSOM_W / 2, x - wallLeft + TRANSOM_W / 2];
+      const [y0, y1] = [TRANSOM_Y - TRANSOM_H / 2, TRANSOM_Y + TRANSOM_H / 2];
+      const hole = new Path();
+      hole.moveTo(x0, y0);
+      hole.lineTo(x1, y0);
+      hole.lineTo(x1, y1);
+      hole.lineTo(x0, y1);
+      hole.closePath();
+      wallShape.holes.push(hole);
+    });
+    // (the faces are measured in metres: the bricks keep the size they had)
+    const wallBricks = brickTexture();
+    wallBricks.repeat.set(24 / PLATFORM_W, 3 / 5);
+    const backWall = new Mesh(new ExtrudeGeometry(wallShape, { depth: 0.2, bevelEnabled: false }), standard("#8a7f78", 1, wallBricks));
+    backWall.position.set(wallLeft, 0, WALL_Z - 0.2);
+    scene.add(backWall);
     const sideBricks = brickTexture();
     sideBricks.repeat.set(2, 3);
     scene.add(box(0.2, 5, 4.4, standard("#8a7f78", 1, sideBricks), SIDE_X + 0.1, 2.5, WALL_Z + 2.2));
@@ -2359,6 +2384,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     for (let i = 0; i < 160; i += 1) {
       const a = Math.random() * Math.PI * 2;
       const e = 0.12 + Math.random() * 1.2;
+      starPositions.push(Math.cos(a) * Math.cos(e) * 90, Math.sin(e) * 90, Math.sin(a) * Math.cos(e) * 90);
+    }
+    // ...and more low in the sky behind the station, so its transoms have stars in them
+    for (let i = 0; i < 90; i += 1) {
+      const a = Math.PI + 0.3 + Math.random() * (Math.PI - 0.6);
+      const e = 0.2 + Math.random() * 0.55;
       starPositions.push(Math.cos(a) * Math.cos(e) * 90, Math.sin(e) * 90, Math.sin(a) * Math.cos(e) * 90);
     }
     const starGeometry = new BufferGeometry();

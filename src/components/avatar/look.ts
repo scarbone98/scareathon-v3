@@ -1,7 +1,7 @@
 import type { AvatarData, AvatarItem, AvatarLook, AvatarManifest, DyeChoice, InventoryEntry } from "./types";
 
 // How the wardrobe and shop group categories into tabs.
-export const WARDROBE_TABS: { key: string; label: string; categories: string[] }[] = [
+const TAB_LIST: { key: string; label: string; categories: string[] }[] = [
   { key: "body", label: "Body", categories: ["body"] },
   { key: "hair", label: "Hair", categories: ["hair"] },
   { key: "face", label: "Face", categories: ["face_paint", "face_acc"] },
@@ -11,6 +11,8 @@ export const WARDROBE_TABS: { key: string; label: string; categories: string[] }
   { key: "hats", label: "Hats", categories: ["head"] },
   { key: "extras", label: "Extras", categories: ["back", "wings", "held", "companion", "aura", "background"] },
 ];
+// Everything you own comes first; then a tab for each kind of thing
+export const WARDROBE_TABS = [{ key: "all", label: "All", categories: TAB_LIST.flatMap((t) => t.categories) }, ...TAB_LIST];
 
 export const CATEGORY_LABELS: Record<string, string> = {
   body: "Body",
