@@ -1286,7 +1286,7 @@ function buildClerk() {
 // price. The item is the `pick`th of the shop's priced, released ones (from the avatar
 // manifest), painted in once that's loaded.
 const SHOP_AD_COLOURS: Record<string, string> = { common: "#5a6b5a", uncommon: "#2f6f8f", rare: "#3d5a80", epic: "#7a3d8a", legendary: "#b07a2a" };
-function shopAdvertTexture(pick: number) {
+function shopAdvertTexture(pick: number, onPicked?: (name: string) => void) {
   const draw = (ctx: CanvasRenderingContext2D, w: number, h: number, item?: { name: string; price: number; rarity?: string }, icon?: HTMLImageElement) => {
     const colour = SHOP_AD_COLOURS[item?.rarity ?? ""] ?? "#7a1f1a";
     ctx.fillStyle = "#e7d9b6";
@@ -1324,6 +1324,7 @@ function shopAdvertTexture(pick: number) {
       const item = forSale[pick % forSale.length];
       if (!item?.price) return;
       const priced = { name: item.name, price: item.price, rarity: item.rarity };
+      onPicked?.(item.name);
       repaint(texture, (ctx, w, h) => draw(ctx, w, h, priced));
       const icon = new Image();
       icon.onload = () => repaint(texture, (ctx, w, h) => draw(ctx, w, h, priced, icon));
@@ -1393,9 +1394,11 @@ function buildTickets() {
   [-0.82, 0, 0.82].forEach((x, i) => {
     const shop = i !== 1;
     const [name, tagline, colour] = ADVERTS[day % ADVERTS.length];
-    const texture = shop ? shopAdvertTexture(day * 2 + i) : advertTexture(name, tagline, colour);
     // (a little grey, so the counter lamp right under them doesn't wash them out)
-    const ad = plane(0.7, 0.99, standard("#8f877b", 1, texture), x, 3.14, 0.015);
+    const adMaterial = standard("#8f877b", 1);
+    const ad = plane(0.7, 0.99, adMaterial, x, 3.14, 0.015);
+    // A shop advert's tap opens the shop on its item, once it knows which
+    adMaterial.map = shop ? shopAdvertTexture(day * 2 + i, (item) => (ad.userData.part = `advert-shop:${item}`)) : advertTexture(name, tagline, colour);
     ad.rotation.z = [0.02, -0.012, 0.018][i];
     ad.userData.part = shop ? "advert-shop" : `advert-${name}`;
     group.add(ad);

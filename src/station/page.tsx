@@ -99,7 +99,7 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
 type Held =
   | { kind: "departures" }
   | { kind: "window" }
-  | { kind: "shop" }
+  | { kind: "shop"; focus?: string }
   | { kind: "wardrobe" }
   | { kind: "letters" }
   | { kind: "register" };
@@ -250,7 +250,7 @@ export default function StationPage() {
       };
     if (held.kind === "window")
       return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
-    if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", body: <Shop signedIn={signedIn} goTo={goTo} /> };
+    if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", full: true, body: <Shop signedIn={signedIn} goTo={goTo} focus={held.focus} /> };
     if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", full: true, body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "letters") return { id: "letters", title: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
     return { id: "register", title: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
@@ -281,8 +281,8 @@ export default function StationPage() {
       return;
     }
     // An advert for something in the shop opens the shop; one for a game, the game
-    if (part === "advert-shop") {
-      setHeld(signedIn ? { kind: "shop" } : { kind: "window" });
+    if (part.startsWith("advert-shop")) {
+      setHeld(signedIn ? { kind: "shop", focus: part.slice("advert-shop:".length) || undefined } : { kind: "window" });
       return;
     }
     if (part.startsWith("advert-")) {

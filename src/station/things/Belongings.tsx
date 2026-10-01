@@ -103,16 +103,28 @@ function Classic({ children }: { children: ReactNode }) {
   );
 }
 
-export function Shop({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
+export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo; focus?: string }) {
   const [preview, setPreview] = useState<AvatarLook | null>(null);
   const unread = useInboxUnreadCount();
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
+  const look = preview || saved;
+  const note = preview ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null;
+  // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
+  // phone) while only the wares scroll
   return (
-    <>
-      <Mirror look={preview || saved} eyebrow="Item shop" note={preview ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null} />
+    <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
+      <div className="shrink-0 md:w-80">
+        <div className="md:hidden">
+          <Mirror look={look} eyebrow="Item shop" note={note} roomy />
+        </div>
+        <div className="hidden md:block">
+          <Mirror look={look} eyebrow="Item shop" note={note} large />
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
       <Classic>
-        <AvatarShop onPreviewLookChange={setPreview} />
+        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} />
       </Classic>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
@@ -125,7 +137,8 @@ export function Shop({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
           Settings
         </button>
       </div>
-    </>
+      </div>
+    </div>
   );
 }
 

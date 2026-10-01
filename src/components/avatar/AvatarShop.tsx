@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   keepPreviousData,
   useMutation,
@@ -76,12 +76,16 @@ function readJson<T>(response: Response) {
 
 type AvatarShopProps = {
   onPreviewLookChange?: (look: AvatarLook | null) => void;
+  // Open on this item (by name): searched for, tried on, and scrolled to (the adverts
+  // over the ticket window link here)
+  focusName?: string;
 };
 
-export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
+export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(focusName ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(focusName ?? "");
+  const focused = useRef(false);
   const [classification, setClassification] = useState("");
   const [rarityFilter, setRarityFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -160,6 +164,15 @@ export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
   });
 
   const items = shopData?.data || [];
+  // Once the item it was opened on turns up: try it on, and bring it into view
+  useEffect(() => {
+    if (!focusName || focused.current) return;
+    const match = (shopData?.data || []).find((item) => item.name.toLowerCase() === focusName.toLowerCase());
+    if (!match) return;
+    focused.current = true;
+    setPreviewItem(match);
+    window.requestAnimationFrame(() => document.getElementById(`shop-item-${match.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+  }, [focusName, shopData]);
   const pagination = shopData?.pagination || {
     page,
     limit: 20,
@@ -245,7 +258,7 @@ export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
               item.supplyLimit !== null ? Math.max(item.supplyLimit - item.mintedCount, 0) : null;
 
             return (
-              <article key={item.id} className={`shop-item rarity-${rarity} ${isPreviewing ? "is-previewing" : ""}`}>
+              <article key={item.id} id={`shop-item-${item.id}`} className={`shop-item rarity-${rarity} ${isPreviewing ? "is-previewing" : ""}`}>
                 <div className="shop-item-art">
                   <img className="shop-item-icon" src={item.icon} alt="" draggable={false} />
                   <span className="shop-rarity">{rarity}</span>
