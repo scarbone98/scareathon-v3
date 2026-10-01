@@ -563,8 +563,8 @@ function buildEvents() {
 
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
-    ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["THE RULES", "#efe3c8", "#2a1d14"],
+    ["SCARE-ATHON", "#ff7a1a", "#1a0d05"],
     ["OCTOBER", "#1d2a3a", "#f2ead2"],
   ];
   flyers.forEach(([title, bg, fg], i) => {
@@ -998,8 +998,8 @@ function buildLockers() {
   const hanger = new Group();
   hanger.position.x = -1.3;
   // A transom window up in the wall over the lockers
-  const transom = buildTransom(1.4, 0.4);
-  transom.position.set(0, 2.78, WALL_Z + 0.02 - group.position.z);
+  const transom = buildTransom(1.5, 0.42);
+  transom.position.set(0, TRANSOM_Y, WALL_Z + 0.02 - group.position.z);
   group.add(transom);
   group.add(hanger);
   const iron = standard("#1c1a17", 0.5);
@@ -1045,7 +1045,9 @@ function buildLockers() {
 // open on a lectern.
 // Your cubbyhole: third row down, fifth across (see the painted grid in buildMail)
 const MY_CUBBY: [number, number] = [0.125, 1.45];
-// A transom window let into the wall: a wooden frame of three lights, the night beyond
+// A transom window let into the wall: a wooden frame of three lights, the night beyond.
+// They all sit at the one height.
+const TRANSOM_Y = 3.15;
 function buildTransom(w: number, h: number) {
   const group = new Group();
   const night = paint(192, 64, (ctx, cw, ch) => {
@@ -1132,7 +1134,7 @@ function buildMail() {
   group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("MAIL"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
   // A transom window up in the wall above
   const transom = buildTransom(1.5, 0.42);
-  transom.position.set(cx, 3.3, WALL_Z + 0.02 - group.position.z);
+  transom.position.set(cx, TRANSOM_Y, WALL_Z + 0.02 - group.position.z);
   group.add(transom);
   // The station register on its lectern
   const lectern = new Group();
@@ -1279,6 +1281,57 @@ function buildClerk() {
   return { eyes, hand };
 }
 
+// An advert for something in the item shop: its icon, big and blocky, its name and its
+// price. The item is the `pick`th of the shop's priced, released ones (from the avatar
+// manifest), painted in once that's loaded.
+const SHOP_AD_COLOURS: Record<string, string> = { common: "#5a6b5a", uncommon: "#2f6f8f", rare: "#3d5a80", epic: "#7a3d8a", legendary: "#b07a2a" };
+function shopAdvertTexture(pick: number) {
+  const draw = (ctx: CanvasRenderingContext2D, w: number, h: number, item?: { name: string; price: number; rarity?: string }, icon?: HTMLImageElement) => {
+    const colour = SHOP_AD_COLOURS[item?.rarity ?? ""] ?? "#7a1f1a";
+    ctx.fillStyle = "#e7d9b6";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = colour;
+    ctx.fillRect(10, 10, w - 20, 44);
+    ctx.fillStyle = "#f4ead0";
+    ctx.font = "700 20px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText("AT THE TICKET COUNTER", w / 2, 39, w - 30);
+    ctx.fillStyle = "#3a2a1a";
+    ctx.fillRect(18, 66, w - 36, 150);
+    if (icon) {
+      ctx.imageSmoothingEnabled = false;
+      const scale = Math.floor(Math.min((w - 60) / icon.width, 130 / icon.height));
+      const iw = icon.width * scale;
+      const ih = icon.height * scale;
+      ctx.drawImage(icon, (w - iw) / 2, 66 + (150 - ih) / 2, iw, ih);
+      ctx.imageSmoothingEnabled = true;
+    }
+    if (!item) return;
+    ctx.fillStyle = "#2a1d14";
+    ctx.font = "700 28px Georgia, serif";
+    ctx.fillText(item.name.toUpperCase(), w / 2, 256, w - 24);
+    ctx.font = "italic 19px Georgia, serif";
+    ctx.fillText(`${item.price.toLocaleString()} tickets`, w / 2, 284, w - 24);
+    ctx.fillStyle = colour;
+    ctx.fillRect(10, h - 22, w - 20, 10);
+  };
+  const texture = paint(220, 310, (ctx, w, h) => draw(ctx, w, h));
+  fetch("/avatar-px/manifest.json")
+    .then((response) => response.json())
+    .then((manifest: { items?: { name: string; price?: number | null; release?: string; rarity?: string; icon: string }[] }) => {
+      const forSale = (manifest.items ?? []).filter((item) => item.price && item.release === "released");
+      const item = forSale[pick % forSale.length];
+      if (!item?.price) return;
+      const priced = { name: item.name, price: item.price, rarity: item.rarity };
+      repaint(texture, (ctx, w, h) => draw(ctx, w, h, priced));
+      const icon = new Image();
+      icon.onload = () => repaint(texture, (ctx, w, h) => draw(ctx, w, h, priced, icon));
+      icon.src = item.icon;
+    })
+    .catch(() => undefined);
+  return texture;
+}
+
 function buildTickets() {
   const group = new Group();
   group.position.set(SIDE_X - 0.13, 0, TICKET_Z);
@@ -1335,12 +1388,15 @@ function buildTickets() {
   group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.3, 0.02));
   // Three adverts pasted up above
   const day = Math.floor(Date.now() / 86_400_000);
+  // Things from the shop either side, a game in the middle
   [-0.82, 0, 0.82].forEach((x, i) => {
-    const [name, tagline, colour] = ADVERTS[(day + i * 2) % ADVERTS.length];
+    const shop = i !== 1;
+    const [name, tagline, colour] = ADVERTS[day % ADVERTS.length];
+    const texture = shop ? shopAdvertTexture(day * 2 + i) : advertTexture(name, tagline, colour);
     // (a little grey, so the counter lamp right under them doesn't wash them out)
-    const ad = plane(0.7, 0.99, standard("#8f877b", 1, advertTexture(name, tagline, colour)), x, 3.14, 0.015);
+    const ad = plane(0.7, 0.99, standard("#8f877b", 1, texture), x, 3.14, 0.015);
     ad.rotation.z = [0.02, -0.012, 0.018][i];
-    ad.userData.part = `advert-${name}`;
+    ad.userData.part = shop ? "advert-shop" : `advert-${name}`;
     group.add(ad);
   });
   const clerk = buildClerk();

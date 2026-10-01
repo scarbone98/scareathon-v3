@@ -10,7 +10,7 @@ export const typewriter = { fontFamily: "'Special Elite', 'Courier New', monospa
 export const pixel = { fontFamily: "'Pixelify Sans', ui-monospace, monospace" };
 export const sans = { fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" };
 export const STATION_FONTS =
-  "https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Pixelify+Sans:wght@400;600&family=Special+Elite&family=Metamorphous&display=swap";
+  "https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Pixelify+Sans:wght@400;600&family=Special+Elite&family=Metamorphous&family=UnifrakturMaguntia&display=swap";
 
 // Paper grain, laid over a paper's own colour
 export const PAPER_GRAIN =

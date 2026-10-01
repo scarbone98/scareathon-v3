@@ -20,12 +20,16 @@ import { PAPER_GRAIN, sans, serif, stubButton, typewriter } from "../style/theme
 export type Flyer = { id: string; title: string; tint: string; ink: string; content: (zoomed: boolean) => ReactNode; fullBleed?: boolean };
 
 const RULES = [
-  "Every night's film you watch, ticked off on the October calendar: 1 point.",
-  "Every week, finish the themed weekly challenge by Sunday's film: 1 point.",
-  "On Halloween, wear a costume: 1 point.",
+  "Watch each night's film, then tick it off on the October calendar. Every film you watch is 1 point.",
+  "Finish the week's arcade challenge for 1 more point.",
+  "Finish the day's arcade challenge for a few extra tickets.",
+  "Wear a costume on Halloween for 1 more point.",
+  "Have fun, and don't get scared.",
 ];
 
 const small = "text-[12px] uppercase tracking-[0.2em] opacity-70";
+// The rules' face (loaded with the station's fonts)
+const decree = { fontFamily: "'UnifrakturMaguntia', 'IM Fell English', serif" };
 
 function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const { isLive, daysUntil, year, day } = eventState();
@@ -148,16 +152,18 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
       tint: "#efe3c8",
       ink: "#2a1d14",
       content: () => (
-        <div className="text-[#2a1d14]">
-          <p className={small}>Scareathon</p>
-          <p className="mt-1 text-3xl" style={serif}>
-            The rules
+        // Set like a posted decree: a blackletter heading over old italic print
+        <div className="text-center text-[#2a1d14]">
+          <p className={small}>The Scareathon</p>
+          <p className="mt-1 text-[46px] leading-none" style={decree}>
+            The Rules
           </p>
-          <ol className="mt-4 space-y-3">
+          <p className="mx-auto mt-2 w-16 border-t-2 border-[#2a1d14]/40" />
+          <ol className="mt-4 space-y-3 text-left">
             {RULES.map((rule, i) => (
-              <li key={rule} className="flex gap-3 text-[16px] leading-relaxed">
-                <span className="opacity-60" style={serif}>
-                  {i + 1}.
+              <li key={rule} className="flex gap-3 text-[18px] italic leading-snug" style={serif}>
+                <span className="w-11 shrink-0 text-right text-[26px] not-italic leading-none text-[#7a1f1a]" style={decree}>
+                  {["I", "II", "III", "IV", "V"][i]}
                 </span>
                 <span>{rule}</span>
               </li>
@@ -175,9 +181,9 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
       fullBleed: true,
     },
   ];
-  // Tonight's film is the poster on the wall; the stand holds the rest
-  const tonightFlyer = flyers.find((flyer) => flyer.id === "tonight");
-  const ordered = tonightFlyer ? [tonightFlyer, ...flyers.filter((flyer) => flyer !== tonightFlyer)] : flyers;
+  // Tonight's film is the poster on the wall; the stand holds the rest, left to right
+  const order = ["tonight", "rules", "event", "calendar"];
+  const ordered = [...flyers].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   return { flyers: ordered, tonight };
 }
 

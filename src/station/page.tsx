@@ -183,6 +183,11 @@ export default function StationPage() {
   const [zoom, setZoom] = useState<string | null>(null);
   // Papers read where they hang (the welcome) aren't zoomed into
   const zoomTo = (i: number) => {
+    // The event's post isn't read up close: it takes you over to the events table
+    if (papers[i]?.id === "event") {
+      select("events");
+      return;
+    }
     if (papers[i] && !papers[i].noZoom) setZoom(`paper-${i}`);
   };
   // The events table's things: tonight's film is the poster, the rest stand in a row
@@ -258,6 +263,11 @@ export default function StationPage() {
       return;
     }
     if (part === "window") {
+      setHeld(signedIn ? { kind: "shop" } : { kind: "window" });
+      return;
+    }
+    // An advert for something in the shop opens the shop; one for a game, the game
+    if (part === "advert-shop") {
       setHeld(signedIn ? { kind: "shop" } : { kind: "window" });
       return;
     }
