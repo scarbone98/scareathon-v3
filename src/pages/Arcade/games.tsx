@@ -59,6 +59,7 @@ const OOIDASH_URL =
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
 const HORDE_RUSH_URL = "/horde-rush";
+const MONSTER_BASH_URL = "/monster-bash";
 const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
@@ -422,6 +423,24 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Crypt Clash"
           url="/crypt-clash"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      // The monster arena: watch the brawls and bet coins on who wins
+      name: "Monster Bash",
+      cartridge: {
+        color: "#8f2d1f",
+        tagline: "Pick a monster. Back it with coins.",
+        font: { family: "Bangers" },
+        about: { released: "2026", players: "Everyone watching", genre: "Arena betting", developer: "scarbone98" },
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Monster Bash"
+          url={MONSTER_BASH_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
