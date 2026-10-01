@@ -42,6 +42,50 @@
     ],
     "redirects": [
         {
+            "source": "/",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "scareathon.rip"
+                }
+            ],
+            "destination": "https://www.waysidestation.com/station",
+            "permanent": false
+        },
+        {
+            "source": "/",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.scareathon.rip"
+                }
+            ],
+            "destination": "https://www.waysidestation.com/station",
+            "permanent": false
+        },
+        {
+            "source": "/:path*",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "scareathon.rip"
+                }
+            ],
+            "destination": "https://www.waysidestation.com/:path*",
+            "permanent": false
+        },
+        {
+            "source": "/:path*",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.scareathon.rip"
+                }
+            ],
+            "destination": "https://www.waysidestation.com/:path*",
+            "permanent": false
+        },
+        {
             "source": "/arcade",
             "has": [
                 {
@@ -511,6 +555,28 @@
                 }
             ],
             "destination": "/station?at=bulletin",
+            "permanent": false
+        },
+        {
+            "source": "/rules",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=rules",
+            "permanent": false
+        },
+        {
+            "source": "/rules",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.waysidestation.com"
+                }
+            ],
+            "destination": "/station?at=events&open=rules",
             "permanent": false
         }
     ]

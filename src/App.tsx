@@ -2,7 +2,6 @@
 import "./index.css";
 import { LazyMotion, domAnimation } from "framer-motion";
 import { BrowserRouter as Router } from "react-router-dom";
-import { Navigator } from "./components/navigator/Navigator";
 import { PageContainer } from "./components/PageContainer";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
 import { useLocation } from "react-router-dom";
@@ -12,7 +11,6 @@ import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 const AppContent = () => {
   const location = useLocation();
-  const isResetPasswordPage = location.pathname === "/reset-password";
   useEffect(() => {
     const setVh = () => {
       document.documentElement.style.setProperty(
@@ -28,7 +26,6 @@ const AppContent = () => {
   return (
     <>
       <AvatarCompositeEnsurer />
-      {!isResetPasswordPage && <Navigator />}
       <PageContainer>
         <AppErrorBoundary resetKey={location.pathname}>
           <AnimatedRoutes />

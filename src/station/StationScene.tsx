@@ -1896,7 +1896,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       poster.material.map = paintedPoster;
       if (sheet.image) {
         const url = sheet.image;
-        new TextureLoader().setCrossOrigin("anonymous").load(url, (texture) => {
+        // Its own address: the flyers show the same poster in plain <img>s, and TMDB only
+        // sends CORS headers when asked, so the browser's cached copy would taint the texture
+        const textureUrl = `${url}${url.includes("?") ? "&" : "?"}texture=1`;
+        new TextureLoader().setCrossOrigin("anonymous").load(textureUrl, (texture) => {
           if (posterImage !== url) return texture.dispose();
           texture.colorSpace = SRGBColorSpace;
           poster.material.map = texture;

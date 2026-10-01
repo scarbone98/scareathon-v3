@@ -22,6 +22,7 @@ import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
+import { stationPlaceFor } from "./places.ts";
 
 const StationScene = lazy(() => import("./StationScene.tsx"));
 const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx"));
@@ -40,24 +41,6 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 //
 // Where the visitor is lives in the URL (?at= an object, ?open= something there,
 // ?face= which way they face), so Back walks them back.
-
-// Links into the classic site that turn up inside reused components go to the matching
-// place in the station instead
-function stationPlaceFor(path: string, search = ""): [StopId, string?] {
-  if (path.startsWith("/profile/shop")) return ["tickets", "shop"];
-  if (path.startsWith("/profile/avatar")) return ["lockers"];
-  if (path.startsWith("/profile/inbox") || path.startsWith("/inbox")) return ["mail", "letters"];
-  if (path.startsWith("/profile/settings")) return ["mail", "register"];
-  if (path.startsWith("/profile")) return ["lockers"];
-  if (path.startsWith("/authentication")) return ["tickets"];
-  if (path.startsWith("/arcade")) return ["arcade", new URLSearchParams(search).get("game") ?? undefined];
-  if (path.includes("scareboard")) return ["departures"];
-  if (path.includes("calendar")) return ["events", "calendar"];
-  if (path.includes("rules")) return ["events", "rules"];
-  if (path.startsWith("/scareathon/today")) return ["events", "tonight"];
-  if (path.startsWith("/scareathon")) return ["events"];
-  return ["bulletin"];
-}
 
 // Paint the scene's own textures from live data: the papers' headlines (the stand-ins
 // under their HTML), the departure board as seen from afar, and the poster

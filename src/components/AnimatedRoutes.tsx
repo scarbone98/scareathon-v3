@@ -1,39 +1,16 @@
 // src/components/AnimatedRoutes.tsx
-import {
-  Routes,
-  Route,
-  useLocation,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { useEffect, useState, Suspense } from "react";
-import { lazy } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { shouldClearAuthSession } from "../authErrors";
+import { Suspense, lazy } from "react";
 import LoadingSpinner from "./LoadingSpinner";
+import { stationUrlFor } from "../station/places";
 
-// The old home page, kept for swapping back (see the / route)
-// const Home = lazy(() => import("../pages/Home/page"));
-const HomeV2 = lazy(() => import("../pages/HomeV2/page"));
-// The old ring-of-cabinets arcade, kept for swapping back (see the /arcade route)
-// const Arcade = lazy(() => import("../pages/Arcade/page"));
-const ArcadeV2 = lazy(() => import("../pages/ArcadeV2/page"));
-const Authentication = lazy(() => import("../pages/Authentication/page"));
-const Scareathon = lazy(() => import("../pages/Scareathon/page"));
-const ScareathonToday = lazy(() => import("../pages/Scareathon/Today"));
-const Scareboard = lazy(() => import("../pages/Scareboard/page"));
-const Calendar = lazy(() => import("../pages/Calendar/page"));
-const Rules = lazy(() => import("../pages/Rules/page"));
-const Announcements = lazy(() => import("../pages/Announcements/page"));
-const AnnouncementDetails = lazy(
-  () => import("../pages/AnnouncementDetails/page")
-);
-const ResetPassword = lazy(
-  () => import("../pages/Authentication/ResetPassword/page")
-);
-const Profile = lazy(() => import("../pages/Profile/page"));
-const Post = lazy(() => import("../pages/Post/page"));
+// The site is Wayside Station. Besides the station itself, only the pages it loads are
+// left: the in-site games (played inside the arcade's cabinet) and the password reset
+// that sign-in emails link to. Any other address is an old classic-site link and goes to
+// the matching place in the station (the same map as the redirects in vercel.json).
+const Station = lazy(() => import("../station/page"));
+const ResetPassword = lazy(() => import("../pages/Authentication/ResetPassword/page"));
 const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
 const CryptClash = lazy(() => import("../pages/Royale/page"));
 const HordeRush = lazy(() => import("../pages/HordeRush/page"));
@@ -42,385 +19,44 @@ const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 const GhostRidge = lazy(() => import("../pages/GhostRidge/page"));
 const Muertos = lazy(() => import("../pages/Muertos/page"));
 const PictoBox = lazy(() => import("../pages/PictoBox/page"));
-// The 3D station, at /station while it is built (the rest of the site is unchanged)
-const Station = lazy(() => import("../station/page"));
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+const PAGES: [string, React.ComponentType][] = [
+  ["/station", Station],
+  ["/reset-password", ResetPassword],
+  ["/monster-bash", MonsterBash],
+  ["/crypt-clash", CryptClash],
+  ["/horde-rush", HordeRush],
+  ["/mystery-crypt", MysteryCrypt],
+  ["/frog-ball", FrogBall],
+  ["/ghost-ridge", GhostRidge],
+  ["/muertos", Muertos],
+  ["/picto-box", PictoBox],
+];
+
+function ToStation() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let isMounted = true;
-    let unsubscribe: (() => void) | undefined;
-
-    import("../supabaseClient")
-      .then(({ supabase }) => {
-        if (!isMounted) return;
-
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-          if (!isMounted) return;
-
-          if (session) {
-            const {
-              data: { user },
-              error,
-            } = await supabase.auth.getUser();
-
-            if (!isMounted) return;
-
-            if (error || !user) {
-              if (shouldClearAuthSession(error)) {
-                await supabase.auth.signOut({ scope: "local" });
-                setSession(null);
-              } else {
-                setSession(session);
-              }
-              setLoading(false);
-              return;
-            }
-          }
-
-          setSession(session);
-          setLoading(false);
-        });
-
-        const {
-          data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-          if (isMounted) {
-            setSession(session);
-          }
-        });
-
-        unsubscribe = () => subscription.unsubscribe();
-      })
-      .catch((error) => {
-        console.error("Error loading auth client", error);
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-      unsubscribe?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loading || session || location.pathname === "/authentication") {
-      return;
-    }
-
-    navigate("/authentication", {
-      replace: true,
-      state: { from: location.pathname },
-    });
-  }, [loading, session, location.pathname, navigate]);
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!session) return null;
-
-  return <>{children}</>;
-};
+  const to = location.pathname === "/" ? "/station" : stationUrlFor(location.pathname, location.search);
+  return <Navigate to={to} replace />;
+}
 
 export const AnimatedRoutes = () => {
   const location = useLocation();
-  const routeAnimationKey = location.pathname.startsWith("/profile")
-    ? "/profile"
-    : location.pathname;
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={routeAnimationKey}>
-        <Route
-          path="/"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              {/* The redesigned home page. To swap back to the old one: use <Home /> here,
-                  uncomment the `Home` import at the top, and put the nav back to the
-                  narrower container (containerClassName in navigator/Navigator.tsx). */}
-              <HomeV2 />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/authentication"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Authentication />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/reset-password"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <ResetPassword />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/post/:documentId"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Post />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/rules"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Navigate to="/scareathon/rules" replace />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/scareathon"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Scareathon />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/scareathon/today"
-          element={
-            <ProtectedRoute>
+      <Routes location={location} key={location.pathname}>
+        {PAGES.map(([path, Page]) => (
+          <Route
+            key={path}
+            path={path}
+            element={
               <Suspense fallback={<LoadingSpinner />}>
-                <ScareathonToday />
+                <Page />
               </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/scareathon/rules"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Rules />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/announcements"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Announcements />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        {/*
-          The old ring-of-cabinets arcade. To swap back: uncomment this route and the
-          `Arcade` import at the top, and delete the cartridge arcade's /arcade and
-          /arcade-v2 routes below.
-        <Route
-          path="/arcade"
-          element={
-            // Open to guests: they can play, and are asked to sign in to save scores
-            <Suspense fallback={<LoadingSpinner />}>
-              <Arcade />
-            </Suspense>
-          }
-        />
-        */}
-        <Route
-          path="/arcade"
-          element={
-            // The cartridge arcade: one cabinet and a shelf of games.
-            // Open to guests: they can play, and are asked to sign in to save scores
-            <Suspense fallback={<LoadingSpinner />}>
-              <ArcadeV2 />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/arcade-v2"
-          element={
-            // Where the cartridge arcade lived before it became /arcade; keeps ?game= links working
-            <Navigate to={{ pathname: "/arcade", search: location.search }} replace />
-          }
-        />
-        <Route
-          path="/station"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Station />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/monster-bash"
-          element={
-            // Open to guests: anyone can watch; betting will need a login
-            <Suspense fallback={<LoadingSpinner />}>
-              <MonsterBash />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/crypt-clash"
-          element={
-            // Unlinked on purpose so it can be tested in prod by URL
-            <Suspense fallback={<LoadingSpinner />}>
-              <CryptClash />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/horde-rush"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <HordeRush />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/mystery-crypt"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <MysteryCrypt />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/frog-ball"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <FrogBall />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/muertos"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <Muertos />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/picto-box"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <PictoBox />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/ghost-ridge"
-          element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <GhostRidge />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/scareboard"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Navigate to="/scareathon/scareboard" replace />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/calendar"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Navigate to="/scareathon/calendar" replace />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/scareathon/scareboard"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Scareboard />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/scareathon/calendar"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Calendar />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/announcements/:id"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <AnnouncementDetails />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Profile />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/profile/settings" element={<ProtectedRoute><Suspense fallback={<LoadingSpinner />}><Profile /></Suspense></ProtectedRoute>} />
-        <Route
-          path="/profile/inbox"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Profile />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile/avatar"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Profile />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile/shop"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Profile />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/inbox"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/profile/inbox" replace />
-            </ProtectedRoute>
-          }
-        />
+            }
+          />
+        ))}
+        <Route path="*" element={<ToStation />} />
       </Routes>
     </AnimatePresence>
   );
