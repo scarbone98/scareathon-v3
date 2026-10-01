@@ -2539,9 +2539,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const yaw = cam.yaw + wrapAngle(pose.yaw - cam.yaw); // turn the short way round
       const walking = stopId !== lastAt;
       lastAt = stopId;
-      const duration = instant || reduced ? 0 : walking ? 1.0 : 0.55;
+      // Turning on the spot is quick and starts at once; walking somewhere takes its time
+      const duration = instant || reduced ? 0 : walking ? 1.0 : 0.38;
       gsap.killTweensOf(cam);
-      gsap.to(cam, { ...pose, yaw, duration, ease: walking ? "power1.inOut" : "power2.inOut" });
+      gsap.to(cam, { ...pose, yaw, duration, ease: walking ? "power1.inOut" : "power3.out" });
     };
     goRef.current = (stopId, facing) => {
       aimed = facing;
