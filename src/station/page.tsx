@@ -177,9 +177,11 @@ export default function StationPage() {
   const boards = useBoards(signedIn, papers);
   const [held, setHeld] = useState<Held | null>(null);
   const putBack = useCallback(() => setHeld(null), []);
-  // Shutting the wardrobe shuts the locker too: back to the platform, looking left
+  // Shutting the wardrobe shuts the locker too, and putting the scoreboard down steps back
+  // from it: back to the platform, facing the way that thing stands
   const closeSheet = () => {
     if (held?.kind === "wardrobe" && at === "lockers") setParams(faceParams("left"));
+    if (held?.kind === "departures" && at === "departures") setParams(faceParams(STOPS.departures.heading));
     putBack();
   };
 
@@ -211,11 +213,12 @@ export default function StationPage() {
   }, [at]);
 
   // Walking up to your locker opens it: once you're there and the door's swung open, the
-  // wardrobe comes up by itself (closing it leaves you standing at the open locker)
+  // wardrobe comes up by itself. Walking up to the scoreboard likewise brings it up full screen
   useEffect(() => {
-    if (at !== "lockers") return;
+    if (at !== "lockers" && at !== "departures") return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const open = window.setTimeout(() => setHeld((current) => current ?? { kind: "wardrobe" }), reduced ? 0 : 1100);
+    const kind = at === "lockers" ? "wardrobe" : "departures";
+    const open = window.setTimeout(() => setHeld((current) => current ?? { kind }), reduced ? 0 : at === "lockers" ? 1100 : 700);
     return () => window.clearTimeout(open);
   }, [at]);
 

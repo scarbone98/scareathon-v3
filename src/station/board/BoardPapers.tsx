@@ -285,7 +285,7 @@ function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { ite
       <div className="relative shrink-0" style={{ height: full ? undefined : "46%" }}>
         {game ? <Photo picture={game.picture} moving={full} className={full ? "aspect-video w-full" : "h-full w-full"} /> : <div className="h-full w-full bg-[#1a1a1a]" />}
         {/* the stamp */}
-        <p className="absolute right-2 top-2 rotate-[8deg] border-[3px] border-[#b3261e] bg-[#efe3c8]/85 px-1.5 text-[12px] uppercase leading-tight tracking-[0.15em] text-[#b3261e]" style={pixel}>
+        <p className="absolute right-2 top-2 rotate-[8deg] border-[4px] border-[#b3261e] bg-[#efe3c8]/95 px-2.5 py-1 text-center text-[22px] uppercase leading-[1.05] tracking-[0.12em] shadow-[2px_3px_0_rgba(0,0,0,0.35)] text-[#b3261e]" style={pixel}>
           {item.type === "daily_challenge" ? "Daily" : "Weekly"}
           <br />
           challenge
@@ -353,11 +353,11 @@ function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { ite
 function Clipping({ item, full, picture }: { item: ContentLoopItem; full: boolean; picture: Picture }) {
   const date = formatShortDate(item.publishedAt);
   return (
-    <div className={`h-full px-4 pb-3 pt-5 ${ink}`} style={serif}>
+    <div className={`${full ? "min-h-full" : "h-full"} px-4 pb-3 pt-5 ${ink}`} style={serif}>
       <p className="border-b border-[#2a1d14]/40 pb-0.5 text-[11px] uppercase tracking-[0.3em] opacity-70">Station notices</p>
-      <p className={`mt-1.5 font-bold leading-[1.02] ${full ? "text-[30px]" : "text-[23px]"}`}>{item.title}</p>
+      <p className="mt-1.5 text-[23px] font-bold leading-[1.02]">{item.title}</p>
       <div className="mt-2 text-[15px] leading-snug" style={{ ...typewriter, textAlign: "justify", hyphens: "auto" }}>
-        <Photo picture={picture} className={`float-right mb-1 ml-2 ${full ? "h-32 w-40" : "h-[4.5rem] w-24"}`} />
+        <Photo picture={picture} className="float-right mb-1 ml-2 h-[4.5rem] w-24" />
         <span className="font-bold uppercase">Wayside{date ? `, ${date}` : ""}. — </span>
         <span className={full ? "" : "line-clamp-4"}>{item.summary}</span>
       </div>
@@ -374,7 +374,7 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
   const masthead = (
     <div className="border-b-[3px] border-double border-[#2a1d14]/70 pb-1 text-center">
       <p className="text-[10px] uppercase tracking-[0.3em] opacity-60">Est. 2023 · One penny</p>
-      <p className={`${ink} ${full ? "text-[34px]" : "text-[27px]"} leading-none`} style={{ ...serif, fontVariant: "small-caps" }}>
+      <p className={`${ink} text-[27px] leading-none`} style={{ ...serif, fontVariant: "small-caps" }}>
         The Scareathon Post
       </p>
     </div>
@@ -391,10 +391,9 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
       </div>
     );
   }
-  if (!full) {
-    return (
-      <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>
-        {masthead}
+  const frontPage = (
+    <>
+      {masthead}
         <div className="mt-2 flex gap-2">
           <Photo picture={picture} className="h-24 w-24 shrink-0" />
           <ul className="min-w-0 space-y-1.5" style={serif}>
@@ -406,12 +405,15 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
             {isLoading && <li className={quiet}>Printing…</li>}
           </ul>
         </div>
-      </div>
-    );
-  }
+    </>
+  );
+  if (!full) return <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>{frontPage}</div>;
+  // Up close: the same front page (coming closer changes nothing on it), the articles in
+  // full running on below
   return (
     <div className={`px-4 pb-3 pt-5 ${ink}`}>
-      {masthead}
+      {frontPage}
+      <div className="mt-3 border-t-[3px] border-double border-[#2a1d14]/70" />
       {posts.map((post) => {
         const expanded = open === post.id;
         const image = strapiUrl(post.Image?.[0]?.url);

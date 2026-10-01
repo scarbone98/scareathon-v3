@@ -657,10 +657,19 @@ export function InboxContent() {
     [conversationsQuery.data]
   );
 
-  // Views live in the URL so the phone's back button returns to the list
-  const openConversation = (conversationId: number) => setSearchParams({ c: String(conversationId) });
-  const openComposer = () => setSearchParams({ compose: "1" });
-  const backToList = () => setSearchParams({});
+  // Views live in the URL so the phone's back button returns to the list (leaving any
+  // other params, like the station's ?at=mail, where they are)
+  const showView = (view: { c?: string; compose?: string }) =>
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("c");
+      next.delete("compose");
+      Object.entries(view).forEach(([key, value]) => value && next.set(key, value));
+      return next;
+    });
+  const openConversation = (conversationId: number) => showView({ c: String(conversationId) });
+  const openComposer = () => showView({ compose: "1" });
+  const backToList = () => showView({});
 
   if (isComposing) {
     return (

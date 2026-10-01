@@ -2654,6 +2654,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       return { x: pos.x, y: pos.y, z: pos.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) };
     };
     let lastAt: StopId | null = latest.current.at;
+    let lastFacing: Heading = latest.current.heading;
     let goal: { x: number; y: number; z: number; yaw: number; pitch: number } | null = null;
     const goTo = (stopId: StopId | null, facing: Heading, instant = false) => {
       if (arrival.active) return; // riding in: where to go is picked up on stepping off
@@ -2664,10 +2665,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       goal = pose;
       const yaw = cam.yaw + wrapAngle(pose.yaw - cam.yaw); // turn the short way round
       const walking = stopId !== lastAt;
+      const wasFacingTracks = !lastAt && lastFacing === "back";
       lastAt = stopId;
+      lastFacing = facing;
       // Turning on the spot is quick and starts at once; walking somewhere takes its time.
-      // Turning right round to face the tracks is slower, so the arches can be seen going by
-      const toTracks = !walking && !stopId && facing === "back";
+      // Turning right round to face the tracks, or back from them, is slower, so the arches
+      // can be seen going by
+      const toTracks = !walking && !stopId && (facing === "back" || wasFacingTracks);
       const duration = instant || reduced ? 0 : walking ? 1.0 : toTracks ? 0.65 : 0.38;
       gsap.killTweensOf(cam);
       gsap.to(cam, { ...pose, yaw, duration, ease: walking || toTracks ? "power1.inOut" : "power3.out" });
@@ -3108,7 +3112,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
             aria-hidden={!surfacesInteractive || at !== spec.stop}
             style={{
               // Standing at its object you can use it; from further off a tap walks you there
-              pointerEvents: surfacesInteractive && at === spec.stop ? "auto" : "none",
+              // (the poster's details are always there, faded out while not being read: they
+              // take taps only when shown, see page.tsx, so the poster can be tapped through them)
+              pointerEvents: spec.id === "poster" ? "none" : surfacesInteractive && at === spec.stop ? "auto" : "none",
               // Dim to the lamplight around it
               filter:
                 zoom === spec.id

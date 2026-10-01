@@ -108,7 +108,7 @@ export const STOPS: Record<StopId, Stop> = {
     fitHeight: 3.0,
     // (a phone frames the counter and its adverts close, without the floor and ceiling:
     // the outer adverts' edges can go off the sides)
-    phoneFit: 1.75,
+    phoneFit: 2.0,
     snug: true,
   },
   departures: {
