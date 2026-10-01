@@ -1,6 +1,6 @@
 // The cartridge train into the arcade: on the walk up to the cabinet the cartridges come out
-// of the rack one behind another, all along the same whimsical path (up and out, a
-// loop-de-loop, a swoop down into the row, the one going furthest leading), and walking away
+// of the rack one behind another, all along the same gentle arc into the row (the one going
+// furthest leading, each landing with a little bounce), and walking away
 // they go home along it again, last in first out. Shared by the station (which flies them)
 // and its page (which waits for them to land before the arcade takes over).
 export const ROW_DELAY = 0; // before the first leaves the rack (straight away)

@@ -415,6 +415,8 @@ const SURFACES: SurfaceSpec[] = [
     px: [Math.round(w * PAPER_PX_PER_M), Math.round(h * PAPER_PX_PER_M)],
     tilt,
     lamplit: true,
+    // (from the arcade, the cartridges riding into the row pass in front of the board)
+    hiddenAt: ["arcade"],
   })),
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], hiddenAt: ["arcade"] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
@@ -716,33 +718,18 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
 }
 
 // The path the arcade's cartridges take from the rack to their places in the row, in the
-// cabinet's space: out of the rack up and toward you, over to a loop-de-loop, a swoop down to
-// the row's left end, then along the row to its own place. Every cartridge's path shares the
-// same middle, so in a line they look like a little train. `loopFrom`/`loopTo`: where the
-// loop starts and ends, in the curve's own (not length) parameter.
-type CartTrainPath = { curve: CatmullRomCurve3; loopFrom: number; loopTo: number };
-function cartTrainPath(row: Group, cart: Object3D, from: Vector3, rack: Vector3, w: number): CartTrainPath {
+// cabinet's space: a lift up out of the rack, one gentle arc over to the row's left end, then
+// along the row to its own place. Every cartridge's path shares the same arc, so in a line
+// they look like a little train.
+function cartTrainPath(row: Group, cart: Object3D, from: Vector3, rack: Vector3, w: number): CatmullRomCurve3 {
   const rests = row.children.map((child) => child.userData.rest as Vector3);
   const left = rests.reduce((a, b) => (b.x < a.x ? b : a), rests[0]);
   const pitch = rests.length > 1 ? Math.abs(rests[1].x - rests[0].x) : w * 1.2;
   const rest = cart.userData.rest as Vector3;
-  const entry = left.clone().add(new Vector3(-pitch * 1.3, w * 0.1, 0));
-  const centre = rack.clone().lerp(entry, 0.5).add(new Vector3(0, w * 3.2, w * 2.2));
-  const r = w * 2;
-  const points = [
-    from,
-    rack.clone().add(new Vector3(w * 0.4, w * 2, w * 1.2)), // up out of the rack, toward you
-    centre.clone().add(new Vector3(0, -r, 0)), // into the loop from below...
-    centre.clone().add(new Vector3(r, 0, r * 0.25)),
-    centre.clone().add(new Vector3(0, r, r * 0.5)), // ...over the top...
-    centre.clone().add(new Vector3(-r, 0, r * 0.25)),
-    centre.clone().add(new Vector3(r * 0.35, -r, 0)), // ...and out along the bottom
-    entry.clone().add(new Vector3(-pitch * 0.6, w * 1.6, w * 1)), // swooping down...
-    entry, // ...to the row's end...
-    rest, // ...and along it to its place
-  ];
-  const last = points.length - 1;
-  return { curve: new CatmullRomCurve3(points, false, "centripetal"), loopFrom: 2 / last, loopTo: 6 / last };
+  const entry = left.clone().add(new Vector3(-pitch, 0, 0));
+  const lift = rack.clone().add(new Vector3(w * 0.2, w * 0.7, w * 0.6));
+  const top = lift.clone().lerp(entry, 0.5).add(new Vector3(0, w * 1.1, w * 0.4));
+  return new CatmullRomCurve3([from, lift, top, entry, rest], false, "centripetal");
 }
 
 // A little wall rack beside the arcade: every cartridge on it, stood on end like tapes,
@@ -2181,19 +2168,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           spot?.meshes.forEach((mesh) => (mesh.visible = k === 0));
           cart.visible = k > 0;
           if (!cart.visible || !spot || !cabinetNode) return;
-          const path = (cart.userData.path ??= cartTrainPath(row, cart, cabinetNode.worldToLocal(cartRack.localToWorld(spot.at.clone())), cabinetNode.worldToLocal(cartRack.localToWorld(new Vector3(0, 0.22, 0.05))), cartWidth)) as CartTrainPath;
+          const path = (cart.userData.path ??= cartTrainPath(row, cart, cabinetNode.worldToLocal(cartRack.localToWorld(spot.at.clone())), cabinetNode.worldToLocal(cartRack.localToWorld(new Vector3(0, 0.22, 0.05))), cartWidth)) as CatmullRomCurve3;
           const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
-          cart.position.copy(path.curve.getPointAt(e));
+          cart.position.copy(path.getPointAt(e));
+          // A little bounce as it lands in its place
+          const land = Math.min(Math.max((k - 0.84) / 0.16, 0), 1);
+          cart.position.y += Math.sin(Math.PI * land) * cartWidth * 0.22 * (1 - land * 0.5);
           // Stood on end and small in the rack, face on and full size once it's out
           const out = Math.min(e / 0.3, 1);
           const small = spot.height / (cartWidth * cabinetScale);
           cart.scale.setScalar(small + (1 - small) * out);
-          // Rolling right round with the loop, and a little wobble in the air
-          const t = path.curve.getUtoTmapping(e, 0);
-          const looped = Math.min(Math.max((t - path.loopFrom) / (path.loopTo - path.loopFrom), 0), 1);
-          const loopEase = looped * looped * (3 - 2 * looped);
-          const wobble = Math.sin(Math.PI * e) * 0.18 * Math.sin(e * 14 + n);
-          cart.rotation.set(0, (Math.PI / 2) * (1 - out), (Math.PI / 2) * (1 - out) - Math.PI * 2 * loopEase + wobble);
+          // Turned face on as it leaves the rack, leaning a touch into the arc
+          const lean = Math.sin(Math.PI * e) * 0.12;
+          cart.rotation.set(0, (Math.PI / 2) * (1 - out), (Math.PI / 2) * (1 - out) + lean);
           // The picked one tips forward once it's landed, as the arcade shows it
           const pick = cart.userData.pick as ReturnType<typeof focusedPose> | undefined;
           if (pick && k === 1) {
