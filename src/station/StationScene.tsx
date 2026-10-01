@@ -997,6 +997,10 @@ function buildLockers() {
   // In the corner, towards the end of the platform
   const hanger = new Group();
   hanger.position.x = -1.3;
+  // A transom window up in the wall over the lockers
+  const transom = buildTransom(1.4, 0.4);
+  transom.position.set(0, 2.78, WALL_Z + 0.02 - group.position.z);
+  group.add(transom);
   group.add(hanger);
   const iron = standard("#1c1a17", 0.5);
   const wallZ = -0.25; // the wall, in the lockers' own space
@@ -1041,6 +1045,35 @@ function buildLockers() {
 // open on a lectern.
 // Your cubbyhole: third row down, fifth across (see the painted grid in buildMail)
 const MY_CUBBY: [number, number] = [0.125, 1.45];
+// A transom window let into the wall: a wooden frame of three lights, the night beyond
+function buildTransom(w: number, h: number) {
+  const group = new Group();
+  const night = paint(192, 64, (ctx, cw, ch) => {
+    const sky = ctx.createLinearGradient(0, 0, 0, ch);
+    sky.addColorStop(0, "#0b1226");
+    sky.addColorStop(1, "#1c2a44");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.fillStyle = "rgba(230,235,255,0.8)";
+    for (let i = 0; i < 14; i += 1) ctx.fillRect(Math.random() * cw, Math.random() * ch * 0.8, 1, 1);
+    // Old glass: a little uneven, with grime in the corners
+    const grime = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.3, cw / 2, ch / 2, cw * 0.6);
+    grime.addColorStop(0, "rgba(40,30,20,0)");
+    grime.addColorStop(1, "rgba(40,30,20,0.45)");
+    ctx.fillStyle = grime;
+    ctx.fillRect(0, 0, cw, ch);
+  });
+  // Unlit: it's the night outside, not lamplight on the glass
+  group.add(plane(w, h, new MeshBasicMaterial({ map: night, color: "#9aa3b8" }), 0, 0, 0.005));
+  const wood = standard("#3a2a1c", 0.8);
+  const frame = 0.06;
+  group.add(box(w + frame * 2, frame, 0.06, wood, 0, h / 2 + frame / 2, 0.02));
+  group.add(box(w + frame * 2 + 0.06, frame * 1.3, 0.1, wood, 0, -h / 2 - frame / 2, 0.035)); // the sill
+  [-1, 1].forEach((side) => group.add(box(frame, h, 0.06, wood, side * (w / 2 + frame / 2), 0, 0.02)));
+  [-1, 1].forEach((side) => group.add(box(0.025, h, 0.03, wood, (side * w) / 6, 0, 0.015))); // the glazing bars
+  return group;
+}
+
 function buildMail() {
   const group = new Group();
   group.position.set(3.75, 0, WALL_Z + 0.2); // next to the flyer stand
@@ -1096,7 +1129,11 @@ function buildMail() {
   cubby.position.set(mx, my, 0.2);
   cubby.userData.part = "letters";
   group.add(cubby);
-  group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("INBOX"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
+  group.add(plane(1.2, 0.3, new MeshBasicMaterial({ map: stationSign("MAIL"), color: "#c9c9c9" }), cx, bottom + cabinetH + 0.3, -0.18));
+  // A transom window up in the wall above
+  const transom = buildTransom(1.5, 0.42);
+  transom.position.set(cx, 3.3, WALL_Z + 0.02 - group.position.z);
+  group.add(transom);
   // The station register on its lectern
   const lectern = new Group();
   // Tucked into the corner by the side wall, turned to face the platform
@@ -1298,9 +1335,10 @@ function buildTickets() {
   group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.3, 0.02));
   // Three adverts pasted up above
   const day = Math.floor(Date.now() / 86_400_000);
-  [-0.72, 0, 0.72].forEach((x, i) => {
+  [-0.82, 0, 0.82].forEach((x, i) => {
     const [name, tagline, colour] = ADVERTS[(day + i * 2) % ADVERTS.length];
-    const ad = plane(0.58, 0.82, standard("#ffffff", 0.95, advertTexture(name, tagline, colour)), x, 3.08, 0.015);
+    // (a little grey, so the counter lamp right under them doesn't wash them out)
+    const ad = plane(0.7, 0.99, standard("#8f877b", 1, advertTexture(name, tagline, colour)), x, 3.14, 0.015);
     ad.rotation.z = [0.02, -0.012, 0.018][i];
     ad.userData.part = `advert-${name}`;
     group.add(ad);
