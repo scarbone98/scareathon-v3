@@ -11,7 +11,7 @@ import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileAr
 import { eventState, useContentLoop, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
-import { FlyerFace, useEventThings } from "./things/EventThings.tsx";
+import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
 import { KioskWindow } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
@@ -164,12 +164,16 @@ export default function StationPage() {
   const [held, setHeld] = useState<Held | null>(null);
   const putBack = useCallback(() => setHeld(null), []);
 
-  // At the board, the paper the camera has come up to (by index), if any
-  const [zoom, setZoom] = useState<number | null>(null);
+  // What the camera has come up to read, if anything: a paper on the board ("paper-2"), a
+  // flyer on the events stand ("flyer-0") or the poster over it ("poster")
+  const [zoom, setZoom] = useState<string | null>(null);
   // Papers read where they hang (the welcome) aren't zoomed into
   const zoomTo = (i: number) => {
-    if (papers[i] && !papers[i].noZoom) setZoom(i);
+    if (papers[i] && !papers[i].noZoom) setZoom(`paper-${i}`);
   };
+  // The events table's things: tonight's film is the poster, the rest stand in a row
+  const flyerSpot = (index: number) => (index === 0 ? "poster" : `flyer-${index - 1}`);
+  const readsUpClose = at === "bulletin" || at === "events";
   useEffect(() => setZoom(null), [at]);
 
   // On phones, which of the object's things the card holds, and whether the walk there is done
@@ -186,8 +190,8 @@ export default function StationPage() {
   useEffect(() => {
     setHeld(null);
     const flyerIndex = flyers.findIndex((flyer) => flyer.id === open || (open === "event" && flyer.id === "event"));
-    setCardIndex(at === "events" && flyerIndex >= 0 ? flyerIndex : at === "mail" && open === "register" ? 1 : 0);
-    if (at === "events" && flyerIndex >= 0 && !compact) setHeld({ kind: "flyer", id: flyers[flyerIndex].id });
+    setCardIndex(at === "mail" && open === "register" ? 1 : 0);
+    if (at === "events" && flyerIndex >= 0) setZoom(flyerSpot(flyerIndex));
     if (at === "tickets" && open === "shop") setHeld({ kind: "shop" });
     if (at === "mail" && !compact && (open === "letters" || open === "register")) setHeld({ kind: open });
     if (at === "lockers" && !compact && open) setHeld({ kind: "wardrobe" });
@@ -214,6 +218,10 @@ export default function StationPage() {
   const onPart = (part: string) => {
     if (part.startsWith("paper-")) {
       zoomTo(Number(part.slice(6)));
+      return;
+    }
+    if (part.startsWith("flyer-") || part === "poster") {
+      setZoom(part);
       return;
     }
     if (part === "window") {
@@ -251,23 +259,23 @@ export default function StationPage() {
   papers.forEach(
     (paper, i) =>
       (surfaces[`paper-${i}`] = (
-        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === i} onOpen={() => zoomTo(i)} />
+        <PinnedPaper paper={paper} zoomed={at === "bulletin" && zoom === `paper-${i}`} onOpen={() => zoomTo(i)} />
       ))
   );
   flyers.slice(1).forEach(
     (flyer, i) =>
       (surfaces[`flyer-${i}`] = (
-        <FlyerFace flyer={flyer} held={compact && at === "events" && cardIndex === i + 1} onOpen={() => setHeld({ kind: "flyer", id: flyer.id })} />
+        <FlyerFace flyer={flyer} zoomed={at === "events" && zoom === `flyer-${i}`} onOpen={() => setZoom(`flyer-${i}`)} />
       ))
   );
+  // The poster is painted (tonight's film's own one-sheet); read up close, its details lie over it
+  if (at === "events" && zoom === "poster") surfaces.poster = <PosterSheet sheet={tonight} />;
 
   // Phones: what the card under the object can hold
   const cardItems: HeldItem[] | null =
-    !compact || !at || at === "arcade" || at === "bulletin" || at === "tickets"
+    !compact || !at || at === "arcade" || at === "bulletin" || at === "events" || at === "tickets"
       ? null
-      : at === "events"
-          ? flyers.map((flyer) => ({ id: flyer.id, label: flyer.title, tone: flyer.sheet.tone ?? "paper", tint: flyer.sheet.tint, body: flyer.sheet.body }))
-          : at === "departures"
+      : at === "departures"
             ? [{ id: "departures", label: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> }]
             : at === "lockers"
               ? [{ id: "wardrobe", label: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> }]
@@ -370,7 +378,7 @@ export default function StationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mobileMenuOpen]);
 
-  const stepBack = () => (at === "bulletin" && zoom !== null ? setZoom(null) : select(null));
+  const stepBack = () => (readsUpClose && zoom !== null ? setZoom(null) : select(null));
 
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
   // paper, the arrows move across and down the board
@@ -386,10 +394,10 @@ export default function StationPage() {
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
       const ahead = VIEWS[facing].focus;
       const moveBy = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 }[event.key];
-      if (reading !== null && moveBy !== undefined) {
-        const next = reading + moveBy;
+      if (reading?.startsWith("paper-") && moveBy !== undefined) {
+        const next = Number(reading.slice(6)) + moveBy;
         if (next >= 0 && next < 6) read(next);
-      } else if (!current && event.key === "ArrowLeft") face(-1);
+      } else if (reading && (event.key === "ArrowDown" || event.key === "Escape")) back(); else if (!current && event.key === "ArrowLeft") face(-1);
       else if (!current && event.key === "ArrowRight") face(1);
       else if (!current && (event.key === "ArrowUp" || event.key === "Enter") && ahead) go(ahead);
       else if (current && event.key === "Escape") back();
@@ -459,10 +467,10 @@ export default function StationPage() {
             onArrived={stepOff}
             previewPlaying={heading === "left" || at === "arcade"}
             surfaces={surfaces}
-            // On phones things are used through the held card, except a paper being read
-            surfacesInteractive={!compact || at === "bulletin"}
+            // On phones things are used through the held card, except what's read where it hangs
+            surfacesInteractive={!compact || readsUpClose}
             cardFraction={cardItems ? CARD_FRACTION : 0}
-            zoom={at === "bulletin" ? zoom : null}
+            zoom={readsUpClose ? zoom : null}
             onEmptyTap={stepBack}
             onPart={onPart}
           />
@@ -541,14 +549,14 @@ export default function StationPage() {
           ))}
           {at === "bulletin" &&
             papers.map((paper) => (
-              <button key={paper.id} type="button" onClick={() => setZoom(papers.indexOf(paper))}>
+              <button key={paper.id} type="button" onClick={() => zoomTo(papers.indexOf(paper))}>
                 Read: {paper.title}
               </button>
             ))}
           {at === "events" &&
-            flyers.map((flyer) => (
-              <button key={flyer.id} type="button" onClick={() => setHeld({ kind: "flyer", id: flyer.id })}>
-                Pick up: {flyer.title}
+            flyers.map((flyer, i) => (
+              <button key={flyer.id} type="button" onClick={() => setZoom(flyerSpot(i))}>
+                Read: {flyer.title}
               </button>
             ))}
           {at === "departures" && (

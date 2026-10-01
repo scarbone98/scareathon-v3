@@ -6,15 +6,18 @@ import StreamingProviders from "../../pages/Home/StreamingProviders";
 import { challengeTarget, eventState, formatShortDate, needsSignIn, useContentLoop, useRewardStatus, useTodayMovie } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
-import { CalendarBoard } from "./DepartureBoard.tsx";
+import PosterCalendar from "./PosterCalendar.tsx";
 import type { SheetContent } from "../Sheet.tsx";
-import { PAPER_GRAIN, serif, stubButton, typewriter } from "../style/theme.ts";
+import { PAPER_GRAIN, sans, serif, stubButton, typewriter } from "../style/theme.ts";
 
 // The events table: three flyers standing on it (the event, tonight's film, the rules)
 // and the poster above, which is tonight's film too. Each flyer's face says what it is;
 // picking one up (a Sheet) has the rest.
 
-export type Flyer = { id: string; title: string; tint: string; ink: string; face: ReactNode; sheet: SheetContent };
+// A flyer on the stand. Its face is what you see from the table; read up close (the camera
+// comes up to it, as at the bulletin board) it shows its sheet. A full-bleed flyer (the
+// calendar) draws both itself, at the flyer's full size.
+export type Flyer = { id: string; title: string; tint: string; ink: string; face: ReactNode; sheet: SheetContent; fullBleed?: boolean };
 
 const RULES = [
   "Every night's film you watch, ticked off on the October calendar: 1 point.",
@@ -215,12 +218,9 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
       title: "The October calendar",
       tint: "#1d2a3a",
       ink: "#f2ead2",
-      face: (
-        <Face label="Every night's film" title="OCTOBER">
-          The whole month's films, night by night.
-        </Face>
-      ),
-      sheet: { id: "calendar", title: "The October calendar", tone: "board", body: <CalendarBoard signedIn={signedIn} goTo={goTo} /> },
+      face: <PosterCalendar signedIn={signedIn} goTo={goTo} zoomed={false} />,
+      sheet: { id: "calendar", title: "The October calendar", tone: "board", body: <PosterCalendar signedIn={signedIn} goTo={goTo} zoomed /> },
+      fullBleed: true,
     },
   ];
   // Tonight's film is the poster on the wall; the stand holds the rest
@@ -229,19 +229,72 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
   return { flyers: ordered, tonight };
 }
 
-// A flyer standing on the table: tap it (standing at the table) to pick it up
-export function FlyerFace({ flyer, onOpen, held = false }: { flyer: Flyer; onOpen: () => void; held?: boolean }) {
+// The flyer's pixels (see SURFACES in StationScene) and its face's, which is scaled up to fit
+const FLYER_PX = 400;
+const FACE_PX = 240;
+
+// Read up close, a flyer (or the poster) scrolls if its sheet is longer than it is. Touch
+// scrolling is done by hand: the surface is drawn smaller than its HTML
+function ReadingArea({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={`h-full overflow-y-auto overscroll-contain ${className}`}
+      style={{ touchAction: "none" }}
+      onTouchStart={(event) => {
+        (event.currentTarget as HTMLElement).dataset.touchY = String(event.touches[0].clientY);
+      }}
+      onTouchMove={(event) => {
+        const el = event.currentTarget as HTMLElement;
+        const last = Number(el.dataset.touchY ?? event.touches[0].clientY);
+        const y = event.touches[0].clientY;
+        const scale = el.getBoundingClientRect().height / el.offsetHeight || 1;
+        el.scrollTop += (last - y) / scale;
+        el.dataset.touchY = String(y);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// A flyer standing on the table: tap it to come up close and read it where it stands
+export function FlyerFace({ flyer, onOpen, zoomed = false }: { flyer: Flyer; onOpen: () => void; zoomed?: boolean }) {
+  if (zoomed) {
+    const paper = !flyer.fullBleed;
+    return (
+      <div
+        className="h-full w-full overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)]"
+        style={{ backgroundColor: paper ? flyer.sheet.tint ?? "#f2ead2" : flyer.tint, backgroundImage: PAPER_GRAIN, color: paper ? "#2a1d14" : flyer.ink, ...typewriter }}
+      >
+        {paper ? <ReadingArea className="p-6">{flyer.sheet.body}</ReadingArea> : flyer.sheet.body}
+      </div>
+    );
+  }
+  const scale = FLYER_PX / FACE_PX;
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Pick up: ${flyer.title}`}
+      aria-label={`Read: ${flyer.title}`}
       onClick={onOpen}
       onKeyDown={(event) => event.key === "Enter" && onOpen()}
-      className={`h-full w-full cursor-pointer overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-110${held ? " outline outline-[6px] outline-offset-4 outline-[#ffcf7a] shadow-[0_0_40px_rgba(255,190,90,0.7)]" : ""}`}
+      className="h-full w-full cursor-pointer overflow-hidden shadow-[3px_4px_0_rgba(0,0,0,0.45)] transition hover:brightness-110"
       style={{ backgroundColor: flyer.tint, backgroundImage: PAPER_GRAIN, color: flyer.ink, ...typewriter }}
     >
-      {flyer.face}
+      {flyer.fullBleed ? (
+        flyer.face
+      ) : (
+        <div style={{ width: `${100 / scale}%`, height: `${100 / scale}%`, transform: `scale(${scale})`, transformOrigin: "0 0" }}>{flyer.face}</div>
+      )}
+    </div>
+  );
+}
+
+// Tonight's film, on the poster over the table, read up close
+export function PosterSheet({ sheet }: { sheet: SheetContent }) {
+  return (
+    <div className="h-full w-full bg-[#0d131b] text-stone-200 shadow-[3px_4px_0_rgba(0,0,0,0.45)]" style={sans}>
+      <ReadingArea className="p-6">{sheet.body}</ReadingArea>
     </div>
   );
 }

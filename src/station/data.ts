@@ -53,7 +53,7 @@ export type ScareboardData = {
   pastWinners: { data: { year: string; name: string }[] };
 };
 
-export type CalendarDay = { title: string; lowResUrl?: string };
+export type CalendarDay = { title: string; lowResUrl?: string; theme?: string };
 
 export type Movie = {
   title: string;

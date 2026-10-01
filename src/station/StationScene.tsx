@@ -93,8 +93,9 @@ type Props = {
   // Share of the screen's height a phone's held card covers at the bottom; the view frames
   // the object in the space above it
   cardFraction: number;
-  // At the board: the paper zoomed in on (by index), or null for the whole board
-  zoom: number | null;
+  // The surface the camera has come up to read (e.g. "paper-2", "flyer-1", "poster"), or
+  // null for the whole object
+  zoom: string | null;
   // A tap on nothing in particular; by default it steps back to the platform
   onEmptyTap?: () => void;
   // A tap on a marked part of the object you're standing at, e.g. the events poster
@@ -390,6 +391,10 @@ const FLYER_SPOTS: [number, number, number, number][] = [
 ];
 const FLYER_W = 0.4;
 const FLYER_H = 0.52;
+// The events table, and the poster on the wall above it (local to the table)
+const EVENTS_POS = new Vector3(1.2, 0, WALL_Z + 0.35);
+const POSTER_Y = 2.38;
+const POSTER_Z = WALL_Z + 0.03 - EVENTS_POS.z;
 
 // Your left-luggage locker, in the lockers' own space: top row, middle
 
@@ -419,7 +424,11 @@ const SURFACES: SurfaceSpec[] = [
     hiddenAt: ["arcade"],
   })),
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], hiddenAt: ["arcade"] },
-  ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
+  // More pixels than the face needs (it is scaled up to fit), so read up close the whole
+  // flyer has room
+  ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [400, 520], lean, lamplit: true })),
+  // Tonight's film, over the painted poster, only while it's being read
+  { id: "poster", stop: "events", at: [0, POSTER_Y, POSTER_Z + 0.03], w: 0.88, px: [440, 640], lamplit: true },
 ];
 
 function buildBulletin() {
@@ -477,7 +486,7 @@ function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, ti
 
 function buildEvents() {
   const group = new Group();
-  group.position.set(1.2, 0, WALL_Z + 0.35);
+  group.position.copy(EVENTS_POS);
   const wood = standard("#4a3524");
   // A display stand: a slanted board on two legs, a lip along the bottom, the flyers side
   // by side on it at eye level
@@ -510,7 +519,7 @@ function buildEvents() {
     group.add(flyer);
   });
   // The poster on the wall above the stand
-  const posterZ = WALL_Z + 0.03 - group.position.z;
+  const posterZ = POSTER_Z;
   group.add(box(1.0, 1.4, 0.04, standard("#2a1d14", 0.7), 0, 2.38, posterZ));
   const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
   const poster = plane(0.88, 1.28, standard("#ffffff", 0.8, posterTexture), 0, 2.38, posterZ + 0.025);
@@ -1927,14 +1936,20 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
       }
-      const zoomed = stopId === "bulletin" ? latest.current.zoom : null;
-      if (zoomed !== null && PAPER_SPOTS[zoomed]) {
-        const [x, y, , paperW, paperH] = PAPER_SPOTS[zoomed];
-        const paper = new Vector3(BOARD_POS.x + x, BOARD_POS.y + y, BOARD_POS.z + 0.07);
+      // Reading something up close: square on to it (a leaning flyer is looked down at),
+      // just far enough back that all of it fits
+      const zoomed = latest.current.zoom ? placed.find(({ spec }) => spec.id === latest.current.zoom && spec.stop === stopId) : null;
+      if (zoomed) {
+        const { spec, object } = zoomed;
+        const centre = object.getWorldPosition(new Vector3());
+        const lean = spec.lean ?? 0;
+        const [w, h] = [spec.w, (spec.w * spec.px[1]) / spec.px[0]];
         const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
         const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
-        const distance = Math.max((paperW * 1.08) / 2 / Math.tan(halfWidth), (paperH * 1.12) / 2 / Math.tan(halfHeight));
-        return { x: paper.x, y: paper.y, z: paper.z + distance, yaw: 0, pitch: 0 };
+        const distance = Math.max((w * 1.08) / 2 / Math.tan(halfWidth), (h * 1.12) / 2 / Math.tan(halfHeight));
+        const normal = new Vector3(0, -Math.sin(lean), Math.cos(lean));
+        const eye = centre.add(normal.multiplyScalar(distance));
+        return { x: eye.x, y: eye.y, z: eye.z, yaw: 0, pitch: lean };
       }
       const stop = STOPS[stopId];
       // The arcade: stand where this cabinet fills the same part of the screen the
@@ -2366,7 +2381,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
               pointerEvents: surfacesInteractive && at === spec.stop ? "auto" : "none",
               // Dim to the lamplight around it
               filter:
-                zoom !== null && spec.id === `paper-${zoom}`
+                zoom === spec.id
                   ? "brightness(0.97) sepia(0.08)"
                   : spec.lamplit
                     ? "brightness(0.88) sepia(0.2) contrast(1.05)"
