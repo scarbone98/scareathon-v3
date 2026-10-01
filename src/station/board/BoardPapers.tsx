@@ -14,7 +14,6 @@ import {
   usePosts,
   useRewardStatus,
   useSummary,
-  useTodayMovie,
   type ContentLoopItem,
 } from "../data.ts";
 import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/games";
@@ -253,11 +252,12 @@ function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture
             Watch the night's film for a point, finish the week's challenge for another, and wear a costume on Halloween for one more.
           </p>
         )}
-        <div className="mt-2 flex flex-wrap justify-center gap-2">
-          <button type="button" className={`${action} px-4 py-2.5 text-[17px]`} onClick={act(() => goTo("events", "tonight"))}>
+        {/* Stacked, and big enough for a thumb */}
+        <div className="mx-auto mt-3 flex max-w-[16rem] flex-col gap-2">
+          <button type="button" className={`${action} w-full py-3 text-[19px]`} onClick={act(() => goTo("events", "tonight"))}>
             {isLive ? "Tonight's film" : "How it works"}
           </button>
-          <button type="button" className={`${action} px-4 py-2.5 text-[17px]`} onClick={act(() => goTo("departures"))}>
+          <button type="button" className={`${action} w-full py-3 text-[19px]`} onClick={act(() => goTo("departures"))}>
             Scoreboard
           </button>
           {full && (
@@ -461,12 +461,11 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const challengeGame = useGame(challenge?.gameName);
   const dailyGame = useGame(daily?.gameName);
   const spotlight = useSpotlightGame();
-  const { isLive } = eventState();
-  const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: posts } = usePosts(signedIn);
   const postImage = strapiUrl(posts?.data?.find((post) => post.Image?.[0]?.url)?.Image?.[0]?.url);
   const postPicture: Picture = { src: postImage ?? "/images/candleskull.gif" };
-  const eventPicture: Picture = movie?.data?.lowResUrl ? { src: movie.data.lowResUrl } : { src: "/images/emptyTheater.jpg" };
+  // The event's own picture, an empty cinema (tonight's film is the poster by the stand)
+  const eventPicture: Picture = { src: "/images/emptyTheater.jpg" };
 
   const papers: Paper[] = [
     {

@@ -7,20 +7,27 @@ export type ArcadeFont = { family: string; weight?: number };
 export const TERMINAL_FONT: ArcadeFont = { family: "VT323" };
 
 const FALLBACK = "Zombie, Creepster, cursive";
-// Settles once the stylesheet (and so the @font-face rules) has arrived
-let stylesheet: Promise<void> | null = null;
+// Settles once every stylesheet asked for so far (and so the @font-face rules) has arrived
+let stylesheet: Promise<void> = Promise.resolve();
+// The fonts already asked for: a later call (the arcade, after the station's cabinet)
+// adds only what's new, rather than being ignored
+const requested = new Set<string>();
 
 export function linkArcadeFonts(fonts: ArcadeFont[]) {
-  if (stylesheet || typeof document === "undefined") return;
-  const families = [...new Map(fonts.map((font) => [`${font.family}:${font.weight ?? 400}`, font])).values()]
-    .map((font) => `family=${font.family.replace(/ /g, "+")}${font.weight ? `:wght@${font.weight}` : ""}`)
+  if (typeof document === "undefined") return;
+  const wanted = [...new Map(fonts.map((font) => [`${font.family}:${font.weight ?? 400}`, font])).entries()].filter(([key]) => !requested.has(key));
+  if (wanted.length === 0) return;
+  wanted.forEach(([key]) => requested.add(key));
+  const families = wanted
+    .map(([, font]) => `family=${font.family.replace(/ /g, "+")}${font.weight ? `:wght@${font.weight}` : ""}`)
     .join("&");
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
-  stylesheet = new Promise((resolve) => {
+  const loaded = new Promise<void>((resolve) => {
     link.onload = link.onerror = () => resolve();
   });
+  stylesheet = Promise.all([stylesheet, loaded]).then(() => undefined);
   document.head.appendChild(link);
 }
 

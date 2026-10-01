@@ -18,6 +18,7 @@ export type Stop = {
   target: [number, number, number]; // what the camera looks at
   fit?: number; // metres that must fit across the screen, stepping back on narrow ones
   fitHeight?: number; // metres that must fit top to bottom, above a phone's held card
+  phoneFit?: number; // on a tall, narrow screen, the width to fit instead of `fit` (less floor and ceiling)
   snug?: boolean; // stand exactly where it fits (closer too), not just far enough back
   seat?: boolean; // a place to sit: exactly here on every screen (no stepping back on phones)
 };
@@ -105,6 +106,10 @@ export const STOPS: Record<StopId, Stop> = {
     target: [5.25, 2.15, 0],
     fit: 2.3,
     fitHeight: 3.0,
+    // (a phone frames the counter and its adverts close, without the floor and ceiling:
+    // the outer adverts' edges can go off the sides)
+    phoneFit: 1.75,
+    snug: true,
   },
   departures: {
     id: "departures",

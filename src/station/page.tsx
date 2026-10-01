@@ -322,7 +322,13 @@ export default function StationPage() {
       ))
   );
   // The poster is painted (tonight's film's own one-sheet); read up close, its details lie over it
-  if (at === "events" && zoom === "poster") surfaces.poster = <PosterSheet sheet={tonight} />;
+  // (always there, so it fades in and out over the poster rather than appearing and vanishing)
+  const readingPoster = at === "events" && zoom === "poster";
+  surfaces.poster = (
+    <div className="h-full w-full transition-opacity duration-500" style={{ opacity: readingPoster ? 1 : 0, pointerEvents: readingPoster ? "auto" : "none" }}>
+      <PosterSheet sheet={tonight} />
+    </div>
+  );
 
   // Phones: what the card under the object can hold
   const cardItems: HeldItem[] | null =

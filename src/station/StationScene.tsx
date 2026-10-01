@@ -31,7 +31,6 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
-  SpotLight,
   Points,
   PointsMaterial,
   Raycaster,
@@ -52,12 +51,13 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
-import { CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
+import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
+import { MARKER_FONT } from "../pages/ArcadeV2/slotRig.ts";
 import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
 import { dressSlot, focusedPose, shelfLayout, type SlotDressing } from "../pages/ArcadeV2/slotDressing.ts";
 import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } from "../pages/ArcadeV2/cartridge.ts";
 import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRow.ts";
-import { linkArcadeFonts } from "../pages/ArcadeV2/arcadeFonts.ts";
+import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
@@ -591,16 +591,9 @@ function buildEvents() {
   const poster = plane(0.88, 1.28, standard("#ffffff", 0.8, posterTexture), 0, 2.38, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
-  // A brass footlight along its bottom edge, as on a cinema's display case, throwing a
-  // warm wash up the poster (under it, so it never covers the sign above)
-  const lampY = POSTER_Y - 0.74;
-  group.add(box(0.8, 0.07, 0.12, brass, 0, lampY, posterZ + 0.08)); // the trough
-  group.add(box(0.74, 0.012, 0.05, new MeshBasicMaterial({ color: "#fff1c8" }), 0, lampY + 0.036, posterZ + 0.1)); // its tube, lit
-  const display = new SpotLight("#ffd9a0", 9, 2.2, 0.75, 0.6, 1.4);
-  display.position.set(0, lampY + 0.05, posterZ + 0.22);
-  display.target.position.set(0, POSTER_Y + 0.2, posterZ);
-  group.add(display, display.target);
-  group.add(plane(1.2, 0.5, new MeshBasicMaterial({ map: glowTexture(), color: "#ffcf8a", transparent: true, opacity: 0.25, blending: AdditiveBlending, depthWrite: false }), 0, lampY + 0.12, posterZ + 0.03));
+  // Bulbs all round its frame, chasing like the arcade sign's: a cinema's display case
+  group.userData.bulbs = ringOfBulbs(group, 0.94, 1.34, 0.08, 0, POSTER_Y, posterZ + 0.03);
+  group.add(plane(1.5, 1.9, new MeshBasicMaterial({ map: glowTexture(), color: "#ffb15a", transparent: true, opacity: 0.14, blending: AdditiveBlending, depthWrite: false }), 0, POSTER_Y, posterZ - 0.005));
   group.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif")), 0, SIGN_Y, posterZ + 0.02));
   addLamp(group, 0, 2.4, 1.0);
   group.add(hitBox(1.55, 1.7, 0.5, 0.85));
@@ -615,9 +608,29 @@ function buildEvents() {
 
 // Painted as the arcade paints its cabinet (the same finish, trim, bezels and buttons), with
 // the preview game on its screen and marquee, so the arcade's own can take over unnoticed
-// The arcade sign's bulbs: lit, and the dim ones of the chase
+// The bulbs round the arcade sign and the film poster: lit, and the dim ones of the chase
 const BULB_ON = new MeshBasicMaterial({ color: "#ffe2a0", fog: false });
 const BULB_OFF = new MeshBasicMaterial({ color: "#6a4a26", fog: false });
+const BULB_GEOMETRY = new SphereGeometry(0.014, 8, 6);
+
+// A ring of bulbs round a rectangle w by h centred on (cx, cy), `spacing` apart, from its
+// top left corner round; the bulbs, in order, for the chase
+function ringOfBulbs(group: Group, w: number, h: number, spacing: number, cx: number, cy: number, z: number) {
+  const bulbs: Mesh[] = [];
+  const perimeter = 2 * (w + h);
+  for (let d = 0; d < perimeter - spacing / 2; d += spacing) {
+    const [x, y] =
+      d < w ? [d - w / 2, h / 2]
+      : d < w + h ? [w / 2, h / 2 - (d - w)]
+      : d < 2 * w + h ? [w / 2 - (d - w - h), -h / 2]
+      : [-w / 2, -h / 2 + (d - 2 * w - h)];
+    const bulb = new Mesh(BULB_GEOMETRY, BULB_ON);
+    bulb.position.set(cx + x, cy + y, z);
+    group.add(bulb);
+    bulbs.push(bulb);
+  }
+  return bulbs;
+}
 
 function buildArcade(preview: { name: string; video: string; color: string } | null, games: MachineData[]) {
   const group = new Group();
@@ -753,7 +766,8 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       // ...and the row of cartridges floating in front, the picked one up (only shown on
       // the way to the cabinet: from the platform, the rack beside it stands in for them)
       if (games.length) {
-        linkArcadeFonts(games.map((game) => game.cartridge.font));
+        // (the cabinet's own printing and terminal too, the same fonts the arcade asks for)
+        linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, TERMINAL_FONT, MARKER_FONT]);
         const layout = shelfLayout(dressing.cartSize, cabinetBox, panelBox.isEmpty() ? Infinity : panelBox.min.y, dressing.seat.y);
         const row = new Group();
         row.visible = false;
@@ -809,23 +823,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
   const signZ = WALL_Z + 0.03 - group.position.z;
   group.add(box(1.08, 0.4, 0.02, standard("#3a1a10", 0.7), -0.1, SIGN_Y, signZ - 0.02));
   group.add(plane(0.84, 0.21, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, SIGN_Y, signZ));
-  const bulbGeometry = new SphereGeometry(0.014, 8, 6);
-  const bulbs: Mesh[] = [];
-  const [ringW, ringH, spacing] = [0.98, 0.32, 0.07];
-  const perimeter = 2 * (ringW + ringH);
-  for (let d = 0; d < perimeter - spacing / 2; d += spacing) {
-    // Round the rectangle, from its top left corner
-    const [x, y] =
-      d < ringW ? [d - ringW / 2, ringH / 2]
-      : d < ringW + ringH ? [ringW / 2, ringH / 2 - (d - ringW)]
-      : d < 2 * ringW + ringH ? [ringW / 2 - (d - ringW - ringH), -ringH / 2]
-      : [-ringW / 2, -ringH / 2 + (d - 2 * ringW - ringH)];
-    const bulb = new Mesh(bulbGeometry, BULB_ON);
-    bulb.position.set(-0.1 + x, SIGN_Y + y, signZ + 0.01);
-    group.add(bulb);
-    bulbs.push(bulb);
-  }
-  group.userData.bulbs = bulbs;
+  group.userData.bulbs = ringOfBulbs(group, 0.98, 0.32, 0.07, -0.1, SIGN_Y, signZ + 0.01);
   // Their light on the wall round the board
   group.add(plane(1.6, 0.9, new MeshBasicMaterial({ map: glowTexture(), color: "#ffb15a", transparent: true, opacity: 0.18, blending: AdditiveBlending, depthWrite: false }), -0.1, SIGN_Y, signZ - 0.005));
   addLamp(group, 0, 2.6, 1.0);
@@ -1391,12 +1389,12 @@ function buildTickets() {
   // Three adverts pasted up above
   const day = Math.floor(Date.now() / 86_400_000);
   // Things from the shop either side, a game in the middle
-  [-0.82, 0, 0.82].forEach((x, i) => {
+  [-0.75, 0, 0.75].forEach((x, i) => {
     const shop = i !== 1;
     const [name, tagline, colour] = ADVERTS[day % ADVERTS.length];
     // (a little grey, so the counter lamp right under them doesn't wash them out)
     const adMaterial = standard("#8f877b", 1);
-    const ad = plane(0.7, 0.99, adMaterial, x, 3.14, 0.015);
+    const ad = plane(0.67, 0.95, adMaterial, x, 3.12, 0.015);
     // A shop advert's tap opens the shop on its item, once it knows which
     adMaterial.map = shop ? shopAdvertTexture(day * 2 + i, (item) => (ad.userData.part = `advert-shop:${item}`)) : advertTexture(name, tagline, colour);
     ad.rotation.z = [0.02, -0.012, 0.018][i];
@@ -2646,7 +2644,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
         const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
         const needed = Math.max(
-          stop.fit ? stop.fit / 2 / Math.tan(halfWidth) : 0,
+          stop.fit ? (camera.aspect < 0.8 && stop.phoneFit ? stop.phoneFit : stop.fit) / 2 / Math.tan(halfWidth) : 0,
           stop.fitHeight ? stop.fitHeight / 2 / (Math.tan(halfHeight) * (1 - latest.current.cardFraction)) : 0
         );
         const away = pos.clone().sub(target);
@@ -2667,10 +2665,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const yaw = cam.yaw + wrapAngle(pose.yaw - cam.yaw); // turn the short way round
       const walking = stopId !== lastAt;
       lastAt = stopId;
-      // Turning on the spot is quick and starts at once; walking somewhere takes its time
-      const duration = instant || reduced ? 0 : walking ? 1.0 : 0.38;
+      // Turning on the spot is quick and starts at once; walking somewhere takes its time.
+      // Turning right round to face the tracks is slower, so the arches can be seen going by
+      const toTracks = !walking && !stopId && facing === "back";
+      const duration = instant || reduced ? 0 : walking ? 1.0 : toTracks ? 0.65 : 0.38;
       gsap.killTweensOf(cam);
-      gsap.to(cam, { ...pose, yaw, duration, ease: walking ? "power1.inOut" : "power3.out" });
+      gsap.to(cam, { ...pose, yaw, duration, ease: walking || toTracks ? "power1.inOut" : "power3.out" });
     };
     goRef.current = (stopId, facing) => {
       aimed = facing;
@@ -2934,12 +2934,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       halloween?.userData.update(t, reduced); // HALLOWEEN
-      // The arcade sign's bulbs chase round, two lit to one dark
+      // The arcade sign's and the poster's bulbs chase round, two lit to one dark
       if (!reduced) {
         const chase = Math.floor(t * 7);
-        (arcadeObject.userData.bulbs as Mesh[] | undefined)?.forEach((bulb, i) => {
-          bulb.material = (i + chase) % 3 === 0 ? BULB_OFF : BULB_ON;
-        });
+        [arcadeObject, events].forEach((object) =>
+          (object.userData.bulbs as Mesh[] | undefined)?.forEach((bulb, i) => {
+            bulb.material = (i + chase) % 3 === 0 ? BULB_OFF : BULB_ON;
+          })
+        );
       }
       // The ticket clerk: eyes that wander and now and then blink, fingers drumming the
       // counter (little finger first) in rolls with a pause between
