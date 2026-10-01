@@ -202,7 +202,18 @@ export default function StationPage() {
   const sheet: SheetContent | null = (() => {
     if (!held) return null;
     if (held.kind === "departures")
-      return { id: "departures", title: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> };
+      return {
+        id: "departures",
+        title: "Scoreboard",
+        tone: "board",
+        full: true,
+        // (bigger flaps on a big screen)
+        body: (
+          <div className="h-full md:[zoom:1.45]">
+            <DepartureBoard signedIn={signedIn} goTo={goTo} />
+          </div>
+        ),
+      };
     if (held.kind === "window")
       return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", body: <Shop signedIn={signedIn} goTo={goTo} /> };
@@ -218,7 +229,11 @@ export default function StationPage() {
       zoomTo(Number(part.slice(6)));
       return;
     }
-    // Your locker opens the wardrobe, full screen, on phones too
+    // The scoreboard and your locker open full screen, on phones too
+    if (part === "departures") {
+      setHeld({ kind: "departures" });
+      return;
+    }
     if (part === "locker") {
       setHeld({ kind: "wardrobe" });
       return;
@@ -274,9 +289,7 @@ export default function StationPage() {
   const cardItems: HeldItem[] | null =
     !compact || !at || at === "arcade" || at === "bulletin" || at === "events" || at === "tickets"
       ? null
-      : at === "departures"
-            ? [{ id: "departures", label: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> }]
-            : at === "mail"
+      : at === "mail"
                 ? [
                     { id: "letters", label: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
                     { id: "register", label: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },

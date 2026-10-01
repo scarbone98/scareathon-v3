@@ -63,7 +63,10 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
           full
             ? "h-[100dvh] overflow-hidden"
             : "max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] md:max-h-[88vh] md:rounded-[3px] md:shadow-[6px_10px_0_rgba(0,0,0,0.5)]"
-        } ${full ? toneClass.replace(/md:max-w-\S+/, "") : toneClass}`}
+        } ${full ? toneClass.replace(/md:max-w-\S+/, "") : toneClass} ${
+          // Full screen, the departure board keeps its dark steel case, as on the wall
+          full && tone === "board" ? "border-[12px] border-[#15181f] shadow-[inset_0_0_0_2px_#000] md:border-[22px]" : ""
+        }`}
         style={{
           backgroundColor: light ? sheet.tint ?? "#f2ead2" : undefined,
           backgroundImage: light ? PAPER_GRAIN : undefined,
@@ -84,7 +87,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
         >
           ×
         </button>
-        {tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : full ? <div className="min-h-0 flex-1">{sheet.body}</div> : sheet.body}
+        {full ? <div className="min-h-0 flex-1">{sheet.body}</div> : tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : sheet.body}
       </div>
     </div>
   );

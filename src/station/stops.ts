@@ -110,10 +110,12 @@ export const STOPS: Record<StopId, Stop> = {
     id: "departures",
     label: "Scoreboard",
     heading: "left",
-    pos: [-3.1, 2.75, 0.3],
+    // Close enough that the board (1.6 by 1 m) fills the view
+    pos: [-3.1, 2.5, 0.3],
     target: [-3.1, 2.4, -2.1],
-    fit: 2.8,
-    fitHeight: 1.4,
+    fit: 1.8,
+    fitHeight: 1.15,
+    snug: true,
   },
   mail: {
     id: "mail",
