@@ -1,0 +1,13 @@
+# Joe's sweater
+at: 12,34
+legend:
+  a = dye1.0
+  b = dye1.3
+  c = dye1.2
+  d = dye1.1
+--- 0
+.aaaaa.
+abccccc
+abddddd
+a.acccc
+a.adddd

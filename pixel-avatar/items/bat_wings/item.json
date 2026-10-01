@@ -1,0 +1,10 @@
+{
+  "name": "Bat Wings",
+  "category": "wings",
+  "rarity": "epic",
+  "price": 350,
+  "release": "released",
+  "fits": ["body_kid", "body_ghost"],
+  "dyes": { "dye1": "coal" },
+  "parts": [{ "slot": "wings", "file": "wings.txt" }]
+}

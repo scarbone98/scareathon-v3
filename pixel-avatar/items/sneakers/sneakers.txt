@@ -1,0 +1,9 @@
+# Jon's and Alex's sneakers
+at: 12,44
+legend:
+  w = dye1.2
+  r = dye2.1
+--- 0
+.....w.
+.w...rw
+wr.....

@@ -60,7 +60,7 @@ function Mirror({ look, eyebrow, note }: { look: AvatarLook | null; eyebrow: str
   return (
     <div className="mb-4 flex items-center gap-4">
       <div className="flex h-24 w-20 shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
-        <AvatarView look={look} height={92} />
+        <AvatarView look={look} height={96} />
       </div>
       <div className="min-w-0">
         <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>

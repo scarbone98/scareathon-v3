@@ -5,7 +5,7 @@ import type { AvatarManifest } from "./types";
 let manifestPromise: Promise<AvatarManifest> | null = null;
 
 export function loadAvatarManifest() {
-  manifestPromise ||= fetch("/avatar-v2/manifest.json").then((response) => {
+  manifestPromise ||= fetch("/avatar-px/manifest.json").then((response) => {
     if (!response.ok) {
       manifestPromise = null;
       throw new Error("Failed to load avatar art");
@@ -26,5 +26,5 @@ export function useAvatarManifest() {
 
 // The colour players see for a ramp (its base shade).
 export function rampSwatch(manifest: AvatarManifest, ramp: string) {
-  return manifest.ramps[ramp]?.[3] || "#000";
+  return manifest.ramps[ramp]?.[2] || "#000";
 }

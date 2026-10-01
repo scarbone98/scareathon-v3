@@ -1,0 +1,14 @@
+{
+  "name": "Ghost",
+  "category": "body",
+  "starter": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "rig": {
+    "frames": 6,
+    "fps": 8,
+    "anchors": { "head": [-10, -10, -10, -9, -8, -8], "body": [-10, -10, -10, -9, -8, -8], "ground": 0 }
+  },
+  "parts": [{ "slot": "body", "png": "ghost.png", "frameWidth": 16, "at": [8, 16], "anchor": "ground" }]
+}

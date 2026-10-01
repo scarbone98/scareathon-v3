@@ -1,0 +1,10 @@
+{
+  "name": "Mohawk",
+  "category": "hair",
+  "rarity": "rare",
+  "price": 140,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": {},
+  "parts": [{ "slot": "hair", "file": "hair.txt", "anchor": "head" }]
+}

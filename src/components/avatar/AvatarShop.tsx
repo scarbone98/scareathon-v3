@@ -14,6 +14,7 @@ import {
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
+import { itemFitsBody } from "./compose";
 import { CATEGORY_LABELS, lookFromAvatar, lookWithItem } from "./look";
 import { useAvatarManifest } from "./manifest";
 import type { AvatarItem, AvatarLook, AvatarResponse } from "./types";
@@ -52,9 +53,7 @@ type PurchaseResponse = {
 
 const classifications = [
   { value: "", label: "All categories" },
-  ...Object.entries(CATEGORY_LABELS)
-    .filter(([value]) => value !== "body")
-    .map(([value, label]) => ({ value, label })),
+  ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 const rarities = [
@@ -168,6 +167,7 @@ export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
     pageCount: 1,
   };
   const coinBalance = walletData?.data.coinBalance || 0;
+  const wornBody = avatarResponse?.data.outfit.find(({ item }) => item.category === "body")?.item;
   const isInitialLoading = isLoading && !shopData;
   const previewLook = useMemo(() => {
     const avatar = avatarResponse?.data;
@@ -240,6 +240,7 @@ export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
               buyMutation.isPending && buyMutation.variables === item.id;
             const rarity = item.rarity || "common";
             const isPreviewing = previewItem?.id === item.id;
+            const fits = item.category === "body" || itemFitsBody(item, wornBody?.itemKey);
             const supplyLeft =
               item.supplyLimit !== null ? Math.max(item.supplyLimit - item.mintedCount, 0) : null;
 
@@ -263,6 +264,7 @@ export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
                     </span>
                   )}
                 </p>
+                {!fits && wornBody && <p className="shop-item-fit">Doesn&apos;t show on your {wornBody.name}</p>}
 
                 <div className="shop-item-price">
                   <FaCoins aria-hidden="true" />

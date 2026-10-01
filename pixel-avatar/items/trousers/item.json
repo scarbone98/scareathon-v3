@@ -1,0 +1,12 @@
+{
+  "name": "Trousers",
+  "category": "legs",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": { "dye1": "coal" },
+  "parts": [{ "slot": "legs", "file": "waist.txt" }, { "slot": "legs", "file": "legs.txt", "anchor": "ground" }]
+}

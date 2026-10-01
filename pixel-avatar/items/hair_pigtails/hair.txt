@@ -1,0 +1,17 @@
+# Ties are dye1
+at: 9,24
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+  r = dye1.2
+--- 0
+....aaaaaa
+...aahhaaaa
+...aaaaaaaab
+..rabbbbbbbar
+.aa.........aa
+aab........baa
+aab........baa
+.ab........ba
+.b..........b

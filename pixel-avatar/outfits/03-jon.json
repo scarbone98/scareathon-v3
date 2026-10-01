@@ -1,0 +1,3 @@
+{ "name": "Jon", "skin": "peach", "hair": "night", "eyes": "ink_eye",
+  "items": [{ "key": "body_kid" }, { "key": "hair_mop" }, { "key": "round_glasses" }, { "key": "zip_jacket", "dyes": { "dye1": "ocean", "dye2": "cloud" } },
+            { "key": "trousers", "dyes": { "dye1": "coal" } }, { "key": "sneakers", "dyes": { "dye1": "cloud", "dye2": "cherry" } }] }

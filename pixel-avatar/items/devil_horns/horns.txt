@@ -1,0 +1,11 @@
+at: 11,22
+legend:
+  o = blood.0
+  d = blood.1
+  r = blood.2
+  h = blood.3
+--- 0
+.h......h
+.rh....hr
+..rd..dr
+..dd..dd

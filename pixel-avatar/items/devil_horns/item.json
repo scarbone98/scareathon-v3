@@ -1,0 +1,9 @@
+{
+  "name": "Devil Horns",
+  "category": "head",
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "dyes": {},
+  "parts": [{ "slot": "head", "file": "horns.txt", "anchor": "head" }]
+}

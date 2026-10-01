@@ -1,0 +1,3 @@
+{ "name": "Matt", "skin": "peach", "hair": "slate", "eyes": "ink_eye",
+  "items": [{ "key": "body_kid" }, { "key": "hair_fringe" }, { "key": "open_jacket", "dyes": { "dye1": "cherry", "dye2": "cloud" } },
+            { "key": "trousers", "dyes": { "dye1": "coal" } }, { "key": "boots", "dyes": { "dye1": "coal" } }] }

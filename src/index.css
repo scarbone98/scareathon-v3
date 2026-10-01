@@ -391,5 +391,5 @@ img {
   z-index: -3;
 }
 
-/* Nav bar avatar: crop the full-body composite (120x150) to the head. */
-.nav-avatar-head img { position: absolute; left: -84.1%; top: -77.3%; width: 272.7%; max-width: none; height: auto; }
+/* Nav bar avatar: the composite is already a head-and-shoulders pixel portrait. */
+.nav-avatar-head img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; image-rendering: pixelated; }

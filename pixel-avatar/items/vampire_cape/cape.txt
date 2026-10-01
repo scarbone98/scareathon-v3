@@ -1,0 +1,19 @@
+# Hangs behind the body; the collar is in neck.
+at: 10,33
+legend:
+  a = dye1.0
+  b = dye1.1
+  c = dye1.2
+--- 0
+..aaaaaaa
+.abbbbbbba
+.abbbbbbba
+abbbbbbbbba
+abcbbbbbbba
+abcbbbbbbba
+abcbbbbbbba
+abcbbbbbbbba
+abcbbbbbbbba
+abcbbbbbbbba
+abababababba
+.a.a.a.a.a.a

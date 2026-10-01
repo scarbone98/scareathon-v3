@@ -1,0 +1,14 @@
+# Jon's jacket over a tee (dye2)
+at: 12,33
+legend:
+  a = dye1.1
+  b = dye1.0
+  c = dye2.2
+  d = dye1.2
+--- 0
+ab...bba
+.aaccca.
+addacad.
+adddadd.
+a.ddbdd.
+a.ddadd.

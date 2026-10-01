@@ -1,0 +1,9 @@
+# Alex's jeans and belt
+at: 12,39
+legend:
+  m = dye1.2
+  k = bark.1
+  l = ink.0
+--- 0
+m.kllkm
+.mmmmm.

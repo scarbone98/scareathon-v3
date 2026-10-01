@@ -1,0 +1,11 @@
+{
+  "name": "Zip Jacket",
+  "category": "outer",
+  "starter": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": { "dye1": "ocean", "dye2": "cloud" },
+  "parts": [{ "slot": "outer", "file": "jacket.txt" }]
+}

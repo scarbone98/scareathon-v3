@@ -1,0 +1,9 @@
+{
+  "name": "Moonlit Graveyard",
+  "category": "background",
+  "rarity": "rare",
+  "price": 220,
+  "release": "released",
+  "dyes": {},
+  "parts": [{ "slot": "background", "file": "scene.txt", "anchor": "free" }]
+}

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
+    AVATAR_ART_VERSION,
     avatarRules,
     parseOutfitRequest,
     serializeProfile,
@@ -10,25 +11,26 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-const profile = { build: 'm', skin: 'skin_zombie', hair: 'bone', eyes: 'blood' };
+const profile = { skin: 'zombie', hair: 'night', eyes: 'blood_eye' };
 
 function item(id, category, extra = {}) {
     return { id, name: `Item ${id}`, category, occupies: [], dyes: {}, ...extra };
 }
 
-describe('avatar v2 rules', () => {
+describe('avatar rules', () => {
     test('match the art pipeline', async () => {
-        const lib = await import(path.join(repoRoot, 'scripts/avatar-art/lib.mjs'));
+        const lib = await import(path.join(repoRoot, 'scripts/pixel-avatar/lib.mjs'));
         expect(avatarRules.slots).toEqual(lib.SLOTS);
         expect(avatarRules.categories).toEqual(lib.CATEGORIES);
-        expect(avatarRules.builds).toEqual(lib.BUILDS);
+        expect(AVATAR_ART_VERSION).toBe(3);
     });
 
-    test('offer every skin tone in the palette', () => {
-        const palette = JSON.parse(fs.readFileSync(path.join(repoRoot, 'avatar-art/palette.json'), 'utf8'));
-        expect(avatarRules.skinTones).toEqual(palette.swappable.skin);
-        expect(avatarRules.dyeColors).not.toContain('dye1');
-        expect(avatarRules.dyeColors).not.toContain('skin');
+    test('offer the palette choices', () => {
+        const palette = JSON.parse(fs.readFileSync(path.join(repoRoot, 'pixel-avatar/palette.json'), 'utf8'));
+        expect(avatarRules.skinTones).toEqual(palette.choices.skin);
+        expect(avatarRules.hairColors).toEqual(palette.choices.hair);
+        for (const ramp of avatarRules.dyeColors) expect(palette.ramps[ramp]).toBeDefined();
+        expect(avatarRules.dyeColors).not.toContain('peach');
     });
 });
 
@@ -36,27 +38,30 @@ describe('parseOutfitRequest', () => {
     test('accepts a valid outfit', () => {
         const parsed = parseOutfitRequest({
             profile,
-            outfit: [{ itemInstanceId: 5 }, { itemInstanceId: '6', dyes: { dye1: 'blood' } }],
+            outfit: [{ itemInstanceId: 5 }, { itemInstanceId: '6', dyes: { dye1: 'cherry' } }],
         });
         expect(parsed.error).toBeUndefined();
         expect(parsed.profile).toEqual(profile);
         expect(parsed.entries).toEqual([
             { itemInstanceId: 5, dyes: {} },
-            { itemInstanceId: 6, dyes: { dye1: 'blood' } },
+            { itemInstanceId: 6, dyes: { dye1: 'cherry' } },
         ]);
     });
 
-    test('rejects unknown builds and colours', () => {
-        expect(parseOutfitRequest({ profile: { ...profile, build: 'x' }, outfit: [] }).error).toMatch(/build/);
-        expect(parseOutfitRequest({ profile: { ...profile, skin: 'blood' }, outfit: [] }).error).toMatch(/skin/);
+    test('ignores the old body build', () => {
+        expect(parseOutfitRequest({ profile: { ...profile, build: 'm' }, outfit: [] }).profile).toEqual(profile);
+    });
+
+    test('rejects unknown colours', () => {
+        expect(parseOutfitRequest({ profile: { ...profile, skin: 'cherry' }, outfit: [] }).error).toMatch(/skin/);
         expect(parseOutfitRequest({ profile: { ...profile, hair: 'dye1' }, outfit: [] }).error).toMatch(/hair/);
-        expect(parseOutfitRequest({ profile: { ...profile, eyes: 'skin' }, outfit: [] }).error).toMatch(/eye/);
+        expect(parseOutfitRequest({ profile: { ...profile, eyes: 'peach' }, outfit: [] }).error).toMatch(/eye/);
     });
 
     test('rejects duplicate items and bad dyes', () => {
         expect(parseOutfitRequest({ profile, outfit: [{ itemInstanceId: 1 }, { itemInstanceId: 1 }] }).error).toMatch(/unique/);
-        expect(parseOutfitRequest({ profile, outfit: [{ itemInstanceId: 1, dyes: { dye3: 'blood' } }] }).error).toMatch(/channel/);
-        expect(parseOutfitRequest({ profile, outfit: [{ itemInstanceId: 1, dyes: { dye1: 'skin_pale' } }] }).error).toMatch(/colour/);
+        expect(parseOutfitRequest({ profile, outfit: [{ itemInstanceId: 1, dyes: { dye3: 'cherry' } }] }).error).toMatch(/channel/);
+        expect(parseOutfitRequest({ profile, outfit: [{ itemInstanceId: 1, dyes: { dye1: 'peach' } }] }).error).toMatch(/colour/);
         expect(parseOutfitRequest({ profile }).error).toMatch(/required/);
     });
 });
@@ -64,24 +69,24 @@ describe('parseOutfitRequest', () => {
 describe('validateOutfitItems', () => {
     const owned = new Map([
         [1, item(1, 'body')],
-        [2, item(2, 'neck', { dyes: { dye1: 'night', dye2: 'blood' } })],
-        [3, item(3, 'neck')],
-        [4, item(4, 'neck')],
-        [5, item(5, 'held_near')],
-        [6, item(6, 'held_near', { occupies: ['held_far'] })],
-        [7, item(7, 'held_far')],
+        [2, item(2, 'face_paint', { dyes: { dye1: 'coal', dye2: 'cherry' } })],
+        [3, item(3, 'face_paint')],
+        [4, item(4, 'face_paint')],
+        [5, item(5, 'held')],
+        [6, item(6, 'held', { occupies: ['companion'] })],
+        [7, item(7, 'companion')],
         [8, item(8, 'body')],
     ]);
     const outfit = (...ids) => ids.map((id) => ({ itemInstanceId: id, dyes: {} }));
 
     test('allows up to the category limit', () => {
         expect(validateOutfitItems(outfit(1, 2, 3), owned)).toBeNull();
-        expect(validateOutfitItems(outfit(1, 2, 3, 4), owned)).toMatch(/Only 2 neck items/);
+        expect(validateOutfitItems(outfit(1, 2, 3, 4), owned)).toMatch(/Only 2 face paint items/);
     });
 
     test('counts extra categories an item occupies', () => {
         expect(validateOutfitItems(outfit(1, 5, 7), owned)).toBeNull();
-        expect(validateOutfitItems(outfit(1, 6, 7), owned)).toMatch(/held far/);
+        expect(validateOutfitItems(outfit(1, 6, 7), owned)).toMatch(/companion/);
     });
 
     test('needs exactly one body', () => {
@@ -101,6 +106,6 @@ describe('validateOutfitItems', () => {
 
 describe('serializeProfile', () => {
     test('fills defaults for a missing row', () => {
-        expect(serializeProfile(undefined)).toEqual({ build: 'f', buildChosen: false, skin: 'skin', hair: 'hair', eyes: 'eyes', savedAt: null });
+        expect(serializeProfile(undefined)).toEqual({ lookChosen: false, skin: 'peach', hair: 'sandy', eyes: 'ink_eye', savedAt: null });
     });
 });

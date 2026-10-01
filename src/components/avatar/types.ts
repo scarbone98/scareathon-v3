@@ -1,18 +1,24 @@
-// Avatar v2 shapes. Items are drawn in avatar-art/ and built into
-// public/avatar-v2/; see avatar-art/STYLE.md.
-
-export type AvatarBuild = "f" | "m";
+// Pixel avatar shapes. Items are drawn in pixel-avatar/ and built into
+// public/avatar-px/; see pixel-avatar/STYLE.md.
 
 export type DyeChoice = Partial<Record<"dye1" | "dye2", string>>;
 
+// Where a part hangs; the body's rig moves each anchor per frame.
+export type AvatarAnchor = "head" | "body" | "ground" | "free";
+
 export type AvatarItemPart = {
-  // a draw layer, or "mask" for a part that erases other items' pixels
   slot: string;
-  // null when the part suits both body builds
-  build: AvatarBuild | null;
+  anchor: AvatarAnchor;
+  // canvas position on the kid in frame 0, and the size of one frame
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  // frames side by side in src; a look's frame f shows frame f % frames
+  frames: number;
   src: string;
-  // for mask parts: the slots whose pixels it erases
-  masks?: string[];
+  // the bodies this part is drawn on; every body when missing
+  fits?: string[];
 };
 
 export type AvatarItem = {
@@ -33,8 +39,8 @@ export type AvatarItem = {
 };
 
 export type AvatarProfile = {
-  build: AvatarBuild;
-  buildChosen: boolean;
+  // false until the player has a look of their own (a generated one at first)
+  lookChosen: boolean;
   skin: string;
   hair: string;
   eyes: string;
@@ -54,7 +60,7 @@ export type InventoryEntry = {
 
 // Everything needed to draw an avatar.
 export type AvatarLook = {
-  profile: Pick<AvatarProfile, "build" | "skin" | "hair" | "eyes">;
+  profile: Pick<AvatarProfile, "skin" | "hair" | "eyes">;
   outfit: { item: AvatarItem; dyes: DyeChoice }[];
 };
 
@@ -68,17 +74,25 @@ export type AvatarResponse = {
   data: AvatarData;
 };
 
-// public/avatar-v2/manifest.json
+// A body's idle loop: frame count, speed, and each anchor's offset per frame.
+export type AvatarRig = {
+  frames: number;
+  fps: number;
+  anchors: Partial<Record<AvatarAnchor, [number, number][]>>;
+};
+
+// public/avatar-px/manifest.json
 export type AvatarManifest = {
   width: number;
   height: number;
   slots: string[];
   categories: Record<string, number>;
-  builds: AvatarBuild[];
-  swappable: Record<string, string[]>;
+  // the ramp each recolourable channel is drawn in
+  defaults: Record<"skin" | "hair" | "eyes" | "dye1" | "dye2", string>;
   skinTones: string[];
   hairColors: string[];
   eyeColors: string[];
   dyeColors: string[];
   ramps: Record<string, string[]>;
+  bases: Record<string, AvatarRig>;
 };

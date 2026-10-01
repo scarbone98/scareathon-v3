@@ -1,0 +1,9 @@
+{
+  "name": "Bat Buddy",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 250,
+  "release": "released",
+  "dyes": {},
+  "parts": [{ "slot": "companion", "file": "bat.txt", "anchor": "free" }]
+}

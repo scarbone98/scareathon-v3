@@ -1,0 +1,18 @@
+at: 10,18
+legend:
+  a = felt.0
+  c = felt.1
+  b = felt.2
+  h = felt.3
+  d = dye1.2
+  e = dye1.1
+--- 0
+..aaaaaaa
+..ahbbbca
+..ahbbbca
+..ahbbbca
+..ahbbbca
+..addddea
+..ahbbbca
+aahbbbbbcaa
+.aaaaaaaaa

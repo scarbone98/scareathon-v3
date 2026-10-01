@@ -1,0 +1,9 @@
+{
+  "name": "Cat Ears",
+  "category": "head",
+  "rarity": "uncommon",
+  "price": 80,
+  "release": "released",
+  "dyes": { "dye1": "coal" },
+  "parts": [{ "slot": "head", "file": "ears.txt", "anchor": "head" }]
+}

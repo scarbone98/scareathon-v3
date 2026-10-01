@@ -1,0 +1,10 @@
+at: 11,22
+legend:
+  a = dye1.1
+  b = dye1.2
+  p = rose.2
+--- 0
+.a......a
+.ab....ba
+.apb..bpa
+abpb..bpba

@@ -1,0 +1,11 @@
+{
+  "name": "Rosy Cheeks",
+  "category": "face_paint",
+  "starter": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": {},
+  "parts": [{ "slot": "face_paint", "file": "blush.txt", "anchor": "head" }]
+}

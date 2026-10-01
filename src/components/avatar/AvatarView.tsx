@@ -5,14 +5,20 @@ import type { AvatarLook } from "./types";
 
 type AvatarViewProps = {
   look: AvatarLook | null;
-  // CSS height in px; the width follows the 120x150 canvas
+  // CSS height in px; the width follows the canvas. Rounded down to a whole
+  // multiple of the canvas so every art pixel is the same size.
   height?: number;
   className?: string;
   label?: string;
+  // play the body's idle loop (on by default; off honours reduced motion too)
+  animate?: boolean;
 };
 
-// Draws an avatar at a whole-pixel-friendly size with crisp pixels.
-export function AvatarView({ look, height = 300, className = "", label = "Avatar preview" }: AvatarViewProps) {
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Draws an avatar with crisp pixels, playing its idle loop.
+export function AvatarView({ look, height = 288, className = "", label = "Avatar preview", animate = true }: AvatarViewProps) {
   const { data: manifest } = useAvatarManifest();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
@@ -20,16 +26,28 @@ export function AvatarView({ look, height = 300, className = "", label = "Avatar
   useEffect(() => {
     if (!manifest || !look) return;
     let cancelled = false;
+    let timer: number | undefined;
     composeLook(look, manifest)
-      .then((composed) => {
+      .then(({ canvas: strip, frames, fps }) => {
         const canvas = canvasRef.current;
         if (cancelled || !canvas) return;
-        canvas.width = composed.width;
-        canvas.height = composed.height;
+        canvas.width = manifest.width;
+        canvas.height = manifest.height;
         const context = canvas.getContext("2d");
-        context?.clearRect(0, 0, canvas.width, canvas.height);
-        context?.drawImage(composed, 0, 0);
+        if (!context) return;
+        let frame = 0;
+        const draw = () => {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(strip, frame * manifest.width, 0, manifest.width, manifest.height, 0, 0, manifest.width, manifest.height);
+        };
+        draw();
         setFailed(false);
+        if (animate && frames > 1 && !prefersReducedMotion()) {
+          timer = window.setInterval(() => {
+            frame = (frame + 1) % frames;
+            draw();
+          }, 1000 / fps);
+        }
       })
       .catch((error) => {
         console.error(error);
@@ -37,14 +55,17 @@ export function AvatarView({ look, height = 300, className = "", label = "Avatar
       });
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, [look, manifest]);
+  }, [look, manifest, animate]);
 
-  const width = manifest ? Math.round((height * manifest.width) / manifest.height) : Math.round(height * 0.8);
+  const scale = manifest ? Math.max(1, Math.floor(height / manifest.height)) : 1;
+  const cssHeight = manifest ? manifest.height * scale : height;
+  const cssWidth = manifest ? manifest.width * scale : Math.round(height * (2 / 3));
 
   return (
-    <span className={`avatar-view ${className}`} style={{ width, height }} role="img" aria-label={label}>
-      <canvas ref={canvasRef} style={{ width, height, imageRendering: "pixelated" }} />
+    <span className={`avatar-view ${className}`} style={{ width: cssWidth, height: cssHeight }} role="img" aria-label={label}>
+      <canvas ref={canvasRef} style={{ width: cssWidth, height: cssHeight, imageRendering: "pixelated" }} />
       {failed && <span className="avatar-view-error">Couldn't draw this look</span>}
     </span>
   );

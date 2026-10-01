@@ -1,0 +1,12 @@
+# Alex's tee, fitted to the kid's torso
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+--- 0
+.hiiih.
+hhiiiij
+iiiiijj
+j.iiiij
+..jiiij
