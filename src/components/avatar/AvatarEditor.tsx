@@ -116,9 +116,10 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
   const look = useMemo(() => (draft ? lookFromDraft(draft, inventory) : null), [draft, inventory]);
   const hasUnsavedChanges = Boolean(draft) && draftKey(draft) !== savedKey;
 
+  // Only unsaved changes count as trying something on.
   useEffect(() => {
-    onPreviewLookChange?.(look);
-  }, [look, onPreviewLookChange]);
+    onPreviewLookChange?.(hasUnsavedChanges ? look : null);
+  }, [look, hasUnsavedChanges, onPreviewLookChange]);
   useEffect(() => () => onPreviewLookChange?.(null), [onPreviewLookChange]);
 
   const saveMutation = useMutation({

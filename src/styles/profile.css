@@ -109,7 +109,7 @@
   .profile-panel-body { padding: 20px 16px; }
   .profile-section-heading h2 { font-size: 22px; }
   .wardrobe-toolbar { flex-wrap: wrap; }
-  .wardrobe-search { flex: 1; }
+  .wardrobe-search { flex: 1 1 100%; }
   .wardrobe-search input { width: 100%; }
   .wardrobe-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
 }
