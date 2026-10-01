@@ -1162,49 +1162,334 @@ function buildTickets() {
 
 // The carriage you arrive in: a lit shell of thin walls (so it reads from inside and out),
 // its doors in the middle of the platform side, with a dark carriage coupled either end.
-// Its own x is 0 at the doors.
+// Its own x is 0 at the doors. Painted like the rest of the station: riveted green steel
+// outside; inside, wood below the windows, cream paint above, adverts over the windows,
+// moquette seats, and glass that's been leaned on for years.
 const CAR_LEN = 12;
 const CAR_NEAR = EDGE_Z + 0.3; // its platform-side wall
 const CAR_FAR = TRACK_Z + 1.35;
 const CAR_H = 2.4;
 const DOOR_W = 1.3;
 const DOOR_H = 2.1;
+const CAR_SILL = 0.95;
+const CAR_HEAD = 1.8;
+
+// A box with its own material on each face (+x, -x, +y, -y, +z, -z)
+function faced(w: number, h: number, d: number, materials: Material[], x = 0, y = 0, z = 0) {
+  const mesh = new Mesh(new BoxGeometry(w, h, d), materials);
+  mesh.position.set(x, y, z);
+  return mesh;
+}
+
+// A repeat of a painted tile over a surface `w` by `h` metres, `size` metres a tile
+function tiled(texture: Texture, w: number, h: number, size: number | [number, number]) {
+  const [sx, sy] = typeof size === "number" ? [size, size] : size;
+  const copy = texture.clone();
+  copy.wrapS = copy.wrapT = RepeatWrapping;
+  copy.repeat.set(Math.max(w / sx, 1), Math.max(h / sy, 1));
+  copy.needsUpdate = true;
+  return copy;
+}
+
+// Grime: soft dark blotches and a few streaks running down
+function grime(ctx: CanvasRenderingContext2D, w: number, h: number, amount: number, fromTop = false) {
+  for (let i = 0; i < amount; i += 1) {
+    const x = Math.random() * w;
+    const y = fromTop ? Math.random() * h * 0.35 : Math.random() * h;
+    const r = 6 + Math.random() * 26;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, "rgba(20,14,8,0.16)");
+    g.addColorStop(1, "rgba(20,14,8,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  ctx.fillStyle = "rgba(25,18,10,0.12)";
+  for (let i = 0; i < amount / 3; i += 1) ctx.fillRect(Math.random() * w, Math.random() * h * 0.6, 1 + Math.random() * 2, 10 + Math.random() * 40);
+}
+
+function carSteelTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#1f3a2f";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2200; i += 1) {
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.05)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 3, 1);
+    }
+    // Panel seams and their rivets
+    ctx.fillStyle = "#132519";
+    ctx.fillRect(0, 0, 3, h);
+    ctx.fillRect(0, 0, w, 3);
+    ctx.fillStyle = "#3d5a4a";
+    for (let y = 10; y < h; y += 22) ctx.fillRect(7, y, 3, 3);
+    for (let x = 14; x < w; x += 22) ctx.fillRect(x, 7, 3, 3);
+    // Rust where the water runs
+    ctx.fillStyle = "rgba(120,62,30,0.22)";
+    for (let i = 0; i < 14; i += 1) ctx.fillRect(Math.random() * w, Math.random() * h, 2, 12 + Math.random() * 40);
+    grime(ctx, w, h, 22);
+  });
+}
+
+function wainscotTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#3b2416";
+    ctx.fillRect(0, 0, w, h);
+    // Two raised panels across, each with its grain
+    [0, 128].forEach((x) => {
+      ctx.fillStyle = "#4e301c";
+      ctx.fillRect(x + 12, 22, 104, h - 44);
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 12, 22, 104, h - 44);
+      for (let i = 0; i < 40; i += 1) {
+        ctx.strokeStyle = `rgba(${20 + Math.random() * 30},${12 + Math.random() * 14},6,0.35)`;
+        ctx.lineWidth = 1;
+        const y = 26 + Math.random() * (h - 52);
+        ctx.beginPath();
+        ctx.moveTo(x + 14, y);
+        ctx.bezierCurveTo(x + 40, y + 4, x + 80, y - 4, x + 114, y + 2);
+        ctx.stroke();
+      }
+    });
+    // The brass rail along the top, and scuffs from knees and bags
+    ctx.fillStyle = "#8c6a2e";
+    ctx.fillRect(0, 0, w, 7);
+    ctx.fillStyle = "#c9a35a";
+    ctx.fillRect(0, 1, w, 2);
+    ctx.fillStyle = "rgba(210,180,140,0.12)";
+    for (let i = 0; i < 30; i += 1) ctx.fillRect(Math.random() * w, h * 0.3 + Math.random() * h * 0.5, 8 + Math.random() * 20, 1);
+    grime(ctx, w, h, 10);
+  });
+}
+
+function creamPaintTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#cdbf9c";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2500; i += 1) {
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(255,250,235,0.06)" : "rgba(60,45,25,0.06)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    grime(ctx, w, h, 16);
+  });
+}
+
+// The strip over the windows: one framed advert for every window
+const CAR_ADVERTS: [string, string, string][] = [
+  ["MIND THE GAP", "Between this world and the next", "#7a1f1a"],
+  ["THE ARCADE", "Open all night on the platform", "#1f3a5a"],
+  ["SCAREATHON", "A film every night in October", "#b4501a"],
+  ["LOST PROPERTY", "Ask at the counter. Do not ask what", "#2f4a2f"],
+];
+function advertStripTexture() {
+  return paint(1024, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#cdbf9c";
+    ctx.fillRect(0, 0, w, h);
+    const cardW = w / CAR_ADVERTS.length;
+    CAR_ADVERTS.forEach(([title, line, colour], i) => {
+      const x = i * cardW + 22;
+      const cw = cardW - 44;
+      ctx.fillStyle = "#6b5232";
+      ctx.fillRect(x - 6, 34, cw + 12, h - 62);
+      ctx.fillStyle = "#efe2c2";
+      ctx.fillRect(x, 40, cw, h - 74);
+      ctx.fillStyle = colour;
+      ctx.fillRect(x, 40, cw, 64);
+      ctx.fillStyle = "#f5ecd6";
+      ctx.font = "700 34px Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText(title, x + cw / 2, 84, cw - 16);
+      ctx.fillStyle = "#2a1d14";
+      ctx.font = "italic 21px Georgia, serif";
+      wrap(ctx, line, cw - 24, 2).forEach((text, k) => ctx.fillText(text, x + cw / 2, 136 + k * 26, cw - 24));
+    });
+    grime(ctx, w, h, 40, true);
+  });
+}
+
+function ceilingTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#d8cdb0";
+    ctx.fillRect(0, 0, w, h);
+    // Ribs across the roof, each catching the light on one side
+    for (let x = 0; x < w; x += 64) {
+      ctx.fillStyle = "rgba(60,48,30,0.35)";
+      ctx.fillRect(x, 0, 6, h);
+      ctx.fillStyle = "rgba(255,250,235,0.35)";
+      ctx.fillRect(x + 6, 0, 2, h);
+    }
+    grime(ctx, w, h, 14);
+  });
+}
+
+function carFloorTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    for (let i = 0; i < 8; i += 1) {
+      const tone = 34 + Math.floor(Math.random() * 12);
+      ctx.fillStyle = `rgb(${tone + 10}, ${tone + 2}, ${tone - 6})`;
+      ctx.fillRect(0, i * 32, w, 30);
+      ctx.fillStyle = "#14100c";
+      ctx.fillRect(0, i * 32 + 30, w, 2);
+    }
+    // Worn pale down the middle where everyone walks
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0.2, "rgba(150,130,100,0)");
+    g.addColorStop(0.5, "rgba(150,130,100,0.18)");
+    g.addColorStop(0.8, "rgba(150,130,100,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    grime(ctx, w, h, 18);
+  });
+}
+
+function moquetteTexture() {
+  return paint(128, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#5b1f22";
+    ctx.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 16) {
+      for (let x = (y / 16) % 2 ? 8 : 0; x < w; x += 16) {
+        ctx.fillStyle = "#b08a3a";
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y + 3);
+        ctx.lineTo(x + 13, y + 8);
+        ctx.lineTo(x + 8, y + 13);
+        ctx.lineTo(x + 3, y + 8);
+        ctx.fill();
+        ctx.fillStyle = "#2a5a5a";
+        ctx.fillRect(x + 7, y + 7, 2, 2);
+      }
+    }
+    for (let i = 0; i < 600; i += 1) {
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 1, 1);
+    }
+  });
+}
+
+function doorTexture(plate: boolean) {
+  return paint(128, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#6e2620";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 900; i += 1) {
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(255,220,200,0.04)" : "rgba(0,0,0,0.07)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 1);
+    }
+    // Scratches where hands push and bags catch
+    ctx.strokeStyle = "rgba(210,170,140,0.3)";
+    for (let i = 0; i < 12; i += 1) {
+      const x = Math.random() * w;
+      const y = h * 0.3 + Math.random() * h * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 6 + Math.random() * 14, y + (Math.random() - 0.5) * 6);
+      ctx.stroke();
+    }
+    if (plate) {
+      ctx.fillStyle = "#e9dfc6";
+      ctx.fillRect(14, 30, w - 28, 54);
+      ctx.fillStyle = "#2a1d14";
+      ctx.font = "700 15px Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("PLEASE STAND", w / 2, 52, w - 36);
+      ctx.fillText("CLEAR OF THE DOORS", w / 2, 72, w - 36);
+    }
+    grime(ctx, w, h, 8);
+  });
+}
+
+// Window glass: mostly clear, a haze of grime round the edges, smudges, and scratches
+function carGlassTexture() {
+  return paint(256, 256, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(170,190,205,0.08)";
+    ctx.fillRect(0, 0, w, h);
+    const edge = ctx.createLinearGradient(0, 0, 0, h);
+    edge.addColorStop(0, "rgba(70,60,45,0.35)");
+    edge.addColorStop(0.18, "rgba(70,60,45,0)");
+    edge.addColorStop(0.75, "rgba(70,60,45,0)");
+    edge.addColorStop(1, "rgba(70,60,45,0.45)");
+    ctx.fillStyle = edge;
+    ctx.fillRect(0, 0, w, h);
+    // Smudges: hands and foreheads
+    for (let i = 0; i < 7; i += 1) {
+      const x = 30 + Math.random() * (w - 60);
+      const y = 50 + Math.random() * (h - 100);
+      const r = 14 + Math.random() * 22;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, "rgba(220,215,200,0.16)");
+      g.addColorStop(1, "rgba(220,215,200,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // A long reflection, and fine scratches
+    ctx.fillStyle = "rgba(255,245,225,0.07)";
+    ctx.beginPath();
+    ctx.moveTo(w * 0.15, 0);
+    ctx.lineTo(w * 0.32, 0);
+    ctx.lineTo(w * 0.12, h);
+    ctx.lineTo(-w * 0.05, h);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(240,235,220,0.22)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 18; i += 1) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (Math.random() - 0.5) * 50, y + (Math.random() - 0.5) * 18);
+      ctx.stroke();
+    }
+  });
+}
+
 function buildArrivalCar() {
   const car = new Group();
-  const steel = standard("#2b3038", 0.6);
-  const inside = standard("#46473f", 0.85);
+  const steelTex = carSteelTexture();
+  const cream = creamPaintTexture();
+  const wood = wainscotTexture();
+  const adverts = advertStripTexture();
+  const outside = (w: number, h: number) => standard("#ffffff", 0.6, tiled(steelTex, w, h, 1.0));
+  const plain = standard("#2b3038", 0.6);
+  // A wall piece of the platform side: green steel outside (-z), its own look inside (+z)
+  const wallPiece = (w: number, h: number, inside: Material, x: number, y: number) => {
+    return faced(w, h, 0.06, [plain, plain, plain, plain, inside, outside(w, h)], x, y, CAR_NEAR);
+  };
   const trim = standard("#8b8f94", 0.4);
-  const glass = new MeshBasicMaterial({ color: "#9fb4c8", transparent: true, opacity: 0.07, depthWrite: false });
+  const glass = new MeshBasicMaterial({ map: carGlassTexture(), transparent: true, depthWrite: false });
   const depth = CAR_FAR - CAR_NEAR;
   const midZ = (CAR_NEAR + CAR_FAR) / 2;
-  // The platform side: solid under the windows and over them, pillars between, the doorway open
-  const sill = 0.95;
-  const head = 1.8;
-  const side = (from: number, to: number) => {
+  // The platform side: wood under the windows, adverts over them, cream pillars between,
+  // the doorway open
+  const side = (from: number, to: number, firstAdvert: number) => {
     const dir = Math.sign(to - from);
     const len = Math.abs(to - from);
     const mid = (from + to) / 2;
-    car.add(box(len, sill, 0.06, steel, mid, sill / 2, CAR_NEAR));
-    car.add(box(len, CAR_H - head, 0.06, steel, mid, (head + CAR_H) / 2, CAR_NEAR));
+    car.add(wallPiece(len, CAR_SILL, standard("#ffffff", 0.8, tiled(wood, len, CAR_SILL, [0.9, CAR_SILL])), mid, CAR_SILL / 2));
+    // The adverts, one over each window: slide the strip so a card's middle sits over the
+    // window nearest this piece's left end
+    const stripW = 1.7 * CAR_ADVERTS.length;
+    const strip = tiled(adverts, len, CAR_H - CAR_HEAD, [stripW, CAR_H - CAR_HEAD]);
+    const nearestWindow = Math.min(from + dir * 1.05, from + dir * (Math.floor((len - 1.7) / 1.7) * 1.7 + 1.05));
+    strip.offset.x = (0.85 + firstAdvert * 1.7 - (nearestWindow - (mid - len / 2))) / stripW;
+    car.add(wallPiece(len, CAR_H - CAR_HEAD, standard("#ffffff", 0.85, strip), mid, (CAR_HEAD + CAR_H) / 2));
     // Windows 1.3 wide with 0.4 pillars, starting from the doorway
     for (let at = 0; at < len; at += 1.7) {
       const pillarAt = from + dir * (at + 0.2);
-      car.add(box(0.4, head - sill, 0.06, steel, pillarAt, (sill + head) / 2, CAR_NEAR));
+      car.add(wallPiece(0.4, CAR_HEAD - CAR_SILL, standard("#ffffff", 0.85, cream), pillarAt, (CAR_SILL + CAR_HEAD) / 2));
       const paneAt = from + dir * (at + 0.4 + 0.65);
-      if (at + 1.7 <= len) car.add(plane(1.3, head - sill, glass, paneAt, (sill + head) / 2, CAR_NEAR - 0.01));
+      if (at + 1.7 <= len) car.add(plane(1.3, CAR_HEAD - CAR_SILL, glass, paneAt, (CAR_SILL + CAR_HEAD) / 2, CAR_NEAR - 0.01));
     }
   };
-  side(-DOOR_W / 2, -CAR_LEN / 2);
-  side(DOOR_W / 2, CAR_LEN / 2);
-  car.add(box(DOOR_W, CAR_H - DOOR_H, 0.06, steel, 0, (DOOR_H + CAR_H) / 2, CAR_NEAR));
+  side(-DOOR_W / 2, -CAR_LEN / 2, 0);
+  side(DOOR_W / 2, CAR_LEN / 2, 1);
+  car.add(wallPiece(DOOR_W, CAR_H - DOOR_H, standard("#ffffff", 0.85, cream), 0, (DOOR_H + CAR_H) / 2));
   // The rest of the shell
-  car.add(box(CAR_LEN, 0.08, depth, standard("#1d1a18", 1), 0, -0.04, midZ)); // floor
-  car.add(box(CAR_LEN, 0.08, depth, steel, 0, CAR_H + 0.04, midZ)); // roof
-  car.add(box(CAR_LEN, CAR_H, 0.06, inside, 0, CAR_H / 2, CAR_FAR)); // far wall
-  [-1, 1].forEach((end) => car.add(box(0.06, CAR_H, depth, inside, (end * CAR_LEN) / 2, CAR_H / 2, midZ)));
+  car.add(faced(CAR_LEN, 0.08, depth, [plain, plain, standard("#ffffff", 0.95, tiled(carFloorTexture(), CAR_LEN, depth, 1.6)), plain, plain, plain], 0, -0.04, midZ));
+  car.add(faced(CAR_LEN, 0.08, depth, [plain, plain, outside(CAR_LEN, depth), standard("#ffffff", 0.9, tiled(ceilingTexture(), CAR_LEN, depth, [2, depth])), plain, plain], 0, CAR_H + 0.04, midZ));
+  car.add(box(CAR_LEN, CAR_H, 0.06, standard("#ffffff", 0.85, tiled(cream, CAR_LEN, CAR_H, 1.2)), 0, CAR_H / 2, CAR_FAR)); // far wall
+  [-1, 1].forEach((end) => car.add(box(0.06, CAR_H, depth, standard("#ffffff", 0.85, tiled(cream, depth, CAR_H, 1.2)), (end * CAR_LEN) / 2, CAR_H / 2, midZ)));
   // A strip light down the middle, bench seats along the far wall, poles by the doors
   car.add(box(CAR_LEN - 1, 0.04, 0.22, new MeshBasicMaterial({ color: "#ffe6bf" }), 0, CAR_H - 0.03, midZ));
-  const seat = standard("#5b2a26", 0.9);
+  const seat = standard("#ffffff", 0.95, tiled(moquetteTexture(), 4.2, 0.5, 0.35));
   [-1, 1].forEach((end) => {
     car.add(box(4.2, 0.12, 0.5, seat, end * 3.3, 0.48, CAR_FAR - 0.3));
     car.add(box(4.2, 0.5, 0.1, seat, end * 3.3, 0.8, CAR_FAR - 0.08));
@@ -1218,10 +1503,12 @@ function buildArrivalCar() {
   const leaves = [-1, 1].map((dir) => {
     const leaf = new Group();
     const w = DOOR_W / 2;
-    leaf.add(box(w, 1.05, 0.04, trim, 0, 0.525, 0));
-    leaf.add(box(w, DOOR_H - 1.8, 0.04, trim, 0, (1.8 + DOOR_H) / 2, 0));
-    leaf.add(box(0.09, 0.75, 0.04, trim, -w / 2 + 0.045, 1.425, 0));
-    leaf.add(box(0.09, 0.75, 0.04, trim, w / 2 - 0.045, 1.425, 0));
+    const lower = standard("#ffffff", 0.7, doorTexture(dir < 0));
+    const painted = standard("#ffffff", 0.7, doorTexture(false));
+    leaf.add(box(w, 1.05, 0.04, lower, 0, 0.525, 0));
+    leaf.add(box(w, DOOR_H - 1.8, 0.04, painted, 0, (1.8 + DOOR_H) / 2, 0));
+    leaf.add(box(0.09, 0.75, 0.04, painted, -w / 2 + 0.045, 1.425, 0));
+    leaf.add(box(0.09, 0.75, 0.04, painted, w / 2 - 0.045, 1.425, 0));
     leaf.add(plane(w - 0.18, 0.75, glass, 0, 1.425, 0.021));
     leaf.add(box(0.03, DOOR_H, 0.05, standard("#111", 1), -dir * (w / 2 - 0.015), DOOR_H / 2, 0)); // the rubber edge
     leaf.position.set((dir * w) / 2, 0, CAR_NEAR - 0.06);
@@ -1230,7 +1517,7 @@ function buildArrivalCar() {
   });
   car.userData.leaves = leaves;
   // Dark carriages coupled either end
-  const body = standard("#1b1e24", 0.7);
+  const body = standard("#55605a", 0.7, tiled(steelTex, CAR_LEN, CAR_H, 1.0));
   const lit = new MeshBasicMaterial({ color: "#ffd9a0" });
   [-1, 1].forEach((end) => {
     const x = end * (CAR_LEN + 0.4);
@@ -1764,7 +2051,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     const RIDE = 3.0; // s pulling in
     const RIDE_FROM = 34; // m down the line it starts
-    const INSIDE_Z = CAR_FAR - 0.55; // where you stand in the carriage, back from the doors
+    // Where you stand in the carriage: back from the doors, but on a phone (a narrow view)
+    // close enough that the doors and the poles either side fill the screen
+    const insideZ = () => {
+      const back = CAR_FAR - 0.55;
+      if (camera.aspect >= 0.8) return back;
+      const halfWidth = Math.atan(Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect);
+      return Math.min(back, CAR_NEAR + 0.8 / Math.tan(halfWidth));
+    };
     if (!arrival.active) {
       arrival.phase = "gone";
       arrivalCar.visible = false;
@@ -1781,14 +2075,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const k = reduced ? 1 : clamp01(t / RIDE);
         const along = RIDE_FROM * (1 - k) ** 3; // braking all the way in
         arrivalCar.position.x = DOOR_X + along;
-        Object.assign(cam, { x: DOOR_X + along, y: HUB.pos[1] + Math.sin(t * 23) * 0.006 * (1 - k), z: INSIDE_Z, yaw: 0, pitch: -0.02 });
+        Object.assign(cam, { x: DOOR_X + along, y: HUB.pos[1] + Math.sin(t * 23) * 0.006 * (1 - k), z: insideZ(), yaw: 0, pitch: -0.02 });
         if (k >= 1) {
           setPhase("stopped");
           latest.current.onTrainStopped?.();
         }
       } else if (arrival.phase === "stopped") {
         // The lurch as it stops, then waiting on the station
-        cam.z = INSIDE_Z + Math.sin(Math.min(t / 0.35, 1) * Math.PI) * 0.06;
+        cam.z = insideZ() + Math.sin(Math.min(t / 0.35, 1) * Math.PI) * 0.06;
         const cabinetIn = Boolean(arcadeObject.userData.cabinet || arcadeObject.userData.failed);
         // Meanwhile, get the arcade's cartridges onto the graphics card, so the first walk
         // over to it doesn't stall putting them there
@@ -1883,6 +2177,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       return { spec, slot, object };
     });
     setSurfaceSlots(Object.fromEntries(placed.map(({ spec, slot }) => [spec.id, slot])));
+    // How far each surface has faded in (0 to 1): they ease in over their painted stand-ins
+    // rather than appearing all at once
+    const surfaceFade = new Map<string, number>();
+    let surfaceClock = performance.now();
     const surfaceCentre = new Vector3();
     const toCamera = new Vector3();
     const surfaceNormal = new Vector3();
@@ -2289,18 +2587,28 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       renderer.render(scene, camera);
 
       // Each surface only while it's ahead of the camera and facing it (HTML behind the
-      // camera or seen from the back would draw wrongly); its painted stand-in shows otherwise
+      // camera or seen from the back would draw wrongly, so then it goes at once); its
+      // painted stand-in shows otherwise. Coming and going otherwise, it fades.
       camera.getWorldDirection(facing);
       const onTrain = arrival.active && !(arrival.phase === "stepping" && cam.z < CAR_NEAR - 0.2);
-      placed.forEach(({ object, spec }) => {
+      const clock = performance.now();
+      const dt = Math.min((clock - surfaceClock) / 1000, 0.1);
+      surfaceClock = clock;
+      placed.forEach(({ object, spec, slot }) => {
         object.getWorldPosition(surfaceCentre);
         toCamera.subVectors(camera.position, surfaceCentre).normalize();
         object.getWorldDirection(surfaceNormal);
-        object.visible =
-          surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35 &&
+        const inView = surfaceNormal.dot(toCamera) > 0.12 && -toCamera.dot(facing) > 0.35;
+        const wanted =
+          inView &&
           !(latest.current.at && spec.hiddenAt?.includes(latest.current.at)) &&
           // (Still aboard the train: its walls would be behind them otherwise)
           !onTrain;
+        const was = surfaceFade.get(spec.id) ?? 0;
+        const fade = !inView ? 0 : wanted ? Math.min(1, was + dt / 0.45) : Math.max(0, was - dt / 0.2);
+        surfaceFade.set(spec.id, fade);
+        object.visible = fade > 0;
+        if (fade !== was) slot.style.opacity = fade >= 1 ? "" : fade.toFixed(3);
       });
       surfaceRenderer.render(scene, camera);
     };
