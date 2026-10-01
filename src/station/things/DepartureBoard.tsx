@@ -79,7 +79,11 @@ function Timetable({ signedIn }: { signedIn: boolean }) {
   const toggle = useToggleWatched();
   const watchedDays = me?.season === calendarYear ? new Set(me.watchedDays) : null;
   const tonight = useRef<HTMLDivElement | null>(null);
-  useEffect(() => tonight.current?.scrollIntoView({ block: "center" }), [data]);
+  // Braces matter: newer browsers return a Promise from scrollIntoView, and React would
+  // take a returned value for the effect's cleanup and crash calling it on close
+  useEffect(() => {
+    tonight.current?.scrollIntoView({ block: "center" });
+  }, [data]);
   if (!signedIn || needsSignIn(error)) return null;
   if (isLoading) return <Line>PRINTING...</Line>;
   if (error) return <Line>BOARD FAULT: {error.message.toUpperCase()}</Line>;
