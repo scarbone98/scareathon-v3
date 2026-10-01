@@ -21,6 +21,7 @@ import HeldCard, { type HeldItem } from "./HeldCard.tsx";
 import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
+import ClerkSays from "./things/ClerkSays.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
 import { stationPlaceFor } from "./places.ts";
@@ -595,6 +596,9 @@ export default function StationPage() {
             <ArrowSign direction={1} onClick={() => turn(1)} />
           </div>
         )}
+
+        {/* The ticketmaster has a word for you as you walk up */}
+        <ClerkSays arrived={at === "tickets" && atArrived && !held} />
 
         <Sheet sheet={sheet} onClose={closeSheet} />
 

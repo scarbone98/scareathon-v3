@@ -1244,6 +1244,45 @@ function eyeTexture() {
   });
 }
 
+// The grin that now and then hangs in the dark under the eyes: a wide crescent of pale
+// teeth, upturned at the ends, the gaps between them dark
+function grinTexture() {
+  return paint(256, 96, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    const mouth = () => {
+      ctx.beginPath();
+      ctx.moveTo(6, 14);
+      ctx.quadraticCurveTo(w / 2, h * 1.45, w - 6, 14);
+      ctx.quadraticCurveTo(w / 2, h * 0.75, 6, 14);
+      ctx.closePath();
+    };
+    ctx.shadowColor = "rgba(230,240,190,0.8)";
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = "#efeedd";
+    mouth();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // The teeth: dark lines between them, and the bite down the middle
+    ctx.save();
+    mouth();
+    ctx.clip();
+    ctx.strokeStyle = "rgba(8,8,6,0.9)";
+    ctx.lineWidth = 3;
+    for (let x = 22; x < w - 10; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(6, 16);
+    ctx.quadraticCurveTo(w / 2, h * 1.12, w - 6, 16);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
 // Something behind the glass: two eyes in the dark, and a pale bony hand resting on the
 // counter, its fingers drumming (see the animation loop)
 function buildClerk() {
@@ -1255,16 +1294,34 @@ function buildClerk() {
     eyes.add(plane(0.075, 0.038, eye, x, 0, 0.002));
     eyes.add(plane(0.26, 0.2, halo, x, 0, 0));
   });
+  // (hidden until it shows, see the animation loop)
+  // (glowing: added onto the dark, so the gaps between the teeth are just the dark)
+  const grin = plane(0.62, 0.24, new MeshBasicMaterial({ map: grinTexture(), transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, fog: false }), 0, -0.2, 0.003);
+  grin.visible = false;
+  eyes.add(grin);
+  eyes.userData.grin = grin;
   const bone = new MeshStandardMaterial({ color: "#ece8dd", roughness: 0.6, emissive: new Color("#3a3833") });
   const hand = new Group();
   // Just the hand, big, its wrist going back in under the window into the dark
   const scale = 2.2;
   hand.scale.setScalar(scale);
-  hand.position.set(0.3, 1.095, 0.07 - 0.155 * scale);
-  hand.add(box(0.06, 0.03, 0.07, bone, 0, 0.016, 0.12)); // the wrist
+  hand.position.set(0.42, 1.095, 0.07 - 0.155 * scale);
+  // The wrist, half in shadow under the window
+  const dusk = new MeshStandardMaterial({ color: new Color("#ece8dd").multiplyScalar(0.6), roughness: 0.7, emissive: new Color("#3a3833").multiplyScalar(0.6) });
+  hand.add(box(0.06, 0.03, 0.035, dusk, 0, 0.016, 0.1025));
+  hand.add(box(0.06, 0.03, 0.035, bone, 0, 0.016, 0.1375));
+  // The forearm going back into the dark, dimmer and dimmer till it's gone
+  [0.3, 0.14, 0.05, 0].forEach((light, i) => {
+    const shade = new MeshStandardMaterial({ color: new Color("#ece8dd").multiplyScalar(light), roughness: 0.8, emissive: new Color("#3a3833").multiplyScalar(light) });
+    hand.add(box(0.058, 0.03, 0.045, shade, 0, 0.016, 0.0625 - i * 0.045));
+  });
   hand.add(box(0.085, 0.022, 0.09, bone, 0, 0.013, 0.2)); // the back of the hand
-  const thumb = box(0.016, 0.014, 0.06, bone, -0.05, 0.009, 0.215);
-  thumb.rotation.y = 0.5;
+  // The thumb, from the side of the palm by the wrist, angled out and forward
+  const thumb = new Group();
+  thumb.position.set(-0.036, 0.009, 0.17);
+  thumb.rotation.y = -0.55;
+  thumb.add(box(0.018, 0.016, 0.03, bone, 0, 0, 0.012)); // its root
+  thumb.add(box(0.015, 0.014, 0.05, bone, 0, -0.001, 0.045));
   hand.add(thumb);
   // Four long fingers, each on its knuckle, so they can lift and tap
   const fingers = [0.032, 0.011, -0.011, -0.032].map((x, i) => {
@@ -1873,9 +1930,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lampGuard = standard("#1c1a17", 0.5);
     const lampGlass = new MeshBasicMaterial({ color: "#9a8158" });
     // Each lamp: its glass (its own, to dim), its light, and a generous box to tap it by.
-    // Tapped, it stutters off and on for a moment; now and then it does so by itself. And
-    // some of the time, a few moths come to it.
-    type Lamp = { light: PointLight; glass: MeshBasicMaterial; base: number; tappedAt: number; seed: number; hit: Mesh; nextFlicker: number; moths: Group };
+    // Tapped, it stutters off and on for a moment and comes back a different colour; now and
+    // then it stutters by itself. And some of the time, a few moths come to it.
+    type Lamp = { light: PointLight; glass: MeshBasicMaterial; base: number; tappedAt: number; seed: number; hit: Mesh; nextFlicker: number; moths: Group; warm: Color; tint: number };
+    // The colours a tapped lamp goes through (the first is its own warm light)
+    const LAMP_TINTS = [null, "#ff6a1a", "#7dff6a", "#b45cff", "#5ab4ff", "#ff4a6a"].map((tint) => (tint ? new Color(tint) : null));
+    const LAMP_GLASS = LAMP_TINTS.map((tint) => (tint ? lampGlass.color.clone().lerp(tint, 0.7) : lampGlass.color));
     const lamps: Lamp[] = [];
     const mothWing = new MeshBasicMaterial({ color: "#d9cfb4", side: DoubleSide, transparent: true, opacity: 0.85 });
     const ceilingLamp = (x: number, z: number, light: PointLight) => {
@@ -1891,7 +1951,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       for (let i = 0; i < 3; i += 1) moths.add(new Mesh(new PlaneGeometry(0.035, 0.022), mothWing));
       moths.visible = false;
       scene.add(moths);
-      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: 12 + Math.random() * 40, moths });
+      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: 12 + Math.random() * 40, moths, warm: light.color.clone(), tint: 0 });
     };
     const LAMP_FLICKER = 1.1; // s
     // How lit a tapped lamp is, t seconds after the tap: mostly out, catching now and then
@@ -2780,6 +2840,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         if (lamp) {
           lamp.tappedAt = performance.now() / 1000;
           lamp.seed = Math.random() * 100;
+          lamp.tint = (lamp.tint + 1) % LAMP_TINTS.length;
+          lamp.light.color.copy(LAMP_TINTS[lamp.tint] ?? lamp.warm);
           down = null;
           return;
         }
@@ -2955,6 +3017,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         clerk.eyes.position.y = 1.66 + Math.sin(t * 0.23) * 0.015;
         const sinceBlink = (t + 2) % 5.3;
         clerk.eyes.scale.y = sinceBlink < 0.16 ? Math.max(0.08, Math.abs(Math.cos((sinceBlink / 0.16) * Math.PI))) : 1;
+        // Now and then, a grin: it fades up out of the dark, hangs a while, and fades away
+        const grin = clerk.eyes.userData.grin as Mesh;
+        const since = (t + 9) % 27;
+        const grinning = since < 0.8 ? since / 0.8 : since < 3.6 ? 1 : since < 4.6 ? 1 - (since - 3.6) : 0;
+        (grin.material as MeshBasicMaterial).opacity = grinning;
+        grin.visible = grinning > 0;
+        grin.scale.y = 1 / Math.max(0.08, clerk.eyes.scale.y); // (it doesn't blink)
         const roll = t % 1.9;
         (clerk.hand.userData.fingers as Group[]).forEach((finger, i) => {
           const k = (roll - i * 0.11) / 0.2;
@@ -2987,7 +3056,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const f = flickerAt(nowSec - lamp.tappedAt, lamp.seed);
         const base = lamp.light === overhead ? overhead.intensity : lamp.base;
         lamp.light.intensity = base * f;
-        lamp.glass.color.copy(lampGlass.color).multiplyScalar(0.25 + 0.75 * f);
+        lamp.glass.color.copy(LAMP_GLASS[lamp.tint]).multiplyScalar(0.25 + 0.75 * f);
       });
       const current = latest.current.at;
       objects.forEach((o) => {

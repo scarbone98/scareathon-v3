@@ -208,7 +208,7 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt }: Stat
   place(0.28, 0, wallZ + 0.3, 0.18, 0.2);
   place(2.25, 0, wallZ + 0.7, 0.15, -0.25);
   // The counter faces back along the platform: its top, to one side of the coin slot
-  place(ticketsAt[0] - 0.3, ticketsAt[1], ticketsAt[2] - 0.5, 0.11, -Math.PI / 2);
+  place(ticketsAt[0] - 0.3, ticketsAt[1], ticketsAt[2] - 0.58, 0.11, -Math.PI / 2);
 
   group.userData.update = (t: number, reduced: boolean) => {
     if (reduced) return;

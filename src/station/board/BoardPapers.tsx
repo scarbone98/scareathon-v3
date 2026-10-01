@@ -391,62 +391,60 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
       </div>
     );
   }
-  const frontPage = (
-    <>
-      {masthead}
-        <div className="mt-2 flex gap-2">
-          <Photo picture={picture} className="h-24 w-24 shrink-0" />
-          <ul className="min-w-0 space-y-1.5" style={serif}>
-            {(isLoading ? [] : posts.slice(0, 3)).map((post) => (
-              <li key={post.id} className="line-clamp-2 border-b border-[#2a1d14]/15 pb-1 text-[16px] leading-tight">
-                {post.Title}
-              </li>
-            ))}
-            {isLoading && <li className={quiet}>Printing…</li>}
-          </ul>
-        </div>
-    </>
-  );
-  if (!full) return <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>{frontPage}</div>;
-  // Up close: the same front page (coming closer changes nothing on it), the articles in
-  // full running on below
+  const story = full ? posts.find((post) => post.id === open) : undefined;
+  // Up close it's the same front page (coming closer changes nothing on it); a headline,
+  // tapped, turns to its story
+  if (story) {
+    const image = strapiUrl(story.Image?.[0]?.url);
+    return (
+      <div className={`px-4 pb-3 pt-5 ${ink}`}>
+        {masthead}
+        <button type="button" onClick={() => setOpen(null)} className={`mt-2 text-sm ${link}`}>
+          ← The front page
+        </button>
+        <p className={`mt-2 text-[12px] uppercase tracking-widest ${quiet}`}>{new Date(story.publishedAt).toLocaleDateString()}</p>
+        <h4 className="mt-1 text-[22px] leading-tight" style={serif}>
+          {story.Title}
+        </h4>
+        {image && <Photo picture={{ src: image }} className="mt-3 max-h-60 w-full" />}
+        {story.Content ? (
+          <div className="prose prose-sm mt-2 max-w-none text-[#2a1d14]">
+            <BlocksRenderer
+              content={story.Content as BlocksContent}
+              blocks={{
+                list: ({ children }) => <ul className="list-inside list-disc">{children}</ul>,
+                link: ({ children, url }) => (
+                  <a href={safeHref(url)} className={link}>
+                    {children}
+                  </a>
+                ),
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
   return (
-    <div className={`px-4 pb-3 pt-5 ${ink}`}>
-      {frontPage}
-      <div className="mt-3 border-t-[3px] border-double border-[#2a1d14]/70" />
-      {posts.map((post) => {
-        const expanded = open === post.id;
-        const image = strapiUrl(post.Image?.[0]?.url);
-        return (
-          <article key={post.id} className="border-b border-[#2a1d14]/20 py-4">
-            <p className={`text-[12px] uppercase tracking-widest ${quiet}`}>{new Date(post.publishedAt).toLocaleDateString()}</p>
-            <h4 className="mt-1 text-[22px] leading-tight" style={serif}>
-              {post.Title}
-            </h4>
-            {image && <Photo picture={{ src: image }} className="mt-3 max-h-60 w-full" />}
-            {post.Content ? (
-              <>
-                <div className={`prose prose-sm mt-2 max-w-none text-[#2a1d14] ${expanded ? "" : "max-h-28 overflow-hidden [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"}`}>
-                  <BlocksRenderer
-                    content={post.Content as BlocksContent}
-                    blocks={{
-                      list: ({ children }) => <ul className="list-inside list-disc">{children}</ul>,
-                      link: ({ children, url }) => (
-                        <a href={safeHref(url)} className={link}>
-                          {children}
-                        </a>
-                      ),
-                    }}
-                  />
-                </div>
-                <button type="button" onClick={() => setOpen(expanded ? null : post.id)} className={`mt-1 text-sm ${link}`}>
-                  {expanded ? "Less" : "Read on"}
+    <div className={`h-full px-4 pb-3 pt-5 ${ink}`}>
+      {masthead}
+      <div className="mt-2 flex gap-2">
+        <Photo picture={picture} className="h-24 w-24 shrink-0" />
+        <ul className="min-w-0 space-y-1.5" style={serif}>
+          {(isLoading ? [] : posts.slice(0, 3)).map((post) => (
+            <li key={post.id} className="line-clamp-2 border-b border-[#2a1d14]/15 pb-1 text-[16px] leading-tight">
+              {full ? (
+                <button type="button" onClick={() => setOpen(post.id)} className="text-left hover:underline">
+                  {post.Title}
                 </button>
-              </>
-            ) : null}
-          </article>
-        );
-      })}
+              ) : (
+                post.Title
+              )}
+            </li>
+          ))}
+          {isLoading && <li className={quiet}>Printing…</li>}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -455,6 +453,7 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
 
 const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
 
+// Every paper reads the same pinned up as up close: coming closer changes nothing on it
 export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
@@ -485,7 +484,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       kind: challenge ? "CHALLENGE" : "ARCADE",
       title: challenge?.title ?? spotlight?.name ?? "THE ARCADE",
       pinned: <ArcadePost challenge={challenge} game={challengeGame} spotlight={spotlight} signedIn={signedIn} goTo={goTo} full={false} />,
-      full: <ArcadePost challenge={challenge} game={challengeGame} spotlight={spotlight} signedIn={signedIn} goTo={goTo} full />,
+      full: <ArcadePost challenge={challenge} game={challengeGame} spotlight={spotlight} signedIn={signedIn} goTo={goTo} full={false} />,
       tint: "#dccd9f",
     },
     // Top right: the event's post
@@ -494,7 +493,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       kind: "EVENT",
       title: "SCARE-ATHON",
       pinned: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
-      full: <EventPost goTo={goTo} full picture={eventPicture} />,
+      full: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
       tint: "#1a0f08",
       sheet: { backgroundImage: "none" },
     },
@@ -505,7 +504,6 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       id: "daily",
       kind: "CHALLENGE",
       title: daily.title,
-      // (the same pinned up as read up close: coming closer changes nothing on it)
       pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} detailed />,
       full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} detailed />,
       tint: "#d8ccab",
@@ -519,7 +517,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       kind: "NOTICE",
       title: item.title,
       pinned: <Clipping item={item} full={false} picture={picture} />,
-      full: <Clipping item={item} full picture={picture} />,
+      full: <Clipping item={item} full={false} picture={picture} />,
       tint: "#cfc3a4",
       // Cut out of a newspaper, not quite straight
       sheet: { clipPath: "polygon(0 1%, 3% 0, 97% 1.5%, 100% 0, 99% 98%, 96% 100%, 4% 99%, 0 100%)" },
@@ -530,6 +528,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
     kind: "THE POST",
     title: "THE SCAREATHON POST",
     pinned: <Post signedIn={signedIn} goTo={goTo} full={false} picture={postPicture} />,
+    // (up close its headlines can be tapped, to turn to the story)
     full: <Post signedIn={signedIn} goTo={goTo} full picture={postPicture} />,
     tint: "#d6c9a8",
   });
