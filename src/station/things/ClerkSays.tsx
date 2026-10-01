@@ -5,24 +5,22 @@ import { pixel } from "../style/theme.ts";
 // spelled out a letter at a time in big pixel type over the scene, each letter trembling,
 // then gone. (Like a certain cabin-dwelling game master.)
 const LINES = [
-  "Ah. A passenger.",
-  "Tickets. Tickets for the arcade. Tickets for the shop.",
-  "The last train left a long time ago.",
-  "Don't mind my hand. It wanders.",
-  "Mind the gap. Something lives in it.",
-  "I've been at this window for a very long time.",
-  "You look like you could use a little something from the shop.",
-  "No refunds. No exchanges. No escape.",
-  "Have you tried the cabinets? Some of them bite.",
-  "Every ticket has a price. Most of them are tickets.",
-  "Back again? Good. I was getting lonely.",
-  "Don't look behind you. Or do. It makes no difference.",
-  "The runes on the arch change every night. Have you read them?",
-  "Watch your film tonight. The scoreboard is watching you.",
+  "Ah. You.",
+  "Tickets.",
+  "Buy something.",
+  "No refunds.",
+  "Mind the gap.",
+  "Still here?",
+  "Don't stare.",
+  "Read the runes.",
+  "The train is late.",
+  "Back again.",
+  "Hm.",
+  "Spend them.",
 ];
 
-const LETTER_MS = 45;
-const LINGER_MS = 3200;
+const LETTER_MS = 70;
+const LINGER_MS = 2400;
 
 export default function ClerkSays({ arrived }: { arrived: boolean }) {
   const [line, setLine] = useState<string | null>(null);
@@ -49,7 +47,7 @@ export default function ClerkSays({ arrived }: { arrived: boolean }) {
 
   if (!line) return null;
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[30%] z-20 flex justify-center px-5 md:bottom-[20%]" aria-live="polite">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[26%] z-20 flex justify-center px-5 md:bottom-[16%]" aria-live="polite">
       <p className="max-w-[36rem] text-center text-[26px] leading-snug text-[#f4f1e8] [word-spacing:0.35em] md:text-[34px]" style={{ ...pixel, textShadow: "0 0 6px #000, 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000" }} aria-label={line}>
         {/* (word by word, so a word never breaks across lines; letter by letter within) */}
         {line

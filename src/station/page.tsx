@@ -223,15 +223,25 @@ export default function StationPage() {
     return () => window.clearTimeout(open);
   }, [at]);
 
-  // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film)
+  // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film), once
+  // the walk there has been seen
   useEffect(() => {
     setHeld(null);
     const flyerIndex = flyers.findIndex((flyer) => flyer.id === open || (open === "event" && flyer.id === "event"));
     setCardIndex(at === "mail" && open === "register" ? 1 : 0);
     if (at === "events" && flyerIndex >= 0) setZoom(flyerSpot(flyerIndex));
-    if (at === "tickets" && open === "shop") setHeld({ kind: "shop" });
-    if (at === "mail" && !compact && (open === "letters" || open === "register")) setHeld({ kind: open });
-    if (at === "lockers" && open) setHeld({ kind: "wardrobe" });
+    const next: Held | null =
+      at === "tickets" && open === "shop"
+        ? { kind: "shop" }
+        : at === "mail" && !compact && (open === "letters" || open === "register")
+          ? { kind: open }
+          : at === "lockers" && open
+            ? { kind: "wardrobe" }
+            : null;
+    if (!next) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const take = window.setTimeout(() => setHeld(next), reduced ? 0 : 1000);
+    return () => window.clearTimeout(take);
     // The flyers are rebuilt every render; only arriving (or ?open= changing) should do this
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, open, signedIn, compact]);

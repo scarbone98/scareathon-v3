@@ -1306,15 +1306,18 @@ function buildClerk() {
   const scale = 2.2;
   hand.scale.setScalar(scale);
   hand.position.set(0.42, 1.095, 0.07 - 0.155 * scale);
-  // The wrist, half in shadow under the window
-  const dusk = new MeshStandardMaterial({ color: new Color("#ece8dd").multiplyScalar(0.6), roughness: 0.7, emissive: new Color("#3a3833").multiplyScalar(0.6) });
-  hand.add(box(0.06, 0.03, 0.035, dusk, 0, 0.016, 0.1025));
-  hand.add(box(0.06, 0.03, 0.035, bone, 0, 0.016, 0.1375));
-  // The forearm going back into the dark, dimmer and dimmer till it's gone
-  [0.3, 0.14, 0.05, 0].forEach((light, i) => {
-    const shade = new MeshStandardMaterial({ color: new Color("#ece8dd").multiplyScalar(light), roughness: 0.8, emissive: new Color("#3a3833").multiplyScalar(light) });
-    hand.add(box(0.058, 0.03, 0.045, shade, 0, 0.016, 0.0625 - i * 0.045));
-  });
+  // The wrist and forearm going back into the dark: from the back of the hand they fade
+  // out to nothing, before the window (whose black would cut them off). The fade is in the
+  // corners' colours: solid at the hand end, clear at the far end
+  const length = 0.085;
+  const arm = new BoxGeometry(0.058, 0.03, length);
+  const ends = arm.getAttribute("position");
+  const rgba: number[] = [];
+  for (let i = 0; i < ends.count; i += 1) rgba.push(1, 1, 1, ends.getZ(i) > 0 ? 1 : 0);
+  arm.setAttribute("color", new Float32BufferAttribute(rgba, 4));
+  const forearm = new Mesh(arm, new MeshStandardMaterial({ color: "#ece8dd", roughness: 0.7, emissive: new Color("#3a3833"), vertexColors: true, transparent: true, depthWrite: false }));
+  forearm.position.set(0, 0.016, 0.155 - length / 2);
+  hand.add(forearm);
   hand.add(box(0.085, 0.022, 0.09, bone, 0, 0.013, 0.2)); // the back of the hand
   // The thumb, from the side of the palm by the wrist, angled out and forward
   const thumb = new Group();
