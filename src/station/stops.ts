@@ -62,10 +62,12 @@ export const STOPS: Record<StopId, Stop> = {
     id: "lockers",
     label: "Left luggage",
     heading: "lockers",
-    pos: [-5.3, 1.55, 0.4],
-    target: [-5.3, 1.6, -2.0],
-    fit: 2.0,
-    fitHeight: 3.3,
+    // Right up to your own locker (top row, middle) and its open door, not the whole bank
+    pos: [-5.2, 1.62, 0.4],
+    target: [-5.42, 1.56, -1.75],
+    fit: 1.3,
+    fitHeight: 1.4,
+    snug: true,
   },
   arcade: {
     id: "arcade",

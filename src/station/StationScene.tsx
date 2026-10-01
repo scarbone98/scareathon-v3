@@ -58,6 +58,7 @@ import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRo
 import { linkArcadeFonts } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
+import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
 // and turns between four fixed headings, and walks up to an object to look at it.
@@ -488,14 +489,34 @@ function buildEvents() {
   const group = new Group();
   group.position.copy(EVENTS_POS);
   const wood = standard("#4a3524");
-  // A display stand: a slanted board on two legs, a lip along the bottom, the flyers side
-  // by side on it at eye level
+  // A writing desk: its slanted top at eye level with the flyers side by side on it, a lip
+  // along the bottom, and a solid body under it, drawers and cupboard doors in front
   const board = box(1.46, 0.7, 0.04, standard("#3a2a1c"), 0, 1.3, 0.04);
   board.rotation.x = -0.28;
   group.add(board);
   group.add(box(1.46, 0.05, 0.08, wood, 0, 0.99, 0.2));
-  [-0.68, 0.68].forEach((x) => group.add(box(0.06, 1.6, 0.06, wood, x, 0.8, 0)));
-  group.add(box(1.4, 0.04, 0.04, wood, 0, 0.35, 0));
+  // Its sides, cut to the slope of the top (the profile drawn in z and y)
+  const profile = new Shape();
+  [[0.25, 0], [0.25, 0.97], [0.15, 0.97], [-0.05, 1.64], [-0.2, 1.64], [-0.2, 0]].forEach(([z, y], i) =>
+    i ? profile.lineTo(-z, y) : profile.moveTo(-z, y)
+  );
+  [-0.75, 0.71].forEach((x) => {
+    const side = new Mesh(new ExtrudeGeometry(profile, { depth: 0.04, bevelEnabled: false }), wood);
+    side.rotation.y = Math.PI / 2;
+    side.position.x = x;
+    group.add(side);
+  });
+  group.add(box(1.42, 1.64, 0.03, wood, 0, 0.82, -0.19)); // the back
+  const face = standard("#4e3826", 0.75);
+  const brass = standard("#b08a3a", 0.35);
+  group.add(box(1.42, 0.92, 0.03, standard("#33251a", 0.8), 0, 0.5, 0.24)); // the front
+  group.add(box(1.5, 0.06, 0.52, standard("#241a12", 0.9), 0, 0.03, 0.03)); // the plinth
+  [-0.36, 0.36].forEach((x) => {
+    group.add(box(0.66, 0.2, 0.03, face, x, 0.8, 0.26)); // a drawer
+    group.add(box(0.07, 0.025, 0.03, brass, x, 0.8, 0.285));
+    group.add(box(0.62, 0.52, 0.03, face, x, 0.36, 0.26)); // a cupboard door
+    group.add(box(0.025, 0.06, 0.03, brass, x + (x < 0 ? 0.26 : -0.26), 0.4, 0.285));
+  });
 
   // The flyers (their text is HTML laid over these, see SURFACES)
   const flyers: [string, string, string][] = [
@@ -871,8 +892,14 @@ function buildLockers() {
       const y = 0.12 + LOCKER_H / 2 + row * (LOCKER_H + 0.02);
       const number = String(9 + row * 3 + col + 1); // 9 to 14; yours is 13
       const mine = col === 0 && row === 1;
-      group.add(box(LOCKER_W - 0.02, LOCKER_H, 0.46, mine ? dark : steel, x, y, 0));
+      if (!mine) group.add(box(LOCKER_W - 0.02, LOCKER_H, 0.46, steel, x, y, 0));
       if (mine) {
+        // Yours is hollow, so you can see in: back, sides, top and bottom, and a shelf
+        const inner = standard("#3a3f3b", 0.8);
+        group.add(box(LOCKER_W - 0.02, LOCKER_H, 0.02, inner, x, y, -0.22));
+        [-1, 1].forEach((side) => group.add(box(0.02, LOCKER_H, 0.46, steel, x + side * (LOCKER_W / 2 - 0.02), y, 0)));
+        [-1, 1].forEach((end) => group.add(box(LOCKER_W - 0.02, 0.02, 0.46, steel, x, y + end * (LOCKER_H / 2 - 0.01), 0)));
+        group.add(box(LOCKER_W - 0.06, 0.015, 0.42, inner, x, y + 0.3, 0));
         // The door, on its hinge: shut, and swung open while you're at your locker
         const door = new Group();
         door.position.set(x - LOCKER_W / 2 + 0.01, y, 0.24);
@@ -1041,7 +1068,8 @@ function buildMail() {
 }
 
 // The ticket counter, built into the side wall past the pigeonholes: a dark window with
-// nothing to see behind it, a worn counter, and the sign. Tap the window to be served.
+// nothing to see behind it but a pair of eyes, a pale hand drumming its fingers on the
+// worn counter, and the sign. Tap the window to be served.
 // Adverts pasted up over the ticket counter: the arcade's games, old railway style, a
 // different three each day. Tap one to go and play it.
 const ADVERTS: [string, string, string][] = [
@@ -1086,6 +1114,63 @@ function advertTexture(name: string, tagline: string, colour: string) {
   still.onload = () => repaint(texture, (ctx, w, h) => draw(ctx, w, h, still));
   still.src = `/game-recordings/stills/${name}.jpg`;
   return texture;
+}
+
+// One glowing eye: an almond of sickly yellow with a slit for a pupil
+function eyeTexture() {
+  return paint(64, 32, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    g.addColorStop(0, "rgba(250,255,190,1)");
+    g.addColorStop(0.55, "rgba(215,240,90,0.95)");
+    g.addColorStop(1, "rgba(160,200,40,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(2, h / 2);
+    ctx.quadraticCurveTo(w / 2, -h * 0.35, w - 2, h / 2);
+    ctx.quadraticCurveTo(w / 2, h * 1.35, 2, h / 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(10,12,4,0.9)";
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2, 2.5, h * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// Something behind the glass: two eyes in the dark, and a pale bony hand resting on the
+// counter, its fingers drumming (see the animation loop)
+function buildClerk() {
+  const eyes = new Group();
+  eyes.position.set(0, 1.66, -0.012);
+  const eye = new MeshBasicMaterial({ map: eyeTexture(), transparent: true, depthWrite: false, fog: false });
+  const halo = new MeshBasicMaterial({ map: glowTexture(), color: "#c8ff60", transparent: true, opacity: 0.22, blending: AdditiveBlending, depthWrite: false, fog: false });
+  [-0.1, 0.1].forEach((x) => {
+    eyes.add(plane(0.075, 0.038, eye, x, 0, 0.002));
+    eyes.add(plane(0.26, 0.2, halo, x, 0, 0));
+  });
+  const bone = new MeshStandardMaterial({ color: "#ece8dd", roughness: 0.6, emissive: new Color("#3a3833") });
+  const hand = new Group();
+  // Just the hand, big, its wrist going back in under the window into the dark
+  const scale = 2.2;
+  hand.scale.setScalar(scale);
+  hand.position.set(0.3, 1.095, 0.07 - 0.155 * scale);
+  hand.add(box(0.06, 0.03, 0.07, bone, 0, 0.016, 0.12)); // the wrist
+  hand.add(box(0.085, 0.022, 0.09, bone, 0, 0.013, 0.2)); // the back of the hand
+  const thumb = box(0.016, 0.014, 0.06, bone, -0.05, 0.009, 0.215);
+  thumb.rotation.y = 0.5;
+  hand.add(thumb);
+  // Four long fingers, each on its knuckle, so they can lift and tap
+  const fingers = [0.032, 0.011, -0.011, -0.032].map((x, i) => {
+    const knuckle = new Group();
+    knuckle.position.set(x, 0.013, 0.243);
+    const length = [0.06, 0.075, 0.078, 0.07][i];
+    knuckle.add(box(0.015, 0.013, length, bone, 0, -0.002, length / 2));
+    knuckle.add(box(0.017, 0.016, 0.014, bone, 0, 0, 0)); // the knuckle
+    hand.add(knuckle);
+    return knuckle;
+  });
+  hand.userData.fingers = fingers;
+  return { eyes, hand };
 }
 
 function buildTickets() {
@@ -1151,6 +1236,9 @@ function buildTickets() {
     ad.userData.part = `advert-${name}`;
     group.add(ad);
   });
+  const clerk = buildClerk();
+  group.add(clerk.eyes, clerk.hand);
+  group.userData.clerk = clerk;
   addLamp(group, 0, 2.4, 1.2);
   const windowHit = hitBox(1.35, 1.0, 0.3, 1.54);
   windowHit.userData.part = "window";
@@ -2216,6 +2304,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     paintBoardsRef.current(latest.current.boards);
     objects.forEach((o) => scene.add(o));
+    // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
+    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z] }) : null;
+    if (halloween) scene.add(halloween); // HALLOWEEN
     let hovered: StopId | null = null;
 
     // Camera: a pose (position, yaw, pitch) tweened between the hub's headings and the stops.
@@ -2451,7 +2542,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       arcadeObject.visible = !latest.current.hideArcade;
       // Your locker's door opens as you get to it, and shuts behind you
       const myDoor = lockers.userData.myDoor as Group;
-      const doorTo = latest.current.at === "lockers" ? -1.25 : 0;
+      // (swung right round to the left, out of the way of looking in)
+      const doorTo = latest.current.at === "lockers" ? -2.6 : 0;
       if (Math.abs(myDoor.rotation.y - doorTo) > 0.001) myDoor.rotation.y += (doorTo - myDoor.rotation.y) * (reduced ? 1 : 0.08);
       // Ready once the cabinet's in (the last thing to load); this frame draws it
       if (!reported && arcadeObject.userData.cabinet) {
@@ -2555,6 +2647,21 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
+      halloween?.userData.update(t, reduced); // HALLOWEEN
+      // The ticket clerk: eyes that wander and now and then blink, fingers drumming the
+      // counter (little finger first) in rolls with a pause between
+      const clerk = tickets.userData.clerk as { eyes: Group; hand: Group };
+      if (!reduced) {
+        clerk.eyes.position.x = Math.sin(t * 0.35) * 0.05 + Math.sin(t * 1.3) * 0.008;
+        clerk.eyes.position.y = 1.66 + Math.sin(t * 0.23) * 0.015;
+        const sinceBlink = (t + 2) % 5.3;
+        clerk.eyes.scale.y = sinceBlink < 0.16 ? Math.max(0.08, Math.abs(Math.cos((sinceBlink / 0.16) * Math.PI))) : 1;
+        const roll = t % 1.9;
+        (clerk.hand.userData.fingers as Group[]).forEach((finger, i) => {
+          const k = (roll - i * 0.11) / 0.2;
+          finger.rotation.x = k > 0 && k < 1 ? -0.55 * Math.sin(k * Math.PI) : 0;
+        });
+      }
       // Tapped lamps stutter
       const nowSec = performance.now() / 1000;
       lamps.forEach((lamp) => {

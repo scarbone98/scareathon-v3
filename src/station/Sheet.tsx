@@ -13,6 +13,9 @@ export type SheetContent = {
   // paper: cream, pinned. ledger: navy, wide, for the kiosk's catalogue.
   // board: the departure board's own black face, edge to edge.
   tone?: "paper" | "ledger" | "board";
+  // Takes the whole screen (the wardrobe: the clothes and you in them, side by side); its
+  // body does its own scrolling
+  full?: boolean;
   tint?: string;
 };
 
@@ -38,6 +41,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
   }, [sheet, onClose]);
   if (!sheet) return null;
   const tone = sheet.tone ?? "paper";
+  const full = Boolean(sheet.full);
 
   const toneClass = {
     paper: "md:max-w-lg p-6 pt-9 md:p-7 md:pt-9",
@@ -48,14 +52,18 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-[2px] md:items-center md:p-6"
+      className={`fixed inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-[2px] md:items-center ${full ? "" : "md:p-6"}`}
       onClick={closeFromBackdrop}
       role="dialog"
       aria-modal
       aria-label={sheet.title}
     >
       <div
-        className={`station-sheet relative flex max-h-[90dvh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] md:max-h-[88vh] md:rounded-[3px] md:shadow-[6px_10px_0_rgba(0,0,0,0.5)] ${toneClass}`}
+        className={`station-sheet relative flex w-full flex-col ${
+          full
+            ? "h-[100dvh] overflow-hidden"
+            : "max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] md:max-h-[88vh] md:rounded-[3px] md:shadow-[6px_10px_0_rgba(0,0,0,0.5)]"
+        } ${full ? toneClass.replace(/md:max-w-\S+/, "") : toneClass}`}
         style={{
           backgroundColor: light ? sheet.tint ?? "#f2ead2" : undefined,
           backgroundImage: light ? PAPER_GRAIN : undefined,
@@ -65,7 +73,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
         onClick={(event) => event.stopPropagation()}
       >
         {/* A grab handle on phones; a pin on paper on wider screens */}
-        <span className={`absolute left-1/2 top-2.5 h-1.5 w-12 -translate-x-1/2 rounded-full md:hidden ${light ? "bg-[#2a1d14]/25" : "bg-[#f2ead2]/30"}`} aria-hidden />
+        <span className={`absolute left-1/2 top-2.5 h-1.5 w-12 -translate-x-1/2 rounded-full md:hidden ${full ? "hidden" : ""} ${light ? "bg-[#2a1d14]/25" : "bg-[#f2ead2]/30"}`} aria-hidden />
         {light && <span className="absolute left-1/2 top-2.5 hidden h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow md:block" aria-hidden />}
         <button
           type="button"
@@ -76,7 +84,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
         >
           ×
         </button>
-        {tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : sheet.body}
+        {tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : full ? <div className="min-h-0 flex-1">{sheet.body}</div> : sheet.body}
       </div>
     </div>
   );

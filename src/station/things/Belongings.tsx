@@ -55,8 +55,26 @@ function TicketHoldersOnly({ what, goTo, dark = true }: { what: string; goTo: Go
 }
 
 // You, as you look now (or as you'd look in what you're trying on), and your coins
-function Mirror({ look, eyebrow, note }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode }) {
+function Mirror({ look, eyebrow, note, large = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean }) {
   const { data: summary } = useSummary();
+  if (large)
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex h-[22rem] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
+          <AvatarView look={look} height={320} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
+          <p className="truncate text-2xl text-[#f2ead2]" style={serif}>
+            {summary?.username ?? "…"}
+          </p>
+          <p className="text-sm text-amber-300">
+            {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
+            {note}
+          </p>
+        </div>
+      </div>
+    );
   return (
     <div className="mb-4 flex items-center gap-4">
       <div className="flex h-24 w-20 shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
@@ -115,13 +133,26 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
   const [preview, setPreview] = useState<AvatarLook | null>(null);
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="Lockers" goTo={goTo} />;
+  const look = preview || saved;
+  const note = preview ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null;
+  // Full screen: you stay in view (beside the clothes, or above them on a phone) while
+  // only the clothes scroll, so whatever you try on shows at once
   return (
-    <>
-      <Mirror look={preview || saved} eyebrow="Your locker" note={preview ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null} />
-      <Classic>
-        <AvatarEditor onPreviewLookChange={setPreview} />
-      </Classic>
-    </>
+    <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
+      <div className="shrink-0 md:w-64">
+        <div className="md:hidden">
+          <Mirror look={look} eyebrow="Your locker" note={note} />
+        </div>
+        <div className="hidden md:block">
+          <Mirror look={look} eyebrow="Your locker" note={note} large />
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+        <Classic>
+          <AvatarEditor onPreviewLookChange={setPreview} />
+        </Classic>
+      </div>
+    </div>
   );
 }
 

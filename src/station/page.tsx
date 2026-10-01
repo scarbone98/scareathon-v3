@@ -193,7 +193,7 @@ export default function StationPage() {
     if (at === "events" && flyerIndex >= 0) setZoom(flyerSpot(flyerIndex));
     if (at === "tickets" && open === "shop") setHeld({ kind: "shop" });
     if (at === "mail" && !compact && (open === "letters" || open === "register")) setHeld({ kind: open });
-    if (at === "lockers" && !compact && open) setHeld({ kind: "wardrobe" });
+    if (at === "lockers" && open) setHeld({ kind: "wardrobe" });
     // The flyers are rebuilt every render; only arriving (or ?open= changing) should do this
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at, open, signedIn, compact]);
@@ -206,7 +206,7 @@ export default function StationPage() {
     if (held.kind === "window")
       return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", body: <Shop signedIn={signedIn} goTo={goTo} /> };
-    if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
+    if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", full: true, body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "letters") return { id: "letters", title: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
     return { id: "register", title: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
   })();
@@ -216,6 +216,11 @@ export default function StationPage() {
   const onPart = (part: string) => {
     if (part.startsWith("paper-")) {
       zoomTo(Number(part.slice(6)));
+      return;
+    }
+    // Your locker opens the wardrobe, full screen, on phones too
+    if (part === "locker") {
+      setHeld({ kind: "wardrobe" });
       return;
     }
     if (part.startsWith("flyer-") || part === "poster") {
@@ -271,9 +276,7 @@ export default function StationPage() {
       ? null
       : at === "departures"
             ? [{ id: "departures", label: "Scoreboard", tone: "board", body: <DepartureBoard signedIn={signedIn} goTo={goTo} /> }]
-            : at === "lockers"
-              ? [{ id: "wardrobe", label: "Your locker", tone: "ledger", body: <Wardrobe signedIn={signedIn} goTo={goTo} /> }]
-              : at === "mail"
+            : at === "mail"
                 ? [
                     { id: "letters", label: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
                     { id: "register", label: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },
