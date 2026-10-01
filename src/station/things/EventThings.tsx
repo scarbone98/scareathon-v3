@@ -90,9 +90,6 @@ function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
         <button type="button" className={stubButton} onClick={() => goTo("departures")}>
           The Scareboard
         </button>
-        <button type="button" className={stubButton} onClick={() => goTo("events", "calendar")}>
-          October calendar
-        </button>
       </div>
     </div>
   );
