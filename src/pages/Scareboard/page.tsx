@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { siteContainerClassName } from "../../components/PageContainer";
+import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
+import { useScareathonMe } from "../../scareathonSeason";
 
 type LeaderboardUser = {
   name: string;
@@ -69,6 +71,7 @@ async function readScareboardJson<T>(response: Response, label: string): Promise
 export default function Scareboard() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const { data: me } = useScareathonMe(true);
   const { data, error, isFetching, isLoading } = useQuery<ScareboardData>({
     queryKey: ["leaderboard", "by-year", selectedYear],
     queryFn: async () => {
@@ -294,6 +297,7 @@ export default function Scareboard() {
             </tbody>
           </table>
         </div>}
+        {me?.isAdmin && <ScareathonAdminPanel className="mt-6" />}
       </motion.div>
     </AnimatedPage>
   );

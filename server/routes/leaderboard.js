@@ -1,11 +1,16 @@
-import calendarSheet from '../db/google-sheets.js';
+import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
+import { FIRST_ACCOUNT_SEASON } from '../utils/scareathon.js';
 
-const LEADERBOARD_TTL = 24 * 60 * 60 * 1000;
+// The Scareboard. Seasons from FIRST_ACCOUNT_SEASON on are worked out from player accounts
+// (movies marked watched + the points ledger); earlier seasons are the sheet-era standings
+// copied into scareathon_history.
+
+const HISTORY_TTL = 24 * 60 * 60 * 1000;
+// Live standings change whenever someone marks a movie; writes clear this cache too
+const ACCOUNT_SEASON_TTL = 60 * 1000;
 const EVENT_MONTH_INDEX = 9;
 const PRESEASON_MONTH_INDEX = 8;
-const LEADERBOARD_KEYS = ['name', 'movies', 'weekly', 'bonus', 'total'];
-const WINNER_KEYS = ['year', 'name'];
 
 function setReadCacheHeaders(reply) {
     reply.header('Cache-Control', 'private, no-store');
@@ -24,125 +29,24 @@ function getWinnerCutoffYear(date = new Date()) {
     return date.getMonth() >= EVENT_MONTH_INDEX ? date.getFullYear() : date.getFullYear() - 1;
 }
 
+// An account season has a champion once its October is over
+function isSeasonFinished(season, date = new Date()) {
+    return season < date.getFullYear() || (season === date.getFullYear() && date.getMonth() > EVENT_MONTH_INDEX);
+}
+
 function normalizeYear(value) {
     const year = Number.parseInt(value, 10);
     return Number.isFinite(year) ? year : null;
 }
 
-function readWinnerRows(rows, cutoffYear = getWinnerCutoffYear()) {
-    return rows
-        .map(row => {
-            const pastWinnerObject = {};
-            WINNER_KEYS.forEach(key => {
-                pastWinnerObject[key] = row.get(key);
-            });
-            return pastWinnerObject;
-        })
-        .filter(winner => {
-            const year = normalizeYear(winner.year);
-            return year !== null && year <= cutoffYear;
-        });
+function toNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
 }
 
-function getWinnerYears(pastWinners) {
-    return [...new Set(
-        pastWinners
-            .map(winner => normalizeYear(winner.year))
-            .filter(year => year !== null)
-    )].sort((a, b) => b - a);
-}
-
-function getSheetYears(doc) {
-    const years = doc.sheetsByIndex
-        .map(sheet => {
-            const match = sheet.title.match(/^Users-(\d{4})$/);
-            return match ? normalizeYear(match[1]) : null;
-        })
-        .filter(year => year !== null);
-
-    if (doc.sheetsByTitle['Users-old'] && !years.includes(2021)) {
-        years.push(2021);
-    }
-
-    return [...new Set(years)].sort((a, b) => b - a);
-}
-
-function getSheetCandidates(year, { allowLiveUsersSheet = false } = {}) {
-    const candidates = [`Users-${year}`];
-
-    if (allowLiveUsersSheet) {
-        candidates.push('Users');
-    }
-
-    if (year <= 2021) {
-        candidates.push('Users-old');
-    }
-
-    return candidates;
-}
-
-function findLeaderboardSheet(doc, requestedYear, pastWinners, date = new Date()) {
-    const liveYear = date.getFullYear();
-    const allowLiveUsersSheet = date.getMonth() >= EVENT_MONTH_INDEX && requestedYear === liveYear;
-    const requestedCandidates = getSheetCandidates(requestedYear, { allowLiveUsersSheet });
-
-    for (const title of requestedCandidates) {
-        if (doc.sheetsByTitle[title]) {
-            return { sheet: doc.sheetsByTitle[title], year: requestedYear, sheetTitle: title };
-        }
-    }
-
-    const fallbackYears = [
-        ...new Set([...getSheetYears(doc), ...getWinnerYears(pastWinners)])
-    ].sort((a, b) => b - a);
-
-    for (const year of fallbackYears) {
-        if (year > getLeaderboardCutoffYear(date)) continue;
-        for (const title of getSheetCandidates(year)) {
-            if (doc.sheetsByTitle[title]) {
-                return { sheet: doc.sheetsByTitle[title], year, sheetTitle: title };
-            }
-        }
-    }
-
-    return null;
-}
-
-function getAvailableLeaderboardYears(doc, pastWinners, date = new Date()) {
-    const years = [];
-    const liveYear = date.getFullYear();
-    const cutoffYear = getLeaderboardCutoffYear(date);
-
-    if (date.getMonth() >= EVENT_MONTH_INDEX && doc.sheetsByTitle['Users']) {
-        years.push(liveYear);
-    }
-
-    const candidateYears = [
-        ...new Set([...getSheetYears(doc), ...getWinnerYears(pastWinners)])
-    ].sort((a, b) => b - a);
-
-    for (const year of candidateYears) {
-        if (year > cutoffYear) continue;
-
-        const hasSheet = getSheetCandidates(year).some(title => doc.sheetsByTitle[title]);
-        if (hasSheet && !years.includes(year)) {
-            years.push(year);
-        }
-    }
-
-    return years.sort((a, b) => b - a);
-}
-
-function readLeaderboardRows(rows) {
-    const users = rows.map(row => {
-        const userObject = {};
-        LEADERBOARD_KEYS.forEach(key => {
-            userObject[key] = normalizeLeaderboardCellValue(key, row.get(key));
-        });
-        return userObject;
-    });
-
-    users.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+export function rankStandings(users) {
+    users.sort((a, b) => Number(b.total || 0) - Number(a.total || 0) || String(a.name).localeCompare(String(b.name)));
 
     let rank = 1;
     users.forEach((user, index) => {
@@ -155,53 +59,121 @@ function readLeaderboardRows(rows) {
     return users;
 }
 
-function normalizeLeaderboardCellValue(key, value) {
-    if (key === 'name' || value === null || value === undefined) {
-        return value;
-    }
-
-    const trimmed = typeof value === 'string' ? value.trim() : value;
-    const numericValue = Number(trimmed);
-    if (!Number.isFinite(numericValue) || !Number.isInteger(numericValue)) {
-        return value;
-    }
-
-    return String(numericValue);
+async function getHistorySeasons(db) {
+    return getOrRefreshCache('leaderboard_history_seasons', async () => {
+        const result = await db.query('SELECT DISTINCT season FROM scareathon_history ORDER BY season DESC');
+        return result.rows.map(row => Number(row.season));
+    }, HISTORY_TTL);
 }
 
-export async function getLeaderboardPayload({ requestedYear, date = new Date() } = {}) {
+async function getHistoryStandings(db, season) {
+    return getOrRefreshCache(`leaderboard_history_${season}`, async () => {
+        const result = await db.query(`
+            SELECT name, movies, weekly, bonus, total
+            FROM scareathon_history
+            WHERE season = $1
+        `, [season]);
+        return rankStandings(result.rows.map(row => ({
+            name: row.name,
+            movies: toNumber(row.movies),
+            weekly: toNumber(row.weekly),
+            bonus: toNumber(row.bonus),
+            total: toNumber(row.total),
+        })));
+    }, HISTORY_TTL);
+}
+
+export async function getAccountStandings(db, season) {
+    return getOrRefreshCache(`leaderboard_accounts_${season}`, async () => {
+        const result = await db.query(`
+            WITH tallies AS (
+                SELECT user_id, count(*)::int AS movies, 0 AS weekly, 0 AS bonus
+                FROM scareathon_watches
+                WHERE season = $1
+                GROUP BY user_id
+                UNION ALL
+                SELECT user_id,
+                    COALESCE(sum(points) FILTER (WHERE category = 'movies'), 0)::int,
+                    COALESCE(sum(points) FILTER (WHERE category = 'weekly'), 0)::int,
+                    COALESCE(sum(points) FILTER (WHERE category = 'bonus'), 0)::int
+                FROM scareathon_points
+                WHERE season = $1
+                GROUP BY user_id
+            )
+            SELECT u.username,
+                sum(t.movies)::int AS movies,
+                sum(t.weekly)::int AS weekly,
+                sum(t.bonus)::int AS bonus
+            FROM tallies t
+            JOIN users u ON u.id = t.user_id
+            GROUP BY u.id, u.username
+        `, [season]);
+
+        return rankStandings(result.rows
+            .map(row => {
+                const movies = Number(row.movies) || 0;
+                const weekly = Number(row.weekly) || 0;
+                const bonus = Number(row.bonus) || 0;
+                return { name: row.username || 'Someone', movies, weekly, bonus, total: movies + weekly + bonus };
+            })
+            .filter(user => user.movies || user.weekly || user.bonus));
+    }, ACCOUNT_SEASON_TTL);
+}
+
+function getAvailableYears(historySeasons, date = new Date()) {
     const cutoffYear = getLeaderboardCutoffYear(date);
-    const targetYear = requestedYear || cutoffYear;
-    const cacheKey = `leaderboard_${targetYear}_${cutoffYear}_${date.getMonth()}`;
+    const years = new Set(historySeasons.filter(year => year < FIRST_ACCOUNT_SEASON && year <= cutoffYear));
+    for (let year = FIRST_ACCOUNT_SEASON; year <= cutoffYear; year++) {
+        years.add(year);
+    }
+    return [...years].sort((a, b) => b - a);
+}
 
-    return getOrRefreshCache(cacheKey, async () => {
-        const doc = await calendarSheet();
-        const winnerSheet = doc.sheetsByTitle['Winners'];
-        const winnerRows = winnerSheet ? await winnerSheet.getRows() : [];
-        const pastWinners = readWinnerRows(winnerRows, getWinnerCutoffYear(date));
-        const selection = findLeaderboardSheet(doc, targetYear, pastWinners, date);
-        const availableYears = getAvailableLeaderboardYears(doc, pastWinners, date);
+export async function getLeaderboardPayload({ requestedYear, date = new Date(), db = pool } = {}) {
+    const availableYears = getAvailableYears(await getHistorySeasons(db), date);
+    const year = availableYears.includes(requestedYear) ? requestedYear : availableYears[0];
 
-        if (!selection) {
-            const error = new Error('No leaderboard sheet found for an available Scareathon season');
-            error.statusCode = 404;
-            throw error;
+    if (!year) {
+        const error = new Error('No Scareathon season has standings yet');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const fromAccounts = year >= FIRST_ACCOUNT_SEASON;
+    const data = fromAccounts ? await getAccountStandings(db, year) : await getHistoryStandings(db, year);
+
+    return {
+        data,
+        meta: {
+            year,
+            source: fromAccounts ? 'accounts' : 'history',
+            isLive: year === date.getFullYear() && isLiveEventOpen(date),
+            isPreseason: year === date.getFullYear() && date.getMonth() < EVENT_MONTH_INDEX,
+            availableYears
+        }
+    };
+}
+
+export async function getPastWinners({ date = new Date(), db = pool } = {}) {
+    const cutoffYear = getWinnerCutoffYear(date);
+    return getOrRefreshCache(`pastWinners_${cutoffYear}_${date.getMonth()}`, async () => {
+        const result = await db.query(`
+            SELECT season, name
+            FROM scareathon_winners
+            WHERE season <= $1
+            ORDER BY season DESC
+        `, [Math.min(cutoffYear, FIRST_ACCOUNT_SEASON - 1)]);
+        const winners = result.rows.map(row => ({ year: String(row.season), name: row.name }));
+
+        for (let season = FIRST_ACCOUNT_SEASON; isSeasonFinished(season, date); season++) {
+            const standings = await getAccountStandings(db, season);
+            standings
+                .filter(user => user.rank === 1 && user.total > 0)
+                .forEach(user => winners.push({ year: String(season), name: user.name }));
         }
 
-        const rows = await selection.sheet.getRows();
-        const users = readLeaderboardRows(rows);
-        const response = {
-            data: users,
-            meta: {
-                year: selection.year,
-                sheetTitle: selection.sheetTitle,
-                isLive: selection.year === date.getFullYear() && isLiveEventOpen(date),
-                isPreseason: selection.year === date.getFullYear() && date.getMonth() < EVENT_MONTH_INDEX,
-                availableYears
-            }
-        };
-        return response;
-    }, LEADERBOARD_TTL);
+        return winners.sort((a, b) => Number(b.year) - Number(a.year));
+    }, HISTORY_TTL);
 }
 
 export default async function (fastify, options) {
@@ -222,17 +194,8 @@ export default async function (fastify, options) {
     });
 
     fastify.get('/past-winners', async (request, reply) => {
-        const cutoffYear = getWinnerCutoffYear();
-        const cacheKey = `pastWinners_${cutoffYear}`;
-
         try {
-            const pastWinners = await getOrRefreshCache(cacheKey, async () => {
-                const doc = await calendarSheet();
-                const sheet = doc.sheetsByTitle['Winners'];
-                const rows = await sheet.getRows();
-
-                return readWinnerRows(rows, cutoffYear);
-            }, LEADERBOARD_TTL);
+            const pastWinners = await getPastWinners();
             setReadCacheHeaders(reply);
             return { data: pastWinners };
         } catch (err) {

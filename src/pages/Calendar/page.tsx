@@ -6,6 +6,7 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { m as motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
+import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
 
 type CalendarDay = {
   title: string;
@@ -18,6 +19,10 @@ export default function Calendar() {
   const calendarYear = today.getFullYear();
   const [isMobile, setIsMobile] = React.useState(false);
   const currentDayRef = useRef<HTMLDivElement>(null);
+  const { data: me } = useScareathonMe(true);
+  const toggleWatched = useToggleWatched();
+  // Ticks only make sense on the season the player's points are counted in
+  const watchedDays = me?.season === calendarYear ? new Set(me.watchedDays) : null;
 
   useEffect(() => {
     const checkMobile = () => {
@@ -112,6 +117,12 @@ export default function Calendar() {
             })}
           </h2>
         </motion.div>
+        {watchedDays && (
+          <p className="mb-4 text-center text-orange-300/80">
+            Watched a movie? Mark it and it counts on the Scareboard.
+            {toggleWatched.error && <span className="block text-red-400">{toggleWatched.error.message}</span>}
+          </p>
+        )}
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-7 gap-2 md:gap-3 lg:gap-4"
           variants={containerVariants}
@@ -187,6 +198,23 @@ export default function Calendar() {
                   <div className="text-orange-700 text-lg w-full overflow-hidden text-ellipsis whitespace-nowrap items-center">
                     {day.title}
                   </div>
+                  {watchedDays && (() => {
+                    const watched = watchedDays.has(index + 1);
+                    return (
+                      <button
+                        type="button"
+                        aria-pressed={watched}
+                        onClick={() => toggleWatched.mutate({ day: index + 1, watched: !watched })}
+                        className={`mt-1 w-full rounded-md border px-2 py-1 text-sm font-semibold transition ${
+                          watched
+                            ? "border-green-600 bg-green-900/70 text-green-100 hover:bg-green-800"
+                            : "border-orange-800 bg-black/50 text-orange-300 hover:bg-orange-900/60"
+                        }`}
+                      >
+                        {watched ? "✓ Watched" : "Mark watched"}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </motion.div>

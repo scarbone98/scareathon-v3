@@ -5,6 +5,7 @@ import MovieInfo from "../../pages/Home/MovieInfo";
 import StreamingProviders from "../../pages/Home/StreamingProviders";
 import { challengeTarget, eventState, formatShortDate, needsSignIn, useContentLoop, useRewardStatus, useTodayMovie } from "../data.ts";
 import type { GoTo } from "../stops.ts";
+import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
 import { CalendarBoard } from "./DepartureBoard.tsx";
 import type { SheetContent } from "../Sheet.tsx";
 import { PAPER_GRAIN, serif, stubButton, typewriter } from "../style/theme.ts";
@@ -16,7 +17,7 @@ import { PAPER_GRAIN, serif, stubButton, typewriter } from "../style/theme.ts";
 export type Flyer = { id: string; title: string; tint: string; ink: string; face: ReactNode; sheet: SheetContent };
 
 const RULES = [
-  "Every night, watch the film on the day it's scheduled: 1 point.",
+  "Every night's film you watch, ticked off on the October calendar: 1 point.",
   "Every week, finish the themed weekly challenge by Sunday's film: 1 point.",
   "On Halloween, wear a costume: 1 point.",
 ];
@@ -95,8 +96,11 @@ function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
 }
 
 function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
-  const { isLive } = eventState();
+  const { isLive, day, calendarYear } = eventState();
   const { data, isLoading, error } = useTodayMovie(isLive && signedIn);
+  const { data: me } = useScareathonMe(isLive && signedIn);
+  const toggle = useToggleWatched();
+  const watched = me?.season === calendarYear ? me.watchedDays.includes(day) : null;
   const heading = (
     <p className="text-xs uppercase tracking-[0.3em] text-[#f2ead2]/60">Tonight's film</p>
   );
@@ -134,6 +138,12 @@ function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
       </p>
       <MovieInfo runtime={movie.runtime} year={movie.year} rating={movie.rating} genres={movie.genres || []} />
       <StreamingProviders watchProviders={movie.watchProviders} movieTitle={movie.title} />
+      {watched !== null && (
+        <button type="button" className={`${stubButton} mt-4`} aria-pressed={watched} onClick={() => toggle.mutate({ day, watched: !watched })}>
+          {watched ? "✓ Watched (1 point)" : "I watched it"}
+        </button>
+      )}
+      {toggle.error && <p className="mt-2 text-sm text-red-300">{toggle.error.message}</p>}
     </div>
   );
 }

@@ -18,7 +18,7 @@ const Rules = () => {
         <div className="prose prose-lg mx-auto">
           <ul className="list-none p-0 space-y-4">
             {[
-              "Every Day watch a movie on the day it is scheduled to earn 1 point.",
+              "Every day, watch the scheduled movie and mark it watched on the calendar to earn 1 point.",
               "Every Week complete the themed weekly challenge by Sunday's film to earn 1 point.",
               "Wear a Costume on Halloween to earn 1 point.",
             ].map((rule, index) => (

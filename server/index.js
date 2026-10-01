@@ -8,6 +8,8 @@ import { isOptionalAuthRoute, isPublicRoute } from './utils/authRoutes.js';
 import calendarRoutes from './routes/calendar.js';
 import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import scareathonRoutes from './routes/scareathon.js';
+import { ensureScareathonTables } from './utils/scareathon.js';
 import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import gamesRoutes from './routes/games.js';
@@ -78,6 +80,13 @@ async function main() {
     try {
         const authConfig = getAuthConfig();
         const jwks = createRemoteJWKSet(new URL(authConfig.jwksUrl));
+
+        try {
+            await ensureScareathonTables(pool);
+        } catch (err) {
+            // The rest of the site still works; only the Scareboard needs these
+            fastify.log.error({ err }, 'Could not create the Scareathon tables');
+        }
 
         await fastify.register(cors, {
             origin: [
@@ -153,6 +162,7 @@ async function main() {
         fastify.register(postsRoutes);
         fastify.register(weeklyChallengeRoutes, { getPostsPayload, getRecentPostsPayload });
         fastify.register(leaderboardRoutes);
+        fastify.register(scareathonRoutes, { prefix: '/scareathon' });
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
         fastify.register(userRoutes, { prefix: '/user' });

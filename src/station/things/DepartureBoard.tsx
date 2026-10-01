@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { eventState, needsSignIn, useCalendar, useScareboard } from "../data.ts";
 import type { GoTo } from "../stops.ts";
+import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
+import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
 
 // The scoreboard on the wall over the ticket counter (the Scareboard, with years and past
 // winners), and the October calendar, which lives at the flyer stand: amber split-flap
-// rows, both.
+// rows, both. On the calendar a passenger ticks off the films they've watched; each tick
+// is a point on the Scareboard.
 
 type Props = { signedIn: boolean; goTo: GoTo };
 
@@ -32,6 +35,7 @@ function Line({ children, dim = false, bright = false }: { children: React.React
 function Standings({ signedIn }: { signedIn: boolean }) {
   const [year, setYear] = useState<number | null>(null);
   const { data, isLoading, error } = useScareboard(year, signedIn);
+  const { data: me } = useScareathonMe(signedIn);
   if (!signedIn || needsSignIn(error)) return null;
   if (isLoading && !data) return <Line>FLIPPING...</Line>;
   if (error) return <Line>BOARD FAULT: {error.message.toUpperCase()}</Line>;
@@ -63,6 +67,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
           <span className={`${flap} w-16 text-right`}>{row.total}</span>
         </Line>
       ))}
+      {me?.isAdmin && <ScareathonAdminPanel className="mt-4" />}
     </>
   );
 }
@@ -70,6 +75,9 @@ function Standings({ signedIn }: { signedIn: boolean }) {
 function Timetable({ signedIn }: { signedIn: boolean }) {
   const { data, isLoading, error } = useCalendar(signedIn);
   const { isLive, day, calendarYear } = eventState();
+  const { data: me } = useScareathonMe(signedIn);
+  const toggle = useToggleWatched();
+  const watchedDays = me?.season === calendarYear ? new Set(me.watchedDays) : null;
   const tonight = useRef<HTMLDivElement | null>(null);
   useEffect(() => tonight.current?.scrollIntoView({ block: "center" }), [data]);
   if (!signedIn || needsSignIn(error)) return null;
@@ -78,16 +86,30 @@ function Timetable({ signedIn }: { signedIn: boolean }) {
   const firstWeekday = new Date(calendarYear, 9, 1).getDay();
   return (
     <>
+      {watchedDays && <Line dim>TICK THE FILMS YOU'VE WATCHED: 1 POINT EACH</Line>}
+      {toggle.error && <Line>NOT SAVED: {toggle.error.message.toUpperCase()}</Line>}
       {(data?.data ?? []).slice(1, 32).map((entry, i) => {
         const date = i + 1;
         const isTonight = isLive && date === day;
         return (
           <div key={`${date}-${entry.title}`} ref={isTonight ? tonight : undefined}>
-            <Line dim={isLive && date < day} bright={isTonight}>
+            <Line dim={isLive && date < day && !watchedDays?.has(date)} bright={isTonight}>
               <span className={`${flap} w-12 text-center`}>{WEEKDAYS[(firstWeekday + i) % 7]}</span>
               <span className={`${flap} w-9 text-center`}>{String(date).padStart(2, "0")}</span>
               <span className={`${flap} min-w-0 flex-1 truncate`}>{entry.title.toUpperCase()}</span>
               {isTonight && <span className="text-[15px]">◂ TONIGHT</span>}
+              {watchedDays && (
+                <button
+                  type="button"
+                  aria-pressed={watchedDays.has(date)}
+                  aria-label={`${watchedDays.has(date) ? "Unmark" : "Mark"} ${entry.title} watched`}
+                  onClick={() => toggle.mutate({ day: date, watched: !watchedDays.has(date) })}
+                  className={`${flap} w-9 shrink-0 text-center hover:text-[#ffd27a]`}
+                  style={watchedDays.has(date) ? { background: AMBER, color: "#0a0c10", textShadow: "none" } : undefined}
+                >
+                  {watchedDays.has(date) ? "✓" : "·"}
+                </button>
+              )}
             </Line>
           </div>
         );

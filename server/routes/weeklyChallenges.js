@@ -1,6 +1,7 @@
 import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
 import { createConversationWithMessage } from './inbox.js';
+import { awardWeeklyChallengePoint } from '../utils/scareathon.js';
 import {
     generateWeeklyChallenge,
     generatedChallengeDocumentId,
@@ -541,6 +542,8 @@ export async function grantWeeklyChallengeReward(client, userId, challenge, evid
     ]);
 
     await sendWeeklyChallengeRewardMail(client, userId, challenge);
+    // In October it's a weekly point on the Scareboard too
+    await awardWeeklyChallengePoint(client, userId, challenge);
 
     return {
         claimed: true,
