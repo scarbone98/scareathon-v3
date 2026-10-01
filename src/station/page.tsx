@@ -21,6 +21,7 @@ import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import type { Boards } from "./StationScene.tsx";
+import { ROW_DONE_MS } from "./arcadeRow.ts";
 
 const StationScene = lazy(() => import("./StationScene.tsx"));
 const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx"));
@@ -352,7 +353,8 @@ export default function StationPage() {
       setAtCabinet(false);
       return;
     }
-    const arrive = window.setTimeout(() => setAtCabinet(true), 1050); // the walk to the cabinet
+    // Once the walk's over and the cartridges have all flown in to their places
+    const arrive = window.setTimeout(() => setAtCabinet(true), Math.max(1050, ROW_DONE_MS));
     return () => window.clearTimeout(arrive);
   }, [at]);
   // Which game the arcade starts on: the preview, unless you're sent to another (a "Play"

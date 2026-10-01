@@ -7,6 +7,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
+  CatmullRomCurve3,
   CircleGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -53,6 +54,7 @@ import { CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFini
 import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
 import { dressSlot, focusedPose, shelfLayout, type SlotDressing } from "../pages/ArcadeV2/slotDressing.ts";
 import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } from "../pages/ArcadeV2/cartridge.ts";
+import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRow.ts";
 import { linkArcadeFonts } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
@@ -70,7 +72,7 @@ type Props = {
   paused?: boolean; // the scene is covered (a game, the arcade): draw one last frame, then rest
   // Where the arcade will draw its cabinet on screen, so the walk up to the cabinet ends
   // with this one exactly there; and whether to hide this one (the arcade's is on top)
-  arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number } | null;
+  arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number; fov?: number } | null;
   hideArcade?: boolean;
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
@@ -114,11 +116,6 @@ const FAR_Z = EDGE_Z + 5.3; // the fence and the name board across the tracks
 const SIDE_X = 5.4; // the side wall, just past the pigeonholes, running out from the station wall
 const TICKET_Z = 0; // the ticket counter is let into the middle of it
 const ARCADE_POS = new Vector3(-3.0, 0, -1.75);
-// The walk up to the arcade takes a second; its cartridges slide in over the end of it
-const ROW_DELAY = 0; // before the first leaves the rack (straight away)
-const ROW_FLY = 0.6; // each one's flight
-const ROW_STAGGER = 0.03; // between one and the next
-const ROW_PICK = 0.12; // the picked one tipping forward at the end
 const SIGN_Y = 3.22; // the line the signs along the wall hang on, level with the station's name
 const END_X = -7.0; // the platform's far end, past the lockers: a railing, and the scenic view
 const PLATFORM_W = 30 - END_X; // the platform, wall and canopy run from END_X out of sight to the right
@@ -418,6 +415,8 @@ const SURFACES: SurfaceSpec[] = [
     px: [Math.round(w * PAPER_PX_PER_M), Math.round(h * PAPER_PX_PER_M)],
     tilt,
     lamplit: true,
+    // (from the arcade, the cartridges riding into the row pass in front of the board)
+    hiddenAt: ["arcade"],
   })),
   { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], hiddenAt: ["arcade"] },
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [240, 312], lean, lamplit: true })),
@@ -671,7 +670,8 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
         row.visible = false;
         const carts: Cartridge[] = [];
         const shown: number[] = [];
-        for (let i = Math.max(0, start - 4); i <= Math.min(games.length - 1, start + 4); i += 1) {
+        const side = Math.floor(ROW_CARTS / 2);
+        for (let i = Math.max(0, start - side); i <= Math.min(games.length - 1, start + side); i += 1) {
           const game = games[i];
           const cart = createCartridge(game.name, game.cartridge.color, game.cartridge.font, dressing.cartSize, CARTRIDGE_STYLES[i % CARTRIDGE_STYLES.length], {
             clear: i % 4 === 1,
@@ -681,7 +681,9 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             tape: game.cartridge.backTape,
             untitled: game.special === "mystery",
           });
-          cart.group.userData.rest = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
+          cart.group.userData.restBase = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
+          cart.group.userData.rest = cart.group.userData.restBase.clone();
+          cart.group.userData.front = cabinetBox.max.z;
           if (i === start) cart.group.userData.pick = focusedPose(dressing.cartSize, 1);
           cart.group.userData.gameIndex = i;
           cart.setHighlight(i === start ? 1 : 0);
@@ -715,6 +717,21 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
   return group;
+}
+
+// The path the arcade's cartridges take from the rack to their places in the row, in the
+// cabinet's space: a lift up out of the rack, one gentle arc over to the row's left end, then
+// along the row to its own place. Every cartridge's path shares the same arc, so in a line
+// they look like a little train.
+function cartTrainPath(row: Group, cart: Object3D, from: Vector3, rack: Vector3, w: number): CatmullRomCurve3 {
+  const rests = row.children.map((child) => child.userData.rest as Vector3);
+  const left = rests.reduce((a, b) => (b.x < a.x ? b : a), rests[0]);
+  const pitch = rests.length > 1 ? Math.abs(rests[1].x - rests[0].x) : w * 1.2;
+  const rest = cart.userData.rest as Vector3;
+  const entry = left.clone().add(new Vector3(-pitch, 0, 0));
+  const lift = rack.clone().add(new Vector3(w * 0.2, w * 0.7, w * 0.6));
+  const top = lift.clone().lerp(entry, 0.5).add(new Vector3(0, w * 1.1, w * 0.4));
+  return new CatmullRomCurve3([from, lift, top, entry, rest], false, "centripetal");
 }
 
 // A little wall rack beside the arcade: every cartridge on it, stood on end like tapes,
@@ -2088,12 +2105,24 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Render loop; paused while the tab is hidden
     let frame = 0;
     let restingDrawn = false;
-    let rowSince: number | null = null; // when the walk to the arcade began
+    // How far along the cartridges' trip out of the rack is, in seconds: it runs forward
+    // while walking to the arcade and back again when walking away
+    let rowClock = 0;
+    let rowLast = performance.now() / 1000;
+    let rowCovered = false;
     let reported = false; // told the page it's ready
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
       if (document.hidden) return;
+      // The cartridges' clock runs on real time, not frames (so a slow phone doesn't leave
+      // the train half out when the arcade takes over), and keeps time while covered
+      const rowNow = performance.now() / 1000;
+      const rowDt = Math.min(rowNow - rowLast, 0.5);
+      rowLast = rowNow;
+      // Covered by the arcade: its own row is showing, so as far as the walk back is
+      // concerned they've all landed
+      if (latest.current.paused && latest.current.at === "arcade") rowCovered = true;
       // Covered: one last frame (with the cabinet hidden, if the arcade's is over it), then rest
       if (latest.current.paused) {
         if (restingDrawn) return;
@@ -2118,40 +2147,63 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         dressing.terminal.update(now);
       }
       // The row of cartridges: nothing from across the platform; near the end of the walk up
-      // they slide in from the left, one after another, settling as the arcade takes over
+      // they come out of the rack in a line, along one path, settling as the arcade takes over;
+      // walking away, the same trip runs backwards and they're home in the rack
       const row = arcadeObject.userData.row as Group | undefined;
       if (row) {
         const walking = latest.current.at === "arcade";
-        if (walking && rowSince === null) rowSince = performance.now() / 1000;
-        if (!walking) rowSince = null;
-        const since = rowSince === null ? -1 : performance.now() / 1000 - rowSince;
+        const count = row.children.length;
+        const whole = ROW_DELAY + (count - 1) * ROW_STAGGER + ROW_FLY + ROW_PICK;
+        if (rowCovered) rowClock = whole;
+        rowCovered = false;
+        rowClock = Math.min(Math.max(rowClock + (walking ? rowDt : -rowDt), 0), whole);
         const spots = cartRack.userData.spots as { at: Vector3; height: number; meshes: Object3D[] }[];
         const cabinetNode = arcadeObject.userData.cabinet as Group | undefined;
         const cabinetScale = cabinetNode?.scale.x ?? 1;
         const cartWidth = arcadeObject.userData.cartWidth as number;
-        row.visible = since >= ROW_DELAY;
+        row.visible = rowClock > 0;
+        // The cabinet fills the same part of the screen here as in the arcade, but through a
+        // different lens (a wider one on phones), so the row floating in front of it would
+        // look bigger here. Set it back toward the cabinet until it matches the arcade's:
+        // a point d in front of the cabinet looks the same here at d * tan(theirs) / tan(ours)
+        const frameFov = latest.current.arcadeFrame?.fov;
+        const depthScale = frameFov ? Math.tan((frameFov * Math.PI) / 360) / Math.tan((camera.fov * Math.PI) / 360) : 1;
+        if (Math.abs((row.userData.depthScale ?? 1) - depthScale) > 1e-4) {
+          row.userData.depthScale = depthScale;
+          row.children.forEach((cart) => {
+            const base = cart.userData.restBase as Vector3;
+            const front = cart.userData.front as number;
+            (cart.userData.rest as Vector3).set(base.x, base.y, front + (base.z - front) * depthScale);
+            delete cart.userData.path;
+          });
+        }
         row.children.forEach((cart, n) => {
           const spot = spots[cart.userData.gameIndex as number];
-          // Out of the rack one after another, the nearest first
-          const k = since < 0 ? 0 : Math.min(Math.max((since - ROW_DELAY - n * ROW_STAGGER) / ROW_FLY, 0), 1);
+          // The rightmost leads (it has furthest to go), so none overtakes another
+          const place = count - 1 - n;
+          const k = Math.min(Math.max((rowClock - ROW_DELAY - place * ROW_STAGGER) / ROW_FLY, 0), 1);
           spot?.meshes.forEach((mesh) => (mesh.visible = k === 0));
           cart.visible = k > 0;
           if (!cart.visible || !spot || !cabinetNode) return;
+          const path = (cart.userData.path ??= cartTrainPath(row, cart, cabinetNode.worldToLocal(cartRack.localToWorld(spot.at.clone())), cabinetNode.worldToLocal(cartRack.localToWorld(new Vector3(0, 0.22, 0.05))), cartWidth)) as CatmullRomCurve3;
           const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
-          const rest = cart.userData.rest as Vector3;
-          const from = cabinetNode.worldToLocal(cartRack.localToWorld(spot.at.clone()));
-          cart.position.lerpVectors(from, rest, e);
-          cart.position.y += Math.sin(Math.PI * e) * cartWidth * 0.9; // over, in an arc
-          // Stood on end and small in the rack, face on and full size in the row
+          cart.position.copy(path.getPointAt(e));
+          // A little bounce as it lands in its place
+          const land = Math.min(Math.max((k - 0.84) / 0.16, 0), 1);
+          cart.position.y += Math.sin(Math.PI * land) * cartWidth * 0.22 * (1 - land * 0.5);
+          // Stood on end and small in the rack, face on and full size once it's out
+          const out = Math.min(e / 0.3, 1);
           const small = spot.height / (cartWidth * cabinetScale);
-          cart.scale.setScalar(small + (1 - small) * e);
-          cart.rotation.set(0, (Math.PI / 2) * (1 - e), (Math.PI / 2) * (1 - e));
+          cart.scale.setScalar(small + (1 - small) * out);
+          // Turned face on as it leaves the rack, leaning a touch into the arc
+          const lean = Math.sin(Math.PI * e) * 0.12;
+          cart.rotation.set(0, (Math.PI / 2) * (1 - out), (Math.PI / 2) * (1 - out) + lean);
           // The picked one tips forward once it's landed, as the arcade shows it
           const pick = cart.userData.pick as ReturnType<typeof focusedPose> | undefined;
           if (pick && k === 1) {
-            const f = Math.min(Math.max((since - ROW_DELAY - n * ROW_STAGGER - ROW_FLY) / ROW_PICK, 0), 1);
+            const f = Math.min(Math.max((rowClock - ROW_DELAY - place * ROW_STAGGER - ROW_FLY) / ROW_PICK, 0), 1);
             cart.position.y += pick.lift * f;
-            cart.position.z += pick.forward * f;
+            cart.position.z += pick.forward * f * depthScale;
             cart.scale.setScalar(1 + (pick.scale - 1) * f);
             cart.rotation.x = pick.tip * f;
           }
