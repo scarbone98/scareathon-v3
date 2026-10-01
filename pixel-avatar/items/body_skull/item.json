@@ -1,0 +1,13 @@
+{
+  "name": "Flying Skull",
+  "category": "body",
+  "rarity": "legendary",
+  "price": 600,
+  "release": "released",
+  "rig": {
+    "frames": 6,
+    "fps": 10,
+    "anchors": { "head": [4, 5, 6, 8, 10, 5], "ground": 0 }
+  },
+  "parts": [{ "slot": "body", "png": "skull.png", "frameWidth": 24, "at": [4, 30], "anchor": "ground" }]
+}

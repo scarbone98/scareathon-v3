@@ -1,0 +1,10 @@
+{
+  "name": "Purdue Beanie",
+  "category": "head",
+  "rarity": "uncommon",
+  "price": 120,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": { "dye1": "coal" },
+  "parts": [{ "slot": "head", "file": "beanie.txt", "anchor": "head" }]
+}

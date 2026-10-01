@@ -1,0 +1,10 @@
+{
+  "name": "Purdue Pennant",
+  "category": "held",
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": { "dye1": "coal" },
+  "parts": [{ "slot": "held", "file": "pennant.txt", "anchor": "body" }]
+}

@@ -1,0 +1,16 @@
+# Wraps the neck; the tail is striped in dye2
+at: 12,33
+legend:
+  a = dye1.2
+  c = dye1.1
+  h = dye1.3
+  b = dye2.2
+  d = dye2.1
+--- 0
+.chhhac
+caaaaaac
+.....ac
+.....bd
+.....ac
+.....bd
+.....c.c

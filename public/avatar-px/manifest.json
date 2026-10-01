@@ -1,0 +1,2416 @@
+{
+  "width": 32,
+  "height": 48,
+  "slots": [
+    "background",
+    "back_fx",
+    "shadow",
+    "wings",
+    "back",
+    "hair_back",
+    "body",
+    "face_paint",
+    "legs",
+    "feet",
+    "torso",
+    "outer",
+    "neck",
+    "hair",
+    "face_acc",
+    "head",
+    "held",
+    "companion",
+    "front_fx"
+  ],
+  "categories": {
+    "body": 1,
+    "face_paint": 2,
+    "hair": 1,
+    "head": 1,
+    "face_acc": 1,
+    "neck": 1,
+    "torso": 1,
+    "outer": 1,
+    "legs": 1,
+    "feet": 1,
+    "back": 1,
+    "wings": 1,
+    "held": 1,
+    "companion": 1,
+    "aura": 1,
+    "background": 1
+  },
+  "defaults": {
+    "skin": "peach",
+    "hair": "sandy",
+    "eyes": "ink_eye",
+    "dye1": "orange",
+    "dye2": "cloud"
+  },
+  "choices": {
+    "skin": [
+      "peach",
+      "fair",
+      "tan",
+      "brown",
+      "deep",
+      "zombie",
+      "ghoul",
+      "demon"
+    ],
+    "hair": [
+      "sandy",
+      "golden",
+      "night",
+      "slate",
+      "ginger",
+      "chestnut",
+      "silver",
+      "violet",
+      "crimson",
+      "moss",
+      "candy"
+    ],
+    "eyes": [
+      "ink_eye",
+      "blood_eye",
+      "glow_eye",
+      "toxic_eye",
+      "ice_eye",
+      "gold_eye"
+    ],
+    "dye1": [
+      "orange",
+      "cloud",
+      "pine",
+      "ocean",
+      "cherry",
+      "denim",
+      "coal",
+      "plum",
+      "mustard",
+      "rose",
+      "bark",
+      "ash",
+      "lime",
+      "teal"
+    ],
+    "dye2": [
+      "orange",
+      "cloud",
+      "pine",
+      "ocean",
+      "cherry",
+      "denim",
+      "coal",
+      "plum",
+      "mustard",
+      "rose",
+      "bark",
+      "ash",
+      "lime",
+      "teal"
+    ]
+  },
+  "skinTones": [
+    "peach",
+    "fair",
+    "tan",
+    "brown",
+    "deep",
+    "zombie",
+    "ghoul",
+    "demon"
+  ],
+  "hairColors": [
+    "sandy",
+    "golden",
+    "night",
+    "slate",
+    "ginger",
+    "chestnut",
+    "silver",
+    "violet",
+    "crimson",
+    "moss",
+    "candy"
+  ],
+  "eyeColors": [
+    "ink_eye",
+    "blood_eye",
+    "glow_eye",
+    "toxic_eye",
+    "ice_eye",
+    "gold_eye"
+  ],
+  "dyeColors": [
+    "orange",
+    "cloud",
+    "pine",
+    "ocean",
+    "cherry",
+    "denim",
+    "coal",
+    "plum",
+    "mustard",
+    "rose",
+    "bark",
+    "ash",
+    "lime",
+    "teal"
+  ],
+  "ramps": {
+    "ink": [
+      "#131526",
+      "#20243d",
+      "#2e3352",
+      "#444a70"
+    ],
+    "shadow": [
+      "#20243d50",
+      "#20243d97",
+      "#20243db0",
+      "#20243dd0"
+    ],
+    "peach": [
+      "#c26a58",
+      "#dd8a70",
+      "#e49d7c",
+      "#f0bd8c"
+    ],
+    "fair": [
+      "#b8705f",
+      "#ce9488",
+      "#d6ab95",
+      "#ddbd9f"
+    ],
+    "tan": [
+      "#a0603c",
+      "#bb7a4e",
+      "#c98d5c",
+      "#d9a066"
+    ],
+    "brown": [
+      "#6e3f28",
+      "#8f563b",
+      "#a3684a",
+      "#b97c58"
+    ],
+    "deep": [
+      "#3e2219",
+      "#5a3526",
+      "#6c4331",
+      "#82553f"
+    ],
+    "zombie": [
+      "#2b5c48",
+      "#3e8466",
+      "#52a07c",
+      "#76c49a"
+    ],
+    "ghoul": [
+      "#7d8aa4",
+      "#9badb7",
+      "#b4c4ce",
+      "#d8e4ec"
+    ],
+    "demon": [
+      "#7a1e2e",
+      "#ac3232",
+      "#c2443e",
+      "#d95f4e"
+    ],
+    "sandy": [
+      "#8f6e3e",
+      "#af8b51",
+      "#c29e63",
+      "#d6b884"
+    ],
+    "golden": [
+      "#b5801c",
+      "#d99f2a",
+      "#e8af3b",
+      "#f6cf6a"
+    ],
+    "night": [
+      "#0f0e18",
+      "#1b1a2b",
+      "#2a2840",
+      "#3e3b5c"
+    ],
+    "slate": [
+      "#2c3048",
+      "#3a3f5c",
+      "#4a5072",
+      "#646c94"
+    ],
+    "ginger": [
+      "#8a3412",
+      "#b04a18",
+      "#cf6526",
+      "#e8894a"
+    ],
+    "chestnut": [
+      "#3d2016",
+      "#583022",
+      "#6f4130",
+      "#8a5842"
+    ],
+    "silver": [
+      "#7c8496",
+      "#a2abbe",
+      "#c4cad8",
+      "#e6eaf2"
+    ],
+    "violet": [
+      "#3a1f56",
+      "#583082",
+      "#7646a8",
+      "#9a6cc8"
+    ],
+    "crimson": [
+      "#5c1222",
+      "#8a1c30",
+      "#b22a40",
+      "#d84a5a"
+    ],
+    "moss": [
+      "#24402a",
+      "#355c38",
+      "#4a7a46",
+      "#6a9c5a"
+    ],
+    "candy": [
+      "#a8457c",
+      "#cc5f9c",
+      "#e07fb6",
+      "#f2a6d0"
+    ],
+    "ink_eye": [
+      "#16172b",
+      "#222034",
+      "#34344f",
+      "#4c4c6c"
+    ],
+    "blood_eye": [
+      "#5a0c10",
+      "#c41e24",
+      "#e43b3b",
+      "#ff7a6a"
+    ],
+    "glow_eye": [
+      "#7a6a10",
+      "#e8d23a",
+      "#f5e670",
+      "#fff6b0"
+    ],
+    "toxic_eye": [
+      "#1e5a1a",
+      "#3cb43a",
+      "#6ad65a",
+      "#aaf08c"
+    ],
+    "ice_eye": [
+      "#1a4a7a",
+      "#3c8ee0",
+      "#6ab4f2",
+      "#b4e0ff"
+    ],
+    "gold_eye": [
+      "#6a3c0c",
+      "#b8761a",
+      "#dc9c2c",
+      "#f2c45a"
+    ],
+    "orange": [
+      "#a83a0e",
+      "#d24e13",
+      "#e35a1e",
+      "#ed6c33"
+    ],
+    "cloud": [
+      "#6e7a99",
+      "#96a4c0",
+      "#cbdbfc",
+      "#eef2ff"
+    ],
+    "pine": [
+      "#2e4a3b",
+      "#336556",
+      "#2c866b",
+      "#459585"
+    ],
+    "ocean": [
+      "#084b77",
+      "#1a699d",
+      "#0d7ac2",
+      "#3a9ae0"
+    ],
+    "cherry": [
+      "#7a1f30",
+      "#b13a45",
+      "#d95763",
+      "#e8808a"
+    ],
+    "denim": [
+      "#1f2a78",
+      "#283a98",
+      "#3345b3",
+      "#4e62cc"
+    ],
+    "coal": [
+      "#0f101c",
+      "#17192b",
+      "#21253f",
+      "#383c58"
+    ],
+    "plum": [
+      "#3b1a44",
+      "#5a2a66",
+      "#76428a",
+      "#9a62ac"
+    ],
+    "mustard": [
+      "#8a6a10",
+      "#b8901c",
+      "#d4ac2a",
+      "#ecc84a"
+    ],
+    "rose": [
+      "#9c4a74",
+      "#c4689a",
+      "#d77bba",
+      "#eaa2d2"
+    ],
+    "bark": [
+      "#3c2418",
+      "#5c3a26",
+      "#7a5034",
+      "#9a6a46"
+    ],
+    "ash": [
+      "#4a4a58",
+      "#696a78",
+      "#8c8e9c",
+      "#b2b4c0"
+    ],
+    "lime": [
+      "#4a7a1a",
+      "#6aa82a",
+      "#8cc83a",
+      "#b4e45a"
+    ],
+    "teal": [
+      "#14545a",
+      "#1c7a80",
+      "#2aa0a4",
+      "#4cc4c4"
+    ],
+    "bone": [
+      "#9a9488",
+      "#c4bdae",
+      "#e2dccc",
+      "#faf6ea"
+    ],
+    "gold": [
+      "#7a4a10",
+      "#b88220",
+      "#e0b030",
+      "#f8dc6a"
+    ],
+    "steel": [
+      "#3a3e4e",
+      "#5a6074",
+      "#8a92a8",
+      "#c0c6d6"
+    ],
+    "blood": [
+      "#4a0a12",
+      "#7e1420",
+      "#ac2232",
+      "#d84050"
+    ],
+    "pumpkin": [
+      "#8a3a0c",
+      "#c25a14",
+      "#e87a22",
+      "#f8a24a"
+    ],
+    "leaf": [
+      "#2a4a1e",
+      "#3c6a28",
+      "#56902e",
+      "#7ab83e"
+    ],
+    "flame": [
+      "#c2400e",
+      "#f07a1a",
+      "#fbc02a",
+      "#fff2a0"
+    ],
+    "spirit": [
+      "#5fcde4a0",
+      "#8ae0f0c0",
+      "#c0f0fa",
+      "#ffffff"
+    ],
+    "night_sky": [
+      "#0e0c1e",
+      "#1a1834",
+      "#2a2650",
+      "#3e3a72"
+    ],
+    "wood": [
+      "#3a2214",
+      "#5a3820",
+      "#7a5030",
+      "#a07048"
+    ],
+    "witch": [
+      "#1c1426",
+      "#2e2040",
+      "#45305e",
+      "#5e4480"
+    ],
+    "felt": [
+      "#2a2450",
+      "#3c3470",
+      "#525096",
+      "#6e70b8"
+    ],
+    "old_gold": [
+      "#6b5530",
+      "#8e6f3e",
+      "#cfb991",
+      "#ebd99f"
+    ]
+  },
+  "bases": {
+    "body_ghost": {
+      "frames": 6,
+      "fps": 8,
+      "anchors": {
+        "head": [
+          [
+            0,
+            -10
+          ],
+          [
+            0,
+            -10
+          ],
+          [
+            0,
+            -10
+          ],
+          [
+            0,
+            -9
+          ],
+          [
+            0,
+            -8
+          ],
+          [
+            0,
+            -8
+          ]
+        ],
+        "body": [
+          [
+            0,
+            -10
+          ],
+          [
+            0,
+            -10
+          ],
+          [
+            0,
+            -10
+          ],
+          [
+            0,
+            -9
+          ],
+          [
+            0,
+            -8
+          ],
+          [
+            0,
+            -8
+          ]
+        ],
+        "ground": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "free": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "body_kid": {
+      "frames": 6,
+      "fps": 6,
+      "anchors": {
+        "head": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "body": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "ground": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "free": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "body_skull": {
+      "frames": 6,
+      "fps": 10,
+      "anchors": {
+        "head": [
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            5
+          ],
+          [
+            0,
+            6
+          ],
+          [
+            0,
+            8
+          ],
+          [
+            0,
+            10
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "ground": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "free": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    "body_zombie": {
+      "frames": 6,
+      "fps": 8,
+      "anchors": {
+        "head": [
+          [
+            0,
+            0
+          ],
+          [
+            -1,
+            0
+          ],
+          [
+            -2,
+            -1
+          ],
+          [
+            -1,
+            -1
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            -1
+          ]
+        ],
+        "ground": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "free": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "items": [
+    {
+      "key": "bat_buddy",
+      "name": "Bat Buddy",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 14,
+          "w": 9,
+          "h": 7,
+          "frames": 6,
+          "src": "/avatar-px/items/bat_buddy/0-companion.png?v=15f491540e"
+        }
+      ],
+      "icon": "/avatar-px/items/bat_buddy/icon.png?v=7b458ee892",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 250,
+      "release": "released"
+    },
+    {
+      "key": "bat_wings",
+      "name": "Bat Wings",
+      "category": "wings",
+      "parts": [
+        {
+          "slot": "wings",
+          "anchor": "body",
+          "x": 2,
+          "y": 27,
+          "w": 26,
+          "h": 10,
+          "frames": 6,
+          "src": "/avatar-px/items/bat_wings/0-wings.png?v=45766cf0c2",
+          "fits": [
+            "body_kid",
+            "body_ghost"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bat_wings/icon.png?v=d87b9b48a5",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 350,
+      "release": "released"
+    },
+    {
+      "key": "bedsheet_ghost",
+      "name": "Bedsheet Ghost",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 10,
+          "y": 23,
+          "w": 14,
+          "h": 19,
+          "frames": 1,
+          "src": "/avatar-px/items/bedsheet_ghost/0-outer.png?v=0343a586f0",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bedsheet_ghost/icon.png?v=e123b64dcc",
+      "dyes": {},
+      "occupies": [],
+      "hides": [
+        "hair",
+        "face_acc",
+        "face_paint",
+        "neck"
+      ],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 320,
+      "release": "released"
+    },
+    {
+      "key": "body_ghost",
+      "name": "Ghost",
+      "category": "body",
+      "parts": [
+        {
+          "slot": "body",
+          "anchor": "ground",
+          "x": 8,
+          "y": 16,
+          "w": 16,
+          "h": 32,
+          "frames": 6,
+          "src": "/avatar-px/items/body_ghost/0-body.png?v=c05d9aa537"
+        }
+      ],
+      "icon": "/avatar-px/items/body_ghost/icon.png?v=afb940c87e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "body_kid",
+      "name": "Kid",
+      "category": "body",
+      "parts": [
+        {
+          "slot": "shadow",
+          "anchor": "ground",
+          "x": 8,
+          "y": 44,
+          "w": 16,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/body_kid/0-shadow.png?v=69cb71dcc3"
+        },
+        {
+          "slot": "body",
+          "anchor": "ground",
+          "x": 8,
+          "y": 41,
+          "w": 16,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/body_kid/1-body.png?v=e8a90dabca"
+        },
+        {
+          "slot": "body",
+          "anchor": "body",
+          "x": 8,
+          "y": 34,
+          "w": 16,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/body_kid/2-body.png?v=dc0dbd4b7b"
+        },
+        {
+          "slot": "body",
+          "anchor": "head",
+          "x": 8,
+          "y": 26,
+          "w": 16,
+          "h": 8,
+          "frames": 1,
+          "src": "/avatar-px/items/body_kid/3-body.png?v=5ab43c35c9"
+        }
+      ],
+      "icon": "/avatar-px/items/body_kid/icon.png?v=05d34faf44",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "body_skull",
+      "name": "Flying Skull",
+      "category": "body",
+      "parts": [
+        {
+          "slot": "body",
+          "anchor": "ground",
+          "x": 4,
+          "y": 30,
+          "w": 24,
+          "h": 18,
+          "frames": 6,
+          "src": "/avatar-px/items/body_skull/0-body.png?v=2e9a7ee67d"
+        }
+      ],
+      "icon": "/avatar-px/items/body_skull/icon.png?v=e0b9a99b64",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 600,
+      "release": "released"
+    },
+    {
+      "key": "body_zombie",
+      "name": "Zombie",
+      "category": "body",
+      "parts": [
+        {
+          "slot": "body",
+          "anchor": "ground",
+          "x": 8,
+          "y": 24,
+          "w": 16,
+          "h": 24,
+          "frames": 6,
+          "src": "/avatar-px/items/body_zombie/0-body.png?v=218cc66cd8"
+        }
+      ],
+      "icon": "/avatar-px/items/body_zombie/icon.png?v=6f1dfa02c2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 400,
+      "release": "released"
+    },
+    {
+      "key": "boots",
+      "name": "Boots",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/boots/0-feet.png?v=898cbf2e24",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/boots/icon.png?v=3c3129ff89",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "candy_pail",
+      "name": "Candy Pail",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 9,
+          "y": 37,
+          "w": 8,
+          "h": 8,
+          "frames": 1,
+          "src": "/avatar-px/items/candy_pail/0-held.png?v=9a8e942aa3",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/candy_pail/icon.png?v=915720b5df",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 160,
+      "release": "released"
+    },
+    {
+      "key": "cat_ears",
+      "name": "Cat Ears",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 22,
+          "w": 10,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/cat_ears/0-head.png?v=62841e110f"
+        }
+      ],
+      "icon": "/avatar-px/items/cat_ears/icon.png?v=1bbb3c3f1d",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "devil_horns",
+      "name": "Devil Horns",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 22,
+          "w": 9,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/devil_horns/0-head.png?v=bf3d0528eb"
+        }
+      ],
+      "icon": "/avatar-px/items/devil_horns/icon.png?v=2722104bd9",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "hair_bob",
+      "name": "Bob",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 23,
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_bob/0-hair.png?v=60d3d5e66f",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_bob/icon.png?v=e026d5e55a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_cowlick",
+      "name": "Cowlick",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 24,
+          "w": 11,
+          "h": 9,
+          "frames": 6,
+          "src": "/avatar-px/items/hair_cowlick/0-hair.png?v=e657fb612d",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_cowlick/icon.png?v=fc0321de36",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_crop",
+      "name": "Crop",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 24,
+          "w": 10,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_crop/0-hair.png?v=ca6cd0ce5c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_crop/icon.png?v=4e400b525e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_curls",
+      "name": "Curls",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 9,
+          "y": 20,
+          "w": 14,
+          "h": 12,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_curls/0-hair.png?v=131ffa060d",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_curls/icon.png?v=3f0e23800f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_fringe",
+      "name": "Swept Fringe",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 10,
+          "y": 24,
+          "w": 11,
+          "h": 9,
+          "frames": 5,
+          "src": "/avatar-px/items/hair_fringe/0-hair.png?v=2ef1045d20",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_fringe/icon.png?v=0a59da7ed3",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_long_locks",
+      "name": "Long Locks",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 10,
+          "y": 25,
+          "w": 11,
+          "h": 14,
+          "frames": 6,
+          "src": "/avatar-px/items/hair_long_locks/0-hair.png?v=9ba92a0e58",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_long_locks/icon.png?v=aa9139b4c2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_long_straight",
+      "name": "Long & Straight",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 10,
+          "y": 23,
+          "w": 12,
+          "h": 14,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_long_straight/0-hair.png?v=0419cfebcd",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_long_straight/icon.png?v=cac7921a58",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_mohawk",
+      "name": "Mohawk",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 18,
+          "w": 8,
+          "h": 11,
+          "frames": 3,
+          "src": "/avatar-px/items/hair_mohawk/0-hair.png?v=aeba8426d6",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_mohawk/icon.png?v=b6392db38f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 140,
+      "release": "released"
+    },
+    {
+      "key": "hair_mop",
+      "name": "Mop Top",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 10,
+          "y": 24,
+          "w": 11,
+          "h": 8,
+          "frames": 5,
+          "src": "/avatar-px/items/hair_mop/0-hair.png?v=ed7e6aa1ea",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_mop/icon.png?v=94e3afc979",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_pigtails",
+      "name": "Pigtails",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 9,
+          "y": 24,
+          "w": 14,
+          "h": 9,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_pigtails/0-hair.png?v=0b974b59ac",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_pigtails/icon.png?v=013bef0817",
+      "dyes": {
+        "dye1": "rose"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_ponytail",
+      "name": "Ponytail",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 24,
+          "w": 13,
+          "h": 9,
+          "frames": 3,
+          "src": "/avatar-px/items/hair_ponytail/0-hair.png?v=eab9beb0ff",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_ponytail/icon.png?v=18b52c800e",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_side_part",
+      "name": "Side Part",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 24,
+          "w": 11,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_side_part/0-hair.png?v=b9365c86de",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_side_part/icon.png?v=ea7d0563e3",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_space_buns",
+      "name": "Space Buns",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 10,
+          "y": 21,
+          "w": 13,
+          "h": 12,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_space_buns/0-hair.png?v=574c38942d",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_space_buns/icon.png?v=5bedbc7cda",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "hair_spikes",
+      "name": "Spikes",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 20,
+          "w": 11,
+          "h": 13,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_spikes/0-hair.png?v=0ff3e1f69c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_spikes/icon.png?v=af244e4f5a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "jack_o_lantern_head",
+      "name": "Jack-o'-Lantern Head",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 21,
+          "w": 13,
+          "h": 12,
+          "frames": 4,
+          "src": "/avatar-px/items/jack_o_lantern_head/0-head.png?v=37d0a627c5",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/jack_o_lantern_head/icon.png?v=62f47668c2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [
+        "hair",
+        "face_acc",
+        "face_paint"
+      ],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 500,
+      "release": "released"
+    },
+    {
+      "key": "jeans",
+      "name": "Belted Jeans",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/jeans/0-legs.png?v=49b06410ae",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/jeans/1-legs.png?v=eefc67b681",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/jeans/icon.png?v=ce4fec99ba",
+      "dyes": {
+        "dye1": "denim"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "moonlit_graveyard",
+      "name": "Moonlit Graveyard",
+      "category": "background",
+      "parts": [
+        {
+          "slot": "background",
+          "anchor": "free",
+          "x": 0,
+          "y": 0,
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "src": "/avatar-px/items/moonlit_graveyard/0-background.png?v=43c22dba3a"
+        }
+      ],
+      "icon": "/avatar-px/items/moonlit_graveyard/icon.png?v=3c787aa84e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
+      "release": "released"
+    },
+    {
+      "key": "open_jacket",
+      "name": "Open Jacket",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/open_jacket/0-outer.png?v=690eede55d",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/open_jacket/icon.png?v=76f5a03de9",
+      "dyes": {
+        "dye1": "cherry",
+        "dye2": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "pointy_witch_hat",
+      "name": "Pointy Witch Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 7,
+          "y": 14,
+          "w": 18,
+          "h": 13,
+          "frames": 1,
+          "src": "/avatar-px/items/pointy_witch_hat/0-head.png?v=9197393a45"
+        }
+      ],
+      "icon": "/avatar-px/items/pointy_witch_hat/icon.png?v=458e23addc",
+      "dyes": {
+        "dye1": "plum"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
+      "release": "released"
+    },
+    {
+      "key": "pumpkin_pal",
+      "name": "Pumpkin Pal",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 16,
+          "y": 32,
+          "w": 16,
+          "h": 16,
+          "frames": 6,
+          "src": "/avatar-px/items/pumpkin_pal/0-companion.png?v=d72dfae1f2"
+        }
+      ],
+      "icon": "/avatar-px/items/pumpkin_pal/icon.png?v=52067f218b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 450,
+      "release": "released"
+    },
+    {
+      "key": "purdue_beanie",
+      "name": "Purdue Beanie",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 21,
+          "w": 10,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/purdue_beanie/0-head.png?v=47b7ec84b2",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/purdue_beanie/icon.png?v=b8c4042e95",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
+      "key": "purdue_p_cap",
+      "name": "Purdue P Cap",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 23,
+          "w": 11,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/purdue_p_cap/0-head.png?v=3d663709d4",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/purdue_p_cap/icon.png?v=f6216cd518",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
+      "release": "released"
+    },
+    {
+      "key": "purdue_p_crewneck",
+      "name": "Purdue P Crewneck",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/purdue_p_crewneck/0-torso.png?v=284b11f2cf",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/purdue_p_crewneck/icon.png?v=d454afdf8e",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 180,
+      "release": "released"
+    },
+    {
+      "key": "purdue_pennant",
+      "name": "Purdue Pennant",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 32,
+          "w": 9,
+          "h": 9,
+          "frames": 3,
+          "src": "/avatar-px/items/purdue_pennant/0-held.png?v=f4f73bcd70",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/purdue_pennant/icon.png?v=1ef37c4ad6",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "rosy_cheeks",
+      "name": "Rosy Cheeks",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "anchor": "head",
+          "x": 14,
+          "y": 31,
+          "w": 6,
+          "h": 1,
+          "frames": 1,
+          "src": "/avatar-px/items/rosy_cheeks/0-face_paint.png?v=8f13a9d744",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/rosy_cheeks/icon.png?v=0b4e728df4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "round_glasses",
+      "name": "Round Glasses",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "anchor": "head",
+          "x": 10,
+          "y": 29,
+          "w": 10,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/round_glasses/0-face_acc.png?v=a9e7ed9196",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/round_glasses/icon.png?v=fd113539e0",
+      "dyes": {
+        "dye1": "coal",
+        "dye2": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "skeleton_tee",
+      "name": "Skeleton Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/skeleton_tee/0-torso.png?v=b94fd5722f",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/skeleton_tee/icon.png?v=918a64f860",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
+      "key": "skull_mask",
+      "name": "Skull Mask",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "anchor": "head",
+          "x": 11,
+          "y": 26,
+          "w": 9,
+          "h": 8,
+          "frames": 1,
+          "src": "/avatar-px/items/skull_mask/0-face_acc.png?v=5ae2389af9",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/skull_mask/icon.png?v=89ef546c26",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
+      "release": "released"
+    },
+    {
+      "key": "sneakers",
+      "name": "Sneakers",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/sneakers/0-feet.png?v=31b210c974",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/sneakers/icon.png?v=de8bce8c7c",
+      "dyes": {
+        "dye1": "cloud",
+        "dye2": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "soul_lantern_px",
+      "name": "Lantern",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 11,
+          "y": 37,
+          "w": 6,
+          "h": 7,
+          "frames": 5,
+          "src": "/avatar-px/items/soul_lantern_px/0-held.png?v=f094e0756f",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/soul_lantern_px/icon.png?v=0724bb58b1",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 300,
+      "release": "released"
+    },
+    {
+      "key": "striped_scarf",
+      "name": "Striped Scarf",
+      "category": "neck",
+      "parts": [
+        {
+          "slot": "neck",
+          "anchor": "body",
+          "x": 12,
+          "y": 33,
+          "w": 8,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/striped_scarf/0-neck.png?v=9be3d9b2ad",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/striped_scarf/icon.png?v=163c9700e4",
+      "dyes": {
+        "dye1": "cherry",
+        "dye2": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "striped_sweater",
+      "name": "Striped Sweater",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/striped_sweater/0-torso.png?v=015b238d24",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/striped_sweater/icon.png?v=5c8655eafb",
+      "dyes": {
+        "dye1": "pine"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "tall_top_hat",
+      "name": "Merchant's Top Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 18,
+          "w": 11,
+          "h": 9,
+          "frames": 1,
+          "src": "/avatar-px/items/tall_top_hat/0-head.png?v=7159bb6641"
+        }
+      ],
+      "icon": "/avatar-px/items/tall_top_hat/icon.png?v=8ee96ce1b1",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 180,
+      "release": "released"
+    },
+    {
+      "key": "tee",
+      "name": "Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/tee/0-torso.png?v=341c5bc57a",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tee/icon.png?v=93c99d877a",
+      "dyes": {
+        "dye1": "orange"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "trousers",
+      "name": "Trousers",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/trousers/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/trousers/1-legs.png?v=eefc67b681",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/trousers/icon.png?v=cbd44cd450",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": true,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
+      "key": "vampire_cape",
+      "name": "Vampire Cape",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "anchor": "body",
+          "x": 10,
+          "y": 33,
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "src": "/avatar-px/items/vampire_cape/0-back.png?v=26bc8b44f1",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "neck",
+          "anchor": "body",
+          "x": 10,
+          "y": 29,
+          "w": 11,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/vampire_cape/1-neck.png?v=a475afb8e5",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/vampire_cape/icon.png?v=bfb322deb6",
+      "dyes": {
+        "dye1": "coal",
+        "dye2": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "zip_jacket",
+      "name": "Zip Jacket",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 12,
+          "y": 33,
+          "w": 8,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/zip_jacket/0-outer.png?v=7daaf098a1",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/zip_jacket/icon.png?v=7c5d58b8eb",
+      "dyes": {
+        "dye1": "ocean",
+        "dye2": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    }
+  ]
+}

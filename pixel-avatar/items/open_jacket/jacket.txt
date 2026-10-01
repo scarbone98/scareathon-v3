@@ -1,0 +1,13 @@
+# Matt's open jacket over a tee (dye2)
+at: 12,34
+legend:
+  a = dye1.1
+  b = dye2.1
+  c = dye1.2
+  d = dye2.2
+--- 0
+.aabbaa
+ccaddac
+ccaddac
+a.cddcc
+a.cddcc

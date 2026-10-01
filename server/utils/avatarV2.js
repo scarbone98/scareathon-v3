@@ -1,16 +1,18 @@
-// Avatar v2 helpers shared by the user and marketplace routes. The rules
-// (builds, categories, allowed colours) are generated from avatar-art/ by
-// `npm run art:avatar` into avatarRules.json.
+// Avatar helpers shared by the user and marketplace routes. The rules
+// (art version, categories, allowed colours) are generated from pixel-avatar/
+// by `npm run art:avatar` into avatarRules.json.
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const rulesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), 'avatarRules.json');
 export const avatarRules = JSON.parse(fs.readFileSync(rulesFile, 'utf8'));
+// Only items from the current art (avatar_items.art_version) are worn, sold or shown.
+export const AVATAR_ART_VERSION = Number(avatarRules.artVersion);
 
 const MAX_OUTFIT_ITEMS = 40;
 
-// Columns every v2 item query selects, so rows serialize the same everywhere.
+// Columns every item query selects, so rows serialize the same everywhere.
 export const avatarItemColumns = `
     ai.id,
     ai.item_key,
@@ -51,8 +53,8 @@ export function serializeAvatarItemV2(row) {
 
 export function serializeProfile(row) {
     return {
-        build: row?.build || avatarRules.builds[0],
-        buildChosen: Boolean(row?.build_chosen),
+        // Set once the player has saved a look (they start by picking a preset).
+        lookChosen: Boolean(row?.build_chosen),
         skin: row?.skin || avatarRules.skinTones[0],
         hair: row?.hair || avatarRules.hairColors[0],
         eyes: row?.eyes || avatarRules.eyeColors[0],
@@ -69,7 +71,6 @@ export function parseOutfitRequest(body, rules = avatarRules) {
     if (!profile || typeof profile !== 'object' || !Array.isArray(outfit)) {
         return { error: 'profile and outfit are required' };
     }
-    if (!rules.builds.includes(profile.build)) return { error: 'Unknown body build' };
     if (!rules.skinTones.includes(profile.skin)) return { error: 'Unknown skin tone' };
     if (!rules.hairColors.includes(profile.hair)) return { error: 'Unknown hair colour' };
     if (!rules.eyeColors.includes(profile.eyes)) return { error: 'Unknown eye colour' };
@@ -94,7 +95,7 @@ export function parseOutfitRequest(body, rules = avatarRules) {
     }
 
     return {
-        profile: { build: profile.build, skin: profile.skin, hair: profile.hair, eyes: profile.eyes },
+        profile: { skin: profile.skin, hair: profile.hair, eyes: profile.eyes },
         entries,
     };
 }

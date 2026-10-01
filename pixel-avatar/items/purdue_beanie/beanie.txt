@@ -1,0 +1,16 @@
+# Knit beanie with a gold stripe and pom
+at: 11,21
+legend:
+  a = dye1.0
+  b = dye1.2
+  h = dye1.3
+  g = old_gold.2
+  y = old_gold.3
+--- 0
+....yg
+...aaaa
+..ahbbba
+.ahbbbbba
+.ahbbbbbba
+.gggggggga
+.aaaaaaaaa

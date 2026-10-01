@@ -1,0 +1,20 @@
+# Hangs from the hand at (13, 38)
+at: 9,37
+legend:
+  a = ink.2
+  o = pumpkin.0
+  b = pumpkin.2
+  c = pumpkin.3
+  k = pumpkin.0
+  r = rose.2
+  g = lime.2
+  y = mustard.3
+--- 0
+....aa
+...a..a
+..rgyrg
+.obcbbbo
+.obkbkbo
+.obbbbbo
+.obkkkbo
+..ooooo

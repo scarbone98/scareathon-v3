@@ -1,0 +1,9 @@
+{
+  "name": "Pointy Witch Hat",
+  "category": "head",
+  "rarity": "rare",
+  "price": 200,
+  "release": "released",
+  "dyes": { "dye1": "plum" },
+  "parts": [{ "slot": "head", "file": "hat.txt", "anchor": "head" }]
+}

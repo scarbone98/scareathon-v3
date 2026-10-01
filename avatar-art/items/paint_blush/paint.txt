@@ -1,7 +1,0 @@
-# Blush under both eyes.
-at: 44,61
-outline: none
-legend:
-  r = rose.3
----
-rr..........rrr

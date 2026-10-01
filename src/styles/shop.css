@@ -57,4 +57,5 @@
   .shop { padding-bottom: 56px; } /* clear the floating mobile menu button */
   .shop-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 }
-.shop-item-icon { width: 96px; height: 96px; image-rendering: pixelated; }
+.shop-item-icon { width: 96px; height: 96px; image-rendering: pixelated; object-fit: contain; }
+.shop-item-fit { font-size: 10px; color: #b4a5c3; }
