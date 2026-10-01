@@ -93,13 +93,9 @@ async function main() {
                 'http://localhost:5173',
                 'http://127.0.0.1:5173',
                 'https://www.scareathon.rip',
-<<<<<<< Updated upstream
                 'https://scareathon.rip',
                 'https://www.waysidestation.com',
                 'https://waysidestation.com',
-=======
-                'https://www.waysidestation.com',
->>>>>>> Stashed changes
                 'https://scareathon-v3.vercel.app',
                 'https://scarbone98.github.io',
                 'https://sclondon.github.io'
