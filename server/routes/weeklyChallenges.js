@@ -2,6 +2,7 @@ import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
 import { createConversationWithMessage } from './inbox.js';
 import { awardWeeklyChallengePoint } from '../utils/scareathon.js';
+import { generateDailyChallenge } from '../utils/dailyChallengeGenerator.js';
 import {
     generateWeeklyChallenge,
     generatedChallengeDocumentId,
@@ -238,9 +239,10 @@ export function normalizeChallengeLoopItem(challenge) {
     if (!challenge) return null;
     const isActive = isWeeklyChallengeActive(challenge);
 
+    const type = challenge.daily ? 'daily_challenge' : 'weekly_challenge';
     return {
-        type: 'weekly_challenge',
-        id: `weekly_challenge:${challenge.documentId}`,
+        type,
+        id: `${type}:${challenge.documentId}`,
         documentId: challenge.documentId,
         title: challenge.title,
         summary: challenge.summary,
@@ -325,6 +327,9 @@ export async function getRecentWeeklyChallengesPayload({ date = new Date(), limi
 }
 
 export async function getWeeklyChallengeByDocumentId(documentId, { db = pool } = {}) {
+    // (the daily challenge is claimed through here too)
+    const dailyChallenge = generateDailyChallenge({ documentId });
+    if (dailyChallenge) return dailyChallenge;
     const generatedChallenge = await getGeneratedWeeklyChallenge({ documentId, db });
     if (generatedChallenge) {
         return generatedChallenge;
@@ -358,6 +363,7 @@ export async function getContentLoopPayload({ getPostsPayload, getRecentPostsPay
         const challenges = challengeResult.status === 'fulfilled' ? challengeResult.value?.data || [] : [];
         const items = [
             ...challenges.map(normalizeChallengeLoopItem),
+            normalizeChallengeLoopItem(generateDailyChallenge({ date })),
             ...posts.slice(0, 5).map(normalizePostLoopItem),
         ].filter(Boolean);
         const payload = { data: items };
@@ -542,8 +548,8 @@ export async function grantWeeklyChallengeReward(client, userId, challenge, evid
     ]);
 
     await sendWeeklyChallengeRewardMail(client, userId, challenge);
-    // In October it's a weekly point on the Scareboard too
-    await awardWeeklyChallengePoint(client, userId, challenge);
+    // In October a weekly challenge is a weekly point on the Scareboard too (a daily one isn't)
+    if (!challenge.daily) await awardWeeklyChallengePoint(client, userId, challenge);
 
     return {
         claimed: true,
@@ -556,10 +562,11 @@ export async function grantWeeklyChallengeReward(client, userId, challenge, evid
 export function weeklyChallengeRewardMail(challenge) {
     const coins = Number(challenge.rewardCoins).toLocaleString('en-US');
     const title = challenge.title ? `"${challenge.title}"` : "this week's challenge";
-    const subject = `Weekly challenge complete: ${challenge.title || 'Nice run'}`.slice(0, 120);
+    const which = challenge.daily ? 'Daily' : 'Weekly';
+    const subject = `${which} challenge complete: ${challenge.title || 'Nice run'}`.slice(0, 120);
     return {
         subject,
-        body: `You beat ${title}! ${coins} coins have been added to your wallet. See you on next week's challenge.`,
+        body: `You beat ${title}! ${coins} tickets have been added to your wallet. See you on ${challenge.daily ? "tomorrow's" : "next week's"} challenge.`,
     };
 }
 
@@ -589,22 +596,20 @@ async function sendWeeklyChallengeRewardMail(client, userId, challenge) {
 
 export async function awardEligibleWeeklyChallengeRewards(client, userId, submission) {
     const payload = await getCurrentWeeklyChallengePayload();
-    const challenge = payload.data;
-
-    if (!challenge || !challenge.rewardCoins || !isWeeklyChallengeActive(challenge)) {
-        return [];
+    // This week's challenge, and today's
+    const challenges = [payload.data, generateDailyChallenge()]
+        .filter((challenge) => challenge && challenge.rewardCoins && isWeeklyChallengeActive(challenge));
+    const granted = [];
+    for (const challenge of challenges) {
+        const completion = await getVerifiedWeeklyChallengeCompletion(client, userId, challenge, submission);
+        if (!completion.completed) continue;
+        granted.push({
+            challengeDocumentId: challenge.documentId,
+            title: challenge.title,
+            ...await grantWeeklyChallengeReward(client, userId, challenge, completion.evidence),
+        });
     }
-
-    const completion = await getVerifiedWeeklyChallengeCompletion(client, userId, challenge, submission);
-    if (!completion.completed) {
-        return [];
-    }
-
-    return [{
-        challengeDocumentId: challenge.documentId,
-        title: challenge.title,
-        ...await grantWeeklyChallengeReward(client, userId, challenge, completion.evidence),
-    }];
+    return granted;
 }
 
 export default async function routes(fastify, options = {}) {

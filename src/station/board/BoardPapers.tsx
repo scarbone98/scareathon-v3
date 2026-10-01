@@ -284,7 +284,7 @@ function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem
         {game ? <Photo picture={game.picture} moving={full} className={full ? "aspect-video w-full" : "h-full w-full"} /> : <div className="h-full w-full bg-[#1a1a1a]" />}
         {/* the stamp */}
         <p className="absolute right-2 top-2 rotate-[8deg] border-[3px] border-[#b3261e] bg-[#efe3c8]/85 px-1.5 text-[12px] uppercase leading-tight tracking-[0.15em] text-[#b3261e]" style={pixel}>
-          Weekly
+          {item.type === "daily_challenge" ? "Daily" : "Weekly"}
           <br />
           challenge
         </p>
@@ -297,13 +297,19 @@ function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem
           </p>
           {bigNumber && (
             <p className="shrink-0 text-[13px] uppercase" style={pixel}>
-              score <span className="text-[26px] leading-none" style={{ color: colour }}>{bigNumber}</span>
+              {item.verificationType === "arcade_runs" ? "runs" : "score"} <span className="text-[26px] leading-none" style={{ color: colour }}>{bigNumber}</span>
             </p>
           )}
         </div>
         <p className="mt-1 text-[13px] opacity-70">
-          {item.startsAt && item.endsAt ? `${formatShortDate(item.startsAt)} – ${formatShortDate(item.endsAt)} · ` : ""}
-          {item.points || 1} point{item.rewardCoins ? ` · ${item.rewardCoins.toLocaleString()} tickets` : ""}
+          {[
+            item.type === "daily_challenge" ? "Today" : item.startsAt && item.endsAt ? `${formatShortDate(item.startsAt)} – ${formatShortDate(item.endsAt)}` : null,
+            // (a daily challenge isn't a Scareboard point)
+            item.points ? `${item.points} point${item.points === 1 ? "" : "s"}` : null,
+            item.rewardCoins ? `${item.rewardCoins.toLocaleString()} tickets` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
           {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Done</strong> : null}
         </p>
         {full && (
@@ -440,8 +446,10 @@ const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
 export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
-  const notices = items.filter((item) => item.type === "announcement").slice(0, 2);
+  const daily = items.find((item) => item.type === "daily_challenge");
+  const notices = items.filter((item) => item.type === "announcement").slice(0, daily ? 1 : 2);
   const challengeGame = useGame(challenge?.gameName);
+  const dailyGame = useGame(daily?.gameName);
   const spotlight = useSpotlightGame();
   const { isLive } = eventState();
   const { data: movie } = useTodayMovie(isLive && signedIn);
@@ -460,7 +468,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       tint: "#d9cba6",
       noZoom: true,
     },
-    // Top left: the arcade's post
+    // Top left: the week's challenge (the arcade's own post when there isn't one)
     {
       id: "arcade",
       kind: challenge ? "CHALLENGE" : "ARCADE",
@@ -480,7 +488,18 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       sheet: { backgroundImage: "none" },
     },
   ];
-  // Below: two for anything (the latest notices; the Post when there are fewer)
+  // Bottom left: today's challenge
+  if (daily) {
+    papers.push({
+      id: "daily",
+      kind: "CHALLENGE",
+      title: daily.title,
+      pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />,
+      full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full />,
+      tint: "#d8ccab",
+    });
+  }
+  // Then the latest notice (the Post when there's none)
   notices.forEach((item, i) => {
     const picture = { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] };
     papers.push({

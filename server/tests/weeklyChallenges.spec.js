@@ -190,7 +190,7 @@ describe('weekly challenge reward mail', () => {
     test('writes a friendly subject and body', () => {
         const mail = weeklyChallengeRewardMail(challenge);
         expect(mail.subject).toBe('Weekly challenge complete: Survive 60 seconds');
-        expect(mail.body).toContain('1,500 coins have been added to your wallet');
+        expect(mail.body).toContain('1,500 tickets have been added to your wallet');
     });
 
     test('granting a reward sends an inbox message with the coins already added', async () => {

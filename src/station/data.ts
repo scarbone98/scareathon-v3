@@ -8,7 +8,7 @@ import { supabase } from "../supabaseClient";
 // classic pages, so both share one cache and nothing is fetched twice.
 
 export type ContentLoopItem = {
-  type: "announcement" | "weekly_challenge";
+  type: "announcement" | "weekly_challenge" | "daily_challenge";
   id: string;
   documentId: string;
   title: string;
@@ -146,7 +146,7 @@ export function useRewardStatus(item: ContentLoopItem | undefined, signedIn: boo
       fetchWithAuth(`/weekly-challenges/${encodeURIComponent(item?.documentId || "")}/reward-status`).then((r) =>
         r.status === 401 ? null : readJson(r, "Reward status")
       ),
-    enabled: Boolean(signedIn && item?.type === "weekly_challenge" && item.rewardCoins),
+    enabled: Boolean(signedIn && (item?.type === "weekly_challenge" || item?.type === "daily_challenge") && item.rewardCoins),
     retry: false,
     staleTime: 1000 * 60,
   });
@@ -247,7 +247,7 @@ export function formatShortDate(value?: string | null) {
 }
 
 export function challengeTarget(item: ContentLoopItem) {
-  if (item.type !== "weekly_challenge" || !item.gameName) return null;
+  if ((item.type !== "weekly_challenge" && item.type !== "daily_challenge") || !item.gameName) return null;
   const game = item.gameName.replace(/[‘’]/g, "'");
   if (item.verificationType === "arcade_runs" && item.targetMetricValue) {
     return `Finish ${item.targetMetricValue} runs of ${game} while signed in.`;
