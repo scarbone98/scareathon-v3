@@ -47,7 +47,7 @@ export default function ClerkSays({ arrived }: { arrived: boolean }) {
 
   if (!line) return null;
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[24%] z-20 flex justify-center px-5 md:bottom-[14%]" aria-live="polite">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[21%] z-20 flex justify-center px-5 md:bottom-[12%]" aria-live="polite">
       <p className="max-w-[36rem] text-center text-[26px] leading-snug text-[#f4f1e8] [word-spacing:0.35em] md:text-[34px]" style={{ ...pixel, textShadow: "0 0 6px #000, 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000" }} aria-label={line}>
         {/* (word by word, so a word never breaks across lines; letter by letter within) */}
         {line

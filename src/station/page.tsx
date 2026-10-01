@@ -320,9 +320,7 @@ export default function StationPage() {
     else if (part === "letters" || part === "register") setHeld({ kind: part });
   };
 
-  const surfaces: Record<string, ReactNode> = {
-    departures: <DepartureBoard signedIn={signedIn} goTo={goTo} />,
-  };
+  const surfaces: Record<string, ReactNode> = {};
   papers.forEach(
     (paper, i) =>
       (surfaces[`paper-${i}`] = (

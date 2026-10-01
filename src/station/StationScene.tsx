@@ -456,7 +456,6 @@ type SurfaceSpec = {
   tilt?: number;
   lamplit?: boolean; // dimmed to the lamps; the departure board glows on its own
   hiddenAt?: StopId[]; // left to its painted stand-in from here (something stands in front of it)
-  onlyAtStop?: boolean; // left to its painted stand-in except at its own stop
 };
 const SURFACES: SurfaceSpec[] = [
   ...PAPER_SPOTS.map(([x, y, tilt, w, h], i): SurfaceSpec => ({
@@ -470,9 +469,8 @@ const SURFACES: SurfaceSpec[] = [
     // (from the arcade, the cartridges riding into the row pass in front of the board)
     hiddenAt: ["arcade"],
   })),
-  // (seen from across the room, side-on, phones' browsers can place its HTML off the board,
-  // so from anywhere but in front of it the painted face, drawn from the same standings, stands in)
-  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], onlyAtStop: true },
+  // (The scoreboard has no HTML face: its painted one, drawn from the standings, is it, and
+  // walking up to it opens it full screen. An HTML face swapped in on arrival changed size.)
   // More pixels than the face needs (it is scaled up to fit), so read up close the whole
   // flyer has room
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [400, 520], lean, lamplit: true })),
@@ -889,7 +887,7 @@ function buildCartRack(games: MachineData[]) {
 
 function buildDepartures() {
   const group = new Group();
-  // On the wall over the arcade, under its sign; its face is HTML laid over this (SURFACES)
+  // On the wall over the arcade, under its sign; its face is painted from the standings
   group.position.set(-3.1, 2.4, WALL_Z + 0.08);
   group.scale.setScalar(0.6);
   group.add(box(2.65, 1.6, 0.1, standard("#15181f")));
@@ -3107,7 +3105,6 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const wanted =
           inView &&
           !(latest.current.at && spec.hiddenAt?.includes(latest.current.at)) &&
-          !(spec.onlyAtStop && latest.current.at !== spec.stop) &&
           // (Still aboard the train: its walls would be behind them otherwise)
           !onTrain;
         const was = surfaceFade.get(spec.id) ?? 0;
