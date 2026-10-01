@@ -5,7 +5,24 @@ import { deleteCachePrefix } from './cacheManager.js';
 // (the migration only uses IF NOT EXISTS, so running it every boot is harmless)
 export async function ensureScareathonTables(db) {
     const sql = await readFile(new URL('../db/migrations/20260930_add_scareathon_scoring.sql', import.meta.url), 'utf8');
-    await db.query(sql);
+    await runStartupSql(db, sql);
+}
+
+// A start-up migration, on a connection of its own, in a transaction that gives up after
+// a few seconds waiting on a lock (and rolls back, leaving the connection clean)
+export async function runStartupSql(db, sql) {
+    const client = typeof db.connect === 'function' ? await db.connect() : db;
+    try {
+        await client.query('BEGIN');
+        await client.query("SET LOCAL lock_timeout = '5s'");
+        await client.query(sql);
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw error;
+    } finally {
+        if (client !== db) client.release();
+    }
 }
 
 // The Scareathon runs through October, US Eastern time (as the calendar does).

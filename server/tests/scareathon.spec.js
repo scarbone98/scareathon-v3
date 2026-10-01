@@ -177,7 +177,7 @@ test('the server creates the Scareboard tables from the migration at start', asy
     const { ensureScareathonTables } = await import('../utils/scareathon.js');
     const db = { query: jest.fn(async () => rows()) };
     await ensureScareathonTables(db);
-    const sql = db.query.mock.calls[0][0];
+    const sql = db.query.mock.calls.map(([q]) => q).find((q) => q.includes('CREATE TABLE'));
     expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS public\.scareathon_watches/);
     expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS public\.scareathon_points/);
     expect(sql).not.toMatch(/CREATE TABLE (?!IF NOT EXISTS)/);

@@ -82,13 +82,18 @@ async function main() {
         const authConfig = getAuthConfig();
         const jwks = createRemoteJWKSet(new URL(authConfig.jwksUrl));
 
-        try {
-            await ensureScareathonTables(pool);
-            await ensureDailyRuneIndex(pool);
-        } catch (err) {
-            // The rest of the site still works; only the Scareboard needs these
-            fastify.log.error({ err }, 'Could not create the Scareathon tables');
-        }
+        // The Scareboard's tables and the rune tablet's index, made if missing. In the
+        // background: a slow one (waiting on a lock while the old server's still up) must
+        // never keep this one from starting
+        void (async () => {
+            try {
+                await ensureScareathonTables(pool);
+                await ensureDailyRuneIndex(pool);
+            } catch (err) {
+                // The rest of the site still works; only the Scareboard and the runes need these
+                fastify.log.error({ err }, 'Could not create the Scareathon tables');
+            }
+        })();
 
         await fastify.register(cors, {
             origin: [

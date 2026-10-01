@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import pool from '../db/mockDB.js';
+import { runStartupSql } from '../utils/scareathon.js';
 
 // The rune tablet over the arch on the track side: each day (US Eastern) it's carved with a
 // new code, in runes; typed into WaysideOS on the arcade's terminal it pays out tickets,
@@ -30,7 +31,7 @@ const cleanCode = (raw) => (typeof raw === 'string' ? raw.toUpperCase().replace(
 // The unique index that makes a day's payout happen once (created at server start)
 export async function ensureDailyRuneIndex(db) {
     const sql = await readFile(new URL('../db/migrations/20261002_daily_rune_once.sql', import.meta.url), 'utf8');
-    await db.query(sql);
+    await runStartupSql(db, sql);
 }
 
 export async function redeemRune(db, userId, rawCode, date = new Date()) {
