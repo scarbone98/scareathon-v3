@@ -86,7 +86,8 @@ type Props = {
   onBack?: () => void;
 };
 
-export type CabinetFrame = { top: number; bottom: number; centerX: number; width: number; height: number };
+// Where the cabinet sits on screen, and the camera's (vertical) field of view, in degrees
+export type CabinetFrame = { top: number; bottom: number; centerX: number; width: number; height: number; fov?: number };
 
 type World = {
   setTerminalOptions: (options: TerminalOptions) => void;
@@ -1299,6 +1300,7 @@ export default function CartridgeArcade({
           centerX: ((topP.x + 1) / 2) * width,
           width,
           height,
+          fov: camera.fov,
         });
       }
     };

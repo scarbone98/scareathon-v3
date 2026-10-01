@@ -72,7 +72,7 @@ type Props = {
   paused?: boolean; // the scene is covered (a game, the arcade): draw one last frame, then rest
   // Where the arcade will draw its cabinet on screen, so the walk up to the cabinet ends
   // with this one exactly there; and whether to hide this one (the arcade's is on top)
-  arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number } | null;
+  arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number; fov?: number } | null;
   hideArcade?: boolean;
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
@@ -681,7 +681,9 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             tape: game.cartridge.backTape,
             untitled: game.special === "mystery",
           });
-          cart.group.userData.rest = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
+          cart.group.userData.restBase = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
+          cart.group.userData.rest = cart.group.userData.restBase.clone();
+          cart.group.userData.front = cabinetBox.max.z;
           if (i === start) cart.group.userData.pick = focusedPose(dressing.cartSize, 1);
           cart.group.userData.gameIndex = i;
           cart.setHighlight(i === start ? 1 : 0);
@@ -2160,6 +2162,21 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const cabinetScale = cabinetNode?.scale.x ?? 1;
         const cartWidth = arcadeObject.userData.cartWidth as number;
         row.visible = rowClock > 0;
+        // The cabinet fills the same part of the screen here as in the arcade, but through a
+        // different lens (a wider one on phones), so the row floating in front of it would
+        // look bigger here. Set it back toward the cabinet until it matches the arcade's:
+        // a point d in front of the cabinet looks the same here at d * tan(theirs) / tan(ours)
+        const frameFov = latest.current.arcadeFrame?.fov;
+        const depthScale = frameFov ? Math.tan((frameFov * Math.PI) / 360) / Math.tan((camera.fov * Math.PI) / 360) : 1;
+        if (Math.abs((row.userData.depthScale ?? 1) - depthScale) > 1e-4) {
+          row.userData.depthScale = depthScale;
+          row.children.forEach((cart) => {
+            const base = cart.userData.restBase as Vector3;
+            const front = cart.userData.front as number;
+            (cart.userData.rest as Vector3).set(base.x, base.y, front + (base.z - front) * depthScale);
+            delete cart.userData.path;
+          });
+        }
         row.children.forEach((cart, n) => {
           const spot = spots[cart.userData.gameIndex as number];
           // The rightmost leads (it has furthest to go), so none overtakes another
@@ -2186,7 +2203,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           if (pick && k === 1) {
             const f = Math.min(Math.max((rowClock - ROW_DELAY - place * ROW_STAGGER - ROW_FLY) / ROW_PICK, 0), 1);
             cart.position.y += pick.lift * f;
-            cart.position.z += pick.forward * f;
+            cart.position.z += pick.forward * f * depthScale;
             cart.scale.setScalar(1 + (pick.scale - 1) * f);
             cart.rotation.x = pick.tip * f;
           }
