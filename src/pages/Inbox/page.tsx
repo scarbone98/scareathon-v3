@@ -146,7 +146,7 @@ function rewardSummary(reward: InboxReward) {
   const parts = [];
 
   if (reward.coinAmount) {
-    parts.push(`${reward.coinAmount.toLocaleString()} coins`);
+    parts.push(`${reward.coinAmount.toLocaleString()} tickets`);
   }
 
   if (reward.itemId) {

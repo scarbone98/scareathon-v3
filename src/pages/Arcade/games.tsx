@@ -432,7 +432,7 @@ export function createArcadeGames(): MachineData[] {
       name: "Monster Bash",
       cartridge: {
         color: "#8f2d1f",
-        tagline: "Pick a monster. Back it with coins.",
+        tagline: "Pick a monster. Back it with tickets.",
         font: { family: "Bangers" },
         about: { released: "2026", players: "Everyone watching", genre: "Arena betting", developer: "scarbone98" },
       },

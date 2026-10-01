@@ -51,7 +51,7 @@ import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSo
 import GameCard from "./GameCard.tsx";
 import { dressSlot, PANEL_MATERIALS, SHELF_NEON, shelfLayout } from "./slotDressing.ts";
 import type { Reaction } from "./slotTerminal.ts";
-import { createWaysideScreen, runCode, type WaysideState } from "./waysideOS.ts";
+import { createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
 import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
@@ -1568,6 +1568,8 @@ export default function CartridgeArcade({
       enterCode: (entry) => {
         if (screenMode !== "wayside" || !wayside.plugged) return;
         const result = runCode(entry);
+        // Typing MOTIONCONTROL is a key press, which iOS accepts for asking about motion
+        if (result.motion) askForMotion();
         wayside.entry = "";
         wayside.reply = { ...result, at: performance.now() / 1000 };
         showTerminal({ kind: "code", reply: result, at: nowSeconds() });
@@ -2088,7 +2090,8 @@ export default function CartridgeArcade({
       if (any) dustGeometry.attributes.position.needsUpdate = true;
     };
 
-    // Shaking the phone shakes the machine: it rocks, the picture jumps and dust comes down.
+    // Once MOTIONCONTROL has been typed into WaysideOS, shaking the phone shakes the
+    // machine: it rocks, the picture jumps and dust comes down.
     // It takes SHAKES_TO_CRASH shakes in a row to crash it; a pause of SHAKE_FORGET seconds
     // and it forgets (so ten shakes over an evening of walking about don't add up)
     const SHAKES_TO_CRASH = 10;
@@ -2110,6 +2113,7 @@ export default function CartridgeArcade({
     let lastMotion: { x: number; y: number; z: number } | null = null;
     const SHAKE_AT = 11; // m/s² of the phone's own movement (a firm shake; walking doesn't)
     const onMotion = (event: DeviceMotionEvent) => {
+      if (!motionControlOn()) return;
       // The phone's movement with gravity taken out, where it reports that...
       const a = event.acceleration;
       if (a && a.x !== null && a.y !== null && a.z !== null) {
@@ -2132,7 +2136,7 @@ export default function CartridgeArcade({
     // taps until there's an answer either way
     let motionAnswered = false;
     const askForMotion = () => {
-      if (motionAnswered) return;
+      if (motionAnswered || !motionControlOn()) return;
       const Motion = window.DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> } | undefined;
       if (typeof Motion?.requestPermission !== "function") {
         motionAnswered = true; // nothing to ask (Android, desktop): it just works

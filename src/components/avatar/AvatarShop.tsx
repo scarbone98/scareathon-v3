@@ -8,10 +8,10 @@ import {
 import {
   FaChevronLeft,
   FaChevronRight,
-  FaCoins,
   FaSearch,
 } from "react-icons/fa";
 import { fetchWithAuth } from "../../fetchWithAuth";
+import TicketIcon from "../TicketIcon";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { itemFitsBody } from "./compose";
@@ -267,7 +267,7 @@ export function AvatarShop({ onPreviewLookChange }: AvatarShopProps) {
                 {!fits && wornBody && <p className="shop-item-fit">Doesn&apos;t show on your {wornBody.name}</p>}
 
                 <div className="shop-item-price">
-                  <FaCoins aria-hidden="true" />
+                  <TicketIcon className="h-4 w-6" perforation="#0d131b" />
                   {price.toLocaleString()}
                   {cannotAfford && !item.isSoldOut && (
                     <span className="shop-item-short">Need {(price - coinBalance).toLocaleString()} more</span>

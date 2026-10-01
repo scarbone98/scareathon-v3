@@ -100,7 +100,7 @@ export async function getAccountStandings(db, season) {
                 WHERE season = $1
                 GROUP BY user_id
             )
-            SELECT u.username,
+            SELECT u.id AS user_id, u.username,
                 sum(t.movies)::int AS movies,
                 sum(t.weekly)::int AS weekly,
                 sum(t.bonus)::int AS bonus
@@ -114,7 +114,8 @@ export async function getAccountStandings(db, season) {
                 const movies = Number(row.movies) || 0;
                 const weekly = Number(row.weekly) || 0;
                 const bonus = Number(row.bonus) || 0;
-                return { name: row.username || 'Someone', movies, weekly, bonus, total: movies + weekly + bonus };
+                // (the id, so the board can show each player's avatar)
+                return { name: row.username || 'Someone', userId: row.user_id, movies, weekly, bonus, total: movies + weekly + bonus };
             })
             .filter(user => user.movies || user.weekly || user.bonus));
     }, ACCOUNT_SEASON_TTL);

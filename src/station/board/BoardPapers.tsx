@@ -1,5 +1,6 @@
 // The papers' content components live beside the hook that picks them; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
+import Ticket from "../../components/TicketIcon";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
@@ -112,10 +113,9 @@ const act = (fn: () => void) => (event: React.MouseEvent) => {
 // A small ticket, and an envelope: the welcome's buttons, drawn rather than written
 function TicketIcon() {
   return (
-    <svg viewBox="0 0 24 16" className="h-5 w-7" aria-hidden>
-      <path d="M1 3h22v3.2a1.8 1.8 0 0 0 0 3.6V13H1V9.8a1.8 1.8 0 0 0 0-3.6z" fill="#efe3c8" stroke="#efe3c8" strokeWidth="1" />
-      <path d="M8 3.5v9" stroke="#1d2a3a" strokeWidth="1.2" strokeDasharray="1.4 1.2" />
-    </svg>
+    <span className="text-[#efe3c8]">
+      <Ticket />
+    </span>
   );
 }
 function PersonIcon() {

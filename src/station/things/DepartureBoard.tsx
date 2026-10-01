@@ -3,6 +3,22 @@ import { needsSignIn, useScareboard } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
 import { useScareathonMe } from "../../scareathonSeason";
+import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
+
+// A player's avatar (their saved portrait), in a little flap of its own
+function Face({ userId }: { userId?: string }) {
+  if (!userId) return null;
+  return (
+    <img
+      src={getAvatarCompositePublicUrl(userId)}
+      alt=""
+      loading="lazy"
+      draggable={false}
+      className={`${flap} h-[26px] w-[26px] shrink-0 object-cover px-0 [image-rendering:pixelated]`}
+      onError={(event) => (event.currentTarget.style.visibility = "hidden")}
+    />
+  );
+}
 
 // The scoreboard on the wall over the ticket counter: the Scareboard, with years and past
 // winners, in amber split-flap rows. (The October calendar is a flyer: PosterCalendar.)
@@ -53,6 +69,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
       {rows.map((row) => (
         <Line key={row.name} bright={row.rank <= 3}>
           <span className={`${flap} w-9 text-center`}>{row.rank}</span>
+          <Face userId={row.userId} />
           <span className={`${flap} min-w-0 flex-1 truncate`}>
             {row.name.toUpperCase()}
             {winsFor(row.name).map((y) => (

@@ -41,6 +41,7 @@ export type Post = {
 export type LeaderboardUser = {
   name: string;
   rank: number;
+  userId?: string; // account seasons only: whose avatar to show
   total?: string | number;
   [key: string]: string | number | undefined;
 };

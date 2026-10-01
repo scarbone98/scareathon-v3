@@ -6,7 +6,7 @@ const INK = "#0b1418";
 const AMBER = "#f2b84b";
 const PALE = "#e9dcc0";
 const DIM = "rgba(233, 220, 192, 0.45)";
-export const MAX_CODE = 12;
+export const MAX_CODE = 13;
 
 // What each code does: for now, what the screen says back. Codes are typed in any case
 // and without spaces; anything not here is refused.
@@ -19,7 +19,30 @@ export function cleanCode(raw: string) {
   return raw.toUpperCase().replace(/\s+/g, "").slice(0, MAX_CODE);
 }
 
-export function runCode(raw: string): { ok: boolean; lines: string[] } {
+// MOTIONCONTROL: shaking the phone rattles the cabinet (off until someone types it; typing
+// it again turns it off). Remembered on this device.
+const MOTION_KEY = "wayside.motionControl";
+let motionControl = (() => {
+  try {
+    return localStorage.getItem(MOTION_KEY) === "on";
+  } catch {
+    return false;
+  }
+})();
+export const motionControlOn = () => motionControl;
+
+export function runCode(raw: string): { ok: boolean; lines: string[]; motion?: boolean } {
+  if (cleanCode(raw) === "MOTIONCONTROL") {
+    motionControl = !motionControl;
+    try {
+      localStorage.setItem(MOTION_KEY, motionControl ? "on" : "off");
+    } catch {
+      // (private windows: it lasts the visit)
+    }
+    return motionControl
+      ? { ok: true, lines: ["MOTION CONTROL ON", "GO ON, GIVE IT A SHAKE"], motion: true }
+      : { ok: true, lines: ["MOTION CONTROL OFF", "IT CAN REST NOW"], motion: false };
+  }
   const lines = CODES[cleanCode(raw)];
   return lines ? { ok: true, lines } : { ok: false, lines: ["INVALID CODE"] };
 }
@@ -85,8 +108,8 @@ export function createWaysideScreen() {
       ctx.fillText("ENTER CODE", width / 2, height * 0.3);
       // The entry: a box per character
       const slots = MAX_CODE;
-      const slotW = 30;
       const gap = 5;
+      const slotW = Math.min(30, (width * 0.92 - (slots - 1) * gap) / slots);
       const rowW = slots * slotW + (slots - 1) * gap;
       const x0 = (width - rowW) / 2;
       const y = height * 0.5;

@@ -560,6 +560,10 @@ function buildEvents() {
 
 // Painted as the arcade paints its cabinet (the same finish, trim, bezels and buttons), with
 // the preview game on its screen and marquee, so the arcade's own can take over unnoticed
+// The arcade sign's bulbs: lit, and the dim ones of the chase
+const BULB_ON = new MeshBasicMaterial({ color: "#ffe2a0", fog: false });
+const BULB_OFF = new MeshBasicMaterial({ color: "#6a4a26", fog: false });
+
 function buildArcade(preview: { name: string; video: string; color: string } | null, games: MachineData[]) {
   const group = new Group();
   group.position.copy(ARCADE_POS); // against the wall, left of the board
@@ -745,8 +749,30 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
     }
   );
   // Its sign on the wall above
-  // Its sign on the wall high above, over the scoreboard
-  group.add(plane(0.84, 0.21, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, SIGN_Y, WALL_Z + 0.03 - group.position.z));
+  // Its sign on the wall high above, over the scoreboard, on a board ringed with bulbs
+  // like an old picture house's, chasing round (see the animation loop)
+  const signZ = WALL_Z + 0.03 - group.position.z;
+  group.add(box(1.08, 0.4, 0.02, standard("#3a1a10", 0.7), -0.1, SIGN_Y, signZ - 0.02));
+  group.add(plane(0.84, 0.21, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, SIGN_Y, signZ));
+  const bulbGeometry = new SphereGeometry(0.014, 8, 6);
+  const bulbs: Mesh[] = [];
+  const [ringW, ringH, spacing] = [0.98, 0.32, 0.07];
+  const perimeter = 2 * (ringW + ringH);
+  for (let d = 0; d < perimeter - spacing / 2; d += spacing) {
+    // Round the rectangle, from its top left corner
+    const [x, y] =
+      d < ringW ? [d - ringW / 2, ringH / 2]
+      : d < ringW + ringH ? [ringW / 2, ringH / 2 - (d - ringW)]
+      : d < 2 * ringW + ringH ? [ringW / 2 - (d - ringW - ringH), -ringH / 2]
+      : [-ringW / 2, -ringH / 2 + (d - 2 * ringW - ringH)];
+    const bulb = new Mesh(bulbGeometry, BULB_ON);
+    bulb.position.set(-0.1 + x, SIGN_Y + y, signZ + 0.01);
+    group.add(bulb);
+    bulbs.push(bulb);
+  }
+  group.userData.bulbs = bulbs;
+  // Their light on the wall round the board
+  group.add(plane(1.6, 0.9, new MeshBasicMaterial({ map: glowTexture(), color: "#ffb15a", transparent: true, opacity: 0.18, blending: AdditiveBlending, depthWrite: false }), -0.1, SIGN_Y, signZ - 0.005));
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.2, 2.2, 1.1, 1.1));
   group.userData.stopId = "arcade";
@@ -1250,8 +1276,8 @@ function buildTickets() {
 
 // The carriage you arrive in: a lit shell of thin walls (so it reads from inside and out),
 // its doors in the middle of the platform side, with a dark carriage coupled either end.
-// Its own x is 0 at the doors. Painted like the rest of the station: riveted green steel
-// outside; inside, wood below the windows, cream paint above, adverts over the windows,
+// Its own x is 0 at the doors. Outside it wears the light-rail livery (see liveryTexture);
+// inside, painted like the rest of the station: wood below the windows, cream paint above, adverts over the windows,
 // moquette seats, and glass that's been leaned on for years.
 const CAR_LEN = 12;
 const CAR_NEAR = EDGE_Z + 0.3; // its platform-side wall
@@ -1293,28 +1319,6 @@ function grime(ctx: CanvasRenderingContext2D, w: number, h: number, amount: numb
   }
   ctx.fillStyle = "rgba(25,18,10,0.12)";
   for (let i = 0; i < amount / 3; i += 1) ctx.fillRect(Math.random() * w, Math.random() * h * 0.6, 1 + Math.random() * 2, 10 + Math.random() * 40);
-}
-
-function carSteelTexture() {
-  return paint(256, 256, (ctx, w, h) => {
-    ctx.fillStyle = "#1f3a2f";
-    ctx.fillRect(0, 0, w, h);
-    for (let i = 0; i < 2200; i += 1) {
-      ctx.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.05)";
-      ctx.fillRect(Math.random() * w, Math.random() * h, 3, 1);
-    }
-    // Panel seams and their rivets
-    ctx.fillStyle = "#132519";
-    ctx.fillRect(0, 0, 3, h);
-    ctx.fillRect(0, 0, w, 3);
-    ctx.fillStyle = "#3d5a4a";
-    for (let y = 10; y < h; y += 22) ctx.fillRect(7, y, 3, 3);
-    for (let x = 14; x < w; x += 22) ctx.fillRect(x, 7, 3, 3);
-    // Rust where the water runs
-    ctx.fillStyle = "rgba(120,62,30,0.22)";
-    for (let i = 0; i < 14; i += 1) ctx.fillRect(Math.random() * w, Math.random() * h, 2, 12 + Math.random() * 40);
-    grime(ctx, w, h, 22);
-  });
 }
 
 function wainscotTexture() {
@@ -1531,15 +1535,16 @@ function carGlassTexture() {
 
 function buildArrivalCar() {
   const car = new Group();
-  const steelTex = carSteelTexture();
   const cream = creamPaintTexture();
   const wood = wainscotTexture();
   const adverts = advertStripTexture();
-  const outside = (w: number, h: number) => standard("#ffffff", 0.6, tiled(steelTex, w, h, 1.0));
+  // Outside, the light-rail livery, each piece showing its own slice of it
+  const livery = liveryTexture(CAR_H, CAR_SILL, CAR_HEAD);
+  const outside = (w: number, h: number, x = 0, y = h / 2) => liveryFor(livery, CAR_H, w, h, y - h / 2, x - w / 2);
   const plain = standard("#2b3038", 0.6);
-  // A wall piece of the platform side: green steel outside (-z), its own look inside (+z)
+  // A wall piece of the platform side: the livery outside (-z), its own look inside (+z)
   const wallPiece = (w: number, h: number, inside: Material, x: number, y: number) => {
-    return faced(w, h, 0.06, [plain, plain, plain, plain, inside, outside(w, h)], x, y, CAR_NEAR);
+    return faced(w, h, 0.06, [plain, plain, plain, plain, inside, outside(w, h, x, y)], x, y, CAR_NEAR);
   };
   const trim = standard("#8b8f94", 0.4);
   const glass = new MeshBasicMaterial({ map: carGlassTexture(), transparent: true, depthWrite: false });
@@ -1572,7 +1577,7 @@ function buildArrivalCar() {
   car.add(wallPiece(DOOR_W, CAR_H - DOOR_H, standard("#ffffff", 0.85, cream), 0, (DOOR_H + CAR_H) / 2));
   // The rest of the shell
   car.add(faced(CAR_LEN, 0.08, depth, [plain, plain, standard("#ffffff", 0.95, tiled(carFloorTexture(), CAR_LEN, depth, 1.6)), plain, plain, plain], 0, -0.04, midZ));
-  car.add(faced(CAR_LEN, 0.08, depth, [plain, plain, outside(CAR_LEN, depth), standard("#ffffff", 0.9, tiled(ceilingTexture(), CAR_LEN, depth, [2, depth])), plain, plain], 0, CAR_H + 0.04, midZ));
+  car.add(faced(CAR_LEN, 0.08, depth, [plain, plain, standard("#d9dbd6", 0.5), standard("#ffffff", 0.9, tiled(ceilingTexture(), CAR_LEN, depth, [2, depth])), plain, plain], 0, CAR_H + 0.04, midZ));
   car.add(box(CAR_LEN, CAR_H, 0.06, standard("#ffffff", 0.85, tiled(cream, CAR_LEN, CAR_H, 1.2)), 0, CAR_H / 2, CAR_FAR)); // far wall
   [-1, 1].forEach((end) => car.add(box(0.06, CAR_H, depth, standard("#ffffff", 0.85, tiled(cream, depth, CAR_H, 1.2)), (end * CAR_LEN) / 2, CAR_H / 2, midZ)));
   // A strip light down the middle, bench seats along the far wall, poles by the doors
@@ -1593,8 +1598,9 @@ function buildArrivalCar() {
     const w = DOOR_W / 2;
     const lower = standard("#ffffff", 0.7, doorTexture(dir < 0));
     const painted = standard("#ffffff", 0.7, doorTexture(false));
-    leaf.add(box(w, 1.05, 0.04, lower, 0, 0.525, 0));
-    leaf.add(box(w, DOOR_H - 1.8, 0.04, painted, 0, (1.8 + DOOR_H) / 2, 0));
+    const white = standard("#e6e8e3", 0.45);
+    leaf.add(faced(w, 1.05, 0.04, [painted, painted, painted, painted, lower, white], 0, 0.525, 0));
+    leaf.add(faced(w, DOOR_H - 1.8, 0.04, [painted, painted, painted, painted, painted, white], 0, (1.8 + DOOR_H) / 2, 0));
     leaf.add(box(0.09, 0.75, 0.04, painted, -w / 2 + 0.045, 1.425, 0));
     leaf.add(box(0.09, 0.75, 0.04, painted, w / 2 - 0.045, 1.425, 0));
     leaf.add(plane(w - 0.18, 0.75, glass, 0, 1.425, 0.021));
@@ -1605,7 +1611,8 @@ function buildArrivalCar() {
   });
   car.userData.leaves = leaves;
   // Dark carriages coupled either end
-  const body = standard("#55605a", 0.7, tiled(steelTex, CAR_LEN, CAR_H, 1.0));
+  // (2.5 m bottom to roof, from just under the floor; windows 1.05 to 1.9 m up that)
+  const body = liveryFor(liveryTexture(CAR_H + 0.1, 1.05, 1.9), CAR_H + 0.1, CAR_LEN, CAR_H + 0.1, 0);
   const lit = new MeshBasicMaterial({ color: "#ffd9a0" });
   [-1, 1].forEach((end) => {
     const x = end * (CAR_LEN + 0.4);
@@ -1619,10 +1626,51 @@ function buildArrivalCar() {
   return car;
 }
 
-// The empty train that passes now and then: dark carriages with a few lit windows
+// The trains' livery, after Denver's light rail: white sides, a black band through the
+// windows, and a blue and a green stripe under it. One tile is `TILE` metres along a side
+// `height` metres tall, its window band from `bandFrom` to `bandTo` up from the bottom.
+const LIVERY_TILE = 2;
+function liveryTexture(height: number, bandFrom: number, bandTo: number) {
+  return paint(256, 256, (ctx, w, h) => {
+    const y = (metres: number) => h - (metres / height) * h; // canvas y of a height up the side
+    ctx.fillStyle = "#e6e8e3";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 1600; i += 1) {
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.05)" : "rgba(40,40,30,0.05)";
+      ctx.fillRect(Math.random() * w, Math.random() * h, 3, 1);
+    }
+    ctx.fillStyle = "#121417";
+    ctx.fillRect(0, y(bandTo), w, y(bandFrom) - y(bandTo));
+    ctx.fillStyle = "#1f5aa6";
+    ctx.fillRect(0, y(bandFrom - 0.06), w, y(bandFrom - 0.2) - y(bandFrom - 0.06));
+    ctx.fillStyle = "#3f9a52";
+    ctx.fillRect(0, y(bandFrom - 0.24), w, y(bandFrom - 0.29) - y(bandFrom - 0.24));
+    // A panel seam, and road grime thickening towards the bottom
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0, 0, 2, h);
+    const grime = ctx.createLinearGradient(0, y(0.5), 0, h);
+    grime.addColorStop(0, "rgba(70,62,50,0)");
+    grime.addColorStop(1, "rgba(70,62,50,0.45)");
+    ctx.fillStyle = grime;
+    ctx.fillRect(0, y(0.5), w, h - y(0.5));
+  });
+}
+// The livery over one piece of a side: `w` by `h` metres, its bottom `y0` up the side and
+// its left end `x0` along it, so the stripes and band carry on from piece to piece
+function liveryFor(livery: Texture, sideHeight: number, w: number, h: number, y0: number, x0 = 0) {
+  const copy = livery.clone();
+  copy.wrapS = copy.wrapT = RepeatWrapping;
+  copy.repeat.set(w / LIVERY_TILE, h / sideHeight);
+  copy.offset.set(x0 / LIVERY_TILE, y0 / sideHeight);
+  copy.needsUpdate = true;
+  return standard("#ffffff", 0.45, copy);
+}
+
+// The empty train that passes now and then: white carriages with a few lit windows
 function buildTrain() {
   const train = new Group();
-  const body = standard("#1b1e24", 0.7);
+  // Its sides are 2.9 m from bottom to roof; the windows sit 1.5 to 2.25 m up that
+  const body = liveryFor(liveryTexture(2.9, 1.45, 2.35), 2.9, 11.4, 2.9, 0);
   const lit = new MeshBasicMaterial({ color: "#ffd9a0" });
   const dark = new MeshBasicMaterial({ color: "#0c0e12" });
   for (let car = 0; car < 3; car += 1) {
@@ -1686,8 +1734,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lampGuard = standard("#1c1a17", 0.5);
     const lampGlass = new MeshBasicMaterial({ color: "#9a8158" });
     // Each lamp: its glass (its own, to dim), its light, and a generous box to tap it by.
-    // Tapped, it stutters off and on for a moment.
-    const lamps: { light: PointLight; glass: MeshBasicMaterial; base: number; tappedAt: number; seed: number; hit: Mesh }[] = [];
+    // Tapped, it stutters off and on for a moment; now and then it does so by itself. And
+    // some of the time, a few moths come to it.
+    type Lamp = { light: PointLight; glass: MeshBasicMaterial; base: number; tappedAt: number; seed: number; hit: Mesh; nextFlicker: number; moths: Group };
+    const lamps: Lamp[] = [];
+    const mothWing = new MeshBasicMaterial({ color: "#d9cfb4", side: DoubleSide, transparent: true, opacity: 0.85 });
     const ceilingLamp = (x: number, z: number, light: PointLight) => {
       const glass = lampGlass.clone();
       scene.add(box(0.3, 0.1, 0.3, glass, x, 3.95, z));
@@ -1696,7 +1747,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       hit.position.x = x;
       hit.position.z = z;
       scene.add(hit);
-      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit });
+      const moths = new Group();
+      moths.position.set(x, 3.78, z);
+      for (let i = 0; i < 3; i += 1) moths.add(new Mesh(new PlaneGeometry(0.035, 0.022), mothWing));
+      moths.visible = false;
+      scene.add(moths);
+      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: 12 + Math.random() * 40, moths });
     };
     const LAMP_FLICKER = 1.1; // s
     // How lit a tapped lamp is, t seconds after the tap: mostly out, catching now and then
@@ -2648,6 +2704,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       halloween?.userData.update(t, reduced); // HALLOWEEN
+      // The arcade sign's bulbs chase round, two lit to one dark
+      if (!reduced) {
+        const chase = Math.floor(t * 7);
+        (arcadeObject.userData.bulbs as Mesh[] | undefined)?.forEach((bulb, i) => {
+          bulb.material = (i + chase) % 3 === 0 ? BULB_OFF : BULB_ON;
+        });
+      }
       // The ticket clerk: eyes that wander and now and then blink, fingers drumming the
       // counter (little finger first) in rolls with a pause between
       const clerk = tickets.userData.clerk as { eyes: Group; hand: Group };
@@ -2664,7 +2727,27 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       // Tapped lamps stutter
       const nowSec = performance.now() / 1000;
-      lamps.forEach((lamp) => {
+      lamps.forEach((lamp, index) => {
+        if (!reduced && nowSec > lamp.nextFlicker) {
+          lamp.tappedAt = nowSec;
+          lamp.seed = Math.random() * 100;
+          lamp.nextFlicker = nowSec + 20 + Math.random() * 50;
+        }
+        // Moths: about half the time, three of them, looping round the glass, wings beating
+        lamp.moths.visible = !reduced && (t + index * 23) % 80 < 40;
+        if (lamp.moths.visible) {
+          lamp.moths.children.forEach((moth, i) => {
+            const phase = index * 3.1 + i * 2.1;
+            const speed = 1.6 + i * 0.45;
+            moth.position.set(
+              Math.sin(t * speed + phase) * (0.18 + 0.06 * Math.sin(t * 0.7 + i)),
+              Math.sin(t * speed * 1.7 + phase) * 0.07,
+              Math.cos(t * speed * 0.9 + phase) * (0.18 + 0.05 * Math.cos(t * 0.5 + i))
+            );
+            moth.rotation.y = t * speed + phase;
+            moth.scale.x = 0.35 + 0.65 * Math.abs(Math.sin(t * 38 + i));
+          });
+        }
         const f = flickerAt(nowSec - lamp.tappedAt, lamp.seed);
         const base = lamp.light === overhead ? overhead.intensity : lamp.base;
         lamp.light.intensity = base * f;
