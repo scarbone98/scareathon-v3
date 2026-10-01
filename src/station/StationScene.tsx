@@ -456,6 +456,7 @@ type SurfaceSpec = {
   tilt?: number;
   lamplit?: boolean; // dimmed to the lamps; the departure board glows on its own
   hiddenAt?: StopId[]; // left to its painted stand-in from here (something stands in front of it)
+  onlyAtStop?: boolean; // left to its painted stand-in except at its own stop
 };
 const SURFACES: SurfaceSpec[] = [
   ...PAPER_SPOTS.map(([x, y, tilt, w, h], i): SurfaceSpec => ({
@@ -469,7 +470,9 @@ const SURFACES: SurfaceSpec[] = [
     // (from the arcade, the cartridges riding into the row pass in front of the board)
     hiddenAt: ["arcade"],
   })),
-  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], hiddenAt: ["arcade"] },
+  // (seen from across the room, side-on, phones' browsers can place its HTML off the board,
+  // so from anywhere but in front of it the painted face, drawn from the same standings, stands in)
+  { id: "departures", stop: "departures", at: [0, 0, 0.062], w: 2.5, px: [750, 435], onlyAtStop: true },
   // More pixels than the face needs (it is scaled up to fit), so read up close the whole
   // flyer has room
   ...FLYER_SPOTS.map(([x, y, z, lean], i): SurfaceSpec => ({ id: `flyer-${i}`, stop: "events", at: [x, y, z], w: FLYER_W, px: [400, 520], lean, lamplit: true })),
@@ -1294,11 +1297,10 @@ function buildClerk() {
     eyes.add(plane(0.075, 0.038, eye, x, 0, 0.002));
     eyes.add(plane(0.26, 0.2, halo, x, 0, 0));
   });
-  // (hidden until it shows, see the animation loop)
-  // (glowing: added onto the dark, so the gaps between the teeth are just the dark)
-  const grin = plane(0.62, 0.24, new MeshBasicMaterial({ map: grinTexture(), transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, fog: false }), 0, -0.2, 0.003);
+  // (hidden until it shows, see the animation loop; glowing: added onto the dark, so the gaps
+  // between the teeth are just the dark)
+  const grin = plane(0.62, 0.24, new MeshBasicMaterial({ map: grinTexture(), transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }), 0, 1.46, -0.009);
   grin.visible = false;
-  eyes.add(grin);
   eyes.userData.grin = grin;
   const bone = new MeshStandardMaterial({ color: "#ece8dd", roughness: 0.6, emissive: new Color("#3a3833") });
   const hand = new Group();
@@ -1462,7 +1464,7 @@ function buildTickets() {
     group.add(ad);
   });
   const clerk = buildClerk();
-  group.add(clerk.eyes, clerk.hand);
+  group.add(clerk.eyes, clerk.eyes.userData.grin as Mesh, clerk.hand);
   group.userData.clerk = clerk;
   addLamp(group, 0, 2.4, 1.2);
   const windowHit = hitBox(1.35, 1.0, 0.3, 1.54);
@@ -3022,13 +3024,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         clerk.eyes.position.y = 1.66 + Math.sin(t * 0.23) * 0.015;
         const sinceBlink = (t + 2) % 5.3;
         clerk.eyes.scale.y = sinceBlink < 0.16 ? Math.max(0.08, Math.abs(Math.cos((sinceBlink / 0.16) * Math.PI))) : 1;
-        // Now and then, a grin: it fades up out of the dark, hangs a while, and fades away
+        // Now and then, a grin: it slices open from the middle out, then wide, hangs a while,
+        // and shuts the same way (under the eyes, but not blinking with them)
         const grin = clerk.eyes.userData.grin as Mesh;
         const since = (t + 9) % 27;
-        const grinning = since < 0.8 ? since / 0.8 : since < 3.6 ? 1 : since < 4.6 ? 1 - (since - 3.6) : 0;
-        (grin.material as MeshBasicMaterial).opacity = grinning;
-        grin.visible = grinning > 0;
-        grin.scale.y = 1 / Math.max(0.08, clerk.eyes.scale.y); // (it doesn't blink)
+        const open = since < 0.35 ? since / 0.35 : since < 3.6 ? 1 : since < 3.95 ? 1 - (since - 3.6) / 0.35 : 0;
+        grin.visible = open > 0;
+        grin.scale.x = Math.min(1, open * 1.6);
+        grin.scale.y = Math.max(0.04, (open - 0.4) / 0.6);
+        grin.position.x = clerk.eyes.position.x;
+        grin.position.y = clerk.eyes.position.y - 0.2;
         const roll = t % 1.9;
         (clerk.hand.userData.fingers as Group[]).forEach((finger, i) => {
           const k = (roll - i * 0.11) / 0.2;
@@ -3102,6 +3107,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const wanted =
           inView &&
           !(latest.current.at && spec.hiddenAt?.includes(latest.current.at)) &&
+          !(spec.onlyAtStop && latest.current.at !== spec.stop) &&
           // (Still aboard the train: its walls would be behind them otherwise)
           !onTrain;
         const was = surfaceFade.get(spec.id) ?? 0;

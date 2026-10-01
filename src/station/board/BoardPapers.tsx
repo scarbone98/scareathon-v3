@@ -91,6 +91,8 @@ const ink = "text-[#2a1d14]";
 const quiet = "text-[#2a1d14]/70";
 const action =
   "rounded-[2px] bg-[#1d2a3a] px-3 py-1.5 text-[15px] text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
+// (a big one, for a challenge's Play)
+const bigAction = "rounded-[2px] bg-[#1d2a3a] px-7 py-2.5 text-[22px] text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
 // Links from the CMS: web pages and the site's own paths only (never javascript: and the like)
 function safeHref(url: string) {
   if (url.startsWith("/") && !url.startsWith("//")) return url;
@@ -273,13 +275,13 @@ function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture
 
 // ---- A challenge: an arcade handbill
 
-// `detailed`: the pinned layout, with the challenge spelled out too (the daily post reads
-// the same pinned up as up close)
-function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { item: ContentLoopItem; game: GameCard | null; signedIn: boolean; goTo: GoTo; full: boolean; detailed?: boolean }) {
+// Kept short: the game, what to do in a few words, what it pays, and a big Play button
+function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem; game: GameCard | null; signedIn: boolean; goTo: GoTo; full: boolean }) {
   const { data: reward } = useRewardStatus(item, signedIn);
   const target = challengeTarget(item);
   const colour = game?.color ?? "#e0433b";
   const bigNumber = item.targetMetricValue != null ? item.targetMetricValue.toLocaleString() : null;
+  const task = bigNumber ? (item.verificationType === "arcade_runs" ? `Play ${bigNumber} runs` : `Score ${bigNumber}`) : null;
   return (
     <div className={`flex h-full flex-col ${ink}`}>
       <div className="relative shrink-0" style={{ height: full ? undefined : "46%" }}>
@@ -293,17 +295,15 @@ function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { ite
       </div>
       <div className="h-2.5 shrink-0" style={{ background: colour }} />
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-[20px] uppercase leading-none" style={pixel}>
-            {(item.gameName ?? item.title).replace(/[‘’]/g, "'")}
+        <p className="truncate text-[26px] uppercase leading-none" style={pixel}>
+          {(item.gameName ?? item.title).replace(/[‘’]/g, "'")}
+        </p>
+        {task && (
+          <p className="mt-1.5 text-[24px] leading-none" style={serif}>
+            {task}
           </p>
-          {bigNumber && (
-            <p className="shrink-0 text-[13px] uppercase" style={pixel}>
-              {item.verificationType === "arcade_runs" ? "runs" : "score"} <span className="text-[26px] leading-none" style={{ color: colour }}>{bigNumber}</span>
-            </p>
-          )}
-        </div>
-        <p className="mt-1 text-[13px] opacity-70">
+        )}
+        <p className="mt-1.5 text-[16px] opacity-75">
           {[
             item.type === "daily_challenge" ? "Today" : item.startsAt && item.endsAt ? `${formatShortDate(item.startsAt)} – ${formatShortDate(item.endsAt)}` : null,
             // (a daily challenge isn't a Scareboard point)
@@ -314,14 +314,6 @@ function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { ite
             .join(" · ")}
           {reward?.data?.alreadyClaimed ? <strong className="ml-2 text-emerald-800">✓ Done</strong> : null}
         </p>
-        {detailed && !full && (
-          <>
-            <p className="mt-2 text-[16px] leading-tight" style={serif}>
-              {item.title}
-            </p>
-            {item.summary && <p className={`mt-1 text-[13px] leading-snug ${quiet}`}>{item.summary}</p>}
-          </>
-        )}
         {full && (
           <>
             <p className="mt-3 text-[20px] leading-tight" style={serif}>
@@ -333,7 +325,7 @@ function Challenge({ item, game, signedIn, goTo, full, detailed = false }: { ite
         )}
         <div className="mt-auto flex flex-wrap gap-2 pt-2">
           {item.gameName && (
-            <button type="button" className={action} onClick={act(() => goTo("arcade", item.gameName ?? undefined))}>
+            <button type="button" className={bigAction} onClick={act(() => goTo("arcade", item.gameName ?? undefined))}>
               Play
             </button>
           )}
@@ -504,8 +496,8 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       id: "daily",
       kind: "CHALLENGE",
       title: daily.title,
-      pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} detailed />,
-      full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} detailed />,
+      pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />,
+      full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />,
       tint: "#d8ccab",
     });
   }
