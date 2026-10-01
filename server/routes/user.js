@@ -1,5 +1,6 @@
 import pool from '../db/mockDB.js';
 import {
+    AVATAR_ART_VERSION,
     avatarItemColumns,
     parseOutfitRequest,
     serializeAvatarItemV2,
@@ -64,7 +65,7 @@ async function getAvatarPayload(userId, client = pool) {
     await client.query('SELECT public.seed_user_avatar_defaults($1)', [userId]);
 
     const profileResult = await client.query(`
-        SELECT build, build_chosen, skin, hair, eyes, updated_at
+        SELECT build_chosen, skin, hair, eyes, updated_at
         FROM user_avatar_profile
         WHERE user_id = $1
     `, [userId]);
@@ -83,7 +84,7 @@ async function getAvatarPayload(userId, client = pool) {
         JOIN avatar_items ai ON ai.id = uii.item_id
         WHERE uii.user_id = $1
           AND uii.status = 'owned'
-          AND ai.art_version = 2
+          AND ai.art_version = ${AVATAR_ART_VERSION}
         ORDER BY ai.category ASC, ai.name ASC, uii.id ASC
     `, [userId]);
 
@@ -162,7 +163,7 @@ export default async function (fastify, options) {
                     WHERE uii.user_id = $1
                       AND uii.id = ANY($2::bigint[])
                       AND uii.status = 'owned'
-                      AND ai.art_version = 2
+                      AND ai.art_version = ${AVATAR_ART_VERSION}
                     FOR UPDATE OF uii
                 `, [userId, instanceIds])
                 : { rows: [] };
@@ -183,16 +184,15 @@ export default async function (fastify, options) {
             }
 
             await client.query(`
-                INSERT INTO user_avatar_profile (user_id, build, build_chosen, skin, hair, eyes, updated_at)
-                VALUES ($1, $2, TRUE, $3, $4, $5, now())
+                INSERT INTO user_avatar_profile (user_id, build_chosen, skin, hair, eyes, updated_at)
+                VALUES ($1, TRUE, $2, $3, $4, now())
                 ON CONFLICT (user_id) DO UPDATE SET
-                    build = EXCLUDED.build,
                     build_chosen = TRUE,
                     skin = EXCLUDED.skin,
                     hair = EXCLUDED.hair,
                     eyes = EXCLUDED.eyes,
                     updated_at = now()
-            `, [userId, parsed.profile.build, parsed.profile.skin, parsed.profile.hair, parsed.profile.eyes]);
+            `, [userId, parsed.profile.skin, parsed.profile.hair, parsed.profile.eyes]);
 
             const payload = await getAvatarPayload(userId, client);
             await client.query('COMMIT');

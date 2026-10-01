@@ -1,0 +1,50 @@
+# Flaps down on frames 3-5
+at: 2,27
+legend:
+  a = dye1.0
+  b = dye1.1
+  c = dye1.2
+--- 0
+..a....................a
+.aa....................aa
+.aba..................aba
+aabba................abbaa
+abcbba..............abbcba
+.abcbbaa..........aabbcba
+..abbcbba........abbcbba
+...aabbbba......abbbbaa
+.....a.aba......aba.a
+..........................
+--- 3
+..........................
+..........................
+..........................
+aa......................aa
+abaa..................aaba
+abcbaa..............aabcba
+.abbcbaa..........aabcbba
+..abbbcba........abcbbba
+...abbbbba......abbbbba
+....aa.aba......aba.aa
+--- 4
+..........................
+..........................
+..........................
+aa......................aa
+abaa..................aaba
+abcbaa..............aabcba
+.abbcbaa..........aabcbba
+..abbbcba........abcbbba
+...abbbbba......abbbbba
+....aa.aba......aba.aa
+--- 5
+..........................
+..........................
+..........................
+aa......................aa
+abaa..................aaba
+abcbaa..............aabcba
+.abbcbaa..........aabcbba
+..abbbcba........abcbbba
+...abbbbba......abbbbba
+....aa.aba......aba.aa

@@ -1,0 +1,10 @@
+{
+  "name": "Space Buns",
+  "category": "hair",
+  "rarity": "uncommon",
+  "price": 100,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": {},
+  "parts": [{ "slot": "hair", "file": "hair.txt", "anchor": "head" }]
+}

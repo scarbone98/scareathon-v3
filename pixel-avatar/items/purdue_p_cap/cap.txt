@@ -1,0 +1,16 @@
+# Black ball cap, gold P on the front panel, brim to the left
+at: 10,23
+legend:
+  a = dye1.0
+  b = dye1.2
+  c = dye1.3
+  d = dye1.1
+  g = old_gold.2
+  y = old_gold.3
+--- 0
+....aaaa
+...acbbbba
+..acbyybbba
+..acbgybbba
+..abbgbbbba
+ddddddddaa

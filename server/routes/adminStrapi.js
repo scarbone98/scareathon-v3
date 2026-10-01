@@ -407,7 +407,7 @@ async function upsertAvatarItem(item, assetPath, existingItem = null) {
             base_price = EXCLUDED.base_price,
             release_status = EXCLUDED.release_status,
             metadata = EXCLUDED.metadata
-        -- Avatar v2 items are drawn in avatar-art/ and synced from the repo;
+        -- Newer avatar items are drawn in pixel-avatar/ and synced from the repo;
         -- Strapi must never overwrite them.
         WHERE avatar_items.art_version = 1
         RETURNING *

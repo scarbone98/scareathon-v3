@@ -1,0 +1,3 @@
+{ "name": "Joe", "skin": "peach", "hair": "sandy", "eyes": "ink_eye",
+  "items": [{ "key": "body_kid" }, { "key": "hair_cowlick" }, { "key": "striped_sweater", "dyes": { "dye1": "pine" } },
+            { "key": "trousers", "dyes": { "dye1": "coal" } }, { "key": "boots", "dyes": { "dye1": "coal" } }] }

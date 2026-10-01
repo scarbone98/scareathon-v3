@@ -1,0 +1,9 @@
+{
+  "name": "Merchant's Top Hat",
+  "category": "head",
+  "rarity": "rare",
+  "price": 180,
+  "release": "released",
+  "dyes": { "dye1": "cherry" },
+  "parts": [{ "slot": "head", "file": "hat.txt", "anchor": "head" }]
+}

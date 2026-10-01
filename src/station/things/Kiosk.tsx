@@ -134,7 +134,7 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
   return (
     <div className="flex h-full gap-4 text-[#2a1d14]">
       <div className="flex w-28 shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#120d08]">
-        <AvatarView look={look} height={150} />
+        <AvatarView look={look} height={144} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="text-[11px] uppercase tracking-[0.25em] opacity-60">Passenger</p>

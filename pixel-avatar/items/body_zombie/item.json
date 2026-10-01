@@ -1,0 +1,13 @@
+{
+  "name": "Zombie",
+  "category": "body",
+  "rarity": "epic",
+  "price": 400,
+  "release": "released",
+  "rig": {
+    "frames": 6,
+    "fps": 8,
+    "anchors": { "head": [0, [-1, 0], [-2, -1], [-1, -1], 0, -1], "ground": 0 }
+  },
+  "parts": [{ "slot": "body", "png": "zombie.png", "frameWidth": 16, "at": [8, 24], "anchor": "ground" }]
+}

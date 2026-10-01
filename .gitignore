@@ -27,4 +27,4 @@ dist-ssr
 supabase/.temp/
 
 # Rendered by npm run art:avatar
-avatar-art/previews/
+pixel-avatar/previews/

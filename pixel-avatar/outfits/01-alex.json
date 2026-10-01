@@ -1,0 +1,3 @@
+{ "name": "Alex", "skin": "fair", "hair": "golden", "eyes": "ink_eye",
+  "items": [{ "key": "body_kid" }, { "key": "hair_long_locks" }, { "key": "rosy_cheeks" }, { "key": "tee", "dyes": { "dye1": "orange" } },
+            { "key": "jeans", "dyes": { "dye1": "denim" } }, { "key": "sneakers", "dyes": { "dye1": "cloud", "dye2": "cloud" } }] }

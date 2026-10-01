@@ -1,0 +1,64 @@
+# Night sky, moon, graves; the avatar stands on the grass
+at: 0,0
+legend:
+  k = night_sky.0
+  m = night_sky.1
+  n = night_sky.2
+  s = bone.3
+  w = bone.3
+  o = bone.2
+  h = night_sky.3
+  g = steel.1
+  t = steel.2
+  l = leaf.1
+  e = leaf.0
+  d = moss.0
+--- 0
+kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+kkkkkkkkkkkkkkskkkkkkkkkkkkkkkkk
+kkkskkkkkkkkkkkkkkkkkkkkkkkkkkkk
+kkkkkkkkkkkkkkkkkkkkkkoooookkkkk
+kkkkkkkkkkkkkkkkkkkkkowwwwookkkk
+kkkkkkkkkskkkkkkkkkkowwwwwoookkk
+kkkkkkkkkkkkkkkkkkkkowwowwwwokkk
+kkkkkkkkkkkkkkkkkkkkowwwwwwwokkk
+kkkkkkkkkkkkkkkkkkskowowwwwwokkk
+kkkkkkkkkkkkkkkkkkkkowwwwowwokkk
+kkkkkskkkkkkkkkkkkkkkowwwwwokkkk
+kkkkkkkkkkkkkkkkkkkkkkoooookkkkk
+mkmkmkmkmkmkmkmkmkmkmkmkmkmkmkmk
+mkmkmkmkmkmkmkmkmkmkmkmkmkmkmkmk
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmsmm
+mmmmmmmmmmmmsmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmsmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+nmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnm
+nmnmnmnmnmnmnmnmnmnmnmnmnmnmnmnm
+nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
+nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
+nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
+nngggnnnnnnnnnnnnnnnnnnnnnnnnnnn
+ntggggnnnnnnnnnnnnnnnnnnnnnnnnnn
+ntgtggnnnnnnnnnnnnhhhhhhhnnnnnnn
+nttttgnnnnnnnnnnhhhhhhhhhhhggnnn
+htggggnnnnnnnnhhhhhhhhhhhhtgggnn
+htggggnnnnnhhhhhhhhhhhhhhhtgtghh
+htgggghhhhhhhhhhhhhhhhhhhhtttthh
+htgggghhhhhhhhhhhhhhhhhhhhtggghh
+htgggghhhhhhhhhhhhhhhhhhhhtggghh
+hhhhhhhhhhhhhhhhhhhhhhhhhhtggghh
+llllllllllllllllllllllllllllllll
+eeeedeeeedeeeedeeeedeeeedeeeedee
+eeedeeeedeeeedeeeedeeeedeeeedeee
+eedeeeedeeeedeeeedeeeedeeeedeeee
+edeeeedeeeedeeeedeeeedeeeedeeeed
+deeeedeeeedeeeedeeeedeeeedeeeede
+eeeedeeeedeeeedeeeedeeeedeeeedee
+eeedeeeedeeeedeeeedeeeedeeeedeee

@@ -1,8 +1,0 @@
-# Thick, heavy brows. Hair ramp, so they follow hair colour.
-at: 44,46
-outline: none
-legend:
-  b = hair.1
----
-.bbbbb.....bbbbbb.
-bbbbbb.....bbbbbbb

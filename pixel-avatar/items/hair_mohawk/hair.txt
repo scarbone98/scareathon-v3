@@ -1,0 +1,31 @@
+# A crest down the middle, stubble on the sides
+at: 11,18
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+  d = hair.0
+--- 0
+....a
+...aha
+...ahab
+..aahab
+...ahab
+..aahab
+...ahab
+..dahbbd
+.d.abb.d
+d.d....d
+.d
+--- 2
+....a
+...aha
+...ahab
+...ahab
+..aahab
+...ahab
+..aahab
+..dahbbd
+.d.abb.d
+d.d....d
+.d

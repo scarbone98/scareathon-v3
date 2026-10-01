@@ -1,5 +1,5 @@
 import pool from '../db/mockDB.js';
-import { avatarRules, serializeAvatarItemV2 } from '../utils/avatarV2.js';
+import { AVATAR_ART_VERSION, avatarRules, serializeAvatarItemV2 } from '../utils/avatarV2.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_REF ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co` : '');
 const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
@@ -132,7 +132,7 @@ async function routes(fastify, options) {
                 itemFilters.push(`(ai.name ILIKE $${filterValues.length + 1} OR ai.item_key ILIKE $${filterValues.length + 1})`);
             }
             const countWhereClause = `
-                ai.art_version = 2
+                ai.art_version = ${AVATAR_ART_VERSION}
                 AND ai.release_status = 'released'
                 AND ai.base_price IS NOT NULL
                 AND ai.base_price > 0
@@ -140,7 +140,7 @@ async function routes(fastify, options) {
                 ${countFilters.map((filter) => `AND ${filter}`).join('\n                ')}
             `;
             const itemWhereClause = `
-                ai.art_version = 2
+                ai.art_version = ${AVATAR_ART_VERSION}
                 AND ai.release_status = 'released'
                 AND ai.base_price IS NOT NULL
                 AND ai.base_price > 0
@@ -266,7 +266,7 @@ async function routes(fastify, options) {
                     END AS supply_limit
                 FROM avatar_items ai
                 WHERE ai.id = $1
-                  AND ai.art_version = 2
+                  AND ai.art_version = ${AVATAR_ART_VERSION}
                   AND ai.release_status = 'released'
                   AND ai.base_price IS NOT NULL
                   AND ai.base_price > 0

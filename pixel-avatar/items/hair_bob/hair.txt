@@ -1,0 +1,16 @@
+at: 11,23
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+...aaaa
+.aaahhaaa
+aaahhaaaaa
+aaaaaaaaaa
+abbbbbbbaa
+ab.......a
+ab.......a
+ab.......b
+aab.....ab
+.bb......b

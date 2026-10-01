@@ -8,7 +8,8 @@ import {
   getAvatarCompositePublicUrl,
   uploadAvatarComposite,
 } from "./avatarComposite";
-import { lookFromAvatar } from "./look";
+import { lookFromAvatar, randomLook } from "./look";
+import { loadAvatarManifest } from "./manifest";
 import type { AvatarResponse } from "./types";
 
 export function AvatarCompositeEnsurer() {
@@ -47,9 +48,26 @@ export function AvatarCompositeEnsurer() {
       if (!userId) return null;
 
       const response = await fetchWithAuth("/user/avatar");
-      const data = (await response.json()) as AvatarResponse & { error?: string };
+      let data = (await response.json()) as AvatarResponse & { error?: string };
       if (!response.ok) {
         throw new Error(data.error || "Failed to load avatar");
+      }
+
+      // Nobody picks from ready-made looks: a player without a look of their
+      // own gets a random kid, which they can change in their locker.
+      if (!data.data.profile.lookChosen) {
+        const generated = randomLook(data.data.inventory, await loadAvatarManifest());
+        if (generated) {
+          const saved = await fetchWithAuth("/user/avatar/save", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              profile: generated.profile,
+              outfit: generated.outfit.map(({ itemInstanceId, dyes }) => ({ itemInstanceId, dyes })),
+            }),
+          });
+          if (saved.ok) data = await saved.json();
+        }
       }
 
       queryClient.setQueryData(["avatar"], data);

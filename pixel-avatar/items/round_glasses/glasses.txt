@@ -1,0 +1,10 @@
+# Jon's glasses: lenses in dye2, pupils follow the eye colour
+at: 10,29
+legend:
+  a = dye1.3
+  b = dye2.2
+  c = eyes.1
+--- 0
+....abbabb
+aaaaabcabc
+a...abbabb

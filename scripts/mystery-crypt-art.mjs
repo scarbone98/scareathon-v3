@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { encodePng } from "./avatar-art/lib.mjs";
+import { encodePng } from "./pixel-avatar/lib.mjs";
 
 const OUT = path.resolve("public/mystery-crypt");
 const STUBS = JSON.parse(fs.readFileSync(path.resolve("mystery-crypt-art/stubs.json"), "utf8"));

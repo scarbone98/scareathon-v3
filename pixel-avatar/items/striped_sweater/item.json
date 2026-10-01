@@ -1,0 +1,12 @@
+{
+  "name": "Striped Sweater",
+  "category": "torso",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": { "dye1": "pine" },
+  "parts": [{ "slot": "torso", "file": "sweater.txt" }]
+}

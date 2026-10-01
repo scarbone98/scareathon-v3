@@ -1,0 +1,32 @@
+# Hangs from the hand; the flame flickers
+at: 11,37
+legend:
+  a = ink.1
+  g = gold.1
+  y = flame.1
+  f = flame.2
+  w = flame.3
+--- 0
+..a
+.aga
+agyga
+ayfwya
+ayffya
+agyyga
+.aaaa
+--- 2
+..a
+.aga
+agyga
+ayffya
+aywfya
+agyyga
+.aaaa
+--- 4
+..a
+.aga
+agyga
+ayyfya
+ayfwya
+agyyga
+.aaaa

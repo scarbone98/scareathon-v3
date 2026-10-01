@@ -1,0 +1,12 @@
+{
+  "name": "Cowlick",
+  "category": "hair",
+  "starter": true,
+  "default": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "fits": ["body_kid"],
+  "dyes": {},
+  "parts": [{ "slot": "hair", "file": "hair.txt", "anchor": "head" }]
+}

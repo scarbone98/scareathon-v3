@@ -1,7 +1,0 @@
-# Beauty mark beside the mouth.
-at: 59,64
-outline: none
-legend:
-  k = ink.1
----
-k

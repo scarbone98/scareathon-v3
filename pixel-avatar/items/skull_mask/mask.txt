@@ -1,0 +1,15 @@
+at: 11,26
+legend:
+  h = bone.3
+  b = bone.2
+  d = bone.1
+  e = ink.0
+--- 0
+..hhhhhh
+.hhbbbbbh
+hbbbbbbbb
+hbbeebeeb
+hbbeebeeb
+dbbbbebbd
+.bdbdbdb
+..bbbbb

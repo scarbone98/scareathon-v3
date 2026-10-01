@@ -1,0 +1,51 @@
+# Sits over the whole head; the face glows and flickers
+at: 9,21
+legend:
+  o = pumpkin.0
+  d = pumpkin.1
+  p = pumpkin.2
+  c = pumpkin.3
+  g = leaf.2
+  k = leaf.1
+  y = flame.2
+  w = flame.3
+  r = flame.1
+--- 0
+......kg
+.....gk
+...oddddddo
+..odpcppcpdo
+.odppcppcppdo
+.odpyyppyypdo
+.odyywpyywpdo
+.odppppppppdo
+.odpyppppypdo
+.odpyyyyyypdo
+..odpyypyypo
+...oddddddo
+--- 2
+......kg
+.....gk
+...oddddddo
+..odpcppcpdo
+.odppcppcppdo
+.odpyyppyypdo
+.odyyrpyyrpdo
+.odppppppppdo
+.odpyppppypdo
+.odpyyyyyypdo
+..odpyypyypo
+...oddddddo
+--- 3
+......kg
+.....gk
+...oddddddo
+..odpcppcpdo
+.odppcppcppdo
+.odpyyppyypdo
+.odyyrpyyrpdo
+.odppppppppdo
+.odpyppppypdo
+.odpyyyyyypdo
+..odpyypyypo
+...oddddddo

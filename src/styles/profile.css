@@ -122,7 +122,10 @@
 .avatar-view canvas { display: block; }
 .avatar-view-error { position: absolute; inset: auto 0 8px; text-align: center; font-size: 10px; color: #f3b1b1; }
 .character-avatar { z-index: 1; }
-.wardrobe-icon { width: 84px; height: 84px; image-rendering: pixelated; border-radius: 8px; background: #ffffff05; }
+.wardrobe-icon { width: 84px; height: 84px; image-rendering: pixelated; border-radius: 8px; background: #ffffff05; object-fit: contain; }
+.wardrobe-item.is-unfitted .wardrobe-icon { opacity: .45; }
+.wardrobe-item-note { font-size: 10px; line-height: 1.2; color: #b4a5c3; }
+
 .wardrobe-body-panel { display: grid; gap: 18px; }
 .wardrobe-body-panel h4, .wardrobe-dye-panel h4 { margin-bottom: 8px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #c5b5d8; }
 .wardrobe-build-toggle { display: flex; gap: 7px; }

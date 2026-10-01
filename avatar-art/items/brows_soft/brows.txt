@@ -1,8 +1,0 @@
-# Soft, slightly raised brows. Hair ramp, so they follow hair colour.
-at: 45,47
-outline: none
-legend:
-  b = hair.1
----
-.bbbb......bbbbb.
-b...............b

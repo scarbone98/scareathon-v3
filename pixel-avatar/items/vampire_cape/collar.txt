@@ -1,0 +1,11 @@
+at: 10,29
+legend:
+  a = dye1.0
+  b = dye1.2
+  c = dye2.2
+  d = dye2.1
+--- 0
+a.........a
+ab.......ba
+abc.....cba
+.abd...dba

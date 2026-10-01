@@ -1,0 +1,23 @@
+at: 7,14
+legend:
+  a = witch.0
+  c = witch.1
+  b = witch.2
+  h = witch.3
+  d = dye1.2
+  e = dye1.1
+  g = gold.2
+--- 0
+............aa
+...........abba
+..........ahca
+.........ahca
+........ahbca
+........ahbca
+.......ahbbca
+.......ahbbbca
+......ahbbbbca
+......adddgdea
+.....ahbbbbbbca
+..aaahbbbbbbbbcaaa
+...aacccccccccaa

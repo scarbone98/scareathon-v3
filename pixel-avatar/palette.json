@@ -1,0 +1,78 @@
+{
+  "_comment": "Every ramp is 4 shades, 0 = darkest to 3 = lightest. Parts are drawn in a channel's default ramp (peach, sandy, ink_eye, orange, cloud) and the browser recolours those by exact RGB, so no other ramp may reuse their colours. Colours follow the 8 Bit Evil Returns kids.",
+  "defaults": {
+    "skin": "peach",
+    "hair": "sandy",
+    "eyes": "ink_eye",
+    "dye1": "orange",
+    "dye2": "cloud"
+  },
+  "choices": {
+    "skin": ["peach", "fair", "tan", "brown", "deep", "zombie", "ghoul", "demon"],
+    "hair": ["sandy", "golden", "night", "slate", "ginger", "chestnut", "silver", "violet", "crimson", "moss", "candy"],
+    "eyes": ["ink_eye", "blood_eye", "glow_eye", "toxic_eye", "ice_eye", "gold_eye"],
+    "dye1": ["orange", "cloud", "pine", "ocean", "cherry", "denim", "coal", "plum", "mustard", "rose", "bark", "ash", "lime", "teal"],
+    "dye2": ["orange", "cloud", "pine", "ocean", "cherry", "denim", "coal", "plum", "mustard", "rose", "bark", "ash", "lime", "teal"]
+  },
+  "ramps": {
+    "ink":       ["#131526", "#20243d", "#2e3352", "#444a70"],
+    "shadow":    ["#20243d50", "#20243d97", "#20243db0", "#20243dd0"],
+
+    "peach":     ["#c26a58", "#dd8a70", "#e49d7c", "#f0bd8c"],
+    "fair":      ["#b8705f", "#ce9488", "#d6ab95", "#ddbd9f"],
+    "tan":       ["#a0603c", "#bb7a4e", "#c98d5c", "#d9a066"],
+    "brown":     ["#6e3f28", "#8f563b", "#a3684a", "#b97c58"],
+    "deep":      ["#3e2219", "#5a3526", "#6c4331", "#82553f"],
+    "zombie":    ["#2b5c48", "#3e8466", "#52a07c", "#76c49a"],
+    "ghoul":     ["#7d8aa4", "#9badb7", "#b4c4ce", "#d8e4ec"],
+    "demon":     ["#7a1e2e", "#ac3232", "#c2443e", "#d95f4e"],
+
+    "sandy":     ["#8f6e3e", "#af8b51", "#c29e63", "#d6b884"],
+    "golden":    ["#b5801c", "#d99f2a", "#e8af3b", "#f6cf6a"],
+    "night":     ["#0f0e18", "#1b1a2b", "#2a2840", "#3e3b5c"],
+    "slate":     ["#2c3048", "#3a3f5c", "#4a5072", "#646c94"],
+    "ginger":    ["#8a3412", "#b04a18", "#cf6526", "#e8894a"],
+    "chestnut":  ["#3d2016", "#583022", "#6f4130", "#8a5842"],
+    "silver":    ["#7c8496", "#a2abbe", "#c4cad8", "#e6eaf2"],
+    "violet":    ["#3a1f56", "#583082", "#7646a8", "#9a6cc8"],
+    "crimson":   ["#5c1222", "#8a1c30", "#b22a40", "#d84a5a"],
+    "moss":      ["#24402a", "#355c38", "#4a7a46", "#6a9c5a"],
+    "candy":     ["#a8457c", "#cc5f9c", "#e07fb6", "#f2a6d0"],
+
+    "ink_eye":   ["#16172b", "#222034", "#34344f", "#4c4c6c"],
+    "blood_eye": ["#5a0c10", "#c41e24", "#e43b3b", "#ff7a6a"],
+    "glow_eye":  ["#7a6a10", "#e8d23a", "#f5e670", "#fff6b0"],
+    "toxic_eye": ["#1e5a1a", "#3cb43a", "#6ad65a", "#aaf08c"],
+    "ice_eye":   ["#1a4a7a", "#3c8ee0", "#6ab4f2", "#b4e0ff"],
+    "gold_eye":  ["#6a3c0c", "#b8761a", "#dc9c2c", "#f2c45a"],
+
+    "orange":    ["#a83a0e", "#d24e13", "#e35a1e", "#ed6c33"],
+    "cloud":     ["#6e7a99", "#96a4c0", "#cbdbfc", "#eef2ff"],
+    "pine":      ["#2e4a3b", "#336556", "#2c866b", "#459585"],
+    "ocean":     ["#084b77", "#1a699d", "#0d7ac2", "#3a9ae0"],
+    "cherry":    ["#7a1f30", "#b13a45", "#d95763", "#e8808a"],
+    "denim":     ["#1f2a78", "#283a98", "#3345b3", "#4e62cc"],
+    "coal":      ["#0f101c", "#17192b", "#21253f", "#383c58"],
+    "plum":      ["#3b1a44", "#5a2a66", "#76428a", "#9a62ac"],
+    "mustard":   ["#8a6a10", "#b8901c", "#d4ac2a", "#ecc84a"],
+    "rose":      ["#9c4a74", "#c4689a", "#d77bba", "#eaa2d2"],
+    "bark":      ["#3c2418", "#5c3a26", "#7a5034", "#9a6a46"],
+    "ash":       ["#4a4a58", "#696a78", "#8c8e9c", "#b2b4c0"],
+    "lime":      ["#4a7a1a", "#6aa82a", "#8cc83a", "#b4e45a"],
+    "teal":      ["#14545a", "#1c7a80", "#2aa0a4", "#4cc4c4"],
+
+    "bone":      ["#9a9488", "#c4bdae", "#e2dccc", "#faf6ea"],
+    "gold":      ["#7a4a10", "#b88220", "#e0b030", "#f8dc6a"],
+    "steel":     ["#3a3e4e", "#5a6074", "#8a92a8", "#c0c6d6"],
+    "blood":     ["#4a0a12", "#7e1420", "#ac2232", "#d84050"],
+    "pumpkin":   ["#8a3a0c", "#c25a14", "#e87a22", "#f8a24a"],
+    "leaf":      ["#2a4a1e", "#3c6a28", "#56902e", "#7ab83e"],
+    "flame":     ["#c2400e", "#f07a1a", "#fbc02a", "#fff2a0"],
+    "spirit":    ["#5fcde4a0", "#8ae0f0c0", "#c0f0faff", "#ffffffff"],
+    "night_sky": ["#0e0c1e", "#1a1834", "#2a2650", "#3e3a72"],
+    "wood":      ["#3a2214", "#5a3820", "#7a5030", "#a07048"],
+    "witch":     ["#1c1426", "#2e2040", "#45305e", "#5e4480"],
+    "felt":      ["#2a2450", "#3c3470", "#525096", "#6e70b8"],
+    "old_gold":  ["#6b5530", "#8e6f3e", "#cfb991", "#ebd99f"]
+  }
+}
