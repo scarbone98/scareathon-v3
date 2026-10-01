@@ -2732,12 +2732,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       lastAt = stopId;
       lastFacing = facing;
       // Turning on the spot is quick and starts at once; walking somewhere takes its time.
-      // Turning right round to face the tracks, or back from them, is slower, so the arches
-      // can be seen going by
-      const toTracks = !walking && !stopId && (facing === "back" || wasFacingTracks);
-      const duration = instant || reduced ? 0 : walking ? 1.0 : toTracks ? 0.65 : 0.38;
+      // Turning right round to face the tracks is slower, so the arches can be seen going by,
+      // and turning (or walking) away from them slower still, so you can see where you're
+      // being taken
+      const toTracks = !walking && !stopId && facing === "back";
+      const fromTracks = wasFacingTracks && !(stopId === null && facing === "back");
+      const duration = instant || reduced ? 0 : fromTracks ? (walking ? 1.5 : 1.0) : walking ? 1.0 : toTracks ? 0.65 : 0.38;
       gsap.killTweensOf(cam);
-      gsap.to(cam, { ...pose, yaw, duration, ease: walking || toTracks ? "power1.inOut" : "power3.out" });
+      gsap.to(cam, { ...pose, yaw, duration, ease: walking || toTracks || fromTracks ? "power1.inOut" : "power3.out" });
     };
     goRef.current = (stopId, facing) => {
       aimed = facing;
