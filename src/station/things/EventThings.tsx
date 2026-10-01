@@ -28,6 +28,17 @@ const RULES = [
 ];
 
 const small = "text-[12px] uppercase tracking-[0.2em] opacity-70";
+// The rules' bullet: a printer's ornament, a red lozenge between two dots
+function Ornament() {
+  return (
+    <svg viewBox="0 0 24 12" className="mt-[0.35em] h-3 w-6 shrink-0 text-[#7a1f1a]" aria-hidden>
+      <circle cx="2.5" cy="6" r="1.5" fill="currentColor" />
+      <path d="M12 1 L17 6 L12 11 L7 6 Z" fill="currentColor" />
+      <circle cx="21.5" cy="6" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
 // The rules' face (loaded with the station's fonts)
 const decree = { fontFamily: "'UnifrakturMaguntia', 'IM Fell English', serif" };
 
@@ -160,11 +171,9 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
           </p>
           <p className="mx-auto mt-2 w-16 border-t-2 border-[#2a1d14]/40" />
           <ol className="mt-4 space-y-3 text-left">
-            {RULES.map((rule, i) => (
+            {RULES.map((rule) => (
               <li key={rule} className="flex gap-3 text-[18px] italic leading-snug" style={serif}>
-                <span className="w-11 shrink-0 text-right text-[26px] not-italic leading-none text-[#7a1f1a]" style={decree}>
-                  {["I", "II", "III", "IV", "V"][i]}
-                </span>
+                <Ornament />
                 <span>{rule}</span>
               </li>
             ))}
