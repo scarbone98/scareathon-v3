@@ -59,7 +59,7 @@ import { linkArcadeFonts } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
-import { drawRuneTablet } from "./runes.ts";
+import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
 // and turns between four fixed headings, and walks up to an object to look at it.
@@ -2429,6 +2429,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (rune !== runeCarved) {
         runeCarved = rune;
         repaint(runeTexture, (ctx, w, h) => drawRuneTablet(ctx, w, h, rune));
+        // Again once its face has loaded (a canvas won't wait for a web font)
+        void document.fonts?.load(`64px "${RUNE_FONT_FAMILY}"`).then(() => {
+          if (runeCarved === rune) repaint(runeTexture, (ctx, w, h) => drawRuneTablet(ctx, w, h, rune));
+        });
       }
       (mail.userData.envelopes as Mesh[]).forEach((envelope, i) => (envelope.visible = i < unread));
       (bulletin.userData.notes as CanvasTexture[]).forEach((texture, i) => {

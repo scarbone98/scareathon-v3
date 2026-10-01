@@ -1,32 +1,9 @@
-// The rune tablet over the track-side arch: a weathered stone carved with the day's code
-// in Elder Futhark runes (one for each letter, as usually transliterated).
-// Decoded and typed into WaysideOS, the code pays out tickets.
+// The rune tablet over the track-side arch: a weathered stone with the day's code carved
+// in it, in plain letters cut in an old, rune-like face. Typed into WaysideOS, the code
+// pays out tickets.
 
-// Each rune as straight strokes in a box 0.6 wide by 1 tall (x right, y down)
-type Stroke = [number, number, number, number];
-const RUNES: Record<string, Stroke[]> = {
-  A: [[0.1, 0, 0.1, 1], [0.1, 0, 0.5, 0.25], [0.1, 0.3, 0.5, 0.55]],
-  B: [[0.1, 0, 0.1, 1], [0.1, 0, 0.5, 0.25], [0.5, 0.25, 0.1, 0.5], [0.1, 0.5, 0.5, 0.75], [0.5, 0.75, 0.1, 1]],
-  D: [[0.05, 0, 0.05, 1], [0.55, 0, 0.55, 1], [0.05, 0, 0.55, 1], [0.55, 0, 0.05, 1]],
-  E: [[0.05, 0, 0.05, 1], [0.55, 0, 0.55, 1], [0.05, 0, 0.3, 0.3], [0.3, 0.3, 0.55, 0]],
-  F: [[0.1, 0, 0.1, 1], [0.1, 0.3, 0.5, 0.05], [0.1, 0.55, 0.5, 0.3]],
-  G: [[0.05, 0, 0.55, 1], [0.55, 0, 0.05, 1]],
-  H: [[0.1, 0, 0.1, 1], [0.5, 0, 0.5, 1], [0.1, 0.35, 0.5, 0.65]],
-  I: [[0.3, 0, 0.3, 1]],
-  J: [[0.25, 0.05, 0.05, 0.3], [0.05, 0.3, 0.25, 0.55], [0.35, 0.45, 0.55, 0.7], [0.55, 0.7, 0.35, 0.95]],
-  K: [[0.5, 0.1, 0.1, 0.4], [0.1, 0.4, 0.5, 0.7]],
-  L: [[0.15, 0, 0.15, 1], [0.15, 0, 0.5, 0.3]],
-  M: [[0.05, 0, 0.05, 1], [0.55, 0, 0.55, 1], [0.05, 0, 0.55, 0.45], [0.55, 0, 0.05, 0.45]],
-  N: [[0.3, 0, 0.3, 1], [0.1, 0.35, 0.5, 0.6]],
-  O: [[0.3, 0, 0.55, 0.35], [0.3, 0, 0.05, 0.35], [0.55, 0.35, 0.05, 1], [0.05, 0.35, 0.55, 1]],
-  P: [[0.1, 0, 0.1, 1], [0.1, 0, 0.35, 0.2], [0.35, 0.2, 0.55, 0.05], [0.1, 1, 0.35, 0.8], [0.35, 0.8, 0.55, 0.95]],
-  R: [[0.1, 0, 0.1, 1], [0.1, 0, 0.5, 0.22], [0.5, 0.22, 0.1, 0.45], [0.1, 0.45, 0.5, 1]],
-  S: [[0.45, 0.05, 0.1, 0.4], [0.1, 0.4, 0.5, 0.6], [0.5, 0.6, 0.15, 0.95]],
-  T: [[0.3, 0, 0.3, 1], [0.3, 0, 0.05, 0.3], [0.3, 0, 0.55, 0.3]],
-  U: [[0.1, 1, 0.1, 0], [0.1, 0, 0.5, 0.3], [0.5, 0.3, 0.5, 1]],
-  W: [[0.1, 0, 0.1, 1], [0.1, 0, 0.45, 0.2], [0.45, 0.2, 0.1, 0.4]],
-  Z: [[0.3, 0, 0.3, 1], [0.3, 0.4, 0.05, 0.05], [0.3, 0.4, 0.55, 0.05]],
-};
+// The face the letters are cut in (loaded with the station's fonts, STATION_FONTS)
+export const RUNE_FONT_FAMILY = "Metamorphous";
 
 // The tablet: stone, chipped at the edges, and (once the day's code is in) its runes
 export function drawRuneTablet(ctx: CanvasRenderingContext2D, w: number, h: number, code: string | null) {
@@ -46,31 +23,23 @@ export function drawRuneTablet(ctx: CanvasRenderingContext2D, w: number, h: numb
   ctx.lineWidth = 10;
   ctx.strokeRect(5, 5, w - 10, h - 10);
   if (!code) return;
-  const letters = code.toUpperCase().split("").filter((letter) => RUNES[letter]);
-  const glyphH = h * 0.56;
-  const glyphW = glyphH * 0.6;
-  const gap = glyphH * 0.35;
-  const total = letters.length * glyphW + (letters.length - 1) * gap;
-  const x0 = (w - total) / 2;
-  const y0 = (h - glyphH) / 2;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  // Each stroke cut into the stone: a pale lip where the light catches its lower edge, then
-  // the groove itself, dark
-  [
-    { colour: "rgba(205,195,175,0.55)", width: glyphH * 0.1, dy: glyphH * 0.025 },
-    { colour: "#1e1914", width: glyphH * 0.085, dy: 0 },
-  ].forEach(({ colour, width, dy }) => {
-    ctx.strokeStyle = colour;
-    ctx.lineWidth = width;
-    letters.forEach((letter, i) => {
-      const x = x0 + i * (glyphW + gap);
-      ctx.beginPath();
-      RUNES[letter].forEach(([ax, ay, bx, by]) => {
-        ctx.moveTo(x + (ax / 0.6) * glyphW, y0 + ay * glyphH + dy);
-        ctx.lineTo(x + (bx / 0.6) * glyphW, y0 + by * glyphH + dy);
-      });
-      ctx.stroke();
-    });
-  });
+  // A clear margin all round: the letters keep well in from the rim
+  const room = w * 0.78;
+  let size = Math.round(h * 0.42);
+  const text = code.toUpperCase().split("").join(" ");
+  const face = (px: number) => `${px}px "${RUNE_FONT_FAMILY}", Georgia, serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = face(size);
+  // (shrunk to fit rather than squeezed, so the letters keep their shapes)
+  const measured = ctx.measureText(text).width;
+  if (measured > room) {
+    size = Math.floor((size * room) / measured);
+    ctx.font = face(size);
+  }
+  // Cut into the stone: a pale lip where the light catches the lower edge, then the groove
+  ctx.fillStyle = "rgba(205,195,175,0.55)";
+  ctx.fillText(text, w / 2, h / 2 + size * 0.05);
+  ctx.fillStyle = "#1e1914";
+  ctx.fillText(text, w / 2, h / 2);
 }

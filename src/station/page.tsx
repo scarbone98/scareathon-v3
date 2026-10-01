@@ -67,7 +67,7 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
           lines: !scoreboard ? ["FLIPPING..."] : rows.length ? [] : [meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"],
         }
       : { label: "", rows: [], lines: ["STANDINGS ......... SIGNED-IN PASSENGERS", "ARCADE ............ BOARDING ALL NIGHT"] };
-    const film = movie?.data;
+    const film = movie?.data?.title ? movie.data : undefined; // (only a film with a title)
     const poster = film
       ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" }
       : isLive
