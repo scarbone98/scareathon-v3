@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import AnimatedPage from "../components/AnimatedPage";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useNavigatorContext } from "../components/navigator/context";
@@ -8,7 +9,7 @@ import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
-import { eventState, useContentLoop, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
+import { eventState, useContentLoop, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
@@ -50,6 +51,7 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   const { data: scoreboard } = useScareboard(null, signedIn);
   const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: summary } = useSummary();
+  const { data: rune = null } = useDailyRune();
   const unread = signedIn ? summary?.unreadCount ?? 0 : 0;
   // Keyed on the text, so the board is only repainted when a paper's headline changes
   const noticeKey = papers.map((paper) => `${paper.kind}\u0000${paper.title}`).join("\u0001");
@@ -69,8 +71,8 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
       : isLive
         ? { image: null, title: "Showing tonight", line: "Sign in to see what's on" }
         : { image: null, title: "Dark tonight", line: `The first reel: October 1, ${year}` };
-    return { notices, departures: lines.slice(0, 3), poster, unread };
-  }, [notices, items, scoreboard, movie, isLive, daysUntil, year, unread]);
+    return { notices, departures: lines.slice(0, 3), poster, unread, rune };
+  }, [notices, items, scoreboard, movie, isLive, daysUntil, year, unread, rune]);
 }
 
 // How much of a phone's screen the held card takes, under the object
@@ -155,6 +157,17 @@ export default function StationPage() {
     }, 500);
     return () => window.clearTimeout(walk);
   }, [params, setParams, onPlatform]);
+
+  // A rune code paid out at the arcade: the tickets on the board and in the shop catch up
+  const ticketsClient = useQueryClient();
+  useEffect(() => {
+    const refresh = () => {
+      void ticketsClient.invalidateQueries({ queryKey: ["home-v2"] });
+      void ticketsClient.invalidateQueries({ queryKey: ["user", "wallet"] });
+    };
+    window.addEventListener("wayside:tickets", refresh);
+    return () => window.removeEventListener("wayside:tickets", refresh);
+  }, [ticketsClient]);
 
   // Everything that can be read or used
   const papers = useBoardPapers(signedIn, goTo);

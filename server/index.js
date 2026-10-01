@@ -10,6 +10,7 @@ import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/po
 import leaderboardRoutes from './routes/leaderboard.js';
 import scareathonRoutes from './routes/scareathon.js';
 import { ensureScareathonTables } from './utils/scareathon.js';
+import waysideRoutes, { ensureDailyRuneIndex } from './routes/wayside.js';
 import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import gamesRoutes from './routes/games.js';
@@ -83,6 +84,7 @@ async function main() {
 
         try {
             await ensureScareathonTables(pool);
+            await ensureDailyRuneIndex(pool);
         } catch (err) {
             // The rest of the site still works; only the Scareboard needs these
             fastify.log.error({ err }, 'Could not create the Scareathon tables');
@@ -163,6 +165,7 @@ async function main() {
         fastify.register(weeklyChallengeRoutes, { getPostsPayload, getRecentPostsPayload });
         fastify.register(leaderboardRoutes);
         fastify.register(scareathonRoutes, { prefix: '/scareathon' });
+        fastify.register(waysideRoutes, { prefix: '/wayside' });
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
         fastify.register(userRoutes, { prefix: '/user' });

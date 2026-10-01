@@ -51,7 +51,8 @@ import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSo
 import GameCard from "./GameCard.tsx";
 import { dressSlot, PANEL_MATERIALS, SHELF_NEON, shelfLayout } from "./slotDressing.ts";
 import type { Reaction } from "./slotTerminal.ts";
-import { createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
+import { checkRemoteCode, createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
+import { fetchWithAuth } from "../../fetchWithAuth";
 import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
@@ -1573,6 +1574,17 @@ export default function CartridgeArcade({
         wayside.entry = "";
         wayside.reply = { ...result, at: performance.now() / 1000 };
         showTerminal({ kind: "code", reply: result, at: nowSeconds() });
+        // The rune tablet's code: the station says whether it's today's, and pays out
+        if (result.remote) {
+          void checkRemoteCode(entry, (code) =>
+            fetchWithAuth("/wayside/codes/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) })
+          ).then((answer) => {
+            if (disposed || screenMode !== "wayside") return;
+            wayside.reply = { ...answer, at: performance.now() / 1000 };
+            showTerminal({ kind: "code", reply: answer, at: nowSeconds() });
+            if (answer.ok) window.dispatchEvent(new Event("wayside:tickets"));
+          });
+        }
       },
       pressDetails: () => {
         if (inspecting) {

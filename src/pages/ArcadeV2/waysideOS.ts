@@ -31,7 +31,9 @@ let motionControl = (() => {
 })();
 export const motionControlOn = () => motionControl;
 
-export function runCode(raw: string): { ok: boolean; lines: string[]; motion?: boolean } {
+export type CodeResult = { ok: boolean; lines: string[]; motion?: boolean; remote?: boolean };
+
+export function runCode(raw: string): CodeResult {
   if (cleanCode(raw) === "MOTIONCONTROL") {
     motionControl = !motionControl;
     try {
@@ -44,7 +46,24 @@ export function runCode(raw: string): { ok: boolean; lines: string[]; motion?: b
       : { ok: true, lines: ["MOTION CONTROL OFF", "IT CAN REST NOW"], motion: false };
   }
   const lines = CODES[cleanCode(raw)];
-  return lines ? { ok: true, lines } : { ok: false, lines: ["INVALID CODE"] };
+  if (lines) return { ok: true, lines };
+  // Anything else might be the rune tablet's code for today: the station checks it
+  return cleanCode(raw).length >= 4 ? { ok: false, lines: ["READING THE RUNES..."], remote: true } : { ok: false, lines: ["INVALID CODE"] };
+}
+
+// What the station said about a code sent to it (the rune tablet's), for the screen
+export async function checkRemoteCode(raw: string, send: (code: string) => Promise<Response>): Promise<CodeResult> {
+  try {
+    const response = await send(cleanCode(raw));
+    if (response.status === 401) return { ok: false, lines: ["SIGN IN TO CLAIM", "AT THE TICKET COUNTER"] };
+    if (response.status === 404) return { ok: false, lines: ["INVALID CODE"] };
+    const payload = await response.json();
+    if (!response.ok) return { ok: false, lines: ["NO SIGNAL", "TRY AGAIN"] };
+    if (payload.data?.status === "granted") return { ok: true, lines: ["THE RUNES ACCEPT YOU", `+${payload.data.reward} TICKETS`] };
+    return { ok: true, lines: ["ALREADY CLAIMED TODAY", "NEW RUNES AT MIDNIGHT"] };
+  } catch {
+    return { ok: false, lines: ["NO SIGNAL", "TRY AGAIN"] };
+  }
 }
 
 export type WaysideState = {

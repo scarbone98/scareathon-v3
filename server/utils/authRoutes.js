@@ -15,6 +15,8 @@ export function isPublicRoute(method, url) {
         url.startsWith('/admin/strapi') ||
         (method === 'GET' && url.startsWith('/weekly-challenges/current')) ||
         (method === 'GET' && url.startsWith('/content-loop')) ||
+        // The rune tablet's code is on show to everyone (redeeming it needs a login)
+        (method === 'GET' && url.startsWith('/wayside/rune')) ||
         // Monster Bash spectating (the live socket and past results) is open to
         // guests; betting, chat and /me need a login.
         (method === 'GET' && (url.startsWith('/monster-bash/ws') || url.startsWith('/monster-bash/recent'))) ||

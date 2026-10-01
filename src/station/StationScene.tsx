@@ -59,6 +59,7 @@ import { linkArcadeFonts } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
+import { drawRuneTablet } from "./runes.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
 // and turns between four fixed headings, and walks up to an object to look at it.
@@ -109,6 +110,7 @@ export type Boards = {
   departures: string[];
   unread: number; // letters waiting in your pigeonhole
   poster: { image?: string | null; title: string; line: string };
+  rune: string | null; // the day's code, for the rune tablet over the track-side arch
 };
 
 const WALL_Z = -2.2;
@@ -2083,6 +2085,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         scene.add(arch);
       }
     }
+    // Over the arch you look out through from the platform: the rune tablet, carved with the
+    // day's code (painted in with the boards)
+    const runeTexture = paint(768, 256, (ctx, w, h) => drawRuneTablet(ctx, w, h, null));
+    const runeArchX = firstCol + Math.floor((HUB.pos[0] - firstCol) / bay) * bay + bay / 2;
+    const runeTablet = plane(1.5, 0.5, standard("#ffffff", 0.9, runeTexture), runeArchX, (spring + archR + 4.04) / 2, colZ - 0.15);
+    runeTablet.rotation.y = Math.PI; // facing the platform
+    scene.add(runeTablet);
+    let runeCarved: string | null = null;
     const line = plane(PLATFORM_W, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), PLATFORM_MID, 0.006, EDGE_Z - 0.25);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
@@ -2332,7 +2342,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
     const paintedPoster = poster.material.map as CanvasTexture;
     let posterImage = "";
-    paintBoardsRef.current = ({ notices, departures: lines, poster: sheet, unread }) => {
+    paintBoardsRef.current = ({ notices, departures: lines, poster: sheet, unread, rune }) => {
+      if (rune !== runeCarved) {
+        runeCarved = rune;
+        repaint(runeTexture, (ctx, w, h) => drawRuneTablet(ctx, w, h, rune));
+      }
       (mail.userData.envelopes as Mesh[]).forEach((envelope, i) => (envelope.visible = i < unread));
       (bulletin.userData.notes as CanvasTexture[]).forEach((texture, i) => {
         const [kind, title] = notices[i] ? [notices[i].kind, notices[i].title] : IDLE_NOTICES[i];

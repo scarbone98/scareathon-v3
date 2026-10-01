@@ -202,6 +202,17 @@ export function useTodayMovie(enabled: boolean) {
   });
 }
 
+// The day's code for the rune tablet (anyone can see it; it changes at midnight Eastern)
+export function useDailyRune() {
+  return useQuery<{ data?: { code?: string } }, Error, string | null>({
+    queryKey: ["wayside", "rune"],
+    queryFn: () => fetchWithAuth("/wayside/rune").then((r) => readJson<{ data?: { code?: string } }>(r, "Rune")),
+    select: (payload) => payload?.data?.code ?? null,
+    staleTime: 1000 * 60 * 10,
+    refetchInterval: 1000 * 60 * 30,
+  });
+}
+
 // Coins, unread mail and a name for the greeting (the classic home page's summary)
 export function useSummary() {
   return useQuery<Summary>({
