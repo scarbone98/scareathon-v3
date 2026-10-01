@@ -11,6 +11,13 @@
 -- avatar load; the site then rolls them a random kid from the free items and
 -- saves it (build_chosen, sent as lookChosen, marks that it has happened).
 
+-- Three retired v1 items share keys with pixel items; rename them so
+-- avatar_catalog.sql can claim the keys.
+UPDATE public.avatar_items
+SET item_key = item_key || '_v1'
+WHERE art_version = 1
+  AND item_key IN ('bat_wings', 'boots', 'sneakers');
+
 -- Retire the v2 items: they stop being granted, sold or listed.
 UPDATE public.avatar_items
 SET release_status = 'retired',
