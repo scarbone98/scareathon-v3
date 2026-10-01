@@ -42,6 +42,28 @@
     ],
     "redirects": [
         {
+            "source": "/",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "scareathon.rip"
+                }
+            ],
+            "destination": "https://www.waysidestation.com/station",
+            "permanent": false
+        },
+        {
+            "source": "/",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "www.scareathon.rip"
+                }
+            ],
+            "destination": "https://www.waysidestation.com/station",
+            "permanent": false
+        },
+        {
             "source": "/:path*",
             "has": [
                 {
