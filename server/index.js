@@ -9,7 +9,8 @@ import calendarRoutes from './routes/calendar.js';
 import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import scareathonRoutes from './routes/scareathon.js';
-import { ensureScareathonTables } from './utils/scareathon.js';
+import { ensureScareathonTables, runStartupSql } from './utils/scareathon.js';
+import { readFile } from 'node:fs/promises';
 import waysideRoutes, { ensureDailyRuneIndex } from './routes/wayside.js';
 import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
@@ -89,6 +90,7 @@ async function main() {
             try {
                 await ensureScareathonTables(pool);
                 await ensureDailyRuneIndex(pool);
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261002_rename_body_kid.sql', import.meta.url), 'utf8'));
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');
