@@ -1,6 +1,8 @@
+// The shelf shares its backdrop hook; hot reload just reloads this file
+/* eslint-disable react-refresh/only-export-components */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
-import { bannerStyle } from "../banners.ts";
+import { backdropStyle, bannerStyle } from "../banners.ts";
 import { serif } from "../style/theme.ts";
 import TicketIcon from "../../components/TicketIcon";
 
@@ -18,6 +20,12 @@ async function readBanners(response: Response) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error((body as { error?: string }).error || `HTTP ${response.status}`);
   return (body as { data: BannerState }).data;
+}
+
+// The banner you have up, as the backdrop you stand in front of (none, if it's the plain board)
+export function useBackdrop() {
+  const { data } = useQuery({ queryKey: ["banners"], queryFn: () => fetchWithAuth("/banners").then(readBanners) });
+  return backdropStyle(data?.equipped);
 }
 
 export function BannerShelf({ mode }: { mode: "shop" | "locker" }) {
@@ -47,7 +55,7 @@ export function BannerShelf({ mode }: { mode: "shop" | "locker" }) {
     <section className={mode === "shop" ? "mt-6 border-t border-[#f2ead2]/15 pt-4" : ""}>
       <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Scoreboard banners</p>
       <p className="mt-1 text-sm text-stone-400" style={serif}>
-        {mode === "shop" ? "Your place, your face and your points sit on it, up on the Scareboard." : "The one behind your name on the Scareboard."}
+        {mode === "shop" ? "Your place, your face and your points sit on it, up on the Scareboard, and it's the backdrop behind you." : "The one behind your name on the Scareboard, and behind you."}
       </p>
       {mode === "locker" && shown.length === 0 && <p className="mt-2 text-sm text-stone-400">None yet: they're sold at the ticket counter.</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">

@@ -3,7 +3,8 @@ import { AVATAR_ART_VERSION, avatarRules, serializeAvatarItemV2 } from '../utils
 
 const supabaseUrl = process.env.SUPABASE_URL || (process.env.SUPABASE_PROJECT_REF ? `https://${process.env.SUPABASE_PROJECT_REF}.supabase.co` : '');
 const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
-const allowedShopCategories = new Set(Object.keys(avatarRules.categories));
+// (backgrounds aren't sold as items: they come with banners, see routes/banners.js)
+const allowedShopCategories = new Set(Object.keys(avatarRules.categories).filter((category) => category !== 'background'));
 const allowedShopRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
 const maxShopPageSize = 20;
 
@@ -137,6 +138,7 @@ async function routes(fastify, options) {
                 AND ai.base_price IS NOT NULL
                 AND ai.base_price > 0
                 AND ai.is_default = FALSE
+                AND ai.category <> 'background'
                 ${countFilters.map((filter) => `AND ${filter}`).join('\n                ')}
             `;
             const itemWhereClause = `
@@ -145,6 +147,7 @@ async function routes(fastify, options) {
                 AND ai.base_price IS NOT NULL
                 AND ai.base_price > 0
                 AND ai.is_default = FALSE
+                AND ai.category <> 'background'
                 ${itemFilters.map((filter) => `AND ${filter}`).join('\n                ')}
             `;
 

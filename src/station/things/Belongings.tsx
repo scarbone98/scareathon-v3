@@ -13,7 +13,7 @@ import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
-import { BannerShelf } from "./Banners.tsx";
+import { BannerShelf, useBackdrop } from "./Banners.tsx";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
 // at the ticket counter, clothes in your left-luggage locker, letters in your pigeonhole,
@@ -118,10 +118,11 @@ function YourName({ renamable }: { renamable: boolean }) {
 
 function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean }) {
   const { data: summary } = useSummary();
+  const backdrop = useBackdrop();
   if (large)
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex h-[30rem] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20">
+        <div className="flex h-[30rem] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20" style={backdrop}>
           <AvatarView look={look} height={440} />
         </div>
         <div className="min-w-0">
@@ -136,7 +137,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
     );
   return (
     <div className="mb-4 flex items-center gap-4">
-      <div className={`flex ${roomy ? "h-36 w-28" : "h-24 w-20"} shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20`}>
+      <div className={`flex ${roomy ? "h-36 w-28" : "h-24 w-20"} shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20`} style={backdrop}>
         <AvatarView look={look} height={roomy ? 144 : 96} />
       </div>
       <div className="min-w-0">

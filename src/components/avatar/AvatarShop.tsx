@@ -53,7 +53,9 @@ type PurchaseResponse = {
 
 const classifications = [
   { value: "", label: "All categories" },
-  ...Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
+  ...Object.entries(CATEGORY_LABELS)
+    .filter(([value]) => value !== "background") // (they come with banners)
+    .map(([value, label]) => ({ value, label })),
 ];
 
 const rarities = [

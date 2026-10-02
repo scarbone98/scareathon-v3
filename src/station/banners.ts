@@ -168,20 +168,58 @@ const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D) => void> = {
 
 const cache = new Map<string, string>();
 
-// The banner's tile as an image URL (made once)
-export function bannerImage(key: string): string | null {
+function bannerCanvas(key: string) {
   if (!(key in PAINTERS)) return null;
-  const cached = cache.get(key);
-  if (cached) return cached;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   PAINTERS[key as BannerKey](ctx);
-  const url = canvas.toDataURL();
-  cache.set(key, url);
+  return canvas;
+}
+
+// The banner's tile as an image URL (made once)
+export function bannerImage(key: string): string | null {
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const url = bannerCanvas(key)?.toDataURL() ?? null;
+  if (url) cache.set(key, url);
   return url;
+}
+
+// Your banner is your avatar's background too. Mostly it's a section of the banner, a
+// portrait slice of the tile from this far along it (where there's something to see);
+// some banners have a background painted for them instead.
+const CUSTOM_BACKGROUNDS: Partial<Record<BannerKey, string>> = {
+  moonlit_graveyard: "/avatar-px/items/moonlit_graveyard/0-background.png",
+};
+const SECTION_X: Partial<Record<BannerKey, number>> = { starry_night: 12, pumpkin_patch: 27, candlelight: 54, blood_moon: 42, golden_ticket: 46 };
+const SECTION_W = 16;
+
+export function bannerBackground(key: string): string | null {
+  const custom = CUSTOM_BACKGROUNDS[key as BannerKey];
+  if (custom) return custom;
+  const cached = cache.get(`${key}:background`);
+  if (cached) return cached;
+  const tile = bannerCanvas(key);
+  if (!tile) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = SECTION_W;
+  canvas.height = H;
+  const x = SECTION_X[key as BannerKey] ?? (W - SECTION_W) / 2;
+  canvas.getContext("2d")?.drawImage(tile, x, 0, SECTION_W, H, 0, 0, SECTION_W, H);
+  const url = canvas.toDataURL();
+  cache.set(`${key}:background`, url);
+  return url;
+}
+
+// The CSS for the frame an avatar stands in: their banner's background, filling it,
+// standing on its bottom edge
+export function backdropStyle(key: string | null | undefined): React.CSSProperties | undefined {
+  const url = key ? bannerBackground(key) : null;
+  if (!url) return undefined;
+  return { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center bottom", imageRendering: "pixelated" };
 }
 
 // The CSS for a row (or a sample) on a banner: the tile repeated along it, full height

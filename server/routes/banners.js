@@ -33,6 +33,20 @@ export const BANNERS_SQL = `
     );
 `;
 
+// Banners and avatar backgrounds are one thing now: your banner is your background (a
+// section of it, or one painted for it). Anyone who bought a background item gets the
+// banner of the same name. Run at start-up; does nothing once they have it.
+export const BACKGROUND_BANNERS_SQL = `
+    INSERT INTO public.user_banners (user_id, banner_key)
+    SELECT DISTINCT uii.user_id, ai.item_key
+    FROM public.user_item_instances uii
+    JOIN public.avatar_items ai ON ai.id = uii.item_id
+    WHERE ai.category = 'background'
+      AND uii.status IN ('owned', 'listed', 'locked')
+      AND ai.item_key IN (${BANNERS.map((banner) => `'${banner.key}'`).join(', ')})
+    ON CONFLICT DO NOTHING;
+`;
+
 // Which banner each of these players has up ({ userId: key }); empty if the tables
 // aren't there yet
 export async function bannersFor(userIds, db = pool) {

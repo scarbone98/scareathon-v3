@@ -9,7 +9,8 @@ const TAB_LIST: { key: string; label: string; categories: string[] }[] = [
   { key: "bottoms", label: "Bottoms", categories: ["legs"] },
   { key: "shoes", label: "Shoes", categories: ["feet"] },
   { key: "hats", label: "Hats", categories: ["head"] },
-  { key: "extras", label: "Extras", categories: ["back", "wings", "held", "companion", "aura", "background"] },
+  // (no backgrounds: your banner is your background, see station/banners.ts)
+  { key: "extras", label: "Extras", categories: ["back", "wings", "held", "companion", "aura"] },
 ];
 // Everything you own comes first; then a tab for each kind of thing
 export const WARDROBE_TABS = [{ key: "all", label: "All", categories: TAB_LIST.flatMap((t) => t.categories) }, ...TAB_LIST];

@@ -97,6 +97,8 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
     .flatMap((slot) =>
       outfit.flatMap((entry) =>
         entry.item.parts
+          // (background items aren't drawn: the banner you have up is your background)
+          .filter((part) => part.slot !== "background")
           .filter((part) => part.slot === slot && (!bodyKey || !part.fits || part.fits.includes(bodyKey)))
           // a body without the part's anchor (a ghost has no legs) skips it
           .filter((part) => !bodyKey || rig.anchors[part.anchor])

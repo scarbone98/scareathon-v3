@@ -8,6 +8,7 @@ import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import { useSummary } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 import { useAvatarLook } from "./Belongings.tsx";
+import { useBackdrop } from "./Banners.tsx";
 import { serif, stubButton, typewriter } from "../style/theme.ts";
 
 // The ticket counter. Its window is where you sign in (or buy a ticket, i.e. sign up), and
@@ -131,9 +132,10 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
   const { data: summary } = useSummary();
   const unread = useInboxUnreadCount();
   const look = useAvatarLook();
+  const backdrop = useBackdrop();
   return (
     <div className="flex h-full gap-4 text-[#2a1d14]">
-      <div className="flex w-28 shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#120d08]">
+      <div className="flex w-28 shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#120d08]" style={backdrop}>
         <AvatarView look={look} height={144} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
