@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { needsSignIn, useLooks, useScareboard } from "../data.ts";
-import { bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { AvatarLook } from "../../components/avatar/types";
 import type { GoTo } from "../stops.ts";
@@ -113,9 +113,10 @@ function Standings({ signedIn }: { signedIn: boolean }) {
       )}
       {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
       {rows.map((row) => (
-        <Line key={row.name} bright={row.rank <= 3} banner={row.userId ? looks?.[row.userId]?.banner : undefined}>
+        // (a player with an account always has a banner: the empty one, if they've put none up)
+        <Line key={row.name} bright={row.rank <= 3} banner={row.userId ? looks?.[row.userId]?.banner ?? DEFAULT_BANNER : undefined}>
           <span className={`${flap} w-9 text-center`}>{row.rank}</span>
-          <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId && looks?.[row.userId]?.banner)} />
+          <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId)} />
           <span className={`${flap} min-w-0 flex-1 truncate`}>
             {row.name.toUpperCase()}
             {winsFor(row.name).map((y) => (

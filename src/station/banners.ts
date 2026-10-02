@@ -12,7 +12,12 @@ export type BannerKey =
   | "moonlit_graveyard"
   | "blood_moon"
   | "ectoplasm"
-  | "golden_ticket";
+  | "golden_ticket"
+  | "empty";
+
+// The banner everyone has, up until they put another up: an empty one. (On the server,
+// no banner chosen means this one.)
+export const DEFAULT_BANNER: BannerKey = "empty";
 
 const W = 96;
 const H = 24;
@@ -154,6 +159,16 @@ const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D) => void> = {
     }
     px(ctx, "rgba(140,255,160,0.5)", 0, 0, W, 1);
   },
+  // Plain dark cloth: a little lighter along the top edge, a stitched hem along the
+  // bottom, and the faint weave of it
+  empty: (ctx) => {
+    sky(ctx, "#232a38", "#151a24");
+    px(ctx, "rgba(255,255,255,0.07)", 0, 0, W, 1);
+    px(ctx, "rgba(0,0,0,0.35)", 0, H - 1, W, 1);
+    for (let x = 1; x < W; x += 4) px(ctx, "rgba(242,234,210,0.12)", x, H - 3, 2, 1);
+    const rand = seeded(11);
+    for (let i = 0; i < 70; i += 1) px(ctx, rand() < 0.5 ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.12)", rand() * W, 1 + rand() * (H - 5));
+  },
   golden_ticket: (ctx) => {
     sky(ctx, "#9a6a12", "#e8b23a");
     for (let x = 0; x < W; x += 12) {
@@ -217,7 +232,8 @@ export function bannerBackground(key: string): string | null {
 // The CSS for the frame an avatar stands in: their banner's background, filling it,
 // standing on its bottom edge
 export function backdropStyle(key: string | null | undefined): React.CSSProperties | undefined {
-  const url = key ? bannerBackground(key) : null;
+  // (the empty banner leaves the frame as it was: blown up, its weave is just blotches)
+  const url = key && key !== DEFAULT_BANNER ? bannerBackground(key) : null;
   if (!url) return undefined;
   return { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center bottom", imageRendering: "pixelated" };
 }

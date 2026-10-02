@@ -2,7 +2,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
-import { backdropStyle, bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, backdropStyle, bannerStyle } from "../banners.ts";
 import { serif } from "../style/theme.ts";
 import TicketIcon from "../../components/TicketIcon";
 
@@ -22,10 +22,10 @@ async function readBanners(response: Response) {
   return (body as { data: BannerState }).data;
 }
 
-// The banner you have up, as the backdrop you stand in front of (none, if it's the plain board)
+// The banner you have up, as the backdrop you stand in front of (the empty one, if none)
 export function useBackdrop() {
   const { data } = useQuery({ queryKey: ["banners"], queryFn: () => fetchWithAuth("/banners").then(readBanners) });
-  return backdropStyle(data?.equipped);
+  return backdropStyle(data?.equipped ?? DEFAULT_BANNER);
 }
 
 export function BannerShelf({ mode }: { mode: "shop" | "locker" }) {
@@ -57,17 +57,20 @@ export function BannerShelf({ mode }: { mode: "shop" | "locker" }) {
       <p className="mt-1 text-sm text-stone-400" style={serif}>
         {mode === "shop" ? "Your place, your face and your points sit on it, up on the Scareboard, and it's the backdrop behind you." : "The one behind your name on the Scareboard, and behind you."}
       </p>
-      {mode === "locker" && shown.length === 0 && <p className="mt-2 text-sm text-stone-400">None yet: they're sold at the ticket counter.</p>}
+      {mode === "locker" && shown.length === 0 && <p className="mt-2 text-sm text-stone-400">Just the empty one so far: more are sold at the ticket counter.</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {mode === "locker" && shown.length > 0 && (
-          <button
-            type="button"
-            onClick={() => equip.mutate(null)}
-            disabled={equip.isPending}
-            className={`flex h-12 items-center rounded-[2px] bg-[#111419] px-3 text-left text-sm text-[#f2ead2] ring-2 ${data.equipped === null ? "ring-amber-300" : "ring-transparent hover:ring-[#f2ead2]/30"}`}
-          >
-            Plain board
-          </button>
+        {mode === "locker" && (
+          // Everyone's: the empty banner, up until another is (choosing it clears the choice)
+          <div className={`flex h-12 items-center justify-between gap-2 rounded-[2px] px-3 ring-2 ${data.equipped === null ? "ring-amber-300" : "ring-transparent"}`} style={bannerStyle(DEFAULT_BANNER)}>
+            <span className="rounded-[2px] bg-black/55 px-1.5 text-sm text-[#f2ead2]">Empty banner</span>
+            {data.equipped === null ? (
+              <span className="rounded-[2px] bg-black/55 px-1.5 text-xs uppercase tracking-wider text-amber-300">Up</span>
+            ) : (
+              <button type="button" className="rounded-[2px] bg-black/70 px-2 py-1 text-xs text-[#f2ead2] hover:bg-black/85" disabled={equip.isPending} onClick={() => equip.mutate(null)}>
+                Put up
+              </button>
+            )}
+          </div>
         )}
         {shown.map((banner) => {
           const owned = data.owned.includes(banner.key);

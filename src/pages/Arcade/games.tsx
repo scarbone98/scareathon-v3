@@ -202,6 +202,28 @@ export function createArcadeGames(): MachineData[] {
       game: null,
     },
     {
+      // The arcade's message board: a General board and the Scareathon's, posts, replies, reactions
+      name: "Wayside Online",
+      cartridge: {
+        color: "#1a2a6c",
+        tagline: "Dial in. Post, reply, react.",
+        font: { family: "Press Start 2P" },
+        about: { released: "2026", players: "Everyone", genre: "Message board", developer: "scarbone98" },
+        backNote: "Be kind on the line.",
+        cassette: "Wayside Online",
+      },
+      // No video: the URL finds its label still, stills/WaysideOnline.jpg, which the cabinet shows
+      videoUrl: "/game-recordings/WaysideOnline.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Wayside Online"
+          url="/wayside-online"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
       name: "Wayside Gallery",
       cartridge: {
         color: "#b8894f",
@@ -216,26 +238,6 @@ export function createArcadeGames(): MachineData[] {
           title="Wayside Gallery"
           url={WAYSIDE_GALLERY_URL}
           desktopAspectRatio={16 / 9}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-        />
-      ),
-    },
-    {
-      // The arcade's message board: a General board and the Scareathon's, posts, replies, reactions
-      name: "Wayside Online",
-      cartridge: {
-        color: "#1a2a6c",
-        tagline: "Dial in. Post, reply, react.",
-        font: { family: "Press Start 2P" },
-        about: { released: "2026", players: "Everyone", genre: "Message board", developer: "scarbone98" },
-        backNote: "Be kind on the line.",
-        cassette: "Wayside Online",
-      },
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Wayside Online"
-          url="/wayside-online"
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
