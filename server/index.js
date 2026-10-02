@@ -96,6 +96,7 @@ async function main() {
                 await runStartupSql(pool, WAYSIDE_ONLINE_SQL); // Wayside Online's posts and reactions
                 await runStartupSql(pool, BANNERS_SQL); // scoreboard banners
                 await runStartupSql(pool, BACKGROUND_BANNERS_SQL); // background items become banners
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261003_halloween_items.sql', import.meta.url), 'utf8')); // eight new shop items
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');

@@ -1,0 +1,11 @@
+# A stitched-up wound down the left cheek: the red line, dark stitches across it
+at: 12,28
+legend:
+  k = blood.2
+  t = ink.1
+--- 0
+.k.
+tkt
+.k.
+tkt
+.k.

@@ -1,0 +1,21 @@
+# A deep hood round the face (the face is x 12-19, y 27-32), down onto the shoulders
+at: 9,22
+legend:
+  a = dye1.0
+  d = dye1.1
+  b = dye1.2
+  c = dye1.3
+--- 0
+.....bbbb....
+...bbcccbbb..
+..bccbbbbbbb.
+.bcbbbbbbbbbb
+.bbbddddddbba
+bbbd......dba
+bbbd......dba
+bbd........da
+bbd........da
+bbd........da
+bbbd......dba
+abbbd....dbba
+aabbb.....bba

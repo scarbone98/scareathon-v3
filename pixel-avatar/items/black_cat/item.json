@@ -1,0 +1,15 @@
+{
+  "name": "Black Cat",
+  "category": "companion",
+  "rarity": "epic",
+  "price": 300,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "cat.txt",
+      "anchor": "free"
+    }
+  ]
+}

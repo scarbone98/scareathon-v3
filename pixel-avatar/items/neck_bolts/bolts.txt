@@ -1,0 +1,10 @@
+# A bolt through each side of the neck (the neck is x 14-16, y 33)
+at: 11,32
+legend:
+  h = steel.3
+  m = steel.2
+  d = steel.1
+--- 0
+h.......h
+dmm...mmd
+d.......d

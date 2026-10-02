@@ -1,0 +1,13 @@
+# Bandages wound round the torso, the tee's shape; one end works loose
+at: 12,34
+legend:
+  h = bone.3
+  b = bone.2
+  d = bone.1
+--- 0
+.hhbhd.
+hbdhhbh
+hhhbdhh
+d.hhhbd
+..dhbhh
+......d

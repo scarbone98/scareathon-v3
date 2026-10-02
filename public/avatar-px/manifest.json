@@ -972,6 +972,33 @@
       "release": "released"
     },
     {
+      "key": "black_cat",
+      "name": "Black Cat",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 20,
+          "y": 37,
+          "w": 9,
+          "h": 10,
+          "frames": 6,
+          "src": "/avatar-px/items/black_cat/0-companion.png?v=33b00d25e4"
+        }
+      ],
+      "icon": "/avatar-px/items/black_cat/icon.png?v=e930cf8f0c",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 300,
+      "release": "released"
+    },
+    {
       "key": "body_ghost",
       "name": "Ghost",
       "category": "body",
@@ -1225,6 +1252,63 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "ghostly_aura",
+      "name": "Ghostly Aura",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "back_fx",
+          "anchor": "free",
+          "x": 0,
+          "y": 12,
+          "w": 23,
+          "h": 36,
+          "frames": 6,
+          "src": "/avatar-px/items/ghostly_aura/0-back_fx.png?v=62ac8c66bb"
+        }
+      ],
+      "icon": "/avatar-px/items/ghostly_aura/icon.png?v=bb09fb8fd3",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 500,
+      "release": "released"
+    },
+    {
+      "key": "grim_scythe",
+      "name": "Grim Scythe",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 2,
+          "y": 19,
+          "w": 10,
+          "h": 27,
+          "frames": 1,
+          "src": "/avatar-px/items/grim_scythe/0-held.png?v=f48c0fcd09",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/grim_scythe/icon.png?v=bed37de162",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 380,
       "release": "released"
     },
     {
@@ -1758,6 +1842,66 @@
       "release": "released"
     },
     {
+      "key": "mummy_wraps",
+      "name": "Mummy Wraps",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/mummy_wraps/0-torso.png?v=4a3c795085",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/mummy_wraps/icon.png?v=dad5eac12d",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 180,
+      "release": "released"
+    },
+    {
+      "key": "neck_bolts",
+      "name": "Frankenstein Bolts",
+      "category": "neck",
+      "parts": [
+        {
+          "slot": "neck",
+          "anchor": "body",
+          "x": 11,
+          "y": 32,
+          "w": 9,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/neck_bolts/0-neck.png?v=1615ff9ad1",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/neck_bolts/icon.png?v=0d4ebe541d",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
       "key": "open_jacket",
       "name": "Open Jacket",
       "category": "outer",
@@ -1975,6 +2119,40 @@
       "release": "released"
     },
     {
+      "key": "reaper_hood",
+      "name": "Reaper Hood",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 22,
+          "w": 13,
+          "h": 13,
+          "frames": 1,
+          "src": "/avatar-px/items/reaper_hood/0-head.png?v=f1235ad04d",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/reaper_hood/icon.png?v=00e19189c9",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [
+        "hair"
+      ],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 320,
+      "release": "released"
+    },
+    {
       "key": "rosy_cheeks",
       "name": "Rosy Cheeks",
       "category": "face_paint",
@@ -2160,6 +2338,63 @@
       "default": false,
       "rarity": "epic",
       "price": 300,
+      "release": "released"
+    },
+    {
+      "key": "spider_pal",
+      "name": "Spider Pal",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 24,
+          "y": 10,
+          "w": 7,
+          "h": 11,
+          "frames": 6,
+          "src": "/avatar-px/items/spider_pal/0-companion.png?v=158e8e6e75"
+        }
+      ],
+      "icon": "/avatar-px/items/spider_pal/icon.png?v=20a76e5066",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
+      "release": "released"
+    },
+    {
+      "key": "stitches",
+      "name": "Stitches",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "anchor": "head",
+          "x": 12,
+          "y": 28,
+          "w": 3,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/stitches/0-face_paint.png?v=c3f0d5e656",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/stitches/icon.png?v=9720a12b0a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 40,
       "release": "released"
     },
     {

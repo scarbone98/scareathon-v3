@@ -1,0 +1,15 @@
+{
+  "name": "Ghostly Aura",
+  "category": "aura",
+  "rarity": "legendary",
+  "price": 500,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "back_fx",
+      "file": "aura.txt",
+      "anchor": "free"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+# Sits at your feet and swishes its tail
+at: 20,37
+legend:
+  k = coal.2
+  K = coal.3
+  g = glow_eye.2
+  p = rose.2
+--- 0
+.k.k.....
+.kkkk....
+.gkgk....
+.kkpk....
+..kkk...k
+..kkkk..k
+..kKkkk.k
+..kKkkkk.
+..kkkkkk.
+..k.k.k..
+--- 1
+.k.k.....
+.kkkk....
+.gkgk....
+.kkpk...k
+..kkk...k
+..kkkk..k
+..kKkkkk.
+..kKkkkk.
+..kkkkkk.
+..k.k.k..
+--- 2
+.k.k.....
+.kkkk....
+.gkgk....
+.kkpk..k.
+..kkk...k
+..kkkk..k
+..kKkkk.k
+..kKkkkk.
+..kkkkkk.
+..k.k.k..
+--- 3
+.k.k.....
+.kkkk....
+.gkgk....
+.kkpk..k.
+..kkk...k
+..kkkk..k
+..kKkkk.k
+..kKkkkk.
+..kkkkkk.
+..k.k.k..
+--- 4
+.k.k.....
+.kkkk....
+.gkgk....
+.kkpk...k
+..kkk...k
+..kkkk..k
+..kKkkkk.
+..kKkkkk.
+..kkkkkk.
+..k.k.k..
+--- 5
+.k.k.....
+.kkkk....
+.gkgk....
+.kkpk....
+..kkk...k
+..kkkk..k
+..kKkkk.k
+..kKkkkk.
+..kkkkkk.
+..k.k.k..

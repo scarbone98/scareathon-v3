@@ -1,0 +1,15 @@
+{
+  "name": "Spider Pal",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 220,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "spider.txt",
+      "anchor": "free"
+    }
+  ]
+}

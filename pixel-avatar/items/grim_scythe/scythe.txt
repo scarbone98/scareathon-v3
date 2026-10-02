@@ -1,0 +1,37 @@
+# Held upright beside you, the blade out over your shoulder
+at: 2,19
+legend:
+  h = steel.3
+  m = steel.2
+  d = steel.1
+  w = wood.2
+  v = wood.1
+  k = bark.0
+--- 0
+....hhhhhd
+..hhmmmmmw
+.hmd.....w
+hm.......w
+d........w
+.........v
+.........w
+.........w
+.........w
+.........v
+.........w
+.........k
+.........k
+.........v
+.........w
+.........w
+.........w
+.........v
+.........w
+.........w
+.........w
+.........v
+.........w
+.........w
+.........w
+.........v
+.........w
