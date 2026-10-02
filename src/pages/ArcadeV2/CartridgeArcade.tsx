@@ -2265,6 +2265,8 @@ export default function CartridgeArcade({
     const knockDispenser = () => {
       if (!dispenser) return;
       const now = performance.now() / 1000;
+      // Tickets hanging out of it: a tap takes them
+      if (dispenser.collect(now)) return;
       dispenser.glitch(now);
       knocks = knocks.filter((t) => now - t < 3);
       knocks.push(now);

@@ -18,7 +18,7 @@ import {
 } from "three";
 import { CABINET_FONT } from "./cabinetFinish.ts";
 import { canvasFont, whenFontReady } from "./arcadeFonts.ts";
-import { playTicketFeed, playTicketGlitch, playTicketTear } from "./arcadeSounds.ts";
+import { playTicketFeed, playTicketGlitch, playTicketTear, playWhoosh } from "./arcadeSounds.ts";
 
 // Its height and depth as a share of its width
 export const DISPENSER_ASPECT = 0.34;
@@ -27,7 +27,8 @@ const FEED_RATE = 9; // tickets a second, like the real thing's chatter
 const MOST_SHOWN = 9; // the strip's longest; a bigger win counts up faster instead
 const HOLD = 1.1; // seconds the strip hangs there once it's all out
 const GOLDEN_HOLD = 2.6; // (a golden ticket, longer: it's worth a look)
-const FALL = 1.3; // seconds it takes to drop away
+const FLY = 1.3; // seconds a collected ticket takes to sweep off to the left
+const STAGGER = 0.06; // seconds between one ticket leaving and the next
 const SHOW_TOTAL = 5; // seconds the counter keeps the total up after
 const LED = "#ff2a1a";
 const LED_OFF = "#3a0b08";
@@ -42,6 +43,8 @@ export type TicketDispenser = {
   dispense: (tickets: number, time: number, golden?: boolean) => void;
   // Knocked: the counter scrambles, the lamp stutters, the box rattles
   glitch: (time: number) => void;
+  // Tapped while the strip's out: it's torn off and collected now (false: nothing to collect)
+  collect: (time: number) => boolean;
   update: (time: number) => void;
   dispose: () => void;
 };
@@ -221,7 +224,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
     const mesh = new Mesh(ticketGeometry, ticketMaterial);
     mesh.visible = false;
     strip.add(mesh);
-    return { mesh, vy: 0, vz: 0, spin: 0 };
+    return { mesh, vx: 0, vy: 0, vz: 0, spin: 0, delay: 0 };
   });
   // Where a point `s` along the path is, and which way the paper faces there
   const place = (mesh: Mesh, s: number) => {
@@ -235,7 +238,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
   // What's coming out: `total` tickets won, `count` of them on the strip, fed `out` tickets'
   // length so far of the `end` it stops at; `doneAt`, when it got there
   let feed: { total: number; count: number; out: number; end: number; fed: number; doneAt: number; golden: boolean } | null = null;
-  let tearAt = 0; // the strip tore off and is falling
+  let tearAt = 0; // the strip tore off and is being collected
   let lastTotal = 0; // flashed on the counter for a while after
   let totalUntil = 0;
   let lastTime = 0;
@@ -245,6 +248,30 @@ export function createTicketDispenser(width: number): TicketDispenser {
   const setOpacity = (opacity: number) => {
     ticketMaterial.opacity = opacity;
     goldMaterial.opacity = opacity;
+  };
+
+  // Torn off and collected: the counter keeps the total up a while; away they go
+  const tearOff = (time: number) => {
+    if (!feed) return;
+    lastTotal = feed.total;
+    totalUntil = time + SHOW_TOTAL;
+    feed = null;
+    tearAt = time;
+    playTicketTear();
+    playWhoosh();
+    tickets.forEach((ticket, i) => {
+      ticket.delay = i * STAGGER;
+      ticket.vx = -0.25 - Math.random() * 0.1;
+      ticket.vy = 0.22 + Math.random() * 0.12;
+      ticket.vz = 0.12 + Math.random() * 0.08;
+      ticket.spin = Math.random() * Math.PI * 2;
+    });
+  };
+  // (Only once it's all out: tapping while it's still feeding just knocks the box)
+  const collect = (time: number) => {
+    if (!feed || feed.out < feed.end) return false;
+    tearOff(time);
+    return true;
   };
 
   const glitch = (time: number) => {
@@ -301,32 +328,26 @@ export function createTicketDispenser(width: number): TicketDispenser {
       if (feed.out >= feed.end) {
         feed.doneAt ||= time;
         lamp = false;
-        // All out: it hangs a moment, then tears off and drops
-        if (time - feed.doneAt > (feed.golden ? GOLDEN_HOLD : HOLD)) {
-          lastTotal = feed.total;
-          totalUntil = time + SHOW_TOTAL;
-          feed = null;
-          tearAt = time;
-          playTicketTear();
-          tickets.forEach((ticket) => {
-            ticket.vy = -0.15 - Math.random() * 0.15;
-            ticket.vz = 0.2 + Math.random() * 0.2;
-            ticket.spin = (Math.random() - 0.5) * 4;
-          });
-        }
+        // All out: it hangs a moment, then it's torn off and collected
+        if (time - feed.doneAt > (feed.golden ? GOLDEN_HOLD : HOLD)) tearOff(time);
       }
     } else if (tearAt) {
-      // Falling away, tumbling a little, fading out
+      // Collected: off to the left one after another, the bottom one first, each lifting a
+      // little, turning to face you and fluttering as it picks up speed; fading at the end
+      const flight = FLY + STAGGER * MOST_SHOWN;
       tickets.forEach((ticket) => {
-        if (!ticket.mesh.visible) return;
-        ticket.vy -= 2.4 * dt;
+        if (!ticket.mesh.visible || time - tearAt < ticket.delay) return;
+        ticket.vx -= 4.2 * dt;
+        ticket.vy -= 0.35 * dt;
+        ticket.mesh.position.x += ticket.vx * dt;
         ticket.mesh.position.y += ticket.vy * dt;
         ticket.mesh.position.z += ticket.vz * dt;
-        ticket.mesh.rotation.x += ticket.spin * dt;
-        ticket.mesh.rotation.z += ticket.spin * 0.3 * dt;
+        ticket.mesh.rotation.x *= Math.exp(-dt * 5);
+        ticket.mesh.rotation.z = Math.sin((time - tearAt) * 14 + ticket.spin) * 0.35;
       });
-      setOpacity(Math.max(0, 1 - (time - tearAt) / FALL));
-      if (time - tearAt > FALL) {
+      const left = flight - (time - tearAt);
+      setOpacity(Math.min(1, Math.max(0, left / (FLY * 0.3))));
+      if (left <= 0) {
         tickets.forEach((ticket) => (ticket.mesh.visible = false));
         tearAt = 0;
       }
@@ -351,6 +372,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
     group,
     dispense,
     glitch,
+    collect,
     update,
     dispose() {
       [caseGeometry, faceGeometry, mouthGeometry, ticketGeometry].forEach((geometry) => geometry.dispose());
