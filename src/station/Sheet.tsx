@@ -94,7 +94,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
           ×
         </button>
         {/* (empty, it lets taps through to what's under it) */}
-        <div ref={setActions} className="pointer-events-none absolute left-3 right-14 top-1 z-10 flex h-11 items-center justify-end [&>*]:pointer-events-auto" />
+        <div ref={setActions} className="pointer-events-none absolute left-5 right-14 top-1 z-10 flex h-11 items-center justify-end md:left-8 [&>*]:pointer-events-auto" />
         <SheetActions.Provider value={actions}>
           {full ? <div className="min-h-0 flex-1">{sheet.body}</div> : tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : sheet.body}
         </SheetActions.Provider>

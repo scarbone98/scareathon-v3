@@ -269,7 +269,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
           className={`shop-button is-secondary ${isPreviewing ? "is-active" : ""}`}
           aria-pressed={isPreviewing}
         >
-          Preview
+          Show
         </button>
         <button
           type="button"
@@ -334,7 +334,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
                     className={`shop-button is-secondary ${item.previewing ? "is-active" : ""}`}
                     aria-pressed={item.previewing}
                   >
-                    Preview
+                    Show
                   </button>
                   <button type="button" onClick={item.action.onClick} disabled={item.action.disabled || cannotAfford} className="shop-button">
                     {item.action.label}

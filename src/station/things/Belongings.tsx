@@ -171,7 +171,7 @@ function ShopSearch({ value, onChange }: { value: string; onChange: (value: stri
       </button>
     );
   return (
-    <label className="flex h-9 w-full max-w-sm items-center gap-2 rounded-md border border-[#494054] bg-[#191620] px-3 text-[#92859f] focus-within:border-[#bda0de]">
+    <label className="flex h-9 w-full items-center gap-2 rounded-md border border-[#494054] bg-[#191620] px-3 text-[#92859f] focus-within:border-[#bda0de] md:max-w-sm">
       <FaSearch className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <input
         type="search"
@@ -181,7 +181,7 @@ function ShopSearch({ value, onChange }: { value: string; onChange: (value: stri
         onBlur={() => !value.trim() && setOpen(false)}
         placeholder="Search items"
         aria-label="Search the shop"
-        className="min-w-0 flex-1 bg-transparent text-sm text-[#eee5f8] placeholder:text-[#92859f] focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent text-base text-[#eee5f8] placeholder:text-[#92859f] focus:outline-none"
       />
     </label>
   );
@@ -208,7 +208,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
   const look = preview || saved;
-  const note = preview || previewBanner ? <span className="ml-2 text-xs text-stone-400">(previewing)</span> : null;
+  const note = preview || previewBanner ? <span className="ml-2 text-xs text-stone-400">(showing)</span> : null;
   const extraCategories = [...new Map(bannerItems.map((item) => [item.category, item.categoryPlural])).entries()];
   const menus = <ShopFilterMenus filters={filters} onChange={setFilters} extraCategories={extraCategories} className="mt-2 max-w-sm" />;
   // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
