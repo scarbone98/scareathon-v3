@@ -57,6 +57,18 @@ if (process.env.DB_CONNECTION_STRING) {
   });
 }
 
+// An idle client can be dropped by the database or the pooler at any time.
+// pg emits that on the pool, and an 'error' event with no listener throws and
+// takes the whole server down, so log it instead; the pool replaces the client.
+pool.on('error', (err) => {
+  console.error(JSON.stringify({
+    level: 'error',
+    msg: 'Postgres pool: idle client error (client discarded)',
+    err: { message: err.message, code: err.code, stack: err.stack },
+    time: new Date().toISOString(),
+  }));
+});
+
 // Function to initialize the database
 async function initializeDB() {
   const client = await pool.connect();

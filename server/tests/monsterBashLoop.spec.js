@@ -184,10 +184,11 @@ describe('MonsterBashLoop', () => {
         loop.stop();
     });
 
-    test('recovery replays mid-fight bouts from their seed and cancels the rest', async () => {
-        const fighting = { id: '41', status: 'fighting', engineVersion: ENGINE_VERSION, seed: 'crashed-mid-fight', fighters: ['rat', 'ghost'], fightStartsAt: Date.now() - 20_000 };
-        const oldEngine = { id: '42', status: 'fighting', engineVersion: ENGINE_VERSION - 1, seed: 'old', fighters: ['imp', 'ufo'], fightStartsAt: Date.now() };
-        const betting = { id: '43', status: 'betting', engineVersion: ENGINE_VERSION, seed: 'never-started', fighters: ['zombie', 'skull'], fightStartsAt: Date.now() };
+    test('recovery replays bouts whose fight is already over and cancels the rest', async () => {
+        const longAgo = Date.now() - 10 * 60_000;
+        const fighting = { id: '41', status: 'fighting', engineVersion: ENGINE_VERSION, seed: 'crashed-mid-fight', fighters: ['rat', 'ghost'], bettingClosesAt: longAgo, fightStartsAt: longAgo };
+        const oldEngine = { id: '42', status: 'fighting', engineVersion: ENGINE_VERSION - 1, seed: 'old', fighters: ['imp', 'ufo'], bettingClosesAt: Date.now(), fightStartsAt: Date.now() };
+        const betting = { id: '43', status: 'betting', engineVersion: ENGINE_VERSION, seed: 'never-started', fighters: ['zombie', 'skull'], bettingClosesAt: longAgo, fightStartsAt: longAgo };
         const repo = createFakeRepo([fighting, oldEngine, betting]);
         const { loop } = createLoop(repo);
         await loop.start();
@@ -196,6 +197,55 @@ describe('MonsterBashLoop', () => {
         expect(repo.finished).toEqual([expect.objectContaining({ id: '41', winner: expected.winner, durationTicks: expected.durationTicks })]);
         expect(repo.cancelled).toEqual(['42', '43']);
         expect(repo.inserted).toHaveLength(1);
+        loop.stop();
+    });
+
+    test('a restart mid-fight picks the bout up where it was and plays it to the end', async () => {
+        const seed = 'restarted-mid-fight';
+        const fighters = ['rat', 'ghost'];
+        const fight = simulateFight({ seed, fighters });
+        const startedAt = Date.now() - 10_000;
+        const row = { id: '41', status: 'fighting', engineVersion: ENGINE_VERSION, seed, seedHash: hashSeed(seed), fighters, bettingClosesAt: startedAt, fightStartsAt: startedAt, houseSeed: [60, 40] };
+        const repo = createFakeRepo([row]);
+        repo.bets.push({ userId: 'u1', matchId: '41', side: 1, amount: 30 });
+        const { loop, messages } = createLoop(repo);
+        await loop.start();
+
+        expect(repo.inserted).toHaveLength(0);
+        expect(repo.finished).toHaveLength(0);
+        expect(repo.cancelled).toHaveLength(0);
+        const match = messages.find((message) => message.type === 'match');
+        expect(match.match).toMatchObject({ id: '41', fighters, pools: { amounts: [0, 30], bettors: [0, 1], house: [60, 40] } });
+
+        await jest.advanceTimersByTimeAsync(1_000);
+        const firstChunk = messages.find((message) => message.type === 'chunk').chunk;
+        // Only the last few seconds of movement, like a late joiner gets.
+        expect(Math.min(...firstChunk.frames.map((frame) => frame.t))).toBeGreaterThanOrEqual(5 * TICK_RATE);
+
+        await playToResult(messages);
+        expect(messages.find((message) => message.type === 'result').result).toEqual({ winner: fight.winner, durationTicks: fight.durationTicks });
+        expect(repo.finished).toEqual([expect.objectContaining({ id: '41', winner: fight.winner })]);
+        await jest.advanceTimersByTimeAsync(RESULT_MS);
+        expect(repo.settleMatch).toHaveBeenCalledWith('41');
+        expect(repo.inserted).toHaveLength(1);
+        loop.stop();
+    });
+
+    test('a restart during betting keeps taking bets until the original close time', async () => {
+        const seed = 'restarted-while-betting';
+        const closesAt = Date.now() + 3_000;
+        const row = { id: '43', status: 'betting', engineVersion: ENGINE_VERSION, seed, seedHash: hashSeed(seed), fighters: ['zombie', 'skull'], bettingClosesAt: closesAt, fightStartsAt: closesAt, houseSeed: [50, 50] };
+        const repo = createFakeRepo([row]);
+        const { loop } = createLoop(repo);
+        await loop.start();
+
+        expect(repo.inserted).toHaveLength(0);
+        await loop.placeBet({ userId: 'u1', matchId: '43', side: 0, amount: 10 });
+        expect(repo.bets).toHaveLength(1);
+
+        await jest.advanceTimersByTimeAsync(3_000);
+        expect(repo.fighting).toEqual(['43']);
+        await expect(loop.placeBet({ userId: 'u2', matchId: '43', side: 0, amount: 10 })).rejects.toEqual(new BetRefusedError('betting_closed'));
         loop.stop();
     });
 

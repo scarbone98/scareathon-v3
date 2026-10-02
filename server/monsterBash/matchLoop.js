@@ -53,6 +53,11 @@ export function splitHouseSeed(total, p) {
     return [left, total - left];
 }
 
+// Log-friendly timestamp that never throws on a bad value.
+function isoTime(ms) {
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
 function historyEntry(match) {
     return { id: match.id, fighters: match.fighters, winner: match.winner };
 }
@@ -81,15 +86,20 @@ export class MonsterBashLoop {
     }
 
     async start() {
-        await this.recover();
+        this.log.info({ pid: process.pid, engineVersion: ENGINE_VERSION }, 'Monster Bash loop starting');
+        const resumable = await this.recover({ resume: true });
         this.history = (await this.repo.listRecent(this.config.historySize)).map(historyEntry);
         this.pruneTimer = setInterval(() => this.run(() => this.prune()), this.config.pruneEveryMs);
         this.pruneTimer.unref?.();
         this.run(() => this.prune());
-        await this.openMatch();
+        if (resumable) await this.resume(resumable);
+        else await this.openMatch();
     }
 
     stop() {
+        if (this.current && this.current.status !== 'finished') {
+            this.log.warn({ matchId: this.current.id, status: this.current.status }, 'Monster Bash loop stopping with a bout in progress');
+        }
         this.stopped = true;
         this.timers.forEach((timer) => clearTimeout(timer));
         this.timers.clear();
@@ -116,24 +126,45 @@ export class MonsterBashLoop {
 
     // --- lifecycle ---------------------------------------------------------
 
-    // Settles bouts left open by a crash or deploy. A bout that was mid-fight
-    // is replayed from its seed, so the true winner stands; a bout still taking
-    // bets never started and is called off.
-    async recover() {
+    // Settles bouts left open by a crash or deploy. On startup (`resume`), a
+    // bout whose fight hasn't finished yet on the clock is handed back to be
+    // picked up where it left off, so viewers see it through to the end.
+    // Otherwise a bout that was mid-fight is replayed from its seed, so the
+    // true winner stands; a bout still taking bets never started and is
+    // called off.
+    async recover({ resume = false } = {}) {
         const open = await this.repo.findOpenMatches();
+        let resumable = null;
         for (const match of open) {
-            if (match.status === 'fighting' && match.engineVersion === ENGINE_VERSION) {
-                const fight = simulateFight({ seed: match.seed, fighters: match.fighters }, { frameEvery: 1e9 });
+            const sameEngine = match.engineVersion === ENGINE_VERSION;
+            const fight = sameEngine
+                ? simulateFight({ seed: match.seed, fighters: match.fighters }, { frameEvery: 1e9 })
+                : null;
+            const endsAt = fight ? match.fightStartsAt + (fight.durationTicks * 1000) / TICK_RATE : null;
+            const context = {
+                matchId: match.id,
+                status: match.status,
+                fighters: match.fighters,
+                engineVersion: match.engineVersion,
+                bettingClosesAt: isoTime(match.bettingClosesAt),
+                fightEndsAt: isoTime(endsAt),
+                msLeft: endsAt ? Math.round(endsAt - Date.now()) : null,
+            };
+
+            if (resume && !resumable && fight && endsAt > Date.now()) {
+                resumable = match;
+                this.log.warn(context, 'Monster Bash found an unfinished bout on startup; resuming it');
+            } else if (fight && match.status === 'fighting') {
                 await this.repo.markFinished(match.id, {
                     winner: fight.winner,
                     durationTicks: fight.durationTicks,
                     rounds: fight.rounds,
-                    finishedAt: match.fightStartsAt + (fight.durationTicks * 1000) / TICK_RATE,
+                    finishedAt: endsAt,
                 });
-                this.log.info({ matchId: match.id, winner: fight.winner }, 'Monster Bash bout recovered from its seed');
+                this.log.warn({ ...context, winner: fight.winner }, 'Monster Bash bout recovered from its seed without being shown');
             } else {
                 await this.repo.markCancelled(match.id);
-                this.log.info({ matchId: match.id, status: match.status }, 'Monster Bash bout cancelled during recovery');
+                this.log.warn(context, 'Monster Bash bout cancelled during recovery');
             }
         }
 
@@ -142,11 +173,50 @@ export class MonsterBashLoop {
             const summary = await this.repo.settleMatch(matchId);
             this.log.info({ matchId, summary }, 'Monster Bash bets settled during recovery');
         }
+        return resumable;
+    }
+
+    // Picks up a bout left open by the previous process: betting carries on
+    // until its original close time, and a fight already underway streams on
+    // from wherever its clock has got to.
+    async resume(row) {
+        const pregame = await this.odds.pregame(row.seed, row.fighters).catch((error) => {
+            this.log.warn({ err: error, matchId: row.id }, 'Monster Bash pre-fight odds failed');
+            return null;
+        });
+        let pools = { amounts: [0, 0], bettors: [0, 0] };
+        try {
+            pools = await this.repo.poolTotals(row.id);
+        } catch (error) {
+            this.log.warn({ err: error, matchId: row.id }, 'Monster Bash could not reload the betting pools');
+        }
+
+        this.current = {
+            id: row.id,
+            fighters: row.fighters,
+            seed: row.seed,
+            seedHash: row.seedHash,
+            bettingClosesAt: row.bettingClosesAt,
+            fightStartsAt: row.fightStartsAt,
+            status: 'betting',
+            fight: null,
+            pendingOdds: [],
+            released: { frames: [], events: [], odds: pregame ? [pregame] : [] },
+            pools: { ...pools, house: row.houseSeed ?? [0, 0] },
+            result: null,
+        };
+        this.log.info(
+            { matchId: row.id, fighters: row.fighters, pools: this.current.pools, wasStatus: row.status },
+            'Monster Bash bout resumed'
+        );
+        this.hub.broadcast(this.matchMessage(this.current));
+        this.schedule(() => this.lock(), row.bettingClosesAt - Date.now());
     }
 
     async openMatch() {
         if (this.stopped) return;
         if (this.needsRecovery) {
+            this.log.warn('Monster Bash running recovery before the next bout');
             await this.recover();
             this.needsRecovery = false;
         }
@@ -194,6 +264,10 @@ export class MonsterBashLoop {
             pools: { amounts: [0, 0], bettors: [0, 0], house: houseSeed },
             result: null,
         };
+        this.log.info(
+            { matchId: row.id, fighters, houseSeed, pregameP: pregame?.p ?? null, bettingClosesAt: isoTime(bettingClosesAt) },
+            'Monster Bash bout opened'
+        );
         this.hub.broadcast(this.matchMessage(this.current));
         this.schedule(() => this.lock(), bettingClosesAt - Date.now());
     }
@@ -219,6 +293,23 @@ export class MonsterBashLoop {
         this.poolTimer = null;
         this.broadcastPools(match);
         match.fight = simulateFight({ seed: match.seed, fighters: match.fighters });
+        // A resumed fight may already be well underway: skip frames nobody
+        // needs any more, exactly as a late joiner would.
+        const liveTick = ((Date.now() - match.fightStartsAt) * TICK_RATE) / 1000;
+        if (liveTick > this.config.catchUpTicks) {
+            const skipBefore = liveTick - this.config.catchUpTicks;
+            match.released.frames = match.fight.frames.filter((frame) => frame.t < skipBefore);
+        }
+        this.log.info(
+            {
+                matchId: match.id,
+                pools: match.pools,
+                durationTicks: match.fight.durationTicks,
+                fightSeconds: Math.round(match.fight.durationTicks / TICK_RATE),
+                lateByMs: Math.round(Date.now() - match.fightStartsAt),
+            },
+            'Monster Bash betting closed; fight started'
+        );
         this.odds
             .stream(match.seed, match.fighters, (point) => {
                 // The pre-fight point and the final result are released by the loop.
@@ -266,6 +357,11 @@ export class MonsterBashLoop {
         this.hub.broadcast({ type: 'chunk', chunk: { matchId: match.id, frames: [], events: [], odds: [finalOdds] } });
         this.hub.broadcast({ type: 'result', matchId: match.id, result: match.result });
 
+        this.log.info(
+            { matchId: match.id, winner: fight.winner, winnerId: match.fighters[fight.winner], durationTicks: fight.durationTicks, pools: match.pools },
+            'Monster Bash bout finished'
+        );
+
         this.history = [historyEntry({ ...match, winner: fight.winner }), ...this.history].slice(0, this.config.historySize);
         this.lastFighters = match.fighters;
 
@@ -301,6 +397,7 @@ export class MonsterBashLoop {
             return;
         }
 
+        this.log.info({ matchId, summary, attempt }, 'Monster Bash bets settled');
         this.hub.broadcast({ type: 'settled', matchId, summary });
         if (this.chat && summary.settled > 0) {
             const coins = (summary.paidOut ?? summary.pool).toLocaleString('en-US');

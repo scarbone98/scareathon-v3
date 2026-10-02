@@ -34,6 +34,38 @@ const fastify = Fastify({
     logger: true
 });
 
+// Leave a trail when the process goes down, so restarts (which end any live
+// Monster Bash bout early) can be traced to a cause.
+const bootedAt = Date.now();
+function memoryUsageMb() {
+    const usage = process.memoryUsage();
+    const mb = (bytes) => Math.round(bytes / 1024 / 1024);
+    return { rss: mb(usage.rss), heapUsed: mb(usage.heapUsed), heapTotal: mb(usage.heapTotal), external: mb(usage.external) };
+}
+fastify.log.info({ pid: process.pid, node: process.version, memoryMb: memoryUsageMb() }, 'Server process starting');
+process.on('uncaughtException', (err, origin) => {
+    fastify.log.fatal({ err, origin, uptimeSec: Math.round((Date.now() - bootedAt) / 1000), memoryMb: memoryUsageMb() }, 'Uncaught exception; exiting');
+    process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+    fastify.log.error({ err: reason, memoryMb: memoryUsageMb() }, 'Unhandled promise rejection');
+});
+for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.once(signal, () => {
+        fastify.log.warn({ signal, uptimeSec: Math.round((Date.now() - bootedAt) / 1000), memoryMb: memoryUsageMb() }, 'Received shutdown signal');
+        fastify.close().finally(() => process.exit(0));
+        setTimeout(() => process.exit(0), 5_000).unref();
+    });
+}
+process.on('exit', (code) => {
+    fastify.log.warn({ code, uptimeSec: Math.round((Date.now() - bootedAt) / 1000) }, 'Server process exiting');
+});
+// A steady memory reading makes an out-of-memory kill (which leaves no log of
+// its own) visible as a climb right before the restart.
+setInterval(() => {
+    fastify.log.info({ memoryMb: memoryUsageMb(), uptimeSec: Math.round((Date.now() - bootedAt) / 1000) }, 'Server heartbeat');
+}, 5 * 60_000).unref();
+
 function getAuthConfig() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const projectRef = process.env.SUPABASE_PROJECT_REF;
