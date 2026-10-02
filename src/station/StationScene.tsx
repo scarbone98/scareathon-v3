@@ -858,6 +858,8 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
         window.addEventListener("touchend", start, { once: true });
         const texture = new VideoTexture(video);
         texture.colorSpace = SRGBColorSpace;
+        // The cabinet's screen UVs follow glTF (top row first), as the arcade's screen does
+        texture.flipY = false;
         return texture;
       })();
       const marquee = paint(512, 128, (ctx, w, h) => {
