@@ -115,14 +115,16 @@ export function dressSlot({
   const margin = faceHeight * 0.12;
   const terminal = createSlotTerminal(terminalWidth, terminalHeight, terminalDepth);
   terminal.group.position.set(-cartSize.width * 0.61 + margin + terminalWidth / 2, surfaceY + margin + terminalHeight / 2, housingFront + terminalDepth / 2);
-  // The ticket dispenser, bolted on in the middle of the strip under the marquee (below its
-  // chaser lights, clear of the screen's badge), its back against the cabinet's face
+  // The ticket dispenser, bolted on at the left of the strip under the marquee (below its
+  // chaser lights), over the SCAREATHON badge, its back against the cabinet's face
   const dispenserWidth = cabinetSize.x * 0.3;
   const dispenser = createTicketDispenser(dispenserWidth);
   const dispenserHeight = dispenserWidth * DISPENSER_ASPECT;
   const underMarquee = marqueeBox.isEmpty() ? (screenBox.isEmpty() ? cabinetBox.max.y * 0.85 : screenBox.max.y + 0.12) : marqueeBox.min.y - 0.035;
   const dispenserY = underMarquee - dispenserHeight / 2;
-  dispenser.group.position.set(0, dispenserY, faceAt(0, dispenserY) + (dispenserWidth * DISPENSER_ASPECT) / 2);
+  // Its left edge lined up with the badge's (just left of the screen's frame)
+  const dispenserX = (screenBox.isEmpty() ? cabinetBox.min.x + cabinetSize.x * 0.12 : screenBox.min.x - 0.018) + dispenserWidth / 2;
+  dispenser.group.position.set(dispenserX, dispenserY, faceAt(dispenserX, dispenserY) + (dispenserWidth * DISPENSER_ASPECT) / 2);
   // Sunk far enough that the part left standing stays below the screen
   const seat = new Vector3(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
 
