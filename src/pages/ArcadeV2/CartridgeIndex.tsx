@@ -67,44 +67,66 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
         </div>
         <ul className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
           {shown.length === 0 && <li className="col-span-full py-6 text-xl">NO CARTRIDGE MATCHES "{query.toUpperCase()}"</li>}
-          {shown.map(({ game, index }) => (
-            <li key={game.name}>
-              <button
-                type="button"
-                onClick={() => onPick(index)}
-                aria-current={index === current || undefined}
-                className="group flex w-full flex-col overflow-hidden rounded-md border-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39ff6a]"
-                style={{ borderColor: index === current ? PHOSPHOR : "rgba(57, 255, 106, 0.25)", textShadow: "none" }}
-              >
-                <div className="h-1.5" style={{ background: game.cartridge.color }} />
-                <div className="relative aspect-video w-full bg-black">
-                  {game.videoUrl && (
-                    <img
-                      src={stillUrlFor(game.videoUrl)}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover opacity-85 transition-opacity [@media(hover:hover)]:group-hover:opacity-100"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                      }}
-                    />
-                  )}
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0"
-                    style={{ background: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.3) 0 1px, transparent 1px 3px)" }}
-                  />
-                </div>
-                <span
-                  className="truncate px-1.5 py-0.5 text-base leading-5 sm:px-2 sm:py-1 sm:text-lg"
-                  style={{ color: PHOSPHOR, textShadow: GLOW, background: index === current ? "rgba(57, 255, 106, 0.15)" : undefined }}
+          {shown.map(({ game, index }) => {
+            const soon = game.special === "soon";
+            return (
+              <li key={game.name}>
+                <button
+                  type="button"
+                  onClick={() => onPick(index)}
+                  aria-current={index === current || undefined}
+                  className="group flex w-full flex-col overflow-hidden rounded-md border-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39ff6a]"
+                  style={{ borderColor: index === current ? PHOSPHOR : "rgba(57, 255, 106, 0.25)", textShadow: "none", opacity: soon ? 0.75 : undefined }}
                 >
-                  {index === current ? "> " : ""}
-                  {game.name.replace(/[‘’]/g, "'").toUpperCase()}
-                </span>
-              </button>
-            </li>
-          ))}
+                  <div className="h-1.5" style={{ background: soon ? "#4c4c52" : game.cartridge.color }} />
+                  <div className="relative aspect-video w-full bg-black">
+                    {game.videoUrl && (
+                      <img
+                        src={stillUrlFor(game.videoUrl)}
+                        alt=""
+                        loading="lazy"
+                        className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
+                          soon ? "opacity-50 grayscale" : "opacity-85 [@media(hover:hover)]:group-hover:opacity-100"
+                        }`}
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{ background: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.3) 0 1px, transparent 1px 3px)" }}
+                    />
+                    {/* Not made yet: stamped across the corner-to-corner diagonal */}
+                    {soon && (
+                      <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+                        <span
+                          className="whitespace-nowrap border-y-2 px-[30%] py-0.5 text-base leading-5 sm:text-2xl sm:leading-7"
+                          style={{
+                            transform: "rotate(-29deg)",
+                            color: "#fff4e0",
+                            borderColor: PHOSPHOR,
+                            background: "rgba(2, 20, 7, 0.85)",
+                            textShadow: GLOW,
+                          }}
+                        >
+                          COMING SOON
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="truncate px-1.5 py-0.5 text-base leading-5 sm:px-2 sm:py-1 sm:text-lg"
+                    style={{ color: PHOSPHOR, textShadow: GLOW, background: index === current ? "rgba(57, 255, 106, 0.15)" : undefined }}
+                  >
+                    {index === current ? "> " : ""}
+                    {game.name.replace(/[‘’]/g, "'").toUpperCase()}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
         {/* The search prompt */}
         <label className="flex items-center gap-2 border-t-2 border-[#39ff6a]/30 px-4 py-2 text-2xl leading-none">

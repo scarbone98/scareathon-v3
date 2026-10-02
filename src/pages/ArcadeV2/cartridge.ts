@@ -311,6 +311,18 @@ const INK = "#2a2126";
 // Stills are copied at about this size: enough for the label, small to keep
 const STILL_MAX = 480;
 
+// Black and white and a little faded: the label of a game that isn't out yet
+function greyOut(context: CanvasRenderingContext2D) {
+  const { width, height } = context.canvas;
+  const image = context.getImageData(0, 0, width, height);
+  const data = image.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const grey = (data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11) * 0.5 + 24;
+    data[i] = data[i + 1] = data[i + 2] = grey;
+  }
+  context.putImageData(image, 0, 0);
+}
+
 function paintLabel(
   context: CanvasRenderingContext2D,
   type: string,
@@ -622,6 +634,7 @@ export function createCartridge(
     untitled = false,
     tape = "",
     cassette = "",
+    greyed = false,
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
@@ -630,9 +643,11 @@ export function createCartridge(
     untitled?: boolean; // no name on the label: the picture fills it
     tape?: string; // no sticker on the back, just a strip of masking tape with this written on
     cassette?: string; // a blank cassette cart: colourless clear shell, this written on a plain sticker
+    greyed?: boolean; // a game that isn't out yet: the whole cart dull grey, its label black and white
   } = {}
 ): Cartridge {
   const group = new Group();
+  if (greyed) color = "#4c4c52";
   const { width, height, depth } = size;
   // A cassette cart's shell is clear and colourless, like a blank tape's, and always
   // the notched one
@@ -971,6 +986,7 @@ export function createCartridge(
     if (context) {
       if (cassette) paintCassetteLabel(context, cassette, color);
       else paintLabel(context, TAPE_TYPE[style], name, color, font, picture, untitled);
+      if (greyed) greyOut(context);
     }
     texture.needsUpdate = true;
   };
@@ -989,7 +1005,7 @@ export function createCartridge(
     bumpScale: 1.2,
     emissive: new Color("#ffffff"),
     emissiveMap: texture,
-    emissiveIntensity: 0.35,
+    emissiveIntensity: greyed ? 0.05 : 0.35,
   });
   addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, labelX, labelY, depth / 2 + 0.002);
 
@@ -1034,6 +1050,19 @@ export function createCartridge(
   backing.rotation.y = Math.PI;
   if (tape) backing.rotation.z = 0.06; // slapped on crooked
 
+  // Not out yet: drain the colour from every part (reels, contacts, the board inside)
+  if (greyed) {
+    const hsl = { h: 0, s: 0, l: 0 };
+    group.traverse((object) => {
+      const material = (object as Mesh).material as MeshStandardMaterial | undefined;
+      if (!material?.color || material === labelMaterial) return;
+      material.color.getHSL(hsl);
+      material.color.setHSL(hsl.h, 0, hsl.l * 0.6);
+      material.emissive.getHSL(hsl);
+      material.emissive.setHSL(hsl.h, 0, hsl.l * 0.3);
+    });
+  }
+
   return {
     group,
     sticker,
@@ -1049,6 +1078,7 @@ export function createCartridge(
     },
     setHighlight: (amount) => {
       spinReels(amount);
+      if (greyed) return; // a dead cart doesn't light up
       labelMaterial.emissiveIntensity = 0.35 + amount * 0.45;
       shellMaterial.emissive.copy(shellColor).multiplyScalar(glow + amount * 0.35);
     },

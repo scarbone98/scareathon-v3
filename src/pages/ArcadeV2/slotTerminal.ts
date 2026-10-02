@@ -6,7 +6,7 @@ import {
   LOADING_BLOCKS,
   loadingView,
   nowSeconds,
-  PLAY_HINT,
+  playHint,
   rebootView,
   takeoverView,
   terminalControls,
@@ -399,7 +399,7 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     if (!options.phone && controls === "all") {
       context.globalAlpha = 0.55;
       context.font = font(16);
-      text(PLAY_HINT, WIDTH / 2, hintY);
+      text(playHint(screen), WIDTH / 2, hintY);
       context.globalAlpha = 1;
     }
     // The keys, along the bottom: all the games (≡) on the left, ? on the right

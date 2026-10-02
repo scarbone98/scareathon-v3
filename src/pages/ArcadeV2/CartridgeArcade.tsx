@@ -375,7 +375,7 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
-    // A coming-soon cart: its cover fills the screen. Plugged in, the cover dims
+    // A coming-soon cart (it won't plug in): its cover fills the screen, dimmed
     // behind a band that blinks COMING SOON in the cart's colour.
     const covers = new Map<string, HTMLImageElement>();
     const coverFor = (url: string) => {
@@ -388,7 +388,6 @@ export default function CartridgeArcade({
       return image;
     };
     let soonCover: HTMLImageElement | null = null;
-    let soonPlugged = false;
     let soonColor = SHELF_NEON;
     let lastSoonFrame = -1;
     const paintSoon = (time: number, width: number, height: number) => {
@@ -408,25 +407,23 @@ export default function CartridgeArcade({
       } else {
         lastSoonFrame = -1; // try again once the cover has loaded
       }
-      if (soonPlugged) {
-        screenContext.fillStyle = "rgba(4, 2, 8, 0.55)";
-        screenContext.fillRect(0, 0, width, height);
-        const band = height * 0.3;
-        screenContext.fillStyle = "rgba(4, 2, 8, 0.85)";
-        screenContext.fillRect(0, (height - band) / 2, width, band);
-        screenContext.fillStyle = soonColor;
-        screenContext.fillRect(0, (height - band) / 2, width, 3);
-        screenContext.fillRect(0, (height + band) / 2 - 3, width, 3);
-        if (frame % 4 !== 3) {
-          screenContext.font = canvasFont(TERMINAL_FONT, 44);
-          screenContext.textAlign = "center";
-          screenContext.textBaseline = "middle";
-          screenContext.shadowColor = soonColor;
-          screenContext.shadowBlur = 16;
-          screenContext.fillStyle = "#fff4e0";
-          screenContext.fillText("COMING SOON", width / 2, height / 2 + 2);
-          screenContext.shadowBlur = 0;
-        }
+      screenContext.fillStyle = "rgba(4, 2, 8, 0.55)";
+      screenContext.fillRect(0, 0, width, height);
+      const band = height * 0.3;
+      screenContext.fillStyle = "rgba(4, 2, 8, 0.85)";
+      screenContext.fillRect(0, (height - band) / 2, width, band);
+      screenContext.fillStyle = soonColor;
+      screenContext.fillRect(0, (height - band) / 2, width, 3);
+      screenContext.fillRect(0, (height + band) / 2 - 3, width, 3);
+      if (frame % 4 !== 3) {
+        screenContext.font = canvasFont(TERMINAL_FONT, 44);
+        screenContext.textAlign = "center";
+        screenContext.textBaseline = "middle";
+        screenContext.shadowColor = soonColor;
+        screenContext.shadowBlur = 16;
+        screenContext.fillStyle = "#fff4e0";
+        screenContext.fillText("COMING SOON", width / 2, height / 2 + 2);
+        screenContext.shadowBlur = 0;
       }
       screenContext.fillStyle = "rgba(0, 0, 0, 0.22)";
       for (let y = 0; y < height; y += 4) screenContext.fillRect(0, y, width, 2);
@@ -681,13 +678,11 @@ export default function CartridgeArcade({
         showOnScreen(screenTexture);
         return;
       }
-      // Not made yet: the cover on the screen, and COMING SOON once it's plugged in
+      // Not made yet: the cover on the screen under COMING SOON
       if (game.special === "soon") {
         screenMode = "soon";
         soonCover = game.videoUrl ? coverFor(stillUrlFor(game.videoUrl)) : null;
-        soonPlugged = games.indexOf(game) === insertedIndex;
         soonColor = game.cartridge.color;
-        if (soonPlugged) showTerminal({ kind: "message", lines: ["> COMING SOON", "NOT FINISHED YET", "CHECK BACK SOON"], at: nowSeconds() });
         lastSoonFrame = -1;
         showOnScreen(screenTexture);
         return;
@@ -1514,6 +1509,15 @@ export default function CartridgeArcade({
       if (busy || index < 0 || index >= carts.length) return;
       const state = carts[index];
       if (state.where !== "shelf") return;
+      // Not made yet: it won't go in. A shake of the head instead.
+      if (games[index].special === "soon") {
+        focus(index);
+        playTick();
+        showTerminal({ kind: "message", lines: ["> COMING SOON", "NOT FINISHED YET", "CHECK BACK SOON"], at: nowSeconds() });
+        gsap.killTweensOf(state.cart.group.rotation);
+        gsap.fromTo(state.cart.group.rotation, { z: 0.14 }, { z: 0, duration: 0.5, ease: "elastic.out(1.4, 0.25)" });
+        return;
+      }
       busy = true;
       // On the ledge, let the row finish sliding the cartridge to the middle before
       // anything takes off, so the row isn't moving under a cartridge in flight
@@ -1760,6 +1764,7 @@ export default function CartridgeArcade({
           tape: game.cartridge.backTape,
           cassette: game.cartridge.cassette,
           untitled: game.special === "mystery",
+          greyed: game.special === "soon",
         });
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });

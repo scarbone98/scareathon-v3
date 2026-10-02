@@ -9,7 +9,7 @@ import {
   LOADING_BLOCKS,
   loadingView,
   nowSeconds,
-  PLAY_HINT,
+  playHint,
   rebootView,
   settled,
   takeoverView,
@@ -479,7 +479,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
           {/* Hidden rather than removed while busy, so the card keeps its size (the
               details take its row over) */}
           {!phone && controls !== "details" && (
-            <p className={`mt-1 h-5 text-base leading-5 opacity-55 ${controls === "none" ? "invisible" : ""}`}>{PLAY_HINT}</p>
+            <p className={`mt-1 h-5 text-base leading-5 opacity-55 ${controls === "none" ? "invisible" : ""}`}>{playHint(screen)}</p>
           )}
 
           {/* The keys, along the bottom: the site menu (phones) and all games on the

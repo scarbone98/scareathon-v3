@@ -950,6 +950,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             tape: game.cartridge.backTape,
             cassette: game.cartridge.cassette,
             untitled: game.special === "mystery",
+            greyed: game.special === "soon",
           });
           cart.group.userData.restBase = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
           cart.group.userData.rest = cart.group.userData.restBase.clone();

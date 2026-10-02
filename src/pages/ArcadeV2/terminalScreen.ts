@@ -24,6 +24,8 @@ export type TerminalOptions = {
 
 export const TERMINAL_CPS = 60; // characters typed a second
 export const PLAY_HINT = "CLICK TWICE TO PLAY";
+// A coming-soon cart won't plug in, so there's nothing to click twice for
+export const playHint = (screen: TerminalScreen) => (screen.kind === "game" && screen.game.special === "soon" ? "NOT OUT YET" : PLAY_HINT);
 export const LOADING_BLOCKS = 14;
 const LOADING_BLOCKS_PER_SECOND = 6;
 const REBOOT_CRASH = 1.4; // seconds of fault report before the reboot starts
