@@ -13,6 +13,7 @@ import {
   CylinderGeometry,
   DoubleSide,
   ExtrudeGeometry,
+  Frustum,
   Shape,
   Path,
   SphereGeometry,
@@ -2009,6 +2010,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const goRef = useRef<((at: StopId | null, heading: Heading) => void) | null>(null);
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
+  const cabinetSeenRef = useRef(false); // the cabinet's on screen (its preview plays)
   const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
   latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
 
@@ -3057,6 +3059,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let rowLast = performance.now() / 1000;
     let rowCovered = false;
     let reported = false; // told the page it's ready
+    let cabinetBounds: Box3 | null = null; // (it stands still once it's in)
+    const viewFrustum = new Frustum();
+    const viewMatrix = new Matrix4();
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
@@ -3071,6 +3076,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (latest.current.paused && latest.current.at === "arcade") rowCovered = true;
       // Covered: one last frame (with the cabinet hidden, if the arcade's is over it), then rest
       if (latest.current.paused) {
+        cabinetSeenRef.current = false;
         if (restingDrawn) return;
         restingDrawn = true;
       } else restingDrawn = false;
@@ -3329,6 +3335,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       renderer.render(scene, camera);
 
+      // Whether the cabinet's anywhere on screen, so its preview plays from every view of it
+      if (cabinetNode && !cabinetBounds) cabinetBounds = new Box3().setFromObject(cabinetNode);
+      if (cabinetBounds) {
+        viewFrustum.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+        cabinetSeenRef.current = arcadeObject.visible && viewFrustum.intersectsBox(cabinetBounds);
+      }
+
       // Each surface only while it's ahead of the camera and facing it (HTML behind the
       // camera or seen from the back would draw wrongly, so then it goes at once); its
       // painted stand-in shows otherwise. Coming and going otherwise, it fades.
@@ -3397,15 +3410,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     paintBoardsRef.current?.(boards);
   }, [boards]);
 
-  // The cabinet's preview only plays while the cabinet's in view
+  // The cabinet's preview only plays while the cabinet's in view: facing it, or seen on
+  // screen from anywhere else
   const previewRef = useRef(previewPlaying);
   previewRef.current = previewPlaying;
   useEffect(() => {
     const check = window.setInterval(() => {
       const clip = sceneArcadeRef.current?.userData.video as HTMLVideoElement | undefined;
       if (!clip) return;
-      if (previewRef.current && clip.paused) void clip.play().catch(() => undefined);
-      else if (!previewRef.current && !clip.paused) clip.pause();
+      const play = previewRef.current || cabinetSeenRef.current;
+      if (play && clip.paused) void clip.play().catch(() => undefined);
+      else if (!play && !clip.paused) clip.pause();
     }, 400);
     return () => window.clearInterval(check);
   }, []);
