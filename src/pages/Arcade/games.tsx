@@ -610,6 +610,9 @@ export function createArcadeGames(): MachineData[] {
       },
       videoUrl: "/game-recordings/DeepTime.mp4",
       hasLeaderboard: false,
+      // Off until it's fixed: browsers grab E and D, so moving and grabbing don't work.
+      // Drop this line to plug it back in.
+      special: "soon",
       game: (
         <GameRenderer
           title="Deep Time"

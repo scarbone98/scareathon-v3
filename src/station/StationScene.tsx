@@ -1377,7 +1377,6 @@ const ADVERTS: [string, string, string][] = [
   ["FrogBall", "Two frogs. One ball.", "#3f7d4a"],
   ["GhostRidge", "Ride the haunted hills.", "#3d5a80"],
   ["HordeRush", "Hold the line.", "#8a3b2a"],
-  ["DeepTime", "A prehistoric heist.", "#b07a2a"],
   ["Muertos", "Dance with the dead.", "#a0467a"],
   ["SalmonRun2", "Upstream, with style.", "#2f6f8f"],
 ];
