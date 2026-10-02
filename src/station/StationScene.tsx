@@ -9,6 +9,7 @@ import {
   CanvasTexture,
   CatmullRomCurve3,
   CircleGeometry,
+  NearestFilter,
   CylinderGeometry,
   DoubleSide,
   ExtrudeGeometry,
@@ -1273,6 +1274,88 @@ function eyeTexture() {
   });
 }
 
+// The full moon as it really looks, in big pixels: the near side's dark seas where they
+// are (Procellarum, Imbrium, Serenitatis, Tranquillitatis, Crisium...), the bright rayed
+// craters Tycho and Copernicus, and the limb a little darker. Drawn smooth, then shrunk to
+// a coarse grid and shown unsmoothed.
+function moonTexture() {
+  const big = document.createElement("canvas");
+  big.width = big.height = 256;
+  const ctx = big.getContext("2d");
+  if (ctx) {
+    const c = 128;
+    const r = 120;
+    const at = (x: number, y: number): [number, number] => [c + x * r, c + y * r];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(c, c, r, 0, Math.PI * 2);
+    ctx.clip();
+    // The bright highlands, darker towards the edge
+    const disc = ctx.createRadialGradient(c - 10, c - 10, 0, c, c, r);
+    disc.addColorStop(0, "#f1ecdd");
+    disc.addColorStop(0.75, "#ddd6c4");
+    disc.addColorStop(1, "#a9a291");
+    ctx.fillStyle = disc;
+    ctx.fillRect(0, 0, 256, 256);
+    // The maria: soft dark blots [x, y, rx, ry, darkness]
+    const maria: [number, number, number, number, number][] = [
+      [-0.55, -0.02, 0.32, 0.5, 0.5], // Oceanus Procellarum
+      [-0.27, -0.45, 0.3, 0.26, 0.62], // Imbrium
+      [0.2, -0.38, 0.17, 0.16, 0.6], // Serenitatis
+      [0.33, -0.06, 0.22, 0.2, 0.6], // Tranquillitatis
+      [0.68, -0.3, 0.12, 0.1, 0.65], // Crisium
+      [0.55, 0.2, 0.13, 0.17, 0.5], // Fecunditatis
+      [0.29, 0.3, 0.09, 0.09, 0.5], // Nectaris
+      [-0.2, 0.35, 0.18, 0.15, 0.45], // Nubium
+      [-0.48, 0.38, 0.1, 0.09, 0.5], // Humorum
+      [0.02, -0.73, 0.48, 0.07, 0.45], // Frigoris
+      [0.02, -0.1, 0.09, 0.08, 0.45], // Vaporum and Sinus Medii
+    ];
+    maria.forEach(([x, y, rx, ry, dark]) => {
+      const [px, py] = at(x, y);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(1, ry / rx);
+      const blot = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * r);
+      blot.addColorStop(0, `rgba(78,76,72,${Math.min(1, dark * 1.35)})`);
+      blot.addColorStop(0.7, `rgba(86,84,78,${dark * 1.05})`);
+      blot.addColorStop(1, "rgba(110,106,98,0)");
+      ctx.fillStyle = blot;
+      ctx.beginPath();
+      ctx.arc(0, 0, rx * r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    // Tycho's rays, and the bright craters
+    const [tx, ty] = at(-0.12, 0.72);
+    ctx.strokeStyle = "rgba(250,247,236,0.35)";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 9; i += 1) {
+      const a = (i / 9) * Math.PI * 2 + 0.3;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + Math.cos(a) * r * 0.7, ty + Math.sin(a) * r * 0.7);
+      ctx.stroke();
+    }
+    [[-0.12, 0.72, 7], [-0.25, -0.17, 6], [-0.62, -0.18, 4]].forEach(([x, y, size]) => {
+      const [px, py] = at(x, y);
+      ctx.fillStyle = "#fbf8ee";
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+  // Shrunk to a coarse grid of big pixels, shown unsmoothed
+  const texture = paint(40, 40, (small) => {
+    small.imageSmoothingEnabled = true;
+    small.drawImage(big, 0, 0, 40, 40);
+  });
+  texture.magFilter = NearestFilter;
+  texture.minFilter = NearestFilter;
+  return texture;
+}
+
 // The grin that now and then hangs in the dark under the eyes: a wide crescent of pale
 // teeth, upturned at the ends, the gaps between them dark
 function grinTexture() {
@@ -1328,12 +1411,13 @@ function buildClerk() {
   const grin = plane(0.62, 0.24, new MeshBasicMaterial({ map: grinTexture(), transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }), 0, 1.46, -0.009);
   grin.visible = false;
   eyes.userData.grin = grin;
-  const bone = new MeshStandardMaterial({ color: "#ece8dd", roughness: 0.6, emissive: new Color("#3a3833") });
+  const bone = new MeshStandardMaterial({ color: "#ece8dd", roughness: 0.6, emissive: new Color("#6e6a60") });
   const hand = new Group();
   // Just the hand, big, its wrist going back in under the window into the dark
   const scale = 2.2;
   hand.scale.setScalar(scale);
   hand.position.set(0.42, 1.095, 0.07 - 0.155 * scale);
+  hand.userData.restZ = hand.position.z;
   // The wrist and forearm going back into the dark: from the back of the hand they fade
   // out to nothing, before the window (whose black would cut them off). The fade is in the
   // corners' colours: solid at the hand end, clear at the far end
@@ -2439,14 +2523,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       tree.position.set(x, size / 2 - 0.9, FAR_Z + 5.5 + (i % 2) * 5);
       scene.add(tree);
     });
-    const moon = new Sprite(new SpriteMaterial({ map: paint(128, 128, (ctx) => {
-      ctx.fillStyle = "#e8e2cf";
-      ctx.beginPath();
-      ctx.arc(64, 64, 50, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(160,150,130,0.5)";
-      [[48, 50, 10], [80, 76, 7], [70, 40, 5]].forEach(([x, y, r]) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); });
-    }), fog: false, depthWrite: false }));
+    const moon = new Sprite(new SpriteMaterial({ map: moonTexture(), fog: false, depthWrite: false }));
     moon.scale.set(7, 7, 1);
     // Low over the fields past the end of the platform, where the scenic view looks
     moon.position.set(-75, 19, 8);
@@ -2460,16 +2537,51 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       tree.position.set(x, size / 2 - 0.9, z);
       scene.add(tree);
     });
+    // The signal by the line: a mast with a two-light head (green while the line's clear,
+    // red once a train's due), and under it a crossing's crossbuck with two red lamps that
+    // flash turn about while a train is coming and going (see the animation loop)
     const signal = new Group();
     signal.position.set(END_X - 3.6, -0.85, TRACK_Z - 1.6);
-    signal.add(box(0.12, 4.2, 0.12, standard("#1a1d22", 0.6), 0, 2.1, 0));
-    signal.add(box(0.45, 0.8, 0.3, standard("#101216", 0.7), 0, 4.0, 0));
-    signal.add(box(0.14, 0.14, 0.05, new MeshBasicMaterial({ color: "#ff3a2a" }), 0, 4.15, -0.16));
-    const signalGlow = new Sprite(new SpriteMaterial({ map: glowTexture(), color: "#ff4a3a", blending: AdditiveBlending, transparent: true, depthWrite: false }));
-    signalGlow.scale.set(1.6, 1.6, 1);
-    signalGlow.position.set(0, 4.15, -0.2);
-    signal.add(signalGlow);
+    signal.rotation.y = Math.PI; // its faces towards the platform
+    const ironwork = standard("#1a1d22", 0.6);
+    signal.add(box(0.12, 4.4, 0.12, ironwork, 0, 2.2, 0));
+    signal.add(box(0.36, 0.8, 0.26, standard("#101216", 0.7), 0, 4.15, 0));
+    signal.add(box(0.42, 0.06, 0.14, ironwork, 0, 4.39, 0.17)); // its hoods
+    signal.add(box(0.42, 0.06, 0.14, ironwork, 0, 4.03, 0.17));
+    type SignalLamp = { lens: Mesh; glow: Sprite; on: MeshBasicMaterial; off: MeshBasicMaterial };
+    const signalLamp = (colour: string, x: number, y: number, z: number, size: number): SignalLamp => {
+      const off = new MeshBasicMaterial({ color: new Color(colour).multiplyScalar(0.1) });
+      const lens = new Mesh(new CircleGeometry(size, 14), off);
+      lens.position.set(x, y, z);
+      signal.add(lens);
+      const glow = new Sprite(new SpriteMaterial({ map: glowTexture(), color: colour, blending: AdditiveBlending, transparent: true, depthWrite: false }));
+      glow.scale.set(1.5, 1.5, 1);
+      glow.position.set(x, y, z + 0.06);
+      signal.add(glow);
+      return { lens, glow, on: new MeshBasicMaterial({ color: colour }), off };
+    };
+    const signalRed = signalLamp("#ff3a2a", 0, 4.33, 0.135, 0.1);
+    const signalGreen = signalLamp("#3aff7a", 0, 3.97, 0.135, 0.1);
+    // The crossbuck, and the crossing lamps on their bar under it
+    const crossbuck = new Group();
+    crossbuck.position.set(0, 3.15, 0.08);
+    (["RAILROAD", "CROSSING"] as const).forEach((word, i) => {
+      const arm = plane(1.3, 0.22, standard("#ffffff", 0.8, signTexture(word, "#111111", "#f2f0e8", "700 60px Georgia, serif")));
+      arm.position.z = i * 0.01;
+      arm.rotation.z = i ? -Math.PI / 4 : Math.PI / 4;
+      crossbuck.add(arm);
+    });
+    signal.add(crossbuck);
+    signal.add(box(1.0, 0.08, 0.08, ironwork, 0, 2.45, 0.06));
+    const flashers = [-0.38, 0.38].map((x) => {
+      signal.add(box(0.34, 0.34, 0.12, standard("#0d0e10", 0.7), x, 2.45, 0.1)); // its backplate
+      return signalLamp("#ff2a1a", x, 2.45, 0.17, 0.12);
+    });
     scene.add(signal);
+    const setLamp = (lamp: SignalLamp, lit: boolean) => {
+      lamp.lens.material = lit ? lamp.on : lamp.off;
+      lamp.glow.visible = lit;
+    };
 
     // Stars
     const starPositions: number[] = [];
@@ -2494,7 +2606,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       (moon.material as SpriteMaterial).transparent = true;
       (scene.fog as FogExp2).density = 0.095;
     }
-    const outsideWeather = buildWeather(weather, { wallZ: WALL_Z, edgeZ: EDGE_Z, endX: END_X });
+    const outsideWeather = buildWeather(weather, { wallZ: WALL_Z, edgeZ: EDGE_Z, endX: END_X, trackZ: TRACK_Z });
     scene.add(outsideWeather);
 
     const train = buildTrain();
@@ -2697,31 +2809,22 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
     const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z] }) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
-    // Now and then, something outside looks in at a transom: a pair of round pale eyes, red
-    // irises following you about, that open, blink, and shut again (see the animation loop)
+    // Now and then, something outside looks in at a transom: two red glowing dots in the
+    // dark, that open, blink, and shut again (see the animation loop)
     const peeper = new Group();
     const peeperEyes: Group[] = [];
-    const sclera = new MeshBasicMaterial({ color: "#e9e2c4", fog: false });
-    const iris = new MeshBasicMaterial({ color: "#b3201a", fog: false });
-    const pupil = new MeshBasicMaterial({ color: "#050403", fog: false });
-    [-0.11, 0.11].forEach((x) => {
+    const ember = new MeshBasicMaterial({ color: "#ff3a24", fog: false });
+    const emberGlow = new MeshBasicMaterial({ map: glowTexture(), color: "#ff2a10", transparent: true, opacity: 0.35, blending: AdditiveBlending, depthWrite: false, fog: false });
+    [-0.09, 0.09].forEach((x) => {
       const eye = new Group();
       eye.position.x = x;
-      eye.add(new Mesh(new CircleGeometry(0.075, 20), sclera));
-      const look = new Group();
-      look.position.z = 0.002;
-      look.add(new Mesh(new CircleGeometry(0.038, 16), iris));
-      const dot = new Mesh(new CircleGeometry(0.016, 12), pupil);
-      dot.position.z = 0.001;
-      look.add(dot);
-      eye.add(look);
-      eye.userData.look = look;
+      eye.add(new Mesh(new CircleGeometry(0.022, 12), ember));
+      eye.add(plane(0.24, 0.18, emberGlow, 0, 0, -0.002));
       peeper.add(eye);
       peeperEyes.push(eye);
     });
     peeper.visible = false;
     scene.add(peeper);
-    const peeperSees = new Vector3();
     let hovered: StopId | null = null;
 
     // Camera: a pose (position, yaw, pitch) tweened between the hub's headings and the stops.
@@ -3080,7 +3183,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       halloween?.userData.update(t, reduced); // HALLOWEEN
-      outsideWeather.userData.update(t, reduced);
+      // (nothing falls inside a train: the passing one, or the one you ride in on)
+      outsideWeather.userData.update(t, reduced, train.visible || arrival.active);
       // The eyes at the transoms: every 41 s or so, at one window or the other, for 6 s
       const peek = (t + 20) % 41;
       peeper.visible = !reduced && peek < 6;
@@ -3091,11 +3195,6 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const open = Math.min(1, peek / 0.25, (6 - peek) / 0.25) * (Math.abs(peek - 3.2) < 0.08 ? 0.1 : 1);
         peeperEyes.forEach((eye) => {
           eye.scale.y = Math.max(0.05, open);
-          // the irises turned towards you
-          eye.getWorldPosition(peeperSees);
-          peeperSees.subVectors(camera.position, peeperSees).normalize();
-          (eye.userData.look as Group).position.x = peeperSees.x * 0.032;
-          (eye.userData.look as Group).position.y = peeperSees.y * 0.032;
         });
       }
       // The arcade sign's and the poster's bulbs chase round, two lit to one dark
@@ -3125,11 +3224,31 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         grin.scale.y = Math.max(0.04, (open - 0.4) / 0.6);
         grin.position.x = clerk.eyes.position.x;
         grin.position.y = clerk.eyes.position.y - 0.2;
-        const roll = t % 1.9;
-        (clerk.hand.userData.fingers as Group[]).forEach((finger, i) => {
-          const k = (roll - i * 0.11) / 0.2;
-          finger.rotation.x = k > 0 && k < 1 ? -0.55 * Math.sin(k * Math.PI) : 0;
-        });
+        // The hand: mostly drumming its fingers on the counter; about every 23 s it draws back
+        // into the dark under the window a while, and about every 37 s it beckons you closer
+        const hand = clerk.hand;
+        const fingers = hand.userData.fingers as Group[];
+        const away = (t + 6) % 23;
+        const beckon = (t + 15) % 37;
+        // (how far it's drawn back: out, gone a few seconds, back out)
+        const back = away < 4.5 ? Math.min(1, away / 0.6, (4.5 - away) / 0.8) : 0;
+        hand.position.z = (hand.userData.restZ as number) - back * 0.55;
+        hand.position.y = 1.095 - back * 0.05;
+        if (back > 0) {
+          fingers.forEach((finger) => (finger.rotation.x = -0.4 * back));
+        } else if (beckon < 3) {
+          // fingers curling up and in, three times, the hand lifted a little
+          const curl = Math.max(0, Math.sin((beckon / 1) * Math.PI * 2 - Math.PI / 2) * 0.5 + 0.5);
+          hand.rotation.x = -0.12 * Math.min(1, beckon / 0.3, (3 - beckon) / 0.3);
+          fingers.forEach((finger, i) => (finger.rotation.x = -1.3 * curl * (1 - i * 0.04)));
+        } else {
+          hand.rotation.x = 0;
+          const roll = t % 1.9;
+          fingers.forEach((finger, i) => {
+            const k = (roll - i * 0.11) / 0.2;
+            finger.rotation.x = k > 0 && k < 1 ? -0.55 * Math.sin(k * Math.PI) : 0;
+          });
+        }
       }
       // Tapped locked drawers and loose signs rattle, and settle
       const rattleNow = performance.now() / 1000;
@@ -3191,6 +3310,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const cycle = (t + 5) % 45;
       train.visible = cycle > 30;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
+      // The signal: red, and the crossing lamps flashing turn about, from a few seconds
+      // before the train comes until it's gone by (and while the one you came on pulls in
+      // and away); green otherwise
+      const trainDue = (cycle > 26 && cycle < 37) || arrival.active;
+      setLamp(signalRed, trainDue);
+      setLamp(signalGreen, !trainDue);
+      const flash = Math.floor(t * 2.2) % 2;
+      flashers.forEach((lamp, i) => setLamp(lamp, trainDue && (reduced || flash === i)));
 
       // Ease the picture up above the held card (or back down), in step with the walk
       const wantShift = (latest.current.cardFraction * height) / 2;

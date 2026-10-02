@@ -217,6 +217,25 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     {
+      // The arcade's message board: a General board and the Scareathon's, posts, replies, reactions
+      name: "Wayside Online",
+      cartridge: {
+        color: "#1a2a6c",
+        tagline: "Dial in. Post, reply, react.",
+        font: { family: "Press Start 2P" },
+        about: { released: "2026", players: "Everyone", genre: "Message board", developer: "scarbone98" },
+        backNote: "Be kind on the line.",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Wayside Online"
+          url="/wayside-online"
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
       name: "Picto Box",
       cartridge: {
         color: "#e8853a",

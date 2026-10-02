@@ -19,6 +19,7 @@ const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 const GhostRidge = lazy(() => import("../pages/GhostRidge/page"));
 const Muertos = lazy(() => import("../pages/Muertos/page"));
 const PictoBox = lazy(() => import("../pages/PictoBox/page"));
+const WaysideOnline = lazy(() => import("../pages/WaysideOnline/page"));
 
 const PAGES: [string, React.ComponentType][] = [
   ["/station", Station],
@@ -31,6 +32,7 @@ const PAGES: [string, React.ComponentType][] = [
   ["/ghost-ridge", GhostRidge],
   ["/muertos", Muertos],
   ["/picto-box", PictoBox],
+  ["/wayside-online", WaysideOnline],
 ];
 
 function ToStation() {

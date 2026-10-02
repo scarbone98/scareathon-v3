@@ -35,6 +35,8 @@ export function isOptionalAuthRoute(method, url) {
     return method === 'GET' && (
         url.startsWith('/games/getLeaderboard') ||
         // The Picto Box wall: anyone can look; signed in, you can take your own down
-        url === '/picto-box/photos' || url.startsWith('/picto-box/photos?')
+        url === '/picto-box/photos' || url.startsWith('/picto-box/photos?') ||
+        // Wayside Online: anyone can read the boards; signed in, you see your own reactions
+        url.startsWith('/wayside-online/threads')
     );
 }

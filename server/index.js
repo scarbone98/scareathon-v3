@@ -25,6 +25,7 @@ import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
 import mysteryCryptRoutes from './routes/mysteryCrypt.js';
 import pictoBoxRoutes from './routes/pictoBox.js';
+import waysideOnlineRoutes, { WAYSIDE_ONLINE_SQL } from './routes/waysideOnline.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 
@@ -91,6 +92,7 @@ async function main() {
                 await ensureScareathonTables(pool);
                 await ensureDailyRuneIndex(pool);
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261002_rename_body_kid.sql', import.meta.url), 'utf8'));
+                await runStartupSql(pool, WAYSIDE_ONLINE_SQL); // Wayside Online's posts and reactions
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');
@@ -182,6 +184,7 @@ async function main() {
         fastify.register(homeRoutes, { prefix: '/home' });
         fastify.register(mysteryCryptRoutes, { prefix: '/mystery-crypt' });
         fastify.register(pictoBoxRoutes, { prefix: '/picto-box' });
+        fastify.register(waysideOnlineRoutes, { prefix: '/wayside-online' });
         if (isMonsterBashEnabled()) {
             fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
         }

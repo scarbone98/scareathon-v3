@@ -33,7 +33,11 @@ export function weatherNow(now = Date.now()): Weather {
 }
 
 // Where the station's walls are (from StationScene)
-export type Outside = { wallZ: number; edgeZ: number; endX: number };
+export type Outside = { wallZ: number; edgeZ: number; endX: number; trackZ: number };
+
+// Over the line, where a train runs: kept clear while one's there, so nothing falls or
+// drifts inside its cars
+const onTheLine = (z: number, o: Outside) => Math.abs(z - o.trackZ) < 1.8;
 
 // Somewhere outside: past the platform's edge, past its end, or behind the station
 function outsideSpot(o: Outside): [number, number] {
@@ -66,7 +70,8 @@ const BOTTOM = -1;
 
 export function buildWeather(weather: Weather, outside: Outside) {
   const group = new Group();
-  let update: (t: number, reduced: boolean) => void = () => {};
+  // (trainHere: a train on the line by the platform, or the one you ride in on)
+  let update: (t: number, reduced: boolean, trainHere: boolean) => void = () => {};
 
   if (weather === "rain") {
     // Streaks, slanting a little, falling fast
@@ -76,17 +81,18 @@ export function buildWeather(weather: Weather, outside: Outside) {
     const positions = new Float32Array(count * 6);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    const clearOfTrain = spots.map(([, z]) => onTheLine(z, outside));
     const rain = new LineSegments(geometry, new LineBasicMaterial({ color: "#aab6cc", transparent: true, opacity: 0.75 }));
     rain.frustumCulled = false;
     group.add(rain);
     let last = 0;
-    update = (t, reduced) => {
+    update = (t, reduced, trainHere) => {
       const dt = Math.min(t - last, 0.1);
       last = t;
       spots.forEach(([x, z], i) => {
         if (!reduced) heights[i] -= dt * 11;
         if (heights[i] < BOTTOM) heights[i] += TOP - BOTTOM;
-        const y = heights[i];
+        const y = trainHere && clearOfTrain[i] ? -100 : heights[i];
         positions.set([x, y, z, x + 0.05, y + 0.38, z], i * 6);
       });
       geometry.attributes.position.needsUpdate = true;
@@ -102,18 +108,19 @@ export function buildWeather(weather: Weather, outside: Outside) {
     const positions = new Float32Array(count * 3);
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    const clearOfTrain = spots.map(([, z]) => onTheLine(z, outside));
     const snow = new Points(geometry, new PointsMaterial({ color: "#f2f5fa", size: 4, sizeAttenuation: false }));
     snow.frustumCulled = false;
     group.add(snow);
     let last = 0;
-    update = (t, reduced) => {
+    update = (t, reduced, trainHere) => {
       const dt = Math.min(t - last, 0.1);
       last = t;
       spots.forEach(([x, z], i) => {
         if (!reduced) heights[i] -= dt * (0.6 + (i % 5) * 0.08);
         if (heights[i] < BOTTOM) heights[i] += TOP - BOTTOM;
         const sway = reduced ? 0 : Math.sin(t * 0.8 + phases[i]) * 0.35;
-        positions.set([x + sway, heights[i], z + sway * 0.4], i * 3);
+        positions.set([x + sway, trainHere && clearOfTrain[i] ? -100 : heights[i], z + sway * 0.4], i * 3);
       });
       geometry.attributes.position.needsUpdate = true;
     };
@@ -132,12 +139,12 @@ export function buildWeather(weather: Weather, outside: Outside) {
       // (only those along the line or behind the station drift; one past the platform's end
       // would drift onto it)
       const drifts = z > outside.edgeZ + 0.3 || z < outside.wallZ - 0.4;
-      return { bank, x, speed: drifts ? 0.15 + Math.random() * 0.25 : 0 };
+      return { bank, x, speed: drifts ? 0.15 + Math.random() * 0.25 : 0, line: onTheLine(z, outside) };
     });
-    update = (t, reduced) => {
-      if (reduced) return;
-      banks.forEach(({ bank, x, speed }) => {
-        if (speed) bank.position.x = -26 + ((x + 26 + t * speed) % 40);
+    update = (t, reduced, trainHere) => {
+      banks.forEach(({ bank, x, speed, line }) => {
+        bank.visible = !(trainHere && line);
+        if (speed && !reduced) bank.position.x = -26 + ((x + 26 + t * speed) % 40);
       });
     };
   }
