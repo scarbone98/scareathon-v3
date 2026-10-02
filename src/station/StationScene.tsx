@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { CSS3DObject, CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 import {
   AdditiveBlending,
   Box3,
@@ -2853,20 +2852,32 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
     // are HTML placed in 3D over their painted stand-ins, so their text is crisp
-    const surfaceRenderer = new CSS3DRenderer();
-    const surfaceLayer = surfaceRenderer.domElement;
+    // Each is drawn flat: its corners are projected with the WebGL camera here, and the
+    // element given the one matrix3d that lands it on them. (CSS 3D proper, a perspective
+    // and a preserve-3d camera, as three's CSS3DRenderer does it, iPhones drew well off
+    // their painted stand-ins, by different amounts on different phones.)
+    const surfaceLayer = document.createElement("div");
     surfaceLayer.style.position = "absolute";
     surfaceLayer.style.inset = "0";
     surfaceLayer.style.pointerEvents = "none";
     surfaceLayerRef.current?.appendChild(surfaceLayer);
+    const surfaceView = new Matrix4();
+    const surfaceClip = new Matrix4();
     const parents: Record<StopId, Group> = { bench, lockers, arcade, bulletin, events, tickets, departures, mail };
     const placed = SURFACES.map((spec) => {
       const slot = document.createElement("div");
       slot.style.width = `${spec.px[0]}px`;
       slot.style.height = `${spec.px[1]}px`;
-      const object = new CSS3DObject(slot);
-      // CSS3DObject makes its element catch clicks; the content inside decides (see the portals)
+      slot.style.position = "absolute";
+      slot.style.left = "0";
+      slot.style.top = "0";
+      slot.style.transformOrigin = "0 0";
+      slot.style.display = "none";
+      // The content inside decides what takes taps (see the portals)
       slot.style.pointerEvents = "none";
+      surfaceLayer.appendChild(slot);
+      // Where it sits in the scene: its middle, the element's pixels scaled to metres
+      const object = new Object3D();
       object.scale.setScalar(spec.w / spec.px[0]);
       object.position.set(...spec.at);
       object.rotation.set(spec.lean ?? 0, 0, spec.tilt ?? 0);
@@ -3048,7 +3059,6 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       height = Math.max(mount.clientHeight, 1);
       renderer.setPixelRatio(clamp(RENDER_HEIGHT / height, 0.25, lightweight ? 1 : 2));
       renderer.setSize(width, height);
-      surfaceRenderer.setSize(width, height);
       const aspect = width / height;
       camera.aspect = aspect;
       camera.fov = aspect < 0.8 ? 86 : aspect < 1.2 ? 68 : 60;
@@ -3492,7 +3502,32 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         object.visible = fade > 0;
         if (fade !== was) slot.style.opacity = fade >= 1 ? "" : fade.toFixed(3);
       });
-      surfaceRenderer.render(scene, camera);
+      camera.updateMatrixWorld();
+      surfaceView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      placed.forEach(({ object, spec, slot }) => {
+        let shown = object.visible;
+        for (let node = object.parent; shown && node; node = node.parent) shown = node.visible;
+        // (anything reaching behind the camera can't be drawn flat, and is never read so)
+        const m = shown ? surfaceClip.multiplyMatrices(surfaceView, object.matrixWorld).elements : null;
+        const [pw, ph] = spec.px;
+        // Clip-space w (the distance ahead) at the element's corners, from its middle
+        const behind = !m || [-1, 1].some((i) => [-1, 1].some((j) => m[3] * (i * pw) / 2 + m[7] * (j * ph) / 2 + m[15] < camera.near));
+        if (behind) {
+          if (slot.style.display !== "none") slot.style.display = "none";
+          return;
+        }
+        // The element's pixel (u, v, from its top left) → clip space: x = u - pw/2,
+        // y = ph/2 - v in the object's own units; then clip → screen pixels:
+        // X = (x + w) W/2, Y = (w - y) H/2, and the browser divides by w
+        const column = (cx: number, cy: number, cw: number, k: number) => [((cx + cw) * width) / 2 / k, ((cw - cy) * height) / 2 / k, 0, cw / k];
+        const ox = m[12] - (m[0] * pw) / 2 + (m[4] * ph) / 2;
+        const oy = m[13] - (m[1] * pw) / 2 + (m[5] * ph) / 2;
+        const ow = m[15] - (m[3] * pw) / 2 + (m[7] * ph) / 2;
+        const css = [...column(m[0], m[1], m[3], ow), ...column(-m[4], -m[5], -m[7], ow), 0, 0, 1, 0, ...column(ox, oy, ow, ow)];
+        const transform = `matrix3d(${css.map((n) => (Math.abs(n) < 1e-12 ? 0 : +n.toPrecision(10))).join(",")})`;
+        if (slot.style.transform !== transform) slot.style.transform = transform;
+        if (slot.style.display) slot.style.display = "";
+      });
     };
     animate();
 
