@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Pixelify's 2, 3 and 5 read as 8, 8 and S at small sizes, so pixel UI takes its digits
+   from Press Start 2P, subset to digits (font-family: "CCDigits", "Pixelify Sans") */
+@font-face {
+  font-family: 'CCDigits';
+  src: url('/fonts/PressStart2P-digits.woff2') format('woff2');
+  unicode-range: U+0030-0039;
+  font-weight: 400 700;
+  size-adjust: 80%;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'ScoobyDoo';
   src: url('/fonts/scoobydoo.ttf') format('truetype');

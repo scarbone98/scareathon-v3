@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { needsSignIn, useLooks, useScareboard } from "../data.ts";
 import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
+import { pixel } from "../style/theme.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { AvatarLook } from "../../components/avatar/types";
 import type { GoTo } from "../stops.ts";
@@ -41,13 +42,17 @@ type Props = { signedIn: boolean; goTo: GoTo };
 
 const AMBER = "#ffb03a";
 const flap = "rounded-[2px] bg-[#111419] px-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.06),inset_0_1px_0_rgba(0,0,0,0.6)]";
+// Lettering painted straight onto a banner: a dark outline keeps it legible over any picture
+const ON_BANNER_TEXT = "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(255,176,58,0.35)";
+// A long name steps down a size before it wraps, so the whole name always shows
+const nameSize = (name: string) => (name.length > 14 ? "text-[14px]" : name.length > 10 ? "text-[16px]" : "");
 
 function Key({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${flap} py-0.5 text-[15px] transition ${active ? "text-[#0a0c10]" : "opacity-60 hover:opacity-100"}`}
+      className={`${flap} py-0.5 text-[12px] transition ${active ? "text-[#0a0c10]" : "opacity-60 hover:opacity-100"}`}
       style={{ background: active ? AMBER : undefined }}
     >
       {children}
@@ -59,7 +64,10 @@ function Line({ children, dim = false, bright = false, banner }: { children: Rea
   // (a player's row sits on their banner, if they've put one up: see banners.ts)
   const style = bannerStyle(banner);
   return (
-    <div className={`flex items-center gap-2 text-[19px] leading-none ${style ? "my-1 rounded-[2px] px-1.5 py-1" : "py-[3px]"} ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`} style={style}>
+    <div
+      className={`flex items-center gap-2 text-[19px] leading-none ${style ? "my-1 rounded-[2px] px-1.5 py-1" : "py-[3px]"} ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`}
+      style={style ? { ...style, textShadow: ON_BANNER_TEXT } : undefined}
+    >
       {children}
     </div>
   );
@@ -99,41 +107,30 @@ function Standings({ signedIn }: { signedIn: boolean }) {
           POINTS
         </Key>
       </div>
-      {breakdown && rows.length > 0 && (
-        <Line dim>
-          <span className="w-9" />
-          <span className="min-w-0 flex-1" />
-          {POINT_COLUMNS.map(([, label]) => (
-            <span key={label} className="w-10 text-right text-[10px] sm:w-16 sm:text-[13px]">
-              {label}
-            </span>
-          ))}
-          <span className="w-12 text-right text-[10px] sm:w-16 sm:text-[13px]">TOTAL</span>
-        </Line>
-      )}
       {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
-      {rows.map((row) => (
-        // (a player with an account always has a banner: the empty one, if they've put none up)
-        <Line key={row.name} bright={row.rank <= 3} banner={row.userId ? looks?.[row.userId]?.banner ?? DEFAULT_BANNER : undefined}>
-          <span className={`${flap} w-9 text-center`}>{row.rank}</span>
-          <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId)} />
-          <span className={`${flap} min-w-0 flex-1 truncate`}>
-            {row.name.toUpperCase()}
-            {winsFor(row.name).map((y) => (
-              <span key={y} className="ml-2 text-[13px] text-yellow-300">
-                ★{y}
-              </span>
-            ))}
-          </span>
-          {breakdown &&
-            POINT_COLUMNS.map(([key]) => (
-              <span key={key} className={`${flap} w-10 text-right opacity-75 sm:w-16`}>
-                {row[key] ?? "-"}
-              </span>
-            ))}
-          <span className={`${flap} ${breakdown ? "w-12 sm:w-16" : "w-16"} text-right`}>{row.total}</span>
-        </Line>
-      ))}
+      {rows.map((row) => {
+        // (a player with an account always has a banner: the empty one, if they've put none up;
+        // on a banner the lettering goes straight onto it, without flaps)
+        const box = row.userId ? "px-0.5" : flap;
+        const wins = winsFor(row.name);
+        return (
+          <Line key={row.name} bright={row.rank <= 3} banner={row.userId ? looks?.[row.userId]?.banner ?? DEFAULT_BANNER : undefined}>
+            <span className={`${box} w-9 shrink-0 text-center`}>{row.rank}</span>
+            <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId)} />
+            <span className={`${box} min-w-0 flex-1 py-0.5`}>
+              <span className={`block break-words leading-tight ${nameSize(row.name)}`}>{row.name.toUpperCase()}</span>
+              {wins.length > 0 && <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">{wins.map((y) => `★${y}`).join(" ")}</span>}
+              {/* The points behind the total go under the name, so the name keeps the width */}
+              {breakdown && (
+                <span className="mt-1 block text-[12px] leading-none opacity-80">
+                  {POINT_COLUMNS.map(([key, label]) => `${label} ${row[key] ?? "-"}`).join(" · ")}
+                </span>
+              )}
+            </span>
+            <span className={`${box} w-16 shrink-0 text-right`}>{row.total}</span>
+          </Line>
+        );
+      })}
       {me?.isAdmin && <ScareathonAdminPanel className="mt-4" />}
     </>
   );
@@ -142,7 +139,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
 // The board on the wall: the Scareboard
 export default function DepartureBoard({ signedIn, goTo }: Props) {
   return (
-    <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3 font-mono" style={{ color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
+    <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
       <div className="mb-2 border-b border-[#ffb03a]/25 pb-2">
         <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
