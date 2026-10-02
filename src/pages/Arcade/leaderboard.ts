@@ -8,6 +8,8 @@ export interface LeaderboardEntry {
   metricValue: number;
   achieved_at: string;
   isUserScore: boolean;
+  // Whose score it is (for their banner and avatar on the station's scoreboard)
+  userId?: string;
 }
 
 const TIME_SCORE_GAMES = new Set(["8 Bit Evil Returns"]);

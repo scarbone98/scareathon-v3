@@ -13,7 +13,7 @@ import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
-import { BannerShelf, useBackdrop } from "./Banners.tsx";
+import { BannerShelf, useBackdrop, useBannerShopItems } from "./Banners.tsx";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
 // at the ticket counter, clothes in your left-luggage locker, letters in your pigeonhole,
@@ -116,9 +116,10 @@ function YourName({ renamable }: { renamable: boolean }) {
   );
 }
 
-function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean }) {
+// (banner: one being tried on, behind you instead of yours)
+function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false, banner }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean; banner?: string | null }) {
   const { data: summary } = useSummary();
-  const backdrop = useBackdrop();
+  const backdrop = useBackdrop(banner);
   if (large)
     return (
       <div className="flex flex-col gap-4">
@@ -163,28 +164,30 @@ function Classic({ children }: { children: ReactNode }) {
 
 export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo; focus?: string }) {
   const [preview, setPreview] = useState<AvatarLook | null>(null);
+  // A banner being tried on: behind you in the mirror
+  const [previewBanner, setPreviewBanner] = useState<string | null>(null);
+  const bannerItems = useBannerShopItems(previewBanner, setPreviewBanner);
   const unread = useInboxUnreadCount();
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
   const look = preview || saved;
-  const note = preview ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null;
+  const note = preview || previewBanner ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null;
   // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
   // phone) while only the wares scroll
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
       <div className="shrink-0 md:w-80">
         <div className="md:hidden">
-          <Mirror look={look} eyebrow="Item shop" note={note} roomy />
+          <Mirror look={look} eyebrow="Item shop" note={note} roomy banner={previewBanner} />
         </div>
         <div className="hidden md:block">
-          <Mirror look={look} eyebrow="Item shop" note={note} large />
+          <Mirror look={look} eyebrow="Item shop" note={note} large banner={previewBanner} />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
       <Classic>
-        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} />
+        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={bannerItems} />
       </Classic>
-      <BannerShelf mode="shop" />
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
           Your locker: dress up
@@ -223,7 +226,7 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
         <Classic>
           <AvatarEditor
             onPreviewLookChange={setPreview}
-            extraTab={{ key: "banners", label: "Banners", content: <BannerShelf mode="locker" /> }}
+            extraTab={{ key: "banners", label: "Banners", content: <BannerShelf /> }}
             initialTab="banners"
           />
         </Classic>
@@ -244,29 +247,23 @@ export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   );
 }
 
-// Settings, kept in the station register by the pigeonholes: your account (email and
-// password) and signing out. (Your name is changed at your locker.)
+// Settings, kept in the station register by the pigeonholes: your account (your password;
+// the email can't be changed) and signing out. (Your name is changed at your locker.)
 export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState<"email" | "password" | null>(null);
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const { data: current } = useQuery({ queryKey: ["auth-email"], queryFn: async () => (await supabase.auth.getUser()).data.user?.email ?? null, enabled: signedIn });
 
   if (!signedIn) return <TicketHoldersOnly what="Settings" goTo={goTo} />;
-  const change = async (what: "email" | "password") => {
-    setBusy(what);
+  const changePassword = async () => {
+    setBusy(true);
     setMessage(null);
-    const { error } = await supabase.auth.updateUser(what === "email" ? { email } : { password });
-    setBusy(null);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
     if (error) return setMessage({ ok: false, text: error.message });
-    if (what === "email") {
-      setEmail("");
-      setMessage({ ok: true, text: "Check both inboxes: confirm the change from the links we've sent." });
-    } else {
-      setPassword("");
-      setMessage({ ok: true, text: "Password changed." });
-    }
+    setPassword("");
+    setMessage({ ok: true, text: "Password changed." });
   };
   return (
     <div className="space-y-6 text-sm text-stone-300">
@@ -276,16 +273,10 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
           Your account
         </h3>
         <p className="mt-1 text-stone-400">Signed in as {current ?? "…"}. (Change your name at your locker.)</p>
-        <form className="mt-3 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (email) void change("email"); }}>
-          <input className={darkField} type="email" placeholder="New email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="New email" autoComplete="email" />
-          <button type="submit" className={`${plateButton} shrink-0`} disabled={!email || busy !== null}>
-            {busy === "email" ? "…" : "Change"}
-          </button>
-        </form>
-        <form className="mt-2 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (password.length >= 6) void change("password"); }}>
+        <form className="mt-3 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (password.length >= 6) void changePassword(); }}>
           <input className={darkField} type="password" placeholder="New password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} aria-label="New password" autoComplete="new-password" />
-          <button type="submit" className={`${plateButton} shrink-0`} disabled={password.length < 6 || busy !== null}>
-            {busy === "password" ? "…" : "Change"}
+          <button type="submit" className={`${plateButton} shrink-0`} disabled={password.length < 6 || busy}>
+            {busy ? "…" : "Change"}
           </button>
         </form>
         {message && <p className={`mt-2 ${message.ok ? "text-emerald-300" : "text-red-300"}`}>{message.text}</p>}

@@ -79,7 +79,9 @@ function serializeGameLeaderboardRows(rows, currentUserId = null) {
         username: row.username,
         metricValue: row.metric_value,
         achieved_at: row.achieved_at,
-        isUserScore: currentUserId ? row.id === currentUserId : false
+        isUserScore: currentUserId ? row.id === currentUserId : false,
+        // Whose score: the station's scoreboard draws their banner and avatar beside it
+        userId: row.id
     }));
 }
 

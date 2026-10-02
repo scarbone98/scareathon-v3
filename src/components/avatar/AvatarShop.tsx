@@ -76,14 +76,32 @@ function readJson<T>(response: Response) {
   });
 }
 
+// Wares that aren't avatar items (the station's scoreboard banners), sold from the same
+// grid: a category of their own in the filter, and with the rest under "All categories"
+export type ExtraShopItem = {
+  id: string;
+  name: string;
+  category: string;
+  categoryLabel: string;
+  icon: string;
+  price: number;
+  owned: boolean;
+  previewing: boolean;
+  onPreview: () => void;
+  // (buy: it costs tickets, so it waits until you can afford it)
+  action: { label: string; disabled: boolean; buy?: boolean; onClick?: () => void };
+  error?: Error | null;
+};
+
 type AvatarShopProps = {
   onPreviewLookChange?: (look: AvatarLook | null) => void;
   // Open on this item (by name): searched for, tried on, and scrolled to (the adverts
   // over the ticket window link here)
   focusName?: string;
+  extraItems?: ExtraShopItem[];
 };
 
-export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) {
+export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [] }: AvatarShopProps) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState(focusName ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(focusName ?? "");
@@ -116,6 +134,19 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
     return `/marketplace/shop/items?${query}`;
   }, [classification, debouncedSearch, page, rarityFilter]);
 
+  // The extra wares' categories go in the filter after the avatar items' own
+  const extraCategories = [...new Map(extraItems.map((item) => [item.category, item.categoryLabel])).entries()];
+  const extraOnly = extraCategories.some(([value]) => value === classification);
+  // Shown with the first page of everything, or on their own; they have no rarity
+  const shownExtras =
+    rarityFilter || (classification && !extraOnly) || (!extraOnly && page !== 1)
+      ? []
+      : extraItems.filter(
+          (item) =>
+            (!extraOnly || item.category === classification) &&
+            (!debouncedSearch || item.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
+        );
+
   const {
     data: shopData,
     isLoading,
@@ -130,6 +161,7 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
     ],
     queryFn: () => fetchWithAuth(shopQuery).then(readJson<ShopResponse>),
     placeholderData: keepPreviousData,
+    enabled: !extraOnly,
   });
 
   const { data: walletData } = useQuery<WalletResponse>({
@@ -165,7 +197,7 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
     },
   });
 
-  const items = shopData?.data || [];
+  const items = extraOnly ? [] : shopData?.data || [];
   // Once the item it was opened on turns up: try it on, and bring it into view
   useEffect(() => {
     if (!focusName || focused.current) return;
@@ -183,7 +215,7 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
   };
   const coinBalance = walletData?.data.coinBalance || 0;
   const wornBody = avatarResponse?.data.outfit.find(({ item }) => item.category === "body")?.item;
-  const isInitialLoading = isLoading && !shopData;
+  const isInitialLoading = !extraOnly && isLoading && !shopData;
   const previewLook = useMemo(() => {
     const avatar = avatarResponse?.data;
     if (!avatar || !manifest || !previewItem) return null;
@@ -223,6 +255,11 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
                 {option.label}
               </option>
             ))}
+            {extraCategories.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}s
+              </option>
+            ))}
           </select>
         </label>
 
@@ -242,12 +279,53 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
         <div className="shop-state">
           <LoadingSpinner />
         </div>
-      ) : error && !shopData ? (
+      ) : error && !shopData && !extraOnly ? (
         <ErrorDisplay message={(error as Error).message || "Failed to load shop"} />
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && shownExtras.length === 0 ? (
         <div className="shop-state">Nothing matches those filters.</div>
       ) : (
         <div className={`shop-grid ${isFetching ? "is-refreshing" : ""}`}>
+          {shownExtras.map((item) => {
+            const cannotAfford = Boolean(item.action.buy) && coinBalance < item.price;
+            return (
+              <article key={item.id} className={`shop-item rarity-common ${item.previewing ? "is-previewing" : ""}`}>
+                <div className="shop-item-art">
+                  <img className="shop-item-icon" src={item.icon} alt="" draggable={false} style={{ imageRendering: "pixelated" }} />
+                  {item.owned && <span className="shop-owned">Owned</span>}
+                </div>
+
+                <h3 className="shop-item-name" title={item.name}>{item.name}</h3>
+                <p className="shop-item-meta">
+                  <span className="shop-item-slot">{item.categoryLabel}</span>
+                </p>
+
+                <div className="shop-item-price">
+                  <TicketIcon className="h-4 w-6" perforation="#0d131b" />
+                  {item.price.toLocaleString()}
+                  {cannotAfford && <span className="shop-item-short">Need {(item.price - coinBalance).toLocaleString()} more</span>}
+                </div>
+
+                <div className="shop-item-actions">
+                  <button
+                    type="button"
+                    onClick={item.onPreview}
+                    className={`shop-button is-secondary ${item.previewing ? "is-active" : ""}`}
+                    aria-pressed={item.previewing}
+                  >
+                    {item.previewing ? "Hide" : "Try on"}
+                  </button>
+                  <button type="button" onClick={item.action.onClick} disabled={item.action.disabled || cannotAfford} className="shop-button">
+                    {item.action.label}
+                  </button>
+                </div>
+                {item.error && (
+                  <p className="shop-error" role="alert">
+                    {item.error.message}
+                  </p>
+                )}
+              </article>
+            );
+          })}
           {items.map((item) => {
             const price = item.basePrice || 0;
             const cannotAfford = coinBalance < price;
@@ -313,7 +391,7 @@ export function AvatarShop({ onPreviewLookChange, focusName }: AvatarShopProps) 
         </div>
       )}
 
-      {!isInitialLoading && !error && pagination.total > 0 && (
+      {!extraOnly && !isInitialLoading && !error && pagination.total > 0 && (
         <div className="shop-pager">
           <span>
             {firstItemNumber}–{lastItemNumber} of {pagination.total}

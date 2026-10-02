@@ -116,6 +116,10 @@ export default function StationPage() {
   const signedIn = Boolean(session);
   // Phones and tablets (and anything touch-first)
   const compact = useIsMobileArcade();
+  // The arcade's games (on phones, those that play on one); the scoreboard shows the hi-scores
+  // of the ones that keep scores
+  const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
+  const scoredGames = useMemo(() => games.filter((g) => g.hasLeaderboard !== false && !g.special).map((g) => g.name), [games]);
   // The same four views on every screen
   const headings = HEADINGS;
   const wanted: Heading = at ? STOPS[at].heading : isHeading(faceParam) ? faceParam : "front";
@@ -260,7 +264,7 @@ export default function StationPage() {
         // (bigger flaps on a big screen)
         body: (
           <div className="h-full md:[zoom:1.45]">
-            <DepartureBoard signedIn={signedIn} goTo={goTo} />
+            <DepartureBoard signedIn={signedIn} goTo={goTo} games={scoredGames} />
           </div>
         ),
       };
@@ -356,7 +360,6 @@ export default function StationPage() {
                 : null;
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
-  const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
   // The arcade mounts (hidden) as you set off for the cabinet, so it can say where its
   // cabinet will be on screen; the walk ends with the station's there, and the arcade
   // fades in over it

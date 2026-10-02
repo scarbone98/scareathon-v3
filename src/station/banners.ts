@@ -229,6 +229,24 @@ export function bannerBackground(key: string): string | null {
   return url;
 }
 
+// The banner as a shop item's icon: a square cut from the tile, where there's something
+// to see (the stretch the background comes from)
+export function bannerSquare(key: string): string | null {
+  const cached = cache.get(`${key}:square`);
+  if (cached) return cached;
+  const tile = bannerCanvas(key);
+  if (!tile) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = H;
+  canvas.height = H;
+  const middle = (SECTION_X[key as BannerKey] ?? (W - SECTION_W) / 2) + SECTION_W / 2;
+  const x = Math.round(Math.min(Math.max(middle - H / 2, 0), W - H));
+  canvas.getContext("2d")?.drawImage(tile, x, 0, H, H, 0, 0, H, H);
+  const url = canvas.toDataURL();
+  cache.set(`${key}:square`, url);
+  return url;
+}
+
 // The CSS for the frame an avatar stands in: their banner's background, filling it,
 // standing on its bottom edge
 export function backdropStyle(key: string | null | undefined): React.CSSProperties | undefined {
