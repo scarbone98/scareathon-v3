@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { needsSignIn, useLooks, useScareboard } from "../data.ts";
+import { bannerStyle } from "../banners.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { AvatarLook } from "../../components/avatar/types";
 import type { GoTo } from "../stops.ts";
@@ -9,11 +10,12 @@ import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarCompo
 
 // A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
 // their body has one); their saved portrait until the look comes, or if it doesn't
-function Face({ userId, look }: { userId?: string; look?: AvatarLook }) {
+function Face({ userId, look, onBanner = false }: { userId?: string; look?: AvatarLook; onBanner?: boolean }) {
   if (!userId) return null;
   return (
-    // (twice size, the empty sky over their heads and their feet trimmed off)
-    <span className={`${flap} flex h-[72px] w-[64px] shrink-0 items-end justify-center overflow-hidden px-0`}>
+    // (twice size, the empty sky over their heads and their feet trimmed off; no box of its
+  // own on a banner, just them standing on it)
+    <span className={`${onBanner ? "" : flap} flex h-[72px] w-[64px] shrink-0 items-end justify-center overflow-hidden px-0`}>
       {look ? (
         <span className="translate-y-[10px]">
           <AvatarView look={look} height={96} label="" />
@@ -53,8 +55,14 @@ function Key({ active, onClick, children }: { active: boolean; onClick: () => vo
   );
 }
 
-function Line({ children, dim = false, bright = false }: { children: React.ReactNode; dim?: boolean; bright?: boolean }) {
-  return <div className={`flex items-center gap-2 py-[3px] text-[19px] leading-none ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`}>{children}</div>;
+function Line({ children, dim = false, bright = false, banner }: { children: React.ReactNode; dim?: boolean; bright?: boolean; banner?: string }) {
+  // (a player's row sits on their banner, if they've put one up: see banners.ts)
+  const style = bannerStyle(banner);
+  return (
+    <div className={`flex items-center gap-2 text-[19px] leading-none ${style ? "my-1 rounded-[2px] px-1.5 py-1" : "py-[3px]"} ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`} style={style}>
+      {children}
+    </div>
+  );
 }
 
 // The points behind a total: films watched, arcade challenges, and anything else
@@ -105,9 +113,9 @@ function Standings({ signedIn }: { signedIn: boolean }) {
       )}
       {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
       {rows.map((row) => (
-        <Line key={row.name} bright={row.rank <= 3}>
+        <Line key={row.name} bright={row.rank <= 3} banner={row.userId ? looks?.[row.userId]?.banner : undefined}>
           <span className={`${flap} w-9 text-center`}>{row.rank}</span>
-          <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} />
+          <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId && looks?.[row.userId]?.banner)} />
           <span className={`${flap} min-w-0 flex-1 truncate`}>
             {row.name.toUpperCase()}
             {winsFor(row.name).map((y) => (

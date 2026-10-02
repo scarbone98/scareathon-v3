@@ -7,6 +7,7 @@ import {
     serializeProfile,
     validateOutfitItems,
 } from '../utils/avatarV2.js';
+import { bannersFor } from './banners.js';
 import {
     RegExpMatcher,
     TextCensor,
@@ -135,7 +136,7 @@ export default async function (fastify, options) {
         const ids = [...new Set(String(request.query?.ids || '').split(',').map((id) => id.trim()).filter((id) => uuid.test(id)))].slice(0, 60);
         if (ids.length === 0) return { data: {} };
         try {
-            const [profiles, outfits] = await Promise.all([
+            const [profiles, outfits, banners] = await Promise.all([
                 pool.query(`
                     SELECT user_id, build_chosen, skin, hair, eyes, updated_at
                     FROM user_avatar_profile
@@ -148,6 +149,7 @@ export default async function (fastify, options) {
                     WHERE uoi.user_id = ANY($1::uuid[])
                     ORDER BY ai.category ASC, ai.stack_order ASC, uoi.item_instance_id ASC
                 `, [ids]),
+                bannersFor(ids),
             ]);
             const looks = {};
             profiles.rows.forEach((row) => {
@@ -156,6 +158,10 @@ export default async function (fastify, options) {
             });
             outfits.rows.forEach((row) => {
                 looks[row.user_id]?.outfit.push({ dyes: row.chosen_dyes || {}, item: serializeAvatarItemV2(row) });
+            });
+            // (and the banner each has up on the scoreboard)
+            Object.entries(banners).forEach(([userId, banner]) => {
+                if (looks[userId]) looks[userId].banner = banner;
             });
             return { data: looks };
         } catch (error) {

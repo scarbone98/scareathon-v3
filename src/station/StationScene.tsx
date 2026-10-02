@@ -2814,12 +2814,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const peeper = new Group();
     const peeperEyes: Group[] = [];
     const ember = new MeshBasicMaterial({ color: "#ff3a24", fog: false });
-    const emberGlow = new MeshBasicMaterial({ map: glowTexture(), color: "#ff2a10", transparent: true, opacity: 0.35, blending: AdditiveBlending, depthWrite: false, fog: false });
+    const emberGlow = new MeshBasicMaterial({ map: glowTexture(), color: "#ff2a10", transparent: true, opacity: 0.7, blending: AdditiveBlending, depthWrite: false, fog: false });
     [-0.09, 0.09].forEach((x) => {
       const eye = new Group();
       eye.position.x = x;
-      eye.add(new Mesh(new CircleGeometry(0.022, 12), ember));
-      eye.add(plane(0.24, 0.18, emberGlow, 0, 0, -0.002));
+      eye.add(new Mesh(new CircleGeometry(0.03, 12), ember));
+      eye.add(plane(0.34, 0.26, emberGlow, 0, 0, -0.002));
       peeper.add(eye);
       peeperEyes.push(eye);
     });

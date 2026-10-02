@@ -13,6 +13,7 @@ import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
+import { BannerShelf } from "./Banners.tsx";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
 // at the ticket counter, clothes in your left-luggage locker, letters in your pigeonhole,
@@ -182,6 +183,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
       <Classic>
         <AvatarShop onPreviewLookChange={setPreview} focusName={focus} />
       </Classic>
+      <BannerShelf mode="shop" />
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
           Your locker: dress up
@@ -220,6 +222,7 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
         <Classic>
           <AvatarEditor onPreviewLookChange={setPreview} />
         </Classic>
+        <BannerShelf mode="locker" />
       </div>
     </div>
   );

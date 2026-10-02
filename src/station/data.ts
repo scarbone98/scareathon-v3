@@ -164,13 +164,16 @@ export function usePosts(enabled: boolean) {
 }
 
 // Players' looks (what they wear and their colouring), to draw them moving
+// (and the scoreboard banner each has up)
+export type PlayerLook = AvatarLook & { banner?: string };
+
 export function useLooks(userIds: string[]) {
   const ids = [...new Set(userIds)].sort().join(",");
-  return useQuery<Record<string, AvatarLook>>({
+  return useQuery<Record<string, PlayerLook>>({
     queryKey: ["looks", ids],
     enabled: ids.length > 0,
     staleTime: 5 * 60 * 1000,
-    queryFn: () => fetchWithAuth(`/user/looks?ids=${ids}`).then((r) => readJson<{ data: Record<string, AvatarLook> }>(r, "Looks")).then((body) => body.data ?? {}),
+    queryFn: () => fetchWithAuth(`/user/looks?ids=${ids}`).then((r) => readJson<{ data: Record<string, PlayerLook> }>(r, "Looks")).then((body) => body.data ?? {}),
   });
 }
 
