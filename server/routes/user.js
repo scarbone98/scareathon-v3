@@ -128,6 +128,42 @@ export default async function (fastify, options) {
         }
     });
 
+    // Other players' looks, to draw them (e.g. animated on the scoreboard): what they wear
+    // and their colouring, nothing of what they own. ?ids= a comma list of user ids.
+    fastify.get('/looks', async (request, reply) => {
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const ids = [...new Set(String(request.query?.ids || '').split(',').map((id) => id.trim()).filter((id) => uuid.test(id)))].slice(0, 60);
+        if (ids.length === 0) return { data: {} };
+        try {
+            const [profiles, outfits] = await Promise.all([
+                pool.query(`
+                    SELECT user_id, build_chosen, skin, hair, eyes, updated_at
+                    FROM user_avatar_profile
+                    WHERE user_id = ANY($1::uuid[])
+                `, [ids]),
+                pool.query(`
+                    SELECT uoi.user_id, uoi.dyes AS chosen_dyes, ${avatarItemColumns}
+                    FROM user_outfit_items uoi
+                    JOIN avatar_items ai ON ai.id = uoi.item_id
+                    WHERE uoi.user_id = ANY($1::uuid[])
+                    ORDER BY ai.category ASC, ai.stack_order ASC, uoi.item_instance_id ASC
+                `, [ids]),
+            ]);
+            const looks = {};
+            profiles.rows.forEach((row) => {
+                const { skin, hair, eyes } = serializeProfile(row);
+                looks[row.user_id] = { profile: { skin, hair, eyes }, outfit: [] };
+            });
+            outfits.rows.forEach((row) => {
+                looks[row.user_id]?.outfit.push({ dyes: row.chosen_dyes || {}, item: serializeAvatarItemV2(row) });
+            });
+            return { data: looks };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while fetching looks' });
+        }
+    });
+
     fastify.get('/wallet', async (request, reply) => {
         const userId = request.user.sub;
         const limit = Math.min(Math.max(parseInt(request.query?.limit || '25', 10), 1), 100);

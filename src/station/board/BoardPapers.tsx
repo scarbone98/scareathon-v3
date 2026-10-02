@@ -18,6 +18,8 @@ import {
 } from "../data.ts";
 import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/games";
 import type { GoTo } from "../stops.ts";
+import { AvatarView } from "../../components/avatar/AvatarView";
+import { useAvatarLook } from "../things/Belongings.tsx";
 import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
 
 // The station board is the home page, and its papers are the content. Each kind of paper
@@ -119,11 +121,14 @@ function TicketIcon() {
     </span>
   );
 }
-function PersonIcon() {
+function GearIcon() {
   return (
     <svg viewBox="0 0 16 16" className="h-5 w-5" aria-hidden>
-      <circle cx="8" cy="4.5" r="3.2" fill="#efe3c8" />
-      <path d="M2 15.5c0-3.6 2.7-6 6-6s6 2.4 6 6z" fill="#efe3c8" />
+      <path
+        fill="#efe3c8"
+        fillRule="evenodd"
+        d="M6.6 1h2.8l.4 1.9 1.3.6 1.7-1 2 2-1 1.7.6 1.3 1.9.4v2.8l-1.9.4-.6 1.3 1 1.7-2 2-1.7-1-1.3.6-.4 1.9H6.6l-.4-1.9-1.3-.6-1.7 1-2-2 1-1.7-.6-1.3L0 9.4V6.6l1.9-.4.6-1.3-1-1.7 2-2 1.7 1 1.3-.6zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"
+      />
     </svg>
   );
 }
@@ -157,6 +162,7 @@ function TicketButton({ label, onClick, children }: { label: string; onClick: (e
 
 function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const { data: summary } = useSummary();
+  const look = useAvatarLook(signedIn);
   return (
     <div className={`m-1 flex h-[calc(100%-0.5rem)] flex-col justify-center gap-1.5 border-[3px] border-double border-[#2a1d14]/70 px-5 ${ink}`}>
       <div className="flex min-w-0 items-baseline gap-3">
@@ -167,14 +173,18 @@ function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
       <div className="flex gap-2">
         {signedIn ? (
           <>
+            {/* you, as you look (moving, if your body has an idle), standing in for "your locker" */}
             <TicketButton label="Your locker" onClick={act(() => goTo("lockers"))}>
-              <PersonIcon />
+              <span className="-my-1 flex h-[48px] items-end">{look ? <AvatarView look={look} height={48} label="You" /> : null}</span>
             </TicketButton>
             <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))}>
               {summary?.unreadCount ?? 0}×<EnvelopeIcon />
             </TicketButton>
             <TicketButton label="Tickets: the item shop" onClick={act(() => goTo("tickets", "shop"))}>
               {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}×<TicketIcon />
+            </TicketButton>
+            <TicketButton label="Settings" onClick={act(() => goTo("mail", "register"))}>
+              <GearIcon />
             </TicketButton>
           </>
         ) : (

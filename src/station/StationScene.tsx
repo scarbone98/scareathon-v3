@@ -60,6 +60,7 @@ import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRo
 import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
+import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
 
@@ -494,9 +495,12 @@ function buildBulletin() {
     return texture;
   });
   // The station's name, in enamel, over the board
-  group.add(box(1.84, 0.35, 0.04, standard("#11161e"), 0, 1.66, 0.0));
+  const nameplate = new Group();
+  nameplate.position.set(0, 1.66, 0);
+  nameplate.add(box(1.84, 0.35, 0.04, standard("#11161e"), 0, 0, 0));
   // Unlit, so the lamps' warm light doesn't turn the navy enamel brown
-  group.add(plane(1.76, 0.3, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 1.66, 0.025));
+  nameplate.add(plane(1.76, 0.3, new MeshBasicMaterial({ map: stationSign("WAYSIDE STATION"), color: "#c9c9c9" }), 0, 0, 0.025));
+  group.add(rattles(nameplate, "sign"));
   addLamp(group, 0, 1.9, 1.9); // far enough out to light the whole board evenly
   group.add(hitBox(2.4, 3.6, 0.6, 0.3));
   group.userData.stopId = "bulletin";
@@ -557,11 +561,18 @@ function buildEvents() {
   const brass = standard("#b08a3a", 0.35);
   group.add(box(1.42, 0.92, 0.03, standard("#33251a", 0.8), 0, 0.5, 0.24)); // the front
   group.add(box(1.5, 0.06, 0.52, standard("#241a12", 0.9), 0, 0.03, 0.03)); // the plinth
+  // (all locked: tapped, they rattle)
   [-0.36, 0.36].forEach((x) => {
-    group.add(box(0.66, 0.2, 0.03, face, x, 0.8, 0.26)); // a drawer
-    group.add(box(0.07, 0.025, 0.03, brass, x, 0.8, 0.285));
-    group.add(box(0.62, 0.52, 0.03, face, x, 0.36, 0.26)); // a cupboard door
-    group.add(box(0.025, 0.06, 0.03, brass, x + (x < 0 ? 0.26 : -0.26), 0.4, 0.285));
+    const drawer = new Group();
+    drawer.position.set(x, 0.8, 0.26);
+    drawer.add(box(0.66, 0.2, 0.03, face, 0, 0, 0));
+    drawer.add(box(0.07, 0.025, 0.03, brass, 0, 0, 0.025));
+    group.add(rattles(drawer, "drawer"));
+    const door = new Group();
+    door.position.set(x, 0.36, 0.26);
+    door.add(box(0.62, 0.52, 0.03, face, 0, 0, 0));
+    door.add(box(0.025, 0.06, 0.03, brass, x < 0 ? 0.26 : -0.26, 0.04, 0.025));
+    group.add(rattles(door, "drawer"));
   });
 
   // The flyers (their text is HTML laid over these, see SURFACES)
@@ -595,7 +606,10 @@ function buildEvents() {
   // Bulbs all round its frame, chasing like the arcade sign's: a cinema's display case
   group.userData.bulbs = ringOfBulbs(group, 0.94, 1.34, 0.08, 0, POSTER_Y, posterZ + 0.03);
   group.add(plane(1.5, 1.9, new MeshBasicMaterial({ map: glowTexture(), color: "#ffb15a", transparent: true, opacity: 0.14, blending: AdditiveBlending, depthWrite: false }), 0, POSTER_Y, posterZ - 0.005));
-  group.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif")), 0, SIGN_Y, posterZ + 0.02));
+  const scareathonSign = new Group();
+  scareathonSign.position.set(0, SIGN_Y, posterZ + 0.02);
+  scareathonSign.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif"))));
+  group.add(rattles(scareathonSign, "sign"));
   addLamp(group, 0, 2.4, 1.0);
   group.add(hitBox(1.55, 1.7, 0.5, 0.85));
   // Tapping the poster up close picks it up (see `part` in pick)
@@ -616,6 +630,17 @@ const BULB_GEOMETRY = new SphereGeometry(0.014, 8, 6);
 
 // A ring of bulbs round a rectangle w by h centred on (cx, cy), `spacing` apart, from its
 // top left corner round; the bulbs, in order, for the chase
+// Things that rattle when tapped, as if locked or loosely hung: a drawer tugs and jitters,
+// a sign shudders on its fixings. Their meshes point at the thing that moves (userData.rattles);
+// the scene catches taps on them before anything else (see the animation loop)
+function rattles(thing: Group, kind: "drawer" | "sign") {
+  thing.userData.rattle = { kind, at: -10, x: thing.position.x, z: thing.position.z };
+  thing.traverse((child) => {
+    if ((child as Mesh).isMesh) child.userData.rattles = thing;
+  });
+  return thing;
+}
+
 function ringOfBulbs(group: Group, w: number, h: number, spacing: number, cx: number, cy: number, z: number) {
   const bulbs: Mesh[] = [];
   const perimeter = 2 * (w + h);
@@ -822,9 +847,12 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
   // Its sign on the wall high above, over the scoreboard, on a board ringed with bulbs
   // like an old picture house's, chasing round (see the animation loop)
   const signZ = WALL_Z + 0.03 - group.position.z;
-  group.add(box(1.08, 0.4, 0.02, standard("#3a1a10", 0.7), -0.1, SIGN_Y, signZ - 0.02));
-  group.add(plane(0.84, 0.21, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif")), -0.1, SIGN_Y, signZ));
-  group.userData.bulbs = ringOfBulbs(group, 0.98, 0.32, 0.07, -0.1, SIGN_Y, signZ + 0.01);
+  const sign = new Group();
+  sign.position.set(-0.1, SIGN_Y, signZ);
+  sign.add(box(1.08, 0.4, 0.02, standard("#3a1a10", 0.7), 0, 0, -0.02));
+  sign.add(plane(0.84, 0.21, standard("#ffffff", 0.8, signTexture("ARCADE", "#ffd9a0", "#120d08", "700 84px Georgia, serif"))));
+  group.userData.bulbs = ringOfBulbs(sign, 0.98, 0.32, 0.07, 0, 0, 0.01);
+  group.add(rattles(sign, "sign"));
   // Their light on the wall round the board
   group.add(plane(1.6, 0.9, new MeshBasicMaterial({ map: glowTexture(), color: "#ffb15a", transparent: true, opacity: 0.18, blending: AdditiveBlending, depthWrite: false }), -0.1, SIGN_Y, signZ - 0.005));
   addLamp(group, 0, 2.6, 1.0);
@@ -2458,7 +2486,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     }
     const starGeometry = new BufferGeometry();
     starGeometry.setAttribute("position", new Float32BufferAttribute(starPositions, 3));
-    scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false })));
+    // (fainter, or gone, when the weather's in)
+    const weather = weatherNow();
+    scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false, transparent: true, opacity: weather === "clear" ? 1 : weather === "snow" ? 0.35 : 0.12 })));
+    if (weather !== "clear") {
+      (moon.material as SpriteMaterial).opacity = weather === "fog" ? 0.35 : 0.5;
+      (moon.material as SpriteMaterial).transparent = true;
+      (scene.fog as FogExp2).density = 0.095;
+    }
+    const outsideWeather = buildWeather(weather, { wallZ: WALL_Z, edgeZ: EDGE_Z, endX: END_X });
+    scene.add(outsideWeather);
 
     const train = buildTrain();
     // Arriving: riding in, stopped (doors shut till the page is ready), doors opening, stepping
@@ -2650,9 +2687,41 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     paintBoardsRef.current(latest.current.boards);
     objects.forEach((o) => scene.add(o));
+    // Everything that rattles when tapped (see rattles)
+    const rattlers: Object3D[] = [];
+    const rattling: Group[] = [];
+    scene.traverse((child) => {
+      if (child.userData.rattles) rattlers.push(child);
+      if (child.userData.rattle) rattling.push(child as Group);
+    });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
     const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z] }) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
+    // Now and then, something outside looks in at a transom: a pair of round pale eyes, red
+    // irises following you about, that open, blink, and shut again (see the animation loop)
+    const peeper = new Group();
+    const peeperEyes: Group[] = [];
+    const sclera = new MeshBasicMaterial({ color: "#e9e2c4", fog: false });
+    const iris = new MeshBasicMaterial({ color: "#b3201a", fog: false });
+    const pupil = new MeshBasicMaterial({ color: "#050403", fog: false });
+    [-0.11, 0.11].forEach((x) => {
+      const eye = new Group();
+      eye.position.x = x;
+      eye.add(new Mesh(new CircleGeometry(0.075, 20), sclera));
+      const look = new Group();
+      look.position.z = 0.002;
+      look.add(new Mesh(new CircleGeometry(0.038, 16), iris));
+      const dot = new Mesh(new CircleGeometry(0.016, 12), pupil);
+      dot.position.z = 0.001;
+      look.add(dot);
+      eye.add(look);
+      eye.userData.look = look;
+      peeper.add(eye);
+      peeperEyes.push(eye);
+    });
+    peeper.visible = false;
+    scene.add(peeper);
+    const peeperSees = new Vector3();
     let hovered: StopId | null = null;
 
     // Camera: a pose (position, yaw, pitch) tweened between the hub's headings and the stops.
@@ -2840,6 +2909,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           return;
         }
         raycaster.setFromCamera(pointer, camera);
+        const rattled = raycaster.intersectObjects(rattlers, false)[0]?.object.userData.rattles as Group | undefined;
+        if (rattled) {
+          rattled.userData.rattle.at = performance.now() / 1000;
+          down = null;
+          return;
+        }
         const lampHit = raycaster.intersectObjects(lamps.map((lamp) => lamp.hit), false)[0];
         const lamp = lampHit && lamps.find((each) => each.hit === lampHit.object);
         if (lamp) {
@@ -3005,6 +3080,24 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       halloween?.userData.update(t, reduced); // HALLOWEEN
+      outsideWeather.userData.update(t, reduced);
+      // The eyes at the transoms: every 41 s or so, at one window or the other, for 6 s
+      const peek = (t + 20) % 41;
+      peeper.visible = !reduced && peek < 6;
+      if (peeper.visible) {
+        const pane = Math.floor((t + 20) / 41) % TRANSOM_XS.length;
+        peeper.position.set(TRANSOM_XS[pane] + Math.sin(t * 0.4) * 0.03, TRANSOM_Y - 0.03, WALL_Z - 0.16);
+        // opening, a blink halfway, shutting
+        const open = Math.min(1, peek / 0.25, (6 - peek) / 0.25) * (Math.abs(peek - 3.2) < 0.08 ? 0.1 : 1);
+        peeperEyes.forEach((eye) => {
+          eye.scale.y = Math.max(0.05, open);
+          // the irises turned towards you
+          eye.getWorldPosition(peeperSees);
+          peeperSees.subVectors(camera.position, peeperSees).normalize();
+          (eye.userData.look as Group).position.x = peeperSees.x * 0.032;
+          (eye.userData.look as Group).position.y = peeperSees.y * 0.032;
+        });
+      }
       // The arcade sign's and the poster's bulbs chase round, two lit to one dark
       if (!reduced) {
         const chase = Math.floor(t * 7);
@@ -3038,6 +3131,26 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           finger.rotation.x = k > 0 && k < 1 ? -0.55 * Math.sin(k * Math.PI) : 0;
         });
       }
+      // Tapped locked drawers and loose signs rattle, and settle
+      const rattleNow = performance.now() / 1000;
+      rattling.forEach((thing) => {
+        const rattle = thing.userData.rattle as { kind: "drawer" | "sign"; at: number; x: number; z: number };
+        const k = rattleNow - rattle.at;
+        if (k > 0.7) {
+          if (k < 1) {
+            thing.position.x = rattle.x;
+            thing.position.z = rattle.z;
+            thing.rotation.z = 0;
+          }
+          return;
+        }
+        const shake = reduced ? 0 : Math.exp(-k * 5);
+        if (rattle.kind === "drawer") {
+          // a tug out against the lock, and a jitter side to side
+          thing.position.z = rattle.z + 0.012 * shake * Math.abs(Math.sin(k * 42));
+          thing.position.x = rattle.x + 0.004 * shake * Math.sin(k * 67);
+        } else thing.rotation.z = 0.05 * shake * Math.sin(k * 34);
+      });
       // Tapped lamps stutter
       const nowSec = performance.now() / 1000;
       lamps.forEach((lamp, index) => {

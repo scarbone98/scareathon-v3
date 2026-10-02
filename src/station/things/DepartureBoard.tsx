@@ -1,22 +1,34 @@
 import { useState } from "react";
-import { needsSignIn, useScareboard } from "../data.ts";
+import { needsSignIn, useLooks, useScareboard } from "../data.ts";
+import { AvatarView } from "../../components/avatar/AvatarView";
+import type { AvatarLook } from "../../components/avatar/types";
 import type { GoTo } from "../stops.ts";
 import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
 import { useScareathonMe } from "../../scareathonSeason";
 import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
 
-// A player's avatar (their saved portrait), in a little flap of its own
-function Face({ userId }: { userId?: string }) {
+// A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
+// their body has one); their saved portrait until the look comes, or if it doesn't
+function Face({ userId, look }: { userId?: string; look?: AvatarLook }) {
   if (!userId) return null;
   return (
-    <img
-      src={getAvatarCompositePublicUrl(userId)}
-      alt=""
-      loading="lazy"
-      draggable={false}
-      className={`${flap} h-[26px] w-[26px] shrink-0 object-cover px-0 [image-rendering:pixelated]`}
-      onError={(event) => (event.currentTarget.style.visibility = "hidden")}
-    />
+    // (twice size, the empty sky over their heads and their feet trimmed off)
+    <span className={`${flap} flex h-[72px] w-[64px] shrink-0 items-end justify-center overflow-hidden px-0`}>
+      {look ? (
+        <span className="translate-y-[10px]">
+          <AvatarView look={look} height={96} label="" />
+        </span>
+      ) : (
+        <img
+          src={getAvatarCompositePublicUrl(userId)}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          className="h-[96px] w-[64px] max-w-none translate-y-[10px] object-contain [image-rendering:pixelated]"
+          onError={(event) => (event.currentTarget.style.visibility = "hidden")}
+        />
+      )}
+    </span>
   );
 }
 
@@ -58,6 +70,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
   const [breakdown, setBreakdown] = useState(false);
   const { data, isLoading, error } = useScareboard(year, signedIn);
   const { data: me } = useScareathonMe(signedIn);
+  const { data: looks } = useLooks((data?.leaderboard.data ?? []).flatMap((row) => (row.userId ? [row.userId] : [])));
   if (!signedIn || needsSignIn(error)) return null;
   if (isLoading && !data) return <Line>FLIPPING...</Line>;
   if (error) return <Line>BOARD FAULT: {error.message.toUpperCase()}</Line>;
@@ -94,7 +107,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
       {rows.map((row) => (
         <Line key={row.name} bright={row.rank <= 3}>
           <span className={`${flap} w-9 text-center`}>{row.rank}</span>
-          <Face userId={row.userId} />
+          <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} />
           <span className={`${flap} min-w-0 flex-1 truncate`}>
             {row.name.toUpperCase()}
             {winsFor(row.name).map((y) => (

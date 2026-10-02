@@ -84,7 +84,7 @@ function SignInCard() {
   return (
     <div className="text-[#2a1d14]">
       <p className="text-[22px] leading-tight" style={serif}>
-        {isLogin ? "Show your ticket" : "Buy a ticket (it's free)"}
+        {isLogin ? "Show your ticket" : "Create an account (it's free)"}
       </p>
       <p className="text-[13px] opacity-70">Save scores, earn tickets, dress your avatar.</p>
       <form onSubmit={submit} className="mt-2 space-y-1.5" aria-busy={busy}>
@@ -116,7 +116,7 @@ function SignInCard() {
       <p className="mt-2 text-[13px]">
         {isLogin ? "New here? " : "Have a ticket? "}
         <button type="button" className="font-semibold underline underline-offset-4" onClick={() => { setIsLogin(!isLogin); setError(null); }}>
-          {isLogin ? "Buy a ticket" : "Sign in"}
+          {isLogin ? "Create account" : "Sign in"}
         </button>
       </p>
       {resetting && <PasswordResetPopup onClose={() => setResetting(false)} initialEmail={email} />}

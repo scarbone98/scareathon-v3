@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { fetchWithAuth } from "../fetchWithAuth";
 import { supabase } from "../supabaseClient";
+import type { AvatarLook } from "../components/avatar/types";
 
 // The station's data. Same endpoints, and the same query keys and cached shapes, as the
 // classic pages, so both share one cache and nothing is fetched twice.
@@ -159,6 +160,17 @@ export function usePosts(enabled: boolean) {
     enabled,
     retry: (count, error) => !needsSignIn(error) && count < 2,
     staleTime: 1000 * 60 * 60,
+  });
+}
+
+// Players' looks (what they wear and their colouring), to draw them moving
+export function useLooks(userIds: string[]) {
+  const ids = [...new Set(userIds)].sort().join(",");
+  return useQuery<Record<string, AvatarLook>>({
+    queryKey: ["looks", ids],
+    enabled: ids.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => fetchWithAuth(`/user/looks?ids=${ids}`).then((r) => readJson<{ data: Record<string, AvatarLook> }>(r, "Looks")).then((body) => body.data ?? {}),
   });
 }
 

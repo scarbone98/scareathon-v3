@@ -55,7 +55,67 @@ function TicketHoldersOnly({ what, goTo, dark = true }: { what: string; goTo: Go
 }
 
 // You, as you look now (or as you'd look in what you're trying on), and your coins
-function Mirror({ look, eyebrow, note, large = false, roomy = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean }) {
+// Your name, and (where `renamable`) the way to change it, right there
+function YourName({ renamable }: { renamable: boolean }) {
+  const { data: summary } = useSummary();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(false);
+  const invalid = name.length > 0 && !/^[a-zA-Z0-9_]{1,32}$/.test(name);
+  const { mutate, isPending, error } = useMutation({
+    mutationFn: () =>
+      fetchWithAuth("/user/updateUsername", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newUsername: name }),
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update username");
+        return data;
+      }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["user"], data);
+      void queryClient.invalidateQueries({ queryKey: ["home-v2", "summary"] });
+      setEditing(false);
+    },
+  });
+  if (editing)
+    return (
+      <form
+        className="my-1 space-y-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name && !invalid) mutate();
+        }}
+      >
+        <input className={darkField} autoFocus maxLength={32} value={name} onChange={(e) => setName(e.target.value)} aria-invalid={invalid} aria-label="Your name" />
+        {invalid && <Problem message="1–32 letters, numbers and underscores only." />}
+        {error && <Problem message={error.message} />}
+        <div className="flex gap-2">
+          <button type="submit" className={stubButton} disabled={!name || invalid || isPending}>
+            {isPending ? "Saving…" : "Save name"}
+          </button>
+          <button type="button" className={plateButton} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  return (
+    <div className="flex min-w-0 items-baseline gap-3">
+      <p className="truncate text-2xl text-[#f2ead2]" style={serif}>
+        {summary?.username ?? "…"}
+      </p>
+      {renamable && (
+        <button type="button" className="shrink-0 text-[13px] text-[#f2ead2]/70 underline underline-offset-4 hover:text-[#f2ead2]" onClick={() => { setName(summary?.username || ""); setEditing(true); }}>
+          Rename
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean }) {
   const { data: summary } = useSummary();
   if (large)
     return (
@@ -65,9 +125,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false }: { look: A
         </div>
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
-          <p className="truncate text-2xl text-[#f2ead2]" style={serif}>
-            {summary?.username ?? "…"}
-          </p>
+          <YourName renamable={renamable} />
           <p className="text-sm text-amber-300">
             {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
             {note}
@@ -82,9 +140,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false }: { look: A
       </div>
       <div className="min-w-0">
         <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
-        <p className="truncate text-2xl text-[#f2ead2]" style={serif}>
-          {summary?.username ?? "…"}
-        </p>
+        <YourName renamable={renamable} />
         <p className="text-sm text-amber-300">
           {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
           {note}
@@ -154,10 +210,10 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
     <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
       <div className="shrink-0 md:w-80">
         <div className="md:hidden">
-          <Mirror look={look} eyebrow="Your locker" note={note} roomy />
+          <Mirror look={look} eyebrow="Your locker" note={note} roomy renamable />
         </div>
         <div className="hidden md:block">
-          <Mirror look={look} eyebrow="Your locker" note={note} large />
+          <Mirror look={look} eyebrow="Your locker" note={note} large renamable />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
@@ -181,84 +237,51 @@ export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   );
 }
 
-// The station register: a ledger where passengers sign their names. Your name here is
-// your username; signing out of the register signs you out.
+// Settings, kept in the station register by the pigeonholes: your account (email and
+// password) and signing out. (Your name is changed at your locker.)
 export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const { data: user } = useQuery({
-    queryKey: ["user"],
-    queryFn: () =>
-      fetchWithAuth("/user").then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to load profile");
-        return data;
-      }),
-    enabled: signedIn,
-  });
-  const invalid = name.length > 0 && !/^[a-zA-Z0-9_]{1,32}$/.test(name);
-  const { mutate, isPending, error } = useMutation({
-    mutationFn: () =>
-      fetchWithAuth("/user/updateUsername", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newUsername: name }),
-      }).then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to update username");
-        return data;
-      }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["user"], data);
-      void queryClient.invalidateQueries({ queryKey: ["home-v2", "summary"] });
-      setEditing(false);
-      setMessage("Name updated.");
-    },
-  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState<"email" | "password" | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const { data: current } = useQuery({ queryKey: ["auth-email"], queryFn: async () => (await supabase.auth.getUser()).data.user?.email ?? null, enabled: signedIn });
 
   if (!signedIn) return <TicketHoldersOnly what="Settings" goTo={goTo} />;
+  const change = async (what: "email" | "password") => {
+    setBusy(what);
+    setMessage(null);
+    const { error } = await supabase.auth.updateUser(what === "email" ? { email } : { password });
+    setBusy(null);
+    if (error) return setMessage({ ok: false, text: error.message });
+    if (what === "email") {
+      setEmail("");
+      setMessage({ ok: true, text: "Check both inboxes: confirm the change from the links we've sent." });
+    } else {
+      setPassword("");
+      setMessage({ ok: true, text: "Password changed." });
+    }
+  };
   return (
     <div className="space-y-6 text-sm text-stone-300">
       <section>
         <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Settings</p>
         <h3 className="mt-1 text-xl text-[#f2ead2]" style={serif}>
-          Your name
+          Your account
         </h3>
-        <p className="mt-1 text-stone-400">It's how other passengers see you.</p>
-        {editing ? (
-          <form
-            className="mt-3 max-w-sm space-y-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setMessage(null);
-              if (name && !invalid) mutate();
-            }}
-          >
-            <input className={darkField} autoFocus maxLength={32} value={name} onChange={(e) => setName(e.target.value)} aria-invalid={invalid} aria-label="Your name" />
-            {invalid && <Problem message="1–32 letters, numbers and underscores only." />}
-            {error && <Problem message={error.message} />}
-            <div className="flex gap-2">
-              <button type="submit" className={stubButton} disabled={!name || invalid || isPending}>
-                {isPending ? "Saving…" : "Save name"}
-              </button>
-              <button type="button" className={plateButton} onClick={() => setEditing(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <strong className="text-2xl text-[#f2ead2]" style={{ ...serif, fontStyle: "italic" }}>
-              {user?.data?.username ?? "…"}
-            </strong>
-            <button type="button" className={plateButton} onClick={() => { setName(user?.data?.username || ""); setEditing(true); setMessage(null); }}>
-              Change name
-            </button>
-          </div>
-        )}
-        {message && <p className="mt-2 text-emerald-300">{message}</p>}
+        <p className="mt-1 text-stone-400">Signed in as {current ?? "…"}. (Change your name at your locker.)</p>
+        <form className="mt-3 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (email) void change("email"); }}>
+          <input className={darkField} type="email" placeholder="New email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="New email" autoComplete="email" />
+          <button type="submit" className={`${plateButton} shrink-0`} disabled={!email || busy !== null}>
+            {busy === "email" ? "…" : "Change"}
+          </button>
+        </form>
+        <form className="mt-2 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (password.length >= 6) void change("password"); }}>
+          <input className={darkField} type="password" placeholder="New password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} aria-label="New password" autoComplete="new-password" />
+          <button type="submit" className={`${plateButton} shrink-0`} disabled={password.length < 6 || busy !== null}>
+            {busy === "password" ? "…" : "Change"}
+          </button>
+        </form>
+        {message && <p className={`mt-2 ${message.ok ? "text-emerald-300" : "text-red-300"}`}>{message.text}</p>}
       </section>
       <section>
         <h3 className="text-base text-[#f2ead2]" style={serif}>
