@@ -43,7 +43,8 @@ export function BannerShelf({ mode }: { mode: "shop" | "locker" }) {
   const shown = mode === "shop" ? data.catalog : data.catalog.filter((banner) => data.owned.includes(banner.key));
   const problem = (buy.error ?? equip.error) as Error | null;
   return (
-    <section className="mt-6 border-t border-[#f2ead2]/15 pt-4">
+    // (at the locker it's one of the wardrobe's filters, so it needs no rule of its own)
+    <section className={mode === "shop" ? "mt-6 border-t border-[#f2ead2]/15 pt-4" : ""}>
       <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Scoreboard banners</p>
       <p className="mt-1 text-sm text-stone-400" style={serif}>
         {mode === "shop" ? "Your place, your face and your points sit on it, up on the Scareboard." : "The one behind your name on the Scareboard."}

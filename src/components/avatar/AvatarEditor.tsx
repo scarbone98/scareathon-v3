@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FaSave, FaUndo, FaCheck, FaSearch, FaDiceFive } from "react-icons/fa";
 import { Link } from "react-router-dom";
@@ -80,12 +80,16 @@ function Swatches({ manifest, ramps, value, onChange, label }: SwatchesProps) {
 
 type AvatarEditorProps = {
   onPreviewLookChange?: (look: AvatarLook | null) => void;
+  // One more filter ahead of the item categories, showing its own content (the locker's
+  // banners), and the filter to start on
+  extraTab?: { key: string; label: string; content: ReactNode };
+  initialTab?: string;
 };
 
-export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
+export function AvatarEditor({ onPreviewLookChange, extraTab, initialTab = "all" }: AvatarEditorProps) {
   const queryClient = useQueryClient();
   const { data: manifest, error: manifestError } = useAvatarManifest();
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState(initialTab);
   // Skin, eyes and hair colour sit behind a button, so your items come first
   const [editingLook, setEditingLook] = useState(false);
   const [search, setSearch] = useState("");
@@ -155,6 +159,8 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
   const owned = avatar.inventory;
   const body = look.outfit.find(({ item }) => item.category === "body")?.item;
   const tab = WARDROBE_TABS.find((t) => t.key === activeTab) || WARDROBE_TABS[0];
+  const onExtra = Boolean(extraTab && activeTab === extraTab.key);
+  const filters = extraTab ? [{ key: extraTab.key, label: extraTab.label }, ...WARDROBE_TABS] : WARDROBE_TABS;
   const wearing = new Set(draft.outfit.map((entry) => entry.itemInstanceId));
   const tabItems = owned.filter(
     (entry) => tab.categories.includes(entry.item.category) && entry.item.name.toLowerCase().includes(search.toLowerCase())
@@ -223,7 +229,7 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
       <div className="grid gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="wardrobe-categories">
-            {WARDROBE_TABS.map((t) => (
+            {filters.map((t) => (
               <button
                 key={t.key}
                 type="button"
@@ -253,7 +259,9 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
             </div>
           )}
 
-          <div className="wardrobe-grid">
+          {onExtra && extraTab?.content}
+
+          {!onExtra && <div className="wardrobe-grid">
             {tabItems.map((entry) => {
               const isEquipped = wearing.has(entry.itemInstanceId);
               const fits = entry.item.category === "body" || itemFitsBody(entry.item, body?.itemKey);
@@ -275,9 +283,9 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
-          {tab.key !== "body" && tabItems.length === 0 && (
+          {!onExtra && tab.key !== "body" && tabItems.length === 0 && (
             <div className="wardrobe-empty">
               <p>{search ? "No items match that search." : "Something new belongs here."}</p>
               {search ? (
@@ -288,7 +296,7 @@ export function AvatarEditor({ onPreviewLookChange }: AvatarEditorProps) {
             </div>
           )}
 
-          {selected && (
+          {!onExtra && selected && (
             <div className="wardrobe-dye-panel">
               <h4>Colours for {selected.item.name}</h4>
               {Object.keys(selected.item.dyes).map((channel) => (

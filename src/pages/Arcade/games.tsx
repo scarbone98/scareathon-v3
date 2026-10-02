@@ -42,6 +42,9 @@ export type MachineData = {
     backNote?: string;
     // No sticker on the back at all: just a strip of masking tape with this in marker
     backTape?: string;
+    // A blank cassette cart: clear plastic, a plain cassette sticker on the front with this
+    // written in by hand, and "Cassette Cart" on the back sticker instead of the name
+    cassette?: string;
   };
   game: ReactNode;
 };
@@ -190,6 +193,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "VT323" },
         about: { released: "2026", players: "Single player", genre: "Operating system", developer: "sclondon" },
         backNote: "try HELP",
+        cassette: "Admin Terminal",
       },
       // No video: the cabinet draws its screen live. The URL finds its label, stills/WaysideOS.jpg
       videoUrl: "/game-recordings/WaysideOS.mp4",
@@ -225,6 +229,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Press Start 2P" },
         about: { released: "2026", players: "Everyone", genre: "Message board", developer: "scarbone98" },
         backNote: "Be kind on the line.",
+        cassette: "Wayside Online",
       },
       hasLeaderboard: false,
       game: (
@@ -243,6 +248,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Chewy" },
         about: { released: "2026", players: "Everyone", genre: "Community camera", developer: "sclondon" },
         backNote: "Say cheese!",
+        cassette: "Picto Box",
       },
       videoUrl: "/game-recordings/PictoBoxLogo.mp4",
       hasLeaderboard: false,

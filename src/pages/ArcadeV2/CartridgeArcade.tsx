@@ -1758,6 +1758,7 @@ export default function CartridgeArcade({
           developer: game.cartridge.about.developer,
           note: game.cartridge.backNote,
           tape: game.cartridge.backTape,
+          cassette: game.cartridge.cassette,
           untitled: game.special === "mystery",
         });
         cart.group.userData.cartIndex = index;

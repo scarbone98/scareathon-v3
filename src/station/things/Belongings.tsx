@@ -220,9 +220,12 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
         <Classic>
-          <AvatarEditor onPreviewLookChange={setPreview} />
+          <AvatarEditor
+            onPreviewLookChange={setPreview}
+            extraTab={{ key: "banners", label: "Banners", content: <BannerShelf mode="locker" /> }}
+            initialTab="banners"
+          />
         </Classic>
-        <BannerShelf mode="locker" />
       </div>
     </div>
   );

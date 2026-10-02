@@ -580,8 +580,9 @@ export default function StationPage() {
           <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
 
-        {/* The way back: always in the same place, bottom left (at the arcade, a key on its terminal) */}
-        {at && !(at === "arcade" && atCabinet) && (
+        {/* The way back: always in the same place, bottom left (at the arcade, a key on its terminal;
+            on the bench, none: the view is left alone, and a tap anywhere gets up) */}
+        {at && at !== "bench" && !(at === "arcade" && atCabinet) && (
           <button
             type="button"
             onClick={stepBack}

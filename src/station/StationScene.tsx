@@ -9,7 +9,6 @@ import {
   CanvasTexture,
   CatmullRomCurve3,
   CircleGeometry,
-  NearestFilter,
   CylinderGeometry,
   DoubleSide,
   ExtrudeGeometry,
@@ -162,6 +161,145 @@ function signTexture(text: string, fg: string, bg: string, font = "700 96px Geor
     ctx.textBaseline = "middle";
     ctx.fillText(text, w / 2, h / 2 + 4, w - 40);
   });
+}
+
+// One bay of the railing's wrought iron, cut out on a clear ground: a frieze of rings
+// with quatrefoils under the handrail, then bars, a lyre of back-to-back scrolls in the
+// middle with a smaller pair under it, and little curls along the foot. 512 px is a
+// 0.9 m bay; 546 px its 0.96 m height, between the bottom rail and the handrail.
+function ironworkTexture() {
+  const texture = paint(512, 546, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = ctx.fillStyle = "#ffffff";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const frieze = 112; // the frieze rail's top edge, from the top
+    // A scroll: from a tail point, along a curve, winding into a spiral round (cx, cy)
+    const scroll = (cx: number, cy: number, radius: number, turns: number, start: number, dir: 1 | -1, tail?: [number, number]) => {
+      ctx.beginPath();
+      const steps = 70 * turns;
+      for (let i = 0; i <= steps; i += 1) {
+        const k = i / steps;
+        const a = start + dir * k * turns * Math.PI * 2;
+        const r = radius * (1 - k * 0.82);
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        if (i === 0) {
+          if (tail) {
+            ctx.moveTo(tail[0], tail[1]);
+            ctx.quadraticCurveTo((tail[0] + x) / 2 + (cx - tail[0]) * 0.15, (tail[1] + y) / 2, x, y);
+          } else ctx.moveTo(x, y);
+        } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      // A knob at the scroll's eye
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(start + dir * turns * Math.PI * 2) * radius * 0.18, cy + Math.sin(start + dir * turns * Math.PI * 2) * radius * 0.18, ctx.lineWidth * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    // The frieze rail, and the rings in the band above it, each with a quatrefoil
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(0, frieze);
+    ctx.lineTo(w, frieze);
+    ctx.stroke();
+    ctx.lineWidth = 7;
+    [w / 6, w / 2, (w * 5) / 6].forEach((x) => {
+      const cy = frieze / 2 + 2;
+      ctx.beginPath();
+      ctx.arc(x, cy, 46, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 4; i += 1) {
+        const a = (i * Math.PI) / 2 + Math.PI / 4;
+        ctx.beginPath();
+        ctx.ellipse(x + Math.cos(a) * 17, cy + Math.sin(a) * 17, 17, 9, a, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(x, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    // Little rings between the big ones, where they touch
+    [0, w / 3, (w * 2) / 3, w].forEach((x) => {
+      ctx.beginPath();
+      ctx.arc(x, frieze / 2 + 2, 9, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // The bars: square-ish, from the frieze rail to the foot, leaving the middle open for the lyre
+    ctx.lineWidth = 9;
+    [40, 104, 408, 472].forEach((x) => {
+      ctx.beginPath();
+      ctx.moveTo(x, frieze);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+      // A collar on each, a third of the way down
+      ctx.fillRect(x - 9, frieze + 150, 18, 10);
+    });
+    // Each pair of outer bars is joined by a ring and two small curls
+    [72, 440].forEach((x) => {
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.arc(x, frieze + 155, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 6;
+      scroll(x - 13, frieze + 40, 16, 1.1, Math.PI, -1, [x, frieze + 8]);
+      scroll(x + 13, frieze + 40, 16, 1.1, 0, 1, [x, frieze + 8]);
+    });
+
+    // The lyre: two big scrolls back to back, their tails meeting at the top and the
+    // foot, framed by the inner bars
+    ctx.lineWidth = 9;
+    [168, 344].forEach((x) => {
+      ctx.beginPath();
+      ctx.moveTo(x, frieze);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    });
+    const mid = w / 2;
+    ctx.lineWidth = 8;
+    scroll(mid - 36, frieze + 120, 50, 1.25, 0, -1, [mid, frieze + 4]);
+    scroll(mid + 36, frieze + 120, 50, 1.25, Math.PI, 1, [mid, frieze + 4]);
+    // The smaller pair, the other way up, under it, and a stem down the middle between them
+    ctx.lineWidth = 7;
+    scroll(mid - 30, h - 150, 36, 1.2, 0, 1, [mid, h - 6]);
+    scroll(mid + 30, h - 150, 36, 1.2, Math.PI, -1, [mid, h - 6]);
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(mid, frieze + 4);
+    ctx.lineTo(mid, h - 6);
+    ctx.stroke();
+    // A diamond collar where the scrolls meet the stem
+    ctx.beginPath();
+    ctx.moveTo(mid, frieze + 205);
+    ctx.lineTo(mid + 16, frieze + 225);
+    ctx.lineTo(mid, frieze + 245);
+    ctx.lineTo(mid - 16, frieze + 225);
+    ctx.closePath();
+    ctx.fill();
+    // C-scrolls tying the lyre to its bars
+    ctx.lineWidth = 6;
+    scroll(194, frieze + 250, 20, 1, Math.PI / 2, -1, [168, frieze + 290]);
+    scroll(318, frieze + 250, 20, 1, Math.PI / 2, 1, [344, frieze + 290]);
+
+    // Curls along the foot, between the bars
+    ctx.lineWidth = 6;
+    [[40, 104], [104, 168], [344, 408], [408, 472]].forEach(([a, b]) => {
+      const x = (a + b) / 2;
+      scroll(x - 10, h - 34, 14, 1, Math.PI, 1, [x, h - 2]);
+      scroll(x + 10, h - 34, 14, 1, 0, -1, [x, h - 2]);
+    });
+    // Half curls at the bay's ends, which meet their neighbours' at the posts
+    [0, w].forEach((x) => {
+      ctx.beginPath();
+      ctx.arc(x, h - 34, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  });
+  texture.wrapS = RepeatWrapping;
+  texture.anisotropy = 4;
+  return texture;
 }
 
 // A railway name board: cream letters on navy enamel, a cream rule, and four bolts
@@ -810,6 +948,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             developer: game.cartridge.about.developer,
             note: game.cartridge.backNote,
             tape: game.cartridge.backTape,
+            cassette: game.cartridge.cassette,
             untitled: game.special === "mystery",
           });
           cart.group.userData.restBase = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
@@ -1275,85 +1414,11 @@ function eyeTexture() {
   });
 }
 
-// The full moon as it really looks, in big pixels: the near side's dark seas where they
-// are (Procellarum, Imbrium, Serenitatis, Tranquillitatis, Crisium...), the bright rayed
-// craters Tycho and Copernicus, and the limb a little darker. Drawn smooth, then shrunk to
-// a coarse grid and shown unsmoothed.
+// The full moon: a real one, NASA's (Scientific Visualization Studio, from Lunar
+// Reconnaissance Orbiter data, public domain), cut out round
 function moonTexture() {
-  const big = document.createElement("canvas");
-  big.width = big.height = 256;
-  const ctx = big.getContext("2d");
-  if (ctx) {
-    const c = 128;
-    const r = 120;
-    const at = (x: number, y: number): [number, number] => [c + x * r, c + y * r];
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(c, c, r, 0, Math.PI * 2);
-    ctx.clip();
-    // The bright highlands, darker towards the edge
-    const disc = ctx.createRadialGradient(c - 10, c - 10, 0, c, c, r);
-    disc.addColorStop(0, "#f1ecdd");
-    disc.addColorStop(0.75, "#ddd6c4");
-    disc.addColorStop(1, "#a9a291");
-    ctx.fillStyle = disc;
-    ctx.fillRect(0, 0, 256, 256);
-    // The maria: soft dark blots [x, y, rx, ry, darkness]
-    const maria: [number, number, number, number, number][] = [
-      [-0.55, -0.02, 0.32, 0.5, 0.5], // Oceanus Procellarum
-      [-0.27, -0.45, 0.3, 0.26, 0.62], // Imbrium
-      [0.2, -0.38, 0.17, 0.16, 0.6], // Serenitatis
-      [0.33, -0.06, 0.22, 0.2, 0.6], // Tranquillitatis
-      [0.68, -0.3, 0.12, 0.1, 0.65], // Crisium
-      [0.55, 0.2, 0.13, 0.17, 0.5], // Fecunditatis
-      [0.29, 0.3, 0.09, 0.09, 0.5], // Nectaris
-      [-0.2, 0.35, 0.18, 0.15, 0.45], // Nubium
-      [-0.48, 0.38, 0.1, 0.09, 0.5], // Humorum
-      [0.02, -0.73, 0.48, 0.07, 0.45], // Frigoris
-      [0.02, -0.1, 0.09, 0.08, 0.45], // Vaporum and Sinus Medii
-    ];
-    maria.forEach(([x, y, rx, ry, dark]) => {
-      const [px, py] = at(x, y);
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.scale(1, ry / rx);
-      const blot = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * r);
-      blot.addColorStop(0, `rgba(78,76,72,${Math.min(1, dark * 1.35)})`);
-      blot.addColorStop(0.7, `rgba(86,84,78,${dark * 1.05})`);
-      blot.addColorStop(1, "rgba(110,106,98,0)");
-      ctx.fillStyle = blot;
-      ctx.beginPath();
-      ctx.arc(0, 0, rx * r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
-    // Tycho's rays, and the bright craters
-    const [tx, ty] = at(-0.12, 0.72);
-    ctx.strokeStyle = "rgba(250,247,236,0.35)";
-    ctx.lineWidth = 3;
-    for (let i = 0; i < 9; i += 1) {
-      const a = (i / 9) * Math.PI * 2 + 0.3;
-      ctx.beginPath();
-      ctx.moveTo(tx, ty);
-      ctx.lineTo(tx + Math.cos(a) * r * 0.7, ty + Math.sin(a) * r * 0.7);
-      ctx.stroke();
-    }
-    [[-0.12, 0.72, 7], [-0.25, -0.17, 6], [-0.62, -0.18, 4]].forEach(([x, y, size]) => {
-      const [px, py] = at(x, y);
-      ctx.fillStyle = "#fbf8ee";
-      ctx.beginPath();
-      ctx.arc(px, py, size, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.restore();
-  }
-  // Shrunk to a coarse grid of big pixels, shown unsmoothed
-  const texture = paint(40, 40, (small) => {
-    small.imageSmoothingEnabled = true;
-    small.drawImage(big, 0, 0, 40, 40);
-  });
-  texture.magFilter = NearestFilter;
-  texture.minFilter = NearestFilter;
+  const texture = new TextureLoader().load("/images/moon.webp");
+  texture.colorSpace = SRGBColorSpace;
   return texture;
 }
 
@@ -2038,7 +2103,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       ctx.fillRect(0, 0, w, h);
     });
     scene.fog = new FogExp2(new Color("#0c1019"), 0.08);
-    const camera = new PerspectiveCamera(60, 1, 0.1, 200);
+    // (far enough out to see the train's headlight a long way down the line)
+    const camera = new PerspectiveCamera(60, 1, 0.1, 500);
     camera.rotation.order = "YXZ";
 
     // Light: a faint cold wash; the warm light comes from the lamps
@@ -2357,8 +2423,35 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     // The end of the platform: a railing, a bench and a lamp, and the night beyond
     const iron = standard("#1a1d22", 0.6);
-    for (let z = WALL_Z + 0.15; z <= EDGE_Z - 0.05; z += 0.45) scene.add(box(0.05, 1.05, 0.05, iron, END_X + 0.08, 0.52, z));
-    [0.5, 1.02].forEach((y) => scene.add(box(0.06, 0.05, EDGE_Z - WALL_Z - 0.15, iron, END_X + 0.08, y, (EDGE_Z + WALL_Z) / 2 + 0.05)));
+    // The railing: wrought-iron bays between square posts with ball finials, a bottom
+    // rail, and a rounded handrail on top
+    {
+      const railX = END_X + 0.08;
+      const from = WALL_Z + 0.15;
+      const bays = 6;
+      const bay = (EDGE_Z - 0.05 - from) / bays;
+      const midZ = from + (bay * bays) / 2;
+      const work = ironworkTexture();
+      work.repeat.set(bays, 1);
+      const ironwork = new MeshStandardMaterial({ color: "#1a1d22", roughness: 0.55, metalness: 0.3, alphaMap: work, alphaTest: 0.5, side: DoubleSide });
+      const panel = new Mesh(new PlaneGeometry(bay * bays, 0.96), ironwork);
+      panel.rotation.y = Math.PI / 2;
+      panel.position.set(railX, 0.54, midZ);
+      scene.add(panel);
+      const finial = new SphereGeometry(0.045, 12, 8);
+      for (let i = 0; i <= bays; i += 1) {
+        const z = from + i * bay;
+        scene.add(box(0.06, 1.1, 0.06, iron, railX, 0.5, z));
+        const ball = new Mesh(finial, iron);
+        ball.position.set(railX, 1.1, z);
+        scene.add(ball);
+      }
+      scene.add(box(0.05, 0.05, bay * bays, iron, railX, 0.06, midZ));
+      const handrail = new Mesh(new CylinderGeometry(0.035, 0.035, bay * bays, 12), iron);
+      handrail.rotation.x = Math.PI / 2;
+      handrail.position.set(railX, 1.03, midZ);
+      scene.add(handrail);
+    }
     const bench = new Group();
     bench.position.set(END_X + 1.2, 0, 0.3);
     bench.rotation.y = Math.PI / 2; // facing out over the railing
@@ -2525,10 +2618,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       tree.position.set(x, size / 2 - 0.9, FAR_Z + 5.5 + (i % 2) * 5);
       scene.add(tree);
     });
-    const moon = new Sprite(new SpriteMaterial({ map: moonTexture(), fog: false, depthWrite: false }));
+    const moon = new Sprite(new SpriteMaterial({ map: moonTexture(), fog: false, depthWrite: false, transparent: true }));
     moon.scale.set(7, 7, 1);
-    // Low over the fields past the end of the platform, where the scenic view looks
-    moon.position.set(-75, 19, 8);
+    // High over the fields past the end of the platform, where the scenic view looks
+    moon.position.set(-75, 34, 8);
     scene.add(moon);
 
     // The scenic view: bare trees in the fields, and a signal by the line, its lamp red
@@ -3190,7 +3283,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       halloween?.userData.update(t, reduced); // HALLOWEEN
       // (nothing falls inside a train: the passing one, or the one you ride in on)
-      outsideWeather.userData.update(t, reduced, train.visible || arrival.active);
+      outsideWeather.userData.update(t, reduced, (train.visible && train.position.x > -60) || arrival.active);
       // The eyes at the transoms: every 41 s or so, at one window or the other, for 6 s
       const peek = (t + 20) % 41;
       peeper.visible = !reduced && peek < 6;
@@ -3312,9 +3405,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         lamp.intensity += ((lit ? LAMP_LIT : LAMP_IDLE) - lamp.intensity) * 0.08;
       });
 
-      // The empty train comes through every 45 s (first after about 25 s), at about 80 km/h
+      // The empty train comes through every 45 s (first after about 25 s), at about 80 km/h.
+      // It sets off far down the line, its headlight a speck on the horizon (the fog hides
+      // the rest of it) growing for a quarter of a minute before it's here.
       const cycle = (t + 5) % 45;
-      train.visible = cycle > 30;
+      train.visible = cycle > 13;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
       // The signal: red, and the crossing lamps flashing turn about, from a few seconds
       // before the train comes until it's gone by (and while the one you came on pulls in

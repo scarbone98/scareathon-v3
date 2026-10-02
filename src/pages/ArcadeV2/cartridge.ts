@@ -170,8 +170,9 @@ function paperFibres(context: CanvasRenderingContext2D) {
 // The back sticker: white paper, the arcade's name, a barcode and the game's name
 // The back sticker: cream paper, the arcade's name and the release year on a
 // colour band, a barcode, the game's name, and a box of notes: whatever's been
-// written in (a cheat code, a hidden message), or blank lines to write on
-function paintSticker(context: CanvasRenderingContext2D, name: string, color: string, released: string, note: string, developer: string) {
+// written in (a cheat code, a hidden message), or blank lines to write on.
+// `title` is what's printed under the barcode (the name, or "Cassette Cart")
+function paintSticker(context: CanvasRenderingContext2D, name: string, title: string, color: string, released: string, note: string, developer: string) {
   const { width, height } = context.canvas;
   const ink = "#1a1418";
   context.fillStyle = "#f3efe6";
@@ -188,7 +189,7 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
   // Who made it, shrunk to fit if it's a long credit
   context.fillStyle = ink;
   context.textAlign = "left";
-  const credit = (developer || "Scareathon Arcade").toUpperCase();
+  const credit = (developer || "The Institute").toUpperCase();
   let size = 13;
   context.font = `700 ${size}px system-ui, sans-serif`;
   while (size > 8 && context.measureText(credit).width > width - 24) {
@@ -207,7 +208,7 @@ function paintSticker(context: CanvasRenderingContext2D, name: string, color: st
     x += bar + gap;
   }
   context.font = "600 12px ui-monospace, monospace";
-  context.fillText(name.replace(/[‘’]/g, "'").toUpperCase().slice(0, 28), 12, 102);
+  context.fillText(title.replace(/[‘’]/g, "'").toUpperCase().slice(0, 28), 12, 102);
   context.fillStyle = "rgba(26, 20, 24, 0.55)";
   context.font = "10px ui-monospace, monospace";
   context.fillText(`SCR-${(seed % 90000) + 10000}  NOT FOR RESALE`, 12, 116);
@@ -423,6 +424,65 @@ function paintLabel(
   paperFibres(context);
 }
 
+// A blank cassette's sticker, written on: a side letter in its box, ruled lines with
+// the title in black marker across them, a stripe in the cart's colour, and the
+// tape's small print along the bottom
+function paintCassetteLabel(context: CanvasRenderingContext2D, text: string, color: string) {
+  const { width, height } = context.canvas;
+  context.fillStyle = "#f6f3ec";
+  context.fillRect(0, 0, width, height);
+
+  // Side A, printed in a box at the top left
+  context.strokeStyle = INK;
+  context.lineWidth = 2;
+  context.strokeRect(14, 14, 34, 34);
+  context.fillStyle = INK;
+  context.font = "700 24px system-ui, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("A", 31, 32);
+
+  // The write-in lines, with the title written across the first
+  context.strokeStyle = "rgba(42, 33, 38, 0.35)";
+  context.lineWidth = 1.5;
+  const rules = [96, 140];
+  rules.forEach((y, i) => {
+    context.beginPath();
+    context.moveTo(i ? 18 : 62, y + 0.5);
+    context.lineTo(width - 18, y + 0.5);
+    context.stroke();
+  });
+  context.save();
+  const left = 62;
+  const room = width - left - 24;
+  let size = 52;
+  context.font = canvasFont(MARKER, size);
+  while (context.measureText(text).width > room && size > 22) {
+    size -= 2;
+    context.font = canvasFont(MARKER, size);
+  }
+  context.translate(left + room / 2 + 4, rules[0] - size * 0.42);
+  context.rotate(-0.035);
+  context.fillStyle = "#141014";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, 0, 0);
+  context.restore();
+
+  // The stripe, in the cart's colour and a lighter shade, then the small print
+  context.fillStyle = color;
+  context.fillRect(0, 168, width, 22);
+  context.fillStyle = `#${new Color(color).lerp(new Color("#ffffff"), 0.45).getHexString()}`;
+  context.fillRect(0, 192, width, 6);
+  context.fillStyle = INK;
+  context.font = "700 12px ui-monospace, Menlo, Consolas, monospace";
+  context.textAlign = "left";
+  context.fillText("C-60", 18, 222);
+  context.textAlign = "right";
+  context.fillText("NORMAL POSITION · TYPE I", width - 18, 222);
+  paperFibres(context);
+}
+
 // The shell's outline for a style, centred on the origin, extruded with rounded
 // edges. `windowBand` is how far up from the bottom the reel window's band reaches.
 // How big the disc shell's notch is, as a share of its width
@@ -561,6 +621,7 @@ export function createCartridge(
     developer = "",
     untitled = false,
     tape = "",
+    cassette = "",
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
@@ -568,11 +629,18 @@ export function createCartridge(
     developer?: string; // who made it, printed on the back sticker
     untitled?: boolean; // no name on the label: the picture fills it
     tape?: string; // no sticker on the back, just a strip of masking tape with this written on
+    cassette?: string; // a blank cassette cart: colourless clear shell, this written on a plain sticker
   } = {}
 ): Cartridge {
   const group = new Group();
   const { width, height, depth } = size;
-  const shellColor = new Color(color);
+  // A cassette cart's shell is clear and colourless, like a blank tape's, and always
+  // the notched one
+  if (cassette) {
+    clear = true;
+    style = "disc";
+  }
+  const shellColor = new Color(cassette ? "#c9d2d8" : color);
 
   // The plastic's grain, tiled a couple of times across the face (the shell's UVs are
   // in world units)
@@ -900,7 +968,10 @@ export function createCartridge(
   const context = canvas.getContext("2d");
   let picture: { source: CanvasImageSource; width: number; height: number } | undefined;
   const repaint = () => {
-    if (context) paintLabel(context, TAPE_TYPE[style], name, color, font, picture, untitled);
+    if (context) {
+      if (cassette) paintCassetteLabel(context, cassette, color);
+      else paintLabel(context, TAPE_TYPE[style], name, color, font, picture, untitled);
+    }
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);
@@ -934,13 +1005,16 @@ export function createCartridge(
   const paintBack = () => {
     if (stickerContext) {
       if (tape) paintTape(stickerContext, tape);
-      else paintSticker(stickerContext, name, color, released, note, developer);
+      else paintSticker(stickerContext, name, cassette ? "Cassette Cart" : name, color, released, note, developer);
     }
     stickerTexture.needsUpdate = true;
   };
   paintBack();
   // The handwriting's font may arrive after the first paint
-  if (note || tape) whenFontReady(MARKER).then(paintBack);
+  if (note || tape || cassette) whenFontReady(MARKER).then(() => {
+    paintBack();
+    repaint();
+  });
   const stickerMaterial = new MeshStandardMaterial({
     map: stickerTexture,
     roughness: tape ? 0.8 : 0.92,

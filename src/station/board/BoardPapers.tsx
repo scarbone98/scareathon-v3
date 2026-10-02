@@ -174,9 +174,16 @@ function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
         {signedIn ? (
           <>
             {/* you, as you look (moving, if your body has an idle), standing in for "your locker" */}
-            <TicketButton label="Your locker" onClick={act(() => goTo("lockers"))}>
-              <span className="-my-1 flex h-[48px] items-end">{look ? <AvatarView look={look} height={48} label="You" /> : null}</span>
-            </TicketButton>
+            {/* You, just as you are: as wide as the avatar, no ticket round it */}
+            <button
+              type="button"
+              aria-label="Your locker"
+              title="Your locker"
+              onClick={act(() => goTo("lockers"))}
+              className="flex h-[48px] shrink-0 items-end transition hover:brightness-110 active:translate-y-px"
+            >
+              {look ? <AvatarView look={look} height={48} label="You" /> : null}
+            </button>
             <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))}>
               {summary?.unreadCount ?? 0}×<EnvelopeIcon />
             </TicketButton>
