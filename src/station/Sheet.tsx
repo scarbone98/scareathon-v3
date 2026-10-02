@@ -46,7 +46,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
   const toneClass = {
     paper: "md:max-w-lg p-6 pt-9 md:p-7 md:pt-9",
     ledger: "md:max-w-4xl bg-[#0d131b] p-5 pt-12 text-stone-200 ring-2 ring-inset ring-[#f2ead2]/40 md:p-8 md:pt-12",
-    board: "md:max-w-3xl bg-[#0a0c10] pt-10 ring-2 ring-inset ring-[#ffb03a]/25",
+    board: "md:max-w-3xl bg-[#0a0c10] ring-2 ring-inset ring-[#ffb03a]/25",
   }[tone];
   const light = tone === "paper";
 

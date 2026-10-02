@@ -8,17 +8,22 @@ import type { GoTo } from "../stops.ts";
 import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
 import { useScareathonMe } from "../../scareathonSeason";
 import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
+import { useIsMobileArcade } from "../../pages/Arcade/games";
 
 // A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
 // their body has one); their saved portrait until the look comes, or if it doesn't
-function Face({ userId, look, onBanner = false }: { userId?: string; look?: AvatarLook; onBanner?: boolean }) {
+function Face({ userId, look, onBanner = false, small = false }: { userId?: string; look?: AvatarLook; onBanner?: boolean; small?: boolean }) {
   if (!userId) return null;
+  // Phones show them at 1.5x (drawn at 2x, then scaled), so about the top seven fit on a screen
+  const size = small
+    ? { frame: "h-[45px] w-[48px]", shift: "origin-bottom translate-y-[8px] scale-75", img: "h-[72px] w-[48px] translate-y-[8px]" }
+    : { frame: "h-[60px] w-[64px]", shift: "translate-y-[10px]", img: "h-[96px] w-[64px] translate-y-[10px]" };
   return (
-    // (twice size, the empty sky over their heads and their feet trimmed off; no box of its
+    // (the empty sky over their heads and their feet trimmed off; no box of its
   // own on a banner, just them standing on it)
-    <span className={`${onBanner ? "" : flap} flex h-[72px] w-[64px] shrink-0 items-end justify-center overflow-hidden px-0`}>
+    <span className={`${onBanner ? "" : flap} flex ${size.frame} shrink-0 items-end justify-center overflow-hidden px-0`}>
       {look ? (
-        <span className="translate-y-[10px]">
+        <span className={size.shift}>
           <AvatarView look={look} height={96} label="" />
         </span>
       ) : (
@@ -27,7 +32,7 @@ function Face({ userId, look, onBanner = false }: { userId?: string; look?: Avat
           alt=""
           loading="lazy"
           draggable={false}
-          className="h-[96px] w-[64px] max-w-none translate-y-[10px] object-contain [image-rendering:pixelated]"
+          className={`${size.img} max-w-none object-contain [image-rendering:pixelated]`}
           onError={(event) => (event.currentTarget.style.visibility = "hidden")}
         />
       )}
@@ -86,6 +91,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
   const [breakdown, setBreakdown] = useState(false);
   const { data, isLoading, error } = useScareboard(year, signedIn);
   const { data: me } = useScareathonMe(signedIn);
+  const compact = useIsMobileArcade();
   const { data: looks } = useLooks((data?.leaderboard.data ?? []).flatMap((row) => (row.userId ? [row.userId] : [])));
   if (!signedIn || needsSignIn(error)) return null;
   if (isLoading && !data) return <Line>FLIPPING...</Line>;
@@ -116,14 +122,20 @@ function Standings({ signedIn }: { signedIn: boolean }) {
         return (
           <Line key={row.name} bright={row.rank <= 3} banner={row.userId ? looks?.[row.userId]?.banner ?? DEFAULT_BANNER : undefined}>
             <span className={`${box} w-9 shrink-0 text-center`}>{row.rank}</span>
-            <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId)} />
+            <Face userId={row.userId} look={row.userId ? looks?.[row.userId] : undefined} onBanner={Boolean(row.userId)} small={compact} />
             <span className={`${box} min-w-0 flex-1 py-0.5`}>
               <span className={`block break-words leading-tight ${nameSize(row.name)}`}>{row.name.toUpperCase()}</span>
               {wins.length > 0 && <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">{wins.map((y) => `★${y}`).join(" ")}</span>}
               {/* The points behind the total go under the name, so the name keeps the width */}
               {breakdown && (
                 <span className="mt-1 block text-[12px] leading-none opacity-80">
-                  {POINT_COLUMNS.map(([key, label]) => `${label} ${row[key] ?? "-"}`).join(" · ")}
+                  {POINT_COLUMNS.map(([key, label], i) => (
+                    // (each label with its number, so a narrow row wraps between them)
+                    <span key={key} className="whitespace-nowrap">
+                      {i > 0 && " · "}
+                      {label} {row[key] ?? "-"}
+                    </span>
+                  ))}
                 </span>
               )}
             </span>
@@ -140,7 +152,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
 export default function DepartureBoard({ signedIn, goTo }: Props) {
   return (
     <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
-      <div className="mb-2 border-b border-[#ffb03a]/25 pb-2">
+      <div className="mb-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
         <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
