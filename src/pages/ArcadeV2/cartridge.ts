@@ -18,6 +18,7 @@ import {
   ShapeGeometry,
   SRGBColorSpace,
 } from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // A game cartridge crossed with an audio cassette: a plastic shell in the
@@ -699,6 +700,14 @@ export function createCartridge(
     group.add(mesh);
     return mesh;
   };
+  // A run of identical small parts (the contacts, the grip ridges, a chip's legs) as one
+  // mesh: drawn one at a time they were most of a cartridge's draw calls, and with a row
+  // of them flying about that's what slowed phones down
+  const addRun = (geometry: BufferGeometry, material: MeshStandardMaterial, spots: [number, number, number][]) => {
+    const merged = mergeGeometries(spots.map(([x, y, z]) => geometry.clone().translate(x, y, z)))!;
+    geometry.dispose();
+    return addPart(merged, material, 0, 0, 0);
+  };
 
   // The shell: a cassette-shaped plastic body above an edge connector that goes into the slot
   const connectorHeight = height * 0.1;
@@ -722,13 +731,11 @@ export function createCartridge(
   addPart(new BoxGeometry(width * 0.74, connectorHeight * 1.2, connectorDepth), connectorMaterial, 0, bodyBottom - connectorHeight * 0.5, 0);
   const contacts = 16;
   const pitch = (width * 0.68) / contacts;
-  const contactGeometry = new BoxGeometry(pitch * 0.58, connectorHeight * 0.62, connectorDepth * 1.12);
-  geometries.push(contactGeometry);
-  for (let i = 0; i < contacts; i += 1) {
-    const contact = new Mesh(contactGeometry, goldMaterial);
-    contact.position.set(-width * 0.34 + pitch * (i + 0.5), bodyBottom - connectorHeight * 0.62, 0);
-    group.add(contact);
-  }
+  addRun(
+    new BoxGeometry(pitch * 0.58, connectorHeight * 0.62, connectorDepth * 1.12),
+    goldMaterial,
+    Array.from({ length: contacts }, (_, i) => [-width * 0.34 + pitch * (i + 0.5), bodyBottom - connectorHeight * 0.62, 0])
+  );
 
   // The label, set in a darker recess, filling the face above the window band.
   // The brick's top carries grip ridges; the disc's label stops short of its notch.
@@ -803,15 +810,11 @@ export function createCartridge(
     addPart(new BoxGeometry(labelWidth + width * 0.03, width * 0.006, depth * 0.02), trimMaterial, labelX, windowY + windowBand * 0.5, front + depth * 0.01);
     // Grip ridges down the strip right of the label, from under the notch most
     // of the way to the bottom, then the write-protect tab below them
-    const ridgeGeometry = new BoxGeometry(width * 0.075, width * 0.009, depth * 0.08);
-    geometries.push(ridgeGeometry);
     const ridgeX = labelX + labelWidth / 2 + width * 0.015 + width * 0.05;
     addPart(new BoxGeometry(width * 0.06, width * 0.035, depth * 0.06), trimMaterial, ridgeX, bodyBottom + width * 0.04, front + depth * 0.02);
-    for (let y = bodyTop - width * (DISC_NOTCH + 0.03); y > bodyBottom + width * 0.075; y -= width * 0.016) {
-      const ridge = new Mesh(ridgeGeometry, trimMaterial);
-      ridge.position.set(ridgeX, y, front + depth * 0.02);
-      group.add(ridge);
-    }
+    const ridges: [number, number, number][] = [];
+    for (let y = bodyTop - width * (DISC_NOTCH + 0.03); y > bodyBottom + width * 0.075; y -= width * 0.016) ridges.push([ridgeX, y, front + depth * 0.02]);
+    addRun(new BoxGeometry(width * 0.075, width * 0.009, depth * 0.08), trimMaterial, ridges);
   } else {
     const windowWidth = style === "brick" ? width * 0.8 : width * 0.46;
     addPart(roundedRect(windowWidth, windowHeight, windowHeight * (style === "brick" ? 0.12 : 0.3)), windowMaterial, 0, windowY, front + 0.001);
@@ -830,13 +833,11 @@ export function createCartridge(
   });
   // The brick's grip ridges across its top
   if (style === "brick") {
-    const ridgeGeometry = new BoxGeometry(width * 0.7, width * 0.009, depth * 0.08);
-    geometries.push(ridgeGeometry);
-    for (let i = 0; i < 4; i += 1) {
-      const ridge = new Mesh(ridgeGeometry, trimMaterial);
-      ridge.position.set(0, bodyTop - width * 0.018 - i * width * 0.016, front + depth * 0.02);
-      group.add(ridge);
-    }
+    addRun(
+      new BoxGeometry(width * 0.7, width * 0.009, depth * 0.08),
+      trimMaterial,
+      Array.from({ length: 4 }, (_, i) => [0, bodyTop - width * 0.018 - i * width * 0.016, front + depth * 0.02])
+    );
   }
   // A clear shell's insides: the circuit board behind the label, down into the
   // connector, a couple of chips on it, and the tape spools right through the band
@@ -883,15 +884,11 @@ export function createCartridge(
     const chipDepth = depth * 0.07;
     addPart(new BoxGeometry(chipWidth, chipHeight, chipDepth), chip, chipX, chipY, boardBack - chipDepth / 2);
     addPart(new CircleGeometry(chipHeight * 0.1, 10), dotMaterial, chipX - chipWidth * 0.4, chipY + chipHeight * 0.22, boardBack - chipDepth - 0.0003).rotation.y = Math.PI;
-    const legGeometry = new BoxGeometry(chipWidth * 0.035, chipHeight * 0.28, chipDepth * 0.5);
-    geometries.push(legGeometry);
+    const legs: [number, number, number][] = [];
     for (let i = 0; i < 9; i += 1) {
-      [-1, 1].forEach((side) => {
-        const leg = new Mesh(legGeometry, legMaterial);
-        leg.position.set(chipX - chipWidth * 0.42 + (chipWidth * 0.84 * i) / 8, chipY + side * (chipHeight / 2 + chipHeight * 0.12), boardBack - chipDepth * 0.35);
-        group.add(leg);
-      });
+      [-1, 1].forEach((side) => legs.push([chipX - chipWidth * 0.42 + (chipWidth * 0.84 * i) / 8, chipY + side * (chipHeight / 2 + chipHeight * 0.12), boardBack - chipDepth * 0.35]));
     }
+    addRun(new BoxGeometry(chipWidth * 0.035, chipHeight * 0.28, chipDepth * 0.5), legMaterial, legs);
 
     // The tape's run, as in a cassette: off the bottom of one spool, round a
     // guide roller in each bottom corner, along the bottom over a felt pressure

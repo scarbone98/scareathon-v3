@@ -31,6 +31,8 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  type Texture,
+  type VideoTexture,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
@@ -1047,11 +1049,19 @@ export default function CartridgeArcade({
       scene.add(mesh);
       return mesh;
     };
+    // (the lines move onto the cartridge being scanned; till then they wait, hidden, in the
+    // scene, so their shaders are compiled with everything else's and not mid-scan)
+    const scanLine = () => {
+      const mesh = new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0));
+      mesh.visible = false;
+      scene.add(mesh);
+      return mesh;
+    };
     const beams = [0, 1].map(() => ({
       core: makeFan(3, laserMaterial(0)),
       glow: makeFan(6, laserMaterial(0)),
-      line: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
-      lineGlow: new Mesh(track(new PlaneGeometry(1, 1)), laserMaterial(0)),
+      line: scanLine(),
+      lineGlow: scanLine(),
     }));
 
     // The camera: a dark ball on a short mount, a green lens, and a glow around the lens
@@ -2588,11 +2598,36 @@ export default function CartridgeArcade({
     let lastScroll = 0;
     let lastFrame = 0;
     let warmedUp = false;
+    // Hidden, it keeps its pictures on the graphics card up to date a couple a frame (the
+    // cartridges' stills come in after it's built), so the frame it comes up on doesn't
+    // have to send them all at once
+    const PICTURE_SLOTS = ["map", "emissiveMap", "alphaMap", "bumpMap", "roughnessMap"] as const;
+    let pictureCheck = 0; // frames till the next look (none to send: look again in a while)
+    const uploadPictures = () => {
+      if (pictureCheck-- > 0) return;
+      let sent = 0;
+      scene.traverse((object) => {
+        const material = (object as Mesh).material as MeshStandardMaterial | MeshStandardMaterial[] | undefined;
+        if (sent >= 2 || !material) return;
+        for (const one of ([] as MeshStandardMaterial[]).concat(material)) {
+          for (const slot of PICTURE_SLOTS) {
+            const texture = (one as unknown as Record<string, Texture | null | undefined>)[slot];
+            if (!texture || (texture as VideoTexture).isVideoTexture || sent >= 2) continue;
+            const { __version } = renderer.properties.get(texture) as { __version?: number };
+            if (__version === texture.version) continue;
+            renderer.initTexture(texture);
+            sent += 1;
+          }
+        }
+      });
+      pictureCheck = sent ? 0 : 30;
+    };
     const animate = () => {
       frame = requestAnimationFrame(animate);
       // A game is open on top, or it's hidden: leave the GPU be. (But draw once as soon as it's
       // built, hidden or not, to warm it up.)
       if (built && !compiled) return;
+      if (pausedRef.current && warmedUp && !document.hidden) uploadPictures();
       if (pausedRef.current && (warmedUp || !built)) return;
       if (built) warmedUp = true;
       const time = performance.now() / 1000;

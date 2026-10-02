@@ -64,6 +64,7 @@ import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
 import { loadAvatarManifest } from "../components/avatar/manifest.ts";
+import { mergeFixedParts } from "../pages/ArcadeV2/mergeParts.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
 // and turns between four fixed headings, and walks up to an object to look at it.
@@ -764,8 +765,9 @@ function buildEvents() {
 // Painted as the arcade paints its cabinet (the same finish, trim, bezels and buttons), with
 // the preview game on its screen and marquee, so the arcade's own can take over unnoticed
 // The bulbs round the arcade sign and the film poster: lit, and the dim ones of the chase
-const BULB_ON = new MeshBasicMaterial({ color: "#ffe2a0", fog: false });
-const BULB_OFF = new MeshBasicMaterial({ color: "#6a4a26", fog: false });
+const BULB_ON = new Color("#ffe2a0");
+const BULB_OFF = new Color("#6a4a26");
+const BULB_MATERIAL = new MeshBasicMaterial({ color: "#ffffff", fog: false });
 const BULB_GEOMETRY = new SphereGeometry(0.014, 8, 6);
 
 // A ring of bulbs round a rectangle w by h centred on (cx, cy), `spacing` apart, from its
@@ -781,20 +783,26 @@ function rattles(thing: Group, kind: "drawer" | "sign") {
   return thing;
 }
 
+// (all one mesh, each bulb a copy with its own colour: one draw for the lot, not one a bulb)
 function ringOfBulbs(group: Group, w: number, h: number, spacing: number, cx: number, cy: number, z: number) {
-  const bulbs: Mesh[] = [];
+  const spots: [number, number][] = [];
   const perimeter = 2 * (w + h);
   for (let d = 0; d < perimeter - spacing / 2; d += spacing) {
-    const [x, y] =
+    spots.push(
       d < w ? [d - w / 2, h / 2]
       : d < w + h ? [w / 2, h / 2 - (d - w)]
       : d < 2 * w + h ? [w / 2 - (d - w - h), -h / 2]
-      : [-w / 2, -h / 2 + (d - 2 * w - h)];
-    const bulb = new Mesh(BULB_GEOMETRY, BULB_ON);
-    bulb.position.set(cx + x, cy + y, z);
-    group.add(bulb);
-    bulbs.push(bulb);
+      : [-w / 2, -h / 2 + (d - 2 * w - h)]
+    );
   }
+  const bulbs = new InstancedMesh(BULB_GEOMETRY, BULB_MATERIAL, spots.length);
+  const place = new Matrix4();
+  spots.forEach(([x, y], i) => {
+    bulbs.setMatrixAt(i, place.makeTranslation(cx + x, cy + y, z));
+    bulbs.setColorAt(i, BULB_ON);
+  });
+  bulbs.computeBoundingSphere();
+  group.add(bulbs);
   return bulbs;
 }
 
@@ -1227,6 +1235,8 @@ function buildLockers() {
   clock.add(new Mesh(new SphereGeometry(0.03, 8, 6), iron).translateY(0.36));
   hanger.add(clock);
   group.userData.clockFace = clockFace;
+  // (the lockers' carcasses and louvres drawn together; your door and the rest are apart)
+  mergeFixedParts(group);
   addLamp(group, 0, 2.6, 1.0);
   group.add(hitBox(1.7, 2.3, 0.7, 1.1));
   group.userData.stopId = "lockers";
@@ -2466,14 +2476,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       panel.position.set(railX, 0.54, midZ);
       scene.add(panel);
       const finial = new SphereGeometry(0.045, 12, 8);
+      const posts = new Group(); // (drawn together: see mergeFixedParts)
       for (let i = 0; i <= bays; i += 1) {
         const z = from + i * bay;
-        scene.add(box(0.06, 1.1, 0.06, iron, railX, 0.5, z));
+        posts.add(box(0.06, 1.1, 0.06, iron, railX, 0.5, z));
         const ball = new Mesh(finial, iron);
         ball.position.set(railX, 1.1, z);
-        scene.add(ball);
+        posts.add(ball);
       }
-      scene.add(box(0.05, 0.05, bay * bays, iron, railX, 0.06, midZ));
+      posts.add(box(0.05, 0.05, bay * bays, iron, railX, 0.06, midZ));
+      mergeFixedParts(posts);
+      scene.add(posts);
       const handrail = new Mesh(new CylinderGeometry(0.035, 0.035, bay * bays, 12), iron);
       handrail.rotation.x = Math.PI / 2;
       handrail.position.set(railX, 1.03, midZ);
@@ -2534,15 +2547,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     archShape.closePath();
     const archGeometry = new ExtrudeGeometry(archShape, { depth: 0.28, bevelEnabled: false, curveSegments: 16 });
     const colZ = EDGE_Z - 0.2;
+    const colonnade = new Group(); // (drawn together: see mergeFixedParts)
     for (let x = firstCol; x <= 30; x += bay) {
-      scene.add(box(0.36, spring, 0.36, columnStone, x, spring / 2, colZ));
-      scene.add(box(0.46, 0.1, 0.46, stone, x, spring - 0.05, colZ)); // a capital
+      colonnade.add(box(0.36, spring, 0.36, columnStone, x, spring / 2, colZ));
+      colonnade.add(box(0.46, 0.1, 0.46, stone, x, spring - 0.05, colZ)); // a capital
       if (x + bay <= 30.5) {
         const arch = new Mesh(archGeometry, stone);
         arch.position.set(x + bay / 2, spring, colZ - 0.14);
-        scene.add(arch);
+        colonnade.add(arch);
       }
     }
+    mergeFixedParts(colonnade);
+    scene.add(colonnade);
     // Over the arch you look out through from the platform: the rune tablet, carved with the
     // day's code (painted in with the boards)
     const runeTexture = paint(768, 256, (ctx, w, h) => drawRuneTablet(ctx, w, h, null));
@@ -2867,6 +2883,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
     const objects = [bench, lockers, arcade, cartRack, bulletin, events, tickets, departures, mail];
+    // The arcade's lamp hangs in the scene itself, not in the arcade, which is hidden while
+    // the arcade's own cabinet is over it: hiding a light would rebuild every lit shader
+    // there and then, a stall just as the arcade comes up
+    scene.attach(arcade.userData.lamp as PointLight);
 
     // Surfaces: the things you read (papers, the board's face, flyers, the kiosk window)
     // are HTML placed in 3D over their painted stand-ins, so their text is crisp
@@ -3358,11 +3378,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       // The arcade sign's and the poster's bulbs chase round, two lit to one dark
       if (!reduced) {
         const chase = Math.floor(t * 7);
-        [arcadeObject, events].forEach((object) =>
-          (object.userData.bulbs as Mesh[] | undefined)?.forEach((bulb, i) => {
-            bulb.material = (i + chase) % 3 === 0 ? BULB_OFF : BULB_ON;
-          })
-        );
+        [arcadeObject, events].forEach((object) => {
+          const bulbs = object.userData.bulbs as InstancedMesh | undefined;
+          if (!bulbs || bulbs.userData.chase === chase) return;
+          bulbs.userData.chase = chase;
+          for (let i = 0; i < bulbs.count; i += 1) bulbs.setColorAt(i, (i + chase) % 3 === 0 ? BULB_OFF : BULB_ON);
+          bulbs.instanceColor!.needsUpdate = true;
+        });
       }
       // The ticket clerk: eyes that wander and now and then blink, fingers drumming the
       // counter (little finger first) in rolls with a pause between

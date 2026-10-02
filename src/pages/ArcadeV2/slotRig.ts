@@ -17,6 +17,7 @@ import {
   TubeGeometry,
   Vector3,
 } from "three";
+import { mergeFixedParts } from "./mergeParts.ts";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 
 // The cartridge slot as a retrofit someone bodged into the cabinet to play
@@ -529,6 +530,10 @@ gl_FragColor.rgb = mix(vec3(steelLight), gl_FragColor.rgb, 0.12) * vec3(0.66, 0.
     lead = new Mesh(new TubeGeometry(curve, 60, leadRadius, 6), leadMaterial);
     group.add(lead);
   };
+
+  // The fixed hardware drawn together (not the scope or the vent, which a tap picks out,
+  // nor the sparks, which fly about)
+  mergeFixedParts(group, [...scopeParts, ...ventParts, ...sparks.map((spark) => spark.mesh)]).forEach(track);
 
   return {
     group,
