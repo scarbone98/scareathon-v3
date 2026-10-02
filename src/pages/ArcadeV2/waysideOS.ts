@@ -1,5 +1,6 @@
 // The WaysideOS cartridge: not a game but a little operating system. Plugged in, the
 // cabinet's screen boots it to a code prompt, and codes are typed in on the terminal.
+import { SECRET_CARTS, unlockCart } from "../Arcade/unlocks.ts";
 import { canvasFont, TERMINAL_FONT } from "./arcadeFonts.ts";
 
 const INK = "#0b1418";
@@ -44,6 +45,13 @@ export function runCode(raw: string): CodeResult {
     return motionControl
       ? { ok: true, lines: ["MOTION CONTROL ON", "GO ON, GIVE IT A SHAKE"], motion: true }
       : { ok: true, lines: ["MOTION CONTROL OFF", "IT CAN REST NOW"], motion: false };
+  }
+  // A secret cartridge's code puts it on the shelf
+  const secret = SECRET_CARTS[cleanCode(raw)];
+  if (secret) {
+    return unlockCart(secret)
+      ? { ok: true, lines: [`${secret.toUpperCase()} UNLOCKED`, "LOOK ON THE SHELF"] }
+      : { ok: true, lines: ["ALREADY UNLOCKED", "IT'S ON THE SHELF"] };
   }
   const lines = CODES[cleanCode(raw)];
   if (lines) return { ok: true, lines };

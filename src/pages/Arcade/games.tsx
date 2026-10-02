@@ -6,6 +6,7 @@ import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
 import { supabase } from "../../supabaseClient.ts";
+import { unlockedCarts } from "./unlocks.ts";
 
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
@@ -29,6 +30,8 @@ export type MachineData = {
   // screen and can't be played; "shuffle" plays a random other game.
   // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
   // "wayside": WaysideOS, a code prompt on the cabinet's screen (ArcadeV2/waysideOS.ts).
+  // secret: off the shelf until its code is typed into WaysideOS (Arcade/unlocks.ts).
+  secret?: boolean;
   special?: "mystery" | "shuffle" | "soon" | "wayside";
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
@@ -75,6 +78,7 @@ const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/ind
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
 const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
+const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -183,7 +187,8 @@ export function useIsMobileArcade() {
 
 // Builds the list fresh; call it once per page (e.g. in useMemo).
 export function createArcadeGames(): MachineData[] {
-  return [
+  const unlocked = unlockedCarts();
+  const games: MachineData[] = [
     // Not games so much as things to do: they sit left of Shuffle (where the shelf starts)
     {
       name: "WaysideOS",
@@ -729,6 +734,27 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // --- Secret: in testing, only on the shelf once you've typed LIQUID into WaysideOS
+    {
+      name: "Liquid Metal",
+      secret: true,
+      cartridge: {
+        color: "#aeb9c8",
+        tagline: "Run as a blob of liquid metal. Swipe, duck, dodge.",
+        font: { family: "Audiowide" },
+        about: { released: "2026", players: "Single player", genre: "Runner", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Liquid Metal"
+          url={LIQUID_METAL_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
     // --- Coming soon: carts on the shelf before their games exist. There's no
     // video, just a cover (the URL finds stills/<Name>.jpg); plugged in, the
     // screen says COMING SOON and nothing launches.
@@ -788,6 +814,8 @@ export function createArcadeGames(): MachineData[] {
       game: null,
     },
   ];
+  // Secret carts stay off the shelf until they're unlocked on this device
+  return games.filter((game) => !game.secret || unlocked.includes(game.name));
 }
 
 // Shuffle's pick: any real game in the list (on phones, the list already

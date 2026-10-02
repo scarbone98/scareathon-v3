@@ -8,6 +8,7 @@ import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
+import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
@@ -118,7 +119,12 @@ export default function StationPage() {
   const compact = useIsMobileArcade();
   // The arcade's games (on phones, those that play on one); the scoreboard shows the hi-scores
   // of the ones that keep scores
-  const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact]);
+  // A secret cart unlocked at WaysideOS: once its reply has been on screen a moment, the
+  // arcade is rebuilt with the new cart on the shelf and picked
+  const [unlocks, setUnlocks] = useState(0);
+  // (unlocks isn't read: it's there to re-read the unlocked carts)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact, unlocks]);
   const scoredGames = useMemo(() => games.filter((g) => g.hasLeaderboard !== false && !g.special).map((g) => g.name), [games]);
   // The same four views on every screen
   const headings = HEADINGS;
@@ -423,6 +429,22 @@ export default function StationPage() {
   // Which game the arcade starts on: the preview, unless you're sent to another (a "Play"
   // button elsewhere), in which case it's rebuilt on that one
   const [initialGame, setInitialGame] = useState<string | undefined>(preview?.name);
+  useEffect(() => {
+    let timer = 0;
+    const onUnlock = (event: Event) => {
+      const name = (event as CustomEvent<string>).detail;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setUnlocks((n) => n + 1);
+        setInitialGame(name);
+      }, 2200);
+    };
+    window.addEventListener(UNLOCK_EVENT, onUnlock);
+    return () => {
+      window.removeEventListener(UNLOCK_EVENT, onUnlock);
+      window.clearTimeout(timer);
+    };
+  }, []);
   useEffect(() => {
     if (at !== "arcade" || !open) return;
     const wanted = games.find((game) => normalizeMachineName(game.name) === normalizeMachineName(open))?.name;
