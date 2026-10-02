@@ -917,8 +917,8 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       finish.accent.set(preview?.color ?? "#ff7a1a");
       finish.decorate({ cabinet: cabinetBox, screen: screenBox, panel: panelBox, marquee: marqueeBox });
       // What the arcade bolts on round its slot, built by the same code in the same places
-      const dressing = dressSlot({ model, cabinetBox, panelBox, screenBox, screenMaterial: glassMaterial });
-      cabinet.add(dressing.rig.group, dressing.terminal.group, ...dressing.rims);
+      const dressing = dressSlot({ model, cabinetBox, panelBox, screenBox, marqueeBox, screenMaterial: glassMaterial });
+      cabinet.add(dressing.rig.group, dressing.terminal.group, dressing.dispenser.group, ...dressing.rims);
       group.userData.dressing = dressing;
       // The terminal shows the game the arcade will open on, as the arcade's will
       const start = Math.max(
@@ -950,7 +950,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             tape: game.cartridge.backTape,
             cassette: game.cartridge.cassette,
             untitled: game.special === "mystery",
-            greyed: game.special === "soon",
+            hologram: game.special === "soon",
           });
           cart.group.userData.restBase = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
           cart.group.userData.rest = cart.group.userData.restBase.clone();
@@ -1043,7 +1043,14 @@ function buildCartRack(games: MachineData[]) {
     const col = i % perTier;
     const h = tierH * (0.68 + ((i * 37) % 7) / 70);
     const x = -width / 2 + 0.01 + spine * (col + 0.5);
-    const cart = box(spine - 0.004, h, depth * 0.8, standard(game.cartridge.color, 0.55), x, tier * tierH + 0.0075 + h / 2, 0.005);
+    const shell = standard(game.cartridge.color, 0.55);
+    // A coming-soon game's cart is a hologram, see-through and glowing (as in the arcade)
+    if (game.special === "soon") {
+      shell.color.lerp(new Color("#7ff3ff"), 0.55).multiplyScalar(0.35);
+      shell.emissive.copy(shell.color).multiplyScalar(1.6);
+      Object.assign(shell, { transparent: true, opacity: 0.35, depthWrite: false, blending: AdditiveBlending });
+    }
+    const cart = box(spine - 0.004, h, depth * 0.8, shell, x, tier * tierH + 0.0075 + h / 2, 0.005);
     group.add(cart);
     // A pale label band across each spine
     const label = box(spine - 0.003, h * 0.22, 0.002, standard("#efe6cf", 0.8), x, tier * tierH + 0.0075 + h * 0.62, 0.005 + depth * 0.4);

@@ -1,4 +1,4 @@
-import { calculateRuleAward, validateScoreSubmission } from '../routes/games.js';
+import { calculateRuleAward, playTicketsFor, PLAY_TICKETS, PLAY_TICKETS_DAILY_CAP, validateScoreSubmission } from '../routes/games.js';
 
 describe('calculateRuleAward', () => {
     test('returns fixed awards when the metric clears the threshold', () => {
@@ -125,5 +125,22 @@ describe('validateScoreSubmission', () => {
             metricName: 'score',
             metricValue: 48210,
         })).toEqual({ ok: true });
+    });
+});
+
+describe('playTicketsFor', () => {
+    test('pays the standard tickets for a run that scores', () => {
+        expect(playTicketsFor(1, 0)).toBe(PLAY_TICKETS);
+        expect(playTicketsFor(48000, 20)).toBe(PLAY_TICKETS);
+    });
+
+    test('pays nothing for a run that scores nothing', () => {
+        expect(playTicketsFor(0, 0)).toBe(0);
+    });
+
+    test('tops up to the daily cap and no further', () => {
+        expect(playTicketsFor(500, PLAY_TICKETS_DAILY_CAP - 4)).toBe(4);
+        expect(playTicketsFor(500, PLAY_TICKETS_DAILY_CAP)).toBe(0);
+        expect(playTicketsFor(500, '150')).toBe(0);
     });
 });

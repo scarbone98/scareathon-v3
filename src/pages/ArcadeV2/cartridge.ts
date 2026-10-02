@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   BoxGeometry,
   BufferGeometry,
   CanvasTexture,
@@ -311,18 +312,6 @@ const INK = "#2a2126";
 // Stills are copied at about this size: enough for the label, small to keep
 const STILL_MAX = 480;
 
-// Black and white and a little faded: the label of a game that isn't out yet
-function greyOut(context: CanvasRenderingContext2D) {
-  const { width, height } = context.canvas;
-  const image = context.getImageData(0, 0, width, height);
-  const data = image.data;
-  for (let i = 0; i < data.length; i += 4) {
-    const grey = (data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11) * 0.5 + 24;
-    data[i] = data[i + 1] = data[i + 2] = grey;
-  }
-  context.putImageData(image, 0, 0);
-}
-
 function paintLabel(
   context: CanvasRenderingContext2D,
   type: string,
@@ -634,7 +623,7 @@ export function createCartridge(
     untitled = false,
     tape = "",
     cassette = "",
-    greyed = false,
+    hologram = false,
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
@@ -643,11 +632,10 @@ export function createCartridge(
     untitled?: boolean; // no name on the label: the picture fills it
     tape?: string; // no sticker on the back, just a strip of masking tape with this written on
     cassette?: string; // a blank cassette cart: colourless clear shell, this written on a plain sticker
-    greyed?: boolean; // a game that isn't out yet: the whole cart dull grey, its label black and white
+    hologram?: boolean; // a game that isn't made yet: the cart's only a flickering projection of itself
   } = {}
 ): Cartridge {
   const group = new Group();
-  if (greyed) color = "#4c4c52";
   const { width, height, depth } = size;
   // A cassette cart's shell is clear and colourless, like a blank tape's, and always
   // the notched one
@@ -986,7 +974,6 @@ export function createCartridge(
     if (context) {
       if (cassette) paintCassetteLabel(context, cassette, color);
       else paintLabel(context, TAPE_TYPE[style], name, color, font, picture, untitled);
-      if (greyed) greyOut(context);
     }
     texture.needsUpdate = true;
   };
@@ -1005,7 +992,7 @@ export function createCartridge(
     bumpScale: 1.2,
     emissive: new Color("#ffffff"),
     emissiveMap: texture,
-    emissiveIntensity: greyed ? 0.05 : 0.35,
+    emissiveIntensity: 0.35,
   });
   addPart(new PlaneGeometry(labelWidth, labelHeight), labelMaterial, labelX, labelY, depth / 2 + 0.002);
 
@@ -1050,18 +1037,57 @@ export function createCartridge(
   backing.rotation.y = Math.PI;
   if (tape) backing.rotation.z = 0.06; // slapped on crooked
 
-  // Not out yet: drain the colour from every part (reels, contacts, the board inside)
-  if (greyed) {
-    const hsl = { h: 0, s: 0, l: 0 };
-    group.traverse((object) => {
-      const material = (object as Mesh).material as MeshStandardMaterial | undefined;
-      if (!material?.color || material === labelMaterial) return;
-      material.color.getHSL(hsl);
-      material.color.setHSL(hsl.h, 0, hsl.l * 0.6);
-      material.emissive.getHSL(hsl);
-      material.emissive.setHSL(hsl.h, 0, hsl.l * 0.3);
+  // A hologram: every part see-through and glowing in a cool tint of the game's colour,
+  // added onto what's behind it; the label stays readable, with scanlines rolling up it
+  const holoTint = new Color(color).lerp(new Color("#7ff3ff"), 0.55);
+  const holoMaterials: { material: MeshStandardMaterial; opacity: number }[] = [];
+  let scanTexture: CanvasTexture | null = null;
+  if (hologram) {
+    const seen = new Set<MeshStandardMaterial>();
+    group.traverse((child) => {
+      const material = (child as Mesh).material as MeshStandardMaterial | undefined;
+      if (!(child as Mesh).isMesh || !material || seen.has(material)) return;
+      seen.add(material);
+      const paper = material === labelMaterial || material === stickerMaterial;
+      material.transparent = true;
+      material.depthWrite = false;
+      material.side = DoubleSide;
+      material.alphaTest = 0;
+      if (paper) {
+        material.emissive = holoTint.clone();
+        material.emissiveIntensity = 0.3;
+      } else {
+        material.blending = AdditiveBlending;
+        material.color.copy(holoTint).multiplyScalar(0.25);
+        material.emissive = holoTint.clone().multiplyScalar(0.35);
+      }
+      holoMaterials.push({ material, opacity: paper ? 0.5 : 0.2 });
     });
+    const scanCanvas = document.createElement("canvas");
+    scanCanvas.width = 4;
+    scanCanvas.height = 64;
+    const scan = scanCanvas.getContext("2d");
+    if (scan) {
+      for (let y = 0; y < 64; y += 4) {
+        scan.fillStyle = `rgba(160, 250, 255, ${y % 16 === 0 ? 0.5 : 0.18})`;
+        scan.fillRect(0, y, 4, 1.5);
+      }
+    }
+    scanTexture = new CanvasTexture(scanCanvas);
+    scanTexture.wrapS = scanTexture.wrapT = RepeatWrapping;
+    scanTexture.repeat.set(1, 3);
+    const scanMaterial = new MeshStandardMaterial({ map: scanTexture, transparent: true, depthWrite: false, blending: AdditiveBlending, emissive: holoTint, emissiveMap: scanTexture, emissiveIntensity: 0.8, color: new Color("#000000") });
+    holoMaterials.push({ material: scanMaterial, opacity: 1 });
+    addPart(new PlaneGeometry(width * 0.98, bodyHeight), scanMaterial, 0, bodyBottom + bodyHeight / 2, depth / 2 + 0.003);
   }
+  // Flickers now and then, the scanlines rolling up
+  const shimmer = () => {
+    const t = performance.now() / 1000;
+    const flicker = Math.sin(t * 37) > 0.97 ? 0.45 : 0.9 + 0.1 * Math.sin(t * 6.3);
+    holoMaterials.forEach(({ material, opacity }) => (material.opacity = opacity * flicker));
+    if (scanTexture) scanTexture.offset.y = -t * 0.35;
+  };
+  if (hologram) shimmer();
 
   return {
     group,
@@ -1078,7 +1104,12 @@ export function createCartridge(
     },
     setHighlight: (amount) => {
       spinReels(amount);
-      if (greyed) return; // a dead cart doesn't light up
+      if (hologram) {
+        labelMaterial.emissiveIntensity = 0.3 + amount * 0.3;
+        shellMaterial.emissive.copy(holoTint).multiplyScalar(0.35 + amount * 0.3);
+        shimmer();
+        return;
+      }
       labelMaterial.emissiveIntensity = 0.35 + amount * 0.45;
       shellMaterial.emissive.copy(shellColor).multiplyScalar(glow + amount * 0.35);
     },
@@ -1091,6 +1122,8 @@ export function createCartridge(
       texture.dispose();
       stickerTexture.dispose();
       boardTexture?.dispose();
+      scanTexture?.dispose();
+      holoMaterials.forEach(({ material }) => material.dispose());
     },
   };
 }

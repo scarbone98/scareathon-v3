@@ -126,8 +126,27 @@ export async function submitArcadeScore(game: string, score: unknown) {
 
   if (!response.ok) {
     console.error(`Score submission failed for ${game}`, await response.text());
+    return;
+  }
+
+  // What the run paid, and any challenge it just won, for the cabinet's ticket dispenser
+  const { data } = (await response.json().catch(() => ({}))) as { data?: ScoreReward };
+  const challenges = (data?.weeklyChallengeRewards ?? []).reduce((sum, reward) => sum + (reward.claimed ? Number(reward.rewardCoins) || 0 : 0), 0);
+  const tickets = (Number(data?.coinsAwarded) || 0) + challenges;
+  if (tickets > 0) {
+    window.dispatchEvent(new CustomEvent<TicketsWon>(TICKETS_EVENT, { detail: { game, tickets, balance: data?.coinBalance ?? null } }));
   }
 }
+
+type ScoreReward = {
+  coinsAwarded?: number;
+  coinBalance?: number | null;
+  weeklyChallengeRewards?: { claimed?: boolean; rewardCoins?: number }[];
+};
+
+// Tickets a signed-in run won: the arcade's dispenser feeds them out, the wallet catches up
+export const TICKETS_EVENT = "arcade:tickets";
+export type TicketsWon = { game: string; tickets: number; balance: number | null };
 
 function isTrustedGameMessage(
   iframe: HTMLIFrameElement,

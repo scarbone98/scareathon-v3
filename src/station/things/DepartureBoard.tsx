@@ -45,7 +45,7 @@ function Face({ userId, look, onBanner = false, small = false }: { userId?: stri
 // winners, in amber split-flap rows. (The October calendar is a flyer: PosterCalendar.)
 
 // games: the arcade games that keep scores, for their hi-score boards
-type Props = { signedIn: boolean; goTo: GoTo; games?: string[] };
+type Props = { signedIn: boolean; goTo: GoTo; games?: string[]; game?: string };
 
 const AMBER = "#ffb03a";
 const flap = "rounded-[2px] bg-[#111419] px-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.06),inset_0_1px_0_rgba(0,0,0,0.6)]";
@@ -209,6 +209,15 @@ function GameStrip({ games, game, onGame }: { games: string[]; game: string | un
     resize.observe(el);
     return () => resize.disconnect();
   }, [measure, games]);
+  // Opened on a game further along: its key brought into view
+  useEffect(() => {
+    const el = strip.current;
+    const key = el?.children[games.indexOf(game ?? "")] as HTMLElement | undefined;
+    if (el && key) el.scrollLeft = key.offsetLeft - (el.clientWidth - key.offsetWidth) / 2;
+    measure();
+    // Only on opening; picking a key yourself leaves the strip where you put it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const nudge = (by: -1 | 1) => strip.current?.scrollBy({ left: by * strip.current.clientWidth * 0.7, behavior: "smooth" });
   const arrow = (side: "left" | "right") =>
     more[side] && (
@@ -239,8 +248,8 @@ function GameStrip({ games, game, onGame }: { games: string[]; game: string | un
 }
 
 // The arcade's hi-scores, a game at a time, on the same banners as the Scareboard
-function ArcadeScores({ games }: { games: string[] }) {
-  const [game, setGame] = useState(games[0]);
+function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
+  const [game, setGame] = useState(start && games.includes(start) ? start : games[0]);
   const { data: entries, isLoading, isError } = useLeaderboard(game);
   const compact = useIsMobileArcade();
   const { data: looks } = useLooks((entries ?? []).flatMap((entry) => (entry.userId ? [entry.userId] : [])));
@@ -270,9 +279,10 @@ function ArcadeScores({ games }: { games: string[] }) {
   );
 }
 
-// The board on the wall: the Scareboard, and the arcade's hi-scores
-export default function DepartureBoard({ signedIn, goTo, games = [] }: Props) {
-  const [board, setBoard] = useState<"scareathon" | "arcade">("scareathon");
+// The board on the wall: the Scareboard, and the arcade's hi-scores (straight to one game's,
+// with `game`: the arcade's leaderboard key)
+export default function DepartureBoard({ signedIn, goTo, games = [], game }: Props) {
+  const [board, setBoard] = useState<"scareathon" | "arcade">(game && games.includes(game) ? "arcade" : "scareathon");
   return (
     <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
       <div className="mb-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
@@ -290,7 +300,7 @@ export default function DepartureBoard({ signedIn, goTo, games = [] }: Props) {
       )}
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
         {board === "arcade" ? (
-          <ArcadeScores games={games} />
+          <ArcadeScores games={games} start={game} />
         ) : signedIn ? (
           <Standings signedIn={signedIn} />
         ) : (

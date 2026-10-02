@@ -94,3 +94,13 @@ export function playTick() {
   osc.start();
   osc.stop(ctx.currentTime + 0.05);
 }
+
+// A ticket chattering out of the dispenser: a dry little click
+export function playTicketFeed() {
+  playNoise(0.03, "bandpass", 2600, 1800, 0.07);
+}
+
+// The strip torn off
+export function playTicketTear() {
+  playNoise(0.16, "highpass", 1800, 5200, 0.09);
+}

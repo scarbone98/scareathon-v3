@@ -7,9 +7,8 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
-import LeaderboardDialog from "../pages/Arcade/LeaderboardDialog";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
-import { createArcadeGames, normalizeMachineName, pickShuffleGame, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
+import { createArcadeGames, normalizeMachineName, pickShuffleGame, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
@@ -99,7 +98,7 @@ function ArrowSign({ direction, onClick }: { direction: -1 | 1; onClick: () => v
 
 // What's taken up to look at: a key, turned into content each render so it stays live
 type Held =
-  | { kind: "departures" }
+  | { kind: "departures"; game?: string }
   | { kind: "window" }
   | { kind: "shop"; focus?: string }
   | { kind: "wardrobe" }
@@ -171,7 +170,7 @@ export default function StationPage() {
     return () => window.clearTimeout(walk);
   }, [params, setParams, onPlatform]);
 
-  // A rune code paid out at the arcade: the tickets on the board and in the shop catch up
+  // A rune code or a run paid out at the arcade: the tickets on the board and in the shop catch up
   const ticketsClient = useQueryClient();
   useEffect(() => {
     const refresh = () => {
@@ -179,7 +178,11 @@ export default function StationPage() {
       void ticketsClient.invalidateQueries({ queryKey: ["user", "wallet"] });
     };
     window.addEventListener("wayside:tickets", refresh);
-    return () => window.removeEventListener("wayside:tickets", refresh);
+    window.addEventListener(TICKETS_EVENT, refresh);
+    return () => {
+      window.removeEventListener("wayside:tickets", refresh);
+      window.removeEventListener(TICKETS_EVENT, refresh);
+    };
   }, [ticketsClient]);
 
   // Everything that can be read or used
@@ -270,7 +273,7 @@ export default function StationPage() {
         // (bigger flaps on a big screen)
         body: (
           <div className="h-full md:[zoom:1.45]">
-            <DepartureBoard signedIn={signedIn} goTo={goTo} games={scoredGames} />
+            <DepartureBoard signedIn={signedIn} goTo={goTo} games={scoredGames} game={held.game} />
           </div>
         ),
       };
@@ -452,7 +455,6 @@ export default function StationPage() {
     // Inserting a cartridge updates ?open= too; only arriving should rebuild
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at]);
-  const [leaderboardGame, setLeaderboardGame] = useState<MachineData | null>(null);
 
   // Playing a game: a CRT power-on into it, and power-off back out, as in the arcade
   const [playing, setPlaying] = useState<MachineData | null>(null);
@@ -597,14 +599,11 @@ export default function StationPage() {
                 paused={Boolean(playing) || !atCabinet}
                 onInsert={(game) => setParams({ at: "arcade", open: game.name }, { replace: true })}
                 onPlay={play}
-                onLeaderboard={setLeaderboardGame}
+                onLeaderboard={(game) => setHeld({ kind: "departures", game: game.name })}
                 withRoom={false}
               />
             </Suspense>
           </div>
-        )}
-        {leaderboardGame && (
-          <LeaderboardDialog game={leaderboardGame.name} accent={leaderboardGame.cartridge.color} onClose={() => setLeaderboardGame(null)} />
         )}
 
         {/* The way back: always in the same place, bottom left (at the arcade, a key on its terminal;

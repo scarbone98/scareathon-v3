@@ -6,6 +6,7 @@ import { Box3, BoxGeometry, Color, Mesh, MeshBasicMaterial, Object3D, Raycaster,
 import { CARTRIDGE_ASPECT } from "./cartridge.ts";
 import { createSlotRig, type SlotRig } from "./slotRig.ts";
 import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
+import { createTicketDispenser, DISPENSER_ASPECT, type TicketDispenser } from "./ticketDispenser.ts";
 
 // The control panel's parts (the rig's wires drape over them rather than landing on them)
 export const PANEL_MATERIALS = new Set(["JoystickBase", "JoystickStick", "JoystickBall", "OrangeButton", "PurpleButton"]);
@@ -17,6 +18,7 @@ export type SlotDressing = {
   cartSize: CartSize;
   rig: SlotRig;
   terminal: SlotTerminal;
+  dispenser: TicketDispenser; // under the marquee
   rimMaterial: MeshBasicMaterial;
   rims: Mesh[];
   portTop: number;
@@ -27,18 +29,20 @@ export type SlotDressing = {
 };
 
 // Builds it all in the cabinet's own space (the space `cabinetBox` was measured in); the
-// caller adds `rig.group`, `rims` and `terminal.group` to the cabinet
+// caller adds `rig.group`, `rims`, `terminal.group` and `dispenser.group` to the cabinet
 export function dressSlot({
   model,
   cabinetBox,
   panelBox,
   screenBox,
+  marqueeBox,
   screenMaterial,
 }: {
   model: Object3D;
   cabinetBox: Box3;
   panelBox: Box3;
   screenBox: Box3;
+  marqueeBox: Box3;
   screenMaterial: Material | null;
 }): SlotDressing {
   const cabinetSize = cabinetBox.getSize(new Vector3());
@@ -61,6 +65,12 @@ export function dressSlot({
   const portHeight = portTop - surfaceY + cartSize.height * 0.05;
   // ...retrofitted: bolted on, taped up, wired into the cabinet
   const cabinetRay = new Raycaster();
+  // The cabinet's front surface at (x, y), found by a ray from in front
+  const faceAt = (x: number, y: number) => {
+    cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
+    const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
+    return hit ? hit.point.z : panelCenter.z - cartSize.depth;
+  };
   const rig = createSlotRig({
     width: cartSize.width * 1.22,
     height: portHeight,
@@ -77,11 +87,7 @@ export function dressSlot({
     },
     deckFront: cabinetBox.max.z - cartSize.depth * 0.5,
     deckEdge: cabinetBox.max.x - cartSize.width * 0.17,
-    faceZ: (x, y) => {
-      cabinetRay.set(new Vector3(x, y, cabinetBox.max.z + 1), new Vector3(0, 0, -1));
-      const hit = cabinetRay.intersectObject(model, true).find((h) => (h.object as Mesh).material !== screenMaterial);
-      return hit ? hit.point.z : panelCenter.z - cartSize.depth;
-    },
+    faceZ: faceAt,
     // Under the screen's "AUTO TRACKING" label
     vent: new Vector3(screenBox.max.x - 0.1, screenBox.min.y - 0.1, 0),
     // Under the screen's "CH 03" label
@@ -109,6 +115,14 @@ export function dressSlot({
   const margin = faceHeight * 0.12;
   const terminal = createSlotTerminal(terminalWidth, terminalHeight, terminalDepth);
   terminal.group.position.set(-cartSize.width * 0.61 + margin + terminalWidth / 2, surfaceY + margin + terminalHeight / 2, housingFront + terminalDepth / 2);
+  // The ticket dispenser, bolted on in the middle of the strip under the marquee (below its
+  // chaser lights, clear of the screen's badge), its back against the cabinet's face
+  const dispenserWidth = cabinetSize.x * 0.3;
+  const dispenser = createTicketDispenser(dispenserWidth);
+  const dispenserHeight = dispenserWidth * DISPENSER_ASPECT;
+  const underMarquee = marqueeBox.isEmpty() ? (screenBox.isEmpty() ? cabinetBox.max.y * 0.85 : screenBox.max.y + 0.12) : marqueeBox.min.y - 0.035;
+  const dispenserY = underMarquee - dispenserHeight / 2;
+  dispenser.group.position.set(0, dispenserY, faceAt(0, dispenserY) + (dispenserWidth * DISPENSER_ASPECT) / 2);
   // Sunk far enough that the part left standing stays below the screen
   const seat = new Vector3(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
 
@@ -116,6 +130,7 @@ export function dressSlot({
     cartSize,
     rig,
     terminal,
+    dispenser,
     rimMaterial,
     rims,
     portTop,
@@ -125,6 +140,7 @@ export function dressSlot({
     dispose() {
       rig.dispose();
       terminal.dispose();
+      dispenser.dispose();
       rimMaterial.dispose();
       rimGeometryX.dispose();
       rimGeometryZ.dispose();

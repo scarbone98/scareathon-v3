@@ -35,7 +35,7 @@ import {
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import LoadingSpinner from "../../components/LoadingSpinner";
-import type { MachineData } from "../Arcade/games.tsx";
+import { TICKETS_EVENT, type MachineData, type TicketsWon } from "../Arcade/games.tsx";
 import {
   MARQUEE_GLOW,
   MARQUEE_NEON_COLORS,
@@ -58,6 +58,7 @@ import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
 import type { SlotTerminal } from "./slotTerminal.ts";
+import type { TicketDispenser } from "./ticketDispenser.ts";
 import { nowSeconds, type TerminalOptions, type TerminalScreen } from "./terminalScreen.ts";
 import { splitParts } from "./splitParts.ts";
 import { createMysteryScreen } from "./mysteryScreen.ts";
@@ -903,6 +904,16 @@ export default function CartridgeArcade({
     let focusIndex = -1;
     let insertedIndex = -1;
     let terminal: SlotTerminal | null = null;
+    // The dispenser under the marquee, and the tickets a run won that it's yet to feed out
+    // (a game's open over the arcade when they're won, so they wait till it's closed)
+    let dispenser: TicketDispenser | null = null;
+    let ticketsOwed = 0;
+    let resumedAt = 0;
+    const TICKETS_DELAY = 0.9;
+    const onTickets = (event: Event) => {
+      ticketsOwed += (event as CustomEvent<TicketsWon>).detail.tickets;
+    };
+    window.addEventListener(TICKETS_EVENT, onTickets);
     let terminalScreenNow: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
     let terminalOptions: TerminalOptions = terminalOptionsRef.current;
     // Put something on the terminal, and on the card that mirrors it
@@ -1616,7 +1627,10 @@ export default function CartridgeArcade({
       setPaused: (isPaused: boolean) => {
         syncVideo();
         // Leaving the game unplugs its cartridge
-        if (!isPaused) eject();
+        if (!isPaused) {
+          eject();
+          resumedAt = performance.now() / 1000;
+        }
       },
     };
 
@@ -1736,7 +1750,7 @@ export default function CartridgeArcade({
       if (!panelBox.isEmpty()) panelBottom = panelBox.min.y;
 
       // The port, its rig and the little terminal (the same as Wayside Station's cabinet)
-      const dressing = track(dressSlot({ model, cabinetBox, panelBox, screenBox, screenMaterial }));
+      const dressing = track(dressSlot({ model, cabinetBox, panelBox, screenBox, marqueeBox, screenMaterial }));
       cartSize = dressing.cartSize;
       const { portTop, panelCenter } = dressing;
       slotRig = dressing.rig;
@@ -1745,6 +1759,8 @@ export default function CartridgeArcade({
       dressing.rims.forEach((rim) => cabinet.add(rim));
       terminal = dressing.terminal;
       cabinet.add(terminal.group);
+      dispenser = dressing.dispenser;
+      cabinet.add(dispenser.group);
       terminal.show(terminalScreenNow);
       terminal.setOptions(terminalOptions);
       seat.copy(dressing.seat);
@@ -1764,7 +1780,7 @@ export default function CartridgeArcade({
           tape: game.cartridge.backTape,
           cassette: game.cartridge.cassette,
           untitled: game.special === "mystery",
-          greyed: game.special === "soon",
+          hologram: game.special === "soon",
         });
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
@@ -2504,6 +2520,12 @@ export default function CartridgeArcade({
       finish.setFrame(cabinet.matrixWorld);
       terminal?.update(time);
       slotRig?.update(time);
+      // Tickets a run won, fed out once you're back at the cabinet and it's had a moment
+      if (dispenser && ticketsOwed > 0 && time - resumedAt > TICKETS_DELAY) {
+        dispenser.dispense(ticketsOwed, time);
+        ticketsOwed = 0;
+      }
+      dispenser?.update(time);
 
       if (screenMode === "power" && time > modeStart + POWER_ON) {
         screenMode = "static";
@@ -2630,6 +2652,7 @@ export default function CartridgeArcade({
       disposed = true;
       cancelAnimationFrame(frame);
       window.removeEventListener("devicemotion", onMotion);
+      window.removeEventListener(TICKETS_EVENT, onTickets);
       renderer.domElement.removeEventListener("click", askForMotion);
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", syncVideo);

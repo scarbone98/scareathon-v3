@@ -6,6 +6,18 @@ import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
 
+// Every run that scores pays out a few tickets from the cabinet's dispenser, so playing
+// anything is worth it. A game with its own arcade_reward_rules pays by those instead.
+// Capped per player per day (US Eastern, like the rune), so it can't be farmed.
+export const PLAY_TICKETS = 10;
+export const PLAY_TICKETS_DAILY_CAP = 150;
+const PLAY_TICKETS_SOURCE = 'arcade_play';
+
+export function playTicketsFor(metricValue, paidToday) {
+    if (!(Number(metricValue) > 0)) return 0;
+    return Math.max(0, Math.min(PLAY_TICKETS, PLAY_TICKETS_DAILY_CAP - Number(paidToday || 0)));
+}
+
 export function calculateRuleAward(rule, metricValue) {
     if (rule.min_metric_value !== null && Number(metricValue) < Number(rule.min_metric_value)) {
         return 0;
@@ -200,12 +212,37 @@ async function routes(fastify, options) {
                   AND (ends_at IS NULL OR ends_at > now())
             `, [gameId, metricName]);
 
-            const coinsAwarded = rewardRulesResult.rows.reduce((total, rule) => {
+            let coinsAwarded = rewardRulesResult.rows.reduce((total, rule) => {
                 return total + calculateRuleAward(rule, numericMetricValue);
             }, 0);
 
             let coinBalance = null;
-            if (coinsAwarded > 0) {
+            // No rules of its own: the standard tickets for a run, up to the day's cap
+            if (rewardRulesResult.rows.length === 0 && numericMetricValue > 0) {
+                // One run at a time per player, so two at once can't both slip under the cap
+                await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${PLAY_TICKETS_SOURCE}:${userId}`]);
+                const paidTodayResult = await client.query(`
+                    SELECT COALESCE(SUM(amount), 0)::bigint AS paid
+                    FROM currency_transactions
+                    WHERE user_id = $1
+                      AND source_type = $2
+                      AND created_at >= (date_trunc('day', now() AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')
+                `, [userId, PLAY_TICKETS_SOURCE]);
+                const playTickets = playTicketsFor(numericMetricValue, paidTodayResult.rows[0]?.paid);
+                if (playTickets > 0) {
+                    const playResult = await client.query(`
+                        SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
+                    `, [
+                        userId,
+                        playTickets,
+                        PLAY_TICKETS_SOURCE,
+                        String(scoreRow.id),
+                        JSON.stringify({ gameId, game, metricName, metricValue: numericMetricValue }),
+                    ]);
+                    coinBalance = Number(playResult.rows[0].coin_balance);
+                    coinsAwarded = playTickets;
+                }
+            } else if (coinsAwarded > 0) {
                 const walletResult = await client.query(`
                     SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
                 `, [
