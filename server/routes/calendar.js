@@ -1,5 +1,5 @@
 import calendarSheet from '../db/google-sheets.js';
-import { getOrRefreshCache } from '../utils/cacheManager.js';
+import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { enrichMovieData } from '../utils/tmdb.js';
 
 const CALENDAR_TTL = 60 * 60 * 1000;
@@ -8,8 +8,15 @@ const getCalendarYear = () => Number(new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', year: 'numeric'
 }).format(new Date()));
 
+// (browsers keep it a minute at most: the server's own copy is what lasts, and an admin
+// can refresh that from the sheet)
 function setReadCacheHeaders(reply, seconds) {
-    reply.header('Cache-Control', `private, max-age=${seconds}, stale-while-revalidate=60`);
+    reply.header('Cache-Control', `private, max-age=${Math.min(seconds, 60)}, stale-while-revalidate=60`);
+}
+
+// Forget the calendar (and each day's film details), so the next request reads the sheet
+export function clearCalendarCache() {
+    deleteCachePrefix('calendar_');
 }
 
 export async function loadCalendarData(year = getCalendarYear()) {

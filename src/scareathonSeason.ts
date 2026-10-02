@@ -106,6 +106,14 @@ export function useRemovePoints() {
   return useAdminWrite((id: number) => fetchWithAuth(`/scareathon/admin/points/${id}`, { method: "DELETE" }), "Could not remove that");
 }
 
+export function useRefreshCalendar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => fetchWithAuth("/scareathon/admin/refresh-calendar", { method: "POST" }).then((r) => readData<unknown>(r, "Could not refresh the calendar")),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["calendar"] }),
+  });
+}
+
 export function useImportHistory() {
   return useAdminWrite(() => fetchWithAuth("/scareathon/admin/import-history", { method: "POST" }), "Could not import the history");
 }

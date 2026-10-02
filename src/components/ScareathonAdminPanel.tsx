@@ -3,6 +3,7 @@ import {
   type PointCategory,
   useAwardPoints,
   useImportHistory,
+  useRefreshCalendar,
   usePointLedger,
   useRemovePoints,
 } from "../scareathonSeason";
@@ -29,6 +30,7 @@ export default function ScareathonAdminPanel({ className = "" }: { className?: s
   const award = useAwardPoints();
   const remove = useRemovePoints();
   const importHistory = useImportHistory();
+  const refreshCalendar = useRefreshCalendar();
   const imported = importHistory.data as ImportResult | undefined;
 
   const field = "rounded border border-white/20 bg-black/60 px-2 py-1.5 text-base text-white";
@@ -98,6 +100,14 @@ export default function ScareathonAdminPanel({ className = "" }: { className?: s
               ))}
             </ul>
             {remove.error && <p className="text-sm text-red-400">{remove.error.message}</p>}
+          </div>
+
+          <div className="border-t border-white/10 pt-3">
+            <button type="button" className={button} onClick={() => refreshCalendar.mutate()} disabled={refreshCalendar.isPending}>
+              {refreshCalendar.isPending ? "Refreshing…" : refreshCalendar.isSuccess ? "Calendar refreshed" : "Refresh the calendar from the Google sheet"}
+            </button>
+            <p className="mt-1 text-xs text-orange-100/50">After changing the Calendar-YYYY tab, so the site shows it now.</p>
+            {refreshCalendar.error && <p className="text-sm text-red-400">{refreshCalendar.error.message}</p>}
           </div>
 
           <div className="border-t border-white/10 pt-3">

@@ -1,5 +1,6 @@
 import pool from '../db/mockDB.js';
 import calendarSheet from '../db/google-sheets.js';
+import { clearCalendarCache } from './calendar.js';
 import { isAdminUser } from './inbox.js';
 import {
     FIRST_ACCOUNT_SEASON,
@@ -274,6 +275,13 @@ export default async function routes(fastify) {
                 admin.log.error(error);
                 return reply.code(500).send({ error: 'Could not remove that entry' });
             }
+        });
+
+        // Read the October calendar from the Google sheet again now (after editing it there),
+        // rather than waiting out the hour it's kept for
+        admin.post('/refresh-calendar', async () => {
+            clearCalendarCache();
+            return { data: { refreshed: true } };
         });
 
         // Copy the sheet-era seasons and winners into the database (safe to run again: it
