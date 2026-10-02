@@ -2260,13 +2260,29 @@ export default function CartridgeArcade({
     // The ticket dispenser knocked: it glitches, and every third knock in a quick run asks
     // the station whether it coughs one up (the server rolls the dice, and pays; guests
     // only ever get the glitch)
+    // Spammed (this many knocks in a couple of seconds), it crashes to a blue screen
     let knocks: number[] = [];
+    let spam: number[] = [];
+    const SPAM_KNOCKS = 8;
     let knocking = false;
     const knockDispenser = () => {
       if (!dispenser) return;
       const now = performance.now() / 1000;
+      // Down: knocking it only rattles it
+      if (dispenser.isDown(now)) {
+        dispenser.glitch(now);
+        return;
+      }
       // Tickets hanging out of it: a tap takes them
       if (dispenser.collect(now)) return;
+      spam = spam.filter((t) => now - t < 2.5);
+      spam.push(now);
+      if (spam.length >= SPAM_KNOCKS) {
+        spam = [];
+        knocks = [];
+        dispenser.crash(now);
+        return;
+      }
       dispenser.glitch(now);
       knocks = knocks.filter((t) => now - t < 3);
       knocks.push(now);

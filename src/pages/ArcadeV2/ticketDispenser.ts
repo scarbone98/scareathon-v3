@@ -18,7 +18,7 @@ import {
 } from "three";
 import { CABINET_FONT } from "./cabinetFinish.ts";
 import { canvasFont, whenFontReady } from "./arcadeFonts.ts";
-import { playTicketFeed, playTicketGlitch, playTicketTear, playWhoosh } from "./arcadeSounds.ts";
+import { playStatic, playTicketFeed, playTicketGlitch, playTicketTear, playWhoosh } from "./arcadeSounds.ts";
 
 // Its height and depth as a share of its width
 export const DISPENSER_ASPECT = 0.34;
@@ -35,6 +35,8 @@ const LED_OFF = "#3a0b08";
 const TICKET = "#f2a03a";
 const GOLD = "#ffcf4a";
 const GLITCH = 0.5; // seconds a knock scrambles it for
+const CRASH = 5; // seconds it sits on its blue screen before it comes back
+const REBOOT = 0.45; // the last of which it flickers, coming back
 
 export type TicketDispenser = {
   group: Group;
@@ -45,6 +47,9 @@ export type TicketDispenser = {
   glitch: (time: number) => void;
   // Tapped while the strip's out: it's torn off and collected now (false: nothing to collect)
   collect: (time: number) => boolean;
+  // Knocked once too often: its face goes to a blue screen for a while; tickets wait
+  crash: (time: number) => void;
+  isDown: (time: number) => boolean;
   update: (time: number) => void;
   dispose: () => void;
 };
@@ -158,8 +163,39 @@ export function createTicketDispenser(width: number): TicketDispenser {
   let shown: number | null = null;
   let lampOn = false;
   let scrambled = false; // knocked: garbage on the counter
+  // Crashed: the blue screen, and how far its (made-up) dump has got; or the black of rebooting
+  let bsod: { percent: number } | "black" | null = null;
+  const paintBlueScreen = (percent: number) => {
+    const { width: w, height: h } = face;
+    faceContext.fillStyle = "#1238b5";
+    faceContext.fillRect(0, 0, w, h);
+    faceContext.fillStyle = "#ffffff";
+    faceContext.textAlign = "left";
+    faceContext.textBaseline = "middle";
+    faceContext.font = "700 96px Arial, sans-serif";
+    faceContext.fillText(":(", 22, h * 0.48);
+    faceContext.font = canvasFont(CABINET_FONT, 19);
+    faceContext.fillText("YOUR DISPENSER RAN INTO", 130, h * 0.24, w - 150);
+    faceContext.fillText("A PROBLEM AND NEEDS TO RESTART.", 130, h * 0.42, w - 150);
+    faceContext.font = canvasFont(CABINET_FONT, 15);
+    faceContext.fillText(`${percent}% COMPLETE`, 130, h * 0.62, w - 150);
+    faceContext.fillStyle = "#c9d6ff";
+    faceContext.font = canvasFont(CABINET_FONT, 12);
+    faceContext.fillText("STOP CODE: TICKET_DISPENSER_FAULT", 130, h * 0.8, w - 150);
+    faceTexture.needsUpdate = true;
+  };
   const paintFace = () => {
     const { width: w, height: h } = face;
+    if (bsod === "black") {
+      faceContext.fillStyle = "#050505";
+      faceContext.fillRect(0, 0, w, h);
+      faceTexture.needsUpdate = true;
+      return;
+    }
+    if (bsod) {
+      paintBlueScreen(bsod.percent);
+      return;
+    }
     faceContext.fillStyle = "#26221f";
     faceContext.fillRect(0, 0, w, h);
     faceContext.strokeStyle = "#5d5850";
@@ -280,6 +316,16 @@ export function createTicketDispenser(width: number): TicketDispenser {
     playTicketGlitch();
   };
 
+  let crashUntil = 0;
+  const isDown = (time: number) => time < crashUntil;
+  const crash = (time: number) => {
+    rest ??= group.position.clone();
+    crashUntil = time + CRASH;
+    glitchUntil = time + GLITCH;
+    playTicketGlitch();
+    playStatic();
+  };
+
   const dispense = (won: number, time: number, golden = false) => {
     if (!(won > 0)) return;
     if (feed) {
@@ -305,13 +351,15 @@ export function createTicketDispenser(width: number): TicketDispenser {
   };
 
   const update = (time: number) => {
+    const down = isDown(time);
     const dt = lastTime ? Math.min(time - lastTime, 0.05) : 0;
     lastTime = time;
     let counter: number | null = time < totalUntil && Math.floor(time * 2.5) % 2 === 0 ? lastTotal : null;
     let lamp = false;
     if (feed) {
       // Fed out at a steady rate, the counter keeping pace with the real total
-      feed.out = Math.min(feed.out + dt * (feed.golden ? FEED_RATE / 3 : FEED_RATE), feed.end);
+      // (Crashed, it holds what's coming till it's back)
+      feed.out = Math.min(feed.out + (down ? 0 : dt) * (feed.golden ? FEED_RATE / 3 : FEED_RATE), feed.end);
       if (Math.floor(feed.out) > feed.fed && feed.out <= feed.count) {
         feed.fed = Math.floor(feed.out);
         playTicketFeed();
@@ -329,7 +377,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
         feed.doneAt ||= time;
         lamp = false;
         // All out: it hangs a moment, then it's torn off and collected
-        if (time - feed.doneAt > (feed.golden ? GOLDEN_HOLD : HOLD)) tearOff(time);
+        if (!down && time - feed.doneAt > (feed.golden ? GOLDEN_HOLD : HOLD)) tearOff(time);
       }
     } else if (tearAt) {
       // Collected: off to the left one after another, the bottom one first, each lifting a
@@ -360,6 +408,22 @@ export function createTicketDispenser(width: number): TicketDispenser {
       group.position.set(rest.x + (Math.random() - 0.5) * shake, rest.y + (Math.random() - 0.5) * shake, rest.z);
       group.rotation.z = (Math.random() - 0.5) * shake * 1.5;
     }
+    // Down: the blue screen, filling up, then a flicker of black as it reboots
+    if (down) {
+      const left = crashUntil - time;
+      const next = left < REBOOT ? (Math.floor(time * 20) % 2 === 0 ? "black" : { percent: 100 }) : { percent: Math.min(100, Math.floor(((CRASH - left) / (CRASH - REBOOT)) * 100 / 5) * 5) };
+      const same = next === "black" ? bsod === "black" : bsod !== null && bsod !== "black" && bsod.percent === next.percent;
+      if (!same) {
+        bsod = next;
+        paintFace();
+      }
+      return;
+    }
+    if (bsod) {
+      bsod = null;
+      scrambled = false;
+      paintFace();
+    }
     if (knocked || scrambled || counter !== shown || lamp !== lampOn) {
       scrambled = knocked;
       shown = counter;
@@ -373,6 +437,8 @@ export function createTicketDispenser(width: number): TicketDispenser {
     dispense,
     glitch,
     collect,
+    crash,
+    isDown,
     update,
     dispose() {
       [caseGeometry, faceGeometry, mouthGeometry, ticketGeometry].forEach((geometry) => geometry.dispose());
