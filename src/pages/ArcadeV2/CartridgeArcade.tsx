@@ -2257,6 +2257,32 @@ export default function CartridgeArcade({
       playTick();
     };
 
+    // The ticket dispenser knocked: it glitches, and every third knock in a quick run asks
+    // the station whether it coughs one up (the server rolls the dice, and pays; guests
+    // only ever get the glitch)
+    let knocks: number[] = [];
+    let knocking = false;
+    const knockDispenser = () => {
+      if (!dispenser) return;
+      const now = performance.now() / 1000;
+      dispenser.glitch(now);
+      knocks = knocks.filter((t) => now - t < 3);
+      knocks.push(now);
+      if (knocks.length < 3 || knocking) return;
+      knocks = [];
+      knocking = true;
+      fetchWithAuth("/wayside/dispenser/knock", { method: "POST" })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: { data?: { status: string; tickets?: number } } | null) => {
+          const win = body?.data;
+          if (disposed || !win?.tickets) return;
+          dispenser?.dispense(win.tickets, performance.now() / 1000, win.status === "golden");
+          window.dispatchEvent(new Event("wayside:tickets"));
+        })
+        .catch(() => undefined)
+        .finally(() => (knocking = false));
+    };
+
     const pokeCabinet = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -2264,6 +2290,7 @@ export default function CartridgeArcade({
       const targets: Object3D[] = [holder, ...carts.map((state) => state.cart.group)];
       if (slotRig) targets.push(slotRig.group);
       if (terminal) targets.push(terminal.group);
+      if (dispenser) targets.push(dispenser.group);
       const hit = pokeRay.intersectObjects(targets, true)[0];
       if (!hit) return;
       const mesh = hit.object as Mesh;
@@ -2275,6 +2302,12 @@ export default function CartridgeArcade({
         slotRig?.sparks(hit.point);
         jiggleCabinet(hit.point, 0.6);
         return;
+      }
+      for (let node: Object3D | null = mesh; node; node = node.parent) {
+        if (dispenser && node === dispenser.group) {
+          knockDispenser();
+          return;
+        }
       }
       if (notePoke()) {
         breakDown(hit.point);

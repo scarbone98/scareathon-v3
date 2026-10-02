@@ -2,7 +2,7 @@
 // rim, the rig (wires, scope, vent) and the little terminal; and where the row of
 // cartridges floats in front of it. Shared by the arcade and Wayside Station's cabinet, so
 // the two are the same machine and nothing pops in when one hands over to the other.
-import { Box3, BoxGeometry, Color, Mesh, MeshBasicMaterial, Object3D, Raycaster, Vector3, type Material } from "three";
+import { Box3, BoxGeometry, CatmullRomCurve3, Color, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Raycaster, TubeGeometry, Vector3, type BufferGeometry, type Material } from "three";
 import { CARTRIDGE_ASPECT } from "./cartridge.ts";
 import { createSlotRig, type SlotRig } from "./slotRig.ts";
 import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
@@ -125,6 +125,58 @@ export function dressSlot({
   // Its left edge lined up with the badge's (just left of the screen's frame)
   const dispenserX = (screenBox.isEmpty() ? cabinetBox.min.x + cabinetSize.x * 0.12 : screenBox.min.x - 0.018) + dispenserWidth / 2;
   dispenser.group.position.set(dispenserX, dispenserY, faceAt(dispenserX, dispenserY) + (dispenserWidth * DISPENSER_ASPECT) / 2);
+  // ...and wired in, by hand: a bundle out of its left end, down the face beside the screen and
+  // taped on, into the cabinet by the scope; and two leads from its top up into the marquee
+  const wireParts: { geometry: BufferGeometry; material: Material }[] = [];
+  const wireRadius = cartSize.width * 1.22 * 0.018 * 0.8;
+  const wire = (points: Vector3[], color: string) => {
+    const geometry = new TubeGeometry(new CatmullRomCurve3(points), 64, wireRadius, 6);
+    const material = new MeshStandardMaterial({ color: new Color(color), roughness: 0.45 });
+    wireParts.push({ geometry, material });
+    rig.group.add(new Mesh(geometry, material));
+  };
+  const dispenserDepth = dispenserWidth * DISPENSER_ASPECT;
+  const boxLeft = dispenserX - dispenserWidth / 2;
+  const boxZ = dispenser.group.position.z;
+  const runX = screenBox.isEmpty() ? boxLeft - 0.04 : screenBox.min.x - 0.045;
+  const runBottom = screenBox.isEmpty() ? dispenserY - 0.6 : screenBox.min.y + 0.03;
+  const onFace = (x: number, y: number, lift: number) => new Vector3(x, y, faceAt(x, y) + lift);
+  ["#b3281e", "#151315", "#d9b83a"].forEach((color, i) => {
+    const spread = (i - 1) * wireRadius * 2.4;
+    const lift = wireRadius * 1.6 + (i === 1 ? wireRadius * 0.8 : 0);
+    const sag = Math.sin(i * 2.1 + 0.4) * 0.012;
+    wire([
+      new Vector3(boxLeft + wireRadius, dispenserY + spread * 0.6, boxZ + spread * 0.3),
+      new Vector3(boxLeft - 0.025, dispenserY - 0.01 + spread * 0.5, boxZ - dispenserDepth * 0.15),
+      onFace(runX + spread - 0.012, dispenserY - dispenserHeight * 0.9, lift + 0.01),
+      onFace(runX + spread + sag, (dispenserY + runBottom) / 2, lift),
+      onFace(runX + spread, runBottom + 0.05, lift),
+      // In through the face, by the scope
+      onFace(runX + spread + 0.01, runBottom + 0.01, wireRadius * 0.6),
+      onFace(runX + spread + 0.012, runBottom, -0.03),
+    ], color);
+  });
+  // Up into the marquee housing
+  const marqueeBottom = marqueeBox.isEmpty() ? dispenserY + dispenserHeight : marqueeBox.min.y;
+  ["#2f5d9a", "#e6e0d2"].forEach((color, i) => {
+    const x = boxLeft + dispenserWidth * (0.12 + i * 0.07);
+    const top = dispenserY + dispenserHeight / 2;
+    wire([
+      new Vector3(x, top - wireRadius, boxZ - dispenserDepth * 0.1),
+      new Vector3(x - 0.006, top + (marqueeBottom - top) * 0.5, boxZ - dispenserDepth * 0.25),
+      new Vector3(x - 0.01, marqueeBottom + 0.004, faceAt(x, marqueeBottom - 0.01) - 0.02),
+    ], color);
+  });
+  // Electrical tape holding the bundle down
+  const tapeGeometry = new BoxGeometry(wireRadius * 10, wireRadius * 3, wireRadius * 2.4);
+  const tapeMaterial = new MeshStandardMaterial({ color: new Color("#141214"), roughness: 0.55 });
+  wireParts.push({ geometry: tapeGeometry, material: tapeMaterial });
+  [0.35, 0.75].forEach((f) => {
+    const y = dispenserY + (runBottom - dispenserY) * f;
+    const tape = new Mesh(tapeGeometry, tapeMaterial);
+    tape.position.copy(onFace(runX, y, wireRadius * 1.2));
+    rig.group.add(tape);
+  });
   // Sunk far enough that the part left standing stays below the screen
   const seat = new Vector3(0, portTop + cartSize.height / 2 - cartSize.height * 0.55, panelCenter.z);
 
@@ -143,6 +195,10 @@ export function dressSlot({
       rig.dispose();
       terminal.dispose();
       dispenser.dispose();
+      wireParts.forEach(({ geometry, material }) => {
+        geometry.dispose();
+        material.dispose();
+      });
       rimMaterial.dispose();
       rimGeometryX.dispose();
       rimGeometryZ.dispose();

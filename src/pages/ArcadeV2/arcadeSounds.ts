@@ -104,3 +104,20 @@ export function playTicketFeed() {
 export function playTicketTear() {
   playNoise(0.16, "highpass", 1800, 5200, 0.09);
 }
+
+// The dispenser knocked: a short electrical buzz and a rattle
+export function playTicketGlitch() {
+  const ctx = audio();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(110, ctx.currentTime);
+  osc.frequency.setValueAtTime(70, ctx.currentTime + 0.08);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.04, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.24);
+  playNoise(0.12, "bandpass", 900, 2600, 0.08);
+}

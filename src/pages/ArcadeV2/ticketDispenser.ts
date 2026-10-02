@@ -14,10 +14,11 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   SRGBColorSpace,
+  Vector3,
 } from "three";
 import { CABINET_FONT } from "./cabinetFinish.ts";
 import { canvasFont, whenFontReady } from "./arcadeFonts.ts";
-import { playTicketFeed, playTicketTear } from "./arcadeSounds.ts";
+import { playTicketFeed, playTicketGlitch, playTicketTear } from "./arcadeSounds.ts";
 
 // Its height and depth as a share of its width
 export const DISPENSER_ASPECT = 0.34;
@@ -25,16 +26,22 @@ export const DISPENSER_ASPECT = 0.34;
 const FEED_RATE = 9; // tickets a second, like the real thing's chatter
 const MOST_SHOWN = 9; // the strip's longest; a bigger win counts up faster instead
 const HOLD = 1.1; // seconds the strip hangs there once it's all out
+const GOLDEN_HOLD = 2.6; // (a golden ticket, longer: it's worth a look)
 const FALL = 1.3; // seconds it takes to drop away
 const SHOW_TOTAL = 5; // seconds the counter keeps the total up after
 const LED = "#ff2a1a";
 const LED_OFF = "#3a0b08";
 const TICKET = "#f2a03a";
+const GOLD = "#ffcf4a";
+const GLITCH = 0.5; // seconds a knock scrambles it for
 
 export type TicketDispenser = {
   group: Group;
-  // Feeds out this many tickets (added on to any still coming out)
-  dispense: (tickets: number, time: number) => void;
+  // Feeds out this many tickets (added on to any still coming out); golden: one golden
+  // ticket, worth that many
+  dispense: (tickets: number, time: number, golden?: boolean) => void;
+  // Knocked: the counter scrambles, the lamp stutters, the box rattles
+  glitch: (time: number) => void;
   update: (time: number) => void;
   dispose: () => void;
 };
@@ -64,8 +71,9 @@ function drawDigit(context: CanvasRenderingContext2D, x: number, y: number, w: n
   context.shadowBlur = 0;
 }
 
-// One ticket, both sides: notched ends, a perforated edge, ADMIT ONE
-function ticketTexture() {
+// One ticket, both sides: notched ends, a perforated edge, ADMIT ONE (or, golden, GOLDEN
+// TICKET on shining gold)
+function ticketTexture(golden = false) {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 128;
@@ -73,7 +81,15 @@ function ticketTexture() {
   const paint = () => {
     const { width: w, height: h } = canvas;
     context.clearRect(0, 0, w, h);
-    context.fillStyle = TICKET;
+    if (golden) {
+      const shine = context.createLinearGradient(0, 0, w, h);
+      shine.addColorStop(0, "#a8761a");
+      shine.addColorStop(0.35, GOLD);
+      shine.addColorStop(0.5, "#fff3b8");
+      shine.addColorStop(0.65, GOLD);
+      shine.addColorStop(1, "#a8761a");
+      context.fillStyle = shine;
+    } else context.fillStyle = TICKET;
     context.fillRect(0, 0, w, h);
     // Notches halfway along each long side (the strip's sides)
     context.globalCompositeOperation = "destination-out";
@@ -93,9 +109,9 @@ function ticketTexture() {
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.font = canvasFont(CABINET_FONT, 30);
-    context.fillText("ADMIT ONE", w / 2, h / 2 - 12, w - 70);
+    context.fillText(golden ? "GOLDEN TICKET" : "ADMIT ONE", w / 2, h / 2 - 12, w - 70);
     context.font = canvasFont(CABINET_FONT, 15);
-    context.fillText("SA-86 · WAYSIDE", w / 2, h / 2 + 22, w - 70);
+    context.fillText(golden ? "★ SA-86 · WAYSIDE ★" : "SA-86 · WAYSIDE", w / 2, h / 2 + 22, w - 70);
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);
@@ -138,6 +154,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
   // shown: the counter's number (null: dashes); blink: the total flashing once it's all out
   let shown: number | null = null;
   let lampOn = false;
+  let scrambled = false; // knocked: garbage on the counter
   const paintFace = () => {
     const { width: w, height: h } = face;
     faceContext.fillStyle = "#26221f";
@@ -171,7 +188,13 @@ export function createTicketDispenser(width: number): TicketDispenser {
     const text = shown === null ? "" : String(Math.min(shown, 9999));
     for (let i = 0; i < 4; i += 1) {
       const char = text[text.length - 4 + i];
-      const lit = shown === null ? "g" : char === undefined ? "" : SEGMENTS[Number(char)];
+      const lit = scrambled
+        ? "abcdefg".split("").filter(() => Math.random() < 0.45).join("")
+        : shown === null
+          ? "g"
+          : char === undefined
+            ? ""
+            : SEGMENTS[Number(char)];
       drawDigit(faceContext, windowLeft + w * 0.025 + i * (digitW + w * 0.025), h * 0.26, digitW, digitH, lit);
     }
     faceTexture.needsUpdate = true;
@@ -188,6 +211,9 @@ export function createTicketDispenser(width: number): TicketDispenser {
   const ticketMap = ticketTexture();
   const ticketMaterial = new MeshStandardMaterial({ map: ticketMap, side: DoubleSide, roughness: 0.8, transparent: true, alphaTest: 0.05 });
   ticketMaterial.emissive = new Color(TICKET).multiplyScalar(0.25);
+  const goldMap = ticketTexture(true);
+  const goldMaterial = new MeshStandardMaterial({ map: goldMap, side: DoubleSide, roughness: 0.35, metalness: 0.3, transparent: true, alphaTest: 0.05 });
+  goldMaterial.emissive = new Color(GOLD).multiplyScalar(0.6);
   const ticketGeometry = new PlaneGeometry(ticketW, ticketH);
   const strip = new Group();
   group.add(strip);
@@ -206,28 +232,48 @@ export function createTicketDispenser(width: number): TicketDispenser {
     mesh.rotation.set(angle - Math.PI / 2, 0, 0);
   };
 
-  // What's coming out: `total` tickets won, `count` of them on the strip, `out` of those fed
-  // so far; `doneAt`, when the last one came out
-  let feed: { total: number; count: number; out: number; fed: number; doneAt: number } | null = null;
+  // What's coming out: `total` tickets won, `count` of them on the strip, fed `out` tickets'
+  // length so far of the `end` it stops at; `doneAt`, when it got there
+  let feed: { total: number; count: number; out: number; end: number; fed: number; doneAt: number; golden: boolean } | null = null;
   let tearAt = 0; // the strip tore off and is falling
   let lastTotal = 0; // flashed on the counter for a while after
   let totalUntil = 0;
   let lastTime = 0;
+  // Knocked: until when it's scrambled, and where it hangs when it's not rattling
+  let glitchUntil = 0;
+  let rest: Vector3 | null = null;
+  const setOpacity = (opacity: number) => {
+    ticketMaterial.opacity = opacity;
+    goldMaterial.opacity = opacity;
+  };
 
-  const dispense = (won: number, time: number) => {
+  const glitch = (time: number) => {
+    rest ??= group.position.clone();
+    glitchUntil = time + GLITCH;
+    playTicketGlitch();
+  };
+
+  const dispense = (won: number, time: number, golden = false) => {
     if (!(won > 0)) return;
     if (feed) {
       // Still coming out or hanging there: carry on with the extra
       feed.total += Math.round(won);
       feed.count = Math.min(feed.total, MOST_SHOWN);
+      feed.end = Math.max(feed.end, feed.count);
       feed.doneAt = 0;
       return;
     }
     const total = Math.round(won);
-    feed = { total, count: Math.min(total, MOST_SHOWN), out: 0, fed: 0, doneAt: 0 };
+    // A golden ticket comes out on its own
+    // (pushed on out past the mouth until it hangs, face on)
+    const count = golden ? 1 : Math.min(total, MOST_SHOWN);
+    feed = { total, count, out: 0, end: Math.max(count, 2.6), fed: 0, doneAt: 0, golden };
     tearAt = 0;
-    ticketMaterial.opacity = 1;
-    tickets.forEach((ticket) => (ticket.mesh.visible = false));
+    setOpacity(1);
+    tickets.forEach((ticket, i) => {
+      ticket.mesh.visible = false;
+      ticket.mesh.material = golden && i === 0 ? goldMaterial : ticketMaterial;
+    });
     lastTime = time;
   };
 
@@ -238,12 +284,12 @@ export function createTicketDispenser(width: number): TicketDispenser {
     let lamp = false;
     if (feed) {
       // Fed out at a steady rate, the counter keeping pace with the real total
-      feed.out = Math.min(feed.out + dt * FEED_RATE, feed.count);
-      if (Math.floor(feed.out) > feed.fed) {
+      feed.out = Math.min(feed.out + dt * (feed.golden ? FEED_RATE / 3 : FEED_RATE), feed.end);
+      if (Math.floor(feed.out) > feed.fed && feed.out <= feed.count) {
         feed.fed = Math.floor(feed.out);
         playTicketFeed();
       }
-      counter = Math.round((feed.out / feed.count) * feed.total);
+      counter = Math.round((Math.min(feed.out / feed.count, 1)) * feed.total);
       lamp = Math.floor(time * 10) % 2 === 0;
       // The first one out leads, furthest along; each after it one ticket further back,
       // the newest just poking out of the mouth
@@ -252,11 +298,11 @@ export function createTicketDispenser(width: number): TicketDispenser {
         ticket.mesh.visible = i < feed!.count && along > -ticketH * 0.5;
         if (ticket.mesh.visible) place(ticket.mesh, along);
       });
-      if (feed.out >= feed.count) {
+      if (feed.out >= feed.end) {
         feed.doneAt ||= time;
         lamp = false;
         // All out: it hangs a moment, then tears off and drops
-        if (time - feed.doneAt > HOLD) {
+        if (time - feed.doneAt > (feed.golden ? GOLDEN_HOLD : HOLD)) {
           lastTotal = feed.total;
           totalUntil = time + SHOW_TOTAL;
           feed = null;
@@ -279,13 +325,22 @@ export function createTicketDispenser(width: number): TicketDispenser {
         ticket.mesh.rotation.x += ticket.spin * dt;
         ticket.mesh.rotation.z += ticket.spin * 0.3 * dt;
       });
-      ticketMaterial.opacity = Math.max(0, 1 - (time - tearAt) / FALL);
+      setOpacity(Math.max(0, 1 - (time - tearAt) / FALL));
       if (time - tearAt > FALL) {
         tickets.forEach((ticket) => (ticket.mesh.visible = false));
         tearAt = 0;
       }
     }
-    if (counter !== shown || lamp !== lampOn) {
+    // Knocked: garbage on the counter, the lamp stuttering, the box rattling on its bolts
+    const knocked = time < glitchUntil;
+    if (knocked) lamp = Math.random() < 0.5;
+    if (rest) {
+      const shake = knocked ? ((glitchUntil - time) / GLITCH) * width * 0.012 : 0;
+      group.position.set(rest.x + (Math.random() - 0.5) * shake, rest.y + (Math.random() - 0.5) * shake, rest.z);
+      group.rotation.z = (Math.random() - 0.5) * shake * 1.5;
+    }
+    if (knocked || scrambled || counter !== shown || lamp !== lampOn) {
+      scrambled = knocked;
       shown = counter;
       lampOn = lamp;
       paintFace();
@@ -295,11 +350,12 @@ export function createTicketDispenser(width: number): TicketDispenser {
   return {
     group,
     dispense,
+    glitch,
     update,
     dispose() {
       [caseGeometry, faceGeometry, mouthGeometry, ticketGeometry].forEach((geometry) => geometry.dispose());
-      [steel, faceMaterial, mouthMaterial, ticketMaterial].forEach((material) => material.dispose());
-      [faceTexture, ticketMap].forEach((texture) => texture.dispose());
+      [steel, faceMaterial, mouthMaterial, ticketMaterial, goldMaterial].forEach((material) => material.dispose());
+      [faceTexture, ticketMap, goldMap].forEach((texture) => texture.dispose());
     },
   };
 }

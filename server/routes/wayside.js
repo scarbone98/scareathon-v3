@@ -57,7 +57,60 @@ export async function redeemRune(db, userId, rawCode, date = new Date()) {
     }
 }
 
+// The ticket dispenser under the arcade's marquee: give it a few knocks and now and then it
+// coughs up a ticket, very now and then a golden one worth more. One roll every few seconds
+// for each player (the client asks every third knock), and only so many wins a day.
+export const DISPENSER_TICKET = 1;
+export const DISPENSER_GOLDEN = 25;
+export const DISPENSER_CHANCE = 0.3; // a plain ticket
+export const DISPENSER_GOLDEN_CHANCE = 0.04;
+export const DISPENSER_DAILY_WINS = 10;
+export const DISPENSER_COOLDOWN_MS = 6000;
+const DISPENSER_SOURCE = 'dispenser_knock';
+const lastKnock = new Map();
+
+export function rollDispenser(random = Math.random) {
+    const roll = random();
+    if (roll < DISPENSER_GOLDEN_CHANCE) return { kind: 'golden', tickets: DISPENSER_GOLDEN };
+    if (roll < DISPENSER_GOLDEN_CHANCE + DISPENSER_CHANCE) return { kind: 'ticket', tickets: DISPENSER_TICKET };
+    return { kind: 'nothing', tickets: 0 };
+}
+
+export async function knockDispenser(db, userId, { now = Date.now(), random = Math.random } = {}) {
+    if (now - (lastKnock.get(userId) ?? 0) < DISPENSER_COOLDOWN_MS) return { status: 'nothing' };
+    lastKnock.set(userId, now);
+    // (Forget players who've wandered off, so the map can't grow without end)
+    if (lastKnock.size > 5000) {
+        for (const [id, at] of lastKnock) if (now - at > DISPENSER_COOLDOWN_MS) lastKnock.delete(id);
+    }
+    const roll = rollDispenser(random);
+    if (!roll.tickets) return { status: 'nothing' };
+    const wins = await db.query(`
+        SELECT COUNT(*)::int AS count FROM currency_transactions
+        WHERE user_id = $1 AND source_type = $2
+          AND created_at >= (date_trunc('day', now() AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')
+    `, [userId, DISPENSER_SOURCE]);
+    if (Number(wins.rows[0]?.count || 0) >= DISPENSER_DAILY_WINS) return { status: 'nothing' };
+    const result = await db.query(`
+        SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
+    `, [userId, roll.tickets, DISPENSER_SOURCE, null, JSON.stringify({ kind: roll.kind })]);
+    return { status: roll.kind, tickets: roll.tickets, coinBalance: Number(result.rows[0].coin_balance) };
+}
+
+export function forgetKnocks() {
+    lastKnock.clear();
+}
+
 export default async function routes(fastify) {
+    fastify.post('/dispenser/knock', async (request, reply) => {
+        try {
+            return { data: await knockDispenser(pool, request.user.sub) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'The dispenser jammed' });
+        }
+    });
+
     // Today's runes, for the tablet (anyone can look)
     fastify.get('/rune', async (request, reply) => {
         const day = easternDay();
