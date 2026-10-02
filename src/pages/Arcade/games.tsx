@@ -487,6 +487,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Bangers" },
         about: { released: "2026", players: "Everyone watching", genre: "Arena betting", developer: "scarbone98" },
       },
+      videoUrl: "/game-recordings/MonsterBash.mp4",
       hasLeaderboard: false,
       game: (
         <GameRenderer
