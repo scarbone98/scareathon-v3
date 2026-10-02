@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
 import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
 import { pixel } from "../style/theme.ts";
@@ -179,24 +179,76 @@ function Standings({ signedIn }: { signedIn: boolean }) {
   );
 }
 
+// A little amber chevron, in the board's pixels
+function Chevron({ pointing }: { pointing: "left" | "right" }) {
+  const cells = [[2, 0], [1, 1], [2, 1], [0, 2], [1, 2], [0, 3], [1, 3], [0, 4], [1, 4], [1, 5], [2, 5], [2, 6]];
+  return (
+    <svg viewBox="0 0 3 7" shapeRendering="crispEdges" className="h-[14px] w-[6px]" style={{ transform: pointing === "left" ? undefined : "scaleX(-1)" }} aria-hidden>
+      {cells.map(([x, y]) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={AMBER} />
+      ))}
+    </svg>
+  );
+}
+
+// A key for each game that keeps scores, in a strip that scrolls sideways (only the strip:
+// the board itself never does); arrows at either end say there's more that way, and move it
+function GameStrip({ games, game, onGame }: { games: string[]; game: string | undefined; onGame: (game: string) => void }) {
+  const strip = useRef<HTMLDivElement | null>(null);
+  const [more, setMore] = useState({ left: false, right: false });
+  const measure = useCallback(() => {
+    const el = strip.current;
+    if (!el) return;
+    setMore({ left: el.scrollLeft > 2, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+  }, []);
+  useEffect(() => {
+    measure();
+    const el = strip.current;
+    if (!el) return;
+    const resize = new ResizeObserver(measure);
+    resize.observe(el);
+    return () => resize.disconnect();
+  }, [measure, games]);
+  const nudge = (by: -1 | 1) => strip.current?.scrollBy({ left: by * strip.current.clientWidth * 0.7, behavior: "smooth" });
+  const arrow = (side: "left" | "right") =>
+    more[side] && (
+      <button
+        type="button"
+        aria-label={side === "left" ? "Earlier games" : "More games"}
+        onClick={() => nudge(side === "left" ? -1 : 1)}
+        className={`absolute inset-y-0 z-10 flex w-8 items-center ${side === "left" ? "left-0 justify-start bg-gradient-to-r" : "right-0 justify-end bg-gradient-to-l"} from-[#0a0c10] via-[#0a0c10]/90 to-transparent px-0.5`}
+      >
+        <Chevron pointing={side} />
+      </button>
+    );
+  return (
+    <div className="relative mb-1">
+      {arrow("left")}
+      <div ref={strip} onScroll={measure} className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {games.map((name) => (
+          <span key={name} className="shrink-0 whitespace-nowrap">
+            <Key active={name === game} onClick={() => onGame(name)}>
+              {name.replace(/[‘’]/g, "'").toUpperCase()}
+            </Key>
+          </span>
+        ))}
+      </div>
+      {arrow("right")}
+    </div>
+  );
+}
+
 // The arcade's hi-scores, a game at a time, on the same banners as the Scareboard
 function ArcadeScores({ games }: { games: string[] }) {
   const [game, setGame] = useState(games[0]);
   const { data: entries, isLoading, isError } = useLeaderboard(game);
   const compact = useIsMobileArcade();
   const { data: looks } = useLooks((entries ?? []).flatMap((entry) => (entry.userId ? [entry.userId] : [])));
+  // The table lists every run, so you can be on it more than once: only the highest is your best
+  const best = entries?.findIndex((entry) => entry.isUserScore) ?? -1;
   return (
     <>
-      {/* A key for each game that keeps scores, scrolled sideways on a phone */}
-      <div className="-mx-1 mb-1 flex gap-1.5 overflow-x-auto px-1 pb-1.5 [scrollbar-width:none]">
-        {games.map((name) => (
-          <span key={name} className="shrink-0 whitespace-nowrap">
-            <Key active={name === game} onClick={() => setGame(name)}>
-              {name.replace(/[‘’]/g, "'").toUpperCase()}
-            </Key>
-          </span>
-        ))}
-      </div>
+      <GameStrip games={games} game={game} onGame={setGame} />
       {isLoading && <Line>FLIPPING...</Line>}
       {isError && <Line>BOARD FAULT: SCORES LOST IN THE FOG</Line>}
       {entries?.length === 0 && <Line>NO SCORES YET. THE TOP SPOT IS YOURS.</Line>}
@@ -209,8 +261,8 @@ function ArcadeScores({ games }: { games: string[] }) {
             name={entry.username}
             look={entry.userId ? looks?.[entry.userId] : undefined}
             small={compact}
-            bright={index < 3 || entry.isUserScore}
-            under={entry.isUserScore ? <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">YOUR BEST</span> : undefined}
+            bright={index < 3 || index === best}
+            under={index === best ? <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">YOUR BEST</span> : undefined}
             score={formatLeaderboardScore(game, entry.metricValue)}
           />
         ))}
@@ -236,7 +288,7 @@ export default function DepartureBoard({ signedIn, goTo, games = [] }: Props) {
           </Key>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
         {board === "arcade" ? (
           <ArcadeScores games={games} />
         ) : signedIn ? (
