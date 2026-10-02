@@ -5,7 +5,6 @@ import {
   type MonsterMove,
 } from "../../../server/shared/monster-bash/index.js";
 import AnimatedPage from "../../components/AnimatedPage";
-import { SiteContainer } from "../../components/PageContainer";
 import Arena from "./arena/Arena";
 import { connectLocalFeed } from "./feed/localFeed";
 import { connectSocketFeed } from "./feed/socketFeed";
@@ -96,13 +95,13 @@ function StatRow({ label, values }: { label: string; values: [string, string] })
   );
 }
 
-function TaleOfTheTape({ match }: { match: LiveMatch }) {
+function TaleOfTheTape({ match, className = "" }: { match: LiveMatch; className?: string }) {
   const [a, b] = match.fighters.map(getMonster) as [Monster, Monster];
   const pct = (value: number) => `${Math.round(value * 100)}%`;
   const both = (pick: (monster: Monster) => string): [string, string] => [pick(a), pick(b)];
 
   return (
-    <section className="rounded-lg border border-purple-900/60 bg-black/60 p-4">
+    <section className={`rounded-lg border border-purple-900/60 bg-black/60 p-4 ${className}`}>
       <h2 className="text-lg font-bold text-orange-50">Tale of the tape</h2>
       <div className="mt-2">
         <StatRow label="Health" values={both((m) => String(m.stats.maxHp))} />
@@ -130,9 +129,9 @@ function TaleOfTheTape({ match }: { match: LiveMatch }) {
   );
 }
 
-function RecentResults({ history }: { history: { id: string; fighters: [string, string]; winner: 0 | 1 }[] }) {
+function RecentResults({ history, className = "" }: { history: { id: string; fighters: [string, string]; winner: 0 | 1 }[]; className?: string }) {
   return (
-    <section className="rounded-lg border border-purple-900/60 bg-black/60 p-4">
+    <section className={`rounded-lg border border-purple-900/60 bg-black/60 p-4 ${className}`}>
       <h2 className="text-lg font-bold text-orange-50">Recent bouts</h2>
       {history.length === 0 ? (
         <p className="mt-2 text-sm text-purple-200/70">Results show up here after each bout.</p>
@@ -161,16 +160,69 @@ function RecentResults({ history }: { history: { id: string; fighters: [string, 
   );
 }
 
-function useIsDesktop() {
-  const query = "(min-width: 1024px)";
+function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
     const media = window.matchMedia(query);
     const onChange = () => setMatches(media.matches);
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
-  }, []);
+  }, [query]);
   return matches;
+}
+
+type Layout = "phone" | "desktop" | "wide";
+
+function useLayout(): Layout {
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const wide = useMediaQuery("(min-width: 1536px)");
+  return wide ? "wide" : desktop ? "desktop" : "phone";
+}
+
+// The arena is 16:9; cap its width so the whole thing fits on screen under
+// the header and matchup bar instead of pushing past the fold.
+const ARENA_FIT_STYLE = { maxWidth: "calc((100vh - 14rem) * 16 / 9)" };
+
+type PanelTab = "bet" | "stats" | "odds" | "chat" | "results";
+
+const PANEL_TAB_LABELS: Record<PanelTab, string> = {
+  bet: "Bet",
+  stats: "Stats",
+  odds: "Odds",
+  chat: "Chat",
+  results: "Results",
+};
+
+// On phones the panels share one spot under the arena, so the bet slip and
+// the stats are both a tap away without scrolling past the chat.
+function PanelTabs({ tabs, panels }: { tabs: PanelTab[]; panels: Partial<Record<PanelTab, React.ReactNode>> }) {
+  const [active, setActive] = useState<PanelTab>(tabs[0]);
+  const current = tabs.includes(active) ? active : tabs[0];
+  return (
+    <div className="flex flex-col gap-3">
+      <div role="tablist" aria-label="Monster Bash panels" className="grid gap-1 rounded-lg border border-purple-900/60 bg-black/60 p-1" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            id={`mb-tab-${tab}`}
+            aria-selected={tab === current}
+            aria-controls={`mb-panel-${tab}`}
+            onClick={() => setActive(tab)}
+            className={`rounded-md px-1 py-2 text-sm font-bold transition ${
+              tab === current ? "bg-purple-800 text-white" : "text-purple-200/70 hover:text-orange-50"
+            }`}
+          >
+            {PANEL_TAB_LABELS[tab]}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id={`mb-panel-${current}`} aria-labelledby={`mb-tab-${current}`}>
+        {panels[current]}
+      </div>
+    </div>
+  );
 }
 
 export default function MonsterBash() {
@@ -180,7 +232,7 @@ export default function MonsterBash() {
     store.getSnapshot
   );
   const { tick, phase } = usePlaybackClock(store);
-  const isDesktop = useIsDesktop();
+  const layout = useLayout();
   // `?preview=local` runs bouts in the browser, for working on the page offline.
   const [localPreview] = useState(() => new URLSearchParams(window.location.search).get("preview") === "local");
   const session = useSession();
@@ -208,27 +260,85 @@ export default function MonsterBash() {
       onBetPlaced={setAccount}
     />
   );
-  const chatPanel = !localPreview && (
-    <Chat messages={chat} signedIn={signedIn} className={isDesktop ? "h-[32rem]" : "h-96"} />
-  );
-  const details = (
-    <div className="grid gap-4 md:grid-cols-2">
-      {match && <TaleOfTheTape match={match} />}
-      <RecentResults history={history} />
+  const chatPanel = (className: string) => !localPreview && <Chat messages={chat} signedIn={signedIn} className={className} />;
+  const matchup = match && <Matchup match={match} tick={tick} phase={phase} />;
+  const oddsChart = match && <OddsChart match={match} playbackTick={tick} />;
+  const tape = match && <TaleOfTheTape match={match} />;
+  const arena = (
+    <div className="mx-auto w-full" style={layout === "phone" ? undefined : ARENA_FIT_STYLE}>
+      <Arena store={store} />
     </div>
   );
 
+  let body: React.ReactNode;
+  if (layout === "wide") {
+    // Stats on the left, the fight in the middle, betting and chat on the right.
+    body = (
+      <div className="grid grid-cols-[300px,minmax(0,1fr),360px] items-start gap-4">
+        <aside className="flex flex-col gap-4">
+          {tape}
+          <RecentResults history={history} />
+        </aside>
+        <div className="flex min-w-0 flex-col gap-4">
+          {matchup}
+          {arena}
+          {oddsChart}
+        </div>
+        <aside className="sticky top-4 flex h-[calc(100vh-2rem)] flex-col gap-4">
+          {betSlip}
+          {chatPanel("min-h-[16rem] flex-1")}
+        </aside>
+      </div>
+    );
+  } else if (layout === "desktop") {
+    body = (
+      <div className="grid grid-cols-[minmax(0,1fr),340px] items-start gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
+          {matchup}
+          {arena}
+          {oddsChart}
+          <div className="grid grid-cols-2 gap-4">
+            {tape}
+            <RecentResults history={history} />
+          </div>
+        </div>
+        <aside className="sticky top-4 flex h-[calc(100vh-2rem)] flex-col gap-4">
+          {betSlip}
+          {chatPanel("min-h-[16rem] flex-1")}
+        </aside>
+      </div>
+    );
+  } else {
+    const tabs: PanelTab[] = localPreview ? ["stats", "odds", "results"] : ["bet", "stats", "odds", "chat", "results"];
+    body = (
+      <div className="flex flex-col gap-3">
+        {matchup}
+        {arena}
+        <PanelTabs
+          tabs={tabs}
+          panels={{
+            bet: betSlip,
+            stats: tape,
+            odds: oddsChart,
+            chat: chatPanel("h-96"),
+            results: <RecentResults history={history} />,
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <AnimatedPage className="bg-[#07030c]">
-      <SiteContainer as="main" className="relative z-10 flex flex-col gap-4 pb-8 pt-4 md:pt-6">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
+      <main className="relative z-10 mx-auto flex w-full max-w-[1920px] flex-col gap-3 px-3 pb-8 pt-3 sm:px-6 md:gap-4 md:pt-5 lg:px-8">
+        <header className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">Monster Bash</p>
-            <p className="text-sm text-purple-200/70">
+            <p className="hidden text-sm text-purple-200/70 sm:block">
               Monsters fight it out around the clock. Bet your coins and watch the odds swing live.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {viewers !== null && (
               <span className="text-sm text-purple-200/70">
                 <strong className="text-orange-50">{viewers}</strong> watching
@@ -251,35 +361,13 @@ export default function MonsterBash() {
           </div>
         </header>
 
-        {isDesktop ? (
-          <div className="grid grid-cols-[minmax(0,1fr),340px] gap-4">
-            <div className="flex min-w-0 flex-col gap-4">
-              {match && <Matchup match={match} tick={tick} phase={phase} />}
-              <Arena store={store} />
-              {match && <OddsChart match={match} playbackTick={tick} />}
-              {details}
-            </div>
-            <aside className="flex flex-col gap-4">
-              {betSlip}
-              {chatPanel}
-            </aside>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {match && <Matchup match={match} tick={tick} phase={phase} />}
-            <Arena store={store} />
-            {betSlip}
-            {match && <OddsChart match={match} playbackTick={tick} />}
-            {chatPanel}
-            {details}
-          </div>
-        )}
+        {body}
         {localPreview && (
           <p className="text-xs text-purple-200/50">
             Local preview: bouts are simulated in your browser, not the live arena. Betting and chat are off.
           </p>
         )}
-      </SiteContainer>
+      </main>
     </AnimatedPage>
   );
 }
