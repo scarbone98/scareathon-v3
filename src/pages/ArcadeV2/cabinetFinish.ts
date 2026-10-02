@@ -233,8 +233,17 @@ function hazard(sheet: Sheet, u0: number, v0: number, u1: number, v1: number) {
   });
 }
 
-// A scatter of fine pebbled grain, as a tiling height map (red channel)
+// A scatter of fine pebbled grain, as a tiling height map (red channel). Always the same,
+// so painted once and shared (Wayside Station and its arcade both build a cabinet)
+let grainCanvas: HTMLCanvasElement | null = null;
 function grainTexture() {
+  grainCanvas ??= paintGrain();
+  const texture = new CanvasTexture(grainCanvas);
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+function paintGrain() {
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -242,9 +251,13 @@ function grainTexture() {
   const random = seeded(7);
   context.fillStyle = "rgb(128, 128, 128)";
   context.fillRect(0, 0, size, size);
+  // Each dot drawn again on the far side of any edge it crosses, so the tile repeats
+  // seamlessly (only those copies: the rest would land off the canvas)
   const dot = (cx: number, cy: number, radius: number, rgb: string, alpha: number) => {
     for (const dx of [-size, 0, size]) {
+      if (cx + dx + radius <= 0 || cx + dx - radius >= size) continue;
       for (const dy of [-size, 0, size]) {
+        if (cy + dy + radius <= 0 || cy + dy - radius >= size) continue;
         const gradient = context.createRadialGradient(cx + dx, cy + dy, 0, cx + dx, cy + dy, radius);
         gradient.addColorStop(0, `rgba(${rgb}, ${alpha})`);
         gradient.addColorStop(1, `rgba(${rgb}, 0)`);
@@ -255,10 +268,7 @@ function grainTexture() {
   };
   for (let i = 0; i < 2600; i++) dot(random() * size, random() * size, 1.5 + random() * 2.5, "255, 255, 255", 0.25 + random() * 0.35);
   for (let i = 0; i < 1600; i++) dot(random() * size, random() * size, 1.5 + random() * 2, "0, 0, 0", 0.2 + random() * 0.3);
-  const texture = new CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = RepeatWrapping;
-  texture.anisotropy = 4;
-  return texture;
+  return canvas;
 }
 
 function seeded(seed: number) {

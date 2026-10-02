@@ -1,6 +1,5 @@
 // src/App.tsx
 import "./index.css";
-import { LazyMotion, domAnimation } from "framer-motion";
 import { BrowserRouter as Router } from "react-router-dom";
 import { PageContainer } from "./components/PageContainer";
 import { AnimatedRoutes } from "./components/AnimatedRoutes";
@@ -37,11 +36,9 @@ const AppContent = () => {
 
 function App() {
   return (
-    <LazyMotion features={domAnimation}>
-      <Router>
-        <AppContent />
-      </Router>
-    </LazyMotion>
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

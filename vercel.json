@@ -16,7 +16,7 @@
             ]
         },
         {
-            "source": "/:path*.:ext(js|mjs|css|map|woff2|ttf|otf|eot|svg|jpg|jpeg|png|webp|gif)",
+            "source": "/:path*.:ext(js|mjs|css|map|woff2|ttf|otf|eot|svg|jpg|jpeg|png|webp|gif|ico|glb|mp4|webm|mp3|ogg)",
             "headers": [
                 {
                     "key": "Cache-Control",

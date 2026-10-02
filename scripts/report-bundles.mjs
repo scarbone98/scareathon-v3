@@ -2,22 +2,19 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 
 const manifest = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8'));
-// Rollup can turn a route into a shared chunk and omit its source key when
-// a lazy child imports one of its shared dependencies (e.g. AvatarPreview).
-const profileEntry = manifest['src/pages/Profile/page.tsx']
-  ? 'src/pages/Profile/page.tsx'
-  : Object.keys(manifest).find(key =>
-      manifest[key].dynamicImports?.includes('src/components/avatar/AvatarEditor.tsx') &&
-      manifest[key].dynamicImports?.includes('src/components/avatar/AvatarShop.tsx'));
-if (!profileEntry) throw new Error('Profile entry is missing from the build manifest');
+// Rollup can fold a route into a shared chunk and drop its source key (the station page
+// shares one with the avatar shop), so find it by what it lazy-loads
+const byDynamicImport = (source) => Object.keys(manifest).find((key) => manifest[key].dynamicImports?.includes(source));
+const stationEntry = manifest['src/station/page.tsx'] ? 'src/station/page.tsx' : byDynamicImport('src/station/StationScene.tsx');
+if (!stationEntry) throw new Error('Station entry is missing from the build manifest');
 
+// Each row: what's downloaded before that stage can start, app shell included
 const routes = {
   shell: [],
-  home: ['src/pages/Home/page.tsx'],
-  authentication: ['src/pages/Authentication/page.tsx'],
-  profile: [profileEntry, 'src/components/avatar/AvatarEditor.tsx'],
-  arcade: ['src/pages/Arcade/page.tsx', 'src/pages/Arcade/ArcadeGallery.tsx'],
-  eightBitEvil: ['src/pages/Arcade/page.tsx', 'src/pages/Arcade/8BitEvil/GameRenderer.jsx'],
+  station: [stationEntry],
+  stationScene: [stationEntry, 'src/station/StationScene.tsx'],
+  arcade: [stationEntry, 'src/station/StationScene.tsx', 'src/pages/ArcadeV2/CartridgeArcade.tsx'],
+  resetPassword: ['src/pages/Authentication/ResetPassword/page.tsx'],
 };
 
 function dependencies(roots) {
@@ -51,14 +48,8 @@ else {
   console.log('Excludes images, fonts, audio, API calls, and browser-cache effects; not a page-load timing benchmark.');
 }
 
-for (const name of ['shell', 'home', 'authentication', 'profile']) {
-  if (report[name].files.some(file => /vendor-three|vendor-phaser|GameRenderer|ArcadeGallery/.test(file))) {
+for (const name of ['shell', 'station', 'resetPassword']) {
+  if (report[name].files.some(file => /vendor-three|phaser|StationScene|CartridgeArcade/.test(file))) {
     throw new Error(`Game engine unexpectedly included in ${name}`);
-  }
-}
-
-for (const source of ['src/components/avatar/AvatarShop.tsx', 'src/pages/Inbox/page.tsx']) {
-  if (report.profile.files.includes(manifest[source]?.file)) {
-    throw new Error(`${source} should load only when its profile tab is opened`);
   }
 }

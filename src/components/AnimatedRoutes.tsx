@@ -1,6 +1,5 @@
 // src/components/AnimatedRoutes.tsx
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 import { Suspense, lazy } from "react";
 import LoadingSpinner from "./LoadingSpinner";
 import { stationUrlFor } from "../station/places";
@@ -9,7 +8,12 @@ import { stationUrlFor } from "../station/places";
 // left: the in-site games (played inside the arcade's cabinet) and the password reset
 // that sign-in emails link to. Any other address is an old classic-site link and goes to
 // the matching place in the station (the same map as the redirects in vercel.json).
-const Station = lazy(() => import("../station/page"));
+// (the station's 3D scene is lazy in the page too, but its download, three.js and all,
+// starts alongside the page's rather than waiting for it)
+const Station = lazy(() => {
+  void import("../station/StationScene.tsx").catch(() => undefined);
+  return import("../station/page");
+});
 const ResetPassword = lazy(() => import("../pages/Authentication/ResetPassword/page"));
 const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
 const CryptClash = lazy(() => import("../pages/Royale/page"));
@@ -45,21 +49,19 @@ export const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {PAGES.map(([path, Page]) => (
-          <Route
-            key={path}
-            path={path}
-            element={
-              <Suspense fallback={<LoadingSpinner />}>
-                <Page />
-              </Suspense>
-            }
-          />
-        ))}
-        <Route path="*" element={<ToStation />} />
-      </Routes>
-    </AnimatePresence>
+    <Routes location={location} key={location.pathname}>
+      {PAGES.map(([path, Page]) => (
+        <Route
+          key={path}
+          path={path}
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Page />
+            </Suspense>
+          }
+        />
+      ))}
+      <Route path="*" element={<ToStation />} />
+    </Routes>
   );
 };

@@ -1,5 +1,4 @@
 import React from "react";
-import { m as motion } from "framer-motion";
 
 interface ErrorDisplayProps {
   message: string;
@@ -12,11 +11,8 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message }) => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.5 }}
-        className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md max-w-md w-full mx-4 flex flex-col justify-center items-center flex-wrap gap-4"
+      <div
+        className="pop-in bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md max-w-md w-full mx-4 flex flex-col justify-center items-center flex-wrap gap-4"
       >
         <div className="flex items-center gap-4">
           <div className="flex items-center">
@@ -43,7 +39,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message }) => {
         >
           Refresh Page
         </button>
-      </motion.div>
+      </div>
     </div>
   );
 };

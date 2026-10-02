@@ -63,6 +63,7 @@ import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
+import { loadAvatarManifest } from "../components/avatar/manifest.ts";
 
 // The Wayside Station scene, played like Inscryption: the visitor stands on the platform
 // and turns between four fixed headings, and walks up to an object to look at it.
@@ -797,7 +798,8 @@ function ringOfBulbs(group: Group, w: number, h: number, spacing: number, cx: nu
   return bulbs;
 }
 
-function buildArcade(preview: { name: string; video: string; color: string } | null, games: MachineData[]) {
+// (`warm` compiles the cabinet's shaders before it goes in; see warm, in the scene)
+function buildArcade(preview: { name: string; video: string; color: string } | null, games: MachineData[], warm: (object: Object3D) => Promise<unknown>) {
   const group = new Group();
   group.position.copy(ARCADE_POS); // against the wall, left of the board
   const placeholder = new Group();
@@ -972,10 +974,14 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
       }
       // Then sized to stand 1.9 m tall on the platform
       cabinet.scale.setScalar(1.9 / Math.max(cabinetBox.getSize(new Vector3()).y, 0.001));
-      group.remove(placeholder);
-      group.add(cabinet);
-      group.userData.cabinet = cabinet;
       group.userData.video = video;
+      void warm(cabinet)
+        .catch(() => undefined)
+        .then(() => {
+          group.remove(placeholder);
+          group.add(cabinet);
+          group.userData.cabinet = cabinet;
+        });
     },
     undefined,
     (error) => {
@@ -1573,9 +1579,9 @@ function shopAdvertTexture(pick: number, onPicked?: (name: string) => void) {
     ctx.fillRect(10, h - 22, w - 20, 10);
   };
   const texture = paint(220, 310, (ctx, w, h) => draw(ctx, w, h));
-  fetch("/avatar-px/manifest.json")
-    .then((response) => response.json())
-    .then((manifest: { items?: { name: string; price?: number | null; release?: string; rarity?: string; icon: string }[] }) => {
+  // (the same fetch as the avatar's: the page asks for it too)
+  (loadAvatarManifest() as Promise<{ items?: { name: string; price?: number | null; release?: string; rarity?: string; icon: string }[] }>)
+    .then((manifest) => {
       const forSale = (manifest.items ?? []).filter((item) => item.price && item.release === "released");
       const item = forSale[pick % forSale.length];
       if (!item?.price) return;
@@ -1989,6 +1995,7 @@ function buildArrivalCar() {
   const light = new PointLight("#ffd9a8", 7, 7, 2);
   light.position.set(0, CAR_H - 0.3, midZ);
   car.add(light);
+  car.userData.light = light;
   // The doors: two leaves, each with a window, sliding apart along the outside
   const leaves = [-1, 1].map((dir) => {
     const leaf = new Group();
@@ -2755,9 +2762,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const halfWidth = Math.atan(Math.tan(((camera.fov * Math.PI) / 180) / 2) * camera.aspect);
       return Math.min(back, CAR_NEAR + 0.8 / Math.tan(halfWidth));
     };
+    // Gone, the carriage's light stays behind in the scene, turned right down: every lit
+    // shader is built for the number of lights there are, so taking one away would have
+    // all of them rebuilt, a stall just as you step off
+    const putAwayCar = () => {
+      const light = arrivalCar.userData.light as PointLight;
+      light.intensity = 0;
+      scene.attach(light);
+      arrivalCar.visible = false;
+    };
     if (!arrival.active) {
       arrival.phase = "gone";
-      arrivalCar.visible = false;
+      putAwayCar();
     }
     const setPhase = (phase: typeof arrival.phase) => {
       arrival.phase = phase;
@@ -2829,7 +2845,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const k = clamp01((t - 1.2) / 6);
         arrivalCar.position.x = DOOR_X - 60 * k * k;
         if (k >= 1) {
-          arrivalCar.visible = false;
+          putAwayCar();
           setPhase("gone");
         }
       }
@@ -2844,7 +2860,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lockers = buildLockers();
     let lastMinute = 0;
     const mail = buildMail();
-    const arcade = buildArcade(latest.current.preview, latest.current.arcadeGames);
+    // (in a task of its own, apart from building the cabinet, so neither holds up a frame as long)
+    const warmCabinet = (object: Object3D) => new Promise((resolve) => window.setTimeout(resolve)).then(() => renderer.compileAsync(object, camera, scene));
+    const arcade = buildArcade(latest.current.preview, latest.current.arcadeGames, warmCabinet);
     const cartRack = buildCartRack(latest.current.arcadeGames);
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
@@ -3199,7 +3217,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const start = performance.now();
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      if (document.hidden) return;
+      if (document.hidden || !warm) return;
       // The cartridges' clock runs on real time, not frames (so a slow phone doesn't leave
       // the train half out when the arcade takes over), and keeps time while covered
       const rowNow = performance.now() / 1000;
@@ -3529,6 +3547,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         if (slot.style.display) slot.style.display = "";
       });
     };
+    // Nothing's drawn till every shader's compiled: left to the first frame, they compile
+    // one after another there and then, and the ride in judders. compileAsync lets the GPU
+    // compile them in the background where it can (KHR_parallel_shader_compile), and the
+    // ride starts once they're done. (Hidden things, the train and the cartridges, are
+    // included; the cabinet does the same when its model's in, in buildArcade.)
+    let warm = false;
+    void renderer
+      .compileAsync(scene, camera)
+      .catch(() => undefined) // (then the first frame compiles them, as it always did)
+      .then(() => {
+        warm = true;
+        if (arrival.phase === "riding") arrival.since = performance.now() / 1000;
+      });
     animate();
 
     return () => {

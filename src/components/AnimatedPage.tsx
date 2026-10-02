@@ -1,22 +1,18 @@
-import { m as motion } from "framer-motion";
 import { useNavigatorContext } from "./navigator/context";
 
+// A page, fading in as it arrives
 export default function AnimatedPage({
   children,
   style,
-  onAnimationStart,
-  onAnimationComplete,
   className,
 }: {
   children: React.ReactNode;
   style?: React.CSSProperties;
-  onAnimationStart?: () => void;
-  onAnimationComplete?: () => void;
   className?: string;
 }) {
   const { height } = useNavigatorContext();
   return (
-    <motion.div
+    <div
       style={{
         paddingTop: height,
         minHeight: 'var(--vh)',
@@ -24,15 +20,9 @@ export default function AnimatedPage({
         position: 'relative',
         ...style,
       }}
-      className={className}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      onAnimationStart={onAnimationStart}
-      onAnimationComplete={onAnimationComplete}
+      className={`page-fade-in${className ? ` ${className}` : ""}`}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

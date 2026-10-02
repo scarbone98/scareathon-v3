@@ -968,25 +968,42 @@ export default function CartridgeArcade({
       scene.add(light);
       return light;
     });
+    const SAMPLE = 4; // px a side
     const screenSample = document.createElement("canvas");
-    screenSample.width = screenSample.height = 1;
+    screenSample.width = screenSample.height = SAMPLE;
     const screenSampler = screenSample.getContext("2d", { willReadFrequently: true });
     const screenColor = new Color(0x000000);
     const targetScreenColor = new Color(0x000000);
     let lastSample = 0;
+    let sampling = false;
     const SCREEN_LIGHT = 9;
     const updateScreenLight = (time: number) => {
-      const source = screenMaterial?.map?.image as CanvasImageSource | undefined;
-      if (source && screenSampler && time - lastSample > 0.12) {
+      const source = screenMaterial?.map?.image as ImageBitmapSource | undefined;
+      if (source && screenSampler && !sampling && time - lastSample > 0.12) {
         lastSample = time;
-        try {
-          // The whole picture averaged down to one pixel
-          screenSampler.drawImage(source, 0, 0, 1, 1);
-          const [red, green, blue] = screenSampler.getImageData(0, 0, 1, 1).data;
-          targetScreenColor.setRGB(red / 255, green / 255, blue / 255, SRGBColorSpace);
-        } catch {
-          // Unreadable picture: keep the last colour
-        }
+        sampling = true;
+        // The whole picture shrunk to a few pixels and averaged. Shrunk by the browser in
+        // the background: drawn straight from the video or canvas, reading it back would
+        // hold up the frame (badly, on a phone)
+        createImageBitmap(source, { resizeWidth: SAMPLE, resizeHeight: SAMPLE, resizeQuality: "medium" })
+          .then((bitmap) => {
+            screenSampler.clearRect(0, 0, SAMPLE, SAMPLE);
+            screenSampler.drawImage(bitmap, 0, 0, SAMPLE, SAMPLE);
+            bitmap.close();
+            const pixels = screenSampler.getImageData(0, 0, SAMPLE, SAMPLE).data;
+            let red = 0;
+            let green = 0;
+            let blue = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+              red += pixels[i];
+              green += pixels[i + 1];
+              blue += pixels[i + 2];
+            }
+            const count = 255 * SAMPLE * SAMPLE;
+            targetScreenColor.setRGB(red / count, green / count, blue / count, SRGBColorSpace);
+          })
+          .catch(() => undefined) // Unreadable picture (or no frame yet): keep the last colour
+          .finally(() => (sampling = false));
       }
       // Ease toward it, so flickering footage doesn't strobe the room
       screenColor.lerp(targetScreenColor, 0.15);
@@ -1637,6 +1654,7 @@ export default function CartridgeArcade({
     // --- Load the cabinet, then build everything around it ----------------------------------
     let stopStills: (() => void) | null = null;
     let built = false; // the cabinet and everything round it are in
+    let compiled = false; // ...and their shaders are ready (see where built is set)
     new GLTFLoader().load("/models/ArcadeCabinet.glb", (gltf) => {
       if (disposed) return;
       const model = gltf.scene;
@@ -1812,6 +1830,18 @@ export default function CartridgeArcade({
       }
 
       built = true;
+      // Nothing's drawn till every shader's compiled: left to the first frame, they compile
+      // there and then, one after another, and hold everything up (on Wayside Station that's
+      // the station's train, stood waiting at the platform). compileAsync lets the GPU
+      // compile them in the background where it can (KHR_parallel_shader_compile). (Started
+      // in a task of its own: setting them off takes a while too, and this one's long enough)
+      window.setTimeout(() => {
+        if (disposed) return;
+        void renderer
+          .compileAsync(scene, camera)
+          .catch(() => undefined) // (then the first frame compiles them, as it always did)
+          .then(() => (compiled = true));
+      });
       stopStills = loadVideoStills(games.map((game) => game.videoUrl), (index, source, width, height) => {
         carts[index]?.cart.setPicture(source, width, height);
       });
@@ -2562,6 +2592,7 @@ export default function CartridgeArcade({
       frame = requestAnimationFrame(animate);
       // A game is open on top, or it's hidden: leave the GPU be. (But draw once as soon as it's
       // built, hidden or not, to warm it up.)
+      if (built && !compiled) return;
       if (pausedRef.current && (warmedUp || !built)) return;
       if (built) warmedUp = true;
       const time = performance.now() / 1000;

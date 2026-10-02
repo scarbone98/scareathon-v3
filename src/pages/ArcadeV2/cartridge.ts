@@ -152,17 +152,23 @@ function paperFibres(context: CanvasRenderingContext2D) {
   const { width, height } = context.canvas;
   context.save();
   context.lineWidth = 1;
+  // (dark fibres and light ones gathered into a path each, and stroked once: thousands of
+  // separate strokes a label added up across the cartridges)
+  const dark = new Path2D();
+  const light = new Path2D();
   for (let i = 0; i < (width * height) / 60; i += 1) {
     const x = Math.random() * width;
     const y = Math.random() * height;
     const angle = Math.random() * Math.PI;
     const length = 2 + Math.random() * 7;
-    context.strokeStyle = Math.random() < 0.55 ? "rgba(70, 55, 40, 0.07)" : "rgba(255, 255, 255, 0.035)";
-    context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-    context.stroke();
+    const fibre = Math.random() < 0.55 ? dark : light;
+    fibre.moveTo(x, y);
+    fibre.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
   }
+  context.strokeStyle = "rgba(70, 55, 40, 0.07)";
+  context.stroke(dark);
+  context.strokeStyle = "rgba(255, 255, 255, 0.035)";
+  context.stroke(light);
   context.fillStyle = "rgba(60, 45, 30, 0.12)";
   for (let i = 0; i < 40; i += 1) context.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random(), 1 + Math.random());
   context.restore();
