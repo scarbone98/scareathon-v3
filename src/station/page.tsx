@@ -14,7 +14,7 @@ import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo,
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
-import { KioskWindow } from "./things/Kiosk.tsx";
+import { KioskWindow, linkFailed } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
@@ -233,6 +233,8 @@ export default function StationPage() {
     const next: Held | null =
       at === "tickets" && open === "shop"
         ? { kind: "shop" }
+        : at === "tickets" && (open === "window" || linkFailed) // (back from an email link: the sign-in window, up)
+          ? { kind: "window" }
         : at === "mail" && !compact && (open === "letters" || open === "register")
           ? { kind: open }
           : at === "lockers" && open

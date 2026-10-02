@@ -26,15 +26,54 @@ function authErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong. Please try again.";
 }
 
+// Where the confirmation link brings you back to: this window, held up
+const confirmRedirect = () => new URL("/station?at=tickets&open=window", window.location.origin).toString();
+
+// A confirmation link that didn't work (expired, already used, or used up by a mail
+// scanner clicking it first) comes back with the error in the URL's hash. Read once, as
+// the page loads, then cleared so a reload doesn't show it again.
+// (exported: the station holds the window up for you when you arrive like that)
+// eslint-disable-next-line react-refresh/only-export-components
+export const linkFailed = (() => {
+  if (typeof window === "undefined") return false;
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  if (!hash.get("error_code") && !hash.get("error")) return false;
+  window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+  return true;
+})();
+
 // A card held up behind the glass: the sign-in form
 function SignInCard() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(linkFailed ? "That confirmation link has expired or was already used. Put your email in and we'll send a fresh one." : null);
   const [busy, setBusy] = useState(false);
   const [sentConfirmation, setSentConfirmation] = useState(false);
   const [resetting, setResetting] = useState(false);
+  // Offer to send the confirmation link again (after a dud link, or signing in unconfirmed)
+  const [canResend, setCanResend] = useState(linkFailed);
+  const [resent, setResent] = useState(false);
+
+  const resend = async () => {
+    if (busy) return;
+    if (!email.trim()) {
+      setError("Put your email in first.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { error: resendError } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: confirmRedirect() } });
+      if (resendError) throw resendError;
+      setResent(true);
+      setCanResend(false);
+    } catch (caught) {
+      setError(authErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,11 +84,14 @@ function SignInCard() {
       const credentials = { email: email.trim(), password };
       if (isLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword(credentials);
-        if (signInError) throw signInError;
+        if (signInError) {
+          if (signInError.code === "email_not_confirmed") setCanResend(true);
+          throw signInError;
+        }
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
           ...credentials,
-          options: { emailRedirectTo: new URL("/station?at=tickets", window.location.origin).toString() },
+          options: { emailRedirectTo: confirmRedirect() },
         });
         if (signUpError) throw signUpError;
         if (!data.session && data.user) {
@@ -75,9 +117,17 @@ function SignInCard() {
         <p className="mt-2 text-[15px] leading-snug">
           A confirmation link is on its way to <strong>{email.trim()}</strong>. Follow it, then come back and show your ticket.
         </p>
-        <button type="button" className={`${stubButton} mt-3`} onClick={() => { setSentConfirmation(false); setIsLogin(true); }}>
-          Back
-        </button>
+        <p className="mt-1 text-[13px] opacity-75">Nothing after a few minutes? Look in spam, or send it again.</p>
+        {resent && <p className="mt-1 text-[13px] font-semibold">Sent again.</p>}
+        {error && <p className="mt-1 text-[13px] font-semibold text-red-800">{error}</p>}
+        <div className="mt-3 flex items-center gap-3">
+          <button type="button" className={stubButton} onClick={() => { setSentConfirmation(false); setIsLogin(true); setResent(false); }}>
+            Back
+          </button>
+          <button type="button" className="text-[13px] underline underline-offset-4 opacity-75 hover:opacity-100" disabled={busy} onClick={() => { setResent(false); void resend(); }}>
+            {busy ? "Sending…" : "Send it again"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -103,6 +153,12 @@ function SignInCard() {
           onChange={(e) => { setPassword(e.target.value); setError(null); }}
         />
         {error && <p className="text-[13px] font-semibold text-red-800">{error}</p>}
+        {resent && <p className="text-[13px] font-semibold">A fresh confirmation link is on its way to {email.trim()}.</p>}
+        {canResend && (
+          <button type="button" className="text-[13px] font-semibold underline underline-offset-4" disabled={busy} onClick={() => void resend()}>
+            Send the confirmation link again
+          </button>
+        )}
         <div className="flex items-center gap-3 pt-0.5">
           <button type="submit" className={stubButton} disabled={busy}>
             {busy ? "One moment…" : isLogin ? "Sign in" : "Create account"}
