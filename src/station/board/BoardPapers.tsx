@@ -164,45 +164,54 @@ function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const { data: summary } = useSummary();
   const look = useAvatarLook(signedIn);
   return (
-    <div className={`m-1 flex h-[calc(100%-0.5rem)] flex-col justify-center gap-1.5 border-[3px] border-double border-[#2a1d14]/70 px-5 ${ink}`}>
-      <div className="flex min-w-0 items-baseline gap-3">
-        <p className="truncate text-[28px] leading-none" style={serif}>
-          {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
-        </p>
-      </div>
-      <div className="flex gap-2">
-        {signedIn ? (
-          <>
-            {/* you, as you look (moving, if your body has an idle), standing in for "your locker" */}
-            {/* You, just as you are: as wide as the avatar, no ticket round it */}
-            <button
-              type="button"
-              aria-label="Your locker"
-              title="Your locker"
-              onClick={act(() => goTo("lockers"))}
-              className="flex h-[48px] shrink-0 items-end transition hover:brightness-110 active:translate-y-px"
-            >
-              {look ? <AvatarView look={look} height={48} label="You" /> : null}
-            </button>
-            <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))}>
-              {summary?.unreadCount ?? 0}×<EnvelopeIcon />
+    <div className={`m-1 flex h-[calc(100%-0.5rem)] items-stretch gap-3 border-[3px] border-double border-[#2a1d14]/70 px-5 ${ink}`}>
+      {/* You, as you look (moving, if your body has an idle), standing in for "your locker":
+          down the notice's whole height, five times size, the empty sky over your head trimmed off */}
+      {signedIn && (
+        <button
+          type="button"
+          aria-label="Your locker"
+          title="Your locker"
+          onClick={act(() => goTo("lockers"))}
+          className="-ml-2 flex w-[96px] shrink-0 items-end justify-center overflow-hidden transition hover:brightness-110 active:translate-y-px"
+        >
+          {look ? (
+            <span className="translate-y-[10px]">
+              <AvatarView look={look} height={240} label="You" />
+            </span>
+          ) : null}
+        </button>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <p className="truncate text-[28px] leading-none" style={serif}>
+            {signedIn ? `Welcome back${summary?.username ? `, ${summary.username}` : ""}` : "Welcome, traveller"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {signedIn ? (
+            <>
+              <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))}>
+                {summary?.unreadCount ?? 0}×<EnvelopeIcon />
+              </TicketButton>
+              <TicketButton label="Tickets: the item shop" onClick={act(() => goTo("tickets", "shop"))}>
+                {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}×<TicketIcon />
+              </TicketButton>
+              <TicketButton label="Settings" onClick={act(() => goTo("mail", "register"))}>
+                <GearIcon />
+              </TicketButton>
+            </>
+          ) : (
+            <TicketButton label="Sign in" onClick={act(() => goTo("tickets"))}>
+              Sign in
             </TicketButton>
-            <TicketButton label="Tickets: the item shop" onClick={act(() => goTo("tickets", "shop"))}>
-              {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}×<TicketIcon />
-            </TicketButton>
-            <TicketButton label="Settings" onClick={act(() => goTo("mail", "register"))}>
-              <GearIcon />
-            </TicketButton>
-          </>
-        ) : (
-          <TicketButton label="Sign in" onClick={act(() => goTo("tickets"))}>
-            Sign in
-          </TicketButton>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
 
 // ---- The arcade post: this week's challenge, and the game on tonight
 

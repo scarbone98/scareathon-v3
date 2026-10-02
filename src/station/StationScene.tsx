@@ -1416,6 +1416,19 @@ function eyeTexture() {
 
 // The full moon: a real one, NASA's (Scientific Visualization Studio, from Lunar
 // Reconnaissance Orbiter data, public domain), cut out round
+// Moonlight round the moon: a cool haze, brightest at its rim, fading out over a few widths
+function moonGlowTexture() {
+  return paint(128, 128, (ctx, w, h) => {
+    const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    g.addColorStop(0, "rgba(225,232,255,0.75)");
+    g.addColorStop(0.22, "rgba(200,212,245,0.45)");
+    g.addColorStop(0.5, "rgba(150,170,220,0.16)");
+    g.addColorStop(1, "rgba(120,140,200,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  });
+}
+
 function moonTexture() {
   const texture = new TextureLoader().load("/images/moon.webp");
   texture.colorSpace = SRGBColorSpace;
@@ -2621,8 +2634,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const moon = new Sprite(new SpriteMaterial({ map: moonTexture(), fog: false, depthWrite: false, transparent: true }));
     moon.scale.set(7, 7, 1);
     // High over the fields past the end of the platform, where the scenic view looks
-    moon.position.set(-75, 34, 8);
+    moon.position.set(-75, 39, 8);
     scene.add(moon);
+    const moonGlow = new Sprite(new SpriteMaterial({ map: moonGlowTexture(), blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
+    moonGlow.scale.set(24, 24, 1);
+    moonGlow.position.set(-75.5, 39, 8);
+    moonGlow.renderOrder = -1; // behind the moon
+    scene.add(moonGlow);
 
     // The scenic view: bare trees in the fields, and a signal by the line, its lamp red
     [[-16, -6], [-22, 4], [-30, -12], [-38, 9], [-47, -3], [-26, 16]].forEach(([x, z], i) => {
@@ -2698,6 +2716,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false, transparent: true, opacity: weather === "clear" ? 1 : weather === "snow" ? 0.35 : 0.12 })));
     if (weather !== "clear") {
       (moon.material as SpriteMaterial).opacity = weather === "fog" ? 0.35 : 0.5;
+      (moonGlow.material as SpriteMaterial).opacity = weather === "fog" ? 0.7 : 0.6; // (fog spreads it)
       (moon.material as SpriteMaterial).transparent = true;
       (scene.fog as FogExp2).density = 0.095;
     }
