@@ -54,6 +54,7 @@ import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
 import { MARKER_FONT } from "../pages/ArcadeV2/slotRig.ts";
 import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
+import { compileShaders } from "../pages/ArcadeV2/compileShaders.ts";
 import { dressSlot, focusedPose, shelfLayout, type SlotDressing } from "../pages/ArcadeV2/slotDressing.ts";
 import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } from "../pages/ArcadeV2/cartridge.ts";
 import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRow.ts";
@@ -2879,7 +2880,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let lastMinute = 0;
     const mail = buildMail();
     // (in a task of its own, apart from building the cabinet, so neither holds up a frame as long)
-    const warmCabinet = (object: Object3D) => new Promise((resolve) => window.setTimeout(resolve)).then(() => renderer.compileAsync(object, camera, scene));
+    const warmCabinet = (object: Object3D) => new Promise((resolve) => window.setTimeout(resolve)).then(() => compileShaders(renderer, object, camera, scene));
     const arcade = buildArcade(latest.current.preview, latest.current.arcadeGames, warmCabinet);
     const cartRack = buildCartRack(latest.current.arcadeGames);
     const arcadeObject = arcade;
@@ -3572,13 +3573,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       });
     };
     // Nothing's drawn till every shader's compiled: left to the first frame, they compile
-    // one after another there and then, and the ride in judders. compileAsync lets the GPU
+    // one after another there and then, and the ride in judders. compileShaders (compileAsync) lets the GPU
     // compile them in the background where it can (KHR_parallel_shader_compile), and the
     // ride starts once they're done. (Hidden things, the train and the cartridges, are
     // included; the cabinet does the same when its model's in, in buildArcade.)
     let warm = false;
-    void renderer
-      .compileAsync(scene, camera)
+    void compileShaders(renderer, scene, camera)
       .catch(() => undefined) // (then the first frame compiles them, as it always did)
       .then(() => {
         warm = true;

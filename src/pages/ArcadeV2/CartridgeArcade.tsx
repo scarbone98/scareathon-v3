@@ -59,6 +59,7 @@ import CartridgeIndex from "./CartridgeIndex.tsx";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
+import { compileShaders } from "./compileShaders.ts";
 import type { SlotTerminal } from "./slotTerminal.ts";
 import type { TicketDispenser } from "./ticketDispenser.ts";
 import { nowSeconds, type TerminalOptions, type TerminalScreen } from "./terminalScreen.ts";
@@ -1847,8 +1848,7 @@ export default function CartridgeArcade({
       // in a task of its own: setting them off takes a while too, and this one's long enough)
       window.setTimeout(() => {
         if (disposed) return;
-        void renderer
-          .compileAsync(scene, camera)
+        void compileShaders(renderer, scene, camera)
           .catch(() => undefined) // (then the first frame compiles them, as it always did)
           .then(() => (compiled = true));
       });
