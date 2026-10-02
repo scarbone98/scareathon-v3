@@ -3109,7 +3109,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const dy = event.clientY - down.y;
       const { at: current, onSelect: select, onTurn: turn, onPart: partTapped, onEmptyTap: emptyTapped } = latest.current;
       const quick = Math.abs(dx) / Math.max(performance.now() - down.t, 1) > 0.3; // a flick
-      if (!current && (Math.abs(dx) > 40 || (quick && Math.abs(dx) > 20)) && Math.abs(dx) > Math.abs(dy)) {
+      const swiped = (Math.abs(dx) > 40 || (quick && Math.abs(dx) > 20)) && Math.abs(dx) > Math.abs(dy);
+      if (current === "bench" && swiped) {
+        // Sitting on the bench, a swipe gets you up (as a tap does)
+        (emptyTapped ?? (() => select(null)))();
+      } else if (!current && swiped) {
         // Drag the world: swiping left turns right. Start turning now; the page catches up
         const index = HEADINGS.indexOf(aimed);
         if (index >= 0) {

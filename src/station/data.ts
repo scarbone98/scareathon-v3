@@ -101,15 +101,15 @@ async function readJson<T>(response: Response, label: string): Promise<T> {
 
 export const needsSignIn = (error: unknown) => error instanceof ApiError && error.status === 401;
 
-// The Scareathon runs through October, US Eastern time (as the calendar does)
+// The Scareathon runs through October, by the viewer's own clock: tonight's film is tonight's
+// wherever they are, until their own midnight. (Watches are on the honor system, any day.)
 export const EVENT_MONTH = 9;
 export function eventState(now = new Date()) {
-  const eastern = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const year = eastern.getFullYear();
-  const isLive = eastern.getMonth() === EVENT_MONTH;
-  const nextStart = eastern > new Date(year, EVENT_MONTH + 1, 0, 23, 59, 59) ? new Date(year + 1, EVENT_MONTH, 1) : new Date(year, EVENT_MONTH, 1);
-  const daysUntil = Math.max(0, Math.ceil((nextStart.getTime() - eastern.getTime()) / 86_400_000));
-  return { isLive, daysUntil, year: nextStart.getFullYear(), day: eastern.getDate(), calendarYear: year };
+  const year = now.getFullYear();
+  const isLive = now.getMonth() === EVENT_MONTH;
+  const nextStart = now > new Date(year, EVENT_MONTH + 1, 0, 23, 59, 59) ? new Date(year + 1, EVENT_MONTH, 1) : new Date(year, EVENT_MONTH, 1);
+  const daysUntil = Math.max(0, Math.ceil((nextStart.getTime() - now.getTime()) / 86_400_000));
+  return { isLive, daysUntil, year: nextStart.getFullYear(), day: now.getDate(), calendarYear: year };
 }
 
 // The signed-in session, kept current; every query is refetched when it changes

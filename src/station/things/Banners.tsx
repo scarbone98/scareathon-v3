@@ -63,6 +63,7 @@ export function useBannerShopItems(trying: string | null, onTry: (key: string | 
       name: banner.name,
       category: "banner",
       categoryLabel: "Banner",
+      categoryPlural: "Banners",
       icon: bannerSquare(banner.key) ?? "",
       price: banner.price,
       owned,

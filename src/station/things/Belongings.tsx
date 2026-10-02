@@ -1,7 +1,9 @@
 // The belongings' pieces share the avatar hook; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
 import "../../styles/profile.css";
-import { Suspense, lazy, useState, type ReactNode } from "react";
+import { Suspense, lazy, useContext, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { FaPencilAlt, FaSearch } from "react-icons/fa";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
@@ -14,6 +16,8 @@ import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
 import { BannerShelf, useBackdrop, useBannerShopItems } from "./Banners.tsx";
+import { NO_FILTERS, ShopFilterMenus, type ShopFilters } from "../../components/avatar/shopFilters";
+import { SheetActions } from "../Sheet.tsx";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
 // at the ticket counter, clothes in your left-luggage locker, letters in your pigeonhole,
@@ -117,7 +121,8 @@ function YourName({ renamable }: { renamable: boolean }) {
 }
 
 // (banner: one being tried on, behind you instead of yours)
-function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false, banner }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean; banner?: string | null }) {
+// (below: under the ticket count, e.g. the shop's filters)
+function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false, banner, below }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean; banner?: string | null; below?: ReactNode }) {
   const { data: summary } = useSummary();
   const backdrop = useBackdrop(banner);
   if (large)
@@ -133,6 +138,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
             {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
             {note}
           </p>
+          {below}
         </div>
       </div>
     );
@@ -141,15 +147,43 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
       <div className={`flex ${roomy ? "h-36 w-28" : "h-24 w-20"} shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20`} style={backdrop}>
         <AvatarView look={look} height={roomy ? 144 : 96} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
         <YourName renamable={renamable} />
         <p className="text-sm text-amber-300">
           {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
           {note}
         </p>
+        {below}
       </div>
     </div>
+  );
+}
+
+// The shop's search, by the sheet's x: a magnifier that opens into a field (and folds
+// back up when it's left empty)
+function ShopSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(Boolean(value));
+  if (!open && !value)
+    return (
+      <button type="button" aria-label="Search the shop" onClick={() => setOpen(true)} className="flex h-11 w-11 items-center justify-center text-[#f2ead2]/70 hover:text-[#f2ead2]">
+        <FaSearch className="h-[18px] w-[18px]" />
+      </button>
+    );
+  return (
+    <label className="flex h-9 w-full max-w-sm items-center gap-2 rounded-md border border-[#494054] bg-[#191620] px-3 text-[#92859f] focus-within:border-[#bda0de]">
+      <FaSearch className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <input
+        type="search"
+        autoFocus
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={() => !value.trim() && setOpen(false)}
+        placeholder="Search items"
+        aria-label="Search the shop"
+        className="min-w-0 flex-1 bg-transparent text-sm text-[#eee5f8] placeholder:text-[#92859f] focus:outline-none"
+      />
+    </label>
   );
 }
 
@@ -167,26 +201,32 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   // A banner being tried on: behind you in the mirror
   const [previewBanner, setPreviewBanner] = useState<string | null>(null);
   const bannerItems = useBannerShopItems(previewBanner, setPreviewBanner);
+  // Opened on an item (an advert over the window): searched for straight away
+  const [filters, setFilters] = useState<ShopFilters>({ ...NO_FILTERS, search: focus ?? "" });
+  const topBar = useContext(SheetActions);
   const unread = useInboxUnreadCount();
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
   const look = preview || saved;
-  const note = preview || previewBanner ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null;
+  const note = preview || previewBanner ? <span className="ml-2 text-xs text-stone-400">(previewing)</span> : null;
+  const extraCategories = [...new Map(bannerItems.map((item) => [item.category, item.categoryPlural])).entries()];
+  const menus = <ShopFilterMenus filters={filters} onChange={setFilters} extraCategories={extraCategories} className="mt-2 max-w-sm" />;
   // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
   // phone) while only the wares scroll
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
+      {topBar && createPortal(<ShopSearch value={filters.search} onChange={(search) => setFilters((current) => ({ ...current, search }))} />, topBar)}
       <div className="shrink-0 md:w-80">
         <div className="md:hidden">
-          <Mirror look={look} eyebrow="Item shop" note={note} roomy banner={previewBanner} />
+          <Mirror look={look} eyebrow="Item shop" note={note} roomy banner={previewBanner} below={menus} />
         </div>
         <div className="hidden md:block">
-          <Mirror look={look} eyebrow="Item shop" note={note} large banner={previewBanner} />
+          <Mirror look={look} eyebrow="Item shop" note={note} large banner={previewBanner} below={menus} />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
       <Classic>
-        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={bannerItems} />
+        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={bannerItems} filters={filters} />
       </Classic>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
@@ -206,20 +246,36 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
 
 export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const [preview, setPreview] = useState<AvatarLook | null>(null);
+  // Your skin, eyes and hair colour: a pencil under your tickets opens them
+  const [editingLook, setEditingLook] = useState(false);
   const saved = useAvatarLook(signedIn);
   if (!signedIn) return <TicketHoldersOnly what="Lockers" goTo={goTo} />;
   const look = preview || saved;
   const note = preview ? <span className="ml-2 text-xs text-stone-400">(trying on)</span> : null;
+  const pencil = (
+    <button
+      type="button"
+      onClick={() => setEditingLook((on) => !on)}
+      aria-pressed={editingLook}
+      aria-label={editingLook ? "Done editing your look" : "Edit your look"}
+      title={editingLook ? "Done" : "Edit your look"}
+      className={`mt-2 flex h-9 w-9 items-center justify-center rounded-md border transition ${
+        editingLook ? "border-[#f2c35b] bg-[#f2c35b] text-[#281b35]" : "border-[#f2ead2]/30 text-[#f2ead2]/80 hover:border-[#f2ead2]/60 hover:text-[#f2ead2]"
+      }`}
+    >
+      <FaPencilAlt className="h-3.5 w-3.5" aria-hidden />
+    </button>
+  );
   // Full screen: you stay in view (beside the clothes, or above them on a phone) while
   // only the clothes scroll, so whatever you try on shows at once
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
       <div className="shrink-0 md:w-80">
         <div className="md:hidden">
-          <Mirror look={look} eyebrow="Your locker" note={note} roomy renamable />
+          <Mirror look={look} eyebrow="Your locker" note={note} roomy renamable below={pencil} />
         </div>
         <div className="hidden md:block">
-          <Mirror look={look} eyebrow="Your locker" note={note} large renamable />
+          <Mirror look={look} eyebrow="Your locker" note={note} large renamable below={pencil} />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
@@ -228,6 +284,7 @@ export function Wardrobe({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
             onPreviewLookChange={setPreview}
             extraTab={{ key: "banners", label: "Banners", content: <BannerShelf /> }}
             initialTab="banners"
+            editingLook={editingLook}
           />
         </Classic>
       </div>

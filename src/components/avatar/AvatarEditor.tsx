@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FaSave, FaUndo, FaCheck, FaSearch, FaDiceFive } from "react-icons/fa";
+import { FaSave, FaUndo, FaCheck, FaSearch } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { uploadAvatarComposite } from "./avatarComposite";
 import { itemFitsBody } from "./compose";
-import { CATEGORY_LABELS, WARDROBE_TABS, lookFromAvatar, randomLook, wearItem } from "./look";
+import { CATEGORY_LABELS, WARDROBE_TABS, lookFromAvatar, wearItem } from "./look";
 import { rampSwatch, useAvatarManifest } from "./manifest";
 import type { AvatarData, AvatarLook, AvatarManifest, AvatarResponse, DyeChoice, InventoryEntry } from "./types";
 
@@ -84,14 +84,17 @@ type AvatarEditorProps = {
   // banners), and the filter to start on
   extraTab?: { key: string; label: string; content: ReactNode };
   initialTab?: string;
+  // Skin, eyes and hair colour sit behind a button, so your items come first. Whoever holds
+  // the editor can keep that button (the locker's pencil); without one, it's in the toolbar
+  editingLook?: boolean;
 };
 
-export function AvatarEditor({ onPreviewLookChange, extraTab, initialTab = "all" }: AvatarEditorProps) {
+export function AvatarEditor({ onPreviewLookChange, extraTab, initialTab = "all", editingLook: editingFromOutside }: AvatarEditorProps) {
   const queryClient = useQueryClient();
   const { data: manifest, error: manifestError } = useAvatarManifest();
   const [activeTab, setActiveTab] = useState(initialTab);
-  // Skin, eyes and hair colour sit behind a button, so your items come first
-  const [editingLook, setEditingLook] = useState(false);
+  const [editingHere, setEditingLook] = useState(false);
+  const editingLook = editingFromOutside ?? editingHere;
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -199,27 +202,17 @@ export function AvatarEditor({ onPreviewLookChange, extraTab, initialTab = "all"
       }
     );
 
-  // Rolls a whole new kid from the free items; nothing is saved until Save.
-  const randomize = () => {
-    const next = randomLook(owned, manifest);
-    if (!next) return;
-    setSelectedId(null);
-    setDraft({ profile: next.profile, outfit: next.outfit.map(({ itemInstanceId, dyes }) => ({ itemInstanceId, dyes })) });
-  };
-
   return (
     <section className="wardrobe">
       <div className="wardrobe-toolbar">
         <span>
           MY ITEMS <strong>{owned.length}</strong>
         </span>
-        <button type="button" className="profile-secondary-button" onClick={() => setEditingLook((on) => !on)} aria-pressed={editingLook}>
-          <span>{editingLook ? "Done" : "Edit look"}</span>
-        </button>
-        <button type="button" className="profile-secondary-button" onClick={randomize} disabled={saveMutation.isPending}>
-          <FaDiceFive aria-hidden="true" />
-          <span>Randomize</span>
-        </button>
+        {editingFromOutside === undefined && (
+          <button type="button" className="profile-secondary-button" onClick={() => setEditingLook((on) => !on)} aria-pressed={editingLook}>
+            <span>{editingLook ? "Done" : "Edit look"}</span>
+          </button>
+        )}
         <label className="wardrobe-search">
           <FaSearch aria-hidden="true" />
           <input aria-label="Search wardrobe items" placeholder="Find an item…" value={search} onChange={(e) => setSearch(e.target.value)} />

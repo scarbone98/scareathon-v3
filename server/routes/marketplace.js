@@ -7,6 +7,70 @@ const avatarSpriteBucket = process.env.AVATAR_SPRITE_BUCKET || 'avatar-sprites';
 const allowedShopCategories = new Set(Object.keys(avatarRules.categories).filter((category) => category !== 'background'));
 const allowedShopRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
 const maxShopPageSize = 20;
+// Today's featured wares, at the top of the shop
+const featuredCount = 3;
+
+// What's for sale: released, priced avatar items (not the starter ones)
+const SHOP_ITEM_WHERE = `
+    ai.art_version = ${AVATAR_ART_VERSION}
+    AND ai.release_status = 'released'
+    AND ai.base_price IS NOT NULL
+    AND ai.base_price > 0
+    AND ai.is_default = FALSE
+    AND ai.category <> 'background'
+`;
+
+// A shop item's columns, with how many have been minted and how many the buyer ($1) owns
+const SHOP_ITEM_SELECT = `
+        ai.id,
+        ai.item_key,
+        ai.name,
+        ai.slot,
+        ai.equip_group,
+        ai.layer_order,
+        ai.asset_path,
+        ai.is_default,
+        ai.is_starter,
+        ai.is_tradeable,
+        ai.is_sellable,
+        ai.rarity,
+        ai.base_price,
+        ai.release_status,
+        ai.metadata AS item_metadata,
+        ai.category,
+        ai.parts,
+        ai.dyes,
+        ai.hides,
+        ai.occupies,
+        ai.stack_order,
+        CASE
+            WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
+                THEN (ai.metadata->>'supplyLimit')::INTEGER
+            ELSE NULL
+        END AS supply_limit,
+        COALESCE(minted.count, 0)::INTEGER AS minted_count,
+        COALESCE(owned.count, 0)::INTEGER AS owned_count
+    FROM avatar_items ai
+    -- Copies in circulation only matter for supply-limited items, so skip the count otherwise
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS count
+        FROM user_item_instances uii
+        WHERE uii.item_id = ai.id
+          AND ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
+    ) minted ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS count
+        FROM user_item_instances uii
+        WHERE uii.item_id = ai.id
+          AND uii.user_id = $1
+          AND uii.status IN ('owned', 'listed', 'locked')
+    ) owned ON TRUE
+`;
+
+// The day in US Eastern time (YYYY-MM-DD): the featured items change at its midnight
+function easternDay(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
 
 function getAvatarAssetUrl(assetPath) {
     if (!assetPath) return '';
@@ -160,50 +224,7 @@ async function routes(fastify, options) {
 
             const itemParams = [userId, ...filterValues, limit, offset];
             const result = await pool.query(`
-                SELECT
-                    ai.id,
-                    ai.item_key,
-                    ai.name,
-                    ai.slot,
-                    ai.equip_group,
-                    ai.layer_order,
-                    ai.asset_path,
-                    ai.is_default,
-                    ai.is_starter,
-                    ai.is_tradeable,
-                    ai.is_sellable,
-                    ai.rarity,
-                    ai.base_price,
-                    ai.release_status,
-                    ai.metadata AS item_metadata,
-                    ai.category,
-                    ai.parts,
-                    ai.dyes,
-                    ai.hides,
-                    ai.occupies,
-                    ai.stack_order,
-                    CASE
-                        WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
-                            THEN (ai.metadata->>'supplyLimit')::INTEGER
-                        ELSE NULL
-                    END AS supply_limit,
-                    COALESCE(minted.count, 0)::INTEGER AS minted_count,
-                    COALESCE(owned.count, 0)::INTEGER AS owned_count
-                FROM avatar_items ai
-                -- Copies in circulation only matter for supply-limited items, so skip the count otherwise
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS count
-                    FROM user_item_instances uii
-                    WHERE uii.item_id = ai.id
-                      AND ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
-                ) minted ON TRUE
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS count
-                    FROM user_item_instances uii
-                    WHERE uii.item_id = ai.id
-                      AND uii.user_id = $1
-                      AND uii.status IN ('owned', 'listed', 'locked')
-                ) owned ON TRUE
+                SELECT ${SHOP_ITEM_SELECT}
                 WHERE ${itemWhereClause}
                 ORDER BY ai.category ASC, ai.stack_order ASC, ai.name ASC, ai.id ASC
                 LIMIT $${itemParams.length - 1}
@@ -222,6 +243,25 @@ async function routes(fastify, options) {
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'An error occurred while fetching shop items' });
+        }
+    });
+
+    // A few wares picked afresh each day, the same for everyone: shuffled by a hash of the
+    // item and the date, skipping what's sold out
+    fastify.get('/shop/featured', async (request, reply) => {
+        try {
+            const day = easternDay();
+            const result = await pool.query(`
+                SELECT ${SHOP_ITEM_SELECT}
+                WHERE ${SHOP_ITEM_WHERE}
+                ORDER BY md5(ai.id::text || $2)
+                LIMIT ${featuredCount * 4}
+            `, [request.user.sub, day]);
+            const items = result.rows.map(serializeShopItem).filter((item) => !item.isSoldOut).slice(0, featuredCount);
+            return { data: items, day };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while fetching featured items' });
         }
     });
 

@@ -1,5 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { createContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { PAPER_GRAIN, pixel, sans, typewriter } from "./style/theme.ts";
+
+// The top bar of a sheet, left of its ×, for a body's own buttons (the shop's search):
+// render into it with a portal
+// eslint-disable-next-line react-refresh/only-export-components
+export const SheetActions = createContext<HTMLElement | null>(null);
 
 // Something taken up to look at closely: a paper off the board, a flyer off the table,
 // the departure board or the kiosk's window up close, a catalogue slid across the counter.
@@ -23,6 +28,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
   // The tap that picked something up is followed by its own click, which would land on
   // the backdrop that just appeared under the finger; ignore the backdrop briefly
   const openedAt = useRef(0);
+  const [actions, setActions] = useState<HTMLDivElement | null>(null);
   const isOpen = Boolean(sheet);
   useEffect(() => {
     if (isOpen) openedAt.current = performance.now();
@@ -87,7 +93,11 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
         >
           ×
         </button>
-        {full ? <div className="min-h-0 flex-1">{sheet.body}</div> : tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : sheet.body}
+        {/* (empty, it lets taps through to what's under it) */}
+        <div ref={setActions} className="pointer-events-none absolute left-3 right-14 top-1 z-10 flex h-11 items-center justify-end [&>*]:pointer-events-auto" />
+        <SheetActions.Provider value={actions}>
+          {full ? <div className="min-h-0 flex-1">{sheet.body}</div> : tone === "board" ? <div className="h-[70dvh] md:h-[60vh]">{sheet.body}</div> : sheet.body}
+        </SheetActions.Provider>
       </div>
     </div>
   );
