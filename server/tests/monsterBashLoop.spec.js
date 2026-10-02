@@ -373,3 +373,148 @@ describe('MonsterBashLoop', () => {
         loop.stop();
     });
 });
+
+// One database shared by two server processes, enforcing the same "one open
+// bout" rule as the unique index, to play out a deploy's overlap.
+function createSharedDb() {
+    const db = { matches: [], bets: [], settledCounts: {}, nextId: 100 };
+    const repoFor = () => ({
+        insertMatch: jest.fn(async (match) => {
+            if (db.matches.some((row) => row.status === 'betting' || row.status === 'fighting')) {
+                throw Object.assign(new Error('duplicate key'), { code: ACTIVE_MATCH_CONFLICT });
+            }
+            const row = { ...match, id: String(db.nextId++), status: 'betting' };
+            db.matches.push(row);
+            return { ...row };
+        }),
+        markFighting: jest.fn(async (id) => {
+            const row = db.matches.find((match) => match.id === id);
+            if (row.status === 'betting') row.status = 'fighting';
+        }),
+        markFinished: jest.fn(async (id, result) => {
+            const row = db.matches.find((match) => match.id === id);
+            if (row.status === 'betting' || row.status === 'fighting') Object.assign(row, result, { status: 'finished' });
+        }),
+        markCancelled: jest.fn(async (id) => {
+            const row = db.matches.find((match) => match.id === id);
+            if (row.status === 'betting' || row.status === 'fighting') row.status = 'cancelled';
+        }),
+        findOpenMatches: jest.fn(async () => db.matches
+            .filter((row) => row.status === 'betting' || row.status === 'fighting')
+            .map((row) => ({ ...row }))),
+        listRecent: jest.fn(async () => []),
+        pruneOlderThan: jest.fn(async () => 0),
+        placeBet: jest.fn(async (bet) => {
+            db.bets.push(bet);
+            return { betId: db.bets.length, balance: 0 };
+        }),
+        poolTotals: jest.fn(async (matchId) => {
+            const pools = { amounts: [0, 0], bettors: [0, 0] };
+            db.bets.filter((bet) => bet.matchId === matchId).forEach((bet) => {
+                pools.amounts[bet.side] += bet.amount;
+                pools.bettors[bet.side] += 1;
+            });
+            return pools;
+        }),
+        settleMatch: jest.fn(async (matchId) => {
+            db.settledCounts[matchId] = (db.settledCounts[matchId] ?? 0) + 1;
+            // Settling is idempotent: only the first call moves coins.
+            return { settled: db.settledCounts[matchId] === 1 ? 1 : 0, pool: 0, paidOut: 0, refunded: false };
+        }),
+        findUnsettledMatchIds: jest.fn(async () => []),
+    });
+    return { db, repoFor };
+}
+
+function expectTrueResults(db) {
+    for (const row of db.matches.filter((match) => match.status === 'finished')) {
+        expect(row.winner).toBe(simulateFight({ seed: row.seed, fighters: row.fighters }).winner);
+    }
+}
+
+describe('MonsterBashLoop across a deploy', () => {
+    test('the new server takes over a fight in progress and plays it out after the old one stops', async () => {
+        const { db, repoFor } = createSharedDb();
+        const old = createLoop(repoFor(), { createSeed: () => `old-${db.nextId}` });
+        await old.loop.start();
+        const bout = db.matches[0];
+        await old.loop.placeBet({ userId: 'u1', matchId: bout.id, side: 1, amount: 10 });
+        await jest.advanceTimersByTimeAsync(BETTING_MS + 10_000);
+        expect(bout.status).toBe('fighting');
+
+        // Deploy: the new server boots while the old one is still running...
+        const next = createLoop(repoFor(), { createSeed: () => `new-${db.nextId}` });
+        await next.loop.start();
+        expect(next.loop.current.id).toBe(bout.id);
+        expect(next.loop.current.pools.amounts).toEqual([0, 10]);
+        await jest.advanceTimersByTimeAsync(3_000);
+        // ...then the old one is shut down.
+        old.loop.stop();
+
+        await playToResult(next.messages);
+        expect(bout.status).toBe('finished');
+        expect(next.messages.find((message) => message.type === 'result').matchId).toBe(bout.id);
+        await jest.advanceTimersByTimeAsync(RESULT_MS + 3_000);
+        expect(db.matches.filter((row) => row.status === 'cancelled')).toHaveLength(0);
+        expect(db.matches).toHaveLength(2);
+        expect(next.loop.current.id).toBe(db.matches[1].id);
+        expectTrueResults(db);
+        next.loop.stop();
+    });
+
+    test('if the old server opens the next bout and then dies, the new server adopts it', async () => {
+        const { db, repoFor } = createSharedDb();
+        const old = createLoop(repoFor(), { createSeed: () => `old-${db.nextId}` });
+        await old.loop.start();
+        await jest.advanceTimersByTimeAsync(BETTING_MS + 5_000);
+
+        // Both run the same fight to the end; the old one wins the race to
+        // open the next bout.
+        const next = createLoop(repoFor(), { createSeed: () => `new-${db.nextId}` });
+        await next.loop.start();
+        next.loop.repo.insertMatch.mockImplementationOnce(async () => {
+            throw Object.assign(new Error('duplicate key'), { code: ACTIVE_MATCH_CONFLICT });
+        });
+        await playToResult(old.messages);
+        await jest.advanceTimersByTimeAsync(RESULT_MS + 100);
+        const second = db.matches[1];
+        expect(second.status).toBe('betting');
+
+        await jest.advanceTimersByTimeAsync(2_000);
+        old.loop.stop();
+        expect(next.loop.current.id).toBe(second.id);
+        expect(silentLog.warn).toHaveBeenCalledWith('Monster Bash found another bout already open; adopting it');
+
+        await jest.advanceTimersByTimeAsync(BETTING_MS);
+        expect(second.status).toBe('fighting');
+        for (let i = 0; i < 300 && second.status !== 'finished'; i++) await jest.advanceTimersByTimeAsync(1_000);
+        expect(second.status).toBe('finished');
+        expect(db.matches.filter((row) => row.status === 'cancelled')).toHaveLength(0);
+        expectTrueResults(db);
+        // Both servers may settle; only one payout happens.
+        expect(Object.values(db.settledCounts).every((count) => count >= 1)).toBe(true);
+        next.loop.stop();
+    });
+
+    test('a server killed during betting leaves the bout open for the next one to finish', async () => {
+        const { db, repoFor } = createSharedDb();
+        const old = createLoop(repoFor());
+        await old.loop.start();
+        const bout = db.matches[0];
+        await old.loop.placeBet({ userId: 'u1', matchId: bout.id, side: 0, amount: 25 });
+        await jest.advanceTimersByTimeAsync(2_000);
+        old.loop.stop();
+
+        await jest.advanceTimersByTimeAsync(1_000);
+        const next = createLoop(repoFor());
+        await next.loop.start();
+        expect(next.loop.current).toMatchObject({ id: bout.id, status: 'betting' });
+        await next.loop.placeBet({ userId: 'u2', matchId: bout.id, side: 1, amount: 5 });
+        await jest.advanceTimersByTimeAsync(BETTING_MS);
+        expect(next.loop.current.pools.amounts).toEqual([25, 5]);
+        await playToResult(next.messages);
+        expect(bout.status).toBe('finished');
+        expectTrueResults(db);
+        next.loop.stop();
+    });
+});

@@ -12,6 +12,7 @@ export const DEFAULT_LOOP_CONFIG = {
     chunkMs: 1_000,
     resultMs: 8_000,
     retryMs: 15_000,
+    conflictRetryMs: 1_000,
     retentionDays: 14,
     pruneEveryMs: 60 * 60 * 1000,
     historySize: 8,
@@ -217,8 +218,11 @@ export class MonsterBashLoop {
         if (this.stopped) return;
         if (this.needsRecovery) {
             this.log.warn('Monster Bash running recovery before the next bout');
-            await this.recover();
+            // A bout still in play (e.g. opened by the other server during a
+            // deploy's overlap) is adopted and shown, not cut short.
+            const resumable = await this.recover({ resume: true });
             this.needsRecovery = false;
+            if (resumable) return this.resume(resumable);
         }
 
         const fighters = pickFighters(this.random, this.lastFighters);
@@ -244,8 +248,16 @@ export class MonsterBashLoop {
                 houseSeed,
             });
         } catch (error) {
-            const reason = error.code === ACTIVE_MATCH_CONFLICT ? 'another bout is still open' : 'database error';
-            this.log.error({ err: error }, `Monster Bash could not open a bout (${reason}); retrying`);
+            if (error.code === ACTIVE_MATCH_CONFLICT) {
+                // Another server (the old one during a deploy) opened a bout
+                // first. Take that bout over rather than waiting on it: if its
+                // server is shutting down, nobody else will ever finish it.
+                this.log.warn('Monster Bash found another bout already open; adopting it');
+                this.needsRecovery = true;
+                this.schedule(() => this.openMatch(), this.config.conflictRetryMs);
+                return;
+            }
+            this.log.error({ err: error }, 'Monster Bash could not open a bout (database error); retrying');
             this.schedule(() => this.openMatch(), this.config.retryMs);
             return;
         }
