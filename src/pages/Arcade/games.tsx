@@ -79,7 +79,7 @@ const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/bui
 const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
-const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=43ce926";
+const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=216613c";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 
 type ArcadeMessage = {
