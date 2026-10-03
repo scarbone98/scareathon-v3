@@ -42,8 +42,9 @@ const WAITING_TTL_MS = 30 * 60_000;
 // How long a dropped player's seat is held.
 export const AWAY_MS = { lobby: 20_000, game: 90_000 };
 // Per second, per socket. The host streams the fight, so it gets far more room.
-const HOST_LIMITS = { packets: 240, bytes: 600_000 };
-const GUEST_LIMITS = { packets: 90, bytes: 40_000 };
+// A host sends ~3 packets per snapshot, 30 snapshots a second, to each guest.
+const HOST_LIMITS = { packets: 600, bytes: 1_500_000 };
+const GUEST_LIMITS = { packets: 120, bytes: 60_000 };
 const OPEN = 1;
 
 export class RoomError extends Error {

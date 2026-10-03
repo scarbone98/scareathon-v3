@@ -98,7 +98,7 @@ describe('8 Bit Evil V2 co-op rooms', () => {
         rooms.start(host);
         let sent = 0;
         for (let i = 0; i < 200; i += 1) sent += rooms.relay(guest, Buffer.from([0, 1])) ? 1 : 0;
-        expect(sent).toBe(90);
+        expect(sent).toBe(120);
         clock += 1000;
         expect(rooms.relay(guest, Buffer.from([0, 1]))).toBe(true);
     });
