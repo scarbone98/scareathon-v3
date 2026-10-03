@@ -78,6 +78,8 @@ const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/ind
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
 const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
+// The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
+const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=0b37016";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 
 type ArcadeMessage = {
@@ -771,6 +773,29 @@ export function createArcadeGames(): MachineData[] {
           title="Liquid Metal"
           url={LIQUID_METAL_URL}
           desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed EVILV2 into WaysideOS.
+    // Plays as a guest for now: it isn't sent the player's session, so it can't touch
+    // their 8 Bit Evil Returns silver and unlocks or post to the leaderboard.
+    {
+      name: "8 Bit Evil Returns V2",
+      secret: true,
+      cartridge: {
+        color: "#7a2fd6",
+        tagline: "The pixel nightmare, rebuilt. Survive the horde.",
+        font: { family: "Press Start 2P" },
+        about: { released: "2026", players: "Single player", genre: "Survival", developer: "scarbone98" },
+        backNote: "test area",
+      },
+      videoUrl: "/game-recordings/8BitEvilReturnsV2.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="8 Bit Evil Returns V2"
+          url={EIGHT_BIT_EVIL_RETURNS_V2_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
