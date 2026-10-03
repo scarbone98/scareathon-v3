@@ -141,19 +141,53 @@ export function dressSlot({
   const runX = screenBox.isEmpty() ? boxLeft - 0.04 : screenBox.min.x - 0.045;
   const runBottom = screenBox.isEmpty() ? dispenserY - 0.6 : screenBox.min.y + 0.03;
   const onFace = (x: number, y: number, lift: number) => new Vector3(x, y, faceAt(x, y) + lift);
+  // At the bottom of the run, a steel junction box screwed to the face; the bundle goes in
+  // through a rubber grommet in its top
+  const jboxWidth = wireRadius * 14;
+  const jboxHeight = wireRadius * 12;
+  const jboxDepth = wireRadius * 7;
+  const jboxTop = runBottom + 0.02;
+  const jboxY = jboxTop - jboxHeight / 2;
+  const jboxX = runX + wireRadius * 1.5;
+  const jboxZ = faceAt(jboxX, jboxY) + jboxDepth / 2;
+  const steel = new MeshStandardMaterial({ color: new Color("#a9adb3"), metalness: 0.35, roughness: 0.4 });
+  const lidSteel = new MeshStandardMaterial({ color: new Color("#c3c6cb"), metalness: 0.35, roughness: 0.34 });
+  const rubber = new MeshStandardMaterial({ color: new Color("#1b1a1c"), roughness: 0.8 });
+  const fixed = (geometry: BufferGeometry, material: Material, x: number, y: number, z: number) => {
+    wireParts.push({ geometry, material });
+    const mesh = new Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    rig.group.add(mesh);
+  };
+  fixed(new BoxGeometry(jboxWidth, jboxHeight, jboxDepth), steel, jboxX, jboxY, jboxZ);
+  // its lid, a shade lighter and a touch smaller, with a screw in each corner
+  fixed(new BoxGeometry(jboxWidth * 0.88, jboxHeight * 0.86, wireRadius * 0.5), lidSteel, jboxX, jboxY, jboxZ + jboxDepth / 2);
+  const screw = new BoxGeometry(wireRadius * 0.9, wireRadius * 0.9, wireRadius * 0.4);
+  wireParts.push({ geometry: screw, material: rubber });
+  [-1, 1].forEach((sx) =>
+    [-1, 1].forEach((sy) => {
+      const head = new Mesh(screw, rubber);
+      head.position.set(jboxX + sx * jboxWidth * 0.34, jboxY + sy * jboxHeight * 0.33, jboxZ + jboxDepth / 2 + wireRadius * 0.4);
+      rig.group.add(head);
+    })
+  );
+  const grommetZ = jboxZ + jboxDepth * 0.1;
+  fixed(new BoxGeometry(wireRadius * 8.4, wireRadius * 1.4, wireRadius * 3.6), rubber, jboxX, jboxTop + wireRadius * 0.6, grommetZ);
   ["#b3281e", "#151315", "#d9b83a"].forEach((color, i) => {
     const spread = (i - 1) * wireRadius * 2.4;
     const lift = wireRadius * 1.6 + (i === 1 ? wireRadius * 0.8 : 0);
     const sag = Math.sin(i * 2.1 + 0.4) * 0.012;
+    // (the bundle closes up as it gathers into the grommet)
+    const into = jboxX + spread * 0.8;
     wire([
       new Vector3(boxLeft + wireRadius, dispenserY + spread * 0.6, boxZ + spread * 0.3),
       new Vector3(boxLeft - 0.025, dispenserY - 0.01 + spread * 0.5, boxZ - dispenserDepth * 0.15),
       onFace(runX + spread - 0.012, dispenserY - dispenserHeight * 0.9, lift + 0.01),
       onFace(runX + spread + sag, (dispenserY + runBottom) / 2, lift),
-      onFace(runX + spread, runBottom + 0.05, lift),
-      // In through the face, by the scope
-      onFace(runX + spread + 0.01, runBottom + 0.01, wireRadius * 0.6),
-      onFace(runX + spread + 0.012, runBottom, -0.03),
+      onFace(runX + spread, runBottom + 0.06, lift),
+      new Vector3(into, jboxTop + wireRadius * 2.5, grommetZ),
+      // In through the grommet
+      new Vector3(into, jboxTop - wireRadius * 2, grommetZ),
     ], color);
   });
   // Up into the marquee housing
