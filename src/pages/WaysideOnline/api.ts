@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
+import type { AvatarLook } from "../../components/avatar/types";
 
 export type Board = "general" | "scareathon";
 
@@ -91,4 +92,46 @@ export function ago(iso: string) {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   if (seconds < 86400 * 7) return `${Math.floor(seconds / 86400)}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// The lounge
+
+export type LoungePlayer = { userId: string; name: string; x: number; y: number; say: string | null; saidAt: number | null };
+export type CrowdMember = { userId: string; name: string };
+
+export type LoungeMessage =
+  | { type: "room"; players: LoungePlayer[]; max: number }
+  | { type: "in"; userId: string; admin: boolean }
+  | { type: "out"; reason: "elsewhere" | "kicked" }
+  | { type: "enter"; player: LoungePlayer }
+  | { type: "leave"; userId: string }
+  | { type: "move"; userId: string; x: number; y: number }
+  | { type: "say"; userId: string; say: string; saidAt: number }
+  | { type: "error"; code: string; message: string };
+
+export function loungeSocketUrl() {
+  const base = import.meta.env.VITE_BASE_URL || window.location.origin;
+  const url = new URL("wayside-online/lounge/ws", base.endsWith("/") ? base : `${base}/`);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.toString();
+}
+
+// A one-use way into the lounge for the signed-in player
+export async function loungeTicket() {
+  return readJson<{ ticket: string }>(await fetchWithAuth("/wayside-online/lounge/ticket", { method: "POST" }));
+}
+
+export async function loadCrowd() {
+  return readJson<{ data: CrowdMember[] }>(await fetchWithAuth("/wayside-online/lounge/crowd")).then((body) => body.data ?? []);
+}
+
+// How each player looks, fetched sixty at a time (the most the server takes)
+export async function loadLooks(userIds: string[]) {
+  const ids = [...new Set(userIds)].sort();
+  const pages: string[][] = [];
+  for (let i = 0; i < ids.length; i += 60) pages.push(ids.slice(i, i + 60));
+  const results = await Promise.all(
+    pages.map(async (page) => readJson<{ data: Record<string, AvatarLook> }>(await fetchWithAuth(`/user/looks?ids=${page.join(",")}`)).then((body) => body.data ?? {}))
+  );
+  return Object.assign({}, ...results) as Record<string, AvatarLook>;
 }

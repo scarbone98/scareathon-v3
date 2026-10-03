@@ -24,6 +24,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && url.startsWith('/crypt-clash/ws')) ||
         // So are Frog Ball co-op rooms.
         (method === 'GET' && url.startsWith('/frog-ball/ws')) ||
+        // Anyone can watch the Wayside Online lounge and see who's about (coming in needs a login)
+        (method === 'GET' && (url.startsWith('/wayside-online/lounge/ws') || url.startsWith('/wayside-online/lounge/crowd'))) ||
         (method === 'GET' && PICTO_BOX_IMAGE.test(url)) ||
         method === 'OPTIONS'
     );
@@ -37,6 +39,8 @@ export function isOptionalAuthRoute(method, url) {
         // The Picto Box wall: anyone can look; signed in, you can take your own down
         url === '/picto-box/photos' || url.startsWith('/picto-box/photos?') ||
         // Wayside Online: anyone can read the boards; signed in, you see your own reactions
-        url.startsWith('/wayside-online/threads')
+        url.startsWith('/wayside-online/threads') ||
+        // How players look (the lounge draws everyone in it, for guests too)
+        url.startsWith('/user/looks')
     );
 }

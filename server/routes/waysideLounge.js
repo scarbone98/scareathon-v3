@@ -1,0 +1,137 @@
+import websocket from '@fastify/websocket';
+import pool from '../db/mockDB.js';
+import { isAdminUser } from './inbox.js';
+import { LoungeError, createLounge } from '../waysideOnline/lounge.js';
+import {
+    RegExpMatcher,
+    TextCensor,
+    englishDataset,
+    englishRecommendedTransformers,
+} from 'obscenity';
+
+const HEARTBEAT_MS = 30_000;
+// How many members who aren't in stand about the room so it's never empty
+export const CROWD_SIZE = 40;
+
+const ERROR_MESSAGES = {
+    ticket: 'Your way in expired. Try again.',
+    full: 'The lounge is full right now. Try again in a minute.',
+    kicked: "You've been shown out of the lounge for a little while.",
+    slow: 'Slow down a little.',
+    forbidden: "That's for admins.",
+};
+
+const matcher = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
+const censor = new TextCensor();
+const mask = (line) => censor.applyTo(line, matcher.getAllMatches(line));
+
+// The Wayside Online lounge: GET /ws (open to guests, who watch), POST /ticket (a
+// login's one-use way in), GET /crowd (members who've made an avatar, to fill the room).
+export default async function waysideLoungeRoutes(fastify, { lounge: injectedLounge } = {}) {
+    const log = fastify.log.child({ feature: 'wayside-lounge' });
+    const lounge = injectedLounge ?? createLounge({ mask });
+
+    if (!fastify.hasDecorator('websocketServer')) {
+        await fastify.register(websocket, { options: { maxPayload: 8192 } });
+    }
+
+    const sockets = new Set();
+    const heartbeat = setInterval(() => {
+        for (const socket of sockets) {
+            if (socket.isAlive === false) {
+                socket.terminate();
+                continue;
+            }
+            socket.isAlive = false;
+            socket.ping();
+        }
+    }, HEARTBEAT_MS);
+    heartbeat.unref();
+
+    fastify.addHook('onClose', async () => {
+        clearInterval(heartbeat);
+        lounge.close();
+    });
+
+    fastify.post('/ticket', async (request, reply) => {
+        try {
+            const result = await pool.query('SELECT username FROM users WHERE id = $1', [request.user.sub]);
+            const ticket = lounge.ticket({
+                userId: request.user.sub,
+                name: result.rows[0]?.username || 'Someone',
+                admin: isAdminUser(request.user),
+            });
+            return { ticket };
+        } catch (error) {
+            if (error instanceof LoungeError) return reply.code(403).send({ error: ERROR_MESSAGES[error.code] });
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'Could not open the lounge door' });
+        }
+    });
+
+    fastify.get('/crowd', async (_request, reply) => {
+        try {
+            const result = await pool.query(`
+                SELECT p.user_id, u.username
+                FROM user_avatar_profile p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.build_chosen
+                ORDER BY p.updated_at DESC
+                LIMIT $1
+            `, [CROWD_SIZE]);
+            return { data: result.rows.map((row) => ({ userId: row.user_id, name: row.username || 'Someone' })) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'Could not see who is about' });
+        }
+    });
+
+    fastify.get('/ws', { websocket: true }, (socket) => {
+        sockets.add(socket);
+        socket.isAlive = true;
+        socket.on('pong', () => {
+            socket.isAlive = true;
+        });
+        socket.on('error', (error) => log.warn({ err: error }, 'Lounge socket error'));
+        socket.on('close', () => {
+            sockets.delete(socket);
+            lounge.disconnect(socket);
+        });
+        lounge.watch(socket);
+        socket.on('message', (raw) => {
+            let message;
+            try {
+                message = JSON.parse(raw.toString());
+            } catch {
+                return;
+            }
+            try {
+                switch (message?.type) {
+                    case 'join':
+                        lounge.join(socket, message);
+                        break;
+                    case 'move':
+                        lounge.move(socket, message);
+                        break;
+                    case 'say':
+                        lounge.say(socket, message);
+                        break;
+                    case 'kick':
+                        lounge.kick(socket, message);
+                        break;
+                    case 'leave':
+                        lounge.leave(socket);
+                        break;
+                    default:
+                        break;
+                }
+            } catch (error) {
+                if (error instanceof LoungeError) {
+                    socket.send(JSON.stringify({ type: 'error', code: error.code, message: ERROR_MESSAGES[error.code] ?? 'Something went wrong.' }));
+                } else {
+                    log.error({ err: error }, 'Lounge message failed');
+                }
+            }
+        });
+    });
+}

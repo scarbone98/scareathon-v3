@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
 import { ago, loadBoard, loadThread, react, sendPost, takeDown, useSession, type Board, type Post } from "./api";
+import Lounge from "./Lounge";
 import "./waysideOnline.css";
 
 // Wayside Online: the arcade's message board, dialled up from a cabinet. Two boards
@@ -259,7 +260,7 @@ function ThreadView({ id, signedIn, onBack }: { id: string; signedIn: boolean; o
 export default function WaysideOnlinePage() {
   const session = useSession();
   const signedIn = Boolean(session);
-  const [board, setBoard] = useState<Board>("general");
+  const [board, setBoard] = useState<Board | "lounge">("general");
   const [open, setOpen] = useState<string | null>(null);
   const busy = useQueryClient().isFetching({ queryKey: ["wayside-online"] }) > 0;
   return (
@@ -290,9 +291,18 @@ export default function WaysideOnlinePage() {
               {each.label}
             </button>
           ))}
+          <button type="button" role="tab" aria-selected={board === "lounge"} className="wo-tab" onClick={() => setBoard("lounge")}>
+            Lounge
+          </button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col px-3 pb-3">
-          {open ? <ThreadView key={open} id={open} signedIn={signedIn} onBack={() => setOpen(null)} /> : <BoardView key={board} board={board} signedIn={signedIn} onOpen={setOpen} />}
+          {board === "lounge" ? (
+            <Lounge signedIn={signedIn} goSignIn={goSignIn} />
+          ) : open ? (
+            <ThreadView key={open} id={open} signedIn={signedIn} onBack={() => setOpen(null)} />
+          ) : (
+            <BoardView key={board} board={board} signedIn={signedIn} onOpen={setOpen} />
+          )}
         </div>
       </div>
     </div>

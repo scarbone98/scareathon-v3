@@ -146,3 +146,120 @@
     animation: none;
   }
 }
+
+/* The lounge: a painted club room, avatars standing on its floor with their feet on the spot */
+
+.lounge-room {
+  background: #3b2a4a;
+  border: 2px solid;
+  border-color: var(--wo-shade) var(--wo-light) var(--wo-light) var(--wo-shade);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lounge-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -100%);
+  transition-property: left, top;
+  transition-timing-function: linear;
+  pointer-events: none;
+}
+
+.lounge-body {
+  position: relative;
+  display: block;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: lounge-bob 0.5s steps(2) infinite paused;
+}
+.lounge-walking {
+  animation-play-state: running;
+}
+.lounge-idle {
+  filter: saturate(0.75) brightness(0.92);
+}
+
+.lounge-shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -2px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+}
+
+.lounge-name {
+  margin-top: 1px;
+  padding: 0 4px;
+  background: rgba(20, 14, 28, 0.78);
+  color: #f4f2ec;
+  font-size: 15px;
+  line-height: 1.1;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lounge-me {
+  color: #ffd75e;
+}
+
+.lounge-bubble {
+  position: relative;
+  margin-bottom: 6px;
+  max-width: 132px;
+  padding: 2px 7px;
+  background: var(--wo-paper);
+  color: var(--wo-ink);
+  border: 2px solid var(--wo-dark);
+  font-size: 17px;
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+  animation: lounge-pop 0.15s steps(2);
+}
+.lounge-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 8px;
+  height: 6px;
+  margin-left: -4px;
+  background: var(--wo-dark);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.lounge-fire {
+  animation: lounge-flicker 0.6s steps(3) infinite;
+}
+.lounge-glow {
+  animation: lounge-flicker 2.4s steps(2) infinite;
+}
+
+@keyframes lounge-pop {
+  from {
+    transform: scale(0.6);
+  }
+}
+@keyframes lounge-flicker {
+  50% {
+    opacity: 0.75;
+  }
+}
+@keyframes lounge-bob {
+  50% {
+    translate: 0 -2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lounge-fire,
+  .lounge-glow,
+  .lounge-bubble {
+    animation: none;
+  }
+}
