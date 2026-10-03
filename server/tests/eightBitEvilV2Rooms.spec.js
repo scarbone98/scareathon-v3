@@ -1,0 +1,127 @@
+import { BROADCAST, createRoomManager } from '../eightBitEvilV2/rooms.js';
+import { isPublicRoute } from '../utils/authRoutes.js';
+
+function fakeSocket() {
+    return {
+        readyState: 1,
+        texts: [],
+        packets: [],
+        send(data, options) {
+            if (options?.binary) this.packets.push(Buffer.from(data));
+            else this.texts.push(JSON.parse(data));
+        },
+        last() {
+            return this.texts[this.texts.length - 1];
+        },
+    };
+}
+
+describe('8 Bit Evil V2 co-op rooms', () => {
+    let clock;
+    let rooms;
+    beforeEach(() => {
+        clock = 0;
+        rooms = createRoomManager({ now: () => clock });
+    });
+
+    test('guests may open the socket', () => {
+        expect(isPublicRoute('GET', '/8bitevilreturns/v2/ws')).toBe(true);
+    });
+
+    test('create gives a code; joiners take the next seats up to four', () => {
+        const host = fakeSocket();
+        const code = rooms.create(host, { name: 'Sam', hero: 'matt' });
+        expect(code).toMatch(/^[A-Z0-9]{4}$/);
+        expect(host.last()).toMatchObject({ type: 'room', code, slot: 0, host: true });
+        const guests = [fakeSocket(), fakeSocket(), fakeSocket()];
+        guests.forEach((g, i) => rooms.join(g, { code: code.toLowerCase(), name: `P${i}`, hero: 'jon' }));
+        expect(guests.map((g) => g.last().slot)).toEqual([1, 2, 3]);
+        expect(host.last().players).toHaveLength(4);
+        expect(() => rooms.join(fakeSocket(), { code })).toThrow('full');
+        expect(() => rooms.join(fakeSocket(), { code: 'ZZZZ' })).toThrow('missing');
+    });
+
+    test('names and ids are cleaned', () => {
+        const host = fakeSocket();
+        rooms.create(host, { name: '<b>Sam</b>!!', hero: 'Robert"); DROP' });
+        expect(host.last().players[0]).toEqual({ slot: 0, name: 'bSamb', hero: 'joe' });
+    });
+
+    test('lobby picks: anyone changes hero, only the host changes stage', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code });
+        rooms.pick(guest, { hero: 'alex', stage: 'crimson_crypt' });
+        expect(host.last().players[1].hero).toBe('alex');
+        expect(host.last().stage).toBe('graveyard');
+        rooms.pick(host, { stage: 'crimson_crypt' });
+        expect(guest.last().stage).toBe('crimson_crypt');
+    });
+
+    test('only the host starts, and nobody joins after', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code });
+        expect(() => rooms.start(guest)).toThrow('notHost');
+        rooms.start(host);
+        expect(guest.last()).toMatchObject({ type: 'start', stage: 'graveyard' });
+        expect(() => rooms.join(fakeSocket(), { code })).toThrow('started');
+    });
+
+    test('relay: host to one seat or everyone; guests only reach the host', () => {
+        const host = fakeSocket();
+        const a = fakeSocket();
+        const b = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(a, { code });
+        rooms.join(b, { code });
+        expect(rooms.relay(host, Buffer.from([BROADCAST, 9]))).toBe(false); // not started yet
+        rooms.start(host);
+        rooms.relay(host, Buffer.from([2, 7]));
+        expect(a.packets).toHaveLength(0);
+        expect(b.packets[0]).toEqual(Buffer.from([0, 7]));
+        rooms.relay(host, Buffer.from([BROADCAST, 8]));
+        expect(a.packets[0]).toEqual(Buffer.from([0, 8]));
+        // A guest can't spoof the host or reach another guest.
+        rooms.relay(a, Buffer.from([2, 5]));
+        expect(host.packets[0]).toEqual(Buffer.from([1, 5]));
+        expect(b.packets).toHaveLength(2);
+    });
+
+    test('guests are rate limited per second', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code });
+        rooms.start(host);
+        let sent = 0;
+        for (let i = 0; i < 200; i += 1) sent += rooms.relay(guest, Buffer.from([0, 1])) ? 1 : 0;
+        expect(sent).toBe(90);
+        clock += 1000;
+        expect(rooms.relay(guest, Buffer.from([0, 1]))).toBe(true);
+    });
+
+    test('a guest leaving frees the seat; the host leaving closes the room', () => {
+        const host = fakeSocket();
+        const a = fakeSocket();
+        const b = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(a, { code });
+        rooms.leave(a);
+        expect(host.texts.some((m) => m.type === 'left' && m.slot === 1)).toBe(true);
+        rooms.join(b, { code });
+        expect(b.last().slot).toBe(1);
+        rooms.disconnect(host);
+        expect(b.last()).toEqual({ type: 'closed', reason: 'host' });
+        expect(rooms.size()).toBe(0);
+    });
+
+    test('idle rooms are swept', () => {
+        rooms.create(fakeSocket(), {});
+        clock += 31 * 60_000;
+        rooms.sweep();
+        expect(rooms.size()).toBe(0);
+    });
+});

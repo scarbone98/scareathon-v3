@@ -1,5 +1,17 @@
+import websocket from '@fastify/websocket';
 import pool from '../db/mockDB.js';
 import { getGameId } from './8bitevilreturns.js';
+import { RoomError, createRoomManager } from '../eightBitEvilV2/rooms.js';
+
+const HEARTBEAT_MS = 30_000;
+const SWEEP_MS = 60_000;
+const ERROR_MESSAGES = {
+    missing: "There's no room with that code.",
+    full: 'That room already has four players.',
+    started: 'That game has already started.',
+    busy: 'Too many games right now. Try again in a minute.',
+    notHost: 'Only the host can start.',
+};
 
 // 8 Bit Evil Returns V2 (the Godot remake, github.com/scarbone98/8BitEvilReturns-godot)
 // keeps its own save: unlocks, feats, power-ups and lifetime totals. It sits
@@ -63,7 +75,85 @@ async function readSave(userId, gameId) {
     return data ? { save: data.save ?? null, revision: data.revision ?? null } : { save: null, revision: null };
 }
 
-export default async function eightBitEvilV2Routes(fastify) {
+export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRooms } = {}) {
+    const log = fastify.log.child({ feature: '8bit-evil-v2' });
+    const rooms = injectedRooms ?? createRoomManager({ log });
+    if (!fastify.hasDecorator('websocketServer')) {
+        await fastify.register(websocket, { options: { maxPayload: 8192 } });
+    }
+    const sockets = new Set();
+    const heartbeat = setInterval(() => {
+        for (const socket of sockets) {
+            if (socket.isAlive === false) {
+                socket.terminate();
+                continue;
+            }
+            socket.isAlive = false;
+            socket.ping();
+        }
+    }, HEARTBEAT_MS);
+    heartbeat.unref();
+    const sweep = setInterval(() => rooms.sweep(), SWEEP_MS);
+    sweep.unref();
+    fastify.addHook('onClose', async () => {
+        clearInterval(heartbeat);
+        clearInterval(sweep);
+        rooms.close();
+    });
+
+    // Co-op rooms: one socket per player for the whole session. Guests can play.
+    fastify.get('/ws', { websocket: true }, (socket) => {
+        sockets.add(socket);
+        socket.isAlive = true;
+        socket.on('pong', () => {
+            socket.isAlive = true;
+        });
+        socket.on('error', (error) => log.warn({ err: error }, '8 Bit Evil V2 socket error'));
+        socket.on('close', () => {
+            sockets.delete(socket);
+            rooms.disconnect(socket);
+        });
+        socket.on('message', (raw, isBinary) => {
+            if (isBinary) {
+                rooms.relay(socket, raw);
+                return;
+            }
+            let message;
+            try {
+                message = JSON.parse(raw.toString());
+            } catch {
+                return;
+            }
+            try {
+                switch (message?.type) {
+                    case 'create':
+                        rooms.create(socket, message);
+                        break;
+                    case 'join':
+                        rooms.join(socket, message);
+                        break;
+                    case 'pick':
+                        rooms.pick(socket, message);
+                        break;
+                    case 'start':
+                        rooms.start(socket);
+                        break;
+                    case 'leave':
+                        rooms.leave(socket);
+                        break;
+                    default:
+                        break;
+                }
+            } catch (error) {
+                if (error instanceof RoomError) {
+                    socket.send(JSON.stringify({ type: 'error', code: error.code, message: ERROR_MESSAGES[error.code] ?? 'Something went wrong.' }));
+                } else {
+                    log.error({ err: error }, '8 Bit Evil V2 message failed');
+                }
+            }
+        });
+    });
+
     fastify.get('/save', async (request, reply) => {
         try {
             return await readSave(request.user.sub, await getGameId());
