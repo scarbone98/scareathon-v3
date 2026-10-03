@@ -55,6 +55,9 @@ export type Input = {
   use: boolean;
   knife: boolean;
   swap: boolean;
+  // Straight to a gun slot (number keys, the scroll wheel going back), on
+  // the frame it changes.
+  slot?: number;
   sprint: boolean;
 };
 
@@ -143,6 +146,8 @@ export type Player = {
   cur: number;
   perks: PerkId[];
   reloadT: number;
+  // A reload asked for while the hands were busy, held this long.
+  reloadQ: number;
   fireCd: number;
   switchT: number;
   knifeT: number;
@@ -257,6 +262,7 @@ export function newGame(opts: { demo?: boolean; seed?: number } = {}): Game {
       cur: 0,
       perks: [],
       reloadT: 0,
+      reloadQ: 0,
       fireCd: 0,
       switchT: 0,
       knifeT: 0,
@@ -481,10 +487,12 @@ function stepPlayer(g: Game, dt: number, input: Input) {
   if (g.demo) p.hp = p.maxHp;
 
   // Swapping guns.
-  if (input.swap && !g.prev.swap && p.weapons.length > 1 && !busy) {
-    p.cur = (p.cur + 1) % p.weapons.length;
+  const pick = input.slot !== undefined && input.slot !== p.cur && input.slot < p.weapons.length ? input.slot : input.swap && !g.prev.swap && p.weapons.length > 1 ? (p.cur + 1) % p.weapons.length : -1;
+  if (pick >= 0 && !busy) {
+    p.cur = pick;
     p.switchT = 0.55;
     p.reloadT = 0;
+    p.reloadQ = 0;
     g.events.push({ type: "switch" });
   }
 
@@ -495,13 +503,13 @@ function stepPlayer(g: Game, dt: number, input: Input) {
     if (before > 0.38 && p.knifeT <= 0.38) knifeHit(g);
   } else if (input.knife && !g.prev.knife && !busy) {
     p.knifeT = 0.55;
-    p.reloadT = 0;
   }
 
   // Reloading.
   const def = WEAPONS[w.id];
   const reloadTime = (def.reload * (p.perks.includes("piragua") ? 0.5 : 1));
-  if (p.reloadT > 0) {
+  // A knife pauses a reload rather than wasting it.
+  if (p.reloadT > 0 && p.knifeT <= 0 && !busy) {
     p.reloadT -= dt;
     if (def.perShell && input.fire && !g.prev.fire && w.mag > 0) p.reloadT = 0;
     else if (p.reloadT <= 0) {
@@ -519,11 +527,16 @@ function stepPlayer(g: Game, dt: number, input: Input) {
     }
   }
   const canAct = !busy && p.knifeT <= 0 && p.switchT <= 0;
-  const wantReload = (input.reload && !g.prev.reload) || (w.mag === 0 && w.reserve > 0 && (input.fire || p.fireCd <= 0));
+  // A press mid-swap or mid-stab still counts once the hands are free.
+  if (input.reload && !g.prev.reload) p.reloadQ = 0.8;
+  else p.reloadQ = Math.max(0, p.reloadQ - dt);
+  const wantReload = p.reloadQ > 0 || (w.mag === 0 && w.reserve > 0 && (input.fire || p.fireCd <= 0));
   if (canAct && p.reloadT <= 0 && wantReload && w.mag < magOf(w) && w.reserve > 0) {
     p.reloadT = reloadTime + (def.perShell ? 0.15 : 0);
+    p.reloadQ = 0;
     g.events.push({ type: "reload", weapon: w.id });
   }
+  if (p.reloadT <= 0 && (w.mag >= magOf(w) || w.reserve <= 0)) p.reloadQ = 0;
 
   // Firing.
   const trigger = def.auto ? input.fire : input.fire && !g.prev.fire;

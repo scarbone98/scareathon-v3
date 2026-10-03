@@ -19,6 +19,7 @@ export type Hud = {
   reserve: number;
   magSize: number;
   reloading: boolean;
+  reloadFrac: number; // 0..1 through the reload, for the bar
   others: string[];
   perks: PerkId[];
   prompt: Game["prompt"];
@@ -31,6 +32,7 @@ export type Hud = {
   left: number; // zombies left this round
   fps: number;
   view: ViewMode;
+  pad: boolean; // playing on a gamepad, so prompts name its buttons
 };
 
 export type Popup = { id: number; text: string; sub?: string; color: string; big?: boolean };
@@ -43,12 +45,26 @@ export type Callbacks = {
   onPoints: (p: PointsPop) => void;
   onOver: (r: RunResult) => void;
   onPause: () => void;
+  // Gamepad menu buttons, on the press: Start, A, B, and Back/View.
+  onPad: (b: "start" | "a" | "b" | "back") => void;
 };
 
 type Mode = "demo" | "play" | "over";
 
 const POWER_NAMES: Record<PowerKind, string> = { ammo: "MAX AMMO", insta: "INSTA-KILL", double: "DOUBLE POINTS", nuke: "KABOOM!" };
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+// Standard gamepad layout (Xbox names).
+const PAD = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, lt: 6, rt: 7, back: 8, start: 9, l3: 10, r3: 11, up: 12 } as const;
+const STICK_DEAD = 0.14;
+// Past the dead zone, rescaled to 0..1 and curved so small nudges aim finely.
+const stick = (x: number, y: number, curve = 1) => {
+  const m = Math.hypot(x, y);
+  if (m < STICK_DEAD) return { x: 0, y: 0, m: 0 };
+  const k = Math.min(1, (m - STICK_DEAD) / (1 - STICK_DEAD));
+  const s = Math.pow(k, curve) / m;
+  return { x: x * s, y: y * s, m: Math.pow(k, curve) };
+};
 
 export class GameController {
   private renderer: Renderer;
@@ -73,7 +89,19 @@ export class GameController {
   private tapped = new Set<string>();
   private mouse = { fire: false, ads: false };
   private touch = { mx: 0, mz: 0, fire: false, ads: false, reload: false, use: false, knife: false, swap: false, sprint: false };
-  private wheelSwap = false;
+  // The scroll wheel: +1 next gun, -1 the one before. Trackpads send a flood
+  // of small deltas, so they add up to a notch and then rest a moment.
+  private wheelDir = 0;
+  private wheelAcc = 0;
+  private wheelRest = 0;
+  // Touch buttons pressed and let go between two frames still count once.
+  private touchTap = new Set<string>();
+  // Gamepads: only ones that have pressed a button, since some phones pose
+  // their motion sensors as a pad with a stick stuck off-centre.
+  private padsAwake = new Set<number>();
+  private padHeld = new Set<number>();
+  private padSprint = false;
+  private usingPad = false;
   private sensitivity = 0.0022;
   private locked = false;
 
@@ -218,6 +246,7 @@ export class GameController {
   }
   setButton(name: "fire" | "ads" | "reload" | "use" | "knife" | "swap" | "sprint", down: boolean) {
     this.touch[name] = down;
+    if (down) this.touchTap.add(name);
   }
 
   dispose() {
@@ -243,6 +272,10 @@ export class GameController {
   private clearInput() {
     this.keys.clear();
     this.tapped.clear();
+    this.touchTap.clear();
+    this.wheelDir = 0;
+    this.wheelAcc = 0;
+    this.padSprint = false;
     this.mouse = { fire: false, ads: false };
     this.touch = { mx: 0, mz: 0, fire: false, ads: false, reload: false, use: false, knife: false, swap: false, sprint: false };
   }
@@ -251,6 +284,7 @@ export class GameController {
     const k = e.key.toLowerCase();
     if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright", "tab"].includes(k)) e.preventDefault();
     if (e.repeat) return;
+    this.usingPad = false;
     if ((k === "escape" || k === "p") && this.mode === "play") this.cb.onPause();
     this.keys.add(k);
     this.tapped.add(k);
@@ -259,6 +293,7 @@ export class GameController {
   private onBlur = () => this.clearInput();
 
   private onMouseMove = (e: MouseEvent) => {
+    if (Math.abs(e.movementX) + Math.abs(e.movementY) > 3) this.usingPad = false;
     if (this.viewMode === "top") {
       const r = this.canvas.getBoundingClientRect();
       this.cursor = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -(((e.clientY - r.top) / r.height) * 2 - 1) };
@@ -270,6 +305,7 @@ export class GameController {
   };
   private onMouseDown = (e: MouseEvent) => {
     if (this.mode !== "play" || this.paused || this.isTouch) return;
+    this.usingPad = false;
     if (this.viewMode === "top") {
       // Clicks on buttons aren't shots.
       if (e.target !== this.canvas && !(e.target as HTMLElement)?.dataset?.grab) return;
@@ -294,8 +330,14 @@ export class GameController {
     if (e.button === 0) this.mouse.fire = false;
     if (e.button === 2) this.mouse.ads = false;
   };
-  private onWheel = () => {
-    if ((this.locked || this.viewMode === "top") && this.mode === "play") this.wheelSwap = true;
+  private onWheel = (e: WheelEvent) => {
+    if (!(this.locked || this.viewMode === "top") || this.mode !== "play" || this.paused) return;
+    if (performance.now() < this.wheelRest) return;
+    this.wheelAcc += e.deltaMode === 0 ? e.deltaY : e.deltaY * 40;
+    if (Math.abs(this.wheelAcc) < 40) return;
+    this.wheelDir = Math.sign(this.wheelAcc);
+    this.wheelAcc = 0;
+    this.wheelRest = performance.now() + 220;
   };
   private onContext = (e: Event) => {
     if (this.mode === "play") e.preventDefault();
@@ -321,25 +363,111 @@ export class GameController {
     return this.locked;
   }
 
+  get padActive() {
+    return this.usingPad;
+  }
+
+  private pads() {
+    const out: Gamepad[] = [];
+    for (const pad of navigator.getGamepads?.() ?? []) {
+      if (!pad || !pad.connected) continue;
+      if (!this.padsAwake.has(pad.index)) {
+        if (!pad.buttons.some((b) => b.pressed)) continue;
+        this.padsAwake.add(pad.index);
+      }
+      out.push(pad);
+    }
+    return out;
+  }
+
+  // Menu buttons on the press, any time, even paused or on the title.
+  private pollPadMenu() {
+    for (const pad of this.pads()) {
+      for (const [b, name] of [[PAD.start, "start"], [PAD.a, "a"], [PAD.b, "b"], [PAD.back, "back"]] as const) {
+        const key = pad.index * 100 + b;
+        const down = !!pad.buttons[b]?.pressed;
+        if (down && !this.padHeld.has(key)) {
+          this.usingPad = true;
+          this.cb.onPad(name);
+        }
+        if (down) this.padHeld.add(key);
+        else this.padHeld.delete(key);
+      }
+    }
+  }
+
+  // Gamepad play, laid out like Call of Duty: left stick moves (click it to
+  // run), right stick looks, RT fires, LT aims, X reloads and uses, A uses,
+  // Y swaps, B or R3 knifes.
+  private readPad(dt: number) {
+    const top = this.viewMode === "top";
+    const out = { mx: 0, mz: 0, fire: false, ads: false, reload: false, use: false, knife: false, swap: false, sprint: false, any: false };
+    for (const pad of this.pads()) {
+      const btn = (i: number) => !!pad.buttons[i]?.pressed || (pad.buttons[i]?.value ?? 0) > 0.35;
+      const move = stick(pad.axes[0] ?? 0, pad.axes[1] ?? 0);
+      const look = stick(pad.axes[2] ?? 0, pad.axes[3] ?? 0, top ? 1 : 1.8);
+      const fire = btn(PAD.rt);
+      const ads = btn(PAD.lt);
+      if (btn(PAD.l3) && move.m > 0.2) this.padSprint = true;
+      if (move.m < 0.3 || fire || ads) this.padSprint = false;
+      if (top) {
+        out.mx += move.x;
+        out.mz += move.y;
+        if (look.m > 0.2) this.yaw = Math.atan2(look.x, -look.y);
+      } else {
+        // Forward and strafe, turned to where you face.
+        const s = Math.sin(this.yaw);
+        const c = Math.cos(this.yaw);
+        out.mx += s * -move.y + c * move.x;
+        out.mz += -c * -move.y + s * move.x;
+        const rate = (this.sensitivity / 0.0022) * (this.mouse.ads || ads ? 0.5 : 1);
+        this.yaw += look.x * 3.4 * rate * dt;
+        this.pitch = clamp(this.pitch - look.y * 2.3 * rate * dt, -1.35, 1.35);
+      }
+      out.fire ||= fire;
+      out.ads ||= ads;
+      out.reload ||= btn(PAD.x);
+      out.use ||= btn(PAD.x) || btn(PAD.a);
+      out.knife ||= btn(PAD.b) || btn(PAD.r3) || btn(PAD.rb);
+      out.swap ||= btn(PAD.y) || btn(PAD.up);
+      out.sprint ||= this.padSprint;
+      out.any ||= move.m > 0 || look.m > 0 || pad.buttons.some((b) => b.pressed);
+    }
+    if (out.any) this.usingPad = true;
+    return out;
+  }
+
   private readInput(dt: number): Input {
     const k = this.keys;
     const tap = this.tapped;
     const has = (...n: string[]) => n.some((x) => k.has(x) || tap.has(x));
-    const t = this.touch;
+    const tt = this.touchTap;
+    const t = {
+      ...this.touch,
+      fire: this.touch.fire || tt.has("fire"),
+      ads: this.touch.ads || tt.has("ads"),
+      reload: this.touch.reload || tt.has("reload"),
+      use: this.touch.use || tt.has("use"),
+      knife: this.touch.knife || tt.has("knife"),
+      swap: this.touch.swap || tt.has("swap"),
+    };
+    tt.clear();
     const top = this.viewMode === "top";
-    let fire = this.mouse.fire || has("j", "mouse0") || t.fire;
+    const pad = this.readPad(dt);
+    let fire = this.mouse.fire || has("j", "mouse0") || t.fire || pad.fire;
     let mx = 0;
     let mz = 0;
     if (top) {
       // Walk on the map's axes; aim at the mouse, or with the arrow keys.
       mx = (has("d") ? 1 : 0) - (has("a") ? 1 : 0) + t.mx;
-      mz = (has("s") ? 1 : 0) - (has("w") ? 1 : 0) - t.mz;
+      mz = (has("s") ? 1 : 0) - (has("w") ? 1 : 0) - t.mz + pad.mz;
+      mx += pad.mx;
       const ax = (has("arrowright") ? 1 : 0) - (has("arrowleft") ? 1 : 0);
       const az = (has("arrowdown") ? 1 : 0) - (has("arrowup") ? 1 : 0);
       if (ax || az) {
         this.yaw = Math.atan2(ax, -az);
         fire = true;
-      } else if (this.cursor && !this.isTouch) {
+      } else if (this.cursor && !this.isTouch && !this.usingPad) {
         const p = this.game.player;
         const q = this.renderer.groundPoint(this.cursor.x, this.cursor.y);
         if (Math.hypot(q.x - p.x, q.z - p.z) > 0.3) this.yaw = Math.atan2(q.x - p.x, -(q.z - p.z));
@@ -355,27 +483,33 @@ export class GameController {
       const str = clamp((has("d") ? 1 : 0) - (has("a") ? 1 : 0) + t.mx, -1, 1);
       const s = Math.sin(this.yaw);
       const c = Math.cos(this.yaw);
-      mx = s * fwd + c * str;
-      mz = -c * fwd + s * str;
+      mx = s * fwd + c * str + pad.mx;
+      mz = -c * fwd + s * str + pad.mz;
       fire ||= has(" ");
     }
-    // A touch of aim assist on phones, while shooting.
-    if (this.isTouch && fire) this.assist(dt);
-    const swap = has("1", "2", "tab", "q") || this.wheelSwap || t.swap;
-    this.wheelSwap = false;
+    // A touch of aim assist on phones and pads, while shooting or aiming.
+    if ((this.isTouch || this.usingPad) && (fire || (!top && pad.ads))) this.assist(dt);
+    const swap = has("tab", "q") || t.swap || pad.swap;
+    // Number keys pick a slot; the wheel steps through them either way.
+    const p = this.game.player;
+    const n = p.weapons.length;
+    let slot: number | undefined = ["1", "2", "3"].findIndex((x) => has(x));
+    if (slot < 0) slot = this.wheelDir && n > 1 ? (p.cur + this.wheelDir + n) % n : undefined;
+    this.wheelDir = 0;
     const input: Input = {
       mx: clamp(mx, -1, 1),
       mz: clamp(mz, -1, 1),
       yaw: this.yaw,
       pitch: this.pitch,
       flat: top,
-      ads: !top && (this.mouse.ads || has("z", "k") || t.ads),
+      ads: !top && (this.mouse.ads || has("z", "k") || t.ads || pad.ads),
       fire,
-      reload: has("r") || t.reload,
-      use: has("e", "f") || t.use,
-      knife: has("v", "c") || t.knife,
+      reload: has("r") || t.reload || pad.reload,
+      use: has("e", "f") || t.use || pad.use,
+      knife: has("v", "c") || t.knife || pad.knife,
       swap,
-      sprint: has("shift") || t.sprint,
+      slot,
+      sprint: has("shift") || t.sprint || pad.sprint,
     };
     tap.clear();
     return input;
@@ -420,6 +554,7 @@ export class GameController {
     const raw = Math.max(0, (now - this.last) / 1000);
     const dt = Math.min(0.05, raw);
     this.last = now;
+    this.pollPadMenu();
     if (!this.paused) {
       this.tick(dt);
       this.measure(raw);
@@ -511,6 +646,7 @@ export class GameController {
       reserve: w.reserve,
       magSize: magOf(w),
       reloading: p.reloadT > 0,
+      reloadFrac: p.reloadT > 0 ? clamp(1 - p.reloadT / (WEAPONS[w.id].reload * (p.perks.includes("piragua") ? 0.5 : 1)), 0, 1) : 0,
       others: p.weapons.filter((_, i) => i !== p.cur).map(nameOf),
       perks: [...p.perks],
       prompt: g.prompt,
@@ -523,6 +659,7 @@ export class GameController {
       left: g.toSpawn + aliveZombies(g),
       fps: this.fps,
       view: this.viewMode,
+      pad: this.usingPad,
     };
   }
 
