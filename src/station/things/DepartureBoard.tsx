@@ -116,8 +116,6 @@ function PlayerRow({ rank, userId, name, look, small, bright, under, score }: {
 
 function Standings({ signedIn }: { signedIn: boolean }) {
   const [year, setYear] = useState<number | null>(null);
-  // Just the totals, unless the passenger asks for the points behind them
-  const [breakdown, setBreakdown] = useState(false);
   const { data, isLoading, error } = useScareboard(year, signedIn);
   const { data: me } = useScareathonMe(signedIn);
   const compact = useIsMobileArcade();
@@ -137,10 +135,6 @@ function Standings({ signedIn }: { signedIn: boolean }) {
             {String(y)}
           </Key>
         ))}
-        <span className="ml-auto" />
-        <Key active={breakdown} onClick={() => setBreakdown((on) => !on)}>
-          POINTS
-        </Key>
       </div>
       {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
       {rows.map((row) => {
@@ -158,17 +152,15 @@ function Standings({ signedIn }: { signedIn: boolean }) {
             under={
               <>
                 {wins.length > 0 && <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">{wins.map((y) => `★${y}`).join(" ")}</span>}
-                {breakdown && (
-                  <span className="mt-1 block text-[12px] leading-none opacity-80">
-                    {POINT_COLUMNS.map(([key, label], i) => (
-                      // (each label with its number, so a narrow row wraps between them)
-                      <span key={key} className="whitespace-nowrap">
-                        {i > 0 && " · "}
-                        {label} {row[key] ?? "-"}
-                      </span>
-                    ))}
-                  </span>
-                )}
+                <span className="mt-1 block text-[12px] leading-none opacity-80">
+                  {POINT_COLUMNS.map(([key, label], i) => (
+                    // (each label with its number, so a narrow row wraps between them)
+                    <span key={key} className="whitespace-nowrap">
+                      {i > 0 && " · "}
+                      {label} {row[key] ?? "-"}
+                    </span>
+                  ))}
+                </span>
               </>
             }
           />
