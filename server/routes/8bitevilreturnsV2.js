@@ -4,13 +4,14 @@ import { getGameId } from './8bitevilreturns.js';
 import { RoomError, createRoomManager } from '../eightBitEvilV2/rooms.js';
 
 const HEARTBEAT_MS = 30_000;
-const SWEEP_MS = 60_000;
+const SWEEP_MS = 2_000;
 const ERROR_MESSAGES = {
     missing: "There's no room with that code.",
     full: 'That room already has four players.',
     started: 'That game has already started.',
     busy: 'Too many games right now. Try again in a minute.',
     notHost: 'Only the host can start.',
+    gone: "That game isn't holding your seat any more.",
 };
 
 // 8 Bit Evil Returns V2 (the Godot remake, github.com/scarbone98/8BitEvilReturns-godot)
@@ -131,6 +132,9 @@ export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRoo
                         break;
                     case 'join':
                         rooms.join(socket, message);
+                        break;
+                    case 'rejoin':
+                        rooms.rejoin(socket, message);
                         break;
                     case 'pick':
                         rooms.pick(socket, message);

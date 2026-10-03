@@ -12,10 +12,15 @@
 // sender's seat before passing it on, so a player always knows who it came from
 // and a guest can only ever talk to the host.
 //
-// If the host leaves, the room closes. Anyone else leaving frees their seat.
+// Dropped connections don't end anything. A player whose socket closes keeps
+// their seat as "away" for a while and can take it back with the token they
+// were given (a network blip, a phone locking, a page reload). Everyone else
+// is told they're away and back. If the host drops, the room waits for them;
+// if they don't return in time, the room closes. Leaving on purpose frees the
+// seat at once (and a host leaving closes the room).
 // Rooms live in memory only.
 
-import { randomInt } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 4;
@@ -25,6 +30,8 @@ const MAX_ROOMS = 300;
 const NAME_MAX = 12;
 const ID_MAX = 40;
 const WAITING_TTL_MS = 30 * 60_000;
+// How long a dropped player's seat is held.
+export const AWAY_MS = { lobby: 20_000, game: 90_000 };
 // Per second, per socket. The host streams the fight, so it gets far more room.
 const HOST_LIMITS = { packets: 240, bytes: 600_000 };
 const GUEST_LIMITS = { packets: 90, bytes: 40_000 };
@@ -58,13 +65,13 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
     const send = (socket, message) => {
         if (socket?.readyState === OPEN) socket.send(JSON.stringify(message));
     };
-    const roster = (room) => room.players.filter(Boolean).map(({ slot, name, hero }) => ({ slot, name, hero }));
+    const roster = (room) => room.players.filter(Boolean).map(({ slot, name, hero, socket }) => ({ slot, name, hero, away: !socket }));
     const broadcast = (room, message, except = null) => {
-        for (const p of room.players) if (p && p.socket !== except) send(p.socket, message);
+        for (const p of room.players) if (p && p.socket && p.socket !== except) send(p.socket, message);
     };
     const announce = (room) => {
         for (const p of room.players) {
-            if (p) send(p.socket, { type: 'room', code: room.code, slot: p.slot, host: p.slot === 0, started: room.started, stage: room.stage, players: roster(room) });
+            if (p?.socket) send(p.socket, { type: 'room', code: room.code, slot: p.slot, host: p.slot === 0, token: p.token, started: room.started, stage: room.stage, players: roster(room) });
         }
     };
 
@@ -79,7 +86,7 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
 
     function seat(socket, room, slot, message) {
         const player = {
-            socket, slot,
+            socket, slot, token: randomBytes(12).toString('hex'), awaySince: 0,
             name: cleanName(message.name),
             hero: cleanId(message.hero, 'joe'),
             window: now(), packets: 0, bytes: 0,
@@ -136,17 +143,15 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         broadcast(at.room, { type: 'start', stage: at.room.stage, players: roster(at.room) });
     }
 
-    function leave(socket) {
-        const at = seats.get(socket);
-        if (!at) return;
-        seats.delete(socket);
-        const { room, slot } = at;
+    function free(room, slot) {
+        const player = room.players[slot];
+        if (player?.socket) seats.delete(player.socket);
         room.players[slot] = undefined;
         if (slot === 0) {
             // No host, no fight.
             for (const p of room.players) {
                 if (p) {
-                    seats.delete(p.socket);
+                    if (p.socket) seats.delete(p.socket);
                     send(p.socket, { type: 'closed', reason: 'host' });
                 }
             }
@@ -154,6 +159,49 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             return;
         }
         broadcast(room, { type: 'left', slot });
+        announce(room);
+    }
+
+    // Leaving on purpose: the seat is freed now.
+    function leave(socket) {
+        const at = seats.get(socket);
+        if (!at) return;
+        free(at.room, at.slot);
+    }
+
+    // The socket closed without a goodbye: hold the seat for a while.
+    function disconnect(socket) {
+        const at = seats.get(socket);
+        if (!at) return;
+        seats.delete(socket);
+        const player = at.room.players[at.slot];
+        if (!player || player.socket !== socket) return;
+        player.socket = null;
+        player.awaySince = now();
+        broadcast(at.room, { type: 'away', slot: at.slot });
+        announce(at.room);
+    }
+
+    // Back in the seat a token was given for.
+    function rejoin(socket, message = {}) {
+        const room = rooms.get(cleanCode(message.code));
+        const token = String(message.token ?? '');
+        const player = room?.players.find((p) => p && token.length > 0 && p.token === token);
+        if (!player) throw new RoomError('gone');
+        if (seats.has(socket) && seats.get(socket).room !== room) leave(socket);
+        if (player.socket && player.socket !== socket) {
+            // An older connection still thinks it's in: this one wins.
+            seats.delete(player.socket);
+            send(player.socket, { type: 'closed', reason: 'replaced' });
+        }
+        player.socket = socket;
+        player.awaySince = 0;
+        player.window = now();
+        player.packets = 0;
+        player.bytes = 0;
+        seats.set(socket, { room, slot: player.slot });
+        room.touched = now();
+        broadcast(room, { type: 'back', slot: player.slot }, socket);
         announce(room);
     }
 
@@ -179,25 +227,30 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         out[0] = slot;
         if (slot !== 0) {
             const host = room.players[0];
-            if (host?.socket.readyState === OPEN) host.socket.send(out, { binary: true });
+            if (host?.socket?.readyState === OPEN) host.socket.send(out, { binary: true });
             return true;
         }
         for (const p of room.players) {
-            if (p && p.slot !== 0 && (target === BROADCAST || target === p.slot) && p.socket.readyState === OPEN) {
+            if (p && p.slot !== 0 && (target === BROADCAST || target === p.slot) && p.socket?.readyState === OPEN) {
                 p.socket.send(out, { binary: true });
             }
         }
         return true;
     }
 
-    // Drops rooms nobody has touched in a long while (tabs left open in a lobby).
+    // Frees seats whose player has been away too long, and drops rooms nobody
+    // has touched in a long while (tabs left open in a lobby).
     function sweep() {
         const t = now();
-        for (const room of rooms.values()) {
-            if (t - room.touched > WAITING_TTL_MS) {
+        for (const room of [...rooms.values()]) {
+            const limit = room.started ? AWAY_MS.game : AWAY_MS.lobby;
+            for (const p of [...room.players]) {
+                if (p && !p.socket && t - p.awaySince > limit && rooms.has(room.code)) free(room, p.slot);
+            }
+            if (rooms.has(room.code) && t - room.touched > WAITING_TTL_MS) {
                 for (const p of room.players) {
                     if (p) {
-                        seats.delete(p.socket);
+                        if (p.socket) seats.delete(p.socket);
                         send(p.socket, { type: 'closed', reason: 'idle' });
                     }
                 }
@@ -212,5 +265,5 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
     }
 
     log?.debug?.('8 Bit Evil V2 rooms ready');
-    return { create, join, pick, start, leave, disconnect: leave, relay, sweep, close, size: () => rooms.size, room: (code) => rooms.get(code) };
+    return { create, join, rejoin, pick, start, leave, disconnect, relay, sweep, close, size: () => rooms.size, room: (code) => rooms.get(code) };
 }

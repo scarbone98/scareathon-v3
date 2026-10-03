@@ -1,4 +1,4 @@
-import { BROADCAST, createRoomManager } from '../eightBitEvilV2/rooms.js';
+import { AWAY_MS, BROADCAST, createRoomManager } from '../eightBitEvilV2/rooms.js';
 import { isPublicRoute } from '../utils/authRoutes.js';
 
 function fakeSocket() {
@@ -44,7 +44,7 @@ describe('8 Bit Evil V2 co-op rooms', () => {
     test('names and ids are cleaned', () => {
         const host = fakeSocket();
         rooms.create(host, { name: '<b>Sam</b>!!', hero: 'Robert"); DROP' });
-        expect(host.last().players[0]).toEqual({ slot: 0, name: 'bSamb', hero: 'joe' });
+        expect(host.last().players[0]).toEqual({ slot: 0, name: 'bSamb', hero: 'joe', away: false });
     });
 
     test('lobby picks: anyone changes hero, only the host changes stage', () => {
@@ -113,9 +113,82 @@ describe('8 Bit Evil V2 co-op rooms', () => {
         expect(host.texts.some((m) => m.type === 'left' && m.slot === 1)).toBe(true);
         rooms.join(b, { code });
         expect(b.last().slot).toBe(1);
-        rooms.disconnect(host);
+        rooms.leave(host);
         expect(b.last()).toEqual({ type: 'closed', reason: 'host' });
         expect(rooms.size()).toBe(0);
+    });
+
+    test('a dropped guest keeps their seat and takes it back with their token', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code, hero: 'alex' });
+        const token = guest.last().token;
+        expect(token).toMatch(/^[0-9a-f]{24}$/);
+        // Tokens are only ever sent to their owner.
+        expect(JSON.stringify(host.texts)).not.toContain(token);
+        rooms.start(host);
+        rooms.disconnect(guest);
+        expect(host.texts.some((m) => m.type === 'away' && m.slot === 1)).toBe(true);
+        expect(host.last().players[1]).toMatchObject({ slot: 1, hero: 'alex', away: true });
+        // While they're away the seat stays theirs and packets to them are dropped.
+        expect(() => rooms.join(fakeSocket(), { code })).toThrow('started');
+        expect(rooms.relay(host, Buffer.from([1, 3]))).toBe(true);
+        const back = fakeSocket();
+        expect(() => rooms.rejoin(back, { code, token: 'nope' })).toThrow('gone');
+        rooms.rejoin(back, { code, token });
+        expect(back.last()).toMatchObject({ type: 'room', slot: 1, started: true, token });
+        expect(host.texts.some((m) => m.type === 'back' && m.slot === 1)).toBe(true);
+        rooms.relay(host, Buffer.from([1, 4]));
+        expect(back.packets[0]).toEqual(Buffer.from([0, 4]));
+    });
+
+    test('a seat held too long is freed', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code });
+        const token = guest.last().token;
+        rooms.start(host);
+        rooms.disconnect(guest);
+        clock += AWAY_MS.game - 1;
+        rooms.sweep();
+        expect(rooms.room(code).players[1]).toBeTruthy();
+        clock += 2;
+        rooms.sweep();
+        expect(host.texts.some((m) => m.type === 'left' && m.slot === 1)).toBe(true);
+        expect(() => rooms.rejoin(fakeSocket(), { code, token })).toThrow('gone');
+    });
+
+    test('the room waits for a dropped host, then closes if they never return', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        const hostToken = host.last().token;
+        rooms.join(guest, { code });
+        rooms.start(host);
+        rooms.disconnect(host);
+        expect(guest.texts.some((m) => m.type === 'away' && m.slot === 0)).toBe(true);
+        const host2 = fakeSocket();
+        rooms.rejoin(host2, { code, token: hostToken });
+        expect(host2.last()).toMatchObject({ slot: 0, host: true });
+        rooms.disconnect(host2);
+        clock += AWAY_MS.game + 1;
+        rooms.sweep();
+        expect(guest.last()).toEqual({ type: 'closed', reason: 'host' });
+        expect(rooms.size()).toBe(0);
+    });
+
+    test('a newer connection replaces a stale one for the same seat', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code });
+        const token = guest.last().token;
+        const second = fakeSocket();
+        rooms.rejoin(second, { code, token });
+        expect(guest.last()).toEqual({ type: 'closed', reason: 'replaced' });
+        expect(second.last().slot).toBe(1);
     });
 
     test('idle rooms are swept', () => {
