@@ -72,7 +72,7 @@ function filterPlayerData(data = {}) {
     return filteredData;
 }
 
-async function getGameId(client = pool) {
+export async function getGameId(client = pool) {
     const existingGame = await client.query(
         'SELECT id FROM games WHERE name = $1 OR name = $2 ORDER BY id ASC LIMIT 1',
         [GAME_NAME, LEGACY_GAME_NAME]

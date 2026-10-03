@@ -7,9 +7,11 @@ const PICTO_BOX_IMAGE = /^\/picto-box\/photos\/[0-9a-f-]{36}\.jpg(\?.*)?$/i;
 export function isPublicRoute(method, url) {
     const isLegacyEightBitEvilRoute =
         url.startsWith('/8bitevilreturns') &&
-        !url.startsWith('/8bitevilreturns/runs');
+        !url.startsWith('/8bitevilreturns/runs') &&
+        !url.startsWith('/8bitevilreturns/v2');
 
-    // Keep legacy game data routes public, but require auth for score writes.
+    // Keep legacy game data routes public, but require auth for score writes
+    // and for V2's account save.
     return (
         isLegacyEightBitEvilRoute ||
         url.startsWith('/admin/strapi') ||

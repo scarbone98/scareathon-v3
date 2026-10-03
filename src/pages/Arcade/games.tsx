@@ -158,6 +158,31 @@ function isTrustedGameMessage(
   return event.source === iframe.contentWindow && event.origin === expectedOrigin;
 }
 
+// Answers a game's "unityReady" with the signed-in player's session, as the
+// Unity 8 Bit Evil Returns expects. Returns the cleanup for GameRenderer.
+function sendSessionWhenReady(iframe: HTMLIFrameElement, gameUrl: string) {
+  const expectedOrigin = getUrlOrigin(gameUrl);
+  const handleMessage = async (e: MessageEvent) => {
+    if (!isTrustedGameMessage(iframe, e, expectedOrigin)) return;
+    if (!isArcadeMessage(e.data) || e.data.type !== "unityReady") return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user?.id) return;
+    (e.source as WindowProxy | null)?.postMessage(
+      {
+        type: "SCARATHON_USER",
+        userId: session.user.id,
+        accessToken: session.access_token,
+        apiBaseUrl: import.meta.env.VITE_BASE_URL || "",
+      },
+      e.origin
+    );
+  };
+  window.addEventListener("message", handleMessage);
+  return () => window.removeEventListener("message", handleMessage);
+}
+
 function listenForPlayerDiedScores(
   iframe: HTMLIFrameElement,
   game: string,
@@ -778,8 +803,8 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     // --- Secret: in testing, only on the shelf once you've typed EVILV2 into WaysideOS.
-    // Plays as a guest for now: it isn't sent the player's session, so it can't touch
-    // their 8 Bit Evil Returns silver and unlocks or post to the leaderboard.
+    // It's sent the player's session for its own save (/8bitevilreturns/v2/save), which
+    // never touches the Unity game's silver and unlocks. No scores while it's in testing.
     {
       name: "8 Bit Evil Returns V2",
       secret: true,
@@ -797,6 +822,7 @@ export function createArcadeGames(): MachineData[] {
           title="8 Bit Evil Returns V2"
           url={EIGHT_BIT_EVIL_RETURNS_V2_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => sendSessionWhenReady(iframe, EIGHT_BIT_EVIL_RETURNS_V2_URL)}
         />
       ),
     },
