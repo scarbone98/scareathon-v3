@@ -12,8 +12,9 @@ import { useIsMobileArcade } from "../../pages/Arcade/games";
 import { formatCompactLeaderboardScore, formatLeaderboardScore, useLeaderboard } from "../../pages/Arcade/leaderboard";
 
 // A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
-// their body has one); their saved portrait until the look comes, or if it doesn't
-function Face({ userId, look, onBanner = false, small = false }: { userId?: string; look?: AvatarLook; onBanner?: boolean; small?: boolean }) {
+// their body has one); their saved portrait if the look doesn't come. (Not while it's on its
+// way: the portrait is a close-up, so swapping it for the whole avatar looked like a shrink)
+function Face({ userId, look, pending = false, onBanner = false, small = false }: { userId?: string; look?: AvatarLook; pending?: boolean; onBanner?: boolean; small?: boolean }) {
   if (!userId) return null;
   // Phones show them at 1.5x (drawn at 2x, then scaled), so about the top seven fit on a screen
   const size = small
@@ -27,7 +28,7 @@ function Face({ userId, look, onBanner = false, small = false }: { userId?: stri
         <span className={size.shift}>
           <AvatarView look={look} height={96} label="" />
         </span>
-      ) : (
+      ) : pending ? null : (
         <img
           src={getAvatarCompositePublicUrl(userId)}
           alt=""
@@ -118,11 +119,12 @@ const POINT_COLUMNS: [string, string][] = [
 // One player's row, on their banner (a player with an account always has one: the empty
 // one, if they've put none up). On a banner the lettering goes straight onto it, without
 // flaps; whatever's said under the name (wins, points) goes there so the name keeps the width
-function PlayerRow({ rank, userId, name, look, small, bright, under, score }: {
+function PlayerRow({ rank, userId, name, look, lookPending = false, small, bright, under, score }: {
   rank: number;
   userId?: string;
   name: string;
   look?: PlayerLook;
+  lookPending?: boolean;
   small: boolean;
   bright: boolean;
   under?: React.ReactNode;
@@ -133,7 +135,7 @@ function PlayerRow({ rank, userId, name, look, small, bright, under, score }: {
     // (on phones, tighter: a narrower rank, smaller gaps and score, so the name gets the room)
     <Line bright={bright} banner={userId ? look?.banner ?? DEFAULT_BANNER : undefined} tight={small}>
       <span className={`${box} ${small ? "w-7 text-[16px]" : "w-9"} shrink-0 text-center`}>{rank}</span>
-      <Face userId={userId} look={look} onBanner={Boolean(userId)} small={small} />
+      <Face userId={userId} look={look} pending={lookPending} onBanner={Boolean(userId)} small={small} />
       <span className={`${box} min-w-0 flex-1 py-0.5`}>
         {small ? <FitName name={name.toUpperCase()} /> : <span className={`block break-words leading-tight ${nameSize(name)}`}>{name.toUpperCase()}</span>}
         {under}
@@ -148,7 +150,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
   const { data, isLoading, error } = useScareboard(year, signedIn);
   const { data: me } = useScareathonMe(signedIn);
   const compact = useIsMobileArcade();
-  const { data: looks } = useLooks((data?.leaderboard.data ?? []).flatMap((row) => (row.userId ? [row.userId] : [])));
+  const { data: looks, isPending: looksPending } = useLooks((data?.leaderboard.data ?? []).flatMap((row) => (row.userId ? [row.userId] : [])));
   if (!signedIn || needsSignIn(error)) return null;
   if (isLoading && !data) return <Line>FLIPPING...</Line>;
   if (error) return <Line>BOARD FAULT: {error.message.toUpperCase()}</Line>;
@@ -175,6 +177,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
             userId={row.userId}
             name={row.name}
             look={row.userId ? looks?.[row.userId] : undefined}
+            lookPending={looksPending}
             small={compact}
             bright={row.rank <= 3}
             score={row.total}
@@ -273,7 +276,7 @@ function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
   const [game, setGame] = useState(start && games.includes(start) ? start : games[0]);
   const { data: entries, isLoading, isError } = useLeaderboard(game);
   const compact = useIsMobileArcade();
-  const { data: looks } = useLooks((entries ?? []).flatMap((entry) => (entry.userId ? [entry.userId] : [])));
+  const { data: looks, isPending: looksPending } = useLooks((entries ?? []).flatMap((entry) => (entry.userId ? [entry.userId] : [])));
   // The table lists every run, so you can be on it more than once: only the highest is your best
   const best = entries?.findIndex((entry) => entry.isUserScore) ?? -1;
   return (
@@ -290,6 +293,7 @@ function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
             userId={entry.userId}
             name={entry.username}
             look={entry.userId ? looks?.[entry.userId] : undefined}
+            lookPending={looksPending}
             small={compact}
             bright={index < 3 || index === best}
             under={index === best ? <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">YOUR BEST</span> : undefined}
