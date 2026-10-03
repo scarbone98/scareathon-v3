@@ -1,10 +1,17 @@
 // Co-op rooms for 8 Bit Evil Returns V2: up to four players, one horde.
 //
-// The host's game runs the whole fight (enemies, weapons, pickups) and streams
-// it to the others; each player's game sends back where its hero is and what it
-// picks on level-up. The server doesn't simulate anything. It hands out room
-// codes, keeps the lobby (who's in, which hero they're playing), and relays
-// game packets between the host and everyone else.
+// One copy of the game runs the whole fight (enemies, weapons, pickups) and
+// streams it to the others; each player's game sends back where its hero is
+// and what it picks on level-up. That copy is the host. Normally it's a
+// headless copy of the game the server starts for the room (see launcher.js),
+// sitting in its own seat (SERVER_SLOT) so no player's phone runs the fight
+// and no player can tamper with it. If the server can't start one (switched
+// off, at capacity, failed), the player who made the room hosts instead.
+// The room's maker (seat 0) is its leader either way: they pick the stage and
+// press start.
+//
+// This server keeps the lobby and relays game packets between the host and
+// everyone else; it doesn't simulate anything itself.
 //
 // Control messages are JSON text. Game packets are binary, relayed as-is apart
 // from the first byte, which carries the seat: the host sets it to the seat it's
@@ -26,6 +33,8 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 4;
 export const MAX_PLAYERS = 4;
 export const BROADCAST = 255;
+export const SERVER_SLOT = 4;  // the server-run host's seat, after the four players
+export const LAUNCH_TIMEOUT_MS = 25_000;
 const MAX_ROOMS = 300;
 const NAME_MAX = 12;
 const ID_MAX = 40;
@@ -58,20 +67,26 @@ export function cleanId(id, fallback) {
     return typeof id === 'string' && id.length <= ID_MAX && /^[a-z0-9_]+$/.test(id) ? id : fallback;
 }
 
-export function createRoomManager({ log, now = () => Date.now() } = {}) {
+export function createRoomManager({ log, now = () => Date.now(), launcher = null, setTimer = setTimeout } = {}) {
     const rooms = new Map(); // code -> room
     const seats = new Map(); // socket -> { room, slot }
 
     const send = (socket, message) => {
         if (socket?.readyState === OPEN) socket.send(JSON.stringify(message));
     };
-    const roster = (room) => room.players.filter(Boolean).map(({ slot, name, hero, socket }) => ({ slot, name, hero, away: !socket }));
+    const roster = (room) => room.players.filter((p) => p && p.slot !== SERVER_SLOT).map(({ slot, name, hero, socket }) => ({ slot, name, hero, away: !socket }));
     const broadcast = (room, message, except = null) => {
         for (const p of room.players) if (p && p.socket && p.socket !== except) send(p.socket, message);
     };
     const announce = (room) => {
         for (const p of room.players) {
-            if (p?.socket) send(p.socket, { type: 'room', code: room.code, slot: p.slot, host: p.slot === 0, token: p.token, started: room.started, stage: room.stage, players: roster(room) });
+            if (p?.socket) {
+                send(p.socket, {
+                    type: 'room', code: room.code, slot: p.slot, token: p.token,
+                    host: p.slot === room.hostSlot, host_slot: room.hostSlot, leader: p.slot === 0,
+                    started: room.started, starting: room.starting, stage: room.stage, players: roster(room),
+                });
+            }
         }
     };
 
@@ -100,7 +115,7 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
     function create(socket, message = {}) {
         if (seats.has(socket)) leave(socket);
         if (rooms.size >= MAX_ROOMS) throw new RoomError('busy');
-        const room = { code: newCode(), players: [], started: false, stage: 'graveyard', touched: now() };
+        const room = { code: newCode(), players: [], started: false, starting: false, hostSlot: 0, stage: 'graveyard', touched: now() };
         rooms.set(room.code, room);
         seat(socket, room, 0, message);
         announce(room);
@@ -110,7 +125,7 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
     function join(socket, message = {}) {
         const room = rooms.get(cleanCode(message.code));
         if (!room) throw new RoomError('missing');
-        if (room.started) throw new RoomError('started');
+        if (room.started || room.starting) throw new RoomError('started');
         let slot = -1;
         for (let i = 1; i < MAX_PLAYERS; i += 1) {
             if (!room.players[i]) {
@@ -135,27 +150,73 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         announce(at.room);
     }
 
+    // The leader starts the game: with a server-run host if one can be had,
+    // otherwise hosted by the leader.
     function start(socket) {
         const at = seats.get(socket);
         if (!at || at.slot !== 0) throw new RoomError('notHost');
-        if (at.room.started) return;
-        at.room.started = true;
-        broadcast(at.room, { type: 'start', stage: at.room.stage, players: roster(at.room) });
+        const { room } = at;
+        if (room.started || room.starting) return;
+        if (!launcher?.available()) {
+            begin(room, 0);
+            return;
+        }
+        room.starting = true;
+        room.hostToken = randomBytes(16).toString('hex');
+        announce(room); // lobbies show "Starting the game server..."
+        const fallBack = (why) => {
+            if (!room.starting || !rooms.has(room.code)) return;
+            log?.warn?.({ code: room.code, why }, '8 Bit Evil V2: no server host, the leader hosts');
+            launcher.stop(room.code);
+            begin(room, 0);
+        };
+        setTimer(() => fallBack('timeout'), LAUNCH_TIMEOUT_MS);
+        Promise.resolve()
+            .then(() => launcher.launch(room.code, room.hostToken))
+            .catch((err) => fallBack(err?.message ?? 'launch failed'));
+    }
+
+    function begin(room, hostSlot) {
+        room.starting = false;
+        room.started = true;
+        room.hostSlot = hostSlot;
+        room.hostToken = null;
+        broadcast(room, { type: 'start', stage: room.stage, players: roster(room), host: hostSlot });
+        announce(room);
+    }
+
+    // The server's game copy taking the host seat it was launched for.
+    function hostJoin(socket, message = {}) {
+        const room = rooms.get(cleanCode(message.code));
+        if (!room || !room.starting || !room.hostToken || String(message.token ?? '') !== room.hostToken) {
+            throw new RoomError('gone');
+        }
+        seat(socket, room, SERVER_SLOT, { name: 'server', hero: 'joe' });
+        begin(room, SERVER_SLOT);
+    }
+
+    function close(room, reason) {
+        for (const p of room.players) {
+            if (p) {
+                if (p.socket) seats.delete(p.socket);
+                send(p.socket, { type: 'closed', reason });
+            }
+        }
+        rooms.delete(room.code);
+        launcher?.stop(room.code);
     }
 
     function free(room, slot) {
         const player = room.players[slot];
         if (player?.socket) seats.delete(player.socket);
         room.players[slot] = undefined;
-        if (slot === 0) {
+        if (slot === room.hostSlot || (slot === SERVER_SLOT && room.started)) {
             // No host, no fight.
-            for (const p of room.players) {
-                if (p) {
-                    if (p.socket) seats.delete(p.socket);
-                    send(p.socket, { type: 'closed', reason: 'host' });
-                }
-            }
-            rooms.delete(room.code);
+            close(room, 'host');
+            return;
+        }
+        if (!room.players.some((p) => p && p.slot !== SERVER_SLOT)) {
+            close(room, 'empty');  // every player has gone
             return;
         }
         broadcast(room, { type: 'left', slot });
@@ -176,6 +237,11 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         seats.delete(socket);
         const player = at.room.players[at.slot];
         if (!player || player.socket !== socket) return;
+        if (at.slot === SERVER_SLOT) {
+            // The server's own copy doesn't blip; if it's gone, it's gone.
+            free(at.room, at.slot);
+            return;
+        }
         player.socket = null;
         player.awaySince = now();
         broadcast(at.room, { type: 'away', slot: at.slot });
@@ -211,7 +277,7 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         if (!at || !at.room.started || data.length < 2) return false;
         const { room, slot } = at;
         const player = room.players[slot];
-        const limits = slot === 0 ? HOST_LIMITS : GUEST_LIMITS;
+        const limits = slot === room.hostSlot ? HOST_LIMITS : GUEST_LIMITS;
         const t = now();
         if (t - player.window >= 1000) {
             player.window = t;
@@ -225,13 +291,13 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
         const target = data[0];
         const out = Buffer.from(data);
         out[0] = slot;
-        if (slot !== 0) {
-            const host = room.players[0];
+        if (slot !== room.hostSlot) {
+            const host = room.players[room.hostSlot];
             if (host?.socket?.readyState === OPEN) host.socket.send(out, { binary: true });
             return true;
         }
         for (const p of room.players) {
-            if (p && p.slot !== 0 && (target === BROADCAST || target === p.slot) && p.socket?.readyState === OPEN) {
+            if (p && p.slot !== room.hostSlot && (target === BROADCAST || target === p.slot) && p.socket?.readyState === OPEN) {
                 p.socket.send(out, { binary: true });
             }
         }
@@ -247,23 +313,16 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             for (const p of [...room.players]) {
                 if (p && !p.socket && t - p.awaySince > limit && rooms.has(room.code)) free(room, p.slot);
             }
-            if (rooms.has(room.code) && t - room.touched > WAITING_TTL_MS) {
-                for (const p of room.players) {
-                    if (p) {
-                        if (p.socket) seats.delete(p.socket);
-                        send(p.socket, { type: 'closed', reason: 'idle' });
-                    }
-                }
-                rooms.delete(room.code);
-            }
+            if (rooms.has(room.code) && t - room.touched > WAITING_TTL_MS) close(room, 'idle');
         }
     }
 
-    function close() {
+    log?.debug?.('8 Bit Evil V2 rooms ready');
+    function closeAll() {
+        for (const room of [...rooms.values()]) launcher?.stop(room.code);
         rooms.clear();
         seats.clear();
     }
 
-    log?.debug?.('8 Bit Evil V2 rooms ready');
-    return { create, join, rejoin, pick, start, leave, disconnect, relay, sweep, close, size: () => rooms.size, room: (code) => rooms.get(code) };
+    return { create, join, rejoin, hostJoin, pick, start, leave, disconnect, relay, sweep, close: closeAll, size: () => rooms.size, room: (code) => rooms.get(code) };
 }

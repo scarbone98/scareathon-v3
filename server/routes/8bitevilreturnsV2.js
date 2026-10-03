@@ -2,6 +2,7 @@ import websocket from '@fastify/websocket';
 import pool from '../db/mockDB.js';
 import { getGameId } from './8bitevilreturns.js';
 import { RoomError, createRoomManager } from '../eightBitEvilV2/rooms.js';
+import { createLauncher } from '../eightBitEvilV2/launcher.js';
 
 const HEARTBEAT_MS = 30_000;
 const SWEEP_MS = 2_000;
@@ -76,9 +77,11 @@ async function readSave(userId, gameId) {
     return data ? { save: data.save ?? null, revision: data.revision ?? null } : { save: null, revision: null };
 }
 
-export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRooms } = {}) {
+export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRooms, launcher: injectedLauncher } = {}) {
     const log = fastify.log.child({ feature: '8bit-evil-v2' });
-    const rooms = injectedRooms ?? createRoomManager({ log });
+    // Headless game copies host co-op rooms (players host if they can't start).
+    const launcher = injectedRooms ? null : (injectedLauncher ?? createLauncher({ log }));
+    const rooms = injectedRooms ?? createRoomManager({ log, launcher });
     if (!fastify.hasDecorator('websocketServer')) {
         await fastify.register(websocket, { options: { maxPayload: 8192 } });
     }
@@ -100,6 +103,7 @@ export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRoo
         clearInterval(heartbeat);
         clearInterval(sweep);
         rooms.close();
+        launcher?.stopAll();
     });
 
     // Co-op rooms: one socket per player for the whole session. Guests can play.
@@ -135,6 +139,9 @@ export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRoo
                         break;
                     case 'rejoin':
                         rooms.rejoin(socket, message);
+                        break;
+                    case 'host':
+                        rooms.hostJoin(socket, message);
                         break;
                     case 'pick':
                         rooms.pick(socket, message);

@@ -66,7 +66,7 @@ describe('8 Bit Evil V2 co-op rooms', () => {
         rooms.join(guest, { code });
         expect(() => rooms.start(guest)).toThrow('notHost');
         rooms.start(host);
-        expect(guest.last()).toMatchObject({ type: 'start', stage: 'graveyard' });
+        expect(guest.texts.find((m) => m.type === 'start')).toMatchObject({ stage: 'graveyard', host: 0 });
         expect(() => rooms.join(fakeSocket(), { code })).toThrow('started');
     });
 
