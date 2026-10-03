@@ -11,9 +11,45 @@ import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarCompo
 import { useIsMobileArcade } from "../../pages/Arcade/games";
 import { formatCompactLeaderboardScore, formatLeaderboardScore, useLeaderboard } from "../../pages/Arcade/leaderboard";
 
+// A stand-in while a player's look is on its way: a faint figure, the kid's outline in the
+// avatar's own 32x48 frame, so the avatar takes its place without anything moving
+const STAND_IN = [
+  "..............####..............",
+  "............########............",
+  "...........##########...........",
+  "...........##########...........",
+  "...........##########...........",
+  "...........##########...........",
+  "...........##########...........",
+  "...........##########...........",
+  "............########............",
+  "..............###...............",
+  ".............#####..............",
+  "............#######.............",
+  "............#######.............",
+  "............#######.............",
+  "............#######.............",
+  "............#######.............",
+  ".............#####..............",
+  ".............##.##..............",
+  ".............##.##..............",
+  ".............##.##..............",
+  "............###.###.............",
+];
+function StandIn() {
+  return (
+    <svg viewBox="0 0 32 48" width={64} height={96} shapeRendering="crispEdges" className="block animate-pulse" aria-hidden>
+      {STAND_IN.flatMap((row, y) =>
+        [...row].map((cell, x) => (cell === "#" ? <rect key={`${x}-${y}`} x={x} y={24 + y} width={1} height={1} fill="rgba(255,255,255,0.2)" /> : null))
+      )}
+    </svg>
+  );
+}
+
 // A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
 // their body has one); their saved portrait if the look doesn't come. (Not while it's on its
-// way: the portrait is a close-up, so swapping it for the whole avatar looked like a shrink)
+// way: the portrait is a close-up, so swapping it for the whole avatar looked like a shrink.
+// A stand-in figure holds the place instead)
 function Face({ userId, look, pending = false, onBanner = false, small = false }: { userId?: string; look?: AvatarLook; pending?: boolean; onBanner?: boolean; small?: boolean }) {
   if (!userId) return null;
   // Phones show them at 1.5x (drawn at 2x, then scaled), so about the top seven fit on a screen
@@ -28,7 +64,11 @@ function Face({ userId, look, pending = false, onBanner = false, small = false }
         <span className={size.shift}>
           <AvatarView look={look} height={96} label="" />
         </span>
-      ) : pending ? null : (
+      ) : pending ? (
+        <span className={size.shift}>
+          <StandIn />
+        </span>
+      ) : (
         <img
           src={getAvatarCompositePublicUrl(userId)}
           alt=""
