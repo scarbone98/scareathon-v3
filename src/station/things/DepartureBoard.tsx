@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
 import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
 import { pixel } from "../style/theme.ts";
@@ -9,7 +9,7 @@ import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
 import { useScareathonMe } from "../../scareathonSeason";
 import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
 import { useIsMobileArcade } from "../../pages/Arcade/games";
-import { formatLeaderboardScore, useLeaderboard } from "../../pages/Arcade/leaderboard";
+import { formatCompactLeaderboardScore, formatLeaderboardScore, useLeaderboard } from "../../pages/Arcade/leaderboard";
 
 // A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
 // their body has one); their saved portrait until the look comes, or if it doesn't
@@ -54,6 +54,34 @@ const ON_BANNER_TEXT = "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 
 // A long name steps down a size before it wraps, so the whole name always shows
 const nameSize = (name: string) => (name.length > 14 ? "text-[14px]" : name.length > 10 ? "text-[16px]" : "");
 
+// On phones a name is as big as its row has room for: from 17px down a pixel at a time to
+// 11px, and only past that does it wrap
+function FitName({ name }: { name: string }) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const [size, setSize] = useState(17);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      let px = 17;
+      el.style.whiteSpace = "nowrap";
+      el.style.fontSize = `${px}px`;
+      while (px > 11 && el.scrollWidth > el.clientWidth) el.style.fontSize = `${--px}px`;
+      el.style.whiteSpace = "";
+      setSize(px);
+    };
+    fit();
+    const resize = new ResizeObserver(fit);
+    resize.observe(el.parentElement ?? el);
+    return () => resize.disconnect();
+  }, [name]);
+  return (
+    <span ref={ref} className="block break-words leading-tight" style={{ fontSize: size }}>
+      {name}
+    </span>
+  );
+}
+
 function Key({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
   return (
     <button
@@ -67,12 +95,12 @@ function Key({ active, onClick, children }: { active: boolean; onClick: () => vo
   );
 }
 
-function Line({ children, dim = false, bright = false, banner }: { children: React.ReactNode; dim?: boolean; bright?: boolean; banner?: string }) {
+function Line({ children, dim = false, bright = false, banner, tight = false }: { children: React.ReactNode; dim?: boolean; bright?: boolean; banner?: string; tight?: boolean }) {
   // (a player's row sits on their banner, if they've put one up: see banners.ts)
   const style = bannerStyle(banner);
   return (
     <div
-      className={`flex items-center gap-2 text-[19px] leading-none ${style ? "my-1 rounded-[2px] px-1.5 py-1" : "py-[3px]"} ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`}
+      className={`flex items-center ${tight ? "gap-1" : "gap-2"} text-[19px] leading-none ${style ? "my-1 rounded-[2px] px-1.5 py-1" : "py-[3px]"} ${dim ? "opacity-40" : ""} ${bright ? "text-[#ffd27a]" : ""}`}
       style={style ? { ...style, textShadow: ON_BANNER_TEXT } : undefined}
     >
       {children}
@@ -102,14 +130,15 @@ function PlayerRow({ rank, userId, name, look, small, bright, under, score }: {
 }) {
   const box = userId ? "px-0.5" : flap;
   return (
-    <Line bright={bright} banner={userId ? look?.banner ?? DEFAULT_BANNER : undefined}>
-      <span className={`${box} w-9 shrink-0 text-center`}>{rank}</span>
+    // (on phones, tighter: a narrower rank, smaller gaps and score, so the name gets the room)
+    <Line bright={bright} banner={userId ? look?.banner ?? DEFAULT_BANNER : undefined} tight={small}>
+      <span className={`${box} ${small ? "w-7 text-[16px]" : "w-9"} shrink-0 text-center`}>{rank}</span>
       <Face userId={userId} look={look} onBanner={Boolean(userId)} small={small} />
       <span className={`${box} min-w-0 flex-1 py-0.5`}>
-        <span className={`block break-words leading-tight ${nameSize(name)}`}>{name.toUpperCase()}</span>
+        {small ? <FitName name={name.toUpperCase()} /> : <span className={`block break-words leading-tight ${nameSize(name)}`}>{name.toUpperCase()}</span>}
         {under}
       </span>
-      <span className={`${box} w-16 shrink-0 text-right`}>{score}</span>
+      <span className={`${box} ${small ? "min-w-14 text-[17px]" : "min-w-16"} shrink-0 whitespace-nowrap text-right`}>{score}</span>
     </Line>
   );
 }
@@ -264,7 +293,14 @@ function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
             small={compact}
             bright={index < 3 || index === best}
             under={index === best ? <span className="mt-0.5 block text-[13px] leading-none text-yellow-300">YOUR BEST</span> : undefined}
-            score={formatLeaderboardScore(game, entry.metricValue)}
+            // (on phones, shortened to fit the column: the full score on a long press)
+            score={
+              compact ? (
+                <span title={formatLeaderboardScore(game, entry.metricValue)}>{formatCompactLeaderboardScore(game, entry.metricValue)}</span>
+              ) : (
+                formatLeaderboardScore(game, entry.metricValue)
+              )
+            }
           />
         ))}
     </>
