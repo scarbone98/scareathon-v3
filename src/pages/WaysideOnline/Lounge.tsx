@@ -39,16 +39,50 @@ function idleSpot(userId: string, salt = "") {
     : { x: a < 0.8 ? FLOOR.left + 0.01 + b * 0.1 : FLOOR.right - 0.01 - b * 0.1, y: FLOOR.top + 0.12 + b * 0.25 };
 }
 
+// The art: 320 across, a WALL-high back wall, then the floor. On screen the room fills
+// the space it's given, so a tall phone gets a deeper floor rather than a stretched room.
+// Positions stay in the server's room space; FLOOR.top..bottom maps onto whatever floor
+// this screen has, so everyone sees everyone in the same place.
+const ART_W = 320;
+const WALL = 112;
+const MIN_FLOOR = 88;
+const MAX_FLOOR = 460;
+const FLOOR_GAP = 10; // art rows below the lowest standing spot
+
+type Scene = { width: number; height: number; art: number; scale: number };
+
+function sceneFor(boxW: number, boxH: number): Scene {
+  if (boxW <= 0 || boxH <= 0) return { width: 0, height: 0, art: WALL + MIN_FLOOR, scale: 1 };
+  // as deep as the box, within limits; if that's still too shallow, fit by height
+  const art = Math.min(WALL + MAX_FLOOR, Math.max(WALL + MIN_FLOOR, Math.round((ART_W * boxH) / boxW)));
+  const scale = Math.min(boxW / ART_W, boxH / art);
+  return { width: ART_W * scale, height: art * scale, art, scale };
+}
+
+// Room space to this screen's pixels, and back
+const toScreen = (scene: Scene, x: number, y: number) => ({
+  left: x * scene.width,
+  top: (WALL + ((y - FLOOR.top) / (FLOOR.bottom - FLOOR.top)) * (scene.art - WALL - FLOOR_GAP)) * scene.scale,
+});
+const fromScreen = (scene: Scene, left: number, top: number) => ({
+  x: left / scene.width,
+  y: FLOOR.top + ((top / scene.scale - WALL) / (scene.art - WALL - FLOOR_GAP)) * (FLOOR.bottom - FLOOR.top),
+});
+
 const clampToFloor = (x: number, y: number) => ({
   x: Math.min(FLOOR.right, Math.max(FLOOR.left, x)),
   y: Math.min(FLOOR.bottom, Math.max(FLOOR.top, y)),
 });
 
-// The room's painted backdrop, 320 x 200 art pixels
-function Backdrop() {
-  const boards = Array.from({ length: 11 }, (_, i) => i);
+// The room's painted backdrop: 320 art pixels across, the wall always WALL tall and the
+// floor as deep as the screen allows (at least MIN_FLOOR)
+function Backdrop({ height }: { height: number }) {
+  const floor = height - WALL;
+  const boards = Array.from({ length: Math.ceil(floor / 8) }, (_, i) => i);
+  const rugH = Math.max(44, Math.round(floor * 0.45));
+  const rugY = WALL + Math.round((floor - rugH) * 0.55);
   return (
-    <svg viewBox="0 0 320 200" preserveAspectRatio="none" shapeRendering="crispEdges" className="absolute inset-0 h-full w-full" aria-hidden>
+    <svg viewBox={`0 0 320 ${height}`} preserveAspectRatio="none" shapeRendering="crispEdges" className="absolute inset-0 h-full w-full" aria-hidden>
       {/* wall, wainscot, skirting */}
       <rect width="320" height="112" fill="#3b2a4a" />
       {Array.from({ length: 20 }, (_, i) => (
@@ -60,7 +94,7 @@ function Backdrop() {
       ))}
       <rect y="108" width="320" height="4" fill="#2a1a12" />
       {/* floor */}
-      <rect y="112" width="320" height="88" fill="#6e4a2e" />
+      <rect y="112" width="320" height={floor} fill="#6e4a2e" />
       {boards.map((i) => (
         <rect key={i} y={112 + i * 8} width="320" height="1" fill="#5c3d25" />
       ))}
@@ -68,10 +102,10 @@ function Backdrop() {
         <rect key={`j${i}`} x={((i * 53) % 290) + 10} y={113 + i * 8} width="1" height="7" fill="#5c3d25" />
       ))}
       {/* rug */}
-      <rect x="92" y="138" width="136" height="44" fill="#7a1f2b" />
-      <rect x="96" y="141" width="128" height="38" fill="#952a36" />
-      <rect x="104" y="146" width="112" height="28" fill="#7a1f2b" />
-      <rect x="150" y="155" width="20" height="10" fill="#e0a43a" />
+      <rect x="92" y={rugY} width="136" height={rugH} fill="#7a1f2b" />
+      <rect x="96" y={rugY + 3} width="128" height={rugH - 6} fill="#952a36" />
+      <rect x="104" y={rugY + 8} width="112" height={rugH - 16} fill="#7a1f2b" />
+      <rect x="150" y={rugY + Math.round(rugH / 2) - 5} width="20" height="10" fill="#e0a43a" />
       {/* window with the moon */}
       <rect x="24" y="18" width="52" height="50" fill="#1b1430" />
       <rect x="27" y="21" width="46" height="44" fill="#0e1a3a" />
@@ -124,6 +158,7 @@ function Backdrop() {
 
 function Avatar({
   person,
+  scene,
   look,
   size,
   me,
@@ -131,6 +166,7 @@ function Avatar({
   onSelect,
 }: {
   person: Person;
+  scene: Scene;
   look: AvatarLook | null;
   size: number;
   me: boolean;
@@ -148,7 +184,7 @@ function Avatar({
     if (distance === 0) return;
     const ms = reducedMotion() ? 0 : (distance / WALK_SPEED) * 1000;
     setWalk((current) => ({ ms, left: Math.abs(dx) > 0.004 ? dx < 0 : current.left, walking: ms > 0 }));
-    const arrive = window.setTimeout(() => setWalk((current) => ({ ...current, walking: false })), ms);
+    const arrive = window.setTimeout(() => setWalk((current) => ({ ...current, ms: 0, walking: false })), ms);
     return () => window.clearTimeout(arrive);
   }, [person.x, person.y]);
   const saying = person.say && Date.now() - person.heard < SAY_MS;
@@ -156,8 +192,7 @@ function Avatar({
     <div
       className="lounge-person absolute"
       style={{
-        left: `${person.x * 100}%`,
-        top: `${person.y * 100}%`,
+        ...toScreen(scene, person.x, person.y),
         zIndex: Math.round(person.y * 1000),
         transitionDuration: `${walk.ms}ms`,
       }}
@@ -194,7 +229,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
   const socketRef = useRef<WebSocket | null>(null);
   const wantIn = useRef(signedIn);
   const roomRef = useRef<HTMLDivElement>(null);
-  const [roomWidth, setRoomWidth] = useState(0);
+  const [box, setBox] = useState({ width: 0, height: 0 });
 
   // The members who stand about, and the spots they idle at (they amble now and then)
   const { data: crowd = [] } = useQuery({ queryKey: ["wayside-online", "lounge", "crowd"], queryFn: loadCrowd, staleTime: 5 * 60 * 1000 });
@@ -217,7 +252,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
   useEffect(() => {
     const room = roomRef.current;
     if (!room) return;
-    const observer = new ResizeObserver(([entry]) => setRoomWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => setBox({ width: entry.contentRect.width, height: entry.contentRect.height }));
     observer.observe(room);
     return () => observer.disconnect();
   }, []);
@@ -352,8 +387,9 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
   const walkTo = (event: PointerEvent<HTMLDivElement>) => {
     setSelected(null);
     if (!me) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const spot = clampToFloor((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const at = fromScreen(scene, event.clientX - rect.left, event.clientY - rect.top);
+    const spot = clampToFloor(at.x, at.y);
     // (step at once on this screen; the server's echo lands on the same spot)
     setLive((current) => {
       const person = current.get(me);
@@ -371,14 +407,16 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
     setNotice(null);
   };
 
-  const size = roomWidth >= 560 ? 96 : 48;
+  const scene = sceneFor(box.width, box.height);
+  // (the avatar art, 48 rows, at a whole number of screen pixels per art pixel, near the room's own)
+  const size = 48 * Math.max(1, Math.round(scene.scale));
   const chosen = selected ? people.find((p) => p.userId === selected) : undefined;
   const inCount = live.size;
 
   return (
-    <div className="wo-well flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
+    <div className="wo-well flex min-h-0 flex-1 flex-col overflow-hidden p-2">
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-[19px] text-[#3c3a35]">
-        <span>{connected ? `${inCount} in the lounge` : "Dialling the lounge…"}</span>
+        <span>{connected ? `${inCount} in the lounge${me ? " · tap the floor to walk" : ""}` : "Dialling the lounge…"}</span>
         {chosen && (
           <span className="flex items-center gap-2">
             <span className="text-[#1c1b18]">{chosen.name}</span>
@@ -398,24 +436,26 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
           </span>
         )}
       </div>
-      <div
-        ref={roomRef}
-        className={`lounge-room relative w-full overflow-hidden ${me ? "cursor-pointer" : ""}`}
-        style={{ aspectRatio: "16 / 10" }}
-        onPointerDown={walkTo}
-      >
-        <Backdrop />
-        {people.map((person) => (
-          <Avatar
-            key={person.userId}
-            person={person}
-            look={looks[person.userId] ?? null}
-            size={size}
-            me={person.userId === me}
-            selected={person.userId === selected}
-            onSelect={() => setSelected((current) => (current === person.userId ? null : person.userId))}
-          />
-        ))}
+      <div ref={roomRef} className="lounge-room relative min-h-[240px] w-full flex-1 overflow-hidden">
+        <div
+          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${me ? "cursor-pointer" : ""}`}
+          style={{ width: scene.width, height: scene.height }}
+          onPointerDown={walkTo}
+        >
+          <Backdrop height={scene.art} />
+          {people.map((person) => (
+            <Avatar
+              key={person.userId}
+              person={person}
+              scene={scene}
+              look={looks[person.userId] ?? null}
+              size={size}
+              me={person.userId === me}
+              selected={person.userId === selected}
+              onSelect={() => setSelected((current) => (current === person.userId ? null : person.userId))}
+            />
+          ))}
+        </div>
       </div>
       <div className="mt-2">
         {!signedIn ? (
@@ -442,7 +482,6 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
           </button>
         )}
         {notice && <p className="mt-1 text-[18px] text-[#a3241a]">{notice}</p>}
-        {me && <p className="mt-1 text-[17px] text-[#7c7972]">Tap the floor to walk. Be kind; the station is listening.</p>}
       </div>
     </div>
   );

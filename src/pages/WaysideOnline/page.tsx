@@ -265,7 +265,7 @@ export default function WaysideOnlinePage() {
   const busy = useQueryClient().isFetching({ queryKey: ["wayside-online"] }) > 0;
   return (
     <div className="wo-root flex h-dvh flex-col p-2 sm:p-4">
-      <div className="wo-window mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+      <div className={`wo-window mx-auto flex min-h-0 w-full flex-1 flex-col ${board === "lounge" ? "max-w-6xl" : "max-w-3xl"}`}>
         <div className="wo-titlebar flex items-center gap-2 px-2 py-1.5">
           <span aria-hidden>▤</span>
           <span className="flex-1 truncate">WAYSIDE ONLINE</span>
