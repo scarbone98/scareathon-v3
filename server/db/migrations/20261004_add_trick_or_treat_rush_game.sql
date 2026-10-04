@@ -8,7 +8,7 @@
 
 UPDATE public.games
 SET is_active = TRUE,
-    url = 'https://sclondon.github.io/TrickOrTreatRush/build/index.html',
+    url = 'https://perhapsjohn.github.io/TrickOrTreatRush/',
     updated_at = NOW()
 WHERE name = 'Trick or Treat Rush';
 
@@ -17,7 +17,7 @@ SELECT
     'Trick or Treat Rush',
     'A Halloween push-your-luck party game: race the street for candy with up to four kids, but only candy you bring home counts.',
     TRUE,
-    'https://sclondon.github.io/TrickOrTreatRush/build/index.html',
+    'https://perhapsjohn.github.io/TrickOrTreatRush/',
     NOW(),
     NOW(),
     NOW()

@@ -21,6 +21,11 @@ export const GAME_SCORE_POLICIES = new Map([
     ['WirtWare', {
         score: { min: 0, max: 10000, integer: true },
     }],
+    // Score is one night's best banked candy among the player's kids; a strong night is
+    // ~190, an 8-minute night ~250 (game repo docs/BALANCE.md), so 2000 leaves headroom
+    ['Trick or Treat Rush', {
+        score: { min: 0, max: 2000, integer: true },
+    }],
     // Score is one night's candy (stash + haul) at midnight; big nights reach a few thousand
     ['Trick or Treat .io', {
         score: { min: 0, max: 100000, integer: true },

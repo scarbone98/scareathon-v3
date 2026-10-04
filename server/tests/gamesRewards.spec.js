@@ -140,6 +140,24 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
+    test('accepts Trick or Treat Rush nights up to the cap', () => {
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat Rush',
+            metricName: 'score',
+            metricValue: 186,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat Rush',
+            metricName: 'score',
+            metricValue: 2001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat Rush',
+            metricName: 'score',
+            metricValue: 40.5,
+        }).ok).toBe(false);
+    });
+
     test('accepts Trick or Treat .io nights up to the cap', () => {
         expect(validateScoreSubmission({
             game: 'Trick or Treat .io',

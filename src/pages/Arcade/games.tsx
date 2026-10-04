@@ -89,8 +89,10 @@ const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
 // Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
 const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=f61ab10";
-// Godot party game (Trick or Treat Rush); ?v= busts the cache when the build changes.
-const TRICK_OR_TREAT_RUSH_URL = "https://sclondon.github.io/TrickOrTreatRush/build/index.html?v=20261004";
+// Godot party game (Trick or Treat Rush): one page that loads phone.pck on phones (touch
+// controls, portrait and landscape layouts) and index.pck on desktop. Build-only GitHub
+// Pages repo; ?v= is its build commit, to bust the cache.
+const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=7380144";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
@@ -709,15 +711,15 @@ export function createArcadeGames(): MachineData[] {
     },
     // Godot party game: 1-4 kids (bots fill the street) race for candy; only candy
     // carried home counts. Online play goes through the shared Wayside relay. A
-    // finished night's best local haul comes back as PLAYER_DIED (practice nights don't).
-    // Phones get their own lighter pack and touch controls.
+    // finished night's best local haul comes back as PLAYER_DIED (practice nights don't);
+    // it asks for the session (unityReady) to offer the player's username as their name.
     {
       name: "Trick or Treat Rush",
       cartridge: {
         color: "#ff8a1f",
         tagline: "Only the candy you bring home counts.",
         font: { family: "Baloo 2", weight: 800 },
-        about: { released: "2026", players: "1-4 local · online", genre: "Party / push-your-luck", developer: "sclondon" },
+        about: { released: "2026", players: "1-4 local · online", genre: "Party / push-your-luck", developer: "perhapsJohn" },
         backNote: "Bank it before the dog gets you.",
       },
       videoUrl: "/game-recordings/TrickOrTreatRush.mp4",
@@ -727,9 +729,10 @@ export function createArcadeGames(): MachineData[] {
           url={TRICK_OR_TREAT_RUSH_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          onLoad={(iframe) =>
-            listenForPlayerDiedScores(iframe, "Trick or Treat Rush", TRICK_OR_TREAT_RUSH_URL)
-          }
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Trick or Treat Rush", TRICK_OR_TREAT_RUSH_URL),
+            sendSessionWhenReady(iframe, TRICK_OR_TREAT_RUSH_URL),
+          ]}
         />
       ),
     },
