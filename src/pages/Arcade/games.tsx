@@ -66,6 +66,10 @@ const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
+// Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
+// commit, to bust the cache. One page, two packs: phones get half-size art
+// (index.mobile.pck), desktops the full set.
+const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=dcc8286";
 const HORDE_RUSH_URL = "/horde-rush";
 const MONSTER_BASH_URL = "/monster-bash";
 const FROG_BALL_URL = "/frog-ball";
@@ -83,7 +87,51 @@ const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
+// Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
+const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a1b8edc";
+// Godot party game (Trick or Treat Rush): one page that loads phone.pck on phones (touch
+// controls, portrait and landscape layouts) and index.pck on desktop. Build-only GitHub
+// Pages repo; ?v= is its build commit, to bust the cache.
+const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=002b557";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
+// Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
+// full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
+// with the night's candy total at midnight; asks for the session (unityReady) to name the
+// player's gang after their username. Served from a build-only GitHub Pages repo;
+// ?v= is that repo's build commit, to bust the cache.
+const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=a6686df";
+// Godot voxel stealth game (Lawn Order): a small dog sneaks into the neighbours' yards to
+// poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay; it
+// sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
+// turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
+const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=5f991fd";
+// Godot photo safari (Cryptid Snap): ride a station wagon down a county road on Halloween night
+// 1986 and photograph cryptids; online CB Rally (2-4) through the Wayside relay. One page, two
+// packs: phones get index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to
+// use the username as the CB handle; posts PLAYER_DIED with each single-player report's total.
+// Build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
+const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=e9d377d";
+// Godot tower defence (Boo Pop TD): a portrait
+// layout on phones (the field turned a quarter, shop and upgrades as bottom sheets, its own
+// on-screen keyboard), landscape on desktop. One page, two packs: phones get
+// index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to use the
+// username as the player name; posts PLAYER_DIED when a single-player game ends (win or
+// lose) with the last round cleared. Co-op / versus go through the Wayside relay and are
+// never scored here. Build-only GitHub Pages repo; ?v= is the repo's build commit.
+const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=46cf534";
+// Godot 3D kart racer (Kart-o'-Lantern): one page, two packs (phones get index.mobile.pck,
+// desktops index.pck), touch controls and its own on-screen keyboard; online rooms go
+// through relay.waysidejunction.com. Asks for the session (unityReady) to make the
+// player's username their racer name; posts PLAYER_DIED with player 1's points at the
+// end of a Grand Prix. Build-only GitHub Pages repo; ?v= is its commit.
+const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=5d92cdb";
+// Godot 3D platform fighter (Graveyard Smash 3D): one page, two packs (phones get
+// index.mobile.pck, desktops index.pck), touch controls, its own on-screen keyboard and
+// a turn-sideways card on an upright phone; online rooms go through
+// relay.waysidejunction.com. Asks for the session (unityReady) to make the username its
+// online name; posts PLAYER_DIED with a Classic run's score when the run ends (cleared or
+// given up). Build-only GitHub Pages repo; ?v= is its commit.
+const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=38a0ced";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -493,6 +541,31 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // Godot auto-battler: build a crew of spooky critters in the shop, they fight on their
+    // own. A finished Arena/Practice run reports its skulls (0-10 battles won) as PLAYER_DIED.
+    // Online play (versus rooms, ghosts) runs through relay.waysidejunction.com.
+    {
+      name: "Super Autoween",
+      cartridge: {
+        color: "#4a1f5c",
+        tagline: "Build a crew of creepy critters. Survive till dawn.",
+        font: { family: "Chewy" },
+        about: { released: "2026", players: "1-2 players", genre: "Auto-battler", developer: "perhapsJohn" },
+        backNote: "Three of a kind levels up. Freeze the good ones.",
+      },
+      videoUrl: "/game-recordings/SuperAutoween.mp4",
+      game: (
+        <GameRenderer
+          title="Super Autoween"
+          url={SUPER_AUTOWEEN_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Super Autoween", SUPER_AUTOWEEN_URL)
+          }
+        />
+      ),
+    },
     {
       name: "Crypt Clash",
       earlyAccess: true,
@@ -635,6 +708,210 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Muertos", MUERTOS_URL)
           }
+        />
+      ),
+    },
+    // Godot daily puzzle: a new night every October day at 00:00 UTC, four rounds.
+    // A finished night's score (0-400, 800 on Halloween) comes back as PLAYER_DIED;
+    // the cart also sends the session so the guestbook can offer the player's name.
+    {
+      name: "31 Nights",
+      cartridge: {
+        color: "#e8651c",
+        tagline: "One door opens every night until Halloween.",
+        font: { family: "Cormorant Garamond", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Daily puzzle", developer: "perhapsJohn" },
+        backNote: "Come back tomorrow night.",
+      },
+      videoUrl: "/game-recordings/31Nights.mp4",
+      game: (
+        <GameRenderer
+          title="31 Nights"
+          url={THIRTY_ONE_NIGHTS_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "31 Nights", THIRTY_ONE_NIGHTS_URL),
+            sendSessionWhenReady(iframe, THIRTY_ONE_NIGHTS_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot party game: 1-4 kids (bots fill the street) race for candy; only candy
+    // carried home counts. Online play goes through the shared Wayside relay. A
+    // finished night's best local haul comes back as PLAYER_DIED (practice nights don't);
+    // it asks for the session (unityReady) to offer the player's username as their name.
+    {
+      name: "Trick or Treat Rush",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "Only the candy you bring home counts.",
+        font: { family: "Baloo 2", weight: 800 },
+        about: { released: "2026", players: "1-4 local · online", genre: "Party / push-your-luck", developer: "perhapsJohn" },
+        backNote: "Bank it before the dog gets you.",
+      },
+      videoUrl: "/game-recordings/TrickOrTreatRush.mp4",
+      game: (
+        <GameRenderer
+          title="Trick or Treat Rush"
+          url={TRICK_OR_TREAT_RUSH_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Trick or Treat Rush", TRICK_OR_TREAT_RUSH_URL),
+            sendSessionWhenReady(iframe, TRICK_OR_TREAT_RUSH_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot .io game: lead a line of trick-or-treaters, cut off other gangs so they scatter into
+    // candy. Solo with bots or online rooms. Score: the night's candy (stash + haul) at midnight.
+    {
+      name: "Trick or Treat .io",
+      cartridge: {
+        color: "#ef8a2b",
+        tagline: "Grow your gang. Cut off the big kids.",
+        font: { family: "Permanent Marker" },
+        about: { released: "2026", players: "1-8 online", genre: ".io", developer: "perhapsJohn" },
+        backNote: "Stash at home before midnight.",
+      },
+      videoUrl: "/game-recordings/TrickOrTreatIo.mp4",
+      game: (
+        <GameRenderer
+          title="Trick or Treat .io"
+          url={TRICK_OR_TREAT_IO_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Trick or Treat .io", TRICK_OR_TREAT_IO_URL),
+            sendSessionWhenReady(iframe, TRICK_OR_TREAT_IO_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot voxel stealth: review every lawn on the list (squat in the orange ring), stay out of
+    // sight, slip out the gate. Or play the humans and catch the dogs. No leaderboard.
+    {
+      name: "Lawn Order",
+      earlyAccess: true,
+      cartridge: {
+        color: "#5fb84a",
+        tagline: "A small dog. A big grudge. Very nice lawns.",
+        font: { family: "Sniglet", weight: 800 },
+        about: { released: "2026", players: "1-4 online", genre: "Stealth", developer: "perhapsJohn" },
+        backNote: "Hold still in the hedge.",
+      },
+      videoUrl: "/game-recordings/LawnOrder.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Lawn Order"
+          url={LAWN_ORDER_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // Godot tower defence (candy-coloured sheet ghosts down a graveyard path, spooks to stop them). Score: the last round cleared on a single-player run
+    // (a Medium win is 60, Hard 80, Impoppable 100; freeplay keeps counting, capped at 200).
+    {
+      name: "Boo Pop TD",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "Pop every boo before the lanterns go out.",
+        font: { family: "Cormorant", weight: 700 },
+        about: { released: "2026", players: "1 player · co-op 2-4 · versus online", genre: "Tower defence", developer: "perhapsJohn" },
+        backNote: "Keep one lantern lit.",
+      },
+      videoUrl: "/game-recordings/BooPopTD.mp4",
+      game: (
+        <GameRenderer
+          title="Boo Pop TD"
+          url={BOO_POP_TD_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Boo Pop TD", BOO_POP_TD_URL),
+            sendSessionWhenReady(iframe, BOO_POP_TD_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot photo safari: one ride down a county road = one run; Dr. Marsh's report total
+    // (the run's case points) comes back as PLAYER_DIED. CB Rally results are never sent.
+    {
+      name: "Cryptid Snap",
+      cartridge: {
+        color: "#ff4f9a",
+        tagline: "Thirty-six exposures, one county road, something in the headlights.",
+        font: { family: "Bungee" },
+        about: { released: "2026", players: "1 player · online CB Rally 2-4", genre: "Photo safari", developer: "perhapsJohn" },
+        backNote: "Dead centre. Don't flinch.",
+      },
+      videoUrl: "/game-recordings/CryptidSnap.mp4",
+      game: (
+        <GameRenderer
+          title="Cryptid Snap"
+          url={CRYPTID_SNAP_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Cryptid Snap", CRYPTID_SNAP_URL),
+            sendSessionWhenReady(iframe, CRYPTID_SNAP_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot kart racer: monsters and cryptids on 16 haunted tracks, Grand Prix / Time Trial /
+    // VS / Lantern Battle, 1-4 on one screen or online by race code. Score: player 1's points
+    // over a four-race Grand Prix (15 for a win, 60 at most).
+    {
+      name: "Kart-o'-Lantern",
+      earlyAccess: true,
+      cartridge: {
+        color: "#ff7a1a",
+        tagline: "Count Vlad sulks for a full lap if you pass him.",
+        font: { family: "Rubik Wet Paint" },
+        about: { released: "2026", players: "1-4 local, online by room code", genre: "Kart racing", developer: "perhapsJohn" },
+        backNote: "Most points after four races takes the Golden Lantern.",
+      },
+      videoUrl: "/game-recordings/KartOLantern.mp4",
+      game: (
+        <GameRenderer
+          title="Kart-o'-Lantern"
+          url={KART_O_LANTERN_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Kart-o'-Lantern", KART_O_LANTERN_URL),
+            sendSessionWhenReady(iframe, KART_O_LANTERN_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot platform fighter: twenty-five monsters on haunted stages, Versus for 1-4 on one
+    // screen, Classic, Events, Bonus courses and online rooms. Score: one Classic run (the
+    // Trick or Treat Trail, seven fights) when it ends, cleared or given up; 125,500 at most.
+    {
+      name: "Graveyard Smash 3D",
+      earlyAccess: true,
+      cartridge: {
+        color: "#6b3fa0",
+        tagline: "Seven fights down the Trick or Treat Trail, then a giant at the Witching Hour.",
+        font: { family: "Creepster" },
+        about: { released: "2026", players: "1-4 local, online by room code", genre: "Platform fighter", developer: "perhapsJohn" },
+        backNote: "Faster KOs and less damage taken score more candy.",
+      },
+      videoUrl: "/game-recordings/GraveyardSmash3D.mp4",
+      game: (
+        <GameRenderer
+          title="Graveyard Smash 3D"
+          url={GRAVEYARD_SMASH_3D_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Graveyard Smash 3D", GRAVEYARD_SMASH_3D_URL),
+            sendSessionWhenReady(iframe, GRAVEYARD_SMASH_3D_URL),
+          ]}
         />
       ),
     },

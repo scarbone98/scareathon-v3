@@ -126,6 +126,160 @@ describe('validateScoreSubmission', () => {
             metricValue: 48210,
         })).toEqual({ ok: true });
     });
+
+    test('accepts 31 Nights scores up to a doubled Halloween night', () => {
+        expect(validateScoreSubmission({
+            game: '31 Nights',
+            metricName: 'score',
+            metricValue: 800,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: '31 Nights',
+            metricName: 'score',
+            metricValue: 801,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Super Autoween runs from 0 to 10 wins', () => {
+        expect(validateScoreSubmission({
+            game: 'Super Autoween',
+            metricName: 'score',
+            metricValue: 10,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Super Autoween',
+            metricName: 'score',
+            metricValue: 11,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Super Autoween',
+            metricName: 'score',
+            metricValue: 2.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Boo Pop TD runs up to the round cap', () => {
+        expect(validateScoreSubmission({
+            game: 'Boo Pop TD',
+            metricName: 'score',
+            metricValue: 60,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Boo Pop TD',
+            metricName: 'score',
+            metricValue: 200,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Boo Pop TD',
+            metricName: 'score',
+            metricValue: 201,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Boo Pop TD',
+            metricName: 'score',
+            metricValue: 36.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Trick or Treat Rush nights up to the cap', () => {
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat Rush',
+            metricName: 'score',
+            metricValue: 186,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat Rush',
+            metricName: 'score',
+            metricValue: 2001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat Rush',
+            metricName: 'score',
+            metricValue: 40.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Trick or Treat .io nights up to the cap', () => {
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat .io',
+            metricName: 'score',
+            metricValue: 2350,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat .io',
+            metricName: 'score',
+            metricValue: 100001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat .io',
+            metricName: 'score',
+            metricValue: 12.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Graveyard Smash 3D Classic runs up to a flawless hardest trail', () => {
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 8240,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 125500,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 125501,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 4120.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Kart-o\'-Lantern Grand Prix points up to four wins', () => {
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 29,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 60,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 61,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 12.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Cryptid Snap reports up to the best possible ride', () => {
+        expect(validateScoreSubmission({
+            game: 'Cryptid Snap',
+            metricName: 'score',
+            metricValue: 7802,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Cryptid Snap',
+            metricName: 'score',
+            metricValue: 43800,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Cryptid Snap',
+            metricName: 'score',
+            metricValue: 43801,
+        }).ok).toBe(false);
+    });
 });
 
 describe('playTicketsFor', () => {
