@@ -60,6 +60,7 @@ import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } fr
 import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRow.ts";
 import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
+import { hasNews, PLAYED_EVENT, playedCarts } from "../pages/Arcade/news.ts";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
@@ -964,6 +965,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             cassette: game.cartridge.cassette,
             untitled: game.special === "mystery",
             hologram: game.special === "soon",
+            badge: hasNews(game),
           });
           cart.group.userData.restBase = new Vector3(slots[i] - slots[start], layout.homeY, layout.z);
           cart.group.userData.rest = cart.group.userData.restBase.clone();
@@ -978,8 +980,15 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
         cabinet.add(row);
         group.userData.cartWidth = dressing.cartSize.width;
         const stopStills = loadVideoStills(shown.map((i) => games[i].videoUrl), (n, source, width, height) => carts[n]?.setPicture(source, width, height));
+        // A game's been played: its "!" badge comes off here too
+        const onPlayed = () => {
+          const played = playedCarts();
+          carts.forEach((cart, n) => cart.setBadge(hasNews(games[shown[n]], played)));
+        };
+        window.addEventListener(PLAYED_EVENT, onPlayed);
         group.userData.row = row;
         group.userData.disposeRow = () => {
+          window.removeEventListener(PLAYED_EVENT, onPlayed);
           stopStills();
           carts.forEach((cart) => cart.dispose());
         };

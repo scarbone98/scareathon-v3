@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { byName, type MachineData } from "../Arcade/games.tsx";
 import { stillUrlFor } from "./cartridge.ts";
+import { hasNews, isNewGame, playedCarts } from "../Arcade/news.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
 // games' stills and names in alphabetical order, a row of filters behind a FILTER button (genre, developer,
 // single or multiplayer, early access, coming soon), and a search prompt along the bottom that filters
-// by name or genre. Picking one jumps the shelf to it.
+// by name or genre. Picking one jumps the shelf to it. Games in their first day come first,
+// under NEW GAMES, and anything new or updated wears a "!" badge until it's played (Arcade/news.ts).
 
 const PHOSPHOR = "#39ff6a";
 const TERMINAL_FAMILY = `"VT323", ui-monospace, Menlo, Consolas, monospace`;
@@ -99,6 +101,10 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       (!players || playersOf(game) === players) &&
       ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
   );
+  // New games first, under a heading of their own
+  const fresh = shown.filter(({ game }) => isNewGame(game));
+  const sections = fresh.length ? [{ title: "NEW GAMES", carts: fresh }, { title: "ALL GAMES", carts: shown.filter(({ game }) => !isNewGame(game)) }] : [{ title: "", carts: shown }];
+  const played = useMemo(playedCarts, []);
   const filtersOn = [genre, developer, players, early, soon].filter(Boolean).length;
   return (
     <div
@@ -156,7 +162,13 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
         <ul className=
 "grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
           {shown.length === 0 && <li className="col-span-full py-6 text-xl">{needle ? `NO CARTRIDGE MATCHES "${query.toUpperCase()}"` : "NO CARTRIDGE MATCHES"}</li>}
-          {shown.map(({ game, index }) => {
+          {sections.flatMap(({ title, carts }) => [
+            title && carts.length > 0 && (
+              <li key={title} className="col-span-full text-xl leading-6">
+                {`> ${title}`}
+              </li>
+            ),
+            ...carts.map(({ game, index }) => {
             const soon = game.special === "soon";
             const stamp = soon ? "COMING SOON" : game.earlyAccess ? "EARLY ACCESS" : "";
             return (
@@ -188,6 +200,16 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                       className="pointer-events-none absolute inset-0"
                       style={{ background: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.3) 0 1px, transparent 1px 3px)" }}
                     />
+                    {/* Something new here, not played yet: a yellow dot with a red "!" */}
+                    {hasNews(game, played) && (
+                      <span
+                        aria-label="New or updated"
+                        className="absolute right-1 top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-[#3a2a00] bg-[#ffd21f] text-base font-bold leading-none text-[#e0201b] sm:h-5 sm:w-5 sm:text-lg"
+                        style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif", boxShadow: "0 0 6px rgba(255, 210, 31, 0.8)" }}
+                      >
+                        !
+                      </span>
+                    )}
                     {/* Not made yet, or not finished: stamped across the corner-to-corner diagonal */}
                     {stamp && (
                       <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
@@ -216,7 +238,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                 </button>
               </li>
             );
-          })}
+            }),
+          ])}
         </ul>
         {/* The search prompt */}
         <label className="flex items-center gap-2 border-t-2 border-[#39ff6a]/30 px-4 py-2 text-2xl leading-none">

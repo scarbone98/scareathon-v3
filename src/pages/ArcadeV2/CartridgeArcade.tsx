@@ -56,6 +56,7 @@ import type { Reaction } from "./slotTerminal.ts";
 import { checkRemoteCode, createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import CartridgeIndex from "./CartridgeIndex.tsx";
+import { hasNews, PLAYED_EVENT, playedCarts } from "../Arcade/news.ts";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
@@ -942,6 +943,12 @@ export default function CartridgeArcade({
       ticketsOwed += (event as CustomEvent<TicketsWon>).detail.tickets;
     };
     window.addEventListener(TICKETS_EVENT, onTickets);
+    // A game's been played: its "!" badge comes off
+    const onPlayed = () => {
+      const played = playedCarts();
+      carts.forEach((state, index) => state.cart.setBadge(hasNews(games[index], played)));
+    };
+    window.addEventListener(PLAYED_EVENT, onPlayed);
     let terminalScreenNow: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
     let terminalOptions: TerminalOptions = terminalOptionsRef.current;
     // Put something on the terminal, and on the card that mirrors it
@@ -1823,6 +1830,7 @@ export default function CartridgeArcade({
       portLight.position.set(0, portTop + cartSize.height * 0.3, panelCenter.z + cartSize.depth * 3);
       cabinet.add(portLight);
 
+      const played = playedCarts();
       games.forEach((game, index) => {
         // Neighbours on the shelf never share a shell
         const style = CARTRIDGE_STYLES[index % CARTRIDGE_STYLES.length];
@@ -1836,6 +1844,7 @@ export default function CartridgeArcade({
           cassette: game.cartridge.cassette,
           untitled: game.special === "mystery",
           hologram: game.special === "soon",
+          badge: hasNews(game, played),
         });
         cart.group.userData.cartIndex = index;
         carts.push({ cart, home: new Vector3(), focus: { value: 0 }, intro: { value: 0 }, where: "shelf" });
@@ -2799,6 +2808,7 @@ export default function CartridgeArcade({
       cancelAnimationFrame(frame);
       window.removeEventListener("devicemotion", onMotion);
       window.removeEventListener(TICKETS_EVENT, onTickets);
+      window.removeEventListener(PLAYED_EVENT, onPlayed);
       renderer.domElement.removeEventListener("click", askForMotion);
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", syncVideo);

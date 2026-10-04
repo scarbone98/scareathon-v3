@@ -7,6 +7,7 @@ import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
 import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
+import { isNewGame } from "./news.ts";
 
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
@@ -28,6 +29,10 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
+  // When it arrived and when it last changed (an ISO time, like "2026-10-04T16:00:00-06:00"):
+  // a "!" badge until it's played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
+  added?: string;
+  updated?: string;
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
   // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
@@ -436,6 +441,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Hemlock's Tower",
+      updated: "2026-09-30T11:03:28-06:00",
       cartridge: {
         color: "#3fb68b",
         tagline: "Climb out from the deep.",
@@ -917,6 +923,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Deep Time",
+      updated: "2026-10-02T13:08:21-07:00",
       earlyAccess: true,
       cartridge: {
         color: "#4d5e3a",
@@ -941,6 +948,8 @@ export function createArcadeGames(): MachineData[] {
     // the title screen offers "you" alongside the four kids. No scores yet.
     {
       name: "Hallow Deep",
+      added: "2026-10-03T16:48:17-07:00",
+      updated: "2026-10-03T19:38:13-07:00",
       secret: true,
       cartridge: {
         color: "#3a1f4d",
@@ -1101,6 +1110,7 @@ export function createArcadeGames(): MachineData[] {
     // --- Secret: in testing, only on the shelf once you've typed LIQUID into WaysideOS
     {
       name: "Liquid Metal",
+      added: "2026-10-01T23:30:42-06:00",
       secret: true,
       cartridge: {
         color: "#aeb9c8",
@@ -1124,6 +1134,8 @@ export function createArcadeGames(): MachineData[] {
     // never touches the Unity game's silver and unlocks. No scores while it's in testing.
     {
       name: "8 Bit Evil Returns V2",
+      added: "2026-10-02T17:20:18-07:00",
+      updated: "2026-10-03T02:34:26-07:00",
       secret: true,
       cartridge: {
         color: "#7a2fd6",
@@ -1211,12 +1223,14 @@ export function createArcadeGames(): MachineData[] {
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the cassette
-// carts (things to do), the finished games ("???" among them), early access, and coming soon
+// carts (things to do), new games (finished ones, for their first day), the finished games
+// ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
-  if (game.special === "mystery") return 1;
-  if (game.special === "soon") return 3;
-  if (game.earlyAccess) return 2;
-  return game.cartridge.cassette ? 0 : 1;
+  if (game.special === "mystery") return 2;
+  if (game.special === "soon") return 4;
+  if (game.earlyAccess) return 3;
+  if (game.cartridge.cassette) return 0;
+  return isNewGame(game) ? 1 : 2;
 }
 
 // Alphabetical order, leaving a leading "The" out of it and counting 2 before 10

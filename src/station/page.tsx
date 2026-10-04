@@ -8,6 +8,7 @@ import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
+import { markPlayed } from "../pages/Arcade/news";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
@@ -461,7 +462,9 @@ export default function StationPage() {
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
   const play = (game: MachineData) => {
     if (game.special === "mystery" || game.special === "soon" || game.special === "wayside") return;
-    setTransition({ mode: "on", game: game.special === "shuffle" ? pickShuffleGame(games) : game });
+    const picked = game.special === "shuffle" ? pickShuffleGame(games) : game;
+    markPlayed(picked.name);
+    setTransition({ mode: "on", game: picked });
   };
   const stopPlaying = () => setTransition({ mode: "off", game: null });
 

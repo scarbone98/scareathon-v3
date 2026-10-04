@@ -10,6 +10,7 @@ import {
   Group,
   DoubleSide,
   Mesh,
+  MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
@@ -17,6 +18,7 @@ import {
   Shape,
   ShapeGeometry,
   SRGBColorSpace,
+  type Material,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { canvasFont, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
@@ -115,8 +117,45 @@ function paintBoard(context: CanvasRenderingContext2D, name: string) {
   context.fillText("REV B", width - 58, 20);
 }
 
+// The "something new" badge: a yellow dot with a red "!" (one picture, shared by every cartridge)
+let badgePicture: CanvasTexture | null = null;
+function badgeTexture() {
+  if (badgePicture) return badgePicture;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#3a2a00";
+    context.beginPath();
+    context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = "#ffd21f";
+    context.beginPath();
+    context.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+    context.fill();
+    // The "!": a tapered stroke over a dot
+    context.fillStyle = "#e0201b";
+    context.beginPath();
+    context.moveTo(size / 2 - 6, 12);
+    context.lineTo(size / 2 + 6, 12);
+    context.lineTo(size / 2 + 3.5, 38);
+    context.lineTo(size / 2 - 3.5, 38);
+    context.closePath();
+    context.fill();
+    context.beginPath();
+    context.arc(size / 2, 48, 5, 0, Math.PI * 2);
+    context.fill();
+  }
+  badgePicture = new CanvasTexture(canvas);
+  badgePicture.colorSpace = SRGBColorSpace;
+  return badgePicture;
+}
+
 export type Cartridge = {
   group: Group;
+  // The "!" badge on the top corner: something new here, not played yet
+  setBadge: (on: boolean) => void;
   // Paint a frame from the attract video into the label's picture window.
   setPicture: (source: CanvasImageSource, width: number, height: number) => void;
   // 0 on the shelf, 1 picked; also turns the reels, faster the higher it is
@@ -631,6 +670,7 @@ export function createCartridge(
     tape = "",
     cassette = "",
     hologram = false,
+    badge = false,
   }: {
     clear?: boolean; // a see-through shell in the game's colour, showing what's inside
     released?: string; // the release year, for the back sticker
@@ -640,6 +680,7 @@ export function createCartridge(
     tape?: string; // no sticker on the back, just a strip of masking tape with this written on
     cassette?: string; // a blank cassette cart: colourless clear shell, this written on a plain sticker
     hologram?: boolean; // a game that isn't made yet: the cart's only a flickering projection of itself
+    badge?: boolean; // starts with the "!" badge on (see setBadge)
   } = {}
 ): Cartridge {
   const group = new Group();
@@ -693,7 +734,7 @@ export function createCartridge(
   const connectorMaterial = new MeshStandardMaterial({ color: new Color("#16131b"), roughness: 0.6 });
   const goldMaterial = new MeshStandardMaterial({ color: new Color("#d8a93a"), roughness: 0.3, metalness: 0.9 });
   const geometries: { dispose: () => void }[] = [];
-  const addPart = (geometry: BufferGeometry, material: MeshStandardMaterial, x: number, y: number, z: number) => {
+  const addPart = (geometry: BufferGeometry, material: Material, x: number, y: number, z: number) => {
     geometries.push(geometry);
     const mesh = new Mesh(geometry, material);
     mesh.position.set(x, y, z);
@@ -1092,9 +1133,23 @@ export function createCartridge(
   };
   if (hologram) shimmer();
 
+  // The badge, over the front's top right corner (made the first time it's wanted)
+  let badgeMesh: Mesh | null = null;
+  let badgeMaterial: MeshBasicMaterial | null = null;
+  const setBadge = (on: boolean) => {
+    if (on && !badgeMesh) {
+      const radius = width * 0.075;
+      badgeMaterial = new MeshBasicMaterial({ map: badgeTexture(), transparent: true });
+      badgeMesh = addPart(new CircleGeometry(radius, 24), badgeMaterial, width / 2 - radius * 0.7, bodyTop - radius * 0.7, depth / 2 + 0.004);
+    }
+    if (badgeMesh) badgeMesh.visible = on;
+  };
+  if (badge) setBadge(true);
+
   return {
     group,
     sticker,
+    setBadge,
     setPicture: (source, w, h) => {
       // Copy the frame now: the video element is released right after
       const copy = document.createElement("canvas");
@@ -1126,6 +1181,7 @@ export function createCartridge(
       stickerTexture.dispose();
       boardTexture?.dispose();
       scanTexture?.dispose();
+      badgeMaterial?.dispose();
       holoMaterials.forEach(({ material }) => material.dispose());
     },
   };
