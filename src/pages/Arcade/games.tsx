@@ -552,6 +552,7 @@ export function createArcadeGames(): MachineData[] {
     // Online play (versus rooms, ghosts) runs through relay.waysidejunction.com.
     {
       name: "Super Autoween",
+      added: "2026-10-04T15:29:21-06:00",
       cartridge: {
         color: "#4a1f5c",
         tagline: "Build a crew of creepy critters. Survive till dawn.",
@@ -722,6 +723,7 @@ export function createArcadeGames(): MachineData[] {
     // the cart also sends the session so the guestbook can offer the player's name.
     {
       name: "31 Nights",
+      added: "2026-10-04T15:29:21-06:00",
       cartridge: {
         color: "#e8651c",
         tagline: "One door opens every night until Halloween.",
@@ -748,6 +750,7 @@ export function createArcadeGames(): MachineData[] {
     // it asks for the session (unityReady) to offer the player's username as their name.
     {
       name: "Trick or Treat Rush",
+      added: "2026-10-04T15:29:21-06:00",
       cartridge: {
         color: "#ff8a1f",
         tagline: "Only the candy you bring home counts.",
@@ -773,6 +776,7 @@ export function createArcadeGames(): MachineData[] {
     // candy. Solo with bots or online rooms. Score: the night's candy (stash + haul) at midnight.
     {
       name: "Trick or Treat .io",
+      added: "2026-10-04T15:29:21-06:00",
       cartridge: {
         color: "#ef8a2b",
         tagline: "Grow your gang. Cut off the big kids.",
@@ -798,6 +802,7 @@ export function createArcadeGames(): MachineData[] {
     // sight, slip out the gate. Or play the humans and catch the dogs. No leaderboard.
     {
       name: "Lawn Order",
+      added: "2026-10-04T15:29:21-06:00",
       earlyAccess: true,
       cartridge: {
         color: "#5fb84a",
@@ -821,6 +826,7 @@ export function createArcadeGames(): MachineData[] {
     // (a Medium win is 60, Hard 80, Impoppable 100; freeplay keeps counting, capped at 200).
     {
       name: "Boo Pop TD",
+      added: "2026-10-04T15:29:21-06:00",
       cartridge: {
         color: "#ff8a1f",
         tagline: "Pop every boo before the lanterns go out.",
@@ -846,6 +852,7 @@ export function createArcadeGames(): MachineData[] {
     // (the run's case points) comes back as PLAYER_DIED. CB Rally results are never sent.
     {
       name: "Cryptid Snap",
+      added: "2026-10-04T15:29:21-06:00",
       cartridge: {
         color: "#ff4f9a",
         tagline: "Thirty-six exposures, one county road, something in the headlights.",
@@ -872,6 +879,7 @@ export function createArcadeGames(): MachineData[] {
     // over a four-race Grand Prix (15 for a win, 60 at most).
     {
       name: "Kart-o'-Lantern",
+      added: "2026-10-04T15:29:21-06:00",
       earlyAccess: true,
       cartridge: {
         color: "#ff7a1a",
@@ -899,6 +907,7 @@ export function createArcadeGames(): MachineData[] {
     // Trick or Treat Trail, seven fights) when it ends, cleared or given up; 125,500 at most.
     {
       name: "Graveyard Smash 3D",
+      added: "2026-10-04T15:29:21-06:00",
       earlyAccess: true,
       cartridge: {
         color: "#6b3fa0",
