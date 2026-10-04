@@ -71,7 +71,7 @@ const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
-const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=913e621";
+const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=045bee5";
 const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
@@ -648,10 +648,12 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // --- Secret: in testing, only on the shelf once you've typed HALLOW into WaysideOS.
     // Godot Metroidvania. Sent the player's session so it can fetch their avatar look:
     // the title screen offers "you" alongside the four kids. No scores yet.
     {
       name: "Hallow Deep",
+      secret: true,
       cartridge: {
         color: "#3a1f4d",
         tagline: "Find Rowan. Find the seed. Don't breathe too loud.",
