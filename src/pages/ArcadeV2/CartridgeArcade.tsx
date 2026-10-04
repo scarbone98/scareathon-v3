@@ -56,7 +56,7 @@ import type { Reaction } from "./slotTerminal.ts";
 import { checkRemoteCode, createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import CartridgeIndex from "./CartridgeIndex.tsx";
-import { hasNews, PLAYED_EVENT, playedCarts } from "../Arcade/news.ts";
+import { hasNews, hasUpdate, isNewGame, PLAYED_EVENT, playedCarts } from "../Arcade/news.ts";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
@@ -457,6 +457,39 @@ export default function CartridgeArcade({
       context.shadowBlur = 0;
     };
 
+    // A little tag in the corner of a preview, in the "!" badge's yellow and red: NEW! on a game
+    // in its first day (the NEW GAMES group), UPDATE! on one that's changed since it was last played
+    const paintTag = (text: string) => (context: CanvasRenderingContext2D, width: number, height: number) => {
+      const size = Math.round(height * 0.085);
+      const pad = size * 0.5;
+      const tagHeight = size * 1.5;
+      const x = width * 0.05;
+      const y = height * 0.07;
+      context.font = canvasFont(TERMINAL_FONT, size);
+      context.shadowBlur = 0;
+      const tagWidth = context.measureText(text).width + pad * 2;
+      context.fillStyle = "#ffd21f";
+      context.fillRect(x, y, tagWidth, tagHeight);
+      context.strokeStyle = "#3a2a00";
+      context.lineWidth = Math.max(2, size * 0.1);
+      context.strokeRect(x, y, tagWidth, tagHeight);
+      context.fillStyle = "#e0201b";
+      context.textAlign = "left";
+      context.textBaseline = "middle";
+      context.fillText(text, x + pad, y + tagHeight / 2 + 1);
+    };
+
+    // What's drawn over a game's preview: early access's band, and a tag in the corner over that
+    const overlayFor = (game: MachineData) => {
+      const band = game.earlyAccess ? paintEarlyAccess(game.cartridge.color) : undefined;
+      const tag = isNewGame(game) ? paintTag("NEW!") : hasUpdate(game) ? paintTag("UPDATE!") : undefined;
+      if (!band || !tag) return band ?? tag;
+      return (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => {
+        band(context, width, height, still);
+        tag(context, width, height);
+      };
+    };
+
     // The off-air test card, like the colour bars on the TV in the corner
     const paintTestCard = (width: number, height: number) => {
       if (!screenContext) return;
@@ -722,7 +755,7 @@ export default function CartridgeArcade({
       }
       // The label still is small and usually cached already, so it stands in
       // until the clip plays (and for good if the phone won't autoplay it)
-      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl), previewVideo, game.earlyAccess ? paintEarlyAccess(game.cartridge.color) : undefined);
+      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl), previewVideo, overlayFor(game));
       screenMode = "video";
       waitingForPicture = true;
       lastLoadingFrame = -1;

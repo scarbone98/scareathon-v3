@@ -47,3 +47,10 @@ export function hasNews(game: MachineData, played = playedCarts(), now = Date.no
   const latest = Math.max(timeOf(game.added), timeOf(game.updated));
   return latest > 0 && latest <= now && now - latest < NEWS_FOR && (played[game.name] ?? 0) < latest;
 }
+
+// Changed lately (after it arrived), and not played since
+export function hasUpdate(game: MachineData, played = playedCarts(), now = Date.now()) {
+  if (game.special) return false;
+  const updated = timeOf(game.updated);
+  return updated > timeOf(game.added) && updated <= now && now - updated < NEWS_FOR && (played[game.name] ?? 0) < updated;
+}
