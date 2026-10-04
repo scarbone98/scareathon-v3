@@ -126,7 +126,7 @@ const BAUBLE_POP_TD_URL = "https://perhapsjohn.github.io/BaublePopTD/?v=unpublis
 // through relay.waysidejunction.com. Asks for the session (unityReady) to make the
 // player's username their racer name; posts PLAYER_DIED with player 1's points at the
 // end of a Grand Prix. Build-only GitHub Pages repo; ?v= is its commit.
-const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=5a090cf";
+const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=686bc05";
 
 type ArcadeMessage = {
   type?: unknown;
