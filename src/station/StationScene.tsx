@@ -55,7 +55,7 @@ import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "../pages/Arcade
 import { MARKER_FONT } from "../pages/ArcadeV2/slotRig.ts";
 import { applyCrtLook } from "../pages/ArcadeV2/crtScreen.ts";
 import { compileShaders } from "../pages/ArcadeV2/compileShaders.ts";
-import { dressSlot, focusedPose, shelfLayout, type SlotDressing } from "../pages/ArcadeV2/slotDressing.ts";
+import { dressSlot, focusedPose, shelfLayout, shelfSlots, type SlotDressing } from "../pages/ArcadeV2/slotDressing.ts";
 import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } from "../pages/ArcadeV2/cartridge.ts";
 import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRow.ts";
 import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
@@ -947,6 +947,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
         // (the cabinet's own printing and terminal too, the same fonts the arcade asks for)
         linkArcadeFonts([...games.map((game) => game.cartridge.font), CABINET_FONT, TERMINAL_FONT, MARKER_FONT]);
         const layout = shelfLayout(dressing.cartSize, cabinetBox, panelBox.isEmpty() ? Infinity : panelBox.min.y, dressing.seat.y);
+        const slots = shelfSlots(games, layout.pitchX);
         const row = new Group();
         row.visible = false;
         const carts: Cartridge[] = [];
@@ -964,7 +965,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             untitled: game.special === "mystery",
             hologram: game.special === "soon",
           });
-          cart.group.userData.restBase = new Vector3((i - start) * layout.pitchX, layout.homeY, layout.z);
+          cart.group.userData.restBase = new Vector3(slots[i] - slots[start], layout.homeY, layout.z);
           cart.group.userData.rest = cart.group.userData.restBase.clone();
           cart.group.userData.front = cabinetBox.max.z;
           if (i === start) cart.group.userData.pick = focusedPose(dressing.cartSize, 1);

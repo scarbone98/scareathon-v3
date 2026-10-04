@@ -1,14 +1,60 @@
-import { useEffect, useState } from "react";
-import type { MachineData } from "../Arcade/games.tsx";
+import { useEffect, useMemo, useState } from "react";
+import { byName, type MachineData } from "../Arcade/games.tsx";
 import { stillUrlFor } from "./cartridge.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
-// games' stills and names, with a search prompt along the bottom that filters
+// games' stills and names in alphabetical order, a row of filters (genre, developer,
+// online, early access, coming soon), and a search prompt along the bottom that filters
 // by name or genre. Picking one jumps the shelf to it.
 
 const PHOSPHOR = "#39ff6a";
 const TERMINAL_FAMILY = `"VT323", ui-monospace, Menlo, Consolas, monospace`;
 const GLOW = "0 0 6px rgba(57, 255, 106, 0.65), 0 0 1px rgba(57, 255, 106, 0.9)";
+
+const INVERT = "focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]";
+
+// More than one player, or everyone's in it together
+const isOnline = (game: MachineData) => !/^(single player|unknown)$/i.test(game.cartridge.about.players);
+// "sclondon + scarbone98" is both of them
+const developersOf = (game: MachineData) => game.cartridge.about.developer.split("+").map((name) => name.trim());
+const unique = (values: string[]) => [...new Set(values)].filter((value) => value !== "UNKNOWN").sort((a, b) => a.localeCompare(b));
+
+// A filter that's on or off: lit when it's on
+function Toggle({ on, onChange, children }: { on: boolean; onChange: (on: boolean) => void; children: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={() => onChange(!on)}
+      className={`shrink-0 whitespace-nowrap px-1.5 ${INVERT}`}
+      style={on ? { background: PHOSPHOR, color: "#021407", textShadow: "none" } : undefined}
+    >
+      [ {children} ]
+    </button>
+  );
+}
+
+// A filter with a list to pick from
+function Pick({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="flex shrink-0 items-center gap-1 whitespace-nowrap">
+      {label}:
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="max-w-[11rem] cursor-pointer border border-[#39ff6a]/40 bg-[#021407] px-1 uppercase outline-none focus-visible:border-[#39ff6a]"
+        style={{ color: PHOSPHOR, fontFamily: TERMINAL_FAMILY, textShadow: GLOW }}
+      >
+        <option value="">ALL</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option.toUpperCase()}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 type Props = {
   games: MachineData[];
@@ -27,11 +73,30 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   }, [onClose]);
 
   const [query, setQuery] = useState("");
+  const [genre, setGenre] = useState("");
+  const [developer, setDeveloper] = useState("");
+  const [online, setOnline] = useState(false);
+  const [early, setEarly] = useState(false);
+  const [soon, setSoon] = useState(false);
   const needle = query.trim().toLowerCase();
-  // Keep each game's place in the full list: that's what onPick takes
-  const shown = games
-    .map((game, index) => ({ game, index }))
-    .filter(({ game }) => !needle || `${game.name} ${game.cartridge.about.genre}`.toLowerCase().includes(needle));
+  // Alphabetical, whatever order the shelf's in ("???" last). Each keeps its place in the
+  // full list: that's what onPick takes
+  const listed = useMemo(
+    () => games.map((game, index) => ({ game, index })).sort((a, b) => Number(a.game.special === "mystery") - Number(b.game.special === "mystery") || byName(a.game, b.game)),
+    [games]
+  );
+  const genres = useMemo(() => unique(games.map((game) => game.cartridge.about.genre)), [games]);
+  const developers = useMemo(() => unique(games.flatMap(developersOf)), [games]);
+  // Early access and coming soon together show both kinds
+  const shown = listed.filter(
+    ({ game }) =>
+      (!needle || `${game.name} ${game.cartridge.about.genre}`.toLowerCase().includes(needle)) &&
+      (!genre || game.cartridge.about.genre === genre) &&
+      (!developer || developersOf(game).includes(developer)) &&
+      (!online || isOnline(game)) &&
+      ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
+  );
+  const filtered = Boolean(needle || genre || developer || online || early || soon);
 
   return (
     <div
@@ -55,7 +120,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 pb-1 pt-3 text-2xl leading-none">
-          <span className="truncate">{needle ? `> ${shown.length} OF ${games.length} CARTS` : `> INDEX · ${games.length} CARTS`}</span>
+          <span className="truncate">{filtered ? `> ${shown.length} OF ${games.length} CARTS` : `> INDEX · ${games.length} CARTS`}</span>
           <button
             type="button"
             onClick={onClose}
@@ -65,8 +130,22 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
             [ X ]
           </button>
         </div>
-        <ul className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
-          {shown.length === 0 && <li className="col-span-full py-6 text-xl">NO CARTRIDGE MATCHES "{query.toUpperCase()}"</li>}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-[#39ff6a]/30 px-4 pb-2 pt-1 text-lg leading-6 sm:text-xl">
+          <Pick label="GENRE" value={genre} options={genres} onChange={setGenre} />
+          <Pick label="DEV" value={developer} options={developers} onChange={setDeveloper} />
+          <Toggle on={online} onChange={setOnline}>
+            ONLINE
+          </Toggle>
+          <Toggle on={early} onChange={setEarly}>
+            EARLY ACCESS
+          </Toggle>
+          <Toggle on={soon} onChange={setSoon}>
+            COMING SOON
+          </Toggle>
+        </div>
+        <ul className=
+"grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
+          {shown.length === 0 && <li className="col-span-full py-6 text-xl">{needle ? `NO CARTRIDGE MATCHES "${query.toUpperCase()}"` : "NO CARTRIDGE MATCHES"}</li>}
           {shown.map(({ game, index }) => {
             const soon = game.special === "soon";
             return (

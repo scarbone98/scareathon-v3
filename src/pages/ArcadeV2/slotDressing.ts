@@ -4,6 +4,7 @@
 // the two are the same machine and nothing pops in when one hands over to the other.
 import { Box3, BoxGeometry, CatmullRomCurve3, Color, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Raycaster, TubeGeometry, Vector3, type BufferGeometry, type Material } from "three";
 import { CARTRIDGE_ASPECT } from "./cartridge.ts";
+import { shelfGroupOf, type MachineData } from "../Arcade/games.tsx";
 import { createSlotRig, type SlotRig } from "./slotRig.ts";
 import { createSlotTerminal, TERMINAL_ASPECT, type SlotTerminal } from "./slotTerminal.ts";
 import { createTicketDispenser, DISPENSER_ASPECT, type TicketDispenser } from "./ticketDispenser.ts";
@@ -241,7 +242,7 @@ export function dressSlot({
 }
 
 // The row of cartridges: how far apart, how high, and how far out in front of the cabinet
-// (x is the index times `pitchX`, from the one in the middle)
+// (x is from `shelfSlots`: a `pitchX` apart, more between groups)
 export function shelfLayout(cartSize: CartSize, cabinetBox: Box3, panelBottom: number, seatY: number) {
   const { width: w, height: h, depth: d } = cartSize;
   const cabinetSize = cabinetBox.getSize(new Vector3());
@@ -261,4 +262,14 @@ export function focusedPose(cartSize: CartSize, f: number) {
     scale: 1 + 0.1 * f,
     tip: 0.15 * f,
   };
+}
+
+// Where each cartridge stands along the row: a pitch apart, and half as much again between
+// one group of games and the next, to set the groups apart
+export function shelfSlots(games: MachineData[], pitchX: number) {
+  let x = 0;
+  return games.map((game, index) => {
+    if (index > 0) x += pitchX * (shelfGroupOf(game) === shelfGroupOf(games[index - 1]) ? 1 : 1.5);
+    return x;
+  });
 }

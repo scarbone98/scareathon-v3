@@ -51,7 +51,7 @@ import { CARTRIDGE_ASPECT, CARTRIDGE_STYLES, createCartridge, loadVideoStills, s
 import { canvasFont, linkArcadeFonts, marqueeFont, TERMINAL_FONT, whenFontReady, type ArcadeFont } from "./arcadeFonts.ts";
 import { playClunk, playPop, playStatic, playTick, playWhoosh } from "./arcadeSounds.ts";
 import GameCard from "./GameCard.tsx";
-import { dressSlot, PANEL_MATERIALS, SHELF_NEON, shelfLayout } from "./slotDressing.ts";
+import { dressSlot, PANEL_MATERIALS, SHELF_NEON, shelfLayout, shelfSlots } from "./slotDressing.ts";
 import type { Reaction } from "./slotTerminal.ts";
 import { checkRemoteCode, createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
 import { fetchWithAuth } from "../../fetchWithAuth";
@@ -921,6 +921,9 @@ export default function CartridgeArcade({
     let tallMode = isTall(size().width, size().height);
     let cartSize = { width: 0.3, height: 0.3 * CARTRIDGE_ASPECT, depth: 0.054 };
     let pitchX = 0.4;
+    // Where each cartridge stands along the row (wider gaps between groups: see shelfSlots)
+    let slots: number[] = [];
+    const slotX = (index: number) => slots[index] ?? index * pitchX;
     const scroll = { x: 0 };
     const seat = new Vector3();
     let cabinetBox = new Box3();
@@ -1235,12 +1238,13 @@ export default function CartridgeArcade({
       // (The same row Wayside Station's cabinet has in front of it)
       const layout = shelfLayout(cartSize, cabinetBox, panelBottom, seat.y);
       pitchX = layout.pitchX;
+      slots = shelfSlots(games, pitchX);
       shelfGroup.position.set(0, 0, layout.z);
       carts.forEach((state, i) => {
-        state.home.set(i * pitchX, layout.homeY, 0);
+        state.home.set(slotX(i), layout.homeY, 0);
       });
       shelfLight.position.set(0, layout.ledgeY + h * 2, shelfGroup.position.z + layout.depth * 2);
-      scroll.x = Math.max(0, focusIndex) * pitchX;
+      scroll.x = slotX(Math.max(0, focusIndex));
       carts.forEach((state) => {
         if (state.where !== "shelf") return;
         shelfGroup.add(state.cart.group);
@@ -1438,7 +1442,7 @@ export default function CartridgeArcade({
       if (focusIndex >= 0) gsap.to(carts[focusIndex].focus, { value: 0, duration: 0.2 });
       focusIndex = index;
       gsap.to(carts[index].focus, { value: 1, duration: 0.2 });
-      gsap.to(scroll, { x: index * pitchX, duration: 0.35, ease: "power2.out" });
+      gsap.to(scroll, { x: slotX(index), duration: 0.35, ease: "power2.out" });
       if (fromUser) playTick();
       setFocused(index);
       showGameOrIdle(index);
@@ -1582,9 +1586,9 @@ export default function CartridgeArcade({
       busy = true;
       // On the ledge, let the row finish sliding the cartridge to the middle before
       // anything takes off, so the row isn't moving under a cartridge in flight
-      const settle = Math.abs(scroll.x - index * pitchX) > pitchX * 0.05 ? 0.3 : 0;
+      const settle = Math.abs(scroll.x - slotX(index)) > pitchX * 0.05 ? 0.3 : 0;
       focus(index);
-      if (settle) gsap.to(scroll, { x: index * pitchX, duration: settle, ease: "power2.out", overwrite: true });
+      if (settle) gsap.to(scroll, { x: slotX(index), duration: settle, ease: "power2.out", overwrite: true });
       const timeline = gsap.timeline({ delay: settle, onComplete: () => { busy = false; } });
 
       // Pop the current cartridge out and send it home first
@@ -1847,7 +1851,7 @@ export default function CartridgeArcade({
       const initial = games.findIndex((game) => game.name === initialGameRef.current);
       const shuffle = games.findIndex((game) => game.special === "shuffle");
       const start = initial >= 0 ? initial : Math.max(shuffle, 0);
-      scroll.x = start * pitchX; // already there, no slide across on load
+      scroll.x = slotX(start); // already there, no slide across on load
       focus(start);
       if (!withRoom) {
         // Taking over from Wayside Station's cabinet, whose cartridges are already sitting
@@ -2010,9 +2014,12 @@ export default function CartridgeArcade({
     // `velocity` is the finger's speed in px/ms; a flick carries on a few cartridges
     const snapLedge = (velocity = 0) => {
       const coast = -velocity * 180 * worldPerPixel();
-      const index = Math.round((scroll.x + coast) / pitchX);
-      const clamped = Math.min(Math.max(index, 0), carts.length - 1);
-      if (clamped === focusIndex) gsap.to(scroll, { x: clamped * pitchX, duration: 0.3, ease: "power2.out" });
+      const aim = scroll.x + coast;
+      let clamped = 0;
+      carts.forEach((_, i) => {
+        if (Math.abs(slotX(i) - aim) < Math.abs(slotX(clamped) - aim)) clamped = i;
+      });
+      if (clamped === focusIndex) gsap.to(scroll, { x: slotX(clamped), duration: 0.3, ease: "power2.out" });
       else focus(clamped, true);
     };
 
@@ -2546,7 +2553,7 @@ export default function CartridgeArcade({
           if (dt > 0) press.velocity = press.velocity * 0.4 + ((event.clientX - press.lastX) / dt) * 0.6;
           press.lastX = event.clientX;
           press.lastT = event.timeStamp;
-          const limit = (carts.length - 1) * pitchX;
+          const limit = slotX(carts.length - 1);
           scroll.x = Math.min(Math.max(press.scroll - dx * worldPerPixel(), -pitchX * 0.4), limit + pitchX * 0.4);
         }
         return;

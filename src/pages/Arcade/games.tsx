@@ -26,7 +26,7 @@ export type MachineData = {
   availableOnMobile?: boolean;
   // Games that don't submit scores hide the Leaderboard button.
   hasLeaderboard?: boolean;
-  // Playable but unfinished: EARLY ACCESS over its preview, and shelved after the finished games.
+  // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
@@ -925,13 +925,26 @@ export function createArcadeGames(): MachineData[] {
       game: null,
     },
   ];
-  // Secret carts stay off the shelf until they're unlocked on this device
-  const shown = games.filter((game) => !game.secret || unlocked.includes(game.name));
-  // Early access carts sit after the finished games, before the coming-soon ones
-  const shelf = shown.filter((game) => !game.earlyAccess);
-  const firstSoon = shelf.findIndex((game) => game.special === "soon");
-  shelf.splice(firstSoon < 0 ? shelf.length : firstSoon, 0, ...shown.filter((game) => game.earlyAccess));
-  return shelf;
+  // Secret carts stay off the shelf until they're unlocked on this device. The shelf runs
+  // group by group, each in alphabetical order (Shuffle leads the finished games)
+  return games
+    .filter((game) => !game.secret || unlocked.includes(game.name))
+    .sort((a, b) => shelfGroupOf(a) - shelfGroupOf(b) || Number(b.special === "shuffle") - Number(a.special === "shuffle") || byName(a, b));
+}
+
+// The shelf's groups, left to right, with a wider gap between one and the next: the cassette
+// carts (things to do), the finished games, early access, coming soon, and "???" by itself
+export function shelfGroupOf(game: MachineData) {
+  if (game.special === "mystery") return 4;
+  if (game.special === "soon") return 3;
+  if (game.earlyAccess) return 2;
+  return game.cartridge.cassette ? 0 : 1;
+}
+
+// Alphabetical order, leaving a leading "The" out of it and counting 2 before 10
+export function byName(a: MachineData, b: MachineData) {
+  const key = (game: MachineData) => game.name.replace(/^the /i, "");
+  return key(a).localeCompare(key(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
 // Shuffle's pick: any real game in the list (on phones, the list already
