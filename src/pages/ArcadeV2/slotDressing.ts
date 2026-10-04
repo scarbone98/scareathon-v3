@@ -264,12 +264,12 @@ export function focusedPose(cartSize: CartSize, f: number) {
   };
 }
 
-// Where each cartridge stands along the row: a pitch apart, and half as much again between
+// Where each cartridge stands along the row: a pitch apart, and a little more between
 // one group of games and the next, to set the groups apart
 export function shelfSlots(games: MachineData[], pitchX: number) {
   let x = 0;
   return games.map((game, index) => {
-    if (index > 0) x += pitchX * (shelfGroupOf(game) === shelfGroupOf(games[index - 1]) ? 1 : 1.5);
+    if (index > 0) x += pitchX * (shelfGroupOf(game) === shelfGroupOf(games[index - 1]) ? 1 : 1.3);
     return x;
   });
 }
