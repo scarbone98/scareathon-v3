@@ -69,7 +69,7 @@ const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b42
 // Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
 // commit, to bust the cache. One page, two packs: phones get half-size art
 // (index.mobile.pck), desktops the full set.
-const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=d90e134";
+const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=e36d97a";
 const HORDE_RUSH_URL = "/horde-rush";
 const MONSTER_BASH_URL = "/monster-bash";
 const FROG_BALL_URL = "/frog-ball";
