@@ -792,6 +792,7 @@ export function createArcadeGames(): MachineData[] {
     // sight, slip out the gate. Or play the humans and catch the dogs. No leaderboard.
     {
       name: "Lawn Order",
+      earlyAccess: true,
       cartridge: {
         color: "#5fb84a",
         tagline: "A small dog. A big grudge. Very nice lawns.",
@@ -865,6 +866,7 @@ export function createArcadeGames(): MachineData[] {
     // over a four-race Grand Prix (15 for a win, 60 at most).
     {
       name: "Kart-o'-Lantern",
+      earlyAccess: true,
       cartridge: {
         color: "#ff7a1a",
         tagline: "Count Vlad sulks for a full lap if you pass him.",
@@ -891,6 +893,7 @@ export function createArcadeGames(): MachineData[] {
     // Trick or Treat Trail, seven fights) when it ends, cleared or given up; 125,500 at most.
     {
       name: "Graveyard Smash 3D",
+      earlyAccess: true,
       cartridge: {
         color: "#6b3fa0",
         tagline: "Seven fights down the Trick or Treat Trail, then a giant at the Witching Hour.",
