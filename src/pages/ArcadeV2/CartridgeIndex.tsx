@@ -100,8 +100,6 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
   );
   const filtersOn = [genre, developer, players, early, soon].filter(Boolean).length;
-  const filtered = Boolean(needle || filtersOn);
-
   return (
     <div
       role="dialog"
@@ -124,7 +122,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 pb-1 pt-3 text-2xl leading-none">
-          <span className="truncate">{filtered ? `> ${shown.length} OF ${games.length} CARTS` : `> INDEX · ${games.length} CARTS`}</span>
+          <span className="truncate">{`> CARTS: ${shown.length}`}</span>
           <div className="flex shrink-0 items-center gap-1 leading-6">
             {/* Shows or hides the filters (which stay on while hidden: it counts them) */}
             <Toggle on={filtersOpen} onChange={setFiltersOpen}>
