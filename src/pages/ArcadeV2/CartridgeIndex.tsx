@@ -3,7 +3,7 @@ import { byName, type MachineData } from "../Arcade/games.tsx";
 import { stillUrlFor } from "./cartridge.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
-// games' stills and names in alphabetical order, a row of filters (genre, developer,
+// games' stills and names in alphabetical order, a row of filters behind a FILTER button (genre, developer,
 // single or multiplayer, early access, coming soon), and a search prompt along the bottom that filters
 // by name or genre. Picking one jumps the shelf to it.
 
@@ -79,6 +79,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   const [players, setPlayers] = useState("");
   const [early, setEarly] = useState(false);
   const [soon, setSoon] = useState(false);
+  // The filters are tucked away until asked for
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const needle = query.trim().toLowerCase();
   // Alphabetical, whatever order the shelf's in ("???" last). Each keeps its place in the
   // full list: that's what onPick takes
@@ -97,7 +99,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       (!players || playersOf(game) === players) &&
       ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
   );
-  const filtered = Boolean(needle || genre || developer || players || early || soon);
+  const filtersOn = [genre, developer, players, early, soon].filter(Boolean).length;
+  const filtered = Boolean(needle || filtersOn);
 
   return (
     <div
@@ -122,26 +125,36 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       >
         <div className="flex items-center justify-between px-4 pb-1 pt-3 text-2xl leading-none">
           <span className="truncate">{filtered ? `> ${shown.length} OF ${games.length} CARTS` : `> INDEX · ${games.length} CARTS`}</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="shrink-0 whitespace-nowrap px-1.5 leading-6 focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]"
-          >
-            [ X ]
-          </button>
+          <div className="flex shrink-0 items-center gap-1 leading-6">
+            {/* Shows or hides the filters (which stay on while hidden: it counts them) */}
+            <Toggle on={filtersOpen} onChange={setFiltersOpen}>
+              {filtersOn ? `FILTER:${filtersOn}` : "FILTER"}
+            </Toggle>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="shrink-0 whitespace-nowrap px-1.5 leading-6 focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]"
+            >
+              [ X ]
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-[#39ff6a]/30 px-4 pb-2 pt-1 text-lg leading-6 sm:text-xl">
-          <Pick label="GENRE" value={genre} options={genres} onChange={setGenre} />
-          <Pick label="DEV" value={developer} options={developers} onChange={setDeveloper} />
-          <Pick label="PLAYERS" value={players} options={PLAYERS} onChange={setPlayers} />
-          <Toggle on={early} onChange={setEarly}>
-            EARLY ACCESS
-          </Toggle>
-          <Toggle on={soon} onChange={setSoon}>
-            COMING SOON
-          </Toggle>
-        </div>
+        {filtersOpen ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-[#39ff6a]/30 px-4 pb-2 pt-1 text-lg leading-6 sm:text-xl">
+            <Pick label="GENRE" value={genre} options={genres} onChange={setGenre} />
+            <Pick label="DEV" value={developer} options={developers} onChange={setDeveloper} />
+            <Pick label="PLAYERS" value={players} options={PLAYERS} onChange={setPlayers} />
+            <Toggle on={early} onChange={setEarly}>
+              EARLY ACCESS
+            </Toggle>
+            <Toggle on={soon} onChange={setSoon}>
+              COMING SOON
+            </Toggle>
+          </div>
+        ) : (
+          <div className="border-b-2 border-[#39ff6a]/30 pt-1" />
+        )}
         <ul className=
 "grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto p-3 sm:gap-3 sm:p-4 md:grid-cols-4">
           {shown.length === 0 && <li className="col-span-full py-6 text-xl">{needle ? `NO CARTRIDGE MATCHES "${query.toUpperCase()}"` : "NO CARTRIDGE MATCHES"}</li>}
