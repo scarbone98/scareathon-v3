@@ -24,7 +24,8 @@ export type SheetContent = {
   tint?: string;
 };
 
-// above: over a game being played (the scoreboard, from the game's bar): it drops down from the bar
+// above: over a game being played (the scoreboard, from the game's bar).
+// The scoreboard hangs overhead, so it drops down from the top rather than coming up.
 export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetContent | null; onClose: () => void; above?: boolean }) {
   // The tap that picked something up is followed by its own click, which would land on
   // the backdrop that just appeared under the finger; ignore the backdrop briefly
@@ -66,7 +67,7 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
       aria-label={sheet.title}
     >
       <div
-        className={`station-sheet ${above ? "station-sheet-down" : ""} relative flex w-full flex-col ${
+        className={`station-sheet ${tone === "board" ? "station-sheet-down" : ""} relative flex w-full flex-col ${
           full
             ? "h-[100dvh] overflow-hidden"
             : "max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] md:max-h-[88vh] md:rounded-[3px] md:shadow-[6px_10px_0_rgba(0,0,0,0.5)]"
