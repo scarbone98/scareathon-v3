@@ -105,6 +105,16 @@ const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=0
 // sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
 // turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
 const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=d87cebe";
+// Godot tower defence (Boo Pop TD / Bauble Pop TD, one codebase, two editions): a portrait
+// layout on phones (the field turned a quarter, shop and upgrades as bottom sheets, its own
+// on-screen keyboard), landscape on desktop. One page per edition, two packs: phones get
+// index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to use the
+// username as the player name; posts PLAYER_DIED when a single-player game ends (win or
+// lose) with the last round cleared. Co-op / versus go through the Wayside relay and are
+// never scored here. Build-only GitHub Pages repos; ?v= is the repo's build commit
+// (?v=unpublished until the repos are created and Pages is on).
+const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=unpublished";
+const BAUBLE_POP_TD_URL = "https://perhapsjohn.github.io/BaublePopTD/?v=unpublished";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -780,6 +790,56 @@ export function createArcadeGames(): MachineData[] {
           url={LAWN_ORDER_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // Godot tower defence (candy-coloured sheet ghosts down a graveyard path, spooks to stop them). Score: the last round cleared on a single-player run
+    // (a Medium win is 60, Hard 80, Impoppable 100; freeplay keeps counting, capped at 200).
+    {
+      name: "Boo Pop TD",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "Pop every boo before the lanterns go out.",
+        font: { family: "Cormorant", weight: 700 },
+        about: { released: "2026", players: "1 player · co-op 2-4 · versus online", genre: "Tower defence", developer: "perhapsJohn" },
+        backNote: "Keep one lantern lit.",
+      },
+      videoUrl: "/game-recordings/BooPopTD.mp4",
+      game: (
+        <GameRenderer
+          title="Boo Pop TD"
+          url={BOO_POP_TD_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Boo Pop TD", BOO_POP_TD_URL),
+            sendSessionWhenReady(iframe, BOO_POP_TD_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot tower defence (glass tree ornaments through a snowy village, elves to crack them). Score: the last round cleared on a single-player run
+    // (a Medium win is 60, Hard 80, Impoppable 100; freeplay keeps counting, capped at 200).
+    {
+      name: "Bauble Pop TD",
+      cartridge: {
+        color: "#c8232c",
+        tagline: "Crack every bauble before the stockings run dry.",
+        font: { family: "Baloo 2", weight: 800 },
+        about: { released: "2026", players: "1 player · co-op 2-4 · versus online", genre: "Tower defence", developer: "perhapsJohn" },
+        backNote: "Save the last stocking.",
+      },
+      videoUrl: "/game-recordings/BaublePopTD.mp4",
+      game: (
+        <GameRenderer
+          title="Bauble Pop TD"
+          url={BAUBLE_POP_TD_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Bauble Pop TD", BAUBLE_POP_TD_URL),
+            sendSessionWhenReady(iframe, BAUBLE_POP_TD_URL),
+          ]}
         />
       ),
     },

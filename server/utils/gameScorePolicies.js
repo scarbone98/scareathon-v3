@@ -57,6 +57,14 @@ export const GAME_SCORE_POLICIES = new Map([
     ['31 Nights', {
         score: { min: 0, max: 800, integer: true },
     }],
+    // A single-player run's last round cleared (Medium win 60, Hard 80, Impoppable 100;
+    // freeplay keeps counting). The games cap what they send at 200.
+    ['Boo Pop TD', {
+        score: { min: 0, max: 200, integer: true },
+    }],
+    ['Bauble Pop TD', {
+        score: { min: 0, max: 200, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],
