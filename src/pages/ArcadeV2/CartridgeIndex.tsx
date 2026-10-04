@@ -160,6 +160,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
           {shown.length === 0 && <li className="col-span-full py-6 text-xl">{needle ? `NO CARTRIDGE MATCHES "${query.toUpperCase()}"` : "NO CARTRIDGE MATCHES"}</li>}
           {shown.map(({ game, index }) => {
             const soon = game.special === "soon";
+            const stamp = soon ? "COMING SOON" : game.earlyAccess ? "EARLY ACCESS" : "";
             return (
               <li key={game.name}>
                 <button
@@ -189,8 +190,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                       className="pointer-events-none absolute inset-0"
                       style={{ background: "repeating-linear-gradient(to bottom, rgba(0,0,0,0.3) 0 1px, transparent 1px 3px)" }}
                     />
-                    {/* Not made yet: stamped across the corner-to-corner diagonal */}
-                    {soon && (
+                    {/* Not made yet, or not finished: stamped across the corner-to-corner diagonal */}
+                    {stamp && (
                       <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
                         <span
                           className="whitespace-nowrap border-y-2 px-[30%] py-0.5 text-base leading-5 sm:text-2xl sm:leading-7"
@@ -202,7 +203,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                             textShadow: GLOW,
                           }}
                         >
-                          COMING SOON
+                          {stamp}
                         </span>
                       </div>
                     )}
