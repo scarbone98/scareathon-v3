@@ -140,6 +140,24 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
+    test('accepts Super Autoween runs from 0 to 10 wins', () => {
+        expect(validateScoreSubmission({
+            game: 'Super Autoween',
+            metricName: 'score',
+            metricValue: 10,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Super Autoween',
+            metricName: 'score',
+            metricValue: 11,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Super Autoween',
+            metricName: 'score',
+            metricValue: 2.5,
+        }).ok).toBe(false);
+    });
+
     test('accepts Boo Pop TD runs up to the round cap', () => {
         expect(validateScoreSubmission({
             game: 'Boo Pop TD',
