@@ -59,7 +59,7 @@ const EIGHT_BIT_EVIL_RETURNS_URL =
   "https://scarbone98.github.io/8BitEvilReturnsBuild/";
 const HEMLOCKS_TOWER_URL =
   "https://sclondon.github.io/HemlocksTower/build/HemlocksTower.html?v=10d59b2";
-const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/";
+const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/?v=dbbc338";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
