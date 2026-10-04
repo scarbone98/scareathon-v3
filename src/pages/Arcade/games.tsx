@@ -85,6 +85,8 @@ const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
 // Godot daily puzzle (31 Nights); ?v= is the game repo's commit, to bust the cache.
 const THIRTY_ONE_NIGHTS_URL = "https://sclondon.github.io/31Nights/build/index.html?v=ac39299";
+// Godot party game (Trick or Treat Rush); ?v= busts the cache when the build changes.
+const TRICK_OR_TREAT_RUSH_URL = "https://sclondon.github.io/TrickOrTreatRush/build/index.html?v=20261004";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 
 type ArcadeMessage = {
@@ -662,6 +664,32 @@ export function createArcadeGames(): MachineData[] {
             listenForPlayerDiedScores(iframe, "31 Nights", THIRTY_ONE_NIGHTS_URL),
             sendSessionWhenReady(iframe, THIRTY_ONE_NIGHTS_URL),
           ]}
+        />
+      ),
+    },
+    // Godot party game: 1-4 kids (bots fill the street) race for candy; only candy
+    // carried home counts. Online play goes through the shared Wayside relay. A
+    // finished night's best local haul comes back as PLAYER_DIED (practice nights don't).
+    // Phones get their own lighter pack and touch controls.
+    {
+      name: "Trick or Treat Rush",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "Only the candy you bring home counts.",
+        font: { family: "Baloo 2", weight: 800 },
+        about: { released: "2026", players: "1-4 local · online", genre: "Party / push-your-luck", developer: "sclondon" },
+        backNote: "Bank it before the dog gets you.",
+      },
+      videoUrl: "/game-recordings/TrickOrTreatRush.mp4",
+      game: (
+        <GameRenderer
+          title="Trick or Treat Rush"
+          url={TRICK_OR_TREAT_RUSH_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Trick or Treat Rush", TRICK_OR_TREAT_RUSH_URL)
+          }
         />
       ),
     },
