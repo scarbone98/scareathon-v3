@@ -417,7 +417,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2025", players: "Single player", genre: "Pinball", developer: "scarbone98" },
         backNote: "Tilt it during a storm. Trust me.",
       },
-      videoUrl: "/game-recordings/TlalocsCurse.mp4",
+      videoUrl: "/game-recordings/TlalocsCursePinball.mp4",
       game: (
         <GameRenderer
           title="Tlaloc’s Curse"
