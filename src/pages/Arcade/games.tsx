@@ -98,6 +98,11 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // player's gang after their username. Served from a build-only GitHub Pages repo;
 // ?v= is that repo's build commit, to bust the cache.
 const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=0a2962b";
+// Godot voxel stealth game (Lawn Order): a small dog sneaks into the neighbours' yards to
+// poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay; it
+// sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
+// turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
+const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=d87cebe";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -750,6 +755,28 @@ export function createArcadeGames(): MachineData[] {
             listenForPlayerDiedScores(iframe, "Trick or Treat .io", TRICK_OR_TREAT_IO_URL),
             sendSessionWhenReady(iframe, TRICK_OR_TREAT_IO_URL),
           ]}
+        />
+      ),
+    },
+    // Godot voxel stealth: review every lawn on the list (squat in the orange ring), stay out of
+    // sight, slip out the gate. Or play the humans and catch the dogs. No leaderboard.
+    {
+      name: "Lawn Order",
+      cartridge: {
+        color: "#5fb84a",
+        tagline: "A small dog. A big grudge. Very nice lawns.",
+        font: { family: "Sniglet", weight: 800 },
+        about: { released: "2026", players: "1-4 online", genre: "Stealth", developer: "perhapsJohn" },
+        backNote: "Hold still in the hedge.",
+      },
+      videoUrl: "/game-recordings/LawnOrder.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Lawn Order"
+          url={LAWN_ORDER_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
