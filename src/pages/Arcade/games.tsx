@@ -131,7 +131,7 @@ const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=5d92cd
 // relay.waysidejunction.com. Asks for the session (unityReady) to make the username its
 // online name; posts PLAYER_DIED with a Classic run's score when the run ends (cleared or
 // given up). Build-only GitHub Pages repo; ?v= is its commit.
-const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=57e3636";
+const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=38a0ced";
 
 type ArcadeMessage = {
   type?: unknown;
