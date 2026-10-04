@@ -505,7 +505,6 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Salmon Run 2",
-      earlyAccess: true,
       cartridge: {
         color: "#f07a5a",
         tagline: "Race a salmon down a jungle river.",
