@@ -99,7 +99,7 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
 // player's gang after their username. Served from a build-only GitHub Pages repo;
 // ?v= is that repo's build commit, to bust the cache.
-const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=0a2962b";
+const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=fad1516";
 // Godot voxel stealth game (Lawn Order): a small dog sneaks into the neighbours' yards to
 // poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay; it
 // sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
