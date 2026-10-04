@@ -105,6 +105,12 @@ const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=0
 // sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
 // turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
 const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=d87cebe";
+// Godot photo safari (Cryptid Snap): ride a station wagon down a county road on Halloween night
+// 1986 and photograph cryptids; online CB Rally (2-4) through the Wayside relay. One page, two
+// packs: phones get index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to
+// use the username as the CB handle; posts PLAYER_DIED with each single-player report's total.
+// Build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
+const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=4bee34a";
 // Godot tower defence (Boo Pop TD / Bauble Pop TD, one codebase, two editions): a portrait
 // layout on phones (the field turned a quarter, shop and upgrades as bottom sheets, its own
 // on-screen keyboard), landscape on desktop. One page per edition, two packs: phones get
@@ -839,6 +845,31 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) => [
             listenForPlayerDiedScores(iframe, "Bauble Pop TD", BAUBLE_POP_TD_URL),
             sendSessionWhenReady(iframe, BAUBLE_POP_TD_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot photo safari: one ride down a county road = one run; Dr. Marsh's report total
+    // (the run's case points) comes back as PLAYER_DIED. CB Rally results are never sent.
+    {
+      name: "Cryptid Snap",
+      cartridge: {
+        color: "#ff4f9a",
+        tagline: "Thirty-six exposures, one county road, something in the headlights.",
+        font: { family: "Bungee" },
+        about: { released: "2026", players: "1 player · online CB Rally 2-4", genre: "Photo safari", developer: "perhapsJohn" },
+        backNote: "Dead centre. Don't flinch.",
+      },
+      videoUrl: "/game-recordings/CryptidSnap.mp4",
+      game: (
+        <GameRenderer
+          title="Cryptid Snap"
+          url={CRYPTID_SNAP_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Cryptid Snap", CRYPTID_SNAP_URL),
+            sendSessionWhenReady(iframe, CRYPTID_SNAP_URL),
           ]}
         />
       ),

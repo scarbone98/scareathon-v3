@@ -239,6 +239,24 @@ describe('validateScoreSubmission', () => {
             metricValue: 12.5,
         }).ok).toBe(false);
     });
+
+    test('accepts Cryptid Snap reports up to the best possible ride', () => {
+        expect(validateScoreSubmission({
+            game: 'Cryptid Snap',
+            metricName: 'score',
+            metricValue: 7802,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Cryptid Snap',
+            metricName: 'score',
+            metricValue: 43800,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Cryptid Snap',
+            metricName: 'score',
+            metricValue: 43801,
+        }).ok).toBe(false);
+    });
 });
 
 describe('playTicketsFor', () => {

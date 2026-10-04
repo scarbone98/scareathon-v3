@@ -65,6 +65,12 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Bauble Pop TD', {
         score: { min: 0, max: 200, integer: true },
     }],
+    // One ride's report total (Dr. Marsh's case points). The cap is the best report the
+    // grading allows: Hollow Acres, 5 species at (2000 size + best pose) x2 dead centre,
+    // +1000 for a never-on-film pose, +600 for five of a kind, plus its 2000-point Omen.
+    ['Cryptid Snap', {
+        score: { min: 0, max: 43800, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],
