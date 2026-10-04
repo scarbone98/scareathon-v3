@@ -40,6 +40,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Muertos', {
         score: { min: 0, max: 10000000, integer: true },
     }],
+    // One night's tally: four rounds of up to 100, doubled on Halloween night.
+    ['31 Nights', {
+        score: { min: 0, max: 800, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

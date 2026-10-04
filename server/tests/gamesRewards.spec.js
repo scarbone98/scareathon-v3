@@ -126,6 +126,19 @@ describe('validateScoreSubmission', () => {
             metricValue: 48210,
         })).toEqual({ ok: true });
     });
+
+    test('accepts 31 Nights scores up to a doubled Halloween night', () => {
+        expect(validateScoreSubmission({
+            game: '31 Nights',
+            metricName: 'score',
+            metricValue: 800,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: '31 Nights',
+            metricName: 'score',
+            metricValue: 801,
+        }).ok).toBe(false);
+    });
 });
 
 describe('playTicketsFor', () => {

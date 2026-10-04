@@ -83,6 +83,8 @@ const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
+// Godot daily puzzle (31 Nights); ?v= is the game repo's commit, to bust the cache.
+const THIRTY_ONE_NIGHTS_URL = "https://sclondon.github.io/31Nights/build/index.html?v=ac39299";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 
 type ArcadeMessage = {
@@ -635,6 +637,31 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Muertos", MUERTOS_URL)
           }
+        />
+      ),
+    },
+    // Godot daily puzzle: a new night every October day at 00:00 UTC, four rounds.
+    // A finished night's score (0-400, 800 on Halloween) comes back as PLAYER_DIED;
+    // the cart also sends the session so the guestbook can offer the player's name.
+    {
+      name: "31 Nights",
+      cartridge: {
+        color: "#e8651c",
+        tagline: "One door opens every night until Halloween.",
+        font: { family: "Cormorant Garamond", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Daily puzzle", developer: "sclondon" },
+        backNote: "Come back tomorrow night.",
+      },
+      videoUrl: "/game-recordings/31Nights.mp4",
+      game: (
+        <GameRenderer
+          title="31 Nights"
+          url={THIRTY_ONE_NIGHTS_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "31 Nights", THIRTY_ONE_NIGHTS_URL),
+            sendSessionWhenReady(iframe, THIRTY_ONE_NIGHTS_URL),
+          ]}
         />
       ),
     },
