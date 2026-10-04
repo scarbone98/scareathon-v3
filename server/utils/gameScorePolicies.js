@@ -58,11 +58,8 @@ export const GAME_SCORE_POLICIES = new Map([
         score: { min: 0, max: 800, integer: true },
     }],
     // A single-player run's last round cleared (Medium win 60, Hard 80, Impoppable 100;
-    // freeplay keeps counting). The games cap what they send at 200.
+    // freeplay keeps counting). The game caps what it sends at 200.
     ['Boo Pop TD', {
-        score: { min: 0, max: 200, integer: true },
-    }],
-    ['Bauble Pop TD', {
         score: { min: 0, max: 200, integer: true },
     }],
     // One ride's report total (Dr. Marsh's case points). The cap is the best report the

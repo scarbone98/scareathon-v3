@@ -181,29 +181,6 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
-    test('accepts Bauble Pop TD runs up to the round cap', () => {
-        expect(validateScoreSubmission({
-            game: 'Bauble Pop TD',
-            metricName: 'score',
-            metricValue: 60,
-        })).toEqual({ ok: true });
-        expect(validateScoreSubmission({
-            game: 'Bauble Pop TD',
-            metricName: 'score',
-            metricValue: 200,
-        })).toEqual({ ok: true });
-        expect(validateScoreSubmission({
-            game: 'Bauble Pop TD',
-            metricName: 'score',
-            metricValue: 201,
-        }).ok).toBe(false);
-        expect(validateScoreSubmission({
-            game: 'Bauble Pop TD',
-            metricName: 'score',
-            metricValue: 36.5,
-        }).ok).toBe(false);
-    });
-
     test('accepts Trick or Treat Rush nights up to the cap', () => {
         expect(validateScoreSubmission({
             game: 'Trick or Treat Rush',
