@@ -125,6 +125,13 @@ const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=46cf534";
 // player's username their racer name; posts PLAYER_DIED with player 1's points at the
 // end of a Grand Prix. Build-only GitHub Pages repo; ?v= is its commit.
 const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=5d92cdb";
+// Godot 3D platform fighter (Graveyard Smash 3D): one page, two packs (phones get
+// index.mobile.pck, desktops index.pck), touch controls, its own on-screen keyboard and
+// a turn-sideways card on an upright phone; online rooms go through
+// relay.waysidejunction.com. Asks for the session (unityReady) to make the username its
+// online name; posts PLAYER_DIED with a Classic run's score when the run ends (cleared or
+// given up). Build-only GitHub Pages repo; ?v= is its commit.
+const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=57e3636";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -875,6 +882,32 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) => [
             listenForPlayerDiedScores(iframe, "Kart-o'-Lantern", KART_O_LANTERN_URL),
             sendSessionWhenReady(iframe, KART_O_LANTERN_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot platform fighter: twenty-five monsters on haunted stages, Versus for 1-4 on one
+    // screen, Classic, Events, Bonus courses and online rooms. Score: one Classic run (the
+    // Trick or Treat Trail, seven fights) when it ends, cleared or given up; 125,500 at most.
+    {
+      name: "Graveyard Smash 3D",
+      cartridge: {
+        color: "#6b3fa0",
+        tagline: "Seven fights down the Trick or Treat Trail, then a giant at the Witching Hour.",
+        font: { family: "Creepster" },
+        about: { released: "2026", players: "1-4 local, online by room code", genre: "Platform fighter", developer: "perhapsJohn" },
+        backNote: "Faster KOs and less damage taken score more candy.",
+      },
+      videoUrl: "/game-recordings/GraveyardSmash3D.mp4",
+      game: (
+        <GameRenderer
+          title="Graveyard Smash 3D"
+          url={GRAVEYARD_SMASH_3D_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Graveyard Smash 3D", GRAVEYARD_SMASH_3D_URL),
+            sendSessionWhenReady(iframe, GRAVEYARD_SMASH_3D_URL),
           ]}
         />
       ),

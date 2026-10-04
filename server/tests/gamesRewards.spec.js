@@ -217,6 +217,29 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
+    test('accepts Graveyard Smash 3D Classic runs up to a flawless hardest trail', () => {
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 8240,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 125500,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 125501,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Graveyard Smash 3D',
+            metricName: 'score',
+            metricValue: 4120.5,
+        }).ok).toBe(false);
+    });
+
     test('accepts Kart-o\'-Lantern Grand Prix points up to four wins', () => {
         expect(validateScoreSubmission({
             game: 'Kart-o\'-Lantern',

@@ -72,6 +72,13 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Kart-o\'-Lantern', {
         score: { min: 0, max: 60, integer: true },
     }],
+    // One Classic run (the Trick or Treat Trail), cleared or given up: per fight won,
+    // 1000 x the stop + 300 a KO + up to 2400 for speed - 3 a point of damage taken,
+    // x2.5 on the hardest difficulty. Seven flawless fights there with every foe stock
+    // taken (18 KOs) is the most a run can score.
+    ['Graveyard Smash 3D', {
+        score: { min: 0, max: 125500, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],
