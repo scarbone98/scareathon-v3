@@ -66,6 +66,10 @@ const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
+// Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
+// commit, to bust the cache. One page, two packs: phones get half-size art
+// (index.mobile.pck), desktops the full set.
+const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=ea6d1a7";
 const HORDE_RUSH_URL = "/horde-rush";
 const MONSTER_BASH_URL = "/monster-bash";
 const FROG_BALL_URL = "/frog-ball";
@@ -493,6 +497,31 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "WirtWare", WIRTWARE_URL)
+          }
+        />
+      ),
+    },
+    // Godot auto-battler: build a crew of spooky critters in the shop, they fight on their
+    // own. A finished Arena/Practice run reports its skulls (0-10 battles won) as PLAYER_DIED.
+    // Online play (versus rooms, ghosts) runs through relay.waysidejunction.com.
+    {
+      name: "Super Autoween",
+      cartridge: {
+        color: "#4a1f5c",
+        tagline: "Build a crew of creepy critters. Survive till dawn.",
+        font: { family: "Chewy" },
+        about: { released: "2026", players: "1-2 players", genre: "Auto-battler", developer: "perhapsJohn" },
+        backNote: "Three of a kind levels up. Freeze the good ones.",
+      },
+      videoUrl: "/game-recordings/SuperAutoween.mp4",
+      game: (
+        <GameRenderer
+          title="Super Autoween"
+          url={SUPER_AUTOWEEN_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Super Autoween", SUPER_AUTOWEEN_URL)
           }
         />
       ),

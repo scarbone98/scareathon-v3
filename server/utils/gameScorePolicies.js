@@ -21,6 +21,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['WirtWare', {
         score: { min: 0, max: 10000, integer: true },
     }],
+    // Score is the battles won (skulls) in one run: a run ends at 10 wins.
+    ['Super Autoween', {
+        score: { min: 0, max: 10, integer: true },
+    }],
     // Levels never end and points scale with the level, so the cap is higher
     ['Horde Rush', {
         score: { min: 0, max: 1000000000, integer: true },
