@@ -26,6 +26,8 @@ export type MachineData = {
   availableOnMobile?: boolean;
   // Games that don't submit scores hide the Leaderboard button.
   hasLeaderboard?: boolean;
+  // Playable but unfinished: EARLY ACCESS over its preview, and shelved after the finished games.
+  earlyAccess?: boolean;
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
   // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
@@ -54,7 +56,7 @@ export type MachineData = {
 
 const ORIGINAL_EIGHT_BIT_EVIL = "8 Bit Evil";
 export const mobileArcadeQuery = "(max-width: 768px), (pointer: coarse)";
-export const GAME_TOOLBAR_HEIGHT = 56;
+export const GAME_TOOLBAR_HEIGHT = 32;
 const EIGHT_BIT_EVIL_RETURNS_URL =
   "https://scarbone98.github.io/8BitEvilReturnsBuild/";
 const HEMLOCKS_TOWER_URL =
@@ -397,6 +399,7 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Hemlock's Tower"
           url={HEMLOCKS_TOWER_URL}
+          desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Hemlock's Tower", HEMLOCKS_TOWER_URL)
@@ -447,6 +450,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Salmon Run 2",
+      earlyAccess: true,
       cartridge: {
         color: "#f07a5a",
         tagline: "Race a salmon down a jungle river.",
@@ -490,6 +494,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Crypt Clash",
+      earlyAccess: true,
       cartridge: {
         color: "#7d8a99",
         tagline: "Last one standing wins.",
@@ -509,6 +514,7 @@ export function createArcadeGames(): MachineData[] {
     {
       // The monster arena: watch the brawls and bet coins on who wins
       name: "Monster Bash",
+      earlyAccess: true,
       cartridge: {
         color: "#8f2d1f",
         tagline: "Pick a monster. Back it with tickets.",
@@ -547,6 +553,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Frog Ball",
+      earlyAccess: true,
       cartridge: {
         color: "#6cc04a",
         tagline: "Roll a frog through dream worlds.",
@@ -568,6 +575,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Mystery Crypt",
+      earlyAccess: true,
       cartridge: {
         color: "#5b3a8c",
         tagline: "Crawl the crypt, recruit the monsters.",
@@ -589,6 +597,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Ghost Ridge",
+      earlyAccess: true,
       cartridge: {
         color: "#2b2150",
         tagline: "Shred the haunted mountain.",
@@ -630,6 +639,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Deep Time",
+      earlyAccess: true,
       cartridge: {
         color: "#4d5e3a",
         tagline: "Steal dinosaur eggs. Make quota. Buy hats.",
@@ -675,6 +685,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "BOB",
+      earlyAccess: true,
       cartridge: {
         color: "#f4f1e8",
         tagline: "Look after a stick figure.",
@@ -695,6 +706,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Snow Globe",
+      earlyAccess: true,
       cartridge: {
         color: "#8fc9e8",
         tagline: "Build a snow globe, then shake it.",
@@ -714,6 +726,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Breedable Monsters",
+      earlyAccess: true,
       cartridge: {
         color: "#3fc6c9",
         tagline: "Breed polymons, sell them, save the lab.",
@@ -912,7 +925,12 @@ export function createArcadeGames(): MachineData[] {
     },
   ];
   // Secret carts stay off the shelf until they're unlocked on this device
-  return games.filter((game) => !game.secret || unlocked.includes(game.name));
+  const shown = games.filter((game) => !game.secret || unlocked.includes(game.name));
+  // Early access carts sit after the finished games, before the coming-soon ones
+  const shelf = shown.filter((game) => !game.earlyAccess);
+  const firstSoon = shelf.findIndex((game) => game.special === "soon");
+  shelf.splice(firstSoon < 0 ? shelf.length : firstSoon, 0, ...shown.filter((game) => game.earlyAccess));
+  return shelf;
 }
 
 // Shuffle's pick: any real game in the list (on phones, the list already

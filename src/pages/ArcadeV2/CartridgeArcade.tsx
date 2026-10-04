@@ -434,6 +434,26 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
+    // An early access game: a tag in the corner of its preview, ruled in the cart's colour
+    const paintEarlyAccess = (color: string) => (context: CanvasRenderingContext2D, width: number, height: number) => {
+      const size = Math.round(height * 0.085);
+      const pad = size * 0.5;
+      const tagHeight = size * 1.5;
+      const x = width * 0.05;
+      const y = height * 0.07;
+      context.font = canvasFont(TERMINAL_FONT, size);
+      const tagWidth = context.measureText("EARLY ACCESS").width + pad * 2;
+      context.fillStyle = "rgba(4, 2, 8, 0.85)";
+      context.fillRect(x, y, tagWidth, tagHeight);
+      context.strokeStyle = color;
+      context.lineWidth = Math.max(2, size * 0.1);
+      context.strokeRect(x, y, tagWidth, tagHeight);
+      context.fillStyle = "#fff4e0";
+      context.textAlign = "left";
+      context.textBaseline = "middle";
+      context.fillText("EARLY ACCESS", x + pad, y + tagHeight / 2 + 1);
+    };
+
     // The off-air test card, like the colour bars on the TV in the corner
     const paintTestCard = (width: number, height: number) => {
       if (!screenContext) return;
@@ -699,7 +719,7 @@ export default function CartridgeArcade({
       }
       // The label still is small and usually cached already, so it stands in
       // until the clip plays (and for good if the phone won't autoplay it)
-      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl), previewVideo);
+      screenVideo = createScreenVideo(game.videoUrl, lightweight, stillUrlFor(game.videoUrl), previewVideo, game.earlyAccess ? paintEarlyAccess(game.cartridge.color) : undefined);
       screenMode = "video";
       waitingForPicture = true;
       lastLoadingFrame = -1;
