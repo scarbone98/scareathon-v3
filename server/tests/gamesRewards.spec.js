@@ -139,6 +139,24 @@ describe('validateScoreSubmission', () => {
             metricValue: 801,
         }).ok).toBe(false);
     });
+
+    test('accepts Trick or Treat .io nights up to the cap', () => {
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat .io',
+            metricName: 'score',
+            metricValue: 2350,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat .io',
+            metricName: 'score',
+            metricValue: 100001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Trick or Treat .io',
+            metricName: 'score',
+            metricValue: 12.5,
+        }).ok).toBe(false);
+    });
 });
 
 describe('playTicketsFor', () => {
