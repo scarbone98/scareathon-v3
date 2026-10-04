@@ -121,6 +121,12 @@ const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=dfab09d";
 // (?v=unpublished until the repos are created and Pages is on).
 const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=unpublished";
 const BAUBLE_POP_TD_URL = "https://perhapsjohn.github.io/BaublePopTD/?v=unpublished";
+// Godot 3D kart racer (Kart-o'-Lantern): one page, two packs (phones get index.mobile.pck,
+// desktops index.pck), touch controls and its own on-screen keyboard; online rooms go
+// through relay.waysidejunction.com. Asks for the session (unityReady) to make the
+// player's username their racer name; posts PLAYER_DIED with player 1's points at the
+// end of a Grand Prix. Build-only GitHub Pages repo; ?v= is its commit.
+const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=5a090cf";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -870,6 +876,32 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) => [
             listenForPlayerDiedScores(iframe, "Cryptid Snap", CRYPTID_SNAP_URL),
             sendSessionWhenReady(iframe, CRYPTID_SNAP_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot kart racer: monsters and cryptids on 16 haunted tracks, Grand Prix / Time Trial /
+    // VS / Lantern Battle, 1-4 on one screen or online by race code. Score: player 1's points
+    // over a four-race Grand Prix (15 for a win, 60 at most).
+    {
+      name: "Kart-o'-Lantern",
+      cartridge: {
+        color: "#ff7a1a",
+        tagline: "Count Vlad sulks for a full lap if you pass him.",
+        font: { family: "Rubik Wet Paint" },
+        about: { released: "2026", players: "1-4 local, online by room code", genre: "Kart racing", developer: "perhapsJohn" },
+        backNote: "Most points after four races takes the Golden Lantern.",
+      },
+      videoUrl: "/game-recordings/KartOLantern.mp4",
+      game: (
+        <GameRenderer
+          title="Kart-o'-Lantern"
+          url={KART_O_LANTERN_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Kart-o'-Lantern", KART_O_LANTERN_URL),
+            sendSessionWhenReady(iframe, KART_O_LANTERN_URL),
           ]}
         />
       ),

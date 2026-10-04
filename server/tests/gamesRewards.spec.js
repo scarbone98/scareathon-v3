@@ -240,6 +240,29 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
+    test('accepts Kart-o\'-Lantern Grand Prix points up to four wins', () => {
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 29,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 60,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 61,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Kart-o\'-Lantern',
+            metricName: 'score',
+            metricValue: 12.5,
+        }).ok).toBe(false);
+    });
+
     test('accepts Cryptid Snap reports up to the best possible ride', () => {
         expect(validateScoreSubmission({
             game: 'Cryptid Snap',

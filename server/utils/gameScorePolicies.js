@@ -71,6 +71,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Cryptid Snap', {
         score: { min: 0, max: 43800, integer: true },
     }],
+    // Player 1's points over one Grand Prix: four races, 15 points for a win.
+    ['Kart-o\'-Lantern', {
+        score: { min: 0, max: 60, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],
