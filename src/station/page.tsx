@@ -635,7 +635,7 @@ export default function StationPage() {
         {/* The ticketmaster has a word for you as you walk up */}
         <ClerkSays arrived={at === "tickets" && atArrived && !held} />
 
-        <Sheet sheet={sheet} onClose={closeSheet} />
+        <Sheet sheet={sheet} onClose={closeSheet} above={Boolean(playing)} />
 
         {/* Real controls for keyboard and screen-reader users: the canvas is only a picture */}
         <nav className="sr-only" aria-label="Station objects">
@@ -683,7 +683,7 @@ export default function StationPage() {
           )}
         </nav>
 
-        <StationPlay machine={playing} onClose={stopPlaying} onSignIn={() => { stopPlaying(); select("tickets"); }} />
+        <StationPlay machine={playing} onClose={stopPlaying} onLeaderboard={() => playing && setHeld({ kind: "departures", game: playing.name })} onSignIn={() => { stopPlaying(); select("tickets"); }} />
         {transition && (
           <CrtTransition
             mode={transition.mode}

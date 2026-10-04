@@ -24,7 +24,8 @@ export type SheetContent = {
   tint?: string;
 };
 
-export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; onClose: () => void }) {
+// above: over a game being played (the scoreboard, from the game's bar)
+export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetContent | null; onClose: () => void; above?: boolean }) {
   // The tap that picked something up is followed by its own click, which would land on
   // the backdrop that just appeared under the finger; ignore the backdrop briefly
   const openedAt = useRef(0);
@@ -58,7 +59,7 @@ export default function Sheet({ sheet, onClose }: { sheet: SheetContent | null; 
 
   return (
     <div
-      className={`fixed inset-0 z-30 flex items-end justify-center bg-black/60 backdrop-blur-[2px] md:items-center ${full ? "" : "md:p-6"}`}
+      className={`fixed inset-0 ${above ? "z-50" : "z-30"} flex items-end justify-center bg-black/60 backdrop-blur-[2px] md:items-center ${full ? "" : "md:p-6"}`}
       onClick={closeFromBackdrop}
       role="dialog"
       aria-modal

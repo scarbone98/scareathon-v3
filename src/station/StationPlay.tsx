@@ -3,13 +3,13 @@ import Toolbar from "../pages/Arcade/Toolbar.tsx";
 import { GUEST_SCORE_EVENT, type GuestScore, type MachineData } from "../pages/Arcade/games.tsx";
 import { stubButton } from "./style/theme.ts";
 
-// A game being played at the station: the arcade's own toolbar (leaderboard, close) over
+// A game being played at the station: a thin bar (the scoreboard on this game, close) over
 // the game frame, filling the screen. Guests who finish a run are pointed to the kiosk
 // to sign in, rather than to the classic sign-in page.
 
-type Props = { machine: MachineData | null; onClose: () => void; onSignIn: () => void };
+type Props = { machine: MachineData | null; onClose: () => void; onLeaderboard: () => void; onSignIn: () => void };
 
-export default function StationPlay({ machine, onClose, onSignIn }: Props) {
+export default function StationPlay({ machine, onClose, onLeaderboard, onSignIn }: Props) {
   const [guestScore, setGuestScore] = useState<GuestScore | null>(null);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function StationPlay({ machine, onClose, onSignIn }: Props) {
   return (
     <div className="fixed inset-0 z-40 flex touch-manipulation select-none items-center justify-center bg-black" style={{ WebkitTouchCallout: "none" }}>
       <div className="flex h-full w-fit flex-col items-center justify-start">
-        <Toolbar currentGame={machine.name} hasLeaderboard={machine.hasLeaderboard !== false} onClose={onClose} />
+        <Toolbar hasLeaderboard={machine.hasLeaderboard !== false} onLeaderboard={onLeaderboard} onClose={onClose} />
         {machine.game}
       </div>
       {guestScore && (
