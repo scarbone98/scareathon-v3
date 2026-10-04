@@ -104,7 +104,7 @@ const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=0
 // poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay; it
 // sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
 // turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
-const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=d87cebe";
+const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=0173a6a";
 // Godot photo safari (Cryptid Snap): ride a station wagon down a county road on Halloween night
 // 1986 and photograph cryptids; online CB Rally (2-4) through the Wayside relay. One page, two
 // packs: phones get index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to
