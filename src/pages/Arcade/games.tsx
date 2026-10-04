@@ -926,16 +926,17 @@ export function createArcadeGames(): MachineData[] {
     },
   ];
   // Secret carts stay off the shelf until they're unlocked on this device. The shelf runs
-  // group by group, each in alphabetical order (Shuffle leads the finished games)
+  // group by group, each in alphabetical order (Shuffle leads the finished games, "???" ends them)
+  const edge = (game: MachineData) => (game.special === "shuffle" ? -1 : game.special === "mystery" ? 1 : 0);
   return games
     .filter((game) => !game.secret || unlocked.includes(game.name))
-    .sort((a, b) => shelfGroupOf(a) - shelfGroupOf(b) || Number(b.special === "shuffle") - Number(a.special === "shuffle") || byName(a, b));
+    .sort((a, b) => shelfGroupOf(a) - shelfGroupOf(b) || edge(a) - edge(b) || byName(a, b));
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the cassette
-// carts (things to do), the finished games, early access, coming soon, and "???" by itself
+// carts (things to do), the finished games ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
-  if (game.special === "mystery") return 4;
+  if (game.special === "mystery") return 1;
   if (game.special === "soon") return 3;
   if (game.earlyAccess) return 2;
   return game.cartridge.cassette ? 0 : 1;
