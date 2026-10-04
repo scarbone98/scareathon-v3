@@ -92,7 +92,7 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=f61ab10
 // Godot party game (Trick or Treat Rush): one page that loads phone.pck on phones (touch
 // controls, portrait and landscape layouts) and index.pck on desktop. Build-only GitHub
 // Pages repo; ?v= is its build commit, to bust the cache.
-const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=7380144";
+const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bec4d33";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
