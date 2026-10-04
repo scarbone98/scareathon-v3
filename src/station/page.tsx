@@ -703,7 +703,9 @@ export default function StationPage() {
           @keyframes station-sheet-lift { from { opacity: 0; transform: translateY(24px) rotate(-1.5deg) scale(0.92) } to { opacity: 1; transform: none } }
           .station-sheet { animation: station-sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both }
           @media (min-width: 768px) { .station-sheet { animation-name: station-sheet-lift; animation-duration: 0.28s } }
-          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-sheet, .station-card, .station-card-body { animation: none } }
+          @keyframes station-sheet-down { from { transform: translateY(-100%) } to { transform: none } }
+          .station-sheet.station-sheet-down { animation: station-sheet-down 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both }
+          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-sheet, .station-sheet.station-sheet-down, .station-card, .station-card-body { animation: none } }
         `}</style>
       </div>
     </AnimatedPage>
