@@ -21,6 +21,10 @@ export const GAME_SCORE_POLICIES = new Map([
     ['WirtWare', {
         score: { min: 0, max: 10000, integer: true },
     }],
+    // Score is one night's candy (stash + haul) at midnight; big nights reach a few thousand
+    ['Trick or Treat .io', {
+        score: { min: 0, max: 100000, integer: true },
+    }],
     // Score is the battles won (skulls) in one run: a run ends at 10 wins.
     ['Super Autoween', {
         score: { min: 0, max: 10, integer: true },

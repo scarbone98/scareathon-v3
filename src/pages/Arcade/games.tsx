@@ -92,6 +92,11 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=94fa88e
 // Godot party game (Trick or Treat Rush); ?v= busts the cache when the build changes.
 const TRICK_OR_TREAT_RUSH_URL = "https://sclondon.github.io/TrickOrTreatRush/build/index.html?v=20261004";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
+// Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
+// full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
+// with the night's candy total at midnight. Served from a build-only GitHub Pages repo;
+// ?v= is that repo's build commit, to bust the cache.
+const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=f459eb5";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -719,6 +724,28 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Trick or Treat Rush", TRICK_OR_TREAT_RUSH_URL)
           }
+        />
+      ),
+    },
+    // Godot .io game: lead a line of trick-or-treaters, cut off other gangs so they scatter into
+    // candy. Solo with bots or online rooms. Score: the night's candy (stash + haul) at midnight.
+    {
+      name: "Trick or Treat .io",
+      cartridge: {
+        color: "#ef8a2b",
+        tagline: "Grow your gang. Cut off the big kids.",
+        font: { family: "Permanent Marker" },
+        about: { released: "2026", players: "1-8 online", genre: ".io", developer: "perhapsJohn" },
+        backNote: "Stash at home before midnight.",
+      },
+      videoUrl: "/game-recordings/TrickOrTreatIo.mp4",
+      game: (
+        <GameRenderer
+          title="Trick or Treat .io"
+          url={TRICK_OR_TREAT_IO_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => listenForPlayerDiedScores(iframe, "Trick or Treat .io", TRICK_OR_TREAT_IO_URL)}
         />
       ),
     },
