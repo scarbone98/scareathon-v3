@@ -112,11 +112,11 @@ export type ScreenVideo = ReturnType<typeof createScreenVideo>;
 // The cabinet screen is about 1.88:1. Draw the video inside a canvas with that
 // aspect ratio so portrait and 16:9 recordings keep their proportions.
 // posterUrl: an image to show until the video has a frame of its own.
-// overlay: drawn over every frame, e.g. a label in the corner.
+// overlay: drawn over every frame (`still`: the poster, or a paused clip), e.g. a label across the picture.
 // Pass `element` to reuse one video element across clips: iOS only lets a video
 // play without a tap (always, in Low Power Mode) once that same element has been
 // played from one, so a fresh element per clip would never get going.
-export function createScreenVideo(videoUrl: string, lightweight: boolean, posterUrl?: string, element?: HTMLVideoElement, overlay?: (context: CanvasRenderingContext2D, width: number, height: number) => void) {
+export function createScreenVideo(videoUrl: string, lightweight: boolean, posterUrl?: string, element?: HTMLVideoElement, overlay?: (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => void) {
   const video = element ?? document.createElement("video");
   video.crossOrigin = "anonymous";
   video.src = videoUrl;
@@ -193,7 +193,7 @@ export function createScreenVideo(videoUrl: string, lightweight: boolean, poster
     // When the zoom overflows vertically, trim mostly from the bottom: titles and logos sit at the top
     const top = height > canvas.height ? (canvas.height - height) * 0.2 : (canvas.height - height) / 2;
     context.drawImage(source, (canvas.width - width) / 2, top, width, height);
-    overlay?.(context, canvas.width, canvas.height);
+    overlay?.(context, canvas.width, canvas.height, source !== video || video.paused);
     texture.needsUpdate = true;
   };
   video.addEventListener("loadeddata", drawFrame);

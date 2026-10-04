@@ -434,24 +434,26 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
-    // An early access game: a tag in the corner of its preview, ruled in the cart's colour
-    const paintEarlyAccess = (color: string) => (context: CanvasRenderingContext2D, width: number, height: number) => {
-      const size = Math.round(height * 0.085);
-      const pad = size * 0.5;
-      const tagHeight = size * 1.5;
-      const x = width * 0.05;
-      const y = height * 0.07;
-      context.font = canvasFont(TERMINAL_FONT, size);
-      const tagWidth = context.measureText("EARLY ACCESS").width + pad * 2;
+    // An early access game: a band across its preview like COMING SOON's, blinking EARLY ACCESS
+    // in the cart's colour, but with the preview left bright behind it. A still (the poster,
+    // a paused clip) isn't painted again, so its words never blink off.
+    const paintEarlyAccess = (color: string) => (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => {
+      const band = height * 0.3;
+      const rule = Math.max(3, Math.round(height * 0.012));
       context.fillStyle = "rgba(4, 2, 8, 0.85)";
-      context.fillRect(x, y, tagWidth, tagHeight);
-      context.strokeStyle = color;
-      context.lineWidth = Math.max(2, size * 0.1);
-      context.strokeRect(x, y, tagWidth, tagHeight);
-      context.fillStyle = "#fff4e0";
-      context.textAlign = "left";
+      context.fillRect(0, (height - band) / 2, width, band);
+      context.fillStyle = color;
+      context.fillRect(0, (height - band) / 2, width, rule);
+      context.fillRect(0, (height + band) / 2 - rule, width, rule);
+      if (!still && Math.floor(performance.now() / 250) % 4 === 3) return;
+      context.font = canvasFont(TERMINAL_FONT, Math.round(height * 0.172));
+      context.textAlign = "center";
       context.textBaseline = "middle";
-      context.fillText("EARLY ACCESS", x + pad, y + tagHeight / 2 + 1);
+      context.shadowColor = color;
+      context.shadowBlur = height * 0.06;
+      context.fillStyle = "#fff4e0";
+      context.fillText("EARLY ACCESS", width / 2, height / 2 + 2);
+      context.shadowBlur = 0;
     };
 
     // The off-air test card, like the colour bars on the TV in the corner
