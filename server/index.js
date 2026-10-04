@@ -147,7 +147,9 @@ async function main() {
                 'https://waysidestation.com',
                 'https://scareathon-v3.vercel.app',
                 'https://scarbone98.github.io',
-                'https://sclondon.github.io'
+                'https://sclondon.github.io',
+                // 31 Nights (perhapsJohn's GitHub Pages) looks up the arcade player's name
+                'https://perhapsjohn.github.io'
             ],
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
             credentials: true

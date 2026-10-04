@@ -8,7 +8,7 @@
 
 UPDATE public.games
 SET is_active = TRUE,
-    url = 'https://sclondon.github.io/31Nights/build/index.html',
+    url = 'https://perhapsjohn.github.io/31Nights/',
     updated_at = NOW()
 WHERE name = '31 Nights';
 
@@ -17,7 +17,7 @@ SELECT
     '31 Nights',
     'A Halloween daily puzzle: one door opens every October night, four quick rounds, double points on Halloween.',
     TRUE,
-    'https://sclondon.github.io/31Nights/build/index.html',
+    'https://perhapsjohn.github.io/31Nights/',
     NOW(),
     NOW(),
     NOW()

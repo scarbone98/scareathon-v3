@@ -83,8 +83,8 @@ const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
-// Godot daily puzzle (31 Nights); ?v= is the game repo's commit, to bust the cache.
-const THIRTY_ONE_NIGHTS_URL = "https://sclondon.github.io/31Nights/build/index.html?v=ac39299";
+// Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
+const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=94fa88e";
 // Godot party game (Trick or Treat Rush); ?v= busts the cache when the build changes.
 const TRICK_OR_TREAT_RUSH_URL = "https://sclondon.github.io/TrickOrTreatRush/build/index.html?v=20261004";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
@@ -651,7 +651,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#e8651c",
         tagline: "One door opens every night until Halloween.",
         font: { family: "Cormorant Garamond", weight: 700 },
-        about: { released: "2026", players: "Single player", genre: "Daily puzzle", developer: "sclondon" },
+        about: { released: "2026", players: "Single player", genre: "Daily puzzle", developer: "perhapsJohn" },
         backNote: "Come back tomorrow night.",
       },
       videoUrl: "/game-recordings/31Nights.mp4",
