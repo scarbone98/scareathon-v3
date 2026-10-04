@@ -88,7 +88,7 @@ const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
 // Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
-const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=f61ab10";
+const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a1b8edc";
 // Godot party game (Trick or Treat Rush): one page that loads phone.pck on phones (touch
 // controls, portrait and landscape layouts) and index.pck on desktop. Build-only GitHub
 // Pages repo; ?v= is its build commit, to bust the cache.
