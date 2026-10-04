@@ -110,7 +110,7 @@ const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=d87cebe";
 // packs: phones get index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to
 // use the username as the CB handle; posts PLAYER_DIED with each single-player report's total.
 // Build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
-const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=dfab09d";
+const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=99466ce";
 // Godot tower defence (Boo Pop TD / Bauble Pop TD, one codebase, two editions): a portrait
 // layout on phones (the field turned a quarter, shop and upgrades as bottom sheets, its own
 // on-screen keyboard), landscape on desktop. One page per edition, two packs: phones get
