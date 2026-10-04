@@ -4,7 +4,7 @@ import { stillUrlFor } from "./cartridge.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
 // games' stills and names in alphabetical order, a row of filters (genre, developer,
-// online, early access, coming soon), and a search prompt along the bottom that filters
+// single or multiplayer, early access, coming soon), and a search prompt along the bottom that filters
 // by name or genre. Picking one jumps the shelf to it.
 
 const PHOSPHOR = "#39ff6a";
@@ -13,8 +13,9 @@ const GLOW = "0 0 6px rgba(57, 255, 106, 0.65), 0 0 1px rgba(57, 255, 106, 0.9)"
 
 const INVERT = "focus:outline-none focus-visible:bg-[#39ff6a] focus-visible:text-[#021407] [@media(hover:hover)]:hover:bg-[#39ff6a] [@media(hover:hover)]:hover:text-[#021407]";
 
-// More than one player, or everyone's in it together
-const isOnline = (game: MachineData) => !/^(single player|unknown)$/i.test(game.cartridge.about.players);
+// One player, or more than one (everyone's in it together counts); "???" is neither
+const PLAYERS = ["Single player", "Multiplayer"];
+const playersOf = (game: MachineData) => (/^single player$/i.test(game.cartridge.about.players) ? PLAYERS[0] : /^unknown$/i.test(game.cartridge.about.players) ? "" : PLAYERS[1]);
 // "sclondon + scarbone98" is both of them
 const developersOf = (game: MachineData) => game.cartridge.about.developer.split("+").map((name) => name.trim());
 const unique = (values: string[]) => [...new Set(values)].filter((value) => value !== "UNKNOWN").sort((a, b) => a.localeCompare(b));
@@ -75,7 +76,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("");
   const [developer, setDeveloper] = useState("");
-  const [online, setOnline] = useState(false);
+  const [players, setPlayers] = useState("");
   const [early, setEarly] = useState(false);
   const [soon, setSoon] = useState(false);
   const needle = query.trim().toLowerCase();
@@ -93,10 +94,10 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       (!needle || `${game.name} ${game.cartridge.about.genre}`.toLowerCase().includes(needle)) &&
       (!genre || game.cartridge.about.genre === genre) &&
       (!developer || developersOf(game).includes(developer)) &&
-      (!online || isOnline(game)) &&
+      (!players || playersOf(game) === players) &&
       ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
   );
-  const filtered = Boolean(needle || genre || developer || online || early || soon);
+  const filtered = Boolean(needle || genre || developer || players || early || soon);
 
   return (
     <div
@@ -133,9 +134,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-[#39ff6a]/30 px-4 pb-2 pt-1 text-lg leading-6 sm:text-xl">
           <Pick label="GENRE" value={genre} options={genres} onChange={setGenre} />
           <Pick label="DEV" value={developer} options={developers} onChange={setDeveloper} />
-          <Toggle on={online} onChange={setOnline}>
-            ONLINE
-          </Toggle>
+          <Pick label="PLAYERS" value={players} options={PLAYERS} onChange={setPlayers} />
           <Toggle on={early} onChange={setEarly}>
             EARLY ACCESS
           </Toggle>
