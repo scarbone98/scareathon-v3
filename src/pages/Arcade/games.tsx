@@ -284,6 +284,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "Walk through a gallery of Stewart's art.",
         font: { family: "Cormorant Garamond", weight: 600 },
         about: { released: "2026", players: "Single player", genre: "Virtual gallery", developer: "sclondon" },
+        cassette: "Gallery",
       },
       videoUrl: "/game-recordings/WaysideGallery.mp4",
       hasLeaderboard: false,
