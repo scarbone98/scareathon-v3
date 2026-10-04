@@ -118,7 +118,7 @@ const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=99466ce";
 // username as the player name; posts PLAYER_DIED when a single-player game ends (win or
 // lose) with the last round cleared. Co-op / versus go through the Wayside relay and are
 // never scored here. Build-only GitHub Pages repo; ?v= is the repo's build commit.
-const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=352cf58";
+const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=46cf534";
 // Godot 3D kart racer (Kart-o'-Lantern): one page, two packs (phones get index.mobile.pck,
 // desktops index.pck), touch controls and its own on-screen keyboard; online rooms go
 // through relay.waysidejunction.com. Asks for the session (unityReady) to make the
