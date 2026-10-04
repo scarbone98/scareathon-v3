@@ -66,10 +66,10 @@ const EIGHT_BIT_EVIL_RETURNS_URL =
   "https://scarbone98.github.io/8BitEvilReturnsBuild/";
 const HEMLOCKS_TOWER_URL =
   "https://sclondon.github.io/HemlocksTower/build/HemlocksTower.html?v=10d59b2";
-const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/?v=dbbc338";
+const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/?v=4299a9a";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
-const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=44f83ee";
+const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=56ec83e";
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
 // Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
 // commit, to bust the cache. One page, two packs: phones get half-size art
@@ -464,6 +464,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Tlaloc’s Curse",
+      updated: "2026-10-04T19:31:50Z",
       cartridge: {
         color: "#2f86d6",
         tagline: "Pinball under a storm god’s curse.",
@@ -505,6 +506,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Salmon Run 2",
+      updated: "2026-10-04T23:15:35Z",
       cartridge: {
         color: "#f07a5a",
         tagline: "Race a salmon down a jungle river.",
