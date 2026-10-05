@@ -72,6 +72,10 @@ function GameRenderer({
     handleFrameLoad();
     document.addEventListener("gesturestart", preventGesture);
 
+    // A game with more than one view (Tlaloc's Curse: tall like a phone, or squarer for a
+    // desktop) says which shape it wants: { type: "ASPECT_RATIO", ratio: width / height }
+    let askedAspectRatio: number | null = null;
+
     const applyIframeSize = () => {
       const viewportHeight =
         iframe.parentElement?.parentElement?.clientHeight || window.innerHeight;
@@ -86,12 +90,13 @@ function GameRenderer({
         return;
       }
 
+      const aspectRatio = askedAspectRatio ?? desktopAspectRatio;
       const viewportAspectRatio = availableWidth / availableHeight;
       const height =
-        viewportAspectRatio > desktopAspectRatio
+        viewportAspectRatio > aspectRatio
           ? availableHeight
-          : availableWidth / desktopAspectRatio;
-      const width = height * desktopAspectRatio;
+          : availableWidth / aspectRatio;
+      const width = height * aspectRatio;
 
       iframe.style.height = `${height}px`;
       iframe.style.width = `${width}px`;
@@ -109,6 +114,15 @@ function GameRenderer({
 
       document.body.style.textAlign = "left";
     }
+
+    const handleAspectRatio = (event: MessageEvent) => {
+      if (event.source !== iframe.contentWindow || event.data?.type !== "ASPECT_RATIO") return;
+      const ratio = Number(event.data.ratio);
+      if (!Number.isFinite(ratio) || ratio < 0.3 || ratio > 4) return;
+      askedAspectRatio = ratio;
+      applyIframeSize();
+    };
+    window.addEventListener("message", handleAspectRatio);
 
     applyIframeSize();
     window.addEventListener("resize", applyIframeSize);
@@ -129,6 +143,7 @@ function GameRenderer({
 
     return () => {
       window.removeEventListener("resize", applyIframeSize);
+      window.removeEventListener("message", handleAspectRatio);
       iframe.removeEventListener("load", handleFrameLoad);
       document.removeEventListener("gesturestart", preventGesture);
       resizeObserver?.disconnect();
