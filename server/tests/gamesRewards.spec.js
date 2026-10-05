@@ -240,6 +240,57 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
+    test('accepts Overbrewed Endless Night coins up to 200,000', () => {
+        expect(validateScoreSubmission({
+            game: 'Overbrewed',
+            metricName: 'score',
+            metricValue: 1279,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Overbrewed',
+            metricName: 'score',
+            metricValue: 200000,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Overbrewed',
+            metricName: 'score',
+            metricValue: 200001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Overbrewed',
+            metricName: 'score',
+            metricValue: 640.5,
+        }).ok).toBe(false);
+    });
+
+    test('accepts Ghauntlet Endless Crypt scores up to 500,000', () => {
+        expect(validateScoreSubmission({
+            game: 'Ghauntlet',
+            metricName: 'score',
+            metricValue: 27815,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Ghauntlet',
+            metricName: 'score',
+            metricValue: 0,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Ghauntlet',
+            metricName: 'score',
+            metricValue: 500000,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Ghauntlet',
+            metricName: 'score',
+            metricValue: 500001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Ghauntlet',
+            metricName: 'score',
+            metricValue: 2090.5,
+        }).ok).toBe(false);
+    });
+
     test('accepts Kart-o\'-Lantern Grand Prix points up to four wins', () => {
         expect(validateScoreSubmission({
             game: 'Kart-o\'-Lantern',

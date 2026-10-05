@@ -76,7 +76,7 @@ const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b42
 // Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
 // commit, to bust the cache. One page, two packs: phones get half-size art
 // (index.mobile.pck), desktops the full set.
-const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=dcc8286";
+const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=90b0b37";
 const HORDE_RUSH_URL = "/horde-rush";
 const MONSTER_BASH_URL = "/monster-bash";
 const FROG_BALL_URL = "/frog-ball";
@@ -95,29 +95,29 @@ const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
 const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=a83b763";
 // Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
-const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a1b8edc";
+const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba";
 // Godot party game (Trick or Treat Rush): one page that loads phone.pck on phones (touch
 // controls, portrait and landscape layouts) and index.pck on desktop. Build-only GitHub
 // Pages repo; ?v= is its build commit, to bust the cache.
-const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=002b557";
+const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bce2a03";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
 // player's gang after their username. Served from a build-only GitHub Pages repo;
 // ?v= is that repo's build commit, to bust the cache.
-const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=a6686df";
+const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=a5e14a6";
 // Godot voxel stealth game (Lawn Order): a small dog sneaks into the neighbours' yards to
 // poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay; it
 // sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
 // turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
-const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=5f991fd";
+const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=0d375f7";
 // Godot photo safari (Cryptid Snap): ride a station wagon down a county road on Halloween night
 // 1986 and photograph cryptids; online CB Rally (2-4) through the Wayside relay. One page, two
 // packs: phones get index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to
 // use the username as the CB handle; posts PLAYER_DIED with each single-player report's total.
 // Build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
-const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=e9d377d";
+const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=6c114a2";
 // Godot tower defence (Boo Pop TD): a portrait
 // layout on phones (the field turned a quarter, shop and upgrades as bottom sheets, its own
 // on-screen keyboard), landscape on desktop. One page, two packs: phones get
@@ -125,20 +125,35 @@ const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=e9d377d";
 // username as the player name; posts PLAYER_DIED when a single-player game ends (win or
 // lose) with the last round cleared. Co-op / versus go through the Wayside relay and are
 // never scored here. Build-only GitHub Pages repo; ?v= is the repo's build commit.
-const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=46cf534";
+const BOO_POP_TD_URL = "https://perhapsjohn.github.io/BooPopTD/?v=8fc54f3";
 // Godot 3D kart racer (Kart-o'-Lantern): one page, two packs (phones get index.mobile.pck,
 // desktops index.pck), touch controls and its own on-screen keyboard; online rooms go
 // through relay.waysidejunction.com. Asks for the session (unityReady) to make the
 // player's username their racer name; posts PLAYER_DIED with player 1's points at the
 // end of a Grand Prix. Build-only GitHub Pages repo; ?v= is its commit.
-const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=5d92cdb";
+const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=3455913";
 // Godot 3D platform fighter (Graveyard Smash 3D): one page, two packs (phones get
 // index.mobile.pck, desktops index.pck), touch controls, its own on-screen keyboard and
 // a turn-sideways card on an upright phone; online rooms go through
 // relay.waysidejunction.com. Asks for the session (unityReady) to make the username its
 // online name; posts PLAYER_DIED with a Classic run's score when the run ends (cleared or
 // given up). Build-only GitHub Pages repo; ?v= is its commit.
-const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=38a0ced";
+const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=6b9ac21";
+// Godot co-op potion kitchen (Overbrewed): one page, two packs (phones get index.mobile.pck,
+// desktops index.pck), touch controls, its own on-screen keyboard and a turn-sideways card on
+// an upright phone; online rooms go through relay.waysidejunction.com. Asks for the session
+// (unityReady) and uses the username as the online name (it logs in with it, as a typed name
+// would); posts PLAYER_DIED with the crew's coins when an Endless Night run ends.
+// Build-only GitHub Pages repo; ?v= is its commit.
+const OVERBREWED_URL = "https://perhapsjohn.github.io/Overbrewed/?v=e642993";
+// Godot Halloween dungeon crawler (Ghauntlet): one page, two packs (phones get
+// index.mobile.pck, desktops index.pck), touch controls and a turn-sideways card on an
+// upright phone; online rooms go through relay.waysidejunction.com. Asks for the session
+// (unityReady) and uses the username as the online name (it logs in with it, as a typed
+// name would, unless the player already signed in by name); posts PLAYER_DIED with the
+// last floor's score when an Endless Crypt run ends. Build-only GitHub Pages repo; ?v= is
+// its commit.
+const GHAUNTLET_URL = "https://perhapsjohn.github.io/Ghauntlet/?v=73ca3a2";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -926,6 +941,66 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) => [
             listenForPlayerDiedScores(iframe, "Graveyard Smash 3D", GRAVEYARD_SMASH_3D_URL),
             sendSessionWhenReady(iframe, GRAVEYARD_SMASH_3D_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot co-op kitchen: 1-4 monsters brew potions for impatient callers (21 kitchens in 7
+    // worlds, Daily Brew, Brew-off, Rush Night with up to 30 brewers, Gremlins), online by room
+    // code or with bot helpers. Score: the crew's coins in one Endless Night run (until the
+    // third caller walks out); 200,000 at most.
+    {
+      name: "Overbrewed",
+      added: "2026-10-04T21:00:00-05:00",
+      earlyAccess: true,
+      cartridge: {
+        color: "#5fbf3a",
+        tagline: "Chop the newt eyes. Watch the cauldron. Wash the flask, there are only four.",
+        font: { family: "Rubik Wet Paint" },
+        about: { released: "2026", players: "1-4 local, online by room code, up to 30 with bots", genre: "Co-op cooking chaos", developer: "perhapsJohn" },
+        backNote: "Endless Night counts coins until the third caller walks out.",
+      },
+      videoUrl: "/game-recordings/Overbrewed.mp4",
+      game: (
+        <GameRenderer
+          title="Overbrewed"
+          url={OVERBREWED_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Overbrewed", OVERBREWED_URL),
+            sendSessionWhenReady(iframe, OVERBREWED_URL),
+          ]}
+        />
+      ),
+    },
+    // Godot dungeon crawler in the spirit of Gauntlet Legends: 1-4 costumed heroes against
+    // endless ghouls (five realms with bosses, Endless Crypt, Daily Descent, Horde Night,
+    // Candy Clash, Boss Rush), online by room code or with bot friends. Score: an Endless
+    // Crypt run's last floor score (coins carried down, kills and haunts on that floor,
+    // 500 a floor below the first), sent when the souls run out or the run is quit after
+    // floor 1; 500,000 at most.
+    {
+      name: "Ghauntlet",
+      added: "2026-10-04T22:45:00-05:00",
+      earlyAccess: true,
+      cartridge: {
+        color: "#ff7a1a",
+        tagline: "Candy keeps them alive. Somebody always shoots the candy.",
+        font: { family: "Cormorant Garamond", weight: 700 },
+        about: { released: "2026", players: "1-4 players, online or with bots", genre: "Dungeon crawler", developer: "perhapsJohn" },
+        backNote: "Endless Crypt counts until the souls run out. 500 a floor.",
+      },
+      videoUrl: "/game-recordings/Ghauntlet.mp4",
+      game: (
+        <GameRenderer
+          title="Ghauntlet"
+          url={GHAUNTLET_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Ghauntlet", GHAUNTLET_URL),
+            sendSessionWhenReady(iframe, GHAUNTLET_URL),
           ]}
         />
       ),

@@ -79,6 +79,19 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Graveyard Smash 3D', {
         score: { min: 0, max: 125500, integer: true },
     }],
+    // The crew's coins in one Endless Night run, which ends when the third order runs out.
+    // Orders come faster every minute, so a run is bounded in practice; 200,000 is far past
+    // the best bot crews (about 1,300 in the gentlest kitchen).
+    ['Overbrewed', {
+        score: { min: 0, max: 200000, integer: true },
+    }],
+    // An Endless Crypt run's last floor score: the heroes' coins (carried floor to floor),
+    // 10 a kill and 200 a haunt on that floor, 500 a floor below the first, less 300 a death.
+    // Floors get harder down to a cap, so a run is long but bounded; bot parties reach floor
+    // 19-24 with 17,000-28,000, and 500,000 is about 400 floors.
+    ['Ghauntlet', {
+        score: { min: 0, max: 500000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],
