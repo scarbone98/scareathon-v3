@@ -93,7 +93,7 @@ const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/bui
 const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
 const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
-const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=578a53c";
+export const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=7b32bdb";
 // Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
 const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba";
 // Godot party game (Trick or Treat Rush): one page that loads phone.pck on phones (touch
@@ -235,7 +235,7 @@ function isTrustedGameMessage(
 
 // Answers a game's "unityReady" with the signed-in player's session, as the
 // Unity 8 Bit Evil Returns expects. Returns the cleanup for GameRenderer.
-function sendSessionWhenReady(iframe: HTMLIFrameElement, gameUrl: string) {
+export function sendSessionWhenReady(iframe: HTMLIFrameElement, gameUrl: string) {
   const expectedOrigin = getUrlOrigin(gameUrl);
   const handleMessage = async (e: MessageEvent) => {
     if (!isTrustedGameMessage(iframe, e, expectedOrigin)) return;
@@ -253,6 +253,41 @@ function sendSessionWhenReady(iframe: HTMLIFrameElement, gameUrl: string) {
       },
       e.origin
     );
+  };
+  window.addEventListener("message", handleMessage);
+  return () => window.removeEventListener("message", handleMessage);
+}
+
+// 8 Bit Evil Returns V2's co-op lobby asks the page to share a room's invite
+// link (/8ber?room=CODE): the phone's share sheet, else the clipboard. The page
+// does it because the game's frame isn't allowed to. Answers SHARE_DONE with
+// "shared", "copied" or "failed".
+export function shareRoomLinks(iframe: HTMLIFrameElement, gameUrl: string) {
+  const expectedOrigin = getUrlOrigin(gameUrl);
+  const handleMessage = async (e: MessageEvent) => {
+    if (!isTrustedGameMessage(iframe, e, expectedOrigin)) return;
+    if (!isArcadeMessage(e.data) || e.data.type !== "SHARE_LINK") return;
+    const code = String((e.data as { code?: unknown }).code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+    if (code.length !== 4) return;
+    const url = `${window.location.origin}/8ber?room=${code}`;
+    let how = "failed";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "8 Bit Evil Returns", text: "Join my co-op room!", url });
+        how = "shared";
+      } else {
+        await navigator.clipboard.writeText(url);
+        how = "copied";
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        how = "copied";
+      } catch {
+        how = "failed";
+      }
+    }
+    (e.source as WindowProxy | null)?.postMessage({ type: "SHARE_DONE", how }, e.origin);
   };
   window.addEventListener("message", handleMessage);
   return () => window.removeEventListener("message", handleMessage);
@@ -1238,7 +1273,14 @@ export function createArcadeGames(): MachineData[] {
           title="8 Bit Evil Returns V2"
           url={EIGHT_BIT_EVIL_RETURNS_V2_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-          onLoad={(iframe) => sendSessionWhenReady(iframe, EIGHT_BIT_EVIL_RETURNS_V2_URL)}
+          onLoad={(iframe) => {
+            const stopSession = sendSessionWhenReady(iframe, EIGHT_BIT_EVIL_RETURNS_V2_URL);
+            const stopShare = shareRoomLinks(iframe, EIGHT_BIT_EVIL_RETURNS_V2_URL);
+            return () => {
+              stopSession();
+              stopShare();
+            };
+          }}
         />
       ),
     },

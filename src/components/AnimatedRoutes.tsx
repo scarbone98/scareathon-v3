@@ -22,6 +22,7 @@ const MysteryCrypt = lazy(() => import("../pages/MysteryCrypt/page"));
 const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 const GhostRidge = lazy(() => import("../pages/GhostRidge/page"));
 const Muertos = lazy(() => import("../pages/Muertos/page"));
+const EightBitEvilV2 = lazy(() => import("../pages/EightBitEvilV2/page"));
 const PictoBox = lazy(() => import("../pages/PictoBox/page"));
 const WaysideOnline = lazy(() => import("../pages/WaysideOnline/page"));
 
@@ -35,6 +36,7 @@ const PAGES: [string, React.ComponentType][] = [
   ["/frog-ball", FrogBall],
   ["/ghost-ridge", GhostRidge],
   ["/muertos", Muertos],
+  ["/8ber", EightBitEvilV2],
   ["/picto-box", PictoBox],
   ["/wayside-online", WaysideOnline],
 ];
