@@ -147,7 +147,7 @@ const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?
 // (unityReady) and uses the username as the online name (it logs in with it, as a typed name
 // would); posts PLAYER_DIED with the crew's coins when an Endless Night run ends.
 // Build-only GitHub Pages repo; ?v= is its commit.
-const OVERBREWED_URL = "https://perhapsjohn.github.io/Overbrewed/?v=c441d7e";
+const OVERBREWED_URL = "https://perhapsjohn.github.io/Overbrewed/?v=5aec030";
 // Godot Halloween dungeon crawler (Ghauntlet): one page, two packs (phones get
 // index.mobile.pck, desktops index.pck), touch controls and a turn-sideways card on an
 // upright phone; online rooms go through relay.waysidejunction.com. Asks for the session
