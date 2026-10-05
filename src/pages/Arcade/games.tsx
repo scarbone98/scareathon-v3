@@ -106,18 +106,20 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
 // player's gang after their username. Served from a build-only GitHub Pages repo;
 // ?v= is that repo's build commit, to bust the cache.
-const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=a5e14a6";
+const TRICK_OR_TREAT_IO_URL = "https://perhapsjohn.github.io/TrickOrTreatIo/?v=d2fc088";
 // Godot voxel stealth game (Lawn Order): a small dog sneaks into the neighbours' yards to
-// poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay; it
-// sends no messages. One page, two packs: phones get index.mobile.pck (touch controls, a
-// turn-sideways card), desktops index.pck. Build-only GitHub Pages repo; ?v= is its commit.
-const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=0d375f7";
+// poop on their lawns. Campaign, Arcade modes and online rooms through the Wayside relay. Asks
+// for the session (unityReady) to use the signed-in username as its player name and Junction
+// login; a finished Paper Route posts its total as PLAYER_DIED. One page, two packs: phones get
+// index.mobile.pck (touch controls, a turn-sideways card), desktops index.pck. Build-only
+// GitHub Pages repo; ?v= is its commit.
+const LAWN_ORDER_URL = "https://perhapsjohn.github.io/LawnOrder/?v=5a6b0d9";
 // Godot photo safari (Cryptid Snap): ride a station wagon down a county road on Halloween night
 // 1986 and photograph cryptids; online CB Rally (2-4) through the Wayside relay. One page, two
 // packs: phones get index.mobile.pck, desktops index.pck. Asks for the session (unityReady) to
 // use the username as the CB handle; posts PLAYER_DIED with each single-player report's total.
 // Build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
-const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=6c114a2";
+const CRYPTID_SNAP_URL = "https://perhapsjohn.github.io/CryptidSnap/?v=7159456";
 // Godot tower defence (Boo Pop TD): a portrait
 // layout on phones (the field turned a quarter, shop and upgrades as bottom sheets, its own
 // on-screen keyboard), landscape on desktop. One page, two packs: phones get
@@ -138,14 +140,14 @@ const KART_O_LANTERN_URL = "https://perhapsjohn.github.io/KartOLantern/?v=345591
 // relay.waysidejunction.com. Asks for the session (unityReady) to make the username its
 // online name; posts PLAYER_DIED with a Classic run's score when the run ends (cleared or
 // given up). Build-only GitHub Pages repo; ?v= is its commit.
-const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=6b9ac21";
+const GRAVEYARD_SMASH_3D_URL = "https://perhapsjohn.github.io/GraveyardSmash3D/?v=099fa12";
 // Godot co-op potion kitchen (Overbrewed): one page, two packs (phones get index.mobile.pck,
 // desktops index.pck), touch controls, its own on-screen keyboard and a turn-sideways card on
 // an upright phone; online rooms go through relay.waysidejunction.com. Asks for the session
 // (unityReady) and uses the username as the online name (it logs in with it, as a typed name
 // would); posts PLAYER_DIED with the crew's coins when an Endless Night run ends.
 // Build-only GitHub Pages repo; ?v= is its commit.
-const OVERBREWED_URL = "https://perhapsjohn.github.io/Overbrewed/?v=e642993";
+const OVERBREWED_URL = "https://perhapsjohn.github.io/Overbrewed/?v=c441d7e";
 // Godot Halloween dungeon crawler (Ghauntlet): one page, two packs (phones get
 // index.mobile.pck, desktops index.pck), touch controls and a turn-sideways card on an
 // upright phone; online rooms go through relay.waysidejunction.com. Asks for the session
@@ -153,7 +155,7 @@ const OVERBREWED_URL = "https://perhapsjohn.github.io/Overbrewed/?v=e642993";
 // name would, unless the player already signed in by name); posts PLAYER_DIED with the
 // last floor's score when an Endless Crypt run ends. Build-only GitHub Pages repo; ?v= is
 // its commit.
-const GHAUNTLET_URL = "https://perhapsjohn.github.io/Ghauntlet/?v=73ca3a2";
+const GHAUNTLET_URL = "https://perhapsjohn.github.io/Ghauntlet/?v=ef9b2d8";
 
 type ArcadeMessage = {
   type?: unknown;
@@ -814,7 +816,8 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     // Godot voxel stealth: review every lawn on the list (squat in the orange ring), stay out of
-    // sight, slip out the gate. Or play the humans and catch the dogs. No leaderboard.
+    // sight, slip out the gate. Or play the humans and catch the dogs. Score: a finished Paper
+    // Route's total (five yards in a row on three catches), 0-100,000.
     {
       name: "Lawn Order",
       added: "2026-10-04T15:29:21-06:00",
@@ -827,13 +830,16 @@ export function createArcadeGames(): MachineData[] {
         backNote: "Hold still in the hedge.",
       },
       videoUrl: "/game-recordings/LawnOrder.mp4",
-      hasLeaderboard: false,
       game: (
         <GameRenderer
           title="Lawn Order"
           url={LAWN_ORDER_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => [
+            listenForPlayerDiedScores(iframe, "Lawn Order", LAWN_ORDER_URL),
+            sendSessionWhenReady(iframe, LAWN_ORDER_URL),
+          ]}
         />
       ),
     },

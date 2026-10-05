@@ -92,6 +92,11 @@ export const GAME_SCORE_POLICIES = new Map([
     ['Ghauntlet', {
         score: { min: 0, max: 500000, integer: true },
     }],
+    // A finished Paper Route's total: the points banked in each yard cleared, five yards at
+    // most (a yard is a few thousand; no multipliers), so 100,000 is far past a perfect route.
+    ['Lawn Order', {
+        score: { min: 0, max: 100000, integer: true },
+    }],
     ['8 Bit Evil', {
         score: { min: 0, max: 10000000, integer: true },
     }],

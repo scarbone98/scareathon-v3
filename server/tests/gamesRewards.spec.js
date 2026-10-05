@@ -291,6 +291,34 @@ describe('validateScoreSubmission', () => {
         }).ok).toBe(false);
     });
 
+    test('accepts Lawn Order Paper Route totals up to 100,000', () => {
+        expect(validateScoreSubmission({
+            game: 'Lawn Order',
+            metricName: 'score',
+            metricValue: 7765,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Lawn Order',
+            metricName: 'score',
+            metricValue: 0,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Lawn Order',
+            metricName: 'score',
+            metricValue: 100000,
+        })).toEqual({ ok: true });
+        expect(validateScoreSubmission({
+            game: 'Lawn Order',
+            metricName: 'score',
+            metricValue: 100001,
+        }).ok).toBe(false);
+        expect(validateScoreSubmission({
+            game: 'Lawn Order',
+            metricName: 'score',
+            metricValue: 1234.5,
+        }).ok).toBe(false);
+    });
+
     test('accepts Kart-o\'-Lantern Grand Prix points up to four wins', () => {
         expect(validateScoreSubmission({
             game: 'Kart-o\'-Lantern',
