@@ -29,9 +29,11 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
-  // When it arrived and when it last changed (an ISO time, like "2026-10-04T16:00:00-06:00"):
-  // a "!" badge until it's played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
+  // When it arrived (an ISO time, like "2026-10-04T16:00:00-06:00"): a "!" badge until it's
+  // played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
   added?: string;
+  // When it last changed. A hosted game's is read off its build by itself; this is for
+  // games served by this site
   updated?: string;
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
@@ -441,7 +443,6 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Hemlock's Tower",
-      updated: "2026-09-30T11:03:28-06:00",
       cartridge: {
         color: "#3fb68b",
         tagline: "Climb out from the deep.",
@@ -464,7 +465,6 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Tlaloc’s Curse",
-      updated: "2026-10-04T19:31:50Z",
       cartridge: {
         color: "#2f86d6",
         tagline: "Pinball under a storm god’s curse.",
@@ -506,7 +506,6 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Salmon Run 2",
-      updated: "2026-10-04T23:15:35Z",
       cartridge: {
         color: "#f07a5a",
         tagline: "Race a salmon down a jungle river.",
@@ -933,7 +932,6 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Deep Time",
-      updated: "2026-10-02T13:08:21-07:00",
       earlyAccess: true,
       cartridge: {
         color: "#4d5e3a",
@@ -959,7 +957,6 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Hallow Deep",
       added: "2026-10-03T16:48:17-07:00",
-      updated: "2026-10-03T19:38:13-07:00",
       secret: true,
       cartridge: {
         color: "#3a1f4d",
@@ -1145,7 +1142,6 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "8 Bit Evil Returns V2",
       added: "2026-10-02T17:20:18-07:00",
-      updated: "2026-10-03T02:34:26-07:00",
       secret: true,
       cartridge: {
         color: "#7a2fd6",

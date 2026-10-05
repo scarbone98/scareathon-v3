@@ -56,7 +56,7 @@ import type { Reaction } from "./slotTerminal.ts";
 import { checkRemoteCode, createWaysideScreen, motionControlOn, runCode, type WaysideState } from "./waysideOS.ts";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import CartridgeIndex from "./CartridgeIndex.tsx";
-import { hasNews, hasUpdate, isNewGame, PLAYED_EVENT, playedCarts } from "../Arcade/news.ts";
+import { hasNews, hasUpdate, isNewGame, NEWS_EVENT, playedCarts } from "../Arcade/news.ts";
 import { createCassetteRoom, type CassetteRoom } from "./cassetteRoom.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "./cabinetFinish.ts";
 import { applyCrtLook, createCrtGlow } from "./crtScreen.ts";
@@ -981,7 +981,7 @@ export default function CartridgeArcade({
       const played = playedCarts();
       carts.forEach((state, index) => state.cart.setBadge(hasNews(games[index], played)));
     };
-    window.addEventListener(PLAYED_EVENT, onPlayed);
+    window.addEventListener(NEWS_EVENT, onPlayed);
     let terminalScreenNow: TerminalScreen = { kind: "message", lines: ["> INSERT CARTRIDGE"], at: nowSeconds() };
     let terminalOptions: TerminalOptions = terminalOptionsRef.current;
     // Put something on the terminal, and on the card that mirrors it
@@ -2841,7 +2841,7 @@ export default function CartridgeArcade({
       cancelAnimationFrame(frame);
       window.removeEventListener("devicemotion", onMotion);
       window.removeEventListener(TICKETS_EVENT, onTickets);
-      window.removeEventListener(PLAYED_EVENT, onPlayed);
+      window.removeEventListener(NEWS_EVENT, onPlayed);
       renderer.domElement.removeEventListener("click", askForMotion);
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", syncVideo);

@@ -8,7 +8,7 @@ import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
-import { markPlayed } from "../pages/Arcade/news";
+import { markPlayed, watchGameUpdates } from "../pages/Arcade/news";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
@@ -125,6 +125,10 @@ export default function StationPage() {
   // (unlocks isn't read: it's there to re-read the unlocked carts)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const games = useMemo(() => createArcadeGames().filter((g) => !compact || g.availableOnMobile !== false), [compact, unlocks]);
+  // Which games have a newer build out (their "!" badges: Arcade/news.ts)
+  useEffect(() => {
+    void watchGameUpdates(games);
+  }, [games]);
   const scoredGames = useMemo(() => games.filter((g) => g.hasLeaderboard !== false && !g.special).map((g) => g.name), [games]);
   // The same four views on every screen
   const headings = HEADINGS;

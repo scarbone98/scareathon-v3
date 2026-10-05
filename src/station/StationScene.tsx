@@ -60,7 +60,7 @@ import { CARTRIDGE_STYLES, createCartridge, loadVideoStills, type Cartridge } fr
 import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRow.ts";
 import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
-import { hasNews, PLAYED_EVENT, playedCarts } from "../pages/Arcade/news.ts";
+import { hasNews, NEWS_EVENT, playedCarts } from "../pages/Arcade/news.ts";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
@@ -985,10 +985,10 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
           const played = playedCarts();
           carts.forEach((cart, n) => cart.setBadge(hasNews(games[shown[n]], played)));
         };
-        window.addEventListener(PLAYED_EVENT, onPlayed);
+        window.addEventListener(NEWS_EVENT, onPlayed);
         group.userData.row = row;
         group.userData.disposeRow = () => {
-          window.removeEventListener(PLAYED_EVENT, onPlayed);
+          window.removeEventListener(NEWS_EVENT, onPlayed);
           stopStills();
           carts.forEach((cart) => cart.dispose());
         };
