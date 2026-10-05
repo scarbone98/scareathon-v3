@@ -11,7 +11,12 @@ describe('auth route rules', () => {
     test('existing public routes stay public', () => {
         expect(isPublicRoute('GET', '/weekly-challenges/current')).toBe(true);
         expect(isPublicRoute('GET', '/content-loop')).toBe(true);
-        expect(isPublicRoute('GET', '/8bitevilreturns/player')).toBe(true);
+        // The legacy 8 Bit Evil Returns leaderboard is a public read; its save
+        // data and purchases are keyed to the signed-in player, so they need a login.
+        expect(isPublicRoute('GET', '/8bitevilreturns/getLeaderBoard')).toBe(true);
+        expect(isPublicRoute('GET', '/8bitevilreturns/getUserData')).toBe(false);
+        expect(isPublicRoute('POST', '/8bitevilreturns/setUserData')).toBe(false);
+        expect(isPublicRoute('POST', '/8bitevilreturns/unlockCharacter')).toBe(false);
         expect(isPublicRoute('POST', '/8bitevilreturns/runs')).toBe(false);
         expect(isPublicRoute('OPTIONS', '/inbox/conversations')).toBe(true);
         expect(isPublicRoute('GET', '/inbox/conversations')).toBe(false);
