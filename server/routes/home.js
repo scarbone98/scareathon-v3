@@ -191,7 +191,9 @@ export default async function (fastify, options) {
         const wallet = toSettledData(walletResult);
         const unreadCount = toSettledData(inboxResult, 0);
 
-        reply.header('Cache-Control', 'private, max-age=30, stale-while-revalidate=30');
+        // Never from the browser's cache: it carries the ticket balance, and a kept copy
+        // showed the count from before the last win or purchase (one fetch behind, each time)
+        reply.header('Cache-Control', 'private, no-store');
 
         return {
             data: {

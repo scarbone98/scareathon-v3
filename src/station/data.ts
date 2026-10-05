@@ -238,7 +238,8 @@ export function useSummary() {
       } = await supabase.auth.getSession();
       if (!session) return { isAuthenticated: false };
       const [summary, user] = await Promise.all([
-        fetchWithAuth("/home/summary").then((r) => (r.ok ? r.json() : null)),
+        // (never the browser's kept copy: the ticket count has to be the one right now)
+        fetchWithAuth("/home/summary", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
         fetchWithAuth("/user").then((r) => (r.ok ? r.json() : null)),
       ]);
       return {
