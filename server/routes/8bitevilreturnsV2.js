@@ -106,6 +106,9 @@ export default async function eightBitEvilV2Routes(fastify, { rooms: injectedRoo
         launcher?.stopAll();
     });
 
+    // Public co-op rooms that can be joined right now (guests can look).
+    fastify.get('/rooms', async () => ({ rooms: rooms.listPublic() }));
+
     // Co-op rooms: one socket per player for the whole session. Guests can play.
     fastify.get('/ws', { websocket: true }, (socket) => {
         sockets.add(socket);

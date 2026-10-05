@@ -29,7 +29,7 @@ export function isPublicRoute(method, url) {
         // Anyone can watch the Wayside Online lounge and see who's about (coming in needs a login)
         (method === 'GET' && (url.startsWith('/wayside-online/lounge/ws') || url.startsWith('/wayside-online/lounge/crowd'))) ||
         // 8 Bit Evil Returns V2 co-op rooms are open to guests.
-        (method === 'GET' && url.startsWith('/8bitevilreturns/v2/ws')) ||
+        (method === 'GET' && (url.startsWith('/8bitevilreturns/v2/ws') || url.startsWith('/8bitevilreturns/v2/rooms'))) ||
         (method === 'GET' && PICTO_BOX_IMAGE.test(url)) ||
         method === 'OPTIONS'
     );

@@ -25,6 +25,8 @@
 // is told they're away and back. If the host drops, the room waits for them;
 // if they don't return in time, the room closes. Leaving on purpose frees the
 // seat at once (and a host leaving closes the room).
+// A room is code-only unless its leader makes it public: public rooms that
+// haven't started and have a free seat are listed for anyone to join.
 // Rooms live in memory only.
 
 import { randomBytes, randomInt } from 'node:crypto';
@@ -86,6 +88,7 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
                     type: 'room', code: room.code, slot: p.slot, token: p.token,
                     host: p.slot === room.hostSlot, host_slot: room.hostSlot, leader: p.slot === 0,
                     started: room.started, starting: room.starting, stage: room.stage, players: roster(room),
+                    public: room.public,
                 });
             }
         }
@@ -116,7 +119,10 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
     function create(socket, message = {}) {
         if (seats.has(socket)) leave(socket);
         if (rooms.size >= MAX_ROOMS) throw new RoomError('busy');
-        const room = { code: newCode(), players: [], started: false, starting: false, hostSlot: 0, stage: 'graveyard', touched: now() };
+        const room = {
+            code: newCode(), players: [], started: false, starting: false, hostSlot: 0, stage: 'graveyard', touched: now(),
+            public: message.public === true,
+        };
         rooms.set(room.code, room);
         seat(socket, room, 0, message);
         announce(room);
@@ -147,6 +153,7 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
         const player = at.room.players[at.slot];
         if (message.hero !== undefined) player.hero = cleanId(message.hero, player.hero);
         if (message.stage !== undefined && at.slot === 0) at.room.stage = cleanId(message.stage, at.room.stage);
+        if (message.public !== undefined && at.slot === 0) at.room.public = message.public === true;
         at.room.touched = now();
         announce(at.room);
     }
@@ -325,5 +332,19 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
         seats.clear();
     }
 
-    return { create, join, rejoin, hostJoin, pick, start, leave, disconnect, relay, sweep, close: closeAll, size: () => rooms.size, room: (code) => rooms.get(code) };
+    // Public rooms anyone can join right now: not started, a seat free, and the
+    // leader still connected. Fullest first, so groups fill up.
+    function listPublic(limit = 20) {
+        const open = [];
+        for (const room of rooms.values()) {
+            if (!room.public || room.started || room.starting || !room.players[0]?.socket) continue;
+            const players = roster(room);
+            if (players.length >= MAX_PLAYERS) continue;
+            open.push({ code: room.code, leader: room.players[0].name, players: players.length, max: MAX_PLAYERS, stage: room.stage });
+        }
+        open.sort((a, b) => b.players - a.players);
+        return open.slice(0, limit);
+    }
+
+    return { listPublic, create, join, rejoin, hostJoin, pick, start, leave, disconnect, relay, sweep, close: closeAll, size: () => rooms.size, room: (code) => rooms.get(code) };
 }

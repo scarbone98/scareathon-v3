@@ -41,6 +41,39 @@ describe('8 Bit Evil V2 co-op rooms', () => {
         expect(() => rooms.join(fakeSocket(), { code: 'ZZZZ' })).toThrow('missing');
     });
 
+    test('rooms are code-only unless the leader makes them public', () => {
+        expect(isPublicRoute('GET', '/8bitevilreturns/v2/rooms')).toBe(true);
+        const host = fakeSocket();
+        const code = rooms.create(host, { name: 'Sam' });
+        expect(host.last().public).toBe(false);
+        expect(rooms.listPublic()).toEqual([]);
+        const guest = fakeSocket();
+        rooms.join(guest, { code });
+        rooms.pick(guest, { public: true });  // only the leader can
+        expect(rooms.listPublic()).toEqual([]);
+        rooms.pick(host, { public: true });
+        expect(guest.last().public).toBe(true);
+        expect(rooms.listPublic()).toEqual([{ code, leader: 'Sam', players: 2, max: 4, stage: 'graveyard' }]);
+        rooms.pick(host, { public: false });
+        expect(rooms.listPublic()).toEqual([]);
+    });
+
+    test('the public list leaves out full, started and leaderless rooms', () => {
+        const a = fakeSocket();
+        const open = rooms.create(a, { name: 'Open', public: true });
+        const b = fakeSocket();
+        const full = rooms.create(b, { name: 'Full', public: true });
+        for (let i = 0; i < 3; i += 1) rooms.join(fakeSocket(), { code: full });
+        const c = fakeSocket();
+        const going = rooms.create(c, { name: 'Going', public: true });
+        rooms.join(fakeSocket(), { code: going });
+        rooms.start(c);
+        const d = fakeSocket();
+        rooms.create(d, { name: 'Gone', public: true });
+        rooms.disconnect(d);
+        expect(rooms.listPublic().map((r) => r.code)).toEqual([open]);
+    });
+
     test('names and ids are cleaned', () => {
         const host = fakeSocket();
         rooms.create(host, { name: '<b>Sam</b>!!', hero: 'Robert"); DROP' });
