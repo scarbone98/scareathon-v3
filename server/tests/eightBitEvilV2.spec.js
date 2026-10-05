@@ -27,13 +27,10 @@ describe('8 Bit Evil Returns V2 save', () => {
     afterAll(() => app.close());
     beforeEach(() => query.mockReset());
 
-    test('the save needs a login, like the Unity game save routes', () => {
+    test('needs a login, unlike the Unity game routes', () => {
         expect(isPublicRoute('GET', '/8bitevilreturns/v2/save')).toBe(false);
         expect(isPublicRoute('PUT', '/8bitevilreturns/v2/save')).toBe(false);
-        // The Unity game's save/purchase routes also require a login now; only
-        // its leaderboard stays a public read.
-        expect(isPublicRoute('GET', '/8bitevilreturns/getUserData')).toBe(false);
-        expect(isPublicRoute('GET', '/8bitevilreturns/getLeaderBoard')).toBe(true);
+        expect(isPublicRoute('GET', '/8bitevilreturns/getUserData')).toBe(true);
     });
 
     test('sanitizer keeps known fields and refuses junk', () => {

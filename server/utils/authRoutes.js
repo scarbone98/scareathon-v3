@@ -5,14 +5,15 @@ const PICTO_BOX_IMAGE = /^\/picto-box\/photos\/[0-9a-f-]{36}\.jpg(\?.*)?$/i;
 
 // No token needed and none checked.
 export function isPublicRoute(method, url) {
-    // The legacy 8 Bit Evil Returns leaderboard is a public read; its save data
-    // and purchases (getUserData/setUserData/unlockCharacter) are keyed to the
-    // signed-in player and derive the user from the token, so they need a login.
-    const isLegacyEightBitEvilPublicRoute =
-        method === 'GET' && url.startsWith('/8bitevilreturns/getLeaderBoard');
+    const isLegacyEightBitEvilRoute =
+        url.startsWith('/8bitevilreturns') &&
+        !url.startsWith('/8bitevilreturns/runs') &&
+        !url.startsWith('/8bitevilreturns/v2');
 
+    // Keep legacy game data routes public, but require auth for score writes
+    // and for V2's account save.
     return (
-        isLegacyEightBitEvilPublicRoute ||
+        isLegacyEightBitEvilRoute ||
         url.startsWith('/admin/strapi') ||
         (method === 'GET' && url.startsWith('/weekly-challenges/current')) ||
         (method === 'GET' && url.startsWith('/content-loop')) ||

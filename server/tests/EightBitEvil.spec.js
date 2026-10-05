@@ -30,12 +30,6 @@ describe('8bitevilreturns Routes', () => {
 
     beforeAll(async () => {
         app = fastify();
-        app.addHook('preHandler', async (request) => {
-            const testUserId = request.headers['x-test-user'];
-            if (testUserId) {
-                request.user = { sub: testUserId };
-            }
-        });
         app.register(routes, { prefix: '/8bitevilreturns' });
         await app.ready();
     });
@@ -65,8 +59,7 @@ describe('8bitevilreturns Routes', () => {
 
         const response = await app.inject({
             method: 'GET',
-            url: '/8bitevilreturns/getUserData',
-            headers: { 'x-test-user': userId },
+            url: `/8bitevilreturns/getUserData?userId=${userId}`,
         });
 
         expect(response.statusCode).toBe(200);
@@ -96,8 +89,8 @@ describe('8bitevilreturns Routes', () => {
         const response = await app.inject({
             method: 'POST',
             url: '/8bitevilreturns/setUserData',
-            headers: { 'x-test-user': userId },
             payload: {
+                userId,
                 silverAmount: 250,
                 userName: 'updatedUser',
                 unlockedCharacters: ['Matt', 'Alex'],
@@ -141,8 +134,7 @@ describe('8bitevilreturns Routes', () => {
 
         const response = await app.inject({
             method: 'POST',
-            url: '/8bitevilreturns/unlockCharacter',
-            headers: { 'x-test-user': userId },
+            url: `/8bitevilreturns/unlockCharacter?userId=${userId}`,
             payload: {
                 characterName: 'Alex',
                 cost: 500,

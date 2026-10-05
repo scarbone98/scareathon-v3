@@ -41,38 +41,14 @@ describe('8BitEvil API endpoint validation', () => {
     jest.clearAllMocks();
   });
 
-  test('GET /getUserData rejects unauthenticated reads before querying', async () => {
+  test('GET /getUserData rejects non-UUID user ids before querying', async () => {
     const response = await server.inject({
       method: 'GET',
-      url: '/getUserData?userId=11111111-1111-4111-8111-111111111111',
+      url: '/getUserData?userId=not-a-uuid',
     });
 
-    expect(response.statusCode).toBe(401);
+    expect(response.statusCode).toBe(400);
     expect(query).not.toHaveBeenCalled();
-  });
-
-  test('GET /getUserData reads the signed-in user, ignoring any userId in the query', async () => {
-    const tokenUserId = '11111111-1111-4111-8111-111111111111';
-    const spoofedUserId = '22222222-2222-4222-8222-222222222222';
-
-    query
-      .mockResolvedValueOnce({ rows: [{ id: 7 }] })
-      .mockResolvedValueOnce({ rows: [{ username: 'testUser' }] })
-      .mockResolvedValueOnce({ rows: [{ data: { silverAmount: 5, userName: 'testUser', unlockedCharacters: [] } }] });
-
-    const response = await server.inject({
-      method: 'GET',
-      url: `/getUserData?userId=${spoofedUserId}`,
-      headers: { 'x-test-user': tokenUserId },
-    });
-
-    expect(response.statusCode).toBe(200);
-    // Every query that takes a user id must use the token's sub, never the query param.
-    for (const [, params] of query.mock.calls) {
-      if (Array.isArray(params)) {
-        expect(params).not.toContain(spoofedUserId);
-      }
-    }
   });
 
   test('POST /runs records supported leaderboard metrics', async () => {

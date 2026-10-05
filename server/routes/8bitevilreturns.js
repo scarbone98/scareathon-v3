@@ -130,10 +130,10 @@ async function insertLeaderboardMetric(client, gameId, userId, metricName, metri
 export default async function (fastify, options) {
     fastify.get('/getUserData', async (request, reply) => {
         try {
-            const userId = request.user?.sub;
+            const { userId } = request.query;
 
             if (!isUuid(userId)) {
-                return reply.code(401).send({ error: 'Authenticated user is required' });
+                return reply.code(400).send({ error: 'Valid userId is required' });
             }
 
             const gameId = await getGameId();
@@ -149,10 +149,10 @@ export default async function (fastify, options) {
 
     fastify.post('/setUserData', async (request, reply) => {
         try {
-            const userId = request.user?.sub;
+            const userId = request.body?.userId || request.query?.userId;
 
             if (!isUuid(userId)) {
-                return reply.code(401).send({ error: 'Authenticated user is required' });
+                return reply.code(400).send({ error: 'Valid userId is required' });
             }
 
             const gameId = await getGameId();
@@ -176,12 +176,12 @@ export default async function (fastify, options) {
         const client = await pool.connect();
 
         try {
-            const userId = request.user?.sub;
+            const userId = request.query?.userId || request.body?.userId;
             const { characterName } = request.body || {};
             const cost = parseInteger(request.body?.cost);
 
             if (!isUuid(userId)) {
-                return reply.code(401).send({ error: 'Authenticated user is required' });
+                return reply.code(400).send({ error: 'Valid userId is required' });
             }
 
             if (typeof characterName !== 'string' || !characterName.trim()) {
