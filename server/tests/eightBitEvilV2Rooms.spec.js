@@ -74,6 +74,20 @@ describe('8 Bit Evil V2 co-op rooms', () => {
         expect(rooms.listPublic().map((r) => r.code)).toEqual([open]);
     });
 
+    test('the leader picks Nightmare; everyone is told, and the start says so', () => {
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const code = rooms.create(host, {});
+        rooms.join(guest, { code });
+        expect(guest.last().nightmare).toBe(false);
+        rooms.pick(guest, { nightmare: true });  // only the leader can
+        expect(host.last().nightmare).toBe(false);
+        rooms.pick(host, { nightmare: true });
+        expect(guest.last().nightmare).toBe(true);
+        rooms.start(host);
+        expect(guest.texts.find((m) => m.type === 'start')).toMatchObject({ nightmare: true });
+    });
+
     test('names and ids are cleaned', () => {
         const host = fakeSocket();
         rooms.create(host, { name: '<b>Sam</b>!!', hero: 'Robert"); DROP' });

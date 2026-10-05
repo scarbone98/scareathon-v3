@@ -88,7 +88,7 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
                     type: 'room', code: room.code, slot: p.slot, token: p.token,
                     host: p.slot === room.hostSlot, host_slot: room.hostSlot, leader: p.slot === 0,
                     started: room.started, starting: room.starting, stage: room.stage, players: roster(room),
-                    public: room.public,
+                    public: room.public, nightmare: room.nightmare,
                 });
             }
         }
@@ -121,7 +121,7 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
         if (rooms.size >= MAX_ROOMS) throw new RoomError('busy');
         const room = {
             code: newCode(), players: [], started: false, starting: false, hostSlot: 0, stage: 'graveyard', touched: now(),
-            public: message.public === true,
+            public: message.public === true, nightmare: false,
         };
         rooms.set(room.code, room);
         seat(socket, room, 0, message);
@@ -154,6 +154,9 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
         if (message.hero !== undefined) player.hero = cleanId(message.hero, player.hero);
         if (message.stage !== undefined && at.slot === 0) at.room.stage = cleanId(message.stage, at.room.stage);
         if (message.public !== undefined && at.slot === 0) at.room.public = message.public === true;
+        // Nightmare (the hard version of a map): the leader's call; the game
+        // only offers it on maps the leader has cleared.
+        if (message.nightmare !== undefined && at.slot === 0) at.room.nightmare = message.nightmare === true;
         at.room.touched = now();
         announce(at.room);
     }
@@ -189,7 +192,7 @@ export function createRoomManager({ log, now = () => Date.now(), launcher = null
         room.started = true;
         room.hostSlot = hostSlot;
         room.hostToken = null;
-        broadcast(room, { type: 'start', stage: room.stage, players: roster(room), host: hostSlot });
+        broadcast(room, { type: 'start', stage: room.stage, nightmare: room.nightmare, players: roster(room), host: hostSlot });
         announce(room);
     }
 
