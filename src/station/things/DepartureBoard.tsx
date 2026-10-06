@@ -365,7 +365,8 @@ function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
   );
 }
 
-// A player's profile card, over the board: them close up in front of their banner, their
+// A player's profile card, in the board's place (not laid over it: anything positioned
+// here would cover the sheet's own close button): them close up in front of their banner, their
 // name, and their best in each game with where it stands (their highest places first)
 function ProfileCard({ player, games, onClose }: { player: Viewed; games: string[]; onClose: () => void }) {
   const { data: bests, isLoading, isError } = usePlayerBests(player.userId);
@@ -378,7 +379,7 @@ function ProfileCard({ player, games, onClose }: { player: Viewed; games: string
   // (only the games the arcade has out; all of theirs, if the board wasn't told which)
   const shown = (bests ?? []).filter((best) => games.length === 0 || games.includes(best.game)).slice(0, 8);
   return (
-    <div className="absolute inset-0 z-20 flex flex-col bg-[#0a0c10] px-4 py-3" role="dialog" aria-label={`${player.name}'s profile`}>
+    <div className="flex min-h-0 flex-1 flex-col" role="dialog" aria-label={`${player.name}'s profile`}>
       <div className="mb-2 flex items-center gap-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
         <Key active={false} onClick={onClose}>
           ◂ BACK
@@ -426,7 +427,9 @@ export default function DepartureBoard({ signedIn, goTo, games = [], game }: Pro
   const closeProfile = useCallback(() => setViewing(null), []);
   return (
     <OpenProfile.Provider value={setViewing}>
-    <div className="relative flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
+    <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
+      {/* (kept, hidden, under a profile card: the game you were on is still up when you come back) */}
+      <div className={viewing ? "hidden" : "contents"}>
       <div className="mb-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
         <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
@@ -454,6 +457,7 @@ export default function DepartureBoard({ signedIn, goTo, games = [], game }: Pro
             </button>
           </>
         )}
+      </div>
       </div>
       {viewing && <ProfileCard player={viewing} games={games} onClose={closeProfile} />}
     </div>
