@@ -52,6 +52,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
 import { fetchWithAuth } from "../fetchWithAuth";
+import { radio as radio$, songNamed } from "./radio.ts";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
 import { MARKER_FONT } from "../pages/ArcadeV2/slotRig.ts";
@@ -704,20 +705,68 @@ function buildEvents() {
   group.add(box(1.42, 1.64, 0.03, wood, 0, 0.82, -0.19)); // the back
   const face = standard("#4e3826", 0.75);
   const brass = standard("#b08a3a", 0.35);
-  group.add(box(1.42, 0.92, 0.03, standard("#33251a", 0.8), 0, 0.5, 0.24)); // the front
+  // The front: a frame of rails and stiles round the drawers and cupboards, and the dark
+  // inside the carcass behind them
+  const frame = standard("#33251a", 0.8);
+  const inside = standard("#17100b", 1);
+  group.add(box(1.42, 0.92, 0.02, inside, 0, 0.5, -0.17)); // the inside's back
+  group.add(box(1.42, 0.02, 0.4, inside, 0, 0.07, 0.03)); // its floor
+  [0.05, 0.665, 0.935].forEach((y) => group.add(box(1.42, 0.05, 0.03, frame, 0, y, 0.24))); // rails
+  [-0.7, 0, 0.7].forEach((x) => group.add(box(0.06, 0.92, 0.03, frame, x, 0.5, 0.24))); // stiles
+  group.add(box(1.42, 0.02, 0.4, inside, 0, 0.66, 0.03)); // the shelf the drawers run on
+  group.add(box(0.03, 0.6, 0.4, inside, 0, 0.36, 0.03)); // between the cupboards
   group.add(box(1.5, 0.06, 0.52, standard("#241a12", 0.9), 0, 0.03, 0.03)); // the plinth
-  // (all locked: tapped, they rattle)
+  const paper = standard("#e4d9bd", 0.9);
+  // What's kept in the cupboards. On the left: spare flyers in stacks, and a candle stub
+  group.add(box(0.26, 0.09, 0.2, paper, -0.44, 0.125, 0.02));
+  group.add(box(0.24, 0.05, 0.19, standard("#c96a2a", 0.9), -0.43, 0.195, 0.03));
+  group.add(box(0.2, 0.13, 0.16, paper, -0.17, 0.145, 0.0));
+  group.add(box(0.04, 0.09, 0.04, standard("#e8dcc0", 0.6), -0.26, 0.125, 0.14));
+  // On the right: nothing. Only something at the back, looking out
+  const lurker = new MeshBasicMaterial({ color: "#ff3a24", fog: false });
+  [-0.05, 0.05].forEach((dx) => {
+    const eye = new Mesh(new CircleGeometry(0.014, 10), lurker);
+    eye.position.set(0.36 + dx, 0.4, -0.155);
+    group.add(eye);
+  });
+  // The drawers pull out and the cupboard doors swing open, a tap each (and shut, another)
   [-0.36, 0.36].forEach((x) => {
     const drawer = new Group();
     drawer.position.set(x, 0.8, 0.26);
-    drawer.add(box(0.66, 0.2, 0.03, face, 0, 0, 0));
+    drawer.add(box(0.64, 0.2, 0.03, face, 0, 0, 0));
     drawer.add(box(0.07, 0.025, 0.03, brass, 0, 0, 0.025));
-    group.add(rattles(drawer, "drawer"));
+    // (its tray, behind the face, and what's in it)
+    drawer.add(box(0.58, 0.012, 0.36, inside, 0, -0.085, -0.19));
+    [-0.29, 0.29].forEach((side) => drawer.add(box(0.012, 0.14, 0.36, inside, side, -0.02, -0.19)));
+    drawer.add(box(0.58, 0.14, 0.012, inside, 0, -0.02, -0.365));
+    if (x < 0) {
+      // Old ticket stubs, loose, and a rubber stamp
+      [[-0.16, -0.08, 0.3], [-0.05, -0.15, -0.5], [0.04, -0.07, 1.1], [-0.2, -0.2, 0.8], [0.1, -0.17, -0.2]].forEach(([dx, dz, turn]) => {
+        const stub = box(0.09, 0.004, 0.045, paper, dx, -0.076, dz);
+        stub.rotation.y = turn;
+        drawer.add(stub);
+      });
+      drawer.add(box(0.045, 0.05, 0.045, standard("#5a2a1c", 0.6), 0.2, -0.054, -0.1));
+    } else {
+      // A ring of keys, and a spare bulb for the signs
+      [0, 0.5, -0.4].forEach((turn, i) => {
+        const key = box(0.012, 0.006, 0.075, brass, -0.12 + i * 0.022, -0.075, -0.12);
+        key.rotation.y = turn;
+        drawer.add(key);
+      });
+      const bulb = new Mesh(new SphereGeometry(0.03, 12, 10), standard("#f4e7b0", 0.3));
+      bulb.position.set(0.15, -0.05, -0.16);
+      drawer.add(bulb);
+    }
+    group.add(opens(drawer, "drawer"));
+    // (hung on its outer edge)
     const door = new Group();
-    door.position.set(x, 0.36, 0.26);
-    door.add(box(0.62, 0.52, 0.03, face, 0, 0, 0));
-    door.add(box(0.025, 0.06, 0.03, brass, x < 0 ? 0.26 : -0.26, 0.04, 0.025));
-    group.add(rattles(door, "drawer"));
+    const out = x < 0 ? -1 : 1;
+    door.position.set(x + out * 0.32, 0.36, 0.26);
+    door.add(box(0.64, 0.56, 0.03, face, -out * 0.32, 0, 0));
+    door.add(box(0.025, 0.06, 0.03, brass, -out * 0.58, 0.04, 0.025));
+    door.userData.swing = out;
+    group.add(opens(door, "door"));
   });
 
   // The flyers (their text is HTML laid over these, see SURFACES)
@@ -776,6 +825,17 @@ const BULB_GEOMETRY = new SphereGeometry(0.014, 8, 6);
 
 // A ring of bulbs round a rectangle w by h centred on (cx, cy), `spacing` apart, from its
 // top left corner round; the bulbs, in order, for the chase
+// Things that open when tapped, and shut when tapped again: a drawer pulls out, a door
+// swings on its edge (userData.swing: which way). Their meshes point at the thing that
+// moves (userData.opener); the scene catches taps on them first (see the animation loop)
+function opens(thing: Group, kind: "drawer" | "door") {
+  thing.userData.opens = { kind, open: false, k: 0, z: thing.position.z };
+  thing.traverse((child) => {
+    if ((child as Mesh).isMesh) child.userData.opener = thing;
+  });
+  return thing;
+}
+
 // Things that rattle when tapped, as if locked or loosely hung: a drawer tugs and jitters,
 // a sign shudders on its fixings. Their meshes point at the thing that moves (userData.rattles);
 // the scene catches taps on them before anything else (see the animation loop)
@@ -2587,75 +2647,163 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     bench.add(box(1.4, 0.06, 0.42, standard("#4a3524"), 0, 0.45, 0));
     [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
     // Somebody's left a radio on the right-hand seat: an old portable, its face to the
-    // platform, the dial still lit
+    // platform. It works: a tap on it brings you up close (page.tsx), where its four keys
+    // are back, stop, play and next, and its little screen says what's on (radio.ts)
     const radio = new Group();
     radio.position.set(0.4, 0.48, 0.02);
     radio.rotation.y = -0.18;
     const radioCase = standard("#6b2f26", 0.55);
     const radioTrim = standard("#c9b98f", 0.5);
-    radio.add(box(0.34, 0.2, 0.1, radioCase, 0, 0.1, 0));
-    // Its face: a round cloth grille, a tuning dial with its needle, two knobs under it
+    radio.add(box(0.36, 0.22, 0.1, radioCase, 0, 0.11, 0));
+    // Its face: a round cloth grille on the left; the screen and keys go on the right
     radio.add(
       plane(
-        0.32,
-        0.18,
+        0.34,
+        0.2,
         new MeshStandardMaterial({
           roughness: 0.7,
-          map: paint(128, 72, (ctx, w, h) => {
+          map: paint(136, 80, (ctx, w, h) => {
             ctx.fillStyle = "#c9b98f";
             ctx.fillRect(0, 0, w, h);
             ctx.fillStyle = "#2a1c14";
             ctx.beginPath();
-            ctx.arc(36, h / 2, 26, 0, Math.PI * 2);
+            ctx.arc(36, h / 2, 28, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = "#5a4630";
             ctx.lineWidth = 1.5;
             for (let y = 14; y < h - 10; y += 5) {
               ctx.beginPath();
-              ctx.moveTo(12, y);
-              ctx.lineTo(60, y);
+              ctx.moveTo(10, y);
+              ctx.lineTo(62, y);
               ctx.stroke();
             }
             // (the grille's lines kept inside its circle)
             ctx.strokeStyle = "#c9b98f";
             ctx.lineWidth = 6;
             ctx.beginPath();
-            ctx.arc(36, h / 2, 30, 0, Math.PI * 2);
+            ctx.arc(36, h / 2, 32, 0, Math.PI * 2);
             ctx.stroke();
+            // The screen's and the keys' surround
             ctx.fillStyle = "#3a2a1c";
-            [82, 108].forEach((x) => {
-              ctx.beginPath();
-              ctx.arc(x, 54, 7, 0, Math.PI * 2);
-              ctx.fill();
-            });
+            ctx.fillRect(72, 8, 58, 28);
           }),
         }),
         0,
-        0.1,
+        0.11,
         0.051
       )
     );
-    const radioDial = new MeshBasicMaterial({
-      map: paint(64, 24, (ctx, w, h) => {
-        ctx.fillStyle = "#ffcf7a";
-        ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = "#5a3a12";
-        for (let x = 6; x < w; x += 8) ctx.fillRect(x, x % 16 === 6 ? 4 : 9, 1, h);
-        ctx.fillStyle = "#c22a1a";
-        ctx.fillRect(w * 0.62, 0, 2, h);
-      }),
-      fog: false,
+    // The screen: a little green display, redrawn as the song changes (and scrolled, when
+    // its name is longer than the glass)
+    const radioScreen = paint(256, 96, () => undefined);
+    const radioGlass = plane(0.13, 0.05, new MeshBasicMaterial({ map: radioScreen, fog: false }), 0.083, 0.155, 0.0525);
+    radio.add(radioGlass);
+    let radioDrawn = "";
+    const drawRadioScreen = (t: number) => {
+      const { playing, key } = radio$.now();
+      const name = (songNamed(key)?.name ?? "").toUpperCase();
+      const canvas = radioScreen.image as HTMLCanvasElement;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.font = "bold 40px monospace";
+      const wide = ctx.measureText(name).width;
+      const room = canvas.width - 24;
+      // (still, it's drawn once; scrolling, about twelve times a second)
+      const slide = wide > room ? Math.floor(t * 12) : 0;
+      const stamp = `${playing}|${key}|${slide}`;
+      if (stamp === radioDrawn) return;
+      radioDrawn = stamp;
+      ctx.fillStyle = playing ? "#0d2414" : "#0a140d";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = playing ? "#8dffa6" : "#3f7a4f";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold 22px monospace";
+      ctx.fillText(playing ? "\u25B6 PLAYING" : name ? "\u25A0 STOPPED" : "\u25A0 OFF", 12, 22);
+      ctx.font = "bold 40px monospace";
+      if (wide <= room) ctx.fillText(name || "- - -", 12, 64);
+      else {
+        const lap = wide + 80;
+        const x = 12 - ((slide * 6) % lap);
+        ctx.fillText(name, x, 64);
+        ctx.fillText(name, x + lap, 64);
+      }
+      radioScreen.needsUpdate = true;
+    };
+    // The keys: four that stick out under the screen, each with its sign on it, and a
+    // roomier box in front of each to catch a fingertip
+    const keyGlyph = (draw: (ctx: CanvasRenderingContext2D) => void) =>
+      new MeshBasicMaterial({
+        map: paint(48, 40, (ctx, w, h) => {
+          ctx.fillStyle = "#e6dcc0";
+          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle = "#2a1c14";
+          draw(ctx);
+        }),
+        fog: false,
+      });
+    const arrow = (ctx: CanvasRenderingContext2D, x: number, way: 1 | -1) => {
+      ctx.beginPath();
+      ctx.moveTo(x - way * 6, 10);
+      ctx.lineTo(x + way * 6, 20);
+      ctx.lineTo(x - way * 6, 30);
+      ctx.fill();
+    };
+    const radioKeys = (
+      [
+        ["radio-back", 0.03, keyGlyph((ctx) => (arrow(ctx, 17, -1), arrow(ctx, 31, -1)))],
+        ["radio-stop", 0.0653, keyGlyph((ctx) => ctx.fillRect(14, 10, 20, 20))],
+        ["radio-play", 0.1007, keyGlyph((ctx) => arrow(ctx, 25, 1))],
+        ["radio-next", 0.136, keyGlyph((ctx) => (arrow(ctx, 17, 1), arrow(ctx, 31, 1)))],
+      ] as const
+    ).map(([part, x, sign]) => {
+      const key = new Group();
+      key.position.set(x, 0.075, 0.05);
+      key.add(box(0.031, 0.034, 0.016, radioTrim, 0, 0, 0.008));
+      key.add(plane(0.028, 0.03, sign, 0, 0, 0.0165));
+      const catcher = box(0.035, 0.06, 0.05, new MeshBasicMaterial({ visible: false }), 0, 0, 0.04);
+      catcher.userData.part = part;
+      key.add(catcher);
+      key.userData.pressedAt = -10;
+      radio.add(key);
+      return { part, key };
     });
-    radio.add(plane(0.12, 0.045, radioDial, 0.08, 0.14, 0.052));
+    const pressRadio = (part: string) => {
+      const pressed = radioKeys.find((each) => each.part === part);
+      if (!pressed) return;
+      pressed.key.userData.pressedAt = performance.now() / 1000;
+      if (part === "radio-back") radio$.back();
+      else if (part === "radio-next") radio$.next();
+      else if (part === "radio-stop") radio$.stop();
+      else if (!radio$.now().playing) radio$.play();
+    };
+    const tickRadio = (t: number) => {
+      drawRadioScreen(t);
+      const now = performance.now() / 1000;
+      radioKeys.forEach(({ key }) => {
+        const since = now - (key.userData.pressedAt as number);
+        key.position.z = 0.05 - (since < 0.16 ? 0.009 * Math.sin((since / 0.16) * Math.PI) : 0);
+      });
+    };
+    // Up close: square on to its face, just far enough back that all of it fits
+    const radioPose = () => {
+      radio.updateWorldMatrix(true, false);
+      const centre = radio.localToWorld(new Vector3(0, 0.13, 0.05));
+      const normal = radio.getWorldDirection(new Vector3());
+      const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
+      const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
+      const distance = Math.max(0.5 / 2 / Math.tan(halfWidth), 0.4 / 2 / Math.tan(halfHeight));
+      const eye = centre.add(normal.clone().multiplyScalar(distance));
+      return { x: eye.x, y: eye.y, z: eye.z, yaw: Math.atan2(normal.x, normal.z), pitch: 0 };
+    };
     // A carrying handle over the top, and the aerial pulled out at a lean
-    radio.add(box(0.2, 0.012, 0.02, radioTrim, 0, 0.245, 0));
-    [-0.1, 0.1].forEach((x) => radio.add(box(0.012, 0.05, 0.02, radioTrim, x, 0.222, 0)));
+    radio.add(box(0.2, 0.012, 0.02, radioTrim, 0, 0.265, 0));
+    [-0.1, 0.1].forEach((x) => radio.add(box(0.012, 0.05, 0.02, radioTrim, x, 0.242, 0)));
     const aerial = new Mesh(new CylinderGeometry(0.004, 0.004, 0.42, 6), standard("#b9bcc4", 0.3));
-    aerial.position.set(0.19, 0.39, -0.03);
+    aerial.position.set(0.2, 0.41, -0.03);
     aerial.rotation.z = -0.35;
     radio.add(aerial);
-    // (a tap on it, from anywhere: a closer look, and its keys: see page.tsx)
-    const radioHit = box(0.42, 0.5, 0.2, new MeshBasicMaterial({ visible: false }), 0, 0.22, 0);
+    // (a tap on the set itself, from anywhere: a closer look)
+    const radioHit = box(0.42, 0.5, 0.1, new MeshBasicMaterial({ visible: false }), 0, 0.22, 0);
     radioHit.userData.part = "radio";
     radio.add(radioHit);
     bench.add(radio);
@@ -2721,6 +2869,41 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     }
     mergeFixedParts(colonnade);
     scene.add(colonnade);
+    // A street lamp across the tracks, behind the station's name board: an iron post up over
+    // it, an arm out towards the line, and a four-sided lantern hung from the arm, shining
+    // down on the name (the light itself is signLamp, further down)
+    const streetLamp = new Group();
+    streetLamp.position.set(0.6, -0.85, FAR_Z + 0.12);
+    const lampIron = standard("#1b1d22", 0.6);
+    streetLamp.add(box(0.22, 0.3, 0.22, lampIron, 0, 0.15, 0));
+    const lampPost = new Mesh(new CylinderGeometry(0.035, 0.055, 3.6, 10), lampIron);
+    lampPost.position.y = 2.1;
+    streetLamp.add(lampPost);
+    streetLamp.add(box(0.05, 0.05, 0.85, lampIron, 0, 3.9, -0.4)); // the arm
+    const lampBrace = box(0.03, 0.03, 0.5, lampIron, 0, 3.72, -0.2);
+    lampBrace.rotation.x = -0.75;
+    streetLamp.add(lampBrace);
+    streetLamp.add(box(0.02, 0.14, 0.02, lampIron, 0, 3.81, -0.78)); // what the lantern hangs by
+    const lampCap = new Mesh(new CylinderGeometry(0.02, 0.17, 0.1, 4), lampIron);
+    lampCap.position.set(0, 3.7, -0.78);
+    lampCap.rotation.y = Math.PI / 4;
+    streetLamp.add(lampCap);
+    const lampLantern = new Mesh(new CylinderGeometry(0.13, 0.085, 0.3, 4), new MeshBasicMaterial({ color: "#ffdca6", fog: false }));
+    lampLantern.position.set(0, 3.5, -0.78);
+    lampLantern.rotation.y = Math.PI / 4;
+    streetLamp.add(lampLantern);
+    const lampHalo = new Sprite(new SpriteMaterial({ map: glowTexture(), color: "#ffb866", transparent: true, opacity: 0.6, blending: AdditiveBlending, depthWrite: false, fog: false }));
+    lampHalo.scale.set(1.8, 1.8, 1);
+    lampHalo.position.set(0, 3.5, -0.78);
+    streetLamp.add(lampHalo);
+    // (its light coming down through the damp air: a faint cone, to the ground)
+    const lampBeam = new Mesh(
+      new CylinderGeometry(0.1, 1.5, 3.4, 24, 1, true),
+      new MeshBasicMaterial({ color: "#ffc27a", transparent: true, opacity: 0.06, blending: AdditiveBlending, side: DoubleSide, depthWrite: false, fog: false })
+    );
+    lampBeam.position.set(0, 1.7, -0.78);
+    streetLamp.add(lampBeam);
+    scene.add(streetLamp);
     // Over the arch you look out through from the platform: the rune tablet, carved with the
     // day's code (painted in with the boards)
     const runeTexture = paint(768, 256, (ctx, w, h) => drawRuneTablet(ctx, w, h, null));
@@ -2812,8 +2995,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     nameSign.rotation.y = Math.PI;
     scene.add(nameSign);
     [-0.6, 1.8].forEach((x) => scene.add(box(0.08, 2.2, 0.08, standard("#20232b"), x, 0.2, FAR_Z - 0.05)));
-    const signLamp = new PointLight("#cfe0ff", 6, 5, 2);
-    signLamp.position.set(0.6, 2.4, FAR_Z - 0.9);
+    // (the street lamp's light, from its lantern over the name board)
+    const signLamp = new PointLight("#ffc27a", 9, 6, 2);
+    signLamp.position.set(0.6, 2.6, FAR_Z - 0.7);
     scene.add(signLamp);
     const treeMap = treeTexture();
     [-14, -6, 3, 9, 17, 24].forEach((x, i) => {
@@ -3135,9 +3319,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Everything that rattles when tapped (see rattles)
     const rattlers: Object3D[] = [];
     const rattling: Group[] = [];
+    // (and everything that opens: see opens)
+    const openers: Object3D[] = [];
+    const opening: Group[] = [];
     scene.traverse((child) => {
       if (child.userData.rattles) rattlers.push(child);
       if (child.userData.rattle) rattling.push(child as Group);
+      if (child.userData.opener) openers.push(child);
+      if (child.userData.opens) opening.push(child as Group);
     });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
     const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02, WALL_Z + 0.25] }) : null;
@@ -3215,6 +3404,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const yaw = point ? Math.atan2(-(point[0] - x), -(point[2] - hubZ)) : HUB.yaw[facing];
         return { x, y, z: hubZ, yaw, pitch: HUB.pitch[facing] };
       }
+      // The radio on the bench, up close
+      if (stopId === "bench" && latest.current.zoom === "radio") return radioPose();
       // Reading something up close: square on to it (a leaning flyer is looked down at),
       // just far enough back that all of it fits
       const zoomed = latest.current.zoom ? placed.find(({ spec }) => spec.id === latest.current.zoom && spec.stop === stopId) : null;
@@ -3368,7 +3559,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const { at: current, onSelect: select, onTurn: turn, onPart: partTapped, onEmptyTap: emptyTapped } = latest.current;
       const quick = Math.abs(dx) / Math.max(performance.now() - down.t, 1) > 0.3; // a flick
       const swiped = (Math.abs(dx) > 40 || (quick && Math.abs(dx) > 20)) && Math.abs(dx) > Math.abs(dy);
-      if (current === "bench" && swiped) {
+      if (current === "bench" && swiped && latest.current.zoom !== "radio") {
         // Sitting on the bench, a swipe gets you up (as a tap does)
         (emptyTapped ?? (() => select(null)))();
       } else if (!current && swiped) {
@@ -3388,6 +3579,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           return;
         }
         raycaster.setFromCamera(pointer, camera);
+        const opened = raycaster.intersectObjects(openers, false)[0]?.object.userData.opener as Group | undefined;
+        if (opened) {
+          opened.userData.opens.open = !opened.userData.opens.open;
+          down = null;
+          return;
+        }
         const rattled = raycaster.intersectObjects(rattlers, false)[0]?.object.userData.rattles as Group | undefined;
         if (rattled) {
           rattled.userData.rattle.at = performance.now() / 1000;
@@ -3405,8 +3602,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           return;
         }
         const hit = pickPart(event.clientX, event.clientY);
-        // (the radio on the bench is picked up from wherever you are, not sat down beside)
-        if (hit?.part === "radio") partTapped(hit.part);
+        // (the radio on the bench: up close its keys are pressed; from anywhere else, a tap
+        // on any of it is a closer look, not a sit down beside it)
+        if (hit?.part?.startsWith("radio")) {
+          if (current === "bench" && latest.current.zoom === "radio") pressRadio(hit.part);
+          else partTapped("radio");
+        }
         else if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
         else if (!hit && current) (emptyTapped ?? (() => select(null)))();
@@ -3566,6 +3767,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
+      tickRadio(t);
       if (halloween) {
         // HALLOWEEN (the way the camera faces: the streamers swing as it turns)
         const ahead = camera.getWorldDirection(new Vector3());
@@ -3640,6 +3842,22 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           });
         }
       }
+      // Drawers and cupboard doors, on their way open or shut
+      opening.forEach((thing) => {
+        const state = thing.userData.opens as { kind: "drawer" | "door"; open: boolean; k: number; z: number; moved?: number };
+        const to = state.open ? 1 : 0;
+        if (state.k === to) {
+          state.moved = undefined;
+          return;
+        }
+        const nowAt = performance.now() / 1000;
+        const dt = Math.min(nowAt - (state.moved ?? nowAt), 0.05);
+        state.moved = nowAt;
+        state.k = reduced ? to : Math.max(0, Math.min(1, state.k + (state.open ? 1 : -1) * dt * (state.kind === "door" ? 2.2 : 3)));
+        const e = state.k * state.k * (3 - 2 * state.k);
+        if (state.kind === "drawer") thing.position.z = state.z + 0.27 * e;
+        else thing.rotation.y = (thing.userData.swing as number) * 1.85 * e;
+      });
       // Tapped locked drawers and loose signs rattle, and settle
       const rattleNow = performance.now() / 1000;
       rattling.forEach((thing) => {

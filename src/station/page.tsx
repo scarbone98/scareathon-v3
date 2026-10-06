@@ -23,7 +23,7 @@ import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
-import { RadioSet } from "./things/Songs.tsx";
+import { useSongs } from "./things/Songs.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
 import { stationPlaceFor } from "./places.ts";
@@ -105,7 +105,6 @@ type Held =
   | { kind: "shop"; focus?: string }
   | { kind: "wardrobe" }
   | { kind: "letters" }
-  | { kind: "radio" }
   | { kind: "register" };
 
 
@@ -221,7 +220,14 @@ export default function StationPage() {
   // The events table's things: tonight's film is the poster, the rest stand in a row
   const flyerSpot = (index: number) => (index === 0 ? "poster" : `flyer-${index - 1}`);
   const readsUpClose = at === "bulletin" || at === "events";
-  useEffect(() => setZoom(null), [at]);
+  // (walking up to the bench for its radio: straight to the close-up)
+  const toRadio = useRef(false);
+  useEffect(() => {
+    setZoom(at === "bench" && toRadio.current ? "radio" : null);
+    toRadio.current = false;
+  }, [at]);
+  // The radio plays your songs (the ones everyone has, signed out)
+  useSongs(signedIn);
 
   // On phones, which of the object's things the card holds, and whether the walk there is done
   const [cardIndex, setCardIndex] = useState(0);
@@ -288,9 +294,6 @@ export default function StationPage() {
       return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", full: true, body: <Shop signedIn={signedIn} goTo={goTo} focus={held.focus} /> };
     if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", full: true, body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
-    // The radio on the bench, up close: its keys, and your songs
-    if (held.kind === "radio")
-      return { id: "radio", title: "The radio", tone: "ledger", body: <RadioSet signedIn={signedIn} onShop={() => setHeld(signedIn ? { kind: "shop" } : { kind: "window" })} /> };
     if (held.kind === "letters") return { id: "letters", title: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
     return { id: "register", title: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
   })();
@@ -298,8 +301,13 @@ export default function StationPage() {
   // A tap on a thing in the scene: a paper, look closer at it; otherwise on phones, hold it
   // in the card, and on wide screens (where the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
+    // The radio on the bench: up close to it (its keys and screen are its own: StationScene)
     if (part === "radio") {
-      setHeld({ kind: "radio" });
+      if (at === "bench") setZoom("radio");
+      else {
+        toRadio.current = true;
+        select("bench");
+      }
       return;
     }
     if (part.startsWith("paper-")) {
@@ -582,7 +590,7 @@ export default function StationPage() {
             // On phones things are used through the held card, except what's read where it hangs
             surfacesInteractive={!compact || readsUpClose}
             cardFraction={cardItems ? CARD_FRACTION : 0}
-            zoom={readsUpClose ? zoom : null}
+            zoom={readsUpClose || at === "bench" ? zoom : null}
             onEmptyTap={stepBack}
             onPart={onPart}
           />

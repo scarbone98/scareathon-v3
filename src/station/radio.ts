@@ -211,10 +211,12 @@ function hush() {
 function sound(song: Song, after: () => void) {
   hush();
   if (song.file) {
-    element = new Audio(song.file);
-    element.volume = VOLUME;
-    element.onended = after;
-    void element.play().catch(() => set({ playing: false }));
+    const recording = new Audio(song.file);
+    element = recording;
+    recording.volume = VOLUME;
+    recording.onended = after;
+    // (it wouldn't play: off. But not if it was only cut short by the next song starting)
+    void recording.play().catch(() => element === recording && set({ playing: false }));
     return;
   }
   const tune = song.tune;
@@ -267,6 +269,8 @@ const beside = (by: number) => {
 };
 
 export const radio = {
+  // (for what isn't React: the scene's radio, its screen and keys)
+  now: () => state,
   // The songs it has to play, in the order it plays them (yours)
   setPlaylist(keys: string[]) {
     const next = SONGS.map((song) => song.key).filter((key) => keys.includes(key));
