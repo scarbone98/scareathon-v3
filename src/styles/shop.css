@@ -79,3 +79,7 @@
 .shop-confirm-title { margin: 0; font-size: 16px; font-weight: 800; }
 .shop-confirm-left { margin-left: 6px; color: #92859f; font-size: 11px; font-weight: 600; }
 .shop-confirm .shop-item-actions { width: 100%; }
+
+/* Yours already: greyed out (the Owned tag and the buttons stay clear) */
+.shop-item.is-owned { background: #25212c; border-color: #3a3443; border-top-color: #5d5666; }
+.shop-item.is-owned .shop-item-icon, .shop-item.is-owned .shop-item-name, .shop-item.is-owned .shop-item-meta, .shop-item.is-owned .shop-item-price, .shop-item.is-owned .shop-rarity { opacity: .45; filter: grayscale(1); }

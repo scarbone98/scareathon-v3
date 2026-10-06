@@ -73,6 +73,8 @@ export type ExtraShopItem = {
   price: number;
   owned: boolean;
   previewing: boolean;
+  // (what its Show button says instead: a song's is Listen)
+  previewLabel?: string;
   onPreview: () => void;
   // (buy: it costs tickets, so it waits until you can afford it)
   action: { label: string; disabled: boolean; buy?: boolean; onClick?: () => void };
@@ -87,9 +89,12 @@ type AvatarShopProps = {
   extraItems?: ExtraShopItem[];
   // Search, category and rarity: kept (and laid out) by whoever holds the shop
   filters: ShopFilters;
+  // Something's just been tried on (Show, turned on): the station's shopkeeper has a word
+  // about it. (short: it costs more than you have)
+  onTryOn?: (item: { name: string; category: string; rarity?: string; price: number; owned: boolean; short: boolean }) => void;
 };
 
-export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], filters }: AvatarShopProps) {
+export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], filters, onTryOn }: AvatarShopProps) {
   const queryClient = useQueryClient();
   const { search, classification, rarity: rarityFilter } = filters;
   const [debouncedSearch, setDebouncedSearch] = useState(search.trim());
@@ -250,12 +255,14 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
     buyMutation.isPending && buyMutation.variables === item.id;
   const rarity = item.rarity || "common";
   const isPreviewing = previewItem?.id === item.id;
+  // Yours already: greyed, and not for sale to you again
+  const owned = item.ownedCount > 0;
   const fits = item.category === "body" || itemFitsBody(item, wornBody?.itemKey);
   const supplyLeft =
     item.supplyLimit !== null ? Math.max(item.supplyLimit - item.mintedCount, 0) : null;
 
   return (
-    <article key={item.id} id={anchor ? `shop-item-${item.id}` : undefined} className={`shop-item rarity-${rarity} ${isPreviewing ? "is-previewing" : ""}`}>
+    <article key={item.id} id={anchor ? `shop-item-${item.id}` : undefined} className={`shop-item rarity-${rarity} ${isPreviewing ? "is-previewing" : ""} ${owned ? "is-owned" : ""}`}>
       <div className="shop-item-art">
         <img className="shop-item-icon" src={item.icon} alt="" draggable={false} />
         <span className="shop-rarity">{rarity}</span>
@@ -279,7 +286,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
       <div className="shop-item-price">
         <TicketIcon className="h-4 w-6" perforation="#0d131b" />
         {price.toLocaleString()}
-        {cannotAfford && !item.isSoldOut && (
+        {cannotAfford && !item.isSoldOut && !owned && (
           <span className="shop-item-short">Need {(price - coinBalance).toLocaleString()} more</span>
         )}
       </div>
@@ -287,20 +294,25 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
       <div className="shop-item-actions">
         <button
           type="button"
-          onClick={() => setPreviewItem(isPreviewing ? null : item)}
+          onClick={() => {
+            setPreviewItem(isPreviewing ? null : item);
+            if (!isPreviewing) onTryOn?.({ name: item.name, category: item.category, rarity, price, owned, short: cannotAfford });
+          }}
           className={`shop-button is-secondary ${isPreviewing ? "is-active" : ""}`}
           aria-pressed={isPreviewing}
         >
           Show
         </button>
-        <button
-          type="button"
-          onClick={() => setConfirming({ name: item.name, price, icon: item.icon, buy: () => buyMutation.mutate(item.id) })}
-          disabled={pendingThisItem || item.isSoldOut || cannotAfford}
-          className="shop-button"
-        >
-          {item.isSoldOut ? "Sold out" : pendingThisItem ? "Buying…" : "Buy"}
-        </button>
+        {!owned && (
+          <button
+            type="button"
+            onClick={() => setConfirming({ name: item.name, price, icon: item.icon, buy: () => buyMutation.mutate(item.id) })}
+            disabled={pendingThisItem || item.isSoldOut || cannotAfford}
+            className="shop-button"
+          >
+            {item.isSoldOut ? "Sold out" : pendingThisItem ? "Buying…" : "Buy"}
+          </button>
+        )}
       </div>
     </article>
   );
@@ -338,7 +350,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
           {shownExtras.map((item) => {
             const cannotAfford = Boolean(item.action.buy) && coinBalance < item.price;
             return (
-              <article key={item.id} className={`shop-item rarity-common ${item.previewing ? "is-previewing" : ""}`}>
+              <article key={item.id} className={`shop-item rarity-common ${item.previewing ? "is-previewing" : ""} ${item.owned ? "is-owned" : ""}`}>
                 <div className="shop-item-art">
                   <img className="shop-item-icon shop-item-swatch" src={item.icon} alt="" draggable={false} />
                   {item.owned && <span className="shop-owned">Owned</span>}
@@ -358,11 +370,14 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
                 <div className="shop-item-actions">
                   <button
                     type="button"
-                    onClick={item.onPreview}
+                    onClick={() => {
+                      item.onPreview();
+                      if (!item.previewing) onTryOn?.({ name: item.name, category: item.category, price: item.price, owned: item.owned, short: cannotAfford });
+                    }}
                     className={`shop-button is-secondary ${item.previewing ? "is-active" : ""}`}
                     aria-pressed={item.previewing}
                   >
-                    Show
+                    {item.previewLabel ?? "Show"}
                   </button>
                   <button
                     type="button"

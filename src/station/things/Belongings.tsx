@@ -1,7 +1,7 @@
 // The belongings' pieces share the avatar hook; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
 import "../../styles/profile.css";
-import { Suspense, lazy, useContext, useState, type ReactNode } from "react";
+import { Suspense, lazy, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { FaPencilAlt, FaSearch } from "react-icons/fa";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +19,9 @@ import { BannerShelf, useBackdrop, useBannerShopItems } from "./Banners.tsx";
 import { NO_FILTERS, ShopCategoryTabs, ShopFilterMenus, useTabSwipe, type ShopFilters } from "../../components/avatar/shopFilters";
 import TicketIcon from "../../components/TicketIcon";
 import { SheetActions } from "../Sheet.tsx";
+import ShopKeeper, { type TriedOn } from "./ShopKeeper.tsx";
+import { useSongShopItems } from "./Songs.tsx";
+import { radio } from "../radio.ts";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
 // at the ticket counter, clothes in your left-luggage locker, letters in your pigeonhole,
@@ -212,13 +215,19 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   const [preview, setPreview] = useState<AvatarLook | null>(null);
   // A banner being tried on: behind you in the mirror
   const [previewBanner, setPreviewBanner] = useState<string | null>(null);
+  // What was last tried on: the shopkeeper, up in the dark, has a word about it
+  const [tried, setTried] = useState<TriedOn | null>(null);
   const bannerItems = useBannerShopItems(previewBanner, setPreviewBanner);
+  // (and songs for the radio on the bench; one being listened to stops when you leave)
+  const songItems = useSongShopItems();
+  useEffect(() => () => radio.endSample(), []);
+  const wares = [...bannerItems, ...songItems];
   // Opened on an item (an advert over the window): searched for straight away
   const [filters, setFilters] = useState<ShopFilters>({ ...NO_FILTERS, search: focus ?? "" });
   const topBar = useContext(SheetActions);
   const unread = useInboxUnreadCount();
   const saved = useAvatarLook(signedIn);
-  const extraCategories = [...new Map(bannerItems.map((item) => [item.category, item.categoryPlural])).entries()];
+  const extraCategories = [...new Map(wares.map((item) => [item.category, item.categoryPlural])).entries()];
   // (swiping sideways across the wares turns to the next tab)
   const swipe = useTabSwipe(filters, setFilters, extraCategories);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
@@ -228,7 +237,10 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
   // phone) while only the wares scroll
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 md:flex-row md:gap-8">
+    <>
+    {/* (behind the shop: its top going off into the dark, and his eyes in it) */}
+    <ShopKeeper tried={tried} />
+    <div className="relative flex h-full min-h-0 flex-col gap-2 md:flex-row md:gap-8">
       {topBar && createPortal(<ShopSearch value={filters.search} onChange={(search) => setFilters((current) => ({ ...current, search }))} />, topBar)}
       <div className="shrink-0 md:w-80">
         {/* (the tabs sit close under you: no gap of the mirror's own below it) */}
@@ -243,7 +255,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
       <ShopCategoryTabs filters={filters} onChange={setFilters} extraCategories={extraCategories} className="shrink-0" />
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" {...swipe}>
       <Classic>
-        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={bannerItems} filters={filters} />
+        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={wares} filters={filters} onTryOn={setTried} />
       </Classic>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
@@ -259,6 +271,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
       </div>
       </div>
     </div>
+    </>
   );
 }
 

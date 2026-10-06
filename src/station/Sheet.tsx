@@ -91,7 +91,7 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
           onClick={onClose}
           aria-label="Put it back"
           style={pixel}
-          className={`absolute right-2 top-1 flex h-11 w-11 items-center justify-center text-3xl leading-none ${light ? "text-[#2a1d14]/60 hover:text-[#2a1d14]" : "text-[#f2ead2]/70 hover:text-[#f2ead2]"}`}
+          className={`absolute right-2 top-1 z-10 flex h-11 w-11 items-center justify-center text-3xl leading-none ${light ? "text-[#2a1d14]/60 hover:text-[#2a1d14]" : "text-[#f2ead2]/70 hover:text-[#f2ead2]"}`}
         >
           ×
         </button>
