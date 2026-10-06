@@ -99,6 +99,34 @@ export async function knockDispenser(db, userId, { now = Date.now(), random = Ma
 
 export function forgetKnocks() {
     lastKnock.clear();
+    lastPickUp.clear();
+}
+
+// A ticket stub dropped on the station's floor: picked up, it's worth a ticket, a few times
+// a day for each player (there are a couple on the floor every visit, so without the limit
+// they'd be free tickets for coming and going)
+export const FLOOR_TICKET = 1;
+export const FLOOR_DAILY_TICKETS = 3;
+export const FLOOR_COOLDOWN_MS = 1200;
+const FLOOR_SOURCE = 'floor_ticket';
+const lastPickUp = new Map();
+
+export async function pickUpFloorTicket(db, userId, { now = Date.now() } = {}) {
+    if (now - (lastPickUp.get(userId) ?? 0) < FLOOR_COOLDOWN_MS) return { status: 'nothing' };
+    lastPickUp.set(userId, now);
+    if (lastPickUp.size > 5000) {
+        for (const [id, at] of lastPickUp) if (now - at > FLOOR_COOLDOWN_MS) lastPickUp.delete(id);
+    }
+    const found = await db.query(`
+        SELECT COUNT(*)::int AS count FROM currency_transactions
+        WHERE user_id = $1 AND source_type = $2
+          AND created_at >= (date_trunc('day', now() AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')
+    `, [userId, FLOOR_SOURCE]);
+    if (Number(found.rows[0]?.count || 0) >= FLOOR_DAILY_TICKETS) return { status: 'nothing' };
+    const result = await db.query(`
+        SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
+    `, [userId, FLOOR_TICKET, FLOOR_SOURCE, null, JSON.stringify({})]);
+    return { status: 'ticket', tickets: FLOOR_TICKET, coinBalance: Number(result.rows[0].coin_balance) };
 }
 
 export default async function routes(fastify) {
@@ -108,6 +136,15 @@ export default async function routes(fastify) {
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'The dispenser jammed' });
+        }
+    });
+
+    fastify.post('/floor-ticket', async (request, reply) => {
+        try {
+            return { data: await pickUpFloorTicket(pool, request.user.sub) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'It slipped through your fingers' });
         }
     });
 

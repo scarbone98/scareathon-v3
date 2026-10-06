@@ -1,9 +1,12 @@
 import {
   AdditiveBlending,
+  BoxGeometry,
   BufferGeometry,
   CanvasTexture,
+  ConeGeometry,
   CylinderGeometry,
   DoubleSide,
+  Float32BufferAttribute,
   Group,
   Line,
   LineBasicMaterial,
@@ -17,9 +20,11 @@ import {
 } from "three";
 
 // Halloween decorations for the station, up through October only: a garland of black and
-// orange paper bats along the ceiling corners, and jack-o'-lanterns about the platform. Everything is
-// in this file; to take them down for good, delete it and the lines marked HALLOWEEN in
-// StationScene.
+// orange paper bats along the ceiling corners, jack-o'-lanterns about the platform, green and
+// purple streamers strung under the canopy and fallen on the floor, and candles round the
+// room. (The canopy's lamps also come on in a colour of their own: StationScene.) Everything
+// else is in this file; to take them down for good, delete it and the lines marked HALLOWEEN
+// in StationScene.
 
 export function isHalloweenSeason(now = new Date()) {
   const month = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "numeric" }).format(now));
@@ -27,7 +32,8 @@ export function isHalloweenSeason(now = new Date()) {
 }
 
 // Where the station's walls are (from StationScene)
-export type StationShape = { wallZ: number; sideX: number; endX: number; ceilingY: number; ticketsAt: [number, number, number] };
+// (lockersTop: the middle of the lockers' top)
+export type StationShape = { wallZ: number; sideX: number; endX: number; ceilingY: number; ticketsAt: [number, number, number]; lockersTop: [number, number, number] };
 
 function paint(width: number, height: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
   const canvas = document.createElement("canvas");
@@ -173,6 +179,99 @@ function jackOLantern(size: number, seed: number) {
   return group;
 }
 
+// A crepe streamer: a ribbon along `points`, `width` across, turning over `twists` times
+// along its length (none: it lies flat, its face up)
+function streamer(points: Vector3[], width: number, twists: number, material: MeshStandardMaterial) {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const up = new Vector3(0, 1, 0);
+  points.forEach((point, i) => {
+    const tangent = points[Math.min(i + 1, points.length - 1)].clone().sub(points[Math.max(i - 1, 0)]).normalize();
+    const flat = new Vector3().crossVectors(tangent, up).normalize();
+    const lift = new Vector3().crossVectors(flat, tangent);
+    const angle = (i / (points.length - 1)) * twists * Math.PI * 2;
+    const across = flat.multiplyScalar(Math.cos(angle)).add(lift.multiplyScalar(Math.sin(angle))).multiplyScalar(width / 2);
+    positions.push(point.x - across.x, point.y - across.y, point.z - across.z, point.x + across.x, point.y + across.y, point.z + across.z);
+    if (i > 0) indices.push(i * 2 - 2, i * 2 - 1, i * 2, i * 2 - 1, i * 2 + 1, i * 2);
+  });
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return new Mesh(geometry, material);
+}
+
+// A skull, looking out: a cranium, a jaw with a row of teeth, hollow eyes and nose
+function skull(size: number) {
+  const group = new Group();
+  const bone = new MeshStandardMaterial({ color: "#e4dcc6", roughness: 0.75, emissive: "#2a2014" });
+  const hollow = new MeshBasicMaterial({ color: "#0a0806" });
+  const cranium = new Mesh(new SphereGeometry(size, 18, 14), bone);
+  cranium.scale.set(1, 1.02, 1.12);
+  cranium.position.y = size * 1.25;
+  group.add(cranium);
+  const jaw = new Mesh(new BoxGeometry(size * 1.1, size * 0.55, size * 1.0), bone);
+  jaw.position.set(0, size * 0.42, size * 0.42);
+  group.add(jaw);
+  [-1, 1].forEach((side) => {
+    const eye = new Mesh(new SphereGeometry(size * 0.27, 10, 8), hollow);
+    eye.position.set(side * size * 0.38, size * 1.2, size * 0.95);
+    group.add(eye);
+  });
+  const nose = new Mesh(new ConeGeometry(size * 0.13, size * 0.24, 3), hollow);
+  nose.position.set(0, size * 0.86, size * 1.06);
+  group.add(nose);
+  // Teeth: a dark line across the jaw, and the gaps between them
+  const grin = new Mesh(new BoxGeometry(size * 0.9, size * 0.035, size * 0.02), hollow);
+  grin.position.set(0, size * 0.5, size * 0.93);
+  group.add(grin);
+  for (let i = -2; i <= 2; i += 1) {
+    const gap = new Mesh(new BoxGeometry(size * 0.03, size * 0.3, size * 0.02), hollow);
+    gap.position.set(i * size * 0.2, size * 0.5, size * 0.93);
+    group.add(gap);
+  }
+  return group;
+}
+
+// A candle: a stub of wax, a wick, a flame (two crossed leaves of it, so it shows from
+// any side) and its glow
+const flameMap = paint(32, 64, (ctx, w, h) => {
+  const g = ctx.createRadialGradient(w / 2, h * 0.68, 1, w / 2, h * 0.6, h * 0.5);
+  g.addColorStop(0, "rgba(255,250,220,1)");
+  g.addColorStop(0.35, "rgba(255,200,90,0.95)");
+  g.addColorStop(1, "rgba(255,110,20,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 2);
+  ctx.quadraticCurveTo(w * 0.95, h * 0.6, w / 2, h - 4);
+  ctx.quadraticCurveTo(w * 0.05, h * 0.6, w / 2, 2);
+  ctx.fill();
+});
+
+function candle(height: number, seed: number) {
+  const group = new Group();
+  const radius = 0.022;
+  const wax = new Mesh(new CylinderGeometry(radius, radius * 1.08, height, 10), new MeshStandardMaterial({ color: "#e8dcc0", roughness: 0.6, emissive: "#4a2c10" }));
+  wax.position.y = height / 2;
+  group.add(wax);
+  const flameMaterial = new MeshBasicMaterial({ map: flameMap, transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
+  const flame = new Group();
+  [0, Math.PI / 2].forEach((turn) => {
+    const leaf = new Mesh(new PlaneGeometry(0.035, 0.07), flameMaterial);
+    leaf.rotation.y = turn;
+    flame.add(leaf);
+  });
+  flame.position.y = height + 0.04;
+  group.add(flame);
+  const glow = new Mesh(new PlaneGeometry(0.5, 0.5), new MeshBasicMaterial({ map: glowMap, color: "#ffa040", transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false }));
+  glow.position.y = height + 0.05;
+  group.add(glow);
+  group.userData.flame = flame;
+  group.userData.glow = glow;
+  group.userData.seed = seed;
+  return group;
+}
+
 const glowMap = paint(64, 64, (ctx, w, h) => {
   const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
   g.addColorStop(0, "rgba(255,200,120,0.9)");
@@ -181,7 +280,7 @@ const glowMap = paint(64, 64, (ctx, w, h) => {
   ctx.fillRect(0, 0, w, h);
 });
 
-export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt }: StationShape) {
+export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt, lockersTop }: StationShape) {
   const group = new Group();
   const hookY = ceilingY - 0.05;
   // Bats along the back wall's top, and down the side wall to the platform's edge
@@ -210,8 +309,88 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt }: Stat
   // The counter faces back along the platform: its top, to one side of the coin slot
   place(ticketsAt[0] - 0.3, ticketsAt[1], ticketsAt[2] - 0.58, 0.11, -Math.PI / 2);
 
+  // Streamers, green and purple turn about. Overhead: strung from the back wall out under
+  // the canopy, twisted, sagging, each crossing the next
+  const crepe = ["#39c95a", "#9a45e0"].map((colour) => new MeshStandardMaterial({ color: colour, roughness: 0.9, side: DoubleSide, emissive: colour, emissiveIntensity: 0.18 }));
+  const swag = (from: Vector3, to: Vector3, sag: number) =>
+    Array.from({ length: 41 }, (_, i) => {
+      const point = from.clone().lerp(to, i / 40);
+      point.y -= Math.sin((i / 40) * Math.PI) * sag;
+      return point;
+    });
+  const firstX = endX + 0.9;
+  const strung = 9;
+  const step = (sideX - 0.6 - firstX) / (strung - 1);
+  for (let i = 0; i < strung; i += 1) {
+    const x = firstX + i * step;
+    const lean = (i % 2 ? -1 : 1) * 0.9;
+    group.add(streamer(swag(new Vector3(x, hookY, wallZ + 0.12), new Vector3(x + lean, hookY, wallZ + 3.9), 0.32 + (i % 3) * 0.05), 0.07, 9, crepe[i % 2]));
+  }
+  // Underfoot: lengths that have come down, lying where they fell, a curl lifting here and there
+  const fallen: [number, number, number, number][] = [
+    [-5.6, 0.9, 0.5, 1.3],
+    [-4.2, 2.1, 2.4, 1.0],
+    [-2.3, 0.3, -0.4, 1.5],
+    [-1.2, 2.3, 1.2, 1.1],
+    [0.6, 1.2, 2.9, 1.4],
+    [2.0, 2.4, 0.2, 1.0],
+    [3.3, 0.6, 1.9, 1.3],
+    [4.3, 1.9, -0.8, 0.9],
+  ];
+  fallen.forEach(([x, z, heading, length], i) => {
+    const along = new Vector3(Math.cos(heading), 0, Math.sin(heading));
+    const aside = new Vector3(-along.z, 0, along.x);
+    const points = Array.from({ length: 33 }, (_, n) => {
+      const k = n / 32;
+      const curl = Math.max(0, Math.sin(k * Math.PI * 3 + i)) ** 6 * 0.035;
+      return new Vector3(x, 0.014 + curl, z)
+        .add(along.clone().multiplyScalar((k - 0.5) * length))
+        .add(aside.clone().multiplyScalar(Math.sin(k * Math.PI * 2.5 + i * 1.3) * 0.11));
+    });
+    group.add(streamer(points, 0.06, 0.5, crepe[(i + 1) % 2]));
+  });
+
+  // Candles: little huddles of them on the floor along the wall, and a pair on the counter
+  const candles: Group[] = [];
+  const huddle = (x: number, y: number, z: number, heights: number[]) => {
+    heights.forEach((height, i) => {
+      const one = candle(height, candles.length * 2.3);
+      one.position.set(x + (i - (heights.length - 1) / 2) * 0.075, y, z + (i % 2 ? 0.05 : 0));
+      group.add(one);
+      candles.push(one);
+    });
+  };
+  huddle(-5.9, 0, wallZ + 0.4, [0.12, 0.2, 0.09]);
+  huddle(-3.95, 0, wallZ + 0.62, [0.16, 0.1]);
+  huddle(-2.0, 0, wallZ + 0.35, [0.1, 0.22, 0.14]);
+  huddle(-0.7, 0, wallZ + 0.3, [0.18, 0.11]);
+  huddle(2.75, 0, wallZ + 0.55, [0.13, 0.2, 0.1]);
+  huddle(4.3, 0, wallZ + 0.4, [0.2, 0.12]);
+  // On top of the lockers: a skull keeping watch, candles burnt down either side of it
+  const [lockersX, lockersY, lockersZ] = lockersTop;
+  const watchman = skull(0.1);
+  watchman.position.set(lockersX + 0.08, lockersY, lockersZ + 0.02);
+  watchman.rotation.y = 0.25;
+  group.add(watchman);
+  huddle(lockersX - 0.45, lockersY, lockersZ + 0.05, [0.14, 0.24, 0.1]);
+  huddle(lockersX + 0.5, lockersY, lockersZ + 0.08, [0.2, 0.12]);
+  const counter = candle(0.1, 41);
+  counter.position.set(ticketsAt[0] - 0.3, ticketsAt[1], ticketsAt[2] + 0.55);
+  const counterTall = candle(0.16, 47);
+  counterTall.position.set(ticketsAt[0] - 0.26, ticketsAt[1], ticketsAt[2] + 0.63);
+  group.add(counter, counterTall);
+  candles.push(counter, counterTall);
+
   group.userData.update = (t: number, reduced: boolean) => {
     if (reduced) return;
+    candles.forEach((each) => {
+      const seed = each.userData.seed as number;
+      const waver = Math.sin(t * 11 + seed) * Math.sin(t * 4.3 + seed * 1.7);
+      const flame = each.userData.flame as Group;
+      flame.scale.set(1 + waver * 0.12, 1 + waver * 0.2, 1 + waver * 0.12);
+      flame.rotation.z = waver * 0.12;
+      ((each.userData.glow as Mesh).material as MeshBasicMaterial).opacity = 0.28 + 0.07 * waver;
+    });
     bats.forEach((bat) => {
       bat.rotation.z = Math.sin(t * 1.3 + bat.userData.seed) * 0.12;
     });

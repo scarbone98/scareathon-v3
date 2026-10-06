@@ -44,12 +44,14 @@ import {
   VideoTexture,
   Vector2,
   Plane,
+  Quaternion,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
+import { fetchWithAuth } from "../fetchWithAuth";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
 import { MARKER_FONT } from "../pages/ArcadeV2/slotRig.ts";
@@ -2185,7 +2187,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       for (let i = 0; i < 3; i += 1) moths.add(new Mesh(new PlaneGeometry(0.035, 0.022), mothWing));
       moths.visible = false;
       scene.add(moths);
-      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: 12 + Math.random() * 40, moths, warm: light.color.clone(), tint: 0 });
+      // HALLOWEEN: each lamp comes on in a colour of its own (the rest of the year, its warm white)
+      const tint = isHalloweenSeason() ? 1 + Math.floor(Math.random() * (LAMP_TINTS.length - 1)) : 0;
+      const warm = light.color.clone();
+      if (tint) light.color.copy(LAMP_TINTS[tint] ?? warm);
+      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: 12 + Math.random() * 40, moths, warm, tint });
     };
     const LAMP_FLICKER = 1.1; // s
     // How lit a tapped lamp is, t seconds after the tap: mostly out, catching now and then
@@ -2257,19 +2263,20 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const scrapMaterial = new MeshStandardMaterial({ map: scrapTexture, transparent: true, alphaTest: 0.3, roughness: 1 });
     // The litter: a handful of leaves, a couple of stubs and scraps, strewn somewhere new each
     // visit over the open platform. Tapped, one skips away; swept by a finger, it's pushed along.
-    const litter: { mesh: Mesh; vx: number; vz: number; spin: number; y: number; vy: number; rest: number }[] = [];
-    const strew = (width: number, depth: number, material: Material, count: number) => {
+    // (A ticket stub, tapped, is picked up instead: see collectStub)
+    const litter: { mesh: Mesh; vx: number; vz: number; spin: number; y: number; vy: number; rest: number; stub?: boolean }[] = [];
+    const strew = (width: number, depth: number, material: Material, count: number, stub = false) => {
       for (let i = 0; i < count; i += 1) {
         const size = 0.8 + Math.random() * 0.45;
         const rest = 0.013 + litter.length * 0.0004; // a hair apart, so none flicker through another
         const mesh = plane(width * size, depth * size, material, -5.6 + Math.random() * 9.5, rest, 0.1 + Math.random() * 2.8);
         mesh.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
         scene.add(mesh);
-        litter.push({ mesh, vx: 0, vz: 0, spin: 0, y: 0, vy: 0, rest });
+        litter.push({ mesh, vx: 0, vz: 0, spin: 0, y: 0, vy: 0, rest, stub });
       }
     };
     strew(0.16, 0.16, leafMaterial, 9);
-    strew(0.16, 0.08, stubMaterial, 2);
+    strew(0.16, 0.08, stubMaterial, 2, true);
     strew(0.22, 0.22, scrapMaterial, 2);
     const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
     const floorAt = (clientX: number, clientY: number) => {
@@ -2277,6 +2284,57 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
       return raycaster.ray.intersectPlane(floorPlane, new Vector3());
+    };
+    // A ticket stub picked up off the floor: it comes up to your face, turning to show
+    // itself, hangs there a beat, then flies off the top corner of the screen (and, signed
+    // in, it's worth a ticket, a few times a day: the server says). One at a time
+    const PICK_UP = 0.5; // s: floor to your face
+    const PICK_HOLD = 0.75; // the beat it's held there
+    const PICK_OFF = 0.55; // then away
+    let picked: { mesh: Mesh; at: number; from: Vector3; turn: Quaternion } | null = null;
+    const heldAt = new Vector3();
+    const collectStub = (piece: (typeof litter)[number]) => {
+      if (picked) return;
+      litter.splice(litter.indexOf(piece), 1);
+      picked = { mesh: piece.mesh, at: performance.now() / 1000, from: piece.mesh.position.clone(), turn: piece.mesh.quaternion.clone() };
+      // (drawn over everything, so nothing between you and the floor hides it on the way up)
+      piece.mesh.renderOrder = 10;
+      fetchWithAuth("/wayside/floor-ticket", { method: "POST" })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: { data?: { tickets?: number } } | null) => {
+          if (body?.data?.tickets) window.dispatchEvent(new Event("wayside:tickets"));
+        })
+        .catch(() => undefined); // (signed out, or the server's away: it's still picked up)
+    };
+    const movePicked = () => {
+      if (!picked) return;
+      const k = performance.now() / 1000 - picked.at;
+      const { mesh } = picked;
+      // In front of your eyes, a little below the middle
+      heldAt.set(0, -0.05, -0.5).applyQuaternion(camera.quaternion).add(camera.position);
+      if (k < PICK_UP) {
+        const e = 1 - (1 - k / PICK_UP) ** 3;
+        mesh.position.lerpVectors(picked.from, heldAt, e);
+        mesh.position.y += Math.sin(e * Math.PI) * 0.12;
+        mesh.quaternion.slerpQuaternions(picked.turn, camera.quaternion, e);
+        mesh.scale.setScalar(1 + e * 0.6);
+      } else if (k < PICK_UP + PICK_HOLD) {
+        mesh.position.copy(heldAt);
+        mesh.position.y += Math.sin((k - PICK_UP) * 5) * 0.004;
+        mesh.quaternion.copy(camera.quaternion);
+        mesh.rotateZ(Math.sin((k - PICK_UP) * 4) * 0.05);
+        mesh.scale.setScalar(1.6);
+      } else if (k < PICK_UP + PICK_HOLD + PICK_OFF) {
+        const e = ((k - PICK_UP - PICK_HOLD) / PICK_OFF) ** 2;
+        mesh.position.copy(heldAt).add(new Vector3(-0.75 * e, 0.6 * e, 0).applyQuaternion(camera.quaternion));
+        mesh.quaternion.copy(camera.quaternion);
+        mesh.rotateZ(e * 2.2);
+        mesh.scale.setScalar(1.6 - e * 0.6);
+      } else {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        picked = null;
+      }
     };
     // A tap on (or right by) a piece: it skips off, away from you, turning as it goes
     const flickLitter = (clientX: number, clientY: number) => {
@@ -2293,6 +2351,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       });
       if (!nearest) return false;
       const piece = nearest as (typeof litter)[number];
+      if (piece.stub) {
+        collectStub(piece);
+        return true;
+      }
       const away = new Vector3(piece.mesh.position.x - camera.position.x, 0, piece.mesh.position.z - camera.position.z).normalize();
       const angle = Math.atan2(away.z, away.x) + (Math.random() - 0.5) * 1.2;
       const speed = 1.4 + Math.random() * 1.2;
@@ -2992,8 +3054,46 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (child.userData.rattle) rattling.push(child as Group);
     });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
-    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z] }) : null;
+    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02, WALL_Z + 0.25] }) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
+    // Across the tracks, in some of the quiet between trains: somebody stood by the fence,
+    // a shape darker than the dark, watching the platform. The next train goes by and
+    // there's nobody there (see the animation loop)
+    const watcherMaterial = new MeshBasicMaterial({
+      map: paint(64, 160, (ctx, w, h) => {
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "#04050a";
+        // A long coat, shoulders, a head under a brimmed hat
+        ctx.beginPath();
+        ctx.moveTo(w * 0.2, h);
+        ctx.lineTo(w * 0.14, h * 0.3);
+        ctx.quadraticCurveTo(w * 0.16, h * 0.2, w * 0.4, h * 0.19);
+        ctx.lineTo(w * 0.6, h * 0.19);
+        ctx.quadraticCurveTo(w * 0.84, h * 0.2, w * 0.86, h * 0.3);
+        ctx.lineTo(w * 0.8, h);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(w / 2, h * 0.12, w * 0.15, h * 0.075, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(w * 0.2, h * 0.065, w * 0.6, h * 0.02);
+        ctx.fillRect(w * 0.34, h * 0.01, w * 0.32, h * 0.06);
+        // Its eyes just catch the light
+        ctx.fillStyle = "rgba(214, 222, 240, 0.75)";
+        ctx.fillRect(w * 0.42, h * 0.115, 2, 2);
+        ctx.fillRect(w * 0.55, h * 0.115, 2, 2);
+      }),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: DoubleSide,
+      fog: false,
+    });
+    const watcher = plane(0.76, 1.9, watcherMaterial, HUB.pos[0], 0.1, FAR_Z - 0.6);
+    watcher.visible = false;
+    scene.add(watcher);
+    const TRAIN_FRONT = 6; // how far ahead of its middle the train's nose is
+    let watcherRun = -1; // the gap between trains it was last placed for
+    let watcherGone = true;
     // Now and then, something outside looks in at a transom: two red glowing dots in the
     // dark, that open, blink, and shut again (see the animation loop)
     const peeper = new Group();
@@ -3361,6 +3461,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       look.pitch += (look.toPitch - look.pitch) * 0.06;
       updateArrival(performance.now() / 1000);
       moveLitter();
+      movePicked();
       const sway = reduced ? 0 : 1;
       camera.position.set(cam.x, cam.y + Math.sin(t * 0.9) * 0.01 * sway, cam.z);
       camera.rotation.set(cam.pitch + look.pitch + Math.sin(t * 0.5) * 0.004 * sway, cam.yaw + look.yaw + Math.sin(t * 0.37) * 0.006 * sway, 0);
@@ -3506,6 +3607,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const cycle = (t + 5) % 45;
       train.visible = cycle > 13;
       if (train.visible) train.position.x = -60 + (cycle - 30) * 22;
+      // The watcher: there in some of the gaps between trains (not the one you came in on),
+      // somewhere along the fence; it comes up out of the dark slowly, and once the train's
+      // nose has gone past it, it isn't there any more
+      const run = Math.floor((t + 5) / 45);
+      if (run !== watcherRun) {
+        watcherRun = run;
+        const roll = Math.abs(Math.sin(run * 91.7) * 43758.5453) % 1;
+        watcherGone = roll > 0.45;
+        watcher.position.x = HUB.pos[0] + ((roll * 7.3) % 1 - 0.5) * 7;
+      }
+      if (!watcherGone && train.visible && train.position.x + TRAIN_FRONT > watcher.position.x + 4) watcherGone = true;
+      watcher.visible = !watcherGone && !arrival.active;
+      if (watcher.visible) watcherMaterial.opacity = Math.min(1, Math.max(0, (cycle - 2) / 5)) * 0.92;
       // The signal: red, and the crossing lamps flashing turn about, from a few seconds
       // before the train comes until it's gone by (and while the one you came on pulls in
       // and away); green otherwise

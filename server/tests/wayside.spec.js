@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('../db/mockDB.js', () => ({ default: { query: jest.fn() } }));
-const { RUNE_LETTERS, RUNE_REWARD, easternDay, redeemRune, runeCodeFor, DISPENSER_DAILY_WINS, DISPENSER_GOLDEN, forgetKnocks, knockDispenser, rollDispenser } = await import('../routes/wayside.js');
+const { RUNE_LETTERS, RUNE_REWARD, easternDay, redeemRune, runeCodeFor, DISPENSER_DAILY_WINS, DISPENSER_GOLDEN, FLOOR_DAILY_TICKETS, forgetKnocks, knockDispenser, pickUpFloorTicket, rollDispenser } = await import('../routes/wayside.js');
 
 const ALICE = '22222222-2222-4222-8222-222222222222';
 const at = new Date('2026-10-02T15:00:00Z');
@@ -66,6 +66,30 @@ describe('the ticket dispenser', () => {
     test("no more once the day's wins are used up", async () => {
         const db = { query: jest.fn().mockResolvedValueOnce({ rows: [{ count: DISPENSER_DAILY_WINS }] }) };
         await expect(knockDispenser(db, ALICE, { now: 1e6, random: () => 0.01 })).resolves.toEqual({ status: 'nothing' });
+        expect(db.query).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('a ticket stub on the station floor', () => {
+    beforeEach(() => forgetKnocks());
+
+    test('picked up, it pays a ticket', async () => {
+        const db = { query: jest.fn().mockResolvedValueOnce({ rows: [{ count: 0 }] }).mockResolvedValueOnce({ rows: [{ coin_balance: 41 }] }) };
+        await expect(pickUpFloorTicket(db, ALICE, { now: 1e6 })).resolves.toEqual({ status: 'ticket', tickets: 1, coinBalance: 41 });
+        expect(db.query.mock.calls[1][1].slice(0, 3)).toEqual([ALICE, 1, 'floor_ticket']);
+    });
+
+    test('another straight after pays nothing', async () => {
+        const db = { query: jest.fn().mockResolvedValue({ rows: [{ count: 0, coin_balance: 1 }] }) };
+        await pickUpFloorTicket(db, ALICE, { now: 1e6 });
+        db.query.mockClear();
+        await expect(pickUpFloorTicket(db, ALICE, { now: 1e6 + 500 })).resolves.toEqual({ status: 'nothing' });
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test("no more once the day's few are found", async () => {
+        const db = { query: jest.fn().mockResolvedValueOnce({ rows: [{ count: FLOOR_DAILY_TICKETS }] }) };
+        await expect(pickUpFloorTicket(db, ALICE, { now: 1e6 })).resolves.toEqual({ status: 'nothing' });
         expect(db.query).toHaveBeenCalledTimes(1);
     });
 });
