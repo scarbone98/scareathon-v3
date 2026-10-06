@@ -2366,9 +2366,21 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     // A finger dragged across the floor pushes along whatever it passes over
     let sweptFrom: { at: Vector3; t: number } | null = null;
+    // (the decorations are put up further down: HALLOWEEN)
+    const halloweenRef: { current: Group | null } = { current: null };
+    let brushedFrom: { x: number; y: number; t: number } | null = null;
     const sweepLitter = (clientX: number, clientY: number) => {
       const at = floorAt(clientX, clientY);
       const now = performance.now() / 1000;
+      // HALLOWEEN: the streamers overhead swing when a finger goes across them (the ray is
+      // floorAt's; its way across the screen, as a way in the world at about their distance)
+      if (halloweenRef.current && brushedFrom && now > brushedFrom.t) {
+        const dt = Math.max(now - brushedFrom.t, 1 / 120);
+        const perPixel = 4 / renderer.domElement.clientHeight;
+        const across = new Vector3((clientX - brushedFrom.x) * perPixel, -(clientY - brushedFrom.y) * perPixel, 0).divideScalar(dt).applyQuaternion(camera.quaternion);
+        halloweenRef.current.userData.brush(raycaster.ray, across);
+      }
+      brushedFrom = { x: clientX, y: clientY, t: now };
       if (!at) return;
       if (sweptFrom && now > sweptFrom.t) {
         const dt = Math.max(now - sweptFrom.t, 1 / 120);
@@ -2383,6 +2395,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           if (piece.y <= 0) piece.vy = 0.4 + Math.random() * 0.4;
           piece.spin += (Math.random() - 0.5) * 10;
         });
+        halloweenRef.current?.userData.sweep(at, vx * scale, vz * scale); // HALLOWEEN: and the fallen streamers
       }
       sweptFrom = { at, t: now };
     };
@@ -3054,8 +3067,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (child.userData.rattle) rattling.push(child as Group);
     });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
-    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02, WALL_Z + 0.25] }) : null;
+    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02, WALL_Z + 0.25] }) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
+    halloweenRef.current = halloween;
     // Across the tracks, in some of the quiet between trains: somebody stood by the fence,
     // a shape darker than the dark, watching the platform. The next train goes by and
     // there's nobody there (see the animation loop)
@@ -3261,6 +3275,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const onPointerDown = (event: PointerEvent) => {
       if (arrival.active) return;
       sweptFrom = null;
+      brushedFrom = null;
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
       canvas.setPointerCapture(event.pointerId);
     };
@@ -3475,7 +3490,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
-      halloween?.userData.update(t, reduced); // HALLOWEEN
+      if (halloween) {
+        // HALLOWEEN (the way the camera faces: the streamers swing as it turns)
+        const ahead = camera.getWorldDirection(new Vector3());
+        halloween.userData.update(t, reduced, Math.atan2(ahead.x, ahead.z));
+      }
       // (nothing falls inside a train: the passing one, or the one you ride in on)
       outsideWeather.userData.update(t, reduced, (train.visible && train.position.x > -60) || arrival.active);
       // The eyes at the transoms: every 41 s or so, at one window or the other, for 6 s

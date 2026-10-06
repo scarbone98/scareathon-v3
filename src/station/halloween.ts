@@ -14,6 +14,7 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
+  type Ray,
   SphereGeometry,
   SRGBColorSpace,
   Vector3,
@@ -32,8 +33,8 @@ export function isHalloweenSeason(now = new Date()) {
 }
 
 // Where the station's walls are (from StationScene)
-// (lockersTop: the middle of the lockers' top)
-export type StationShape = { wallZ: number; sideX: number; endX: number; ceilingY: number; ticketsAt: [number, number, number]; lockersTop: [number, number, number] };
+// (lockersTop: the middle of the lockers' top; edgeZ: the platform's edge)
+export type StationShape = { wallZ: number; sideX: number; endX: number; edgeZ: number; ceilingY: number; ticketsAt: [number, number, number]; lockersTop: [number, number, number] };
 
 function paint(width: number, height: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
   const canvas = document.createElement("canvas");
@@ -280,7 +281,7 @@ const glowMap = paint(64, 64, (ctx, w, h) => {
   ctx.fillRect(0, 0, w, h);
 });
 
-export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt, lockersTop }: StationShape) {
+export function buildHalloween({ wallZ, sideX, endX, edgeZ, ceilingY, ticketsAt, lockersTop }: StationShape) {
   const group = new Group();
   const hookY = ceilingY - 0.05;
   // Bats along the back wall's top, and down the side wall to the platform's edge
@@ -318,13 +319,26 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt, locker
       point.y -= Math.sin((i / 40) * Math.PI) * sag;
       return point;
     });
+  // (each hangs from a pivot at its hook on the wall, turning about the line between its
+  // two hooks: brushed by a finger, it swings like a skipping rope and settles)
+  const hung: { pivot: Group; axis: Vector3; push: Vector3; low: Vector3; angle: number; speed: number }[] = [];
   const firstX = endX + 0.9;
   const strung = 9;
   const step = (sideX - 0.6 - firstX) / (strung - 1);
-  for (let i = 0; i < strung; i += 1) {
+  // (the last would hang over the ticket counter: left off)
+  for (let i = 0; i < strung - 1; i += 1) {
     const x = firstX + i * step;
     const lean = (i % 2 ? -1 : 1) * 0.9;
-    group.add(streamer(swag(new Vector3(x, hookY, wallZ + 0.12), new Vector3(x + lean, hookY, wallZ + 3.9), 0.32 + (i % 3) * 0.05), 0.07, 9, crepe[i % 2]));
+    const from = new Vector3(x, hookY, wallZ + 0.12);
+    const to = new Vector3(x + lean, hookY, wallZ + 3.9);
+    const sag = 0.32 + (i % 3) * 0.05;
+    const pivot = new Group();
+    pivot.position.copy(from);
+    pivot.add(streamer(swag(new Vector3(), to.clone().sub(from), sag), 0.07, 9, crepe[i % 2]));
+    group.add(pivot);
+    const axis = to.clone().sub(from).normalize();
+    // (push: the way its lowest point goes as the angle grows)
+    hung.push({ pivot, axis, push: new Vector3().crossVectors(axis, new Vector3(0, -1, 0)).normalize(), low: from.clone().lerp(to, 0.5).setY(hookY - sag), angle: 0, speed: 0 });
   }
   // Underfoot: lengths that have come down, lying where they fell, a curl lifting here and there
   const fallen: [number, number, number, number][] = [
@@ -337,18 +351,101 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt, locker
     [3.3, 0.6, 1.9, 1.3],
     [4.3, 1.9, -0.8, 0.9],
   ];
+  // (each in a holder at its middle: swept by a finger, it slides and turns across the slabs)
+  const lying: { holder: Group; points: Vector3[]; vx: number; vz: number; spin: number }[] = [];
   fallen.forEach(([x, z, heading, length], i) => {
     const along = new Vector3(Math.cos(heading), 0, Math.sin(heading));
     const aside = new Vector3(-along.z, 0, along.x);
     const points = Array.from({ length: 33 }, (_, n) => {
       const k = n / 32;
       const curl = Math.max(0, Math.sin(k * Math.PI * 3 + i)) ** 6 * 0.035;
-      return new Vector3(x, 0.014 + curl, z)
+      return new Vector3(0, 0.014 + curl, 0)
         .add(along.clone().multiplyScalar((k - 0.5) * length))
         .add(aside.clone().multiplyScalar(Math.sin(k * Math.PI * 2.5 + i * 1.3) * 0.11));
     });
-    group.add(streamer(points, 0.06, 0.5, crepe[(i + 1) % 2]));
+    const holder = new Group();
+    holder.position.set(x, 0, z);
+    holder.add(streamer(points, 0.06, 0.5, crepe[(i + 1) % 2]));
+    group.add(holder);
+    lying.push({ holder, points, vx: 0, vz: 0, spin: 0 });
   });
+
+  // A finger dragged across the scene. Overhead: any streamer the finger's ray passes close
+  // by is set swinging the way the finger went (`across`: its way in the world, m/s)
+  const reach = new Vector3();
+  group.userData.brush = (ray: Ray, across: Vector3) => {
+    hung.forEach((one) => {
+      // (as it hangs now, swung or not)
+      reach.copy(one.low).sub(one.pivot.position).applyAxisAngle(one.axis, one.angle).add(one.pivot.position);
+      if (ray.distanceToPoint(reach) > 0.3) return;
+      one.speed += Math.max(-1.6, Math.min(1.6, across.dot(one.push) * 0.5));
+      one.speed = Math.max(-6, Math.min(6, one.speed));
+    });
+  };
+  // Underfoot: one the finger passes over (`at`: where on the floor) is pushed along, and
+  // turned, by where along its length it was caught
+  group.userData.sweep = (at: Vector3, vx: number, vz: number) => {
+    lying.forEach((one) => {
+      const { holder } = one;
+      reach.set(at.x - holder.position.x, 0, at.z - holder.position.z);
+      if (reach.length() > 1) return;
+      const caught = reach.clone().applyAxisAngle(new Vector3(0, 1, 0), -holder.rotation.y);
+      if (!one.points.some((point) => Math.hypot(point.x - caught.x, point.z - caught.z) < 0.16)) return;
+      one.vx = vx * 0.6;
+      one.vz = vz * 0.6;
+      one.spin = Math.max(-5, Math.min(5, (reach.z * vx - reach.x * vz) * 2.5));
+    });
+  };
+  let movedAt = -1;
+  let facing: number | null = null;
+  // (yaw: the way you're facing, round the upright: turning stirs the air, and the
+  // streamers overhead swing with it)
+  const moveStreamers = (t: number, yaw?: number) => {
+    const dt = movedAt < 0 ? 0 : Math.min(t - movedAt, 0.05);
+    movedAt = t;
+    if (yaw !== undefined) {
+      let turned = facing === null ? 0 : yaw - facing;
+      facing = yaw;
+      if (turned > Math.PI) turned -= Math.PI * 2;
+      if (turned < -Math.PI) turned += Math.PI * 2;
+      // (a jump, not a turn: you've been put somewhere else)
+      if (Math.abs(turned) > 0.0005 && Math.abs(turned) < 0.5) {
+        hung.forEach((one, i) => {
+          one.speed = Math.max(-6, Math.min(6, one.speed + turned * (1.6 + (i % 3) * 0.35) * Math.sign(one.push.x || 1)));
+        });
+      }
+    }
+    hung.forEach((one) => {
+      if (!one.angle && !one.speed) return;
+      // A pendulum, with the air's drag on the paper
+      one.speed += (-9 * Math.sin(one.angle) - 1.1 * one.speed) * dt;
+      one.angle = Math.max(-1.3, Math.min(1.3, one.angle + one.speed * dt));
+      if (Math.abs(one.angle) < 0.002 && Math.abs(one.speed) < 0.01) one.angle = one.speed = 0;
+      one.pivot.quaternion.setFromAxisAngle(one.axis, one.angle);
+    });
+    lying.forEach((one) => {
+      if (!one.vx && !one.vz && !one.spin) return;
+      const p = one.holder.position;
+      p.x += one.vx * dt;
+      p.z += one.vz * dt;
+      one.holder.rotation.y += one.spin * dt;
+      const drag = Math.exp(-4 * dt);
+      one.vx *= drag;
+      one.vz *= drag;
+      one.spin *= drag;
+      // Kept on the open platform
+      if (p.x < endX + 0.7 || p.x > sideX - 0.7) {
+        p.x = Math.min(Math.max(p.x, endX + 0.7), sideX - 0.7);
+        one.vx *= -0.3;
+      }
+      if (p.z < wallZ + 0.6 || p.z > edgeZ - 0.7) {
+        p.z = Math.min(Math.max(p.z, wallZ + 0.6), edgeZ - 0.7);
+        one.vz *= -0.3;
+      }
+      if (Math.hypot(one.vx, one.vz) < 0.01) one.vx = one.vz = 0;
+      if (Math.abs(one.spin) < 0.02) one.spin = 0;
+    });
+  };
 
   // Candles: little huddles of them on the floor along the wall, and a pair on the counter
   const candles: Group[] = [];
@@ -381,7 +478,10 @@ export function buildHalloween({ wallZ, sideX, endX, ceilingY, ticketsAt, locker
   group.add(counter, counterTall);
   candles.push(counter, counterTall);
 
-  group.userData.update = (t: number, reduced: boolean) => {
+  group.userData.update = (t: number, reduced: boolean, yaw?: number) => {
+    // (they only move when you move them, so reduced motion or not; but not for a turn of
+    // the head, then)
+    moveStreamers(t, reduced ? undefined : yaw);
     if (reduced) return;
     candles.forEach((each) => {
       const seed = each.userData.seed as number;
