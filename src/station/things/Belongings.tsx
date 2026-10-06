@@ -16,7 +16,8 @@ import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
 import { BannerShelf, useBackdrop, useBannerShopItems } from "./Banners.tsx";
-import { NO_FILTERS, ShopFilterMenus, type ShopFilters } from "../../components/avatar/shopFilters";
+import { NO_FILTERS, ShopCategoryTabs, ShopFilterMenus, useTabSwipe, type ShopFilters } from "../../components/avatar/shopFilters";
+import TicketIcon from "../../components/TicketIcon";
 import { SheetActions } from "../Sheet.tsx";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
@@ -134,10 +135,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
           <YourName renamable={renamable} />
-          <p className="text-sm text-amber-300">
-            {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
-            {note}
-          </p>
+          <TicketCount count={summary?.coinBalance} note={note} />
           {below}
         </div>
       </div>
@@ -150,13 +148,27 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
       <div className="min-w-0 flex-1">
         <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
         <YourName renamable={renamable} />
-        <p className="text-sm text-amber-300">
-          {summary?.coinBalance != null ? `${summary.coinBalance.toLocaleString()} tickets` : "…"}
-          {note}
-        </p>
+        <TicketCount count={summary?.coinBalance} note={note} />
         {below}
       </div>
     </div>
+  );
+}
+
+// How many tickets you have: the number and a ticket
+function TicketCount({ count, note }: { count?: number | null; note?: ReactNode }) {
+  return (
+    <p className="flex items-center gap-1.5 text-sm text-amber-300">
+      {count != null ? (
+        <>
+          <span aria-label={`${count.toLocaleString()} tickets`}>{count.toLocaleString()}</span>
+          <TicketIcon className="h-4 w-6" perforation="#0b1017" />
+        </>
+      ) : (
+        "…"
+      )}
+      {note}
+    </p>
   );
 }
 
@@ -206,11 +218,13 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   const topBar = useContext(SheetActions);
   const unread = useInboxUnreadCount();
   const saved = useAvatarLook(signedIn);
+  const extraCategories = [...new Map(bannerItems.map((item) => [item.category, item.categoryPlural])).entries()];
+  // (swiping sideways across the wares turns to the next tab)
+  const swipe = useTabSwipe(filters, setFilters, extraCategories);
   if (!signedIn) return <TicketHoldersOnly what="The item shop's wares" goTo={goTo} />;
   const look = preview || saved;
   const note = preview || previewBanner ? <span className="ml-2 text-xs text-stone-400">(showing)</span> : null;
-  const extraCategories = [...new Map(bannerItems.map((item) => [item.category, item.categoryPlural])).entries()];
-  const menus = <ShopFilterMenus filters={filters} onChange={setFilters} extraCategories={extraCategories} className="mt-2 max-w-sm" />;
+  const menus = <ShopFilterMenus filters={filters} onChange={setFilters} className="mt-2 max-w-[10rem]" />;
   // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
   // phone) while only the wares scroll
   return (
@@ -224,7 +238,9 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
           <Mirror look={look} eyebrow="Item shop" note={note} large banner={previewBanner} below={menus} />
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+      <ShopCategoryTabs filters={filters} onChange={setFilters} extraCategories={extraCategories} className="shrink-0" />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" {...swipe}>
       <Classic>
         <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={bannerItems} filters={filters} />
       </Classic>
@@ -238,6 +254,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
         <button type="button" className={plateButton} onClick={() => goTo("mail", "register")}>
           Settings
         </button>
+      </div>
       </div>
       </div>
     </div>

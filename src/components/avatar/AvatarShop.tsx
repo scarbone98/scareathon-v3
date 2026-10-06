@@ -96,6 +96,16 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
   const focused = useRef(false);
   const [page, setPage] = useState(1);
   const [previewItem, setPreviewItem] = useState<ShopItem | null>(null);
+  // Buy asks first: what you're about to buy, and the purchase to make if you say yes
+  const [confirming, setConfirming] = useState<{ name: string; price: number; icon: string; swatch?: boolean; buy: () => void } | null>(null);
+  useEffect(() => {
+    if (!confirming) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setConfirming(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [confirming]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -282,7 +292,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
         </button>
         <button
           type="button"
-          onClick={() => buyMutation.mutate(item.id)}
+          onClick={() => setConfirming({ name: item.name, price, icon: item.icon, buy: () => buyMutation.mutate(item.id) })}
           disabled={pendingThisItem || item.isSoldOut || cannotAfford}
           className="shop-button"
         >
@@ -351,7 +361,17 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
                   >
                     Show
                   </button>
-                  <button type="button" onClick={item.action.onClick} disabled={item.action.disabled || cannotAfford} className="shop-button">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const { onClick } = item.action;
+                      // (only a purchase asks first: putting a banner up is free)
+                      if (item.action.buy && onClick) setConfirming({ name: item.name, price: item.price, icon: item.icon, swatch: true, buy: onClick });
+                      else onClick?.();
+                    }}
+                    disabled={item.action.disabled || cannotAfford}
+                    className="shop-button"
+                  >
                     {item.action.label}
                   </button>
                 </div>
@@ -400,6 +420,36 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
         <p className="shop-error" role="alert">
           {(buyMutation.error as Error).message}
         </p>
+      )}
+
+      {confirming && (
+        <div className="shop-confirm-backdrop" onClick={() => setConfirming(null)}>
+          <div className="shop-confirm" role="alertdialog" aria-modal="true" aria-label={`Buy ${confirming.name}?`} onClick={(event) => event.stopPropagation()}>
+            <img className={`shop-item-icon ${confirming.swatch ? "shop-item-swatch" : ""}`} src={confirming.icon} alt="" draggable={false} />
+            <p className="shop-confirm-title">Buy {confirming.name}?</p>
+            <p className="shop-item-price">
+              <TicketIcon className="h-4 w-6" perforation="#0d131b" />
+              {confirming.price.toLocaleString()}
+              <span className="shop-confirm-left">leaves you {(coinBalance - confirming.price).toLocaleString()}</span>
+            </p>
+            <div className="shop-item-actions">
+              <button type="button" className="shop-button is-secondary" onClick={() => setConfirming(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="shop-button"
+                autoFocus
+                onClick={() => {
+                  confirming.buy();
+                  setConfirming(null);
+                }}
+              >
+                Buy
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

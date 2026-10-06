@@ -133,6 +133,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261003_halloween_items.sql', import.meta.url), 'utf8')); // eight new shop items
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261006_shop_round_two.sql', import.meta.url), 'utf8')); // the shop's second round
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261006_shop_round_three.sql', import.meta.url), 'utf8')); // its third, and held things move out to the hand
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261007_jack_o_lantern_mask.sql', import.meta.url), 'utf8')); // the jack-o'-lantern head is a mask
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');

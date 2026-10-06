@@ -158,9 +158,11 @@ function serializeShopItem(row) {
 async function routes(fastify, options) {
     fastify.get('/shop/items', async (request, reply) => {
         const userId = request.user.sub;
-        const category = typeof request.query?.category === 'string' && request.query.category.trim()
-            ? request.query.category.trim()
-            : null;
+        // One category, or several at once, comma-separated ("back,wings": the shop's menu
+        // lists some kinds of thing together)
+        const categories = typeof request.query?.category === 'string'
+            ? request.query.category.split(',').map((name) => name.trim()).filter(Boolean)
+            : [];
         const rarity = typeof request.query?.rarity === 'string' && request.query.rarity.trim()
             ? request.query.rarity.trim()
             : null;
@@ -172,7 +174,7 @@ async function routes(fastify, options) {
         const limit = Math.min(Math.max(requestedLimit, 1), maxShopPageSize);
         const offset = (page - 1) * limit;
 
-        if (category && !allowedShopCategories.has(category)) {
+        if (categories.some((name) => !allowedShopCategories.has(name))) {
             return reply.code(400).send({ error: 'Invalid shop category' });
         }
         if (rarity && !allowedShopRarities.has(rarity)) {
@@ -183,10 +185,10 @@ async function routes(fastify, options) {
             const filterValues = [];
             const countFilters = [];
             const itemFilters = [];
-            if (category) {
-                filterValues.push(category);
-                countFilters.push(`ai.category = $${filterValues.length}`);
-                itemFilters.push(`ai.category = $${filterValues.length + 1}`);
+            if (categories.length > 0) {
+                filterValues.push(categories);
+                countFilters.push(`ai.category = ANY($${filterValues.length}::text[])`);
+                itemFilters.push(`ai.category = ANY($${filterValues.length + 1}::text[])`);
             }
             if (rarity) {
                 filterValues.push(rarity);

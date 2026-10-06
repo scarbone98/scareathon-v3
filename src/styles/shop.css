@@ -72,3 +72,10 @@
   .shop-item-swatch { width: 48px; height: 48px; margin: 8px 0; }
 }
 .shop-item-fit { font-size: 10px; color: #b4a5c3; }
+
+/* Buy asks first: a small card over the dimmed shop */
+.shop-confirm-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(8, 6, 12, .72); }
+.shop-confirm { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 280px); padding: 16px; border: 1px solid #f2c35b66; border-radius: 14px; background: #1c1824; box-shadow: 0 18px 50px rgba(0, 0, 0, .6); color: #e9e2f0; text-align: center; }
+.shop-confirm-title { margin: 0; font-size: 16px; font-weight: 800; }
+.shop-confirm-left { margin-left: 6px; color: #92859f; font-size: 11px; font-weight: 600; }
+.shop-confirm .shop-item-actions { width: 100%; }

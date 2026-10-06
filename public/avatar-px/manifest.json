@@ -3193,7 +3193,7 @@
     {
       "key": "jack_o_lantern_head",
       "name": "Jack-o'-Lantern Head",
-      "category": "head",
+      "category": "face_acc",
       "parts": [
         {
           "slot": "head",
