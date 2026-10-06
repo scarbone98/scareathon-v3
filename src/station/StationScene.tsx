@@ -1392,7 +1392,7 @@ const ADVERTS: [string, string, string][] = [
   ["HordeRush", "Hold the line.", "#8a3b2a"],
   ["DeepTime", "A prehistoric heist.", "#b07a2a"],
   ["Muertos", "Dance with the dead.", "#a0467a"],
-  ["SalmonRun2_v2", "Upstream, with style.", "#2f6f8f"],
+  ["SalmonRun2_v3", "Upstream, with style.", "#2f6f8f"],
 ];
 function advertTexture(name: string, tagline: string, colour: string) {
   const draw = (ctx: CanvasRenderingContext2D, w: number, h: number, still?: HTMLImageElement) => {
@@ -1417,7 +1417,7 @@ function advertTexture(name: string, tagline: string, colour: string) {
     ctx.fillStyle = "#2a1d14";
     ctx.font = "700 30px Georgia, serif";
     // (a file renamed to get past old cached copies ends "_v2": that is not part of the name)
-    ctx.fillText(name.replace(/_vd+$/, "").replace(/([a-z])([A-Z0-9])/g, "$1 $2").toUpperCase(), w / 2, 256, w - 24);
+    ctx.fillText(name.replace(/_v[0-9]+$/, "").replace(/([a-z])([A-Z0-9])/g, "$1 $2").toUpperCase(), w / 2, 256, w - 24);
     ctx.font = "italic 17px Georgia, serif";
     ctx.fillText(tagline, w / 2, 284, w - 24);
     ctx.fillStyle = colour;

@@ -71,7 +71,7 @@ const HEMLOCKS_TOWER_URL =
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/?v=4299a9a";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
-const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=f84b0f5";
+const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=759d026";
 const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
 // Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
 // commit, to bust the cache. One page, two packs: phones get half-size art
@@ -565,7 +565,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Trick racer", developer: "sclondon" },
         backNote: "Up up down down flip flip. Works on the 3rd river.",
       },
-      videoUrl: "/game-recordings/SalmonRun2_v2.mp4",
+      videoUrl: "/game-recordings/SalmonRun2_v3.mp4",
       game: (
         <GameRenderer
           title="Salmon Run 2"
