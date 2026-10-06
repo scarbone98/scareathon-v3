@@ -1,0 +1,15 @@
+# A torch pointed out in front, its beam spreading
+at: 0,34
+legend:
+  s = spirit.0
+  b = spirit.1
+  h = flame.3
+  k = steel.1
+  m = steel.2
+--- 0
+ss
+ssbbb
+bbbbbbhmk
+bbbbbbhkk
+ssbbb
+ss

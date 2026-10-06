@@ -1,0 +1,19 @@
+{
+  "name": "Backpack",
+  "category": "back",
+  "rarity": "uncommon",
+  "price": 110,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "pine"
+  },
+  "parts": [
+    {
+      "slot": "back",
+      "file": "pack.txt"
+    }
+  ]
+}

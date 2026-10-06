@@ -79,6 +79,9 @@ export type AvatarRig = {
   frames: number;
   fps: number;
   anchors: Partial<Record<AvatarAnchor, [number, number][]>>;
+  // How the near arm swings out when something's held (see normalizeHold in
+  // scripts/pixel-avatar/lib.mjs)
+  hold?: { slots: string[]; clear: [number, number][]; moves: [number, number, number, number][]; unless?: [number, number] };
 };
 
 // public/avatar-px/manifest.json

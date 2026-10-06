@@ -1,0 +1,19 @@
+{
+  "name": "Bow Tie",
+  "category": "neck",
+  "rarity": "uncommon",
+  "price": 70,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "cherry"
+  },
+  "parts": [
+    {
+      "slot": "neck",
+      "file": "bow.txt"
+    }
+  ]
+}

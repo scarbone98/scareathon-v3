@@ -1,0 +1,7 @@
+# A scatter across the nose and cheeks, a shade darker than your skin
+at: 13,31
+legend:
+  f = skin.1
+--- 0
+f..f
+.f.f

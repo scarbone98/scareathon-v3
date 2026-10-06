@@ -1,0 +1,11 @@
+# A slice held by the crust, pepperoni on it
+at: 5,34
+legend:
+  c = gold.1
+  y = mustard.3
+  r = blood.2
+--- 0
+ccccc
+.yryy
+..yy
+..y

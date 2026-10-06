@@ -1,0 +1,17 @@
+{
+  "name": "Flashlight",
+  "category": "held",
+  "rarity": "uncommon",
+  "price": 100,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "held",
+      "file": "torch.txt"
+    }
+  ]
+}

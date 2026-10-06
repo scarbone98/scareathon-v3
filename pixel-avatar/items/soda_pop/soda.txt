@@ -1,5 +1,5 @@
 # A can with a bendy straw
-at: 11,34
+at: 7,33
 legend:
   r = cherry.2
   h = cherry.3

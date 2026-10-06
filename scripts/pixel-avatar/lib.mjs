@@ -241,7 +241,48 @@ export function normalizeRig(rig, where, errors) {
   for (const anchor of Object.keys(rig.anchors || {})) {
     if (!ANCHORS.includes(anchor)) errors.push(`${where}: unknown rig anchor "${anchor}"`);
   }
-  return { frames, fps: rig.fps, anchors };
+  const hold = normalizeHold(rig.hold, where, errors);
+  return { frames, fps: rig.fps, anchors, ...(hold ? { hold } : {}) };
+}
+
+// A rig's "hold": how the body's near arm swings out when something's held. The parts in
+// `slots` that hang on the body anchor are redrawn: the pixels in `clear` rubbed out, then
+// each of `moves` ([fromX, fromY, toX, toY], canvas pixels in frame 0, read from the part
+// as it was) copied across. A part with a pixel at `unless` is draped over the arm (a
+// poncho, a bedsheet) and left as it is.
+function normalizeHold(hold, where, errors) {
+  if (hold === undefined) return null;
+  const point = (p, n) => Array.isArray(p) && p.length === n && p.every(Number.isInteger);
+  const ok =
+    Array.isArray(hold.slots) && hold.slots.every((slot) => SLOTS.includes(slot)) &&
+    Array.isArray(hold.clear) && hold.clear.every((p) => point(p, 2)) &&
+    Array.isArray(hold.moves) && hold.moves.every((p) => point(p, 4)) &&
+    (hold.unless === undefined || point(hold.unless, 2));
+  if (!ok) {
+    errors.push(`${where}: rig.hold needs slots, clear ([x, y]...) and moves ([fromX, fromY, toX, toY]...)`);
+    return null;
+  }
+  return { slots: hold.slots, clear: hold.clear, moves: hold.moves, ...(hold.unless ? { unless: hold.unless } : {}) };
+}
+
+// One frame of a part (w x h RGBA) on a canvas of its own, at its place, with the hold
+// pose's changes made; null if the part's draped over the arm and stays as it is
+export function holdPose(hold, src, w, h, left, top) {
+  const layer = new Uint8ClampedArray(WIDTH * HEIGHT * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const tx = left + x;
+      const ty = top + y;
+      if (tx < 0 || tx >= WIDTH || ty < 0 || ty >= HEIGHT) continue;
+      layer.set(src.subarray((y * w + x) * 4, (y * w + x) * 4 + 4), (ty * WIDTH + tx) * 4);
+    }
+  }
+  const at = (x, y) => (y * WIDTH + x) * 4;
+  if (hold.unless && layer[at(...hold.unless) + 3]) return null;
+  const before = layer.slice();
+  for (const [x, y] of hold.clear) layer.fill(0, at(x, y), at(x, y) + 4);
+  for (const [fromX, fromY, toX, toY] of hold.moves) layer.set(before.subarray(at(fromX, fromY), at(fromX, fromY) + 4), at(toX, toY));
+  return layer;
 }
 
 // Recolours the channel defaults to the chosen ramps by exact RGB, the same

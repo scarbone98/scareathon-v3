@@ -1,0 +1,12 @@
+# Gold, with a ruby and a sapphire set in it
+at: 12,21
+legend:
+  h = gold.3
+  g = gold.2
+  m = gold.1
+  r = blood.3
+  b = ocean.3
+--- 0
+h..hh..h
+ghrggbhg
+mmmmmmmm

@@ -1,0 +1,23 @@
+# Floating over your hand on its string
+at: 7,21
+legend:
+  h = dye1.3
+  r = dye1.2
+  d = dye1.1
+  s = ink.3
+--- 0
+.rrr
+rhrrr
+rrrrr
+rrrrd
+.rdd
+..d
+..s
+...s
+..s
+..s
+...s
+..s
+..s
+...s
+..s

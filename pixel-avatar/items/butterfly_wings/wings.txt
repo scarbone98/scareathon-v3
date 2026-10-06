@@ -1,0 +1,19 @@
+# Two pairs of wings, spotted in dye2
+at: 5,26
+legend:
+  a = dye1.1
+  b = dye1.2
+  c = dye2.3
+--- 0
+..aaa............aaa
+.abbba..........abbba
+abbcbba........abbcbba
+abcccbba......abbcccba
+abbcbbbba....abbbbcbba
+.abbbbbbba..abbbbbbba
+..aabbbbbbaabbbbbbaa
+...abbbbba..abbbbba
+..abbcbba....abbcbba
+..abcbba......abbcba
+...abba........abba
+....aa..........aa

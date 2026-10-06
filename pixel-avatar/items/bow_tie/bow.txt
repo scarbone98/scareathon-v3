@@ -1,0 +1,10 @@
+# At the collar, knotted in the middle
+at: 13,33
+legend:
+  r = dye1.2
+  h = dye1.3
+  k = dye1.0
+--- 0
+h...r
+rrkrr
+r...r

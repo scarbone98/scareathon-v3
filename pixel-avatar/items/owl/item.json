@@ -1,0 +1,15 @@
+{
+  "name": "Owl",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 270,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "owl.txt",
+      "anchor": "free"
+    }
+  ]
+}

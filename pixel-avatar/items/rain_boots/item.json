@@ -1,0 +1,20 @@
+{
+  "name": "Rain Boots",
+  "category": "feet",
+  "rarity": "uncommon",
+  "price": 80,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "mustard"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "boots.txt",
+      "anchor": "ground"
+    }
+  ]
+}

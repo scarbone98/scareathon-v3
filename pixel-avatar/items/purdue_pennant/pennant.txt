@@ -1,5 +1,5 @@
 # Held up in the hand, waving on frames 2-3
-at: 5,32
+at: 1,31
 legend:
   a = dye1.0
   b = dye1.1

@@ -1,0 +1,68 @@
+# Perched beside you, wide-eyed; it blinks
+at: 21,38
+legend:
+  b = bark.1
+  c = bark.3
+  y = glow_eye.2
+  k = ink.0
+  o = pumpkin.2
+--- 0
+.b...b
+bbbbbbb
+bykbkyb
+bbbobbb
+bcbbbcb
+bbcccbb
+bbcccbb
+.bbbbb
+.y...y
+--- 1
+.b...b
+bbbbbbb
+bykbkyb
+bbbobbb
+bcbbbcb
+bbcccbb
+bbcccbb
+.bbbbb
+.y...y
+--- 2
+.b...b
+bbbbbbb
+bykbkyb
+bbbobbb
+bcbbbcb
+bbcccbb
+bbcccbb
+.bbbbb
+.y...y
+--- 3
+.b...b
+bbbbbbb
+bkybykb
+bbbobbb
+bcbbbcb
+bbcccbb
+bbcccbb
+.bbbbb
+.y...y
+--- 4
+.b...b
+bbbbbbb
+bkkbkkb
+bbbobbb
+bcbbbcb
+bbcccbb
+bbcccbb
+.bbbbb
+.y...y
+--- 5
+.b...b
+bbbbbbb
+bykbkyb
+bbbobbb
+bcbbbcb
+bbcccbb
+bbcccbb
+.bbbbb
+.y...y

@@ -1,5 +1,5 @@
 # Held upright beside you, the blade out over your shoulder
-at: 2,19
+at: 0,19
 legend:
   h = steel.3
   m = steel.2

@@ -1,0 +1,15 @@
+{
+  "name": "Crown",
+  "category": "head",
+  "rarity": "legendary",
+  "price": 600,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "crown.txt",
+      "anchor": "head"
+    }
+  ]
+}

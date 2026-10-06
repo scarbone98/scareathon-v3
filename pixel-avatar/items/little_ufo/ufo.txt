@@ -1,0 +1,51 @@
+# A saucer hovering over your shoulder, its lights chasing round
+at: 21,14
+legend:
+  g = teal.2
+  h = teal.3
+  m = steel.2
+  d = steel.1
+  y = flame.2
+  r = blood_eye.2
+--- 0
+...ggg
+..ghhhg
+.mmmmmmm
+mymrmymrm
+.ddddddd
+.
+--- 1
+...ggg
+..ghhhg
+.mmmmmmm
+mrmymrmym
+.ddddddd
+.
+--- 2
+...ggg
+..ghhhg
+.mmmmmmm
+mymrmymrm
+.ddddddd
+.
+--- 3
+.
+...ggg
+..ghhhg
+.mmmmmmm
+mrmymrmym
+.ddddddd
+--- 4
+.
+...ggg
+..ghhhg
+.mmmmmmm
+mymrmymrm
+.ddddddd
+--- 5
+.
+...ggg
+..ghhhg
+.mmmmmmm
+mrmymrmym
+.ddddddd

@@ -1,0 +1,15 @@
+# A band over the top of the head, a cup on each ear (dye1)
+at: 10,23
+legend:
+  k = ink.1
+  r = dye1.2
+  d = dye1.1
+--- 0
+...kkkkkk
+..k......k
+.k........k
+.k........k
+.k........k
+rd........rd
+rd........rd
+rd........rd

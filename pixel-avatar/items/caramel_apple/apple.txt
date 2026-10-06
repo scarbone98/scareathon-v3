@@ -1,5 +1,5 @@
 # Held up on its stick (the hand is x 13, y 37-39), caramel running down the apple
-at: 11,33
+at: 7,32
 legend:
   c = gold.2
   h = gold.3

@@ -1,5 +1,5 @@
 # Hangs from the hand at (13, 38)
-at: 9,37
+at: 5,37
 legend:
   a = ink.2
   o = pumpkin.0

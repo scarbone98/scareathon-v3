@@ -11,6 +11,7 @@ import {
   SLOTS,
   WIDTH,
   drawOver,
+  holdPose,
   loadPalette,
   normalizeRig,
   parseTextPart,
@@ -170,6 +171,9 @@ export function composeFrame(catalog, look, frame) {
     .map((entry, index) => ({ entry, index }))
     .sort((a, b) => (a.entry.item.order || 0) - (b.entry.item.order || 0) || a.index - b.index)
     .map(({ entry }) => entry);
+  // Holding something (that shows on this body): the near arm swings out to hold it
+  const holding = look.outfit.some(({ item }) => item.category === "held" && (!body || catalog.fitsBody(item, body)));
+  const hold = holding ? rig?.hold : null;
   for (const slot of SLOTS) {
     if (hidden.has(slot)) continue;
     for (const { item, dyes } of outfit) {
@@ -182,7 +186,9 @@ export function composeFrame(catalog, look, frame) {
         const swaps = Object.fromEntries(CHANNELS.map((c) => [c, look.profile[c]]));
         swaps.dye1 = dyes?.dye1 || item.dyes?.dye1;
         swaps.dye2 = dyes?.dye2 || item.dyes?.dye2;
-        drawOver(canvas, frames[frame % frames.length], width, height, part.x + offset[0], part.y + offset[1], swapTable(palette, swaps));
+        const posed = hold && part.anchor === "body" && hold.slots.includes(slot) ? holdPose(hold, frames[frame % frames.length], width, height, part.x, part.y) : null;
+        if (posed) drawOver(canvas, posed, WIDTH, HEIGHT, offset[0], offset[1], swapTable(palette, swaps));
+        else drawOver(canvas, frames[frame % frames.length], width, height, part.x + offset[0], part.y + offset[1], swapTable(palette, swaps));
       }
     }
   }

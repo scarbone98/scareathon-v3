@@ -1,0 +1,15 @@
+{
+  "name": "Little UFO",
+  "category": "companion",
+  "rarity": "epic",
+  "price": 360,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "ufo.txt",
+      "anchor": "free"
+    }
+  ]
+}

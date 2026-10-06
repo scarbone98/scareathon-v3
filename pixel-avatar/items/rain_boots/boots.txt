@@ -1,0 +1,11 @@
+# Tall wellies, up over the shins
+at: 12,42
+legend:
+  y = dye1.2
+  d = dye1.1
+--- 0
+.y...y
+.y...y
+.y...y
+.y...yd
+dy

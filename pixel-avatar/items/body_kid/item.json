@@ -9,12 +9,124 @@
   "rig": {
     "frames": 6,
     "fps": 6,
-    "anchors": { "head": [0, 0, 1, 1, 0, 0], "body": [0, 0, 1, 1, 0, 0], "ground": 0 }
+    "anchors": {
+      "head": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "body": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "ground": 0
+    },
+    "hold": {
+      "slots": [
+        "body",
+        "torso",
+        "outer",
+        "legs"
+      ],
+      "unless": [
+        11,
+        37
+      ],
+      "clear": [
+        [
+          12,
+          37
+        ],
+        [
+          12,
+          38
+        ]
+      ],
+      "moves": [
+        [
+          14,
+          37,
+          13,
+          37
+        ],
+        [
+          14,
+          38,
+          13,
+          38
+        ],
+        [
+          12,
+          39,
+          13,
+          39
+        ],
+        [
+          12,
+          37,
+          11,
+          36
+        ],
+        [
+          13,
+          37,
+          11,
+          37
+        ],
+        [
+          12,
+          38,
+          10,
+          36
+        ],
+        [
+          13,
+          38,
+          10,
+          37
+        ],
+        [
+          13,
+          39,
+          9,
+          36
+        ],
+        [
+          13,
+          39,
+          9,
+          37
+        ]
+      ]
+    }
   },
   "parts": [
-    { "slot": "shadow", "file": "shadow.txt", "anchor": "ground" },
-    { "slot": "body", "file": "legs.txt", "anchor": "ground" },
-    { "slot": "body", "file": "torso.txt", "anchor": "body" },
-    { "slot": "body", "file": "head.txt", "anchor": "head" }
+    {
+      "slot": "shadow",
+      "file": "shadow.txt",
+      "anchor": "ground"
+    },
+    {
+      "slot": "body",
+      "file": "legs.txt",
+      "anchor": "ground"
+    },
+    {
+      "slot": "body",
+      "file": "torso.txt",
+      "anchor": "body"
+    },
+    {
+      "slot": "body",
+      "file": "head.txt",
+      "anchor": "head"
+    }
   ]
 }

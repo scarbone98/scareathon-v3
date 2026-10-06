@@ -1,0 +1,27 @@
+# Open over your shoulder, the canopy in dye1
+at: 3,19
+legend:
+  a = dye1.1
+  b = dye1.2
+  c = dye1.3
+  s = steel.1
+--- 0
+....aaaaa
+..aacbbbbaa
+.acbbbbbbbba
+acbabbabbabba
+a..a..s..a..a
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s
+......s

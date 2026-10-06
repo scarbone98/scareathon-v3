@@ -1,0 +1,12 @@
+# The bib and its straps, over whatever top you have on
+at: 14,34
+legend:
+  s = dye1.1
+  m = dye1.2
+  k = dye1.0
+--- 0
+s.s
+s.s
+mmm
+mkm
+mmm

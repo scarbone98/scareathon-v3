@@ -1,0 +1,15 @@
+{
+  "name": "Frog",
+  "category": "companion",
+  "rarity": "uncommon",
+  "price": 180,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "frog.txt",
+      "anchor": "free"
+    }
+  ]
+}

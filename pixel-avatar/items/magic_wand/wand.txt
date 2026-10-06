@@ -1,0 +1,67 @@
+# A star on a stick, throwing off sparks
+at: 4,27
+legend:
+  y = flame.2
+  h = flame.3
+  s = bone.3
+  w = wood.3
+--- 0
+.y
+yhy
+.y
+..w
+...w
+...w
+....w
+....w
+.....w
+--- 1
+.y
+yhy
+.y
+..w
+...w
+...w
+....w
+....w
+.....w
+--- 2
+.y.s
+yhy
+.y
+..w
+...w
+...w
+....w
+....w
+.....w
+--- 3
+.y.s
+yhy
+.y
+..w
+...w
+...w
+....w
+....w
+.....w
+--- 4
+.y
+yhy
+sy
+..w
+...w
+...w
+....w
+....w
+.....w
+--- 5
+.y
+yhy
+sy
+..w
+...w
+...w
+....w
+....w
+.....w

@@ -1,0 +1,20 @@
+# Carried upright by its edge, wheels out
+at: 7,29
+legend:
+  d = dye1.2
+  h = dye1.3
+  k = ink.1
+--- 0
+.hd
+kdd
+.dd
+.dd
+.dd
+.dd
+.dd
+.dd
+.dd
+.dd
+.dd
+kdd
+.hd

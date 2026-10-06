@@ -1,5 +1,5 @@
 # Hangs from the hand; the flame flickers
-at: 11,37
+at: 7,38
 legend:
   a = ink.1
   g = gold.1

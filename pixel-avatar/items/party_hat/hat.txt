@@ -1,0 +1,14 @@
+# A paper cone in two colours of stripe, a pom on the tip
+at: 13,17
+legend:
+  w = bone.3
+  a = dye1.2
+  b = dye2.2
+--- 0
+...w
+...a
+..aaa
+..bbb
+.aaaaa
+.bbbbb
+aaaaaaa

@@ -704,6 +704,84 @@
             0
           ]
         ]
+      },
+      "hold": {
+        "slots": [
+          "body",
+          "torso",
+          "outer",
+          "legs"
+        ],
+        "clear": [
+          [
+            12,
+            37
+          ],
+          [
+            12,
+            38
+          ]
+        ],
+        "moves": [
+          [
+            14,
+            37,
+            13,
+            37
+          ],
+          [
+            14,
+            38,
+            13,
+            38
+          ],
+          [
+            12,
+            39,
+            13,
+            39
+          ],
+          [
+            12,
+            37,
+            11,
+            36
+          ],
+          [
+            13,
+            37,
+            11,
+            37
+          ],
+          [
+            12,
+            38,
+            10,
+            36
+          ],
+          [
+            13,
+            38,
+            10,
+            37
+          ],
+          [
+            13,
+            39,
+            9,
+            36
+          ],
+          [
+            13,
+            39,
+            9,
+            37
+          ]
+        ],
+        "unless": [
+          11,
+          37
+        ]
       }
     },
     "body_pumpkin": {
@@ -1173,6 +1251,70 @@
       "default": false,
       "rarity": "epic",
       "price": 360,
+      "release": "released"
+    },
+    {
+      "key": "backpack",
+      "name": "Backpack",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "anchor": "body",
+          "x": 17,
+          "y": 34,
+          "w": 4,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/backpack/0-back.png?v=71b8df0b59",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/backpack/icon.png?v=15a6759e0c",
+      "dyes": {
+        "dye1": "pine"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
+      "key": "balloon",
+      "name": "Balloon",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 21,
+          "w": 5,
+          "h": 15,
+          "frames": 1,
+          "src": "/avatar-px/items/balloon/0-held.png?v=69c304075e",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/balloon/icon.png?v=8dd1170f9e",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
       "release": "released"
     },
     {
@@ -1702,6 +1844,72 @@
       "release": "released"
     },
     {
+      "key": "bow_tie",
+      "name": "Bow Tie",
+      "category": "neck",
+      "parts": [
+        {
+          "slot": "neck",
+          "anchor": "body",
+          "x": 13,
+          "y": 33,
+          "w": 5,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/bow_tie/0-neck.png?v=9336fb72f3",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bow_tie/icon.png?v=2cc4c81ea1",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "butterfly_wings",
+      "name": "Butterfly Wings",
+      "category": "wings",
+      "parts": [
+        {
+          "slot": "wings",
+          "anchor": "body",
+          "x": 5,
+          "y": 26,
+          "w": 22,
+          "h": 12,
+          "frames": 1,
+          "src": "/avatar-px/items/butterfly_wings/0-wings.png?v=e4df955b6e",
+          "fits": [
+            "body_kid",
+            "body_ghost"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/butterfly_wings/icon.png?v=d107ca1a3d",
+      "dyes": {
+        "dye1": "rose",
+        "dye2": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 340,
+      "release": "released"
+    },
+    {
       "key": "cable_knit_sweater",
       "name": "Cable-Knit Sweater",
       "category": "torso",
@@ -1768,8 +1976,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 11,
-          "y": 32,
+          "x": 7,
+          "y": 31,
           "w": 4,
           "h": 7,
           "frames": 5,
@@ -1779,7 +1987,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/candlestick/icon.png?v=c058625f0c",
+      "icon": "/avatar-px/items/candlestick/icon.png?v=9c1a127278",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -1798,7 +2006,7 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 9,
+          "x": 5,
           "y": 37,
           "w": 8,
           "h": 8,
@@ -1809,7 +2017,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/candy_pail/icon.png?v=915720b5df",
+      "icon": "/avatar-px/items/candy_pail/icon.png?v=e166944520",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -1828,8 +2036,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 11,
-          "y": 33,
+          "x": 7,
+          "y": 32,
           "w": 5,
           "h": 6,
           "frames": 1,
@@ -1839,7 +2047,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/caramel_apple/icon.png?v=5a886df69d",
+      "icon": "/avatar-px/items/caramel_apple/icon.png?v=4cb8f5012d",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -1941,6 +2149,33 @@
       "release": "released"
     },
     {
+      "key": "crown",
+      "name": "Crown",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 12,
+          "y": 21,
+          "w": 8,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/crown/0-head.png?v=ca9f54826c"
+        }
+      ],
+      "icon": "/avatar-px/items/crown/icon.png?v=a08d2d6843",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 600,
+      "release": "released"
+    },
+    {
       "key": "devil_horns",
       "name": "Devil Horns",
       "category": "head",
@@ -1965,6 +2200,63 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "fireflies",
+      "name": "Fireflies",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 0,
+          "y": 16,
+          "w": 29,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/fireflies/0-front_fx.png?v=8c98072da2"
+        }
+      ],
+      "icon": "/avatar-px/items/fireflies/icon.png?v=f590760a1f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 280,
+      "release": "released"
+    },
+    {
+      "key": "fishing_rod",
+      "name": "Fishing Rod",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 0,
+          "y": 19,
+          "w": 10,
+          "h": 22,
+          "frames": 1,
+          "src": "/avatar-px/items/fishing_rod/0-held.png?v=c0bc6b8657",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/fishing_rod/icon.png?v=3b852cf466",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
       "release": "released"
     },
     {
@@ -1998,6 +2290,125 @@
       "default": false,
       "rarity": "uncommon",
       "price": 120,
+      "release": "released"
+    },
+    {
+      "key": "flashlight",
+      "name": "Flashlight",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 0,
+          "y": 34,
+          "w": 9,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/flashlight/0-held.png?v=60a7c90b9c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/flashlight/icon.png?v=38509814f1",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "flip_flops",
+      "name": "Flip-Flops",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 45,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/flip_flops/0-feet.png?v=104c6b2f81",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/flip_flops/icon.png?v=fb66588bbe",
+      "dyes": {
+        "dye1": "teal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 40,
+      "release": "released"
+    },
+    {
+      "key": "freckles",
+      "name": "Freckles",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "anchor": "head",
+          "x": 13,
+          "y": 31,
+          "w": 4,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/freckles/0-face_paint.png?v=9ccf98643c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/freckles/icon.png?v=43ec66196f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 30,
+      "release": "released"
+    },
+    {
+      "key": "frog",
+      "name": "Frog",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 40,
+          "w": 7,
+          "h": 7,
+          "frames": 6,
+          "src": "/avatar-px/items/frog/0-companion.png?v=7d92b71a26"
+        }
+      ],
+      "icon": "/avatar-px/items/frog/icon.png?v=388f722d1f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 180,
       "release": "released"
     },
     {
@@ -2062,7 +2473,7 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 2,
+          "x": 0,
           "y": 19,
           "w": 10,
           "h": 27,
@@ -2073,7 +2484,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/grim_scythe/icon.png?v=bed37de162",
+      "icon": "/avatar-px/items/grim_scythe/icon.png?v=ae371125fb",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -2686,6 +3097,70 @@
       "release": "released"
     },
     {
+      "key": "headphones",
+      "name": "Headphones",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 23,
+          "w": 12,
+          "h": 8,
+          "frames": 1,
+          "src": "/avatar-px/items/headphones/0-head.png?v=2af5833c0c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/headphones/icon.png?v=bc4fd9f853",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 160,
+      "release": "released"
+    },
+    {
+      "key": "hoodie",
+      "name": "Hoodie",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/hoodie/0-torso.png?v=618c4482be",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hoodie/icon.png?v=d2d8d6073d",
+      "dyes": {
+        "dye1": "plum"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
+      "release": "released"
+    },
+    {
       "key": "hot_cider",
       "name": "Hot Cider",
       "category": "held",
@@ -2693,8 +3168,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 9,
-          "y": 34,
+          "x": 5,
+          "y": 33,
           "w": 5,
           "h": 6,
           "frames": 5,
@@ -2704,7 +3179,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/hot_cider/icon.png?v=47938dead3",
+      "icon": "/avatar-px/items/hot_cider/icon.png?v=43e0496d34",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -2859,7 +3334,7 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 7,
+          "x": 6,
           "y": 19,
           "w": 7,
           "h": 27,
@@ -2870,7 +3345,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/leaf_rake/icon.png?v=34c7084267",
+      "icon": "/avatar-px/items/leaf_rake/icon.png?v=e69bfe3cbc",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -2906,6 +3381,63 @@
       "default": false,
       "rarity": "rare",
       "price": 300,
+      "release": "released"
+    },
+    {
+      "key": "little_ufo",
+      "name": "Little UFO",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 14,
+          "w": 9,
+          "h": 6,
+          "frames": 6,
+          "src": "/avatar-px/items/little_ufo/0-companion.png?v=cf0c74f4eb"
+        }
+      ],
+      "icon": "/avatar-px/items/little_ufo/icon.png?v=a1b4772959",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 360,
+      "release": "released"
+    },
+    {
+      "key": "magic_wand",
+      "name": "Magic Wand",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 4,
+          "y": 27,
+          "w": 6,
+          "h": 9,
+          "frames": 6,
+          "src": "/avatar-px/items/magic_wand/0-held.png?v=bc242ec919",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/magic_wand/icon.png?v=21dfbee8eb",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 190,
       "release": "released"
     },
     {
@@ -3056,6 +3588,121 @@
       "release": "released"
     },
     {
+      "key": "overalls",
+      "name": "Overalls",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/overalls/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/overalls/1-legs.png?v=eefc67b681",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 14,
+          "y": 34,
+          "w": 3,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/overalls/2-outer.png?v=dc74142c84",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/overalls/icon.png?v=b8159cc12a",
+      "dyes": {
+        "dye1": "denim"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
+      "key": "owl",
+      "name": "Owl",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 38,
+          "w": 7,
+          "h": 9,
+          "frames": 6,
+          "src": "/avatar-px/items/owl/0-companion.png?v=df6657353b"
+        }
+      ],
+      "icon": "/avatar-px/items/owl/icon.png?v=4763d03a88",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 270,
+      "release": "released"
+    },
+    {
+      "key": "party_hat",
+      "name": "Party Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 13,
+          "y": 17,
+          "w": 7,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/party_hat/0-head.png?v=b68e30c1af"
+        }
+      ],
+      "icon": "/avatar-px/items/party_hat/icon.png?v=8939086eed",
+      "dyes": {
+        "dye1": "teal",
+        "dye2": "orange"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "pirate_eyepatch",
       "name": "Pirate Eyepatch",
       "category": "face_acc",
@@ -3083,6 +3730,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "pizza_slice",
+      "name": "Pizza Slice",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 34,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/pizza_slice/0-held.png?v=49acb5a112",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/pizza_slice/icon.png?v=b18b7521d9",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
@@ -3342,8 +4019,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 5,
-          "y": 32,
+          "x": 1,
+          "y": 31,
           "w": 9,
           "h": 9,
           "frames": 3,
@@ -3353,7 +4030,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/purdue_pennant/icon.png?v=1ef37c4ad6",
+      "icon": "/avatar-px/items/purdue_pennant/icon.png?v=cd3574c76c",
       "dyes": {
         "dye1": "coal"
       },
@@ -3364,6 +4041,70 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "rain_boots",
+      "name": "Rain Boots",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 42,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/rain_boots/0-feet.png?v=b65479ca72",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/rain_boots/icon.png?v=bd4aa6bbeb",
+      "dyes": {
+        "dye1": "mustard"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "raincoat",
+      "name": "Raincoat",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 12,
+          "y": 33,
+          "w": 7,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/raincoat/0-outer.png?v=2054844f93",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/raincoat/icon.png?v=0fd8ca4e7f",
+      "dyes": {
+        "dye1": "mustard"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 140,
       "release": "released"
     },
     {
@@ -3435,8 +4176,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 12,
-          "y": 31,
+          "x": 8,
+          "y": 30,
           "w": 3,
           "h": 7,
           "frames": 1,
@@ -3446,7 +4187,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/rocket_pop/icon.png?v=7adad86792",
+      "icon": "/avatar-px/items/rocket_pop/icon.png?v=cc87690aee",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -3518,6 +4259,38 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "skateboard",
+      "name": "Skateboard",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 29,
+          "w": 3,
+          "h": 13,
+          "frames": 1,
+          "src": "/avatar-px/items/skateboard/0-held.png?v=c328aef160",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/skateboard/icon.png?v=1396893d87",
+      "dyes": {
+        "dye1": "lime"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
       "release": "released"
     },
     {
@@ -3623,8 +4396,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 11,
-          "y": 34,
+          "x": 7,
+          "y": 33,
           "w": 3,
           "h": 6,
           "frames": 1,
@@ -3634,7 +4407,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/soda_pop/icon.png?v=0f14eafe43",
+      "icon": "/avatar-px/items/soda_pop/icon.png?v=58f33e8eaa",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -3653,8 +4426,8 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 11,
-          "y": 37,
+          "x": 7,
+          "y": 38,
           "w": 6,
           "h": 7,
           "frames": 5,
@@ -3664,7 +4437,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/soul_lantern_px/icon.png?v=0724bb58b1",
+      "icon": "/avatar-px/items/soul_lantern_px/icon.png?v=8e7e9a679e",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -3798,6 +4571,36 @@
       "release": "released"
     },
     {
+      "key": "sunglasses",
+      "name": "Sunglasses",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "anchor": "head",
+          "x": 10,
+          "y": 29,
+          "w": 10,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/sunglasses/0-face_acc.png?v=6a0e9c7f96",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/sunglasses/icon.png?v=101202a353",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
       "key": "swim_trunks",
       "name": "Swim Trunks",
       "category": "legs",
@@ -3870,6 +4673,36 @@
       "default": false,
       "rarity": "rare",
       "price": 180,
+      "release": "released"
+    },
+    {
+      "key": "teddy_bear",
+      "name": "Teddy Bear",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 4,
+          "y": 36,
+          "w": 6,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/teddy_bear/0-held.png?v=2c865966bd",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/teddy_bear/icon.png?v=a5512e81e4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
       "release": "released"
     },
     {
@@ -3947,6 +4780,38 @@
       "default": true,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "umbrella",
+      "name": "Umbrella",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 3,
+          "y": 19,
+          "w": 13,
+          "h": 19,
+          "frames": 1,
+          "src": "/avatar-px/items/umbrella/0-held.png?v=ba80adafb0",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/umbrella/icon.png?v=d4b5b68ca2",
+      "dyes": {
+        "dye1": "ocean"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
       "release": "released"
     },
     {
@@ -4033,7 +4898,7 @@
         {
           "slot": "held",
           "anchor": "body",
-          "x": 8,
+          "x": 7,
           "y": 21,
           "w": 5,
           "h": 25,
@@ -4044,7 +4909,7 @@
           ]
         }
       ],
-      "icon": "/avatar-px/items/witch_broom/icon.png?v=ea9ef89369",
+      "icon": "/avatar-px/items/witch_broom/icon.png?v=df107ff950",
       "dyes": {},
       "occupies": [],
       "hides": [],

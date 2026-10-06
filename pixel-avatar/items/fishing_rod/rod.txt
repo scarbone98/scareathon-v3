@@ -1,0 +1,31 @@
+# Held out, a catch on the end of the line
+at: 0,19
+legend:
+  w = wood.2
+  l = ink.3
+  f = teal.2
+  o = teal.3
+  p = teal.1
+--- 0
+.
+.w
+l.w
+l.w
+l..w
+l..w
+l...w
+l...w
+l....w
+l....w
+l.....w
+l.....w
+l......w
+l......w
+l.......w
+l.......w
+l........w
+l........w
+l
+fff
+ofp
+.

@@ -1,0 +1,19 @@
+{
+  "name": "Skateboard",
+  "category": "held",
+  "rarity": "uncommon",
+  "price": 120,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "lime"
+  },
+  "parts": [
+    {
+      "slot": "held",
+      "file": "board.txt"
+    }
+  ]
+}

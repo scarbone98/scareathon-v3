@@ -1,5 +1,5 @@
 # A steaming mug by its handle
-at: 9,34
+at: 5,33
 legend:
   h = bone.3
   w = bone.2

@@ -1,0 +1,15 @@
+{
+  "name": "Fireflies",
+  "category": "aura",
+  "rarity": "rare",
+  "price": 280,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "flies.txt",
+      "anchor": "free"
+    }
+  ]
+}

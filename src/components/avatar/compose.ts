@@ -106,6 +106,11 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
       )
     );
   const loaded = await Promise.all(layers.map(({ part }) => loadImage(part.src)));
+  // Holding something (that shows on this body): the near arm swings out to hold it
+  const holding = look.outfit.some(({ item }) => item.category === "held" && itemFitsBody(item, bodyKey));
+  const hold = holding ? rig.hold : undefined;
+  const pose = document.createElement("canvas");
+  const poseContext = pose.getContext("2d", { willReadFrequently: true });
 
   layers.forEach(({ entry, part }, index) => {
     const table = swapTable(manifest, {
@@ -135,6 +140,26 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
       }
       scratchContext.putImageData(pixels, 0, 0);
     }
+    // In the hold pose, a part on the body is laid out on a cell of its own (one per
+    // frame of the part) and has the arm's pixels moved; one draped over the arm stays
+    let posed = false;
+    if (hold && poseContext && part.anchor === "body" && hold.slots.includes(part.slot)) {
+      pose.width = width * part.frames;
+      pose.height = height;
+      poseContext.clearRect(0, 0, pose.width, pose.height);
+      for (let f = 0; f < part.frames; f++) poseContext.drawImage(scratch, f * part.w, 0, part.w, part.h, f * width + part.x, part.y, part.w, part.h);
+      const pixels = poseContext.getImageData(0, 0, pose.width, pose.height);
+      const at = (f: number, x: number, y: number) => (y * pose.width + f * width + x) * 4;
+      if (!hold.unless || pixels.data[at(0, hold.unless[0], hold.unless[1]) + 3] === 0) {
+        const before = pixels.data.slice();
+        for (let f = 0; f < part.frames; f++) {
+          for (const [x, y] of hold.clear) pixels.data.fill(0, at(f, x, y), at(f, x, y) + 4);
+          for (const [fromX, fromY, toX, toY] of hold.moves) pixels.data.set(before.subarray(at(f, fromX, fromY), at(f, fromX, fromY) + 4), at(f, toX, toY));
+        }
+        poseContext.putImageData(pixels, 0, 0);
+        posed = true;
+      }
+    }
     for (let frame = 0; frame < rig.frames; frame++) {
       const [dx, dy] = rig.anchors[part.anchor]?.[frame] || [0, 0];
       const source = (frame % part.frames) * part.w;
@@ -143,7 +168,8 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
       context.beginPath();
       context.rect(frame * width, 0, width, height);
       context.clip();
-      context.drawImage(scratch, source, 0, part.w, part.h, frame * width + part.x + dx, part.y + dy, part.w, part.h);
+      if (posed) context.drawImage(pose, (frame % part.frames) * width, 0, width, height, frame * width + dx, dy, width, height);
+      else context.drawImage(scratch, source, 0, part.w, part.h, frame * width + part.x + dx, part.y + dy, part.w, part.h);
       context.restore();
     }
   });

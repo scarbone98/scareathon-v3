@@ -1,0 +1,14 @@
+# Dangling from your hand by one paw
+at: 4,36
+legend:
+  b = bark.2
+  c = bark.3
+  k = ink.0
+--- 0
+.b.b
+.bbb.b
+.kbkb
+bbbbb
+.bcb
+.bbb
+.b.b

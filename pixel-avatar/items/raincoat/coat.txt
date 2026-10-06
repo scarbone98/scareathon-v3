@@ -1,0 +1,15 @@
+# A long slicker buttoned down the front, to below the waist
+at: 12,33
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  k = dye1.0
+--- 0
+.hhhhh.
+hiiiiij
+iiikiij
+jjiiiij
+.jikiij
+.jiiiij
+.jjjjjj

@@ -1,5 +1,5 @@
 # Stood upright beside you, bristles down, bound with red twine
-at: 8,21
+at: 7,21
 legend:
   w = wood.2
   v = wood.1

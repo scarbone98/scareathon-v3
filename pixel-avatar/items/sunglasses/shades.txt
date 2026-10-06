@@ -1,0 +1,9 @@
+# Dark lenses over both eyes (x 15 and x 18), a glint on each
+at: 10,29
+legend:
+  k = ink.0
+  h = ink.3
+--- 0
+....kkkkkk
+kkkkkhkkhk
+....kk.kk

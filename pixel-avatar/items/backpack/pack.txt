@@ -1,0 +1,12 @@
+# On your back: it shows past your far shoulder
+at: 17,34
+legend:
+  a = dye1.1
+  b = dye1.2
+  c = dye1.3
+--- 0
+.aa
+abba
+abca
+abba
+.aa

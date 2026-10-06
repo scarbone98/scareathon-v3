@@ -1,0 +1,54 @@
+# Sat at your feet; it hops on frames 3-4
+at: 21,40
+legend:
+  g = leaf.2
+  l = lime.3
+  k = ink.0
+--- 0
+.
+.
+.g...g
+gkg.gkg
+ggggggg
+glllllg
+gg...gg
+--- 1
+.
+.
+.g...g
+gkg.gkg
+ggggggg
+glllllg
+gg...gg
+--- 2
+.
+.
+.g...g
+gkg.gkg
+ggggggg
+glllllg
+gg...gg
+--- 3
+.g...g
+gkg.gkg
+ggggggg
+glllllg
+.g...g
+g.....g
+.
+--- 4
+.g...g
+gkg.gkg
+ggggggg
+glllllg
+.g...g
+g.....g
+.
+--- 5
+.
+.
+.g...g
+gkg.gkg
+ggggggg
+glllllg
+gg...gg

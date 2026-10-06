@@ -1,5 +1,5 @@
 # Stood upright beside you, tines up, a leaf still caught in them
-at: 7,19
+at: 6,19
 legend:
   t = steel.2
   m = steel.1

@@ -1,0 +1,7 @@
+# Just a sole under each foot
+at: 12,45
+legend:
+  s = dye1.2
+--- 0
+.....ss
+ss

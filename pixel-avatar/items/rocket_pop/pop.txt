@@ -1,5 +1,5 @@
 # A red, white and blue ice lolly held up to your mouth
-at: 12,31
+at: 8,30
 legend:
   r = cherry.2
   h = cherry.3
