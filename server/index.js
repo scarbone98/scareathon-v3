@@ -29,6 +29,7 @@ import pictoBoxRoutes from './routes/pictoBox.js';
 import waysideOnlineRoutes, { WAYSIDE_ONLINE_SQL } from './routes/waysideOnline.js';
 import waysideLoungeRoutes from './routes/waysideLounge.js';
 import bannersRoutes, { BACKGROUND_BANNERS_SQL, BANNERS_SQL } from './routes/banners.js';
+import songsRoutes, { SONGS_SQL } from './routes/songs.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 
@@ -129,6 +130,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261002_rename_body_kid.sql', import.meta.url), 'utf8'));
                 await runStartupSql(pool, WAYSIDE_ONLINE_SQL); // Wayside Online's posts and reactions
                 await runStartupSql(pool, BANNERS_SQL); // scoreboard banners
+                await runStartupSql(pool, SONGS_SQL); // songs for the bench's radio
                 await runStartupSql(pool, BACKGROUND_BANNERS_SQL); // background items become banners
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261003_halloween_items.sql', import.meta.url), 'utf8')); // eight new shop items
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261006_shop_round_two.sql', import.meta.url), 'utf8')); // the shop's second round
@@ -232,6 +234,7 @@ async function main() {
         fastify.register(waysideOnlineRoutes, { prefix: '/wayside-online' });
         fastify.register(waysideLoungeRoutes, { prefix: '/wayside-online/lounge' });
         fastify.register(bannersRoutes, { prefix: '/banners' });
+        fastify.register(songsRoutes, { prefix: '/songs' });
         if (isMonsterBashEnabled()) {
             fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
         }

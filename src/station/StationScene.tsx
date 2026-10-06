@@ -2586,6 +2586,79 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     bench.rotation.y = Math.PI / 2; // facing out over the railing
     bench.add(box(1.4, 0.06, 0.42, standard("#4a3524"), 0, 0.45, 0));
     [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
+    // Somebody's left a radio on the right-hand seat: an old portable, its face to the
+    // platform, the dial still lit
+    const radio = new Group();
+    radio.position.set(0.4, 0.48, 0.02);
+    radio.rotation.y = -0.18;
+    const radioCase = standard("#6b2f26", 0.55);
+    const radioTrim = standard("#c9b98f", 0.5);
+    radio.add(box(0.34, 0.2, 0.1, radioCase, 0, 0.1, 0));
+    // Its face: a round cloth grille, a tuning dial with its needle, two knobs under it
+    radio.add(
+      plane(
+        0.32,
+        0.18,
+        new MeshStandardMaterial({
+          roughness: 0.7,
+          map: paint(128, 72, (ctx, w, h) => {
+            ctx.fillStyle = "#c9b98f";
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = "#2a1c14";
+            ctx.beginPath();
+            ctx.arc(36, h / 2, 26, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#5a4630";
+            ctx.lineWidth = 1.5;
+            for (let y = 14; y < h - 10; y += 5) {
+              ctx.beginPath();
+              ctx.moveTo(12, y);
+              ctx.lineTo(60, y);
+              ctx.stroke();
+            }
+            // (the grille's lines kept inside its circle)
+            ctx.strokeStyle = "#c9b98f";
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(36, h / 2, 30, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = "#3a2a1c";
+            [82, 108].forEach((x) => {
+              ctx.beginPath();
+              ctx.arc(x, 54, 7, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          }),
+        }),
+        0,
+        0.1,
+        0.051
+      )
+    );
+    const radioDial = new MeshBasicMaterial({
+      map: paint(64, 24, (ctx, w, h) => {
+        ctx.fillStyle = "#ffcf7a";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#5a3a12";
+        for (let x = 6; x < w; x += 8) ctx.fillRect(x, x % 16 === 6 ? 4 : 9, 1, h);
+        ctx.fillStyle = "#c22a1a";
+        ctx.fillRect(w * 0.62, 0, 2, h);
+      }),
+      fog: false,
+    });
+    radio.add(plane(0.12, 0.045, radioDial, 0.08, 0.14, 0.052));
+    // A carrying handle over the top, and the aerial pulled out at a lean
+    radio.add(box(0.2, 0.012, 0.02, radioTrim, 0, 0.245, 0));
+    [-0.1, 0.1].forEach((x) => radio.add(box(0.012, 0.05, 0.02, radioTrim, x, 0.222, 0)));
+    const aerial = new Mesh(new CylinderGeometry(0.004, 0.004, 0.42, 6), standard("#b9bcc4", 0.3));
+    aerial.position.set(0.19, 0.39, -0.03);
+    aerial.rotation.z = -0.35;
+    radio.add(aerial);
+    // (a tap on it, from anywhere: a closer look, and its keys: see page.tsx)
+    const radioHit = box(0.42, 0.5, 0.2, new MeshBasicMaterial({ visible: false }), 0, 0.22, 0);
+    radioHit.userData.part = "radio";
+    radio.add(radioHit);
+    bench.add(radio);
     bench.add(hitBox(1.6, 0.9, 0.7, 0.4));
     bench.userData.stopId = "bench";
     addLamp(bench, 0, 1.6, 0.6);
@@ -3331,7 +3404,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           down = null;
           return;
         }
-        const hit = pickPart(event.clientX, event.clientY);        if (hit && hit.stop !== current) select(hit.stop);
+        const hit = pickPart(event.clientX, event.clientY);
+        // (the radio on the bench is picked up from wherever you are, not sat down beside)
+        if (hit?.part === "radio") partTapped(hit.part);
+        else if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
         else if (!hit && current) (emptyTapped ?? (() => select(null)))();
       }

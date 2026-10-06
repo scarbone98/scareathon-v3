@@ -23,6 +23,7 @@ import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
+import { RadioSet } from "./things/Songs.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
 import { stationPlaceFor } from "./places.ts";
@@ -104,6 +105,7 @@ type Held =
   | { kind: "shop"; focus?: string }
   | { kind: "wardrobe" }
   | { kind: "letters" }
+  | { kind: "radio" }
   | { kind: "register" };
 
 
@@ -286,6 +288,9 @@ export default function StationPage() {
       return { id: "window", title: "Ticket counter", tint: "#efe3c8", body: <KioskWindow signedIn={session === undefined ? undefined : signedIn} onShop={openShop} goTo={goTo} glass={false} /> };
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", full: true, body: <Shop signedIn={signedIn} goTo={goTo} focus={held.focus} /> };
     if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", full: true, body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
+    // The radio on the bench, up close: its keys, and your songs
+    if (held.kind === "radio")
+      return { id: "radio", title: "The radio", tone: "ledger", body: <RadioSet signedIn={signedIn} onShop={() => setHeld(signedIn ? { kind: "shop" } : { kind: "window" })} /> };
     if (held.kind === "letters") return { id: "letters", title: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
     return { id: "register", title: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
   })();
@@ -293,6 +298,10 @@ export default function StationPage() {
   // A tap on a thing in the scene: a paper, look closer at it; otherwise on phones, hold it
   // in the card, and on wide screens (where the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
+    if (part === "radio") {
+      setHeld({ kind: "radio" });
+      return;
+    }
     if (part.startsWith("paper-")) {
       zoomTo(Number(part.slice(6)));
       return;
