@@ -1,0 +1,19 @@
+{
+  "name": "Pumpkin Sweater",
+  "category": "torso",
+  "rarity": "uncommon",
+  "price": 130,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "orange"
+  },
+  "parts": [
+    {
+      "slot": "torso",
+      "file": "sweater.txt"
+    }
+  ]
+}

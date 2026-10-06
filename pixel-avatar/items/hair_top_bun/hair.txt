@@ -1,0 +1,16 @@
+# Pulled up into a bun on top
+at: 11,21
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+...aaa
+..ahhab
+...aab
+..aaaaaa
+.aahhaaaa
+.aaaaaaaab
+.abbbbbbb
+ab
+.b

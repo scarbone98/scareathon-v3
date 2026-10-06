@@ -1,0 +1,14 @@
+# Slung round the back of the neck, an end hanging down each side, striped in dye2
+at: 12,33
+legend:
+  a = dye1.2
+  c = dye1.1
+  b = dye2.2
+--- 0
+.a...a.
+aa...ac
+bb...bb
+aa...ac
+bb...bb
+aa...ac
+c.....c

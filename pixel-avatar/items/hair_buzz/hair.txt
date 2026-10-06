@@ -1,0 +1,10 @@
+# Cropped close to the skull, the hairline high
+at: 11,25
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+..bbbbbb
+.bbaabbbb
+.b......b

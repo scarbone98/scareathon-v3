@@ -1,0 +1,73 @@
+# A small sasquatch standing beside you, swinging its arms
+at: 21,37
+legend:
+  b = bark.1
+  c = bark.2
+  f = bark.3
+  k = ink.0
+--- 0
+..bbb
+.bfffb
+.bkfkb
+bbbbbbb
+bbcbbbb
+b.bcb.b
+b.bbb.b
+..b.b
+..b.b
+.bb.bb
+--- 1
+..bbb
+.bfffb
+.bkfkb
+bbbbbbb
+bbcbbbb
+b.bcb.b
+b.bbb.b
+..b.b
+..b.b
+.bb.bb
+--- 2
+..bbb
+.bfffb
+.bkfkb
+bbbbbbb
+bbcbbbb
+b.bcb.b
+b.bbb.b
+..b.b
+..b.b
+.bb.bb
+--- 3
+..bbb
+.bfffb
+.bkfkb
+bbbbbbb
+bbcbbbb
+.bbcbbb
+b.bbb
+..b.b
+..b.b
+.bb.bb
+--- 4
+..bbb
+.bfffb
+.bkfkb
+bbbbbbb
+bbcbbbb
+.bbcbbb
+b.bbb
+..b.b
+..b.b
+.bb.bb
+--- 5
+..bbb
+.bfffb
+.bkfkb
+bbbbbbb
+bbcbbbb
+.bbcbbb
+b.bbb
+..b.b
+..b.b
+.bb.bb

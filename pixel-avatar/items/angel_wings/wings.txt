@@ -1,0 +1,58 @@
+# Feathered wings from the shoulders; they dip on frames 3-5
+at: 3,24
+legend:
+  a = dye1.1
+  b = dye1.2
+  c = dye1.3
+--- 0
+..aaa................aaa
+.abbba..............abbba
+abcccba............abcccba
+abccccba..........abccccba
+abcccccba........abcccccba
+abccccccba......abccccccba
+abcbcccccba....abcccccbcba
+.abcbccccccbaabccccccbcba
+.abcbcbcccba..abcccbcbcba
+..abcbcbcba....abcbcbcba
+..aba.abca......acba.aba
+...a...aa........aa...a
+--- 3
+.
+.
+..aaa................aaa
+.abbba..............abbba
+abccccba..........abccccba
+abcccccba........abcccccba
+abccccccba......abccccccba
+abcbcccccba....abcccccbcba
+.abcbccccccbaabccccccbcba
+.abcbcbcccba..abcccbcbcba
+..abcbcbcba....abcbcbcba
+..aba.abca......acba.aba
+--- 4
+.
+.
+..aaa................aaa
+.abbba..............abbba
+abccccba..........abccccba
+abcccccba........abcccccba
+abccccccba......abccccccba
+abcbcccccba....abcccccbcba
+.abcbccccccbaabccccccbcba
+.abcbcbcccba..abcccbcbcba
+..abcbcbcba....abcbcbcba
+..aba.abca......acba.aba
+--- 5
+.
+.
+..aaa................aaa
+.abbba..............abbba
+abccccba..........abccccba
+abcccccba........abcccccba
+abccccccba......abccccccba
+abcbcccccba....abcccccbcba
+.abcbccccccbaabccccccbcba
+.abcbcbcccba..abcccbcbcba
+..abcbcbcba....abcbcbcba
+..aba.abca......acba.aba

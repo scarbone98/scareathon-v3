@@ -1,0 +1,11 @@
+# A ring of gold floating over the head (the hair's top is y 24)
+at: 11,19
+legend:
+  h = gold.3
+  m = gold.2
+  d = gold.1
+--- 0
+..hhhhh
+.h.....m
+.m.....m
+..dmmmd

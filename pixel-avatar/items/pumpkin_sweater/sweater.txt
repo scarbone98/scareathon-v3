@@ -1,0 +1,14 @@
+# A long-sleeved jumper with a jack-o'-lantern's face knitted in, a leaf-green collar
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  g = leaf.2
+  k = ink.0
+--- 0
+.hgggh.
+hikikij
+iiiiiij
+jjkkkij
+.jiiiij

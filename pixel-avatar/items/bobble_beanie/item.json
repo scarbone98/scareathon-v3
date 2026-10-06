@@ -1,0 +1,21 @@
+{
+  "name": "Bobble Beanie",
+  "category": "head",
+  "rarity": "uncommon",
+  "price": 110,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "mustard",
+    "dye2": "cloud"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "beanie.txt",
+      "anchor": "head"
+    }
+  ]
+}

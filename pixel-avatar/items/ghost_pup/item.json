@@ -1,0 +1,15 @@
+{
+  "name": "Ghost Pup",
+  "category": "companion",
+  "rarity": "epic",
+  "price": 340,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "pup.txt",
+      "anchor": "free"
+    }
+  ]
+}

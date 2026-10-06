@@ -1,0 +1,17 @@
+# A red, white and blue ice lolly held up to your mouth
+at: 12,31
+legend:
+  r = cherry.2
+  h = cherry.3
+  w = bone.3
+  b = ocean.3
+  d = ocean.2
+  s = bone.1
+--- 0
+.r
+rhr
+www
+bbd
+bbd
+.s
+.s

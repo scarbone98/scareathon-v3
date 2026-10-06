@@ -1,0 +1,34 @@
+{
+  "name": "Pumpkin",
+  "category": "body",
+  "rarity": "rare",
+  "price": 300,
+  "release": "released",
+  "rig": {
+    "frames": 6,
+    "fps": 10,
+    "anchors": {
+      "head": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        8
+      ],
+      "ground": 0
+    }
+  },
+  "parts": [
+    {
+      "slot": "body",
+      "png": "pumpkin.png",
+      "frameWidth": 16,
+      "at": [
+        8,
+        31
+      ],
+      "anchor": "ground"
+    }
+  ]
+}

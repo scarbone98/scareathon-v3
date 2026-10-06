@@ -1,0 +1,13 @@
+# A quilted vest, open down the front, over whatever's underneath
+at: 12,34
+legend:
+  h = dye1.3
+  c = dye1.2
+  a = dye1.1
+  j = dye1.0
+--- 0
+.hc.ch
+.cc.ccj
+.aa.aaj
+..c.ccj
+..a.aaj

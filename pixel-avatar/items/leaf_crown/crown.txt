@@ -1,0 +1,11 @@
+# Autumn leaves woven round the brow
+at: 10,24
+legend:
+  o = pumpkin.2
+  f = flame.1
+  y = mustard.3
+  r = blood.3
+  l = leaf.2
+--- 0
+..o..y..r
+.rofoyflory

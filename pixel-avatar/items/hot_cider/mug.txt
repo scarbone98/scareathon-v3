@@ -1,0 +1,29 @@
+# A steaming mug by its handle
+at: 9,34
+legend:
+  h = bone.3
+  w = bone.2
+  m = bone.1
+  d = bone.0
+  s = spirit.1
+--- 0
+.s
+..s
+hwwm
+hwwmd
+hwwmd
+.mmm
+--- 2
+..s
+.s
+hwwm
+hwwmd
+hwwmd
+.mmm
+--- 4
+.s
+.
+hwwm
+hwwmd
+hwwmd
+.mmm

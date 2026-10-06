@@ -1,0 +1,63 @@
+# A little tent pitched beside you, a lamp flickering inside
+at: 20,39
+legend:
+  a = pine.0
+  b = pine.2
+  h = pine.3
+  k = ink.0
+  y = flame.2
+  f = flame.1
+--- 0
+....a
+...hba
+...hbba
+..hbkbba
+..hbkkbba
+.hbbkybbba
+.hbkkkkbba
+hbbkkkkbbba
+--- 1
+....a
+...hba
+...hbba
+..hbkbba
+..hbkkbba
+.hbbkybbba
+.hbkkkkbba
+hbbkkkkbbba
+--- 2
+....a
+...hba
+...hbba
+..hbkbba
+..hbkkbba
+.hbbkfbbba
+.hbkkkkbba
+hbbkkkkbbba
+--- 3
+....a
+...hba
+...hbba
+..hbkbba
+..hbkkbba
+.hbbkybbba
+.hbkkkkbba
+hbbkkkkbbba
+--- 4
+....a
+...hba
+...hbba
+..hbkbba
+..hbkkbba
+.hbbkkbbba
+.hbkkkkbba
+hbbkkkkbbba
+--- 5
+....a
+...hba
+...hbba
+..hbkbba
+..hbkkbba
+.hbbkfbbba
+.hbkkkkbba
+hbbkkkkbbba

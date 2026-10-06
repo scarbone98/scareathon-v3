@@ -1,0 +1,55 @@
+# Hovers over your shoulder, red eyes glowing, wings beating
+at: 21,13
+legend:
+  a = ash.1
+  b = ash.2
+  k = coal.2
+  r = blood_eye.2
+--- 0
+...k.k
+a..kkk..a
+aa.rkr.aa
+abakkkaba
+.abkkkba
+..a.k.a
+...k.k
+--- 1
+...k.k
+...kkk
+aaarkraaa
+abbkkkbba
+.aakkkaa
+....k
+...k.k
+--- 2
+...k.k
+...kkk
+..arkra
+.abkkkba
+abakkkaba
+aa..k..aa
+a..k.k..a
+--- 3
+...k.k
+a..kkk..a
+aa.rkr.aa
+abakkkaba
+.abkkkba
+..a.k.a
+...k.k
+--- 4
+...k.k
+...kkk
+aaarkraaa
+abbkkkbba
+.aakkkaa
+....k
+...k.k
+--- 5
+...k.k
+...kkk
+..arkra
+.abkkkba
+abakkkaba
+aa..k..aa
+a..k.k..a

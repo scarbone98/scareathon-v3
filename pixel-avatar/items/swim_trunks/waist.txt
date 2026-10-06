@@ -1,0 +1,8 @@
+# Short trunks with a stripe round the hem (dye2)
+at: 12,39
+legend:
+  m = dye1.2
+  s = dye2.2
+--- 0
+m.mmmmm
+.sssss.

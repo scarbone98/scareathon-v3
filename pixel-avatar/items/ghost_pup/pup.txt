@@ -1,0 +1,75 @@
+# A little ghost dog floating at your feet, wagging its tail; it bobs as it hovers
+at: 20,36
+legend:
+  w = spirit.3
+  s = spirit.2
+  a = spirit.1
+  e = ink.1
+  n = ink.0
+  p = rose.2
+--- 0
+..ww
+.wwww
+awewew...s
+awwnww..s
+.wwpwwwws
+..swwwwww
+..swwwwww
+..wsw.wsw
+..s.s..s
+.
+--- 1
+..ww
+.wwww
+awewew
+awwnww...s
+.wwpwwwws
+..swwwwww
+..swwwwww
+..wsw.wsw
+..s.s..s
+.
+--- 2
+..ww
+.wwww
+awewew...s
+awwnww..s
+.wwpwwwws
+..swwwwww
+..swwwwww
+..wsw.wsw
+..s.s..s
+.
+--- 3
+.
+..ww
+.wwww
+awewew
+awwnww...s
+.wwpwwwws
+..swwwwww
+..swwwwww
+..wsw.wsw
+..s.s..s
+--- 4
+.
+..ww
+.wwww
+awewew...s
+awwnww..s
+.wwpwwwws
+..swwwwww
+..swwwwww
+..wsw.wsw
+..s.s..s
+--- 5
+.
+..ww
+.wwww
+awewew
+awwnww...s
+.wwpwwwws
+..swwwwww
+..swwwwww
+..wsw.wsw
+..s.s..s

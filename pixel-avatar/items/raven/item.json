@@ -1,0 +1,15 @@
+{
+  "name": "Raven",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 260,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "raven.txt",
+      "anchor": "free"
+    }
+  ]
+}

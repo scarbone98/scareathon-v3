@@ -1,0 +1,25 @@
+{
+  "name": "Swim Trunks",
+  "category": "legs",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "ocean",
+    "dye2": "cloud"
+  },
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "waist.txt"
+    },
+    {
+      "slot": "legs",
+      "file": "legs.txt",
+      "anchor": "ground"
+    }
+  ]
+}

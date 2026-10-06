@@ -1,0 +1,14 @@
+# A can with a bendy straw
+at: 11,34
+legend:
+  r = cherry.2
+  h = cherry.3
+  w = bone.3
+  s = cloud.3
+--- 0
+..s
+.s
+hr
+hr
+ww
+hr

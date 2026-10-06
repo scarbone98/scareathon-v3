@@ -1,0 +1,17 @@
+{
+  "name": "Witch's Broom",
+  "category": "held",
+  "rarity": "rare",
+  "price": 240,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "held",
+      "file": "broom.txt"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Mothman",
+  "category": "companion",
+  "rarity": "epic",
+  "price": 380,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "moth.txt",
+      "anchor": "free"
+    }
+  ]
+}

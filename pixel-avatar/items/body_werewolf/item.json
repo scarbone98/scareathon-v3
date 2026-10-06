@@ -1,0 +1,26 @@
+{
+  "name": "Werewolf",
+  "category": "body",
+  "rarity": "legendary",
+  "price": 650,
+  "release": "released",
+  "rig": {
+    "frames": 7,
+    "fps": 12,
+    "anchors": {
+      "ground": 0
+    }
+  },
+  "parts": [
+    {
+      "slot": "body",
+      "png": "werewolf.png",
+      "frameWidth": 30,
+      "at": [
+        1,
+        21
+      ],
+      "anchor": "ground"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Cut straight round, the fringe down to the brows
+at: 11,23
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+..aaaaaa
+.aahhaaaa
+aaahaaaaaa
+aaaaaaaaaa
+aaaaaaaaaa
+abbbbbbbba
+ab.......b

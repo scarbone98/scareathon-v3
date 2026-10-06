@@ -1,0 +1,15 @@
+{
+  "name": "Camp Tent",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 280,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "tent.txt",
+      "anchor": "free"
+    }
+  ]
+}

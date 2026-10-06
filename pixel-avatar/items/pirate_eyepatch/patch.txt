@@ -1,0 +1,10 @@
+# A strap across the brow and a patch over the far eye (x 18, y 29-31)
+at: 11,28
+legend:
+  k = ink.0
+  h = ink.3
+--- 0
+.kkkkkkkk
+......kkk
+......khk
+.......k

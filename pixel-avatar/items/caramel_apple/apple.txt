@@ -1,0 +1,16 @@
+# Held up on its stick (the hand is x 13, y 37-39), caramel running down the apple
+at: 11,33
+legend:
+  c = gold.2
+  h = gold.3
+  d = gold.1
+  r = blood.3
+  k = blood.2
+  w = bone.2
+--- 0
+.ccc
+chccd
+rcrdr
+.rkk
+..w
+..w

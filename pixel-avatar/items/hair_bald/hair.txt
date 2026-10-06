@@ -1,0 +1,9 @@
+# No hair at all: one pixel of scalp, the colour the scalp already is
+at: 15,27
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+  s = skin.3
+--- 0
+s

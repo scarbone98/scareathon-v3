@@ -1,0 +1,13 @@
+# A long-sleeved plaid shirt: the check is dye2
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  b = dye2.1
+--- 0
+.hiiih.
+hibiibj
+bbbbbbb
+jibiibj
+.jbbbbb

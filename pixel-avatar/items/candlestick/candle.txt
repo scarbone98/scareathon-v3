@@ -1,0 +1,33 @@
+# A candle in a brass holder; the flame leans and flickers
+at: 11,32
+legend:
+  f = flame.3
+  y = flame.1
+  l = flame.2
+  w = bone.3
+  g = gold.2
+  d = gold.1
+--- 0
+.f
+.y
+.w
+.w
+.w
+gggg
+.dd
+--- 2
+..l
+.y
+.w
+.w
+.w
+gggg
+.dd
+--- 4
+f
+.y
+.w
+.w
+.w
+gggg
+.dd

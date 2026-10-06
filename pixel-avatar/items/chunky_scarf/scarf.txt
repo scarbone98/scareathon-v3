@@ -1,0 +1,14 @@
+# Wound twice round the neck, an end hanging down with a fringe
+at: 11,33
+legend:
+  h = dye1.3
+  a = dye1.2
+  c = dye1.1
+--- 0
+..chhhac
+.chhhhhac
+.caaaaaac
+......ac
+......ac
+......hc
+......c.c

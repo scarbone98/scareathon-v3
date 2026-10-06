@@ -1,0 +1,17 @@
+{
+  "name": "Rocket Pop",
+  "category": "held",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "held",
+      "file": "pop.txt"
+    }
+  ]
+}

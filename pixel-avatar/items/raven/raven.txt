@@ -1,0 +1,39 @@
+# Stands at your feet, watching; pecks at the ground on frames 3-4
+at: 21,38
+legend:
+  k = coal.2
+  K = coal.3
+  d = coal.1
+  b = mustard.2
+  e = blood_eye.2
+  y = mustard.1
+--- 0
+..kkk
+.kekk
+bbkkkk
+..kkKkk
+..kKKkkk
+..dkkkkkk
+...dkk.kk
+...y.y
+..yy.yy
+--- 3
+.
+..kkk
+.kekkk
+bbkkKkk
+..kKKkkk
+..dkkkkkk
+...dkk.kk
+...y.y
+..yy.yy
+--- 4
+.
+.
+.kkkk
+kekkKkk
+bkkKKkkk
+b.dkkkkkk
+...dkk.kk
+...y.y
+..yy.yy

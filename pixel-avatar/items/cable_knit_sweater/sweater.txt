@@ -1,0 +1,12 @@
+# A long-sleeved jumper with a roll neck, cables knitted down the front
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+--- 0
+.hhhhh.
+hihjhij
+iihjhij
+jjhjhij
+.jhjhij

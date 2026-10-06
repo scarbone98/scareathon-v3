@@ -1,0 +1,8 @@
+# Two fangs under the eyes (x 15 and x 18), a drop of blood run down onto the neck
+at: 15,32
+legend:
+  w = bone.3
+  k = blood.3
+--- 0
+w.w
+k

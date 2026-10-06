@@ -1,0 +1,14 @@
+# A woven poncho down to the waist, striped in dye2, with a fringe
+at: 10,33
+legend:
+  a = dye1.1
+  b = dye1.2
+  s = dye2.2
+--- 0
+....aaa
+...abbba
+..abbbbba
+.asssssssa
+.abbbbbbba
+asssssssssa
+a.a.a.a.a.a

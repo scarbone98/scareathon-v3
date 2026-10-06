@@ -1,0 +1,69 @@
+# A hare with antlers sat at your feet; an ear flicks now and then
+at: 21,38
+legend:
+  t = bone.2
+  s = bark.3
+  d = bark.2
+  k = ink.0
+  p = rose.2
+  w = bone.3
+--- 0
+t...t
+tt.tt
+.s.s
+.sss
+.ksd
+psssss
+.ssssssw
+.dssssss
+.dd..dd
+--- 1
+t...t
+tt.tt
+.s.s
+.sss
+.ksd
+psssss
+.ssssssw
+.dssssss
+.dd..dd
+--- 2
+t...t
+tt.tt
+.s.s
+.sss
+.ksd
+psssss
+.ssssssw
+.dssssss
+.dd..dd
+--- 3
+t...t
+tt.tt
+.s.s
+.sss
+.ksd
+psssss
+.ssssssw
+.dssssss
+.dd..dd
+--- 4
+t...t
+tt.tt
+.ss
+.sss
+.ksd
+psssss
+.ssssssw
+.dssssss
+.dd..dd
+--- 5
+t...t
+tt.tt
+.s.s
+.sss
+.ksd
+psssss
+.ssssssw
+.dssssss
+.dd..dd

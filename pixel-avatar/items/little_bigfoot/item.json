@@ -1,0 +1,15 @@
+{
+  "name": "Little Bigfoot",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 300,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "bigfoot.txt",
+      "anchor": "free"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# A one-piece with straps, spotted in dye2
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  s = dye2.3
+--- 0
+.h...h.
+.hiiij.
+.isisj.
+..iiij.
+..sisj.

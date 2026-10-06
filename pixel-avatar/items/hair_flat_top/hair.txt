@@ -1,0 +1,14 @@
+# Stood straight up and cut flat across
+at: 12,21
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+aaaaaaaa
+ahhhhhab
+aaaaaaab
+aaaaaaab
+aaaaaaab
+abbbbbbb
+b......b

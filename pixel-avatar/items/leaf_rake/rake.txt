@@ -1,0 +1,36 @@
+# Stood upright beside you, tines up, a leaf still caught in them
+at: 7,19
+legend:
+  t = steel.2
+  m = steel.1
+  o = pumpkin.2
+  w = wood.2
+  v = wood.1
+--- 0
+t.t.t.t
+t.tot.t
+.ttttt
+...m
+...w
+...w
+...w
+...v
+...w
+...w
+...w
+...v
+...w
+...w
+...w
+...v
+...w
+...w
+...w
+...v
+...w
+...w
+...w
+...v
+...w
+...w
+...w

@@ -1,0 +1,36 @@
+# Stood upright beside you, bristles down, bound with red twine
+at: 8,21
+legend:
+  w = wood.2
+  v = wood.1
+  r = blood.2
+  h = mustard.3
+  y = mustard.2
+  m = mustard.1
+  d = mustard.0
+--- 0
+..w
+..w
+..w
+..v
+..w
+..w
+..w
+..v
+..w
+..w
+..w
+..v
+..w
+..w
+..w
+..v
+..w
+..w
+.rrr
+.hyy
+hyymy
+hymyy
+ymyym
+ymymy
+y.m.d

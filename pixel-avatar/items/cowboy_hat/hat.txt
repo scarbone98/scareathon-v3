@@ -1,0 +1,14 @@
+# A pinched crown and a wide brim curled up at the ends; the band is dye1
+at: 9,20
+legend:
+  a = bark.1
+  b = bark.2
+  h = bark.3
+  d = dye1.2
+--- 0
+....ab.ba
+...abbbbba
+...abhbbba
+...ddddddd
+a.abbbbbbba.a
+.aaaaaaaaaaa

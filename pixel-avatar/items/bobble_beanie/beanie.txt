@@ -1,0 +1,17 @@
+# A knit beanie with a ribbed brim and a bobble on top (dye2)
+at: 11,21
+legend:
+  a = dye1.0
+  b = dye1.2
+  h = dye1.3
+  p = dye2.3
+  c = dye2.2
+  d = dye2.1
+--- 0
+....pc
+...aaaa
+..ahbbba
+.ahbbbbba
+.ahbbbbbba
+.cdcdcdcda
+.aaaaaaaaa
