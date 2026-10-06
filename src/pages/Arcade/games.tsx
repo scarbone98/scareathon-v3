@@ -101,6 +101,7 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba
 // Pages repo; ?v= is its build commit, to bust the cache.
 const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bce2a03";
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
+const POCKET_AQUARIUM_URL = "https://sclondon.github.io/PocketAquarium/build/index.html?v=a7e4b2e";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
@@ -1247,6 +1248,29 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Liquid Metal"
           url={LIQUID_METAL_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed AQUA into WaysideOS.
+    // Its shop runs on practice tickets until this page answers its ticket messages (its README).
+    {
+      name: "Pocket Aquarium",
+      added: "2026-10-06T15:30:00-06:00",
+      secret: true,
+      cartridge: {
+        color: "#3fb6d8",
+        tagline: "A little tank to keep. Feed them once a day.",
+        font: { family: "Fredoka", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Virtual aquarium", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Pocket Aquarium"
+          url={POCKET_AQUARIUM_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
