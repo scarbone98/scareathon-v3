@@ -1,7 +1,8 @@
 // The ticket dispenser bolted on under the marquee: a little steel box with a red LED
 // counter and a mouth at the bottom. A run that paid out feeds its tickets out of the mouth
-// in one perforated strip that curls over and hangs down the cabinet's face, counting up as
-// it goes; then the strip tears off and drops away. Shared by the arcade and Wayside
+// end to end in one narrow perforated strip (each ticket lengthways, like a real arcade's)
+// that curls over and hangs down the cabinet's face, counting up as it goes; then the strip
+// tears off and drops away. Shared by the arcade and Wayside
 // Station's cabinet (only the arcade's ever pays out).
 import {
   BoxGeometry,
@@ -23,8 +24,9 @@ import { playStatic, playTicketFeed, playTicketGlitch, playTicketTear, playWhoos
 // Its height and depth as a share of its width
 export const DISPENSER_ASPECT = 0.34;
 
-const FEED_RATE = 9; // tickets a second, like the real thing's chatter
-const MOST_SHOWN = 9; // the strip's longest; a bigger win counts up faster instead
+const FEED_RATE = 6; // tickets a second, like the real thing's chatter
+const MOST_SHOWN = 6; // the strip's longest; a bigger win counts up faster instead
+const BENDS = 6; // the folds along a ticket, so it curls over the lip rather than sticking out
 const HOLD = 1.1; // seconds the strip hangs there once it's all out
 const GOLDEN_HOLD = 2.6; // (a golden ticket, longer: it's worth a look)
 const FLY = 1.3; // seconds a collected ticket takes to sweep off to the left
@@ -79,12 +81,12 @@ function drawDigit(context: CanvasRenderingContext2D, x: number, y: number, w: n
   context.shadowBlur = 0;
 }
 
-// One ticket, both sides: notched ends, a perforated edge, ADMIT ONE (or, golden, GOLDEN
-// TICKET on shining gold)
+// One ticket, both sides, stood on end as it comes out: notched sides, a perforated edge
+// to the next, ADMIT ONE up its length (or, golden, GOLDEN TICKET on shining gold)
 function ticketTexture(golden = false) {
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 128;
+  canvas.width = 128;
+  canvas.height = 256;
   const context = canvas.getContext("2d")!;
   const paint = () => {
     const { width: w, height: h } = canvas;
@@ -103,23 +105,28 @@ function ticketTexture(golden = false) {
     context.globalCompositeOperation = "destination-out";
     [0, w].forEach((x) => {
       context.beginPath();
-      context.arc(x, h / 2, h * 0.14, 0, Math.PI * 2);
+      context.arc(x, h / 2, w * 0.14, 0, Math.PI * 2);
       context.fill();
     });
     context.globalCompositeOperation = "source-over";
-    // The perforation to the next ticket, along the bottom edge
+    // The perforation to the next ticket, across the bottom end
     context.fillStyle = "rgba(90, 40, 10, 0.55)";
-    for (let x = 6; x < w; x += 14) context.fillRect(x, h - 5, 7, 3);
+    for (let x = 5; x < w; x += 14) context.fillRect(x, h - 5, 7, 3);
     context.strokeStyle = "rgba(120, 50, 10, 0.6)";
     context.lineWidth = 4;
-    context.strokeRect(26, 14, w - 52, h - 30);
+    context.strokeRect(14, 26, w - 28, h - 56);
+    // The words run up the ticket's length
+    context.save();
+    context.translate(w / 2, h / 2);
+    context.rotate(-Math.PI / 2);
     context.fillStyle = "#6b2408";
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.font = canvasFont(CABINET_FONT, 30);
-    context.fillText(golden ? "GOLDEN TICKET" : "ADMIT ONE", w / 2, h / 2 - 12, w - 70);
+    context.fillText(golden ? "GOLDEN TICKET" : "ADMIT ONE", 0, -12, h - 70);
     context.font = canvasFont(CABINET_FONT, 15);
-    context.fillText(golden ? "★ SA-86 · WAYSIDE ★" : "SA-86 · WAYSIDE", w / 2, h / 2 + 22, w - 70);
+    context.fillText(golden ? "★ SA-86 · WAYSIDE ★" : "SA-86 · WAYSIDE", 0, 22, h - 70);
+    context.restore();
     texture.needsUpdate = true;
   };
   const texture = new CanvasTexture(canvas);
@@ -152,7 +159,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
 
   // The mouth: a black lip along the bottom front the strip comes out of
   const mouthMaterial = new MeshStandardMaterial({ color: new Color("#141114"), roughness: 0.5 });
-  const mouthGeometry = new BoxGeometry(width * 0.5, height * 0.16, depth * 0.3);
+  const mouthGeometry = new BoxGeometry(width * 0.3, height * 0.16, depth * 0.3);
   const mouth = new Mesh(mouthGeometry, mouthMaterial);
   const mouthY = -height / 2 - height * 0.02;
   mouth.position.set(0, mouthY, depth / 2 - depth * 0.05);
@@ -241,11 +248,11 @@ export function createTicketDispenser(width: number): TicketDispenser {
   paintFace();
   whenFontReady(CABINET_FONT).then(paintFace);
 
-  // The strip: one plane per ticket, laid along a path out of the mouth (straight out, a
-  // quarter turn over, then straight down), from the newest at the mouth to the oldest
-  const ticketW = width * 0.4;
-  const ticketH = ticketW * 0.5;
-  const curl = ticketH * 0.9; // radius of the turn over
+  // The strip: one ticket after another, end to end, along a path out of the mouth (straight
+  // out, a quarter turn over, then straight down), from the newest at the mouth to the oldest
+  const ticketW = width * 0.17; // across the strip
+  const ticketH = ticketW * 2; // along it
+  const curl = width * 0.18; // radius of the turn over
   const turn = (curl * Math.PI) / 2;
   const ticketMap = ticketTexture();
   const ticketMaterial = new MeshStandardMaterial({ map: ticketMap, side: DoubleSide, roughness: 0.8, transparent: true, alphaTest: 0.05 });
@@ -253,21 +260,46 @@ export function createTicketDispenser(width: number): TicketDispenser {
   const goldMap = ticketTexture(true);
   const goldMaterial = new MeshStandardMaterial({ map: goldMap, side: DoubleSide, roughness: 0.35, metalness: 0.3, transparent: true, alphaTest: 0.05 });
   goldMaterial.emissive = new Color(GOLD).multiplyScalar(0.6);
+  // (flat: a ticket once it's torn off and flying; on the strip each has a sheet of its
+  // own, folded along its length to follow the path)
   const ticketGeometry = new PlaneGeometry(ticketW, ticketH);
   const strip = new Group();
   group.add(strip);
   const tickets = Array.from({ length: MOST_SHOWN }, () => {
-    const mesh = new Mesh(ticketGeometry, ticketMaterial);
+    const bent = new PlaneGeometry(ticketW, ticketH, 1, BENDS);
+    const mesh = new Mesh(bent, ticketMaterial);
     mesh.visible = false;
     strip.add(mesh);
-    return { mesh, vx: 0, vy: 0, vz: 0, spin: 0, delay: 0 };
+    return { mesh, bent, along: 0, vx: 0, vy: 0, vz: 0, spin: 0, delay: 0 };
   });
-  // Where a point `s` along the path is, and which way the paper faces there
+  // Where a point `s` along the path is: [y, z]
+  const pathPoint = (s: number): [number, number] => {
+    if (s < 0) return [mouthY, lipZ + s];
+    const angle = Math.min(s / curl, Math.PI / 2);
+    return [mouthY - curl * (1 - Math.cos(angle)) - Math.max(0, s - turn), lipZ + curl * Math.sin(angle)];
+  };
+  // A ticket on the strip, its middle `s` along the path: its sheet folded to lie along it,
+  // the end that came out first lowest
+  const lay = (ticket: (typeof tickets)[number], s: number) => {
+    ticket.along = s;
+    ticket.mesh.geometry = ticket.bent;
+    ticket.mesh.position.set(0, 0, 0);
+    ticket.mesh.rotation.set(0, 0, 0);
+    const positions = ticket.bent.attributes.position;
+    for (let row = 0; row <= BENDS; row += 1) {
+      const [y, z] = pathPoint(s - ticketH / 2 + (row / BENDS) * ticketH);
+      positions.setXYZ(row * 2, -ticketW / 2, y, z);
+      positions.setXYZ(row * 2 + 1, ticketW / 2, y, z);
+    }
+    positions.needsUpdate = true;
+    ticket.bent.computeVertexNormals();
+  };
+  // Torn off: a flat ticket, where it was on the path and facing the way the paper did there
   const place = (mesh: Mesh, s: number) => {
     const angle = Math.min(Math.max(s, 0) / curl, Math.PI / 2);
-    const z = lipZ + curl * Math.sin(angle);
-    const y = mouthY - curl * (1 - Math.cos(angle)) - Math.max(0, s - turn);
-    mesh.position.set(0, y, s < 0 ? lipZ + s : z);
+    const [y, z] = pathPoint(s);
+    mesh.geometry = ticketGeometry;
+    mesh.position.set(0, y, z);
     mesh.rotation.set(angle - Math.PI / 2, 0, 0);
   };
 
@@ -296,6 +328,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
     playTicketTear();
     playWhoosh();
     tickets.forEach((ticket, i) => {
+      if (ticket.mesh.visible) place(ticket.mesh, ticket.along);
       ticket.delay = i * STAGGER;
       ticket.vx = -0.25 - Math.random() * 0.1;
       ticket.vy = 0.22 + Math.random() * 0.12;
@@ -340,7 +373,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
     // A golden ticket comes out on its own
     // (pushed on out past the mouth until it hangs, face on)
     const count = golden ? 1 : Math.min(total, MOST_SHOWN);
-    feed = { total, count, out: 0, end: Math.max(count, 2.6), fed: 0, doneAt: 0, golden };
+    feed = { total, count, out: 0, end: Math.max(count, 1.6), fed: 0, doneAt: 0, golden };
     tearAt = 0;
     setOpacity(1);
     tickets.forEach((ticket, i) => {
@@ -371,7 +404,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
       tickets.forEach((ticket, i) => {
         const along = (feed!.out - i - 0.5) * ticketH;
         ticket.mesh.visible = i < feed!.count && along > -ticketH * 0.5;
-        if (ticket.mesh.visible) place(ticket.mesh, along);
+        if (ticket.mesh.visible) lay(ticket, along);
       });
       if (feed.out >= feed.end) {
         feed.doneAt ||= time;
@@ -441,7 +474,7 @@ export function createTicketDispenser(width: number): TicketDispenser {
     isDown,
     update,
     dispose() {
-      [caseGeometry, faceGeometry, mouthGeometry, ticketGeometry].forEach((geometry) => geometry.dispose());
+      [caseGeometry, faceGeometry, mouthGeometry, ticketGeometry, ...tickets.map((ticket) => ticket.bent)].forEach((geometry) => geometry.dispose());
       [steel, faceMaterial, mouthMaterial, ticketMaterial, goldMaterial].forEach((material) => material.dispose());
       [faceTexture, ticketMap, goldMap].forEach((texture) => texture.dispose());
     },
