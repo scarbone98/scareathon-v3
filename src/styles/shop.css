@@ -49,6 +49,9 @@
 
 /* Today's featured wares: a gold-edged shelf above the rest */
 .shop-featured { padding: 8px; border: 1px solid #f2c35b66; border-radius: 12px; background: linear-gradient(180deg, #f2c35b1f, transparent 70%); }
+/* The new arrivals, above it: the same shelf, edged in the "!" badge's red */
+.shop-new { border-color: #ff6b5b66; background: linear-gradient(180deg, #ff6b5b1f, transparent 70%); }
+.shop-new .shop-featured-title { color: #ff8a7a; }
 .shop-featured-title { margin: 0 2px 6px; color: #f2c35b; font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
 .shop-item-icon { width: 96px; height: 96px; image-rendering: pixelated; object-fit: contain; }
 /* A banner's icon: a square cut from it, at about the size it's seen on the scoreboard (not blown up) */

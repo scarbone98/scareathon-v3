@@ -9,6 +9,8 @@ const allowedShopRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'lege
 const maxShopPageSize = 20;
 // Today's featured wares, at the top of the shop
 const featuredCount = 3;
+// The newest wares, above them
+const newCount = 3;
 
 // What's for sale: released, priced avatar items (not the starter ones)
 const SHOP_ITEM_WHERE = `
@@ -243,6 +245,34 @@ async function routes(fastify, options) {
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'An error occurred while fetching shop items' });
+        }
+    });
+
+    // Just in: a few of the latest round of wares (everything added within a day of the
+    // newest item), a different few each day, the same for everyone
+    fastify.get('/shop/new', async (request, reply) => {
+        try {
+            const day = easternDay();
+            const result = await pool.query(`
+                SELECT ${SHOP_ITEM_SELECT}
+                WHERE ${SHOP_ITEM_WHERE}
+                  AND ai.created_at >= (
+                      SELECT MAX(latest.created_at) - INTERVAL '1 day'
+                      FROM avatar_items latest
+                      WHERE latest.art_version = ${AVATAR_ART_VERSION}
+                        AND latest.release_status = 'released'
+                        AND latest.base_price > 0
+                        AND latest.is_default = FALSE
+                        AND latest.category <> 'background'
+                  )
+                ORDER BY md5(ai.id::text || 'new' || $2)
+                LIMIT ${newCount * 4}
+            `, [request.user.sub, day]);
+            const items = result.rows.map(serializeShopItem).filter((item) => !item.isSoldOut).slice(0, newCount);
+            return { data: items, day };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while fetching new items' });
         }
     });
 

@@ -154,7 +154,16 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
     queryFn: () => fetchWithAuth("/marketplace/shop/featured").then(readJson<{ data: ShopItem[] }>),
     staleTime: 5 * 60 * 1000,
   });
-  const featured = !debouncedSearch && !classification && !rarityFilter && page === 1 ? featuredData?.data ?? [] : [];
+  // Just in: a few of the latest round of wares, above the featured ones
+  const { data: newData } = useQuery<{ data: ShopItem[] }>({
+    queryKey: ["marketplace", "shop", "new"],
+    queryFn: () => fetchWithAuth("/marketplace/shop/new").then(readJson<{ data: ShopItem[] }>),
+    staleTime: 5 * 60 * 1000,
+  });
+  const unfiltered = !debouncedSearch && !classification && !rarityFilter && page === 1;
+  const justIn = unfiltered ? newData?.data ?? [] : [];
+  // (nothing's on both shelves)
+  const featured = unfiltered ? (featuredData?.data ?? []).filter((item) => !justIn.some((fresh) => fresh.id === item.id)) : [];
 
   const { data: walletData } = useQuery<WalletResponse>({
     queryKey: ["user", "wallet"],
@@ -220,7 +229,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
     pagination.total
   );
 
-  // One avatar item's card, in the grid or among today's featured
+  // One avatar item's card, in the grid, among today's featured or the new arrivals
   const itemCard = (item: ShopItem, anchor = true) => {
   const price = item.basePrice || 0;
   const cannotAfford = coinBalance < price;
@@ -291,6 +300,12 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
 
   return (
     <section className="shop">
+      {justIn.length > 0 && (
+        <div className="shop-featured shop-new">
+          <p className="shop-featured-title">New</p>
+          <div className="shop-grid">{justIn.map((item) => itemCard(item, false))}</div>
+        </div>
+      )}
       {featured.length > 0 && (
         <div className="shop-featured">
           <p className="shop-featured-title">Featured today</p>
