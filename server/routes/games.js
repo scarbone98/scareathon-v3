@@ -127,7 +127,44 @@ export async function getGameLeaderboardPayload({
     };
 }
 
+// A player's best score in each game they're on the table for, and where that puts them
+// among everyone's bests (1 = nobody's beaten it); their highest places first
+export async function getPlayerBests(db, userId) {
+    const result = await db.query(`
+        WITH mine AS (
+            SELECT l.game_id, MAX(l.metric_value) AS best
+            FROM leaderboards l
+            WHERE l.user_id = $1 AND l.metric_name = 'score'
+            GROUP BY l.game_id
+        )
+        SELECT g.name AS game, mine.best, (
+            SELECT COUNT(DISTINCT other.user_id)
+            FROM leaderboards other
+            WHERE other.game_id = mine.game_id AND other.metric_name = 'score' AND other.metric_value > mine.best
+        ) + 1 AS place
+        FROM mine
+        JOIN games g ON g.id = mine.game_id
+        ORDER BY place ASC, g.name ASC
+        LIMIT 40
+    `, [userId]);
+    return result.rows.map((row) => ({ game: row.game, metricValue: Number(row.best), place: Number(row.place) }));
+}
+
 async function routes(fastify, options) {
+    // (anyone can look, as with the leaderboards themselves)
+    fastify.get('/playerBests', async (request, reply) => {
+        const userId = String(request.query?.userId || '');
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+            return reply.code(400).send({ error: 'Valid userId is required' });
+        }
+        try {
+            return { data: await getPlayerBests(pool, userId) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'An error occurred while fetching scores' });
+        }
+    });
+
     fastify.get('/', async (request, reply) => {
         try {
             const games = await pool.query('SELECT * FROM games WHERE published_at IS NOT NULL');

@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
-import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, backdropStyle, bannerStyle } from "../banners.ts";
 import { pixel } from "../style/theme.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
-import type { AvatarLook } from "../../components/avatar/types";
 import type { GoTo } from "../stops.ts";
 import ScareathonAdminPanel from "../../components/ScareathonAdminPanel";
 import { useScareathonMe } from "../../scareathonSeason";
 import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
 import { useIsMobileArcade } from "../../pages/Arcade/games";
-import { formatCompactLeaderboardScore, formatLeaderboardScore, useLeaderboard } from "../../pages/Arcade/leaderboard";
+import { formatCompactLeaderboardScore, formatLeaderboardScore, useLeaderboard, usePlayerBests } from "../../pages/Arcade/leaderboard";
 
 // A stand-in while a player's look is on its way: a faint figure, the kid's outline in the
 // avatar's own 32x48 frame, so the avatar takes its place without anything moving
@@ -46,20 +45,33 @@ function StandIn() {
   );
 }
 
+// Whose profile card is up (a tap on an avatar in a row puts theirs up: see ProfileCard)
+type Viewed = { userId: string; name: string; look?: PlayerLook };
+const OpenProfile = createContext<((player: Viewed) => void) | null>(null);
+
 // A player's avatar in a flap of its own: drawn from their look, so it plays its idle (if
 // their body has one); their saved portrait if the look doesn't come. (Not while it's on its
 // way: the portrait is a close-up, so swapping it for the whole avatar looked like a shrink.
 // A stand-in figure holds the place instead)
-function Face({ userId, look, pending = false, onBanner = false, small = false }: { userId?: string; look?: AvatarLook; pending?: boolean; onBanner?: boolean; small?: boolean }) {
+function Face({ userId, name, look, pending = false, onBanner = false, small = false }: { userId?: string; name?: string; look?: PlayerLook; pending?: boolean; onBanner?: boolean; small?: boolean }) {
+  const open = useContext(OpenProfile);
   if (!userId) return null;
   // Phones show them at 1.5x (drawn at 2x, then scaled), so about the top seven fit on a screen
   const size = small
-    ? { frame: "h-[45px] w-[48px]", shift: "origin-bottom translate-y-[8px] scale-75", img: "h-[72px] w-[48px] translate-y-[8px]" }
-    : { frame: "h-[60px] w-[64px]", shift: "translate-y-[10px]", img: "h-[96px] w-[64px] translate-y-[10px]" };
+    ? { frame: "h-[51px] w-[48px]", shift: "origin-bottom scale-75", img: "h-[72px] w-[48px]" }
+    : { frame: "h-[68px] w-[64px]", shift: "", img: "h-[96px] w-[64px]" };
   return (
-    // (the empty sky over their heads and their feet trimmed off; no box of its
-  // own on a banner, just them standing on it)
-    <span className={`${onBanner ? "" : flap} flex ${size.frame} shrink-0 items-end justify-center overflow-hidden px-0`}>
+    // (the empty sky over their heads trimmed off, but not their feet, nor a companion at
+  // their heels or over their shoulder; no box of its own on a banner, just them standing on it)
+    <span
+      className={`${onBanner ? "" : flap} flex ${size.frame} shrink-0 items-end justify-center overflow-hidden px-0 ${open ? "cursor-pointer transition hover:brightness-125" : ""}`}
+      // (a tap on them: their profile card)
+      role={open ? "button" : undefined}
+      tabIndex={open ? 0 : undefined}
+      aria-label={open && name ? `${name}'s profile` : undefined}
+      onClick={open ? () => open({ userId, name: name ?? "", look }) : undefined}
+      onKeyDown={open ? (event) => (event.key === "Enter" || event.key === " ") && open({ userId, name: name ?? "", look }) : undefined}
+    >
       {look ? (
         <span className={size.shift}>
           <AvatarView look={look} height={96} label="" />
@@ -175,7 +187,7 @@ function PlayerRow({ rank, userId, name, look, lookPending = false, small, brigh
     // (on phones, tighter: a narrower rank, smaller gaps and score, so the name gets the room)
     <Line bright={bright} banner={userId ? look?.banner ?? DEFAULT_BANNER : undefined} tight={small}>
       <span className={`${box} ${small ? "w-7 text-[16px]" : "w-9"} shrink-0 text-center`}>{rank}</span>
-      <Face userId={userId} look={look} pending={lookPending} onBanner={Boolean(userId)} small={small} />
+      <Face userId={userId} name={name} look={look} pending={lookPending} onBanner={Boolean(userId)} small={small} />
       <span className={`${box} min-w-0 flex-1 py-0.5`}>
         {small ? <FitName name={name.toUpperCase()} /> : <span className={`block break-words leading-tight ${nameSize(name)}`}>{name.toUpperCase()}</span>}
         {under}
@@ -206,6 +218,8 @@ function Standings({ signedIn }: { signedIn: boolean }) {
             {String(y)}
           </Key>
         ))}
+        {/* (over the totals down the right) */}
+        <span className="ml-auto pr-1.5">POINTS</span>
       </div>
       {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
       {rows.map((row) => {
@@ -351,12 +365,68 @@ function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
   );
 }
 
+// A player's profile card, over the board: them close up in front of their banner, their
+// name, and their best in each game with where it stands (their highest places first)
+function ProfileCard({ player, games, onClose }: { player: Viewed; games: string[]; onClose: () => void }) {
+  const { data: bests, isLoading, isError } = usePlayerBests(player.userId);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+  const banner = player.look?.banner ?? DEFAULT_BANNER;
+  // (only the games the arcade has out; all of theirs, if the board wasn't told which)
+  const shown = (bests ?? []).filter((best) => games.length === 0 || games.includes(best.game)).slice(0, 8);
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col bg-[#0a0c10] px-4 py-3" role="dialog" aria-label={`${player.name}'s profile`}>
+      <div className="mb-2 flex items-center gap-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
+        <Key active={false} onClick={onClose}>
+          ◂ BACK
+        </Key>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
+        <div
+          className="flex h-[216px] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] shadow-[inset_0_0_0_1px_rgba(255,176,58,0.25)]"
+          style={backdropStyle(banner) ?? bannerStyle(banner)}
+        >
+          {player.look ? (
+            <AvatarView look={player.look} height={192} label={player.name} />
+          ) : (
+            <img
+              src={getAvatarCompositePublicUrl(player.userId)}
+              alt=""
+              draggable={false}
+              className="h-[192px] w-[128px] max-w-none object-contain [image-rendering:pixelated]"
+              onError={(event) => (event.currentTarget.style.visibility = "hidden")}
+            />
+          )}
+        </div>
+        <p className="mt-2 break-words text-[24px] leading-tight text-[#ffd27a]">{player.name.toUpperCase()}</p>
+        <p className="mb-1 mt-3 text-[13px] opacity-80">TOP SCORES</p>
+        {isLoading && <Line>FLIPPING...</Line>}
+        {isError && <Line>BOARD FAULT: SCORES LOST IN THE FOG</Line>}
+        {bests && shown.length === 0 && <Line dim>NO SCORES ON THE BOARD YET</Line>}
+        {shown.map((best) => (
+          <Line key={best.game} bright={best.place <= 3}>
+            <span className={`${flap} w-12 shrink-0 text-center text-[16px]`}>#{best.place}</span>
+            <span className={`${flap} min-w-0 flex-1 truncate py-0.5 text-[15px]`}>{best.game.replace(/[‘’]/g, "'").toUpperCase()}</span>
+            <span className={`${flap} shrink-0 whitespace-nowrap text-right text-[16px]`}>{formatLeaderboardScore(best.game, best.metricValue)}</span>
+          </Line>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // The board on the wall: the Scareboard, and the arcade's hi-scores (straight to one game's,
 // with `game`: the arcade's leaderboard key)
 export default function DepartureBoard({ signedIn, goTo, games = [], game }: Props) {
   const [board, setBoard] = useState<"scareathon" | "arcade">(game && games.includes(game) ? "arcade" : "scareathon");
+  const [viewing, setViewing] = useState<Viewed | null>(null);
+  const closeProfile = useCallback(() => setViewing(null), []);
   return (
-    <div className="flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
+    <OpenProfile.Provider value={setViewing}>
+    <div className="relative flex h-full w-full flex-col bg-[#0a0c10] px-4 py-3" style={{ ...pixel, fontFamily: `CCDigits, ${pixel.fontFamily}`, color: AMBER, textShadow: "0 0 6px rgba(255,176,58,0.45)" }}>
       <div className="mb-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
         <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
@@ -385,6 +455,8 @@ export default function DepartureBoard({ signedIn, goTo, games = [], game }: Pro
           </>
         )}
       </div>
+      {viewing && <ProfileCard player={viewing} games={games} onClose={closeProfile} />}
     </div>
+    </OpenProfile.Provider>
   );
 }

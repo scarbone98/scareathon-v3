@@ -61,6 +61,27 @@ export function formatCompactLeaderboardScore(game: string, value: number) {
   return Math.floor(n).toLocaleString();
 }
 
+// One player's best in each game they've a score in, and their place among everyone's bests
+export interface PlayerBest {
+  game: string;
+  metricValue: number;
+  place: number;
+}
+
+export function usePlayerBests(userId: string | undefined) {
+  return useQuery<PlayerBest[]>({
+    queryKey: ["leaderboard", "player-bests", userId],
+    enabled: Boolean(userId),
+    staleTime: 30_000,
+    queryFn: async () => {
+      const response = await fetchWithAuth(`/games/playerBests?userId=${encodeURIComponent(userId ?? "")}`);
+      if (!response.ok) throw new Error(`Scores request failed (${response.status})`);
+      const data = await response.json();
+      return data.data || [];
+    },
+  });
+}
+
 // Top 10 scores for one game. The dialog and the /arcade-v2 info card share
 // the query, so opening one after the other doesn't refetch.
 export function useLeaderboard(game: string | undefined, enabled = true) {

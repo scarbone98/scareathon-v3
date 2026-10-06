@@ -40,6 +40,8 @@ export function isPublicRoute(method, url) {
 export function isOptionalAuthRoute(method, url) {
     return method === 'GET' && (
         url.startsWith('/games/getLeaderboard') ||
+        // A player's best in each game (their profile card on the station's scoreboard)
+        url.startsWith('/games/playerBests') ||
         // The Picto Box wall: anyone can look; signed in, you can take your own down
         url === '/picto-box/photos' || url.startsWith('/picto-box/photos?') ||
         // Wayside Online: anyone can read the boards; signed in, you see your own reactions
