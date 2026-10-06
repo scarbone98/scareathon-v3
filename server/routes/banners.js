@@ -15,6 +15,19 @@ export const BANNERS = [
     { key: 'blood_moon', name: 'Blood Moon', price: 260 },
     { key: 'ectoplasm', name: 'Ectoplasm', price: 300 },
     { key: 'golden_ticket', name: 'Golden Ticket', price: 500 },
+    // Fall
+    { key: 'autumn_leaves', name: 'Autumn Leaves', price: 140 },
+    { key: 'candy_corn', name: 'Candy Corn', price: 160 },
+    { key: 'cobwebs', name: 'Cobwebs', price: 160 },
+    { key: 'harvest_moon', name: 'Harvest Moon', price: 240 },
+    // Summer
+    { key: 'wheat_field', name: 'Wheat Field', price: 150 },
+    { key: 'orchard', name: 'Orchard', price: 170 },
+    { key: 'swimming_pool', name: 'Swimming Pool', price: 180 },
+    { key: 'national_park', name: 'National Park', price: 220 },
+    { key: 'campsite', name: 'Campsite', price: 200 },
+    // Cryptids
+    { key: 'lake_monster', name: 'Lake Monster', price: 280 },
 ];
 const BY_KEY = new Map(BANNERS.map((banner) => [banner.key, banner]));
 
