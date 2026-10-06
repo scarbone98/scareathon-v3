@@ -565,7 +565,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Trick racer", developer: "sclondon" },
         backNote: "Up up down down flip flip. Works on the 3rd river.",
       },
-      videoUrl: "/game-recordings/SalmonRun2.mp4",
+      videoUrl: "/game-recordings/SalmonRun2_v2.mp4",
       game: (
         <GameRenderer
           title="Salmon Run 2"
