@@ -71,8 +71,8 @@ const HEMLOCKS_TOWER_URL =
 const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/?v=4299a9a";
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
-const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=0378b0c";
-const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
+const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=37b2825";
+const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=37b2825";
 // Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
 // commit, to bust the cache. One page, two packs: phones get half-size art
 // (index.mobile.pck), desktops the full set.
@@ -86,12 +86,12 @@ const MUERTOS_URL = "/muertos";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
-const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
+const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=37b2825";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
-const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
-const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
-const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=ee30791";
-const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=49c4f72";
+const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=37b2825";
+const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=37b2825";
+const SIMULATRIX_URL = "https://sclondon.github.io/Simulatrix/build/index.html?v=37b2825";
+const JACK_O_LANTERN_URL = "https://sclondon.github.io/JackOLantern/build/index.html?v=37b2825";
 // The Godot remake (github.com/scarbone98/8BitEvilReturns-godot), in testing.
 export const EIGHT_BIT_EVIL_RETURNS_V2_URL = "https://scarbone98.github.io/8BitEvilReturns-godot/?v=77bfd34";
 // Godot daily puzzle (31 Nights), a build-only GitHub Pages repo; ?v= is its commit, to bust the cache.
@@ -100,7 +100,7 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba
 // controls, portrait and landscape layouts) and index.pck on desktop. Build-only GitHub
 // Pages repo; ?v= is its build commit, to bust the cache.
 const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bce2a03";
-const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
+const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=37b2825";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
