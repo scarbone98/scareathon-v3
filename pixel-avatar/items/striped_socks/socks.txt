@@ -1,0 +1,11 @@
+# Pulled up to the knee, two colours turn about
+at: 12,42
+legend:
+  a = dye1.2
+  b = dye2.2
+--- 0
+.....a.
+.a...b.
+.b...a.
+.a...bb
+bb.....

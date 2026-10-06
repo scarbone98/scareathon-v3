@@ -1,0 +1,20 @@
+{
+  "name": "Cowboy Boots",
+  "category": "feet",
+  "rarity": "rare",
+  "price": 150,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "bark"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "boots.txt",
+      "anchor": "ground"
+    }
+  ]
+}

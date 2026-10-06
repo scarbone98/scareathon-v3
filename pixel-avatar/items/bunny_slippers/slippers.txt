@@ -1,0 +1,9 @@
+# Fluffy, an ear standing up off each toe
+at: 12,44
+legend:
+  w = dye1.3
+  e = dye1.2
+--- 0
+.....we
+ew...ww
+ww.....

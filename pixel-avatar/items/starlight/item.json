@@ -1,0 +1,15 @@
+{
+  "name": "Starlight",
+  "category": "aura",
+  "rarity": "epic",
+  "price": 380,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "stars.txt",
+      "anchor": "free"
+    }
+  ]
+}

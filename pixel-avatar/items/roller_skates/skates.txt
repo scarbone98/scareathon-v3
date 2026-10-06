@@ -1,0 +1,11 @@
+# A laced boot on a row of wheels
+at: 12,43
+legend:
+  b = dye1.2
+  h = dye1.3
+  o = gold.3
+--- 0
+.....h.
+.h...b.
+.b...oo
+oo.....

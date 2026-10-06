@@ -15,7 +15,7 @@ import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { itemFitsBody } from "./compose";
 import { CATEGORY_LABELS, lookFromAvatar, lookWithItem } from "./look";
-import type { ShopFilters } from "./shopFilters";
+import { EMPTY_SHELVES, type ShopFilters } from "./shopFilters";
 import { useAvatarManifest } from "./manifest";
 import type { AvatarItem, AvatarLook, AvatarResponse } from "./types";
 import "../../styles/shop.css";
@@ -130,8 +130,11 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
     return `/marketplace/shop/items?${query}`;
   }, [classification, debouncedSearch, page, rarityFilter]);
 
+  // A tab with nothing on its shelf yet (in-game items, games): it says so
+  const emptyShelf = EMPTY_SHELVES.find((shelf) => shelf.value === classification);
   // The extra wares' categories go in the filter after the avatar items' own
-  const extraOnly = extraItems.some((item) => item.category === classification);
+  // (an empty shelf, likewise, has no avatar items to ask the server for)
+  const extraOnly = Boolean(emptyShelf) || extraItems.some((item) => item.category === classification);
   // Shown with the first page of everything, or on their own; they have no rarity
   const shownExtras =
     rarityFilter || (classification && !extraOnly) || (!extraOnly && page !== 1)
@@ -329,7 +332,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
       ) : error && !shopData && !extraOnly ? (
         <ErrorDisplay message={(error as Error).message || "Failed to load shop"} />
       ) : items.length === 0 && shownExtras.length === 0 ? (
-        <div className="shop-state">Nothing matches those filters.</div>
+        <div className="shop-state">{emptyShelf ? emptyShelf.soon : "Nothing matches those filters."}</div>
       ) : (
         <div className={`shop-grid ${isFetching ? "is-refreshing" : ""}`}>
           {shownExtras.map((item) => {

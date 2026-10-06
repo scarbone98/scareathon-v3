@@ -1,0 +1,24 @@
+{
+  "name": "Pleated Skirt",
+  "category": "legs",
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "plum"
+  },
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "waist.txt"
+    },
+    {
+      "slot": "legs",
+      "file": "legs.txt",
+      "anchor": "ground"
+    }
+  ]
+}

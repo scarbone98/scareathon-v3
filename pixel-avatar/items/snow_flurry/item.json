@@ -1,0 +1,15 @@
+{
+  "name": "Snow Flurry",
+  "category": "aura",
+  "rarity": "rare",
+  "price": 280,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "snow.txt",
+      "anchor": "free"
+    }
+  ]
+}

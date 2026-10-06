@@ -1,0 +1,15 @@
+{
+  "name": "Raincloud",
+  "category": "aura",
+  "rarity": "epic",
+  "price": 420,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "back_fx",
+      "file": "cloud.txt",
+      "anchor": "free"
+    }
+  ]
+}

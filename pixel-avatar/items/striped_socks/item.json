@@ -1,0 +1,21 @@
+{
+  "name": "Striped Socks",
+  "category": "feet",
+  "rarity": "common",
+  "price": 50,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "plum",
+    "dye2": "lime"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "socks.txt",
+      "anchor": "ground"
+    }
+  ]
+}

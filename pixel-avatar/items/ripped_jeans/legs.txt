@@ -1,0 +1,10 @@
+# A knee through each leg
+at: 13,41
+legend:
+  m = dye1.2
+  s = skin.2
+--- 0
+m...m
+s...m
+m...s
+m....

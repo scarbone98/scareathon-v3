@@ -1,0 +1,20 @@
+{
+  "name": "Bunny Slippers",
+  "category": "feet",
+  "rarity": "rare",
+  "price": 140,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "rose"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "slippers.txt",
+      "anchor": "ground"
+    }
+  ]
+}

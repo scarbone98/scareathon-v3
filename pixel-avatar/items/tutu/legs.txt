@@ -1,0 +1,9 @@
+# Net standing straight out, layer on layer
+at: 11,40
+legend:
+  t = dye1.3
+  m = dye1.2
+--- 0
+.mmmmmmm.
+ttttttttt
+t.t.t.t.t

@@ -36,10 +36,17 @@ const rarities = [
   { value: "legendary", label: "Legendary" },
 ];
 
+// Kinds of ware the shop has a tab for but nothing on the shelf yet: things to use inside
+// the arcade's games, and games themselves (soon: what the empty shelf says)
+export const EMPTY_SHELVES = [
+  { value: "game_items", label: "In-game items", soon: "Nothing here yet: things to use in the arcade's games are on their way." },
+  { value: "games", label: "Games", soon: "Nothing here yet: games to buy are on their way." },
+];
+
 // The categories as tabs, in the order they run. extraCategories: wares that aren't avatar
 // items (the station's banners), as [value, plural label]
 export function shopTabs(extraCategories: [string, string][] = []) {
-  return [...classifications, ...extraCategories.map(([value, label]) => ({ value, label }))];
+  return [...classifications, ...extraCategories.map(([value, label]) => ({ value, label })), ...EMPTY_SHELVES];
 }
 
 // The category tabs: a strip that scrolls sideways under a finger, the one you're on lit

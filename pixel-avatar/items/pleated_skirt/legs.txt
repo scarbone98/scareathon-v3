@@ -1,0 +1,8 @@
+# Flaring out from the waist, pleat by pleat
+at: 12,41
+legend:
+  m = dye1.2
+  d = dye1.1
+--- 0
+mdmdmdm
+mdmdmdm

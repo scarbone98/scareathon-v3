@@ -1,0 +1,8 @@
+# To the knee, a pocket flap on each leg
+at: 13,41
+legend:
+  m = dye1.2
+  p = dye1.1
+--- 0
+m...m
+p...p

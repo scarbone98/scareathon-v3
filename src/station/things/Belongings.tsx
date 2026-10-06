@@ -228,10 +228,11 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   // Full screen, as the wardrobe: you stay in view (beside the wares, or above them on a
   // phone) while only the wares scroll
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-8">
+    <div className="flex h-full min-h-0 flex-col gap-2 md:flex-row md:gap-8">
       {topBar && createPortal(<ShopSearch value={filters.search} onChange={(search) => setFilters((current) => ({ ...current, search }))} />, topBar)}
       <div className="shrink-0 md:w-80">
-        <div className="md:hidden">
+        {/* (the tabs sit close under you: no gap of the mirror's own below it) */}
+        <div className="md:hidden [&>div]:mb-0">
           <Mirror look={look} eyebrow="Item shop" note={note} roomy banner={previewBanner} below={menus} />
         </div>
         <div className="hidden md:block">

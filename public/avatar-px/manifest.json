@@ -1506,6 +1506,51 @@
       "release": "released"
     },
     {
+      "key": "bell_bottoms",
+      "name": "Bell-Bottoms",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/bell_bottoms/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 12,
+          "y": 41,
+          "w": 7,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/bell_bottoms/1-legs.png?v=bdf90b705a",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bell_bottoms/icon.png?v=01f2dab042",
+      "dyes": {
+        "dye1": "teal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "black_cat",
       "name": "Black Cat",
       "category": "companion",
@@ -1876,6 +1921,38 @@
       "release": "released"
     },
     {
+      "key": "bunny_slippers",
+      "name": "Bunny Slippers",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/bunny_slippers/0-feet.png?v=8fbee4b4f1",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bunny_slippers/icon.png?v=9c45196bca",
+      "dyes": {
+        "dye1": "rose"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 140,
+      "release": "released"
+    },
+    {
       "key": "butterfly_wings",
       "name": "Butterfly Wings",
       "category": "wings",
@@ -2059,6 +2136,51 @@
       "release": "released"
     },
     {
+      "key": "cargo_shorts",
+      "name": "Cargo Shorts",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/cargo_shorts/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/cargo_shorts/1-legs.png?v=1c98e05e26",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/cargo_shorts/icon.png?v=78e2f02232",
+      "dyes": {
+        "dye1": "mustard"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "cat_ears",
       "name": "Cat Ears",
       "category": "head",
@@ -2117,6 +2239,38 @@
       "default": false,
       "rarity": "uncommon",
       "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "cowboy_boots",
+      "name": "Cowboy Boots",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 42,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/cowboy_boots/0-feet.png?v=f429b17963",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/cowboy_boots/icon.png?v=66cf3387ad",
+      "dyes": {
+        "dye1": "bark"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
       "release": "released"
     },
     {
@@ -2200,6 +2354,33 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "falling_leaves",
+      "name": "Falling Leaves",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 16,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/falling_leaves/0-front_fx.png?v=7513b17d1d"
+        }
+      ],
+      "icon": "/avatar-px/items/falling_leaves/icon.png?v=aafff03fcd",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 260,
       "release": "released"
     },
     {
@@ -3129,6 +3310,65 @@
       "release": "released"
     },
     {
+      "key": "hellfire",
+      "name": "Hellfire",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "back_fx",
+          "anchor": "free",
+          "x": 0,
+          "y": 12,
+          "w": 23,
+          "h": 36,
+          "frames": 6,
+          "src": "/avatar-px/items/hellfire/0-back_fx.png?v=66677420b0"
+        }
+      ],
+      "icon": "/avatar-px/items/hellfire/icon.png?v=491343454c",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 520,
+      "release": "released"
+    },
+    {
+      "key": "high_tops",
+      "name": "High-Tops",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 43,
+          "w": 7,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/high_tops/0-feet.png?v=15a70be500",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/high_tops/icon.png?v=bf3c211fec",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
       "key": "hoodie",
       "name": "Hoodie",
       "category": "torso",
@@ -3525,6 +3765,33 @@
       "release": "released"
     },
     {
+      "key": "music_notes",
+      "name": "Music Notes",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 16,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/music_notes/0-front_fx.png?v=3423da8805"
+        }
+      ],
+      "icon": "/avatar-px/items/music_notes/icon.png?v=2af0f2fbc7",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 300,
+      "release": "released"
+    },
+    {
       "key": "neck_bolts",
       "name": "Frankenstein Bolts",
       "category": "neck",
@@ -3760,6 +4027,51 @@
       "default": false,
       "rarity": "common",
       "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "pleated_skirt",
+      "name": "Pleated Skirt",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/pleated_skirt/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 12,
+          "y": 41,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/pleated_skirt/1-legs.png?v=2ae022fbb8",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/pleated_skirt/icon.png?v=84f70e9be1",
+      "dyes": {
+        "dye1": "plum"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
       "release": "released"
     },
     {
@@ -4044,6 +4356,52 @@
       "release": "released"
     },
     {
+      "key": "pyjama_bottoms",
+      "name": "Pyjama Bottoms",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/pyjama_bottoms/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/pyjama_bottoms/1-legs.png?v=940657efe2",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/pyjama_bottoms/icon.png?v=07e99fd192",
+      "dyes": {
+        "dye1": "ocean",
+        "dye2": "ash"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
       "key": "rain_boots",
       "name": "Rain Boots",
       "category": "feet",
@@ -4073,6 +4431,33 @@
       "default": false,
       "rarity": "uncommon",
       "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "raincloud",
+      "name": "Raincloud",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "back_fx",
+          "anchor": "free",
+          "x": 6,
+          "y": 9,
+          "w": 19,
+          "h": 23,
+          "frames": 6,
+          "src": "/avatar-px/items/raincloud/0-back_fx.png?v=22bcd27f60"
+        }
+      ],
+      "icon": "/avatar-px/items/raincloud/icon.png?v=8e8a713c99",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 420,
       "release": "released"
     },
     {
@@ -4169,6 +4554,51 @@
       "release": "released"
     },
     {
+      "key": "ripped_jeans",
+      "name": "Ripped Jeans",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/ripped_jeans/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/ripped_jeans/1-legs.png?v=ba71450e19",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/ripped_jeans/icon.png?v=109accac55",
+      "dyes": {
+        "dye1": "denim"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
       "key": "rocket_pop",
       "name": "Rocket Pop",
       "category": "held",
@@ -4196,6 +4626,38 @@
       "default": false,
       "rarity": "common",
       "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "roller_skates",
+      "name": "Roller Skates",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 43,
+          "w": 7,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/roller_skates/0-feet.png?v=4f951b7685",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/roller_skates/icon.png?v=62962bfce2",
+      "dyes": {
+        "dye1": "teal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 170,
       "release": "released"
     },
     {
@@ -4389,6 +4851,33 @@
       "release": "released"
     },
     {
+      "key": "snow_flurry",
+      "name": "Snow Flurry",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 16,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/snow_flurry/0-front_fx.png?v=8965bc440f"
+        }
+      ],
+      "icon": "/avatar-px/items/snow_flurry/icon.png?v=7457400901",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 280,
+      "release": "released"
+    },
+    {
       "key": "soda_pop",
       "name": "Soda Pop",
       "category": "held",
@@ -4476,6 +4965,33 @@
       "release": "released"
     },
     {
+      "key": "starlight",
+      "name": "Starlight",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 15,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/starlight/0-front_fx.png?v=a5a5428dda"
+        }
+      ],
+      "icon": "/avatar-px/items/starlight/icon.png?v=defc85ff17",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 380,
+      "release": "released"
+    },
+    {
       "key": "stitches",
       "name": "Stitches",
       "category": "face_paint",
@@ -4536,6 +5052,39 @@
       "default": false,
       "rarity": "uncommon",
       "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "striped_socks",
+      "name": "Striped Socks",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 42,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/striped_socks/0-feet.png?v=173b2b47ab",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/striped_socks/icon.png?v=95f842ac34",
+      "dyes": {
+        "dye1": "plum",
+        "dye2": "lime"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
       "release": "released"
     },
     {
@@ -4780,6 +5329,51 @@
       "default": true,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "tutu",
+      "name": "Tutu",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/tutu/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 11,
+          "y": 40,
+          "w": 9,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/tutu/1-legs.png?v=f73011422b",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tutu/icon.png?v=76df36b9f2",
+      "dyes": {
+        "dye1": "rose"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 160,
       "release": "released"
     },
     {

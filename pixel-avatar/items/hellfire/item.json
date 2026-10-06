@@ -1,0 +1,15 @@
+{
+  "name": "Hellfire",
+  "category": "aura",
+  "rarity": "legendary",
+  "price": 520,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "back_fx",
+      "file": "fire.txt",
+      "anchor": "free"
+    }
+  ]
+}

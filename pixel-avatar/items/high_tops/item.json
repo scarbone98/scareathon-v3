@@ -1,0 +1,20 @@
+{
+  "name": "High-Tops",
+  "category": "feet",
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "cherry"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "tops.txt",
+      "anchor": "ground"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Striped all the way down
+at: 13,41
+legend:
+  a = dye1.2
+  b = dye2.3
+--- 0
+a...a
+b...b
+a...a
+b....

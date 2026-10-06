@@ -1,0 +1,12 @@
+# Tall, stitched, a pointed toe
+at: 12,42
+legend:
+  b = dye1.2
+  h = dye1.3
+  d = dye1.0
+--- 0
+.....h.
+.h...b.
+.b...h.
+.h...bd
+db.....

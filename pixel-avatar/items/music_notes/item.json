@@ -1,0 +1,15 @@
+{
+  "name": "Music Notes",
+  "category": "aura",
+  "rarity": "rare",
+  "price": 300,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "notes.txt",
+      "anchor": "free"
+    }
+  ]
+}
