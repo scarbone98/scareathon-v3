@@ -8,6 +8,7 @@ export const SECRET_CARTS: Record<string, string> = {
   HALLOW: "Hallow Deep",
   AQUA: "Pocket Aquarium",
   VALLEY: "October Valley",
+  DENVS: "Denver Vs The Universe",
 };
 
 export const UNLOCK_EVENT = "arcade:unlocked";

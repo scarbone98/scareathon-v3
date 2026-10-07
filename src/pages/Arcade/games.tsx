@@ -109,6 +109,8 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
+// Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
+const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=7b1947d";
 const POCKET_AQUARIUM_URL = "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
@@ -1306,6 +1308,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="October Valley"
           url={OCTOBER_VALLEY_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed DENVS into WaysideOS.
+    // No scores while it's in testing.
+    {
+      name: "Denver Vs The Universe",
+      added: "2026-10-07T03:30:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#8a3fd6",
+        tagline: "Aliens over the Mile High City. Hold the diorama.",
+        font: { family: "Bungee" },
+        about: { released: "2026", players: "Single player", genre: "Roguelike shooter", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Denver Vs The Universe"
+          url={DENVER_VS_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
