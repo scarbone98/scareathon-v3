@@ -9,6 +9,7 @@ import {
   CatmullRomCurve3,
   CircleGeometry,
   CylinderGeometry,
+  DirectionalLight,
   DoubleSide,
   ExtrudeGeometry,
   Frustum,
@@ -2220,8 +2221,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const camera = new PerspectiveCamera(60, 1, 0.1, 500);
     camera.rotation.order = "YXZ";
 
-    // Light: a faint cold wash; the warm light comes from the lamps
-    scene.add(new HemisphereLight("#6f7fa8", "#1a120c", 0.45));
+    // Light: a faint cold wash; the warm light comes from the lamps (by night: by day the
+    // sky's own, and the sun's: see the time of day, further down)
+    const skyLight = new HemisphereLight("#6f7fa8", "#1a120c", 0.45);
+    scene.add(skyLight);
     // The canopy's lamps, all alike: a dim glass behind a wire guard
     const lampGuard = standard("#1c1a17", 0.5);
     const lampGlass = new MeshBasicMaterial({ color: "#9a8158" });
@@ -3096,7 +3099,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     starGeometry.setAttribute("position", new Float32BufferAttribute(starPositions, 3));
     // (fainter, or gone, when the weather's in)
     const weather = weatherNow();
-    scene.add(new Points(starGeometry, new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false, transparent: true, opacity: weather === "clear" ? 1 : weather === "snow" ? 0.35 : 0.12 })));
+    const starLight = new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false, transparent: true, opacity: weather === "clear" ? 1 : weather === "snow" ? 0.35 : 0.12 });
+    scene.add(new Points(starGeometry, starLight));
     if (weather !== "clear") {
       (moon.material as SpriteMaterial).opacity = weather === "fog" ? 0.35 : 0.5;
       (moonGlow.material as SpriteMaterial).opacity = weather === "fog" ? 0.7 : 0.6; // (fog spreads it)
@@ -3105,6 +3109,83 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     }
     const outsideWeather = buildWeather(weather, { wallZ: WALL_Z, edgeZ: EDGE_Z, endX: END_X, trackZ: TRACK_Z });
     scene.add(outsideWeather);
+
+    // The time of day: the visitor's own, by their clock. The sky, the fog, the light and the
+    // sun go round with it; the stars, the moon and the lamp across the tracks are the
+    // night's. Looked at again every little while (see the animation loop), so an evening
+    // spent here gets dark. (?hour=14.5 in the address sets the clock, to see another time)
+    // (read once, on the way in: the address is rewritten as you walk about)
+    const asked = new URLSearchParams(window.location.search).get("hour");
+    const hourNow = () => {
+      if (asked !== null && asked !== "" && Number.isFinite(Number(asked))) return ((Number(asked) % 24) + 24) % 24;
+      const now = new Date();
+      return now.getHours() + now.getMinutes() / 60;
+    };
+    const ease = (from: number, to: number, x: number) => {
+      const k = Math.min(1, Math.max(0, (x - from) / (to - from)));
+      return k * k * (3 - 2 * k);
+    };
+    const mix = (a: string, b: string, k: number) => new Color(a).lerp(new Color(b), k);
+    // The sky from the top down to the horizon and under it, as the background's gradient has it
+    const SKY_STOPS = [0, 0.55, 0.72, 1];
+    const NIGHT_SKY = ["#020308", "#0b1020", "#1a2236", "#07090e"];
+    const overcast = weather !== "clear";
+    const DAY_SKY = overcast ? ["#5d6b7c", "#8b98a6", "#b9c2c9", "#6c746c"] : ["#3f74b4", "#86b3dc", "#d6e6f0", "#75806a"];
+    const TWILIGHT_SKY = ["#1b2140", "#5a3f6a", "#f08a4a", "#3a2a30"];
+    const sunLight = new DirectionalLight("#fff4e0", 0);
+    scene.add(sunLight);
+    const sunDisc = new Sprite(new SpriteMaterial({ map: glowTexture(), color: "#fff1c8", blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
+    sunDisc.scale.set(46, 46, 1);
+    sunDisc.renderOrder = -1;
+    scene.add(sunDisc);
+    const nightFog = (scene.fog as FogExp2).density;
+    const nightSky = { stars: starLight.opacity, moon: weather === "clear" ? 1 : (moon.material as SpriteMaterial).opacity, moonGlow: weather === "clear" ? 1 : (moonGlow.material as SpriteMaterial).opacity };
+    // (how much of it is day: 0 at night, 1 by day. The watcher across the tracks keeps to the dark)
+    let daylight = 0;
+    const applyDaylight = () => {
+      const hour = hourNow();
+      daylight = Math.min(ease(5.5, 7.5, hour), 1 - ease(17.5, 19.5, hour));
+      // Sunrise and sunset: the low sun's colours, strongest about half past six, either end
+      const twilight = Math.max(0, 1 - Math.abs(hour - 6.5) / 1.25, 1 - Math.abs(hour - 18.5) / 1.25) * (overcast ? 0.35 : 0.85);
+      const sky = scene.background as CanvasTexture;
+      const canvas = sky.image as HTMLCanvasElement;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        SKY_STOPS.forEach((stop, i) => gradient.addColorStop(stop, mix(NIGHT_SKY[i], DAY_SKY[i], daylight).lerp(new Color(TWILIGHT_SKY[i]), twilight).getStyle()));
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        sky.needsUpdate = true;
+      }
+      const fog = scene.fog as FogExp2;
+      fog.color.copy(mix("#0c1019", overcast ? "#8d98a3" : "#a9bccd", daylight).lerp(new Color("#6a4a52"), twilight * 0.6));
+      fog.density = nightFog + ((weather === "fog" ? 0.07 : 0.035) - nightFog) * daylight;
+      skyLight.color.copy(mix("#6f7fa8", "#e6eeff", daylight));
+      skyLight.groundColor.copy(mix("#1a120c", "#6b5c4a", daylight));
+      skyLight.intensity = 0.45 + daylight * (overcast ? 0.9 : 1.25);
+      // The sun: up over the far end of the line at half past six, across over the tracks,
+      // down past the scenic end twelve hours on
+      const arc = ((hour - 6.5) / 12) * Math.PI;
+      const towards = new Vector3(Math.cos(arc) * 0.8, Math.sin(arc), 0.6).normalize();
+      sunLight.position.copy(towards).multiplyScalar(50);
+      sunLight.color.copy(mix("#fff4e0", "#ffb878", twilight));
+      sunLight.intensity = daylight * (overcast ? 0.5 : 1.7);
+      sunDisc.position.copy(towards).multiplyScalar(300);
+      sunDisc.visible = !overcast && towards.y > 0.02 && daylight > 0.05;
+      (sunDisc.material as SpriteMaterial).color.copy(mix("#fff1c8", "#ff9a4a", twilight));
+      starLight.opacity = nightSky.stars * (1 - daylight) ** 2;
+      const moonLight = moon.material as SpriteMaterial;
+      moonLight.transparent = true;
+      moonLight.opacity = nightSky.moon * (1 - daylight * 0.8); // (a pale day moon)
+      (moonGlow.material as SpriteMaterial).opacity = nightSky.moonGlow * (1 - daylight);
+      // The lamp over the name board comes on with the dusk
+      (lampHalo.material as SpriteMaterial).opacity = 0.6 * (1 - daylight);
+      lampBeam.visible = daylight < 0.5;
+      (lampLantern.material as MeshBasicMaterial).color.copy(mix("#ffdca6", "#8a8472", daylight));
+      signLamp.intensity = 9 * (1 - daylight * 0.9);
+    };
+    applyDaylight();
+    let skyLookedAt = 0;
 
     const train = buildTrain();
     // Arriving: riding in, stopped (doors shut till the page is ready), doors opening, stepping
@@ -3778,6 +3859,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       tickRadio(t);
+      // (the time of day, looked at again every twenty seconds)
+      if (t - skyLookedAt > 20) {
+        skyLookedAt = t;
+        applyDaylight();
+      }
       if (halloween) {
         // HALLOWEEN (the way the camera faces: the streamers swing as it turns)
         const ahead = camera.getWorldDirection(new Vector3());
@@ -3941,7 +4027,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         watcher.position.x = HUB.pos[0] + ((roll * 7.3) % 1 - 0.5) * 7;
       }
       if (!watcherGone && train.visible && train.position.x + TRAIN_FRONT > watcher.position.x + 4) watcherGone = true;
-      watcher.visible = !watcherGone && !arrival.active;
+      watcher.visible = !watcherGone && !arrival.active && daylight < 0.3; // (it keeps to the dark)
       if (watcher.visible) watcherMaterial.opacity = Math.min(1, Math.max(0, (cycle - 2) / 5)) * 0.92;
       // The signal: red, and the crossing lamps flashing turn about, from a few seconds
       // before the train comes until it's gone by (and while the one you came on pulls in
