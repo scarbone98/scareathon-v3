@@ -1,0 +1,15 @@
+# For clues
+at: 7,29
+legend:
+  s = steel.2
+  c = spirit.1
+  w = spirit.2
+  k = wood.2
+--- 0
+.ss
+swcs
+sccs
+.ss
+..k
+..k
+..k

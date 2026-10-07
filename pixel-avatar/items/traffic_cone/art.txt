@@ -1,0 +1,15 @@
+# Borrowed from the roadworks
+at: 11,18
+legend:
+  o = pumpkin.2
+  h = pumpkin.3
+  d = pumpkin.1
+  w = bone.3
+--- 0
+....oo
+....ho
+...wwww
+...hooo
+..hooooo
+..wwwwww
+dddddddddd

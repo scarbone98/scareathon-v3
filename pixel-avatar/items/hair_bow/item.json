@@ -1,0 +1,17 @@
+{
+  "name": "Hair Bow",
+  "category": "head",
+  "rarity": "common",
+  "price": 50,
+  "release": "released",
+  "dyes": {
+    "dye1": "rose"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

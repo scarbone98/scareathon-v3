@@ -1,0 +1,16 @@
+# Fresh this morning
+at: 7,27
+legend:
+  b = old_gold.2
+  h = old_gold.3
+  d = old_gold.1
+--- 0
+.b
+bhb
+bbd
+bhb
+bbd
+bhb
+bbd
+bhb
+.d

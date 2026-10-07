@@ -1,0 +1,42 @@
+# Bubbles drift up from it
+at: 7,25
+legend:
+  p = rose.2
+  c = spirit.2
+  s = bone.2
+--- 0
+c
+.
+.
+.pp
+p..p
+p..p
+.pp
+.s
+.s
+.s
+.s
+--- 2
+...c
+.
+c
+.pp
+p..p
+p..p
+.pp
+.s
+.s
+.s
+.s
+--- 4
+.
+..c
+.
+.pp
+p..p
+p..p
+.pp
+.s
+.s
+.s
+.s

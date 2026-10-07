@@ -1,0 +1,10 @@
+# A big bow, tied on top
+at: 12,22
+legend:
+  a = dye1.2
+  h = dye1.3
+  b = dye1.1
+--- 0
+ah...ah
+aaabaaa
+aa...aa

@@ -1,0 +1,11 @@
+# Tied round the head, knotted at the back
+at: 10,23
+legend:
+  a = dye1.2
+  b = dye1.1
+  w = bone.3
+--- 0
+...aaaaaa
+..awaaawaa
+bbaaaaaaaa
+.b

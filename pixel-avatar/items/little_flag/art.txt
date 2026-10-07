@@ -1,0 +1,29 @@
+# It flutters
+at: 6,26
+legend:
+  a = dye1.2
+  h = dye1.3
+  b = dye1.1
+  s = bone.2
+--- 0
+ahas
+aaas
+abas
+...s
+...s
+...s
+...s
+...s
+...s
+...s
+--- 3
+.has
+aaas
+abas
+...s
+...s
+...s
+...s
+...s
+...s
+...s

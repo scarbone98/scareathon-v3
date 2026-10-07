@@ -1,0 +1,11 @@
+# Pulled down snug, with a turned-up cuff
+at: 11,22
+legend:
+  a = dye1.2
+  h = dye1.3
+  b = dye1.1
+--- 0
+..aaaaaa
+.ahaaaaaa
+.aaaaaaaa
+.bbbbbbbb

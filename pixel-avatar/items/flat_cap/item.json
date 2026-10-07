@@ -1,0 +1,17 @@
+{
+  "name": "Flat Cap",
+  "category": "head",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "dyes": {
+    "dye1": "bark"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

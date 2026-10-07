@@ -1,0 +1,11 @@
+# Folded from a timetable
+at: 4,33
+legend:
+  w = bone.3
+  s = bone.2
+  d = bone.1
+--- 0
+wwwwwww
+.wwssw
+..wdw
+...w

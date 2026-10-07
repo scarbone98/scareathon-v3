@@ -1,0 +1,20 @@
+{
+  "name": "Knit Beanie",
+  "category": "head",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "denim"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

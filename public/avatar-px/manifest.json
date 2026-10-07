@@ -1544,6 +1544,36 @@
       "release": "released"
     },
     {
+      "key": "baguette",
+      "name": "Baguette",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 27,
+          "w": 3,
+          "h": 9,
+          "frames": 1,
+          "src": "/avatar-px/items/baguette/0-held.png?v=8e99f37968",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/baguette/icon.png?v=7586ac8e3f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
+      "release": "released"
+    },
+    {
       "key": "balloon",
       "name": "Balloon",
       "category": "held",
@@ -2505,6 +2535,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "bubble_wand",
+      "name": "Bubble Wand",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 25,
+          "w": 4,
+          "h": 11,
+          "frames": 5,
+          "src": "/avatar-px/items/bubble_wand/0-held.png?v=7f69079499",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bubble_wand/icon.png?v=e0abeea584",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
@@ -3755,6 +3815,35 @@
       "release": "released"
     },
     {
+      "key": "flat_cap",
+      "name": "Flat Cap",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 23,
+          "w": 11,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/flat_cap/0-head.png?v=6d8660d17e"
+        }
+      ],
+      "icon": "/avatar-px/items/flat_cap/icon.png?v=c5ac90bb40",
+      "dyes": {
+        "dye1": "bark"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "flies",
       "name": "Flies",
       "category": "aura",
@@ -4302,6 +4391,35 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "hair_bow",
+      "name": "Hair Bow",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 12,
+          "y": 22,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_bow/0-head.png?v=0d312b1752"
+        }
+      ],
+      "icon": "/avatar-px/items/hair_bow/icon.png?v=556ffacb98",
+      "dyes": {
+        "dye1": "rose"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
       "release": "released"
     },
     {
@@ -5534,6 +5652,38 @@
       "release": "released"
     },
     {
+      "key": "knit_beanie",
+      "name": "Knit Beanie",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 22,
+          "w": 9,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/knit_beanie/0-head.png?v=cbcda41b83",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/knit_beanie/icon.png?v=5bcc83c715",
+      "dyes": {
+        "dye1": "denim"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "lab_coat",
       "name": "Lab Coat",
       "category": "outer",
@@ -5748,6 +5898,38 @@
       "release": "released"
     },
     {
+      "key": "little_flag",
+      "name": "Little Flag",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 26,
+          "w": 4,
+          "h": 10,
+          "frames": 4,
+          "src": "/avatar-px/items/little_flag/0-held.png?v=49a6d96287",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/little_flag/icon.png?v=d075ebad2d",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "little_harp",
       "name": "Little Harp",
       "category": "held",
@@ -5892,6 +6074,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 110,
+      "release": "released"
+    },
+    {
+      "key": "magnifying_glass",
+      "name": "Magnifying Glass",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 29,
+          "w": 4,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/magnifying_glass/0-held.png?v=c18407f165",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/magnifying_glass/icon.png?v=b77b642452",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
@@ -6451,6 +6663,36 @@
       "dyes": {
         "dye1": "mustard"
       },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
+      "release": "released"
+    },
+    {
+      "key": "paper_plane",
+      "name": "Paper Plane",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 4,
+          "y": 33,
+          "w": 7,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/paper_plane/0-held.png?v=25eb1c8bda",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/paper_plane/icon.png?v=807a86e206",
+      "dyes": {},
       "occupies": [],
       "hides": [],
       "order": 0,
@@ -7998,6 +8240,38 @@
       "release": "released"
     },
     {
+      "key": "spotted_bandana",
+      "name": "Spotted Bandana",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 23,
+          "w": 10,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/spotted_bandana/0-head.png?v=e245b6d9a1",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/spotted_bandana/icon.png?v=eb79c1b9b8",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
+      "release": "released"
+    },
+    {
       "key": "starlight",
       "name": "Starlight",
       "category": "aura",
@@ -8746,6 +9020,33 @@
       "default": false,
       "rarity": "epic",
       "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "traffic_cone",
+      "name": "Traffic Cone",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 18,
+          "w": 10,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/traffic_cone/0-head.png?v=a99ca44f32"
+        }
+      ],
+      "icon": "/avatar-px/items/traffic_cone/icon.png?v=cfb1f48a8d",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
