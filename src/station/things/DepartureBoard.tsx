@@ -390,6 +390,173 @@ function ArcadeScores({ games, start }: { games: string[]; start?: string }) {
   );
 }
 
+// ---- The podium: everyone in the standings, stood on a stepped pyramid seen from one corner.
+// First place has the top to themselves; each step down runs round the two near sides and
+// holds four more than the one above (1, 5, 9, 13...), so five steps take 45 and it grows a
+// step whenever it has to. On a step, the better places are nearer the front corner.
+
+// A cell is 44 across and 22 deep on screen (two across to one down). A step is 30 high, so
+// with the 22 it comes forward each one stands a kid's height (48) below the last, and
+// nobody's head is in front of the face behind. Avatars are drawn at twice their pixels,
+// 64 by 96, their feet 4 up from the bottom
+const POD = { tw: 44, th: 22, step: 30 };
+const MEDALS = ["#ffd24a", "#cfd6e0", "#d08a4a"];
+
+// How many steps below the top one it takes to stand this many
+function podiumSteps(count: number) {
+  let steps = 0;
+  while ((2 * steps + 1) * (steps + 1) < count) steps += 1;
+  return steps;
+}
+
+function Podium({ signedIn }: { signedIn: boolean }) {
+  const { data, isLoading, error } = useScareboard(null, signedIn);
+  const rows = data?.leaderboard.data ?? [];
+  const { data: looks, isPending: looksPending } = useLooks(rows.flatMap((row) => (row.userId ? [row.userId] : [])));
+  const open = useContext(OpenProfile);
+  // Whoever's pointed at (or, with no card of their own to open, tapped): said along the top
+  const [named, setNamed] = useState<number | null>(null);
+  // As big as the board has room for (down to a size you can still make people out at, then it scrolls)
+  // (the box isn't there until the standings are, so it's kept in state: the effect runs when it arrives)
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const [room, setRoom] = useState({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    const el = box;
+    if (!el) return;
+    const measure = () => setRoom({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(el);
+    return () => resize.disconnect();
+  }, [box]);
+
+  if (!signedIn || needsSignIn(error)) return null;
+  if (isLoading && !data) return <Line>FLIPPING...</Line>;
+  if (error) return <Line>BOARD FAULT: {error.message.toUpperCase()}</Line>;
+  if (rows.length === 0) return <Line>NOBODY ON THE PODIUM YET</Line>;
+
+  const steps = podiumSteps(rows.length);
+  const side = 2 * steps + 1;
+  const { tw, th, step } = POD;
+  const width = side * tw;
+  // (room over the top block for whoever's on it, and their name)
+  const headroom = Math.max(8, 88 - (side * th) / 2);
+  const baseline = headroom + (steps + 1) * step;
+  const height = baseline + side * th + 4;
+  // The floor runs x to the lower right and y to the lower left; z is up
+  const at = (x: number, y: number, z: number): [number, number] => [((x - y) * tw) / 2 + width / 2, ((x + y) * th) / 2 - z + baseline];
+  const points = (...corners: [number, number][]) => corners.map(([x, y]) => `${x},${y}`).join(" ");
+
+  // Where each place stands: the step (0 is the top), and the cell on it
+  const standers = rows.map((row, index) => {
+    let ring = 0;
+    let first = 0;
+    while (index >= first + 4 * ring + 1) {
+      first += 4 * ring + 1;
+      ring += 1;
+    }
+    const along = index - first; // 0 is the front corner, then left, right, left, right... away from it
+    const out = Math.ceil(along / 2);
+    const left = along % 2 === 1;
+    const corner = steps + ring;
+    const cx = left ? corner - out : corner;
+    const cy = left || along === 0 ? corner : corner - out;
+    const z = (steps - ring + 1) * step;
+    return { row, index, ring, cx, cy, z, left: left || along === 0, feet: at(cx + 0.5, cy + 0.5, z) };
+  });
+
+  const scale = room.width ? Math.min(3, room.width / width, Math.max(room.height / height, Math.min(0.85, room.width / width))) : 1;
+  const said = named !== null ? standers[named] : null;
+  return (
+    <div className="flex h-full min-h-[16rem] flex-col">
+      <p className="mb-1 min-h-[1.2em] text-[13px] opacity-80" aria-live="polite">
+        {said ? `#${said.row.rank} ${said.row.name.toUpperCase()} · ${said.row.total} POINTS` : `${rows.length} ON THE PODIUM · ${data?.leaderboard.meta?.year ?? ""} STANDINGS`}
+      </p>
+      <div ref={setBox} className="min-h-0 flex-1">
+        <div className="relative mx-auto" style={{ width: width * scale, height: height * scale }}>
+          <div className="absolute left-0 top-0" style={{ width, height, transform: `scale(${scale})`, transformOrigin: "0 0", textShadow: "none" }}>
+            <svg width={width} height={height} className="absolute inset-0" aria-hidden>
+              {/* The blocks, the widest and lowest first, each rising out of the one before */}
+              {Array.from({ length: steps + 1 }, (_, n) => steps - n).map((ring) => {
+                const near = steps + ring + 1;
+                const far = steps - ring;
+                const z = (steps - ring + 1) * step;
+                return (
+                  <g key={ring} stroke="rgba(255,176,58,0.3)" strokeWidth={0.75} strokeLinejoin="round">
+                    <polygon points={points(at(far, far, z), at(near, far, z), at(near, near, z), at(far, near, z))} fill="#1c222d" />
+                    <polygon points={points(at(far, near, z), at(near, near, z), at(near, near, z - step), at(far, near, z - step))} fill="#131820" />
+                    <polygon points={points(at(near, far, z), at(near, near, z), at(near, near, z - step), at(near, far, z - step))} fill="#0c0f15" />
+                  </g>
+                );
+              })}
+              {/* Each place's own square of its step (gold, silver and bronze for the first three), and its number on the riser under it */}
+              {standers.map(({ row, index, cx, cy, z, left }) => {
+                const [nx, ny] = left ? at(cx + 0.5, cy + 1, z - step / 2) : at(cx + 1, cy + 0.5, z - step / 2);
+                return (
+                  <g key={index}>
+                    <polygon
+                      points={points(at(cx, cy, z), at(cx + 1, cy, z), at(cx + 1, cy + 1, z), at(cx, cy + 1, z))}
+                      fill={MEDALS[index] ?? "transparent"}
+                      fillOpacity={0.45}
+                      stroke="rgba(255,176,58,0.14)"
+                      strokeWidth={0.5}
+                    />
+                    <text x={nx} y={ny + 3} textAnchor="middle" fontSize={9} fill={MEDALS[index] ?? AMBER} fillOpacity={index < 3 ? 1 : 0.75}>
+                      {row.rank}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+            {standers.map(({ row, index, cx, cy, feet }) => {
+              const look = row.userId ? looks?.[row.userId] : undefined;
+              const profile = open && row.userId ? () => open({ userId: row.userId as string, name: row.name, look }) : undefined;
+              return (
+                // (those nearer the front corner are drawn over those behind)
+                <div key={index} className="pointer-events-none absolute" style={{ left: feet[0] - 32, top: feet[1] - 92, width: 64, height: 96, zIndex: cx + cy + 1 }}>
+                  {look ? (
+                    <AvatarView look={look} height={96} label="" />
+                  ) : row.userId && !looksPending ? (
+                    <img
+                      src={getAvatarCompositePublicUrl(row.userId)}
+                      alt=""
+                      loading="lazy"
+                      draggable={false}
+                      className="h-[96px] w-[64px] max-w-none object-contain [image-rendering:pixelated]"
+                      onError={(event) => (event.currentTarget.style.visibility = "hidden")}
+                    />
+                  ) : (
+                    // (no avatar: on their way, or a name off the sheet with no account)
+                    <StandIn />
+                  )}
+                  {/* (the part of the frame they stand in takes the pointer, not all of it: the frames overlap) */}
+                  <button
+                    type="button"
+                    aria-label={`Place ${row.rank}: ${row.name}, ${row.total} points`}
+                    className="pointer-events-auto absolute bottom-0 left-4 h-14 w-8 cursor-pointer"
+                    onPointerEnter={() => setNamed(index)}
+                    onPointerLeave={() => setNamed((now) => (now === index ? null : now))}
+                    onFocus={() => setNamed(index)}
+                    onClick={() => {
+                      setNamed(index);
+                      profile?.();
+                    }}
+                  />
+                  {index === 0 && (
+                    <span className="absolute left-1/2 top-[26px] -translate-x-1/2 whitespace-nowrap text-[11px] leading-none text-[#ffd24a]" style={{ textShadow: ON_BANNER_TEXT }}>
+                      {row.name.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // A player's profile card, in the board's place (not laid over it: anything positioned
 // here would cover the sheet's own close button): them close up in front of their banner, their
 // name, and their best in each game with where it stands (their highest places first)
@@ -449,7 +616,7 @@ function ProfileCard({ player, games, onClose }: { player: Viewed; games: string
 // The board on the wall: the Scareboard, and the arcade's hi-scores (straight to one game's,
 // with `game`: the arcade's leaderboard key)
 export default function DepartureBoard({ signedIn, goTo, games = [], game }: Props) {
-  const [board, setBoard] = useState<"scareathon" | "arcade">(game && games.includes(game) ? "arcade" : "scareathon");
+  const [board, setBoard] = useState<"scareathon" | "podium" | "arcade">(game && games.includes(game) ? "arcade" : "scareathon");
   const [viewing, setViewing] = useState<Viewed | null>(null);
   const closeProfile = useCallback(() => setViewing(null), []);
   return (
@@ -460,21 +627,25 @@ export default function DepartureBoard({ signedIn, goTo, games = [], game }: Pro
       <div className="mb-2 border-b border-[#ffb03a]/25 pb-2 pr-10">
         <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
-      {games.length > 0 && (
-        <div className="mb-2 flex gap-1.5">
-          <Key active={board === "scareathon"} onClick={() => setBoard("scareathon")}>
-            SCAREATHON
-          </Key>
+      <div className="mb-2 flex gap-1.5">
+        <Key active={board === "scareathon"} onClick={() => setBoard("scareathon")}>
+          SCAREATHON
+        </Key>
+        {/* (the same standings, everyone stood on a podium) */}
+        <Key active={board === "podium"} onClick={() => setBoard("podium")}>
+          PODIUM
+        </Key>
+        {games.length > 0 && (
           <Key active={board === "arcade"} onClick={() => setBoard("arcade")}>
             ARCADE
           </Key>
-        </div>
-      )}
+        )}
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
         {board === "arcade" ? (
           <ArcadeScores games={games} start={game} />
         ) : signedIn ? (
-          <Standings signedIn={signedIn} />
+          board === "podium" ? <Podium signedIn={signedIn} /> : <Standings signedIn={signedIn} />
         ) : (
           <>
             <Line>STANDINGS ......... SIGNED-IN PASSENGERS</Line>
