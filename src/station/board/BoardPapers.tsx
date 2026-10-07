@@ -1,7 +1,7 @@
 // The papers' content components live beside the hook that picks them; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
 import Ticket from "../../components/TicketIcon";
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
 import {
@@ -366,6 +366,70 @@ function Challenge({ item, game, signedIn, goTo, full }: { item: ContentLoopItem
   );
 }
 
+// ---- Today's challenges: two to a handbill, one over the other
+
+// One of the two: its game's picture to the left, and beside it the game, what to do, what
+// it pays and Play
+function DailyRow({ item, signedIn, goTo }: { item: ContentLoopItem; signedIn: boolean; goTo: GoTo }) {
+  const game = useGame(item.gameName);
+  const { data: reward } = useRewardStatus(item, signedIn);
+  const done = Boolean(reward?.data?.alreadyClaimed);
+  const runs = item.targetMetricValue != null ? item.targetMetricValue.toLocaleString() : null;
+  const task = runs ? (item.verificationType === "arcade_runs" ? `Play ${runs} runs` : `Score ${runs}`) : null;
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="relative w-[40%] shrink-0">{game ? <Photo picture={game.picture} moving={false} className="h-full w-full" /> : <div className="h-full w-full bg-[#1a1a1a]" />}</div>
+      <div className="w-2 shrink-0" style={{ background: game?.color ?? "#e0433b" }} />
+      <div className="flex min-w-0 flex-1 flex-col px-3 py-1.5">
+        <p className="truncate text-[20px] uppercase leading-none" style={pixel}>
+          {(item.gameName ?? item.title).replace(/[‘’]/g, "'")}
+        </p>
+        {task && (
+          <p className="mt-1 text-[19px] leading-none" style={serif}>
+            {task}
+          </p>
+        )}
+        <p className="mt-1 text-[14px] leading-none opacity-75">
+          {item.rewardCoins ? `${item.rewardCoins.toLocaleString()} tickets` : null}
+          {done ? <strong className="ml-2 text-emerald-800">✓ Done</strong> : null}
+        </p>
+        <div className="mt-auto pt-1">
+          {item.gameName && (
+            <button type="button" className={action} onClick={act(() => goTo("arcade", item.gameName ?? undefined))}>
+              Play
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DailyChallenges({ items, signedIn, goTo }: { items: ContentLoopItem[]; signedIn: boolean; goTo: GoTo }) {
+  return (
+    <div className={`flex h-full flex-col ${ink}`}>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b-[3px] border-[#b3261e] px-3 py-1">
+        <p className="text-[19px] uppercase leading-none tracking-[0.1em] text-[#b3261e]" style={pixel}>
+          Daily challenges
+        </p>
+        {signedIn ? (
+          <p className="text-[13px] uppercase tracking-[0.15em] opacity-70">Today</p>
+        ) : (
+          <button type="button" className="text-[13px] uppercase tracking-[0.1em] underline underline-offset-2" onClick={act(() => goTo("tickets"))}>
+            Sign in to earn
+          </button>
+        )}
+      </div>
+      {items.map((item, i) => (
+        <Fragment key={item.id}>
+          {i > 0 && <div className="h-px shrink-0 bg-[#2a1d14]/40" />}
+          <DailyRow item={item} signedIn={signedIn} goTo={goTo} />
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
 // ---- A notice: a cutting from a newspaper
 
 function Clipping({ item, full, picture }: { item: ContentLoopItem; full: boolean; picture: Picture }) {
@@ -475,7 +539,9 @@ const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
 export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
-  const daily = items.find((item) => item.type === "daily_challenge");
+  // (today's challenges: two, on one paper)
+  const dailies = items.filter((item) => item.type === "daily_challenge").slice(0, 2);
+  const daily = dailies[0];
   const notices = items.filter((item) => item.type === "announcement").slice(0, daily ? 1 : 2);
   const challengeGame = useGame(challenge?.gameName);
   const dailyGame = useGame(daily?.gameName);
@@ -516,14 +582,15 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       sheet: { backgroundImage: "none" },
     },
   ];
-  // Bottom left: today's challenge
+  // Bottom left: today's challenges (both on the one paper; a lone one has it to itself)
   if (daily) {
+    const sheet = dailies.length > 1 ? <DailyChallenges items={dailies} signedIn={signedIn} goTo={goTo} /> : <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />;
     papers.push({
       id: "daily",
       kind: "CHALLENGE",
-      title: daily.title,
-      pinned: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />,
-      full: <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />,
+      title: dailies.length > 1 ? "Daily challenges" : daily.title,
+      pinned: sheet,
+      full: sheet,
       tint: "#d8ccab",
     });
   }

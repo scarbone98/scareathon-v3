@@ -2,7 +2,7 @@ import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
 import { createConversationWithMessage } from './inbox.js';
 import { awardWeeklyChallengePoint } from '../utils/scareathon.js';
-import { generateDailyChallenge } from '../utils/dailyChallengeGenerator.js';
+import { generateDailyChallenge, generateDailyChallenges } from '../utils/dailyChallengeGenerator.js';
 import {
     generateWeeklyChallenge,
     generatedChallengeDocumentId,
@@ -363,7 +363,8 @@ export async function getContentLoopPayload({ getPostsPayload, getRecentPostsPay
         const challenges = challengeResult.status === 'fulfilled' ? challengeResult.value?.data || [] : [];
         const items = [
             ...challenges.map(normalizeChallengeLoopItem),
-            normalizeChallengeLoopItem(generateDailyChallenge({ date })),
+            // (today's two)
+            ...generateDailyChallenges({ date }).map(normalizeChallengeLoopItem),
             ...posts.slice(0, 5).map(normalizePostLoopItem),
         ].filter(Boolean);
         const payload = { data: items };
@@ -596,8 +597,8 @@ async function sendWeeklyChallengeRewardMail(client, userId, challenge) {
 
 export async function awardEligibleWeeklyChallengeRewards(client, userId, submission) {
     const payload = await getCurrentWeeklyChallengePayload();
-    // This week's challenge, and today's
-    const challenges = [payload.data, generateDailyChallenge()]
+    // This week's challenge, and today's two
+    const challenges = [payload.data, ...generateDailyChallenges()]
         .filter((challenge) => challenge && challenge.rewardCoins && isWeeklyChallengeActive(challenge));
     const granted = [];
     for (const challenge of challenges) {

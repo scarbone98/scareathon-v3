@@ -1,6 +1,9 @@
 import fs from 'fs';
 import {
     CHALLENGE_ROTATION,
+    HARD_ROTATION,
+    HARD_RUNS_TARGET,
+    HARD_TARGET_QUANTILE,
     MIN_PLAYERS_FOR_SCORE_TARGET,
     NEW_RULES_START,
     RUNS_TARGET,
@@ -53,7 +56,8 @@ describe('weekly challenge rotation', () => {
 
     test('gets through every game, no game twice in a row, for a year', () => {
         const games = weekStarts(52).map(challengeGameForWeek);
-        expect(new Set(games)).toEqual(new Set(CHALLENGE_ROTATION));
+        // (the first week's game, then the harder weeks' rotation)
+        expect(new Set(games)).toEqual(new Set([CHALLENGE_ROTATION[0], ...HARD_ROTATION]));
         games.forEach((game, i) => {
             if (i > 0) expect(game).not.toBe(games[i - 1]);
         });
@@ -62,6 +66,16 @@ describe('weekly challenge rotation', () => {
     test.each(CHALLENGE_ROTATION)('%s saves scores the server accepts', (gameName) => {
         expect(GAME_SCORE_POLICIES.get(gameName)?.score).toBeDefined();
         expect(validateScoreSubmission({ game: gameName, metricName: 'score', metricValue: 1 })).toEqual({ ok: true });
+    });
+
+    test.each(HARD_ROTATION)('%s (a harder week) is a finished game, in the arcade, that saves scores', (gameName) => {
+        const entry = arcadeEntry(gameName);
+        expect(entry).not.toBeNull();
+        expect(entry).not.toContain('earlyAccess: true');
+        expect(entry).not.toContain('hasLeaderboard: false');
+        expect(entry).not.toContain('availableOnMobile: false');
+        expect(GAME_SCORE_POLICIES.get(gameName)?.score).toBeDefined();
+        expect(CHALLENGE_ROTATION).toContain(gameName);
     });
 
     test.each(CHALLENGE_ROTATION)('%s is in the arcade, saves a score every run, and works on phones', (gameName) => {
@@ -92,6 +106,13 @@ describe('weekly challenge targets', () => {
         expect(scoreTargetFromPlayerBests([50, 120, 312, 480], policy)).toBe(120);
         expect(scoreTargetFromPlayerBests([900, 2644], policy)).toBeNull();
         expect(MIN_PLAYERS_FOR_SCORE_TARGET).toBeGreaterThanOrEqual(3);
+    });
+
+    test('or, harder, the best only the top quarter of players had reached', () => {
+        const policy = { min: 0, max: 10000000, integer: true };
+        expect(scoreTargetFromPlayerBests([50, 120, 312, 480, 2644], policy, HARD_TARGET_QUANTILE)).toBe(480);
+        expect(scoreTargetFromPlayerBests([10, 20, 30, 40, 50, 60, 70, 80, 90], policy, HARD_TARGET_QUANTILE)).toBe(70);
+        expect(scoreTargetFromPlayerBests([900, 2644], policy, HARD_TARGET_QUANTILE)).toBeNull();
     });
 
     test('stay inside what the server accepts', () => {
@@ -144,12 +165,25 @@ describe('generated weekly challenges', () => {
             date: new Date('2026-10-05T12:00:00.000Z'),
             db: fakeDb([1200]),
         });
+        // (the week the harder rules came in: a finished game, and more runs of it)
         expect(challenge).toMatchObject({
-            gameName: 'Frog Ball',
+            documentId: 'generated-weekly-2026-10-04',
+            gameName: "Hemlock's Tower",
             verificationType: 'arcade_runs',
-            targetMetricValue: RUNS_TARGET,
-            title: `Weekly Arcade Challenge: Play ${RUNS_TARGET} runs of Frog Ball`,
+            targetMetricValue: HARD_RUNS_TARGET,
+            title: `Weekly Arcade Challenge: Play ${HARD_RUNS_TARGET} runs of Hemlock's Tower`,
         });
+        expect(HARD_RUNS_TARGET).toBeGreaterThan(RUNS_TARGET);
+    });
+
+    test('from the harder rules, ask for a score only the better players have, and pay more', async () => {
+        const bests = [40, 89, 266, 900, 2644];
+        const before = await generateWeeklyChallenge({ date: new Date('2026-09-30T12:00:00.000Z'), db: fakeDb(bests) });
+        const harder = await generateWeeklyChallenge({ date: new Date('2026-10-05T12:00:00.000Z'), db: fakeDb(bests) });
+        expect(harder).toMatchObject({ gameName: "Hemlock's Tower", verificationType: 'arcade_score', targetMetricValue: 900, points: 1 });
+        expect(harder.targetMetricValue).toBeGreaterThan(before.targetMetricValue);
+        expect(harder.rewardCoins).toBeGreaterThanOrEqual(100);
+        expect(harder.rewardCoins).toBeGreaterThanOrEqual(before.rewardCoins);
     });
 
     test('come out the same from their documentId, which is how rewards find them', async () => {
@@ -188,7 +222,7 @@ describe('generated weekly challenges', () => {
                 expect(scoreSubmissionCompletesChallenge(challenge, { ...submission, game: 'Some Other Game', metricValue: policy.max })).toBe(false);
             } else {
                 expect(challenge.verificationType).toBe('arcade_runs');
-                expect(challenge.targetMetricValue).toBe(RUNS_TARGET);
+                expect([RUNS_TARGET, HARD_RUNS_TARGET]).toContain(challenge.targetMetricValue);
             }
         }
     });
@@ -200,13 +234,13 @@ describe('generated weekly challenges', () => {
             return { calls, query: async (sql, params) => { calls.push(params); return { rows: [{ runs }] }; } };
         };
 
-        const notYet = clientWithRuns(RUNS_TARGET - 1);
+        const notYet = clientWithRuns(HARD_RUNS_TARGET - 1);
         await expect(getVerifiedWeeklyChallengeCompletion(notYet, 'user-1', challenge)).resolves.toMatchObject({ completed: false });
-        expect(notYet.calls[0]).toEqual(['user-1', 'Frog Ball', 'score', '2026-10-04T00:00:00.000Z', '2026-10-10T23:59:59.999Z']);
+        expect(notYet.calls[0]).toEqual(['user-1', "Hemlock's Tower", 'score', '2026-10-04T00:00:00.000Z', '2026-10-10T23:59:59.999Z']);
 
-        await expect(getVerifiedWeeklyChallengeCompletion(clientWithRuns(RUNS_TARGET), 'user-1', challenge)).resolves.toMatchObject({
+        await expect(getVerifiedWeeklyChallengeCompletion(clientWithRuns(HARD_RUNS_TARGET), 'user-1', challenge)).resolves.toMatchObject({
             completed: true,
-            evidence: { type: 'arcade_runs', game: 'Frog Ball', runs: RUNS_TARGET },
+            evidence: { type: 'arcade_runs', game: "Hemlock's Tower", runs: HARD_RUNS_TARGET },
         });
     });
 });

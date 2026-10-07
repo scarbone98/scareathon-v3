@@ -150,7 +150,7 @@ describe('weekly challenge helpers', () => {
         expect(challenge).toMatchObject({
             documentId: 'generated-weekly-2026-10-04',
             title: expect.stringContaining('Weekly Arcade Challenge'),
-            gameName: 'Frog Ball',
+            gameName: "Hemlock's Tower",
             verificationType: 'arcade_runs',
             metricName: 'score',
             status: 'published',

@@ -1,4 +1,4 @@
-import { DAILY_REWARD, DAILY_RUNS_TARGET, dayStartFromDocumentId, generateDailyChallenge } from '../utils/dailyChallengeGenerator.js';
+import { DAILY_REWARD, DAILY_RUNS_TARGET, dayStartFromDocumentId, generateDailyChallenge, generateDailyChallenges } from '../utils/dailyChallengeGenerator.js';
 import { weeklyChallengeRewardMail } from '../routes/weeklyChallenges.js';
 
 describe('the daily challenge', () => {
@@ -27,6 +27,17 @@ describe('the daily challenge', () => {
     test('a different game the next day', () => {
         const tomorrow = generateDailyChallenge({ date: new Date('2026-10-03T15:00:00Z') });
         expect(tomorrow.gameName).not.toBe(today.gameName);
+    });
+
+    test('there are two a day, different games, each its own to claim', () => {
+        const [first, second] = generateDailyChallenges({ date: new Date('2026-10-02T15:00:00Z') });
+        expect(first).toEqual(today);
+        expect(second.documentId).toBe('generated-daily-2026-10-02-2');
+        expect(second.gameName).not.toBe(first.gameName);
+        expect(second).toMatchObject({ daily: true, rewardCoins: DAILY_REWARD, targetMetricValue: DAILY_RUNS_TARGET });
+        expect(generateDailyChallenge({ documentId: second.documentId })).toEqual(second);
+        expect(generateDailyChallenge({ documentId: 'generated-daily-2026-10-02-3' })).toBeNull();
+        expect(generateDailyChallenge({ documentId: 'generated-daily-2026-10-02-1' })).toBeNull();
     });
 
     test('its mail says daily, and tomorrow', () => {

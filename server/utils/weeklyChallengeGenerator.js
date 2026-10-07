@@ -10,8 +10,14 @@ import { GAME_SCORE_POLICIES } from './gameScorePolicies.js';
 // challenge from its documentId. Games too few people have played get a
 // "play N runs" challenge instead, which anyone can finish.
 //
+// From HARDER_RULES_START it's harder, and only finished games are asked for: the
+// rotation leaves out anything in early access, the score to beat is one only the
+// better quarter of players had reached (not the typical player's best), and where
+// there's no score to set it's more runs. It pays more for it.
+//
 // Weeks before NEW_RULES_START keep the old rules (8 Bit Evil Returns and a
-// fixed list of targets) so past challenges still check out.
+// fixed list of targets), and the week between the two dates its own, so past
+// challenges still check out.
 
 // A Sunday, like every generated week's start
 export const NEW_RULES_START = '2026-09-27';
@@ -30,11 +36,36 @@ export const CHALLENGE_ROTATION = [
     '8 Bit Evil Returns',
 ];
 
+// A Sunday too: the week the harder rules begin (the week they were brought in, so that
+// week's challenge changed part-way through; whoever had finished it by then kept their
+// tickets and their point, which are stored once given)
+export const HARDER_RULES_START = '2026-10-04';
+
+// The harder weeks' games: the same, without the ones still in early access (Frog Ball),
+// and in an order that doesn't follow Ooidash's week with Ooidash
+export const HARD_ROTATION = [
+    "Hemlock's Tower",
+    'Horde Rush',
+    'Tlaloc’s Curse',
+    'Salmon Run 2',
+    'WirtWare',
+    '8 Bit Evil Returns',
+    'Ooidash',
+];
+
 export const MIN_PLAYERS_FOR_SCORE_TARGET = 3;
 export const RUNS_TARGET = 3;
+export const HARD_RUNS_TARGET = 6;
+// How far up the players' bests the score to beat sits: half way (the median), and from
+// the harder rules three quarters of the way
+export const HARD_TARGET_QUANTILE = 0.75;
 const METRIC_NAME = 'score';
 const SCORE_REWARDS = [50, 75, 100];
 const RUNS_REWARD = 50;
+const HARD_SCORE_REWARDS = [100, 125, 150];
+const HARD_RUNS_REWARD = 75;
+
+const isHarderWeek = (start) => start.getTime() >= Date.parse(`${HARDER_RULES_START}T00:00:00.000Z`);
 
 const LEGACY_GAME_NAME = '8 Bit Evil Returns';
 const LEGACY_TARGETS = [1000, 1500, 2000, 2500, 3000, 4000, 5000];
@@ -60,6 +91,10 @@ export function weekStartFromDocumentId(documentId) {
 }
 
 export function challengeGameForWeek(start) {
+    if (isHarderWeek(start)) {
+        const weeksSinceHarder = Math.round((start.getTime() - Date.parse(`${HARDER_RULES_START}T00:00:00.000Z`)) / WEEK_MS);
+        return HARD_ROTATION[weeksSinceHarder % HARD_ROTATION.length];
+    }
     const weeksSinceStart = Math.round((start.getTime() - Date.parse(`${NEW_RULES_START}T00:00:00.000Z`)) / WEEK_MS);
     if (weeksSinceStart < 0) return null;
     return CHALLENGE_ROTATION[weeksSinceStart % CHALLENGE_ROTATION.length];
@@ -72,11 +107,12 @@ export function niceTarget(value) {
     return Math.floor(value / magnitude) * magnitude;
 }
 
-// The median of the players' best scores (the lower one for an even count)
-export function scoreTargetFromPlayerBests(bests, policy) {
+// The median of the players' best scores (the lower one for an even count); or, with a
+// `quantile`, the best that far up them (0.75: three players in four hadn't reached it)
+export function scoreTargetFromPlayerBests(bests, policy, quantile = 0.5) {
     const sorted = bests.filter(Number.isFinite).sort((a, b) => a - b);
     if (sorted.length < MIN_PLAYERS_FOR_SCORE_TARGET) return null;
-    const median = sorted[Math.floor((sorted.length - 1) / 2)];
+    const median = sorted[Math.floor((sorted.length - 1) * quantile)];
     let target = niceTarget(median);
     if (policy) target = Math.min(Math.max(target, Math.max(1, policy.min)), policy.max);
     return policy?.integer === false ? target : Math.floor(target);
@@ -150,34 +186,39 @@ async function rotatedChallenge(start, db) {
     const policy = GAME_SCORE_POLICIES.get(gameName)?.[METRIC_NAME];
     if (!policy) throw new Error(`No score policy for weekly challenge game ${gameName}`);
 
+    const harder = isHarderWeek(start);
     const bests = await getPlayerBestsBefore(db, gameName, start, policy);
-    const targetMetricValue = scoreTargetFromPlayerBests(bests, policy);
+    const targetMetricValue = scoreTargetFromPlayerBests(bests, policy, harder ? HARD_TARGET_QUANTILE : 0.5);
     const name = displayName(gameName);
     const weekIndex = Math.floor(start.getTime() / WEEK_MS);
 
     if (targetMetricValue === null) {
+        const runs = harder ? HARD_RUNS_TARGET : RUNS_TARGET;
         return {
             ...baseChallenge(start),
-            title: `Weekly Arcade Challenge: Play ${RUNS_TARGET} runs of ${name}`,
-            summary: `Finish ${RUNS_TARGET} runs of ${name} while signed in before the week resets.`,
-            rewardCoins: RUNS_REWARD,
+            title: `Weekly Arcade Challenge: Play ${runs} runs of ${name}`,
+            summary: `Finish ${runs} runs of ${name} while signed in before the week resets.`,
+            rewardCoins: harder ? HARD_RUNS_REWARD : RUNS_REWARD,
             verificationType: 'arcade_runs',
             gameName,
-            targetMetricValue: RUNS_TARGET,
+            targetMetricValue: runs,
             generation: { rule: 'runs', players: bests.length },
         };
     }
 
     const target = targetMetricValue.toLocaleString('en-US');
+    const rewards = harder ? HARD_SCORE_REWARDS : SCORE_REWARDS;
     return {
         ...baseChallenge(start),
         title: `Weekly Arcade Challenge: Score ${target} in ${name}`,
-        summary: `Score at least ${target} in ${name} before the week resets. That's about a typical player's best run.`,
-        rewardCoins: SCORE_REWARDS[weekIndex % SCORE_REWARDS.length],
+        summary: harder
+            ? `Score at least ${target} in ${name} before the week resets. Only about one player in four has done that.`
+            : `Score at least ${target} in ${name} before the week resets. That's about a typical player's best run.`,
+        rewardCoins: rewards[weekIndex % rewards.length],
         verificationType: 'arcade_score',
         gameName,
         targetMetricValue,
-        generation: { rule: 'median_player_best', players: bests.length },
+        generation: { rule: harder ? 'upper_quartile_player_best' : 'median_player_best', players: bests.length },
     };
 }
 
