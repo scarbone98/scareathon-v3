@@ -134,6 +134,29 @@ function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: 
     if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
   }
 }
+// Relax overlaps without adding velocity: a bounded, time-scaled push settles
+// smoothly, and the same sliding collision keeps crowds out of scenery.
+function separateBodies(s: GameState, dt: number) {
+  const bodies = [{ body: s as { x: number; y: number }, radius: 7, id: 0 },
+    ...s.enemies.filter(e => e.hp > 0).sort((a, b) => a.id - b.id)
+      .map(e => ({ body: e, radius: e.radius, id: e.id }))];
+  const remaining = bodies.map(() => dt * 30), relaxation = 1 - Math.exp(-dt * 12);
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i], b = bodies[j], dx = b.body.x - a.body.x, dy = b.body.y - a.body.y;
+      const length = Math.hypot(dx, dy), overlap = a.radius + b.radius - length;
+      if (overlap <= 0.01) continue;
+      // Coincident bodies choose a stable diagonal without consuming game RNG.
+      const nx = length > 0.000001 ? dx / length : Math.SQRT1_2;
+      const ny = length > 0.000001 ? dy / length : ((a.id + b.id) % 2 ? 1 : -1) * Math.SQRT1_2;
+      const push = overlap * relaxation * 0.5;
+      const pushA = Math.min(push, remaining[i]), pushB = Math.min(push, remaining[j]);
+      remaining[i] -= pushA; remaining[j] -= pushB;
+      moveBody(s, a.body, -nx * pushA, -ny * pushA, a.radius);
+      moveBody(s, b.body, nx * pushB, ny * pushB, b.radius);
+    }
+  }
+}
 export function advanceStory(s: GameState): void {
   if (s.scene !== "prologue") return;
   s.cutscene++; s.sceneTimer = 0;
@@ -348,9 +371,29 @@ function updateEnemies(s: GameState, dt: number) {
   }
 }
 function updateProjectiles(s: GameState, dt: number) {
+  const world = getWorld(s.scene, s.room);
   for (const p of s.projectiles) {
-    const x0 = p.x, y0 = p.y;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.ttl -= dt;
+    const x0 = p.x, y0 = p.y, dx = p.vx * dt, dy = p.vy * dt;
+    p.ttl -= dt;
+    if (isBlocked(world, x0, y0, p.radius)) { p.ttl = 0; continue; }
+    // Trace solids first, including thin footprints crossed between endpoints.
+    // Actor hits use only the clear segment, so beams cannot damage through props.
+    const pieces = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 2));
+    let blocked = false;
+    for (let n = 1; n <= pieces; n++) {
+      let t = n / pieces;
+      if (isBlocked(world, x0 + dx * t, y0 + dy * t, p.radius)) {
+        let clear = (n - 1) / pieces, solid = t;
+        for (let refine = 0; refine < 8; refine++) {
+          const middle = (clear + solid) * 0.5;
+          if (isBlocked(world, x0 + dx * middle, y0 + dy * middle, p.radius)) solid = middle;
+          else clear = middle;
+        }
+        t = clear; blocked = true;
+      }
+      p.x = x0 + dx * t; p.y = y0 + dy * t;
+      if (blocked) break;
+    }
     // A segment collision prevents fast beams slipping between fixed-step targets.
     const collides = (x: number, y: number, radius: number) => {
       const dx = p.x - x0, dy = p.y - y0;
@@ -366,7 +409,7 @@ function updateProjectiles(s: GameState, dt: number) {
         if (!p.beam) { p.ttl = 0; break; }
       }
     } else if (collides(s.x, s.y, 7)) { hurtHero(s, p.damage, x0, y0); p.ttl = 0; }
-    if (isBlocked(getWorld(s.scene, s.room), p.x, p.y, p.radius)) p.ttl = 0;
+    if (blocked) p.ttl = 0;
   }
   s.projectiles = s.projectiles.filter(p => p.ttl > 0);
 }
@@ -539,6 +582,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (!input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
   const hadEnemies = s.enemies.length > 0;
   updateEnemies(s, dt);
+  separateBodies(s, dt);
   updateProjectiles(s, dt);
   s.enemies = s.enemies.filter(e => e.hp > 0);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";

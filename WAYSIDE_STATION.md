@@ -50,6 +50,7 @@ vent shows NO SIGNAL bars, shaking the phone rocks the machine, drops dust and c
 | Arcade hand-over | `page.tsx`, `slotDressing.ts` | Tap the arcade: the camera walks up while cartridges fly from the wall rack into a row; at 1.05 s the real arcade (transparent canvas) fades in over the station's cabinet, which it matches part for part. The arcade reports where its cabinet lands (`onFramed`) so the station's camera ends exactly there. |
 | Arcade preload | `page.tsx` | The arcade is built hidden while the arrival train stands at the platform (or after 3.5 s idle), then paused. It draws one warm-up frame so its first real frame doesn't stall. Hidden, it must take **no touches** (`visibility: hidden`), or its terminal card swallows taps and swipes below it. |
 | Arrival | `StationScene.tsx` (`arrival`), `page.tsx` | A carriage rides in with you aboard, waits with its doors shut until the cabinet has loaded and the arcade is built, opens, and you step off. Skipped for deep links with `?at=`. |
+| Agent keys | `server/utils/agentTokens.js`, `agent-cli/` | Settings > Agent keys makes a `wsa_` key for the `wayside` CLI. The auth hook sends those keys to `authenticateAgent`: allowlisted routes only (calendar, own season, mark/unmark watched for nights that have come, Scareboard), never admin. |
 | Data | `data.ts` | react-query with the classic pages' query keys, `fetchWithAuth`, the Supabase session. |
 
 ## Running and testing locally

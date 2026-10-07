@@ -225,6 +225,9 @@ export class MusicDirector {
     if (!this.ctx) {
       const browser = globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext };
       const Context = browser.AudioContext || browser.webkitAudioContext;
+      // iOS mutes Web Audio under the ring/silent switch unless the session is media playback.
+      const session = (globalThis.navigator as Navigator & { audioSession?: { type: string } } | undefined)?.audioSession;
+      if (!this.createContext && session) { try { session.type = "playback"; } catch { /* unsupported */ } }
       if (!this.createContext && !Context) return;
       try { this.ctx = this.createContext ? this.createContext() : new Context!(); this.buildGraph(); }
       catch { this.ctx = null; return; }

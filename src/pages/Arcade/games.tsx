@@ -36,6 +36,8 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
+  // An early-access game that still spends its first day in NEW GAMES, like a finished one
+  newShelf?: boolean;
   // When it arrived (an ISO time, like "2026-10-04T16:00:00-06:00"): a "!" badge until it's
   // played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
   added?: string;
@@ -93,6 +95,8 @@ const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
 const SCARY_CAPITALIST_URL = "/scary-capitalist";
+const SCAREDLE_URL = "/scaredle";
+const CROSS_BONES_URL = "/cross-bones";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
@@ -115,8 +119,10 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // the server's /october-valley/ws.
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
-const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=07275f7";
-const POCKET_AQUARIUM_URL = "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
+const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=68d0611";
+// A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
+const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=e258ba5";
+const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
@@ -705,8 +711,9 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Wayside Fury",
       earlyAccess: true,
+      newShelf: true,
       availableOnMobile: true,
-      added: "Wed 2026-10-07 9:00 AM PDT (UTC-07:00)",
+      added: "Thu 2026-10-08 9:00 AM PDT (UTC-07:00)",
       cartridge: {
         color: "#b34836",
         tagline: "Five years later, the real evil arrives.",
@@ -832,6 +839,45 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Scary Capitalist", SCARY_CAPITALIST_URL)
           }
+        />
+      ),
+    },
+    // Daily word puzzles built into the site (pages/DailyPuzzles): a new one every midnight US
+    // Eastern. Played through the server (routes/dailyPuzzles.js), which writes their
+    // leaderboard scores and pays their tickets itself, so they post nothing to the cabinet.
+    {
+      name: "Scaredle",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "One spooky word a day. Six guesses.",
+        font: { family: "Creepster" },
+        about: { released: "2026", players: "Single player", genre: "Daily word puzzle", developer: "scarbone98" },
+        backNote: "Start with GHOST.",
+      },
+      game: (
+        <GameRenderer
+          title="Scaredle"
+          url={SCAREDLE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Cross Bones",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#e9dcc0",
+        tagline: "A haunted crossword every midnight.",
+        font: { family: "Special Elite" },
+        about: { released: "2026", players: "Single player", genre: "Daily crossword", developer: "scarbone98" },
+        backNote: "Bones fit together. So do words.",
+      },
+      game: (
+        <GameRenderer
+          title="Cross Bones"
+          url={CROSS_BONES_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
@@ -1389,6 +1435,30 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // --- Secret: in testing, only on the shelf once you've typed OUTSIDE into WaysideOS.
+    // Nothing to score: a boy, a foggy wood and a test course.
+    {
+      name: "Outside",
+      added: "2026-10-07T15:00:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#9c2a22",
+        tagline: "A boy in a red shirt. Fog. Keep running.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Platformer", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Outside"
+          url={OUTSIDE_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
     // --- Secret: in testing, only on the shelf once you've typed EVILV2 into WaysideOS.
     // It's sent the player's session for its own save (/8bitevilreturns/v2/save), which
     // never touches the Unity game's silver and unlocks. No scores while it's in testing.
@@ -1491,12 +1561,12 @@ export function createArcadeGames(): MachineData[] {
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the cassette
-// carts (things to do), new games (finished ones, for their first day), the finished games
+// carts (things to do), new games (finished ones, or early access with newShelf, for their first day), the finished games
 // ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
   if (game.special === "mystery") return 2;
   if (game.special === "soon") return 4;
-  if (game.earlyAccess) return 3;
+  if (game.earlyAccess) return isNewGame(game) ? 1 : 3;
   if (game.cartridge.cassette) return 0;
   return isNewGame(game) ? 1 : 2;
 }
