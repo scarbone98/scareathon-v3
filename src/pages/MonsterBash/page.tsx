@@ -4,7 +4,6 @@ import {
   type Monster,
   type MonsterMove,
 } from "../../../server/shared/monster-bash/index.js";
-import AnimatedPage from "../../components/AnimatedPage";
 import Arena from "./arena/Arena";
 import { connectLocalFeed } from "./feed/localFeed";
 import { connectSocketFeed } from "./feed/socketFeed";
@@ -180,8 +179,9 @@ function useLayout(): Layout {
 }
 
 // The arena is 16:9; cap its width so the whole thing fits on screen under
-// the header and matchup bar instead of pushing past the fold.
-const ARENA_FIT_STYLE = { maxWidth: "calc((100vh - 14rem) * 16 / 9)" };
+// the casino's header, this room's and the matchup bar instead of pushing past
+// the fold.
+const ARENA_FIT_STYLE = { maxWidth: "calc((100vh - 20rem) * 16 / 9)" };
 
 type PanelTab = "bet" | "stats" | "odds" | "chat" | "results";
 
@@ -225,6 +225,7 @@ function PanelTabs({ tabs, panels }: { tabs: PanelTab[]; panels: Partial<Record<
   );
 }
 
+// The casino's fight room (Casino/page.tsx is the page around it).
 export default function MonsterBash() {
   const [store] = useState(() => new MatchStore());
   const { match, history, viewers, connection, chat, settledMatchId } = useSyncExternalStore(
@@ -329,45 +330,43 @@ export default function MonsterBash() {
   }
 
   return (
-    <AnimatedPage className="bg-[#07030c]">
-      <main className="relative z-10 mx-auto flex w-full max-w-[1920px] flex-col gap-3 px-3 pb-8 pt-3 sm:px-6 md:gap-4 md:pt-5 lg:px-8">
-        <header className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">Monster Bash</p>
-            <p className="hidden text-sm text-purple-200/70 sm:block">
-              Monsters fight it out around the clock. Bet your coins and watch the odds swing live.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            {viewers !== null && (
-              <span className="text-sm text-purple-200/70">
-                <strong className="text-orange-50">{viewers}</strong> watching
-              </span>
-            )}
-            <span
-              className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${
-                reconnecting
-                  ? "border-amber-600 bg-amber-950/40 text-amber-200"
-                  : phase === "fighting"
-                    ? "border-red-500 bg-red-950/60 text-red-300"
-                    : "border-purple-700 bg-purple-950/40 text-purple-200"
-              }`}
-            >
-              {phase === "fighting" && !reconnecting && (
-                <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
-              )}
-              {reconnecting ? "Reconnecting" : PHASE_LABELS[phase]}
-            </span>
-          </div>
-        </header>
-
-        {body}
-        {localPreview && (
-          <p className="text-xs text-purple-200/50">
-            Local preview: bouts are simulated in your browser, not the live arena. Betting and chat are off.
+    <div className="flex flex-col gap-3 md:gap-4">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-zombie text-2xl tracking-wide text-red-500 md:text-3xl">Monster Bash</h2>
+          <p className="hidden text-sm text-purple-200/70 sm:block">
+            Monsters fight it out around the clock. Bet your coins and watch the odds swing live.
           </p>
-        )}
-      </main>
-    </AnimatedPage>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {viewers !== null && (
+            <span className="text-sm text-purple-200/70">
+              <strong className="text-orange-50">{viewers}</strong> watching
+            </span>
+          )}
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${
+              reconnecting
+                ? "border-amber-600 bg-amber-950/40 text-amber-200"
+                : phase === "fighting"
+                  ? "border-red-500 bg-red-950/60 text-red-300"
+                  : "border-purple-700 bg-purple-950/40 text-purple-200"
+            }`}
+          >
+            {phase === "fighting" && !reconnecting && (
+              <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
+            )}
+            {reconnecting ? "Reconnecting" : PHASE_LABELS[phase]}
+          </span>
+        </div>
+      </header>
+
+      {body}
+      {localPreview && (
+        <p className="text-xs text-purple-200/50">
+          Local preview: bouts are simulated in your browser, not the live arena. Betting and chat are off.
+        </p>
+      )}
+    </div>
   );
 }

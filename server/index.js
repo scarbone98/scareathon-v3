@@ -21,6 +21,7 @@ import marketplaceRoutes from './routes/marketplace.js';
 import inboxRoutes from './routes/inbox.js';
 import adminStrapiRoutes from './routes/adminStrapi.js';
 import homeRoutes from './routes/home.js';
+import casinoRoutes, { isCasinoEnabled } from './routes/casino.js';
 import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js';
 import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
@@ -150,6 +151,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261009_more_animated_items.sql', import.meta.url), 'utf8')); // more hair, wings and the rest move
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261009_back_items_behind.sql', import.meta.url), 'utf8')); // things on your back go behind you
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261009_ponytail_behind.sql', import.meta.url), 'utf8')); // and so does the ponytail
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261008_add_casino_rounds.sql', import.meta.url), 'utf8')); // the casino's house games
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');
@@ -249,6 +251,9 @@ async function main() {
         fastify.register(bannersRoutes, { prefix: '/banners' });
         fastify.register(songsRoutes, { prefix: '/songs' });
         fastify.register(cartsRoutes, { prefix: '/carts' });
+        if (isCasinoEnabled()) {
+            fastify.register(casinoRoutes, { prefix: '/casino' });
+        }
         if (isMonsterBashEnabled()) {
             fastify.register(monsterBashRoutes, { prefix: '/monster-bash' });
         }

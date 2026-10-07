@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { FaCoins } from "react-icons/fa";
 import { getMonster, type FighterSide } from "../../../server/shared/monster-bash/index.js";
+import { goSignIn } from "../Casino/wallet";
 import { placeBet, type PlayerAccount } from "./account";
 import type { BetPools, LiveMatch, MatchPhase } from "./matchStore";
 import { SIDE_COLORS } from "./theme";
@@ -102,13 +103,13 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
   let body: React.ReactNode;
   if (!signedIn) {
     body = (
-      <Link
-        to="/authentication"
-        state={{ from: "/monster-bash" }}
-        className="block rounded-md border border-purple-700 bg-purple-950/50 px-4 py-2.5 text-center font-bold text-orange-50 hover:border-purple-400"
+      <button
+        type="button"
+        onClick={goSignIn}
+        className="block w-full rounded-md border border-purple-700 bg-purple-950/50 px-4 py-2.5 text-center font-bold text-orange-50 hover:border-purple-400"
       >
         Sign in to bet coins
-      </Link>
+      </button>
     );
   } else if (!account) {
     body = accountFailed ? (

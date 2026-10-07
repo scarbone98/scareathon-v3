@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { goSignIn } from "../Casino/wallet";
 import { sendChat } from "./account";
 import type { ChatMessage } from "./matchStore";
 
@@ -89,9 +89,9 @@ export default function Chat({ messages, signedIn, className = "" }: { messages:
             </button>
           </form>
         ) : (
-          <Link to="/authentication" state={{ from: "/monster-bash" }} className="text-sm text-purple-200 underline">
+          <button type="button" onClick={goSignIn} className="text-sm text-purple-200 underline">
             Sign in to chat
-          </Link>
+          </button>
         )}
         {error && (
           <p className="mt-2 text-xs text-red-300" role="alert">

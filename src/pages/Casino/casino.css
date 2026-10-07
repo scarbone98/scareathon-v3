@@ -1,0 +1,41 @@
+/* A monster's walk cycle: steps along its sprite sheet (set by MonsterSprite). */
+.casino-walk {
+  animation: casino-walk 0.55s steps(var(--casino-frames)) infinite;
+}
+
+@keyframes casino-walk {
+  to {
+    background-position-x: var(--casino-sheet);
+  }
+}
+
+/* A picture poker card turning face up. */
+.casino-card-in {
+  animation: casino-card-in 0.3s ease-out both;
+}
+
+@keyframes casino-card-in {
+  from {
+    transform: rotateY(90deg);
+  }
+}
+
+/* A winning line or number pulsing. */
+.casino-win {
+  animation: casino-win 0.5s ease-in-out 3;
+}
+
+@keyframes casino-win {
+  50% {
+    filter: brightness(1.6);
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casino-walk,
+  .casino-card-in,
+  .casino-win {
+    animation: none;
+  }
+}

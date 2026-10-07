@@ -15,7 +15,7 @@ const Station = lazy(() => {
   return import("../station/page");
 });
 const ResetPassword = lazy(() => import("../pages/Authentication/ResetPassword/page"));
-const MonsterBash = lazy(() => import("../pages/MonsterBash/page"));
+const Casino = lazy(() => import("../pages/Casino/page"));
 const CryptClash = lazy(() => import("../pages/Royale/page"));
 const HordeRush = lazy(() => import("../pages/HordeRush/page"));
 const MysteryCrypt = lazy(() => import("../pages/MysteryCrypt/page"));
@@ -29,7 +29,7 @@ const WaysideOnline = lazy(() => import("../pages/WaysideOnline/page"));
 const PAGES: [string, React.ComponentType][] = [
   ["/station", Station],
   ["/reset-password", ResetPassword],
-  ["/monster-bash", MonsterBash],
+  ["/casino", Casino],
   ["/crypt-clash", CryptClash],
   ["/horde-rush", HordeRush],
   ["/mystery-crypt", MysteryCrypt],
@@ -64,6 +64,8 @@ export const AnimatedRoutes = () => {
           }
         />
       ))}
+      {/* Monster Bash is a room of the casino now; its old address still works */}
+      <Route path="/monster-bash" element={<Navigate to="/casino?room=monster-bash" replace />} />
       <Route path="*" element={<ToStation />} />
     </Routes>
   );

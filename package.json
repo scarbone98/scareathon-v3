@@ -17,6 +17,7 @@
     "test:integration": "npm --prefix server run test:integration --",
     "build:report": "npm run build && node scripts/report-bundles.mjs",
     "balance:monster-bash": "node scripts/monster-bash-balance.mjs",
+    "balance:casino": "node scripts/casino-balance.mjs",
     "balance:royale": "node scripts/royale-balance.mjs",
     "balance:horde-rush": "node scripts/horde-rush-balance.mjs",
     "balance:mystery-crypt": "node scripts/mystery-crypt-balance.mjs",
