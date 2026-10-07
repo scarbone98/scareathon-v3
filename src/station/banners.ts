@@ -53,6 +53,13 @@ export type BannerKey =
   | "ghost_ship"
   | "mad_lab"
   | "cherry_blossoms"
+  | "meteor_shower"
+  | "bonfire_night"
+  | "lightning_storm"
+  | "ghost_train"
+  | "dance_floor"
+  | "aurora_borealis"
+  | "bubbling_brew"
   | "empty";
 
 // The banner everyone has, up until they put another up: an empty one. (On the server,
@@ -95,7 +102,24 @@ function moon(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, co
     for (let dx = -r; dx <= r; dx += 1) if (dx * dx + dy * dy <= r * r + r * 0.5) ctx.fillRect(x + dx, y + dy, 1, 1);
 }
 
-const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D) => void> = {
+// The banners that move (they cost more): how many frames each loops through. Their painters
+// are handed the frame, and draw things that come back round to where they started.
+const FRAMES: Partial<Record<BannerKey, number>> = {
+  meteor_shower: 12,
+  bonfire_night: 8,
+  lightning_storm: 12,
+  ghost_train: 12,
+  dance_floor: 8,
+  aurora_borealis: 12,
+  bubbling_brew: 8,
+};
+const FPS = 8;
+
+export function bannerMoves(key: string) {
+  return key in FRAMES;
+}
+
+const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D, frame: number) => void> = {
   starry_night: (ctx) => {
     sky(ctx, "#0d0826", "#2b1650");
     stars(ctx, 60, H, 7);
@@ -1024,27 +1048,318 @@ const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D) => void> = {
     }
     for (let i = 0; i < 18; i += 1) px(ctx, rand() < 0.5 ? "#f48fb1" : "#e86a9a", rand() * W, 13 + rand() * 10);
   },
+  // The ones that move
+  meteor_shower: (ctx, t) => {
+    sky(ctx, "#070b20", "#1a1f48");
+    // Stars that twinkle, each in its own time, and meteors coming down across them
+    const rand = seeded(191);
+    for (let i = 0; i < 46; i += 1) {
+      const x = rand() * W;
+      const y = rand() * 18;
+      const dim = (i * 5 + t) % 12 < 2;
+      px(ctx, dim ? "rgba(216,212,240,0.3)" : i % 6 === 0 ? "#fff2a8" : "#d8d4f0", x, y);
+    }
+    [[30, 1, 0], [70, 3, 4], [95, 0, 8], [52, 6, 6]].forEach(([x0, y0, start]) => {
+      const k = (t - start + 12) % 12;
+      if (k > 5) return;
+      const x = x0 - k * 5;
+      const y = y0 + k * 2;
+      px(ctx, "#ffffff", x, y, 2, 1);
+      px(ctx, "rgba(255,246,200,0.7)", x + 2, y - 1, 3, 1);
+      px(ctx, "rgba(255,246,200,0.35)", x + 5, y - 2, 3, 1);
+      px(ctx, "rgba(255,246,200,0.15)", x + 8, y - 3, 3, 1);
+    });
+    for (let x = 0; x < W; x += 1) {
+      const y = 21 - Math.round(1.5 * Math.sin((x * Math.PI * 4) / W) + Math.sin((x * Math.PI * 6) / W));
+      px(ctx, "#05060f", x, y, 1, H - y);
+    }
+  },
+  bonfire_night: (ctx, t) => {
+    sky(ctx, "#0a0a18", "#1c1420");
+    stars(ctx, 16, 9, 193);
+    const turn = (t / 8) * Math.PI * 2;
+    px(ctx, "#0c0a0a", 0, 20, W, 4);
+    [6, 20, 76, 90].forEach((x, i) => {
+      const tall = 9 + (i % 2) * 3;
+      for (let r = 0; r < tall; r += 1) px(ctx, "#0a0e0c", x - Math.floor(r / 2), 20 - tall + r, 1 + 2 * Math.floor(r / 2), 1);
+    });
+    // The fire: its light on everything, the flames (each tongue rising and falling in its own
+    // time), the logs under them, and sparks going up
+    const glow = ctx.createRadialGradient(48, 17, 0, 48, 17, 26 + 2 * Math.sin(turn));
+    glow.addColorStop(0, "rgba(255,160,60,0.5)");
+    glow.addColorStop(1, "rgba(255,120,30,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(18, 0, 60, H);
+    for (let x = 41; x <= 55; x += 1) {
+      const middle = 1 - Math.abs(x - 48) / 8;
+      const h = Math.max(1, Math.round(middle * 11 + 2 * Math.sin(turn + x * 1.7) + Math.sin(turn * 2 + x * 0.9)));
+      px(ctx, "#c2400e", x, 20 - h, 1, h);
+      px(ctx, "#f07a1a", x, 20 - Math.round(h * 0.75), 1, Math.round(h * 0.75));
+      if (middle > 0.35) px(ctx, "#fbc02a", x, 20 - Math.round(h * 0.5), 1, Math.round(h * 0.5));
+      if (middle > 0.7) px(ctx, "#fff2a0", x, 20 - Math.round(h * 0.25), 1, Math.round(h * 0.25));
+    }
+    px(ctx, "#3a2414", 40, 20, 17, 1);
+    px(ctx, "#2a180c", 42, 21, 13, 1);
+    [[44, 0], [50, 3], [47, 5], [53, 6], [42, 2]].forEach(([x, start]) => {
+      const k = (t + start) % 8;
+      px(ctx, k < 5 ? "#fbc02a" : "rgba(240,122,26,0.6)", x + Math.round(2 * Math.sin(k + x)), 9 - k * 1.2);
+    });
+  },
+  lightning_storm: (ctx, t) => {
+    const flash = t === 3 || t === 9;
+    sky(ctx, flash ? "#3a4058" : "#10121c", flash ? "#5a6078" : "#262a3a");
+    // Rain driving down (it comes back round every dozen frames), a fork of lightning now on
+    // one side and now on the other, and the sky lit by each
+    const rand = seeded(197);
+    for (let i = 0; i < 60; i += 1) {
+      const x = rand() * W;
+      const y = (Math.floor(rand() * 24) + t * 2) % 24;
+      px(ctx, "rgba(170,200,240,0.5)", x, y, 1, 2);
+    }
+    for (let x = 0; x < W; x += 1) {
+      const h = 5 + Math.round(2 * Math.sin(x / 5) + Math.sin(x / 2.3));
+      px(ctx, flash ? "#6a7088" : "#3a3f52", x, 0, 1, h);
+      px(ctx, flash ? "#8a90a8" : "#4c5268", x, h - 1);
+    }
+    const bolt = (points: number[][], bright: boolean) =>
+      points.forEach(([x, y]) => {
+        if (bright) px(ctx, "rgba(255,246,176,0.4)", x - 1, y, 3, 3);
+        px(ctx, bright ? "#ffffff" : "rgba(255,246,176,0.6)", x, y, 1, 3);
+      });
+    if (t === 3 || t === 4) bolt([[30, 5], [29, 7], [31, 9], [29, 12], [30, 15], [28, 18], [29, 20]], t === 3);
+    if (t === 9 || t === 10) bolt([[72, 6], [73, 8], [71, 10], [72, 13], [70, 16], [71, 19]], t === 9);
+    px(ctx, "#0a0c12", 0, 22, W, 2);
+    for (let x = 0; x < W; x += 1) if ((x * 7 + t * 5) % 13 === 0) px(ctx, "rgba(170,200,240,0.6)", x, 21);
+  },
+  ghost_train: (ctx, t) => {
+    sky(ctx, "#0a0c1a", "#1c2238");
+    stars(ctx, 18, 9, 199);
+    moon(ctx, 80, 5, 3, "#d8f0e0");
+    px(ctx, "#15130f", 0, 19, W, 5);
+    for (let x = 1; x < W; x += 6) px(ctx, "#3a2c1e", x, 20, 2, 4);
+    px(ctx, "#8a909c", 0, 20, W, 1);
+    px(ctx, "#8a909c", 0, 23, W, 1);
+    // It comes through without stopping: an engine and two carriages you can see the stars
+    // through, lamps lit, its smoke trailing back. (Drawn twice, so it runs off one end of
+    // the banner and on at the other.)
+    const body = "rgba(150,255,210,0.5)";
+    const lit = "#e8fff4";
+    [0, -W].forEach((wrap) => {
+      const x = t * 8 + wrap;
+      // carriages
+      [0, 17].forEach((dx) => {
+        px(ctx, body, x + dx, 12, 15, 7);
+        px(ctx, "rgba(150,255,210,0.75)", x + dx, 11, 15, 1);
+        [2, 6, 10].forEach((wx) => px(ctx, lit, x + dx + wx, 14, 2, 2));
+        px(ctx, body, x + dx + 15, 17, 2, 1);
+      });
+      // engine: boiler, cab, funnel, lamp
+      px(ctx, body, x + 34, 14, 12, 5);
+      px(ctx, body, x + 34, 10, 5, 4);
+      px(ctx, lit, x + 35, 11, 2, 2);
+      px(ctx, "rgba(150,255,210,0.75)", x + 42, 11, 2, 3);
+      px(ctx, "#ffffff", x + 46, 16);
+      px(ctx, "rgba(232,255,244,0.35)", x + 47, 15, 4, 3);
+      [2, 9, 19, 26, 37, 43].forEach((wx) => px(ctx, "rgba(10,12,26,0.8)", x + wx, 19, 2, 1));
+      // smoke, thinning out behind
+      [[40, 8, 0.5], [35, 6, 0.38], [29, 5, 0.26], [22, 4, 0.16], [14, 4, 0.08]].forEach(([sx, sy, alpha], i) =>
+        px(ctx, `rgba(200,255,230,${alpha})`, x + sx, sy + ((t + i) % 2), 3 + i, 2)
+      );
+    });
+  },
+  dance_floor: (ctx, t) => {
+    // Lit squares, the colours running across them, and the mirror ball's flecks going round
+    const colours = ["#ff3ea5", "#3ee0ff", "#ffe23e", "#7dff6a"];
+    for (let row = 0; row < 3; row += 1)
+      for (let col = 0; col < 12; col += 1) {
+        const step = (col + row * 2 + t) % 8;
+        const colour = colours[(col + row) % 4];
+        px(ctx, "#140a24", col * 8, row * 8, 8, 8);
+        ctx.globalAlpha = step < 2 ? 1 : step < 4 ? 0.55 : 0.22;
+        px(ctx, colour, col * 8 + 1, row * 8 + 1, 6, 6);
+        ctx.globalAlpha = 1;
+        if (step < 2) px(ctx, "rgba(255,255,255,0.55)", col * 8 + 1, row * 8 + 1, 6, 1);
+      }
+    const rand = seeded(211);
+    for (let i = 0; i < 14; i += 1) {
+      const x = Math.floor(rand() * W);
+      const y = Math.floor(rand() * H);
+      px(ctx, "#ffffff", (x + t * 12) % W, y);
+    }
+  },
+  aurora_borealis: (ctx, t) => {
+    sky(ctx, "#040818", "#0a1a2c");
+    stars(ctx, 22, 9, 223);
+    // The lights, properly dancing: three ribbons, each waving along the sky at its own pace
+    const turn = (t / 12) * Math.PI * 2;
+    for (let x = 0; x < W; x += 1) {
+      const along = (x * Math.PI * 2) / W;
+      const y = 6 + Math.round(3 * Math.sin(along * 2 + turn));
+      const tall = 4 + Math.round(2 * Math.sin(along * 3 - turn));
+      px(ctx, "rgba(170,110,255,0.4)", x, y - 3 + Math.round(2 * Math.sin(along * 3 + turn * 2)), 1, 2);
+      px(ctx, "rgba(80,255,170,0.6)", x, y, 1, 2);
+      px(ctx, "rgba(80,255,170,0.28)", x, y + 2, 1, tall);
+      px(ctx, "rgba(90,200,255,0.3)", x, 10 + Math.round(2 * Math.sin(along - turn)), 1, 2);
+    }
+    px(ctx, "#c8d8e8", 0, 20, W, 4);
+    for (let x = 0; x < W; x += 1) if ((x * 5) % 7 < 3) px(ctx, "#e8f0f8", x, 20);
+    [8, 22, 37, 58, 71, 88].forEach((x, i) => {
+      const tall = 4 + (i % 2);
+      for (let r = 0; r < tall; r += 1) px(ctx, "#0c241c", x - r, 19 - tall + r, 1 + 2 * r, 1);
+      px(ctx, "#0c241c", x, 19);
+    });
+  },
+  bubbling_brew: (ctx, t) => {
+    sky(ctx, "#0c0a14", "#1a1226");
+    const turn = (t / 8) * Math.PI * 2;
+    // The cauldron's rim along the bottom and the brew in it, on the boil: its surface heaving,
+    // bubbles coming up off it and bursting, and the steam
+    for (let i = 0; i < 6; i += 1) {
+      const x = 8 + i * 16;
+      const k = (t + i * 3) % 8;
+      px(ctx, `rgba(160,255,140,${(0.22 - k * 0.025).toFixed(3)})`, x + Math.round(2 * Math.sin(k * 0.8 + i)), 9 - k, 3, 2);
+    }
+    for (let x = 0; x < W; x += 1) {
+      const y = 15 + Math.round(1.2 * Math.sin((x * Math.PI * 2) / 24 + turn) + 0.8 * Math.sin((x * Math.PI * 2) / 16 - turn));
+      px(ctx, "#3cc85a", x, y, 1, H - y);
+      px(ctx, "#8dff9f", x, y);
+      px(ctx, "#2a8a40", x, y + 4, 1, H);
+    }
+    [[10, 0], [26, 5], [41, 2], [57, 7], [70, 4], [86, 1], [18, 6], [78, 3]].forEach(([x, start]) => {
+      const k = (t + start) % 8;
+      const y = 13 - k * 1.4;
+      if (k < 6) {
+        px(ctx, "#8dff9f", x, y, 2, 2);
+        px(ctx, "#e8ffe0", x, y);
+      } else if (k === 6) {
+        // (burst)
+        px(ctx, "#e8ffe0", x - 1, y);
+        px(ctx, "#e8ffe0", x + 2, y);
+        px(ctx, "#e8ffe0", x, y - 1, 2, 1);
+      }
+    });
+    px(ctx, "#1a1a22", 0, 22, W, 2);
+    for (let x = 2; x < W; x += 8) px(ctx, "#3a3a4a", x, 22, 2, 1);
+  },
 };
 
 const cache = new Map<string, string>();
 
-function bannerCanvas(key: string) {
+// The banner's tile, drawn: one canvas, or one per frame for a banner that moves (just its
+// first for anyone who's asked their device for less motion)
+function bannerFrames(key: string): HTMLCanvasElement[] | null {
   if (!(key in PAINTERS)) return null;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  PAINTERS[key as BannerKey](ctx);
-  return canvas;
+  const still = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const count = still ? 1 : FRAMES[key as BannerKey] ?? 1;
+  const frames: HTMLCanvasElement[] = [];
+  for (let frame = 0; frame < count; frame += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    PAINTERS[key as BannerKey](ctx, frame);
+    frames.push(canvas);
+  }
+  return frames;
+}
+
+// The same stretch cut out of every frame
+function cut(frames: HTMLCanvasElement[], x: number, width: number) {
+  return frames.map((frame) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = H;
+    canvas.getContext("2d")?.drawImage(frame, x, 0, width, H, 0, 0, width, H);
+    return canvas;
+  });
+}
+
+// ---- Frames to one image URL. A single frame is a PNG; several are an animated PNG, which
+// plays wherever an image goes (a CSS background too), so nothing that shows a banner has to
+// know which kind it has. It's put together from each frame's own PNG: the header of the
+// first, then every frame's image data under a frame-control chunk.
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function pngChunk(type: string, data: Uint8Array) {
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length);
+  for (let i = 0; i < 4; i += 1) chunk[4 + i] = type.charCodeAt(i);
+  chunk.set(data, 8);
+  let crc = 0xffffffff;
+  for (let i = 4; i < 8 + data.length; i += 1) crc = CRC_TABLE[(crc ^ chunk[i]) & 0xff] ^ (crc >>> 8);
+  view.setUint32(8 + data.length, (crc ^ 0xffffffff) >>> 0);
+  return chunk;
+}
+
+// A canvas's PNG, as its chunks
+function pngChunksOf(canvas: HTMLCanvasElement) {
+  const bytes = Uint8Array.from(atob(canvas.toDataURL("image/png").split(",")[1]), (ch) => ch.charCodeAt(0));
+  const view = new DataView(bytes.buffer);
+  const chunks: { type: string; data: Uint8Array }[] = [];
+  for (let at = 8; at < bytes.length; ) {
+    const length = view.getUint32(at);
+    chunks.push({ type: String.fromCharCode(...bytes.subarray(at + 4, at + 8)), data: bytes.subarray(at + 8, at + 8 + length) });
+    at += 12 + length;
+  }
+  return chunks;
+}
+
+function framesUrl(frames: HTMLCanvasElement[]): string {
+  if (frames.length === 1) return frames[0].toDataURL();
+  const { width, height } = frames[0];
+  const parts: Uint8Array[] = [Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)];
+  let sequence = 0;
+  const control = () => {
+    const data = new Uint8Array(26);
+    const view = new DataView(data.buffer);
+    view.setUint32(0, sequence++);
+    view.setUint32(4, width);
+    view.setUint32(8, height);
+    view.setUint16(20, 1); // (each frame is up for 1/FPS of a second,
+    view.setUint16(22, FPS); // and replaces the whole of the one before)
+    return pngChunk("fcTL", data);
+  };
+  frames.forEach((frame, index) => {
+    const chunks = pngChunksOf(frame);
+    if (index === 0) {
+      const header = chunks.find((chunk) => chunk.type === "IHDR");
+      if (header) parts.push(pngChunk("IHDR", header.data));
+      const loop = new Uint8Array(8);
+      new DataView(loop.buffer).setUint32(0, frames.length); // (how many frames; then 0: for ever)
+      parts.push(pngChunk("acTL", loop));
+    }
+    parts.push(control());
+    chunks
+      .filter((chunk) => chunk.type === "IDAT")
+      .forEach((chunk) => {
+        if (index === 0) return parts.push(pngChunk("IDAT", chunk.data));
+        const data = new Uint8Array(4 + chunk.data.length);
+        new DataView(data.buffer).setUint32(0, sequence++);
+        data.set(chunk.data, 4);
+        return parts.push(pngChunk("fdAT", data));
+      });
+  });
+  parts.push(pngChunk("IEND", new Uint8Array(0)));
+  let binary = "";
+  parts.forEach((part) => part.forEach((byte) => (binary += String.fromCharCode(byte))));
+  return `data:image/png;base64,${btoa(binary)}`;
 }
 
 // The banner's tile as an image URL (made once)
 export function bannerImage(key: string): string | null {
   const cached = cache.get(key);
   if (cached) return cached;
-  const url = bannerCanvas(key)?.toDataURL() ?? null;
-  if (url) cache.set(key, url);
+  const frames = bannerFrames(key);
+  if (!frames) return null;
+  const url = framesUrl(frames);
+  cache.set(key, url);
   return url;
 }
 
@@ -1087,6 +1402,12 @@ const SECTION_X: Partial<Record<BannerKey, number>> = {
   drive_in: 40,
   ghost_ship: 55,
   mad_lab: 40,
+  meteor_shower: 44,
+  bonfire_night: 40,
+  lightning_storm: 22,
+  ghost_train: 40,
+  aurora_borealis: 30,
+  bubbling_brew: 34,
 };
 const SECTION_W = 16;
 
@@ -1095,14 +1416,10 @@ export function bannerBackground(key: string): string | null {
   if (custom) return custom;
   const cached = cache.get(`${key}:background`);
   if (cached) return cached;
-  const tile = bannerCanvas(key);
+  const tile = bannerFrames(key);
   if (!tile) return null;
-  const canvas = document.createElement("canvas");
-  canvas.width = SECTION_W;
-  canvas.height = H;
   const x = SECTION_X[key as BannerKey] ?? (W - SECTION_W) / 2;
-  canvas.getContext("2d")?.drawImage(tile, x, 0, SECTION_W, H, 0, 0, SECTION_W, H);
-  const url = canvas.toDataURL();
+  const url = framesUrl(cut(tile, x, SECTION_W));
   cache.set(`${key}:background`, url);
   return url;
 }
@@ -1112,15 +1429,11 @@ export function bannerBackground(key: string): string | null {
 export function bannerSquare(key: string): string | null {
   const cached = cache.get(`${key}:square`);
   if (cached) return cached;
-  const tile = bannerCanvas(key);
+  const tile = bannerFrames(key);
   if (!tile) return null;
-  const canvas = document.createElement("canvas");
-  canvas.width = H;
-  canvas.height = H;
   const middle = (SECTION_X[key as BannerKey] ?? (W - SECTION_W) / 2) + SECTION_W / 2;
   const x = Math.round(Math.min(Math.max(middle - H / 2, 0), W - H));
-  canvas.getContext("2d")?.drawImage(tile, x, 0, H, H, 0, 0, H, H);
-  const url = canvas.toDataURL();
+  const url = framesUrl(cut(tile, x, H));
   cache.set(`${key}:square`, url);
   return url;
 }

@@ -2,7 +2,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
-import { DEFAULT_BANNER, backdropStyle, bannerSquare, bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, backdropStyle, bannerMoves, bannerSquare, bannerStyle } from "../banners.ts";
 import type { ExtraShopItem } from "../../components/avatar/AvatarShop";
 
 // Scoreboard banners: in the item shop they're wares like any other (useBannerShopItems), at
@@ -62,7 +62,8 @@ export function useBannerShopItems(trying: string | null, onTry: (key: string | 
       id: `banner-${banner.key}`,
       name: banner.name,
       category: "banner",
-      categoryLabel: "Banner",
+      // (the ones that move say so: it's what the extra tickets are for)
+      categoryLabel: bannerMoves(banner.key) ? "Animated banner" : "Banner",
       categoryPlural: "Banners",
       icon: bannerSquare(banner.key) ?? "",
       price: banner.price,
