@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
-import { DEFAULT_BANNER, backdropStyle, bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
 import { pixel } from "../style/theme.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { GoTo } from "../stops.ts";
@@ -388,7 +388,9 @@ function ProfileCard({ player, games, onClose }: { player: Viewed; games: string
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-color:#ffb03a55_transparent] [scrollbar-width:thin]">
         <div
           className="flex h-[216px] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] shadow-[inset_0_0_0_1px_rgba(255,176,58,0.25)]"
-          style={backdropStyle(banner) ?? bannerStyle(banner)}
+          // (the whole banner, as it runs along a scoreboard row, just taller: not the close-up
+          // slice of it that stands behind you in the shop)
+          style={{ ...bannerStyle(banner), backgroundPosition: "center" }}
         >
           {player.look ? (
             <AvatarView look={player.look} height={192} label={player.name} />
