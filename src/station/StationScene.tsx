@@ -2412,7 +2412,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       for (let y = 12; y < h - 10; y += 6) ctx.fillRect(10, y, w - 22 - ((y * 7) % 11), 2);
     });
     const scrapMaterial = new MeshStandardMaterial({ map: scrapTexture, transparent: true, alphaTest: 0.3, roughness: 1 });
-    // The litter: a handful of leaves, a couple of stubs and scraps, strewn somewhere new each
+    // The litter: a handful of leaves, a few stubs and scraps of paper, strewn somewhere new each
     // visit over the open platform. Tapped, one skips away; swept by a finger, it's pushed along.
     // (A ticket stub, tapped, is picked up instead: see collectStub)
     const litter: { mesh: Mesh; vx: number; vz: number; spin: number; y: number; vy: number; rest: number; stub?: boolean }[] = [];
@@ -2427,8 +2427,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
     };
     strew(0.16, 0.16, leafMaterial, 9);
-    strew(0.16, 0.08, stubMaterial, 2, true);
-    strew(0.22, 0.22, scrapMaterial, 2);
+    strew(0.16, 0.08, stubMaterial, 5, true);
+    strew(0.22, 0.22, scrapMaterial, 6);
     const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
     const floorAt = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();

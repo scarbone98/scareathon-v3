@@ -22,7 +22,7 @@ import {
 
 // Halloween decorations for the station, up through October only: a garland of black and
 // orange paper bats along the ceiling corners, jack-o'-lanterns about the platform, green and
-// purple streamers strung under the canopy and fallen on the floor, and candles round the
+// purple streamers strung under the canopy, and candles round the
 // room. (The canopy's lamps also come on in a colour of their own: StationScene.) Everything
 // else is in this file; to take them down for good, delete it and the lines marked HALLOWEEN
 // in StationScene.
@@ -342,16 +342,9 @@ export function buildHalloween({ wallZ, sideX, endX, edgeZ, ceilingY, ticketsAt,
     hung.push({ pivot, axis, push: new Vector3().crossVectors(axis, new Vector3(0, -1, 0)).normalize(), low: from.clone().lerp(to, 0.5).setY(hookY - sag), angle: 0, speed: 0 });
   }
   // Underfoot: lengths that have come down, lying where they fell, a curl lifting here and there
-  const fallen: [number, number, number, number][] = [
-    [-5.6, 0.9, 0.5, 1.3],
-    [-4.2, 2.1, 2.4, 1.0],
-    [-2.3, 0.3, -0.4, 1.5],
-    [-1.2, 2.3, 1.2, 1.1],
-    [0.6, 1.2, 2.9, 1.4],
-    [2.0, 2.4, 0.2, 1.0],
-    [3.3, 0.6, 1.9, 1.3],
-    [4.3, 1.9, -0.8, 0.9],
-  ];
+  // (none now: the floor's left to the leaves, the papers and the ticket stubs. The makings
+  // are kept, for a year they're wanted again: [x, z, heading, length] each)
+  const fallen: [number, number, number, number][] = [];
   // (each in a holder at its middle: swept by a finger, it slides and turns across the slabs)
   const lying: { holder: Group; points: Vector3[]; vx: number; vz: number; spin: number }[] = [];
   fallen.forEach(([x, z, heading, length], i) => {
