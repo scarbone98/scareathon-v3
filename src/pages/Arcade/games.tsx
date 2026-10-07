@@ -650,11 +650,10 @@ export function createArcadeGames(): MachineData[] {
       // The betting hall: Monster Bash (watch the brawls, bet on who wins) and the
       // house games off its lobby (racing, slots, roulette, picture poker)
       name: "Casino!",
-      earlyAccess: true,
-      updated: "2026-10-06T23:30:00-06:00",
+      added: "2026-10-06T23:55:00-06:00",
       cartridge: {
         color: "#8f2d1f",
-        tagline: "Fights, races, reels and cards. Bet your coins.",
+        tagline: "Fights, races, reels and cards. Bet your tickets.",
         font: { family: "Bangers" },
         about: { released: "2026", players: "Everyone watching", genre: "Betting hall", developer: "scarbone98" },
       },
