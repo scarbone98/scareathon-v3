@@ -75,6 +75,12 @@ export const GAME_SCORE_POLICIES = new Map([
         score: { min: 0, max: 10000000, integer: true },
         tickets: { from: 100, full: 3000 },
     }],
+    // Phantom Investors earned over every run: 150 x cube root of (lifetime earnings / 10^13),
+    // posted at each haunt. A month of perfect play reaches ~10^8; the game caps what it
+    // sends at 10^15.
+    ['Scare Capitalist', {
+        score: { min: 0, max: 1000000000000000, integer: true },
+    }],
     // One night's tally: four rounds of up to 100, doubled on Halloween night.
     ['31 Nights', {
         score: { min: 0, max: 800, integer: true },

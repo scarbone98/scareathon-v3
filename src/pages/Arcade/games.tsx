@@ -88,6 +88,7 @@ const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
+const SCARE_CAPITALIST_URL = "/scare-capitalist";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
@@ -779,6 +780,29 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Muertos", MUERTOS_URL)
+          }
+        />
+      ),
+    },
+    // Idle tycoon in the AdVenture Capitalist mould, built into the site. Saves in the
+    // browser; each haunt (prestige) posts the Phantom Investors earned in all as PLAYER_DIED.
+    {
+      name: "Scare Capitalist",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#3fae4c",
+        tagline: "Invest in the night. Haunt the market.",
+        font: { family: "Bungee" },
+        about: { released: "2026", players: "Single player", genre: "Idle tycoon", developer: "scarbone98" },
+        backNote: "Haunt when it doubles your ghosts.",
+      },
+      game: (
+        <GameRenderer
+          title="Scare Capitalist"
+          url={SCARE_CAPITALIST_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Scare Capitalist", SCARE_CAPITALIST_URL)
           }
         />
       ),

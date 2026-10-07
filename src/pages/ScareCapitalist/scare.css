@@ -1,0 +1,85 @@
+/* Scare Capitalist: the Crypt Clash kit (royale.css) plus the venture rows. */
+
+/* Money is all decimal points and thousands commas, and at these sizes Pixelify's "."
+   reads as a ",": take both from Press Start 2P, like the digits. */
+@font-face {
+  font-family: "SCPunct";
+  src: url("/fonts/PressStart2P.ttf") format("truetype");
+  unicode-range: U+002C, U+002E;
+  size-adjust: 55%;
+  font-display: swap;
+}
+.sc-root { font-family: "CCDigits", "SCPunct", "Pixelify", ui-monospace, monospace; }
+
+.sc-bg {
+  background:
+    linear-gradient(180deg, rgba(11, 7, 18, 0.55), rgba(11, 7, 18, 0.92)),
+    url("/sprites/gamebg.png") center / 640px 400px repeat;
+  image-rendering: pixelated;
+}
+
+.sc-row {
+  background: linear-gradient(180deg, #2c1a3d, #1d1129);
+  border: 3px solid #140a1c;
+  box-shadow: inset 0 2px 0 #4a2d63, 0 3px 0 #0a0510;
+  border-radius: 6px;
+}
+.sc-row-locked { background: linear-gradient(180deg, #1f1828, #150f1c); box-shadow: inset 0 2px 0 #2e2538, 0 3px 0 #0a0510; }
+
+.sc-icon {
+  background: radial-gradient(circle at 50% 40%, #5a3478, #2a1638 70%);
+  border: 3px solid #140a1c;
+  border-radius: 50%;
+  box-shadow: inset 0 -4px 0 #1a0d24, 0 2px 0 #0a0510;
+}
+.sc-icon-idle { animation: sc-nudge 1.1s ease-in-out infinite; box-shadow: inset 0 -4px 0 #1a0d24, 0 0 0 3px #ffcf4a, 0 0 14px #ffcf4a99; }
+@keyframes sc-nudge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.sc-bar {
+  background: #140a1c;
+  border: 2px solid #140a1c;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.sc-bar-fill {
+  height: 100%;
+  background: linear-gradient(180deg, #8ef08a, #3fae4c 60%, #2a7a36);
+}
+/* Faster than the eye: a full bar with stripes running through it */
+.sc-bar-blur {
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.22) 0 8px, transparent 8px 16px),
+    linear-gradient(180deg, #8ef08a, #3fae4c 60%, #2a7a36);
+  background-size: 22px 100%, 100% 100%;
+  animation: sc-stripes 0.4s linear infinite;
+}
+@keyframes sc-stripes {
+  to { background-position: 22px 0, 0 0; }
+}
+.sc-round-fill { height: 100%; background: linear-gradient(90deg, #b061ff, #ff8a1f); }
+
+.sc-chip {
+  border: 2px solid #140a1c;
+  border-radius: 4px;
+  background: #2a1638e6;
+}
+
+.sc-tab { border-top: 3px solid #140a1c; background: #1a0e24; }
+.sc-tab-on { background: #3a2050; box-shadow: inset 0 3px 0 #ff8a1f; }
+
+@keyframes sc-rise {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(-34px); opacity: 0; }
+}
+.sc-rise { animation: sc-rise 0.9s ease-out both; }
+
+.sc-badge {
+  background: #ff3b5c;
+  border: 2px solid #140a1c;
+  border-radius: 999px;
+}

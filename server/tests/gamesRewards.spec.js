@@ -120,6 +120,14 @@ describe('validateScoreSubmission', () => {
         })).toEqual({ ok: true });
     });
 
+    test('accepts Scare Capitalist scores', () => {
+        expect(validateScoreSubmission({
+            game: 'Scare Capitalist',
+            metricName: 'score',
+            metricValue: 52872549,
+        })).toEqual({ ok: true });
+    });
+
     test('accepts Muertos scores', () => {
         expect(validateScoreSubmission({
             game: 'Muertos',
