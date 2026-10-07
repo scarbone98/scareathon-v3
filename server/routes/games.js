@@ -9,9 +9,16 @@ const GAME_LEADERBOARD_TTL = 60 * 1000;
 // A run pays out tickets from the cabinet's dispenser by how far it got: nothing for
 // dying straight away, up to PLAY_TICKETS for a strong run (each game's `tickets` scale
 // in GAME_SCORE_POLICIES). A game with its own arcade_reward_rules pays by those instead.
-// Capped per player per day (US Eastern, like the rune), so it can't be farmed.
+// There's no stopping for the day: until a player has had PLAY_TICKETS_FULL_UNTIL tickets today
+// (US Eastern, like the rune) a run pays what it earned, and past that it pays a share of it,
+// halving with every PLAY_TICKETS_TAPER_STEP more they've had (a full run pays 5, then 3, 2,
+// and 1 from there on; a run that earned anything always pays at least 1), so playing on is
+// always worth something but can't be farmed. Only a script could reach the backstop, where
+// it does stop: at one ticket a run, that's hundreds of runs past the taper.
 export const PLAY_TICKETS = 10;
-export const PLAY_TICKETS_DAILY_CAP = 150;
+export const PLAY_TICKETS_FULL_UNTIL = 150;
+export const PLAY_TICKETS_TAPER_STEP = 50;
+export const PLAY_TICKETS_DAILY_BACKSTOP = 1000;
 const PLAY_TICKETS_SOURCE = 'arcade_play';
 
 export function playTicketsFor(game, metricName, metricValue, paidToday) {
@@ -20,7 +27,11 @@ export function playTicketsFor(game, metricName, metricValue, paidToday) {
     if (metricName !== 'score' || !scale || !(value > scale.from)) return 0;
     const progress = Math.min(1, (value - scale.from) / (scale.full - scale.from));
     const earned = Math.floor(PLAY_TICKETS * progress);
-    return Math.max(0, Math.min(earned, PLAY_TICKETS_DAILY_CAP - Number(paidToday || 0)));
+    const paid = Number(paidToday || 0);
+    if (earned <= 0 || paid >= PLAY_TICKETS_DAILY_BACKSTOP) return 0;
+    if (paid < PLAY_TICKETS_FULL_UNTIL) return earned;
+    const halvings = Math.floor((paid - PLAY_TICKETS_FULL_UNTIL) / PLAY_TICKETS_TAPER_STEP) + 1;
+    return Math.max(1, Math.ceil(earned / 2 ** halvings));
 }
 
 export function calculateRuleAward(rule, metricValue) {
@@ -259,9 +270,9 @@ async function routes(fastify, options) {
             }, 0);
 
             let coinBalance = null;
-            // No rules of its own: the standard tickets for a run, up to the day's cap
+            // No rules of its own: the standard tickets for a run (fewer once they've had a day's worth)
             if (rewardRulesResult.rows.length === 0 && numericMetricValue > 0) {
-                // One run at a time per player, so two at once can't both slip under the cap
+                // One run at a time per player, so two at once are paid on the same day's count in turn
                 await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${PLAY_TICKETS_SOURCE}:${userId}`]);
                 const paidTodayResult = await client.query(`
                     SELECT COALESCE(SUM(amount), 0)::bigint AS paid

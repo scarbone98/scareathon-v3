@@ -1,4 +1,4 @@
-import { calculateRuleAward, playTicketsFor, PLAY_TICKETS, PLAY_TICKETS_DAILY_CAP, validateScoreSubmission } from '../routes/games.js';
+import { calculateRuleAward, playTicketsFor, PLAY_TICKETS, PLAY_TICKETS_DAILY_BACKSTOP, PLAY_TICKETS_FULL_UNTIL, PLAY_TICKETS_TAPER_STEP, validateScoreSubmission } from '../routes/games.js';
 import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
 
 describe('calculateRuleAward', () => {
@@ -380,10 +380,30 @@ describe('playTicketsFor', () => {
         expect(playTicketsFor('Ooidash', 'coins', 500, 0)).toBe(0);
     });
 
-    test('tops up to the daily cap and no further', () => {
-        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_CAP - 4)).toBe(4);
-        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_CAP)).toBe(0);
-        expect(playTicketsFor('Ooidash', 'score', 500, '150')).toBe(0);
+    test('pays in full up to a day\'s worth, the run that reaches it included', () => {
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL - 4)).toBe(PLAY_TICKETS);
+    });
+
+    test('past a day\'s worth pays less and less, but never nothing', () => {
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL)).toBe(5);
+        expect(playTicketsFor('Ooidash', 'score', 500, '150')).toBe(5);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL + PLAY_TICKETS_TAPER_STEP - 1)).toBe(5);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL + PLAY_TICKETS_TAPER_STEP)).toBe(3);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL + PLAY_TICKETS_TAPER_STEP * 2)).toBe(2);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL + PLAY_TICKETS_TAPER_STEP * 3)).toBe(1);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_FULL_UNTIL + PLAY_TICKETS_TAPER_STEP * 10)).toBe(1);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_BACKSTOP - 1)).toBe(1);
+    });
+
+    test('past a day\'s worth a run that earned less pays a share of that, and one that earned nothing still pays nothing', () => {
+        expect(playTicketsFor('Ooidash', 'score', 105, PLAY_TICKETS_FULL_UNTIL)).toBe(3);
+        expect(playTicketsFor('Ooidash', 'score', 105, PLAY_TICKETS_FULL_UNTIL + PLAY_TICKETS_TAPER_STEP * 5)).toBe(1);
+        expect(playTicketsFor('Ooidash', 'score', 6, PLAY_TICKETS_FULL_UNTIL)).toBe(0);
+    });
+
+    test('stops at the backstop only a script could reach', () => {
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_BACKSTOP)).toBe(0);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_BACKSTOP + 500)).toBe(0);
     });
 
     test('every scored game has a ticket scale', () => {
