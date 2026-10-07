@@ -98,10 +98,9 @@ export default function ScareCapitalist() {
   const s = stateRef.current;
   const rerender = useCallback(() => setFrame((f) => f + 1), []);
 
-  // Money made while the page was closed
+  // The clock pays time away on its first frame (and on the first after any gap), so a
+  // save from this browser or the account just needs putting in place
   useEffect(() => {
-    const back = catchUp(stateRef.current);
-    if (back.away > 60 && back.earned > 0) setWelcome(back);
     if (import.meta.env.DEV) {
       const params = new URLSearchParams(window.location.search);
       const cash = Number(params.get("cash"));
@@ -114,8 +113,6 @@ export default function ScareCapitalist() {
       () => stateRef.current,
       (remote) => {
         stateRef.current = remote;
-        const back = catchUp(remote);
-        if (back.away > 60 && back.earned > 0) setWelcome(back);
         setFrame((f) => f + 1);
       },
     ).then((store) => {
@@ -128,15 +125,20 @@ export default function ScareCapitalist() {
     };
   }, []);
 
-  // The clock: rAF for smooth bars, re-rendering ~20 times a second
+  // The clock: every frame pays the real time since the last (catchUp), so a background
+  // tab, a locked phone or a sleeping laptop is paid for when it wakes. rAF for smooth
+  // bars, re-rendering ~20 times a second.
   useEffect(() => {
     let raf = 0;
-    let last = performance.now();
     let sinceRender = 0;
-    const loop = (now: number) => {
-      const dt = Math.min(OFFLINE_FRAME_CAP, (now - last) / 1000);
-      last = now;
-      const paid = tick(stateRef.current, dt);
+    const loop = () => {
+      const { away: dt, earned, paid } = catchUp(stateRef.current);
+      // Back after a while: say what the managers made
+      if (dt > WELCOME_AFTER && earned > 0) {
+        setWelcome((w) => ({ away: (w?.away ?? 0) + dt, earned: (w?.earned ?? 0) + earned }));
+        raf = requestAnimationFrame(loop);
+        return;
+      }
       const fresh: Pop[] = [];
       paid.forEach((amount, i) => {
         if (amount > 0 && ventureStats(stateRef.current, i).time >= 0.6) fresh.push({ id: ++popId.current, i, amount });
@@ -156,8 +158,6 @@ export default function ScareCapitalist() {
     const autosave = window.setInterval(() => save(), 5000);
     const onHide = () => {
       if (document.visibilityState === "hidden") save(true);
-      // Back from a hidden tab: rAF was paused, so pay out the gap like a return visit
-      else catchUp(stateRef.current);
     };
     const onUnload = () => save(true);
     document.addEventListener("visibilitychange", onHide);
@@ -292,9 +292,8 @@ export default function ScareCapitalist() {
   );
 }
 
-// A hidden tab's rAF stops; when it resumes, catchUp pays the gap, so a frame never
-// covers more than this
-const OFFLINE_FRAME_CAP = 1;
+// A gap longer than this (seconds) gets the welcome-back card
+const WELCOME_AFTER = 60;
 
 function Modal({ children }: { children: ReactNode }) {
   return (

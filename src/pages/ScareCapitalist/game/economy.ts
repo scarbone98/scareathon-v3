@@ -176,6 +176,8 @@ export type State = {
   ventures: VentureState[];
   upgrades: string[];
   seances: string[];
+  // The moment earnings are paid up to: every frame pays the real time since, so time in
+  // a background tab, a locked phone or a closed page is all paid, once
   savedAt: number;
   runStartedAt: number;
   resets: number;
@@ -366,15 +368,17 @@ export function tick(s: State, dt: number): number[] {
   return paid;
 }
 
-// Coming back after being away: managed ventures kept working (up to a week), and an
-// unmanaged venture that was mid-cycle finished that cycle.
+// Pays the real time since savedAt: a frame's worth while you watch, or the whole time
+// away when you come back (managed ventures kept working, up to a week; an unmanaged one
+// that was mid-cycle finished that cycle). A savedAt in the future (another device's
+// clock running ahead) is taken as now, so income never stalls waiting for it.
 export const OFFLINE_CAP = 7 * 24 * 3600;
 export function catchUp(s: State, now = Date.now()) {
   const away = Math.min(OFFLINE_CAP, Math.max(0, (now - s.savedAt) / 1000));
-  const before = s.cash;
-  if (away > 1) tick(s, away);
   s.savedAt = now;
-  return { away, earned: s.cash - before };
+  const before = s.cash;
+  const paid = away > 0 ? tick(s, away) : VENTURES.map(() => 0);
+  return { away, earned: s.cash - before, paid };
 }
 
 // ---- Prestige ----------------------------------------------------------------------------
@@ -392,9 +396,9 @@ export function haunt(s: State): State {
 
 // ---- Saving --------------------------------------------------------------------------------
 
-// Stamps the state too: catchUp pays from savedAt, so it has to be the last save
+// savedAt goes in as it is (the moment earnings are paid up to), so a reload pays
+// exactly the time the saved cash hasn't covered
 export function serialize(s: State) {
-  s.savedAt = Date.now();
   return JSON.stringify(s);
 }
 
