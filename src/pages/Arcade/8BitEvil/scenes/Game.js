@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { addBackground, addFrame, fitWorld, makeTappable, speedScale } from '../world.js'
 
 export default class Game extends Phaser.Scene {
 
@@ -51,7 +52,7 @@ export default class Game extends Phaser.Scene {
         collectable.play(animation);
         collectable.setDepth(spawnY)
 
-        collectable.setInteractive({ cursor: 'url(assets/cursor2.cur), pointer' });
+        makeTappable(this, collectable);
 
         var health = enemyHealth;
         this.collectables.push({ collectable, health, imageScale, value });
@@ -97,10 +98,10 @@ export default class Game extends Phaser.Scene {
         enemy.play(animation);
         enemy.setOrigin(0.5, 1)
 
-        enemy.setInteractive({ cursor: 'url(assets/cursor2.cur), pointer' });
+        makeTappable(this, enemy);
 
         var health = enemyHealth;
-        var speed = Phaser.Math.Between(enemySpeed - 20, enemySpeed);
+        var speed = Phaser.Math.Between(enemySpeed - 20, enemySpeed) * speedScale(this);
         this.physics.moveTo(enemy, centerX, centerY, speed);
         this.physics.add.collider(this.player, enemy);
         var follow = 0;
@@ -217,20 +218,13 @@ export default class Game extends Phaser.Scene {
 
         this.physics.world.setFPS(60)
 
+        this.dead = false;
+
         //set bg
-        var bg = this.add.image(512, 256, 'background');
-        bg.setOrigin(0, 0);
-        bg.x = 0;
-        bg.y = 0;
-        bg.setScale(2, 2);
+        addBackground(this);
 
         //set bg frame
-        var bgFrame = this.add.image(512, 256, 'framebg');
-        bgFrame.setOrigin(0, 0);
-        bgFrame.x = 0;
-        bgFrame.y = 0;
-        bgFrame.setScale(2, 2);
-        bgFrame.setDepth(height + 200);
+        addFrame(this, height + 200);
 
 
         //set anims
@@ -474,9 +468,13 @@ export default class Game extends Phaser.Scene {
             enemy.setDepth(enemy.y);
 
             // BLACK MAGIC DO NOT TOUCH
-            if (!enemy.body.touching.none) {
+            if (!enemy.body.touching.none && !this.dead) {
+                // two enemies arriving in the same frame are still one death, one score
+                this.dead = true;
                 window.customFunctions.onDeath(this.score);
-                this.scene.start('title');
+                // the phone may have been turned during the run
+                fitWorld(this);
+                this.scene.start('title', { score: this.score });
             }
 
             //this.physics.moveTo(zombie, this.zombies[follow]["zombie"].x, this.zombies[follow]["zombie"].y, zomspeed)

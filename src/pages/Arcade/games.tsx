@@ -1189,7 +1189,6 @@ export function createArcadeGames(): MachineData[] {
         backNote: "Where it all began. Mine, 1986 - J.",
       },
       videoUrl: "/game-recordings/8BitEvil.mp4",
-      availableOnMobile: false,
       game: (
         <Suspense fallback={<LoadingSpinner />}>
           <EightBitEvil
