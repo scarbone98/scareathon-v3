@@ -20,6 +20,8 @@ const PLAYERS = ["Single player", "Multiplayer"];
 const playersOf = (game: MachineData) => (/^single player$/i.test(game.cartridge.about.players) ? PLAYERS[0] : /^unknown$/i.test(game.cartridge.about.players) ? "" : PLAYERS[1]);
 // "sclondon + scarbone98" is both of them
 const developersOf = (game: MachineData) => game.cartridge.about.developer.split("+").map((name) => name.trim());
+// How far along a game is, for the order they're listed in: finished, early access, coming soon, "???"
+const readiness = (game: MachineData) => (game.special === "mystery" ? 3 : game.special === "soon" ? 2 : game.earlyAccess ? 1 : 0);
 const unique = (values: string[]) => [...new Set(values)].filter((value) => value !== "UNKNOWN").sort((a, b) => a.localeCompare(b));
 
 // A filter that's on or off: lit when it's on
@@ -84,10 +86,11 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   // The filters are tucked away until asked for
   const [filtersOpen, setFiltersOpen] = useState(false);
   const needle = query.trim().toLowerCase();
-  // Alphabetical, whatever order the shelf's in ("???" last). Each keeps its place in the
-  // full list: that's what onPick takes
+  // The finished games first, then the ones in early access, then the ones still to come
+  // ("???" last of all), each lot alphabetical, whatever order the shelf's in. Each keeps its
+  // place in the full list: that's what onPick takes
   const listed = useMemo(
-    () => games.map((game, index) => ({ game, index })).sort((a, b) => Number(a.game.special === "mystery") - Number(b.game.special === "mystery") || byName(a.game, b.game)),
+    () => games.map((game, index) => ({ game, index })).sort((a, b) => readiness(a.game) - readiness(b.game) || byName(a.game, b.game)),
     [games]
   );
   const genres = useMemo(() => unique(games.map((game) => game.cartridge.about.genre)), [games]);
