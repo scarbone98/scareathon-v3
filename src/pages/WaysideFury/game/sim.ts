@@ -437,17 +437,17 @@ export function interact(s: GameState): void {
   };
   s.notice = dialogue[target.id] ?? "Wayside is quiet... for now.";
 }
-export function toggleParty(s: GameState, id: HeroId): boolean {
-  if (s.scene !== "hub" || s.overlay !== "home" || !s.unlockedHeroes.includes(id)) return false;
+export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): boolean {
+  if ((!fromCharacter && (s.scene !== "hub" || s.overlay !== "home")) || s.scene === "dead" || !s.unlockedHeroes.includes(id)) return false;
   if (s.party.includes(id)) {
     if (s.party.length === 1) { s.notice = "Keep at least one hero in the party."; return false; }
     const next = s.party.find(member => member !== id)!;
     if (s.active === id && s.heroes[next].hp <= 0) { s.notice = "Rest at HOME to revive your partner first."; return false; }
     s.party = s.party.filter(member => member !== id);
     if (s.active === id) swapHero(s);
-    s.notice = `${HERO_NAMES[id]} waits at HOME.`;
+    s.notice = `${HERO_NAMES[id]} is benched.`;
   } else {
-    if (s.party.length >= 2) return false;
+    if (s.party.length >= 2) { s.notice = "Party is full. Bench a hero first."; return false; }
     s.party.push(id); s.notice = `${HERO_NAMES[id]} joins the party.`;
   }
   return true;

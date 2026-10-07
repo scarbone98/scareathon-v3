@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { CharacterSheet } from "./CharacterSheet";
 import { HeroPortrait } from "./HeroPortrait";
 import { loadHeroAvatar, type HeroAvatar } from "./game/avatar";
 import { GameController } from "./game/controller";
@@ -7,10 +8,12 @@ import { type RenderPresentation } from "./game/render";
 import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, toggleParty, xpForLevel, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { getWorld } from "./game/world";
-import { progressReport, readSave, restoreSave, makeSave } from "./game/save";
+import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
 import "./style.css";
+const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
+const SAVE_LABELS: Record<SaveStatus, string> = { loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" };
 const TUTORIAL_KEY = "wayside-fury-controls-dismissed";
 function tutorialVisible() { try { return localStorage.getItem(TUTORIAL_KEY) !== "1"; } catch { return true; } }
 function Controls({ mode }: { mode: InputMode }) {
@@ -64,12 +67,12 @@ function ActionIcon({ action }: { action: keyof Input }) {
   };
   return <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[action]}</svg>;
 }
-function Stick({ send }: { send: (input: Partial<Input>) => void }) {
+function Stick({ send, sensitivity }: { send: (input: Partial<Input>) => void; sensitivity: number }) {
   const drag = useRef<{ id: number; x: number; y: number } | null>(null);
   const [stick, setStick] = useState({ x: 0, y: 0, dx: 0, dy: 0, active: false });
   const move = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerId !== drag.current?.id) return;
-    const dx = e.clientX - drag.current.x, dy = e.clientY - drag.current.y;
+    const dx = (e.clientX - drag.current.x) * sensitivity, dy = (e.clientY - drag.current.y) * sensitivity;
     const factor = 30 / Math.max(30, Math.hypot(dx, dy));
     setStick(previous => ({ ...previous, dx: dx * factor, dy: dy * factor }));
     send({ x: dx * factor / 30, y: dy * factor / 30 });
@@ -111,6 +114,8 @@ export default function WaysideFury() {
   const controller = useRef<GameController | null>(null);
   const [saved, setSaved] = useState(readSave);
   const saveRef = useRef(saved);
+  const [settings, setSettings] = useState<SaveSettings>(() => saved?.settings ?? { ...DEFAULT_SETTINGS, controls: { ...DEFAULT_SETTINGS.controls, tutorialDismissed: !tutorialVisible() } });
+  const settingsRef = useRef(settings);
   const storeRef = useRef<CloudSaveStore | null>(null);
   const playingRef = useRef(false);
   const pausedRef = useRef(false);
@@ -124,20 +129,28 @@ export default function WaysideFury() {
   const [state, setState] = useState<GameState>(newGame);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [characterOpen, setCharacterOpen] = useState(false);
   const [controls, setControls] = useState(false);
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
   const [reward, setReward] = useState(0);
   const [presentation, setPresentation] = useState<RenderPresentation | null>(null);
   const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0 });
   const [tutorial, setTutorial] = useState(tutorialVisible);
-  const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number) => { void direction; } });
-  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setControls(false); };
+  const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
+  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setControls(false); };
   const persist = (s: GameState, home = false, credit = false) => {
     const store = storeRef.current;
     if (!store?.ready) return;
     const report = credit ? progressReport(s, store.save?.lastReported) : null;
     const next = makeSave(s, store.save, home, report?.receipt);
-    if (next && !store.persist(next, !!report?.score)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
+    if (next && !store.persist({ ...next, settings: settingsRef.current }, !!report?.score)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
+  };
+  const updateSettings = (next: SaveSettings) => {
+    settingsRef.current = next; setSettings(next); setTutorial(!next.controls.tutorialDismissed);
+    const store = storeRef.current, game = controller.current;
+    if (!store?.ready || !game) return;
+    const snapshot = makeSave(game.state, store.save);
+    if (snapshot) store.persist({ ...snapshot, settings: next });
   };
   exitRef.current = () => {
     const game = controller.current;
@@ -149,33 +162,40 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (!playing) return; const next = !paused; pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
-  const overlayButtons = () => {
+  const togglePause = () => { if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) setCharacterOpen(false); pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
-    return overlay ? Array.from(overlay.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")) : [];
+    return overlay ? Array.from(overlay.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button:not(:disabled), input[type=range]:not(:disabled)")) : [];
   };
   handlers.current = { pause: togglePause, confirm: () => {
     // Story and world confirmations are consumed by the simulation exactly once.
-    const buttons = overlayButtons();
+    const buttons = overlayControls();
     if (!buttons.length) return false;
     const active = buttons.find(button => button === document.activeElement) ?? buttons[0];
     active.click(); return true;
-  }, navigate: (direction: number) => {
-    const buttons = overlayButtons(); if (!buttons.length) return;
+  }, navigate: (direction: number, axis = "vertical") => {
+    const active = document.activeElement;
+    if (axis === "horizontal" && active instanceof HTMLInputElement && active.type === "range") {
+      const value = Math.round(Math.max(Number(active.min), Math.min(Number(active.max), Number(active.value) + direction * Number(active.step))) * 100) / 100;
+      const current = settingsRef.current;
+      updateSettings(active.id === "wf-music-volume" ? { ...current, musicVolume: value } : active.id === "wf-sfx-volume" ? { ...current, sfxVolume: value } : { ...current, controls: { ...current.controls, stickSensitivity: value } });
+      return;
+    }
+    const buttons = overlayControls(); if (!buttons.length) return;
     const index = buttons.findIndex(button => button === document.activeElement);
     buttons[(index < 0 ? direction > 0 ? 0 : buttons.length - 1 : (index + direction + buttons.length) % buttons.length)].focus();
   } };
   useEffect(() => {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation,
-      onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: direction => handlers.current.navigate(direction),
+      onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
         if (event.type !== "checkpoint" && event.type !== "death") return;
         const store = storeRef.current;
         if (!store?.ready) return;
         const report = progressReport(s, store.save?.lastReported);
         const next = makeSave(s, store.save, event.type === "checkpoint" && event.id === "home", report.receipt);
-        if (next && !store.persist(next, report.score > 0)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
+        if (next && !store.persist({ ...next, settings: settingsRef.current }, report.score > 0)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
       }});
     controller.current = game;
     let mounted = true;
@@ -199,7 +219,11 @@ export default function WaysideFury() {
         if (!mounted) return;
         saveReady = ready; saveRef.current = save; setSaved(save); setSyncStatus(status); setLoadingSave(!ready);
         if (!ready && playingRef.current) game.setPaused(true);
-        if (ready) refreshAvatar(connected.store.userId);
+        if (ready) {
+          const nextSettings = save?.settings ?? { ...DEFAULT_SETTINGS, controls: { ...DEFAULT_SETTINGS.controls, tutorialDismissed: connected.store.userId === null && !tutorialVisible() } };
+          settingsRef.current = nextSettings; setSettings(nextSettings); setTutorial(!nextSettings.controls.tutorialDismissed);
+          refreshAvatar(connected.store.userId);
+        }
         resumeWhenReady();
       },
       onReplaced: (save, reason) => {
@@ -219,7 +243,7 @@ export default function WaysideFury() {
       },
     }, () => {
       exitRef.current(); avatarAbort?.abort(); avatarAccount = undefined;
-      avatarReady = false; saveReady = false; setLoadingAvatar(true); game.setPaused(true);
+      avatarReady = false; saveReady = false; setCharacterOpen(false); setLoadingAvatar(true); game.setPaused(true);
     });
     storeRef.current = connected.store;
     if (import.meta.env.DEV) Object.defineProperty(window, "__waysideFury", { value: game, configurable: true });
@@ -249,6 +273,9 @@ export default function WaysideFury() {
     const timer = window.setTimeout(() => setSaveToast(""), 4000);
     return () => window.clearTimeout(timer);
   }, [saveToast]);
+  useEffect(() => {
+    if (characterOpen && mode !== "touch" && !document.activeElement?.closest(".wf-character")) document.querySelector<HTMLButtonElement>(".wf-character button")?.focus();
+  }, [characterOpen, mode]);
   const send = (input: Partial<Input>) => controller.current?.setTouch(input);
   const hero = activeHero(state);
   const partner = nextPartyHero(state);
@@ -260,10 +287,10 @@ export default function WaysideFury() {
   const touchControls = mode === "touch" && playing && !paused && !state.overlay && !cinematic && state.scene !== "dead";
   const storyTitles = { backstory: "THE CREW MADE IT HOME.", years: "FIVE YEARS LATER", bbq: "A QUIET LIFE", dark: "SOMETHING IN THE SKY", portal: "THE REAL EVIL ARRIVES", suitup: "GEAR UP", taxi: "THE BLAST SITE" };
   const storyEyebrows = { backstory: "THE STORY SO FAR", years: "A QUIET LIFE", bbq: "WAYSIDE · FIVE YEARS LATER", dark: "OUT PAST THE OLD ROAD", portal: "A FLICKER THROUGH THE CRACK", suitup: "JOE · MATT · ALEX · JON", taxi: "CHAPTER 1" };
-  const quit = () => { exitRef.current(); playingRef.current = false; pausedRef.current = false; controller.current?.setPaused(true); setPlaying(false); setPaused(false); setControls(false); };
-  const dismissTutorial = () => { setTutorial(false); try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* Session-only when storage is blocked. */ } };
-  return <main className={`wf-shell ${touchControls ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, top: viewport.top } as CSSProperties}>
-    <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{{ loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" }[syncStatus]}</span>
+  const quit = () => { exitRef.current(); playingRef.current = false; pausedRef.current = false; controller.current?.setPaused(true); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); };
+  const dismissTutorial = () => updateSettings({ ...settingsRef.current, controls: { ...settingsRef.current.controls, tutorialDismissed: true } });
+  return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${touchControls ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, top: viewport.top } as CSSProperties}>
+    <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} layoutKey={JSON.stringify([playing, paused, mode, cinematic, touchControls, state.cutscene, state.room, state.overlay, state.notice, target?.id, !!boss, tutorial, !!reward, viewport.width, viewport.height])} />
@@ -296,7 +323,7 @@ export default function WaysideFury() {
       {state.overlay === "home" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">THERE'S STILL A LIGHT ON</p><h2>Home, sweet Wayside.</h2><p>Rest restores the crew and sets your retry save.</p><button onClick={() => controller.current?.mutate(s => { restAtHome(s); })}>Rest & save</button>
         <div className="wf-party"><p className="wf-small">Choose one or two heroes. Rest to recover benched heroes.</p>{HERO_IDS.map(id => <button key={id} className={`wf-secondary ${state.party.includes(id) ? "wf-in-party" : ""}`} aria-pressed={state.party.includes(id)} onClick={() => controller.current?.mutate(s => { if (toggleParty(s, id)) persist(s); })}><HeroPortrait id={id} avatar={avatar} />{HERO_NAMES[id]} · {state.party.includes(id) ? "IN PARTY" : "BENCH"}</button>)}</div>
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave home</button></div>}
-      {touchControls && <div className="wf-touch-dock"><Stick send={send} /><div className="wf-action-buttons">
+      {touchControls && <div className="wf-touch-dock"><Stick send={send} sensitivity={settings.controls.stickSensitivity} /><div className="wf-action-buttons">
         <TouchButton action="swap" label="Swap hero" send={send} /><TouchButton action="guard" label="Guard (hold)" send={send} />
         <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label="Attack" send={send} />
       </div></div>}
@@ -311,7 +338,8 @@ export default function WaysideFury() {
       {state.scene === "shift" && <div className="wf-shift-caption"><p className="wf-eyebrow">A FLICKER THROUGH THE CRACK</p><h2>THE WORLD IS BREAKING.</h2><p>"That egg... wait! The portal's pulling us in!"</p><strong>ENTERING THE 8-BIT REALM</strong></div>}
       {state.scene === "results" && <div className="wf-overlay wf-results"><p className="wf-eyebrow">CHAPTER 1 COMPLETE</p>{state.sceneTimer < 2.2 ? <h2 className="wf-tbc">TO BE<br /><span>CONTINUED</span></h2> : <><h2>Beyond the flicker.</h2><p>The Architect's Creation is still sleeping.</p><p className="wf-result-score">{progressScore.toLocaleString()} <small>progress score</small></p><div className="wf-result-stats"><span>{state.kills}<small>Enemies defeated</small></span><span>LV {state.character.level}<small>Crew level</small></span><span>{state.deaths}<small>Deaths</small></span><span>◈ {state.candy}<small>Candy</small></span></div><p className="wf-small">The taken-over areas open in later chapters.</p><button onClick={quit}>Back to menu</button></>}</div>}
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
-      {paused && state.scene !== "dead" && <div className="wf-overlay"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
+      {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
+      {paused && !characterOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
   </main>;
 }

@@ -10,7 +10,7 @@ export class GameInput {
   private lastNavigate = 0;
   private consumedA = false;
   mode: InputMode = navigator.maxTouchPoints > 0 ? "touch" : "keyboard";
-  constructor(private changed: (mode: InputMode) => void, private pause: () => void, private confirm: () => boolean, private navigate: (direction: number) => void) {
+  constructor(private changed: (mode: InputMode) => void, private pause: () => void, private confirm: () => boolean, private navigate: (direction: number, axis?: "horizontal" | "vertical") => void) {
     window.addEventListener("keydown", this.down);
     window.addEventListener("keyup", this.up);
     window.addEventListener("blur", this.clear);
@@ -24,12 +24,12 @@ export class GameInput {
   private disconnect = () => { this.connected = false; this.padButtons = []; if (this.mode === "gamepad") this.setMode(navigator.maxTouchPoints > 0 ? "touch" : "keyboard"); };
   private down = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
+    this.setMode("keyboard");
     const isMove = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key);
     if (key !== "escape" && !isMove && !KEY_MAP[key]) return;
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    this.setMode("keyboard");
+    if (key !== "escape" && (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
     if (key === "enter" && e.target instanceof HTMLButtonElement) return;
-    if (!e.repeat && ["arrowup", "arrowleft", "arrowdown", "arrowright"].includes(key)) this.navigate(key === "arrowup" || key === "arrowleft" ? -1 : 1);
+    if (!e.repeat && ["arrowup", "arrowleft", "arrowdown", "arrowright"].includes(key)) this.navigate(key === "arrowup" || key === "arrowleft" ? -1 : 1, key === "arrowleft" || key === "arrowright" ? "horizontal" : "vertical");
     e.preventDefault(); this.keys.add(key); if (!e.repeat && KEY_MAP[key]) this.taps.add(KEY_MAP[key]);
     if (!e.repeat && key === "escape") this.pause();
     if (!e.repeat && key === "enter" && this.confirm()) { this.keys.delete(key); this.taps.delete("interact"); }
@@ -55,7 +55,7 @@ export class GameInput {
       const y = axis(pad.axes[1] || 0) + Number(pressed[13]) - Number(pressed[12]);
       if (x || y || pressed.some(Boolean)) this.setMode("gamepad");
       if (pressed[9] && !this.padButtons[9]) this.pause();
-      if ((x || y) && performance.now() - this.lastNavigate > 210) { this.navigate(Math.sign(y || x)); this.lastNavigate = performance.now(); }
+      if ((x || y) && performance.now() - this.lastNavigate > 210) { this.navigate(Math.sign(Math.abs(x) > Math.abs(y) ? x : y), Math.abs(x) > Math.abs(y) ? "horizontal" : "vertical"); this.lastNavigate = performance.now(); }
       if (!pressed[0]) this.consumedA = false;
       if (pressed[0] && !this.padButtons[0] && this.confirm()) this.consumedA = true;
       input.x += x; input.y += y;

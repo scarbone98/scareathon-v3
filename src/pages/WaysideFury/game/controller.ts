@@ -8,7 +8,7 @@ export interface Callbacks {
   onPresentation?: (presentation: RenderPresentation) => void;
   onPause: () => void;
   onConfirm: () => boolean;
-  onNavigate: (direction: number) => void;
+  onNavigate: (direction: number, axis?: "horizontal" | "vertical") => void;
   onEvent?: (state: GameState, event: GameEvent) => void;
 }
 export class GameController {
