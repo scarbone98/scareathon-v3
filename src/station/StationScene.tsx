@@ -2188,7 +2188,9 @@ function buildTrain() {
 // clock's (kept for the visit, in case the address had changed by the time this file loaded)
 const ASKED_HOUR = (() => {
   if (typeof window === "undefined") return null;
-  const asked = new URLSearchParams(window.location.search).get("hour");
+  // (however it was tacked on: "?face=back?hour=13" too, which isn't a proper address)
+  const found = /[?&#]hour=([^?&#]*)/i.exec(window.location.href);
+  const asked = found ? decodeURIComponent(found[1]).replace(",", ".") : null;
   try {
     if (asked !== null) window.sessionStorage.setItem("wayside.hour", asked);
     return asked ?? window.sessionStorage.getItem("wayside.hour");
@@ -2988,19 +2990,21 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // The fields all round: dark earth and dead grass, reaching well past the platform's end
     const fieldTex = speckle("#1d1f17", ["#252a1c", "#16170f", "#2b2a1d", "#1a1c14"], 1800, 3);
     fieldTex.wrapS = fieldTex.wrapT = RepeatWrapping;
-    fieldTex.repeat.set(40, 30);
-    const fields = plane(260, 200, standard("#8a8a7a", 1, fieldTex), 0, -0.9, 0);
+    // (out past where the train sets off from, a long way down the line: its headlight is
+    // on the land's horizon then, not floating over the land's far edge)
+    fieldTex.repeat.set(200, 62);
+    const fields = plane(1300, 400, standard("#8a8a7a", 1, fieldTex), 0, -0.9, 0);
     fields.rotation.x = -Math.PI / 2;
     scene.add(fields);
     // The gravel bed, only under the line
     const ballast = speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2);
     ballast.wrapS = ballast.wrapT = RepeatWrapping;
-    ballast.repeat.set(60, 1.5);
-    const bed = plane(200, 4.6, standard("#25221f", 1, ballast), 0, -0.85, TRACK_Z);
+    ballast.repeat.set(300, 1.5);
+    const bed = plane(1000, 4.6, standard("#25221f", 1, ballast), 0, -0.85, TRACK_Z);
     bed.rotation.x = -Math.PI / 2;
     scene.add(bed);
     const railMaterial = standard("#6b6f78", 0.5);
-    [TRACK_Z - 0.7175, TRACK_Z + 0.7175].forEach((z) => scene.add(box(200, 0.15, 0.1, railMaterial, 0, -0.72, z)));
+    [TRACK_Z - 0.7175, TRACK_Z + 0.7175].forEach((z) => scene.add(box(1000, 0.15, 0.1, railMaterial, 0, -0.72, z)));
     const sleepers = new InstancedMesh(new BoxGeometry(0.28, 0.12, 2.3), standard("#2e2218"), 260);
     const m = new Matrix4();
     for (let i = 0; i < 260; i += 1) {
@@ -3045,7 +3049,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     scene.add(moonGlow);
 
     // The scenic view: bare trees in the fields, and a signal by the line, its lamp red
-    [[-16, -6], [-22, 4], [-30, -12], [-38, 9], [-47, -3], [-26, 16]].forEach(([x, z], i) => {
+    // (each clear of the line by more than half its width: a tree is a picture that turns to
+    // face you, so looked at down the line it reaches across it, and the train went through two)
+    [[-16, -6], [-22, -3], [-30, -12], [-38, 11.5], [-47, -3], [-26, 16]].forEach(([x, z], i) => {
       const tree = new Sprite(new SpriteMaterial({ map: treeMap, transparent: true, depthWrite: false, fog: false }));
       const size = 5 + (i % 3) * 2.5;
       tree.scale.set(size, size, 1);
@@ -3151,7 +3157,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // grey laid across it)
     const DAY_HAZE = overcast ? "#b3bcc4" : "#c9dbe8";
     const DAY_SKY = overcast ? ["#5d6b7c", "#8b98a6", DAY_HAZE, DAY_HAZE] : ["#3f74b4", "#8ab6dd", DAY_HAZE, DAY_HAZE];
-    const TWILIGHT_HAZE = "#b06a4e";
+    // (the land's own colour at sunrise and sunset: already dark, under a sky still lit)
+    const TWILIGHT_HAZE = "#4a3238";
     const DAY_FIELDS = new Color().setRGB(overcast ? 5 : 7.5, overcast ? 5 : 7, overcast ? 4.2 : 4.6);
     const TWILIGHT_SKY = ["#1b2140", "#5a3f6a", "#f08a4a", TWILIGHT_HAZE];
     const sunLight = new DirectionalLight("#fff4e0", 0);
@@ -3174,20 +3181,24 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const ctx = canvas.getContext("2d");
       if (ctx) {
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        SKY_STOPS.forEach((stop, i) => gradient.addColorStop(stop, mix(NIGHT_SKY[i], DAY_SKY[i], daylight).lerp(new Color(TWILIGHT_SKY[i]), twilight).getStyle()));
+        // (the last stop is under the horizon: the land, which darkens as the ground does)
+        SKY_STOPS.forEach((stop, i) => gradient.addColorStop(stop, mix(NIGHT_SKY[i], DAY_SKY[i], i === 3 ? daylight ** 3 : daylight).lerp(new Color(TWILIGHT_SKY[i]), twilight * (i === 3 ? 0.7 : 1)).getStyle()));
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         sky.needsUpdate = true;
       }
       const fog = scene.fog as FogExp2;
-      fog.color.copy(mix("#0c1019", DAY_HAZE, daylight).lerp(new Color(TWILIGHT_HAZE), twilight));
+      // The land goes dark well before the sky does: the ground, and the haze things fade
+      // into, follow the daylight cubed, so by the middle of dusk they're nearly the night's
+      const onTheGround = daylight ** 3;
+      fog.color.copy(mix("#0c1019", DAY_HAZE, onTheGround).lerp(new Color(TWILIGHT_HAZE), twilight * 0.7));
       // (thin by day: the platform's clear, and it's only well down the line that things go)
-      fog.density = nightFog + ((weather === "fog" ? 0.06 : 0.02) - nightFog) * daylight;
+      fog.density = nightFog + ((weather === "fog" ? 0.06 : 0.02) - nightFog) * onTheGround;
       // The fields are painted for the night, near black: by day they're dead grass in the
       // sun (their colour multiplies the paint, well past white), so they don't lie under
       // the bright sky as a dark slab
       const fieldPaint = (fields.material as MeshStandardMaterial).color;
-      fieldPaint.set("#8a8a7a").lerp(DAY_FIELDS, daylight);
+      fieldPaint.set("#8a8a7a").lerp(DAY_FIELDS, onTheGround);
       skyLight.color.copy(mix("#6f7fa8", "#e6eeff", daylight));
       skyLight.groundColor.copy(mix("#1a120c", "#6b5c4a", daylight));
       skyLight.intensity = 0.45 + daylight * (overcast ? 0.9 : 1.25);
@@ -4056,7 +4067,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         watcher.position.x = HUB.pos[0] + ((roll * 7.3) % 1 - 0.5) * 7;
       }
       if (!watcherGone && train.visible && train.position.x + TRAIN_FRONT > watcher.position.x + 4) watcherGone = true;
-      watcher.visible = !watcherGone && !arrival.active && daylight < 0.3; // (it keeps to the dark)
+      watcher.visible = !watcherGone && !arrival.active && daylight < 0.02; // (only at night: not at dusk or dawn, with any light left)
       if (watcher.visible) watcherMaterial.opacity = Math.min(1, Math.max(0, (cycle - 2) / 5)) * 0.92;
       // The signal: red, and the crossing lamps flashing turn about, from a few seconds
       // before the train comes until it's gone by (and while the one you came on pulls in
