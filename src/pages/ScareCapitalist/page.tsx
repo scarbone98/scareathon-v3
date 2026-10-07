@@ -186,6 +186,7 @@ export default function ScareCapitalist() {
   };
 
   const doHaunt = () => {
+    const before = stateRef.current.investorsClaimed;
     const next = haunt(stateRef.current);
     stateRef.current = next;
     save(true);
@@ -193,7 +194,9 @@ export default function ScareCapitalist() {
     setTab("ventures");
     blip(220, muted, 0.5);
     const score = Math.min(SCORE_CAP, next.investorsClaimed);
-    if (window.parent !== window && score > 0) window.parent.postMessage({ type: "PLAYER_DIED", score }, window.location.origin);
+    // Only a haunt that adds 10% counts, so tiny back-to-back haunts can't farm tickets
+    const counts = next.investorsClaimed - before >= before * 0.1;
+    if (window.parent !== window && score > 0 && counts) window.parent.postMessage({ type: "PLAYER_DIED", score }, window.location.origin);
     rerender();
   };
 

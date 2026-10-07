@@ -785,7 +785,8 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     // Idle tycoon in the AdVenture Capitalist mould, built into the site. Saves in the
-    // browser; each haunt (prestige) posts the Phantom Investors earned in all as PLAYER_DIED.
+    // browser and on the account; a haunt (prestige) that adds 10% to the Phantom Investors
+    // earned in all posts that total as PLAYER_DIED.
     {
       name: "Scare Capitalist",
       added: "2026-10-07T12:00:00-06:00",
