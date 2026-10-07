@@ -6,16 +6,21 @@ import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
 
-// Every run that scores pays out a few tickets from the cabinet's dispenser, so playing
-// anything is worth it. A game with its own arcade_reward_rules pays by those instead.
+// A run pays out tickets from the cabinet's dispenser by how far it got: nothing for
+// dying straight away, up to PLAY_TICKETS for a strong run (each game's `tickets` scale
+// in GAME_SCORE_POLICIES). A game with its own arcade_reward_rules pays by those instead.
 // Capped per player per day (US Eastern, like the rune), so it can't be farmed.
 export const PLAY_TICKETS = 10;
 export const PLAY_TICKETS_DAILY_CAP = 150;
 const PLAY_TICKETS_SOURCE = 'arcade_play';
 
-export function playTicketsFor(metricValue, paidToday) {
-    if (!(Number(metricValue) > 0)) return 0;
-    return Math.max(0, Math.min(PLAY_TICKETS, PLAY_TICKETS_DAILY_CAP - Number(paidToday || 0)));
+export function playTicketsFor(game, metricName, metricValue, paidToday) {
+    const scale = GAME_SCORE_POLICIES.get(game)?.tickets;
+    const value = Number(metricValue);
+    if (metricName !== 'score' || !scale || !(value > scale.from)) return 0;
+    const progress = Math.min(1, (value - scale.from) / (scale.full - scale.from));
+    const earned = Math.floor(PLAY_TICKETS * progress);
+    return Math.max(0, Math.min(earned, PLAY_TICKETS_DAILY_CAP - Number(paidToday || 0)));
 }
 
 export function calculateRuleAward(rule, metricValue) {
@@ -265,7 +270,7 @@ async function routes(fastify, options) {
                       AND source_type = $2
                       AND created_at >= (date_trunc('day', now() AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')
                 `, [userId, PLAY_TICKETS_SOURCE]);
-                const playTickets = playTicketsFor(numericMetricValue, paidTodayResult.rows[0]?.paid);
+                const playTickets = playTicketsFor(game, metricName, numericMetricValue, paidTodayResult.rows[0]?.paid);
                 if (playTickets > 0) {
                     const playResult = await client.query(`
                         SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance

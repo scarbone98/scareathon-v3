@@ -1,4 +1,5 @@
 import { calculateRuleAward, playTicketsFor, PLAY_TICKETS, PLAY_TICKETS_DAILY_CAP, validateScoreSubmission } from '../routes/games.js';
+import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
 
 describe('calculateRuleAward', () => {
     test('returns fixed awards when the metric clears the threshold', () => {
@@ -362,18 +363,34 @@ describe('validateScoreSubmission', () => {
 });
 
 describe('playTicketsFor', () => {
-    test('pays the standard tickets for a run that scores', () => {
-        expect(playTicketsFor(1, 0)).toBe(PLAY_TICKETS);
-        expect(playTicketsFor(48000, 20)).toBe(PLAY_TICKETS);
+    test('pays nothing for dying straight away', () => {
+        expect(playTicketsFor('Ooidash', 'score', 6, 0)).toBe(0);
+        expect(playTicketsFor('Ooidash', 'score', 0, 0)).toBe(0);
+        expect(playTicketsFor('Tlaloc’s Curse', 'score', 1000, 0)).toBe(0);
     });
 
-    test('pays nothing for a run that scores nothing', () => {
-        expect(playTicketsFor(0, 0)).toBe(0);
+    test('scales with the score up to the full payout', () => {
+        expect(playTicketsFor('Ooidash', 'score', 105, 0)).toBe(5);
+        expect(playTicketsFor('Ooidash', 'score', 200, 0)).toBe(PLAY_TICKETS);
+        expect(playTicketsFor('Ooidash', 'score', 2749, 20)).toBe(PLAY_TICKETS);
+    });
+
+    test('pays nothing for a game or metric without a ticket scale', () => {
+        expect(playTicketsFor('Pong', 'score', 500, 0)).toBe(0);
+        expect(playTicketsFor('Ooidash', 'coins', 500, 0)).toBe(0);
     });
 
     test('tops up to the daily cap and no further', () => {
-        expect(playTicketsFor(500, PLAY_TICKETS_DAILY_CAP - 4)).toBe(4);
-        expect(playTicketsFor(500, PLAY_TICKETS_DAILY_CAP)).toBe(0);
-        expect(playTicketsFor(500, '150')).toBe(0);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_CAP - 4)).toBe(4);
+        expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_CAP)).toBe(0);
+        expect(playTicketsFor('Ooidash', 'score', 500, '150')).toBe(0);
+    });
+
+    test('every scored game has a ticket scale', () => {
+        for (const [game, policy] of GAME_SCORE_POLICIES) {
+            expect(policy.tickets).toBeDefined();
+            expect(policy.tickets.full).toBeGreaterThan(policy.tickets.from);
+            expect(playTicketsFor(game, 'score', policy.tickets.full, 0)).toBe(PLAY_TICKETS);
+        }
     });
 });
