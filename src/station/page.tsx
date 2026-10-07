@@ -23,6 +23,7 @@ import { STATION_FONTS, sans } from "./style/theme.ts";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
+import TicketDrop from "./things/TicketDrop.tsx";
 import { useSongs } from "./things/Songs.tsx";
 import { useCarts } from "./things/Carts.tsx";
 import type { Boards } from "./StationScene.tsx";
@@ -701,6 +702,8 @@ export default function StationPage() {
           </div>
         )}
 
+        {/* Tickets coming in: a counter drops down from the top left and counts up */}
+        <TicketDrop />
         {/* The ticketmaster has a word for you as you walk up */}
         <ClerkSays arrived={at === "tickets" && atArrived && !held && zoom !== "champion"} />
 
