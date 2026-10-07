@@ -65,7 +65,7 @@ abbb...bb..
 ...........
 --- 4
 ...........
-....aaaaaa.
+...aaaaaaa.
 ..aaaaaaaaa
 .aaabbbbaaa
 .aab....bba
