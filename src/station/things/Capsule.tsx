@@ -10,11 +10,11 @@ import { fetchWithAuth } from "../../fetchWithAuth";
 import { CAPSULE_MS, capsuleMachine } from "../capsuleSignal.ts";
 import { useSummary } from "../data.ts";
 import type { GoTo } from "../stops.ts";
-import { pixel, plate, plateButton, serif, stubButton } from "../style/theme.ts";
+import { plate, plateButton, serif, stubButton } from "../style/theme.ts";
 import "./capsule.css";
 
 type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
-type Machine = { price: number; odds: Record<Rarity, number>; stock: Record<Rarity, number> };
+type Machine = { price: number };
 type Won = { item: { id: number; name: string; icon: string; rarity: Rarity; category: string }; itemInstanceId: number; coinBalance: number };
 
 const RARITIES: { id: Rarity; label: string; colour: string }[] = [
@@ -181,31 +181,16 @@ export default function Capsule({ signedIn, goTo }: { signedIn: boolean; goTo: G
       </div>
 
       <div className="flex max-w-md flex-col items-center gap-2 self-center text-center">
-        {note ? (
+        {/* (no hints: the machine's worked as it looks. Only a word when a turn can't be had) */}
+        {note && (
           <p className="rounded-[3px] bg-[#0b1017]/85 px-3 py-2 text-sm text-amber-200" role="status" style={serif}>
             {note}
           </p>
-        ) : (
-          !busy && (
-            <p className="rounded-[3px] bg-[#0b1017]/70 px-3 py-1.5 text-[15px]" style={pixel}>
-              Wind the crank right round
-            </p>
-          )
         )}
         {!signedIn && (
           <button type="button" onClick={() => goTo("tickets")} className={`${stubButton} pointer-events-auto`}>
             Sign in at the counter
           </button>
-        )}
-        {machine.data && !busy && (
-          <p className="rounded-[3px] bg-[#0b1017]/60 px-2 py-1 text-[11px] text-[#f2ead2]/70">
-            {RARITIES.filter((entry) => machine.data.stock[entry.id] > 0).map((entry, index) => (
-              <span key={entry.id}>
-                {index > 0 && " · "}
-                <span style={{ color: entry.colour }}>{entry.label}</span> {machine.data.odds[entry.id]}%
-              </span>
-            ))}
-          </p>
         )}
       </div>
 
