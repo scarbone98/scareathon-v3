@@ -1,0 +1,13 @@
+{
+  "name": "wayside-agent-cli",
+  "version": "0.1.0",
+  "description": "Scareathon from a terminal, for you or an AI agent acting for you",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "wayside": "./wayside.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
