@@ -1,11 +1,13 @@
-// Maps are tile layouts with a separate collision layer. All positions use world pixels.
+// Terrain uses tile collision; props use precise base rectangles. Positions are world pixels.
 export const TILE = 16;
 export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | "ash" | "void" | "bridge" | "corrupt";
+export interface CollisionRect { x: number; y: number; w: number; h: number }
 export interface WorldProp {
   id: string;
   kind: "tree" | "pine" | "rock" | "flower" | "lamp" | "fence" | "station" | "shop" | "home" | "shed" | "bbq" | "sign" | "car" | "chest" | "npc" | "crater" | "portal";
-  // Top-left position and footprint, including trees and small decorations.
+  // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
+  footprints?: CollisionRect[];
 }
 export interface WorldExit {
   id: string; name: string; x: number; y: number; w: number; h: number;
@@ -22,7 +24,7 @@ export interface WorldMap {
   spawns: WorldSpawn[]; spawn: { x: number; y: number };
 }
 
-// A compact authoring language: paint tile rectangles, stamp collision footprints,
+// A compact authoring language: paint terrain, place props with base footprints,
 // then cut the doorway through the natural boundary. No rendering or DOM here.
 function map(id: string, name: string, cols: number, rows: number, ground: TileKind): WorldMap {
   return { id, name, width: cols * TILE, height: rows * TILE, cols, rows,
@@ -36,15 +38,49 @@ function paint(m: WorldMap, x: number, y: number, w: number, h: number, tile: Ti
     }
   }
 }
-function prop(m: WorldMap, kind: WorldProp["kind"], x: number, y: number, w = 24, h = 32, solid = false, label?: string) {
-  const p: WorldProp = { id: `${m.id}-${kind}-${m.props.length}`, kind, x, y, w, h, label };
-  m.props.push(p);
-  if (solid) {
-    // Trees collide at the trunk, letting heroes walk behind the canopy.
-    const trunk = kind === "tree" || kind === "pine";
-    paint(m, trunk ? x + 8 : x, trunk ? y + h - 16 : y, trunk ? w - 16 : w, trunk ? 16 : h,
-      m.tiles[Math.floor(y / TILE) * m.cols + Math.floor(x / TILE)] ?? "grass", true);
+// Match the renderer's ground contact, leaving tall sprites walkable behind.
+function baseFootprints(kind: WorldProp["kind"], x: number, y: number, w: number, h: number): CollisionRect[] {
+  const cx = x + w / 2, bottom = y + h;
+  const base = (width: number, height: number, offset = 0): CollisionRect[] =>
+    [{ x: cx - width / 2, y: bottom - height + offset, w: width, h: height }];
+  switch (kind) {
+    case "flower": return [];
+    case "tree": case "pine": return base(4, 11, 1);
+    case "lamp": return base(6, 6, 1);
+    case "sign": return base(4, 6, 1);
+    case "rock": return base(14, 6);
+    case "npc": return base(10, 6, 1);
+    case "chest": return base(22, 12);
+    case "car": return base(26, 19, 5);
+    case "bbq": return base(24, 12, 4);
+    case "fence": return base(w, 4, 1);
+    case "portal":
+      // Solid frame feet leave a wide opening through the glowing center.
+      return [{ x: cx - 18, y: bottom - 8, w: 5, h: 10 },
+        { x: cx + 13, y: bottom - 8, w: 5, h: 10 }];
+    case "crater": {
+      // Horizontal strips approximate the elliptical rim, not its tall artwork.
+      const rx = w / 2, ry = w * 0.3, cy = y + h / 2, rim: CollisionRect[] = [];
+      for (let top = -ry; top < ry; top += 4) {
+        const height = Math.min(4, ry - top), near = Math.max(0, Math.max(top, -top - height));
+        const outer = rx * Math.sqrt(Math.max(0, 1 - (near / ry) ** 2));
+        const innerY = Math.max(Math.abs(top), Math.abs(top + height));
+        const inner = (rx - 14) * Math.sqrt(Math.max(0, 1 - (innerY / (ry - 8)) ** 2));
+        if (inner === 0) rim.push({ x: cx - outer, y: cy + top, w: outer * 2, h: height });
+        else {
+          rim.push({ x: cx - outer, y: cy + top, w: outer - inner, h: height });
+          rim.push({ x: cx + inner, y: cy + top, w: outer - inner, h: height });
+        }
+      }
+      return rim;
+    }
+    default: return [{ x: x + 3, y: y + h * 0.4, w: w - 6, h: h * 0.6 }];
   }
+}
+function prop(m: WorldMap, kind: WorldProp["kind"], x: number, y: number, w = 24, h = 32, label?: string) {
+  const p: WorldProp = { id: `${m.id}-${kind}-${m.props.length}`, kind, x, y, w, h, label,
+    footprints: baseFootprints(kind, x, y, w, h) };
+  m.props.push(p);
   return p;
 }
 function boundary(m: WorldMap, tile: TileKind, tree: "pine" | "tree" = "tree") {
@@ -58,16 +94,34 @@ function exit(m: WorldMap, e: WorldExit) {
   paint(m, e.x, e.y, e.w, e.h, m.id.startsWith("blast") ? "dirt" : "stone");
   m.props = m.props.filter(p => !(p.x < e.x + e.w && p.x + p.w > e.x && p.y < e.y + e.h && p.y + p.h > e.y));
 }
+function overlaps(a: CollisionRect, b: CollisionRect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
 function scatter(m: WorldMap, ground: "grass" | "ash", seed: number) {
+  const reserved = [m.spawn, ...m.spawns].map(p => ({ x: p.x - 32, y: p.y - 32, w: 64, h: 64 }));
+  reserved.push(...m.exits.map(e => ({ x: e.x - 32, y: e.y - 32, w: e.w + 64, h: e.h + 64 })));
   for (let n = 0; n < Math.floor(m.cols * m.rows / 22); n++) {
     const x = 48 + (n * 137 + seed * 47) % (m.width - 96);
     const y = 48 + (n * 83 + seed * 19) % (m.height - 96);
     const col = Math.floor(x / TILE), row = Math.floor(y / TILE);
     if (m.tiles[row * m.cols + col] !== ground || m.collision[row * m.cols + col]) continue;
-    // Decorations stay out of the wide central encounter route.
     if (Math.abs(y - m.spawn.y) < 80) continue;
-    prop(m, ground === "grass" ? n % 3 === 0 ? "tree" : "flower" : n % 3 === 0 ? "pine" : "rock",
-      x, y, n % 3 === 0 ? 24 : 12, n % 3 === 0 ? 32 : 12);
+    const kind = ground === "grass" ? n % 3 === 0 ? "tree" : "flower" : n % 3 === 0 ? "pine" : "rock";
+    const w = n % 3 === 0 ? 24 : 12, h = n % 3 === 0 ? 32 : 12;
+    const footprints = baseFootprints(kind, x, y, w, h);
+    // Require open ground around each solid base. This excludes painted paths,
+    // bridges and chokepoints, and leaves room to pass between neighboring props.
+    const safe = footprints.every(rect => {
+      const clearance = { x: rect.x - 24, y: rect.y - 24, w: rect.w + 48, h: rect.h + 48 };
+      if (reserved.some(area => overlaps(clearance, area))) return false;
+      for (let py = clearance.y; py <= clearance.y + clearance.h; py += 4) {
+        for (let px = clearance.x; px <= clearance.x + clearance.w; px += 4) {
+          if (tileAt(m, Math.floor(px / TILE), Math.floor(py / TILE)) !== ground || isBlocked(m, px, py, 10)) return false;
+        }
+      }
+      return true;
+    });
+    if (safe) prop(m, kind, x, y, w, h);
   }
 }
 
@@ -81,12 +135,13 @@ export const OVERWORLD = (() => {
   paint(m, 1008, 480, 64, 112, "road");
   paint(m, 1008, 256, 176, 160, "ash"); paint(m, 1024, 272, 144, 112, "corrupt");
   paint(m, 576, 80, 160, 160, "corrupt"); paint(m, 944, 544, 176, 96, "corrupt");
-  prop(m, "station", 136, 320, 160, 112, true, "Wayside Station");
+  prop(m, "station", 136, 320, 160, 112, "Wayside Station");
   prop(m, "crater", 1024, 272, 160, 96);
-  prop(m, "portal", 632, 144, 48, 56); prop(m, "portal", 1008, 528, 48, 56);
+  // Overworld portals are rendered at their location markers, at these base positions.
+  prop(m, "portal", 632, 120, 48, 56); prop(m, "portal", 1008, 504, 48, 56);
   for (let x = 336; x < 1040; x += 144) { prop(m, "lamp", x, 422, 12, 30); prop(m, "fence", x + 32, 526, 64, 12); }
   prop(m, "car", 352, 464, 32, 18); prop(m, "sign", 1000, 414, 24, 24);
-  scatter(m, "grass", 9); m.spawn = { x: 208, y: 480 }; return m;
+  m.spawn = { x: 208, y: 480 }; scatter(m, "grass", 9); return m;
 })();
 export const HUB_WORLD = (() => {
   const m = map("hub", "Wayside Town", 60, 34, "grass"); boundary(m, "grass");
@@ -94,15 +149,15 @@ export const HUB_WORLD = (() => {
   paint(m, 128, 224, 80, 80, "dirt"); paint(m, 736, 240, 80, 64, "dirt");
   paint(m, 352, 160, 256, 80, "stone");
   paint(m, 64, 384, 208, 112, "sand"); paint(m, 80, 400, 176, 80, "water", true);
-  prop(m, "station", 368, 64, 224, 112, true, "Wayside Station");
-  prop(m, "shop", 104, 144, 128, 80, true, "Shop");
-  prop(m, "home", 704, 144, 144, 96, true, "Home");
-  prop(m, "shed", 672, 384, 80, 64, true);
-  prop(m, "bbq", 768, 400, 32, 32, true); prop(m, "fence", 672, 480, 192, 12, true);
-  prop(m, "npc", 816, 384, 16, 24, false, "Jon"); prop(m, "npc", 336, 224, 16, 24, false, "Alex");
-  prop(m, "car", 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, false, "Taxi");
+  prop(m, "station", 368, 64, 224, 112, "Wayside Station");
+  prop(m, "shop", 104, 144, 128, 80, "Shop");
+  prop(m, "home", 704, 144, 144, 96, "Home");
+  prop(m, "shed", 672, 384, 80, 64);
+  prop(m, "bbq", 768, 400, 32, 32); prop(m, "fence", 672, 480, 192, 12);
+  prop(m, "npc", 816, 384, 16, 24, "Jon"); prop(m, "npc", 336, 224, 16, 24, "Alex");
+  prop(m, "car", 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
-  scatter(m, "grass", 2); m.spawn = { x: 480, y: 416 }; return m;
+  m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
 
 export const WATCHER_ROOM = 7;
@@ -123,8 +178,8 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
     paint(m, 416, cy - 48, 128, 96, "bridge"); paint(m, 288, 0, 80, cy + 32, "dirt");
   }
   if (room === 2 || room === 5 || room === 9) {
-    prop(m, "shed", m.width - 208, 64, 112, 72, true);
-    prop(m, "fence", 96, m.height - 80, 144, 12, true);
+    prop(m, "shed", m.width - 208, 64, 112, 72);
+    prop(m, "fence", 96, m.height - 80, 144, 12);
     prop(m, "car", 288, 80, 40, 24);
   }
   if (room === 3) {
@@ -140,7 +195,6 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
     prop(m, "crater", 232, cy - 64, 176, 112);
     prop(m, "portal", m.width - 104, cy - 80, 48, 64);
   }
-  scatter(m, "ash", room + 5);
   if (room < 8) {
     exit(m, { id: "west", name: room === 0 ? "Return to taxi" : ZONES[room - 1][0],
       x: 0, y: cy - 48, w: 48, h: 96, target: room === 0 ? "overworld" : room - 1,
@@ -160,18 +214,19 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
     exit(m, { id: orchard ? "south" : "north", name: orchard ? "Split Creek" : "Furnace Pass",
       x: 288, y: orchard ? m.height - 48 : 0, w: 80, h: 48, target: orchard ? 1 : 3,
       entryX: orchard ? 328 : 688, entryY: orchard ? 64 : 480 });
-    const chest = prop(m, "chest", 480, cy - 16, 24, 24, false, orchard ? "Orchard cache" : "Supply cache");
+    const chest = prop(m, "chest", 480, cy - 16, 24, 24, orchard ? "Orchard cache" : "Supply cache");
     chest.id = `loot-blast-${room}`;
-    if (orchard) prop(m, "npc", 144, 128, 16, 24, false, "Stranded scout");
+    if (orchard) prop(m, "npc", 144, 128, 16, 24, "Stranded scout");
   }
   if (room === WATCHER_ROOM || room === GATEKEEPER_ROOM) {
-    m.spawns = [{ kind: "boss", x: 368, y: cy, miniBoss: room === GATEKEEPER_ROOM }];
+    m.spawns = [{ kind: "boss", x: room === WATCHER_ROOM ? 464 : 368, y: cy, miniBoss: room === GATEKEEPER_ROOM }];
   } else {
-    m.spawns = [ { kind: "grunt", x: 224, y: cy - 24 }, { kind: "grunt", x: 288, y: cy + 32 },
+    m.spawns = [ { kind: "grunt", x: 224, y: cy - 24 }, { kind: "grunt", x: 288, y: cy + (room === 6 ? 80 : 32) },
       { kind: "shooter", x: Math.min(m.width - 128, 416), y: cy - 32 } ];
     if (room === 3 || room === 5) m.spawns.push({ kind: "grunt", x: 672, y: cy + 32 }, { kind: "shooter", x: 752, y: cy - 32 });
     if (room === 3) m.spawns.push({ kind: "grunt", x: 1008, y: cy - 24 }, { kind: "shooter", x: 1120, y: cy + 32 });
   }
+  scatter(m, "ash", room + 5);
   return m;
 });
 export const REALM_WORLD = (() => {
@@ -197,15 +252,22 @@ export function tileAt(m: WorldMap, col: number, row: number): TileKind {
   if (col < 0 || row < 0 || col >= m.cols || row >= m.rows) return "void";
   return m.tiles[row * m.cols + col] ?? "void";
 }
+function hitsRect(rect: CollisionRect, x: number, y: number, radius: number): boolean {
+  if (radius === 0) return x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
+  if (x + radius <= rect.x || x - radius >= rect.x + rect.w || y + radius <= rect.y || y - radius >= rect.y + rect.h) return false;
+  const nearX = Math.max(rect.x, Math.min(x, rect.x + rect.w));
+  const nearY = Math.max(rect.y, Math.min(y, rect.y + rect.h));
+  return (x - nearX) ** 2 + (y - nearY) ** 2 < radius ** 2;
+}
 export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolean {
   if (x - radius < 0 || y - radius < 0 || x + radius > m.width || y + radius > m.height) return true;
   for (let row = Math.floor((y - radius) / TILE); row <= Math.floor((y + radius) / TILE); row++) {
     for (let col = Math.floor((x - radius) / TILE); col <= Math.floor((x + radius) / TILE); col++) {
-      if (!m.collision[row * m.cols + col]) continue;
-      const nearX = Math.max(col * TILE, Math.min(x, (col + 1) * TILE));
-      const nearY = Math.max(row * TILE, Math.min(y, (row + 1) * TILE));
-      if ((x - nearX) ** 2 + (y - nearY) ** 2 < radius ** 2) return true;
+      if (m.collision[row * m.cols + col] && hitsRect({ x: col * TILE, y: row * TILE, w: TILE, h: TILE }, x, y, radius)) return true;
     }
+  }
+  for (const p of m.props) for (const rect of p.footprints ?? []) {
+    if (hitsRect(rect, x, y, radius)) return true;
   }
   return false;
 }

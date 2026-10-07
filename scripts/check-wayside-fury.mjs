@@ -1,10 +1,11 @@
 // Exercise the pure simulation headlessly, as the Horde Rush balance script does.
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
+import { findWalkRoute, findInteractionApproach } from './check-wayside-fury-collision.mjs';
 import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty, HERO_IDS, createHero, nextPartyHero, requestSwap } from '../src/pages/WaysideFury/game/sim.ts';
 
 import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
-import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM, GATEKEEPER_ROOM, isBlocked, cameraTarget, tileAt } from '../src/pages/WaysideFury/game/world.ts';
+import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM, GATEKEEPER_ROOM, cameraTarget, tileAt } from '../src/pages/WaysideFury/game/world.ts';
 import { captureMotion, interpolateMotion } from '../src/pages/WaysideFury/game/motion.ts';
 import { getRenderViewport } from '../src/pages/WaysideFury/game/viewport.ts';
 import { SAVE_KEY, readSave, writeSave, restoreSave, progressReport, mergeReceipts } from '../src/pages/WaysideFury/game/save.ts';
@@ -52,24 +53,9 @@ for (const change of [{ scene: 'hub' }, { room: motionState.room + 1 }, { active
   assert.equal(interpolateMotion(motionBefore, changed, 0.5), changed, 'scene, room and hero transitions render the new state directly');
 }
 
-// Every authored encounter, doorway and supply cache is reachable through the
-// actual collision layer; blocked rivers/buildings remain solid during a dash.
+// Reachability through precise prop footprints is checked by the collision script.
 assert.equal(BLAST_WORLDS.length, 10); assert.ok(HUB_WORLD.width >= 960 && HUB_WORLD.height >= 540);
 for (const m of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD]) {
-  assert.equal(m.tiles.length, m.cols * m.rows); assert.equal(m.collision.length, m.tiles.length);
-  assert.equal(isBlocked(m, m.spawn.x, m.spawn.y), false, `${m.id} spawn must be walkable`);
-  const start = Math.floor(m.spawn.y / 16) * m.cols + Math.floor(m.spawn.x / 16), seen = new Set([start]), queue = [start];
-  for (let i = 0; i < queue.length; i++) {
-    const at = queue[i], x = at % m.cols, y = Math.floor(at / m.cols);
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const nx = x + dx, ny = y + dy, next = ny * m.cols + nx;
-      if (nx < 0 || nx >= m.cols || ny < 0 || ny >= m.rows || seen.has(next) || isBlocked(m, nx * 16 + 8, ny * 16 + 8)) continue;
-      seen.add(next); queue.push(next);
-    }
-  }
-  const points = [...m.spawns, ...m.exits.map(e => ({ x: e.x + e.w / 2, y: e.y + e.h / 2 })),
-    ...m.props.filter(p => p.kind === 'chest').map(p => ({ x: p.x + p.w / 2, y: p.y + p.h / 2 }))];
-  for (const p of points) assert.ok(seen.has(Math.floor(p.y / 16) * m.cols + Math.floor(p.x / 16)), `${m.id}: ${p.x},${p.y} is reachable`);
   assert.deepEqual(cameraTarget(m, -100, -100, 320, 180), { x: 0, y: 0 });
   assert.deepEqual(cameraTarget(m, m.width + 100, m.height + 100, 320, 180), { x: m.width - 320, y: m.height - 180 });
 }
@@ -117,7 +103,7 @@ assert.ok(mini.enemies[0].miniBoss); assert.ok(mini.enemies[0].maxHp < 260);
 
 assert.equal(tileAt(OVERWORLD, -1, 1), 'void', 'autotile neighbors outside the map do not wrap');
 assert.equal(tileAt(OVERWORLD, OVERWORLD.cols, 0), 'void');
-const smoothTaxi = newGame(); enterScene(smoothTaxi, 'overworld');
+const smoothTaxi = newGame(); enterScene(smoothTaxi, 'overworld'); smoothTaxi.x = 416;
 const taxiOrigin = smoothTaxi.x; tick(smoothTaxi, { x: 1 });
 assert.ok(smoothTaxi.vx > 0 && smoothTaxi.vx < 30, 'taxi accelerates smoothly');
 assert.ok(smoothTaxi.x - taxiOrigin < 1);
@@ -429,10 +415,16 @@ assert.equal(bossRules.projectiles.length, 12);
 const quest = newGame(7); assert.equal(quest.active, 'you'); assert.deepEqual(quest.party, ['you', 'joe']); enterScene(quest, 'dungeon');
 let playFrame = 0; const checkpoints = [], usedControls = new Set(), roomFrames = [];
 function playRoom(s) {
-  let frames = 0; const scene = s.scene;
+  let frames = 0; const scene = s.scene; let route = [], routeEnemy = null;
   while (s.enemies.length && s.scene === scene && frames < 15000) {
     const e = s.enemies.reduce((a, b) => Math.hypot(a.x - s.x, a.y - s.y) < Math.hypot(b.x - s.x, b.y - s.y) ? a : b);
-    const dx = e.x - s.x, dy = e.y - s.y, length = Math.max(1, Math.hypot(dx, dy)), cycle = playFrame % 240;
+    // Follow walkable waypoints around rims and props, using normal controls.
+    if (routeEnemy !== e.id || frames % 30 === 0 || !route.length) {
+      route = findWalkRoute(getWorld(s.scene, s.room), s, e); routeEnemy = e.id;
+    }
+    while (route.length > 1 && Math.hypot(route[0].x - s.x, route[0].y - s.y) < 3) route.shift();
+    const waypoint = route[0];
+    const dx = waypoint.x - s.x, dy = waypoint.y - s.y, length = Math.max(1, Math.hypot(dx, dy)), cycle = playFrame % 240;
     const ki = cycle < 80, attack = !ki && playFrame % 20 === 0, dash = cycle === 110, swap = cycle === 190;
     const input = { ...idleInput(), x: dx / length, y: dy / length, ki, attack, dash, swap, guard: !ki && !attack && !dash };
     for (const key of ['attack', 'ki', 'dash', 'swap', 'guard']) if (input[key]) usedControls.add(key);
@@ -441,15 +433,22 @@ function playRoom(s) {
     frames++; playFrame++;
   }
   assert.equal(s.scene, scene, 'combat bot survives on default stats');
-  assert.equal(s.enemies.length, 0, 'combat bot actually defeats every enemy');
+  assert.equal(s.enemies.length, 0, `combat bot defeats every enemy in ${s.scene}:${s.room}, hero ${s.x.toFixed(1)},${s.y.toFixed(1)}, remaining ${s.enemies.map(e => `${e.kind}@${e.x.toFixed(1)},${e.y.toFixed(1)}`).join(';')}`);
   return frames;
 }
 function walkTo(s, x, y) {
-  for (let f = 0; f < 2500 && Math.hypot(x - s.x, y - s.y) > 4; f++) {
-    const dx = x - s.x, dy = y - s.y, length = Math.hypot(dx, dy);
-    tick(s, { x: dx / length, y: dy / length });
+  const world = getWorld(s.scene, s.room);
+  const route = findWalkRoute(world, s, { x, y });
+  for (const point of route) {
+    for (let f = 0; f < 2500 && Math.hypot(point.x - s.x, point.y - s.y) > 1.5; f++) {
+      const dx = point.x - s.x, dy = point.y - s.y, length = Math.hypot(dx, dy);
+      // Slow down at corners so taxi momentum cannot carry it into a prop.
+      const strength = s.scene === 'overworld' ? Math.max(0.11, Math.min(1, length / 24)) : Math.min(1, length / 4);
+      tick(s, { x: dx / length * strength, y: dy / length * strength });
+    }
+    assert.ok(Math.hypot(point.x - s.x, point.y - s.y) <= 1.5, `${s.scene}:${s.room} stuck at ${s.x.toFixed(1)},${s.y.toFixed(1)} toward ${point.x},${point.y}`);
   }
-  assert.ok(Math.hypot(x - s.x, y - s.y) <= 4, `${s.scene}:${s.room} stuck at ${s.x.toFixed(1)},${s.y.toFixed(1)} toward ${x},${y}`);
+  assert.ok(Math.hypot(x - s.x, y - s.y) <= 4);
 }
 const completedZones = [], clearedCheckpoints = [];
 function openDoor(s, id) {
@@ -470,7 +469,8 @@ for (let room = 0; room <= WATCHER_ROOM; room++) {
     openDoor(quest, room === 1 ? 'north' : 'south'); assert.equal(quest.room, side);
     roomFrames.push(playRoom(quest)); completedZones.push(`blast-${side}`); clearedCheckpoints.push(`blast-${side}`);
     const chest = getWorld('dungeon', side).props.find(p => p.kind === 'chest');
-    walkTo(quest, chest.x + chest.w / 2, chest.y + chest.h / 2);
+    const approach = findInteractionApproach(getWorld('dungeon', side), chest.id, { x: chest.x + chest.w / 2, y: chest.y + chest.h / 2 });
+    walkTo(quest, approach.x, approach.y);
     const beforeLoot = quest.candy;
     assert.equal(interactTarget(quest).id, chest.id); tick(quest); tick(quest, { interact: true });
     assert.equal(quest.candy - beforeLoot, side === 8 ? 18 : 25);
@@ -518,7 +518,8 @@ const beforeReplay = progressReport(quest);
 enterScene(quest, 'overworld');
 // Taxi follows the authored road around the creek rather than cutting across water.
 walkTo(quest, LOCATIONS[1].x, OVERWORLD.spawn.y);
-walkTo(quest, LOCATIONS[1].x, LOCATIONS[1].y); tick(quest); tick(quest, { interact: true });
+const blastApproach = findInteractionApproach(OVERWORLD, LOCATIONS[1].id, LOCATIONS[1]);
+walkTo(quest, blastApproach.x, blastApproach.y); tick(quest); tick(quest, { interact: true });
 assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0); assert.equal(quest.enemies.length, 0);
 assert.equal(progressReport(quest, beforeReplay.receipt).score, 0);
 const repeatedClearCount = checkpoints.length; tick(quest, {}, 60);
