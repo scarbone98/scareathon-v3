@@ -1221,6 +1221,83 @@
   },
   "items": [
     {
+      "key": "angel_robe",
+      "name": "Angel Robe",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/angel_robe/0-torso.png?v=5549d892d1",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/angel_robe/icon.png?v=eda8cad3f2",
+      "dyes": {
+        "dye1": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
+      "release": "released"
+    },
+    {
+      "key": "angel_robe_skirt",
+      "name": "Angel Robe Skirt",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/angel_robe_skirt/0-legs.png?v=add25636d3",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 12,
+          "y": 41,
+          "w": 7,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/angel_robe_skirt/1-legs.png?v=9ddd59b4bc",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/angel_robe_skirt/icon.png?v=8cceedd58b",
+      "dyes": {
+        "dye1": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "angel_wings",
       "name": "Angel Wings",
       "category": "wings",
@@ -1921,6 +1998,38 @@
       "release": "released"
     },
     {
+      "key": "buckle_shoes",
+      "name": "Buckle Shoes",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/buckle_shoes/0-feet.png?v=4d8c0f71da",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/buckle_shoes/icon.png?v=1793fc53e3",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
       "key": "bunny_slippers",
       "name": "Bunny Slippers",
       "category": "feet",
@@ -2242,6 +2351,36 @@
       "release": "released"
     },
     {
+      "key": "cloven_hooves",
+      "name": "Cloven Hooves",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/cloven_hooves/0-feet.png?v=d9c0cb6fd2",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/cloven_hooves/icon.png?v=0df94e888c",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
       "key": "cowboy_boots",
       "name": "Cowboy Boots",
       "category": "feet",
@@ -2354,6 +2493,140 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "devil_leggings",
+      "name": "Devil Leggings",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/devil_leggings/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/devil_leggings/1-legs.png?v=0b8bb6af4c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/devil_leggings/icon.png?v=6dcad027c5",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "devil_suit",
+      "name": "Devil Suit",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/devil_suit/0-torso.png?v=972380a932",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/devil_suit/icon.png?v=1ed0dc819e",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
+      "key": "devil_tail",
+      "name": "Devil Tail",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "anchor": "body",
+          "x": 18,
+          "y": 35,
+          "w": 5,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/devil_tail/0-back.png?v=ff81edf7db",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/devil_tail/icon.png?v=a4054062fe",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "dog",
+      "name": "Dog",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 20,
+          "y": 37,
+          "w": 10,
+          "h": 10,
+          "frames": 6,
+          "src": "/avatar-px/items/dog/0-companion.png?v=c74996f770"
+        }
+      ],
+      "icon": "/avatar-px/items/dog/icon.png?v=5a656904cb",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 260,
       "release": "released"
     },
     {
@@ -2504,6 +2777,33 @@
       "release": "released"
     },
     {
+      "key": "flies",
+      "name": "Flies",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 15,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/flies/0-front_fx.png?v=9fb59d817d"
+        }
+      ],
+      "icon": "/avatar-px/items/flies/icon.png?v=b4697eff51",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 150,
+      "release": "released"
+    },
+    {
       "key": "flip_flops",
       "name": "Flip-Flops",
       "category": "feet",
@@ -2644,6 +2944,36 @@
       "default": false,
       "rarity": "legendary",
       "price": 500,
+      "release": "released"
+    },
+    {
+      "key": "golden_sandals",
+      "name": "Golden Sandals",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/golden_sandals/0-feet.png?v=7a5981d2dc",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/golden_sandals/icon.png?v=969924777c",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
       "release": "released"
     },
     {
@@ -3597,6 +3927,36 @@
       "release": "released"
     },
     {
+      "key": "leaf_slippers",
+      "name": "Leaf Slippers",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 11,
+          "y": 44,
+          "w": 9,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/leaf_slippers/0-feet.png?v=da308f5027",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/leaf_slippers/icon.png?v=2eb6ceb65e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
+      "release": "released"
+    },
+    {
       "key": "little_bigfoot",
       "name": "Little Bigfoot",
       "category": "companion",
@@ -3621,6 +3981,36 @@
       "default": false,
       "rarity": "rare",
       "price": 300,
+      "release": "released"
+    },
+    {
+      "key": "little_harp",
+      "name": "Little Harp",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 31,
+          "w": 5,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/little_harp/0-held.png?v=3e653efe83",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/little_harp/icon.png?v=8c87bec465",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
       "release": "released"
     },
     {
@@ -3732,6 +4122,109 @@
       "default": false,
       "rarity": "epic",
       "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "mummy_foot_wraps",
+      "name": "Mummy Foot Wraps",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 44,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/mummy_foot_wraps/0-feet.png?v=ef8eeb2e86",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/mummy_foot_wraps/icon.png?v=68514abc4d",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "mummy_head_wraps",
+      "name": "Mummy Head Wraps",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "anchor": "head",
+          "x": 11,
+          "y": 26,
+          "w": 9,
+          "h": 8,
+          "frames": 1,
+          "src": "/avatar-px/items/mummy_head_wraps/0-face_acc.png?v=c9799b101e",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/mummy_head_wraps/icon.png?v=ad9480616b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
+      "key": "mummy_leg_wraps",
+      "name": "Mummy Leg Wraps",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/mummy_leg_wraps/0-legs.png?v=aaadd20091",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/mummy_leg_wraps/1-legs.png?v=80bb2720f8",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/mummy_leg_wraps/icon.png?v=36dd9a7915",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
       "release": "released"
     },
     {
@@ -4000,6 +4493,36 @@
       "release": "released"
     },
     {
+      "key": "pitchfork",
+      "name": "Pitchfork",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 18,
+          "w": 5,
+          "h": 25,
+          "frames": 1,
+          "src": "/avatar-px/items/pitchfork/0-held.png?v=f5c5da3a5b",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/pitchfork/icon.png?v=5eecf26bea",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
+      "release": "released"
+    },
+    {
       "key": "pizza_slice",
       "name": "Pizza Slice",
       "category": "held",
@@ -4166,6 +4689,51 @@
       "default": false,
       "rarity": "uncommon",
       "price": 150,
+      "release": "released"
+    },
+    {
+      "key": "pumpkin_bloomers",
+      "name": "Pumpkin Bloomers",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/pumpkin_bloomers/0-legs.png?v=5e2e3d1c42",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 12,
+          "y": 41,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/pumpkin_bloomers/1-legs.png?v=c930f256fd",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/pumpkin_bloomers/icon.png?v=66babf56aa",
+      "dyes": {
+        "dye1": "orange"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
       "release": "released"
     },
     {
@@ -4992,6 +5560,33 @@
       "release": "released"
     },
     {
+      "key": "stink_lines",
+      "name": "Stink Lines",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 15,
+          "w": 26,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/stink_lines/0-front_fx.png?v=a71c657f0d"
+        }
+      ],
+      "icon": "/avatar-px/items/stink_lines/icon.png?v=133438f5f4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 170,
+      "release": "released"
+    },
+    {
       "key": "stitches",
       "name": "Stitches",
       "category": "face_paint",
@@ -5193,6 +5788,33 @@
       "default": false,
       "rarity": "common",
       "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "tabby_cat",
+      "name": "Tabby Cat",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 20,
+          "y": 37,
+          "w": 9,
+          "h": 10,
+          "frames": 6,
+          "src": "/avatar-px/items/tabby_cat/0-companion.png?v=f8e07f82fe"
+        }
+      ],
+      "icon": "/avatar-px/items/tabby_cat/icon.png?v=7f834189c8",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 260,
       "release": "released"
     },
     {
@@ -5512,6 +6134,83 @@
       "default": false,
       "rarity": "rare",
       "price": 240,
+      "release": "released"
+    },
+    {
+      "key": "witch_dress",
+      "name": "Witch's Bodice",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/witch_dress/0-torso.png?v=3f5a70dd70",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/witch_dress/icon.png?v=f3c076f339",
+      "dyes": {
+        "dye1": "plum"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
+      "key": "witch_skirt",
+      "name": "Witch's Skirt",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/witch_skirt/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 11,
+          "y": 41,
+          "w": 9,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/witch_skirt/1-legs.png?v=2c9ca35fc3",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/witch_skirt/icon.png?v=ed84e59797",
+      "dyes": {
+        "dye1": "plum"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
       "release": "released"
     },
     {

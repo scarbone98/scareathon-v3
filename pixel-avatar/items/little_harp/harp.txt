@@ -1,0 +1,14 @@
+# A small gold harp in your hand
+at: 5,31
+legend:
+  g = gold.2
+  h = gold.3
+  d = gold.1
+  s = bone.3
+--- 0
+.hgg.
+h.s.g
+g.s.g
+gs.sg
+gs.sd
+dggd.

@@ -1,0 +1,9 @@
+# Green, a curl of vine at each toe
+at: 11,44
+legend:
+  g = leaf.2
+  l = leaf.3
+--- 0
+......g.l
+l.g...gg
+.gg

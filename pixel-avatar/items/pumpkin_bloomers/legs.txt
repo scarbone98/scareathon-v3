@@ -1,0 +1,9 @@
+# Puffed out round each leg, gathered at the cuff
+at: 12,41
+legend:
+  o = dye1.2
+  h = dye1.3
+  j = dye1.1
+--- 0
+ho...oh
+.j...j.

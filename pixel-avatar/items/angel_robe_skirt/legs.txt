@@ -1,0 +1,11 @@
+# Down to the floor, a gold hem
+at: 12,41
+legend:
+  h = dye1.3
+  i = dye1.2
+  g = gold.2
+--- 0
+hhhhhhi
+hhihhhi
+hhihhii
+ggggggg

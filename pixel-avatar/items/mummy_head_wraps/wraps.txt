@@ -1,0 +1,15 @@
+# Bandages wound round the whole head, a gap left for each eye
+at: 11,26
+legend:
+  h = bone.3
+  b = bone.2
+  d = bone.1
+--- 0
+..hhbhhh
+.hbdhhbhh
+hhhbhhdhh
+hbdh.hd.b
+bhhd.bh.h
+dhbh.dh.d
+.hdbhbhd
+...dbh

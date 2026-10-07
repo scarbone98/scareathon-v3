@@ -1,0 +1,22 @@
+{
+  "name": "Mummy Leg Wraps",
+  "category": "legs",
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "waist.txt"
+    },
+    {
+      "slot": "legs",
+      "file": "legs.txt",
+      "anchor": "ground"
+    }
+  ]
+}

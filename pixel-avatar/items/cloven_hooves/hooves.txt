@@ -1,0 +1,9 @@
+# Black, split down the front
+at: 12,44
+legend:
+  k = ink.0
+  h = ink.2
+--- 0
+.....h.
+.h...kk
+kk.....

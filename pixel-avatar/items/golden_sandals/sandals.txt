@@ -1,0 +1,8 @@
+at: 12,44
+legend:
+  g = gold.2
+  h = gold.3
+--- 0
+.....h.
+.h...gg
+gg.....

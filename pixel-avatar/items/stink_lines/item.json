@@ -1,0 +1,15 @@
+{
+  "name": "Stink Lines",
+  "category": "aura",
+  "rarity": "uncommon",
+  "price": 170,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "lines.txt",
+      "anchor": "free"
+    }
+  ]
+}

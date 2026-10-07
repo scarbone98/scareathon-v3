@@ -1,0 +1,18 @@
+{
+  "name": "Leaf Slippers",
+  "category": "feet",
+  "rarity": "uncommon",
+  "price": 80,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "slippers.txt",
+      "anchor": "ground"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Buckle Shoes",
+  "category": "feet",
+  "rarity": "uncommon",
+  "price": 80,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "coal"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "shoes.txt",
+      "anchor": "ground"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# A leaf-green waistband
+at: 12,39
+legend:
+  g = leaf.2
+  o = dye1.2
+--- 0
+g.ggggg
+.ooooo.

@@ -1,0 +1,32 @@
+# Held upright beside you, three prongs up
+at: 7,18
+legend:
+  h = blood.3
+  r = blood.2
+  d = blood.1
+--- 0
+h.h.h
+r.r.r
+r.r.r
+drrrd
+..r
+..r
+..r
+..d
+..r
+..r
+..r
+..d
+..r
+..r
+..r
+..d
+..r
+..r
+..r
+..d
+..r
+..r
+..r
+..d
+..r

@@ -1,0 +1,18 @@
+{
+  "name": "Golden Sandals",
+  "category": "feet",
+  "rarity": "uncommon",
+  "price": 90,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "sandals.txt",
+      "anchor": "ground"
+    }
+  ]
+}

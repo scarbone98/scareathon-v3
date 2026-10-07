@@ -1,0 +1,13 @@
+# White, a gold collar and a gold cord at the waist
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  g = gold.2
+--- 0
+.hgggh.
+hhhhhhi
+hhhhhii
+i.ggggi
+..ihhhi

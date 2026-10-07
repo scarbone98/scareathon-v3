@@ -1,0 +1,74 @@
+# A ginger tabby, sat at your feet, its ringed tail swishing
+at: 20,37
+legend:
+  o = pumpkin.2
+  s = pumpkin.0
+  W = bone.3
+  g = toxic_eye.2
+  p = rose.2
+--- 0
+.o.o
+.osoo
+.gogo
+.oopo
+..ooo...s
+..osos..o
+..oWoos.s
+..oWosos
+..osooso
+..o.o.o
+--- 1
+.o.o
+.osoo
+.gogo
+.oopo...o
+..ooo...s
+..osos..o
+..oWooso
+..oWosos
+..osooso
+..o.o.o
+--- 2
+.o.o
+.osoo
+.gogo
+.oopo..s
+..ooo...s
+..osos..o
+..oWoos.s
+..oWosos
+..osooso
+..o.o.o
+--- 3
+.o.o
+.osoo
+.gogo
+.oopo..s
+..ooo...s
+..osos..o
+..oWoos.s
+..oWosos
+..osooso
+..o.o.o
+--- 4
+.o.o
+.osoo
+.gogo
+.oopo...o
+..ooo...s
+..osos..o
+..oWooso
+..oWosos
+..osooso
+..o.o.o
+--- 5
+.o.o
+.osoo
+.gogo
+.oopo
+..ooo...s
+..osos..o
+..oWoos.s
+..oWosos
+..osooso
+..o.o.o

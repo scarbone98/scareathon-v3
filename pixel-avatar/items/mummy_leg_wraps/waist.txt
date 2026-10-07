@@ -1,0 +1,8 @@
+at: 12,39
+legend:
+  h = bone.3
+  b = bone.2
+  d = bone.1
+--- 0
+h.hbhdh
+.bhdhb.

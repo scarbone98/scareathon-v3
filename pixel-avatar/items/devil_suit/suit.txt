@@ -1,0 +1,13 @@
+# Red, a high black collar
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  k = ink.0
+--- 0
+.kiiik.
+hikikij
+iiiiijj
+j.iiiij
+..jiiij

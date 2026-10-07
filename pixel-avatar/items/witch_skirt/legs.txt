@@ -1,0 +1,9 @@
+# Wide, and ragged at the hem
+at: 11,41
+legend:
+  i = dye1.2
+  j = dye1.1
+--- 0
+.iiiiiii.
+iijiijiii
+j.ij.i.ij

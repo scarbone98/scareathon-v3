@@ -1,0 +1,77 @@
+# A good dog, sat beside you, wagging; now and then its tongue's out
+at: 20,37
+legend:
+  b = wood.3
+  e = wood.1
+  t = wood.2
+  w = bone.3
+  W = bone.2
+  n = ink.0
+  k = ink.1
+  p = rose.2
+--- 0
+.
+.ebbe
+ebbbbe
+ekbkbe
+.bwnwb...t
+..bwb...t
+..bbbbbb
+..bWbbbbb
+..bWbbbbb
+..b.b.b.b
+--- 1
+.
+.ebbe
+ebbbbe
+ekbkbe..t
+.bwnwb..t
+..bwb...t
+..bbbbbb
+..bWbbbbb
+..bWbbbbb
+..b.b.b.b
+--- 2
+.
+.ebbe
+ebbbbe
+ekbkbe
+.bwnwb...t
+..bpb...t
+..bbbbbb
+..bWbbbbb
+..bWbbbbb
+..b.b.b.b
+--- 3
+.
+.ebbe
+ebbbbe
+ekbkbe..t
+.bwnwb..t
+..bpb...t
+..bbbbbb
+..bWbbbbb
+..bWbbbbb
+..b.b.b.b
+--- 4
+.
+.ebbe
+ebbbbe
+ekbkbe
+.bwnwb...t
+..bwb...t
+..bbbbbb
+..bWbbbbb
+..bWbbbbb
+..b.b.b.b
+--- 5
+.
+.ebbe
+ebbbbe
+ekbkbe..t
+.bwnwb..t
+..bwb...t
+..bbbbbb
+..bWbbbbb
+..bWbbbbb
+..b.b.b.b

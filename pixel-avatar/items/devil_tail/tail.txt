@@ -1,0 +1,14 @@
+# Curling out behind you, a spade at its tip
+at: 18,35
+legend:
+  r = blood.2
+  h = blood.3
+  d = blood.1
+--- 0
+...h
+..hrh
+..hrh
+...r
+...d
+..r
+rd

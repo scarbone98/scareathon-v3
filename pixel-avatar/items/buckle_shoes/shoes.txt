@@ -1,0 +1,9 @@
+# Pointed, a brass buckle on each
+at: 12,44
+legend:
+  k = dye1.2
+  g = gold.2
+--- 0
+.....k.
+.k...gk
+kg.....
