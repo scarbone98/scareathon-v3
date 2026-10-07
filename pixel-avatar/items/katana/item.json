@@ -13,10 +13,7 @@
       "slot": "back",
       "png": "sprite.png",
       "frameWidth": 16,
-      "at": [
-        8,
-        24
-      ],
+      "at": [7, 24],
       "anchor": "body"
     }
   ]

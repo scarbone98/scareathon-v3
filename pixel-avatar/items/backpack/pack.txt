@@ -1,5 +1,5 @@
-# On your back: it shows past your far shoulder
-at: 17,34
+# On your back: it shows behind you (you face right)
+at: 10,34
 legend:
   a = dye1.1
   b = dye1.2
@@ -7,6 +7,6 @@ legend:
 --- 0
 .aa
 abba
-abca
+acba
 abba
 .aa

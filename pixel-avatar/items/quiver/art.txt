@@ -1,15 +1,15 @@
-# Arrows over the shoulder
-at: 17,31
+# Arrows over the shoulder, behind you (you face right)
+at: 10,31
 legend:
   a = blood.2
   w = bone.3
   b = bark.2
   h = bark.3
 --- 0
-.a.a
-.w.w
+a.a
+w.w
 bbbb
-bhbb
+bbhb
 bbbb
 bbbb
 .bb

@@ -1492,18 +1492,18 @@
         {
           "slot": "back",
           "anchor": "body",
-          "x": 17,
+          "x": 10,
           "y": 34,
           "w": 4,
           "h": 5,
           "frames": 1,
-          "src": "/avatar-px/items/backpack/0-back.png?v=71b8df0b59",
+          "src": "/avatar-px/items/backpack/0-back.png?v=03baf994f8",
           "fits": [
             "body_kid"
           ]
         }
       ],
-      "icon": "/avatar-px/items/backpack/icon.png?v=15a6759e0c",
+      "icon": "/avatar-px/items/backpack/icon.png?v=ae74abb7d9",
       "dyes": {
         "dye1": "pine"
       },
@@ -3087,18 +3087,18 @@
         {
           "slot": "back",
           "anchor": "body",
-          "x": 18,
+          "x": 7,
           "y": 35,
           "w": 6,
           "h": 7,
           "frames": 6,
-          "src": "/avatar-px/items/devil_tail/0-back.png?v=0b07a418c4",
+          "src": "/avatar-px/items/devil_tail/0-back.png?v=57dc2b7afb",
           "fits": [
             "body_kid"
           ]
         }
       ],
-      "icon": "/avatar-px/items/devil_tail/icon.png?v=a4054062fe",
+      "icon": "/avatar-px/items/devil_tail/icon.png?v=2440086344",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -4762,18 +4762,18 @@
         {
           "slot": "back",
           "anchor": "body",
-          "x": 17,
+          "x": 10,
           "y": 33,
           "w": 4,
           "h": 7,
           "frames": 6,
-          "src": "/avatar-px/items/jetpack/0-back.png?v=dac215bd1a",
+          "src": "/avatar-px/items/jetpack/0-back.png?v=fa61dc2d5c",
           "fits": [
             "body_kid"
           ]
         }
       ],
-      "icon": "/avatar-px/items/jetpack/icon.png?v=6af9951f5a",
+      "icon": "/avatar-px/items/jetpack/icon.png?v=75a05dff4e",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -4792,18 +4792,18 @@
         {
           "slot": "back",
           "anchor": "body",
-          "x": 8,
+          "x": 7,
           "y": 24,
           "w": 16,
           "h": 16,
           "frames": 1,
-          "src": "/avatar-px/items/katana/0-back.png?v=4f4f2cac60",
+          "src": "/avatar-px/items/katana/0-back.png?v=12b242c2d0",
           "fits": [
             "body_kid"
           ]
         }
       ],
-      "icon": "/avatar-px/items/katana/icon.png?v=81fc476fde",
+      "icon": "/avatar-px/items/katana/icon.png?v=b30ff2b3b9",
       "dyes": {},
       "occupies": [],
       "hides": [],
@@ -6155,18 +6155,18 @@
         {
           "slot": "back",
           "anchor": "body",
-          "x": 17,
+          "x": 10,
           "y": 31,
           "w": 4,
           "h": 7,
           "frames": 1,
-          "src": "/avatar-px/items/quiver/0-back.png?v=a7eda74ee6",
+          "src": "/avatar-px/items/quiver/0-back.png?v=b8d9f1b3d6",
           "fits": [
             "body_kid"
           ]
         }
       ],
-      "icon": "/avatar-px/items/quiver/icon.png?v=0a62f234d6",
+      "icon": "/avatar-px/items/quiver/icon.png?v=340b5be3d4",
       "dyes": {},
       "occupies": [],
       "hides": [],

@@ -1,5 +1,5 @@
-# Strapped on, the burner lit
-at: 17,33
+# Strapped on behind you (you face right), the burner lit
+at: 10,33
 legend:
   s = steel.1
   S = steel.2
@@ -9,48 +9,48 @@ legend:
 --- 0
 .ss
 sSSs
-sSrs
+srSs
 sSSs
 .ss
-.fy
-..f
+.yf
+.f
 --- 1
 .ss
 sSSs
-sSrs
+srSs
 sSSs
 .ss
-.yf
-.f
+.fy
+..f
 --- 2
 .ss
 sSSs
-sSrs
+srSs
 sSSs
 .ss
-.fy
-..f
+.yf
+.f
 --- 3
 .ss
 sSSs
-sSrs
-sSSs
-.ss
-.yf
-.f
---- 4
-.ss
-sSSs
-sSrs
+srSs
 sSSs
 .ss
 .fy
 ..f
---- 5
+--- 4
 .ss
 sSSs
-sSrs
+srSs
 sSSs
 .ss
 .yf
 .f
+--- 5
+.ss
+sSSs
+srSs
+sSSs
+.ss
+.fy
+..f
