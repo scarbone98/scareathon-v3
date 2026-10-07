@@ -1,0 +1,19 @@
+{
+  "name": "Pompadour",
+  "category": "hair",
+  "starter": true,
+  "rarity": "common",
+  "price": null,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "hair",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

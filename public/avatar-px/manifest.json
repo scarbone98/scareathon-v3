@@ -486,6 +486,80 @@
     ]
   },
   "bases": {
+    "body_crow": {
+      "frames": 8,
+      "fps": 8,
+      "anchors": {
+        "ground": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "free": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
     "body_ghost": {
       "frames": 6,
       "fps": 8,
@@ -1068,6 +1142,56 @@
         ]
       }
     },
+    "body_warrior": {
+      "frames": 5,
+      "fps": 6,
+      "anchors": {
+        "ground": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "free": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    },
     "body_werewolf": {
       "frames": 7,
       "fps": 12,
@@ -1457,6 +1581,67 @@
       "release": "released"
     },
     {
+      "key": "bandana",
+      "name": "Bandana",
+      "category": "neck",
+      "parts": [
+        {
+          "slot": "neck",
+          "anchor": "body",
+          "x": 12,
+          "y": 33,
+          "w": 7,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/bandana/0-neck.png?v=4cad36b9d4",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bandana/icon.png?v=ec61e25596",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "baseball_cap",
+      "name": "Baseball Cap",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 23,
+          "w": 12,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/baseball_cap/0-head.png?v=17eca56967"
+        }
+      ],
+      "icon": "/avatar-px/items/baseball_cap/icon.png?v=77bc4e9246",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
       "key": "baseball_tee",
       "name": "Baseball Tee",
       "category": "torso",
@@ -1782,6 +1967,33 @@
       "release": "released"
     },
     {
+      "key": "body_crow",
+      "name": "Crow",
+      "category": "body",
+      "parts": [
+        {
+          "slot": "body",
+          "anchor": "ground",
+          "x": 8,
+          "y": 32,
+          "w": 16,
+          "h": 16,
+          "frames": 8,
+          "src": "/avatar-px/items/body_crow/0-body.png?v=93555499e1"
+        }
+      ],
+      "icon": "/avatar-px/items/body_crow/icon.png?v=b484b11d5f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 320,
+      "release": "released"
+    },
+    {
       "key": "body_ghost",
       "name": "Ghost",
       "category": "body",
@@ -1974,6 +2186,33 @@
       "release": "released"
     },
     {
+      "key": "body_warrior",
+      "name": "Jaguar Warrior",
+      "category": "body",
+      "parts": [
+        {
+          "slot": "body",
+          "anchor": "ground",
+          "x": 8,
+          "y": 24,
+          "w": 17,
+          "h": 23,
+          "frames": 5,
+          "src": "/avatar-px/items/body_warrior/0-body.png?v=4f7d69ff2d"
+        }
+      ],
+      "icon": "/avatar-px/items/body_warrior/icon.png?v=4523f16f3f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 500,
+      "release": "released"
+    },
+    {
       "key": "body_werewolf",
       "name": "Werewolf",
       "category": "body",
@@ -2025,6 +2264,37 @@
       "default": false,
       "rarity": "epic",
       "price": 400,
+      "release": "released"
+    },
+    {
+      "key": "bone_wings",
+      "name": "Bone Wings",
+      "category": "wings",
+      "parts": [
+        {
+          "slot": "wings",
+          "anchor": "body",
+          "x": 4,
+          "y": 25,
+          "w": 24,
+          "h": 9,
+          "frames": 1,
+          "src": "/avatar-px/items/bone_wings/0-wings.png?v=cedbba5a8c",
+          "fits": [
+            "body_kid",
+            "body_ghost"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bone_wings/icon.png?v=b821278b1f",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 340,
       "release": "released"
     },
     {
@@ -2092,6 +2362,33 @@
       "release": "released"
     },
     {
+      "key": "bubbles",
+      "name": "Bubbles",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 16,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/bubbles/0-front_fx.png?v=f9116df445"
+        }
+      ],
+      "icon": "/avatar-px/items/bubbles/icon.png?v=393d87f519",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 200,
+      "release": "released"
+    },
+    {
       "key": "buckle_shoes",
       "name": "Buckle Shoes",
       "category": "feet",
@@ -2124,6 +2421,33 @@
       "release": "released"
     },
     {
+      "key": "bunny",
+      "name": "Bunny",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 38,
+          "w": 7,
+          "h": 9,
+          "frames": 6,
+          "src": "/avatar-px/items/bunny/0-companion.png?v=81e91ec95b"
+        }
+      ],
+      "icon": "/avatar-px/items/bunny/icon.png?v=809f2f5f79",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 240,
+      "release": "released"
+    },
+    {
       "key": "bunny_slippers",
       "name": "Bunny Slippers",
       "category": "feet",
@@ -2153,6 +2477,36 @@
       "default": false,
       "rarity": "rare",
       "price": 140,
+      "release": "released"
+    },
+    {
+      "key": "burning_torch",
+      "name": "Burning Torch",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 24,
+          "w": 4,
+          "h": 13,
+          "frames": 6,
+          "src": "/avatar-px/items/burning_torch/0-held.png?v=c25d68cb50",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/burning_torch/icon.png?v=1b0e8626d7",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 180,
       "release": "released"
     },
     {
@@ -2413,6 +2767,33 @@
       "release": "released"
     },
     {
+      "key": "chefs_hat",
+      "name": "Chef's Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 17,
+          "w": 9,
+          "h": 9,
+          "frames": 1,
+          "src": "/avatar-px/items/chefs_hat/0-head.png?v=edd0f24caf"
+        }
+      ],
+      "icon": "/avatar-px/items/chefs_hat/icon.png?v=70ad5f2ac8",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "chunky_scarf",
       "name": "Chunky Scarf",
       "category": "neck",
@@ -2472,6 +2853,38 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "clown_shoes",
+      "name": "Clown Shoes",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 10,
+          "y": 44,
+          "w": 10,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/clown_shoes/0-feet.png?v=d7ff111ead",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/clown_shoes/icon.png?v=5ce943b678",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
       "release": "released"
     },
     {
@@ -2781,6 +3194,37 @@
       "release": "released"
     },
     {
+      "key": "fairy_wings",
+      "name": "Fairy Wings",
+      "category": "wings",
+      "parts": [
+        {
+          "slot": "wings",
+          "anchor": "body",
+          "x": 4,
+          "y": 25,
+          "w": 24,
+          "h": 10,
+          "frames": 1,
+          "src": "/avatar-px/items/fairy_wings/0-wings.png?v=25b595376d",
+          "fits": [
+            "body_kid",
+            "body_ghost"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/fairy_wings/icon.png?v=ab74bd95ca",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 320,
+      "release": "released"
+    },
+    {
       "key": "falling_leaves",
       "name": "Falling Leaves",
       "category": "aura",
@@ -2987,6 +3431,33 @@
       "release": "released"
     },
     {
+      "key": "floating_hearts",
+      "name": "Floating Hearts",
+      "category": "aura",
+      "parts": [
+        {
+          "slot": "front_fx",
+          "anchor": "free",
+          "x": 1,
+          "y": 16,
+          "w": 30,
+          "h": 30,
+          "frames": 6,
+          "src": "/avatar-px/items/floating_hearts/0-front_fx.png?v=3d5494b60a"
+        }
+      ],
+      "icon": "/avatar-px/items/floating_hearts/icon.png?v=a1cc826c65",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 260,
+      "release": "released"
+    },
+    {
       "key": "freckles",
       "name": "Freckles",
       "category": "face_paint",
@@ -3098,6 +3569,36 @@
       "release": "released"
     },
     {
+      "key": "gold_chain",
+      "name": "Gold Chain",
+      "category": "neck",
+      "parts": [
+        {
+          "slot": "neck",
+          "anchor": "body",
+          "x": 13,
+          "y": 33,
+          "w": 5,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/gold_chain/0-neck.png?v=45ffe1f8d4",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/gold_chain/icon.png?v=bcf93cf6db",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 160,
+      "release": "released"
+    },
+    {
       "key": "golden_pinball",
       "name": "Golden Pinball",
       "category": "companion",
@@ -3182,6 +3683,36 @@
       "default": false,
       "rarity": "epic",
       "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "hair_afro",
+      "name": "Afro",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 9,
+          "y": 20,
+          "w": 14,
+          "h": 10,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_afro/0-hair.png?v=3cb2968f61",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_afro/icon.png?v=f3b9a11599",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
       "release": "released"
     },
     {
@@ -3607,6 +4138,36 @@
       "release": "released"
     },
     {
+      "key": "hair_pompadour",
+      "name": "Pompadour",
+      "category": "hair",
+      "parts": [
+        {
+          "slot": "hair",
+          "anchor": "head",
+          "x": 11,
+          "y": 21,
+          "w": 10,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/hair_pompadour/0-hair.png?v=87e8de870c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hair_pompadour/icon.png?v=fa63296bc4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": true,
+      "default": false,
+      "rarity": "common",
+      "price": null,
+      "release": "released"
+    },
+    {
       "key": "hair_ponytail",
       "name": "Ponytail",
       "category": "hair",
@@ -3905,6 +4466,38 @@
       "release": "released"
     },
     {
+      "key": "hero_tee",
+      "name": "Hero Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/hero_tee/0-torso.png?v=3246439772",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hero_tee/icon.png?v=43347c50d3",
+      "dyes": {
+        "dye1": "ocean"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "hi_vis_vest",
       "name": "Hi-Vis Vest",
       "category": "torso",
@@ -4135,6 +4728,36 @@
       "release": "released"
     },
     {
+      "key": "jetpack",
+      "name": "Jetpack",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "anchor": "body",
+          "x": 17,
+          "y": 33,
+          "w": 4,
+          "h": 7,
+          "frames": 6,
+          "src": "/avatar-px/items/jetpack/0-back.png?v=dac215bd1a",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/jetpack/icon.png?v=6af9951f5a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 380,
+      "release": "released"
+    },
+    {
       "key": "katana",
       "name": "Katana",
       "category": "back",
@@ -4162,6 +4785,84 @@
       "default": false,
       "rarity": "rare",
       "price": 220,
+      "release": "released"
+    },
+    {
+      "key": "kilt",
+      "name": "Kilt",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/kilt/0-legs.png?v=85190ce4df",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 12,
+          "y": 41,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/kilt/1-legs.png?v=490c0fa006",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/kilt/icon.png?v=4d41979ae6",
+      "dyes": {
+        "dye1": "cherry",
+        "dye2": "pine"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "lab_coat",
+      "name": "Lab Coat",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 12,
+          "y": 33,
+          "w": 8,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/lab_coat/0-outer.png?v=7cce016f83",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/lab_coat/icon.png?v=530f6fd5e6",
+      "dyes": {
+        "dye2": "ocean"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
       "release": "released"
     },
     {
@@ -4255,6 +4956,39 @@
       "release": "released"
     },
     {
+      "key": "leather_jacket",
+      "name": "Leather Jacket",
+      "category": "outer",
+      "parts": [
+        {
+          "slot": "outer",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/leather_jacket/0-outer.png?v=3eaadd57ae",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/leather_jacket/icon.png?v=2b43cce5c8",
+      "dyes": {
+        "dye1": "coal",
+        "dye2": "ash"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 190,
+      "release": "released"
+    },
+    {
       "key": "little_bigfoot",
       "name": "Little Bigfoot",
       "category": "companion",
@@ -4336,6 +5070,36 @@
       "default": false,
       "rarity": "epic",
       "price": 360,
+      "release": "released"
+    },
+    {
+      "key": "lollipop",
+      "name": "Lollipop",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 27,
+          "w": 4,
+          "h": 10,
+          "frames": 1,
+          "src": "/avatar-px/items/lollipop/0-held.png?v=81763e3676",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/lollipop/icon.png?v=29ef798244",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
@@ -4425,6 +5189,36 @@
       "default": false,
       "rarity": "epic",
       "price": 450,
+      "release": "released"
+    },
+    {
+      "key": "monocle",
+      "name": "Monocle",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "anchor": "head",
+          "x": 17,
+          "y": 28,
+          "w": 3,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/monocle/0-face_acc.png?v=ec2db4dd93",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/monocle/icon.png?v=ef034469a9",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
       "release": "released"
     },
     {
@@ -5327,6 +6121,36 @@
       "release": "released"
     },
     {
+      "key": "quiver",
+      "name": "Quiver",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "anchor": "body",
+          "x": 17,
+          "y": 31,
+          "w": 4,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/quiver/0-back.png?v=a7eda74ee6",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/quiver/icon.png?v=0a62f234d6",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
       "key": "rain_boots",
       "name": "Rain Boots",
       "category": "feet",
@@ -5776,6 +6600,33 @@
       "release": "released"
     },
     {
+      "key": "snail",
+      "name": "Snail",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 43,
+          "w": 8,
+          "h": 4,
+          "frames": 6,
+          "src": "/avatar-px/items/snail/0-companion.png?v=4718d83121"
+        }
+      ],
+      "icon": "/avatar-px/items/snail/icon.png?v=b88cf62f44",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 150,
+      "release": "released"
+    },
+    {
       "key": "sneakers",
       "name": "Sneakers",
       "category": "feet",
@@ -5806,6 +6657,38 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "snow_boots",
+      "name": "Snow Boots",
+      "category": "feet",
+      "parts": [
+        {
+          "slot": "feet",
+          "anchor": "ground",
+          "x": 12,
+          "y": 42,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/snow_boots/0-feet.png?v=5d0baae734",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/snow_boots/icon.png?v=4bc3e8e3f3",
+      "dyes": {
+        "dye1": "ocean"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
       "release": "released"
     },
     {
@@ -5893,6 +6776,36 @@
       "default": false,
       "rarity": "epic",
       "price": 300,
+      "release": "released"
+    },
+    {
+      "key": "space_suit_top",
+      "name": "Space Suit Top",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/space_suit_top/0-torso.png?v=4e34853ab4",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/space_suit_top/icon.png?v=18f08a4531",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 170,
       "release": "released"
     },
     {
@@ -6135,6 +7048,51 @@
       "release": "released"
     },
     {
+      "key": "sweatpants",
+      "name": "Sweatpants",
+      "category": "legs",
+      "parts": [
+        {
+          "slot": "legs",
+          "anchor": "body",
+          "x": 12,
+          "y": 39,
+          "w": 7,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/sweatpants/0-legs.png?v=c324638d5d",
+          "fits": [
+            "body_kid"
+          ]
+        },
+        {
+          "slot": "legs",
+          "anchor": "ground",
+          "x": 13,
+          "y": 41,
+          "w": 5,
+          "h": 4,
+          "frames": 1,
+          "src": "/avatar-px/items/sweatpants/1-legs.png?v=b834595bfe",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/sweatpants/icon.png?v=d0b110b4a8",
+      "dyes": {
+        "dye1": "ash"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "swim_trunks",
       "name": "Swim Trunks",
       "category": "legs",
@@ -6302,6 +7260,36 @@
       "release": "released"
     },
     {
+      "key": "tear_drops",
+      "name": "Tear Drops",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "anchor": "head",
+          "x": 15,
+          "y": 32,
+          "w": 4,
+          "h": 1,
+          "frames": 1,
+          "src": "/avatar-px/items/tear_drops/0-face_paint.png?v=5ae6952d72",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tear_drops/icon.png?v=c177947add",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 40,
+      "release": "released"
+    },
+    {
       "key": "teddy_bear",
       "name": "Teddy Bear",
       "category": "held",
@@ -6361,6 +7349,36 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "three_d_glasses",
+      "name": "3D Glasses",
+      "category": "face_acc",
+      "parts": [
+        {
+          "slot": "face_acc",
+          "anchor": "head",
+          "x": 10,
+          "y": 29,
+          "w": 10,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/three_d_glasses/0-face_acc.png?v=0f6e6554bd",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/three_d_glasses/icon.png?v=a899e60fc9",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 80,
       "release": "released"
     },
     {
@@ -6708,6 +7726,36 @@
       "default": false,
       "rarity": "common",
       "price": 50,
+      "release": "released"
+    },
+    {
+      "key": "war_paint",
+      "name": "War Paint",
+      "category": "face_paint",
+      "parts": [
+        {
+          "slot": "face_paint",
+          "anchor": "head",
+          "x": 14,
+          "y": 32,
+          "w": 5,
+          "h": 1,
+          "frames": 1,
+          "src": "/avatar-px/items/war_paint/0-face_paint.png?v=f96607fdba",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/war_paint/icon.png?v=51b3d07a65",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 70,
       "release": "released"
     },
     {

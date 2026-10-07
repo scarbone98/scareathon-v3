@@ -1,0 +1,19 @@
+{
+  "name": "Lab Coat",
+  "category": "outer",
+  "rarity": "uncommon",
+  "price": 130,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye2": "ocean"
+  },
+  "parts": [
+    {
+      "slot": "outer",
+      "file": "art.txt"
+    }
+  ]
+}

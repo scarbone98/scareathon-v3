@@ -1,0 +1,10 @@
+# Knotted at the back, the point down the front
+at: 12,33
+legend:
+  r = dye1.2
+  h = dye1.3
+--- 0
+.rrrrr
+rrhrrrr
+..rrr
+...r

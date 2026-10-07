@@ -1,0 +1,11 @@
+# Fur round the top
+at: 12,42
+legend:
+  w = bone.3
+  b = dye1.2
+--- 0
+.....w
+.w...b
+.b...b
+.b...bb
+bb

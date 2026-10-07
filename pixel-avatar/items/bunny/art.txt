@@ -1,0 +1,66 @@
+# A white rabbit, hopping on the spot
+at: 21,38
+legend:
+  w = bone.3
+  k = ink.0
+  p = rose.2
+--- 0
+.
+.w.w
+.w.w
+.www
+.kwk
+.wpw.w
+.wwwww
+.wwwwww
+.w.w.w
+--- 1
+.
+.w.w
+.w.w
+.www
+.kwk
+.wpw.w
+.wwwww
+.wwwwww
+.w.w.w
+--- 2
+.w.w
+.w.w
+.www
+.kwk
+.wpw.w
+.wwwww
+.wwwwww
+.w.w.w
+.
+--- 3
+.w.w
+.w.w
+.www
+.kwk
+.wpw.w
+.wwwww
+.wwwwww
+.w.w.w
+.
+--- 4
+.
+.w.w
+.w.w
+.www
+.kwk
+.wpw.w
+.wwwww
+.wwwwww
+.w.w.w
+--- 5
+.
+.w.w
+.w.w
+.www
+.kwk
+.wpw.w
+.wwwww
+.wwwwww
+.w.w.w

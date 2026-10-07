@@ -1,0 +1,91 @@
+# Held up, burning
+at: 7,24
+legend:
+  f = flame.1
+  y = flame.2
+  w = wood.2
+  k = wood.1
+--- 0
+..f
+.ff
+.fyf
+.fyf
+..k
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+--- 1
+.f
+.ff
+ffy
+.fyf
+..k
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+--- 2
+...f
+.ff
+.yff
+.fyf
+..k
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+--- 3
+..f
+.ff
+.fyf
+.fyf
+..k
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+--- 4
+.f
+.ff
+ffy
+.fyf
+..k
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+--- 5
+...f
+.ff
+.yff
+.fyf
+..k
+..w
+..w
+..w
+..w
+..w
+..w
+..w
+..w

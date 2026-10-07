@@ -1,0 +1,8 @@
+# The waist
+at: 12,39
+legend:
+  m = dye1.2
+  w = bone.3
+--- 0
+m.mwwmm
+.mmmmm

@@ -1,0 +1,11 @@
+# A cap, its peak out to the front
+at: 11,23
+legend:
+  a = dye1.2
+  h = dye1.3
+  b = dye1.1
+--- 0
+..aaaaaa
+.aaaaaaaa
+.aahaaaaa
+.bbbbbbbbbbb

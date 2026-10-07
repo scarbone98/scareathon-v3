@@ -1,0 +1,15 @@
+{
+  "name": "Bunny",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 240,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "art.txt",
+      "anchor": "free"
+    }
+  ]
+}

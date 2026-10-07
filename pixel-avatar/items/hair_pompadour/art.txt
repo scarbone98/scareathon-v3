@@ -1,0 +1,13 @@
+# Swept up and back off the forehead
+at: 11,21
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+....aaaaaa
+..aahhhaaa
+.aaahhaaaa
+.aaaaaaaab
+.abbbbbbbb
+.b......b

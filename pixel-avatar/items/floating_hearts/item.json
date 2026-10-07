@@ -1,0 +1,15 @@
+{
+  "name": "Floating Hearts",
+  "category": "aura",
+  "rarity": "rare",
+  "price": 260,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "art.txt",
+      "anchor": "free"
+    }
+  ]
+}

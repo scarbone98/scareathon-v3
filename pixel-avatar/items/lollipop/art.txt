@@ -1,0 +1,17 @@
+# A swirl on a stick
+at: 7,27
+legend:
+  p = rose.2
+  w = bone.3
+  s = bone.2
+--- 0
+.pp
+pwpp
+ppwp
+.pp
+..s
+..s
+..s
+..s
+..s
+..s

@@ -1,0 +1,16 @@
+# Long and clear, two pairs
+at: 4,25
+legend:
+  s = spirit.1
+  w = spirit.2
+--- 0
+.sss................sss
+swwws..............swwws
+swwwws............swwwws
+.swwwws..........swwwws
+..sswwws........swwwss
+....ssws........swss
+...swwws........swwws
+..swwws..........swwws
+..swws............swws
+...ss..............ss

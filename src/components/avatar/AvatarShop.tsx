@@ -126,6 +126,18 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
     setPage(1);
   }, [classification, debouncedSearch, rarityFilter]);
 
+  // Turning the page (or changing tab) brings you back to the top of the wares, wherever
+  // they're scrolled (not on the way in: there's nothing to go back up from)
+  const top = useRef<HTMLElement>(null);
+  const shownOnce = useRef(false);
+  useEffect(() => {
+    if (!shownOnce.current) {
+      shownOnce.current = true;
+      return;
+    }
+    top.current?.scrollIntoView({ block: "start" });
+  }, [page, classification]);
+
   const shopQuery = useMemo(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("search", debouncedSearch);
@@ -327,7 +339,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
   useEffect(() => () => onPreviewLookChange?.(null), [onPreviewLookChange]);
 
   return (
-    <section className="shop">
+    <section className="shop" ref={top}>
       {justIn.length > 0 && (
         <div className="shop-featured shop-new">
           <p className="shop-featured-title">New</p>

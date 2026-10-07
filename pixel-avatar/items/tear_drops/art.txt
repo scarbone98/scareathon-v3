@@ -1,0 +1,6 @@
+# A tear under each eye
+at: 15,32
+legend:
+  b = ice_eye.2
+--- 0
+b..b

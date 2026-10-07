@@ -1,0 +1,25 @@
+{
+  "name": "Kilt",
+  "category": "legs",
+  "rarity": "uncommon",
+  "price": 100,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "cherry",
+    "dye2": "pine"
+  },
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "waist.txt"
+    },
+    {
+      "slot": "legs",
+      "file": "legs.txt",
+      "anchor": "ground"
+    }
+  ]
+}

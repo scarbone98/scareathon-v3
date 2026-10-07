@@ -1,0 +1,15 @@
+# Tall, white and puffed at the top
+at: 11,17
+legend:
+  w = bone.3
+  d = bone.2
+--- 0
+..wwwwww
+.wwwwwwww
+.wwwwwwww
+.wwdwwdww
+..wwwwww
+..wdwdwd
+..wwwwww
+..dddddd
+..wwwwww

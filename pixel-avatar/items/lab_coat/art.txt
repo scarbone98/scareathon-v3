@@ -1,0 +1,14 @@
+# Long and white, open over a shirt (dye2)
+at: 12,33
+legend:
+  w = bone.3
+  d = bone.2
+  c = dye2.2
+--- 0
+ww...www
+.wwcccw
+wwwcwcw
+wwdcwdw
+w.wcdww
+w.wwwww
+..wdwdw

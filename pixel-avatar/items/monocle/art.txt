@@ -1,0 +1,11 @@
+# A gold ring round one eye, on a chain
+at: 17,28
+legend:
+  g = gold.2
+  h = gold.3
+--- 0
+.h
+g.g
+.gg
+..g
+..g

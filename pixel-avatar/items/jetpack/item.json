@@ -1,0 +1,17 @@
+{
+  "name": "Jetpack",
+  "category": "back",
+  "rarity": "epic",
+  "price": 380,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "back",
+      "file": "art.txt"
+    }
+  ]
+}

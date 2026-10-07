@@ -1,0 +1,13 @@
+# White, a control panel on the chest
+at: 12,34
+legend:
+  w = bone.3
+  d = bone.1
+  b = ice_eye.1
+  r = blood.2
+--- 0
+.wwwww
+wwbbbww
+wwbrbwd
+d.wwwwd
+..dwwwd

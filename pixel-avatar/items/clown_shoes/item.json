@@ -1,0 +1,20 @@
+{
+  "name": "Clown Shoes",
+  "category": "feet",
+  "rarity": "rare",
+  "price": 150,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "cherry"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "art.txt",
+      "anchor": "ground"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Far too long in the toe
+at: 10,44
+legend:
+  r = dye1.2
+  h = dye1.3
+--- 0
+.......r
+...r...rrh
+hrrr

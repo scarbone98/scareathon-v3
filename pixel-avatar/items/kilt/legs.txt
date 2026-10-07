@@ -1,0 +1,9 @@
+# Tartan, to the knee
+at: 12,41
+legend:
+  a = dye1.2
+  d = dye2.2
+--- 0
+adadada
+dadadad
+adadada

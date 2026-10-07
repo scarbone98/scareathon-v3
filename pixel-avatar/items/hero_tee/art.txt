@@ -1,0 +1,13 @@
+# A gold diamond on the chest
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  g = gold.3
+--- 0
+.hiiih
+hiigiij
+iigggjj
+j.igiij
+..jiiij

@@ -1,0 +1,6 @@
+# A red stripe under each eye
+at: 14,32
+legend:
+  r = blood.2
+--- 0
+rr.rr

@@ -1,0 +1,36 @@
+# In no hurry; its horns come and go
+at: 21,43
+legend:
+  y = mustard.3
+  s = bark.2
+  d = bark.1
+--- 0
+.y...ss
+.y..sdss
+.yy.sdds
+.yyyyyyy
+--- 1
+.y...ss
+.y..sdss
+.yy.sdds
+.yyyyyyy
+--- 2
+.y...ss
+.y..sdss
+.yy.sdds
+.yyyyyyy
+--- 3
+y....ss
+.y..sdss
+.yy.sdds
+.yyyyyyy
+--- 4
+y....ss
+.y..sdss
+.yy.sdds
+.yyyyyyy
+--- 5
+y....ss
+.y..sdss
+.yy.sdds
+.yyyyyyy

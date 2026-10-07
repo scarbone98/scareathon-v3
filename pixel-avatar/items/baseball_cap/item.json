@@ -1,0 +1,17 @@
+{
+  "name": "Baseball Cap",
+  "category": "head",
+  "rarity": "common",
+  "price": 70,
+  "release": "released",
+  "dyes": {
+    "dye1": "cherry"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

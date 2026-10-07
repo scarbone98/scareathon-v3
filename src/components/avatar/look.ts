@@ -29,7 +29,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   back: "Back",
   wings: "Wings",
   held: "Held",
-  companion: "Companion",
+  companion: "Pet",
   aura: "Aura",
   background: "Background",
 };
@@ -44,6 +44,8 @@ const ITEM_GAMES: Record<string, string> = {
   body_skull: "8 Bit Evil Returns",
   body_werewolf: "8 Bit Evil Returns",
   body_zombie: "8 Bit Evil Returns",
+  body_warrior: "Tlaloc's Curse",
+  body_crow: "Hemlock's Tower",
   pumpkin_pal: "8 Bit Evil Returns",
   will_o_wisp: "8 Bit Evil Returns",
   acid_potion: "8 Bit Evil Returns",

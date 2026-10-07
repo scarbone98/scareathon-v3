@@ -1,0 +1,56 @@
+# Strapped on, the burner lit
+at: 17,33
+legend:
+  s = steel.1
+  S = steel.2
+  r = blood.2
+  f = flame.1
+  y = flame.2
+--- 0
+.ss
+sSSs
+sSrs
+sSSs
+.ss
+.fy
+..f
+--- 1
+.ss
+sSSs
+sSrs
+sSSs
+.ss
+.yf
+.f
+--- 2
+.ss
+sSSs
+sSrs
+sSSs
+.ss
+.fy
+..f
+--- 3
+.ss
+sSSs
+sSrs
+sSSs
+.ss
+.yf
+.f
+--- 4
+.ss
+sSSs
+sSrs
+sSSs
+.ss
+.fy
+..f
+--- 5
+.ss
+sSSs
+sSrs
+sSSs
+.ss
+.yf
+.f

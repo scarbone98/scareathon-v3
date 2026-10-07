@@ -1,0 +1,14 @@
+# Open over a tee (dye2), studs on the collar
+at: 12,34
+legend:
+  a = dye1.1
+  c = dye1.2
+  b = dye2.1
+  d = dye2.2
+  s = steel.3
+--- 0
+.sabbas
+ccaddac
+ccaddac
+a.cddcc
+a.cddcs

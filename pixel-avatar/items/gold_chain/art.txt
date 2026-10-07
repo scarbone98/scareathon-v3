@@ -1,0 +1,9 @@
+# A chain, a pendant hung on it
+at: 13,33
+legend:
+  g = gold.2
+  h = gold.3
+--- 0
+g...g
+.g.g
+..h

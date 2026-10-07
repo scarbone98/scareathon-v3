@@ -1,0 +1,15 @@
+# Arrows over the shoulder
+at: 17,31
+legend:
+  a = blood.2
+  w = bone.3
+  b = bark.2
+  h = bark.3
+--- 0
+.a.a
+.w.w
+bbbb
+bhbb
+bbbb
+bbbb
+.bb

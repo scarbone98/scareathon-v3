@@ -1,0 +1,26 @@
+{
+  "name": "Jaguar Warrior",
+  "category": "body",
+  "rarity": "epic",
+  "price": 500,
+  "release": "released",
+  "rig": {
+    "frames": 5,
+    "fps": 6,
+    "anchors": {
+      "ground": 0
+    }
+  },
+  "parts": [
+    {
+      "slot": "body",
+      "png": "warrior.png",
+      "frameWidth": 17,
+      "at": [
+        8,
+        24
+      ],
+      "anchor": "ground"
+    }
+  ]
+}

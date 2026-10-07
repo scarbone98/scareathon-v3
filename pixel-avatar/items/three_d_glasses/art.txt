@@ -1,0 +1,10 @@
+# Card frames, one lens red and one blue
+at: 10,29
+legend:
+  w = bone.3
+  r = blood.2
+  c = ice_eye.2
+--- 0
+....wwwwww
+wwwwwrwwcw
+....ww.ww
