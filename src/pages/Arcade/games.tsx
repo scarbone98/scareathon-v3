@@ -113,7 +113,7 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // the server's /october-valley/ws.
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
-const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=7e02ce2";
+const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=68d0611";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=e258ba5";
 const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
