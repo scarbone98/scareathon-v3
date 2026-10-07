@@ -543,6 +543,55 @@ function grainDataUrl() {
 const standard = (color: string, roughness = 0.9, map?: Texture) =>
   new MeshStandardMaterial({ color, roughness, metalness: 0.05, map: map ?? null });
 
+// Wood grain over whatever's already painted: streaks along it, darker and lighter, wavering
+// a little, and a knot or two. (seeded, so a piece of wood is the same every visit)
+function drawGrain(ctx: CanvasRenderingContext2D, w: number, h: number, seed = 1) {
+  let state = seed * 7919 + 13;
+  const random = () => (state = (state * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < h / 2.2; i += 1) {
+    const y = random() * h;
+    const dark = random() < 0.7;
+    ctx.strokeStyle = dark ? `rgba(18,10,4,${0.1 + random() * 0.22})` : `rgba(255,214,160,${0.04 + random() * 0.08})`;
+    ctx.lineWidth = 0.6 + random() * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.bezierCurveTo(w * 0.3, y + (random() - 0.5) * 6, w * 0.7, y + (random() - 0.5) * 6, w, y + (random() - 0.5) * 4);
+    ctx.stroke();
+  }
+  for (let knot = 0; knot < Math.max(1, Math.round((w * h) / 9000)); knot += 1) {
+    const x = random() * w;
+    const y = random() * h;
+    for (let ring = 3; ring > 0; ring -= 1) {
+      ctx.strokeStyle = `rgba(14,8,3,${0.14 + ring * 0.05})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(x, y, ring * 3.2, ring * 1.3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
+// A wooden thing's material: the colour it was, with its grain (one small picture a colour).
+// across, up: how many times the grain repeats over a face, for something big
+const woodGrains = new Map<string, CanvasTexture>();
+function wooden(color: string, roughness = 0.85, across = 1, up = 1) {
+  const key = `${color} ${across} ${up}`;
+  let grain = woodGrains.get(key);
+  if (!grain) {
+    grain = paint(128, 128, (ctx, w, h) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, w, h);
+      drawGrain(ctx, w, h, color.charCodeAt(1) + color.charCodeAt(3) * 3 + color.charCodeAt(5) * 7);
+    });
+    if (across !== 1 || up !== 1) {
+      grain.wrapS = grain.wrapT = RepeatWrapping;
+      grain.repeat.set(across, up);
+    }
+    woodGrains.set(key, grain);
+  }
+  return standard("#ffffff", roughness, grain);
+}
+
 const box = (w: number, h: number, d: number, material: Material, x = 0, y = 0, z = 0) => {
   const mesh = new Mesh(new BoxGeometry(w, h, d), material);
   mesh.position.set(x, y, z);
@@ -641,7 +690,7 @@ const SURFACES: SurfaceSpec[] = [
 function buildBulletin() {
   const group = new Group();
   group.position.copy(BOARD_POS);
-  group.add(box(2.12, 2.86, 0.08, standard("#3a2a1c")));
+  group.add(box(2.12, 2.86, 0.08, wooden("#3a2a1c", 0.85, 3, 4)));
   group.add(plane(1.98, 2.72, standard("#ffffff", 1, corkTexture()), 0, 0, 0.045));
   // Painted papers: the picture from afar, and a stand-in whenever the HTML can't line up
   group.userData.notes = PAPER_SPOTS.map(([x, y, tilt, w, h], i) => {
@@ -697,10 +746,10 @@ function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, ti
 function buildEvents() {
   const group = new Group();
   group.position.copy(EVENTS_POS);
-  const wood = standard("#4a3524");
+  const wood = wooden("#4a3524", 0.9);
   // A writing desk: its slanted top at eye level with the flyers side by side on it, a lip
   // along the bottom, and a solid body under it, drawers and cupboard doors in front
-  const board = box(1.46, 0.7, 0.04, standard("#3a2a1c"), 0, 1.3, 0.04);
+  const board = box(1.46, 0.7, 0.04, wooden("#3a2a1c", 0.9), 0, 1.3, 0.04);
   board.rotation.x = -0.28;
   group.add(board);
   group.add(box(1.46, 0.05, 0.08, wood, 0, 0.99, 0.2));
@@ -716,11 +765,11 @@ function buildEvents() {
     group.add(side);
   });
   group.add(box(1.42, 1.64, 0.03, wood, 0, 0.82, -0.19)); // the back
-  const face = standard("#4e3826", 0.75);
+  const face = wooden("#4e3826", 0.75);
   const brass = standard("#b08a3a", 0.35);
   // The front: a frame of rails and stiles round the drawers and cupboards, and the dark
   // inside the carcass behind them
-  const frame = standard("#33251a", 0.8);
+  const frame = wooden("#33251a", 0.8);
   const inside = standard("#17100b", 1);
   group.add(box(1.42, 0.92, 0.02, inside, 0, 0.5, -0.17)); // the inside's back
   group.add(box(1.42, 0.02, 0.4, inside, 0, 0.07, 0.03)); // its floor
@@ -728,7 +777,7 @@ function buildEvents() {
   [-0.7, 0, 0.7].forEach((x) => group.add(box(0.06, 0.92, 0.03, frame, x, 0.5, 0.24))); // stiles
   group.add(box(1.42, 0.02, 0.4, inside, 0, 0.66, 0.03)); // the shelf the drawers run on
   group.add(box(0.03, 0.6, 0.4, inside, 0, 0.36, 0.03)); // between the cupboards
-  group.add(box(1.5, 0.06, 0.52, standard("#241a12", 0.9), 0, 0.03, 0.03)); // the plinth
+  group.add(box(1.5, 0.06, 0.52, wooden("#241a12", 0.9), 0, 0.03, 0.03)); // the plinth
   const paper = standard("#e4d9bd", 0.9);
   // What's kept in the cupboards. On the left: spare flyers in stacks, and a candle stub
   group.add(box(0.26, 0.09, 0.2, paper, -0.44, 0.125, 0.02));
@@ -1614,12 +1663,13 @@ function buildMail() {
   const cabinetH = 1.7;
   const cx = -0.35;
   const bottom = 0.6;
-  const wood = standard("#4a3524", 0.85);
+  const wood = wooden("#4a3524", 0.85);
   // The cubbyholes, painted: dark holes, name labels, the odd letter left behind
   const names = ["ASH", "VOSS", "M. GRAY", "HOLLIS", "E. MOR", "", "CRANE", "", "DELL", "PIKE", "", "OKAFOR", "BRAM", "QUILL", "", "SAGE", "", "", "", "LUND", "WREN", "", "HART", "", "KESTREL", "", "NOLL", "", "FENN", "ORR"];
   const front = paint(570, 510, (ctx, w, h) => {
     ctx.fillStyle = "#4a3524";
     ctx.fillRect(0, 0, w, h);
+    drawGrain(ctx, w, h, 5);
     const cw = w / cols;
     const ch = h / rows;
     for (let r = 0; r < rows; r += 1)
@@ -2025,7 +2075,7 @@ function buildTickets() {
   const rug = plane(1.9, 0.95, standard("#ffffff", 1, mat), 0, 0.012, 0.95);
   rug.rotation.x = -Math.PI / 2;
   group.add(rug);
-  const wood = standard("#3a2a1c", 0.8);
+  const wood = wooden("#3a2a1c", 0.8);
   // The frame round the opening
   group.add(box(1.5, 0.1, 0.12, wood, 0, 2.02, 0));
   group.add(box(1.5, 0.12, 0.12, wood, 0, 1.06, 0));
@@ -2045,7 +2095,7 @@ function buildTickets() {
   group.add(windowMesh);
   group.add(box(0.36, 0.035, 0.02, standard("#050506"), 0, 1.14, 0.065));
   // The counter
-  group.add(box(1.7, 0.07, 0.45, standard("#4a3524", 0.7), 0, 1.06, 0.26));
+  group.add(box(1.7, 0.07, 0.45, wooden("#4a3524", 0.7), 0, 1.06, 0.26));
   group.add(box(1.5, 1.04, 0.05, wood, 0, 0.52, 0.06));
   group.add(plane(1.3, 0.32, standard("#ffffff", 0.8, signTexture("TICKETS", "#ffd9a0", "#120d08", "700 80px Georgia, serif")), 0, 2.3, 0.02));
   // Three adverts pasted up above
