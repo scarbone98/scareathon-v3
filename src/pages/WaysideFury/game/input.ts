@@ -4,6 +4,7 @@ const KEY_MAP: Record<string, keyof Input> = { j: "attack", k: "ki", l: "dash", 
 export class GameInput {
   private keys = new Set<string>();
   private touch = idleInput();
+  private taps = new Set<keyof Input>();
   private padButtons: boolean[] = [];
   private connected = false;
   mode: InputMode = navigator.maxTouchPoints > 0 ? "touch" : "keyboard";
@@ -14,8 +15,8 @@ export class GameInput {
     window.addEventListener("gamepadconnected", this.connect);
     window.addEventListener("gamepaddisconnected", this.disconnect);
   }
-  setTouch(input: Partial<Input>) { Object.assign(this.touch, input); this.setMode("touch"); }
-  clear = () => { this.keys.clear(); this.touch = idleInput(); this.padButtons = []; };
+  setTouch(input: Partial<Input>) { for (const [action, value] of Object.entries(input)) if (value === true) this.taps.add(action as keyof Input); Object.assign(this.touch, input); this.setMode("touch"); }
+  clear = () => { this.keys.clear(); this.touch = idleInput(); this.taps.clear(); this.padButtons = []; };
   private setMode(mode: InputMode) { if (mode !== this.mode) { this.mode = mode; this.changed(mode); } }
   private connect = () => { this.connected = true; };
   private disconnect = () => { this.connected = false; this.padButtons = []; if (this.mode === "gamepad") this.setMode(navigator.maxTouchPoints > 0 ? "touch" : "keyboard"); };
@@ -26,7 +27,7 @@ export class GameInput {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     this.setMode("keyboard");
     if (key === "enter" && e.target instanceof HTMLButtonElement) return;
-    e.preventDefault(); this.keys.add(key);
+    e.preventDefault(); this.keys.add(key); if (!e.repeat && KEY_MAP[key]) this.taps.add(KEY_MAP[key]);
     if (!e.repeat && key === "escape") this.pause();
     if (!e.repeat && key === "enter") this.confirm();
   };
@@ -39,6 +40,7 @@ export class GameInput {
     for (const [key, action] of Object.entries(KEY_MAP)) {
       if (this.keys.has(key)) (input[action] as boolean) = true;
     }
+    for (const action of this.taps) (input[action] as boolean) = true;
     // Poll even before a connect event: browsers can expose an already paired pad.
     const pads = navigator.getGamepads?.() ?? [];
     const pad = Array.from(pads).find(p => p?.connected && p.mapping === "standard");
@@ -60,6 +62,7 @@ export class GameInput {
     input.x = Math.max(-1, Math.min(1, input.x)); input.y = Math.max(-1, Math.min(1, input.y));
     return input;
   }
+  consume() { this.taps.clear(); }
   dispose() {
     this.clear();
     window.removeEventListener("keydown", this.down);

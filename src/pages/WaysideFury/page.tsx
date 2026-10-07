@@ -67,7 +67,7 @@ export default function WaysideFury() {
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
   const [tutorial, setTutorial] = useState(tutorialVisible);
   const handlers = useRef({ pause: () => {}, confirm: () => {} });
-  const begin = (retry = false) => { const next = saveRef.current ? restoreSave(saveRef.current, retry) : newGame(); if (!saveRef.current) enterScene(next, "overworld"); controller.current?.start(next); setPlaying(true); setPaused(false); setControls(false); };
+  const begin = (retry = false) => { const next = saveRef.current ? restoreSave(saveRef.current, retry || Object.values(saveRef.current.heroes).every(h => h.hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "overworld"); controller.current?.start(next); setPlaying(true); setPaused(false); setControls(false); };
   const persist = (s: GameState, home = false) => {
     const next = writeSave(s, saveRef.current, home);
     if (next) { saveRef.current = next; setSaved(next); }
@@ -77,7 +77,14 @@ export default function WaysideFury() {
   handlers.current = { pause: togglePause, confirm: () => { if (!playing) begin(); else if (paused) togglePause(); } };
   useEffect(() => {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode,
-      onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm()});
+      onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(),
+      onEvent: (s, event) => {
+        if (event.type === "checkpoint" || event.type === "death") {
+          const next = writeSave(s, saveRef.current);
+          if (next) { saveRef.current = next; setSaved(next); }
+          else s.notice = "Saving is unavailable in this browser. Keep this tab open.";
+        }
+      }});
     controller.current = game;
     if (import.meta.env.DEV) Object.defineProperty(window, "__waysideFury", { value: game, configurable: true });
     const hidden = () => { if (document.hidden) { game.setPaused(true); setPaused(true); } };
@@ -87,6 +94,7 @@ export default function WaysideFury() {
   }, []);
   const send = (input: Partial<Input>) => controller.current?.setTouch(input);
   const hero = activeHero(state);
+  const boss = state.enemies.find(e => e.kind === "boss");
   const target = interactTarget(state);
   const prompt = mode === "gamepad" ? "[A / Cross]" : mode === "touch" ? "[Interact]" : "[Enter]";
   const quit = () => { controller.current?.setPaused(true); setPlaying(false); setPaused(false); setControls(false); };
@@ -105,8 +113,9 @@ export default function WaysideFury() {
         <div className="wf-meter wf-hp"><span style={{width:`${hero.hp / hero.maxHp * 100}%`}} /><small>HP {Math.ceil(hero.hp)} / {hero.maxHp}</small></div>
         <div className="wf-meter wf-ki"><span style={{width:`${hero.ki / hero.maxKi * 100}%`}} /><small>KI {Math.floor(hero.ki)} / {hero.maxKi}</small></div>
         <div className="wf-meter wf-stamina"><span style={{width:`${hero.stamina / hero.maxStamina * 100}%`}} /></div></div>
-        <div className="wf-status"><span>◈ {state.candy} candy</span><small>{state.scene === "test" ? "TRAINING YARD" : state.scene.toUpperCase()}</small></div>
+        <div className="wf-status"><span>◈ {state.candy} candy</span><small>{state.scene === "test" ? "TRAINING YARD" : state.scene === "dungeon" ? ["THE IMPACT", "BREACH APPROACH", "THE WATCHER"][state.room] : state.scene.toUpperCase()}</small></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button></header>
+      {boss && <div className="wf-boss-hud"><strong>THE WATCHER {boss.phase === 2 ? "· ENRAGED" : ""}</strong><div className="wf-meter"><span style={{width:`${boss.hp / boss.maxHp * 100}%`}} /></div><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
       {target && !state.overlay && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}>{prompt} {target.locked ? "Taken over" : target.name}</button>}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) persist(s); })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}

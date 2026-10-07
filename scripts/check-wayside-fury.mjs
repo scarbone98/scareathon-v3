@@ -182,6 +182,96 @@ assert.deepEqual(home.areas, ['wayside']);
 assert.ok(home.events.some(e => e.type === 'checkpoint' && e.id === 'home'));
 restAtHome(home); assert.deepEqual(home.areas, ['wayside']);
 
+// The east gate stays shut during combat; retreat remains available at the entrance.
+const retreat = newGame(4); enterScene(retreat, 'dungeon');
+retreat.x = 292; retreat.y = 108;
+assert.equal(interactTarget(retreat), null); interact(retreat); assert.equal(retreat.room, 0);
+retreat.x = 45; retreat.y = 149;
+assert.equal(interactTarget(retreat).id, 'exit'); interact(retreat); assert.equal(retreat.scene, 'overworld');
+
+// Boss rushes freeze their aim after the warning; dark novas fire radially.
+const bossRules = newGame(5); enterScene(bossRules, 'dungeon', 2);
+const watcher = bossRules.enemies[0]; watcher.cooldown = 0;
+tick(bossRules, { guard: true });
+assert.equal(watcher.pattern, 0); assert.ok(watcher.windup > 0.6);
+const rushAim = [watcher.aimX, watcher.aimY], startBossX = watcher.x;
+bossRules.y = 160;
+for (let f = 0; f < 60 && watcher.actionTimer === 0; f++) tick(bossRules, { guard: true });
+assert.ok(watcher.actionTimer > 0);
+assert.deepEqual([watcher.aimX, watcher.aimY], rushAim, 'rush aim is locked during its warning');
+for (let f = 0; f < 60 && watcher.actionTimer > 0; f++) tick(bossRules, { guard: true });
+assert.ok(watcher.x < startBossX - 40); assert.equal(watcher.pattern, 1);
+watcher.cooldown = 0; bossRules.x = 45; bossRules.y = 48;
+tick(bossRules, { guard: true }); assert.ok(watcher.windup > 0.75);
+for (let f = 0; f < 65 && watcher.windup > 0; f++) tick(bossRules, { guard: true });
+assert.equal(bossRules.projectiles.length, 8); assert.equal(watcher.pattern, 0);
+assert.ok(new Set(bossRules.projectiles.map(p => Math.round(p.vx))).size > 3);
+watcher.hp = watcher.maxHp / 2;
+tick(bossRules, { guard: true });
+assert.equal(watcher.phase, 2); assert.ok(watcher.speed > 20);
+assert.ok(bossRules.floaters.some(f => f.text === 'ENRAGED!'));
+bossRules.projectiles = []; watcher.pattern = 1; watcher.cooldown = 0; watcher.actionTimer = 0; watcher.windup = 0;
+tick(bossRules, { guard: true }); assert.ok(watcher.windup <= 0.6);
+for (let f = 0; f < 50 && watcher.windup > 0; f++) tick(bossRules, { guard: true });
+assert.equal(bossRules.projectiles.length, 12);
+
+// Play the complete dungeon with default stats and only ordinary game inputs.
+// This bot charges, aims, attacks, guards, dashes and tags. It gets no healing
+// or stats beyond legitimate level-ups, and walks to each room's east gate.
+const quest = newGame(7); enterScene(quest, 'dungeon');
+let playFrame = 0; const checkpoints = [], usedControls = new Set(), roomFrames = [];
+function playRoom(s) {
+  let frames = 0;
+  while (s.enemies.length && s.scene === 'dungeon' && frames < 15000) {
+    const e = s.enemies.reduce((a, b) => Math.hypot(a.x - s.x, a.y - s.y) < Math.hypot(b.x - s.x, b.y - s.y) ? a : b);
+    const dx = e.x - s.x, dy = e.y - s.y, length = Math.max(1, Math.hypot(dx, dy)), cycle = playFrame % 240;
+    const ki = cycle < 80, attack = !ki && playFrame % 20 === 0, dash = cycle === 110, swap = cycle === 190;
+    const input = { ...idleInput(), x: dx / length, y: dy / length, ki, attack, dash, swap, guard: !ki && !attack && !dash };
+    for (const key of ['attack', 'ki', 'dash', 'swap', 'guard']) if (input[key]) usedControls.add(key);
+    step(s, input, DT);
+    checkpoints.push(...s.events.filter(e => e.type === 'checkpoint').map(e => e.id));
+    frames++; playFrame++;
+  }
+  assert.equal(s.scene, 'dungeon', 'combat bot survives on default stats');
+  assert.equal(s.enemies.length, 0, 'combat bot actually defeats every enemy');
+  return frames;
+}
+function walkTo(s, x, y) {
+  for (let f = 0; f < 900 && Math.hypot(x - s.x, y - s.y) > 4; f++) {
+    const dx = x - s.x, dy = y - s.y, length = Math.hypot(dx, dy);
+    tick(s, { x: dx / length, y: dy / length });
+  }
+  assert.ok(Math.hypot(x - s.x, y - s.y) <= 4);
+}
+for (let room = 0; room < 3; room++) {
+  assert.equal(quest.room, room); roomFrames.push(playRoom(quest));
+  walkTo(quest, 292, 108);
+  assert.equal(interactTarget(quest).id, 'next');
+  assert.equal(interactTarget(quest).name, ['Next room', 'Confront the Watcher', 'Leave Blast Site'][room]);
+  tick(quest, { interact: true });
+  if (room < 2) {
+    assert.equal(quest.room, room + 1);
+    tick(quest, { interact: true }, 6);
+    assert.equal(quest.scene, 'dungeon', 'holding Enter across a door cannot immediately retreat');
+  }
+}
+assert.equal(quest.scene, 'overworld'); assert.ok(quest.notice.includes('Chapter 1 boss cleared'));
+assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
+assert.deepEqual(quest.bosses, ['blast-watcher']); assert.deepEqual(quest.areas, ['blast']);
+assert.deepEqual(checkpoints, ['blast-0', 'blast-1', 'blast-2']);
+assert.equal(quest.kills, 10); assert.equal(quest.deaths, 0);
+assert.deepEqual([...usedControls].sort(), ['attack', 'dash', 'guard', 'ki', 'swap']);
+console.log(`Default-stat combat playthrough: rooms ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s; 10 kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
+// Replaying a defeated room cannot re-earn its unique room checkpoint.
+walkTo(quest, LOCATIONS[1].x, LOCATIONS[1].y); tick(quest); tick(quest, { interact: true });
+assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0);
+const priorCheckpoints = checkpoints.length; playRoom(quest);
+assert.equal(checkpoints.length, priorCheckpoints);
+assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
+const exitAfterClear = structuredClone(quest); exitAfterClear.x = 45;
+assert.equal(interactTarget(exitAfterClear).id, 'exit');
+interact(exitAfterClear); assert.equal(exitAfterClear.scene, 'overworld');
+
 // Browser storage is replaceable, guarded, and preserves the HOME retry snapshot.
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 const entries = new Map();
@@ -213,6 +303,19 @@ try {
   for (const h of Object.values(retried.heroes)) { assert.equal(h.hp, h.maxHp); assert.equal(h.ki, h.maxKi); }
   retried.heroes.joe.hp = 5;
   assert.equal(saved.home.heroes.joe.hp, 100, 'restoring copies snapshot hero objects');
+  // Dying after dungeon progress retries at HOME without erasing milestones.
+  quest.heroes.joe.hp = quest.heroes.matt.hp = 1;
+  quest.heroes.joe.invulnerable = quest.heroes.matt.invulnerable = 0; quest.hitStop = 0;
+  bulletAtHero(quest, 99); tick(quest);
+  activeHero(quest).invulnerable = 0; bulletAtHero(quest, 99); tick(quest);
+  assert.equal(quest.scene, 'dead');
+  const failedRun = writeSave(quest, firstSave); assert.ok(failedRun);
+  const afterDeath = restoreSave(failedRun, true);
+  assert.equal(afterDeath.scene, 'hub'); assert.equal(afterDeath.deaths, 1);
+  assert.deepEqual(afterDeath.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
+  assert.deepEqual(afterDeath.bosses, ['blast-watcher']); assert.deepEqual(afterDeath.areas, ['blast']);
+  assert.equal(afterDeath.heroes.joe.level, 1); assert.equal(afterDeath.candy, 19);
+  assert.deepEqual(failedRun.lastReported, firstSave.lastReported);
   for (const raw of ['{broken', 'null', '[]', '{}', JSON.stringify({ ...saved, version: 999 }), 'x'.repeat(65537)]) {
     entries.set(SAVE_KEY, raw); assert.equal(readSave(), null, 'malformed or unsupported save ignored');
   }
@@ -223,4 +326,4 @@ try {
   if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
   else delete globalThis.localStorage;
 }
-console.log('Wayside Fury simulation: combat, deterministic replay, taxi/hub/shop/HOME and save/retry checks pass.');
+console.log('Wayside Fury simulation: combat, boss patterns/phase, dungeon progress/replay, taxi/hub/shop/HOME and save/retry checks pass.');

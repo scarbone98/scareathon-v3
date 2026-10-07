@@ -34,7 +34,7 @@ export class GameController {
     const input = this.input.read();
     this.acc += this.paused ? 0 : Math.min(0.1, (now - (this.last || now)) / 1000);
     this.last = now;
-    while (this.acc >= 1 / 60) { step(this.state, input, 1 / 60); for (const event of this.state.events) this.cb.onEvent?.(this.state, event); this.acc -= 1 / 60; }
+    while (this.acc >= 1 / 60) { step(this.state, input, 1 / 60); this.input.consume(); for (const event of this.state.events) this.cb.onEvent?.(this.state, event); this.acc -= 1 / 60; }
     this.renderer.draw(this.state);
     if (now - this.hudAt > 80) { this.hudAt = now; this.publish(); }
   };

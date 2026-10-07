@@ -19,7 +19,7 @@ export interface Enemy {
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
   speed: number; cooldown: number; hitTimer: number; kx: number; ky: number;
-  phase: 1 | 2; pattern: number; windup: number; aimX: number; aimY: number;
+  phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
 export interface Projectile {
   id: number; x: number; y: number; vx: number; vy: number; radius: number;
@@ -78,8 +78,8 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
   const maxHp = kind === "boss" ? 260 : kind === "shooter" ? 24 : 32;
   const e: Enemy = { id: s.nextId++, kind, sprite: kind === "boss" ? "shadowbeast" : kind === "shooter" ? "imp" : "zombie",
     x, y, hp: maxHp, maxHp, radius: kind === "boss" ? 16 : 7,
-    speed: kind === "shooter" ? 19 : 23, cooldown: 0.7 + random(s) * 0.5,
-    hitTimer: 0, kx: 0, ky: 0, phase: 1, pattern: 0, windup: 0, aimX: -1, aimY: 0 };
+    speed: kind === "boss" ? 20 : kind === "shooter" ? 19 : 23, cooldown: 0.7 + random(s) * 0.5,
+    hitTimer: 0, kx: 0, ky: 0, phase: 1, pattern: 0, windup: 0, actionTimer: 0, aimX: -1, aimY: 0 };
   s.enemies.push(e);
   return e;
 }
@@ -92,7 +92,17 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   s.previousInput = idleInput();
   if (scene === "overworld") { s.x = 85; s.y = 122; s.notice = "Chapter 1: drive to the Blast Site. Pull over at a marker."; }
   if (scene === "hub") { s.x = 160; s.y = 123; s.notice = "Wayside: stock up at the SHOP; rest and save at HOME."; }
-  if (scene === "dungeon") s.notice = "The Blast Site is ahead. Investigation begins in the next milestone.";
+  if (scene === "dungeon") {
+    if (room === 2) {
+      addEnemy(s, "boss", 227, 108);
+      s.notice = "The Watcher: dodge its rush, guard its dark nova.";
+    } else {
+      addEnemy(s, "grunt", 181, 72); addEnemy(s, "grunt", 205, 113);
+      addEnemy(s, "grunt", 174, 146); addEnemy(s, "shooter", 264, 77);
+      if (room === 1) addEnemy(s, "shooter", 261, 146);
+      s.notice = room === 0 ? "The Blast Site — Scorched Road. Clear the way east." : "The Blast Site — Ruined Yard. The Watcher waits ahead.";
+    }
+  }
   if (scene === "test") {
     s.x = 75;
     addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
@@ -202,6 +212,48 @@ function fireKi(s: GameState) {
   } else s.notice = "Hold Ki to recharge.";
   s.charge = 0;
 }
+function updateBoss(s: GameState, e: Enemy, dt: number) {
+  if (e.phase === 1 && e.hp <= e.maxHp * 0.5) {
+    e.phase = 2; e.speed = 29; e.cooldown = Math.min(e.cooldown, 0.7);
+    effect(s, "level", e.x, e.y, 35, 0.7);
+    floater(s, e.x, e.y - 15, "ENRAGED!", "#ff8479");
+    s.notice = "The Watcher is enraged! Shorter warnings. Keep your guard ready.";
+  }
+  if (e.actionTimer > 0) {
+    e.actionTimer = Math.max(0, e.actionTimer - dt);
+    e.x += e.aimX * (e.phase === 2 ? 190 : 160) * dt;
+    e.y += e.aimY * (e.phase === 2 ? 190 : 160) * dt;
+    if (Math.hypot(s.x - e.x, s.y - e.y) < e.radius + 10) hurtHero(s, e.phase === 2 ? 28 : 22);
+    if (e.actionTimer === 0) e.pattern = 1;
+    return;
+  }
+  if (e.windup > 0) {
+    e.windup = Math.max(0, e.windup - dt);
+    if (e.windup === 0) {
+      e.cooldown = e.phase === 2 ? 1.4 : 2.2;
+      if (e.pattern === 0) e.actionTimer = e.phase === 2 ? 0.5 : 0.45;
+      else {
+        const shots = e.phase === 2 ? 12 : 8;
+        const offset = Math.atan2(e.aimY, e.aimX);
+        for (let n = 0; n < shots; n++) {
+          const angle = offset + n * Math.PI * 2 / shots;
+          projectile(s, "enemy", e.x, e.y, Math.cos(angle), Math.sin(angle),
+            e.phase === 2 ? 92 : 74, e.phase === 2 ? 15 : 11, 5);
+        }
+        effect(s, "hit", e.x, e.y, 38, 0.35);
+        e.pattern = 0;
+      }
+    }
+    return;
+  }
+  const dx = s.x - e.x, dy = s.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
+  e.aimX = dx / length; e.aimY = dy / length;
+  if (e.cooldown === 0) {
+    e.windup = e.pattern === 0 ? (e.phase === 2 ? 0.45 : 0.65) : (e.phase === 2 ? 0.6 : 0.8);
+  } else if (length > 36) {
+    e.x += e.aimX * e.speed * dt; e.y += e.aimY * e.speed * dt;
+  }
+}
 function updateEnemies(s: GameState, dt: number) {
   for (const e of s.enemies) {
     if (e.hp <= 0) continue;
@@ -210,19 +262,21 @@ function updateEnemies(s: GameState, dt: number) {
     e.x += e.kx * dt; e.y += e.ky * dt;
     e.kx *= Math.max(0, 1 - dt * 9); e.ky *= Math.max(0, 1 - dt * 9);
     const dx = s.x - e.x, dy = s.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
-    e.aimX = dx / length; e.aimY = dy / length;
     const contact = e.radius + 9;
-    if (e.kind === "shooter") {
+    if (e.kind === "boss") updateBoss(s, e, dt);
+    else if (e.kind === "shooter") {
+      e.aimX = dx / length; e.aimY = dy / length;
       const direction = length < 62 ? -1 : length > 90 ? 1 : 0;
       e.x += e.aimX * e.speed * direction * dt; e.y += e.aimY * e.speed * direction * dt;
       if (e.cooldown === 0) {
         projectile(s, "enemy", e.x, e.y, e.aimX, e.aimY, 70, 9, 4);
         e.cooldown = 1.7; e.windup = 0;
       } else e.windup = e.cooldown < 0.35 ? 0.35 - e.cooldown : 0;
-    } else if (length > contact) {
-      e.x += e.aimX * e.speed * dt; e.y += e.aimY * e.speed * dt;
-    } else if (e.cooldown === 0) {
-      hurtHero(s, e.kind === "boss" ? 18 : 9); e.cooldown = 1.15;
+    } else {
+      e.aimX = dx / length; e.aimY = dy / length;
+      if (length > contact) {
+        e.x += e.aimX * e.speed * dt; e.y += e.aimY * e.speed * dt;
+      } else if (e.cooldown === 0) { hurtHero(s, 9); e.cooldown = 1.15; }
     }
     e.x = clamp(e.x, 15, WIDTH - 15); e.y = clamp(e.y, 49, HEIGHT - 13);
   }
@@ -256,17 +310,36 @@ function updateVisuals(s: GameState, dt: number) {
   s.effects = s.effects.filter(e => e.ttl > 0);
 }
 export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
-  if (s.scene === "dungeon" && s.x < 60) return { id: "exit", name: "Return to taxi" };
+  if (s.scene === "dungeon") {
+    if (s.x < 60) return { id: "exit", name: "Return to taxi" };
+    if (s.enemies.length === 0 && Math.hypot(s.x - 292, s.y - 108) < 25) {
+      return { id: "next", name: s.room === 2 ? "Leave Blast Site" : s.room === 1 ? "Confront the Watcher" : "Next room" };
+    }
+    return null;
+  }
   const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
   return points.find(p => Math.hypot(s.x - p.x, s.y - p.y) < 25) ?? null;
 }
 export function interact(s: GameState): void {
   const target = interactTarget(s);
   if (!target) return;
-  if (target.id === "exit") { enterScene(s, "overworld"); return; }
+  if (s.scene === "dungeon") {
+    if (target.id === "exit" || s.room === 2) {
+      const victory = target.id === "next" && s.room === 2;
+      enterScene(s, "overworld");
+      s.x = LOCATIONS[1].x - 19; s.y = LOCATIONS[1].y + 20;
+      if (victory) s.notice = "Chapter 1 boss cleared! The realm flickers on the horizon. Return to HOME to rest.";
+    } else enterScene(s, "dungeon", s.room + 1);
+    // Holding the interaction key across a door cannot immediately retreat.
+    s.previousInput.interact = true;
+    return;
+  }
   if (target.locked) { s.notice = `${target.name}: taken over. A later chapter will open this route.`; return; }
-  if (s.scene === "overworld") { enterScene(s, target.id === "wayside" ? "hub" : "dungeon"); return; }
-  if (target.id === "taxi") { enterScene(s, "overworld"); return; }
+  if (s.scene === "overworld") {
+    enterScene(s, target.id === "wayside" ? "hub" : "dungeon");
+    s.previousInput.interact = true; return;
+  }
+  if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.moving = false; s.notice = ""; }
 }
 export function restAtHome(s: GameState): void {
@@ -332,4 +405,17 @@ export function step(s: GameState, input: Input, delta: number): void {
   updateProjectiles(s, dt);
   s.enemies = s.enemies.filter(e => e.hp > 0);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";
+  if (hadEnemies && s.enemies.length === 0 && s.scene === "dungeon") {
+    const id = `blast-${s.room}`;
+    if (!s.clearedRooms.includes(id)) {
+      s.clearedRooms.push(id);
+      if (s.room === 2) {
+        if (!s.bosses.includes("blast-watcher")) s.bosses.push("blast-watcher");
+        if (!s.areas.includes("blast")) s.areas.push("blast");
+      }
+      s.events.push({ type: "checkpoint", id });
+    }
+    s.notice = s.room === 2 ? "The Watcher falls! Chapter 1 is clear. Head through the east gate." : "Room clear! Head through the east gate.";
+  }
+  if (input.interact && !previous.interact && s.scene === "dungeon") interact(s);
 }

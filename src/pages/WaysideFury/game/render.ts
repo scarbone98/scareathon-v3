@@ -49,6 +49,7 @@ export class Renderer {
       return;
     }
     for (const effect of s.effects) if (effect.kind === "dash" || effect.kind === "charge") this.effect(effect);
+    for (const enemy of s.enemies) this.bossTelegraph(s, enemy);
     const actors = [
       { y: s.y, draw: () => this.hero(s) },
       ...s.enemies.filter((enemy) => enemy.hp > 0).map((enemy) => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })),
@@ -62,6 +63,7 @@ export class Renderer {
       this.text(floater.text, floater.x, floater.y, floater.color, 9);
       c.globalAlpha = 1;
     }
+    if (s.scene === "dungeon" && s.room === 2) this.bossBar(s);
     if (s.scene === "test") this.text("WAYSIDE TRAINING YARD", 160, 174, "#91ada2", 7);
     c.restore();
   }
@@ -312,16 +314,56 @@ export class Renderer {
 
   private drawDungeonGround(s: GameState) {
     const realm = s.scene === "realm";
+    const bossRoom = s.room === 2 && !realm;
     this.rect(0, 0, WIDTH, HEIGHT, realm ? "#101020" : "#171c27");
     for (let y = 30; y < HEIGHT; y += 16) for (let x = 0; x < WIDTH; x += 16) {
       const n = (x * 7 + y * 11 + s.room * 3) % 13;
-      this.rect(x + 1, y + 1, 14, 14, realm ? (n < 6 ? "#302048" : "#201838") : n < 6 ? "#353340" : "#302e3a");
+      this.rect(x + 1, y + 1, 14, 14, realm ? (n < 6 ? "#302048" : "#201838") : bossRoom ? (n < 6 ? "#373043" : "#30283e") : n < 6 ? "#353340" : "#302e3a");
       this.rect(x + 2, y + 2, 11, 1, realm ? "#604080" : "#45414c");
       if (n < 3) this.rect(x + 10, y + 8, 3, 2, realm ? "#a04080" : "#5a4b48");
     }
+    if (!realm) {
+      if (s.room === 0) {
+        // The first room is a blasted courtyard, with a crater rather than a roof.
+        this.disc(171, 106, 36, "#5d494e");
+        this.disc(171, 106, 30, "#413640");
+        this.disc(171, 106, 22, "#292836");
+        this.disc(171, 106, 12, "#232535");
+        for (let k = 0; k < 18; k++) {
+          const a = k * Math.PI / 9;
+          this.rect(171 + Math.cos(a) * 32, 106 + Math.sin(a) * 30, 4, 2, k % 2 ? "#8c6260" : "#6e5158");
+        }
+      } else if (s.room === 1) {
+        // Hairline tears in the paving lead toward the portal approach.
+        for (let k = 0; k < 28; k++) {
+          this.rect(83 + k * 6, 147 - k * 3, 9, 3, "#191d2c");
+          if (k % 3 === 0) this.rect(85 + k * 6, 143 - k * 3, 6, 2, "#956184");
+        }
+        this.portal(248, 69, s.time, 0.65);
+      } else {
+        this.disc(182, 107, 53, "#46334f");
+        this.disc(182, 107, 49, "#292639");
+        this.disc(182, 107, 31, "#5f4063");
+        this.disc(182, 107, 28, "#30283e");
+        for (let k = 0; k < 12; k++) {
+          const a = k * Math.PI / 6;
+          this.rect(182 + Math.cos(a) * 41, 107 + Math.sin(a) * 41, 3, 4, "#a36d9f");
+        }
+      }
+      for (let k = 0; k < 12; k++) {
+        const x = 24 + (k * 79 + s.room * 47) % 265;
+        const y = 57 + (k * 37 + s.room * 19) % 99;
+        this.rect(x, y, 6, 3, "#514450");
+        this.rect(x + 1, y - 2, 4, 2, "#726069");
+        this.rect(x + 5, y + 3, 2, 1, "#9b756e");
+      }
+    }
     this.rect(0, 26, WIDTH, 16, realm ? "#604080" : "#62575b");
     this.rect(0, 42, WIDTH, 5, realm ? "#201030" : "#272735");
-    for (let x = 0; x < WIDTH; x += 20) this.rect(x, 28, 1, 12, realm ? "#302048" : "#383442");
+    for (let x = 0; x < WIDTH; x += 20) {
+      this.rect(x, 28, 1, 12, realm ? "#302048" : "#383442");
+      if (!realm && x % 60 === 0) this.rect(x + 5, 26, 12, 7, "#171c27");
+    }
     for (const x of [5, 309]) {
       this.rect(x, 48, 6, 114, realm ? "#503060" : "#534652");
       for (let y = 55; y < 164; y += 16) this.rect(x, y, 6, 2, realm ? "#a060a0" : "#716067");
@@ -330,7 +372,89 @@ export class Renderer {
     this.rect(0, 164, WIDTH, 2, realm ? "#8060a0" : "#62575b");
     this.lamp(20, 40, s.time, realm ? "#ff80c0" : "#ff9d66");
     this.lamp(300, 40, s.time, realm ? "#ff80c0" : "#ff9d66");
+    if (!realm) {
+      this.dungeonDoor(45, 108, true, false, s);
+      this.dungeonDoor(292, 108, s.enemies.every((enemy) => enemy.hp <= 0), true, s);
+      if (!bossRoom) this.text(s.room === 0 ? "THE BLAST SITE  //  IMPACT YARD" : "THE BLAST SITE  //  RIFT APPROACH", 160, 174, "#b8a0a8", 7);
+    }
     this.rect(0, 0, WIDTH, 24, INK);
+  }
+
+  private portal(x: number, y: number, time: number, alpha = 1) {
+    const c = this.ctx;
+    c.save();
+    c.globalAlpha = alpha * 0.14;
+    this.disc(x, y - 15, 30, "#c179e8");
+    c.globalAlpha = alpha;
+    for (let k = 0; k < 32; k++) {
+      const a = k * Math.PI / 16;
+      this.rect(x + Math.cos(a) * 16, y - 16 + Math.sin(a) * 22, 3, 3, k % 3 ? "#aa75c9" : "#e4a2da");
+    }
+    this.rect(x - 11, y - 29, 22, 25, "#302044");
+    this.rect(x - 7, y - 33, 14, 33, "#302044");
+    for (let k = 0; k < 5; k++) {
+      const px = x - 7 + ((k * 5 + Math.floor(time * 8)) % 14);
+      const py = y - 28 + ((k * 11 + Math.floor(time * 13)) % 23);
+      this.rect(px, py, 2, 3, "#9772b5");
+    }
+    c.restore();
+  }
+
+  private dungeonDoor(x: number, y: number, open: boolean, east: boolean, s: GameState) {
+    const color = east ? (open ? "#a0d2b5" : "#b07c8d") : "#a7bbc4";
+    this.rect(x - 10, y - 27, 20, 27, "#252536");
+    this.rect(x - 12, y - 27, 4, 29, "#655765");
+    this.rect(x + 8, y - 27, 4, 29, "#655765");
+    this.rect(x - 12, y - 30, 24, 4, "#8f7181");
+    this.rect(x - 10, y, 20, 3, color);
+    if (!open) {
+      for (let k = -6; k <= 6; k += 4) this.rect(x + k, y - 25, 2, 23, "#946077");
+      this.rect(x - 7, y - 12, 15, 2, "#b87e94");
+    } else {
+      for (let k = 0; k < 3; k++) this.rect(x + (east ? k : -k), y - 15 + k, 2, 2, color);
+      for (let k = 0; k < 3; k++) this.rect(x + (east ? k : -k), y - 13 - k, 2, 2, color);
+      if (Math.hypot(s.x - x, s.y - y) < 24) this.text(east ? "CONTINUE" : "TAXI", x, y + 13, "#fff0cf", 7);
+    }
+  }
+
+  private bossTelegraph(s: GameState, enemy: Enemy) {
+    if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
+    const c = this.ctx;
+    const color = enemy.phase === 2 ? "#ec7ead" : "#efab7a";
+    c.save();
+    c.globalAlpha = enemy.windup > 0 ? 0.3 + Math.sin(s.time * 23) * 0.08 : 0.2;
+    if (enemy.pattern === 0) {
+      const rushing = enemy.actionTimer > 0;
+      for (let k = 0; k < (rushing ? 8 : 24); k++) {
+        const distance = (rushing ? -1 : 1) * k * 5;
+        const x = enemy.x + enemy.aimX * distance;
+        const y = enemy.y + enemy.aimY * distance;
+        if (x < 18 || x > 302 || y < 48 || y > 162) break;
+        this.disc(x, y, rushing ? 9 - k * 0.6 : 9, color);
+        if (k % 6 === 0) this.rect(x - 1, y - 1, 3, 3, "#ffddbb");
+      }
+    } else {
+      for (const radius of [24, 43, 64]) for (let k = 0; k < 48; k++) {
+        if (k % 4 === 0) continue;
+        const a = k * Math.PI / 24;
+        this.rect(enemy.x + Math.cos(a) * radius, enemy.y + Math.sin(a) * radius, 2, 2, color);
+      }
+      for (let k = 0; k < (enemy.phase === 2 ? 12 : 8); k++) {
+        const a = k * Math.PI * 2 / (enemy.phase === 2 ? 12 : 8);
+        this.rect(enemy.x + Math.cos(a) * 34, enemy.y + Math.sin(a) * 34, 4, 4, "#ffddbb");
+      }
+    }
+    c.restore();
+  }
+
+  private bossBar(s: GameState) {
+    const enemy = s.enemies.find((enemy) => enemy.kind === "boss" && enemy.hp > 0);
+    if (!enemy) return;
+    this.text(`THE WATCHER  //  PHASE ${enemy.phase}`, 160, 169, enemy.phase === 2 ? "#f2a6d1" : "#d7b4cd", 7);
+    this.rect(83, 173, 154, 5, "#171723");
+    this.rect(84, 174, 152, 3, "#644457");
+    this.rect(84, 174, 152 * enemy.hp / enemy.maxHp, 3, enemy.phase === 2 ? "#ed8eba" : "#ad83c4");
+    this.rect(160, 174, 1, 3, "#ffddc5");
   }
 
   private lamp(x: number, y: number, time: number, color = "#f1cf88") {
@@ -411,8 +535,13 @@ export class Renderer {
 
   private enemy(s: GameState, enemy: Enemy) {
     const boss = enemy.kind === "boss";
-    const scale = boss ? 1.5 : 1;
+    const scale = boss ? 1.6 : 1;
     const sprite = enemy.kind === "shooter" ? "imp" : enemy.sprite;
+    if (boss && enemy.phase === 2) {
+      this.ctx.globalAlpha = 0.17 + Math.sin(s.time * 15) * 0.05;
+      this.disc(enemy.x, enemy.y - 23, 28, "#db82cb");
+      this.ctx.globalAlpha = 1;
+    }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
     if (enemy.windup > 0) {
       this.ctx.globalAlpha = 0.35 + Math.sin(s.time * 22) * 0.12;
