@@ -28,6 +28,22 @@ export const BANNERS = [
     { key: 'campsite', name: 'Campsite', price: 200 },
     // Cryptids
     { key: 'lake_monster', name: 'Lake Monster', price: 280 },
+    // More: places, weather, and a few patterns
+    { key: 'haunted_house', name: 'Haunted House', price: 240 },
+    { key: 'northern_lights', name: 'Northern Lights', price: 260 },
+    { key: 'deep_space', name: 'Deep Space', price: 240 },
+    { key: 'thunderstorm', name: 'Thunderstorm', price: 200 },
+    { key: 'night_line', name: 'Night Line', price: 220 },
+    { key: 'arcade_carpet', name: 'Arcade Carpet', price: 180 },
+    { key: 'bat_flight', name: 'Bat Flight', price: 200 },
+    { key: 'slime_drip', name: 'Slime Drip', price: 160 },
+    { key: 'hellmouth', name: 'Hellmouth', price: 280 },
+    { key: 'first_snow', name: 'First Snow', price: 180 },
+    { key: 'sunset_beach', name: 'Sunset Beach', price: 200 },
+    { key: 'checkerboard', name: 'Checkerboard', price: 140 },
+    { key: 'vhs_tracking', name: 'VHS Tracking', price: 180 },
+    { key: 'abduction', name: 'Abduction', price: 300 },
+    { key: 'fairy_ring', name: 'Fairy Ring', price: 220 },
 ];
 const BY_KEY = new Map(BANNERS.map((banner) => [banner.key, banner]));
 

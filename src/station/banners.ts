@@ -23,6 +23,21 @@ export type BannerKey =
   | "national_park"
   | "campsite"
   | "lake_monster"
+  | "haunted_house"
+  | "northern_lights"
+  | "deep_space"
+  | "thunderstorm"
+  | "night_line"
+  | "arcade_carpet"
+  | "bat_flight"
+  | "slime_drip"
+  | "hellmouth"
+  | "first_snow"
+  | "sunset_beach"
+  | "checkerboard"
+  | "vhs_tracking"
+  | "abduction"
+  | "fairy_ring"
   | "empty";
 
 // The banner everyone has, up until they put another up: an empty one. (On the server,
@@ -355,6 +370,282 @@ const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D) => void> = {
     px(ctx, "#081018", 56, 14, 2, 1);
     px(ctx, "rgba(196,224,240,0.4)", 28, 16, 30, 1);
   },
+  // More: places, weather, and a few patterns
+  haunted_house: (ctx) => {
+    sky(ctx, "#161033", "#3a2350");
+    stars(ctx, 14, 10, 41);
+    moon(ctx, 74, 6, 4, "#f0e8c8");
+    const dark = "#0a0812";
+    // The hill, the house on it (a tower to one side), and a dead tree
+    for (let x = 0; x < W; x += 1) {
+      const y = 19 - Math.round(4 * Math.sin((Math.PI * x) / W));
+      px(ctx, dark, x, y, 1, H - y);
+    }
+    px(ctx, dark, 38, 9, 12, 9);
+    for (let r = 0; r < 5; r += 1) px(ctx, dark, 43 - r, 4 + r, 2 + 2 * r, 1);
+    px(ctx, dark, 48, 3, 3, 6);
+    px(ctx, dark, 49, 1, 1, 2);
+    px(ctx, "#f8c040", 40, 11, 2, 2);
+    px(ctx, "#f8c040", 46, 12, 2, 2);
+    px(ctx, "#f8c040", 49, 5, 1, 2);
+    px(ctx, "#1c1420", 43, 14, 2, 4);
+    px(ctx, dark, 20, 10, 1, 8);
+    px(ctx, dark, 18, 11, 2, 1);
+    px(ctx, dark, 21, 9, 2, 1);
+    px(ctx, dark, 17, 10);
+  },
+  northern_lights: (ctx) => {
+    sky(ctx, "#040818", "#0a1a2c");
+    stars(ctx, 20, 8, 51);
+    // Two ribbons of light, the green over the violet, waving along the sky
+    for (let x = 0; x < W; x += 1) {
+      const y = 5 + Math.round(3 * Math.sin((x * Math.PI * 2) / 48));
+      px(ctx, "rgba(170,110,255,0.45)", x, y - 2 + Math.round(2 * Math.sin((x * Math.PI * 2) / 32 + 1)), 1, 2);
+      px(ctx, "rgba(80,255,170,0.55)", x, y, 1, 3);
+      px(ctx, "rgba(80,255,170,0.22)", x, y + 3, 1, 4);
+    }
+    px(ctx, "#c8d8e8", 0, 20, W, 4);
+    for (let x = 0; x < W; x += 1) if ((x * 5) % 7 < 3) px(ctx, "#e8f0f8", x, 20);
+    [8, 22, 37, 58, 71, 88].forEach((x, i) => {
+      const tall = 4 + (i % 2);
+      for (let r = 0; r < tall; r += 1) px(ctx, "#0c241c", x - r, 19 - tall + r, 1 + 2 * r, 1);
+      px(ctx, "#0c241c", x, 19);
+    });
+  },
+  deep_space: (ctx) => {
+    sky(ctx, "#05030f", "#120a28");
+    const cloud = ctx.createRadialGradient(26, 12, 1, 26, 12, 22);
+    cloud.addColorStop(0, "rgba(210,80,200,0.5)");
+    cloud.addColorStop(0.6, "rgba(90,60,200,0.2)");
+    cloud.addColorStop(1, "rgba(90,60,200,0)");
+    ctx.fillStyle = cloud;
+    ctx.fillRect(0, 0, 52, H);
+    stars(ctx, 40, H, 61);
+    // A banded planet with a ring, and a shooting star
+    moon(ctx, 68, 11, 5, "#d8884a");
+    px(ctx, "#b0642e", 64, 10, 9, 1);
+    px(ctx, "#e8a868", 65, 13, 7, 1);
+    px(ctx, "#b0642e", 65, 15, 6, 1);
+    const ring = "rgba(240,220,180,0.85)";
+    px(ctx, ring, 58, 14, 4, 1);
+    px(ctx, ring, 61, 13, 2, 1);
+    px(ctx, ring, 74, 9, 2, 1);
+    px(ctx, ring, 75, 8, 4, 1);
+    px(ctx, "#ffffff", 42, 5);
+    px(ctx, "rgba(255,255,255,0.6)", 40, 4, 2, 1);
+    px(ctx, "rgba(255,255,255,0.3)", 37, 3, 3, 1);
+  },
+  thunderstorm: (ctx) => {
+    sky(ctx, "#10121c", "#262a3a");
+    const rand = seeded(67);
+    for (let i = 0; i < 44; i += 1) px(ctx, "rgba(160,190,230,0.45)", rand() * W, 6 + rand() * 15, 1, 2);
+    // The cloud's underside, all along the top, and two forks of lightning out of it
+    for (let x = 0; x < W; x += 1) {
+      const h = 5 + Math.round(2 * Math.sin(x / 5) + Math.sin(x / 2.3));
+      px(ctx, "#3a3f52", x, 0, 1, h);
+      px(ctx, "#4c5268", x, h - 1);
+    }
+    [[30, 5], [29, 7], [31, 9], [29, 12], [30, 15], [28, 18]].forEach(([x, y]) => {
+      px(ctx, "rgba(255,246,176,0.35)", x - 1, y, 3, 3);
+      px(ctx, "#fff6b0", x, y, 1, 3);
+    });
+    [[78, 6], [79, 8], [77, 10], [78, 13]].forEach(([x, y]) => px(ctx, "rgba(255,246,176,0.55)", x, y, 1, 3));
+    px(ctx, "#0a0c12", 0, 22, W, 2);
+  },
+  night_line: (ctx) => {
+    sky(ctx, "#0a0c1a", "#1c2238");
+    stars(ctx, 16, 9, 71);
+    // The line at night: sleepers and rails, the wires overhead, a signal at green, and a
+    // headlight a long way off
+    px(ctx, "rgba(200,200,220,0.25)", 0, 9, W, 1);
+    [34, 82].forEach((x) => {
+      px(ctx, "#1a1410", x, 7, 1, 11);
+      px(ctx, "#1a1410", x - 2, 8, 5, 1);
+    });
+    px(ctx, "#15130f", 0, 17, W, 7);
+    for (let x = 1; x < W; x += 6) px(ctx, "#3a2c1e", x, 18, 2, 5);
+    px(ctx, "#8a909c", 0, 19, W, 1);
+    px(ctx, "#8a909c", 0, 22, W, 1);
+    px(ctx, "#20242c", 70, 6, 1, 12);
+    px(ctx, "#101216", 69, 4, 3, 5);
+    px(ctx, "rgba(58,255,122,0.3)", 68, 4, 5, 3);
+    px(ctx, "#3aff7a", 70, 5);
+    const lamp = ctx.createRadialGradient(13, 16, 0, 13, 16, 7);
+    lamp.addColorStop(0, "rgba(255,243,200,0.8)");
+    lamp.addColorStop(1, "rgba(255,243,200,0)");
+    ctx.fillStyle = lamp;
+    ctx.fillRect(5, 9, 16, 14);
+    px(ctx, "#fff3c8", 12, 15, 2, 2);
+  },
+  arcade_carpet: (ctx) => {
+    px(ctx, "#141028", 0, 0, W, H);
+    // The carpet every arcade had: squiggles, dashes, triangles and rings, loud on the dark
+    const rand = seeded(83);
+    const colours = ["#ff3ea5", "#3ee0ff", "#ffe23e", "#7dff6a", "#b45cff"];
+    for (let i = 0; i < 34; i += 1) {
+      const x = Math.floor(rand() * (W - 5));
+      const y = Math.floor(rand() * (H - 3));
+      const colour = colours[Math.floor(rand() * colours.length)];
+      const kind = Math.floor(rand() * 4);
+      if (kind === 0) for (let k = 0; k < 5; k += 1) px(ctx, colour, x + k, y + (k % 2));
+      else if (kind === 1) px(ctx, colour, x, y, 3, 1);
+      else if (kind === 2) {
+        px(ctx, colour, x + 1, y);
+        px(ctx, colour, x, y + 1, 3, 1);
+      } else {
+        px(ctx, colour, x, y, 3, 1);
+        px(ctx, colour, x, y + 2, 3, 1);
+        px(ctx, colour, x - 1, y + 1);
+        px(ctx, colour, x + 3, y + 1);
+      }
+    }
+  },
+  bat_flight: (ctx) => {
+    sky(ctx, "#3a1850", "#e06a3a");
+    moon(ctx, 20, 8, 5, "#fff0c8");
+    const dark = "#120818";
+    // Bats out at dusk, across the moon and off down the sky
+    const rand = seeded(97);
+    [[16, 5], [24, 9], ...Array.from({ length: 8 }, () => [30 + Math.floor(rand() * 60), 2 + Math.floor(rand() * 13)])].forEach(([x, y]) => {
+      px(ctx, dark, x + 1, y);
+      px(ctx, dark, x + 3, y);
+      px(ctx, dark, x, y + 1, 5, 1);
+      px(ctx, dark, x + 2, y + 2);
+    });
+    for (let x = 0; x < W; x += 1) {
+      const h = 2 + ((x * 13) % 4);
+      px(ctx, dark, x, H - h, 1, h);
+    }
+  },
+  slime_drip: (ctx) => {
+    sky(ctx, "#10140c", "#1c2414");
+    // Slime coming down from the top edge: long drips, and drops let go of them
+    for (let x = 0; x < W; x += 1) {
+      const long = (x * 7) % 11 === 0;
+      const len = 3 + Math.round(3 * Math.abs(Math.sin(x * 0.35))) + (long ? 6 : 0);
+      px(ctx, "#6ad63a", x, 0, 1, len);
+      px(ctx, "#4aa82a", x, len - 1);
+      if (long) {
+        px(ctx, "#6ad63a", x, len + 2, 1, 2);
+        px(ctx, "#a8f060", x, len + 2);
+      }
+    }
+    px(ctx, "#a8f060", 0, 0, W, 1);
+    for (let x = 3; x < W; x += 9) px(ctx, "#d8ffa0", x, 2, 2, 1);
+  },
+  hellmouth: (ctx) => {
+    sky(ctx, "#1a0406", "#4a0c08");
+    const rand = seeded(101);
+    for (let i = 0; i < 16; i += 1) px(ctx, rand() < 0.5 ? "#fbc02a" : "#f07a1a", rand() * W, 4 + rand() * 10);
+    // Rock hanging from the roof, and the lava below, its surface brightest
+    for (let x = 0; x < W; x += 1) if (x % 8 < 3) px(ctx, "#0c0204", x, 0, 1, 3 + ((x * 5) % 4));
+    for (let x = 0; x < W; x += 1) {
+      const y = 16 + Math.round(2 * Math.sin((x * Math.PI * 2) / 24));
+      px(ctx, "#f07a1a", x, y, 1, H - y);
+      px(ctx, "#fbc02a", x, y);
+      px(ctx, "#c2400e", x, y + 3, 1, H);
+    }
+    [[10, 20], [33, 21], [58, 20], [81, 21]].forEach(([x, y]) => px(ctx, "#fff2a0", x, y, 2, 1));
+  },
+  first_snow: (ctx) => {
+    sky(ctx, "#1c2a44", "#5a6c8c");
+    for (let x = 0; x < W; x += 1) {
+      const y = 17 + Math.round(2 * Math.sin((x * Math.PI * 4) / W));
+      px(ctx, "#e8eef6", x, y, 1, H - y);
+      px(ctx, "#c4d0e0", x, y + 3, 1, H);
+    }
+    // A snowman, hat and carrot and all, and the snow still coming down
+    moon(ctx, 60, 17, 2, "#ffffff");
+    moon(ctx, 60, 13, 1, "#ffffff");
+    px(ctx, "#1a1a22", 59, 11, 3, 1);
+    px(ctx, "#1a1a22", 60, 10);
+    px(ctx, "#f07a1a", 61, 13);
+    px(ctx, "#1a1a22", 60, 16);
+    const rand = seeded(103);
+    for (let i = 0; i < 36; i += 1) px(ctx, "#ffffff", rand() * W, rand() * 17);
+  },
+  sunset_beach: (ctx) => {
+    sky(ctx, "#3a1c5a", "#f08a4a");
+    moon(ctx, 48, 13, 5, "#ffd86a");
+    // The sun half down into the sea, its light on the water; sand, and a palm
+    px(ctx, "#1c3a6a", 0, 14, W, 6);
+    for (let y = 15; y < 20; y += 1) px(ctx, "rgba(255,216,106,0.6)", 45 + ((y * 3) % 3), y, 6 - (y % 2) * 2, 1);
+    px(ctx, "#d8b878", 0, 20, W, 4);
+    for (let x = 0; x < W; x += 1) if ((x * 3) % 7 === 0) px(ctx, "#c0a060", x, 21 + (x % 2));
+    const trunk = "#2a1810";
+    const frond = "#14301c";
+    px(ctx, trunk, 16, 9, 1, 11);
+    px(ctx, trunk, 17, 8, 1, 2);
+    px(ctx, frond, 15, 6, 5, 1);
+    px(ctx, frond, 13, 7, 4, 1);
+    px(ctx, frond, 18, 7, 4, 1);
+    px(ctx, frond, 12, 8, 2, 1);
+    px(ctx, frond, 20, 8, 2, 1);
+  },
+  checkerboard: (ctx) => {
+    for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) px(ctx, (x / 4 + y / 4) % 2 ? "#2a1648" : "#120a20", x, y, 4, 4);
+    const sheen = ctx.createLinearGradient(0, 0, 0, H);
+    sheen.addColorStop(0, "rgba(180,92,255,0.22)");
+    sheen.addColorStop(1, "rgba(180,92,255,0)");
+    ctx.fillStyle = sheen;
+    ctx.fillRect(0, 0, W, H);
+  },
+  vhs_tracking: (ctx) => {
+    // The colour bars off a tape, scan lines over them, and the tracking gone along one band
+    ["#c0c0c0", "#c0c000", "#00c0c0", "#00c000", "#c000c0", "#c00000", "#0000c0", "#101010"].forEach((colour, i) => px(ctx, colour, i * 12, 0, 12, H));
+    px(ctx, "rgba(0,0,0,0.4)", 0, 0, W, H);
+    for (let y = 0; y < H; y += 2) px(ctx, "rgba(0,0,0,0.25)", 0, y, W, 1);
+    const rand = seeded(107);
+    for (let x = 0; x < W; x += 1) {
+      const tear = Math.floor(rand() * 3);
+      px(ctx, `rgba(255,255,255,${0.25 + rand() * 0.5})`, x, 15 + tear, 1, 1);
+      if (rand() < 0.3) px(ctx, "rgba(0,0,0,0.6)", x, 17, 2, 1);
+    }
+    px(ctx, "#ffffff", 4, 3, 1, 5);
+    px(ctx, "#ffffff", 5, 4, 1, 3);
+    px(ctx, "#ffffff", 6, 5);
+  },
+  abduction: (ctx) => {
+    sky(ctx, "#060a1c", "#14203a");
+    stars(ctx, 18, 10, 81);
+    px(ctx, "#0c1a10", 0, 20, W, 4);
+    px(ctx, "#3a1410", 14, 14, 8, 6);
+    px(ctx, "#20100c", 13, 13, 10, 1);
+    px(ctx, "#20100c", 15, 12, 6, 1);
+    // A saucer over the field, its beam down, and a cow on the way up
+    for (let y = 8; y < 20; y += 1) {
+      const w = 4 + (y - 8);
+      px(ctx, "rgba(160,255,200,0.22)", 48 - Math.floor(w / 2), y, w, 1);
+    }
+    px(ctx, "#8a92a8", 43, 6, 11, 2);
+    px(ctx, "#c0c6d6", 45, 5, 7, 1);
+    px(ctx, "#7dffd0", 46, 3, 5, 2);
+    [44, 48, 52].forEach((x) => px(ctx, "#ffe23e", x, 7));
+    px(ctx, "#f2f0e8", 46, 14, 4, 2);
+    px(ctx, "#1a1a1a", 47, 14);
+    px(ctx, "#f2f0e8", 50, 13, 1, 2);
+    px(ctx, "#f2f0e8", 46, 16);
+    px(ctx, "#f2f0e8", 49, 16);
+  },
+  fairy_ring: (ctx) => {
+    sky(ctx, "#060c0a", "#10201a");
+    [6, 30, 66, 90].forEach((x) => px(ctx, "#030605", x, 0, 3, H));
+    px(ctx, "#0a1410", 0, 20, W, 4);
+    // Toadstools in a ring in the wood, each with a glow of its own, and fireflies over them
+    [14, 22, 40, 48, 56, 74, 82].forEach((x, i) => {
+      const cap = i % 2 ? "#7dffd0" : "#ff5a7a";
+      const glow = ctx.createRadialGradient(x + 0.5, 17, 0, x + 0.5, 17, 5);
+      glow.addColorStop(0, i % 2 ? "rgba(125,255,208,0.4)" : "rgba(255,90,122,0.4)");
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(x - 5, 12, 11, 10);
+      px(ctx, "#e8f0e0", x, 18, 1, 2);
+      px(ctx, cap, x - 1, 17, 3, 1);
+      px(ctx, cap, x, 16);
+    });
+    const rand = seeded(109);
+    for (let i = 0; i < 10; i += 1) px(ctx, "#e8ff8a", rand() * W, 3 + rand() * 11);
+  },
 };
 
 const cache = new Map<string, string>();
@@ -398,6 +689,16 @@ const SECTION_X: Partial<Record<BannerKey, number>> = {
   national_park: 26,
   campsite: 44,
   lake_monster: 28,
+  haunted_house: 36,
+  northern_lights: 30,
+  deep_space: 60,
+  thunderstorm: 22,
+  night_line: 62,
+  bat_flight: 12,
+  first_snow: 52,
+  sunset_beach: 40,
+  abduction: 40,
+  fairy_ring: 40,
 };
 const SECTION_W = 16;
 
