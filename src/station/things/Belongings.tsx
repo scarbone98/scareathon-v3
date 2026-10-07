@@ -17,6 +17,8 @@ import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
 import { BannerShelf, useBackdrop, useBannerShopItems } from "./Banners.tsx";
 import { bannerStyle } from "../banners.ts";
+import NewsDot from "../../components/NewsDot";
+import { noteLooked, shopNewSince } from "../seen.ts";
 import { NO_FILTERS, ShopCategoryTabs, ShopFilterMenus, useTabSwipe, type ShopFilters } from "../../components/avatar/shopFilters";
 import TicketIcon from "../../components/TicketIcon";
 import { SheetActions } from "../Sheet.tsx";
@@ -228,7 +230,18 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   const [previewBanner, setPreviewBanner] = useState<string | null>(null);
   // What was last tried on: the shopkeeper, up in the dark, has a word about it
   const [tried, setTried] = useState<TriedOn | null>(null);
-  const bannerItems = useBannerShopItems(previewBanner, setPreviewBanner);
+  // What's come in since you last looked round wears the "!" dot, for the whole of this visit;
+  // leaving is having looked
+  const [newSince] = useState(shopNewSince);
+  useEffect(() => {
+    if (!signedIn) return;
+    // (a look of under a second isn't one: the shop opened and shut again at once)
+    const opened = Date.now();
+    return () => {
+      if (Date.now() - opened > 1000) noteLooked("shop");
+    };
+  }, [signedIn]);
+  const bannerItems = useBannerShopItems(previewBanner, setPreviewBanner, newSince);
   // (and songs for the radio on the bench; one being listened to stops when you leave)
   const songItems = useSongShopItems();
   useEffect(() => () => radio.endSample(), []);
@@ -268,7 +281,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
       <ShopCategoryTabs filters={filters} onChange={setFilters} extraCategories={extraCategories} className="shrink-0" />
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" {...swipe}>
       <Classic>
-        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={wares} filters={filters} onTryOn={setTried} />
+        <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={wares} filters={filters} onTryOn={setTried} newSince={newSince} />
       </Classic>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
@@ -276,6 +289,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
         </button>
         <button type="button" className={plateButton} onClick={() => goTo("mail", "letters")}>
           Inbox{unread ? ` (${unread})` : ""}
+          {unread ? <NewsDot className="ml-1.5 align-middle" label="Unread mail" /> : null}
         </button>
         <button type="button" className={plateButton} onClick={() => goTo("mail", "register")}>
           Settings

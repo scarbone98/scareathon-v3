@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
 import { DEFAULT_BANNER, ON_BANNER_TEXT, bannerStyle } from "../banners.ts";
+import NewsDot from "../../components/NewsDot";
+import { notePlaces, placesSeen } from "../seen.ts";
 import { pixel } from "../style/theme.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { GoTo } from "../stops.ts";
@@ -169,7 +171,9 @@ const POINT_COLUMNS: [string, string][] = [
 // One player's row, on their banner (a player with an account always has one: the empty
 // one, if they've put none up). On a banner the lettering goes straight onto it, without
 // flaps; whatever's said under the name (wins, points) goes there so the name keeps the width
-function PlayerRow({ rank, userId, name, look, lookPending = false, small, bright, under, score }: {
+function PlayerRow({ rank, userId, name, look, lookPending = false, small, bright, under, score, moved }: {
+  // (their place has changed since you last looked at this board: from this one)
+  moved?: number;
   rank: number;
   userId?: string;
   name: string;
@@ -184,7 +188,10 @@ function PlayerRow({ rank, userId, name, look, lookPending = false, small, brigh
   return (
     // (on phones, tighter: a narrower rank, smaller gaps and score, so the name gets the room)
     <Line bright={bright} banner={userId ? look?.banner ?? DEFAULT_BANNER : undefined} tight={small}>
-      <span className={`${box} ${small ? "w-7 text-[16px]" : "w-9"} shrink-0 text-center`}>{rank}</span>
+      <span className={`${box} ${small ? "w-7 text-[16px]" : "w-9"} relative shrink-0 text-center`}>
+        {rank}
+        {moved !== undefined && <NewsDot className="absolute left-0 -top-1.5 !h-3.5 !w-3.5 !text-[11px]" label={moved > rank ? `Up from ${moved}` : `Down from ${moved}`} />}
+      </span>
       <Face userId={userId} name={name} look={look} pending={lookPending} onBanner={Boolean(userId)} small={small} />
       <span className={`${box} min-w-0 flex-1 py-0.5`}>
         {small ? <FitName name={name.toUpperCase()} /> : <span className={`block break-words leading-tight ${nameSize(name)}`}>{name.toUpperCase()}</span>}
@@ -195,9 +202,28 @@ function PlayerRow({ rank, userId, name, look, lookPending = false, small, brigh
   );
 }
 
+// Places that have moved since you last looked at a year's standings wear the "!" dot (which
+// says where from). What you last saw is read once per board, when its standings first come
+// in, and what's there now is kept for next time; the dots stay for as long as it's open.
+function usePlacesMoved(year: number | undefined, rows: { name: string; rank: number }[]) {
+  const seen = useRef<Record<string, Record<string, number> | null>>({});
+  const board = `scareboard:${year ?? ""}`;
+  const ready = year !== undefined && rows.length > 0;
+  if (ready && !(board in seen.current)) seen.current[board] = placesSeen(board);
+  const now = rows.map((row) => `${row.name}=${row.rank}`).join("|");
+  useEffect(() => {
+    if (ready) notePlaces(board, Object.fromEntries(rows.map((row) => [row.name, row.rank])));
+    // (rows is new every render; `now` says whether what's in it has changed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, ready, now]);
+  const before = seen.current[board];
+  return (name: string, rank: number) => (before && name in before && before[name] !== rank ? before[name] : undefined);
+}
+
 function Standings({ signedIn }: { signedIn: boolean }) {
   const [year, setYear] = useState<number | null>(null);
   const { data, isLoading, error } = useScareboard(year, signedIn);
+  const before = usePlacesMoved(data?.leaderboard.meta?.year, data?.leaderboard.data ?? []);
   const { data: me } = useScareathonMe(signedIn);
   const compact = useIsMobileArcade();
   const { data: looks, isPending: looksPending } = useLooks((data?.leaderboard.data ?? []).flatMap((row) => (row.userId ? [row.userId] : [])));
@@ -226,6 +252,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
           <PlayerRow
             key={row.name}
             rank={row.rank}
+            moved={before(row.name, row.rank)}
             userId={row.userId}
             name={row.name}
             look={row.userId ? looks?.[row.userId] : undefined}

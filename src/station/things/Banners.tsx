@@ -10,7 +10,7 @@ import type { ExtraShopItem } from "../../components/avatar/AvatarShop";
 // avatar, name and points sit on, on the Scareboard, and the backdrop behind you.
 
 type BannerState = {
-  catalog: { key: string; name: string; price: number }[];
+  catalog: { key: string; name: string; price: number; added?: string }[];
   owned: string[];
   equipped: string | null;
 };
@@ -56,9 +56,15 @@ export function useMyBanner(signedIn: boolean) {
   return signedIn ? data?.equipped ?? null : null;
 }
 
+// When the newest banner went on sale (ms; 0 if none says), for the dot on the way into the shop
+export function useNewestBanner(signedIn: boolean) {
+  const { data } = useQuery({ queryKey: ["banners"], queryFn: () => fetchWithAuth("/banners").then(readBanners), enabled: signedIn });
+  return Math.max(0, ...(data?.catalog ?? []).map((banner) => (banner.added ? Date.parse(banner.added) || 0 : 0)));
+}
+
 // The banners as the item shop's wares: a stretch of each for its icon, tried on behind
 // you, bought once (then put up from right there)
-export function useBannerShopItems(trying: string | null, onTry: (key: string | null) => void): ExtraShopItem[] {
+export function useBannerShopItems(trying: string | null, onTry: (key: string | null) => void, newSince?: number): ExtraShopItem[] {
   const { data, buy, equip } = useBanners();
   if (!data) return [];
   return data.catalog.map((banner) => {
@@ -76,6 +82,7 @@ export function useBannerShopItems(trying: string | null, onTry: (key: string | 
       owned,
       previewing: trying === banner.key,
       onPreview: () => onTry(trying === banner.key ? null : banner.key),
+      isNew: newSince !== undefined && Boolean(banner.added) && Date.parse(banner.added as string) > newSince,
       action: up
         ? { label: "Up", disabled: true }
         : owned

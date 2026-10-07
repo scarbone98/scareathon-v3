@@ -163,6 +163,19 @@ export function usePosts(enabled: boolean) {
   });
 }
 
+// When the newest item came into the shop (ms; 0 if unknown), for the dot on the way in. The
+// shop's own "just in" shelf asks the same thing, under the same key.
+export function useNewestShopItem(enabled: boolean) {
+  const { data } = useQuery<{ data?: { createdAt?: string | null }[] }>({
+    queryKey: ["marketplace", "shop", "new"],
+    queryFn: () => fetchWithAuth("/marketplace/shop/new").then((r) => readJson(r, "New items")),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  return Math.max(0, ...(data?.data ?? []).map((item) => (item.createdAt ? Date.parse(item.createdAt) || 0 : 0)));
+}
+
 // Players' looks (what they wear and their colouring), to draw them moving
 // (and the scoreboard banner each has up)
 export type PlayerLook = AvatarLook & { banner?: string };

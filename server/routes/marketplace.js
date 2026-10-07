@@ -45,6 +45,7 @@ const SHOP_ITEM_SELECT = `
         ai.hides,
         ai.occupies,
         ai.stack_order,
+        ai.created_at,
         CASE
             WHEN ai.metadata->>'supplyLimit' ~ '^[0-9]+$'
                 THEN (ai.metadata->>'supplyLimit')::INTEGER
@@ -152,6 +153,8 @@ function serializeShopItem(row) {
         ownedCount: Number(row.owned_count || 0),
         isSoldOut: row.supply_limit !== null && Number(row.minted_count || 0) >= Number(row.supply_limit),
         metadata: row.item_metadata,
+        // (when it came into the shop: the site dots what's new since you last looked)
+        createdAt: row.created_at,
     };
 }
 

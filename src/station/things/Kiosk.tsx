@@ -5,6 +5,7 @@ import { isRetryableAuthError } from "../../authErrors";
 import PasswordResetPopup from "../../components/PasswordResetPopup";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
+import NewsDot from "../../components/NewsDot";
 import { useSummary } from "../data.ts";
 import type { GoTo } from "../stops.ts";
 import { useAvatarLook } from "./Belongings.tsx";
@@ -210,6 +211,7 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
             </button>
             <button type="button" className="underline decoration-[#2a1d14]/40 underline-offset-4" onClick={() => goTo("mail")}>
               {unread ? `Inbox (${unread})` : "Inbox"}
+              {unread ? <NewsDot className="ml-1.5 align-middle" label="Unread mail" /> : null}
             </button>
           </div>
         </div>

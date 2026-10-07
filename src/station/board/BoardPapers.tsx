@@ -1,7 +1,7 @@
 // The papers' content components live beside the hook that picks them; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
 import Ticket from "../../components/TicketIcon";
-import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
 import {
@@ -20,7 +20,10 @@ import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/game
 import type { GoTo } from "../stops.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import { useAvatarLook } from "../things/Belongings.tsx";
-import { useMyBanner } from "../things/Banners.tsx";
+import { useMyBanner, useNewestBanner } from "../things/Banners.tsx";
+import NewsDot from "../../components/NewsDot";
+import { isRead, markRead, shopNewSince, useSeen } from "../seen.ts";
+import { useNewestShopItem } from "../data.ts";
 import { ON_BANNER_TEXT, bannerStyle } from "../banners.ts";
 import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
 
@@ -46,6 +49,8 @@ export type Paper = {
   sheet?: CSSProperties;
   // Read where it hangs; there's nothing more to come up close for (the welcome)
   noZoom?: boolean;
+  // What it has to say, by id: it wears the "!" dot until that's been read up close
+  newsId?: string;
 };
 
 const SEPIA = "sepia(0.85) contrast(1.08) brightness(0.92) saturate(0.9)";
@@ -152,13 +157,18 @@ const ticketCut: CSSProperties = {
   mask: "radial-gradient(circle at 0 50%, transparent 7px, #000 7.5px) left / 51% 100% no-repeat, radial-gradient(circle at 100% 50%, transparent 7px, #000 7.5px) right / 51% 100% no-repeat",
 };
 
-function TicketButton({ label, onClick, children }: { label: string; onClick: (event: React.MouseEvent) => void; children: ReactNode }) {
+// (news: something's waiting behind it, so it wears the "!" dot. The dot sits on a wrapper: the
+// button itself is cut to a ticket's shape, which would cut the dot off too)
+function TicketButton({ label, onClick, children, news }: { label: string; onClick: (event: React.MouseEvent) => void; children: ReactNode; news?: string }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} className="flex-1 bg-[#1d2a3a] p-[3px] transition hover:bg-[#2a3b50]" style={ticketCut}>
+    <span className="relative flex flex-1">
+    {news && <NewsDot className="absolute -top-1 right-1 z-10" label={news} />}
+    <button type="button" aria-label={news ? `${label} (${news})` : label} title={label} onClick={onClick} className="flex-1 bg-[#1d2a3a] p-[3px] transition hover:bg-[#2a3b50]" style={ticketCut}>
       <span className="flex h-full items-center justify-center gap-1.5 border border-dashed border-[#efe3c8]/45 px-4 py-1.5 text-[18px] leading-none text-[#f2ead2]" style={pixel}>
         {children}
       </span>
     </button>
+    </span>
   );
 }
 
@@ -172,6 +182,11 @@ function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   // Signed in with a banner up, the notice is your banner (as your row on the scoreboard is):
   // the lettering goes straight onto it, light and outlined, in place of ink on paper
   const banner = useMyBanner(signedIn);
+  // Something new in the shop since you last looked round it (a banner, or an item just in)
+  useSeen();
+  const newestBanner = useNewestBanner(signedIn);
+  const newestItem = useNewestShopItem(signedIn);
+  const newWares = signedIn && Math.max(newestBanner, newestItem) > shopNewSince();
   const onBanner = bannerStyle(banner);
   // How much of your picture's width to show: the kid, and out as far as anything you have on
   // reaches (a pet at your heels, wings), so none of it is cut off
@@ -215,10 +230,10 @@ function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
         <div className="flex gap-2">
           {signedIn ? (
             <>
-              <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))}>
+              <TicketButton label="Inbox" onClick={act(() => goTo("mail", "letters"))} news={summary?.unreadCount ? "Unread mail" : undefined}>
                 {summary?.unreadCount ?? 0}×<EnvelopeIcon />
               </TicketButton>
-              <TicketButton label="Tickets: the item shop" onClick={act(() => goTo("tickets", "shop"))}>
+              <TicketButton label="Tickets: the item shop" onClick={act(() => goTo("tickets", "shop"))} news={newWares ? "New in the shop" : undefined}>
                 {summary?.coinBalance != null ? summary.coinBalance.toLocaleString() : "…"}×<TicketIcon />
               </TicketButton>
               <TicketButton label="Settings" onClick={act(() => goTo("mail", "register"))}>
@@ -571,6 +586,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const dailyGame = useGame(daily?.gameName);
   const spotlight = useSpotlightGame();
   const { data: posts } = usePosts(signedIn);
+  const latestPost = posts?.data?.[0]?.documentId;
   const postImage = strapiUrl(posts?.data?.find((post) => post.Image?.[0]?.url)?.Image?.[0]?.url);
   const postPicture: Picture = { src: postImage ?? "/images/candleskull.gif" };
   // The event's own picture, an empty cinema (tonight's film is the poster by the stand)
@@ -623,6 +639,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
     const picture = { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] };
     papers.push({
       id: item.id,
+      newsId: item.id,
       kind: "NOTICE",
       title: item.title,
       pinned: <Clipping item={item} full={false} picture={picture} />,
@@ -634,6 +651,8 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   });
   papers.push({
     id: "post",
+    // (the Post is new when its front-page story is)
+    newsId: latestPost ? `post:${latestPost}` : undefined,
     kind: "THE POST",
     title: "THE SCAREATHON POST",
     pinned: <Post signedIn={signedIn} goTo={goTo} full={false} picture={postPicture} />,
@@ -647,6 +666,12 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
 // A paper as it hangs on the board. Tap it to look closer: the camera comes up to it and
 // it shows everything it says (scrolling if there's more), usable where it hangs.
 export function PinnedPaper({ paper, onOpen, zoomed = false }: { paper: Paper; onOpen: () => void; zoomed?: boolean }) {
+  // Come up close to it and it's been read
+  useSeen();
+  useEffect(() => {
+    if (zoomed && paper.newsId) markRead(paper.newsId);
+  }, [zoomed, paper.newsId]);
+  const unread = Boolean(paper.newsId) && !zoomed && !isRead(paper.newsId as string);
   return (
     <div
       role={zoomed || paper.noZoom ? undefined : "button"}
@@ -665,6 +690,7 @@ export function PinnedPaper({ paper, onOpen, zoomed = false }: { paper: Paper; o
       ) : (
         <span className="absolute left-1/2 top-1.5 z-10 h-3 w-3 -translate-x-1/2 rounded-full bg-red-800 shadow" aria-hidden />
       )}
+      {unread && <NewsDot className="absolute right-2 top-2 z-10 !h-6 !w-6 !text-[19px]" label="Not read yet" />}
       <div
         className={`h-full ${zoomed ? "overflow-y-auto overscroll-contain" : ""}`}
         style={{ touchAction: zoomed ? "none" : undefined }}

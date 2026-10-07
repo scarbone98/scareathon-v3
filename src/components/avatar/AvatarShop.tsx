@@ -18,6 +18,7 @@ import { CATEGORY_LABELS, gameOf, lookFromAvatar, lookWithItem } from "./look";
 import { EMPTY_SHELVES, type ShopFilters } from "./shopFilters";
 import { useAvatarManifest } from "./manifest";
 import type { AvatarItem, AvatarLook, AvatarResponse } from "./types";
+import NewsDot from "../NewsDot";
 import "../../styles/shop.css";
 
 type ShopItem = AvatarItem & {
@@ -25,6 +26,8 @@ type ShopItem = AvatarItem & {
   mintedCount: number;
   ownedCount: number;
   isSoldOut: boolean;
+  // when it came into the shop
+  createdAt?: string | null;
 };
 
 type ShopResponse = {
@@ -78,6 +81,8 @@ export type ExtraShopItem = {
   // (nothing to show or hear: no Show button. An arcade cartridge)
   noPreview?: boolean;
   onPreview: () => void;
+  // (came in since you last looked round the shop: it wears the "!" dot)
+  isNew?: boolean;
   // (buy: it costs tickets, so it waits until you can afford it)
   action: { label: string; disabled: boolean; buy?: boolean; onClick?: () => void };
   error?: Error | null;
@@ -94,9 +99,11 @@ type AvatarShopProps = {
   // Something's just been tried on (Show, turned on): the station's shopkeeper has a word
   // about it. (short: it costs more than you have)
   onTryOn?: (item: { name: string; category: string; rarity?: string; price: number; owned: boolean; short: boolean }) => void;
+  // Wares that came in after this (ms) wear the "!" dot: new since you last looked round
+  newSince?: number;
 };
 
-export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], filters, onTryOn }: AvatarShopProps) {
+export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], filters, onTryOn, newSince }: AvatarShopProps) {
   const queryClient = useQueryClient();
   const { search, classification, rarity: rarityFilter } = filters;
   const [debouncedSearch, setDebouncedSearch] = useState(search.trim());
@@ -280,6 +287,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
       <div className="shop-item-art">
         <img className="shop-item-icon" src={item.icon} alt="" draggable={false} />
         <span className="shop-rarity">{rarity}</span>
+        {!owned && newSince !== undefined && item.createdAt && Date.parse(item.createdAt) > newSince && <NewsDot className="shop-item-news" label="New in the shop" />}
         {item.ownedCount > 0 && (
           <span className="shop-owned">Owned{item.ownedCount > 1 ? ` ×${item.ownedCount}` : ""}</span>
         )}
@@ -369,6 +377,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
                 <div className="shop-item-art">
                   <img className="shop-item-icon shop-item-swatch" src={item.icon} alt="" draggable={false} />
                   {item.owned && <span className="shop-owned">Owned</span>}
+                  {item.isNew && !item.owned && <NewsDot className="shop-item-news" label="New in the shop" />}
                 </div>
 
                 <h3 className="shop-item-name" title={item.name}>{item.name}</h3>

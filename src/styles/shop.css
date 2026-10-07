@@ -18,6 +18,8 @@
 .shop-item-art { position: relative; display: flex; justify-content: center; padding: 6px 0 2px; border-radius: 8px; background: radial-gradient(ellipse at 50% 85%, color-mix(in srgb, var(--rarity) 22%, transparent), transparent 70%); }
 .shop-item-art > [aria-label="Avatar preview"] { border: 0; background: transparent !important; }
 .shop-rarity { position: absolute; top: 0; left: 0; padding: 2px 7px; border-radius: 6px; background: #1c1923d9; color: var(--rarity); font-size: 9px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+/* New since you last looked: the "!" dot, in the corner the Owned tag would have */
+.shop-item-news { position: absolute; top: 1px; right: 1px; }
 .shop-owned { position: absolute; top: 0; right: 0; padding: 2px 7px; border-radius: 6px; background: #1c1923d9; color: #9fdcb2; font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
 
 /* Names wrap to two lines; the full name is in the title tooltip */

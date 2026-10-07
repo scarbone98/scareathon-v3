@@ -30,6 +30,7 @@ import LoadingSpinner from "../../components/LoadingSpinner";
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
 import "../../styles/inbox.css";
+import NewsDot from "../../components/NewsDot";
 import type {
   InboxConversation,
   InboxMessage,
@@ -625,7 +626,8 @@ function ConversationRow({
             {!conversation.repliesEnabled && (
               <FaLock className="inbox-row-lock" aria-label="Replies off" />
             )}
-            {isUnread && <span className="inbox-unread-dot">{conversation.unreadCount}</span>}
+            {isUnread && <NewsDot label="Unread" />}
+            {conversation.unreadCount > 1 && <span className="inbox-unread-dot">{conversation.unreadCount}</span>}
           </span>
         </span>
       </button>

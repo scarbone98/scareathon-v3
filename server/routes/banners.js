@@ -3,7 +3,8 @@ import pool from '../db/mockDB.js';
 // Scoreboard banners: the strip each player's place, avatar, name and points sit on, on
 // the Scareboard. Bought with tickets at the ticket counter and chosen at your locker.
 // The art is drawn in the browser (src/station/banners.ts); this keeps who owns which,
-// and which each player has up.
+// and which each player has up. (A banner's `added` is the day it went on sale: the shop
+// dots what's new since you last looked.)
 
 export const BANNERS = [
     { key: 'starry_night', name: 'Starry Night', price: 120 },
@@ -45,29 +46,29 @@ export const BANNERS = [
     { key: 'abduction', name: 'Abduction', price: 300 },
     { key: 'fairy_ring', name: 'Fairy Ring', price: 220 },
     // Fifteen more: monsters, the pictures, and one for spring
-    { key: 'eight_bit_evil', name: '8 Bit Evil', price: 300 },
-    { key: 'howling_wolf', name: 'Howling Wolf', price: 260 },
-    { key: 'witch_flight', name: 'Witch Flight', price: 260 },
-    { key: 'jack_o_lanterns', name: "Jack O'Lanterns", price: 220 },
-    { key: 'ghost_parade', name: 'Ghost Parade', price: 200 },
-    { key: 'scarecrow', name: 'Scarecrow', price: 220 },
-    { key: 'lighthouse', name: 'Lighthouse', price: 240 },
-    { key: 'city_rain', name: 'City Rain', price: 200 },
-    { key: 'drive_in', name: 'Drive-In', price: 280 },
-    { key: 'big_top', name: 'Big Top', price: 160 },
-    { key: 'catacombs', name: 'Catacombs', price: 180 },
-    { key: 'eyes_in_the_dark', name: 'Eyes in the Dark', price: 160 },
-    { key: 'ghost_ship', name: 'Ghost Ship', price: 280 },
-    { key: 'mad_lab', name: 'Mad Lab', price: 220 },
-    { key: 'cherry_blossoms', name: 'Cherry Blossoms', price: 180 },
+    { key: 'eight_bit_evil', name: '8 Bit Evil', price: 300, added: '2026-10-08' },
+    { key: 'howling_wolf', name: 'Howling Wolf', price: 260, added: '2026-10-08' },
+    { key: 'witch_flight', name: 'Witch Flight', price: 260, added: '2026-10-08' },
+    { key: 'jack_o_lanterns', name: "Jack O'Lanterns", price: 220, added: '2026-10-08' },
+    { key: 'ghost_parade', name: 'Ghost Parade', price: 200, added: '2026-10-08' },
+    { key: 'scarecrow', name: 'Scarecrow', price: 220, added: '2026-10-08' },
+    { key: 'lighthouse', name: 'Lighthouse', price: 240, added: '2026-10-08' },
+    { key: 'city_rain', name: 'City Rain', price: 200, added: '2026-10-08' },
+    { key: 'drive_in', name: 'Drive-In', price: 280, added: '2026-10-08' },
+    { key: 'big_top', name: 'Big Top', price: 160, added: '2026-10-08' },
+    { key: 'catacombs', name: 'Catacombs', price: 180, added: '2026-10-08' },
+    { key: 'eyes_in_the_dark', name: 'Eyes in the Dark', price: 160, added: '2026-10-08' },
+    { key: 'ghost_ship', name: 'Ghost Ship', price: 280, added: '2026-10-08' },
+    { key: 'mad_lab', name: 'Mad Lab', price: 220, added: '2026-10-08' },
+    { key: 'cherry_blossoms', name: 'Cherry Blossoms', price: 180, added: '2026-10-08' },
     // The ones that move (the site draws their frames), at a premium
-    { key: 'meteor_shower', name: 'Meteor Shower', price: 600, animated: true },
-    { key: 'bonfire_night', name: 'Bonfire Night', price: 550, animated: true },
-    { key: 'lightning_storm', name: 'Lightning Storm', price: 600, animated: true },
-    { key: 'ghost_train', name: 'Ghost Train', price: 750, animated: true },
-    { key: 'dance_floor', name: 'Dance Floor', price: 500, animated: true },
-    { key: 'aurora_borealis', name: 'Aurora Borealis', price: 650, animated: true },
-    { key: 'bubbling_brew', name: 'Bubbling Brew', price: 500, animated: true },
+    { key: 'meteor_shower', name: 'Meteor Shower', price: 600, animated: true, added: '2026-10-09' },
+    { key: 'bonfire_night', name: 'Bonfire Night', price: 550, animated: true, added: '2026-10-09' },
+    { key: 'lightning_storm', name: 'Lightning Storm', price: 600, animated: true, added: '2026-10-09' },
+    { key: 'ghost_train', name: 'Ghost Train', price: 750, animated: true, added: '2026-10-09' },
+    { key: 'dance_floor', name: 'Dance Floor', price: 500, animated: true, added: '2026-10-09' },
+    { key: 'aurora_borealis', name: 'Aurora Borealis', price: 650, animated: true, added: '2026-10-09' },
+    { key: 'bubbling_brew', name: 'Bubbling Brew', price: 500, animated: true, added: '2026-10-09' },
 ];
 const BY_KEY = new Map(BANNERS.map((banner) => [banner.key, banner]));
 
