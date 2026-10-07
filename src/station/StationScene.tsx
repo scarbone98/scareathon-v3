@@ -54,6 +54,8 @@ import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
 import { fetchWithAuth } from "../fetchWithAuth";
 import { radio as radio$, songNamed } from "./radio.ts";
+import { composeLook } from "../components/avatar/compose";
+import type { AvatarLook } from "../components/avatar/types";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
 import { CABINET_FONT, CABINET_TRIM, createCabinetFinish } from "../pages/ArcadeV2/cabinetFinish.ts";
 import { MARKER_FONT } from "../pages/ArcadeV2/slotRig.ts";
@@ -127,6 +129,9 @@ export type Boards = {
   unread: number; // letters waiting in your pigeonhole
   poster: { image?: string | null; title: string; line: string };
   rune: string | null; // the day's code, for the rune tablet over the track-side arch
+  // Whoever's top of the Scareboard, for the poster by the ticket counter (none: nobody
+  // yet, or signed out, when the board isn't shown)
+  champion: { name: string; total: string; look?: AvatarLook } | null;
 };
 
 const WALL_Z = -2.2;
@@ -1686,6 +1691,55 @@ function shopAdvertTexture(pick: number, onPicked?: (name: string) => void) {
   return texture;
 }
 
+// The poster by the ticket counter: whoever's top of the Scareboard, their avatar big in
+// a spotlight, their name and points under it (avatar: their look, drawn, once it's ready)
+function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champion: Boards["champion"], avatar?: { strip: HTMLCanvasElement; width: number; height: number }) {
+  ctx.fillStyle = "#161226";
+  ctx.fillRect(0, 0, w, h);
+  const spot = ctx.createRadialGradient(w / 2, h * 0.52, 10, w / 2, h * 0.52, w * 0.62);
+  spot.addColorStop(0, "#5a3a78");
+  spot.addColorStop(0.6, "#2a1c40");
+  spot.addColorStop(1, "#161226");
+  ctx.fillStyle = spot;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "#e0b030";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(9, 9, w - 18, h - 18);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(19, 19, w - 38, h - 38);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#f8dc6a";
+  ctx.font = "700 30px Georgia, serif";
+  ctx.fillText("TOP OF THE BOARD", w / 2, 56, w - 60);
+  ctx.font = "22px Georgia, serif";
+  ctx.fillText("\u2605  \u2605  \u2605", w / 2, 88);
+  // The avatar, in whole pixels, standing on the floor of the spotlight
+  const floor = h * 0.74;
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(w / 2, floor, w * 0.24, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (avatar) {
+    const scale = Math.floor((h * 0.6) / avatar.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(avatar.strip, 0, 0, avatar.width, avatar.height, Math.round(w / 2 - (avatar.width * scale) / 2), Math.round(floor + scale - avatar.height * scale), avatar.width * scale, avatar.height * scale);
+    ctx.imageSmoothingEnabled = true;
+  } else {
+    ctx.fillStyle = "rgba(248,220,106,0.5)";
+    ctx.font = "700 150px Georgia, serif";
+    ctx.fillText("?", w / 2, h * 0.52);
+  }
+  ctx.fillStyle = "#0f0b1a";
+  ctx.fillRect(30, h * 0.775, w - 60, 62);
+  ctx.fillStyle = "#f2ead2";
+  ctx.font = "700 34px Georgia, serif";
+  ctx.fillText(champion ? champion.name.toUpperCase() : "WHO WILL IT BE?", w / 2, h * 0.775 + 32, w - 80);
+  ctx.fillStyle = "#f8dc6a";
+  ctx.font = "italic 24px Georgia, serif";
+  ctx.fillText(champion ? `${champion.total} ${champion.total === "1" ? "point" : "points"}` : "Sign in to see the standings", w / 2, h * 0.775 + 92, w - 60);
+}
+
 function buildTickets() {
   const group = new Group();
   group.position.set(SIDE_X - 0.13, 0, TICKET_Z);
@@ -1755,6 +1809,14 @@ function buildTickets() {
     ad.userData.part = shop ? "advert-shop" : `advert-${name}`;
     group.add(ad);
   });
+  // To the left of the counter, on the wall: the poster of whoever's top of the Scareboard
+  // (a tap on it, from anywhere: up close to it. See the page, and championPose in the scene)
+  const championTexture = paint(360, 510, (ctx, w, h) => drawChampion(ctx, w, h, null));
+  group.add(box(0.8, 1.1, 0.03, wood, -1.5, 1.85, -0.11));
+  const championPoster = plane(0.72, 1.02, standard("#b8b0a4", 1, championTexture), -1.5, 1.85, -0.09);
+  championPoster.userData.part = "champion";
+  group.add(championPoster);
+  group.userData.champion = { texture: championTexture, poster: championPoster };
   const clerk = buildClerk();
   group.add(clerk.eyes, clerk.eyes.userData.grin as Mesh, clerk.hand);
   group.userData.clerk = clerk;
@@ -2177,8 +2239,15 @@ function buildTrain() {
     }
   }
   const headlight = new Sprite(new SpriteMaterial({ map: glowTexture(), blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
-  headlight.scale.set(3, 3, 1);
-  headlight.position.set(5.9, 0.4, TRACK_Z);
+  // (its glow is a picture that turns to face you: seen from the platform it lies along the
+  // train, so it sits a whole half-width ahead of the nose, where none of it is inside the
+  // engine; and a lamp on the nose itself for it to come from)
+  headlight.scale.set(2.2, 2.2, 1);
+  headlight.position.set(5.7 + 1.15, 0.4, TRACK_Z);
+  const noseLamp = new Mesh(new CircleGeometry(0.16, 14), new MeshBasicMaterial({ color: "#fff3c8", fog: false }));
+  noseLamp.position.set(5.71, 0.4, TRACK_Z);
+  noseLamp.rotation.y = Math.PI / 2;
+  train.add(noseLamp);
   train.add(headlight);
   train.visible = false;
   return train;
@@ -2272,8 +2341,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const tint = isHalloweenSeason() ? 1 + Math.floor(Math.random() * (LAMP_TINTS.length - 1)) : 0;
       const warm = light.color.clone();
       if (tint) light.color.copy(LAMP_TINTS[tint] ?? warm);
-      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: 12 + Math.random() * 40, moths, warm, tint });
+      lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: (tint ? 15 : 12) + Math.random() * (tint ? 75 : 40), moths, warm, tint });
     };
+    const hauntedLamps = isHalloweenSeason();
     const LAMP_FLICKER = 1.1; // s
     // How lit a tapped lamp is, t seconds after the tap: mostly out, catching now and then
     const flickerAt = (t: number, seed: number) => {
@@ -3407,7 +3477,40 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const poster = events.userData.poster as Mesh<PlaneGeometry, MeshStandardMaterial>;
     const paintedPoster = poster.material.map as CanvasTexture;
     let posterImage = "";
-    paintBoardsRef.current = ({ notices, departures: board, poster: sheet, unread, rune }) => {
+    // (how the camera stands up close to the champion's poster: set just below, used by poseFor)
+    const championPoseRef: { current: (() => { x: number; y: number; z: number; yaw: number; pitch: number }) | null } = { current: null };
+    // The champion's poster: its lettering at once, their avatar when it's been drawn
+    let championShown = "\u0000";
+    const paintChampion = (champion: Boards["champion"]) => {
+      const key = champion ? `${champion.name}|${champion.total}|${JSON.stringify(champion.look ?? null)}` : "";
+      if (key === championShown) return;
+      championShown = key;
+      const { texture } = tickets.userData.champion as { texture: CanvasTexture };
+      repaint(texture, (ctx, w, h) => drawChampion(ctx, w, h, champion));
+      const look = champion?.look;
+      if (!look) return;
+      void loadAvatarManifest()
+        .then((manifest) => composeLook(look, manifest).then(({ canvas: strip }) => ({ strip, width: manifest.width, height: manifest.height })))
+        .then((avatar) => {
+          if (championShown === key) repaint(texture, (ctx, w, h) => drawChampion(ctx, w, h, champion, avatar));
+        })
+        .catch(() => undefined); // (their look wouldn't draw: the poster keeps its question mark)
+    };
+    // Up close to the champion's poster: square on to it, all of it in view
+    const championPose = () => {
+      const { poster } = tickets.userData.champion as { poster: Mesh };
+      tickets.updateWorldMatrix(true, true);
+      const centre = poster.getWorldPosition(new Vector3());
+      const normal = tickets.getWorldDirection(new Vector3());
+      const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
+      const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
+      const distance = Math.max((0.8 * 1.1) / 2 / Math.tan(halfWidth), (1.1 * 1.12) / 2 / Math.tan(halfHeight));
+      const eye = centre.add(normal.clone().multiplyScalar(distance));
+      return { x: eye.x, y: eye.y, z: eye.z, yaw: Math.atan2(normal.x, normal.z), pitch: 0 };
+    };
+    championPoseRef.current = championPose;
+    paintBoardsRef.current = ({ notices, departures: board, poster: sheet, unread, rune, champion }) => {
+      paintChampion(champion);
       if (rune !== runeCarved) {
         runeCarved = rune;
         repaint(runeTexture, (ctx, w, h) => drawRuneTablet(ctx, w, h, rune));
@@ -3533,6 +3636,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       // The radio on the bench, up close
       if (stopId === "bench" && latest.current.zoom === "radio") return radioPose();
+      // The champion's poster by the ticket counter, up close
+      if (stopId === "tickets" && latest.current.zoom === "champion" && championPoseRef.current) return championPoseRef.current();
       // Reading something up close: square on to it (a leaning flyer is looked down at),
       // just far enough back that all of it fits
       const zoomed = latest.current.zoom ? placed.find(({ spec }) => spec.id === latest.current.zoom && spec.stop === stopId) : null;
@@ -3736,6 +3841,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           else partTapped("radio");
         }
         // (up close to the radio, a tap on the bench round it steps back, as one on nothing does)
+        // (the champion's poster by the counter: a tap on it, from anywhere, is a closer look;
+        // up close to it, a tap anywhere else steps back)
+        else if (hit?.part === "champion") {
+          if (!(current === "tickets" && latest.current.zoom === "champion")) partTapped("champion");
+        } else if (current === "tickets" && latest.current.zoom === "champion") (emptyTapped ?? (() => select(null)))();
         // (and sat on the bench, a tap on it or on the sky gets you up, as one on nothing does)
         else if (current === "bench" && hit?.stop === "bench") (emptyTapped ?? (() => select(null)))();
         else if (hit && hit.stop !== current && hit.stop === "bulletin" && hit.part?.startsWith("paper-") && latest.current.papersFromAfar) partTapped(hit.part);
@@ -4020,7 +4130,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         if (!reduced && nowSec > lamp.nextFlicker) {
           lamp.tappedAt = nowSec;
           lamp.seed = Math.random() * 100;
-          lamp.nextFlicker = nowSec + 20 + Math.random() * 50;
+          // HALLOWEEN: and it comes back another colour, any but the one it was (the rest of
+          // the year it only stutters, and less often)
+          if (hauntedLamps) {
+            lamp.tint = 1 + ((lamp.tint - 1 + 1 + Math.floor(Math.random() * (LAMP_TINTS.length - 2))) % (LAMP_TINTS.length - 1));
+            lamp.light.color.copy(LAMP_TINTS[lamp.tint] ?? lamp.warm);
+          }
+          lamp.nextFlicker = nowSec + (hauntedLamps ? 45 + Math.random() * 90 : 20 + Math.random() * 50);
         }
         // Moths: about half the time, three of them, looping round the glass, wings beating
         lamp.moths.visible = !reduced && (t + index * 23) % 80 < 40;

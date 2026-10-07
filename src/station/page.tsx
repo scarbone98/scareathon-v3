@@ -10,7 +10,7 @@ import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
 import { markPlayed, watchGameUpdates } from "../pages/Arcade/news";
 import { createArcadeGames, normalizeMachineName, pickShuffleGame, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
-import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie } from "./data.ts";
+import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie, useLooks } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
@@ -56,6 +56,9 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   const { data: summary } = useSummary();
   const { data: rune = null } = useDailyRune();
   const unread = signedIn ? summary?.unreadCount ?? 0 : 0;
+  // (whoever's first on the Scareboard, and how they look)
+  const first = scoreboard?.leaderboard.data[0];
+  const { data: looks } = useLooks(first?.userId ? [first.userId] : []);
   // Keyed on the text, so the board is only repainted when a paper's headline changes
   const noticeKey = papers.map((paper) => `${paper.kind}\u0000${paper.title}`).join("\u0001");
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,8 +80,10 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
       : isLive
         ? { image: null, title: "Showing tonight", line: "Sign in to see what's on" }
         : { image: null, title: "Dark tonight", line: `The first reel: October 1, ${year}` };
-    return { notices, departures, poster, unread, rune };
-  }, [notices, scoreboard, signedIn, movie, isLive, year, unread, rune]);
+    // Top of the board, for the poster by the ticket counter
+    const champion = signedIn && first ? { name: first.name, total: String(first.total ?? ""), look: first.userId ? looks?.[first.userId] : undefined } : null;
+    return { notices, departures, poster, unread, rune, champion };
+  }, [notices, scoreboard, signedIn, movie, isLive, year, unread, rune, first, looks]);
 }
 
 // How much of a phone's screen the held card takes, under the object
@@ -239,10 +244,13 @@ export default function StationPage() {
   const toRadio = useRef(false);
   // (and up to the board for one of its papers, on a big screen)
   const toPaper = useRef<number | null>(null);
+  // (and up to the ticket counter for the champion's poster beside it)
+  const toChampion = useRef(false);
   useEffect(() => {
     const paper = toPaper.current;
-    setZoom(at === "bench" && toRadio.current ? "radio" : at === "bulletin" && paper !== null ? `paper-${paper}` : null);
+    setZoom(at === "bench" && toRadio.current ? "radio" : at === "tickets" && toChampion.current ? "champion" : at === "bulletin" && paper !== null ? `paper-${paper}` : null);
     toRadio.current = false;
+    toChampion.current = false;
     toPaper.current = null;
     // A big screen is never just stood at the board (a link straight to it, say): back to the platform
     if (at === "bulletin" && !compact && paper === null) setParams(faceParams("front"), { replace: true });
@@ -326,6 +334,15 @@ export default function StationPage() {
   // in the card, and on wide screens (where the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
     // The radio on the bench: up close to it (its keys and screen are its own: StationScene)
+    // The champion's poster by the ticket counter: up close to it
+    if (part === "champion") {
+      if (at === "tickets") setZoom("champion");
+      else {
+        toChampion.current = true;
+        select("tickets");
+      }
+      return;
+    }
     if (part === "radio") {
       if (at === "bench") setZoom("radio");
       else {
@@ -523,6 +540,7 @@ export default function StationPage() {
   }, [mobileMenuOpen]);
 
   // (from a paper on the board, a big screen steps right back to the platform)
+  // (and from the champion's poster, back to the platform, not to the counter beside it)
   const stepBack = () => (readsUpClose && zoom !== null && !(at === "bulletin" && !compact) ? setZoom(null) : select(null));
 
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
@@ -615,7 +633,7 @@ export default function StationPage() {
             // On phones things are used through the held card, except what's read where it hangs
             surfacesInteractive={!compact || readsUpClose}
             cardFraction={cardItems ? CARD_FRACTION : 0}
-            zoom={readsUpClose || at === "bench" ? zoom : null}
+            zoom={readsUpClose || at === "bench" || at === "tickets" ? zoom : null}
             onEmptyTap={stepBack}
             onPart={onPart}
             papersFromAfar={!compact}
@@ -684,7 +702,7 @@ export default function StationPage() {
         )}
 
         {/* The ticketmaster has a word for you as you walk up */}
-        <ClerkSays arrived={at === "tickets" && atArrived && !held} />
+        <ClerkSays arrived={at === "tickets" && atArrived && !held && zoom !== "champion"} />
 
         <Sheet sheet={sheet} onClose={closeSheet} above={Boolean(playing)} />
 
