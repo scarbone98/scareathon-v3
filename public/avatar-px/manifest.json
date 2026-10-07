@@ -4622,6 +4622,33 @@
       "release": "released"
     },
     {
+      "key": "imp",
+      "name": "Imp",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 16,
+          "y": 32,
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "src": "/avatar-px/items/imp/0-companion.png?v=06ee57d946"
+        }
+      ],
+      "icon": "/avatar-px/items/imp/icon.png?v=1c28b35018",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 360,
+      "release": "released"
+    },
+    {
       "key": "jack_o_lantern_head",
       "name": "Jack-o'-Lantern Head",
       "category": "face_acc",
