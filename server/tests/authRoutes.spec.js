@@ -17,6 +17,11 @@ describe('auth route rules', () => {
         expect(isPublicRoute('GET', '/inbox/conversations')).toBe(false);
     });
 
+    test('october valley co-op rooms are open to guests', () => {
+        expect(isPublicRoute('GET', '/october-valley/ws')).toBe(true);
+        expect(isPublicRoute('POST', '/october-valley/ws')).toBe(false);
+    });
+
     test('monster bash spectating is open, anything else there is not', () => {
         expect(isPublicRoute('GET', '/monster-bash/ws')).toBe(true);
         expect(isPublicRoute('GET', '/monster-bash/recent')).toBe(true);

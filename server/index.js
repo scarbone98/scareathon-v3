@@ -15,6 +15,7 @@ import waysideRoutes, { ensureDailyRuneIndex } from './routes/wayside.js';
 import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
 import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import eightBitEvilV2Routes from './routes/8bitevilreturnsV2.js';
+import octoberValleyRoutes from './routes/octoberValley.js';
 import gamesRoutes from './routes/games.js';
 import userRoutes from './routes/user.js';
 import marketplaceRoutes from './routes/marketplace.js';
@@ -239,6 +240,7 @@ async function main() {
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
         fastify.register(eightBitEvilV2Routes, { prefix: '/8bitevilreturns/v2' });
+        fastify.register(octoberValleyRoutes, { prefix: '/october-valley' });
         fastify.register(userRoutes, { prefix: '/user' });
         fastify.register(marketplaceRoutes, { prefix: '/marketplace' });
         fastify.register(inboxRoutes, { prefix: '/inbox' });
