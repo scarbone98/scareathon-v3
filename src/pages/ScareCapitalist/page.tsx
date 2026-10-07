@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Button, Embers, Panel, Sprite } from "../Royale/ui/parts";
 import { ORANGE, PURPLE, SPRITES } from "../Royale/ui/theme";
 import {
-  BUY_MODES, INVESTOR_SCALE, PORTFOLIO_STEPS, ROUNDS, SEANCES, UPGRADES, VENTURES,
+  BUY_MODES, PORTFOLIO_STEPS, ROUNDS, SEANCES, UPGRADES, VENTURES,
   buy, buyQuote, buySeance, buyUpgrade, catchUp, claimableInvestors, haunt, hireManager,
-  incomePerSec, investorBonus, investorsFor, lifetimeFor, minOwned, newState, nextPortfolio, roundAfter,
+  incomePerSec, investorBonus, minOwned, newState, nextPortfolio, roundAfter,
   start, tick, ventureStats, type BuyMode, type State,
 } from "./game/economy";
 import { formatDuration, formatMoney, formatNumber, formatShort } from "./game/format";
@@ -570,8 +570,6 @@ function Rounds({ s }: { s: State }) {
 
 function Investors({ s, claim, onHaunt, act }: { s: State; claim: number; onHaunt: () => void; act: (fn: () => boolean, f?: number) => void }) {
   const bonus = investorBonus(s);
-  const total = investorsFor(s.lifetime);
-  const nextAt = lifetimeFor(total + 1);
   const worth = claim > 0 && claim >= Math.max(1, s.investors);
   const shownSeances = useMemo(() => SEANCES, []);
   return (
@@ -588,15 +586,7 @@ function Investors({ s, claim, onHaunt, act }: { s: State; claim: number; onHaun
         </div>
       </Panel>
       <Panel className="text-sm">
-        <div className="cc-outline-sm leading-snug">
-          The ghosts of failed founders back you in proportion to the cube root of every dollar you've ever made:
-        </div>
-        <div className="cc-outline-sm my-1 text-center text-[#ffcf4a]">investors = {INVESTOR_SCALE} × ∛(lifetime ÷ $10 Trillion)</div>
-        <div className="cc-outline-sm text-xs leading-snug text-[#c8b0dc]">
-          Lifetime: {formatMoney(s.lifetime)} · earned in all: {formatNumber(total)}
-          <br />
-          Next investor at {formatMoney(nextAt)} lifetime
-        </div>
+        <div className="cc-outline-sm leading-snug">The ghosts of failed founders back you for every dollar you've ever made.</div>
         <div className="cc-outline mt-2 text-center text-xl">
           +{formatNumber(claim)} <span className="text-sm text-[#c8b0dc]">on haunting</span>
         </div>
