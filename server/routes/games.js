@@ -7,16 +7,18 @@ const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
 
 // A run pays out tickets from the cabinet's dispenser by how far it got: nothing for
-// dying straight away, up to PLAY_TICKETS for a strong run (each game's `tickets` scale
-// in GAME_SCORE_POLICIES). A game with its own arcade_reward_rules pays by those instead.
+// dying straight away, PLAY_TICKETS for a strong run (each game's `tickets` scale in
+// GAME_SCORE_POLICIES), and on at the same rate past that, up to PLAY_TICKETS_RUN_CAP.
+// A game with its own arcade_reward_rules pays by those instead.
 // There's no stopping for the day: until a player has had PLAY_TICKETS_FULL_UNTIL tickets today
 // (US Eastern, like the rune) a run pays what it earned, and past that it pays a share of it,
-// halving with every PLAY_TICKETS_TAPER_STEP more they've had (a full run pays 5, then 3, 2,
+// halving with every PLAY_TICKETS_TAPER_STEP more they've had (a strong run pays 5, then 3, 2,
 // and 1 from there on; a run that earned anything always pays at least 1), so playing on is
 // always worth something but can't be farmed. Only a script could reach the backstop, where
 // it does stop: at one ticket a run, that's hundreds of runs past the taper.
 export const PLAY_TICKETS = 10;
-export const PLAY_TICKETS_FULL_UNTIL = 150;
+export const PLAY_TICKETS_RUN_CAP = 50;
+export const PLAY_TICKETS_FULL_UNTIL = 300;
 export const PLAY_TICKETS_TAPER_STEP = 50;
 export const PLAY_TICKETS_DAILY_BACKSTOP = 1000;
 const PLAY_TICKETS_SOURCE = 'arcade_play';
@@ -25,8 +27,8 @@ export function playTicketsFor(game, metricName, metricValue, paidToday) {
     const scale = GAME_SCORE_POLICIES.get(game)?.tickets;
     const value = Number(metricValue);
     if (metricName !== 'score' || !scale || !(value > scale.from)) return 0;
-    const progress = Math.min(1, (value - scale.from) / (scale.full - scale.from));
-    const earned = Math.floor(PLAY_TICKETS * progress);
+    const progress = (value - scale.from) / (scale.full - scale.from);
+    const earned = Math.min(PLAY_TICKETS_RUN_CAP, Math.floor(PLAY_TICKETS * progress));
     const paid = Number(paidToday || 0);
     if (earned <= 0 || paid >= PLAY_TICKETS_DAILY_BACKSTOP) return 0;
     if (paid < PLAY_TICKETS_FULL_UNTIL) return earned;

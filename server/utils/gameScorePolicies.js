@@ -3,8 +3,9 @@
 // inside these limits.
 //
 // tickets: how a run's score turns into play tickets. A score at or below `from`
-// (what dying straight away scores) pays nothing; it climbs to the full payout at
-// `full`, about a strong run (roughly the 75th percentile of saved scores).
+// (what dying straight away scores) pays nothing; it climbs at a steady rate, reaching
+// PLAY_TICKETS at `full`, about a strong run (roughly the 75th percentile of saved
+// scores), and keeps climbing past it up to the per-run cap.
 export const GAME_SCORE_POLICIES = new Map([
     ['8 Bit Evil Returns', {
         score: { min: 0, max: 86400, integer: true },
