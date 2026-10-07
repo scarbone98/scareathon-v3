@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CharacterSheet } from "./CharacterSheet";
 import { HeroPortrait } from "./HeroPortrait";
-import { loadHeroAvatar, type HeroAvatar } from "./game/avatar";
+import { FuryCoop, type CoopRoom } from "./game/coop";
+import { composeAppearance, loadHeroAvatar, type HeroAvatar } from "./game/avatar";
 import { GameController } from "./game/controller";
 import { type InputMode } from "./game/input";
 import { type RenderPresentation } from "./game/render";
@@ -102,6 +103,8 @@ export default function WaysideFury() {
   const saveRef = useRef(saved);
   const [settings, setSettings] = useState<SaveSettings>(() => saved?.settings ?? { ...DEFAULT_SETTINGS, controls: { ...DEFAULT_SETTINGS.controls, tutorialDismissed: !tutorialVisible() } });
   const settingsRef = useRef(settings);
+  const coopRef = useRef<FuryCoop | null>(null);
+  const [coopRoom, setCoopRoom] = useState<CoopRoom | null>(null);
   const storeRef = useRef<CloudSaveStore | null>(null);
   const playingRef = useRef(false);
   const pausedRef = useRef(false);
@@ -188,6 +191,10 @@ export default function WaysideFury() {
         if (next && !store.persist({ ...next, settings: settingsRef.current }, report.score > 0)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
       }});
     controller.current = game;
+    const coop = new FuryCoop({ onRoom: room => { setCoopRoom(room); if (!room) delete game.state.coop; }, onToast: setSaveToast,
+      onAvatar: (seat, appearance) => { const userId = coop.room?.players.find(p => p.seat === seat)?.userId; void composeAppearance(appearance).then(assets => { if (coop.room?.players.some(p => p.seat === seat && p.userId === userId)) game.setRemoteAvatar(seat, assets); }); },
+    });
+    coopRef.current = coop; game.setCoop(coop);
     let mounted = true;
     let avatarAccount: string | null | undefined;
     let avatarAbort: AbortController | null = null;
@@ -232,7 +239,7 @@ export default function WaysideFury() {
         if (mounted) setReward(score);
       },
     }, () => {
-      exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
+      coop.leave(); exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
       avatarReady = false; saveReady = false; setCharacterOpen(false); setLoadingAvatar(true); game.setPaused(true);
     });
     storeRef.current = connected.store;
@@ -278,6 +285,7 @@ export default function WaysideFury() {
   }, [characterOpen, mode]);
   const send = (input: Partial<Input>) => controller.current?.setTouch(input);
   const hero = activeHero(state);
+  void coopRoom;
   const partner = nextPartyHero(state);
   const cinematic = state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
   const beat = PROLOGUE[state.cutscene] ?? PROLOGUE[0];
@@ -287,7 +295,7 @@ export default function WaysideFury() {
   const touchControls = mode === "touch" && playing && !paused && !state.overlay && !cinematic && state.scene !== "dead";
   const storyTitles = { backstory: "THE CREW MADE IT HOME.", years: "FIVE YEARS LATER", bbq: "A QUIET LIFE", dark: "SOMETHING IN THE SKY", portal: "THE REAL EVIL ARRIVES", suitup: "GEAR UP", taxi: "THE BLAST SITE" };
   const storyEyebrows = { backstory: "THE STORY SO FAR", years: "A QUIET LIFE", bbq: "WAYSIDE · FIVE YEARS LATER", dark: "OUT PAST THE OLD ROAD", portal: "A FLICKER THROUGH THE CRACK", suitup: "JOE · MATT · ALEX · JON", taxi: "CHAPTER 1" };
-  const quit = () => { exitRef.current(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); };
+  const quit = () => { exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); };
   const showTutorial = tutorial && playing && !loadingSave && !loadingAvatar && !cinematic && !paused && !state.overlay && !target;
   const dismissTutorial = () => updateSettings({ ...settingsRef.current, controls: { ...settingsRef.current.controls, tutorialDismissed: true } });
   dismissTutorialRef.current = dismissTutorial;

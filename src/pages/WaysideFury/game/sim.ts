@@ -16,6 +16,18 @@ export interface HeroState {
   stamina: number; maxStamina: number; level: number; xp: number;
   power: number; defense: number; invulnerable: number;
 }
+export interface RemoteHero {
+  seat: number; userId: string; name: string; hero: HeroState;
+  x: number; y: number; faceX: number; faceY: number; moving: boolean;
+  guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
+  scene: Scene; room: number; downed?: boolean; reviveProgress?: number;
+}
+export interface CoopRuntime {
+  role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
+}
+export interface CoopHit {
+  type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
+}
 export interface Enemy {
   id: number; kind: "grunt" | "shooter" | "boss";
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
@@ -35,6 +47,7 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | CoopHit
   | { type: "hit"; x: number; y: number; damage: number; target: "hero" | "enemy" }
   | { type: "kill"; enemyId: number; kind: Enemy["kind"]; x: number; y: number; sprite: Enemy["sprite"]; radius: number }
   | { type: "level"; hero: HeroId; level: number }
@@ -54,6 +67,7 @@ export interface GameState {
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   candy: number; deaths: number; kills: number; events: GameEvent[];
   previousInput: Input; rngSeed: number; nextId: number;
+  coop?: CoopRuntime;
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -105,7 +119,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   if (scene === "overworld") s.notice = "Chapter 1: drive east to the Blast Site. Pull over at a marker.";
   if (scene === "hub") s.notice = "Wayside: visit the station, shop, HOME and BBQ yard. Taxi pickup is by the south road.";
   if (scene === "dungeon" || scene === "realm") {
-    if (!s.clearedRooms.includes(world.id)) {
+    if (s.coop?.role !== "guest" && !s.clearedRooms.includes(world.id)) {
       for (const spawn of world.spawns) {
         const enemy = addEnemy(s, spawn.kind, spawn.x, spawn.y);
         if (spawn.sprite) enemy.sprite = spawn.sprite;
@@ -121,8 +135,10 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
       : `${world.name}: clear the eastern route. Explore side trails for supplies.`;
   }
   if (scene === "test") {
-    addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
-    addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
+    if (s.coop?.role !== "guest") {
+      addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
+      addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
+    }
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
   }
 }
@@ -135,7 +151,7 @@ function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: 
   }
 }
 export function advanceStory(s: GameState): void {
-  if (s.scene !== "prologue") return;
+  if (s.scene !== "prologue" || s.coop?.role === "guest") return;
   s.cutscene++; s.sceneTimer = 0;
   if (s.cutscene >= PROLOGUE.length) {
     enterScene(s, "overworld"); s.previousInput.interact = true;
@@ -192,6 +208,30 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius });
   }
 }
+// Hosts are the only authority for enemy HP and kill rewards. A beam may hit
+// several enemies, so dedupe the attack/target pair rather than the whole attack.
+export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean {
+  if (s.coop?.role !== "host" || seat === s.coop.seat || !Number.isInteger(seat) || seat < 0 || seat > 3) return false;
+  if (!Number.isInteger(hit.enemyId) || typeof hit.attackId !== "string" || !hit.attackId || hit.attackId.length > 96
+    || ![hit.damage, hit.dx, hit.dy, hit.force].every(Number.isFinite)
+    || hit.damage <= 0 || hit.damage > 100000 || hit.force < 0 || hit.force > 1000
+    || Math.abs(hit.dx) > 1.01 || Math.abs(hit.dy) > 1.01) return false;
+  const enemy = s.enemies.find(e => e.id === hit.enemyId && e.hp > 0);
+  if (!enemy) return false;
+  const key = `${seat}:${hit.attackId}:${hit.enemyId}`;
+  if (s.coop.appliedHits.includes(key)) return false;
+  s.coop.appliedHits.push(key);
+  if (s.coop.appliedHits.length > 2048) s.coop.appliedHits.splice(0, s.coop.appliedHits.length - 2048);
+  hurtEnemy(s, enemy, hit.damage, hit.dx, hit.dy, hit.force);
+  return true;
+}
+function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
+  if (e.hp <= 0) return;
+  if (s.coop?.role === "guest") {
+    s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
+    effect(s, "hit", e.x, e.y, 9, 0.12);
+  } else hurtEnemy(s, e, damage, dx, dy, force);
+}
 export function nextPartyHero(s: GameState): HeroId | null {
   const at = s.party.indexOf(s.active);
   for (let offset = 1; offset <= s.party.length; offset++) {
@@ -239,11 +279,12 @@ function melee(s: GameState) {
   s.comboWindow = 0.8;
   const reach = s.combo === 3 ? 34 : 28;
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
+  const attackId = `melee:${s.nextId++}`;
   let hit = false;
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
-    hurtEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55);
+    attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
     hit = true;
   }
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
@@ -362,7 +403,7 @@ function updateProjectiles(s: GameState, dt: number) {
         if (e.hp <= 0 || p.hits.includes(e.id) || !collides(e.x, e.y, e.radius)) continue;
         p.hits.push(e.id);
         const length = Math.max(1, Math.hypot(p.vx, p.vy));
-        hurtEnemy(s, e, p.damage, p.vx / length, p.vy / length, p.beam ? 85 : 40);
+        attackEnemy(s, e, p.damage, p.vx / length, p.vy / length, p.beam ? 85 : 40, `projectile:${p.id}`);
         if (!p.beam) { p.ttl = 0; break; }
       }
     } else if (collides(s.x, s.y, 7)) { hurtHero(s, p.damage, x0, y0); p.ttl = 0; }
@@ -402,6 +443,7 @@ function travel(s: GameState, door: WorldExit) {
   s.previousInput.interact = true;
 }
 export function interact(s: GameState): void {
+  if (s.coop?.role === "guest") return;
   const target = interactTarget(s);
   if (!target) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
@@ -476,7 +518,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     return;
   }
   if (s.scene === "shift") {
-    if (s.sceneTimer >= 2.4) {
+    if (s.coop?.role !== "guest" && s.sceneTimer >= 2.4) {
       const target = s.transitionTarget ?? "realm", palette = s.transitionPalette;
       enterScene(s, target); s.palette = palette;
       s.previousInput = { ...input };
@@ -538,8 +580,9 @@ export function step(s: GameState, input: Input, delta: number): void {
   }
   if (!input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
   const hadEnemies = s.enemies.length > 0;
-  updateEnemies(s, dt);
+  if (s.coop?.role !== "guest") updateEnemies(s, dt);
   updateProjectiles(s, dt);
+  if (s.coop?.role === "guest") return;
   s.enemies = s.enemies.filter(e => e.hp > 0);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";
   if (hadEnemies && s.enemies.length === 0 && s.scene === "dungeon") {

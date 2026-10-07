@@ -55,7 +55,7 @@ const enemy = () => ({
     radius: 7, speed: 23, cooldown: 0.5, hitTimer: 0, kx: 0, ky: 0, miniBoss: false,
     phase: 1, pattern: 0, windup: 0, actionTimer: 0, aimX: -1, aimY: 0,
 });
-const appearance = () => ({ profile: { skin: '#aabbcc', hair: '#112233', eyes: '#ffffff' }, outfit: [{ key: 'body_kid', dyes: { dye1: '#aabbcc' } }] });
+const appearance = () => ({ profile: { skin: 'peach', hair: 'sandy', eyes: 'ink_eye' }, outfit: [{ key: 'body_kid', dyes: { dye1: 'orange' } }] });
 
 describe('Wayside Fury four-seat rooms', () => {
     test('requires a signed-in ticket and it is short-lived and single-use', () => {
@@ -266,6 +266,8 @@ describe('Wayside Fury relay validation', () => {
         const look = cleanAppearance({ ...appearance(), url: 'https://attacker.invalid/avatar', outfit: [{ ...appearance().outfit[0], src: 'https://attacker.invalid/sprite' }] });
         expect(look).toEqual(appearance());
         expect(cleanAppearance({ ...appearance(), profile: { ...appearance().profile, skin: 'url(evil)' } })).toBeNull();
+        expect(cleanAppearance({ ...appearance(), profile: { ...appearance().profile, skin: 'https://attacker.invalid/skin' } })).toBeNull();
+        expect(cleanAppearance({ ...appearance(), profile: { ...appearance().profile, skin: '#aabbcc' } })).toBeNull();
     });
 
     test('per-socket limits count every message independently and reset each second', () => {

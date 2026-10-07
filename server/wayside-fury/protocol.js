@@ -62,7 +62,9 @@ export function cleanHero(remote) {
 
 export function cleanAppearance(appearance) {
     if (!object(appearance) || !object(appearance.profile) || !Array.isArray(appearance.outfit) || appearance.outfit.length > 24) return null;
-    const color = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+    // composeLook resolves colors through manifest.ramps, whose keys are names
+    // such as peach, sandy and ink_eye. Peers never provide image paths or CSS.
+    const color = (value) => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,48}$/.test(value);
     const profile = {};
     for (const key of ['skin', 'hair', 'eyes']) {
         if (!color(appearance.profile[key])) return null;
