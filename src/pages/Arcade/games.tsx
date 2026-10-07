@@ -670,6 +670,7 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Monster House"
           url={CASINO_URL}
+          desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
