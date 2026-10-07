@@ -50,6 +50,12 @@ export function useBackdrop(trying?: string | null) {
   return backdropStyle(trying ?? data?.equipped ?? DEFAULT_BANNER);
 }
 
+// The banner you've put up, if you're signed in and have one up (not the empty one)
+export function useMyBanner(signedIn: boolean) {
+  const { data } = useQuery({ queryKey: ["banners"], queryFn: () => fetchWithAuth("/banners").then(readBanners), enabled: signedIn });
+  return signedIn ? data?.equipped ?? null : null;
+}
+
 // The banners as the item shop's wares: a square cut from each for its icon, tried on behind
 // you, bought once (then put up from right there)
 export function useBannerShopItems(trying: string | null, onTry: (key: string | null) => void): ExtraShopItem[] {

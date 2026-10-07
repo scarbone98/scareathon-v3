@@ -1447,6 +1447,9 @@ export function backdropStyle(key: string | null | undefined): React.CSSProperti
   return { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center bottom", imageRendering: "pixelated" };
 }
 
+// Lettering painted straight onto a banner: a dark outline keeps it legible over any picture
+export const ON_BANNER_TEXT = "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(255,176,58,0.35)";
+
 // The CSS for a row (or a sample) on a banner: the tile repeated along it, full height
 export function bannerStyle(key: string | null | undefined): React.CSSProperties | undefined {
   const url = key ? bannerImage(key) : null;

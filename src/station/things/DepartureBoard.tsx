@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
-import { DEFAULT_BANNER, bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, ON_BANNER_TEXT, bannerStyle } from "../banners.ts";
 import { pixel } from "../style/theme.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { GoTo } from "../stops.ts";
@@ -102,8 +102,6 @@ type Props = { signedIn: boolean; goTo: GoTo; games?: string[]; game?: string };
 
 const AMBER = "#ffb03a";
 const flap = "rounded-[2px] bg-[#111419] px-1.5 shadow-[inset_0_-1px_0_rgba(255,255,255,0.06),inset_0_1px_0_rgba(0,0,0,0.6)]";
-// Lettering painted straight onto a banner: a dark outline keeps it legible over any picture
-const ON_BANNER_TEXT = "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.9), 0 0 8px rgba(255,176,58,0.35)";
 // A long name steps down a size before it wraps, so the whole name always shows
 const nameSize = (name: string) => (name.length > 14 ? "text-[14px]" : name.length > 10 ? "text-[16px]" : "");
 

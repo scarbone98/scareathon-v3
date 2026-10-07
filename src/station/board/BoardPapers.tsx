@@ -20,6 +20,8 @@ import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/game
 import type { GoTo } from "../stops.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import { useAvatarLook } from "../things/Belongings.tsx";
+import { useMyBanner } from "../things/Banners.tsx";
+import { ON_BANNER_TEXT, bannerStyle } from "../banners.ts";
 import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
 
 // The station board is the home page, and its papers are the content. Each kind of paper
@@ -160,11 +162,32 @@ function TicketButton({ label, onClick, children }: { label: string; onClick: (e
   );
 }
 
+// You on the notice: an avatar's frame is 32 wide, drawn here at five times size
+const AVATAR_WIDE = 32;
+const AVATAR_SCALE = 5;
+
 function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const { data: summary } = useSummary();
   const look = useAvatarLook(signedIn);
+  // Signed in with a banner up, the notice is your banner (as your row on the scoreboard is):
+  // the lettering goes straight onto it, light and outlined, in place of ink on paper
+  const banner = useMyBanner(signedIn);
+  const onBanner = bannerStyle(banner);
+  // How much of your picture's width to show: the kid, and out as far as anything you have on
+  // reaches (a pet at your heels, wings), so none of it is cut off
+  const shown = (look?.outfit ?? []).reduce<[number, number]>(
+    ([from, to], { item }) => item.parts.reduce<[number, number]>(([a, b], part) => [Math.max(0, Math.min(a, part.x - 1)), Math.min(AVATAR_WIDE, Math.max(b, part.x + part.w + 1))], [from, to]),
+    [6, 26]
+  );
   return (
-    <div className={`m-1 flex h-[calc(100%-0.5rem)] items-stretch gap-3 border-[3px] border-double border-[#2a1d14]/70 px-5 ${ink}`}>
+    <div
+      className={
+        onBanner
+          ? "flex h-full items-stretch gap-3 border-[3px] border-double border-[#f2ead2]/55 px-6 text-[#f2ead2]"
+          : `m-1 flex h-[calc(100%-0.5rem)] items-stretch gap-3 border-[3px] border-double border-[#2a1d14]/70 px-5 ${ink}`
+      }
+      style={onBanner ? { ...onBanner, textShadow: ON_BANNER_TEXT } : undefined}
+    >
       {/* You, as you look (moving, if your body has an idle), standing in for "your locker":
           down the notice's whole height, five times size, the empty sky over your head trimmed off */}
       {signedIn && (
@@ -173,10 +196,11 @@ function Welcome({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
           aria-label="Your locker"
           title="Your locker"
           onClick={act(() => goTo("lockers"))}
-          className="-ml-2 flex w-[96px] shrink-0 items-end justify-center overflow-hidden transition hover:brightness-110 active:translate-y-px"
+          className="-ml-2 flex shrink-0 items-end justify-start overflow-hidden transition hover:brightness-110 active:translate-y-px"
+          style={{ width: (shown[1] - shown[0]) * AVATAR_SCALE }}
         >
           {look ? (
-            <span className="translate-y-[10px]">
+            <span className="shrink-0 translate-y-[10px]" style={{ marginLeft: -shown[0] * AVATAR_SCALE }}>
               <AvatarView look={look} height={240} label="You" />
             </span>
           ) : null}
