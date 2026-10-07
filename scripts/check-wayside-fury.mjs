@@ -1,10 +1,10 @@
 // Exercise the pure simulation headlessly, as the Horde Rush balance script does.
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
-import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty } from '../src/pages/WaysideFury/game/sim.ts';
 
 import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
-import { SAVE_KEY, readSave, writeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
+import { SAVE_KEY, readSave, writeSave, restoreSave, progressReport, mergeReceipts } from '../src/pages/WaysideFury/game/save.ts';
 
 const DT = 1 / 60;
 const tick = (s, buttons = {}, frames = 1) => {
@@ -120,6 +120,32 @@ assert.equal(activeHero(tag).hp, 81);
 tick(tag); tick(tag, { swap: true }); assert.equal(tag.active, 'matt');
 tick(tag, {}, 60); tick(tag, { swap: true }); assert.equal(tag.active, 'joe');
 assert.equal(activeHero(tag).hp, 37);
+
+// HOME party selection keeps at least one hero, changes the active hero when
+// benched, and prevents a healthy benched hero from rescuing a solo party wipe.
+const party = emptyRoom();
+assert.deepEqual(party.party, ['joe', 'matt']);
+assert.equal(toggleParty(party, 'joe'), false, 'party selection is available at HOME');
+enterScene(party, 'hub'); party.overlay = 'home';
+assert.equal(toggleParty(party, 'joe'), true); assert.deepEqual(party.party, ['matt']);
+assert.equal(party.active, 'matt'); assert.equal(toggleParty(party, 'matt'), false);
+assert.deepEqual(party.party, ['matt']);
+enterScene(party, 'test'); party.enemies = []; tick(party, {}, 60);
+tick(party, { swap: true }); assert.equal(party.active, 'matt', 'Swap cannot select a benched hero');
+party.heroes.matt.hp = 1; party.heroes.matt.invulnerable = 0;
+bulletAtHero(party, 99); tick(party);
+assert.equal(party.scene, 'dead'); assert.equal(party.deaths, 1);
+assert.equal(party.heroes.joe.hp, 100, 'healthy bench HP cannot avoid party death');
+enterScene(party, 'hub'); party.overlay = 'home';
+assert.equal(toggleParty(party, 'joe'), true); assert.deepEqual(party.party, ['matt', 'joe']);
+assert.equal(toggleParty(party, 'joe'), true); assert.deepEqual(party.party, ['matt']);
+restAtHome(party); assert.equal(party.heroes.matt.hp, party.heroes.matt.maxHp);
+assert.equal(toggleParty(party, 'joe'), true); assert.equal(toggleParty(party, 'matt'), true);
+assert.deepEqual(party.party, ['joe']); assert.equal(party.active, 'joe');
+party.heroes.matt.hp = 0;
+assert.equal(toggleParty(party, 'matt'), true);
+assert.equal(toggleParty(party, 'joe'), false, 'a KO partner must rest before taking over');
+restAtHome(party); assert.equal(toggleParty(party, 'joe'), true); assert.equal(party.active, 'matt');
 
 // Kills award candy and XP, grow every stat, and emit a visible level-up.
 const progression = emptyRoom();
@@ -309,16 +335,60 @@ tick(quest, { interact: true }); assert.equal(quest.scene, 'results'); assert.eq
 tick(quest, { attack: true, ki: true, interact: true }, 135);
 assert.equal(quest.scene, 'results'); assert.ok(quest.sceneTimer > 2.2);
 console.log(`Default-stat chapter playthrough: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; 13 kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
-// Replaying a defeated room cannot re-earn its unique room checkpoint.
+// A replay clear raises a checkpoint for legitimate new levels. Its prior
+// rooms, areas and boss ids remain receipted and cannot pay again.
+const beforeReplay = progressReport(quest);
+const replayLevel = beforeReplay.receipt.level;
 enterScene(quest, 'overworld');
 walkTo(quest, LOCATIONS[1].x, LOCATIONS[1].y); tick(quest); tick(quest, { interact: true });
 assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0);
 const priorCheckpoints = checkpoints.length; playRoom(quest);
-assert.equal(checkpoints.length, priorCheckpoints);
+assert.equal(checkpoints.length, priorCheckpoints + 1);
+assert.equal(checkpoints.at(-1), 'blast-0');
+const replayReport = progressReport(quest, beforeReplay.receipt);
+assert.ok(replayReport.receipt.level > replayLevel, 'actual replay combat earns a new level');
+assert.equal(replayReport.score, (replayReport.receipt.level - replayLevel) * 100);
+assert.equal(progressReport(quest, replayReport.receipt).score, 0, 'unchanged replay checkpoint progress sends nothing');
+const repeatedClearCount = checkpoints.length; tick(quest, {}, 60);
+assert.equal(checkpoints.length, repeatedClearCount, 'an empty room cannot produce another clear');
 assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
 const exitAfterClear = structuredClone(quest); exitAfterClear.x = 45;
 assert.equal(interactTarget(exitAfterClear).id, 'exit');
 interact(exitAfterClear); assert.equal(exitAfterClear.scene, 'overworld');
+const replayRealm = structuredClone(quest); replayRealm.chapter = 1; enterScene(replayRealm, 'realm');
+const beforeRealmReplayCount = checkpoints.length;
+playRoom(replayRealm);
+assert.equal(checkpoints.length, beforeRealmReplayCount + 1);
+assert.equal(checkpoints.at(-1), 'realm-0');
+assert.equal(replayRealm.chapter, 2, 'realm clear restores chapter advancement after a HOME retry');
+assert.equal(progressReport(replayRealm, replayReport.receipt).score, 0, 'a replay without a new level cannot farm old room/area rewards');
+assert.deepEqual(replayRealm.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
+
+// Tickets use only newly gained progress, with a persistent level high-water mark.
+const progress = newGame();
+const zero = progressReport(progress);
+assert.equal(zero.score, 0); assert.deepEqual(zero.receipt, { areas: [], bosses: [], rooms: [], level: 1 });
+progress.areas = ['wayside']; assert.equal(progressReport(progress).score, 1000);
+progress.areas = []; progress.bosses = ['blast-watcher']; assert.equal(progressReport(progress).score, 1000);
+progress.bosses = []; progress.heroes.joe.level = progress.heroes.matt.level = 3;
+assert.equal(progressReport(progress).score, 200, 'shared party levels pay once');
+progress.heroes.matt.level = 4; assert.equal(progressReport(progress).score, 300);
+progress.heroes.joe.level = progress.heroes.matt.level = 1;
+progress.clearedRooms = ['blast-0', 'blast-1']; assert.equal(progressReport(progress).score, 100);
+progress.areas = ['wayside', 'blast', 'blast']; progress.bosses = ['blast-watcher', 'blast-watcher'];
+progress.clearedRooms = ['blast-0', 'blast-1', 'blast-1'];
+progress.heroes.joe.level = progress.heroes.matt.level = 3;
+const earned = progressReport(progress); assert.equal(earned.score, 3300);
+assert.equal(progressReport(progress, earned.receipt).score, 0, 'repeated checkpoints send nothing');
+progress.areas = []; progress.bosses = []; progress.clearedRooms = [];
+progress.heroes.joe.level = progress.heroes.matt.level = 1;
+const rolledBack = progressReport(progress, earned.receipt);
+assert.equal(rolledBack.score, 0); assert.deepEqual(rolledBack.receipt, earned.receipt);
+progress.heroes.joe.level = 3; assert.equal(progressReport(progress, rolledBack.receipt).score, 0);
+progress.heroes.joe.level = 4; assert.equal(progressReport(progress, rolledBack.receipt).score, 100);
+assert.deepEqual(mergeReceipts({ areas: ['wayside'], bosses: [], rooms: ['blast-0'], level: 4 },
+  null, { areas: ['blast', 'wayside'], bosses: ['blast-watcher'], rooms: ['blast-1'], level: 2 }),
+  { areas: ['wayside', 'blast'], bosses: ['blast-watcher'], rooms: ['blast-0', 'blast-1'], level: 4 });
 
 // Browser storage is replaceable, guarded, and preserves the HOME retry snapshot.
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -364,6 +434,57 @@ try {
   assert.deepEqual(afterDeath.bosses, ['blast-watcher']); assert.deepEqual(afterDeath.areas, ['blast', 'eightbit-realm']);
   assert.equal(afterDeath.heroes.joe.level, 1); assert.equal(afterDeath.candy, 19);
   assert.deepEqual(failedRun.lastReported, firstSave.lastReported);
+  // Party snapshots retain HOME composition while ordinary saves retain the current party.
+  const partySaveState = newGame(); enterScene(partySaveState, 'hub'); partySaveState.overlay = 'home';
+  assert.equal(toggleParty(partySaveState, 'matt'), true);
+  const soloHome = writeSave(partySaveState, null, true); assert.ok(soloHome);
+  assert.deepEqual(soloHome.party, ['joe']); assert.deepEqual(soloHome.home.party, ['joe']);
+  toggleParty(partySaveState, 'matt'); toggleParty(partySaveState, 'joe');
+  const currentPartySave = writeSave(partySaveState, soloHome); assert.ok(currentPartySave);
+  assert.deepEqual(restoreSave(currentPartySave).party, ['matt']);
+  assert.equal(restoreSave(currentPartySave).active, 'matt');
+  assert.deepEqual(restoreSave(currentPartySave, true).party, ['joe']);
+  assert.equal(restoreSave(currentPartySave, true).active, 'joe');
+  const legacy = structuredClone(currentPartySave); delete legacy.party; delete legacy.home.party;
+  entries.set(SAVE_KEY, JSON.stringify(legacy)); assert.deepEqual(readSave().party, ['joe', 'matt']);
+  const filteredParty = { ...currentPartySave, party: ['alex', 'joe', 'joe', 99] };
+  entries.set(SAVE_KEY, JSON.stringify(filteredParty));
+  assert.deepEqual(readSave().party, ['joe']); assert.equal(readSave().active, 'joe');
+
+  // A stale tab cannot roll the report receipt back, even if its game state is older.
+  entries.clear();
+  const baseRun = newGame(); enterScene(baseRun, 'hub'); restAtHome(baseRun);
+  const baseHome = writeSave(baseRun, null, true); assert.ok(baseHome);
+  const tabA = restoreSave(baseHome), tabB = restoreSave(baseHome);
+  tabA.areas.push('blast'); tabA.clearedRooms.push('blast-0');
+  tabA.heroes.joe.level = tabA.heroes.matt.level = 2;
+  const tabAReport = progressReport(tabA, baseHome.lastReported);
+  assert.equal(tabAReport.score, 2150);
+  const committedA = writeSave(tabA, baseHome, false, tabAReport.receipt); assert.ok(committedA);
+  const staleB = writeSave(tabB, baseHome); assert.ok(staleB);
+  assert.deepEqual(staleB.lastReported, committedA.lastReported);
+  assert.deepEqual(readSave().lastReported, committedA.lastReported);
+  assert.equal(progressReport(tabB, staleB.lastReported).score, 0);
+  tabB.areas.push('blast'); tabB.clearedRooms.push('blast-0');
+  tabB.heroes.joe.level = tabB.heroes.matt.level = 2;
+  assert.equal(progressReport(tabB, staleB.lastReported).score, 0);
+  const homeRetry = restoreSave(staleB, true);
+  assert.equal(homeRetry.heroes.joe.level, 1);
+  assert.equal(progressReport(homeRetry, readSave().lastReported).score, 0, 'HOME retry cannot farm old level rewards');
+  const reloaded = restoreSave(readSave());
+  assert.equal(progressReport(reloaded, readSave().lastReported).score, 0, 'reload cannot farm old progress');
+
+  // Persisting the new receipt must succeed before any checkpoint can be posted.
+  const storedBeforeFailure = entries.get(SAVE_KEY), receiptBeforeFailure = readSave().lastReported;
+  const setter = storage.setItem; storage.setItem = () => { throw new Error('quota exhausted'); };
+  tabA.areas.push('eightbit-realm');
+  const pendingReport = progressReport(tabA, receiptBeforeFailure);
+  assert.equal(pendingReport.score, 1000);
+  assert.equal(writeSave(tabA, committedA, false, pendingReport.receipt), null);
+  assert.equal(entries.get(SAVE_KEY), storedBeforeFailure);
+  assert.deepEqual(readSave().lastReported, receiptBeforeFailure);
+  storage.setItem = setter;
+
   for (const raw of ['{broken', 'null', '[]', '{}', JSON.stringify({ ...saved, version: 999 }), 'x'.repeat(65537)]) {
     entries.set(SAVE_KEY, raw); assert.equal(readSave(), null, 'malformed or unsupported save ignored');
   }
@@ -374,4 +495,4 @@ try {
   if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
   else delete globalThis.localStorage;
 }
-console.log('Wayside Fury simulation: combat, boss patterns/phase, story/realm/results, progress/replay, taxi/hub/shop/HOME and save/retry checks pass.');
+console.log('Wayside Fury simulation: combat, boss patterns/phase, story/realm/results, progress receipts/replay, party selection, taxi/hub/shop/HOME and save/retry checks pass.');

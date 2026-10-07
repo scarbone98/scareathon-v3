@@ -96,6 +96,15 @@ describe('validateScoreSubmission', () => {
         });
     });
 
+    test('accepts Wayside Fury integer progress up to its checkpoint cap', () => {
+        for (const metricValue of [0, 100, 1000, 100000]) {
+            expect(validateScoreSubmission({ game: 'Wayside Fury', metricName: 'score', metricValue })).toEqual({ ok: true });
+        }
+        for (const metricValue of [-1, 100001, 100.5]) {
+            expect(validateScoreSubmission({ game: 'Wayside Fury', metricName: 'score', metricValue })).toMatchObject({ ok: false });
+        }
+    });
+
     test('accepts Frog Ball scores', () => {
         expect(validateScoreSubmission({
             game: 'Frog Ball',
@@ -375,6 +384,16 @@ describe('playTicketsFor', () => {
         expect(playTicketsFor('Ooidash', 'score', 6, 0)).toBe(0);
         expect(playTicketsFor('Ooidash', 'score', 0, 0)).toBe(0);
         expect(playTicketsFor('Tlaloc’s Curse', 'score', 1000, 0)).toBe(0);
+    });
+
+    test('Wayside Fury pays ten tickets for a new area, one for a new level, and none without progress', () => {
+        expect(GAME_SCORE_POLICIES.get('Wayside Fury')).toEqual({
+            score: { min: 0, max: 100000, integer: true },
+            tickets: { from: 0, full: 1000 },
+        });
+        expect(playTicketsFor('Wayside Fury', 'score', 1000, 0)).toBe(10);
+        expect(playTicketsFor('Wayside Fury', 'score', 100, 0)).toBe(1);
+        expect(playTicketsFor('Wayside Fury', 'score', 0, 0)).toBe(0);
     });
 
     test('scales with the score, on past a strong run', () => {

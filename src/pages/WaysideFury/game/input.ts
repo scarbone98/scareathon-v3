@@ -7,8 +7,10 @@ export class GameInput {
   private taps = new Set<keyof Input>();
   private padButtons: boolean[] = [];
   private connected = false;
+  private lastNavigate = 0;
+  private consumedA = false;
   mode: InputMode = navigator.maxTouchPoints > 0 ? "touch" : "keyboard";
-  constructor(private changed: (mode: InputMode) => void, private pause: () => void, private confirm: () => void) {
+  constructor(private changed: (mode: InputMode) => void, private pause: () => void, private confirm: () => boolean, private navigate: (direction: number) => void) {
     window.addEventListener("keydown", this.down);
     window.addEventListener("keyup", this.up);
     window.addEventListener("blur", this.clear);
@@ -16,8 +18,8 @@ export class GameInput {
     window.addEventListener("gamepaddisconnected", this.disconnect);
   }
   setTouch(input: Partial<Input>) { for (const [action, value] of Object.entries(input)) if (value === true) this.taps.add(action as keyof Input); Object.assign(this.touch, input); this.setMode("touch"); }
-  clear = () => { this.keys.clear(); this.touch = idleInput(); this.taps.clear(); this.padButtons = []; };
-  private setMode(mode: InputMode) { if (mode !== this.mode) { this.mode = mode; this.changed(mode); } }
+  clear = () => { this.keys.clear(); this.touch = idleInput(); this.taps.clear(); this.padButtons = []; this.consumedA = false; };
+  private setMode(mode: InputMode) { if (mode !== this.mode) { if (mode !== "touch") { this.touch = idleInput(); this.taps.clear(); } this.mode = mode; this.changed(mode); } }
   private connect = () => { this.connected = true; };
   private disconnect = () => { this.connected = false; this.padButtons = []; if (this.mode === "gamepad") this.setMode(navigator.maxTouchPoints > 0 ? "touch" : "keyboard"); };
   private down = (e: KeyboardEvent) => {
@@ -27,9 +29,10 @@ export class GameInput {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     this.setMode("keyboard");
     if (key === "enter" && e.target instanceof HTMLButtonElement) return;
+    if (!e.repeat && ["arrowup", "arrowleft", "arrowdown", "arrowright"].includes(key)) this.navigate(key === "arrowup" || key === "arrowleft" ? -1 : 1);
     e.preventDefault(); this.keys.add(key); if (!e.repeat && KEY_MAP[key]) this.taps.add(KEY_MAP[key]);
     if (!e.repeat && key === "escape") this.pause();
-    if (!e.repeat && key === "enter") this.confirm();
+    if (!e.repeat && key === "enter" && this.confirm()) { this.keys.delete(key); this.taps.delete("interact"); }
   };
   private up = (e: KeyboardEvent) => { this.keys.delete(e.key.toLowerCase()); };
   read(): Input {
@@ -52,9 +55,11 @@ export class GameInput {
       const y = axis(pad.axes[1] || 0) + Number(pressed[13]) - Number(pressed[12]);
       if (x || y || pressed.some(Boolean)) this.setMode("gamepad");
       if (pressed[9] && !this.padButtons[9]) this.pause();
-      if (pressed[0] && !this.padButtons[0]) this.confirm();
+      if ((x || y) && performance.now() - this.lastNavigate > 210) { this.navigate(Math.sign(y || x)); this.lastNavigate = performance.now(); }
+      if (!pressed[0]) this.consumedA = false;
+      if (pressed[0] && !this.padButtons[0] && this.confirm()) this.consumedA = true;
       input.x += x; input.y += y;
-      input.attack ||= !!pressed[0]; input.interact ||= !!pressed[0];
+      input.attack ||= !!pressed[0] && !this.consumedA; input.interact ||= !!pressed[0] && !this.consumedA;
       input.ki ||= !!pressed[2]; input.dash ||= !!pressed[1];
       input.guard ||= !!pressed[7] || !!pressed[5]; input.swap ||= !!pressed[4] || !!pressed[3];
       this.padButtons = pressed;
@@ -62,6 +67,7 @@ export class GameInput {
     input.x = Math.max(-1, Math.min(1, input.x)); input.y = Math.max(-1, Math.min(1, input.y));
     return input;
   }
+  clearTouch() { this.touch = idleInput(); this.taps.clear(); }
   consume() { this.taps.clear(); }
   dispose() {
     this.clear();

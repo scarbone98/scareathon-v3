@@ -41,7 +41,7 @@ export type GameEvent =
   | { type: "death" };
 export interface GameState {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
-  active: HeroId; time: number; scene: Scene; room: number;
+  active: HeroId; party: HeroId[]; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
   overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
@@ -67,7 +67,7 @@ function random(s: GameState) {
 }
 export function newGame(seed = 8591): GameState {
   const s: GameState = { x: 75, y: 110, faceX: 1, faceY: 0, moving: false,
-    active: "joe", time: 0, scene: "test", room: 0,
+    active: "joe", party: ["joe", "matt"], time: 0, scene: "test", room: 0,
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
     overlay: null, heroes: { joe: hero("joe"), matt: hero("matt") }, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
@@ -177,7 +177,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
 }
 function swapHero(s: GameState) {
   const next = s.active === "joe" ? "matt" : "joe";
-  if (s.heroes[next].hp <= 0) return;
+  if (!s.party.includes(next) || s.heroes[next].hp <= 0) return;
   s.active = next; s.swapCooldown = 0.75; s.charge = 0; s.attackTimer = 0; s.combo = 0;
   activeHero(s).invulnerable = Math.max(activeHero(s).invulnerable, 0.25);
   effect(s, "level", s.x, s.y, 16, 0.3);
@@ -193,7 +193,7 @@ function hurtHero(s: GameState, baseDamage: number) {
   s.events.push({ type: "hit", x: s.x, y: s.y, damage, target: "hero" });
   if (h.hp === 0) {
     const other = s.heroes[s.active === "joe" ? "matt" : "joe"];
-    if (other.hp > 0) { swapHero(s); s.notice = `${h.id.toUpperCase()} is down! ${other.id.toUpperCase()} takes over.`; }
+    if (s.party.includes(other.id) && other.hp > 0) { swapHero(s); s.notice = `${h.id.toUpperCase()} is down! ${other.id.toUpperCase()} takes over.`; }
     else {
       s.scene = "dead"; s.deaths++; s.moving = false; s.guard = false;
       s.events.push({ type: "death" });
@@ -376,6 +376,21 @@ export function interact(s: GameState): void {
   if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.moving = false; s.notice = ""; }
 }
+export function toggleParty(s: GameState, id: HeroId): boolean {
+  if (s.scene !== "hub" || s.overlay !== "home") return false;
+  if (s.party.includes(id)) {
+    if (s.party.length === 1) { s.notice = "Keep at least one hero in the party."; return false; }
+    const next = s.party.find(member => member !== id)!;
+    if (s.active === id && s.heroes[next].hp <= 0) { s.notice = "Rest at HOME to revive your partner first."; return false; }
+    s.party = s.party.filter(member => member !== id);
+    if (s.active === id) swapHero(s);
+    s.notice = `${id.toUpperCase()} waits at HOME.`;
+  } else {
+    if (s.party.length >= 2) return false;
+    s.party.push(id); s.notice = `${id.toUpperCase()} joins the party.`;
+  }
+  return true;
+}
 export function restAtHome(s: GameState): void {
   for (const h of Object.values(s.heroes)) { h.hp = h.maxHp; h.ki = h.maxKi; h.stamina = h.maxStamina; }
   if (!s.areas.includes("wayside")) s.areas.push("wayside");
@@ -461,16 +476,17 @@ export function step(s: GameState, input: Input, delta: number): void {
         if (!s.bosses.includes("blast-watcher")) s.bosses.push("blast-watcher");
         if (!s.areas.includes("blast")) s.areas.push("blast");
       }
-      s.events.push({ type: "checkpoint", id });
     }
+    s.events.push({ type: "checkpoint", id });
     s.notice = s.room === 2 ? "The Watcher falls! Chapter 1 is clear. Head through the east gate." : "Room clear! Head through the east gate.";
   }
   if (hadEnemies && s.enemies.length === 0 && s.scene === "realm") {
     if (!s.clearedRooms.includes("realm-0")) {
       s.clearedRooms.push("realm-0");
       if (!s.areas.includes("eightbit-realm")) s.areas.push("eightbit-realm");
-      s.chapter = 2; s.events.push({ type: "checkpoint", id: "realm-0" });
     }
+    s.chapter = Math.max(s.chapter, 2);
+    s.events.push({ type: "checkpoint", id: "realm-0" });
     s.notice = "The path is clear. The real evil has only just begun...";
   }
   if (input.interact && !previous.interact && (s.scene === "dungeon" || s.scene === "realm")) interact(s);

@@ -81,7 +81,6 @@ export class Renderer {
       this.text(floater.text, floater.x, floater.y, floater.color, 9);
       c.globalAlpha = 1;
     }
-    if (s.scene === "dungeon" && s.room === 2) this.bossBar(s);
     if (s.scene === "test") this.text("WAYSIDE TRAINING YARD", 160, 174, "#91ada2", 7);
     if (s.palette === "eightbit") this.applyEightBit();
     c.restore();
@@ -674,16 +673,6 @@ export class Renderer {
       }
     }
     c.restore();
-  }
-
-  private bossBar(s: GameState) {
-    const enemy = s.enemies.find((enemy) => enemy.kind === "boss" && enemy.hp > 0);
-    if (!enemy) return;
-    this.text(`THE WATCHER  //  PHASE ${enemy.phase}`, 160, 169, enemy.phase === 2 ? "#f2a6d1" : "#d7b4cd", 7);
-    this.rect(83, 173, 154, 5, "#171723");
-    this.rect(84, 174, 152, 3, "#644457");
-    this.rect(84, 174, 152 * enemy.hp / enemy.maxHp, 3, enemy.phase === 2 ? "#ed8eba" : "#ad83c4");
-    this.rect(160, 174, 1, 3, "#ffddc5");
   }
 
   private lamp(x: number, y: number, time: number, color = "#f1cf88") {

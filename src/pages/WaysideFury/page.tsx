@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { GameController } from "./game/controller";
 import { type InputMode } from "./game/input";
-import { activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, type GameState, type Input } from "./game/sim";
+import { activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, toggleParty, xpForLevel, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
-import { readSave, restoreSave, writeSave } from "./game/save";
+import { mergeReceipts, progressReport, readSave, restoreSave, writeSave } from "./game/save";
 import "./style.css";
 const TUTORIAL_KEY = "wayside-fury-controls-dismissed";
 function tutorialVisible() { try { return localStorage.getItem(TUTORIAL_KEY) !== "1"; } catch { return true; } }
@@ -65,8 +65,9 @@ export default function WaysideFury() {
   const [paused, setPaused] = useState(false);
   const [controls, setControls] = useState(false);
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
+  const [reward, setReward] = useState(0);
   const [tutorial, setTutorial] = useState(tutorialVisible);
-  const handlers = useRef({ pause: () => {}, confirm: () => {} });
+  const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number) => { void direction; } });
   const begin = (retry = false) => { const next = saveRef.current ? restoreSave(saveRef.current, retry || Object.values(saveRef.current.heroes).every(h => h.hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setControls(false); };
   const persist = (s: GameState, home = false) => {
     const next = writeSave(s, saveRef.current, home);
@@ -74,24 +75,53 @@ export default function WaysideFury() {
     else s.notice = "Saving is unavailable in this browser. Keep this tab open.";
   };
   const togglePause = () => { if (!playing) return; const next = !paused; controller.current?.setPaused(next); setPaused(next); };
-  handlers.current = { pause: togglePause, confirm: () => { if (!playing) begin(); else if (paused) togglePause(); } };
+  const overlayButtons = () => {
+    const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
+    const overlay = overlays[overlays.length - 1];
+    return overlay ? Array.from(overlay.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")) : [];
+  };
+  handlers.current = { pause: togglePause, confirm: () => {
+    // Story and world confirmations are consumed by the simulation exactly once.
+    const buttons = overlayButtons();
+    if (!buttons.length) return false;
+    const active = buttons.find(button => button === document.activeElement) ?? buttons[0];
+    active.click(); return true;
+  }, navigate: (direction: number) => {
+    const buttons = overlayButtons(); if (!buttons.length) return;
+    const index = buttons.findIndex(button => button === document.activeElement);
+    buttons[(index < 0 ? direction > 0 ? 0 : buttons.length - 1 : (index + direction + buttons.length) % buttons.length)].focus();
+  } };
   useEffect(() => {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode,
-      onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(),
+      onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: direction => handlers.current.navigate(direction),
       onEvent: (s, event) => {
         if (event.type === "checkpoint" || event.type === "death") {
-          const next = writeSave(s, saveRef.current);
-          if (next) { saveRef.current = next; setSaved(next); }
+          const report = progressReport(s, mergeReceipts(saveRef.current?.lastReported, readSave()?.lastReported));
+          const next = writeSave(s, saveRef.current, event.type === "checkpoint" && event.id === "home", report.receipt);
+          if (next) {
+            saveRef.current = next; setSaved(next);
+            if (report.score > 0) {
+              window.parent.postMessage({ type: "PLAYER_DIED", score: report.score }, window.location.origin);
+              setReward(report.score);
+            }
+          }
           else s.notice = "Saving is unavailable in this browser. Keep this tab open.";
         }
       }});
     controller.current = game;
     if (import.meta.env.DEV) Object.defineProperty(window, "__waysideFury", { value: game, configurable: true });
+    const preventGesture = (event: Event) => event.preventDefault();
+    document.addEventListener("gesturestart", preventGesture, { passive: false });
     const hidden = () => { if (document.hidden) { game.setPaused(true); setPaused(true); } };
     const blur = () => { game.setPaused(true); setPaused(true); };
     document.addEventListener("visibilitychange", hidden); window.addEventListener("blur", blur);
-    return () => { document.removeEventListener("visibilitychange", hidden); window.removeEventListener("blur", blur); game.dispose(); controller.current = null; if (import.meta.env.DEV) Reflect.deleteProperty(window, "__waysideFury"); };
+    return () => { document.removeEventListener("gesturestart", preventGesture); document.removeEventListener("visibilitychange", hidden); window.removeEventListener("blur", blur); game.dispose(); controller.current = null; if (import.meta.env.DEV) Reflect.deleteProperty(window, "__waysideFury"); };
   }, []);
+  useEffect(() => {
+    if (!reward) return;
+    const timer = window.setTimeout(() => setReward(0), 2800);
+    return () => window.clearTimeout(timer);
+  }, [reward]);
   const send = (input: Partial<Input>) => controller.current?.setTouch(input);
   const hero = activeHero(state);
   const cinematic = state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
@@ -103,7 +133,7 @@ export default function WaysideFury() {
   const quit = () => { controller.current?.setPaused(true); setPlaying(false); setPaused(false); setControls(false); };
   const dismissTutorial = () => { setTutorial(false); try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* Session-only when storage is blocked. */ } };
   return <main className={`wf-shell ${mode === "touch" && playing && !paused && !state.overlay && !cinematic ? "wf-has-touch" : ""}`}>
-    <div className="wf-stage"><canvas ref={canvas} aria-label="Wayside Fury action RPG" /></div>
+    <div className="wf-stage"><canvas ref={canvas} onPointerDown={e => { if (e.pointerType === "touch") send({}); }} aria-label="Wayside Fury action RPG" /></div>
     {!playing ? <div className="wf-overlay wf-menu">
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
       <p className="wf-tagline">Five years later, the real evil arrives.</p>
@@ -115,16 +145,18 @@ export default function WaysideFury() {
       {!cinematic && <header className="wf-hud"><div className="wf-hero-hud"><strong>{state.active.toUpperCase()} <small>LV {hero.level}</small></strong>
         <div className="wf-meter wf-hp"><span style={{width:`${hero.hp / hero.maxHp * 100}%`}} /><small>HP {Math.ceil(hero.hp)} / {hero.maxHp}</small></div>
         <div className="wf-meter wf-ki"><span style={{width:`${hero.ki / hero.maxKi * 100}%`}} /><small>KI {Math.floor(hero.ki)} / {hero.maxKi}</small></div>
-        <div className="wf-meter wf-stamina"><span style={{width:`${hero.stamina / hero.maxStamina * 100}%`}} /></div></div>
+        <div className="wf-meter wf-stamina"><span style={{width:`${hero.stamina / hero.maxStamina * 100}%`}} /></div>
+        <div className="wf-partner">{state.party.length > 1 ? `${state.active === "joe" ? "MATT" : "JOE"} ${Math.ceil(state.heroes[state.active === "joe" ? "matt" : "joe"].hp)} HP` : "SOLO PARTY"} · XP {hero.xp}/{xpForLevel(hero.level)}</div></div>
         <div className="wf-status"><span>◈ {state.candy} candy</span><small>{state.scene === "test" ? "TRAINING YARD" : state.scene === "dungeon" ? ["THE IMPACT", "BREACH APPROACH", "THE WATCHER"][state.room] : state.scene.toUpperCase()}</small></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button></header>}
       {boss && <div className="wf-boss-hud"><strong>THE WATCHER {boss.phase === 2 ? "· ENRAGED" : ""}</strong><div className="wf-meter"><span style={{width:`${boss.hp / boss.maxHp * 100}%`}} /></div><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
+      {reward > 0 && <div className="wf-reward" role="status">CHECKPOINT · +{reward} progress reported</div>}
       {target && !state.overlay && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}>{prompt} {target.locked ? "Taken over" : target.name}</button>}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) persist(s); })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave shop</button></div>}
-      {state.overlay === "home" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">THERE'S STILL A LIGHT ON</p><h2>Home, sweet Wayside.</h2><p>Rest restores the crew and sets your retry save.</p><button onClick={() => controller.current?.mutate(s => { restAtHome(s); persist(s, true); })}>Rest & save</button>
-        <div className="wf-party"><p className="wf-small">Choose who leads the party. Joe + Matt travel together.</p>{(["joe", "matt", "alex", "jon"] as const).map(id => <button key={id} disabled={id === "alex" || id === "jon"} className="wf-secondary" onClick={() => controller.current?.mutate(s => { if (id === "joe" || id === "matt") { s.active = id; persist(s); } })}>{id.toUpperCase()}{id === "alex" || id === "jon" ? " · LOCKED" : state.active === id ? " · LEAD" : ""}</button>)}</div>
+      {state.overlay === "home" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">THERE'S STILL A LIGHT ON</p><h2>Home, sweet Wayside.</h2><p>Rest restores the crew and sets your retry save.</p><button onClick={() => controller.current?.mutate(s => { restAtHome(s); })}>Rest & save</button>
+        <div className="wf-party"><p className="wf-small">Choose your party. Keep one or two heroes; rest to recover benched heroes.</p>{(["joe", "matt", "alex", "jon"] as const).map(id => <button key={id} disabled={id === "alex" || id === "jon"} className="wf-secondary" onClick={() => controller.current?.mutate(s => { if (id === "joe" || id === "matt") { if (toggleParty(s, id)) persist(s); } })}>{id.toUpperCase()}{id === "alex" || id === "jon" ? " · LOCKED" : state.party.includes(id === "joe" || id === "matt" ? id : "joe") ? " · IN PARTY" : " · BENCH"}</button>)}</div>
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave home</button></div>}
       {state.notice && !state.overlay && !cinematic && <p className="wf-notice" role="status">{state.notice}</p>}
       {tutorial && !paused && !state.overlay && !cinematic && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Move + Attack. Hold Ki; release full bar for a beam." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}

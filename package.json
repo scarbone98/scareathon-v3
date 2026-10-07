@@ -20,6 +20,7 @@
     "balance:casino": "node scripts/casino-balance.mjs",
     "balance:royale": "node scripts/royale-balance.mjs",
     "balance:horde-rush": "node scripts/horde-rush-balance.mjs",
+    "check:wayside-fury": "node scripts/check-wayside-fury.mjs",
     "balance:mystery-crypt": "node scripts/mystery-crypt-balance.mjs",
     "check:frog-ball": "node scripts/frog-ball-stages.mjs",
     "check:frog-ball-coop": "node scripts/frog-ball-coop.mjs",
