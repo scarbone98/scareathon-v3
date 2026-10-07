@@ -35,7 +35,7 @@ export default function MovieInfo({
         </span>
       ),
     },
-  ].filter(Boolean);
+  ].filter((item): item is NonNullable<Exclude<typeof item, 0>> => Boolean(item));
 
   if (infoItems.length === 0 && genres.length === 0) {
     return null;
@@ -46,7 +46,7 @@ export default function MovieInfo({
       {/* Info row */}
       {infoItems.length > 0 && (
         <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center text-sm md:text-base font-eerie">
-          {infoItems.map((item: any, index) => (
+          {infoItems.map((item, index) => (
             <div key={index} className="flex items-center gap-2">
               <span className="text-orange-700 font-semibold">
                 {item.label}:
