@@ -35,6 +35,8 @@ export default function TicketDrop() {
       // (from what it's showing, if it's already down; else from what you had)
       let from = down ? readingNow.current : known.current ?? 0;
       const to = typeof win.balance === "number" ? win.balance : win.tickets ? from + win.tickets : null;
+      // (nothing to count to, and no count of yours read yet to show: nothing to say)
+      if (to === null && known.current === null && !down) return;
       if (to !== null && to <= from) from = Math.max(0, to - (win.tickets || 1));
       setReading(from);
       setRun({ from, to, id: Date.now() });

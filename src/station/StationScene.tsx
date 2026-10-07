@@ -2519,8 +2519,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       fetchWithAuth("/wayside/floor-ticket", { method: "POST" })
         .then((response) => (response.ok ? response.json() : null))
         .then((body: { data?: { tickets?: number; coinBalance?: number } } | null) => {
-          // (how many, and what you have now: the counter that drops down counts up to it)
-          if (body?.data?.tickets) window.dispatchEvent(new CustomEvent("wayside:tickets", { detail: { tickets: body.data.tickets, balance: body.data.coinBalance ?? null } }));
+          // (how many, and what you have now: the counter that drops down counts up to it. It
+          // drops for a stub that paid nothing too, the day's few already found: your total, as it is)
+          if (body?.data) window.dispatchEvent(new CustomEvent("wayside:tickets", { detail: { tickets: body.data.tickets ?? 0, balance: body.data.coinBalance ?? null } }));
         })
         .catch(() => undefined); // (signed out, or the server's away: it's still picked up)
     };
