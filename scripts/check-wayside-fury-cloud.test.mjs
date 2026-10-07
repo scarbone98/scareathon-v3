@@ -2,8 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CloudSaveStore, mergeSaves, receiptScore } from '../src/pages/WaysideFury/game/cloud.ts';
-import { SAVE_KEY, makeSave, parseSave, mergeReceipts, progressReport } from '../src/pages/WaysideFury/game/save.ts';
-import { newGame, restAtHome } from '../src/pages/WaysideFury/game/sim.ts';
+import { SAVE_KEY, makeSave, parseSave, mergeReceipts, progressReport, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
+import { newGame, restAtHome, createHero, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
 
 const A = 'account-a', B = 'account-b';
 const clone = value => value == null ? value : structuredClone(value);
@@ -11,11 +11,8 @@ const emptyReceipt = () => ({ areas: [], bosses: [], rooms: [], level: 1 });
 function snapshot({ chapter = 1, level = 1, xp = 0, candy = 0, areas = [], bosses = [], rooms = [], receipt = emptyReceipt(), savedAt = 1_000, home = false } = {}) {
   const state = newGame();
   Object.assign(state, { chapter, candy, areas, bosses, clearedRooms: rooms });
-  for (const hero of Object.values(state.heroes)) {
-    const growth = level - 1;
-    Object.assign(hero, { level, xp, power: (hero.id === 'joe' ? 12 : 13) + growth * 3,
-      defense: (hero.id === 'joe' ? 3 : 2) + growth, maxHp: 100 + growth * 12, hp: 100 + growth * 12 });
-  }
+  state.character = { level, xp };
+  state.heroes = Object.fromEntries(HERO_IDS.map(id => [id, createHero(id, state.character, state.gear)]));
   const save = makeSave(state, null, home, receipt);
   assert.ok(save, 'fixture must be accepted by the real shared sanitizer');
   save.savedAt = savedAt;
@@ -88,11 +85,14 @@ const checkpoint = (extra = {}) => snapshot({ level: 4, candy: 43, areas: ['blas
 
 test('legacy guest migrates, transfers on first sign-in, and remains separate from accounts A and B', async t => {
   const original = snapshot({ level: 3, candy: 17, areas: ['wayside'], rooms: ['blast-0'], home: true });
-  const legacy = { ...original, version: 1 };
-  delete legacy.gear; delete legacy.settings;
+  const legacy = { ...original, version: 1, heroes: { joe: original.heroes.joe, matt: original.heroes.matt },
+    active: 'joe', party: ['joe', 'matt'], unlockedHeroes: ['joe', 'matt'] };
+  delete legacy.gear; delete legacy.settings; delete legacy.character;
+  legacy.home = { ...original.home, heroes: legacy.heroes, active: 'joe', party: ['joe', 'matt'] };
+  delete legacy.home.character;
   const d = device(t, new MemoryStorage(legacy));
   await d.store.load(null);
-  assert.equal(d.store.save.version, 2);
+  assert.equal(d.store.save.version, 3);
   assert.equal(d.store.save.candy, 17);
   assert.equal(d.server.calls.length, 0, 'guests never make authenticated save requests');
   await d.store.load(A); await settle();
@@ -109,6 +109,30 @@ test('legacy guest migrates, transfers on first sign-in, and remains separate fr
   await d.store.load(A); await settle(); assert.equal(d.store.save.candy, 27);
   await d.store.load(B); await settle(); assert.equal(d.store.save.candy, 99);
   assert.equal(d.paid(), 0);
+});
+
+test('an existing version2 account migrates You and shared XP while its earlier HOME and ticket history survive', async t => {
+  const progressed = snapshot({ level: 4, xp: 9, candy: 72, areas: ['wayside', 'blast'],
+    receipt: { areas: ['wayside', 'blast'], bosses: ['blast-watcher'], rooms: ['blast-0'], level: 4 } });
+  const early = snapshot({ level: 1, candy: 7, home: true });
+  const legacy = { ...progressed, version: 2, active: 'matt', party: ['joe', 'matt'],
+    unlockedHeroes: ['joe', 'matt'], heroes: { joe: progressed.heroes.joe, matt: progressed.heroes.matt },
+    gear: { power: 4, ward: 2 }, home: { ...early.home, active: 'joe', party: ['joe', 'matt'],
+      heroes: { joe: early.heroes.joe, matt: early.heroes.matt }, gear: { power: 2, ward: 1 } } };
+  delete legacy.character; delete legacy.home.character;
+  for (const h of Object.values(legacy.heroes)) { h.power += 4; h.defense += 2; }
+  for (const h of Object.values(legacy.home.heroes)) { h.power += 2; h.defense++; }
+  const d = device(t); d.server.seed(A, legacy, 8); await d.store.load(A); await settle();
+  assert.equal(d.store.save.version, 3); assert.deepEqual(d.store.save.character, { level: 4, xp: 9 });
+  assert.deepEqual(d.store.save.party, ['you', 'matt']); assert.equal(d.store.save.active, 'you');
+  assert.deepEqual(d.store.save.gear, { power: 4, ward: 2 });
+  const retry = restoreSave(d.store.save, true);
+  assert.deepEqual(retry.character, { level: 1, xp: 0 }); assert.deepEqual(retry.gear, { power: 2, ward: 1 });
+  assert.equal(retry.candy, 7); assert.deepEqual(retry.areas, ['wayside', 'blast']);
+  assert.equal(progressReport(retry, d.store.save.lastReported).score, 0);
+  d.store.persist(makeSave(retry, d.store.save), true); await settle();
+  assert.equal(d.server.rows.get(A).save.version, 3); assert.equal(d.paid(), 0, 'migration and HOME retry cannot pay old progress');
+  assert.equal(d.server.rows.get(A).save.lastReported.level, 4);
 });
 
 test('an ownership-marker quota failure keeps the legacy mirror from exposing account A to B', async t => {

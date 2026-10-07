@@ -1,9 +1,12 @@
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
+import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
+export { HERO_IDS };
+export type { HeroId, CharacterProgress, Gear };
+export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
 // Pure deterministic game rules. The viewport is 320 x 180; maps use world coordinates.
 export const WIDTH = 320;
 export const HEIGHT = 180;
-export type HeroId = "joe" | "matt";
 export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
@@ -43,7 +46,7 @@ export type GameEvent =
 export interface GameState {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   vx: number; vy: number; knockX: number; knockY: number; transitionCooldown: number;
-  active: HeroId; party: HeroId[]; time: number; scene: Scene; room: number;
+  active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
   overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
@@ -57,9 +60,9 @@ export interface GameState {
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
 export function xpForLevel(level: number) { return 75 + (level - 1) * 45; }
-function hero(id: HeroId): HeroState {
-  return { id, hp: 100, maxHp: 100, ki: 30, maxKi: 60, stamina: 80, maxStamina: 80,
-    level: 1, xp: 0, power: id === "joe" ? 12 : 13, defense: id === "joe" ? 3 : 2, invulnerable: 0 };
+export function createHero(id: HeroId, character: CharacterProgress = { level: 1, xp: 0 }, gear: Gear = { power: 0, ward: 0 }): HeroState {
+  const stats = heroStats(id, character, gear);
+  return { id, ...stats, ...character, hp: stats.maxHp, ki: stats.maxKi / 2, stamina: stats.maxStamina, invulnerable: 0 };
 }
 function random(s: GameState) {
   s.rngSeed = (s.rngSeed + 0x6d2b79f5) | 0;
@@ -69,9 +72,9 @@ function random(s: GameState) {
 }
 export function newGame(seed = 8591): GameState {
   const s: GameState = { x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
-    active: "joe", party: ["joe", "matt"], time: 0, scene: "test", room: 0,
+    active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0,
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
-    overlay: null, heroes: { joe: hero("joe"), matt: hero("matt") }, enemies: [], projectiles: [],
+    overlay: null, heroes: Object.fromEntries(HERO_IDS.map(id => [id, createHero(id)])) as Record<HeroId, HeroState>, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
@@ -155,27 +158,33 @@ function floater(s: GameState, x: number, y: number, text: string, color: string
   s.floaters.push({ id: s.nextId++, x, y: y - 10, text, color, ttl: 0.85 });
 }
 function gainXp(s: GameState, amount: number) {
-  for (const h of Object.values(s.heroes)) {
-    h.xp += amount;
-    while (h.xp >= xpForLevel(h.level)) {
-      h.xp -= xpForLevel(h.level); h.level++;
-      h.maxHp += 20; h.hp = Math.min(h.maxHp, h.hp + 30);
-      h.maxKi += 10; h.ki = Math.min(h.maxKi, h.ki + 15);
-      h.power += 3; h.defense++;
-      s.events.push({ type: "level", hero: h.id, level: h.level });
-      if (h.id === s.active) {
-        effect(s, "level", s.x, s.y, 25, 0.85);
-        floater(s, s.x, s.y - 15, `LEVEL ${h.level}!`, "#f9e77c");
-      }
-    }
+  const before = s.character.level;
+  s.character.xp += amount;
+  while (s.character.level < MAX_LEVEL && s.character.xp >= xpForLevel(s.character.level)) {
+    s.character.xp -= xpForLevel(s.character.level); s.character.level++;
   }
+  s.character.xp = Math.min(s.character.xp, xpForLevel(s.character.level) - 1);
+  for (const h of Object.values(s.heroes)) {
+    const growth = s.character.level - h.level, stats = heroStats(h.id, s.character, s.gear);
+    Object.assign(h, s.character, stats);
+    if (growth > 0) { h.hp = Math.min(h.maxHp, h.hp + growth * 30); h.ki = Math.min(h.maxKi, h.ki + growth * 15); }
+  }
+  if (s.character.level > before) {
+    s.events.push({ type: "level", hero: s.active, level: s.character.level });
+    effect(s, "level", s.x, s.y, 25, 0.85);
+    floater(s, s.x, s.y - 15, `LEVEL ${s.character.level}!`, "#f9e77c");
+  }
+}
+function grantGear(s: GameState, power: number, ward: number) {
+  s.gear.power = clamp(s.gear.power + power, 0, 10000); s.gear.ward = clamp(s.gear.ward + ward, 0, 10000);
+  for (const h of Object.values(s.heroes)) Object.assign(h, heroStats(h.id, s.character, s.gear));
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number) {
   if (e.hp <= 0) return;
   const dealt = Math.round(damage);
   e.hp -= dealt; e.hitTimer = 0.18; s.hitStop = Math.max(s.hitStop, force >= 80 ? 0.07 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
-  floater(s, e.x, e.y, String(dealt), s.active === "joe" ? "#9cefff" : "#ffe393");
+  floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
     const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
@@ -185,13 +194,24 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius });
   }
 }
-function swapHero(s: GameState) {
-  const next = s.active === "joe" ? "matt" : "joe";
-  if (!s.party.includes(next) || s.heroes[next].hp <= 0) return;
+export function nextPartyHero(s: GameState): HeroId | null {
+  const at = s.party.indexOf(s.active);
+  for (let offset = 1; offset <= s.party.length; offset++) {
+    const id = s.party[(at + offset) % s.party.length];
+    if (id !== s.active && s.heroes[id].hp > 0) return id;
+  }
+  return null;
+}
+function swapHero(s: GameState): boolean {
+  const next = nextPartyHero(s);
+  if (!next) return false;
   s.active = next; s.swapCooldown = 0.75; s.charge = 0; s.attackTimer = 0; s.combo = 0;
   activeHero(s).invulnerable = Math.max(activeHero(s).invulnerable, 0.25);
   effect(s, "level", s.x, s.y, 16, 0.3);
-  s.events.push({ type: "swap", hero: next });
+  s.events.push({ type: "swap", hero: next }); return true;
+}
+export function requestSwap(s: GameState): boolean {
+  return s.swapCooldown === 0 && s.dashTimer === 0 && !s.overlay ? swapHero(s) : false;
 }
 function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sourceY = s.y - s.faceY) {
   const h = activeHero(s);
@@ -207,8 +227,8 @@ function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sou
   effect(s, "hit", s.x, s.y, 10, 0.13);
   s.events.push({ type: "hit", x: s.x, y: s.y, damage, target: "hero" });
   if (h.hp === 0) {
-    const other = s.heroes[s.active === "joe" ? "matt" : "joe"];
-    if (s.party.includes(other.id) && other.hp > 0) { swapHero(s); s.notice = `${h.id.toUpperCase()} is down! ${other.id.toUpperCase()} takes over.`; }
+    const next = nextPartyHero(s);
+    if (next) { swapHero(s); s.notice = `${HERO_NAMES[h.id]} is down! ${HERO_NAMES[next]} takes over.`; }
     else {
       s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
       s.events.push({ type: "death" });
@@ -239,15 +259,21 @@ function fireKi(s: GameState) {
   const h = activeHero(s);
   if (h.ki >= h.maxKi - 0.01) {
     h.ki = 0;
-    const angles = s.active === "joe" ? [0] : [-0.16, 0, 0.16];
-    for (const angle of angles) {
+    const signature = {
+      you: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "YOU: Fury Wave!" },
+      joe: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "JOE: Wayside Wave!" },
+      matt: { angles: [-0.16, 0, 0.16], damage: 1.8, radius: 6, size: 105, name: "MATT: Golden Fury!" },
+      alex: { angles: [-0.1, 0.1], damage: 2.4, radius: 7, size: 115, name: "ALEX: Twin Comet!" },
+      jon: { angles: [0], damage: 4.8, radius: 12, size: 140, name: "JON: Night Breaker!" },
+    }[s.active];
+    for (const angle of signature.angles) {
       const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
       const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
       projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 245,
-        h.power * (s.active === "joe" ? 4.4 : 1.8), s.active === "joe" ? 10 : 6, true);
+        h.power * signature.damage, signature.radius, true);
     }
-    effect(s, "beam", s.x, s.y, s.active === "joe" ? 130 : 105, 0.36, s.faceX, s.faceY);
-    s.notice = s.active === "joe" ? "JOE: Wayside Wave!" : "MATT: Golden Fury!";
+    effect(s, "beam", s.x, s.y, signature.size, 0.36, s.faceX, s.faceY);
+    s.notice = signature.name;
   } else if (h.ki >= 8) {
     h.ki -= 8;
     projectile(s, "hero", s.x + s.faceX * 12, s.y + s.faceY * 12,
@@ -387,7 +413,7 @@ export function interact(s: GameState): void {
       for (const h of Object.values(s.heroes)) {
         h.hp = Math.min(h.maxHp, h.hp + 35); h.ki = Math.min(h.maxKi, h.ki + 20);
       }
-      if (s.room === 9) for (const h of Object.values(s.heroes)) h.power++;
+      if (s.room === 9) grantGear(s, 1, 0);
       s.notice = s.room === 8 ? "Orchard cache: 18 candy, tonic and Ki supplies!" : "Supply cache: 25 candy, tonic and +1 Power for the crew!";
       s.events.push({ type: "checkpoint", id: target.id }); return;
     }
@@ -406,23 +432,23 @@ export function interact(s: GameState): void {
   const dialogue: Record<string, string> = {
     station: "Wayside Station is safe. Alex and Jon are holding the town while Joe and Matt investigate the Blast Site.",
     bbq: "The grill is still warm. The crew will finish dinner when Wayside is safe.",
-    alex: "Alex: I'll protect the station. Follow the east road; there are supplies hidden off the main route.",
+    alex: "Alex: The station is secure. I can tag in when you need help. There are supplies hidden off the main route.",
     jon: "Jon: HOME restores the whole crew. Stock up before you go, and don't forget to tag your partner in.",
   };
   s.notice = dialogue[target.id] ?? "Wayside is quiet... for now.";
 }
 export function toggleParty(s: GameState, id: HeroId): boolean {
-  if (s.scene !== "hub" || s.overlay !== "home") return false;
+  if (s.scene !== "hub" || s.overlay !== "home" || !s.unlockedHeroes.includes(id)) return false;
   if (s.party.includes(id)) {
     if (s.party.length === 1) { s.notice = "Keep at least one hero in the party."; return false; }
     const next = s.party.find(member => member !== id)!;
     if (s.active === id && s.heroes[next].hp <= 0) { s.notice = "Rest at HOME to revive your partner first."; return false; }
     s.party = s.party.filter(member => member !== id);
     if (s.active === id) swapHero(s);
-    s.notice = `${id.toUpperCase()} waits at HOME.`;
+    s.notice = `${HERO_NAMES[id]} waits at HOME.`;
   } else {
     if (s.party.length >= 2) return false;
-    s.party.push(id); s.notice = `${id.toUpperCase()} joins the party.`;
+    s.party.push(id); s.notice = `${HERO_NAMES[id]} joins the party.`;
   }
   return true;
 }
@@ -437,7 +463,7 @@ export function buyItem(s: GameState, id: ShopItemId): boolean {
   if (id === "heal" && activeHero(s).hp >= activeHero(s).maxHp) { s.notice = "Already at full HP."; return false; }
   s.candy -= item.cost;
   if (id === "heal") activeHero(s).hp = Math.min(activeHero(s).maxHp, activeHero(s).hp + 55);
-  else for (const h of Object.values(s.heroes)) { if (id === "power") h.power += 2; else h.defense++; }
+  else grantGear(s, id === "power" ? 2 : 0, id === "defense" ? 1 : 0);
   s.notice = `${item.name} purchased.`; return true;
 }
 export function step(s: GameState, input: Input, delta: number): void {
@@ -474,7 +500,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     h.stamina = Math.min(h.maxStamina, h.stamina + dt * 20);
     if (!(h.id === s.active && input.ki)) h.ki = Math.min(h.maxKi, h.ki + dt * 2.5);
   }
-  if (input.swap && !previous.swap && s.swapCooldown === 0 && s.dashTimer === 0) swapHero(s);
+  if (input.swap && !previous.swap) requestSwap(s);
   const h = activeHero(s);
   s.guard = combat && input.guard && s.dashTimer === 0 && !input.ki;
   const length = Math.hypot(input.x, input.y);

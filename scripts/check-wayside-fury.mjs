@@ -1,7 +1,7 @@
 // Exercise the pure simulation headlessly, as the Horde Rush balance script does.
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
-import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty, HERO_IDS, createHero, nextPartyHero, requestSwap } from '../src/pages/WaysideFury/game/sim.ts';
 
 import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
 import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM, GATEKEEPER_ROOM, isBlocked, cameraTarget, tileAt } from '../src/pages/WaysideFury/game/world.ts';
@@ -58,6 +58,36 @@ const edgeTravel = newGame(); enterScene(edgeTravel, 'dungeon'); edgeTravel.enem
 edgeTravel.x = getWorld('dungeon').width - 64; tick(edgeTravel, { x: 1 }, 60);
 assert.equal(edgeTravel.scene, 'dungeon'); assert.equal(edgeTravel.room, 1, 'open zone boundaries transition by walking');
 assert.ok(edgeTravel.x > 56 && edgeTravel.x < 120, 'arrival starts safely inside the neighboring map');
+
+// You is the default lead, and every crew partner can tag in with an
+// independent health pool, shared progression and a distinct signature.
+assert.equal(newGame().active, 'you'); assert.deepEqual(newGame().unlockedHeroes, HERO_IDS);
+assert.deepEqual(newGame().character, { level: 1, xp: 0 });
+for (const [id, beams, notice] of [['you', 1, 'YOU: Fury Wave!'], ['joe', 1, 'JOE: Wayside Wave!'],
+  ['matt', 3, 'MATT: Golden Fury!'], ['alex', 2, 'ALEX: Twin Comet!'], ['jon', 1, 'JON: Night Breaker!']]) {
+  const partner = emptyRoom(); enterScene(partner, 'hub'); partner.overlay = 'home';
+  if (id !== 'you') {
+    assert.equal(toggleParty(partner, 'joe'), true);
+    assert.equal(toggleParty(partner, id), true);
+    partner.overlay = null; assert.equal(nextPartyHero(partner), id);
+    assert.equal(requestSwap(partner), true); assert.equal(partner.active, id);
+    assert.equal(requestSwap(partner), false, 'HUD swap obeys its cooldown');
+  }
+  enterScene(partner, 'test'); partner.enemies = []; activeHero(partner).ki = activeHero(partner).maxKi;
+  tick(partner, { ki: true }); tick(partner);
+  assert.equal(partner.projectiles.filter(p => p.beam).length, beams); assert.equal(partner.notice, notice);
+  if (id !== 'you') {
+    tick(partner, {}, 60); partner.heroes[id].hp = 1; partner.heroes[id].invulnerable = 0; partner.hitStop = 0;
+    bulletAtHero(partner, 99); tick(partner);
+    assert.equal(partner.active, 'you', 'a downed partner hands control back to You');
+    assert.equal(partner.heroes[id].hp, 0);
+  }
+}
+const soloYou = emptyRoom(); soloYou.party = ['you']; soloYou.heroes.you.hp = 1;
+bulletAtHero(soloYou, 99); tick(soloYou); assert.equal(soloYou.scene, 'dead');
+assert.ok(soloYou.heroes.joe.hp > 0, 'healthy benched crew cannot rescue a solo wipe');
+const derived = createHero('you', { level: 4, xp: 25 }, { power: 4, ward: 2 });
+assert.equal(derived.power, 25); assert.equal(derived.defense, 8); assert.equal(derived.maxHp, 160);
 
 // Story advances one beat per press, skips directly to the taxi, and resets timers.
 const intro = newGame(); enterScene(intro, 'prologue');
@@ -134,7 +164,7 @@ assert.ok(ki.charge > 2);
 tick(ki);
 assert.equal(ki.projectiles.filter(p => p.beam).length, 1);
 assert.equal(activeHero(ki).ki, 0);
-assert.equal(ki.notice, 'JOE: Wayside Wave!');
+assert.equal(ki.notice, 'YOU: Fury Wave!');
 const mattBeam = emptyRoom();
 mattBeam.active = 'matt'; activeHero(mattBeam).ki = activeHero(mattBeam).maxKi;
 tick(mattBeam, { ki: true }); tick(mattBeam);
@@ -159,7 +189,7 @@ tick(dash, { dash: true }, 20);
 assert.equal(dash.dashTimer, 0, 'held Dash cannot auto-repeat');
 
 // Tagging preserves each hero's health and cannot bypass its cooldown.
-const tag = emptyRoom(); tag.heroes.joe.hp = 37; tag.heroes.matt.hp = 81;
+const tag = emptyRoom(); tag.party = ['joe', 'matt']; tag.active = 'joe'; tag.heroes.joe.hp = 37; tag.heroes.matt.hp = 81;
 tick(tag, { swap: true }); assert.equal(tag.active, 'matt');
 assert.equal(activeHero(tag).hp, 81);
 tick(tag); tick(tag, { swap: true }); assert.equal(tag.active, 'matt');
@@ -168,7 +198,7 @@ assert.equal(activeHero(tag).hp, 37);
 
 // HOME party selection keeps at least one hero, changes the active hero when
 // benched, and prevents a healthy benched hero from rescuing a solo party wipe.
-const party = emptyRoom();
+const party = emptyRoom(); party.party = ['joe', 'matt']; party.active = 'joe';
 assert.deepEqual(party.party, ['joe', 'matt']);
 assert.equal(toggleParty(party, 'joe'), false, 'party selection is available at HOME');
 enterScene(party, 'hub'); party.overlay = 'home';
@@ -206,10 +236,13 @@ assert.equal(activeHero(progression).xp, 4 * 28 - xpForLevel(1));
 assert.ok(activeHero(progression).maxHp > 100 && activeHero(progression).maxKi > 60);
 assert.ok(activeHero(progression).power > 12 && activeHero(progression).defense > 3);
 assert.ok(progression.effects.some(e => e.kind === 'level'));
+assert.equal(progression.events.filter(e => e.type === 'level').length, 1, 'one shared level emits one jingle/event');
+assert.deepEqual(progression.character, { level: 2, xp: 4 * 28 - xpForLevel(1) });
+for (const h of Object.values(progression.heroes)) { assert.equal(h.level, 2); assert.equal(h.xp, progression.character.xp); }
 assert.ok(progression.floaters.some(f => f.text.endsWith('candy')));
 
 // One downed hero tags the survivor in. A party wipe enters game-over once.
-const death = emptyRoom(); death.heroes.joe.hp = 1;
+const death = emptyRoom(); death.party = ['joe', 'matt']; death.active = 'joe'; death.heroes.joe.hp = 1;
 bulletAtHero(death, 99); tick(death);
 assert.equal(death.active, 'matt'); assert.equal(death.scene, 'test');
 death.heroes.matt.hp = 1; death.heroes.matt.invulnerable = 0; death.hitStop = 0;
@@ -260,7 +293,7 @@ for (const point of HUB_POINTS.filter(p => p.id === 'shop' || p.id === 'home')) 
 }
 
 // Shop costs are exact, healing caps at max HP, and charms help both heroes.
-const shop = emptyRoom(); shop.candy = 100; shop.heroes.joe.hp = 20;
+const shop = emptyRoom(); shop.active = 'joe'; shop.candy = 100; shop.heroes.joe.hp = 20;
 const tonic = SHOP_ITEMS.find(item => item.id === 'heal');
 assert.equal(buyItem(shop, 'heal'), true);
 assert.equal(shop.heroes.joe.hp, 75); assert.equal(shop.candy, 100 - tonic.cost);
@@ -268,7 +301,7 @@ assert.equal(buyItem(shop, 'heal'), true); assert.equal(shop.heroes.joe.hp, 100)
 const noNeedCandy = shop.candy;
 assert.equal(buyItem(shop, 'heal'), false); assert.equal(shop.candy, noNeedCandy);
 const stats = Object.fromEntries(Object.entries(shop.heroes).map(([id, h]) => [id, { power: h.power, defense: h.defense }]));
-assert.equal(buyItem(shop, 'power'), true); assert.equal(buyItem(shop, 'defense'), true);
+assert.equal(buyItem(shop, 'power'), true); assert.equal(buyItem(shop, 'defense'), true); assert.deepEqual(shop.gear, { power: 2, ward: 1 });
 for (const [id, h] of Object.entries(shop.heroes)) {
   assert.equal(h.power, stats[id].power + 2); assert.equal(h.defense, stats[id].defense + 1);
 }
@@ -323,7 +356,7 @@ assert.equal(bossRules.projectiles.length, 12);
 // Play the complete dungeon with default stats and only ordinary game inputs.
 // This bot charges, aims, attacks, guards, dashes and tags. It gets no healing
 // or stats beyond legitimate level-ups, and walks to each room's east gate.
-const quest = newGame(7); enterScene(quest, 'dungeon');
+const quest = newGame(7); assert.equal(quest.active, 'you'); assert.deepEqual(quest.party, ['you', 'joe']); enterScene(quest, 'dungeon');
 let playFrame = 0; const checkpoints = [], usedControls = new Set(), roomFrames = [];
 function playRoom(s) {
   let frames = 0; const scene = s.scene;
@@ -436,22 +469,22 @@ const zero = progressReport(progress);
 assert.equal(zero.score, 0); assert.deepEqual(zero.receipt, { areas: [], bosses: [], rooms: [], level: 1 });
 progress.areas = ['wayside']; assert.equal(progressReport(progress).score, 1000);
 progress.areas = []; progress.bosses = ['blast-watcher']; assert.equal(progressReport(progress).score, 1000);
-progress.bosses = []; progress.heroes.joe.level = progress.heroes.matt.level = 3;
+progress.bosses = []; progress.character.level = 3;
 assert.equal(progressReport(progress).score, 200, 'shared party levels pay once');
-progress.heroes.matt.level = 4; assert.equal(progressReport(progress).score, 300);
-progress.heroes.joe.level = progress.heroes.matt.level = 1;
+progress.character.level = 4; assert.equal(progressReport(progress).score, 300);
+progress.character.level = 1;
 progress.clearedRooms = ['blast-0', 'blast-1']; assert.equal(progressReport(progress).score, 100);
 progress.areas = ['wayside', 'blast', 'blast']; progress.bosses = ['blast-watcher', 'blast-watcher'];
 progress.clearedRooms = ['blast-0', 'blast-1', 'blast-1'];
-progress.heroes.joe.level = progress.heroes.matt.level = 3;
+progress.character.level = 3;
 const earned = progressReport(progress); assert.equal(earned.score, 3300);
 assert.equal(progressReport(progress, earned.receipt).score, 0, 'repeated checkpoints send nothing');
 progress.areas = []; progress.bosses = []; progress.clearedRooms = [];
-progress.heroes.joe.level = progress.heroes.matt.level = 1;
+progress.character.level = 1;
 const rolledBack = progressReport(progress, earned.receipt);
 assert.equal(rolledBack.score, 0); assert.deepEqual(rolledBack.receipt, earned.receipt);
-progress.heroes.joe.level = 3; assert.equal(progressReport(progress, rolledBack.receipt).score, 0);
-progress.heroes.joe.level = 4; assert.equal(progressReport(progress, rolledBack.receipt).score, 100);
+progress.character.level = 3; assert.equal(progressReport(progress, rolledBack.receipt).score, 0);
+progress.character.level = 4; assert.equal(progressReport(progress, rolledBack.receipt).score, 100);
 assert.deepEqual(mergeReceipts({ areas: ['wayside'], bosses: [], rooms: ['blast-0'], level: 4 },
   null, { areas: ['blast', 'wayside'], bosses: ['blast-watcher'], rooms: ['blast-1'], level: 2 }),
   { areas: ['wayside', 'blast'], bosses: ['blast-watcher'], rooms: ['blast-0', 'blast-1'], level: 4 });
@@ -463,10 +496,10 @@ const storage = { getItem: key => entries.get(key) ?? null, setItem: (key, value
 Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true });
 try {
   assert.equal(readSave(), null);
-  home.active = 'matt'; home.candy = 19;
+  home.party = ['joe', 'matt']; home.active = 'matt'; home.candy = 19;
   const firstSave = writeSave(home, null, true);
   assert.ok(firstSave); assert.equal(firstSave.home.candy, 19);
-  home.candy = 87; home.heroes.joe.level = 2; home.heroes.joe.xp = 7; home.heroes.joe.maxHp = 120;
+  home.candy = 87; home.character = { level: 2, xp: 7 }; home.heroes.joe.level = 2; home.heroes.joe.xp = 7; home.heroes.joe.maxHp = 120;
   home.heroes.joe.hp = 0; home.heroes.matt.hp = 22; home.areas.push('blast');
   home.clearedRooms.push('blast-1'); home.bosses.push('blast-boss'); home.deaths = 2;
   firstSave.lastReported = { areas: ['wayside'], bosses: [], rooms: ['blast-1'], level: 2 };
@@ -474,7 +507,7 @@ try {
   assert.ok(nextSave); assert.equal(nextSave.home.candy, 19, 'ordinary saves retain HOME snapshot');
   const saved = readSave(); assert.ok(saved); assert.deepEqual(saved, nextSave);
   assert.deepEqual(saved.lastReported, firstSave.lastReported);
-  assert.deepEqual(saved.unlockedHeroes, ['joe', 'matt']);
+  assert.deepEqual(saved.unlockedHeroes, HERO_IDS);
   const continued = restoreSave(saved);
   assert.equal(continued.scene, 'hub'); assert.equal(continued.candy, 87);
   assert.equal(continued.heroes.joe.level, 2); assert.equal(continued.active, 'matt');
@@ -488,8 +521,7 @@ try {
   retried.heroes.joe.hp = 5;
   assert.equal(saved.home.heroes.joe.hp, 100, 'restoring copies snapshot hero objects');
   // Dying after dungeon progress retries at HOME without erasing milestones.
-  quest.heroes.joe.hp = quest.heroes.matt.hp = 1;
-  quest.heroes.joe.invulnerable = quest.heroes.matt.invulnerable = 0; quest.hitStop = 0;
+  for (const h of Object.values(quest.heroes)) { h.hp = 1; h.invulnerable = 0; } quest.hitStop = 0;
   bulletAtHero(quest, 99); tick(quest);
   activeHero(quest).invulnerable = 0; quest.hitStop = 0; bulletAtHero(quest, 99); tick(quest);
   assert.equal(quest.scene, 'dead');
@@ -501,7 +533,7 @@ try {
   assert.equal(afterDeath.heroes.joe.level, 1); assert.equal(afterDeath.candy, 19);
   assert.deepEqual(failedRun.lastReported, firstSave.lastReported);
   // Party snapshots retain HOME composition while ordinary saves retain the current party.
-  const partySaveState = newGame(); enterScene(partySaveState, 'hub'); partySaveState.overlay = 'home';
+  const partySaveState = newGame(); partySaveState.party = ['joe', 'matt']; partySaveState.active = 'joe'; enterScene(partySaveState, 'hub'); partySaveState.overlay = 'home';
   assert.equal(toggleParty(partySaveState, 'matt'), true);
   const soloHome = writeSave(partySaveState, null, true); assert.ok(soloHome);
   assert.deepEqual(soloHome.party, ['joe']); assert.deepEqual(soloHome.home.party, ['joe']);
@@ -512,10 +544,10 @@ try {
   assert.deepEqual(restoreSave(currentPartySave, true).party, ['joe']);
   assert.equal(restoreSave(currentPartySave, true).active, 'joe');
   const legacy = structuredClone(currentPartySave); delete legacy.party; delete legacy.home.party;
-  entries.set(SAVE_KEY, JSON.stringify(legacy)); assert.deepEqual(readSave().party, ['joe', 'matt']);
+  entries.set(SAVE_KEY, JSON.stringify(legacy)); assert.deepEqual(readSave().party, ['you', 'joe']);
   const filteredParty = { ...currentPartySave, party: ['alex', 'joe', 'joe', 99] };
   entries.set(SAVE_KEY, JSON.stringify(filteredParty));
-  assert.deepEqual(readSave().party, ['joe']); assert.equal(readSave().active, 'joe');
+  assert.deepEqual(readSave().party, ['alex', 'joe']); assert.equal(readSave().active, 'alex');
 
   // A stale tab cannot roll the report receipt back, even if its game state is older.
   entries.clear();
@@ -523,7 +555,7 @@ try {
   const baseHome = writeSave(baseRun, null, true); assert.ok(baseHome);
   const tabA = restoreSave(baseHome), tabB = restoreSave(baseHome);
   tabA.areas.push('blast'); tabA.clearedRooms.push('blast-0');
-  tabA.heroes.joe.level = tabA.heroes.matt.level = 2;
+  tabA.character.level = 2;
   const tabAReport = progressReport(tabA, baseHome.lastReported);
   assert.equal(tabAReport.score, 2150);
   const committedA = writeSave(tabA, baseHome, false, tabAReport.receipt); assert.ok(committedA);
@@ -532,7 +564,7 @@ try {
   assert.deepEqual(readSave().lastReported, committedA.lastReported);
   assert.equal(progressReport(tabB, staleB.lastReported).score, 0);
   tabB.areas.push('blast'); tabB.clearedRooms.push('blast-0');
-  tabB.heroes.joe.level = tabB.heroes.matt.level = 2;
+  tabB.character.level = 2;
   assert.equal(progressReport(tabB, staleB.lastReported).score, 0);
   const homeRetry = restoreSave(staleB, true);
   assert.equal(homeRetry.heroes.joe.level, 1);

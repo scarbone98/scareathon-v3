@@ -1,4 +1,5 @@
 import { Renderer, type RenderPresentation } from "./render";
+import type { HeroAvatar } from "./avatar";
 import { GameInput, type InputMode } from "./input";
 import { newGame, step, type GameEvent, type GameState, type Input } from "./sim";
 export interface Callbacks {
@@ -27,7 +28,8 @@ export class GameController {
     this.raf = requestAnimationFrame(this.frame);
   }
   start(state = newGame()) { this.state = state; this.paused = false; this.acc = 0; this.input.clear(); this.renderer.reset(); this.publish(); }
-  setPaused(paused: boolean) { this.paused = paused; this.acc = 0; this.input.clear(); this.state.previousInput.ki = false; }
+  setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.acc = 0; this.input.clear(); this.state.previousInput.ki = false; }
+  setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); }
   setTouch(input: Partial<Input>) { this.input.setTouch(input); }
   mutate(action: (state: GameState) => void) {
     const overlay = this.state.overlay;
@@ -36,7 +38,16 @@ export class GameController {
     for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.cb.onEvent?.(this.state, event); }
     this.state.events.length = 0; this.publish();
   }
-  private publish() { this.cb.onState({ ...this.state, heroes: { joe: { ...this.state.heroes.joe }, matt: { ...this.state.heroes.matt } }, enemies: [...this.state.enemies] }); }
+  private publish() {
+    const s = this.state;
+    this.cb.onState({ ...s,
+      heroes: Object.fromEntries(Object.entries(s.heroes).map(([id, hero]) => [id, { ...hero }])) as GameState["heroes"],
+      character: { ...s.character }, gear: { ...s.gear }, party: [...s.party], unlockedHeroes: [...s.unlockedHeroes],
+      enemies: s.enemies.map(enemy => ({ ...enemy })), effects: s.effects.map(effect => ({ ...effect })),
+      floaters: s.floaters.map(floater => ({ ...floater })), projectiles: s.projectiles.map(shot => ({ ...shot, hits: [...shot.hits] })),
+      clearedRooms: [...s.clearedRooms], areas: [...s.areas], bosses: [...s.bosses], previousInput: { ...s.previousInput }, events: [...s.events],
+    });
+  }
   dispose() { cancelAnimationFrame(this.raf); this.input.dispose(); this.renderer.dispose(); }
   private frame = (now: number) => {
     this.raf = requestAnimationFrame(this.frame);

@@ -1,16 +1,16 @@
-import { enterScene, newGame, type GameState } from "./sim.ts";
+import { enterScene, newGame, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
-import { SAVE_VERSION, sanitizeSave, inferGear, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
+import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
 import type { SaveData, ProgressReceipt } from "../../../../server/shared/waysideFury/save.js";
 export { mergeReceipts };
-export type { SaveData, HomeSnapshot, ProgressReceipt, SaveSettings, Gear } from "../../../../server/shared/waysideFury/save.js";
+export type { SaveData, HomeSnapshot, ProgressReceipt, SaveSettings, Gear, CharacterProgress } from "../../../../server/shared/waysideFury/save.js";
 export const SAVE_KEY = "wayside-fury-save";
 
 export function progressReport(s: GameState, previous?: ProgressReceipt | null): { score: number; receipt: ProgressReceipt } {
   const reported = mergeReceipts(previous);
   const current: ProgressReceipt = {
     areas: [...new Set(s.areas)], bosses: [...new Set(s.bosses)], rooms: [...new Set(s.clearedRooms)],
-    level: Math.max(...Object.values(s.heroes).map(h => h.level)),
+    level: s.character.level,
   };
   const additions = (now: string[], before: string[]) => now.filter(id => !before.includes(id)).length;
   const score = (additions(current.areas, reported.areas) + additions(current.bosses, reported.bosses)) * 1000 +
@@ -30,10 +30,10 @@ export function readSave(key = SAVE_KEY): SaveData | null {
 export function makeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
   return parseSave({
     version: SAVE_VERSION, chapter: s.chapter, heroes: s.heroes, active: s.active, party: s.party, candy: s.candy,
-    unlockedHeroes: ["joe", "matt"], areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
-    kills: s.kills, deaths: s.deaths, gear: inferGear(s.heroes), settings: previous?.settings, savedAt: Date.now(),
+    unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
+    kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
-    home: home ? { heroes: s.heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, gear: inferGear(s.heroes) } : previous?.home ?? null,
+    home: home ? { heroes: s.heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
 }
 export function writeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
@@ -48,7 +48,8 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
   if (saved) {
     const snapshot = retry && saved.home ? saved.home : saved;
-    s.heroes = { joe: { ...snapshot.heroes.joe }, matt: { ...snapshot.heroes.matt } };
+    s.heroes = Object.fromEntries(HERO_IDS.map(id => [id, { ...snapshot.heroes[id] }])) as Record<HeroId, HeroState>;
+    s.character = { ...snapshot.character }; s.gear = { ...snapshot.gear }; s.unlockedHeroes = [...saved.unlockedHeroes];
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];

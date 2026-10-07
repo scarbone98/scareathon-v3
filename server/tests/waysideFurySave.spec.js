@@ -1,6 +1,6 @@
 import { parseSaveRequest } from '../routes/waysideFury.js';
 import { MAX_LEVEL, MAX_MILESTONES, MAX_SAVE_BYTES, inferGear, mergeReceipts, migrateSave, progressScore, sanitizeSave } from '../shared/waysideFury/save.js';
-import { hero, legacySave, makeServer, memoryDatabase, PLAYER, OTHER_PLAYER } from './helpers/waysideFurySaveFixtures.js';
+import { hero, legacySave, currentSave, makeServer, memoryDatabase, PLAYER, OTHER_PLAYER } from './helpers/waysideFurySaveFixtures.js';
 
 const checked = extra => sanitizeSave(legacySave(extra)).save;
 describe('Wayside Fury save sheets', () => {
@@ -8,7 +8,7 @@ describe('Wayside Fury save sheets', () => {
         const old = legacySave({ extra: 'discard me', savedAt: 1234 });
         old.heroes.joe.unknown = 'discard me';
         const save = migrateSave(old);
-        expect(save.version).toBe(2); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
+        expect(save.version).toBe(3); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
         expect(save.lastReported).toEqual(old.lastReported); expect(save.extra).toBeUndefined();
         expect(save.settings).toEqual({ musicVolume: 0.6, sfxVolume: 0.8, controls: { tutorialDismissed: false, stickSensitivity: 1 } });
         expect(save.gear).toEqual({ power: 0, ward: 0 }); expect(save.savedAt).toBe(1234);
@@ -18,9 +18,50 @@ describe('Wayside Fury save sheets', () => {
         const heroes = { joe: hero('joe', 4), matt: hero('matt', 4) };
         for (const h of Object.values(heroes)) { h.power += 4; h.defense += 2; }
         expect(inferGear(heroes)).toEqual({ power: 4, ward: 2 });
+        expect(checked({ heroes, gear: { power: 0, ward: 0 } }).gear).toEqual({ power: 4, ward: 2 });
         const save = checked({ heroes, home: { heroes: legacySave().heroes, active: 'matt', party: ['matt'], candy: 7, chapter: 1 } });
         expect(save.gear).toEqual({ power: 4, ward: 2 }); expect(save.home.gear).toEqual({ power: 0, ward: 0 });
-        expect(save.home.party).toEqual(['matt']);
+        expect(save.home.party).toEqual(['you', 'matt']);
+    });
+    test('version2 migrates the strongest legacy progression once and keeps earlier HOME progression and gear', () => {
+        const heroes = { joe: hero('joe', 2), matt: hero('matt', 5) };
+        heroes.joe.hp = 17; heroes.matt.hp = 27; heroes.joe.xp = 19; heroes.matt.xp = 11;
+        for (const h of Object.values(heroes)) { h.power += 4; h.defense += 2; }
+        const homeHeroes = { joe: hero('joe'), matt: hero('matt') };
+        for (const h of Object.values(homeHeroes)) { h.power += 2; h.defense++; h.xp = 5; }
+        const raw = legacySave({ version: 2, heroes, active: 'matt', gear: { power: 4, ward: 2 },
+            savedAt: 3456, settings: { musicVolume: 0.3, sfxVolume: 0.4, controls: { tutorialDismissed: true, stickSensitivity: 1.5 } },
+            home: { heroes: homeHeroes, active: 'joe', party: ['joe', 'matt'], candy: 7, chapter: 1 },
+            lastReported: { areas: ['wayside'], bosses: ['blast-watcher'], rooms: ['blast-0'], level: 5 } });
+        const save = migrateSave(raw);
+        expect(save.character).toEqual({ level: 5, xp: 11 });
+        expect(Object.values(save.heroes).every(h => h.level === 5 && h.xp === 11)).toBe(true);
+        expect(save.heroes.joe.hp).toBe(17); expect(save.heroes.matt.hp).toBe(27);
+        expect(save.heroes.you.power).toBe(28); expect(save.gear).toEqual({ power: 4, ward: 2 });
+        expect(save.active).toBe('you'); expect(save.party).toEqual(['you', 'matt']);
+        expect(save.unlockedHeroes).toEqual(['you', 'joe', 'matt', 'alex', 'jon']);
+        expect(save.home.character).toEqual({ level: 1, xp: 5 }); expect(save.home.gear).toEqual({ power: 2, ward: 1 });
+        expect(save.lastReported).toEqual(raw.lastReported); expect(save.settings).toEqual(raw.settings); expect(save.savedAt).toBe(3456);
+        expect(sanitizeSave(save).save).toEqual(save);
+    });
+    test('equal legacy levels choose higher XP without adding duplicated party XP', () => {
+        const heroes = { joe: hero('joe', 3), matt: hero('matt', 3) };
+        heroes.joe.xp = 20; heroes.matt.xp = 40;
+        expect(checked({ heroes }).character).toEqual({ level: 3, xp: 40 });
+    });
+    test('current sheets retain all partners and their selection while stats depend only on shared level and gear', () => {
+        const raw = currentSave({ character: { level: 3, xp: 10 }, gear: { power: 2, ward: 1 },
+            active: 'alex', party: ['alex', 'jon'], look: { body: 'ghost', power: 999 } });
+        raw.heroes.you.power = 9999; raw.heroes.you.defense = 9999; raw.heroes.you.outfit = 'legendary';
+        const save = sanitizeSave(raw).save;
+        expect(save.heroes.you.power).toBe(20); expect(save.heroes.you.defense).toBe(6);
+        expect(save.heroes.you.outfit).toBeUndefined(); expect(save.look).toBeUndefined();
+        expect(save.active).toBe('alex'); expect(save.party).toEqual(['alex', 'jon']);
+        expect(sanitizeSave(save).save).toEqual(save);
+        const missing = structuredClone(raw); delete missing.heroes.you;
+        expect(sanitizeSave(missing).error).toBeDefined();
+        expect(sanitizeSave({ ...raw, character: null }).error).toBeDefined();
+        expect(sanitizeSave({ ...raw, gear: null }).error).toBeDefined();
     });
     test('bounds numbers, deduplicates and caps milestone arrays and clears invulnerability', () => {
         const old = legacySave({ candy: -5, chapter: 999, kills: 1e12, deaths: -1,
@@ -34,12 +75,12 @@ describe('Wayside Fury save sheets', () => {
         expect(save.heroes.joe.invulnerable).toBe(0);
     });
     test('settings and party choices are bounded without allowing unknown heroes', () => {
-        const save = checked({ party: ['matt', 'matt', 'alien'], active: 'joe', settings: { musicVolume: 9, sfxVolume: -2,
-            controls: { tutorialDismissed: true, stickSensitivity: 40 }, extra: true } });
+        const save = sanitizeSave(currentSave({ party: ['matt', 'matt', 'alien'], active: 'joe', settings: { musicVolume: 9, sfxVolume: -2,
+            controls: { tutorialDismissed: true, stickSensitivity: 40 }, extra: true } })).save;
         expect(save.active).toBe('matt'); expect(save.party).toEqual(['matt']);
         expect(save.settings).toEqual({ musicVolume: 1, sfxVolume: 0, controls: { tutorialDismissed: true, stickSensitivity: 2 } });
-        expect(checked({ party: [] }).party).toEqual(['joe']);
-        const legacy = legacySave(); delete legacy.party; expect(migrateSave(legacy).party).toEqual(['joe', 'matt']);
+        expect(sanitizeSave(currentSave({ party: [] })).save.party).toEqual(['you']);
+        const legacy = legacySave(); delete legacy.party; expect(migrateSave(legacy).party).toEqual(['you', 'joe']);
     });
     test.each([null, [], {}, { version: 999 }, legacySave({ heroes: {} }), legacySave({ candy: '19' }),
         legacySave({ active: 'alex' }), legacySave({ lastReported: null }), legacySave({ unlockedHeroes: ['joe'] })])('rejects malformed or unsupported sheets: %p', raw => {
@@ -56,7 +97,7 @@ describe('Wayside Fury save sheets', () => {
             { clearedRooms: ['blast-0', 'blast-1'] }, { heroes: { joe: hero('joe', 2), matt: hero('matt') } }]) {
             expect(progressScore(checked(extra))).toBeGreaterThan(progressScore(base));
         }
-        const xp = checked(); xp.heroes.joe.xp = 1;
+        const xp = checked(); xp.character.xp = 1;
         expect(progressScore(xp)).toBeGreaterThan(progressScore(base));
     });
     test('requests require a bounded revision and count UTF-8 bytes before dropping unknown fields', () => {
@@ -86,7 +127,7 @@ describe('Wayside Fury revisioned routes', () => {
                 expect(stale.json().save).toEqual(sanitizeSave(latest).save);
             }
             expect(db.rows.get(PLAYER).save.candy).toBe(91);
-            expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(2);
+            expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(3);
         } finally { await app.close(); }
     });
     test('malformed and oversized requests get400 without touching the database', async () => {

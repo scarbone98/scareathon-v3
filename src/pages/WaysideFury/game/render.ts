@@ -4,6 +4,7 @@ import { HEIGHT, WIDTH, activeHero, type Effect, type Enemy, type GameState, typ
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { getWorld, type WorldMap, type WorldProp } from "./world";
 import { TerrainCache } from "./terrain";
+import type { AvatarStrip, HeroAvatar } from "./avatar";
 
 interface Sheet { url: string; w: number; h: number; frames: number }
 const SHEETS = {
@@ -19,8 +20,9 @@ const SHEETS = {
   imp: { url: "/sprites/imp.png", w: 16, h: 16, frames: 4 },
   shadowbeast: { url: "/sprites/shadowbeast.png", w: 32, h: 32, frames: 6 },
 } satisfies Record<string, Sheet>;
-type SpriteId = keyof typeof SHEETS;
-const ACCENT: Record<HeroId, string> = { joe: "#79ebff", matt: "#ffd06f" };
+type BuiltinSpriteId = keyof typeof SHEETS;
+type SpriteId = BuiltinSpriteId | "you";
+const ACCENT: Record<HeroId, string> = { you: "#b0f3d1", joe: "#79ebff", matt: "#ffd06f", alex: "#bada86", jon: "#c39beb" };
 const INK = "#101722";
 
 
@@ -38,7 +40,8 @@ interface Tumble { x: number; y: number; sprite: SpriteId; life: number; maxLife
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
-  private images = new Map<SpriteId, HTMLImageElement>();
+  private images = new Map<BuiltinSpriteId, HTMLImageElement>();
+  private avatar: HeroAvatar | null = null;
   private coarse = document.createElement('canvas');
   private coarseCtx: CanvasRenderingContext2D;
   private paletteCache = new Map<number, number>();
@@ -49,6 +52,9 @@ export class Renderer {
   private transition = 0;
   private shake = 0;
   private visualTime = 0;
+  private kiPose = 0;
+  private previousKi: number | null = null;
+  private previousHero: HeroId | null = null;
   private bursts: PixelBurst[] = [];
   private tumbles: Tumble[] = [];
   private motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -61,11 +67,12 @@ export class Renderer {
     this.coarse.width = 160; this.coarse.height = 90;
     this.coarseCtx = this.coarse.getContext('2d', { willReadFrequently: true })!;
     for (const [id, sheet] of Object.entries(SHEETS)) {
-      const image = new Image(); image.src = sheet.url; this.images.set(id as SpriteId, image);
+      const image = new Image(); image.src = sheet.url; this.images.set(id as BuiltinSpriteId, image);
     }
     this.motionQuery.addEventListener('change', this.motionChanged);
   }
-  reset() { this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0; }
+  setAvatar(assets: HeroAvatar) { this.avatar = assets; }
+  reset() { this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0; this.kiPose = 0; this.previousKi = null; this.previousHero = null; }
   dispose() { this.motionQuery.removeEventListener('change', this.motionChanged); this.terrain.clear(); }
   project(x: number, y: number) { return { x: (x - Math.round(this.camera.x)) / WIDTH, y: (y - Math.round(this.camera.y)) / HEIGHT }; }
   presentation(s: GameState): RenderPresentation {
@@ -109,6 +116,10 @@ export class Renderer {
     const c = this.ctx;
     dt = Math.min(.05, Math.max(0, dt));
     this.visualTime += dt;
+    this.kiPose = Math.max(0, this.kiPose - dt);
+    const ki = activeHero(s).ki;
+    if (this.previousHero === s.active && this.previousKi !== null && ki < this.previousKi - 1 && s.charge === 0) this.kiPose = .24;
+    this.previousKi = ki; this.previousHero = s.active;
     this.shake = Math.max(0, this.shake - dt * 23);
     this.transition = Math.max(0, this.transition - dt);
     for (const burst of this.bursts) burst.life -= dt;
@@ -150,6 +161,7 @@ export class Renderer {
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(Math.round(s.x), Math.round(s.y)); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
+    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -169,7 +181,7 @@ export class Renderer {
     this.portal(160, 109, s.time, Math.min(1, progress * 4));
     this.ctx.globalAlpha = Math.max(0, 1 - progress * 1.3);
     this.sprite(s.active, 148 + progress * 12, 109 - Math.sin(progress * Math.PI) * 11, s.time);
-    this.sprite(s.active === 'joe' ? 'matt' : 'joe', 178 - progress * 12, 113 - Math.sin(progress * Math.PI) * 8, s.time, true);
+    this.sprite(s.party.find(id => id !== s.active) ?? 'joe', 178 - progress * 12, 113 - Math.sin(progress * Math.PI) * 8, s.time, true);
     this.ctx.globalAlpha = 1;
     if (!this.reducedMotion) for (let k = 0; k < 8; k++) {
       const y = (k * 23 + Math.floor(s.sceneTimer * 37)) % HEIGHT;
@@ -365,11 +377,16 @@ export class Renderer {
     c.save(); c.translate(Math.round(s.x), Math.round(s.y - bob));
     if (!this.reducedMotion) {
       const lean = s.dashTimer > 0 ? .12 * s.faceX : s.moving ? .035 * s.faceX + cycle * .015 : 0;
-      c.rotate(lean + strike * .12 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
+      c.rotate(lean + strike * .12 * s.faceX - this.kiPose / .24 * .1 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
       if (s.dashTimer > 0) c.scale(1.16, .87); else if (s.attackTimer > 0) { c.translate(strike * s.faceX * 3, strike * s.faceY * 2); c.scale(1 + strike * .04, 1 - strike * .025); }
+      else if (this.kiPose > 0) { const recoil = this.kiPose / .24; c.translate(-s.faceX * recoil * 2, -s.faceY * recoil); c.scale(1 + recoil * .035, 1 - recoil * .03); }
+      else if (s.charge > .12) c.scale(1.035, .96);
       else c.scale(1 - cycle * .008, 1 + cycle * .009);
     }
-    this.sprite(s.moving || s.dashTimer > 0 ? `run_${s.active}` : s.active, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
+    if (s.active === 'you' && this.avatar) for (const strip of this.avatar.back) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
+    const sprite = (s.moving || s.dashTimer > 0) && (s.active === 'joe' || s.active === 'matt') ? `run_${s.active}` as const : s.active;
+    this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
+    if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
     c.restore(); c.globalAlpha = 1;
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
@@ -717,8 +734,25 @@ export class Renderer {
     this.ctx.globalAlpha = 1;
   }
 
+  private avatarStrip(strip: AvatarStrip, x: number, y: number, time: number, flip = false, scale = 1, hit = false) {
+    const c = this.ctx, frame = Math.floor(time * strip.fps) % strip.frames;
+    c.save(); c.translate(Math.round(x), Math.round(y));
+    if (flip) c.scale(-1, 1);
+    c.drawImage(strip.canvas, frame * 32, 0, 32, 48, -16 * scale, -48 * scale, 32 * scale, 48 * scale);
+    if (hit) {
+      c.globalCompositeOperation = 'lighter'; c.globalAlpha *= .8;
+      c.drawImage(strip.canvas, frame * 32, 0, 32, 48, -16 * scale, -48 * scale, 32 * scale, 48 * scale);
+    }
+    c.restore();
+  }
+
   private sprite(id: SpriteId, x: number, y: number, time: number, flip = false, scale = 1, hit = false) {
     const c = this.ctx;
+    if (id === 'you') {
+      if (this.avatar) this.avatarStrip(this.avatar.body, x, y, time, flip, scale, hit);
+      else this.sprite('joe', x, y, time, flip, scale, hit);
+      return;
+    }
     const sheet = SHEETS[id];
     const image = this.images.get(id)!;
     const frame = Math.floor(time * (id.startsWith("run_") ? 10 : 6)) % sheet.frames;

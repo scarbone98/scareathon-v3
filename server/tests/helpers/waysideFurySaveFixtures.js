@@ -1,18 +1,22 @@
 import Fastify from 'fastify';
 import waysideFuryRoutes from '../../routes/waysideFury.js';
+import { sanitizeSave, HERO_STATS } from '../../shared/waysideFury/save.js';
 
 export const PLAYER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 export const OTHER_PLAYER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 export function hero(id, level = 1) {
-    return { id, hp: 100, maxHp: 100, ki: 30, maxKi: 60, stamina: 80, maxStamina: 80,
-        level, xp: 0, power: (id === 'joe' ? 12 : 13) + (level - 1) * 3,
-        defense: (id === 'joe' ? 3 : 2) + level - 1, invulnerable: 0 };
+    return { id, hp: 100 + (level - 1) * 20, maxHp: 100 + (level - 1) * 20, ki: 30, maxKi: 60 + (level - 1) * 10, stamina: 80, maxStamina: 80,
+        level, xp: 0, power: HERO_STATS[id].power + (level - 1) * 3,
+        defense: HERO_STATS[id].defense + level - 1, invulnerable: 0 };
 }
 export function legacySave(extra = {}) {
     return { version: 1, chapter: 1, heroes: { joe: hero('joe'), matt: hero('matt') },
         active: 'joe', party: ['joe', 'matt'], candy: 19, unlockedHeroes: ['joe', 'matt'],
         areas: ['wayside'], bosses: [], clearedRooms: ['blast-0'], kills: 3, deaths: 0,
         lastReported: { areas: ['wayside'], bosses: [], rooms: ['blast-0'], level: 1 }, home: null, ...extra };
+}
+export function currentSave(extra = {}) {
+    return { ...sanitizeSave(legacySave()).save, ...extra };
 }
 // Model the same conditional INSERT / UPDATE semantics as PostgreSQL. No route
 // mutates this fake directly, so the tests exercise its actual SQL parameters.
