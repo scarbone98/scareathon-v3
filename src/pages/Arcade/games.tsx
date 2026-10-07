@@ -9,8 +9,8 @@ import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
 import { isNewGame } from "./news.ts";
 
-// The attract videos play from Supabase Storage (npm run upload:recordings) rather than
-// public/, so they aren't copied into every deployment; their stills stay in public/
+// Most attract videos play from Supabase Storage (npm run upload:recordings) so
+// they aren't copied into every deployment; their stills stay in public/.
 // This module deliberately exports arcade data and embeds its renderers.
 // eslint-disable-next-line react-refresh/only-export-components
 const RECORDINGS = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/game-recordings`;
@@ -710,6 +710,8 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Wayside Fury",
+      // Kept local until the owner can move the preview to Supabase Storage.
+      videoUrl: "/game-recordings/WaysideFury.mp4",
       earlyAccess: true,
       newShelf: true,
       availableOnMobile: true,
