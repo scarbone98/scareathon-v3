@@ -2,7 +2,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
-import { DEFAULT_BANNER, backdropStyle, bannerMoves, bannerSquare, bannerStyle } from "../banners.ts";
+import { DEFAULT_BANNER, backdropStyle, bannerMoves, bannerStyle, bannerSwatch } from "../banners.ts";
 import type { ExtraShopItem } from "../../components/avatar/AvatarShop";
 
 // Scoreboard banners: in the item shop they're wares like any other (useBannerShopItems), at
@@ -56,7 +56,7 @@ export function useMyBanner(signedIn: boolean) {
   return signedIn ? data?.equipped ?? null : null;
 }
 
-// The banners as the item shop's wares: a square cut from each for its icon, tried on behind
+// The banners as the item shop's wares: a stretch of each for its icon, tried on behind
 // you, bought once (then put up from right there)
 export function useBannerShopItems(trying: string | null, onTry: (key: string | null) => void): ExtraShopItem[] {
   const { data, buy, equip } = useBanners();
@@ -71,7 +71,7 @@ export function useBannerShopItems(trying: string | null, onTry: (key: string | 
       // (the ones that move say so: it's what the extra tickets are for)
       categoryLabel: bannerMoves(banner.key) ? "Animated banner" : "Banner",
       categoryPlural: "Banners",
-      icon: bannerSquare(banner.key) ?? "",
+      icon: bannerSwatch(banner.key) ?? "",
       price: banner.price,
       owned,
       previewing: trying === banner.key,

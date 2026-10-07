@@ -1424,17 +1424,18 @@ export function bannerBackground(key: string): string | null {
   return url;
 }
 
-// The banner as a shop item's icon: a square cut from the tile, where there's something
-// to see (the stretch the background comes from)
-export function bannerSquare(key: string): string | null {
-  const cached = cache.get(`${key}:square`);
+// The banner as a shop item's icon: half the tile (twice as wide as it's tall), where
+// there's something to see (round the stretch the background comes from)
+const SWATCH_W = H * 2;
+export function bannerSwatch(key: string): string | null {
+  const cached = cache.get(`${key}:swatch`);
   if (cached) return cached;
   const tile = bannerFrames(key);
   if (!tile) return null;
   const middle = (SECTION_X[key as BannerKey] ?? (W - SECTION_W) / 2) + SECTION_W / 2;
-  const x = Math.round(Math.min(Math.max(middle - H / 2, 0), W - H));
-  const url = framesUrl(cut(tile, x, H));
-  cache.set(`${key}:square`, url);
+  const x = Math.round(Math.min(Math.max(middle - SWATCH_W / 2, 0), W - SWATCH_W));
+  const url = framesUrl(cut(tile, x, SWATCH_W));
+  cache.set(`${key}:swatch`, url);
   return url;
 }
 

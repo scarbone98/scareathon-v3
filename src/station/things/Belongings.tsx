@@ -16,6 +16,7 @@ import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
 import { plateButton, serif, stubButton } from "../style/theme.ts";
 import { BannerShelf, useBackdrop, useBannerShopItems } from "./Banners.tsx";
+import { bannerStyle } from "../banners.ts";
 import { NO_FILTERS, ShopCategoryTabs, ShopFilterMenus, useTabSwipe, type ShopFilters } from "../../components/avatar/shopFilters";
 import TicketIcon from "../../components/TicketIcon";
 import { SheetActions } from "../Sheet.tsx";
@@ -130,12 +131,18 @@ function YourName({ renamable }: { renamable: boolean }) {
 function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable = false, banner, below }: { look: AvatarLook | null; eyebrow: string; note?: ReactNode; large?: boolean; roomy?: boolean; renamable?: boolean; banner?: string | null; below?: ReactNode }) {
   const { data: summary } = useSummary();
   const backdrop = useBackdrop(banner);
+  // A banner being tried on: behind you there's only room for a slice of it, so the whole of it
+  // runs along a strip as well, as it will along your row on the scoreboard (moving, if it does)
+  const strip = banner ? (
+    <div className="h-14 w-full shrink-0 rounded-[2px] ring-1 ring-[#f2ead2]/20 md:h-20" style={bannerStyle(banner)} role="img" aria-label="The banner, as it runs along the scoreboard" />
+  ) : null;
   if (large)
     return (
       <div className="flex flex-col gap-4">
         <div className="flex h-[30rem] items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20" style={backdrop}>
           <AvatarView look={look} height={440} />
         </div>
+        {strip}
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
           <YourName renamable={renamable} />
@@ -145,7 +152,8 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
       </div>
     );
   return (
-    <div className="mb-4 flex items-center gap-4">
+    <div className="mb-4 flex flex-col gap-2">
+    <div className="flex items-center gap-4">
       <div className={`flex ${roomy ? "h-36 w-28" : "h-24 w-20"} shrink-0 items-end justify-center overflow-hidden rounded-[2px] bg-gradient-to-b from-[#2a2238] to-[#0b1017] ring-1 ring-[#f2ead2]/20`} style={backdrop}>
         <AvatarView look={look} height={roomy ? 144 : 96} />
       </div>
@@ -155,6 +163,8 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
         <TicketCount count={summary?.coinBalance} note={note} />
         {below}
       </div>
+    </div>
+    {strip}
     </div>
   );
 }
