@@ -1,14 +1,18 @@
 // Shared world geometry keeps render markers and interaction checks in sync.
 export const LOCATIONS = [
-  { id: "wayside", name: "Wayside", x: 66, y: 116, locked: false },
-  { id: "blast", name: "The Blast Site", x: 252, y: 80, locked: false },
-  { id: "forest", name: "Hollow Woods", x: 145, y: 64, locked: true },
-  { id: "city", name: "Old City", x: 250, y: 145, locked: true },
+  { id: "wayside", name: "Wayside", x: 208, y: 480, locked: false },
+  { id: "blast", name: "The Blast Site", x: 1088, y: 352, locked: false },
+  { id: "forest", name: "Hollow Woods", x: 656, y: 176, locked: true },
+  { id: "city", name: "Old City", x: 1032, y: 560, locked: true },
 ] as const;
 export const HUB_POINTS = [
-  { id: "shop", name: "Shop", x: 92, y: 89 },
-  { id: "home", name: "Home", x: 219, y: 88 },
-  { id: "taxi", name: "Taxi", x: 160, y: 151 },
+  { id: "shop", name: "Shop", x: 168, y: 240 },
+  { id: "home", name: "Home", x: 776, y: 256 },
+  { id: "taxi", name: "Taxi", x: 480, y: 440 },
+  { id: "station", name: "Wayside Station", x: 480, y: 192 },
+  { id: "bbq", name: "The BBQ yard", x: 800, y: 432 },
+  { id: "alex", name: "Alex", x: 344, y: 248 },
+  { id: "jon", name: "Jon", x: 824, y: 408 },
 ] as const;
 export const SHOP_ITEMS = [
   { id: "heal", name: "Candy tonic", description: "Restore 55 HP to the active hero.", cost: 8 },

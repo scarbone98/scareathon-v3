@@ -1,4 +1,5 @@
 import { enterScene, newGame, xpForLevel, type GameState, type HeroId, type HeroState } from "./sim.ts";
+import { HUB_WORLD } from "./world.ts";
 
 export const SAVE_KEY = "wayside-fury-save";
 export interface ProgressReceipt {
@@ -181,7 +182,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     }
   }
   enterScene(s, "hub");
-  s.x = 160; s.y = 121;
+  s.x = HUB_WORLD.spawn.x; s.y = HUB_WORLD.spawn.y;
   s.notice = retry ? "Rested at HOME. The crew is ready." : "Welcome back to Wayside.";
   return s;
 }

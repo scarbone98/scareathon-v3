@@ -1,7 +1,9 @@
 // The renderer only reads simulation state; all art is native-resolution pixel art.
-import { HEIGHT, WIDTH, activeHero, type Effect, type Enemy, type GameState, type HeroId, type Projectile } from "./sim";
+import { HEIGHT, WIDTH, activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
+import { getWorld, type WorldMap, type WorldProp } from "./world";
+import { TerrainCache } from "./terrain";
 
 interface Sheet { url: string; w: number; h: number; frames: number }
 const SHEETS = {
@@ -21,69 +23,385 @@ type SpriteId = keyof typeof SHEETS;
 const ACCENT: Record<HeroId, string> = { joe: "#79ebff", matt: "#ffd06f" };
 const INK = "#101722";
 
+
+export interface RenderLabel {
+  id: string | number; text: string; x: number; y: number;
+  kind: 'location' | 'locked' | 'hub' | 'exit' | 'floater' | 'caption';
+  color?: string; opacity?: number; scale?: number;
+}
+export interface RenderPresentation {
+  camera: { x: number; y: number; width: number; height: number };
+  labels: RenderLabel[];
+}
+interface PixelBurst { x: number; y: number; color: string; life: number; maxLife: number; seed: number; strength: number }
+interface Tumble { x: number; y: number; sprite: SpriteId; life: number; maxLife: number; scale: number; flip: boolean }
+
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private images = new Map<SpriteId, HTMLImageElement>();
-  private coarse = document.createElement("canvas");
+  private coarse = document.createElement('canvas');
   private coarseCtx: CanvasRenderingContext2D;
   private paletteCache = new Map<number, number>();
+  private terrain = new TerrainCache();
+  private camera = { x: 0, y: 0 };
+  private world: WorldMap | null = null;
+  private sceneKey = '';
+  private transition = 0;
+  private shake = 0;
+  private visualTime = 0;
+  private bursts: PixelBurst[] = [];
+  private tumbles: Tumble[] = [];
+  private motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  private reducedMotion = this.motionQuery.matches;
+  private motionChanged = (event: MediaQueryListEvent) => { this.reducedMotion = event.matches; };
 
   constructor(canvas: HTMLCanvasElement) {
-    canvas.width = WIDTH;
-    canvas.height = HEIGHT;
-    this.ctx = canvas.getContext("2d")!;
+    canvas.width = WIDTH; canvas.height = HEIGHT;
+    this.ctx = canvas.getContext('2d')!;
     this.coarse.width = 160; this.coarse.height = 90;
-    this.coarseCtx = this.coarse.getContext("2d", { willReadFrequently: true })!;
+    this.coarseCtx = this.coarse.getContext('2d', { willReadFrequently: true })!;
     for (const [id, sheet] of Object.entries(SHEETS)) {
-      const image = new Image();
-      image.src = sheet.url;
-      this.images.set(id as SpriteId, image);
+      const image = new Image(); image.src = sheet.url; this.images.set(id as SpriteId, image);
     }
+    this.motionQuery.addEventListener('change', this.motionChanged);
+  }
+  reset() { this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0; }
+  dispose() { this.motionQuery.removeEventListener('change', this.motionChanged); this.terrain.clear(); }
+  project(x: number, y: number) { return { x: (x - Math.round(this.camera.x)) / WIDTH, y: (y - Math.round(this.camera.y)) / HEIGHT }; }
+  presentation(s: GameState): RenderPresentation {
+    const labels: RenderLabel[] = [];
+    const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
+      const point = this.project(x, y);
+      if (point.x < .02 || point.x > .98 || point.y < .05 || point.y > .95) return;
+      labels.push({ id, text, ...point, kind, color, opacity, scale });
+    };
+    if (s.scene === 'overworld') for (const location of LOCATIONS) {
+      const distance = Math.hypot(s.x - location.x, s.y - location.y);
+      if (distance < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y + 24, location.locked ? 'locked' : 'location');
+    }
+    if (s.scene === 'hub') for (const point of HUB_POINTS) {
+      if (Math.hypot(s.x - point.x, s.y - point.y) < 140) add(point.id, point.name, point.x, point.y - (point.id === 'taxi' ? 25 : 61), 'hub');
+    }
+    if (this.world && (s.scene === 'dungeon' || s.scene === 'realm')) for (const exit of this.world.exits) {
+      if (Math.hypot(s.x - exit.x, s.y - exit.y) < 110) add(`exit-${exit.id}`, exit.name, exit.x + exit.w / 2, exit.y - 15, 'exit');
+    }
+    if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const prop of this.world.props) {
+      if (prop.label && !['shop', 'home', 'portal'].includes(prop.kind) && !(s.scene === 'hub' && HUB_POINTS.some(point => point.name === prop.label)) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(`prop-${prop.id}`, prop.label, prop.x + prop.w / 2, prop.y - 8, 'hub');
+    }
+    if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
+      add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
+    }
+    return { camera: { ...this.camera, width: WIDTH, height: HEIGHT }, labels };
+  }
+  onEvent(s: GameState, event: GameEvent) {
+    if (event.type === 'hit') {
+      this.shake = Math.max(this.shake, Math.min(4, 1 + event.damage / 14));
+      this.bursts.push({ x: event.x, y: event.y - 9, color: event.target === 'hero' ? '#ffab94' : ACCENT[s.active], life: .22, maxLife: .22, seed: Math.round(event.x + event.y), strength: Math.min(22, 10 + event.damage / 3) });
+    }
+    if (event.type === 'kill') {
+      this.bursts.push({ x: event.x, y: event.y - 12, color: event.kind === 'boss' ? '#d488cf' : '#94b58a', life: .48, maxLife: .48, seed: event.enemyId, strength: event.kind === 'boss' ? 36 : 23 });
+      this.tumbles.push({ x: event.x, y: event.y, sprite: event.sprite, life: .34, maxLife: .34, scale: event.radius > 10 ? 1.6 : 1, flip: event.x > s.x });
+    }
+    if (event.type === 'death') this.tumbles.push({ x: s.x, y: s.y, sprite: s.active, life: .65, maxLife: .65, scale: 1, flip: s.faceX < 0 });
+    if (this.bursts.length > 36) this.bursts.splice(0, this.bursts.length - 36);
+  }
+  draw(s: GameState, dt = 1 / 60) {
+    const c = this.ctx;
+    dt = Math.min(.05, Math.max(0, dt));
+    this.visualTime += dt;
+    this.shake = Math.max(0, this.shake - dt * 23);
+    this.transition = Math.max(0, this.transition - dt);
+    for (const burst of this.bursts) burst.life -= dt;
+    for (const tumble of this.tumbles) tumble.life -= dt;
+    this.bursts = this.bursts.filter(burst => burst.life > 0);
+    this.tumbles = this.tumbles.filter(tumble => tumble.life > 0);
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, WIDTH, HEIGHT);
+    if (s.scene === 'prologue' || s.scene === 'shift') {
+      this.camera = { x: 0, y: 0 };
+      const storyState = this.reducedMotion ? { ...s, time: 0, sceneTimer: 2.5 } : s;
+      if (s.scene === 'prologue') this.drawPrologue(storyState); else this.drawShift(storyState);
+      if (s.palette === 'eightbit' || (s.scene === 'shift' && s.transitionPalette === 'eightbit' && s.sceneTimer > 1.15)) this.applyEightBit();
+      return;
+    }
+    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room);
+    const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
+    const maxX = Math.max(0, world.width - WIDTH), maxY = Math.max(0, world.height - HEIGHT);
+    const target = { x: Math.max(0, Math.min(maxX, s.x - WIDTH / 2 + (s.moving ? s.faceX * 24 : 0))), y: Math.max(0, Math.min(maxY, s.y - HEIGHT / 2 + (s.moving ? s.faceY * 15 : 0))) };
+    if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
+    const ease = this.reducedMotion ? 1 : 1 - Math.exp(-dt * 8.5);
+    this.camera.x = Math.max(0, Math.min(maxX, this.camera.x + (target.x - this.camera.x) * ease));
+    this.camera.y = Math.max(0, Math.min(maxY, this.camera.y + (target.y - this.camera.y) * ease));
+    this.world = world;
+    // Integer translations preserve the native pixel grid while the camera eases.
+
+    c.save();
+    const shakeX = this.reducedMotion ? 0 : Math.round(Math.sin(this.visualTime * 113) * this.shake);
+    const shakeY = this.reducedMotion ? 0 : Math.round(Math.cos(this.visualTime * 97) * this.shake * .5);
+    c.translate(-Math.round(this.camera.x) + shakeX, -Math.round(this.camera.y) + shakeY);
+    const motionTime = this.reducedMotion ? 0 : s.time;
+    this.terrain.draw(c, world, this.camera, WIDTH, HEIGHT, motionTime);
+    this.ambient(s, world, motionTime);
+    if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
+    for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
+    for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
+    const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
+    if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
+    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
+    else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(Math.round(s.x), Math.round(s.y)); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
+    actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
+    actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
+    for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
+    for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
+    this.drawImpacts();
+    c.restore();
+    if (s.palette === 'eightbit') this.applyEightBit();
+    if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, WIDTH, HEIGHT, '#151c2a'); c.globalAlpha = 1; }
+  }
+  private visible(x: number, y: number, margin = 40) { return x >= this.camera.x - margin && x <= this.camera.x + WIDTH + margin && y >= this.camera.y - margin && y <= this.camera.y + HEIGHT + margin; }
+  private drawShift(s: GameState) {
+    const progress = Math.min(1, s.sceneTimer / 2.4);
+    this.rect(0, 0, WIDTH, HEIGHT, '#201e35');
+    for (let y = 0; y < HEIGHT; y += 16) for (let x = 0; x < WIDTH; x += 16) {
+      this.rect(x + 1, y + 1, 14, 14, (x + y) % 32 ? '#342b49' : '#40324f');
+      this.rect(x + 3, y + 2, 8, 1, '#5c426f');
+    }
+    this.portal(160, 109, s.time, Math.min(1, progress * 4));
+    this.ctx.globalAlpha = Math.max(0, 1 - progress * 1.3);
+    this.sprite(s.active, 148 + progress * 12, 109 - Math.sin(progress * Math.PI) * 11, s.time);
+    this.sprite(s.active === 'joe' ? 'matt' : 'joe', 178 - progress * 12, 113 - Math.sin(progress * Math.PI) * 8, s.time, true);
+    this.ctx.globalAlpha = 1;
+    if (!this.reducedMotion) for (let k = 0; k < 8; k++) {
+      const y = (k * 23 + Math.floor(s.sceneTimer * 37)) % HEIGHT;
+      this.ctx.globalAlpha = .25 + progress * .3;
+      this.rect((k * 41) % WIDTH, y, 24 + progress * 42, 2, k % 2 ? '#ae76cd' : '#75c7d0');
+    }
+    this.ctx.globalAlpha = 1;
   }
 
-  draw(s: GameState) {
+  private locationMarkers(_s: GameState, time: number) {
+    for (const location of LOCATIONS) {
+      if (!this.visible(location.x, location.y, 80)) continue;
+      if (location.locked) {
+        this.ctx.globalAlpha = .1 + Math.sin(time * 3) * .025;
+        this.disc(location.x, location.y, 48, '#9958b4'); this.ctx.globalAlpha = 1;
+        this.portal(location.x, location.y, time, .85);
+        for (let k = 0; k < 14; k++) {
+          const x = location.x - 44 + (k * 23) % 88, y = location.y - 28 + (k * 17) % 56;
+          this.rect(x + Math.floor(time * 2 + k) % 2, y, k % 2 ? 4 : 2, 2, k % 3 ? '#815181' : '#ab699d');
+        }
+      } else {
+        const bob = this.reducedMotion ? 0 : Math.round(Math.sin(time * 4) * 2);
+        const y = location.y - 18 + bob;
+        this.rect(location.x - 3, y - 7, 6, 4, '#f8e2a5');
+        this.rect(location.x - 2, y - 3, 4, 2, '#f8e2a5');
+        this.rect(location.x - 1, y - 1, 2, 2, '#fff4ca');
+      }
+    }
+  }
+  private ambient(s: GameState, world: WorldMap, time: number) {
+    const realm = s.palette === 'eightbit', blast = world.id.startsWith('blast');
+    if (blast || realm) for (let k = 0; k < 22; k++) {
+      const x = (k * 79 + time * (realm ? 4 : 7)) % world.width;
+      const y = (k * 47 + world.height - time * (realm ? 6 : 13) % world.height) % world.height;
+      if (!this.visible(x, y, 5)) continue;
+      this.ctx.globalAlpha = .25 + (Math.sin(time * 2 + k) + 1) * .12;
+      this.rect(x, y, realm ? 2 : 1, 2, realm ? '#d299d8' : k % 3 ? '#d89773' : '#ffca91');
+    }
+    this.ctx.globalAlpha = 1;
+    for (const exit of world.exits) {
+      if (!this.visible(exit.x + exit.w / 2, exit.y + exit.h / 2, 100)) continue;
+      const open = !exit.requiresClear || s.enemies.every(enemy => enemy.hp <= 0);
+      const x = exit.x + exit.w / 2, y = exit.y + exit.h / 2;
+      this.ctx.globalAlpha = .17;
+      this.disc(x, y, 17, open ? '#b9dfaf' : '#c57f99'); this.ctx.globalAlpha = 1;
+      if (open) {
+        const bob = this.reducedMotion ? 0 : Math.sin(time * 3) * 2;
+        const angle = exit.id === 'west' ? Math.PI : exit.id === 'north' ? -Math.PI / 2 : exit.id === 'south' ? Math.PI / 2 : 0;
+        this.ctx.save(); this.ctx.translate(Math.round(x), Math.round(y + bob)); this.ctx.rotate(angle);
+        this.rect(-5, -2, 6, 4, '#bfdca9'); this.rect(1, -4, 2, 8, '#e1edbe'); this.rect(3, -2, 2, 4, '#e1edbe'); this.ctx.restore();
+      } else {
+        this.rect(x - 10, y - 16, 20, 25, '#483e50');
+        for (let k = -6; k <= 6; k += 4) this.rect(x + k, y - 14, 2, 23, '#ae7894');
+        this.rect(x - 10, y - 5, 20, 3, '#d294ab');
+      }
+    }
+    if (world.id === 'overworld' && !this.reducedMotion) {
+      const x = (time * 18 + 200) % world.width, y = 130 + Math.sin(time * .5) * 25;
+      if (this.visible(x, y, 10)) {
+        const wing = Math.floor(time * 6) % 2 ? 1 : -1;
+        this.rect(x - 3, y + wing, 3, 1, '#eee3bd'); this.rect(x, y, 2, 1, '#eee3bd'); this.rect(x + 2, y + wing, 3, 1, '#eee3bd');
+      }
+    }
+  }
+  private prop(prop: WorldProp, time: number, s: GameState) {
+    const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
-    c.imageSmoothingEnabled = false;
-    c.save();
-    // A repeatable one-pixel shake preserves the crisp internal grid.
-    if (s.hitStop > 0) c.translate(Math.sin(s.time * 93) > 0 ? 1 : -1, 0);
-    if (s.scene === "prologue") {
-      this.drawPrologue(s);
-      if (s.palette === "eightbit") this.applyEightBit();
-      c.restore();
-      return;
+    if (prop.kind === 'tree' || prop.kind === 'pine') {
+      const sway = this.reducedMotion ? 0 : Math.sin(time * 1.6 + x * .04) * .8;
+      c.save(); c.translate(Math.round(sway), 0); this.tree(x, y);
+      if (prop.kind === 'pine') { this.rect(x - 5, y - 21, 10, 2, '#40534c'); this.rect(x - 3, y - 28, 6, 1, '#647064'); }
+      c.restore(); return;
     }
-    if (s.scene === "shift") {
-      this.drawShift(s);
-      if (s.palette === "eightbit" || (s.transitionPalette === "eightbit" && s.sceneTimer > 1.15)) this.applyEightBit();
-      c.restore();
-      return;
+    if (prop.kind === 'lamp') { this.lamp(x, y, time, s.palette === 'eightbit' ? '#db9cdb' : '#efce8f'); return; }
+    if (prop.kind === 'portal') { if (s.scene !== 'overworld') this.portal(x, y, time); return; }
+    if (prop.kind === 'car') { this.taxi(x, y, 1, 0, time, false); return; }
+    if (prop.kind === 'npc') {
+      this.shadow(x, y);
+      const id = prop.label === 'Jon' ? 'jon' : 'alex';
+      this.sprite(id, x, y - (this.reducedMotion ? 0 : Math.sin(time * 2 + x) * .5), time); return;
     }
-    this.drawGround(s);
-    if (s.scene === "overworld") {
-      this.taxi(s.x, s.y, s.faceX, s.faceY, s.time, s.moving);
-      if (s.palette === "eightbit") this.applyEightBit();
-      c.restore();
-      return;
+    if (prop.kind === 'station' || prop.kind === 'shop' || prop.kind === 'home' || prop.kind === 'shed') {
+      this.worldBuilding(prop, time); return;
     }
-    for (const effect of s.effects) if (effect.kind === "dash" || effect.kind === "charge") this.effect(effect);
-    for (const enemy of s.enemies) this.bossTelegraph(s, enemy);
-    const actors = [
-      { y: s.y, draw: () => this.hero(s) },
-      ...s.enemies.filter((enemy) => enemy.hp > 0).map((enemy) => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })),
-    ];
-    actors.sort((a, b) => a.y - b.y);
-    for (const actor of actors) actor.draw();
-    for (const shot of s.projectiles) this.projectile(shot, s.time);
-    for (const effect of s.effects) if (effect.kind !== "dash" && effect.kind !== "charge") this.effect(effect);
-    for (const floater of s.floaters) {
-      c.globalAlpha = Math.min(1, floater.ttl * 3);
-      this.text(floater.text, floater.x, floater.y, floater.color, 9);
+    if (prop.kind === 'crater') {
+      c.save(); c.translate(x, prop.y + prop.h / 2); c.scale(1, .6);
+      this.disc(0, 0, prop.w / 2, '#77605f'); this.disc(0, 0, prop.w / 2 - 5, '#584650');
+      this.disc(0, 0, prop.w / 2 - 14, '#382f3e'); this.disc(0, 0, prop.w / 2 - 24, '#252735');
+      for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12; this.rect(Math.cos(a) * (prop.w / 2 - 9), Math.sin(a) * (prop.w / 2 - 9), 5, 3, k % 2 ? '#a5796c' : '#895e64'); }
+      c.restore(); return;
+    }
+    if (prop.kind === 'flower') {
+      for (let k = 0; k < Math.max(2, prop.w / 6); k++) {
+        const px = prop.x + k * 6, py = y - 3 - k % 2 * 3, sway = this.reducedMotion ? 0 : Math.round(Math.sin(time * 2 + k + x) * .5);
+        this.rect(px, py, 1, 5, '#73905b'); this.rect(px - 1 + sway, py, 3, 2, k % 2 ? '#dac389' : '#d0949b');
+      } return;
+    }
+    if (prop.kind === 'fence') {
+      this.rect(prop.x + 2, y - 3, prop.w, 3, '#243b31');
+      this.rect(prop.x, y - 9, prop.w, 2, '#a3916c'); this.rect(prop.x, y - 4, prop.w, 2, '#71664e');
+      for (let px = prop.x; px < prop.x + prop.w; px += 16) { this.rect(px, y - 12, 3, 13, '#887b5d'); this.rect(px, y - 12, 2, 2, '#c0ad7f'); } return;
+    }
+    this.shadow(x, y, prop.w + 3);
+    if (prop.kind === 'rock') {
+      this.rect(x - 7, y - 6, 14, 6, '#4a4d52'); this.rect(x - 5, y - 10, 10, 5, '#7c7773'); this.rect(x - 4, y - 10, 5, 2, '#a5a087'); this.rect(x + 4, y - 6, 3, 5, '#41464b');
+    } else if (prop.kind === 'sign') {
+      this.rect(x - 2, y - 14, 4, 15, '#615643'); this.rect(x - 11, y - 22, 22, 12, '#b09b6f'); this.rect(x - 10, y - 21, 20, 2, '#d6c18b');
+      this.rect(x - 6, y - 16, 10, 2, '#524f41'); this.rect(x + 4, y - 18, 2, 6, '#524f41');
+    } else if (prop.kind === 'chest') {
+      const open = s.clearedRooms.includes(prop.id);
+      this.rect(x - 11, y - 12, 22, 11, '#76513f'); this.rect(x - 10, y - 12, 20, 3, '#b68656'); this.rect(x - 9, y - 3, 18, 2, '#543c39');
+      this.rect(x - 11, y - (open ? 23 : 18), 22, 7, open ? '#684f47' : '#d0a56b');
+      for (const dx of [-7, 5]) this.rect(x + dx, y - (open ? 20 : 17), 2, open ? 19 : 15, '#e1bf7f');
+      this.rect(x - 2, y - 10, 4, 5, '#efdc91');
+      if (!open) { c.globalAlpha = .35 + Math.sin(time * 3) * .12; this.rect(x - 1, y - 23, 2, 4, '#ffe7af'); this.rect(x - 2, y - 22, 4, 2, '#ffe7af'); c.globalAlpha = 1; }
+    } else if (prop.kind === 'bbq') {
+      this.rect(x - 9, y - 19, 18, 4, '#bd9670'); this.rect(x - 12, y - 15, 24, 11, '#43474d'); this.rect(x - 10, y - 13, 20, 2, '#74706a');
+      this.rect(x - 8, y - 4, 3, 8, '#272f36'); this.rect(x + 6, y - 4, 3, 8, '#272f36');
+      for (let k = 0; k < 3; k++) { c.globalAlpha = .4; this.rect(x - 6 + k * 6 + Math.sin(time + k) * 2, y - 21 - (time * 8 + k * 5) % 17, 2, 3, '#b9ac93'); } c.globalAlpha = 1;
+    }
+  }
+  private worldBuilding(prop: WorldProp, time: number) {
+    const { x, y, w, h } = prop, c = this.ctx;
+    const station = prop.kind === 'station', home = prop.kind === 'home', shed = prop.kind === 'shed';
+    const roof = home ? '#526d66' : shed ? '#5e5960' : '#906957', wall = home ? '#999a7c' : '#ad946e';
+    this.rect(x + 5, y + h - 4, w + 9, 13, '#243531');
+    this.rect(x + 3, y + h * .4, w - 6, h * .6, wall);
+    this.rect(x + w - 16, y + h * .4, 13, h * .6, '#6b6356');
+    this.rect(x + 5, y + h * .42, w - 23, 3, '#d6bf92');
+    for (let py = y + h * .5; py < y + h - 7; py += 9) this.rect(x + 4, py, w - 21, 1, '#8e7e61');
+    for (let k = 0; k < 7; k++) this.rect(x - 5 + k * 4, y + h * .4 - k * 5, w + 10 - k * 8, 5, roof);
+    this.rect(x + 20, y + h * .4 - 32, w - 40, 2, home ? '#88a093' : '#c0966b');
+    for (let px = x + 16; px < x + w - 18; px += 18) this.rect(px, y + h * .4 - 20, 9, 1, home ? '#6c837a' : '#ad8261');
+    const doorX = x + w / 2;
+    this.rect(doorX - 10, y + h - 31, 20, 31, '#324346'); this.rect(doorX - 7, y + h - 28, 14, 26, '#526159');
+    this.rect(doorX + 4, y + h - 15, 2, 3, '#ead79f'); this.rect(doorX - 13, y + h - 1, 26, 4, '#c2b28b');
+    const windows = station ? [x + 18, x + 44, x + w - 66, x + w - 40] : [x + 18, x + w - 40];
+    for (const wx of windows) {
+      this.rect(wx - 2, y + h * .55 - 2, 23, 22, '#596252'); this.rect(wx, y + h * .55, 19, 17, '#ead198');
+      c.globalAlpha = .15 + Math.sin(time * 2 + wx) * .03; this.disc(wx + 9, y + h * .55 + 7, 15, '#ffe1a0'); c.globalAlpha = 1;
+      this.rect(wx + 8, y + h * .55, 2, 17, '#8d7e61'); this.rect(wx, y + h * .55 + 8, 19, 2, '#8d7e61');
+    }
+    if (station) { this.rect(doorX - 24, y + h * .45, 48, 12, '#2e4544'); this.rect(doorX - 20, y + h * .45 + 2, 40, 2, '#d2bd8a'); }
+    if (prop.kind === 'shop') {
+      for (let k = 0; k < 8; k++) this.rect(x + 8 + k * (w - 16) / 8, y + h * .7, (w - 16) / 8, 8, k % 2 ? '#e0c48d' : '#a96f5b');
+      this.rect(x - 7, y + h - 13, 12, 12, '#785943'); this.rect(x - 4, y + h - 18, 4, 7, '#c7a87a');
+    }
+  }
+  private drawImpacts() {
+    const c = this.ctx;
+    for (const tumble of this.tumbles) {
+      if (!this.visible(tumble.x, tumble.y, 70)) continue;
+      const progress = 1 - tumble.life / tumble.maxLife;
+      c.save(); c.translate(Math.round(tumble.x), Math.round(tumble.y));
+      c.globalAlpha = Math.min(1, tumble.life * 5);
+      if (!this.reducedMotion) { c.rotate((tumble.flip ? -1 : 1) * Math.min(Math.PI / 2, progress * 2)); c.translate(progress * 6, -Math.sin(progress * Math.PI) * 6); }
+      this.sprite(tumble.sprite, 0, 0, 0, tumble.flip, tumble.scale); c.restore();
+    }
+    for (const burst of this.bursts) {
+      if (!this.visible(burst.x, burst.y, 70)) continue;
+      const progress = 1 - burst.life / burst.maxLife;
+      c.globalAlpha = Math.min(1, burst.life * 6);
+      const count = this.reducedMotion ? 4 : burst.maxLife > .3 ? 16 : 9;
+      for (let k = 0; k < count; k++) {
+        const angle = k * Math.PI * 2 / count + burst.seed;
+        const radius = this.reducedMotion ? 4 : progress * burst.strength;
+        this.rect(burst.x + Math.cos(angle) * radius, burst.y + Math.sin(angle) * radius + (burst.maxLife > .3 ? progress * progress * 15 : 0), k % 3 ? 2 : 3, 2, k % 3 ? burst.color : '#fff3c9');
+      }
       c.globalAlpha = 1;
     }
-    if (s.scene === "test") this.text("WAYSIDE TRAINING YARD", 160, 174, "#91ada2", 7);
-    if (s.palette === "eightbit") this.applyEightBit();
-    c.restore();
+  }
+  private hero(s: GameState) {
+    const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
+    const time = this.reducedMotion ? 0 : s.time;
+    if (s.charge > .12) {
+      c.globalAlpha = .12 + Math.sin(time * 18) * .035; this.disc(s.x, s.y - 12, 12 + Math.min(8, s.charge * 5), color); c.globalAlpha = 1;
+      for (let k = 0; k < (this.reducedMotion ? 3 : 8); k++) {
+        const a = time * 4 + k * Math.PI / 4, radius = 11 + k % 3 * 3;
+        this.rect(s.x + Math.cos(a) * radius, s.y - 10 + Math.sin(a) * 15 - (time * 9 + k * 2) % 5, 2, k % 2 ? 3 : 2, color);
+      }
+    }
+    this.shadow(s.x, s.y, s.dashTimer > 0 ? 19 : 14);
+    this.rect(s.x - 5, s.y + 1, 10, 1, color);
+    if (s.moving && !this.reducedMotion) for (let k = 0; k < 3; k++) {
+      const life = (time * 3 + k / 3) % 1;
+      c.globalAlpha = (1 - life) * .3;
+      this.rect(s.x - s.faceX * life * 14 + (k % 2 ? 3 : -3), s.y - s.faceY * life * 14, 2 + life * 2, 1 + life, '#a9ad8b');
+    }
+    c.globalAlpha = hero.invulnerable > 0 && Math.floor(time * 16) % 2 === 0 ? .6 : 1;
+    const cycle = Math.sin(time * (s.moving ? 15 : 2.8)), bob = this.reducedMotion ? 0 : s.moving ? Math.abs(cycle) * 1.2 : cycle * .5;
+    const attackDuration = s.combo === 3 ? .28 : .2, attackProgress = s.attackTimer > 0 ? 1 - s.attackTimer / attackDuration : 0;
+    const strike = s.attackTimer > 0 ? (attackProgress < .18 ? -.8 : Math.sin((attackProgress - .18) / .82 * Math.PI)) : 0;
+    c.save(); c.translate(Math.round(s.x), Math.round(s.y - bob));
+    if (!this.reducedMotion) {
+      const lean = s.dashTimer > 0 ? .12 * s.faceX : s.moving ? .035 * s.faceX + cycle * .015 : 0;
+      c.rotate(lean + strike * .12 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
+      if (s.dashTimer > 0) c.scale(1.16, .87); else if (s.attackTimer > 0) { c.translate(strike * s.faceX * 3, strike * s.faceY * 2); c.scale(1 + strike * .04, 1 - strike * .025); }
+      else c.scale(1 - cycle * .008, 1 + cycle * .009);
+    }
+    this.sprite(s.moving || s.dashTimer > 0 ? `run_${s.active}` : s.active, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
+    c.restore(); c.globalAlpha = 1;
+    if (s.guard) {
+      const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
+      c.globalAlpha = .6; this.rect(x - 5, y - 7, 10, 13, color); this.rect(x - 3, y + 6, 6, 3, color); c.globalAlpha = 1;
+      this.rect(x - 3, y - 4, 6, 2, '#effbff'); this.rect(x - 1, y - 5, 2, 8, '#effbff');
+    }
+  }
+  private enemy(s: GameState, enemy: Enemy) {
+    const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
+    const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
+    const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
+    if (boss && enemy.phase === 2) { c.globalAlpha = .17 + Math.sin(time * 9) * .035; this.disc(enemy.x, enemy.y - 23, 28, '#db82cb'); c.globalAlpha = 1; }
+    this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
+    if (enemy.windup > 0) {
+      c.globalAlpha = .35 + Math.sin(time * 15) * .07; this.disc(enemy.x, enemy.y - 2, boss ? 24 : 12, enemy.phase === 2 ? '#dd669a' : '#fba578'); c.globalAlpha = 1;
+      // A simple warning glyph is art, while all readable copy lives in the DOM.
+      this.rect(enemy.x - 1, enemy.y - (boss ? 54 : 32), 3, 6, '#ffda9b'); this.rect(enemy.x - 1, enemy.y - (boss ? 46 : 24), 3, 2, '#ffda9b');
+    }
+    c.save(); c.translate(Math.round(enemy.x), Math.round(enemy.y));
+    if (!this.reducedMotion) {
+      const stagger = enemy.hitTimer / .15;
+      c.rotate(enemy.hitTimer > 0 ? -Math.sign(enemy.kx || 1) * stagger * .18 : Math.sin(time * 5) * .015);
+      c.translate(0, -Math.abs(Math.sin(time * 7)) * .7);
+      if (enemy.windup > 0) c.scale(1.08, .93);
+    }
+    this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
+    if (enemy.hp < enemy.maxHp || boss) {
+      const width = boss ? 48 : 18, top = enemy.y - SHEETS[id].h * scale - 6;
+      this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);
+      this.rect(enemy.x - width / 2, top, width, 2, '#613448');
+      this.rect(enemy.x - width / 2, top, width * enemy.hp / enemy.maxHp, 2, boss ? '#ef87bc' : '#f19b77');
+    }
   }
 
   private drawPrologue(s: GameState) {
@@ -105,7 +423,6 @@ export class Renderer {
         const y = 38 + ((k * 17 + Math.floor(time * 15)) % 75);
         this.rect(56 + k * 8, y, 2, 2, ["#e9bc73", "#87c0b7", "#c586ad"][k % 3]);
       }
-      this.text("THE HORDE FELL. THE CREW CAME HOME.", 160, 26, "#ffe4b4", 8);
       return;
     }
     if (phase === "suitup") {
@@ -123,14 +440,11 @@ export class Renderer {
       this.rect(177, 74, 7, 8, color);
       this.rect(144, 93, 32, 4, "#d5b981");
       this.rect(158, 93, 5, 4, "#fff0b3");
-      this.text(id.toUpperCase(), 160, 26, color, 11);
-      this.text("GEAR UP", 160, 123, "#ffe9c7", 8);
       return;
     }
     const dark = phase === "dark" || phase === "portal";
     this.drawBackyard(time, dark);
     if (phase === "years") {
-      this.text("FIVE YEARS LATER", 160, 41, "#ffe2a2", 15);
       return;
     }
     if (phase === "taxi") {
@@ -230,32 +544,6 @@ export class Renderer {
     this.rect(eggX - 2, eggY - 1, 4, 2, Math.sin(time * 6) > 0 ? "#ffe4d7" : "#b888bc");
   }
 
-  private drawShift(s: GameState) {
-    const time = s.sceneTimer;
-    const progress = Math.min(1, time / 2.4);
-    this.drawGround(s);
-    this.portal(160, 109, s.time, Math.min(1, progress * 4));
-    this.ctx.save();
-    this.ctx.globalAlpha = Math.max(0, 1 - progress * 1.3);
-    this.hero({ ...s, x: s.x + (160 - s.x) * progress, y: s.y + (105 - s.y) * progress - Math.sin(progress * Math.PI) * 11 });
-    this.sprite(s.active === "joe" ? "matt" : "joe", s.x + 19 + (166 - s.x - 19) * progress, s.y + 4 + (104 - s.y - 4) * progress - Math.sin(progress * Math.PI) * 8, s.time, true);
-    this.ctx.restore();
-    for (let k = 0; k < 8; k++) {
-      const y = 25 + (k * 23 + Math.floor(time * 37)) % 140;
-      const shift = (k % 2 ? 1 : -1) * (2 + Math.floor(progress * 13));
-      this.ctx.globalAlpha = 0.2 + progress * 0.3;
-      this.ctx.drawImage(this.ctx.canvas, 0, y, WIDTH, 3, shift, y, WIDTH, 3);
-      this.rect((k * 41) % WIDTH, y, 24 + progress * 42, 1, k % 2 ? "#ae76cd" : "#75c7d0");
-    }
-    this.ctx.globalAlpha = 1;
-    if (time > 0.95 && time < 1.23) {
-      this.ctx.globalAlpha = 0.8 * Math.sin((time - 0.95) / 0.28 * Math.PI);
-      this.rect(0, 24, WIDTH, HEIGHT - 24, "#ead7ef");
-      this.ctx.globalAlpha = 1;
-    }
-    this.text("REALITY IS TEARING", 160, 168, "#edc4e8", 9);
-  }
-
   private applyEightBit() {
     const c = this.coarseCtx;
     c.imageSmoothingEnabled = false;
@@ -296,88 +584,6 @@ export class Renderer {
     this.ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
   }
 
-  private text(text: string, x: number, y: number, color: string, size = 8) {
-    const c = this.ctx;
-    c.font = `bold ${size}px monospace`;
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.lineWidth = 3;
-    c.strokeStyle = INK;
-    c.strokeText(text, Math.round(x), Math.round(y));
-    c.fillStyle = color;
-    c.fillText(text, Math.round(x), Math.round(y));
-  }
-
-  private drawGround(s: GameState) {
-    if (s.scene === "overworld") { this.drawOverworld(s); return; }
-    if (s.scene === "hub") { this.drawHub(s); return; }
-    if (s.scene === "dungeon" || s.scene === "realm" || s.scene === "shift" || s.palette === "eightbit") {
-      this.drawDungeonGround(s);
-      return;
-    }
-    this.drawYard(s.time);
-  }
-
-  private drawOverworld(s: GameState) {
-    this.rect(0, 24, WIDTH, HEIGHT - 24, "#21372f");
-    for (let y = 30; y < 166; y += 12) for (let x = 6; x < WIDTH; x += 18) {
-      const n = (x * 7 + y * 3) % 17;
-      this.rect(x, y, 3, 1, n < 9 ? "#304b39" : "#385440");
-      if (n < 5) this.rect(x + 1, y - 2, 1, 3, "#3c5941");
-    }
-    // A small river and a bridge make the atlas feel like a place.
-    for (let x = 0; x < WIDTH; x += 12) {
-      const y = 36 + Math.round(Math.sin(x * 0.03) * 7);
-      this.rect(x, y, 12, 8, "#355458");
-      this.rect(x, y + 2, 8, 1, "#4c6d6a");
-    }
-    this.road(61, 110, 111, 12, true);
-    this.road(160, 75, 12, 47, false);
-    this.road(160, 74, 98, 12, true);
-    this.road(246, 74, 12, 76, false);
-    this.road(139, 59, 12, 24, false);
-    this.road(140, 74, 29, 12, true);
-    for (const [x, y] of [[23, 72], [46, 47], [100, 65], [204, 56], [288, 62], [287, 137], [207, 151], [101, 149], [34, 150]]) this.tree(x, y);
-    this.rect(151, 40, 28, 2, "#a0845c");
-    this.rect(151, 47, 28, 2, "#a0845c");
-    for (const location of LOCATIONS) {
-      const { x, y } = location;
-      if (location.locked) {
-        this.rect(x - 10, y - 14, 20, 15, "#28212f");
-        this.rect(x - 7, y - 18, 14, 5, "#413244");
-        this.rect(x - 6, y - 11, 12, 1, "#a2678d");
-        this.rect(x - 3, y - 8, 6, 5, "#bf83a1");
-        this.rect(x - 2, y - 11, 4, 3, "#bf83a1");
-        this.text(location.name.toUpperCase(), x, y + 12, "#a4a19f", 7);
-        this.text("TAKEN OVER", x, y + 21, "#ae8296", 6);
-      } else if (location.id === "wayside") {
-        this.rect(x - 14, y - 17, 28, 18, "#977755");
-        this.rect(x - 18, y - 22, 36, 6, "#8d5d50");
-        this.rect(x - 13, y - 26, 26, 5, "#b3795b");
-        this.rect(x - 3, y - 8, 6, 9, "#29373c");
-        this.rect(x - 11, y - 12, 5, 5, "#ebc681");
-        this.rect(x + 6, y - 12, 5, 5, "#ebc681");
-        this.text("WAYSIDE", x, y + 12, "#ffe2a9", 8);
-      } else {
-        this.ctx.globalAlpha = 0.12;
-        this.disc(x, y - 5, 23, "#f28996");
-        this.ctx.globalAlpha = 1;
-        this.rect(x - 14, y - 12, 28, 14, "#42323e");
-        this.rect(x - 10, y - 17, 20, 5, "#684654");
-        this.rect(x - 6, y - 13, 12, 10, "#bc6c75");
-        this.rect(x - 3, y - 10, 6, 6, "#f0aa88");
-        this.text("BLAST SITE", x, y + 12, "#ffd6b0", 8);
-      }
-      if (!location.locked) {
-        this.rect(x - 2, y + 2, 4, 3, "#e7c88a");
-        if (Math.hypot(s.x - x, s.y - y) < 24) this.text("INTERACT", x, y - 34, "#fff3cf", 7);
-      }
-    }
-    this.rect(0, 166, WIDTH, 14, "#162b2b");
-    this.text("CHAPTER 1  //  THE BLAST SITE", 160, 174, "#90a893", 7);
-    this.rect(0, 0, WIDTH, 24, INK);
-  }
-
   private road(x: number, y: number, w: number, h: number, horizontal: boolean) {
     this.rect(x - 2, y - 2, w + 4, h + 4, "#536054");
     this.rect(x, y, w, h, "#323e3e");
@@ -398,12 +604,10 @@ export class Renderer {
 
   private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
     const c = this.ctx;
-    const horizontal = Math.abs(dx) >= Math.abs(dy);
-    const direction = horizontal ? (dx < 0 ? -1 : 1) : (dy < 0 ? -1 : 1);
+    const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4;
     c.save();
     c.translate(Math.round(x), Math.round(y - 5));
-    if (!horizontal) c.rotate(Math.PI / 2);
-    if (direction < 0) c.scale(-1, 1);
+    c.rotate(angle);
     // Headlights are three stepped translucent blocks, without blur.
     c.globalAlpha = 0.09;
     for (let k = 0; k < 3; k++) this.rect(13 + k * 5, -6 - k * 2, 6, 12 + k * 4, "#ffe4a4");
@@ -427,185 +631,13 @@ export class Renderer {
     this.rect(12, 2, 2, 3, "#fff2b7");
     this.rect(-13, -4, 2, 2, "#de7974");
     this.rect(-13, 3, 2, 2, "#de7974");
-    if (moving && Math.floor(time * 8) % 2 === 0) this.rect(-17, 2, 2, 2, "#6c7965");
+    if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
+      const life = ((time * 3 + k / 6) % 1);
+      c.globalAlpha = (1 - life) * .45;
+      this.rect(-14 - life * 24, (k % 2 ? 5 : -4) + life * (k % 2 ? 5 : -5), 2 + life * 3, 2, '#b2a17c');
+    }
+    c.globalAlpha = 1;
     c.restore();
-  }
-
-  private drawHub(s: GameState) {
-    this.rect(0, 24, WIDTH, HEIGHT - 24, "#2c4337");
-    for (let y = 34; y < 146; y += 12) for (let x = 5; x < WIDTH; x += 18) {
-      this.rect(x, y, 2, 3, "#476144");
-      this.rect(x + 3, y + 2, 2, 1, "#587251");
-    }
-    this.rect(31, 115, 258, 22, "#786e55");
-    this.rect(80, 83, 24, 54, "#786e55");
-    this.rect(207, 83, 24, 54, "#786e55");
-    this.rect(147, 125, 26, 30, "#786e55");
-    for (let x = 34; x < 288; x += 10) this.rect(x, 116, 7, 2, "#95836a");
-    this.road(0, 143, WIDTH, 23, true);
-    for (const point of HUB_POINTS) {
-      if (point.id !== "taxi") this.building(point.x, point.y, point.id === "shop");
-    }
-    this.tree(18, 81); this.tree(300, 82);
-    this.tree(34, 134); this.tree(286, 134);
-    this.lamp(56, 111, s.time); this.lamp(261, 111, s.time);
-    this.rect(139, 99, 42, 5, "#715f4c");
-    this.rect(142, 104, 3, 6, "#253b35");
-    this.rect(175, 104, 3, 6, "#253b35");
-    this.taxi(160, 151, 1, 0, s.time, false);
-    for (const point of HUB_POINTS) {
-      if (Math.hypot(s.x - point.x, s.y - point.y) < 24) this.text("INTERACT", point.x, point.y + 16, "#fff3cf", 7);
-    }
-    this.rect(0, 166, WIDTH, 14, "#182d2b");
-    this.text("WAYSIDE  //  HOME IS STILL HERE", 160, 174, "#a5b49b", 7);
-    this.rect(0, 0, WIDTH, 24, INK);
-  }
-
-  private building(x: number, y: number, shop: boolean) {
-    this.rect(x - 34, y - 37, 68, 36, shop ? "#a08461" : "#8c8d75");
-    this.rect(x - 33, y - 36, 66, 3, "#d3b98d");
-    for (let k = 0; k < 4; k++) this.rect(x - 31, y - 27 + k * 7, 62, 1, shop ? "#877055" : "#747a68");
-    // Stepped roofs have deliberate GBA-sized shapes.
-    for (let k = 0; k < 5; k++) this.rect(x - 38 + k * 3, y - 40 - k * 3, 76 - k * 6, 4, shop ? "#87624f" : "#526c67");
-    this.rect(x - 25, y - 50, 50, 2, shop ? "#bc9166" : "#88a195");
-    this.rect(x + 23, y - 56, 7, 12, "#78685d");
-    this.rect(x + 21, y - 57, 11, 3, "#a29379");
-    this.rect(x - 6, y - 17, 12, 17, "#24353a");
-    this.rect(x - 4, y - 16, 8, 15, "#4a5450");
-    this.rect(x + 2, y - 8, 1, 2, "#e3c48a");
-    for (const dx of [-23, 15]) {
-      this.rect(x + dx - 1, y - 23, 10, 13, "#525747");
-      this.rect(x + dx, y - 22, 8, 10, "#efc98b");
-      this.rect(x + dx + 3, y - 22, 1, 10, "#8d7755");
-      this.rect(x + dx, y - 18, 8, 1, "#8d7755");
-    }
-    this.rect(x - 20, y - 34, 40, 11, "#263a38");
-    this.text(shop ? "SHOP" : "HOME", x, y - 28, "#ffe4ac", 8);
-    this.rect(x - 9, y - 1, 18, 3, "#b3a183");
-    if (shop) {
-      this.rect(x - 29, y - 8, 9, 8, "#715247");
-      this.rect(x - 27, y - 11, 2, 4, "#f4c374");
-      this.rect(x - 23, y - 11, 2, 4, "#ee9481");
-      this.rect(x + 23, y - 7, 4, 7, "#4c6048");
-      this.rect(x + 21, y - 10, 8, 4, "#6d8554");
-    }
-  }
-
-  private drawYard(time: number) {
-    this.rect(0, 0, WIDTH, HEIGHT, "#172a2c");
-    // Distant trees, garden wall, and the warm lamps of Wayside.
-    this.rect(0, 24, WIDTH, 17, "#213938");
-    for (let x = -4; x < WIDTH; x += 24) {
-      this.rect(x + 6, 27 + (x % 3), 4, 14, "#162b2c");
-      this.rect(x, 28, 18, 7, "#2c4940");
-      this.rect(x + 4, 25, 12, 6, "#2c4940");
-    }
-    this.rect(0, 38, WIDTH, 10, "#40524b");
-    this.rect(0, 38, WIDTH, 2, "#6a7461");
-    for (let x = 0; x < WIDTH; x += 16) {
-      this.rect(x, 40, 1, 6, "#2f403e");
-      this.rect(x + 8, 46, 1, 3, "#2f403e");
-    }
-    this.rect(17, 48, 286, 116, "#354747");
-    for (let y = 48; y < 164; y += 16) for (let x = 17; x < 303; x += 16) {
-      const n = Math.abs((x * 17 + y * 31) % 19);
-      this.rect(x + 1, y + 1, 14, Math.min(14, 163 - y), n < 8 ? "#3b504c" : "#40544e");
-      this.rect(x + 2, y + 2, 12, 1, "#4b6055");
-      if (n < 3) {
-        this.rect(x + 2, y + 10, 4, 2, "#597459");
-        this.rect(x + 4, y + 8, 2, 3, "#597459");
-      }
-      if (n > 15) this.rect(x + 8, y + 6, 2, 1, "#334743");
-    }
-    // Grass borders stay outside the playable corridor.
-    for (const x of [0, 304]) {
-      this.rect(x, 47, 16, 119, "#2b4538");
-      for (let y = 52; y < 162; y += 11) {
-        this.rect(x + 3, y, 2, 4, "#50714a");
-        this.rect(x + 11, y + 4, 1, 3, "#638155");
-      }
-    }
-    for (const x of [9, 311]) this.lamp(x, 44, time);
-    this.rect(0, 164, WIDTH, 16, "#233837");
-    this.rect(0, 164, WIDTH, 2, "#6c7460");
-    for (let x = 0; x < WIDTH; x += 20) {
-      this.rect(x, 166, 1, 14, "#152b2b");
-      this.rect(x + 2, 167, 16, 1, "#40524b");
-    }
-    this.rect(0, 0, WIDTH, 24, INK);
-  }
-
-  private drawDungeonGround(s: GameState) {
-    const realm = s.palette === "eightbit";
-    const bossRoom = s.room === 2 && !realm;
-    this.rect(0, 0, WIDTH, HEIGHT, realm ? "#101020" : "#171c27");
-    for (let y = 30; y < HEIGHT; y += 16) for (let x = 0; x < WIDTH; x += 16) {
-      const n = (x * 7 + y * 11 + s.room * 3) % 13;
-      this.rect(x + 1, y + 1, 14, 14, realm ? (n < 6 ? "#302048" : "#201838") : bossRoom ? (n < 6 ? "#373043" : "#30283e") : n < 6 ? "#353340" : "#302e3a");
-      this.rect(x + 2, y + 2, 11, 1, realm ? "#604080" : "#45414c");
-      if (n < 3) this.rect(x + 10, y + 8, 3, 2, realm ? "#a04080" : "#5a4b48");
-    }
-    if (!realm) {
-      if (s.room === 0) {
-        // The first room is a blasted courtyard, with a crater rather than a roof.
-        this.disc(171, 106, 36, "#5d494e");
-        this.disc(171, 106, 30, "#413640");
-        this.disc(171, 106, 22, "#292836");
-        this.disc(171, 106, 12, "#232535");
-        for (let k = 0; k < 18; k++) {
-          const a = k * Math.PI / 9;
-          this.rect(171 + Math.cos(a) * 32, 106 + Math.sin(a) * 30, 4, 2, k % 2 ? "#8c6260" : "#6e5158");
-        }
-      } else if (s.room === 1) {
-        // Hairline tears in the paving lead toward the portal approach.
-        for (let k = 0; k < 28; k++) {
-          this.rect(83 + k * 6, 147 - k * 3, 9, 3, "#191d2c");
-          if (k % 3 === 0) this.rect(85 + k * 6, 143 - k * 3, 6, 2, "#956184");
-        }
-        this.portal(248, 69, s.time, 0.65);
-      } else {
-        this.disc(182, 107, 53, "#46334f");
-        this.disc(182, 107, 49, "#292639");
-        this.disc(182, 107, 31, "#5f4063");
-        this.disc(182, 107, 28, "#30283e");
-        for (let k = 0; k < 12; k++) {
-          const a = k * Math.PI / 6;
-          this.rect(182 + Math.cos(a) * 41, 107 + Math.sin(a) * 41, 3, 4, "#a36d9f");
-        }
-      }
-      for (let k = 0; k < 12; k++) {
-        const x = 24 + (k * 79 + s.room * 47) % 265;
-        const y = 57 + (k * 37 + s.room * 19) % 99;
-        this.rect(x, y, 6, 3, "#514450");
-        this.rect(x + 1, y - 2, 4, 2, "#726069");
-        this.rect(x + 5, y + 3, 2, 1, "#9b756e");
-      }
-    }
-    this.rect(0, 26, WIDTH, 16, realm ? "#604080" : "#62575b");
-    this.rect(0, 42, WIDTH, 5, realm ? "#201030" : "#272735");
-    for (let x = 0; x < WIDTH; x += 20) {
-      this.rect(x, 28, 1, 12, realm ? "#302048" : "#383442");
-      if (!realm && x % 60 === 0) this.rect(x + 5, 26, 12, 7, "#171c27");
-    }
-    for (const x of [5, 309]) {
-      this.rect(x, 48, 6, 114, realm ? "#503060" : "#534652");
-      for (let y = 55; y < 164; y += 16) this.rect(x, y, 6, 2, realm ? "#a060a0" : "#716067");
-    }
-    this.rect(0, 164, WIDTH, 16, realm ? "#302048" : "#322d3c");
-    this.rect(0, 164, WIDTH, 2, realm ? "#8060a0" : "#62575b");
-    this.lamp(20, 40, s.time, realm ? "#ff80c0" : "#ff9d66");
-    this.lamp(300, 40, s.time, realm ? "#ff80c0" : "#ff9d66");
-    if (realm) {
-      this.portal(46, 67, s.time, 0.6);
-      if (s.enemies.every((enemy) => enemy.hp <= 0)) this.dungeonDoor(292, 108, true, true, s);
-      this.text("8-BIT REALM  //  SOMETHING REMEMBERS YOU", 160, 174, "#db80bf", 7);
-    }
-    if (!realm) {
-      this.dungeonDoor(45, 108, true, false, s);
-      this.dungeonDoor(292, 108, s.enemies.every((enemy) => enemy.hp <= 0), true, s);
-      if (!bossRoom) this.text(s.room === 0 ? "THE BLAST SITE  //  IMPACT YARD" : "THE BLAST SITE  //  RIFT APPROACH", 160, 174, "#b8a0a8", 7);
-    }
-    this.rect(0, 0, WIDTH, 24, INK);
   }
 
   private portal(x: number, y: number, time: number, alpha = 1) {
@@ -628,36 +660,19 @@ export class Renderer {
     c.restore();
   }
 
-  private dungeonDoor(x: number, y: number, open: boolean, east: boolean, s: GameState) {
-    const color = east ? (open ? "#a0d2b5" : "#b07c8d") : "#a7bbc4";
-    this.rect(x - 10, y - 27, 20, 27, "#252536");
-    this.rect(x - 12, y - 27, 4, 29, "#655765");
-    this.rect(x + 8, y - 27, 4, 29, "#655765");
-    this.rect(x - 12, y - 30, 24, 4, "#8f7181");
-    this.rect(x - 10, y, 20, 3, color);
-    if (!open) {
-      for (let k = -6; k <= 6; k += 4) this.rect(x + k, y - 25, 2, 23, "#946077");
-      this.rect(x - 7, y - 12, 15, 2, "#b87e94");
-    } else {
-      for (let k = 0; k < 3; k++) this.rect(x + (east ? k : -k), y - 15 + k, 2, 2, color);
-      for (let k = 0; k < 3; k++) this.rect(x + (east ? k : -k), y - 13 - k, 2, 2, color);
-      if (Math.hypot(s.x - x, s.y - y) < 24) this.text(east ? "CONTINUE" : "TAXI", x, y + 13, "#fff0cf", 7);
-    }
-  }
-
   private bossTelegraph(s: GameState, enemy: Enemy) {
     if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
     const c = this.ctx;
     const color = enemy.phase === 2 ? "#ec7ead" : "#efab7a";
     c.save();
-    c.globalAlpha = enemy.windup > 0 ? 0.3 + Math.sin(s.time * 23) * 0.08 : 0.2;
+    c.globalAlpha = enemy.windup > 0 ? 0.3 + (this.reducedMotion ? 0 : Math.sin(s.time * 23) * 0.08) : 0.2;
     if (enemy.pattern === 0) {
       const rushing = enemy.actionTimer > 0;
       for (let k = 0; k < (rushing ? 8 : 24); k++) {
         const distance = (rushing ? -1 : 1) * k * 5;
         const x = enemy.x + enemy.aimX * distance;
         const y = enemy.y + enemy.aimY * distance;
-        if (x < 18 || x > 302 || y < 48 || y > 162) break;
+        if (!this.visible(x, y, 20)) continue;
         this.disc(x, y, rushing ? 9 - k * 0.6 : 9, color);
         if (k % 6 === 0) this.rect(x - 1, y - 1, 3, 3, "#ffddbb");
       }
@@ -720,63 +735,6 @@ export class Renderer {
     c.restore();
   }
 
-  private hero(s: GameState) {
-    const c = this.ctx;
-    const hero = activeHero(s);
-    const color = ACCENT[s.active];
-    if (s.charge > 0.12) {
-      c.globalAlpha = 0.12 + Math.sin(s.time * 23) * 0.04;
-      this.disc(s.x, s.y - 11, 12 + Math.min(8, s.charge * 5), color);
-      c.globalAlpha = 1;
-      for (let k = 0; k < 5; k++) {
-        const a = s.time * 6 + k * 1.26;
-        this.rect(s.x + Math.cos(a) * 13, s.y - 11 + Math.sin(a) * 15, 2, 3, color);
-      }
-    }
-    this.shadow(s.x, s.y);
-    // Cyan/gold foot markers remain visible underneath hit flashes.
-    this.rect(s.x - 5, s.y + 1, 10, 1, color);
-    c.globalAlpha = hero.invulnerable > 0 && Math.floor(s.time * 20) % 2 === 0 ? 0.52 : 1;
-    this.sprite(s.moving || s.dashTimer > 0 ? `run_${s.active}` : s.active, s.x, s.y, s.time, s.faceX < 0, 1, s.hitStop > 0);
-    c.globalAlpha = 1;
-    if (s.guard) {
-      const x = s.x + s.faceX * 9;
-      const y = s.y - 12 + s.faceY * 7;
-      c.globalAlpha = 0.6;
-      this.rect(x - 5, y - 7, 10, 13, color);
-      this.rect(x - 3, y + 6, 6, 3, color);
-      c.globalAlpha = 1;
-      this.rect(x - 3, y - 4, 6, 2, "#effbff");
-      this.rect(x - 1, y - 5, 2, 8, "#effbff");
-    }
-  }
-
-  private enemy(s: GameState, enemy: Enemy) {
-    const boss = enemy.kind === "boss";
-    const scale = boss ? 1.6 : 1;
-    const sprite = enemy.kind === "shooter" ? "imp" : enemy.sprite;
-    if (boss && enemy.phase === 2) {
-      this.ctx.globalAlpha = 0.17 + Math.sin(s.time * 15) * 0.05;
-      this.disc(enemy.x, enemy.y - 23, 28, "#db82cb");
-      this.ctx.globalAlpha = 1;
-    }
-    this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
-    if (enemy.windup > 0) {
-      this.ctx.globalAlpha = 0.35 + Math.sin(s.time * 22) * 0.12;
-      this.disc(enemy.x, enemy.y - 2, boss ? 24 : 12, enemy.phase === 2 ? "#dd669a" : "#fba578");
-      this.ctx.globalAlpha = 1;
-      this.text("!", enemy.x, enemy.y - (boss ? 53 : 30), "#ffd796", 11);
-    }
-    this.sprite(sprite, enemy.x, enemy.y, s.time + enemy.id * 0.17, enemy.x > s.x, scale, enemy.hitTimer > 0);
-    if (enemy.hp < enemy.maxHp || boss) {
-      const width = boss ? 48 : 18;
-      const top = enemy.y - SHEETS[sprite].h * scale - 6;
-      this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);
-      this.rect(enemy.x - width / 2, top, width, 2, "#613448");
-      this.rect(enemy.x - width / 2, top, width * enemy.hp / enemy.maxHp, 2, boss ? "#ef87bc" : "#f19b77");
-    }
-  }
-
   private projectile(shot: Projectile, time: number) {
     const color = shot.owner === "enemy" ? "#f18c9d" : ACCENT[shot.hero ?? "joe"];
     if (shot.beam) {
@@ -831,11 +789,9 @@ export class Renderer {
         const a = k * Math.PI / 4;
         this.rect(effect.x + Math.cos(a) * progress * 26, effect.y - 12 + Math.sin(a) * progress * 26, 3, 3, "#fbe79d");
       }
-      this.text("LEVEL UP!", effect.x, effect.y - 34 - progress * 10, "#fff0b1", 10);
     } else if (effect.kind === "beam") {
       c.globalAlpha = life * 0.6;
       this.disc(effect.x, effect.y - 12, 17 * life, color);
-      this.text(effect.hero === "matt" ? "GOLDEN FURY" : "WAYSIDE WAVE", effect.x, effect.y - 32, color, 7);
     } else {
       c.globalAlpha = life * 0.3;
       this.disc(effect.x, effect.y - 12, effect.size, color);

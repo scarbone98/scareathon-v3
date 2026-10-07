@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty } from '../src/pages/WaysideFury/game/sim.ts';
 
 import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
+import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM, GATEKEEPER_ROOM, isBlocked, cameraTarget, tileAt } from '../src/pages/WaysideFury/game/world.ts';
 import { SAVE_KEY, readSave, writeSave, restoreSave, progressReport, mergeReceipts } from '../src/pages/WaysideFury/game/save.ts';
 
 const DT = 1 / 60;
@@ -13,6 +14,50 @@ const tick = (s, buttons = {}, frames = 1) => {
 const emptyRoom = () => { const s = newGame(100); s.enemies = []; return s; };
 const bulletAtHero = (s, damage = 20) => s.projectiles.push({ id: s.nextId++, x: s.x, y: s.y, vx: 0, vy: 0,
   radius: 4, damage, ttl: 1, owner: 'enemy', beam: false, hits: [] });
+
+// Every authored encounter, doorway and supply cache is reachable through the
+// actual collision layer; blocked rivers/buildings remain solid during a dash.
+assert.equal(BLAST_WORLDS.length, 10); assert.ok(HUB_WORLD.width >= 960 && HUB_WORLD.height >= 540);
+for (const m of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD]) {
+  assert.equal(m.tiles.length, m.cols * m.rows); assert.equal(m.collision.length, m.tiles.length);
+  assert.equal(isBlocked(m, m.spawn.x, m.spawn.y), false, `${m.id} spawn must be walkable`);
+  const start = Math.floor(m.spawn.y / 16) * m.cols + Math.floor(m.spawn.x / 16), seen = new Set([start]), queue = [start];
+  for (let i = 0; i < queue.length; i++) {
+    const at = queue[i], x = at % m.cols, y = Math.floor(at / m.cols);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nx = x + dx, ny = y + dy, next = ny * m.cols + nx;
+      if (nx < 0 || nx >= m.cols || ny < 0 || ny >= m.rows || seen.has(next) || isBlocked(m, nx * 16 + 8, ny * 16 + 8)) continue;
+      seen.add(next); queue.push(next);
+    }
+  }
+  const points = [...m.spawns, ...m.exits.map(e => ({ x: e.x + e.w / 2, y: e.y + e.h / 2 })),
+    ...m.props.filter(p => p.kind === 'chest').map(p => ({ x: p.x + p.w / 2, y: p.y + p.h / 2 }))];
+  for (const p of points) assert.ok(seen.has(Math.floor(p.y / 16) * m.cols + Math.floor(p.x / 16)), `${m.id}: ${p.x},${p.y} is reachable`);
+  assert.deepEqual(cameraTarget(m, -100, -100), { x: 0, y: 0 });
+  assert.deepEqual(cameraTarget(m, m.width + 100, m.height + 100), { x: m.width - 320, y: m.height - 180 });
+}
+const collision = newGame(); enterScene(collision, 'hub'); collision.x = 480; collision.y = 200;
+tick(collision, { y: -1, dash: true }, 180);
+assert.ok(collision.y >= 183, 'the station footprint is a natural solid boundary');
+const boundary = newGame(); enterScene(boundary, 'dungeon'); boundary.x = 100; boundary.y = 48;
+tick(boundary, { y: -1, dash: true }, 180);
+assert.ok(boundary.y >= 39, 'dash cannot tunnel through the cliff/tree boundary');
+const mini = newGame(); enterScene(mini, 'dungeon', GATEKEEPER_ROOM);
+assert.ok(mini.enemies[0].miniBoss); assert.ok(mini.enemies[0].maxHp < 260);
+
+assert.equal(tileAt(OVERWORLD, -1, 1), 'void', 'autotile neighbors outside the map do not wrap');
+assert.equal(tileAt(OVERWORLD, OVERWORLD.cols, 0), 'void');
+const smoothTaxi = newGame(); enterScene(smoothTaxi, 'overworld');
+const taxiOrigin = smoothTaxi.x; tick(smoothTaxi, { x: 1 });
+assert.ok(smoothTaxi.vx > 0 && smoothTaxi.vx < 30, 'taxi accelerates smoothly');
+assert.ok(smoothTaxi.x - taxiOrigin < 1);
+tick(smoothTaxi, { x: 1 }, 60);
+const cruise = smoothTaxi.vx, beforeCoast = smoothTaxi.x; tick(smoothTaxi);
+assert.ok(smoothTaxi.x > beforeCoast && smoothTaxi.vx < cruise && smoothTaxi.vx > 0, 'taxi coasts and slows when released');
+const edgeTravel = newGame(); enterScene(edgeTravel, 'dungeon'); edgeTravel.enemies = [];
+edgeTravel.x = getWorld('dungeon').width - 64; tick(edgeTravel, { x: 1 }, 60);
+assert.equal(edgeTravel.scene, 'dungeon'); assert.equal(edgeTravel.room, 1, 'open zone boundaries transition by walking');
+assert.ok(edgeTravel.x > 56 && edgeTravel.x < 120, 'arrival starts safely inside the neighboring map');
 
 // Story advances one beat per press, skips directly to the taxi, and resets timers.
 const intro = newGame(); enterScene(intro, 'prologue');
@@ -152,6 +197,9 @@ const progression = emptyRoom();
 for (let i = 0; i < 4; i++) { const e = addEnemy(progression, 'grunt', progression.x + 15 + i, progression.y); e.hp = 1; }
 tick(progression, { attack: true });
 assert.equal(progression.kills, 4);
+assert.equal(progression.events.filter(e => e.type === 'kill').length, 4);
+assert.ok(progression.events.filter(e => e.type === 'kill').every(e => Number.isFinite(e.x) && Number.isFinite(e.y) && e.sprite === 'zombie' && e.radius === 7),
+  'KO rendering has complete enemy snapshots after dead enemies are removed');
 assert.ok(progression.candy >= 12);
 assert.equal(activeHero(progression).level, 2);
 assert.equal(activeHero(progression).xp, 4 * 28 - xpForLevel(1));
@@ -164,7 +212,7 @@ assert.ok(progression.floaters.some(f => f.text.endsWith('candy')));
 const death = emptyRoom(); death.heroes.joe.hp = 1;
 bulletAtHero(death, 99); tick(death);
 assert.equal(death.active, 'matt'); assert.equal(death.scene, 'test');
-death.heroes.matt.hp = 1; death.heroes.matt.invulnerable = 0;
+death.heroes.matt.hp = 1; death.heroes.matt.invulnerable = 0; death.hitStop = 0;
 bulletAtHero(death, 99); tick(death);
 assert.equal(death.scene, 'dead'); assert.equal(death.deaths, 1);
 assert.ok(death.events.some(e => e.type === 'death'));
@@ -191,9 +239,9 @@ assert.ok(scene.x > taxiX + 30); assert.equal(scene.projectiles.length, 0);
 // Taxi travel is faster, peaceful, and requires pulling over at open markers.
 const walker = emptyRoom(), taxi = emptyRoom();
 enterScene(walker, 'hub'); enterScene(taxi, 'overworld');
-walker.x = taxi.x = 100;
+walker.x = taxi.x = 480; walker.y = taxi.y = 480;
 tick(walker, { x: 1 }, 30); tick(taxi, { x: 1, attack: true, ki: true, dash: true, guard: true }, 30);
-assert.ok(taxi.x - 100 > (walker.x - 100) * 1.5);
+assert.ok(taxi.x - 480 > (walker.x - 480) * 1.5);
 assert.equal(taxi.enemies.length, 0); assert.equal(taxi.projectiles.length, 0);
 assert.equal(taxi.attackTimer, 0); assert.equal(taxi.dashTimer, 0); assert.equal(taxi.guard, false);
 for (const marker of LOCATIONS.filter(p => p.locked)) {
@@ -205,7 +253,7 @@ for (const marker of LOCATIONS.filter(p => p.locked)) {
 const wayside = LOCATIONS.find(p => p.id === 'wayside');
 taxi.x = wayside.x; taxi.y = wayside.y; tick(taxi, { interact: true });
 assert.equal(taxi.scene, 'hub');
-for (const point of HUB_POINTS.filter(p => p.id !== 'taxi')) {
+for (const point of HUB_POINTS.filter(p => p.id === 'shop' || p.id === 'home')) {
   taxi.overlay = null; taxi.x = point.x; taxi.y = point.y;
   tick(taxi); tick(taxi, { interact: true }); assert.equal(taxi.overlay, point.id);
   const frozenX = taxi.x; tick(taxi, { x: 1, attack: true }, 20); assert.equal(taxi.x, frozenX);
@@ -241,14 +289,14 @@ restAtHome(home); assert.deepEqual(home.areas, ['wayside']);
 
 // The east gate stays shut during combat; retreat remains available at the entrance.
 const retreat = newGame(4); enterScene(retreat, 'dungeon');
-retreat.x = 292; retreat.y = 108;
+retreat.x = getWorld('dungeon').width - 64; retreat.y = getWorld('dungeon').spawn.y;
 assert.equal(interactTarget(retreat), null); interact(retreat); assert.equal(retreat.room, 0);
-retreat.x = 45; retreat.y = 149;
-assert.equal(interactTarget(retreat).id, 'exit'); interact(retreat); assert.equal(retreat.scene, 'overworld');
+retreat.x = 40; retreat.y = getWorld('dungeon').spawn.y;
+assert.equal(interactTarget(retreat).id, 'west'); interact(retreat); assert.equal(retreat.scene, 'overworld');
 
 // Boss rushes freeze their aim after the warning; dark novas fire radially.
-const bossRules = newGame(5); enterScene(bossRules, 'dungeon', 2);
-const watcher = bossRules.enemies[0]; watcher.cooldown = 0;
+const bossRules = newGame(5); enterScene(bossRules, 'dungeon', WATCHER_ROOM);
+const watcher = bossRules.enemies[0]; watcher.cooldown = 0; bossRules.x = watcher.x - 100; bossRules.y = watcher.y;
 tick(bossRules, { guard: true });
 assert.equal(watcher.pattern, 0); assert.ok(watcher.windup > 0.6);
 const rushAim = [watcher.aimX, watcher.aimY], startBossX = watcher.x;
@@ -258,7 +306,7 @@ assert.ok(watcher.actionTimer > 0);
 assert.deepEqual([watcher.aimX, watcher.aimY], rushAim, 'rush aim is locked during its warning');
 for (let f = 0; f < 60 && watcher.actionTimer > 0; f++) tick(bossRules, { guard: true });
 assert.ok(watcher.x < startBossX - 40); assert.equal(watcher.pattern, 1);
-watcher.cooldown = 0; bossRules.x = 45; bossRules.y = 48;
+watcher.cooldown = 0; bossRules.x = watcher.x - 100; bossRules.y = watcher.y - 70;
 tick(bossRules, { guard: true }); assert.ok(watcher.windup > 0.75);
 for (let f = 0; f < 65 && watcher.windup > 0; f++) tick(bossRules, { guard: true });
 assert.equal(bossRules.projectiles.length, 8); assert.equal(watcher.pattern, 0);
@@ -294,75 +342,93 @@ function playRoom(s) {
   return frames;
 }
 function walkTo(s, x, y) {
-  for (let f = 0; f < 900 && Math.hypot(x - s.x, y - s.y) > 4; f++) {
+  for (let f = 0; f < 2500 && Math.hypot(x - s.x, y - s.y) > 4; f++) {
     const dx = x - s.x, dy = y - s.y, length = Math.hypot(dx, dy);
     tick(s, { x: dx / length, y: dy / length });
   }
-  assert.ok(Math.hypot(x - s.x, y - s.y) <= 4);
+  assert.ok(Math.hypot(x - s.x, y - s.y) <= 4, `${s.scene}:${s.room} stuck at ${s.x.toFixed(1)},${s.y.toFixed(1)} toward ${x},${y}`);
 }
-for (let room = 0; room < 3; room++) {
+const completedZones = [], clearedCheckpoints = [];
+function openDoor(s, id) {
+  const world = getWorld(s.scene, s.room), door = world.exits.find(e => e.id === id);
+  assert.ok(door);
+  // Main routes remain wide enough to traverse without clipping natural walls.
+  if (id === 'north' || id === 'south') walkTo(s, door.x + door.w / 2, world.spawn.y);
+  const x = id === 'west' ? 40 : id === 'east' ? world.width - 64 : door.x + door.w / 2;
+  const y = id === 'north' ? 56 : id === 'south' ? world.height - 56 : world.spawn.y;
+  walkTo(s, x, y); tick(s);
+  assert.equal(interactTarget(s).id, id); tick(s, { interact: true });
+}
+for (let room = 0; room <= WATCHER_ROOM; room++) {
   assert.equal(quest.room, room); roomFrames.push(playRoom(quest));
-  walkTo(quest, 292, 108);
-  assert.equal(interactTarget(quest).id, 'next');
-  assert.equal(interactTarget(quest).name, ['Next room', 'Confront the Watcher', 'Leave Blast Site'][room]);
-  tick(quest, { interact: true });
-  if (room < 2) {
+  completedZones.push(`blast-${room}`); clearedCheckpoints.push(`blast-${room}`);
+  if (room === 1 || room === 3) {
+    const side = room === 1 ? 8 : 9;
+    openDoor(quest, room === 1 ? 'north' : 'south'); assert.equal(quest.room, side);
+    roomFrames.push(playRoom(quest)); completedZones.push(`blast-${side}`); clearedCheckpoints.push(`blast-${side}`);
+    const chest = getWorld('dungeon', side).props.find(p => p.kind === 'chest');
+    walkTo(quest, chest.x + chest.w / 2, chest.y + chest.h / 2);
+    const beforeLoot = quest.candy;
+    assert.equal(interactTarget(quest).id, chest.id); tick(quest); tick(quest, { interact: true });
+    assert.equal(quest.candy - beforeLoot, side === 8 ? 18 : 25);
+    assert.ok(quest.clearedRooms.includes(chest.id)); completedZones.push(chest.id);
+    const afterLoot = quest.candy; tick(quest); tick(quest, { interact: true });
+    assert.equal(quest.candy, afterLoot, 'a supply cache pays only once');
+    openDoor(quest, room === 1 ? 'south' : 'north'); assert.equal(quest.room, room);
+    assert.equal(quest.enemies.length, 0, 'cleared routes stay open when returning from a side trail');
+  }
+  openDoor(quest, 'east');
+  if (room < WATCHER_ROOM) {
     assert.equal(quest.room, room + 1);
     tick(quest, { interact: true }, 6);
     assert.equal(quest.scene, 'dungeon', 'holding Enter across a door cannot immediately retreat');
   }
 }
 assert.equal(quest.scene, 'shift'); assert.equal(quest.palette, 'real');
-assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
-assert.deepEqual(quest.bosses, ['blast-watcher']); assert.deepEqual(quest.areas, ['blast']);
-assert.deepEqual(checkpoints, ['blast-0', 'blast-1', 'blast-2']);
-assert.equal(quest.kills, 10); assert.equal(quest.deaths, 0);
+assert.deepEqual(quest.clearedRooms, completedZones);
+assert.deepEqual(quest.bosses, ['blast-gatekeeper', 'blast-watcher']); assert.deepEqual(quest.areas, ['blast']);
+assert.deepEqual(checkpoints, clearedCheckpoints);
+const dungeonKills = BLAST_WORLDS.reduce((n, m) => n + m.spawns.length, 0);
+assert.equal(quest.kills, dungeonKills); assert.equal(quest.deaths, 0);
 assert.deepEqual([...usedControls].sort(), ['attack', 'dash', 'guard', 'ki', 'swap']);
 tick(quest, { interact: true }, 143); assert.equal(quest.scene, 'shift');
 tick(quest, { interact: true }, 2); assert.equal(quest.scene, 'realm'); assert.equal(quest.palette, 'eightbit');
 assert.equal(quest.sceneTimer, 0); assert.equal(quest.enemies.length, 3);
 assert.deepEqual(quest.enemies.map(e => e.sprite), ['pumpkin', 'ghost', 'imp']);
 assert.equal(interactTarget(quest), null, 'realm has no western retreat');
-quest.x = 292; quest.y = 108; assert.equal(interactTarget(quest), null, 'realm east gate is closed during combat');
-quest.x = 45; quest.y = 108;
+quest.x = REALM_WORLD.width - 64; quest.y = REALM_WORLD.spawn.y;
+assert.equal(interactTarget(quest), null, 'realm east gate is closed during combat');
+quest.x = REALM_WORLD.spawn.x; quest.y = REALM_WORLD.spawn.y;
 const realmFrames = playRoom(quest);
-assert.equal(quest.chapter, 2); assert.equal(quest.kills, 13); assert.equal(quest.deaths, 0);
-assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
+assert.equal(quest.chapter, 2); assert.equal(quest.kills, dungeonKills + 3); assert.equal(quest.deaths, 0);
+completedZones.push('realm-0'); clearedCheckpoints.push('realm-0');
+assert.deepEqual(quest.clearedRooms, completedZones);
 assert.deepEqual(quest.areas, ['blast', 'eightbit-realm']);
-assert.deepEqual(checkpoints, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
-walkTo(quest, 292, 108); assert.equal(interactTarget(quest).name, 'To be continued');
-tick(quest, { interact: true }); assert.equal(quest.scene, 'results'); assert.equal(quest.sceneTimer, 0);
+assert.deepEqual(checkpoints, clearedCheckpoints);
+openDoor(quest, 'east'); assert.equal(quest.scene, 'results'); assert.equal(quest.sceneTimer, 0);
 tick(quest, { attack: true, ki: true, interact: true }, 135);
 assert.equal(quest.scene, 'results'); assert.ok(quest.sceneTimer > 2.2);
-console.log(`Default-stat chapter playthrough: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; 13 kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
-// A replay clear raises a checkpoint for legitimate new levels. Its prior
-// rooms, areas and boss ids remain receipted and cannot pay again.
+console.log(`Default-stat 10-zone chapter: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; ${quest.kills} kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
+// Revisiting completed maps keeps their routes open, without replenishing caches
+// or paying receipted milestones again, including after a HOME retry.
 const beforeReplay = progressReport(quest);
-const replayLevel = beforeReplay.receipt.level;
 enterScene(quest, 'overworld');
+// Taxi follows the authored road around the creek rather than cutting across water.
+walkTo(quest, LOCATIONS[1].x, OVERWORLD.spawn.y);
 walkTo(quest, LOCATIONS[1].x, LOCATIONS[1].y); tick(quest); tick(quest, { interact: true });
-assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0);
-const priorCheckpoints = checkpoints.length; playRoom(quest);
-assert.equal(checkpoints.length, priorCheckpoints + 1);
-assert.equal(checkpoints.at(-1), 'blast-0');
-const replayReport = progressReport(quest, beforeReplay.receipt);
-assert.ok(replayReport.receipt.level > replayLevel, 'actual replay combat earns a new level');
-assert.equal(replayReport.score, (replayReport.receipt.level - replayLevel) * 100);
-assert.equal(progressReport(quest, replayReport.receipt).score, 0, 'unchanged replay checkpoint progress sends nothing');
+assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0); assert.equal(quest.enemies.length, 0);
+assert.equal(progressReport(quest, beforeReplay.receipt).score, 0);
 const repeatedClearCount = checkpoints.length; tick(quest, {}, 60);
 assert.equal(checkpoints.length, repeatedClearCount, 'an empty room cannot produce another clear');
-assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
-const exitAfterClear = structuredClone(quest); exitAfterClear.x = 45;
-assert.equal(interactTarget(exitAfterClear).id, 'exit');
+assert.deepEqual(quest.clearedRooms, completedZones);
+const exitAfterClear = structuredClone(quest); exitAfterClear.x = 40;
+assert.equal(interactTarget(exitAfterClear).id, 'west');
 interact(exitAfterClear); assert.equal(exitAfterClear.scene, 'overworld');
 const replayRealm = structuredClone(quest); replayRealm.chapter = 1; enterScene(replayRealm, 'realm');
-const beforeRealmReplayCount = checkpoints.length;
-playRoom(replayRealm);
-assert.equal(checkpoints.length, beforeRealmReplayCount + 1);
-assert.equal(checkpoints.at(-1), 'realm-0');
-assert.equal(replayRealm.chapter, 2, 'realm clear restores chapter advancement after a HOME retry');
-assert.equal(progressReport(replayRealm, replayReport.receipt).score, 0, 'a replay without a new level cannot farm old room/area rewards');
-assert.deepEqual(replayRealm.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
+assert.equal(replayRealm.enemies.length, 0);
+assert.equal(replayRealm.chapter, 2, 'a completed realm restores chapter advancement after a HOME retry');
+assert.equal(progressReport(replayRealm, beforeReplay.receipt).score, 0, 'revisiting cannot farm old room/area rewards');
+assert.deepEqual(replayRealm.clearedRooms, completedZones);
 
 // Tickets use only newly gained progress, with a persistent level high-water mark.
 const progress = newGame();
@@ -425,13 +491,13 @@ try {
   quest.heroes.joe.hp = quest.heroes.matt.hp = 1;
   quest.heroes.joe.invulnerable = quest.heroes.matt.invulnerable = 0; quest.hitStop = 0;
   bulletAtHero(quest, 99); tick(quest);
-  activeHero(quest).invulnerable = 0; bulletAtHero(quest, 99); tick(quest);
+  activeHero(quest).invulnerable = 0; quest.hitStop = 0; bulletAtHero(quest, 99); tick(quest);
   assert.equal(quest.scene, 'dead');
   const failedRun = writeSave(quest, firstSave); assert.ok(failedRun);
   const afterDeath = restoreSave(failedRun, true);
   assert.equal(afterDeath.scene, 'hub'); assert.equal(afterDeath.deaths, 1);
-  assert.deepEqual(afterDeath.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
-  assert.deepEqual(afterDeath.bosses, ['blast-watcher']); assert.deepEqual(afterDeath.areas, ['blast', 'eightbit-realm']);
+  assert.deepEqual(afterDeath.clearedRooms, completedZones);
+  assert.deepEqual(afterDeath.bosses, ['blast-gatekeeper', 'blast-watcher']); assert.deepEqual(afterDeath.areas, ['blast', 'eightbit-realm']);
   assert.equal(afterDeath.heroes.joe.level, 1); assert.equal(afterDeath.candy, 19);
   assert.deepEqual(failedRun.lastReported, firstSave.lastReported);
   // Party snapshots retain HOME composition while ordinary saves retain the current party.
