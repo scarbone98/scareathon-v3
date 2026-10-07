@@ -198,6 +198,7 @@ export class MusicDirector {
   private timer: ReturnType<typeof setInterval> | null = null;
   private resumePending: Promise<void> | null = null;
   private suspendPending: Promise<void> | null = null;
+  private unlockSources = new Set<AudioBufferSourceNode>();
   private activeRun: TrackRun | null = null;
   private outgoingRun: TrackRun | null = null;
   private retiredRuns: TrackRun[] = [];
@@ -218,45 +219,71 @@ export class MusicDirector {
   private duckUntil = 0;
   private lastJingle = new Map<Jingle, number>();
   constructor(createContext?: () => AudioContext) { this.createContext = createContext; }
-  async unlock(): Promise<void> {
-    if (this.disposed || !this.visible) return;
-    if (this.suspendPending) await this.suspendPending;
-    if (this.disposed || !this.visible) return;
+  unlock(): Promise<void> {
+    if (this.disposed || !this.visible) return Promise.resolve();
+    this.unlocked = true;
     if (!this.ctx) {
       const browser = globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext };
       const Context = browser.AudioContext || browser.webkitAudioContext;
       // iOS mutes Web Audio under the ring/silent switch unless the session is media playback.
       const session = (globalThis.navigator as Navigator & { audioSession?: { type: string } } | undefined)?.audioSession;
       if (!this.createContext && session) { try { session.type = "playback"; } catch { /* unsupported */ } }
-      if (!this.createContext && !Context) return;
+      if (!this.createContext && !Context) return Promise.resolve();
       try { this.ctx = this.createContext ? this.createContext() : new Context!(); this.buildGraph(); }
-      catch { this.ctx = null; return; }
+      catch {
+        const failed = this.ctx; this.ctx = null;
+        if (failed) void failed.close().catch(() => undefined);
+        this.graphNodes = []; this.realmApplied = false;
+        return Promise.resolve();
+      }
     }
-    this.unlocked = true;
-    await this.resume();
+    // These calls must stay on the real gesture's stack. In particular, a
+    // pending hide/suspend or an autoplay-blocked resume must not consume the
+    // touchend/click activation that WebKit needs to unlock its output device.
+    const suspension = this.suspendPending;
+    const resuming = this.resume(true);
+    this.startUnlockSample();
+    return suspension ? Promise.all([suspension, resuming]).then(() => this.resume()) : resuming;
   }
-  private async resume(): Promise<void> {
-    if (!this.ctx || !this.visible || this.disposed) return;
-    if (this.resumePending) return this.resumePending;
+  private startUnlockSample(): void {
+    const ctx = this.ctx!;
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      source.connect(ctx.destination);
+      this.unlockSources.add(source);
+      source.onended = () => { source.disconnect(); this.unlockSources.delete(source); };
+      source.start(ctx.currentTime);
+      source.stop(ctx.currentTime + 1 / ctx.sampleRate);
+    } catch { /* A future gesture can retry a device that is still interrupted. */ }
+  }
+  private resume(gesture = false): Promise<void> {
+    if (!this.ctx || !this.visible || this.disposed) return Promise.resolve();
+    if (this.resumePending && !gesture) return this.resumePending;
     const ctx = this.ctx;
-    this.resumePending = (async () => {
-      try {
-        if (ctx.state !== 'running') await ctx.resume();
-        if (this.disposed || !this.visible || ctx.state !== 'running') return;
-        // iOS can suspend a context without a visibility event. Mood intent may
-        // change during that interruption, so never revive the stale score.
-        if (this.activeRun && (this.activeRun.mood !== this.mood || this.darkSky)) {
-          this.retireRun(this.activeRun, ctx.currentTime); this.activeRun = null;
-          if (this.outgoingRun) this.retireRun(this.outgoingRun, ctx.currentTime);
-          this.outgoingRun = null;
-        }
-        this.master?.gain.setTargetAtTime(0.72, ctx.currentTime, 0.025);
-        if (!this.activeRun && this.mood !== 'off' && !this.darkSky) this.activeRun = this.makeRun(this.mood, false);
-        if (!this.timer) this.timer = setInterval(() => this.tick(), 25);
-        this.tick();
-      } catch { /* A subsequent real gesture can retry an autoplay rejection. */ }
-    })().finally(() => { this.resumePending = null; });
-    return this.resumePending;
+    let resumed: Promise<void>;
+    try {
+      // "interrupted" is an additional iOS state. Every non-running state
+      // needs recovery, and a new gesture must retry even an unresolved resume.
+      resumed = gesture || ctx.state !== 'running' ? ctx.resume() : Promise.resolve();
+    } catch { return Promise.resolve(); }
+    const pending = resumed.then(() => {
+      if (this.disposed || !this.visible || ctx.state !== 'running') return;
+      // iOS can suspend a context without a visibility event. Mood intent may
+      // change during that interruption, so never revive the stale score.
+      if (this.activeRun && (this.activeRun.mood !== this.mood || this.darkSky)) {
+        this.retireRun(this.activeRun, ctx.currentTime); this.activeRun = null;
+        if (this.outgoingRun) this.retireRun(this.outgoingRun, ctx.currentTime);
+        this.outgoingRun = null;
+      }
+      this.master?.gain.setTargetAtTime(0.72, ctx.currentTime, 0.025);
+      if (!this.activeRun && this.mood !== 'off' && !this.darkSky) this.activeRun = this.makeRun(this.mood, false);
+      if (!this.timer) this.timer = setInterval(() => this.tick(), 25);
+      this.tick();
+    }).catch(() => { /* A subsequent real gesture can retry an autoplay rejection. */ });
+    this.resumePending = pending;
+    void pending.then(() => { if (this.resumePending === pending) this.resumePending = null; });
+    return pending;
   }
   private buildGraph(): void {
     const ctx = this.ctx!;
@@ -342,8 +369,13 @@ export class MusicDirector {
     }
   }
   setSettings(settings: AudioSettings): void {
-    this.settings = { musicVolume: clamp(settings.musicVolume), sfxVolume: clamp(settings.sfxVolume) };
+    this.settings = { musicVolume: Number.isFinite(settings.musicVolume) ? clamp(settings.musicVolume) : 0.6,
+      sfxVolume: Number.isFinite(settings.sfxVolume) ? clamp(settings.sfxVolume) : 0.8 };
     this.applySettings();
+  }
+  needsGesture(): boolean {
+    return this.unlocked && this.visible && !this.disposed && this.ctx?.state !== 'running' &&
+      (this.settings.musicVolume > 0 || this.settings.sfxVolume > 0);
   }
   private applySettings(): void {
     if (!this.ctx) return;
@@ -397,7 +429,7 @@ export class MusicDirector {
   }
   private scheduleRun(run: TrackRun, now: number): void {
     const meta = TRACK_METADATA[run.mood];
-    if (run.next < now - 0.1) run.next = now + 0.02; // Do not replay a stalled tab's backlog.
+    if (run.next < now) run.next = now + 0.02; // Do not schedule in the past or replay a stalled tab's backlog.
     let guard = 0;
     while (run.next < now + 0.13 && guard++ < 32) {
       if (run.fadeEnd !== null && run.next >= run.fadeEnd) break;
@@ -584,6 +616,8 @@ export class MusicDirector {
   }
   dispose(): void {
     if (this.disposed) return; this.disposed = true; this.stopTransport();
+    for (const source of this.unlockSources) { source.disconnect(); source.onended = null; }
+    this.unlockSources.clear();
     for (const voice of this.voices.values()) { voice.source.disconnect(); voice.gain.disconnect();
       for (const node of voice.nodes) node.disconnect(); voice.source.onended = null; }
     this.voices.clear();

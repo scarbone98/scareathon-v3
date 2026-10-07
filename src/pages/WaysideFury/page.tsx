@@ -34,13 +34,14 @@ function PromptGlyph({ mode }: { mode: InputMode }) {
   const glyph = /playstation|dualshock|dualsense|sony/i.test(pad?.id ?? "") ? "✕" : /switch|nintendo/i.test(pad?.id ?? "") ? "B" : "A";
   return mode === "keyboard" ? <kbd aria-hidden="true">↵</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
 }
-function SceneSurface({ canvas, presentation, onTouch }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void }) {
+function SceneSurface({ canvas, presentation, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
   return <div className="wf-stage">
     <div className="wf-scene-surface">
       <canvas ref={canvas} onPointerDown={e => { if (e.pointerType === "touch") onTouch(); }} aria-label="Wayside Fury action RPG" />
       <div className="wf-scene-labels" aria-hidden="true">{presentation?.labels.map(label => <span key={label.id}
         className={`wf-scene-label wf-label-${label.kind}`} style={{ left: `clamp(${Math.min(220, label.text.length * 7 + 16) / 2}px, ${label.x * 100}%, calc(100% - ${Math.min(220, label.text.length * 7 + 16) / 2}px))`, top: `clamp(40px, ${label.y * 100}%, 100%)`, color: label.color, opacity: label.opacity, transform: `translate(-50%, -100%) scale(${label.scale ?? 1})` }}>{label.text}</span>)}</div>
     </div>
+    {soundBlocked && <button className="wf-sound-chip" onClick={onSound}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M11 4 6 8H3v8h3l5 4V4Z" /><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></svg>Tap for sound</button>}
   </div>;
 }
 function ActionIcon({ action }: { action: keyof Input }) {
@@ -112,6 +113,7 @@ export default function WaysideFury() {
   const [loadingAvatar, setLoadingAvatar] = useState(true);
   const [avatar, setAvatar] = useState<HeroAvatar | null>(null);
   const [saveToast, setSaveToast] = useState("");
+  const [soundBlocked, setSoundBlocked] = useState(false);
   const [state, setState] = useState<GameState>(newGame);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -177,7 +179,7 @@ export default function WaysideFury() {
     buttons[(index < 0 ? direction > 0 ? 0 : buttons.length - 1 : (index + direction + buttons.length) % buttons.length)].focus();
   } };
   useEffect(() => {
-    const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation,
+    const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
         if (event.type !== "checkpoint" && event.type !== "death") return;
@@ -307,7 +309,7 @@ export default function WaysideFury() {
     <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
-    <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} />
+    <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
     {!playing ? <div className="wf-overlay wf-menu">
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
       <p className="wf-tagline">Five years later, the real evil arrives.</p>

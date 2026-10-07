@@ -9,6 +9,7 @@ export interface Callbacks {
   onState: (state: GameState) => void;
   onInputMode: (mode: InputMode) => void;
   onPresentation?: (presentation: RenderPresentation) => void;
+  onSoundBlocked?: (blocked: boolean) => void;
   onPause: () => void;
   onConfirm: () => boolean;
   onNavigate: (direction: number, axis?: "horizontal" | "vertical") => void;
@@ -27,7 +28,9 @@ export class GameController {
   private started = false;
   private sound = new MusicDirector();
   private audio = new FuryAudio(this.sound);
-  private unlockAudio = () => { void this.sound.unlock(); };
+  private soundBlocked = false;
+  private audioGestures = ["pointerdown", "pointerup", "touchend", "click", "keydown"] as const;
+  unlockAudio = () => { void this.sound.unlock(); };
   private visibleAudio = () => { void this.sound.setVisible(!document.hidden); };
   private uiClick = (event: MouseEvent) => {
     const button = event.target instanceof Element ? event.target.closest("button") : null;
@@ -38,10 +41,12 @@ export class GameController {
     this.renderer = new Renderer(canvas);
     this.input = new GameInput(cb.onInputMode, cb.onPause, cb.onConfirm, cb.onNavigate, this.unlockAudio);
     this.audio.menu(); this.visibleAudio();
-    window.addEventListener("pointerdown", this.unlockAudio, { passive: true });
-    window.addEventListener("pointerup", this.unlockAudio, { passive: true });
+    // Capture runs before React/game handlers can stop propagation, including
+    // touch controls whose preventDefault suppresses the synthetic click.
+    for (const gesture of this.audioGestures) window.addEventListener(gesture, this.unlockAudio, { capture: true, passive: true });
     window.addEventListener("click", this.uiClick);
     document.addEventListener("visibilitychange", this.visibleAudio);
+    window.addEventListener("pageshow", this.visibleAudio);
     cb.onInputMode(this.input.mode);
     this.raf = requestAnimationFrame(this.frame);
   }
@@ -61,6 +66,8 @@ export class GameController {
     this.state.events.length = 0; if (this.started) this.audio.sync(this.state); this.publish();
   }
   private publish() {
+    const blocked = this.sound.needsGesture();
+    if (blocked !== this.soundBlocked) { this.soundBlocked = blocked; this.cb.onSoundBlocked?.(blocked); }
     const s = this.state;
     this.cb.onState({ ...s,
       heroes: Object.fromEntries(Object.entries(s.heroes).map(([id, hero]) => [id, { ...hero }])) as GameState["heroes"],
@@ -72,8 +79,9 @@ export class GameController {
   }
   dispose() {
     cancelAnimationFrame(this.raf); this.input.dispose(); this.renderer.dispose(); this.sound.dispose();
-    window.removeEventListener("pointerdown", this.unlockAudio); window.removeEventListener("pointerup", this.unlockAudio);
+    for (const gesture of this.audioGestures) window.removeEventListener(gesture, this.unlockAudio, true);
     window.removeEventListener("click", this.uiClick); document.removeEventListener("visibilitychange", this.visibleAudio);
+    window.removeEventListener("pageshow", this.visibleAudio);
   }
   private frame = (now: number) => {
     this.raf = requestAnimationFrame(this.frame);

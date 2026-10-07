@@ -35,6 +35,9 @@
 .wf-shell button:focus-visible { outline: 3px solid #b5ffeb; outline-offset: 3px; }
 .wf-shell button:disabled { opacity: .4; cursor: default; }
 .wf-shell .wf-secondary { background: #243c48dd; color: #e3ecd5; border-color: #7ea19780; }
+.wf-shell .wf-sound-chip { position: absolute; z-index: 12; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 7px 10px; font-size: 12px; background: #132b39ed; color: #e3ecd5; border-color: #7ea197; }
+.wf-shell .wf-sound-chip:active { transform: translate(-50%, 2px); }
+.wf-sound-chip svg { width: 20px; height: 20px; }
 .wf-primary { min-width: 210px; }
 .wf-shell kbd, .wf-pad-glyph { display: inline-flex; align-items: center; justify-content: center; min-width: 23px; height: 23px; border: 1px solid currentColor; border-radius: 5px; line-height: 1; font: 700 15px system-ui; margin-right: 8px; vertical-align: middle; }
 .wf-pad-glyph { border-radius: 50%; }

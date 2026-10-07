@@ -23,6 +23,7 @@
     "check:wayside-fury": "node scripts/check-wayside-fury.mjs",
     "check:wayside-fury-cloud": "node --test scripts/check-wayside-fury-cloud.test.mjs",
     "check:wayside-fury-music": "node scripts/check-wayside-fury-music.mjs && node scripts/check-wayside-fury-audio.mjs",
+    "check:wayside-fury-webkit-audio": "node scripts/check-wayside-fury-webkit-audio.mjs",
     "balance:mystery-crypt": "node scripts/mystery-crypt-balance.mjs",
     "check:frog-ball": "node scripts/frog-ball-stages.mjs",
     "check:frog-ball-coop": "node scripts/frog-ball-coop.mjs",
