@@ -93,7 +93,7 @@ const updatedTime = (game: MachineData) => Math.max(timeOf(game.updated), builds
 
 // A finished game in its first day
 export function isNewGame(game: MachineData, now = Date.now()) {
-  if (game.special || game.earlyAccess) return false;
+  if (game.special || (game.earlyAccess && !game.newShelf)) return false;
   const added = timeOf(game.added);
   return added > 0 && added <= now && now - added < NEW_FOR;
 }
