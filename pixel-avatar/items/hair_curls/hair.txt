@@ -1,9 +1,53 @@
-at: 9,20
+# The curls bounce: a pixel taller on frame 4, and the loose one at the side swings on 2-3
+at: 9,19
 legend:
   a = hair.2
   b = hair.1
   h = hair.3
 --- 0
+.
+....aaaaaa
+..aahaahaaaa
+.aahaaaahaaaa
+aaaaahaaaaahaa
+aahaaaaahaaaaa
+aaaaaahaaaaaab
+aaahaaaaaaaaab
+abaabbbbbbbaab
+aab.........ab
+aab.........ab
+.ab.........b
+..b
+--- 2
+.
+....aaaaaa
+..aahaahaaaa
+.aahaaaahaaaa
+aaaaahaaaaahaa
+aahaaaaahaaaaa
+aaaaaahaaaaaab
+aaahaaaaaaaaab
+abaabbbbbbbaab
+aab.........ab
+aab.........ab
+.ab.........b
+...b
+--- 3
+.
+....aaaaaa
+..aahaahaaaa
+.aahaaaahaaaa
+aaaaahaaaaahaa
+aahaaaaahaaaaa
+aaaaaahaaaaaab
+aaahaaaaaaaaab
+abaabbbbbbbaab
+aab.........ab
+aab.........ab
+.ab.........b
+...b
+--- 4
+....aahaaa
 ....aaaaaa
 ..aahaahaaaa
 .aahaaaahaaaa

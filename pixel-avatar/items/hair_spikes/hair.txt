@@ -1,3 +1,4 @@
+# The tips flick over on frames 2-3 and back past upright on 5; the lock at the side swings
 at: 11,20
 legend:
   a = hair.2
@@ -5,6 +6,48 @@ legend:
   h = hair.3
 --- 0
 ....a...a
+...aa..ha.a
+..aha.aha.a
+..ahaaahaaa
+.aaaaaaaaaa
+.aaaaaaaaaa
+.aaaaaaaaa
+.aabbbbbb
+aab
+ab
+ab
+a
+.b
+--- 2
+.....a...a
+...aa..ha.a
+..aha.aha.a
+..ahaaahaaa
+.aaaaaaaaaa
+.aaaaaaaaaa
+.aaaaaaaaa
+.aabbbbbb
+aab
+ab
+ab
+.a
+..b
+--- 3
+.....a...a
+...aa..ha.a
+..aha.aha.a
+..ahaaahaaa
+.aaaaaaaaaa
+.aaaaaaaaaa
+.aaaaaaaaa
+.aabbbbbb
+aab
+ab
+ab
+.a
+..b
+--- 5
+...a...a
 ...aa..ha.a
 ..aha.aha.a
 ..ahaaahaaa

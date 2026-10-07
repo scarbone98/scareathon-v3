@@ -1,3 +1,4 @@
+# They fold in on frames 3-4, a slow flap
 # Two pairs of wings, spotted in dye2
 at: 5,26
 legend:
@@ -17,3 +18,29 @@ abbcbbbba....abbbbcbba
 ..abcbba......abbcba
 ...abba........abba
 ....aa..........aa
+--- 3
+....a............a
+...aba..........aba
+...bcba........abcb
+...bcbba......abbcb
+...bcbbba....abbbcb
+...abbbbba..abbbbba
+....abbbbbaabbbbba
+....abbbba..abbbba
+....bcbba....abbcb
+....bbba......abbb
+....aba........aba
+.....a..........a
+--- 4
+....a............a
+...aba..........aba
+...bcba........abcb
+...bcbba......abbcb
+...bcbbba....abbbcb
+...abbbbba..abbbbba
+....abbbbbaabbbbba
+....abbbba..abbbba
+....bcbba....abbcb
+....bbba......abbb
+....aba........aba
+.....a..........a

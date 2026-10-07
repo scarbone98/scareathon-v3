@@ -1,3 +1,4 @@
+# The tails swing on frames 2-3
 # Ties are dye1
 at: 9,24
 legend:
@@ -15,3 +16,33 @@ aab........baa
 aab........baa
 .ab........ba
 .b..........b
+--- 2
+....aaaaaa
+...aahhaaaa
+...aaaaaaaab
+..rabbbbbbbar
+.aa.........aa
+aab........baa
+aab........baa
+..ab........ba
+..b..........b
+--- 3
+....aaaaaa
+...aahhaaaa
+...aaaaaaaab
+..rabbbbbbbar
+.aa.........aa
+aab........baa
+aab........baa
+..ab........ba
+..b..........b
+--- 4
+....aaaaaa
+...aahhaaaa
+...aaaaaaaab
+..rabbbbbbbar
+.aa.........aa
+aab........baa
+aab........baa
+.ab........ba
+..b..........b

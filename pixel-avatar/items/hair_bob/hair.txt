@@ -1,3 +1,4 @@
+# The ends flare out as the head comes down (frames 2-3)
 at: 11,23
 legend:
   a = hair.2
@@ -14,3 +15,25 @@ ab.......a
 ab.......b
 aab.....ab
 .bb......b
+--- 2
+...aaaa
+.aaahhaaa
+aaahhaaaaa
+aaaaaaaaaa
+abbbbbbbaa
+ab.......a
+ab.......a
+ab.......b
+aab.....ab
+bb.......bb
+--- 3
+...aaaa
+.aaahhaaa
+aaahhaaaaa
+aaaaaaaaaa
+abbbbbbbaa
+ab.......a
+ab.......a
+ab.......b
+aab.....ab
+bb.......bb

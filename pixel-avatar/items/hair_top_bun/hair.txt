@@ -1,3 +1,4 @@
+# The bun wobbles over on frames 2-3
 # Pulled up into a bun on top
 at: 11,21
 legend:
@@ -8,6 +9,26 @@ legend:
 ...aaa
 ..ahhab
 ...aab
+..aaaaaa
+.aahhaaaa
+.aaaaaaaab
+.abbbbbbb
+ab
+.b
+--- 2
+....aaa
+...ahhab
+....aab
+..aaaaaa
+.aahhaaaa
+.aaaaaaaab
+.abbbbbbb
+ab
+.b
+--- 3
+....aaa
+...ahhab
+....aab
 ..aaaaaa
 .aahhaaaa
 .aaaaaaaab

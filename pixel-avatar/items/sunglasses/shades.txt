@@ -1,3 +1,4 @@
+# The glint crosses the lenses and is gone till it comes round again
 # Dark lenses over both eyes (x 15 and x 18), a glint on each
 at: 10,29
 legend:
@@ -6,4 +7,20 @@ legend:
 --- 0
 ....kkkkkk
 kkkkkhkkhk
+....kk.kk
+--- 1
+....kkkkkk
+kkkkkkkkkk
+....kk.kk
+--- 2
+....kkkkkk
+kkkkkkkkkk
+....kk.kk
+--- 3
+....kkkkkk
+kkkkkkkkkk
+....kk.kk
+--- 4
+....kkkkkk
+kkkkhkkhkk
 ....kk.kk

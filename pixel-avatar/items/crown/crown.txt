@@ -1,3 +1,4 @@
+# The stones catch the light: the ruby on frame 2, the sapphire on 4
 # Gold, with a ruby and a sapphire set in it
 at: 12,21
 legend:
@@ -9,4 +10,12 @@ legend:
 --- 0
 h..hh..h
 ghrggbhg
+mmmmmmmm
+--- 2
+h..hh..h
+ghhggbhg
+mmmmmmmm
+--- 4
+h..hh..h
+ghrgghhg
 mmmmmmmm

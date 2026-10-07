@@ -1,3 +1,4 @@
+# The tip swishes: out on frames 1-2, back the other way on 4-5
 # Curling out behind you, a spade at its tip
 at: 18,35
 legend:
@@ -9,6 +10,38 @@ legend:
 ..hrh
 ..hrh
 ...r
+...d
+..r
+rd
+--- 1
+....h
+...hrh
+...hrh
+....r
+...d
+..r
+rd
+--- 2
+....h
+...hrh
+...hrh
+....r
+...d
+..r
+rd
+--- 4
+..h
+.hrh
+.hrh
+..r
+...d
+..r
+rd
+--- 5
+..h
+.hrh
+.hrh
+..r
 ...d
 ..r
 rd

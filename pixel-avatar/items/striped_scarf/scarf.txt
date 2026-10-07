@@ -1,3 +1,4 @@
+# The tail swings on frames 2-3 and trails back on 4
 # Wraps the neck; the tail is striped in dye2
 at: 12,33
 legend:
@@ -14,3 +15,27 @@ caaaaaac
 .....ac
 .....bd
 .....c.c
+--- 2
+.chhhac
+caaaaaac
+.....ac
+.....bd
+......ac
+......bd
+......c.c
+--- 3
+.chhhac
+caaaaaac
+.....ac
+.....bd
+......ac
+......bd
+......c.c
+--- 4
+.chhhac
+caaaaaac
+.....ac
+.....bd
+.....ac
+......bd
+......c.c

@@ -1,3 +1,4 @@
+# The ends swing as the head comes down (frames 2-3) and settle after
 at: 10,23
 legend:
   a = hair.2
@@ -18,3 +19,48 @@ aab.......aa
 ab........ab
 ab........ab
 .b........b
+--- 2
+...aaaaa
+.aaaahaaaa
+aaaaahaaaaa
+aaaaabaaaaab
+aabbbabbbbaa
+aab......aab
+aab......aab
+aab......aab
+aab......aab
+aab......baa
+aab.......aa
+.ab........ab
+.ab........ab
+..b........b
+--- 3
+...aaaaa
+.aaaahaaaa
+aaaaahaaaaa
+aaaaabaaaaab
+aabbbabbbbaa
+aab......aab
+aab......aab
+aab......aab
+aab......aab
+aab......baa
+aab.......aa
+.ab........ab
+.ab........ab
+..b........b
+--- 4
+...aaaaa
+.aaaahaaaa
+aaaaahaaaaa
+aaaaabaaaaab
+aabbbabbbbaa
+aab......aab
+aab......aab
+aab......aab
+aab......aab
+aab......baa
+aab.......aa
+ab........ab
+ab........ab
+..b........b

@@ -1525,11 +1525,11 @@
           "slot": "held",
           "anchor": "body",
           "x": 7,
-          "y": 21,
+          "y": 20,
           "w": 5,
-          "h": 15,
-          "frames": 1,
-          "src": "/avatar-px/items/balloon/0-held.png?v=69c304075e",
+          "h": 16,
+          "frames": 4,
+          "src": "/avatar-px/items/balloon/0-held.png?v=ea9e6be72a",
           "fits": [
             "body_kid"
           ]
@@ -2277,9 +2277,9 @@
           "x": 4,
           "y": 25,
           "w": 24,
-          "h": 9,
-          "frames": 1,
-          "src": "/avatar-px/items/bone_wings/0-wings.png?v=cedbba5a8c",
+          "h": 10,
+          "frames": 5,
+          "src": "/avatar-px/items/bone_wings/0-wings.png?v=a469b5834a",
           "fits": [
             "body_kid",
             "body_ghost"
@@ -2521,8 +2521,8 @@
           "y": 26,
           "w": 22,
           "h": 12,
-          "frames": 1,
-          "src": "/avatar-px/items/butterfly_wings/0-wings.png?v=e4df955b6e",
+          "frames": 5,
+          "src": "/avatar-px/items/butterfly_wings/0-wings.png?v=de6d6af5df",
           "fits": [
             "body_kid",
             "body_ghost"
@@ -2803,10 +2803,10 @@
           "anchor": "body",
           "x": 11,
           "y": 33,
-          "w": 9,
+          "w": 10,
           "h": 7,
-          "frames": 1,
-          "src": "/avatar-px/items/chunky_scarf/0-neck.png?v=c1e16439a3",
+          "frames": 5,
+          "src": "/avatar-px/items/chunky_scarf/0-neck.png?v=e5c3c2ad8f",
           "fits": [
             "body_kid"
           ]
@@ -2960,8 +2960,8 @@
           "y": 21,
           "w": 8,
           "h": 3,
-          "frames": 1,
-          "src": "/avatar-px/items/crown/0-head.png?v=ca9f54826c"
+          "frames": 5,
+          "src": "/avatar-px/items/crown/0-head.png?v=5c4261510e"
         }
       ],
       "icon": "/avatar-px/items/crown/icon.png?v=a08d2d6843",
@@ -3089,10 +3089,10 @@
           "anchor": "body",
           "x": 18,
           "y": 35,
-          "w": 5,
+          "w": 6,
           "h": 7,
-          "frames": 1,
-          "src": "/avatar-px/items/devil_tail/0-back.png?v=ff81edf7db",
+          "frames": 6,
+          "src": "/avatar-px/items/devil_tail/0-back.png?v=0b07a418c4",
           "fits": [
             "body_kid"
           ]
@@ -3205,8 +3205,8 @@
           "y": 25,
           "w": 24,
           "h": 10,
-          "frames": 1,
-          "src": "/avatar-px/items/fairy_wings/0-wings.png?v=25b595376d",
+          "frames": 6,
+          "src": "/avatar-px/items/fairy_wings/0-wings.png?v=588e843e71",
           "fits": [
             "body_kid",
             "body_ghost"
@@ -3580,8 +3580,8 @@
           "y": 33,
           "w": 5,
           "h": 3,
-          "frames": 1,
-          "src": "/avatar-px/items/gold_chain/0-neck.png?v=45ffe1f8d4",
+          "frames": 5,
+          "src": "/avatar-px/items/gold_chain/0-neck.png?v=18fcac63b8",
           "fits": [
             "body_kid"
           ]
@@ -3694,11 +3694,11 @@
           "slot": "hair",
           "anchor": "head",
           "x": 9,
-          "y": 20,
+          "y": 19,
           "w": 14,
-          "h": 10,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_afro/0-hair.png?v=3cb2968f61",
+          "h": 11,
+          "frames": 5,
+          "src": "/avatar-px/items/hair_afro/0-hair.png?v=cb379ed293",
           "fits": [
             "body_kid"
           ]
@@ -3755,10 +3755,10 @@
           "anchor": "head",
           "x": 11,
           "y": 23,
-          "w": 10,
+          "w": 11,
           "h": 10,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_bob/0-hair.png?v=60d3d5e66f",
+          "frames": 4,
+          "src": "/avatar-px/items/hair_bob/0-hair.png?v=89ab949e19",
           "fits": [
             "body_kid"
           ]
@@ -3904,11 +3904,11 @@
           "slot": "hair",
           "anchor": "head",
           "x": 9,
-          "y": 20,
+          "y": 19,
           "w": 14,
-          "h": 12,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_curls/0-hair.png?v=131ffa060d",
+          "h": 13,
+          "frames": 5,
+          "src": "/avatar-px/items/hair_curls/0-hair.png?v=cd9e5319dd",
           "fits": [
             "body_kid"
           ]
@@ -4025,10 +4025,10 @@
           "anchor": "head",
           "x": 10,
           "y": 23,
-          "w": 12,
+          "w": 13,
           "h": 14,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_long_straight/0-hair.png?v=0419cfebcd",
+          "frames": 5,
+          "src": "/avatar-px/items/hair_long_straight/0-hair.png?v=6689c9749a",
           "fits": [
             "body_kid"
           ]
@@ -4117,8 +4117,8 @@
           "y": 24,
           "w": 14,
           "h": 9,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_pigtails/0-hair.png?v=0b974b59ac",
+          "frames": 5,
+          "src": "/avatar-px/items/hair_pigtails/0-hair.png?v=dbc6cb363b",
           "fits": [
             "body_kid"
           ]
@@ -4238,11 +4238,11 @@
           "slot": "hair",
           "anchor": "head",
           "x": 10,
-          "y": 21,
+          "y": 20,
           "w": 13,
-          "h": 12,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_space_buns/0-hair.png?v=574c38942d",
+          "h": 13,
+          "frames": 5,
+          "src": "/avatar-px/items/hair_space_buns/0-hair.png?v=94daadba24",
           "fits": [
             "body_kid"
           ]
@@ -4271,8 +4271,8 @@
           "y": 20,
           "w": 11,
           "h": 13,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_spikes/0-hair.png?v=0ff3e1f69c",
+          "frames": 6,
+          "src": "/avatar-px/items/hair_spikes/0-hair.png?v=093c5f6acc",
           "fits": [
             "body_kid"
           ]
@@ -4301,8 +4301,8 @@
           "y": 21,
           "w": 10,
           "h": 9,
-          "frames": 1,
-          "src": "/avatar-px/items/hair_top_bun/0-hair.png?v=b000204a05",
+          "frames": 4,
+          "src": "/avatar-px/items/hair_top_bun/0-hair.png?v=7907525c45",
           "fits": [
             "body_kid"
           ]
@@ -4328,11 +4328,11 @@
           "slot": "head",
           "anchor": "head",
           "x": 11,
-          "y": 19,
+          "y": 18,
           "w": 8,
-          "h": 4,
-          "frames": 1,
-          "src": "/avatar-px/items/halo/0-head.png?v=a99e718cc4"
+          "h": 5,
+          "frames": 6,
+          "src": "/avatar-px/items/halo/0-head.png?v=ba132de0a5"
         }
       ],
       "icon": "/avatar-px/items/halo/icon.png?v=ef75109000",
@@ -5622,8 +5622,8 @@
           "y": 17,
           "w": 7,
           "h": 7,
-          "frames": 1,
-          "src": "/avatar-px/items/party_hat/0-head.png?v=b68e30c1af"
+          "frames": 6,
+          "src": "/avatar-px/items/party_hat/0-head.png?v=c52850114c"
         }
       ],
       "icon": "/avatar-px/items/party_hat/icon.png?v=8939086eed",
@@ -5787,8 +5787,8 @@
           "y": 14,
           "w": 18,
           "h": 13,
-          "frames": 1,
-          "src": "/avatar-px/items/pointy_witch_hat/0-head.png?v=9197393a45"
+          "frames": 4,
+          "src": "/avatar-px/items/pointy_witch_hat/0-head.png?v=a2f943c644"
         }
       ],
       "icon": "/avatar-px/items/pointy_witch_hat/icon.png?v=458e23addc",
@@ -6956,10 +6956,10 @@
           "anchor": "body",
           "x": 12,
           "y": 33,
-          "w": 8,
+          "w": 9,
           "h": 7,
-          "frames": 1,
-          "src": "/avatar-px/items/striped_scarf/0-neck.png?v=9be3d9b2ad",
+          "frames": 5,
+          "src": "/avatar-px/items/striped_scarf/0-neck.png?v=aab5b73434",
           "fits": [
             "body_kid"
           ]
@@ -7056,8 +7056,8 @@
           "y": 29,
           "w": 10,
           "h": 3,
-          "frames": 1,
-          "src": "/avatar-px/items/sunglasses/0-face_acc.png?v=6a0e9c7f96",
+          "frames": 5,
+          "src": "/avatar-px/items/sunglasses/0-face_acc.png?v=bce86f33cd",
           "fits": [
             "body_kid"
           ]
@@ -7689,10 +7689,10 @@
           "anchor": "body",
           "x": 10,
           "y": 33,
-          "w": 12,
+          "w": 13,
           "h": 12,
-          "frames": 1,
-          "src": "/avatar-px/items/vampire_cape/0-back.png?v=26bc8b44f1",
+          "frames": 4,
+          "src": "/avatar-px/items/vampire_cape/0-back.png?v=34a26f86e1",
           "fits": [
             "body_kid"
           ]

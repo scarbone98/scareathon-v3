@@ -1,3 +1,4 @@
+# The tip nods over on frames 2-3
 at: 7,14
 legend:
   a = witch.0
@@ -10,6 +11,34 @@ legend:
 --- 0
 ............aa
 ...........abba
+..........ahca
+.........ahca
+........ahbca
+........ahbca
+.......ahbbca
+.......ahbbbca
+......ahbbbbca
+......adddgdea
+.....ahbbbbbbca
+..aaahbbbbbbbbcaaa
+...aacccccccccaa
+--- 2
+.............aa
+............abba
+..........ahca
+.........ahca
+........ahbca
+........ahbca
+.......ahbbca
+.......ahbbbca
+......ahbbbbca
+......adddgdea
+.....ahbbbbbbca
+..aaahbbbbbbbbcaaa
+...aacccccccccaa
+--- 3
+.............aa
+............abba
 ..........ahca
 .........ahca
 ........ahbca

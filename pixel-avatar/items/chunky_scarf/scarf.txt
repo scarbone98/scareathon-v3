@@ -1,3 +1,4 @@
+# The hanging end swings on frames 2-3 and trails back on 4
 # Wound twice round the neck, an end hanging down with a fringe
 at: 11,33
 legend:
@@ -12,3 +13,27 @@ legend:
 ......ac
 ......hc
 ......c.c
+--- 2
+..chhhac
+.chhhhhac
+.caaaaaac
+......ac
+......ac
+.......hc
+.......c.c
+--- 3
+..chhhac
+.chhhhhac
+.caaaaaac
+......ac
+......ac
+.......hc
+.......c.c
+--- 4
+..chhhac
+.chhhhhac
+.caaaaaac
+......ac
+......ac
+......hc
+.......c.c

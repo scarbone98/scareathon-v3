@@ -147,6 +147,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261008_shop_two_of_everything.sql', import.meta.url), 'utf8')); // two more of everything
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261008_shop_imp.sql', import.meta.url), 'utf8')); // the Imp pet
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261008_long_locks_crown.sql', import.meta.url), 'utf8')); // Long Locks: the head no longer shows through
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261009_more_animated_items.sql', import.meta.url), 'utf8')); // more hair, wings and the rest move
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');

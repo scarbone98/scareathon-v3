@@ -1,10 +1,24 @@
+# It bounces: a pixel taller as the head comes back up (frame 4)
 # Big and round, out past the ears
-at: 9,20
+at: 9,19
 legend:
   a = hair.2
   b = hair.1
   h = hair.3
 --- 0
+.
+...aaaaaaaa
+.aahaaaahaaaa
+aaaaahaaaaaaaa
+aaaaaaaaaahaaa
+aahaaaaaaaaaaa
+aaaaaaaaaaaaab
+aab........baa
+ab..........ba
+ab..........bb
+.b..........b
+--- 4
+....aaaaaa
 ...aaaaaaaa
 .aahaaaahaaaa
 aaaaahaaaaaaaa

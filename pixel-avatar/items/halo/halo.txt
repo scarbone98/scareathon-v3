@@ -1,11 +1,37 @@
+# It hovers: up a pixel on frames 4-5, and the light runs round the ring
 # A ring of gold floating over the head (the hair's top is y 24)
-at: 11,19
+at: 11,18
 legend:
   h = gold.3
   m = gold.2
   d = gold.1
 --- 0
+.
 ..hhhhh
 .h.....m
 .m.....m
 ..dmmmd
+--- 1
+.
+..mhhhh
+.h.....m
+.m.....m
+..dmmmd
+--- 3
+.
+..hhhhm
+.h.....m
+.m.....m
+..dmmmd
+--- 4
+..hhhhh
+.h.....m
+.m.....m
+..dmmmd
+.
+--- 5
+..hhmhh
+.h.....m
+.m.....m
+..dmmmd
+.
