@@ -116,8 +116,8 @@ export const STOPS: Record<StopId, Stop> = {
     label: "Capsule machine",
     heading: "left",
     // Right up to it: the machine (a little over a metre tall) fills the view, its crank to hand
-    pos: [-2.2, 0.98, 0.5],
-    target: [-2.2, 0.82, -1.9],
+    pos: [-2.25, 0.98, 0.5],
+    target: [-2.25, 0.82, -1.9],
     fit: 0.8,
     fitHeight: 1.8,
     snug: true,

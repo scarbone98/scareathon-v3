@@ -145,6 +145,12 @@ describe('validateScoreSubmission', () => {
         })).toEqual({ ok: true });
     });
 
+    // Their scores are written by the server when a puzzle is solved (routes/dailyPuzzles.js)
+    test('turns away Scaredle and Cross Bones scores sent from a page', () => {
+        expect(validateScoreSubmission({ game: 'Scaredle', metricName: 'score', metricValue: 600 }).ok).toBe(false);
+        expect(validateScoreSubmission({ game: 'Cross Bones', metricName: 'score', metricValue: 1000 }).ok).toBe(false);
+    });
+
     test('accepts 31 Nights scores up to a doubled Halloween night', () => {
         expect(validateScoreSubmission({
             game: '31 Nights',

@@ -93,6 +93,8 @@ const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
 const SCARY_CAPITALIST_URL = "/scary-capitalist";
+const SCAREDLE_URL = "/scaredle";
+const CROSS_BONES_URL = "/cross-bones";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
@@ -115,8 +117,10 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // the server's /october-valley/ws.
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
-const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=07275f7";
-const POCKET_AQUARIUM_URL = "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
+const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=68d0611";
+// A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
+const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=e258ba5";
+const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
@@ -835,6 +839,45 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // Daily word puzzles built into the site (pages/DailyPuzzles): a new one every midnight US
+    // Eastern. Played through the server (routes/dailyPuzzles.js), which writes their
+    // leaderboard scores and pays their tickets itself, so they post nothing to the cabinet.
+    {
+      name: "Scaredle",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "One spooky word a day. Six guesses.",
+        font: { family: "Creepster" },
+        about: { released: "2026", players: "Single player", genre: "Daily word puzzle", developer: "scarbone98" },
+        backNote: "Start with GHOST.",
+      },
+      game: (
+        <GameRenderer
+          title="Scaredle"
+          url={SCAREDLE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Cross Bones",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#e9dcc0",
+        tagline: "A haunted crossword every midnight.",
+        font: { family: "Special Elite" },
+        about: { released: "2026", players: "Single player", genre: "Daily crossword", developer: "scarbone98" },
+        backNote: "Bones fit together. So do words.",
+      },
+      game: (
+        <GameRenderer
+          title="Cross Bones"
+          url={CROSS_BONES_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
     // Godot daily puzzle: a new night every October day at 00:00 UTC, four rounds.
     // A finished night's score (0-400, 800 on Halloween) comes back as PLAYER_DIED;
     // the cart also sends the session so the guestbook can offer the player's name.
@@ -1384,6 +1427,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Denver Vs The Universe"
           url={DENVER_VS_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed OUTSIDE into WaysideOS.
+    // Nothing to score: a boy, a foggy wood and a test course.
+    {
+      name: "Outside",
+      added: "2026-10-07T15:00:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#9c2a22",
+        tagline: "A boy in a red shirt. Fog. Keep running.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Platformer", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Outside"
+          url={OUTSIDE_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />

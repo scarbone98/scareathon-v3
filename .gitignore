@@ -28,3 +28,7 @@ supabase/.temp/
 
 # Rendered by npm run art:avatar
 pixel-avatar/previews/
+
+# Daily puzzle answers and clues: secret (the repo is public). npm run upload:daily-puzzles
+# puts them in the daily_puzzle_content table, where the server reads them.
+daily-puzzles/

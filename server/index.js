@@ -9,6 +9,8 @@ import calendarRoutes from './routes/calendar.js';
 import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/posts.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import scareathonRoutes from './routes/scareathon.js';
+import agentTokenRoutes from './routes/agentTokens.js';
+import { authenticateAgent, isAgentToken } from './utils/agentTokens.js';
 import { ensureScareathonTables, runStartupSql } from './utils/scareathon.js';
 import { SCAREATHON_GIFT_SQL } from './utils/scareathonGift.js';
 import { readFile } from 'node:fs/promises';
@@ -18,6 +20,7 @@ import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import eightBitEvilV2Routes from './routes/8bitevilreturnsV2.js';
 import octoberValleyRoutes from './routes/octoberValley.js';
 import gamesRoutes from './routes/games.js';
+import dailyPuzzleRoutes from './routes/dailyPuzzles.js';
 import userRoutes from './routes/user.js';
 import marketplaceRoutes from './routes/marketplace.js';
 import inboxRoutes from './routes/inbox.js';
@@ -165,6 +168,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261011_pets_cost_more.sql', import.meta.url), 'utf8')); // pets cost twice as much
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261012_add_wayside_fury_game.sql', import.meta.url), 'utf8')); // Wayside Fury's arcade scores
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261012_add_wayside_fury_saves.sql', import.meta.url), 'utf8')); // revisioned Wayside Fury character sheets
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261008_agent_tokens.sql', import.meta.url), 'utf8')); // agent keys for the wayside CLI
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');
@@ -201,11 +205,19 @@ async function main() {
         await fastify.register(websocket, { options: { maxPayload: 65_536 } });
 
         fastify.addHook('preValidation', async (request, reply) => {
+            const token = getBearerToken(request.headers.authorization);
+
+            // Agent keys (the wayside CLI) only ever reach the few routes they're allowed,
+            // public ones included, and never as an admin (utils/agentTokens.js)
+            if (isAgentToken(token)) {
+                await authenticateAgent(pool, request, reply, token);
+                return;
+            }
+
             if (isPublicRoute(request.method, request.url)) {
                 return;
             }
 
-            const token = getBearerToken(request.headers.authorization);
             if (!token) {
                 // Guests can read leaderboards; everything else (including score writes) needs a login
                 if (isOptionalAuthRoute(request.method, request.url)) {
@@ -255,6 +267,7 @@ async function main() {
         fastify.register(weeklyChallengeRoutes, { getPostsPayload, getRecentPostsPayload });
         fastify.register(leaderboardRoutes);
         fastify.register(scareathonRoutes, { prefix: '/scareathon' });
+        fastify.register(agentTokenRoutes);
         fastify.register(waysideRoutes, { prefix: '/wayside' });
         fastify.register(gamesRoutes, { prefix: '/games' });
         fastify.register(eightbitevilreturnsRoutes, { prefix: '/8bitevilreturns' });
@@ -269,6 +282,7 @@ async function main() {
         fastify.register(waysideFuryRoutes, { prefix: '/wayside-fury' });
         fastify.register(waysideFuryCoopRoutes, { prefix: '/wayside-fury/coop' });
         fastify.register(scareCapitalistRoutes, { prefix: '/scare-capitalist' });
+        fastify.register(dailyPuzzleRoutes, { prefix: '/daily-puzzles' });
         fastify.register(pictoBoxRoutes, { prefix: '/picto-box' });
         fastify.register(waysideOnlineRoutes, { prefix: '/wayside-online' });
         fastify.register(waysideLoungeRoutes, { prefix: '/wayside-online/lounge' });
