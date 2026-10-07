@@ -156,7 +156,7 @@ function Track({ race, clock, pick }: { race: Race; clock: number; pick: number 
   const standing = race.runners.map((_, lane) => lane).sort((a, b) => laps[b] - laps[a]);
   return (
     <div aria-hidden="true">
-      <div className="relative mx-auto w-full max-w-3xl" style={{ aspectRatio: `${TRACK.width} / ${TRACK.height}` }}>
+      <div className="relative mx-auto w-full max-w-3xl lg:max-w-[calc((100vh-23rem)*1.786)]" style={{ aspectRatio: `${TRACK.width} / ${TRACK.height}` }}>
         <svg viewBox={`0 0 ${TRACK.width} ${TRACK.height}`} className="absolute inset-0 h-full w-full">
           <rect width={TRACK.width} height={TRACK.height} rx="3" fill="#0b0617" />
           <path d={ringPath(TRACK_OUTSIDE)} fill="#4a2f1d" stroke="#e7d7b0" strokeWidth="0.5" />
@@ -184,7 +184,7 @@ function Track({ race, clock, pick }: { race: Race; clock: number; pick: number 
               style={{ left: `${at.x}%`, top: `${(at.y / TRACK.height) * 100}%`, zIndex: Math.round(at.y * 10), transform: "translate(-50%, -82%)" }}
             >
               {/* Bigger on a big screen, where the track is */}
-              <div className="origin-bottom md:scale-150">
+              <div className="origin-bottom md:scale-150 [@media(min-width:1024px)_and_(min-height:900px)]:scale-[2.2]">
               <div style={{ transform: at.left ? "scaleX(-1)" : undefined }}>
                 <MonsterSprite monster={runner.monster} size={SPRITE_PX} walking={start !== null && !done} />
               </div>
@@ -199,7 +199,7 @@ function Track({ race, clock, pick }: { race: Race; clock: number; pick: number 
           );
         })}
       </div>
-      <ol className="mt-2 flex items-center justify-center gap-1 sm:gap-2">
+      <ol className="mt-2 flex items-center justify-center gap-1 sm:gap-2 lg:[zoom:1.4]">
         {standing.map((lane, place) => (
           <li
             key={lane}
@@ -315,7 +315,7 @@ export default function Racing({ signedIn, wallet, walletFailed, retryWallet, se
 
   const finish = race?.start && phase === "result" ? race.start : null;
   const stage = (
-    <section ref={track} className={`${PANEL} flex flex-col gap-3 p-3 sm:p-4`}>
+    <section ref={track} className={`${PANEL} flex flex-col gap-3 p-3 sm:p-4 lg:min-h-[calc(100vh-12.5rem)] lg:justify-center`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <MonsterSprite monster={MASCOT} size={40} walking={phase === "running"} />
@@ -357,7 +357,7 @@ export default function Racing({ signedIn, wallet, walletFailed, retryWallet, se
           </span>
         </div>
       </div>
-      {race ? <Track race={race} clock={clock} pick={myBet ? myBet.lane : pick} /> : <div className="mx-auto w-full max-w-3xl rounded-md bg-[#0b0617]" style={{ aspectRatio: "100 / 56" }} />}
+      {race ? <Track race={race} clock={clock} pick={myBet ? myBet.lane : pick} /> : <div className="mx-auto w-full max-w-3xl rounded-md bg-[#0b0617] lg:max-w-[calc((100vh-23rem)*1.786)]" style={{ aspectRatio: "100 / 56" }} />}
       <div className="min-h-[1.75rem]">
         {race &&
           finish &&

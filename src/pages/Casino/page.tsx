@@ -18,7 +18,7 @@ const PicturePoker = lazy(() => import("./rooms/PicturePoker"));
 // own bet slip; the rest are house games sharing the floor's wallet.
 const ROOMS = [
   { id: "monster-bash", name: "Monster Bash", blurb: "Monsters brawl around the clock. Bet with the crowd and watch the odds swing.", monster: "zombie" },
-  { id: "racing", name: "Monster Racing", blurb: "A live race every minute. Pick your monster before the off, then watch three laps with everyone else.", monster: "werewolf" },
+  { id: "racing", name: "Monster Racing", blurb: "Live races around the clock. Pick your monster before the off, then watch three laps with everyone else.", monster: "werewolf" },
   { id: "slots", name: "Slots", blurb: "Three reels of monsters. Line them up for up to 100 times your bet.", monster: "rat" },
   { id: "roulette", name: "Roulette", blurb: "Tlaloc's wheel: red or black, odd or even, or one lucky number at 35 to 1.", monster: "tlaloc" },
   { id: "picture-poker", name: "Picture Poker", blurb: "Five picture cards and one swap. Beat the Merchant's hand.", monster: "merchant" },
@@ -35,15 +35,18 @@ function HouseRoom({ room, props }: { room: Exclude<RoomId, "monster-bash">; pro
 
 function Lobby({ onEnter }: { onEnter: (room: RoomId) => void }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {ROOMS.map((room) => (
+    <div className="grid gap-3 sm:grid-cols-2 lg:min-h-[calc(100vh-13rem)] lg:grid-cols-3 lg:grid-rows-2 lg:gap-4">
+      {ROOMS.map((room, index) => (
         <button
           key={room.id}
           type="button"
           onClick={() => onEnter(room.id)}
-          className={`${PANEL} group flex items-center gap-4 p-4 text-left transition hover:border-purple-400 hover:bg-purple-950/40`}
+          // On a big screen the rooms share the whole window: the fights across the top, the house games around them
+          className={`${PANEL} group flex items-center gap-4 p-4 text-left transition hover:border-purple-400 hover:bg-purple-950/40 lg:flex-col lg:justify-center lg:gap-6 lg:p-8 lg:text-center ${
+            index === 0 ? "lg:col-span-2" : ""
+          }`}
         >
-          <span className="flex h-16 w-16 shrink-0 items-end justify-center transition group-hover:scale-110">
+          <span className="flex h-16 w-16 shrink-0 items-end justify-center transition group-hover:scale-110 lg:[zoom:2]">
             {room.monster === "tlaloc" ? (
               <Sheet {...TLALOC} height={60} />
             ) : room.monster === "merchant" ? (
@@ -53,8 +56,8 @@ function Lobby({ onEnter }: { onEnter: (room: RoomId) => void }) {
             )}
           </span>
           <span className="min-w-0">
-            <span className="block font-zombie text-2xl tracking-wide text-red-500">{room.name}</span>
-            <span className="mt-1 block text-sm text-purple-200/80">{room.blurb}</span>
+            <span className="block font-zombie text-2xl tracking-wide text-red-500 lg:text-4xl">{room.name}</span>
+            <span className="mt-1 block text-sm text-purple-200/80 lg:mx-auto lg:mt-2 lg:max-w-md lg:text-base">{room.blurb}</span>
           </span>
         </button>
       ))}

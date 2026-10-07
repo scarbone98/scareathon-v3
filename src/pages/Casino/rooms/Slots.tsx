@@ -175,8 +175,9 @@ export default function Slots({ signedIn, wallet, walletFailed, retryWallet, set
   const won = mood === "win" || mood === "jackpot";
 
   const stage = (
-    <section className={`${PANEL} relative flex flex-col items-center gap-4 overflow-hidden px-3 py-6 sm:py-8`}>
-      <div className={`slot-machine relative ${mood === "jackpot" ? "slot-shake" : ""}`} data-mood={mood}>
+    <section className={`${PANEL} relative flex flex-col items-center gap-4 overflow-hidden px-3 py-6 sm:py-8 lg:min-h-[calc(100vh-12.5rem)] lg:justify-center lg:gap-8`}>
+      {/* The machine is drawn at one size and blown up to suit the window */}
+      <div className={`slot-machine relative lg:[zoom:1.4] [@media(min-width:1024px)_and_(min-height:900px)]:[zoom:1.8] ${mood === "jackpot" ? "slot-shake" : ""}`} data-mood={mood}>
         {/* The rat, up on the machine */}
         <div className={`absolute -top-9 left-6 z-10 ${spinning ? "slot-scurry" : won ? "slot-hop" : ""}`} aria-hidden="true">
           <MonsterSprite monster={MASCOT} size={44} walking={spinning || won} />

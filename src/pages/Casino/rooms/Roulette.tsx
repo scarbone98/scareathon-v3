@@ -129,7 +129,7 @@ function Wheel({ spin, cursed }: { spin: { id: number; number: number } | null; 
   }, [spin]);
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[22rem]" aria-hidden="true">
+    <div className="relative mx-auto aspect-square w-full max-w-[22rem] lg:max-w-[min(100%,calc(100vh-27rem))]" aria-hidden="true">
       <svg ref={face} viewBox="0 0 100 100" className="h-full w-full">
         <circle cx="50" cy="50" r="50" fill="#2b3a5e" />
         <circle cx="50" cy="50" r="49" fill="none" stroke="#d9a520" strokeWidth="0.5" />
@@ -166,7 +166,9 @@ function Wheel({ spin, cursed }: { spin: { id: number; number: number } | null; 
         />
       </div>
       <div ref={ball} className="absolute -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_3px_rgba(255,243,214,0.9)]" style={{ left: "50%", top: `${50 - RIM_RADIUS}%` }}>
-        <Sheet {...TLALOC_BALL} height={22} playing={rolling} fps={32} />
+        <div className="[@media(min-width:1024px)_and_(min-height:900px)]:[zoom:1.6]">
+          <Sheet {...TLALOC_BALL} height={22} playing={rolling} fps={32} />
+        </div>
       </div>
     </div>
   );
@@ -242,7 +244,7 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
         disabled={spinning || !wallet}
         onClick={() => place(target)}
         aria-label={`${spotLabel(target)}${amount ? `, ${amount} tickets on it` : ""}`}
-        className={`relative flex min-h-[2rem] items-center justify-center border border-[#d9a520]/40 px-1 text-sm font-bold text-[#fff3d6] transition hover:brightness-125 disabled:cursor-default ${className} ${
+        className={`relative flex min-h-[2rem] items-center justify-center border border-[#d9a520]/40 px-1 text-sm font-bold lg:min-h-[max(2rem,calc((100vh-25rem)/14))] lg:text-base text-[#fff3d6] transition hover:brightness-125 disabled:cursor-default ${className} ${
           won ? "casino-win z-10 outline outline-2 outline-[#ffd75e]" : ""
         }`}
         style={style}
@@ -258,7 +260,7 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
   };
 
   const table = (
-    <div className="mx-auto grid w-full max-w-[22rem] grid-cols-[repeat(3,minmax(0,1fr)),minmax(0,1.1fr),minmax(0,1.3fr)] overflow-visible rounded-md border-2 border-[#d9a520]/60 bg-[#101a30] p-1">
+    <div className="mx-auto grid w-full max-w-[22rem] lg:max-w-[32rem] grid-cols-[repeat(3,minmax(0,1fr)),minmax(0,1.1fr),minmax(0,1.3fr)] overflow-visible rounded-md border-2 border-[#d9a520]/60 bg-[#101a30] p-1">
       {spot({ type: "straight", value: 0 }, "0", COLOR_CLASS.green, { gridColumn: "1 / 4" })}
       <div style={{ gridColumn: "4 / 6" }} />
       {Array.from({ length: 36 }, (_, i) => i + 1).map((number) => spot({ type: "straight", value: number }, String(number), COLOR_CLASS[rouletteColor(number)]))}
@@ -279,7 +281,7 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
 
   const lost = result !== null && result.payout === 0;
   const stage = (
-    <section className="overflow-hidden rounded-lg border border-[#d9a520]/50 bg-[radial-gradient(ellipse_at_top,#17324a,#0a1322_70%)]">
+    <section className="overflow-hidden rounded-lg border border-[#d9a520]/50 bg-[radial-gradient(ellipse_at_top,#17324a,#0a1322_70%)] lg:flex lg:min-h-[calc(100vh-12.5rem)] lg:flex-col">
       <div className="h-[30px]" style={AZTEC_BORDER} />
       <div className="flex items-center justify-center gap-2 px-3 pt-3">
         <Sheet {...TLALOC} height={40} frame={spinning || lost ? 1 : 0} />
@@ -290,7 +292,7 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
           </p>
         </div>
       </div>
-      <div className="grid items-center gap-4 p-3 sm:p-5 md:grid-cols-2">
+      <div className="grid items-center gap-4 p-3 sm:p-5 md:grid-cols-2 lg:flex-1 lg:gap-8">
         <div ref={wheel} className="flex flex-col items-center gap-3">
           <Wheel spin={spun} cursed={spinning || lost} />
           <div className="min-h-[3.5rem] text-center">

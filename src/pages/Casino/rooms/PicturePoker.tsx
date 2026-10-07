@@ -33,7 +33,9 @@ const handName = (id: PokerHandId) => POKER_HANDS.find((hand) => hand.id === id)
 function Card({ symbol, marked = false, dim = false, onClick }: { symbol: string | null; marked?: boolean; dim?: boolean; onClick?: () => void }) {
   const face = symbol ? (
     <>
-      <MonsterSprite monster={symbol} size={36} />
+      <span className="lg:[zoom:1.7]">
+        <MonsterSprite monster={symbol} size={36} />
+      </span>
       <span className="hidden w-full truncate px-0.5 text-center text-[0.65rem] font-bold text-orange-50 sm:block">{getMonster(symbol).name}</span>
     </>
   ) : (
@@ -166,39 +168,39 @@ export default function PicturePoker({ signedIn, wallet, walletFailed, retryWall
   const dealing = busy || (draw !== null && !done);
 
   const stage = (
-    <section className="relative mx-auto w-full max-w-xl overflow-hidden rounded-lg border border-[#3b2a5c] bg-[#06030c]">
+    <section className="relative mx-auto w-full max-w-xl overflow-hidden rounded-lg border border-[#3b2a5c] bg-[#06030c] lg:flex lg:max-w-none lg:min-h-[calc(100vh-12.5rem)] lg:flex-col lg:justify-center">
       {/* The back room: a lamp over the table, the dark beyond it, smoke drifting through */}
       <div className="poker-flicker pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_30%,rgba(255,196,110,0.22),transparent_70%)]" aria-hidden="true" />
       <div className="poker-smoke pointer-events-none absolute inset-x-[-40%] top-6 h-28 bg-[radial-gradient(ellipse_at_center,rgba(190,180,220,0.10),transparent_65%)] blur-md" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_70px_30px_#000]" aria-hidden="true" />
 
-      <div className="relative flex flex-col gap-3 p-3 sm:p-5">
-        <div className="relative flex h-[150px] items-end justify-center" aria-hidden="true">
-          <div className={`absolute bottom-3 left-[8%] sm:left-[16%] ${dealing ? "poker-deal-left" : ""}`}>
+      <div className="relative flex flex-col gap-3 p-3 sm:p-5 lg:grid lg:grid-cols-[minmax(260px,380px),minmax(0,1fr)] lg:items-center lg:gap-x-8">
+        <div className="relative flex h-[150px] items-end justify-center lg:col-start-1 lg:row-start-1 lg:self-end lg:[zoom:1.5]" aria-hidden="true">
+          <div className={`absolute bottom-3 left-[8%] sm:left-[16%] lg:left-0 ${dealing ? "poker-deal-left" : ""}`}>
             <div className="poker-float">
               <Sheet {...MERCHANT_HAND} height={72} playing fps={5} />
             </div>
           </div>
           <Sheet {...MERCHANT} height={140} playing fps={4} className="drop-shadow-[0_0_18px_rgba(120,110,220,0.45)]" />
-          <div className={`absolute bottom-3 right-[8%] sm:right-[16%] ${dealing ? "poker-deal-right" : ""}`}>
+          <div className={`absolute bottom-3 right-[8%] sm:right-[16%] lg:right-0 ${dealing ? "poker-deal-right" : ""}`}>
             <div className="poker-float" style={{ animationDelay: "-1.3s" }}>
               <Sheet {...MERCHANT_HAND} height={72} playing fps={5} style={{ transform: "scaleX(-1)" }} />
             </div>
           </div>
-          <div className="poker-flicker absolute bottom-0 left-1">
+          <div className="poker-flicker absolute bottom-0 left-1 lg:hidden">
             <MonsterSprite monster="candle" size={34} walking />
           </div>
-          <div className="poker-flicker absolute bottom-0 right-1" style={{ animationDelay: "-1.1s" }}>
+          <div className="poker-flicker absolute bottom-0 right-1 lg:hidden" style={{ animationDelay: "-1.1s" }}>
             <MonsterSprite monster="candle" size={34} walking />
           </div>
         </div>
-        <p className="min-h-[2.5rem] text-center text-sm italic text-[#d9cfee]" aria-live="polite">
+        <p className="min-h-[2.5rem] text-center text-sm italic text-[#d9cfee] lg:col-start-1 lg:row-start-2 lg:self-start lg:text-lg" aria-live="polite">
           <span aria-hidden="true">“{said}”</span>
           <span className="sr-only">{line}</span>
         </p>
 
         {/* The table: worn green baize with a brass rail */}
-        <div className="flex flex-col gap-4 rounded-[1.75rem] border-4 border-[#6b4a1e] bg-[radial-gradient(ellipse_at_center,#1f5a3d,#0c2a1c_75%)] p-3 shadow-[inset_0_0_30px_rgba(0,0,0,0.75),0_10px_30px_rgba(0,0,0,0.8)] sm:p-4">
+        <div className="flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mx-auto lg:w-full lg:max-w-[calc((100vh-22rem)*1.85)] rounded-[1.75rem] border-4 border-[#6b4a1e] bg-[radial-gradient(ellipse_at_center,#1f5a3d,#0c2a1c_75%)] p-3 shadow-[inset_0_0_30px_rgba(0,0,0,0.75),0_10px_30px_rgba(0,0,0,0.8)] sm:p-4">
           <Hand label="The Merchant" note={done ? handName(draw.dealer.hand) : undefined}>
             {Array.from({ length: POKER_HAND_SIZE }, (_, i) => (
               // The key changes when a card does, so only new cards turn over.
@@ -217,7 +219,7 @@ export default function PicturePoker({ signedIn, wallet, walletFailed, retryWall
             ))}
           </Hand>
         </div>
-        <div className="min-h-[1.75rem] text-center">
+        <div className="min-h-[1.75rem] text-center lg:col-start-2 lg:row-start-3">
           {done && (
             <Outcome payout={draw.payout} stake={draw.stake}>
               {handName(draw.hand)} against {handName(draw.dealer.hand).toLowerCase()}.
