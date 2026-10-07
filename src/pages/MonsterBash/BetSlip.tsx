@@ -17,12 +17,22 @@ function sideTotal(pools: BetPools, side: number) {
   return pools.amounts[side] + (pools.house?.[side] ?? 0);
 }
 
-// Parimutuel payout for `stake` on `side` if it were added to the pools now.
+// Pre-fight win chance of `side`, or null when the bout has none.
+function sideChance(pools: BetPools, side: FighterSide) {
+  const p = pools.winChance;
+  if (p == null || !(p > 0 && p < 1)) return null;
+  return side === 0 ? p : 1 - p;
+}
+
+// What `stake` on `side` would pay if it were added to the pools now: the
+// parimutuel share, but never less than fair odds (matches the settlement SQL).
 function estimatePayout(pools: BetPools, side: FighterSide, stake: number, alreadyIn = false) {
   const added = alreadyIn ? 0 : stake;
   const total = sideTotal(pools, 0) + sideTotal(pools, 1) + added;
   const sidePool = sideTotal(pools, side) + added;
-  return sidePool > 0 ? Math.floor((stake * total) / sidePool) : stake;
+  const parimutuel = sidePool > 0 ? Math.floor((stake * total) / sidePool) : stake;
+  const chance = sideChance(pools, side);
+  return chance === null ? parimutuel : Math.max(parimutuel, Math.floor(stake / chance));
 }
 
 function PoolBar({ match, pools }: { match: LiveMatch; pools: BetPools }) {
@@ -164,7 +174,9 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
     body = (
       <form onSubmit={submit} className="flex flex-col gap-3">
         <p className="text-xs text-purple-200/70">
-          Winners split the whole pot. Payouts start near the odds and shift as the crowd bets.
+          {pools.winChance != null
+            ? "Winners split the whole pot, and never get less than the pre-fight odds."
+            : "Winners split the whole pot. Payouts start near the odds and shift as the crowd bets."}
         </p>
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Pick a monster">
           {[0, 1].map((option) => {

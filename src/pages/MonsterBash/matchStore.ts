@@ -29,6 +29,8 @@ export type BetPools = {
   bettors: [number, number];
   /** The house's stake on each side, split by the pre-fight win chance. */
   house?: [number, number];
+  /** Fighter 0's pre-fight win chance; winners are paid at least these odds. */
+  winChance?: number | null;
 };
 
 export type ChatMessage = {

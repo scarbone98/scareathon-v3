@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { ENGINE_VERSION, TICK_RATE, simulateFight } from '../shared/monster-bash/index.js';
-import { MonsterBashLoop, hashSeed, pickFighters, splitHouseSeed } from '../monsterBash/matchLoop.js';
+import { MonsterBashLoop, hashSeed, pickFighters, splitHouseSeed, storedWinChance } from '../monsterBash/matchLoop.js';
 import { ACTIVE_MATCH_CONFLICT, BetRefusedError } from '../monsterBash/repository.js';
 import { createChatRoom } from '../monsterBash/chatRoom.js';
 
@@ -113,6 +113,23 @@ describe('splitHouseSeed', () => {
     });
 });
 
+describe('storedWinChance', () => {
+    test('keeps a usable estimate to three places', () => {
+        expect(storedWinChance(0.5)).toBe(0.5);
+        expect(storedWinChance(0.01234)).toBe(0.012);
+        expect(storedWinChance(0.99)).toBe(0.99);
+    });
+
+    test('drops estimates the fair-odds floor could not divide by', () => {
+        expect(storedWinChance(undefined)).toBeNull();
+        expect(storedWinChance(Number.NaN)).toBeNull();
+        expect(storedWinChance(0)).toBeNull();
+        expect(storedWinChance(0.0004)).toBeNull();
+        expect(storedWinChance(0.9996)).toBeNull();
+        expect(storedWinChance(1)).toBeNull();
+    });
+});
+
 describe('pickFighters', () => {
     test('picks two different monsters and never repeats the last pairing', () => {
         for (let i = 0; i < 200; i++) {
@@ -135,6 +152,7 @@ describe('MonsterBashLoop', () => {
         expect(row.engineVersion).toBe(ENGINE_VERSION);
         expect(row.bettingClosesAt).toBe(Date.now() + BETTING_MS);
         expect(row.houseSeed).toEqual([50, 50]);
+        expect(row.pregameP).toBe(0.5);
 
         const matchMessage = messages.find((message) => message.type === 'match');
         expect(matchMessage.match).toMatchObject({ id: row.id, seedHash: row.seedHash, fighters: row.fighters });
@@ -205,7 +223,7 @@ describe('MonsterBashLoop', () => {
         const fighters = ['rat', 'ghost'];
         const fight = simulateFight({ seed, fighters });
         const startedAt = Date.now() - 10_000;
-        const row = { id: '41', status: 'fighting', engineVersion: ENGINE_VERSION, seed, seedHash: hashSeed(seed), fighters, bettingClosesAt: startedAt, fightStartsAt: startedAt, houseSeed: [60, 40] };
+        const row = { id: '41', status: 'fighting', engineVersion: ENGINE_VERSION, seed, seedHash: hashSeed(seed), fighters, bettingClosesAt: startedAt, fightStartsAt: startedAt, houseSeed: [60, 40], pregameP: 0.6 };
         const repo = createFakeRepo([row]);
         repo.bets.push({ userId: 'u1', matchId: '41', side: 1, amount: 30 });
         const { loop, messages } = createLoop(repo);
@@ -215,7 +233,7 @@ describe('MonsterBashLoop', () => {
         expect(repo.finished).toHaveLength(0);
         expect(repo.cancelled).toHaveLength(0);
         const match = messages.find((message) => message.type === 'match');
-        expect(match.match).toMatchObject({ id: '41', fighters, pools: { amounts: [0, 30], bettors: [0, 1], house: [60, 40] } });
+        expect(match.match).toMatchObject({ id: '41', fighters, pools: { amounts: [0, 30], bettors: [0, 1], house: [60, 40], winChance: 0.6 } });
 
         await jest.advanceTimersByTimeAsync(1_000);
         const firstChunk = messages.find((message) => message.type === 'chunk').chunk;
@@ -310,7 +328,7 @@ describe('MonsterBashLoop', () => {
 
         await jest.advanceTimersByTimeAsync(500);
         const pools = messages.filter((message) => message.type === 'pool');
-        const expected = { amounts: [100, 75], bettors: [1, 2], house: [50, 50] };
+        const expected = { amounts: [100, 75], bettors: [1, 2], house: [50, 50], winChance: 0.5 };
         expect(pools).toEqual([{ type: 'pool', matchId, pools: expected }]);
         expect(loop.welcomeMessages().find((message) => message.type === 'match').match.pools).toEqual(expected);
         loop.stop();

@@ -54,6 +54,14 @@ export function splitHouseSeed(total, p) {
     return [left, total - left];
 }
 
+// Fighter 0's pre-fight win chance as stored for the fair-odds floor, or null
+// when there's no usable estimate (winners are then paid by the pool alone).
+export function storedWinChance(p) {
+    if (!Number.isFinite(p)) return null;
+    const rounded = Math.round(p * 1000) / 1000;
+    return rounded > 0 && rounded < 1 ? rounded : null;
+}
+
 // Log-friendly timestamp that never throws on a bad value.
 function isoTime(ms) {
     return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
@@ -203,7 +211,7 @@ export class MonsterBashLoop {
             fight: null,
             pendingOdds: [],
             released: { frames: [], events: [], odds: pregame ? [pregame] : [] },
-            pools: { ...pools, house: row.houseSeed ?? [0, 0] },
+            pools: { ...pools, house: row.houseSeed ?? [0, 0], winChance: row.pregameP ?? null },
             result: null,
         };
         this.log.info(
@@ -234,6 +242,8 @@ export class MonsterBashLoop {
             return null;
         });
         const houseSeed = splitHouseSeed(this.config.houseSeed, pregame?.p ?? 0.5);
+        // Winners are paid at least these odds, so they're stored with the bout.
+        const winChance = storedWinChance(pregame?.p);
         const bettingClosesAt = Date.now() + this.config.bettingMs;
 
         let row;
@@ -246,6 +256,7 @@ export class MonsterBashLoop {
                 bettingClosesAt,
                 fightStartsAt: bettingClosesAt,
                 houseSeed,
+                pregameP: winChance,
             });
         } catch (error) {
             if (error.code === ACTIVE_MATCH_CONFLICT) {
@@ -273,7 +284,7 @@ export class MonsterBashLoop {
             fight: null,
             pendingOdds: [],
             released: { frames: [], events: [], odds: pregame ? [pregame] : [] },
-            pools: { amounts: [0, 0], bettors: [0, 0], house: houseSeed },
+            pools: { amounts: [0, 0], bettors: [0, 0], house: houseSeed, winChance },
             result: null,
         };
         this.log.info(
@@ -297,7 +308,7 @@ export class MonsterBashLoop {
         // Betting is over: take the final pools from the database, which is
         // what payouts will be based on.
         try {
-            match.pools = { ...(await this.repo.poolTotals(match.id)), house: match.pools.house };
+            match.pools = { ...(await this.repo.poolTotals(match.id)), house: match.pools.house, winChance: match.pools.winChance };
         } catch (error) {
             this.log.warn({ err: error, matchId: match.id }, 'Monster Bash could not reload the betting pools');
         }
