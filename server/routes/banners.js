@@ -44,6 +44,22 @@ export const BANNERS = [
     { key: 'vhs_tracking', name: 'VHS Tracking', price: 180 },
     { key: 'abduction', name: 'Abduction', price: 300 },
     { key: 'fairy_ring', name: 'Fairy Ring', price: 220 },
+    // Fifteen more: monsters, the pictures, and one for spring
+    { key: 'eight_bit_evil', name: '8 Bit Evil', price: 300 },
+    { key: 'howling_wolf', name: 'Howling Wolf', price: 260 },
+    { key: 'witch_flight', name: 'Witch Flight', price: 260 },
+    { key: 'jack_o_lanterns', name: "Jack O'Lanterns", price: 220 },
+    { key: 'ghost_parade', name: 'Ghost Parade', price: 200 },
+    { key: 'scarecrow', name: 'Scarecrow', price: 220 },
+    { key: 'lighthouse', name: 'Lighthouse', price: 240 },
+    { key: 'city_rain', name: 'City Rain', price: 200 },
+    { key: 'drive_in', name: 'Drive-In', price: 280 },
+    { key: 'big_top', name: 'Big Top', price: 160 },
+    { key: 'catacombs', name: 'Catacombs', price: 180 },
+    { key: 'eyes_in_the_dark', name: 'Eyes in the Dark', price: 160 },
+    { key: 'ghost_ship', name: 'Ghost Ship', price: 280 },
+    { key: 'mad_lab', name: 'Mad Lab', price: 220 },
+    { key: 'cherry_blossoms', name: 'Cherry Blossoms', price: 180 },
 ];
 const BY_KEY = new Map(BANNERS.map((banner) => [banner.key, banner]));
 

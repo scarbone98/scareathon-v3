@@ -38,6 +38,21 @@ export type BannerKey =
   | "vhs_tracking"
   | "abduction"
   | "fairy_ring"
+  | "eight_bit_evil"
+  | "howling_wolf"
+  | "witch_flight"
+  | "jack_o_lanterns"
+  | "ghost_parade"
+  | "scarecrow"
+  | "lighthouse"
+  | "city_rain"
+  | "drive_in"
+  | "big_top"
+  | "catacombs"
+  | "eyes_in_the_dark"
+  | "ghost_ship"
+  | "mad_lab"
+  | "cherry_blossoms"
   | "empty";
 
 // The banner everyone has, up until they put another up: an empty one. (On the server,
@@ -646,6 +661,369 @@ const PAINTERS: Record<BannerKey, (ctx: CanvasRenderingContext2D) => void> = {
     const rand = seeded(109);
     for (let i = 0; i < 10; i += 1) px(ctx, "#e8ff8a", rand() * W, 3 + rand() * 11);
   },
+  // Fifteen more: monsters, the pictures, and one for spring
+  eight_bit_evil: (ctx) => {
+    // The original game: its purple ground, the horde closing in, and Alex in the middle
+    // holding the trophy up
+    px(ctx, "#3a3558", 0, 0, W, H);
+    const rand = seeded(113);
+    for (let i = 0; i < 9; i += 1) px(ctx, "#2f2a4c", rand() * (W - 12), rand() * (H - 5), 6 + Math.floor(rand() * 8), 3 + Math.floor(rand() * 4));
+    for (let i = 0; i < 150; i += 1) px(ctx, "#4a5068", rand() * W, rand() * H);
+    [[8, 4], [20, 13], [33, 7], [62, 12], [74, 3], [86, 11]].forEach(([x, y]) => {
+      const reach = x < 48 ? 2 : -1;
+      px(ctx, "#4fc48a", x, y, 2, 2);
+      px(ctx, "#2c8a6a", x, y + 2, 2, 2);
+      px(ctx, "#4fc48a", x + reach, y + 2);
+      px(ctx, "#1c5a48", x, y + 4);
+      px(ctx, "#1c5a48", x + 1, y + 5);
+    });
+    px(ctx, "#fbc02a", 47, 5, 2, 2);
+    px(ctx, "#fbc02a", 47, 7, 1, 1);
+    px(ctx, "#1a1a22", 47, 8, 2, 1);
+    px(ctx, "#f0c090", 47, 9, 2, 2);
+    px(ctx, "#c4322a", 46, 11, 4, 2);
+    px(ctx, "#2a4a7a", 47, 13, 2, 3);
+    // The graveyard along the bottom of the frame
+    for (let x = 0; x < W; x += 1) px(ctx, "#000000", x, H - 2 - ((x * 11) % 7 < 2 ? 2 : (x * 5) % 9 < 3 ? 1 : 0), 1, 4);
+    [14, 70].forEach((x) => {
+      px(ctx, "#000000", x, H - 7, 1, 5);
+      px(ctx, "#000000", x - 1, H - 6, 3, 1);
+    });
+  },
+  howling_wolf: (ctx) => {
+    sky(ctx, "#0c1230", "#2a3560");
+    stars(ctx, 22, 14, 127);
+    moon(ctx, 64, 10, 7, "#f0ecd8");
+    moon(ctx, 61, 8, 1, "#d4cdb0");
+    moon(ctx, 67, 13, 1, "#d4cdb0");
+    const dark = "#070a14";
+    // A crag climbing to its point, the wolf on it with its head back, and pines below
+    for (let x = 0; x < W; x += 1) {
+      const y = x < 54 ? 21 - Math.round(x * 0.16) : 22;
+      px(ctx, dark, x, y, 1, H - y);
+    }
+    px(ctx, dark, 43, 10, 7, 2);
+    px(ctx, dark, 43, 12, 1, 2);
+    px(ctx, dark, 45, 12, 1, 2);
+    px(ctx, dark, 48, 12, 1, 2);
+    px(ctx, dark, 49, 8, 2, 3);
+    px(ctx, dark, 50, 6, 2, 2);
+    px(ctx, dark, 52, 4, 1, 2);
+    px(ctx, dark, 49, 6);
+    px(ctx, dark, 42, 9);
+    px(ctx, dark, 41, 8);
+    [62, 72, 80, 90].forEach((x, i) => {
+      const tall = 5 + (i % 2) * 2;
+      for (let r = 0; r < tall; r += 1) px(ctx, dark, x - Math.floor(r / 2), 22 - tall + r, 1 + 2 * Math.floor(r / 2), 1);
+    });
+  },
+  witch_flight: (ctx) => {
+    sky(ctx, "#1a0c34", "#5a2a6a");
+    stars(ctx, 24, 16, 131);
+    moon(ctx, 48, 12, 9, "#f4e6a8");
+    moon(ctx, 44, 9, 2, "#e0cf88");
+    const dark = "#0c0616";
+    // Across the moon on her broom: bristles behind, cloak streaming, hat bent back
+    px(ctx, dark, 41, 13, 17, 1);
+    px(ctx, dark, 37, 12, 4, 3);
+    px(ctx, dark, 36, 13, 1, 2);
+    px(ctx, dark, 47, 9, 3, 4);
+    px(ctx, dark, 50, 11, 2, 1);
+    px(ctx, dark, 48, 7, 2, 2);
+    px(ctx, dark, 46, 6, 5, 1);
+    px(ctx, dark, 47, 5, 2, 1);
+    px(ctx, dark, 46, 4, 2, 1);
+    px(ctx, dark, 45, 3);
+    px(ctx, dark, 44, 10, 3, 2);
+    px(ctx, dark, 42, 11, 2, 1);
+    // Cloud tops along the bottom
+    for (let x = 0; x < W; x += 1) {
+      const h = 3 + Math.round(1.5 * Math.sin((x * Math.PI * 2) / 24) + Math.sin((x * Math.PI * 2) / 16));
+      px(ctx, "#2a163e", x, H - h, 1, h);
+      px(ctx, "#3e2456", x, H - h);
+    }
+  },
+  jack_o_lanterns: (ctx) => {
+    sky(ctx, "#0c0806", "#241006");
+    px(ctx, "#140a06", 0, 19, W, 5);
+    // A row of them lit, faces taking turns: triangle eyes and a grin, round eyes and a gape
+    for (let i = 0; i < 6; i += 1) {
+      const x = 2 + i * 16;
+      const glow = ctx.createRadialGradient(x + 6, 14, 2, x + 6, 14, 11);
+      glow.addColorStop(0, "rgba(255,170,60,0.4)");
+      glow.addColorStop(1, "rgba(255,140,40,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(x - 5, 3, 22, 21);
+      px(ctx, "#e8701a", x + 1, 8, 10, 12);
+      px(ctx, "#e8701a", x, 10, 12, 8);
+      px(ctx, "#ff9a3a", x + 2, 9, 1, 10);
+      px(ctx, "#b44f0e", x + 9, 9, 1, 10);
+      px(ctx, "#b44f0e", x + 5, 8, 1, 12);
+      px(ctx, "#3f6b24", x + 5, 6, 2, 2);
+      const lit = "#ffe066";
+      if (i % 2 === 0) {
+        px(ctx, lit, x + 2, 12, 3, 1);
+        px(ctx, lit, x + 3, 11);
+        px(ctx, lit, x + 7, 12, 3, 1);
+        px(ctx, lit, x + 8, 11);
+        px(ctx, lit, x + 2, 15, 8, 1);
+        px(ctx, lit, x + 3, 16, 6, 1);
+        px(ctx, "#e8701a", x + 4, 15);
+        px(ctx, "#e8701a", x + 7, 16);
+      } else {
+        px(ctx, lit, x + 2, 11, 2, 2);
+        px(ctx, lit, x + 8, 11, 2, 2);
+        px(ctx, lit, x + 5, 13, 2, 1);
+        px(ctx, lit, x + 4, 15, 4, 3);
+        px(ctx, "#e8701a", x + 4, 15);
+        px(ctx, "#e8701a", x + 7, 15);
+      }
+    }
+  },
+  ghost_parade: (ctx) => {
+    sky(ctx, "#10142a", "#262c50");
+    stars(ctx, 12, 6, 137);
+    // Sheet ghosts in a line, every other one a little higher, over the mist
+    for (let i = 0; i < 6; i += 1) {
+      const x = 4 + i * 16;
+      const y = i % 2 ? 6 : 8;
+      px(ctx, "#eef2ff", x + 1, y, 6, 1);
+      px(ctx, "#eef2ff", x, y + 1, 8, 8);
+      px(ctx, "#c4cbe8", x + 7, y + 2, 1, 7);
+      [0, 3, 6].forEach((dx) => px(ctx, "#eef2ff", x + dx, y + 9, 2, 1));
+      px(ctx, "#c4cbe8", x + 6, y + 9, 2, 1);
+      px(ctx, "#1a1a2c", x + 2, y + 3, 1, 2);
+      px(ctx, "#1a1a2c", x + 5, y + 3, 1, 2);
+      px(ctx, "#1a1a2c", x + 3, y + 6, 2, 1);
+    }
+    px(ctx, "rgba(200,210,240,0.16)", 0, 19, W, 2);
+    px(ctx, "rgba(200,210,240,0.28)", 0, 21, W, 3);
+  },
+  scarecrow: (ctx) => {
+    sky(ctx, "#d8502a", "#f8c860");
+    moon(ctx, 22, 16, 5, "#fff0a0");
+    const dark = "#1a0e06";
+    px(ctx, "#2a1a08", 0, 18, W, 6);
+    for (let x = 0; x < W; x += 3) px(ctx, "#3c2a0c", x, 15 + (x % 2), 1, 4);
+    // On its pole, arms out, coat in rags, with the crows not at all scared
+    px(ctx, dark, 56, 6, 1, 14);
+    px(ctx, dark, 49, 9, 15, 1);
+    px(ctx, dark, 55, 5, 3, 3);
+    px(ctx, dark, 53, 4, 7, 1);
+    px(ctx, dark, 55, 2, 3, 2);
+    px(ctx, dark, 53, 10, 7, 4);
+    [53, 55, 58].forEach((x) => px(ctx, dark, x, 14, 1, 2));
+    px(ctx, dark, 49, 10, 1, 3);
+    px(ctx, dark, 63, 10, 1, 2);
+    px(ctx, dark, 61, 8, 2, 1);
+    px(ctx, dark, 62, 7);
+    [[10, 5], [36, 8], [78, 4], [88, 9]].forEach(([x, y]) => {
+      px(ctx, dark, x, y);
+      px(ctx, dark, x - 1, y - 1);
+      px(ctx, dark, x + 1, y - 1);
+      px(ctx, dark, x - 2, y);
+      px(ctx, dark, x + 2, y);
+    });
+  },
+  lighthouse: (ctx) => {
+    sky(ctx, "#0a1226", "#1c2c4c");
+    stars(ctx, 18, 10, 139);
+    // The beam first (the tower stands in front of it), sweeping out to sea
+    for (let k = 1; k < 62; k += 1) px(ctx, `rgba(255,232,144,${(0.34 * (1 - k / 62)).toFixed(3)})`, 66 - k, 5 - Math.round(k * 0.05), 1, 2 + Math.round(k * 0.14));
+    px(ctx, "#0e2038", 0, 17, W, 7);
+    const rand = seeded(149);
+    for (let i = 0; i < 22; i += 1) px(ctx, "rgba(150,190,230,0.35)", rand() * (W - 4), 18 + rand() * 5, 2 + Math.floor(rand() * 3), 1);
+    px(ctx, "#0a0c12", 62, 15, 12, 1);
+    px(ctx, "#0a0c12", 60, 16, 16, 3);
+    px(ctx, "#0a0c12", 58, 18, 20, 2);
+    for (let y = 6; y < 16; y += 1) px(ctx, y % 4 < 2 ? "#e8e4d8" : "#c4322a", 66, y, 4, 1);
+    px(ctx, "rgba(0,0,0,0.3)", 69, 6, 1, 10);
+    px(ctx, "#20242c", 65, 6, 6, 1);
+    px(ctx, "#ffe890", 66, 4, 4, 2);
+    px(ctx, "#20242c", 66, 3, 4, 1);
+    px(ctx, "#20242c", 67, 2, 2, 1);
+  },
+  city_rain: (ctx) => {
+    sky(ctx, "#0e1020", "#2e2848");
+    // The skyline, some windows still lit, and the rain coming down across it
+    const rand = seeded(151);
+    let x = 0;
+    while (x < W) {
+      const w = Math.min(5 + Math.floor(rand() * 6), W - x);
+      const h = 8 + Math.floor(rand() * 13);
+      px(ctx, "#0a0b14", x, H - h, w, h);
+      px(ctx, "#161828", x, H - h, 1, h);
+      for (let wy = H - h + 2; wy < H - 1; wy += 3)
+        for (let wx = x + 1; wx < x + w - 1; wx += 2) if (rand() < 0.4) px(ctx, rand() < 0.75 ? "#ffd86a" : "#8ad0ff", wx, wy);
+      if (rand() < 0.3 && w > 3) px(ctx, "#0a0b14", x + 2, H - h - 3, 1, 3);
+      x += w;
+    }
+    for (let i = 0; i < 46; i += 1) px(ctx, "rgba(170,200,240,0.4)", rand() * W, rand() * (H - 2), 1, 2);
+  },
+  drive_in: (ctx) => {
+    sky(ctx, "#140c2c", "#3a2048");
+    stars(ctx, 22, 12, 157);
+    px(ctx, "#0c0a10", 0, 19, W, 5);
+    // The screen on its posts with tonight's creature feature up, and the cars parked in a
+    // row, tail lights on
+    px(ctx, "#20202a", 34, 3, 28, 13);
+    px(ctx, "#dcdce8", 35, 4, 26, 11);
+    px(ctx, "#20202a", 38, 16, 1, 3);
+    px(ctx, "#20202a", 57, 16, 1, 3);
+    px(ctx, "#2a2a3a", 44, 7, 8, 6);
+    px(ctx, "#2a2a3a", 45, 6, 6, 1);
+    px(ctx, "#2a2a3a", 42, 9, 2, 1);
+    px(ctx, "#2a2a3a", 52, 9, 2, 1);
+    px(ctx, "#2a2a3a", 41, 7, 1, 2);
+    px(ctx, "#2a2a3a", 54, 7, 1, 2);
+    px(ctx, "#2a2a3a", 45, 13, 2, 2);
+    px(ctx, "#2a2a3a", 49, 13, 2, 2);
+    px(ctx, "#dcdce8", 46, 8, 1, 2);
+    px(ctx, "#dcdce8", 49, 8, 1, 2);
+    px(ctx, "#dcdce8", 46, 11, 4, 1);
+    [3, 15, 27, 40, 52, 65, 77, 88].forEach((x, i) => {
+      px(ctx, i % 3 === 0 ? "#4a4460" : "#34304a", x, 21, 8, 2);
+      px(ctx, i % 3 === 0 ? "#4a4460" : "#34304a", x + 2, 20, 4, 1);
+      px(ctx, "#e43b3b", x, 21);
+      px(ctx, "#e43b3b", x + 7, 21);
+    });
+  },
+  big_top: (ctx) => {
+    // The inside of the tent: red and cream stripes, and the valance along the top, scalloped,
+    // with its gold stars
+    for (let x = 0; x < W; x += 8) {
+      const red = (x / 8) % 2 === 0;
+      px(ctx, red ? "#c4322a" : "#f2e6c8", x, 0, 8, H);
+      px(ctx, red ? "#9a2420" : "#d8c8a4", x + 7, 0, 1, H);
+    }
+    const shade = ctx.createLinearGradient(0, 0, 0, H);
+    shade.addColorStop(0, "rgba(0,0,0,0)");
+    shade.addColorStop(1, "rgba(20,6,20,0.4)");
+    ctx.fillStyle = shade;
+    ctx.fillRect(0, 0, W, H);
+    px(ctx, "#1d2a5a", 0, 0, W, 4);
+    for (let x = 0; x < W; x += 1) px(ctx, "#1d2a5a", x, 4, 1, [1, 2, 3, 3, 3, 3, 2, 1][x % 8]);
+    px(ctx, "#fbc02a", 0, 0, W, 1);
+    for (let x = 3; x < W; x += 8) {
+      px(ctx, "#fbc02a", x, 2, 2, 2);
+      px(ctx, "#fbc02a", x, 6, 2, 1);
+    }
+  },
+  catacombs: (ctx) => {
+    sky(ctx, "#1a1410", "#0e0a08");
+    // Skulls stacked to the roof, row on row, the odd one older and browner
+    [1, 9, 17].forEach((y, row) => {
+      for (let i = -1; i < 12; i += 1) {
+        const x = i * 8 + (row % 2 ? 5 : 1);
+        const bone = (i * 5 + row * 3) % 4 === 0 ? "#b8aa8c" : "#d8ccb0";
+        px(ctx, bone, x + 1, y, 4, 1);
+        px(ctx, bone, x, y + 1, 6, 3);
+        px(ctx, bone, x + 1, y + 4, 4, 2);
+        px(ctx, "#1a1410", x + 1, y + 2, 1, 2);
+        px(ctx, "#1a1410", x + 4, y + 2, 1, 2);
+        px(ctx, "#1a1410", x + 2, y + 5);
+        px(ctx, "#1a1410", x + 3, y + 4);
+        px(ctx, "rgba(0,0,0,0.25)", x + 5, y + 1, 1, 3);
+      }
+    });
+  },
+  eyes_in_the_dark: (ctx) => {
+    sky(ctx, "#050308", "#0e0a16");
+    // Something's in here with you. Several somethings: narrow eyes, round ones with slits
+    const rand = seeded(163);
+    const colours = ["#ffe23e", "#ff4a3a", "#7dff6a", "#e8e8ff"];
+    for (let i = 0; i < 12; i += 1) {
+      const x = 2 + i * 8 + Math.floor(rand() * 3);
+      const y = 2 + Math.floor(rand() * 18);
+      const colour = colours[Math.floor(rand() * colours.length)];
+      if (rand() < 0.4) {
+        px(ctx, colour, x, y, 2, 2);
+        px(ctx, colour, x + 4, y, 2, 2);
+        px(ctx, "#050308", x + 1, y, 1, 2);
+        px(ctx, "#050308", x + 4, y, 1, 2);
+      } else {
+        px(ctx, colour, x, y, 2, 1);
+        px(ctx, colour, x + 3, y, 2, 1);
+      }
+    }
+  },
+  ghost_ship: (ctx) => {
+    sky(ctx, "#081416", "#1a3a38");
+    stars(ctx, 12, 8, 167);
+    moon(ctx, 18, 7, 4, "#c8f0d8");
+    const dark = "#04100f";
+    const sail = "rgba(140,255,200,0.5)";
+    // A wreck still sailing: torn sails that glow, lamps lit below decks, fog on the water
+    px(ctx, dark, 57, 4, 1, 13);
+    px(ctx, dark, 66, 6, 1, 11);
+    px(ctx, sail, 53, 6, 4, 5);
+    px(ctx, sail, 58, 6, 5, 6);
+    px(ctx, sail, 63, 8, 3, 5);
+    px(ctx, sail, 67, 8, 5, 5);
+    [[54, 9], [60, 8], [61, 11], [69, 10], [64, 12]].forEach(([x, y]) => px(ctx, "#10282a", x, y));
+    px(ctx, dark, 58, 3, 3, 1);
+    px(ctx, dark, 50, 15, 25, 3);
+    px(ctx, dark, 49, 14, 3, 1);
+    px(ctx, dark, 73, 14, 4, 1);
+    px(ctx, dark, 77, 13, 2, 1);
+    [54, 60, 68].forEach((x) => px(ctx, "#7dffb0", x, 16));
+    px(ctx, "#0a2a2a", 0, 18, W, 6);
+    const rand = seeded(173);
+    for (let i = 0; i < 20; i += 1) px(ctx, "rgba(160,255,220,0.25)", rand() * (W - 4), 19 + rand() * 4, 2 + Math.floor(rand() * 3), 1);
+    px(ctx, "rgba(180,240,220,0.14)", 0, 16, W, 3);
+  },
+  mad_lab: (ctx) => {
+    sky(ctx, "#0c1410", "#1a2a22");
+    px(ctx, "#3a2c1e", 0, 20, W, 2);
+    px(ctx, "#241a10", 0, 22, W, 2);
+    // Flasks along the bench, each brewing something worse, bubbles coming off them
+    const colours = ["#7dff6a", "#b45cff", "#3ee0ff", "#ff5a7a", "#ffe23e"];
+    const glass = "rgba(220,240,255,0.55)";
+    [8, 26, 44, 62, 80].forEach((x, i) => {
+      const colour = colours[i];
+      const glow = ctx.createRadialGradient(x + 3.5, 15, 0, x + 3.5, 15, 9);
+      glow.addColorStop(0, "rgba(255,255,255,0.22)");
+      glow.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(x - 6, 5, 20, 15);
+      if (i % 2 === 0) {
+        // conical
+        for (let r = 0; r < 7; r += 1) px(ctx, r < 2 ? glass : colour, x + 3 - Math.ceil(r / 2), 13 + r, 1 + 2 * Math.ceil(r / 2), 1);
+        px(ctx, glass, x + 3, 8, 1, 5);
+        px(ctx, glass, x + 2, 8, 3, 1);
+      } else {
+        // round-bottomed
+        moon(ctx, x + 3, 16, 3, glass);
+        px(ctx, colour, x + 1, 16, 5, 3);
+        px(ctx, colour, x + 2, 19, 3, 1);
+        px(ctx, glass, x + 3, 9, 1, 4);
+        px(ctx, glass, x + 2, 9, 3, 1);
+      }
+      px(ctx, "rgba(255,255,255,0.7)", x + 2, 17);
+      px(ctx, colour, x + 3, 6);
+      px(ctx, colour, x + 4 - (i % 2) * 2, 4);
+      px(ctx, colour, x + 3, 2 - (i % 2));
+    });
+  },
+  cherry_blossoms: (ctx) => {
+    sky(ctx, "#f4b8d0", "#fdeef2");
+    // A bough along the top, in full flower, and the petals coming off it
+    const bough = (x: number) => 5 + Math.round(2 * Math.sin((x * Math.PI * 4) / W));
+    for (let x = 0; x < W; x += 1) {
+      px(ctx, "#4a2c24", x, bough(x), 1, 2);
+      if (x % 12 === 5) for (let k = 1; k < 6; k += 1) px(ctx, "#4a2c24", x + Math.floor(k / 2), bough(x) + 1 + k);
+      if (x % 12 === 11) for (let k = 1; k < 4; k += 1) px(ctx, "#4a2c24", x - Math.floor(k / 2), bough(x) - k);
+    }
+    const rand = seeded(179);
+    const pinks = ["#f48fb1", "#ffffff", "#e86a9a", "#fbd0e0"];
+    for (let i = 0; i < 54; i += 1) {
+      const x = Math.floor(rand() * (W - 2));
+      const y = bough(x) - 4 + Math.floor(rand() * 10);
+      px(ctx, pinks[Math.floor(rand() * pinks.length)], x, y, 2, 2);
+      px(ctx, "#e86a9a", x + (i % 2), y + ((i >> 1) % 2));
+    }
+    for (let i = 0; i < 18; i += 1) px(ctx, rand() < 0.5 ? "#f48fb1" : "#e86a9a", rand() * W, 13 + rand() * 10);
+  },
 };
 
 const cache = new Map<string, string>();
@@ -699,6 +1077,16 @@ const SECTION_X: Partial<Record<BannerKey, number>> = {
   sunset_beach: 40,
   abduction: 40,
   fairy_ring: 40,
+  eight_bit_evil: 40,
+  howling_wolf: 42,
+  witch_flight: 40,
+  jack_o_lanterns: 16,
+  ghost_parade: 16,
+  scarecrow: 48,
+  lighthouse: 60,
+  drive_in: 40,
+  ghost_ship: 55,
+  mad_lab: 40,
 };
 const SECTION_W = 16;
 
