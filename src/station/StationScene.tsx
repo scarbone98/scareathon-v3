@@ -1224,7 +1224,7 @@ function buildCapsule() {
   const group = new Group();
   const w = 0.4;
   const d = 0.34;
-  group.position.set(-2.2, 0, WALL_Z + d / 2 + 0.06);
+  group.position.set(-2.25, 0, WALL_Z + d / 2 + 0.06);
   const red = standard("#8a2f2a", 0.55);
   const iron = standard("#1a1d22", 0.7);
   const brass = standard("#e2b659", 0.4);
@@ -1438,39 +1438,52 @@ function buildDepartures() {
   // of its own (a tap on it, from anywhere: up close to it. See the page, and championPose in
   // the scene). Made at its real size in a group that undoes the board's scale.
   const plaque = new Group();
-  // (a little under full size, and set down from the board's middle: it sits under the window
-  // there, clear of its frame)
-  plaque.scale.setScalar(0.85 / 0.6);
-  plaque.position.set(-1.98, -0.42, -0.1);
+  // (small enough to hang clear of the lockers' top and the window's sill, level with the
+  // board's middle)
+  plaque.scale.setScalar(0.54 / (0.74 * 0.6));
+  plaque.position.set(-1.98, 0, -0.1);
   const championTexture = paint(420, 420, (ctx, w, h) => drawChampion(ctx, w, h, null));
   plaque.add(box(0.74, 0.74, 0.03, standard("#3a2a1c", 0.8)));
   // (lit by the spot, so it's left its full colour: by the counter it was greyed against the lamp)
   const championPoster = plane(0.66, 0.66, standard("#e8e0d2", 1, championTexture), 0, 0, 0.02);
   championPoster.userData.part = "champion";
   plaque.add(championPoster);
-  // The spot: a little black can on an arm off the wall over the plaque, tipped down at it, the
-  // light it throws (a real one, pooling on the plaque and the wall round it), and the beam
-  // showing faintly in the air
+  // The spot: a little black can on an arm off the wall over the plaque, its mouth tipped down
+  // and back at it, the light it throws (a real one, pooling on the plaque and the wall round
+  // it), and the beam showing faintly in the air: brightest at the can, gone by the plaque
   const metal = standard("#15181f", 0.6);
-  plaque.add(box(0.03, 0.03, 0.34, metal, 0, 0.62, 0.17));
+  const lampAt = new Vector3(0, 0.56, 0.26);
+  const aimAt = new Vector3(0, 0, 0.03);
+  // (how far the can leans out from straight down, towards the room)
+  const lean = Math.atan2(lampAt.z - aimAt.z, lampAt.y - aimAt.y);
+  plaque.add(box(0.03, 0.03, lampAt.z, metal, 0, lampAt.y + 0.05, lampAt.z / 2));
   const can = new Mesh(new CylinderGeometry(0.035, 0.06, 0.13, 12), metal);
-  can.position.set(0, 0.6, 0.36);
-  can.rotation.x = -0.62;
+  can.position.copy(lampAt);
+  can.rotation.x = lean;
   plaque.add(can);
   const bulb = new Mesh(new CircleGeometry(0.05, 12), new MeshBasicMaterial({ color: "#fff1c8" }));
-  bulb.position.set(0, 0.548, 0.323);
-  bulb.rotation.x = Math.PI / 2 - 0.62;
+  bulb.position.copy(lampAt).addScaledVector(aimAt.clone().sub(lampAt).normalize(), 0.067);
+  bulb.rotation.x = Math.PI / 2 + lean;
   plaque.add(bulb);
   const spot = new SpotLight("#ffe9b8", 14, 3.2, 0.52, 0.55, 1.6);
-  spot.position.set(0, 0.6, 0.36);
-  spot.target.position.set(0, -0.02, 0.02);
+  spot.position.copy(lampAt);
+  spot.target.position.copy(aimAt);
   plaque.add(spot, spot.target);
+  const reach = lampAt.distanceTo(aimAt);
+  const fade = paint(4, 64, (ctx, w, h) => {
+    const light = ctx.createLinearGradient(0, 0, 0, h);
+    light.addColorStop(0, "rgba(255,233,184,1)");
+    light.addColorStop(0.5, "rgba(255,233,184,0.35)");
+    light.addColorStop(1, "rgba(255,233,184,0)");
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, w, h);
+  });
   const beam = new Mesh(
-    new CylinderGeometry(0.045, 0.4, 0.68, 20, 1, true),
-    new MeshBasicMaterial({ color: "#ffe9b8", transparent: true, opacity: 0.07, blending: AdditiveBlending, depthWrite: false, side: DoubleSide })
+    new CylinderGeometry(0.045, 0.3, reach, 20, 1, true),
+    new MeshBasicMaterial({ map: fade, transparent: true, opacity: 0.2, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false })
   );
-  beam.position.set(0, 0.29, 0.19);
-  beam.rotation.x = -0.5;
+  beam.position.copy(lampAt).lerp(aimAt, 0.5);
+  beam.rotation.x = lean;
   plaque.add(beam);
   group.add(plaque);
   group.userData.champion = { texture: championTexture, poster: championPoster, beam };
