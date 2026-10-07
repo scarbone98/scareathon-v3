@@ -3,14 +3,14 @@ import { Button, Embers, Panel, Sprite } from "../Royale/ui/parts";
 import { ORANGE, PURPLE, SPRITES } from "../Royale/ui/theme";
 import {
   BUY_MODES, INVESTOR_SCALE, PORTFOLIO_STEPS, ROUNDS, SEANCES, UPGRADES, VENTURES,
-  buy, buyQuote, buySeance, buyUpgrade, catchUp, claimableInvestors, deserialize, haunt, hireManager,
+  buy, buyQuote, buySeance, buyUpgrade, catchUp, claimableInvestors, haunt, hireManager,
   incomePerSec, investorBonus, investorsFor, lifetimeFor, minOwned, newState, nextPortfolio, roundAfter,
-  serialize, start, tick, ventureStats, type BuyMode, type State,
+  start, tick, ventureStats, type BuyMode, type State,
 } from "./game/economy";
 import { formatDuration, formatMoney, formatNumber, formatShort } from "./game/format";
+import { SaveStore, readLocal } from "./store";
 import "./scare.css";
 
-const SAVE_KEY = "scare-capitalist-save";
 const MUTE_KEY = "scare-capitalist-muted";
 // The leaderboard holds a plain number, so the score stops at 10^15 investors
 const SCORE_CAP = 1e15;
@@ -39,22 +39,6 @@ const ART: Record<string, ReturnType<typeof sheet>> = {
   jon: SPRITES.jon,
   skull: SPRITES.skull,
 };
-
-function load(): State {
-  try {
-    return deserialize(localStorage.getItem(SAVE_KEY)) ?? newState();
-  } catch {
-    return newState();
-  }
-}
-
-function save(s: State) {
-  try {
-    localStorage.setItem(SAVE_KEY, serialize(s));
-  } catch {
-    // Not saved; the next autosave tries again.
-  }
-}
 
 // A little cash-register blip, synthesized so there's nothing to load
 let audio: AudioContext | null = null;
@@ -90,7 +74,10 @@ const TABS: { id: Tab; label: string; sprite: string }[] = [
 type Pop = { id: number; i: number; amount: number };
 
 export default function ScareCapitalist() {
-  const stateRef = useRef<State>(load());
+  const stateRef = useRef<State>(readLocal() ?? newState());
+  // Saves here and to the account; null until it has looked for the account copy
+  const storeRef = useRef<SaveStore | null>(null);
+  const save = useCallback((now = false) => storeRef.current?.save(now), []);
   const [, setFrame] = useState(0);
   const [tab, setTab] = useState<Tab>("ventures");
   const [mode, setMode] = useState<BuyMode>(1);
@@ -121,7 +108,24 @@ export default function ScareCapitalist() {
       if (cash > 0) stateRef.current.cash = cash;
       (window as unknown as { __scare: unknown }).__scare = { get state() { return stateRef.current; }, set state(v: State) { stateRef.current = v; }, tick: (dt: number) => tick(stateRef.current, dt) };
     }
-    save(stateRef.current);
+    // The account's copy, if it's further along, takes over (with its own time away)
+    let cancelled = false;
+    void SaveStore.open(
+      () => stateRef.current,
+      (remote) => {
+        stateRef.current = remote;
+        const back = catchUp(remote);
+        if (back.away > 60 && back.earned > 0) setWelcome(back);
+        setFrame((f) => f + 1);
+      },
+    ).then((store) => {
+      if (cancelled) return;
+      storeRef.current = store;
+      store.save();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // The clock: rAF for smooth bars, re-rendering ~20 times a second
@@ -149,13 +153,13 @@ export default function ScareCapitalist() {
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    const autosave = window.setInterval(() => save(stateRef.current), 5000);
+    const autosave = window.setInterval(() => save(), 5000);
     const onHide = () => {
-      if (document.visibilityState === "hidden") save(stateRef.current);
+      if (document.visibilityState === "hidden") save(true);
       // Back from a hidden tab: rAF was paused, so pay out the gap like a return visit
       else catchUp(stateRef.current);
     };
-    const onUnload = () => save(stateRef.current);
+    const onUnload = () => save(true);
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("pagehide", onUnload);
     return () => {
@@ -163,9 +167,9 @@ export default function ScareCapitalist() {
       window.clearInterval(autosave);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", onUnload);
-      save(stateRef.current);
+      save(true);
     };
-  }, []);
+  }, [save]);
 
   // Pops clear themselves once their animation is done
   useEffect(() => {
@@ -184,7 +188,7 @@ export default function ScareCapitalist() {
   const doHaunt = () => {
     const next = haunt(stateRef.current);
     stateRef.current = next;
-    save(next);
+    save(true);
     setConfirmHaunt(false);
     setTab("ventures");
     blip(220, muted, 0.5);
