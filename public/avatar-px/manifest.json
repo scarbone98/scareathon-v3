@@ -4175,18 +4175,18 @@
         {
           "slot": "hair",
           "anchor": "head",
-          "x": 11,
+          "x": 8,
           "y": 24,
-          "w": 13,
+          "w": 12,
           "h": 9,
-          "frames": 3,
-          "src": "/avatar-px/items/hair_ponytail/0-hair.png?v=eab9beb0ff",
+          "frames": 4,
+          "src": "/avatar-px/items/hair_ponytail/0-hair.png?v=e95a83bae5",
           "fits": [
             "body_kid"
           ]
         }
       ],
-      "icon": "/avatar-px/items/hair_ponytail/icon.png?v=18b52c800e",
+      "icon": "/avatar-px/items/hair_ponytail/icon.png?v=ae0a26d811",
       "dyes": {
         "dye1": "cherry"
       },

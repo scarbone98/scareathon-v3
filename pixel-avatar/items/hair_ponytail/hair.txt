@@ -1,27 +1,37 @@
-# The tail swings out on frames 2-3; the tie is dye1
-at: 11,24
+# The tail hangs behind you (you face right) and swings out on frames 2-3; the tie is dye1
+at: 8,24
 legend:
   a = hair.2
   b = hair.1
   h = hair.3
   r = dye1.2
 --- 0
-..aaaaaa
-.aahhaaaa
-.aaaaaaaaaa
-.abbbbbbbra
-ab........aa
-ab........ab
-..........ab
-..........b
-..........b
+.....aaaaaa
+....aahhaaaa
+..aaaaaaaaaa
+..arabbbbbbb
+.aaab
+.baab
+.ba
+..b
+..b
 --- 2
-..aaaaaa
-.aahhaaaa
-.aaaaaaaaaa
-.abbbbbbbra
-ab........aa
-ab........aab
-...........ab
-...........b
-..........b
+.....aaaaaa
+....aahhaaaa
+..aaaaaaaaaa
+..arabbbbbbb
+.aaab
+baaab
+ba
+.b
+..b
+--- 3
+.....aaaaaa
+....aahhaaaa
+..aaaaaaaaaa
+..arabbbbbbb
+.aaab
+baaab
+ba
+.b
+..b
