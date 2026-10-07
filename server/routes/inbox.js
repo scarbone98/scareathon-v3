@@ -20,6 +20,8 @@ export function parseAllowlist(value, { lowercase = false } = {}) {
 
 export function isAdminUser(user, env = process.env) {
     if (!user) return false;
+    // An agent key never carries its player's admin rights
+    if (user.agent) return false;
 
     const adminUserIds = parseAllowlist(env.ADMIN_USER_IDS);
     const adminEmails = parseAllowlist(env.ADMIN_EMAILS, { lowercase: true });

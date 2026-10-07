@@ -115,7 +115,7 @@ async function check(page, frame, label, { gameplay = false, native = false, con
   }
   for (const box of layout.touch) {
     assert.ok(inside(box, layout.width, layout.height), `touch target clipped: ${JSON.stringify(box)} in ${description}`);
-    if (box.selector === '.wf-touch-btn') assert.ok(box.width >= 52 && box.height >= 52 && box.width <= 72.1 && box.height <= 72.1, `52–72px action size: ${description}`);
+    if (box.selector === '.wf-touch-btn') assert.ok(box.width >= 56 && box.height >= 56 && box.width <= 72.1 && box.height <= 72.1, `56–72px action size: ${description}`);
   }
   for (const box of layout.ui) assert.ok(inside(box, layout.width, layout.height), `UI clipped: ${description}`);
   const hud = layout.ui.find(element => element.selector === '.wf-hud');

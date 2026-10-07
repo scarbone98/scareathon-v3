@@ -1,4 +1,7 @@
+import { MusicDirector, type AudioSettings } from "./music";
+import { FuryAudio } from "./audio";
 import { Renderer, type RenderPresentation } from "./render";
+import type { HeroAvatar } from "./avatar";
 import { GameInput, type InputMode } from "./input";
 import { captureMotion, interpolateMotion, type MotionSnapshot } from "./motion";
 import { newGame, step, type GameEvent, type GameState, type Input } from "./sim";
@@ -8,7 +11,7 @@ export interface Callbacks {
   onPresentation?: (presentation: RenderPresentation) => void;
   onPause: () => void;
   onConfirm: () => boolean;
-  onNavigate: (direction: number) => void;
+  onNavigate: (direction: number, axis?: "horizontal" | "vertical") => void;
   onEvent?: (state: GameState, event: GameEvent) => void;
 }
 export class GameController {
@@ -21,26 +24,57 @@ export class GameController {
   private hudAt = 0;
   private presentationAt = 0;
   private paused = true;
+  private started = false;
+  private sound = new MusicDirector();
+  private audio = new FuryAudio(this.sound);
+  private unlockAudio = () => { void this.sound.unlock(); };
+  private visibleAudio = () => { void this.sound.setVisible(!document.hidden); };
+  private uiClick = (event: MouseEvent) => {
+    const button = event.target instanceof Element ? event.target.closest("button") : null;
+    if (button && !button.classList.contains("wf-touch-btn")) void this.sound.unlock().then(() => this.sound.playSfx("select"));
+  };
   private previousMotion: MotionSnapshot | null = null;
   constructor(canvas: HTMLCanvasElement, private cb: Callbacks) {
     this.renderer = new Renderer(canvas);
-    this.input = new GameInput(cb.onInputMode, cb.onPause, cb.onConfirm, cb.onNavigate);
+    this.input = new GameInput(cb.onInputMode, cb.onPause, cb.onConfirm, cb.onNavigate, this.unlockAudio);
+    this.audio.menu(); this.visibleAudio();
+    window.addEventListener("pointerdown", this.unlockAudio, { passive: true });
+    window.addEventListener("pointerup", this.unlockAudio, { passive: true });
+    window.addEventListener("click", this.uiClick);
+    document.addEventListener("visibilitychange", this.visibleAudio);
     cb.onInputMode(this.input.mode);
     this.raf = requestAnimationFrame(this.frame);
   }
-  start(state = newGame()) { this.state = state; this.paused = false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.publish(); }
-  setPaused(paused: boolean) { this.paused = paused; this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; }
+  start(state = newGame()) { this.started = true; this.state = state; this.paused = false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
+  setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) this.state.charge = 0; }
+  showTitle() { this.started = false; this.setPaused(true); this.audio.menu(); }
+  setAudioSettings(settings: AudioSettings) { this.sound.setSettings(settings); }
+  itemGet() { this.sound.jingle("item"); }
+  setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); }
   setTouch(input: Partial<Input>) { this.input.setTouch(input); }
   mutate(action: (state: GameState) => void) {
     this.previousMotion = null;
     const overlay = this.state.overlay;
     this.state.events.length = 0; action(this.state);
     if (!overlay && this.state.overlay) this.input.clearTouch();
-    for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.cb.onEvent?.(this.state, event); }
-    this.state.events.length = 0; this.publish();
+    for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+    this.state.events.length = 0; if (this.started) this.audio.sync(this.state); this.publish();
   }
-  private publish() { this.cb.onState({ ...this.state, heroes: { joe: { ...this.state.heroes.joe }, matt: { ...this.state.heroes.matt } }, enemies: [...this.state.enemies] }); }
-  dispose() { cancelAnimationFrame(this.raf); this.input.dispose(); this.renderer.dispose(); }
+  private publish() {
+    const s = this.state;
+    this.cb.onState({ ...s,
+      heroes: Object.fromEntries(Object.entries(s.heroes).map(([id, hero]) => [id, { ...hero }])) as GameState["heroes"],
+      character: { ...s.character }, gear: { ...s.gear }, party: [...s.party], unlockedHeroes: [...s.unlockedHeroes],
+      enemies: s.enemies.map(enemy => ({ ...enemy })), effects: s.effects.map(effect => ({ ...effect })),
+      floaters: s.floaters.map(floater => ({ ...floater })), projectiles: s.projectiles.map(shot => ({ ...shot, hits: [...shot.hits] })),
+      clearedRooms: [...s.clearedRooms], areas: [...s.areas], bosses: [...s.bosses], previousInput: { ...s.previousInput }, events: [...s.events],
+    });
+  }
+  dispose() {
+    cancelAnimationFrame(this.raf); this.input.dispose(); this.renderer.dispose(); this.sound.dispose();
+    window.removeEventListener("pointerdown", this.unlockAudio); window.removeEventListener("pointerup", this.unlockAudio);
+    window.removeEventListener("click", this.uiClick); document.removeEventListener("visibilitychange", this.visibleAudio);
+  }
   private frame = (now: number) => {
     this.raf = requestAnimationFrame(this.frame);
     const input = this.input.read();
@@ -52,9 +86,10 @@ export class GameController {
       this.previousMotion = captureMotion(this.state);
       const ready = this.state.hitStop <= 0, overlay = this.state.overlay;
       step(this.state, input, 1 / 60);
+      this.audio.sync(this.state);
       if (!overlay && this.state.overlay) this.input.clearTouch();
       if (ready) this.input.consume();
-      for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.cb.onEvent?.(this.state, event); }
+      for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.cb.onEvent?.(this.state, event); }
       this.acc -= 1 / 60;
     }
     const rendered = this.paused ? this.state : interpolateMotion(this.previousMotion, this.state, this.acc * 60);

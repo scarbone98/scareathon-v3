@@ -9,8 +9,9 @@ export class GameInput {
   private connected = false;
   private lastNavigate = 0;
   private consumedA = false;
+  private padActive = false;
   mode: InputMode = navigator.maxTouchPoints > 0 ? "touch" : "keyboard";
-  constructor(private changed: (mode: InputMode) => void, private pause: () => void, private confirm: () => boolean, private navigate: (direction: number) => void) {
+  constructor(private changed: (mode: InputMode) => void, private pause: () => void, private confirm: () => boolean, private navigate: (direction: number, axis?: "horizontal" | "vertical") => void, private activity: () => void = () => {}) {
     window.addEventListener("keydown", this.down);
     window.addEventListener("keyup", this.up);
     window.addEventListener("blur", this.clear);
@@ -18,18 +19,19 @@ export class GameInput {
     window.addEventListener("gamepaddisconnected", this.disconnect);
   }
   setTouch(input: Partial<Input>) { for (const [action, value] of Object.entries(input)) if (value === true) this.taps.add(action as keyof Input); Object.assign(this.touch, input); this.setMode("touch"); }
-  clear = () => { this.keys.clear(); this.touch = idleInput(); this.taps.clear(); this.padButtons = []; this.consumedA = false; };
+  clear = () => { this.keys.clear(); this.touch = idleInput(); this.taps.clear(); this.padButtons = []; this.consumedA = false; this.padActive = false; };
   private setMode(mode: InputMode) { if (mode !== this.mode) { if (mode !== "touch") { this.touch = idleInput(); this.taps.clear(); } this.mode = mode; this.changed(mode); } }
   private connect = () => { this.connected = true; };
-  private disconnect = () => { this.connected = false; this.padButtons = []; if (this.mode === "gamepad") this.setMode(navigator.maxTouchPoints > 0 ? "touch" : "keyboard"); };
+  private disconnect = () => { this.connected = false; this.padButtons = []; this.padActive = false; if (this.mode === "gamepad") this.setMode(navigator.maxTouchPoints > 0 ? "touch" : "keyboard"); };
   private down = (e: KeyboardEvent) => {
+    if (!e.repeat) this.activity();
     const key = e.key.toLowerCase();
+    this.setMode("keyboard");
     const isMove = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key);
     if (key !== "escape" && !isMove && !KEY_MAP[key]) return;
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    this.setMode("keyboard");
+    if (key !== "escape" && (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
     if (key === "enter" && e.target instanceof HTMLButtonElement) return;
-    if (!e.repeat && ["arrowup", "arrowleft", "arrowdown", "arrowright"].includes(key)) this.navigate(key === "arrowup" || key === "arrowleft" ? -1 : 1);
+    if (!e.repeat && ["arrowup", "arrowleft", "arrowdown", "arrowright"].includes(key)) this.navigate(key === "arrowup" || key === "arrowleft" ? -1 : 1, key === "arrowleft" || key === "arrowright" ? "horizontal" : "vertical");
     e.preventDefault(); this.keys.add(key); if (!e.repeat && KEY_MAP[key]) this.taps.add(KEY_MAP[key]);
     if (!e.repeat && key === "escape") this.pause();
     if (!e.repeat && key === "enter" && this.confirm()) { this.keys.delete(key); this.taps.delete("interact"); }
@@ -53,9 +55,12 @@ export class GameInput {
       const axis = (v: number) => Math.abs(v) < 0.2 ? 0 : Math.sign(v) * (Math.abs(v) - 0.2) / 0.8;
       const x = axis(pad.axes[0] || 0) + Number(pressed[15]) - Number(pressed[14]);
       const y = axis(pad.axes[1] || 0) + Number(pressed[13]) - Number(pressed[12]);
-      if (x || y || pressed.some(Boolean)) this.setMode("gamepad");
+      const active = !!(x || y || pressed.some(Boolean));
+      if (active && (!this.padActive || pressed.some((value, index) => value && !this.padButtons[index]))) this.activity();
+      this.padActive = active;
+      if (active) this.setMode("gamepad");
       if (pressed[9] && !this.padButtons[9]) this.pause();
-      if ((x || y) && performance.now() - this.lastNavigate > 210) { this.navigate(Math.sign(y || x)); this.lastNavigate = performance.now(); }
+      if ((x || y) && performance.now() - this.lastNavigate > 210) { this.navigate(Math.sign(Math.abs(x) > Math.abs(y) ? x : y), Math.abs(x) > Math.abs(y) ? "horizontal" : "vertical"); this.lastNavigate = performance.now(); }
       if (!pressed[0]) this.consumedA = false;
       if (pressed[0] && !this.padButtons[0] && this.confirm()) this.consumedA = true;
       input.x += x; input.y += y;
