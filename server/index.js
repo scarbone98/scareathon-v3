@@ -18,6 +18,7 @@ import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import eightBitEvilV2Routes from './routes/8bitevilreturnsV2.js';
 import octoberValleyRoutes from './routes/octoberValley.js';
 import gamesRoutes from './routes/games.js';
+import dailyPuzzleRoutes from './routes/dailyPuzzles.js';
 import userRoutes from './routes/user.js';
 import marketplaceRoutes from './routes/marketplace.js';
 import inboxRoutes from './routes/inbox.js';
@@ -263,6 +264,7 @@ async function main() {
         fastify.register(homeRoutes, { prefix: '/home' });
         fastify.register(mysteryCryptRoutes, { prefix: '/mystery-crypt' });
         fastify.register(scareCapitalistRoutes, { prefix: '/scare-capitalist' });
+        fastify.register(dailyPuzzleRoutes, { prefix: '/daily-puzzles' });
         fastify.register(pictoBoxRoutes, { prefix: '/picto-box' });
         fastify.register(waysideOnlineRoutes, { prefix: '/wayside-online' });
         fastify.register(waysideLoungeRoutes, { prefix: '/wayside-online/lounge' });

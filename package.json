@@ -25,6 +25,7 @@
     "check:frog-ball-coop": "node scripts/frog-ball-coop.mjs",
     "stills:arcade": "node scripts/make-cartridge-stills.mjs",
     "upload:recordings": "node --env-file=.env scripts/upload-recordings.mjs",
+    "upload:daily-puzzles": "node --env-file=.env scripts/upload-daily-puzzles.mjs",
     "art:avatar": "node scripts/pixel-avatar/build.mjs",
     "art:mystery-crypt": "node scripts/mystery-crypt-art.mjs"
   },

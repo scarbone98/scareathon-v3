@@ -89,6 +89,8 @@ const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
 const SCARY_CAPITALIST_URL = "/scary-capitalist";
+const SCAREDLE_URL = "/scaredle";
+const CROSS_BONES_URL = "/cross-bones";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
@@ -805,6 +807,45 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Scary Capitalist", SCARY_CAPITALIST_URL)
           }
+        />
+      ),
+    },
+    // Daily word puzzles built into the site (pages/DailyPuzzles): a new one every midnight US
+    // Eastern. Played through the server (routes/dailyPuzzles.js), which writes their
+    // leaderboard scores and pays their tickets itself, so they post nothing to the cabinet.
+    {
+      name: "Scaredle",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#ff8a1f",
+        tagline: "One spooky word a day. Six guesses.",
+        font: { family: "Creepster" },
+        about: { released: "2026", players: "Single player", genre: "Daily word puzzle", developer: "scarbone98" },
+        backNote: "Start with GHOST.",
+      },
+      game: (
+        <GameRenderer
+          title="Scaredle"
+          url={SCAREDLE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    {
+      name: "Cross Bones",
+      added: "2026-10-07T12:00:00-06:00",
+      cartridge: {
+        color: "#e9dcc0",
+        tagline: "A haunted crossword every midnight.",
+        font: { family: "Special Elite" },
+        about: { released: "2026", players: "Single player", genre: "Daily crossword", developer: "scarbone98" },
+        backNote: "Bones fit together. So do words.",
+      },
+      game: (
+        <GameRenderer
+          title="Cross Bones"
+          url={CROSS_BONES_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
