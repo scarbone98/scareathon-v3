@@ -113,6 +113,9 @@ type Props = {
   onEmptyTap?: () => void;
   // A tap on a marked part of the object you're standing at, e.g. the events poster
   onPart: (part: string) => void;
+  // A big screen has no walking up to the station board: a tap on one of its papers, from
+  // the platform, is a tap on the paper (the page reads it up close)
+  papersFromAfar?: boolean;
 };
 
 // Live text for the boards in the scene
@@ -2181,7 +2184,20 @@ function buildTrain() {
   return train;
 }
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart }: Props) {
+// ?hour= in the address the site was opened at: the time of day to show instead of the
+// clock's (kept for the visit, in case the address had changed by the time this file loaded)
+const ASKED_HOUR = (() => {
+  if (typeof window === "undefined") return null;
+  const asked = new URLSearchParams(window.location.search).get("hour");
+  try {
+    if (asked !== null) window.sessionStorage.setItem("wayside.hour", asked);
+    return asked ?? window.sessionStorage.getItem("wayside.hour");
+  } catch {
+    return asked;
+  }
+})();
+
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -2190,8 +2206,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
   const cabinetSeenRef = useRef(false); // the cabinet's on screen (its preview plays)
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
+  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
+  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -3114,8 +3130,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // sun go round with it; the stars, the moon and the lamp across the tracks are the
     // night's. Looked at again every little while (see the animation loop), so an evening
     // spent here gets dark. (?hour=14.5 in the address sets the clock, to see another time)
-    // (read once, on the way in: the address is rewritten as you walk about)
-    const asked = new URLSearchParams(window.location.search).get("hour");
+    // (read once, as the page loads: the address is rewritten as you walk about. See ASKED_HOUR)
+    const asked = ASKED_HOUR;
     const hourNow = () => {
       if (asked !== null && asked !== "" && Number.isFinite(Number(asked))) return ((Number(asked) % 24) + 24) % 24;
       const now = new Date();
@@ -3130,8 +3146,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const SKY_STOPS = [0, 0.55, 0.72, 1];
     const NIGHT_SKY = ["#020308", "#0b1020", "#1a2236", "#07090e"];
     const overcast = weather !== "clear";
-    const DAY_SKY = overcast ? ["#5d6b7c", "#8b98a6", "#b9c2c9", "#6c746c"] : ["#3f74b4", "#86b3dc", "#d6e6f0", "#75806a"];
-    const TWILIGHT_SKY = ["#1b2140", "#5a3f6a", "#f08a4a", "#3a2a30"];
+    // (by day the haze is the horizon's own colour, and so is everything under the horizon:
+    // the far fields, the fence and the line fade into the sky's edge, not into a band of
+    // grey laid across it)
+    const DAY_HAZE = overcast ? "#b3bcc4" : "#c9dbe8";
+    const DAY_SKY = overcast ? ["#5d6b7c", "#8b98a6", DAY_HAZE, DAY_HAZE] : ["#3f74b4", "#8ab6dd", DAY_HAZE, DAY_HAZE];
+    const TWILIGHT_HAZE = "#b06a4e";
+    const DAY_FIELDS = new Color().setRGB(overcast ? 5 : 7.5, overcast ? 5 : 7, overcast ? 4.2 : 4.6);
+    const TWILIGHT_SKY = ["#1b2140", "#5a3f6a", "#f08a4a", TWILIGHT_HAZE];
     const sunLight = new DirectionalLight("#fff4e0", 0);
     scene.add(sunLight);
     const sunDisc = new Sprite(new SpriteMaterial({ map: glowTexture(), color: "#fff1c8", blending: AdditiveBlending, transparent: true, fog: false, depthWrite: false }));
@@ -3158,8 +3180,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         sky.needsUpdate = true;
       }
       const fog = scene.fog as FogExp2;
-      fog.color.copy(mix("#0c1019", overcast ? "#8d98a3" : "#a9bccd", daylight).lerp(new Color("#6a4a52"), twilight * 0.6));
-      fog.density = nightFog + ((weather === "fog" ? 0.07 : 0.035) - nightFog) * daylight;
+      fog.color.copy(mix("#0c1019", DAY_HAZE, daylight).lerp(new Color(TWILIGHT_HAZE), twilight));
+      // (thin by day: the platform's clear, and it's only well down the line that things go)
+      fog.density = nightFog + ((weather === "fog" ? 0.06 : 0.02) - nightFog) * daylight;
+      // The fields are painted for the night, near black: by day they're dead grass in the
+      // sun (their colour multiplies the paint, well past white), so they don't lie under
+      // the bright sky as a dark slab
+      const fieldPaint = (fields.material as MeshStandardMaterial).color;
+      fieldPaint.set("#8a8a7a").lerp(DAY_FIELDS, daylight);
       skyLight.color.copy(mix("#6f7fa8", "#e6eeff", daylight));
       skyLight.groundColor.copy(mix("#1a120c", "#6b5c4a", daylight));
       skyLight.intensity = 0.45 + daylight * (overcast ? 0.9 : 1.25);
@@ -3699,6 +3727,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         // (up close to the radio, a tap on the bench round it steps back, as one on nothing does)
         // (and sat on the bench, a tap on it or on the sky gets you up, as one on nothing does)
         else if (current === "bench" && hit?.stop === "bench") (emptyTapped ?? (() => select(null)))();
+        else if (hit && hit.stop !== current && hit.stop === "bulletin" && hit.part?.startsWith("paper-") && latest.current.papersFromAfar) partTapped(hit.part);
         else if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
         else if (!hit && current) (emptyTapped ?? (() => select(null)))();

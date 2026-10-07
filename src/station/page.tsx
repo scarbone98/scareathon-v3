@@ -138,8 +138,11 @@ export default function StationPage() {
   const heading: Heading = headings.includes(wanted) ? wanted : FOLD[wanted] ?? "front";
 
   const faceParams = (face: Heading): Record<string, string> => (face === "front" ? {} : { face });
+  // (on a big screen there's no walking up to the station board: the view from the platform
+  // already has it, as near as makes no difference. Going to it is turning to face it; only
+  // reading one of its papers brings you closer: see zoomTo)
   const select = (id: StopId | null, openThere?: string) =>
-    setParams(id ? { at: id, ...(openThere ? { open: openThere } : {}) } : faceParams(heading));
+    setParams(id === "bulletin" && !compact ? faceParams("front") : id ? { at: id, ...(openThere ? { open: openThere } : {}) } : faceParams(heading));
   const goTo: GoTo = (id, openThere) => select(id, openThere);
   // Counting on from the last turn asked for, so quick presses aren't lost
   const aimed = useRef(heading);
@@ -170,12 +173,17 @@ export default function StationPage() {
       intro.current = false;
       return;
     }
+    // (a big screen stays where it stepped off: the board's already in front of it)
+    if (!compact) {
+      intro.current = false;
+      return;
+    }
     const walk = window.setTimeout(() => {
       intro.current = false;
       setParams({ at: "bulletin" }, { replace: true });
     }, 500);
     return () => window.clearTimeout(walk);
-  }, [params, setParams, onPlatform]);
+  }, [params, setParams, onPlatform, compact]);
 
   // A rune code or a run paid out at the arcade: the tickets on the board and in the shop catch up
   const ticketsClient = useQueryClient();
@@ -216,16 +224,29 @@ export default function StationPage() {
       select("events");
       return;
     }
-    if (papers[i] && !papers[i].noZoom) setZoom(`paper-${i}`);
+    if (!papers[i] || papers[i].noZoom) return;
+    if (at === "bulletin") setZoom(`paper-${i}`);
+    else {
+      // (from the platform, on a big screen: up to the board and straight to the paper)
+      toPaper.current = i;
+      setParams({ at: "bulletin" });
+    }
   };
   // The events table's things: tonight's film is the poster, the rest stand in a row
   const flyerSpot = (index: number) => (index === 0 ? "poster" : `flyer-${index - 1}`);
   const readsUpClose = at === "bulletin" || at === "events";
   // (walking up to the bench for its radio: straight to the close-up)
   const toRadio = useRef(false);
+  // (and up to the board for one of its papers, on a big screen)
+  const toPaper = useRef<number | null>(null);
   useEffect(() => {
-    setZoom(at === "bench" && toRadio.current ? "radio" : null);
+    const paper = toPaper.current;
+    setZoom(at === "bench" && toRadio.current ? "radio" : at === "bulletin" && paper !== null ? `paper-${paper}` : null);
     toRadio.current = false;
+    toPaper.current = null;
+    // A big screen is never just stood at the board (a link straight to it, say): back to the platform
+    if (at === "bulletin" && !compact && paper === null) setParams(faceParams("front"), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at]);
   // The radio plays your songs (the ones everyone has, signed out)
   useSongs(signedIn);
@@ -501,7 +522,8 @@ export default function StationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mobileMenuOpen]);
 
-  const stepBack = () => (readsUpClose && zoom !== null ? setZoom(null) : select(null));
+  // (from a paper on the board, a big screen steps right back to the platform)
+  const stepBack = () => (readsUpClose && zoom !== null && !(at === "bulletin" && !compact) ? setZoom(null) : select(null));
 
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
   // paper, the arrows move across and down the board
@@ -596,6 +618,7 @@ export default function StationPage() {
             zoom={readsUpClose || at === "bench" ? zoom : null}
             onEmptyTap={stepBack}
             onPart={onPart}
+            papersFromAfar={!compact}
           />
         </Suspense>
         {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}

@@ -43,7 +43,8 @@ const PAGES: [string, React.ComponentType][] = [
 
 function ToStation() {
   const location = useLocation();
-  const to = location.pathname === "/" ? "/station" : stationUrlFor(location.pathname, location.search);
+  // (the front door keeps what was asked of it: ?hour=, say)
+  const to = location.pathname === "/" ? `/station${location.search}` : stationUrlFor(location.pathname, location.search);
   return <Navigate to={to} replace />;
 }
 
