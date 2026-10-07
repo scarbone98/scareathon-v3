@@ -20,6 +20,8 @@ const NavigatorContext = createContext<NavigatorContextType | undefined>(
   undefined
 );
 
+// The provider and its hook share one context; edits invalidate their consumers.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useNavigatorContext = () => {
   const context = useContext(NavigatorContext);
   if (!context) {

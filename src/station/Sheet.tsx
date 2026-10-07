@@ -3,7 +3,6 @@ import { PAPER_GRAIN, pixel, sans, typewriter } from "./style/theme.ts";
 
 // The top bar of a sheet, left of its ×, for a body's own buttons (the shop's search):
 // render into it with a portal
-// eslint-disable-next-line react-refresh/only-export-components
 export const SheetActions = createContext<HTMLElement | null>(null);
 
 // Something taken up to look at closely: a paper off the board, a flyer off the table,

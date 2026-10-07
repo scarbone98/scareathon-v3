@@ -164,9 +164,9 @@ try {
     const button = document.querySelector('.wf-primary'), rect = button?.getBoundingClientRect();
     return rect && rect.width > 0 && rect.height > 0;
   });
-  await page.getByRole('button', { name: /Begin adventure|Continue adventure/ }).click({ force: true });
+  await page.getByRole('button', { name: /Begin adventure|Continue adventure/ }).click();
   console.log('Adventure started');
-  await page.getByRole('button', { name: 'Skip prologue' }).click({ force: true });
+  await page.getByRole('button', { name: 'Skip prologue' }).click();
   console.log('Prologue skipped; live keyboard collision checks beginning');
   await contact('tree-walk', { scene: 'hub', kind: 'tree' });
   await contact('rock-walk', { scene: 'dungeon', room: 0, kind: 'rock' });

@@ -1,5 +1,3 @@
-// The songs' pieces share their hook; hot reload just reloads this file
-/* eslint-disable react-refresh/only-export-components */
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "../../fetchWithAuth";
