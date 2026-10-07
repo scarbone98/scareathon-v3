@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { newGame, enterScene, addEnemy, activeHero, idleInput, step, interact, applyCoopHit } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, enterScene, addEnemy, activeHero, idleInput, step, interact, interactTarget, applyCoopHit, applyCoopDamage,
+  setCoopPlayerCount, syncCoopLevel, coopLevelBand, reviveCoopHero, requestSwap, exitCoop, createHero, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
 import { getWorld } from '../src/pages/WaysideFury/game/world.ts';
 
 const DT = 1 / 60;
@@ -78,4 +79,166 @@ assert.deepEqual(guest.clearedRooms, []); assert.deepEqual(guest.areas, []);
 enterScene(guest, 'shift'); tick(guest, {}, 180); assert.equal(guest.scene, 'shift');
 enterScene(guest, 'prologue'); tick(guest, { interact: true }); assert.equal(guest.cutscene, 0);
 
-console.log('Wayside Fury co-op simulation: guest prediction, host-only world authority, per-hit reporting and deduplicated host combat pass.');
+const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} is near ${b}`);
+const peer = (s, seat = 1, x = s.x + 24, y = s.y) => ({ seat, userId: `player-${seat}`, name: `Player ${seat}`,
+  hero: createHero('you'), x, y, faceX: -1, faceY: 0, moving: false, guard: false,
+  attackTimer: 0, combo: 0, charge: 0, dashTimer: 0, scene: s.scene, room: s.room, interact: false });
+const hostileBullet = (s, x = s.x, y = s.y, damage = 20) => s.projectiles.push({ id: s.nextId++, x, y, vx: 0, vy: 0,
+  radius: 4, damage, ttl: 1, owner: 'enemy', beam: false, hits: [] });
+
+// Joining and leaving rescale every live enemy's maximum while retaining the
+// health percentage. Spawn slots are paid once per encounter, even on rejoin.
+const scaled = cooperative('host', 0);
+enterScene(scaled, 'dungeon');
+const originalCount = scaled.enemies.length, grunt = scaled.enemies[0], boss = addEnemy(scaled, 'boss', 250, 170);
+grunt.hp = grunt.maxHp * 0.37; boss.hp = boss.maxHp * 0.62;
+setCoopPlayerCount(scaled, 2);
+near(grunt.maxHp, 32 * 1.6); near(boss.maxHp, 260 * 1.75);
+near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
+assert.equal(scaled.enemies.length, originalCount + 2);
+setCoopPlayerCount(scaled, 4);
+near(grunt.maxHp, 32 * 2.8); near(boss.maxHp, 260 * 3.25);
+near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
+assert.equal(scaled.enemies.length, originalCount + 4);
+setCoopPlayerCount(scaled, 1); setCoopPlayerCount(scaled, 4);
+assert.equal(scaled.enemies.length, originalCount + 4, 'leave/rejoin cannot farm more wave enemies');
+setCoopPlayerCount(scaled, 1); near(grunt.maxHp, 32); near(boss.maxHp, 260);
+near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
+setCoopPlayerCount(scaled, 4); enterScene(scaled, 'dungeon', 4);
+near(scaled.enemies.find(e => e.miniBoss).maxHp, 165 * 3.25);
+assert.equal(scaled.enemies.length, getWorld('dungeon', 4).spawns.length + 3);
+scaled.enemies = []; setCoopPlayerCount(scaled, 1); setCoopPlayerCount(scaled, 4);
+assert.equal(scaled.enemies.length, 0, 'joining an already cleared wave cannot respawn it');
+scaled.coop.worldClearedRooms = ['blast-2']; enterScene(scaled, 'dungeon', 2);
+assert.equal(scaled.enemies.length, 0, 'promoted host preserves the original host world clears');
+assert.equal(scaled.clearedRooms.includes('blast-2'), false, 'migration does not grant personal story progress');
+
+// Enemy damage follows the party multiplier before defense and guarding.
+for (const guard of [false, true]) {
+  const damageRules = cooperative('host', 0); setCoopPlayerCount(damageRules, 4); damageRules.enemies = [];
+  hostileBullet(damageRules);
+  tick(damageRules, { guard });
+  assert.equal(activeHero(damageRules).hp, 100 - (guard ? 6 : 25));
+}
+
+// Hosts target nearby guests, including shooters and boss warning aim, without
+// temporarily replacing their own position or character state.
+const targeting = cooperative('host', 0); targeting.enemies = [];
+const remote = peer(targeting, 1, 210, targeting.y); targeting.coop.remoteHeroes = [remote];
+setCoopPlayerCount(targeting, 2); targeting.enemies = [];
+const contact = addEnemy(targeting, 'grunt', 200, targeting.y); contact.cooldown = 0;
+const hostPosition = [targeting.x, targeting.y], hostHero = structuredClone(activeHero(targeting));
+const contactEvents = tick(targeting).filter(e => e.type === 'coop-damage');
+assert.equal(contactEvents.length, 1); assert.equal(contactEvents[0].seat, 1); assert.equal(contactEvents[0].damage, 8);
+assert.deepEqual([targeting.x, targeting.y], hostPosition); assert.equal(activeHero(targeting).hp, hostHero.hp);
+near(remote.hero.hp, 92);
+hostileBullet(targeting, remote.x, remote.y, 20);
+assert.equal(tick(targeting).filter(e => e.type === 'coop-damage').length, 0, 'host cooldown covers stale guest invulnerability samples');
+targeting.enemies = []; const shooter = addEnemy(targeting, 'shooter', 200, targeting.y); shooter.cooldown = 0;
+tick(targeting); assert.ok(shooter.aimX > 0, 'shooter aims at the guest to its right');
+targeting.enemies = []; const aimedBoss = addEnemy(targeting, 'boss', 160, targeting.y); aimedBoss.cooldown = 0;
+tick(targeting); assert.ok(aimedBoss.aimX > 0); assert.ok(aimedBoss.windup > 0);
+remote.hero.hp = 0; remote.downed = true; aimedBoss.windup = 0; aimedBoss.cooldown = 0;
+tick(targeting); assert.ok(aimedBoss.aimX < 0, 'boss ignores downed guests');
+const fallenHostTargeting = cooperative('host', 0); fallenHostTargeting.enemies = [];
+activeHero(fallenHostTargeting).hp = 0;
+fallenHostTargeting.coop.remoteHeroes = [peer(fallenHostTargeting, 1, 200, fallenHostTargeting.y)];
+setCoopPlayerCount(fallenHostTargeting, 2);
+const walking = addEnemy(fallenHostTargeting, 'grunt', 100, fallenHostTargeting.y);
+tick(fallenHostTargeting); assert.ok(walking.x > 100, 'host world AI keeps running while the host is downed');
+
+// Host projectile contacts produce guest damage. Guests consume only that
+// already reduced damage, so rendering an enemy projectile cannot hit twice.
+const projectileHost = cooperative('host', 0); projectileHost.enemies = [];
+const projectilePeer = peer(projectileHost, 1, 180, projectileHost.y); projectileHost.coop.remoteHeroes = [projectilePeer];
+setCoopPlayerCount(projectileHost, 2); projectileHost.enemies = [];
+hostileBullet(projectileHost, projectilePeer.x, projectilePeer.y);
+const reportedDamage = tick(projectileHost).find(e => e.type === 'coop-damage');
+assert.equal(reportedDamage.damage, 21); assert.equal(projectileHost.projectiles.length, 0);
+const projectileGuest = cooperative('guest', 1); projectileGuest.enemies = [];
+hostileBullet(projectileGuest); tick(projectileGuest); assert.equal(activeHero(projectileGuest).hp, 100);
+applyCoopDamage(projectileGuest, reportedDamage.damage, reportedDamage.sourceX, reportedDamage.sourceY);
+assert.equal(activeHero(projectileGuest).hp, 79);
+applyCoopDamage(projectileGuest, reportedDamage.damage, reportedDamage.sourceX, reportedDamage.sourceY);
+assert.equal(activeHero(projectileGuest).hp, 79, 'local invulnerability also ignores stale damage delivery');
+activeHero(projectileGuest).invulnerable = 0;
+applyCoopDamage(projectileGuest, NaN, 0, 0); assert.equal(activeHero(projectileGuest).hp, 79);
+
+// Co-op downs the player immediately without tagging their offline partner.
+// A living guest can revive a downed host by holding Interact for two seconds.
+const downHost = cooperative('host', 0); downHost.enemies = [];
+const rescuer = peer(downHost); downHost.coop.remoteHeroes = [rescuer]; setCoopPlayerCount(downHost, 2);
+hostileBullet(downHost, downHost.x, downHost.y, 1000); tick(downHost);
+assert.equal(activeHero(downHost).hp, 0); assert.equal(downHost.active, 'you'); assert.equal(downHost.scene, 'test');
+assert.equal(downHost.coop.downed, true); assert.equal(requestSwap(downHost), false);
+const fallenPosition = [downHost.x, downHost.y];
+tick(downHost, { x: 1, attack: true, ki: true, dash: true, swap: true }, 10);
+assert.deepEqual([downHost.x, downHost.y], fallenPosition); assert.equal(downHost.active, 'you');
+rescuer.interact = true;
+tick(downHost, {}, 119); assert.equal(activeHero(downHost).hp, 0);
+tick(downHost); near(activeHero(downHost).hp, 40); assert.equal(downHost.coop.downed, false);
+assert.ok(activeHero(downHost).invulnerable > 0.9); assert.equal(downHost.deaths, 0);
+assert.equal(reviveCoopHero(downHost), false, 'living hero cannot receive free revive healing');
+const tooFar = cooperative('host', 0); tooFar.enemies = []; activeHero(tooFar).hp = 0;
+const distantRescuer = peer(tooFar, 1, tooFar.x + 40); distantRescuer.interact = true;
+tooFar.coop.remoteHeroes = [distantRescuer]; setCoopPlayerCount(tooFar, 2);
+tick(tooFar, {}, 130); assert.equal(activeHero(tooFar).hp, 0, 'revive requires a helper within 32 pixels');
+distantRescuer.x = tooFar.x; distantRescuer.room++;
+tick(tooFar, {}, 130); assert.equal(activeHero(tooFar).hp, 0, 'revive requires the same scene and room');
+
+// Interrupted holds reset. A host revives a guest once and reports the seat.
+const reviving = cooperative('host', 0); reviving.enemies = [];
+const fallen = peer(reviving); fallen.hero.hp = 0; fallen.downed = true;
+reviving.coop.remoteHeroes = [fallen]; setCoopPlayerCount(reviving, 2);
+assert.match(interactTarget(reviving).name, /Hold to revive/);
+tick(reviving, { interact: true }, 90); assert.equal(fallen.hero.hp, 0); near(fallen.reviveProgress, 0.75);
+tick(reviving); near(fallen.reviveProgress, 0);
+tick(reviving, { interact: true }, 119); assert.equal(fallen.hero.hp, 0);
+const revival = tick(reviving, { interact: true });
+assert.equal(revival.filter(e => e.type === 'coop-revive').length, 1); assert.equal(revival.find(e => e.type === 'coop-revive').seat, 1);
+near(fallen.hero.hp, 40); assert.equal(fallen.downed, false);
+fallen.hero.hp = 0; fallen.downed = true;
+assert.equal(tick(reviving, { interact: true }, 120).filter(e => e.type === 'coop-revive').length, 0, 'stale down samples cannot duplicate a revive');
+
+// A guest waits downed for host authority. A party wipes only when all connected
+// seats have supplied their state and are down; a joining seat cannot cause it.
+activeHero(projectileGuest).invulnerable = 0; projectileGuest.hitStop = 0;
+applyCoopDamage(projectileGuest, 1000, 0, 0); tick(projectileGuest, { x: 1, swap: true });
+assert.equal(projectileGuest.scene, 'test'); assert.equal(projectileGuest.active, 'you'); assert.equal(projectileGuest.coop.downed, true);
+const wiping = cooperative('host', 0); wiping.enemies = []; setCoopPlayerCount(wiping, 3);
+activeHero(wiping).hp = 0;
+const downOne = peer(wiping, 1); downOne.hero.hp = 0; wiping.coop.remoteHeroes = [downOne];
+tick(wiping, {}, 3); assert.equal(wiping.scene, 'test', 'wait for the joining seat state');
+const lastStanding = peer(wiping, 2); wiping.coop.remoteHeroes.push(lastStanding);
+tick(wiping); assert.equal(wiping.scene, 'test');
+lastStanding.hero.hp = 0;
+const wipeEvents = tick(wiping); assert.equal(wiping.scene, 'dead'); assert.equal(wiping.deaths, 1);
+assert.equal(wipeEvents.filter(e => e.type === 'death').length, 1); tick(wiping); assert.equal(wiping.deaths, 1);
+
+// Temporary area sync works upward and downward, never grants permanent levels
+// or XP, and restores each hero's own derived stats/HP ratios after leaving.
+const synced = cooperative('guest', 1); synced.character = { level: 50, xp: 17 };
+for (const id of HERO_IDS) { synced.heroes[id] = createHero(id, synced.character); synced.heroes[id].hp *= 0.5; }
+const permanent = structuredClone(synced.character);
+enterScene(synced, 'realm'); assert.deepEqual(coopLevelBand('realm', 0), [6, 9]);
+assert.equal(activeHero(synced).level, 9); assert.equal(activeHero(synced).maxHp, 260); near(activeHero(synced).hp, 130);
+assert.deepEqual(synced.character, permanent); syncCoopLevel(synced); near(activeHero(synced).hp, 130);
+delete synced.coop; syncCoopLevel(synced);
+assert.equal(activeHero(synced).level, 50); assert.equal(activeHero(synced).maxHp, 1080); near(activeHero(synced).hp, 540);
+assert.deepEqual(synced.character, permanent);
+const lowLevel = cooperative('guest', 1); activeHero(lowLevel).hp = 50;
+enterScene(lowLevel, 'realm'); assert.equal(activeHero(lowLevel).level, 6); near(activeHero(lowLevel).hp, 100);
+assert.deepEqual(lowLevel.character, { level: 1, xp: 0 });
+const leaving = cooperative('guest', 1); activeHero(leaving).hp = 0; leaving.coop.playerCount = 2;
+const remainingEnemy = addEnemy(leaving, 'grunt', 200, 110);
+remainingEnemy.baseMaxHp = 32; remainingEnemy.maxHp = 51.2; remainingEnemy.hp = 25.6;
+exitCoop(leaving);
+assert.equal(leaving.coop, undefined); assert.equal(leaving.active, 'joe'); assert.equal(leaving.scene, 'test');
+assert.ok(activeHero(leaving).hp > 0); near(remainingEnemy.maxHp, 32); near(remainingEnemy.hp, 16);
+const stranded = cooperative('guest', 1);
+for (const h of Object.values(stranded.heroes)) h.hp = 0;
+exitCoop(stranded); assert.equal(stranded.scene, 'dead'); assert.equal(stranded.deaths, 1);
+assert.equal(stranded.events.filter(e => e.type === 'death').length, 1);
+exitCoop(stranded); assert.equal(stranded.deaths, 1, 'leaving cannot create repeated solo deaths');
+
+console.log('Wayside Fury co-op simulation: prediction/authority, scaled waves/damage, guest targeting, downs/revives/wipes and reversible level sync pass.');

@@ -5,7 +5,7 @@ import { Renderer, type RenderPresentation } from "./render";
 import type { HeroAvatar } from "./avatar";
 import { GameInput, type InputMode } from "./input";
 import { captureMotion, interpolateMotion, type MotionSnapshot } from "./motion";
-import { newGame, step, type GameEvent, type GameState, type Input } from "./sim";
+import { exitCoop, newGame, step, type GameEvent, type GameState, type Input } from "./sim";
 export interface Callbacks {
   onState: (state: GameState) => void;
   onInputMode: (mode: InputMode) => void;
@@ -54,7 +54,7 @@ export class GameController {
   itemGet() { this.sound.jingle("item"); }
   setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); this.coop?.setAvatar(assets); }
   setRemoteAvatar(seat: number, assets: HeroAvatar) { this.renderer.setRemoteAvatar(seat, assets); }
-  setCoop(coop: FuryCoop | null) { this.coop = coop; if (!coop) delete this.state.coop; else if (coop.room) this.state.coop = { role: coop.isHost ? "host" : "guest", seat: coop.room.seat, remoteHeroes: [], appliedHits: [] }; }
+  setCoop(coop: FuryCoop | null) { this.coop = coop; if (!coop) exitCoop(this.state); else if (coop.room) this.state.coop = { role: coop.isHost ? "host" : "guest", seat: coop.room.seat, remoteHeroes: [], appliedHits: [] }; }
   setTouch(input: Partial<Input>) { this.input.setTouch(input); }
   mutate(action: (state: GameState) => void) {
     this.previousMotion = null;
