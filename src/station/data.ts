@@ -165,15 +165,24 @@ export function usePosts(enabled: boolean) {
 
 // When the newest item came into the shop (ms; 0 if unknown), for the dot on the way in. The
 // shop's own "just in" shelf asks the same thing, under the same key.
-export function useNewestShopItem(enabled: boolean) {
-  const { data } = useQuery<{ data?: { createdAt?: string | null }[] }>({
+type NewShopItem = { id: number; name: string; icon: string; createdAt?: string | null };
+function useShopJustIn(enabled: boolean) {
+  return useQuery<{ data?: NewShopItem[] }>({
     queryKey: ["marketplace", "shop", "new"],
     queryFn: () => fetchWithAuth("/marketplace/shop/new").then((r) => readJson(r, "New items")),
     enabled,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
+}
+export function useNewestShopItem(enabled: boolean) {
+  const { data } = useShopJustIn(enabled);
   return Math.max(0, ...(data?.data ?? []).map((item) => (item.createdAt ? Date.parse(item.createdAt) || 0 : 0)));
+}
+// A few of the shop's latest wares (their names and pictures), for the board's "just in" handbill
+export function useNewShopItems(enabled: boolean) {
+  const { data } = useShopJustIn(enabled);
+  return data?.data ?? [];
 }
 
 // Players' looks (what they wear and their colouring), to draw them moving

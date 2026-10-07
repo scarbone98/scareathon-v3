@@ -23,8 +23,8 @@ import { useAvatarLook } from "../things/Belongings.tsx";
 import { useMyBanner, useNewestBanner } from "../things/Banners.tsx";
 import NewsDot from "../../components/NewsDot";
 import { isRead, markRead, shopNewSince, useSeen } from "../seen.ts";
-import { useNewestShopItem } from "../data.ts";
-import { ON_BANNER_TEXT, bannerStyle } from "../banners.ts";
+import { useNewShopItems, useNewestShopItem } from "../data.ts";
+import { ON_BANNER_TEXT, bannerStyle, bannerSwatch } from "../banners.ts";
 import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
 
 // The station board is the home page, and its papers are the content. Each kind of paper
@@ -569,7 +569,105 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
   );
 }
 
+// ---- Just in: a handbill for what's new. The newest games in the arcade as snapshots stuck on
+// at angles, the shop's latest wares on a shelf (with a banner that moves), and a way to each.
+// Printed loud, on dark stock, so it doesn't pass for another notice.
+
+// Shown on the shelf when the shop can't be asked (signed out), or has nothing just in
+const SHELF_STAND_INS = ["imp", "bunny", "frog", "owl"].map((key) => ({ id: key, name: "", icon: `/avatar-px/items/${key}/icon.png` }));
+// How each snapshot hangs: turned, and nudged up or down
+const SNAPSHOT_HANG = [
+  { rotate: "-5deg", top: 6 },
+  { rotate: "3deg", top: 0 },
+  { rotate: "-2deg", top: 8 },
+];
+
+// The arcade's newest games (by the day each arrived), with a still of each
+function useNewestGames(count: number) {
+  return useMemo(
+    () =>
+      createArcadeGames()
+        .filter((game) => game.added && game.videoUrl && !game.special && Date.parse(game.added) <= Date.now())
+        .sort((a, b) => Date.parse(b.added as string) - Date.parse(a.added as string))
+        .slice(0, count)
+        .map((game) => ({ name: game.name, added: game.added as string, still: stillFor(game.videoUrl as string) })),
+    [count]
+  );
+}
+
+// A heading on the handbill: small capitals between two rules
+function JustInHeading({ children }: { children: string }) {
+  return (
+    <p className="relative mt-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-[#ffd24a]/85">
+      <span className="h-px flex-1 bg-[#ffd24a]/35" aria-hidden />
+      {children}
+      <span className="h-px flex-1 bg-[#ffd24a]/35" aria-hidden />
+    </p>
+  );
+}
+
+function JustIn({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
+  const games = useNewestGames(3);
+  const wares = useNewShopItems(signedIn);
+  const shelf = (wares.length > 0 ? wares : SHELF_STAND_INS).slice(0, 4);
+  const banner = bannerSwatch("ghost_train");
+  return (
+    <div className="relative flex h-full flex-col overflow-hidden px-4 pb-3 pt-6 text-[#f2ead2]" style={{ background: "radial-gradient(ellipse at 50% 0%, #4a2a66 0%, #241a3a 45%, #151225 100%)" }}>
+      {/* (a printed border, and the dots of a cheap press) */}
+      <div className="pointer-events-none absolute inset-1.5 border-[3px] border-double border-[#ffd24a]/55" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "6px 6px" }} aria-hidden />
+
+      <div className="relative text-center">
+        <p className="text-[10px] uppercase tracking-[0.35em] text-[#ffd24a]/80">Fresh off the train</p>
+        <p className="mt-0.5 text-[44px] leading-[0.9] text-[#ffd24a]" style={{ ...pixel, textShadow: "3px 3px 0 #c4322a, 6px 6px 0 rgba(0,0,0,0.45)" }}>
+          JUST IN
+        </p>
+        <p className="mt-1.5 text-[15px] leading-none" style={serif}>
+          New games in the arcade, new wares in the shop
+        </p>
+      </div>
+
+      {/* The newest games: snapshots, each with its name written under it */}
+      <JustInHeading>In the arcade</JustInHeading>
+      <div className="relative mt-1 flex justify-center gap-1.5">
+        {games.map((game, i) => (
+          <div key={game.name} className="w-[31%] bg-[#f4ecd8] p-1 pb-0.5 shadow-[2px_3px_0_rgba(0,0,0,0.5)]" style={{ rotate: SNAPSHOT_HANG[i].rotate, marginTop: SNAPSHOT_HANG[i].top }}>
+            <img src={game.still} alt="" loading="lazy" draggable={false} className="aspect-[4/3] w-full bg-[#2a2238] object-cover" />
+            <p className="truncate pt-0.5 text-center text-[11px] leading-tight text-[#2a1d14]" style={pixel}>
+              {game.name.replace(/’/g, "'")}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* The shop's shelf: the latest wares stood along it, lit from behind, and a banner that moves hung over the end */}
+      <JustInHeading>In the shop</JustInHeading>
+      <div className="relative mt-1">
+        <div className="flex items-end justify-between gap-1 px-1">
+          {shelf.map((item) => (
+            <img key={item.id} src={item.icon} alt={item.name} title={item.name || undefined} draggable={false} className="h-14 w-14 object-contain [image-rendering:pixelated]" style={{ filter: "drop-shadow(0 0 6px rgba(255,210,74,0.55))" }} />
+          ))}
+          {banner && <img src={banner} alt="A banner that moves" draggable={false} className="mb-1 h-8 w-16 shrink-0 rounded-[2px] ring-1 ring-[#ffd24a]/60 [image-rendering:pixelated]" />}
+        </div>
+        <div className="mt-0.5 h-1.5 rounded-[1px] bg-[#6b4a2a] shadow-[0_2px_0_rgba(0,0,0,0.5)]" aria-hidden />
+      </div>
+
+      <div className="relative mt-auto flex gap-2 pt-3">
+        <button type="button" className="flex-1 rounded-[2px] bg-[#ffd24a] px-2 py-1.5 text-[16px] text-[#241a3a] shadow-[2px_2px_0_rgba(0,0,0,0.5)] transition hover:bg-[#ffe07a]" style={pixel} onClick={act(() => goTo("arcade"))}>
+          To the arcade
+        </button>
+        <button type="button" className="flex-1 rounded-[2px] bg-[#f2ead2] px-2 py-1.5 text-[16px] text-[#241a3a] shadow-[2px_2px_0_rgba(0,0,0,0.5)] transition hover:bg-white" style={pixel} onClick={act(() => goTo("tickets", signedIn ? "shop" : undefined))}>
+          To the shop
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---- Which papers are up
+
+// The Scareathon Post has come down for now: the "just in" handbill hangs in its place
+const POST_IS_UP = false;
 
 const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
 
@@ -586,6 +684,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
   const spotlight = useSpotlightGame();
   const { data: posts } = usePosts(signedIn);
   const latestPost = posts?.data?.[0]?.documentId;
+  const newestGame = useNewestGames(1)[0]?.added;
   const postImage = strapiUrl(posts?.data?.find((post) => post.Image?.[0]?.url)?.Image?.[0]?.url);
   const postPicture: Picture = { src: postImage ?? "/images/candleskull.gif" };
   // The event's own picture, an empty cinema (tonight's film is the poster by the stand)
@@ -633,7 +732,21 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       tint: "#d8ccab",
     });
   }
-  // Then the latest notice (the Post when there's none)
+  // The "just in" handbill, ahead of the notices: it always has its place on the board, and the
+  // notices take what room is left
+  if (!POST_IS_UP)
+    papers.push({
+      id: "just-in",
+      // (new again whenever a newer game arrives)
+      newsId: newestGame ? `just-in:${newestGame}` : undefined,
+      kind: "JUST IN",
+      title: "NEW GAMES & ITEMS",
+      pinned: <JustIn signedIn={signedIn} goTo={goTo} />,
+      full: <JustIn signedIn={signedIn} goTo={goTo} />,
+      tint: "#241a3a",
+      sheet: { backgroundImage: "none" },
+    });
+  // Then the latest notice (and the Post, when it's up and there's room)
   notices.forEach((item, i) => {
     const picture = { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] };
     papers.push({
@@ -648,17 +761,19 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       sheet: { clipPath: "polygon(0 1%, 3% 0, 97% 1.5%, 100% 0, 99% 98%, 96% 100%, 4% 99%, 0 100%)" },
     });
   });
-  papers.push({
-    id: "post",
-    // (the Post is new when its front-page story is)
-    newsId: latestPost ? `post:${latestPost}` : undefined,
-    kind: "THE POST",
-    title: "THE SCAREATHON POST",
-    pinned: <Post signedIn={signedIn} goTo={goTo} full={false} picture={postPicture} />,
-    // (up close its headlines can be tapped, to turn to the story)
-    full: <Post signedIn={signedIn} goTo={goTo} full picture={postPicture} />,
-    tint: "#d6c9a8",
-  });
+  if (POST_IS_UP)
+    papers.push({
+      id: "post",
+      // (the Post is new when its front-page story is)
+      newsId: latestPost ? `post:${latestPost}` : undefined,
+      kind: "THE POST",
+      title: "THE SCAREATHON POST",
+      pinned: <Post signedIn={signedIn} goTo={goTo} full={false} picture={postPicture} />,
+      // (up close its headlines can be tapped, to turn to the story)
+      full: <Post signedIn={signedIn} goTo={goTo} full picture={postPicture} />,
+      tint: "#d6c9a8",
+    });
+
   return papers.slice(0, 5);
 }
 
