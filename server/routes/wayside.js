@@ -106,7 +106,7 @@ export function forgetKnocks() {
 // a day for each player (there are a couple on the floor every visit, so without the limit
 // they'd be free tickets for coming and going)
 export const FLOOR_TICKET = 1;
-export const FLOOR_DAILY_TICKETS = 3;
+export const FLOOR_DAILY_TICKETS = 25;
 export const FLOOR_COOLDOWN_MS = 1200;
 const FLOOR_SOURCE = 'floor_ticket';
 const lastPickUp = new Map();
