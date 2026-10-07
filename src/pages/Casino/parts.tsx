@@ -167,3 +167,55 @@ export function PanelHeading({ children, wallet }: { children: ReactNode; wallet
     </div>
   );
 }
+
+// One frame (or, `playing`, the whole run) of any sprite sheet laid out in a
+// grid: the pinball's ball, Tlaloc, the Merchant and his hands.
+export function Sheet({
+  url,
+  frameWidth,
+  frameHeight,
+  frames,
+  rows = 1,
+  row = 0,
+  frame = 0,
+  height,
+  playing = false,
+  fps = 8,
+  className = "",
+  style,
+}: {
+  url: string;
+  frameWidth: number;
+  frameHeight: number;
+  frames: number;
+  rows?: number;
+  row?: number;
+  frame?: number;
+  height: number;
+  playing?: boolean;
+  fps?: number;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const scale = height / frameHeight;
+  return (
+    <div
+      aria-hidden="true"
+      className={`${playing ? "casino-walk" : ""} ${className}`}
+      style={
+        {
+          width: frameWidth * scale,
+          height,
+          backgroundImage: `url(${url})`,
+          backgroundSize: `${frameWidth * frames * scale}px ${frameHeight * rows * scale}px`,
+          backgroundPosition: `${-frame * frameWidth * scale}px ${-row * frameHeight * scale}px`,
+          imageRendering: "pixelated",
+          "--casino-frames": frames,
+          "--casino-sheet": `${-frameWidth * frames * scale}px`,
+          "--casino-ms": `${Math.round((frames / fps) * 1000)}ms`,
+          ...style,
+        } as CSSProperties
+      }
+    />
+  );
+}

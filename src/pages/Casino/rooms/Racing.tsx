@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { racePayout } from "../../../../server/shared/casino/index.js";
+import { RACE_FIELD, RACE_LAPS, racePayout } from "../../../../server/shared/casino/index.js";
 import { getMonster } from "../../../../server/shared/monster-bash/index.js";
 import { MonsterSprite, Outcome, PanelHeading, PlayButton, PlayGate, RoomLayout, StakePicker } from "../parts";
 import { type RoomProps, casinoGet, casinoPost, errorMessage, formatTickets, maxStake, PANEL } from "../wallet";
@@ -26,7 +26,9 @@ type Phase = "waiting" | "betting" | "running" | "result";
 
 const LANE_COLORS = ["#d95926", "#3987e5", "#3fa34d", "#c9a227", "#b04fc4", "#d9d9d9"];
 const PLACES = ["1st", "2nd", "3rd", "4th", "5th", "6th"];
-const SPRITE_PX = 40;
+const SPRITE_PX = 30;
+// The wolf runs the track: he calls every race.
+const MASCOT = "werewolf";
 // How long the finish stays on screen before the result is called.
 const LINGER_SECONDS = 0.4;
 const MIN_RETRY_MS = 1000;
@@ -89,42 +91,126 @@ function connectRaceFeed(onMessage: (message: FeedMessage) => void, onLive: (liv
   };
 }
 
-// How far down the track (0 to 1) a lane is `seconds` into a race it finishes
-// in `finish`. Each lane surges and fades a little differently, but never
-// goes backwards and always arrives on time.
+// How much of the race (0 to 1) a lane has run `seconds` in, when it finishes
+// in `finish`. Each lane surges and fades a little differently, so the lead
+// changes hands, but nobody goes backwards and everyone arrives on time.
 function progress(lane: number, seconds: number, finish: number) {
   const u = Math.min(1, Math.max(0, seconds / finish));
   const surges = 1 + (lane % 3) * 0.5;
-  return u + 0.05 * Math.sin(Math.PI * u) * Math.sin(2 * Math.PI * surges * u + lane * 1.7);
+  return u + 0.06 * Math.sin(Math.PI * u) * Math.sin(2 * Math.PI * surges * u + lane * 1.7);
 }
+
+// Laps run so far. Over the line, a monster trots on a little and pulls up,
+// the winner furthest along, so the field doesn't pile up on the finish.
+function lapsRun(lane: number, clock: number, start: Start) {
+  const finish = start.times[lane];
+  if (clock < finish) return RACE_LAPS * progress(lane, clock, finish);
+  const place = start.order.indexOf(lane);
+  return RACE_LAPS + Math.min(1, (clock - finish) / 1.5) * (0.14 - place * 0.02);
+}
+
+// The track, in a 100 by 56 picture: two straights joined by half circles,
+// run anticlockwise from the middle of the bottom straight. Lane 1 is inside.
+const TRACK = { width: 100, height: 56, left: 28, right: 72, middle: 28, inner: 12, lane: 2.6 };
+const laneRadius = (lane: number) => TRACK.inner + lane * TRACK.lane;
+
+// Where a lane is after `laps` (any number, whole laps wrap), and whether it's
+// heading left (sprites are drawn facing right).
+function trackPoint(lane: number, laps: number) {
+  const radius = laneRadius(lane);
+  const straight = TRACK.right - TRACK.left;
+  const bend = Math.PI * radius;
+  const lap = 2 * straight + 2 * bend;
+  let along = (((laps % 1) + 1) % 1) * lap;
+  if (along < straight / 2) return { x: 50 + along, y: TRACK.middle + radius, left: false };
+  along -= straight / 2;
+  if (along < bend) {
+    const angle = Math.PI / 2 - (along / bend) * Math.PI;
+    return { x: TRACK.right + radius * Math.cos(angle), y: TRACK.middle + radius * Math.sin(angle), left: angle < 0 };
+  }
+  along -= bend;
+  if (along < straight) return { x: TRACK.right - along, y: TRACK.middle - radius, left: true };
+  along -= straight;
+  if (along < bend) {
+    const angle = -Math.PI / 2 - (along / bend) * Math.PI;
+    return { x: TRACK.left + radius * Math.cos(angle), y: TRACK.middle + radius * Math.sin(angle), left: angle > -Math.PI };
+  }
+  return { x: TRACK.left + (along - bend), y: TRACK.middle + radius, left: false };
+}
+
+// The outline of the track at a given radius, for drawing its edges and lanes.
+function ringPath(radius: number) {
+  const { left, right, middle } = TRACK;
+  return `M${left} ${middle + radius} L${right} ${middle + radius} A${radius} ${radius} 0 0 0 ${right} ${middle - radius} L${left} ${middle - radius} A${radius} ${radius} 0 0 0 ${left} ${middle + radius} Z`;
+}
+
+const TRACK_INSIDE = TRACK.inner - TRACK.lane / 2;
+const TRACK_OUTSIDE = laneRadius(RACE_FIELD - 1) + TRACK.lane / 2;
 
 function Track({ race, clock, pick }: { race: Race; clock: number; pick: number | null }) {
   const { start } = race;
+  const laps = race.runners.map((_, lane) => (start ? lapsRun(lane, clock, start) : -0.012));
+  const lead = Math.max(...laps);
+  const lapNow = Math.min(RACE_LAPS, Math.floor(Math.max(0, lead)) + 1);
+  // Who's where right now, front runner first.
+  const standing = race.runners.map((_, lane) => lane).sort((a, b) => laps[b] - laps[a]);
   return (
-    <div className="flex flex-col gap-1 rounded-md bg-[#0b0617] p-2" aria-hidden="true">
-      {race.runners.map((runner, lane) => {
-        const at = start ? progress(lane, clock, start.times[lane]) : 0;
-        const place = start && clock >= start.times[lane] ? start.order.indexOf(lane) : -1;
-        return (
-          <div key={lane} className={`flex items-center gap-2 rounded ${pick === lane ? "bg-white/10" : ""}`}>
-            <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums" style={{ color: LANE_COLORS[lane] }}>
-              {lane + 1}
-            </span>
-            <div className="relative h-11 min-w-0 flex-1 border-b border-dashed border-purple-900/70">
-              {/* The finish line, a sprite's width in from the end */}
-              <div className="absolute inset-y-0 w-1 bg-[repeating-linear-gradient(0deg,#fff_0_4px,#000_4px_8px)] opacity-70" style={{ right: SPRITE_PX }} />
-              <div className="absolute bottom-0" style={{ left: `calc((100% - ${SPRITE_PX * 2}px) * ${at})` }}>
-                <MonsterSprite monster={runner.monster} size={SPRITE_PX} walking={start !== null && place < 0} />
+    <div aria-hidden="true">
+      <div className="relative mx-auto w-full max-w-3xl" style={{ aspectRatio: `${TRACK.width} / ${TRACK.height}` }}>
+        <svg viewBox={`0 0 ${TRACK.width} ${TRACK.height}`} className="absolute inset-0 h-full w-full">
+          <rect width={TRACK.width} height={TRACK.height} rx="3" fill="#0b0617" />
+          <path d={ringPath(TRACK_OUTSIDE)} fill="#4a2f1d" stroke="#e7d7b0" strokeWidth="0.5" />
+          <path d={ringPath(TRACK_INSIDE)} fill="#12301f" stroke="#e7d7b0" strokeWidth="0.5" />
+          {race.runners.slice(1).map((_, lane) => (
+            <path key={lane} d={ringPath(laneRadius(lane) + TRACK.lane / 2)} fill="none" stroke="#e7d7b0" strokeOpacity="0.18" strokeWidth="0.2" strokeDasharray="1.2 1.2" />
+          ))}
+          {/* The start and finish line, chequered */}
+          <line x1="50" x2="50" y1={TRACK.middle + TRACK_INSIDE} y2={TRACK.middle + TRACK_OUTSIDE} stroke="#fff" strokeWidth="1.2" strokeDasharray="1.3 1.3" />
+          <line x1="50.6" x2="50.6" y1={TRACK.middle + TRACK_INSIDE + 1.3} y2={TRACK.middle + TRACK_OUTSIDE} stroke="#111" strokeWidth="1.2" strokeDasharray="1.3 1.3" strokeOpacity="0.6" />
+          <text x="50" y={TRACK.middle - 1} textAnchor="middle" fontSize="4.2" fontWeight="700" fill="#e7d7b0" fillOpacity="0.85">
+            {start ? (lead >= RACE_LAPS ? "FINISH" : `LAP ${lapNow} OF ${RACE_LAPS}`) : "AT THE LINE"}
+          </text>
+          <text x="50" y={TRACK.middle + 4.5} textAnchor="middle" fontSize="2.6" fill="#e7d7b0" fillOpacity="0.5">
+            WOLF'S RUN
+          </text>
+        </svg>
+        {race.runners.map((runner, lane) => {
+          const at = trackPoint(lane, laps[lane]);
+          const done = start !== null && clock >= start.times[lane] + 1.5;
+          return (
+            <div
+              key={lane}
+              className="absolute"
+              style={{ left: `${at.x}%`, top: `${(at.y / TRACK.height) * 100}%`, zIndex: Math.round(at.y * 10), transform: "translate(-50%, -82%)" }}
+            >
+              {/* Bigger on a big screen, where the track is */}
+              <div className="origin-bottom md:scale-150">
+              <div style={{ transform: at.left ? "scaleX(-1)" : undefined }}>
+                <MonsterSprite monster={runner.monster} size={SPRITE_PX} walking={start !== null && !done} />
               </div>
-              {place >= 0 && (
-                <span className={`absolute right-0 top-1/2 -translate-y-1/2 text-xs font-bold ${place === 0 ? "text-amber-300" : "text-purple-200/70"}`}>
-                  {PLACES[place]}
-                </span>
-              )}
+              </div>
+              <span
+                className={`absolute -top-2 left-1/2 -translate-x-1/2 rounded-full px-1 text-[0.6rem] font-bold leading-3 text-black ${pick === lane ? "ring-2 ring-white" : ""}`}
+                style={{ background: LANE_COLORS[lane] }}
+              >
+                {lane + 1}
+              </span>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <ol className="mt-2 flex items-center justify-center gap-1 sm:gap-2">
+        {standing.map((lane, place) => (
+          <li
+            key={lane}
+            className={`flex items-center gap-1 rounded border px-1 py-0.5 text-[0.65rem] font-bold tabular-nums transition ${pick === lane ? "bg-white/15" : "bg-black/40"}`}
+            style={{ borderColor: LANE_COLORS[lane], color: place === 0 ? "#fcd34d" : "#d8ccf0" }}
+          >
+            {PLACES[place]}
+            <MonsterSprite monster={race.runners[lane].monster} size={20} />
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
@@ -231,6 +317,8 @@ export default function Racing({ signedIn, wallet, walletFailed, retryWallet, se
   const stage = (
     <section ref={track} className={`${PANEL} flex flex-col gap-3 p-3 sm:p-4`}>
       <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <MonsterSprite monster={MASCOT} size={40} walking={phase === "running"} />
         <p className="text-sm text-purple-200/80">
           {phase === "betting" ? (
             bettingOpen ? (
@@ -241,13 +329,14 @@ export default function Racing({ signedIn, wallet, walletFailed, retryWallet, se
               "No more bets…"
             )
           ) : phase === "running" ? (
-            "And they're off…"
+            "And they're off! Three laps."
           ) : phase === "result" ? (
             "Next race coming up."
           ) : (
             "Finding the next race…"
           )}
         </p>
+        </div>
         <div className="flex shrink-0 items-center gap-3">
           {viewers !== null && (
             <span className="text-sm text-purple-200/70">
@@ -268,7 +357,7 @@ export default function Racing({ signedIn, wallet, walletFailed, retryWallet, se
           </span>
         </div>
       </div>
-      {race ? <Track race={race} clock={clock} pick={myBet ? myBet.lane : pick} /> : <div className="h-[19rem] rounded-md bg-[#0b0617]" />}
+      {race ? <Track race={race} clock={clock} pick={myBet ? myBet.lane : pick} /> : <div className="mx-auto w-full max-w-3xl rounded-md bg-[#0b0617]" style={{ aspectRatio: "100 / 56" }} />}
       <div className="min-h-[1.75rem]">
         {race &&
           finish &&
@@ -353,7 +442,7 @@ export default function Racing({ signedIn, wallet, walletFailed, retryWallet, se
     <>
       <h2 className="text-lg font-bold text-orange-50">How it works</h2>
       <p className="mt-2 text-sm text-orange-100/90">
-        Races run around the clock, one after another, and everyone watches the same one. Each has a new field: the favourites pay less and
+        The Wolf runs races around the clock, three laps each, and everyone watches the same one. Each has a new field: the favourites pay less and
         the long shots pay more. A monster that pays 4.0x turns 10 tickets into 40 if it comes first.
       </p>
       <p className="mt-2 text-xs text-purple-200/60">One bet a race, placed before the off. Only first place pays.</p>

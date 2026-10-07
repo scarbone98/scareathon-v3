@@ -35,15 +35,15 @@ const seeded = (seed) => {
 
 describe('slots', () => {
     test('pays three of a kind, then a pair on the first two reels, else nothing', () => {
-        expect(slotResult(['ghost', 'ghost', 'ghost'])).toEqual({ line: 'three', multiplier: 30 });
+        expect(slotResult(['ghost', 'ghost', 'ghost'])).toEqual({ line: 'three', multiplier: 25 });
         expect(slotResult(['ghost', 'ghost', 'rat'])).toEqual({ line: 'pair', multiplier: 5 });
         expect(slotResult(['rat', 'ghost', 'ghost'])).toEqual({ line: null, multiplier: 0 });
     });
 
-    test('keeps a house edge without being stingy', () => {
+    test('keeps a healthy house edge (the item shop runs on the same tickets)', () => {
         const back = slotReturnToPlayer();
-        expect(back).toBeGreaterThan(0.9);
-        expect(back).toBeLessThan(0.98);
+        expect(back).toBeGreaterThan(0.8);
+        expect(back).toBeLessThan(0.9);
     });
 
     test('spins three known symbols', () => {
@@ -56,18 +56,19 @@ describe('slots', () => {
 describe('roulette', () => {
     const limits = { minBet: 1, maxBet: 100 };
 
-    test('colours the wheel: one green, eighteen red, eighteen black', () => {
+    test("colours the wheel: one green, eighteen red, eighteen black, and Tlaloc's three", () => {
         const colors = ROULETTE_WHEEL.map(rouletteColor);
+        expect(colors.filter((color) => color === 'blue')).toHaveLength(3);
         expect(colors.filter((color) => color === 'green')).toHaveLength(1);
         expect(colors.filter((color) => color === 'red')).toHaveLength(18);
         expect(colors.filter((color) => color === 'black')).toHaveLength(18);
-        expect([...ROULETTE_WHEEL].sort((a, b) => a - b)).toEqual(Array.from({ length: 37 }, (_, n) => n));
+        expect([...ROULETTE_WHEEL].sort((a, b) => a - b)).toEqual(Array.from({ length: 40 }, (_, n) => n));
     });
 
-    test('every kind of bet gives the house the same small edge', () => {
+    test('every kind of bet gives the house the same edge', () => {
         for (const kind of Object.values(ROULETTE_BETS)) {
             const wins = ROULETTE_WHEEL.filter((number) => kind.wins(number, 1)).length;
-            expect((wins * (kind.pays + 1)) / ROULETTE_WHEEL.length).toBeCloseTo(36 / 37);
+            expect((wins * (kind.pays + 1)) / ROULETTE_WHEEL.length).toBeCloseTo(36 / 40);
         }
     });
 
@@ -111,8 +112,10 @@ describe('roulette', () => {
         const result = settleRoulette(bets, 17);
         expect(result.bets.map((bet) => bet.payout)).toEqual([72, 20, 0, 9, 9, 0]);
         expect(result.payout).toBe(110);
-        // Zero beats every outside bet.
+        // Zero beats every outside bet, and Tlaloc's pockets beat everything.
         expect(settleRoulette(bets, 0).payout).toBe(0);
+        for (const pocket of [37, 38, 39]) expect(settleRoulette([...bets, { type: 'straight', value: 0, amount: 5 }], pocket).payout).toBe(0);
+        expect(parseRouletteBets([{ type: 'straight', value: 37, amount: 5 }], limits)).toBeNull();
     });
 });
 
@@ -130,10 +133,10 @@ describe('racing', () => {
             for (const runner of makeRaceCard(rng)) {
                 const back = runner.chance * (racePayout(100, runner.odds) / 100);
                 expect(back).toBeLessThanOrEqual(1 - RACE_HOUSE_EDGE + 1e-9);
-                expect(back).toBeGreaterThan(0.8);
+                expect(back).toBeGreaterThan(0.72);
             }
         }
-        expect(raceOdds(0.25)).toBe(3.6);
+        expect(raceOdds(0.25)).toBe(3.4);
         expect(racePayout(10, 3.6)).toBe(36);
     });
 
@@ -178,7 +181,8 @@ describe('picture poker', () => {
         expect(pokerOutcome(four, pair)).toBe('win');
         expect(pokerOutcome(pair, four)).toBe('lose');
         expect(pokerOutcome(betterPair, pair)).toBe('lose');
-        expect(pokerPayout(10, four, pair)).toBe(30);
+        expect(pokerPayout(10, four, pair)).toBe(20);
+        expect(pokerPayout(10, hand('skull skull skull skull skull'), four)).toBe(100);
         expect(pokerPayout(10, pair, four)).toBe(0);
         expect(pokerPayout(10, pair, hand('candle rat pumpkin ghost skull'))).toBe(20);
     });
@@ -423,8 +427,8 @@ describe('casino routes', () => {
         const body = response.json();
         expect(body.stake).toBe(20);
         expect(body.color).toBe(rouletteColor(body.number));
-        // Red and black together: one pays unless it's zero.
-        expect(body.payout).toBe(body.number === 0 ? 0 : 20);
+        // Red and black together: one pays unless it's zero or one of Tlaloc's.
+        expect(body.payout).toBe(body.color === 'red' || body.color === 'black' ? 20 : 0);
         expect(body.balance).toBe(100 - 20 + body.payout);
         expect((await post('/casino/roulette/spin', { bets: [{ type: 'red', amount: 101 }] })).statusCode).toBe(400);
     });

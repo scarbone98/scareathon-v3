@@ -15,7 +15,7 @@ export const POKER_HANDS = [
     { id: 'two_pair', name: 'Two pairs', multiplier: 2 },
     { id: 'three', name: 'Three of a kind', multiplier: 2 },
     { id: 'full_house', name: 'Full house', multiplier: 2 },
-    { id: 'four', name: 'Four of a kind', multiplier: 3 },
+    { id: 'four', name: 'Four of a kind', multiplier: 2 },
     { id: 'five', name: 'Five of a kind', multiplier: 10 },
 ];
 

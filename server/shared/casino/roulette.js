@@ -1,17 +1,28 @@
-// Casino roulette: a single-zero wheel with the usual inside and outside bets.
+// Casino roulette: Tlaloc's wheel. The usual 0 to 36 with the usual inside and
+// outside bets, plus three pockets of Tlaloc's own (37 to 39) that nobody can
+// bet on: land there and the house takes everything. They're the house's edge.
 // `pays` is the winnings per ticket bet; the stake comes back on top.
 
-// The pockets in the order they sit around the wheel.
+// The numbers a bet can go on.
+export const ROULETTE_NUMBERS = 37;
+
+// The pockets in the order they sit around the wheel, Tlaloc's spaced evenly.
 export const ROULETTE_WHEEL = [
-    0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
-    5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
+    0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 37, 6, 27, 13, 36, 11, 30, 8, 23, 10,
+    38, 5, 24, 16, 33, 1, 20, 14, 31, 9, 39, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
 const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
 export const ROULETTE_MAX_BETS = 24;
 
+export const isTlalocPocket = (number) => number >= ROULETTE_NUMBERS;
+
+// What's written on a pocket.
+export const rouletteLabel = (number) => (isTlalocPocket(number) ? 'T' : String(number));
+
 export function rouletteColor(number) {
+    if (isTlalocPocket(number)) return 'blue';
     if (number === 0) return 'green';
     return REDS.has(number) ? 'red' : 'black';
 }
@@ -19,16 +30,16 @@ export function rouletteColor(number) {
 // `values` lists what a bet of that kind may be placed on (none: the kind is
 // the whole bet).
 export const ROULETTE_BETS = {
-    straight: { pays: 35, values: ROULETTE_WHEEL.length, wins: (n, value) => n === value },
+    straight: { pays: 35, values: ROULETTE_NUMBERS, wins: (n, value) => n === value },
     red: { pays: 1, wins: (n) => rouletteColor(n) === 'red' },
     black: { pays: 1, wins: (n) => rouletteColor(n) === 'black' },
-    odd: { pays: 1, wins: (n) => n > 0 && n % 2 === 1 },
-    even: { pays: 1, wins: (n) => n > 0 && n % 2 === 0 },
+    odd: { pays: 1, wins: (n) => n > 0 && n < ROULETTE_NUMBERS && n % 2 === 1 },
+    even: { pays: 1, wins: (n) => n > 0 && n < ROULETTE_NUMBERS && n % 2 === 0 },
     low: { pays: 1, wins: (n) => n >= 1 && n <= 18 },
-    high: { pays: 1, wins: (n) => n >= 19 },
+    high: { pays: 1, wins: (n) => n >= 19 && n < ROULETTE_NUMBERS },
     // value 0, 1, 2: the first, second and third dozen / column.
-    dozen: { pays: 2, values: 3, wins: (n, value) => n > 0 && Math.floor((n - 1) / 12) === value },
-    column: { pays: 2, values: 3, wins: (n, value) => n > 0 && (n - 1) % 3 === value },
+    dozen: { pays: 2, values: 3, wins: (n, value) => n > 0 && n < ROULETTE_NUMBERS && Math.floor((n - 1) / 12) === value },
+    column: { pays: 2, values: 3, wins: (n, value) => n > 0 && n < ROULETTE_NUMBERS && (n - 1) % 3 === value },
 };
 
 export function rouletteBetKey(bet) {
@@ -63,7 +74,7 @@ export function parseRouletteBets(raw, { minBet, maxBet }) {
 }
 
 export function spinRoulette(rng) {
-    return Math.floor(rng() * ROULETTE_WHEEL.length);
+    return ROULETTE_WHEEL[Math.floor(rng() * ROULETTE_WHEEL.length)];
 }
 
 // Each bet with what it paid back (stake included; 0 for a loser), and the sum.

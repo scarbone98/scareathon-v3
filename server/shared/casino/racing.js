@@ -1,4 +1,4 @@
-// Monster racing: six monsters off the Monster Bash roster run a sprint. Each
+// Monster racing: six monsters off the Monster Bash roster race laps of a track. Each
 // has a chance of winning; the odds on the card are that chance with the
 // house's cut taken off, so a 1 in 4 monster pays a little under 4x.
 
@@ -6,11 +6,13 @@ import { MONSTERS } from '../monster-bash/roster.js';
 
 export const RACE_FIELD = 6;
 // The share of every ticket bet the house keeps on average.
-export const RACE_HOUSE_EDGE = 0.08;
+export const RACE_HOUSE_EDGE = 0.15;
 export const RACE_MIN_ODDS = 1.1;
+// How many times round the track a race goes.
+export const RACE_LAPS = 3;
 // How long the winner takes, and how far apart the rest come in (seconds).
-const WINNER_SECONDS = [7.5, 9];
-const GAP_SECONDS = [0.12, 0.7];
+const WINNER_SECONDS = [30, 36];
+const GAP_SECONDS = [0.3, 1.8];
 
 function shuffled(items, rng) {
     const list = [...items];

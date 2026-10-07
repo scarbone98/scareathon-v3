@@ -6,12 +6,12 @@
 export const SLOT_REELS = 3;
 
 export const SLOT_SYMBOLS = [
-    { id: 'candle', monster: 'candle', weight: 28, three: 5, pair: 1 },
-    { id: 'rat', monster: 'rat', weight: 24, three: 10, pair: 2 },
-    { id: 'pumpkin', monster: 'pumpkin', weight: 20, three: 15, pair: 4 },
-    { id: 'ghost', monster: 'ghost', weight: 14, three: 30, pair: 5 },
+    { id: 'candle', monster: 'candle', weight: 28, three: 4, pair: 1 },
+    { id: 'rat', monster: 'rat', weight: 24, three: 8, pair: 2 },
+    { id: 'pumpkin', monster: 'pumpkin', weight: 20, three: 15, pair: 3 },
+    { id: 'ghost', monster: 'ghost', weight: 14, three: 25, pair: 5 },
     { id: 'skull', monster: 'skull', weight: 9, three: 50, pair: 8 },
-    { id: 'werewolf', monster: 'werewolf', weight: 5, three: 100, pair: 15 },
+    { id: 'werewolf', monster: 'werewolf', weight: 5, three: 100, pair: 10 },
 ];
 
 const SYMBOLS_BY_ID = Object.fromEntries(SLOT_SYMBOLS.map((symbol) => [symbol.id, symbol]));

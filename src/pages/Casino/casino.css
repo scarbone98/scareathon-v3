@@ -1,6 +1,6 @@
 /* A monster's walk cycle: steps along its sprite sheet (set by MonsterSprite). */
 .casino-walk {
-  animation: casino-walk 0.55s steps(var(--casino-frames)) infinite;
+  animation: casino-walk var(--casino-ms, 550ms) steps(var(--casino-frames)) infinite;
 }
 
 @keyframes casino-walk {
@@ -32,10 +32,295 @@
   }
 }
 
+/* The slot machine. Its lights follow its mood (data-mood on .slot-machine). */
+.slot-bulb {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fde68a;
+  box-shadow: 0 0 6px 1px #fbbf24;
+  animation: slot-bulb 1.6s steps(1) infinite;
+}
+
+@keyframes slot-bulb {
+  0% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.2;
+    box-shadow: none;
+  }
+}
+
+.slot-machine[data-mood="spinning"] .slot-bulb {
+  animation-duration: 0.5s;
+}
+
+.slot-machine[data-mood="tease"] .slot-bulb {
+  animation-duration: 0.22s;
+  background: #f87171;
+  box-shadow: 0 0 8px 2px #ef4444;
+}
+
+.slot-machine[data-mood="win"] .slot-bulb,
+.slot-machine[data-mood="jackpot"] .slot-bulb {
+  animation: slot-strobe 0.24s steps(1) infinite, slot-rainbow 1.2s linear infinite;
+}
+
+.slot-machine[data-mood="lose"] .slot-bulb {
+  animation: none;
+  opacity: 0.3;
+  box-shadow: none;
+}
+
+@keyframes slot-strobe {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes slot-rainbow {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.slot-marquee {
+  color: #fde68a;
+  text-shadow: 0 0 8px #f59e0b, 0 0 18px #dc2626;
+  animation: slot-marquee 2.4s ease-in-out infinite;
+}
+
+.slot-machine[data-mood="win"] .slot-marquee,
+.slot-machine[data-mood="jackpot"] .slot-marquee {
+  animation: slot-strobe 0.3s steps(1) infinite, slot-rainbow 1.2s linear infinite;
+}
+
+@keyframes slot-marquee {
+  50% {
+    text-shadow: 0 0 3px #f59e0b;
+    opacity: 0.8;
+  }
+}
+
+.slot-payline {
+  background: linear-gradient(90deg, #fbbf24, rgba(251, 191, 36, 0.25) 12%, rgba(251, 191, 36, 0.25) 88%, #fbbf24);
+  box-shadow: 0 0 6px #fbbf24;
+}
+
+/* A reel landing */
+.slot-thunk {
+  animation: slot-thunk 0.28s ease-out;
+}
+
+@keyframes slot-thunk {
+  30% {
+    transform: translateY(5px);
+    filter: brightness(1.8);
+  }
+}
+
+.slot-machine[data-mood="tease"] {
+  animation: slot-tremble 0.12s linear infinite;
+}
+
+@keyframes slot-tremble {
+  50% {
+    transform: translateX(1px);
+  }
+}
+
+.slot-shake {
+  animation: slot-shake 0.4s linear 4;
+}
+
+@keyframes slot-shake {
+  25% {
+    transform: translate(-4px, 2px) rotate(-1deg);
+  }
+  75% {
+    transform: translate(4px, -2px) rotate(1deg);
+  }
+}
+
+.slot-banner {
+  color: #fde68a;
+  text-shadow: 0 0 10px #f59e0b, 0 2px 0 #7c2d12;
+  animation: slot-banner 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both, slot-pulse 0.5s ease-in-out 0.6s infinite;
+}
+
+@keyframes slot-banner {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes slot-pulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.slot-lever {
+  position: absolute;
+  left: 50%;
+  bottom: 28%;
+  width: 6px;
+  height: 46%;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #d4d4d8, #71717a);
+  transform-origin: bottom center;
+}
+
+.slot-lever-knob {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fecaca, #dc2626 55%, #7f1d1d);
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.slot-lever-pull {
+  animation: slot-lever 0.7s ease-out;
+}
+
+@keyframes slot-lever {
+  35% {
+    transform: scaleY(-0.6);
+  }
+}
+
+/* The rat: back and forth along the top while it spins, up and down when it pays */
+.slot-scurry {
+  animation: slot-scurry 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes slot-scurry {
+  to {
+    transform: translateX(150px);
+  }
+}
+
+.slot-hop {
+  animation: slot-hop 0.4s ease-out infinite alternate;
+}
+
+@keyframes slot-hop {
+  to {
+    transform: translateY(-16px);
+  }
+}
+
+.slot-ticket {
+  position: absolute;
+  top: -24px;
+  width: 22px;
+  height: 12px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #fde68a, #f59e0b);
+  border: 1px dashed #7c2d12;
+  animation: slot-ticket linear both;
+}
+
+@keyframes slot-ticket {
+  to {
+    top: 105%;
+    transform: rotate(540deg);
+  }
+}
+
+/* Picture poker's back room */
+.poker-flicker {
+  animation: poker-flicker 3.2s ease-in-out infinite;
+}
+
+@keyframes poker-flicker {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  43% {
+    opacity: 1;
+  }
+  47% {
+    opacity: 0.6;
+  }
+  52% {
+    opacity: 0.95;
+  }
+  78% {
+    opacity: 0.72;
+  }
+}
+
+.poker-float {
+  animation: poker-float 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes poker-float {
+  to {
+    transform: translateY(-7px);
+  }
+}
+
+.poker-deal-left {
+  animation: poker-deal-left 0.7s ease-in-out;
+}
+
+.poker-deal-right {
+  animation: poker-deal-right 0.7s ease-in-out;
+}
+
+@keyframes poker-deal-left {
+  50% {
+    transform: translate(60%, 70%) rotate(18deg);
+  }
+}
+
+@keyframes poker-deal-right {
+  50% {
+    transform: translate(-60%, 70%) rotate(-18deg);
+  }
+}
+
+.poker-smoke {
+  animation: poker-smoke 14s linear infinite;
+}
+
+@keyframes poker-smoke {
+  from {
+    transform: translateX(-30%);
+  }
+  to {
+    transform: translateX(30%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .casino-walk,
   .casino-card-in,
-  .casino-win {
-    animation: none;
+  .casino-win,
+  .slot-bulb,
+  .slot-marquee,
+  .slot-shake,
+  .slot-banner,
+  .slot-scurry,
+  .slot-hop,
+  .slot-ticket,
+  .slot-thunk,
+  .slot-lever-pull,
+  .slot-machine[data-mood="tease"],
+  .poker-flicker,
+  .poker-float,
+  .poker-deal-left,
+  .poker-deal-right,
+  .poker-smoke {
+    animation: none !important;
   }
 }

@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import AnimatedPage from "../../components/AnimatedPage";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { useSession } from "../MonsterBash/account";
-import { Balance, MonsterSprite } from "./parts";
+import { Balance, MonsterSprite, Sheet } from "./parts";
+import { MERCHANT, TLALOC } from "./sprites";
 import { PANEL, useWallet, type RoomProps } from "./wallet";
 import "./casino.css";
 
@@ -13,14 +14,14 @@ const Slots = lazy(() => import("./rooms/Slots"));
 const Roulette = lazy(() => import("./rooms/Roulette"));
 const PicturePoker = lazy(() => import("./rooms/PicturePoker"));
 
-// The rooms off the casino floor. Monster Bash is its own live show with its
+// The rooms of Monster House (the casino). Monster Bash is its own live show with its
 // own bet slip; the rest are house games sharing the floor's wallet.
 const ROOMS = [
-  { id: "monster-bash", name: "Monster Bash", blurb: "Monsters brawl around the clock. Bet with the crowd and watch the odds swing.", monster: "werewolf" },
-  { id: "racing", name: "Monster Racing", blurb: "A live race every minute. Pick your monster before the off, then watch with everyone else.", monster: "rat" },
-  { id: "slots", name: "Slots", blurb: "Three reels of monsters. Line them up for up to 100 times your bet.", monster: "pumpkin" },
-  { id: "roulette", name: "Roulette", blurb: "Red or black, odd or even, or one lucky number at 35 to 1.", monster: "skull" },
-  { id: "picture-poker", name: "Picture Poker", blurb: "Five picture cards and one swap. Beat the Scarecrow's hand.", monster: "scarecrow" },
+  { id: "monster-bash", name: "Monster Bash", blurb: "Monsters brawl around the clock. Bet with the crowd and watch the odds swing.", monster: "zombie" },
+  { id: "racing", name: "Monster Racing", blurb: "A live race every minute. Pick your monster before the off, then watch three laps with everyone else.", monster: "werewolf" },
+  { id: "slots", name: "Slots", blurb: "Three reels of monsters. Line them up for up to 100 times your bet.", monster: "rat" },
+  { id: "roulette", name: "Roulette", blurb: "Tlaloc's wheel: red or black, odd or even, or one lucky number at 35 to 1.", monster: "tlaloc" },
+  { id: "picture-poker", name: "Picture Poker", blurb: "Five picture cards and one swap. Beat the Merchant's hand.", monster: "merchant" },
 ] as const;
 
 type RoomId = (typeof ROOMS)[number]["id"];
@@ -42,7 +43,15 @@ function Lobby({ onEnter }: { onEnter: (room: RoomId) => void }) {
           onClick={() => onEnter(room.id)}
           className={`${PANEL} group flex items-center gap-4 p-4 text-left transition hover:border-purple-400 hover:bg-purple-950/40`}
         >
-          <MonsterSprite monster={room.monster} size={64} walking className="transition group-hover:scale-110" />
+          <span className="flex h-16 w-16 shrink-0 items-end justify-center transition group-hover:scale-110">
+            {room.monster === "tlaloc" ? (
+              <Sheet {...TLALOC} height={60} />
+            ) : room.monster === "merchant" ? (
+              <Sheet {...MERCHANT} height={54} playing fps={4} />
+            ) : (
+              <MonsterSprite monster={room.monster} size={64} walking />
+            )}
+          </span>
           <span className="min-w-0">
             <span className="block font-zombie text-2xl tracking-wide text-red-500">{room.name}</span>
             <span className="mt-1 block text-sm text-purple-200/80">{room.blurb}</span>
@@ -87,12 +96,12 @@ export default function Casino() {
       <main className="relative z-10 mx-auto flex w-full max-w-[1920px] flex-col gap-3 px-3 pb-8 pt-3 sm:px-6 md:gap-4 md:pt-5 lg:px-8">
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">Casino!</h1>
+            <h1 className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">Monster House</h1>
             {room === null && <p className="text-sm text-purple-200/70">Bet your tickets on fights, races, reels, the wheel and the cards.</p>}
           </div>
           {wallet && room !== "monster-bash" && <Balance wallet={wallet} />}
         </header>
-        <nav aria-label="Casino rooms" className={`${PANEL} flex gap-1 overflow-x-auto p-1`}>
+        <nav aria-label="Monster House rooms" className={`${PANEL} flex gap-1 overflow-x-auto p-1`}>
           {tab(null, "Lobby")}
           {ROOMS.map((entry) => tab(entry.id, entry.name))}
         </nav>

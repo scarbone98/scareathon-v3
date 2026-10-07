@@ -19,7 +19,7 @@ export function slotResult(reels: string[]): { line: SlotLine; multiplier: numbe
 export function slotReturnToPlayer(): number;
 
 // Roulette
-export type RouletteColor = 'green' | 'red' | 'black';
+export type RouletteColor = 'green' | 'red' | 'black' | 'blue';
 export type RouletteBetType = 'straight' | 'red' | 'black' | 'odd' | 'even' | 'low' | 'high' | 'dozen' | 'column';
 export interface RouletteBet {
     type: RouletteBetType;
@@ -27,7 +27,10 @@ export interface RouletteBet {
     amount: number;
 }
 
+export const ROULETTE_NUMBERS: number;
 export const ROULETTE_WHEEL: number[];
+export function isTlalocPocket(number: number): boolean;
+export function rouletteLabel(number: number): string;
 export const ROULETTE_MAX_BETS: number;
 export const ROULETTE_BETS: Record<RouletteBetType, { pays: number; values?: number; wins: (number: number, value: number | null) => boolean }>;
 export function rouletteColor(number: number): RouletteColor;
@@ -44,6 +47,7 @@ export interface RaceRunner {
 }
 
 export const RACE_FIELD: number;
+export const RACE_LAPS: number;
 export const RACE_HOUSE_EDGE: number;
 export const RACE_MIN_ODDS: number;
 export function raceOdds(chance: number): number;

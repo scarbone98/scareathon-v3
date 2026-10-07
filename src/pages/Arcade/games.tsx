@@ -652,8 +652,8 @@ export function createArcadeGames(): MachineData[] {
     {
       // The betting hall: Monster Bash (watch the brawls, bet on who wins) and the
       // house games off its lobby (racing, slots, roulette, picture poker)
-      name: "Casino!",
-      added: "2026-10-06T23:55:00-06:00",
+      name: "Monster House",
+      added: "2026-10-07T00:10:00-06:00",
       cartridge: {
         color: "#8f2d1f",
         tagline: "Fights, races, reels and cards. Bet your tickets.",
@@ -664,7 +664,7 @@ export function createArcadeGames(): MachineData[] {
       hasLeaderboard: false,
       game: (
         <GameRenderer
-          title="Casino!"
+          title="Monster House"
           url={CASINO_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
