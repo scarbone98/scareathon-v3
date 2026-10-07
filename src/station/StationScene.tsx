@@ -2983,8 +2983,38 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       else if (part === "radio-stop") radio$.stop();
       else if (!radio$.now().playing) radio$.play();
     };
+    // Playing, it dances a little (a bounce and a lean, in time), and sound comes off its
+    // speaker: rings that swell out of the grille and fade, one after another
+    const ringMap = paint(64, 64, (ctx, w, h) => {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, w / 2 - 4, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    const soundRings = [0, 1, 2].map(() => {
+      const ring = plane(1, 1, new MeshBasicMaterial({ map: ringMap, color: "#ffe6a8", transparent: true, opacity: 0, depthWrite: false, fog: false }), -0.085, 0.11, 0.058);
+      ring.visible = false;
+      radio.add(ring);
+      return ring;
+    });
     const tickRadio = (t: number) => {
       drawRadioScreen(t);
+      const dancing = radio$.now().playing;
+      const beat = t * 7;
+      // (still, with reduced motion: the rings stand, faint, to say it's playing)
+      radio.rotation.z = dancing && !reduced ? Math.sin(beat) * 0.07 : 0;
+      radio.position.y = 0.48 + (dancing && !reduced ? Math.abs(Math.sin(beat)) * 0.014 : 0);
+      radio.scale.y = dancing && !reduced ? 1 + Math.sin(beat * 2) * 0.03 : 1;
+      soundRings.forEach((ring, i) => {
+        ring.visible = dancing;
+        if (!dancing) return;
+        const k = reduced ? (i + 1) / 3 : (t * 0.9 + i / 3) % 1;
+        const size = 0.1 + k * 0.5;
+        ring.scale.set(size, size, 1);
+        ring.position.z = 0.058 + k * 0.12;
+        (ring.material as MeshBasicMaterial).opacity = (1 - k) * (reduced ? 0.25 : 0.6);
+      });
       const now = performance.now() / 1000;
       radioKeys.forEach(({ key }) => {
         const since = now - (key.userData.pressedAt as number);
