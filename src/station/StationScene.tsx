@@ -118,6 +118,8 @@ type Props = {
   // A big screen has no walking up to the station board: a tap on one of its papers, from
   // the platform, is a tap on the paper (the page reads it up close)
   papersFromAfar?: boolean;
+  // Surfaces used from the platform, facing them, without walking up (see the portals)
+  usedFromAfar?: string[];
 };
 
 // Live text for the boards in the scene
@@ -2269,7 +2271,7 @@ const ASKED_HOUR = (() => {
   }
 })();
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -4491,15 +4493,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const slot = surfaceSlots[spec.id];
         const content = surfaces[spec.id];
         if (!slot || !content) return null;
+        // Standing at its object you can use it; from further off a tap walks you there. (Bar
+        // what a big screen uses from the platform, looking its way: the welcome on the board)
+        const inReach = at === spec.stop || (at === null && heading === STOPS[spec.stop].heading && Boolean(usedFromAfar?.includes(spec.id)));
         return createPortal(
           <div
             className="h-full w-full"
-            aria-hidden={!surfacesInteractive || at !== spec.stop}
+            aria-hidden={!surfacesInteractive || !inReach}
             style={{
-              // Standing at its object you can use it; from further off a tap walks you there
               // (the poster's details are always there, faded out while not being read: they
               // take taps only when shown, see page.tsx, so the poster can be tapped through them)
-              pointerEvents: spec.id === "poster" ? "none" : surfacesInteractive && at === spec.stop ? "auto" : "none",
+              pointerEvents: spec.id === "poster" ? "none" : surfacesInteractive && inReach ? "auto" : "none",
               // Dim to the lamplight around it
               filter:
                 zoom === spec.id

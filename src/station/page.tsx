@@ -638,6 +638,9 @@ export default function StationPage() {
             onEmptyTap={stepBack}
             onPart={onPart}
             papersFromAfar={!compact}
+            // (and as a big screen never walks up to the board, a paper that's used where it
+            // hangs, the welcome and its buttons, is used from the platform)
+            usedFromAfar={compact ? undefined : papers.flatMap((paper, i) => (paper.noZoom ? [`paper-${i}`] : []))}
           />
         </Suspense>
         {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
