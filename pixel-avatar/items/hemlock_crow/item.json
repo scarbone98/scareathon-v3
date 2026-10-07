@@ -1,0 +1,20 @@
+{
+  "name": "Hemlock's Crow",
+  "category": "companion",
+  "rarity": "rare",
+  "price": 260,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "png": "sprite.png",
+      "frameWidth": 7,
+      "at": [
+        21,
+        41
+      ],
+      "anchor": "free"
+    }
+  ]
+}

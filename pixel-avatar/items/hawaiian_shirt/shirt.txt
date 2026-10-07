@@ -1,0 +1,14 @@
+# Flowers all over it
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  f = dye2.3
+  p = rose.2
+--- 0
+.hiiih.
+hfiipij
+iipifjj
+j.fiipj
+..jipij

@@ -1,0 +1,12 @@
+# No sleeves
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+--- 0
+..h.h..
+.hiiij.
+.iiiij.
+..iiij.
+..jiiij

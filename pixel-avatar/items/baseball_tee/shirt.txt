@@ -1,0 +1,12 @@
+# White in the body, the sleeves and collar in a colour
+at: 12,34
+legend:
+  b = bone.3
+  d = bone.2
+  s = dye1.2
+--- 0
+.sbbbs.
+ssbbbbs
+sbbbbds
+s.bbbds
+..dbbbd

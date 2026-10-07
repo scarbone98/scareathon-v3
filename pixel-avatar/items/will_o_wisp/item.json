@@ -1,0 +1,20 @@
+{
+  "name": "Will-o'-Wisp",
+  "category": "companion",
+  "rarity": "epic",
+  "price": 360,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "png": "sprite.png",
+      "frameWidth": 12,
+      "at": [
+        20,
+        22
+      ],
+      "anchor": "free"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Black, a skull printed on the chest (the tour dates are on the back)
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  w = bone.3
+  k = ink.0
+--- 0
+.hiiih.
+hiwwwij
+iiwkwjj
+j.iwiij
+..jiiij

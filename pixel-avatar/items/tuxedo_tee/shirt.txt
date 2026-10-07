@@ -1,0 +1,13 @@
+# Formal, as tees go: a printed bib and bow tie
+at: 12,34
+legend:
+  k = ink.1
+  d = ink.0
+  w = bone.3
+  r = blood.2
+--- 0
+.kwwwk.
+kkwrwkk
+kkwwwkd
+k.wkwkd
+..kwwkd

@@ -1,0 +1,14 @@
+# Every colour in the bucket
+at: 12,34
+legend:
+  r = rose.2
+  y = mustard.3
+  t = teal.2
+  l = lime.2
+  p = plum.3
+--- 0
+.ryytr.
+rylltyp
+ytlptyr
+r.tppyt
+..rytlp

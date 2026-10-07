@@ -1,0 +1,20 @@
+{
+  "name": "Hawaiian Shirt",
+  "category": "torso",
+  "rarity": "uncommon",
+  "price": 110,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "teal",
+    "dye2": "mustard"
+  },
+  "parts": [
+    {
+      "slot": "torso",
+      "file": "shirt.txt"
+    }
+  ]
+}

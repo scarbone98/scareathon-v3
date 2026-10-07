@@ -141,6 +141,8 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261007_shop_round_four.sql', import.meta.url), 'utf8')); // the shop's fourth round
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261007_shop_round_five.sql', import.meta.url), 'utf8')); // its fifth
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261007_shop_mini_me.sql', import.meta.url), 'utf8')); // the Mini Me companion
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261007_shop_shirts.sql', import.meta.url), 'utf8')); // ten more shirts
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261007_shop_game_sprites.sql', import.meta.url), 'utf8')); // items from the games' sprites
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');

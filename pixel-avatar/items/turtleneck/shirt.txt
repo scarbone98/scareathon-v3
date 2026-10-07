@@ -1,0 +1,13 @@
+# Up to the chin
+at: 12,33
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+--- 0
+..hih..
+.hiiih.
+hiiiiij
+iiiiijj
+j.iiiij
+..jiiij

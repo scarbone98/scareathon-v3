@@ -1,0 +1,17 @@
+{
+  "name": "Tuxedo Tee",
+  "category": "torso",
+  "rarity": "uncommon",
+  "price": 100,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "torso",
+      "file": "shirt.txt"
+    }
+  ]
+}

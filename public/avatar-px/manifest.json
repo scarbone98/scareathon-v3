@@ -1221,6 +1221,36 @@
   },
   "items": [
     {
+      "key": "acid_potion",
+      "name": "Acid Potion",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 4,
+          "y": 30,
+          "w": 6,
+          "h": 8,
+          "frames": 6,
+          "src": "/avatar-px/items/acid_potion/0-held.png?v=83fd58002e",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/acid_potion/icon.png?v=bea0b50a19",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
       "key": "angel_robe",
       "name": "Angel Robe",
       "category": "torso",
@@ -1384,6 +1414,70 @@
       "icon": "/avatar-px/items/balloon/icon.png?v=8dd1170f9e",
       "dyes": {
         "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "band_tee",
+      "name": "Band Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/band_tee/0-torso.png?v=365eaf003d",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/band_tee/icon.png?v=6605acde89",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "baseball_tee",
+      "name": "Baseball Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/baseball_tee/0-torso.png?v=e6d4a874cf",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/baseball_tee/icon.png?v=fc306eea3e",
+      "dyes": {
+        "dye1": "denim"
       },
       "occupies": [],
       "hides": [],
@@ -2630,6 +2724,63 @@
       "release": "released"
     },
     {
+      "key": "emerald_pinball",
+      "name": "Emerald Pinball",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 39,
+          "w": 8,
+          "h": 8,
+          "frames": 6,
+          "src": "/avatar-px/items/emerald_pinball/0-companion.png?v=008b82b31a"
+        }
+      ],
+      "icon": "/avatar-px/items/emerald_pinball/icon.png?v=ee340e41d4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 240,
+      "release": "released"
+    },
+    {
+      "key": "extra_life",
+      "name": "Extra Life",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 3,
+          "y": 31,
+          "w": 8,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/extra_life/0-held.png?v=d015765722",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/extra_life/icon.png?v=6f495727b4",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
+      "release": "released"
+    },
+    {
       "key": "falling_leaves",
       "name": "Falling Leaves",
       "category": "aura",
@@ -2944,6 +3095,33 @@
       "default": false,
       "rarity": "legendary",
       "price": 500,
+      "release": "released"
+    },
+    {
+      "key": "golden_pinball",
+      "name": "Golden Pinball",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 39,
+          "w": 8,
+          "h": 8,
+          "frames": 6,
+          "src": "/avatar-px/items/golden_pinball/0-companion.png?v=64055970e8"
+        }
+      ],
+      "icon": "/avatar-px/items/golden_pinball/icon.png?v=cca9c04b1c",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 340,
       "release": "released"
     },
     {
@@ -3608,6 +3786,39 @@
       "release": "released"
     },
     {
+      "key": "hawaiian_shirt",
+      "name": "Hawaiian Shirt",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/hawaiian_shirt/0-torso.png?v=be5dec4a02",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hawaiian_shirt/icon.png?v=44db67e351",
+      "dyes": {
+        "dye1": "teal",
+        "dye2": "mustard"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "headphones",
       "name": "Headphones",
       "category": "head",
@@ -3664,6 +3875,63 @@
       "default": false,
       "rarity": "legendary",
       "price": 520,
+      "release": "released"
+    },
+    {
+      "key": "hemlock_crow",
+      "name": "Hemlock's Crow",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 41,
+          "w": 7,
+          "h": 6,
+          "frames": 6,
+          "src": "/avatar-px/items/hemlock_crow/0-companion.png?v=59807fb33d"
+        }
+      ],
+      "icon": "/avatar-px/items/hemlock_crow/icon.png?v=a9b7cc5d09",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 260,
+      "release": "released"
+    },
+    {
+      "key": "hi_vis_vest",
+      "name": "Hi-Vis Vest",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/hi_vis_vest/0-torso.png?v=804f7c56e4",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hi_vis_vest/icon.png?v=9e3fab19ee",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 90,
       "release": "released"
     },
     {
@@ -3864,6 +4132,36 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "katana",
+      "name": "Katana",
+      "category": "back",
+      "parts": [
+        {
+          "slot": "back",
+          "anchor": "body",
+          "x": 8,
+          "y": 24,
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "src": "/avatar-px/items/katana/0-back.png?v=4f4f2cac60",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/katana/icon.png?v=81fc476fde",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
       "release": "released"
     },
     {
@@ -4068,6 +4366,36 @@
       "default": false,
       "rarity": "rare",
       "price": 190,
+      "release": "released"
+    },
+    {
+      "key": "magnet",
+      "name": "Magnet",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 4,
+          "y": 32,
+          "w": 6,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/magnet/0-held.png?v=56ec41e03c",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/magnet/icon.png?v=07138afcf9",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
       "release": "released"
     },
     {
@@ -5151,6 +5479,39 @@
       "release": "released"
     },
     {
+      "key": "ringer_tee",
+      "name": "Ringer Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/ringer_tee/0-torso.png?v=b1d3227f31",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/ringer_tee/icon.png?v=893f64b4c2",
+      "dyes": {
+        "dye1": "cloud",
+        "dye2": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "ripped_jeans",
       "name": "Ripped Jeans",
       "category": "legs",
@@ -5876,6 +6237,71 @@
       "release": "released"
     },
     {
+      "key": "tank_top",
+      "name": "Tank Top",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/tank_top/0-torso.png?v=659b333289",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tank_top/icon.png?v=818a482b5a",
+      "dyes": {
+        "dye1": "ash"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
+      "release": "released"
+    },
+    {
+      "key": "team_jersey",
+      "name": "Team Jersey",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/team_jersey/0-torso.png?v=fd614052e5",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/team_jersey/icon.png?v=b1c823a48e",
+      "dyes": {
+        "dye1": "ocean",
+        "dye2": "cloud"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "teddy_bear",
       "name": "Teddy Bear",
       "category": "held",
@@ -5938,6 +6364,93 @@
       "release": "released"
     },
     {
+      "key": "tie_dye_tee",
+      "name": "Tie-Dye Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/tie_dye_tee/0-torso.png?v=3dd42aedcc",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tie_dye_tee/icon.png?v=bb8ba2bbcc",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 150,
+      "release": "released"
+    },
+    {
+      "key": "tlaloc_warrior",
+      "name": "Little Warrior",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 21,
+          "y": 36,
+          "w": 8,
+          "h": 11,
+          "frames": 6,
+          "src": "/avatar-px/items/tlaloc_warrior/0-companion.png?v=262fe3c945"
+        }
+      ],
+      "icon": "/avatar-px/items/tlaloc_warrior/icon.png?v=9aa88be1b7",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "trophy",
+      "name": "Trophy",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 3,
+          "y": 25,
+          "w": 8,
+          "h": 14,
+          "frames": 1,
+          "src": "/avatar-px/items/trophy/0-held.png?v=8bfb3d6835",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/trophy/icon.png?v=e3049a0f6d",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
+      "release": "released"
+    },
+    {
       "key": "trousers",
       "name": "Trousers",
       "category": "legs",
@@ -5983,6 +6496,38 @@
       "release": "released"
     },
     {
+      "key": "turtleneck",
+      "name": "Turtleneck",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 33,
+          "w": 7,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/turtleneck/0-torso.png?v=f8e4d5c69f",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/turtleneck/icon.png?v=996bde4da4",
+      "dyes": {
+        "dye1": "coal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
       "key": "tutu",
       "name": "Tutu",
       "category": "legs",
@@ -6025,6 +6570,36 @@
       "default": false,
       "rarity": "rare",
       "price": 160,
+      "release": "released"
+    },
+    {
+      "key": "tuxedo_tee",
+      "name": "Tuxedo Tee",
+      "category": "torso",
+      "parts": [
+        {
+          "slot": "torso",
+          "anchor": "body",
+          "x": 12,
+          "y": 34,
+          "w": 7,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/tuxedo_tee/0-torso.png?v=5312fe75ea",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tuxedo_tee/icon.png?v=a51f260d93",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
       "release": "released"
     },
     {
@@ -6133,6 +6708,33 @@
       "default": false,
       "rarity": "common",
       "price": 50,
+      "release": "released"
+    },
+    {
+      "key": "will_o_wisp",
+      "name": "Will-o'-Wisp",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 20,
+          "y": 22,
+          "w": 12,
+          "h": 9,
+          "frames": 6,
+          "src": "/avatar-px/items/will_o_wisp/0-companion.png?v=ce48aa8b3d"
+        }
+      ],
+      "icon": "/avatar-px/items/will_o_wisp/icon.png?v=05866a903a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 360,
       "release": "released"
     },
     {

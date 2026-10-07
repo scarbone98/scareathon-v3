@@ -1,0 +1,12 @@
+# Platform staff only: yellow, with silver bands
+at: 12,34
+legend:
+  y = lime.3
+  g = lime.2
+  s = steel.3
+--- 0
+.ysysy.
+yysysyy
+sssssss
+g.ysyyg
+..sssss

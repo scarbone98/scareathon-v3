@@ -1,0 +1,12 @@
+# A plain tee with its collar and cuffs in another colour
+at: 12,34
+legend:
+  i = dye1.2
+  j = dye1.1
+  t = dye2.2
+--- 0
+.tiiit.
+tiiiiit
+iiiiijj
+t.iiiij
+..jiiij

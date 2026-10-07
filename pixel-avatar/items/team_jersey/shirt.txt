@@ -1,0 +1,13 @@
+# Number 7, stripes at the shoulders
+at: 12,34
+legend:
+  h = dye1.3
+  i = dye1.2
+  j = dye1.1
+  w = dye2.3
+--- 0
+.wiiiw.
+wiwwwiw
+iiiiwjj
+j.iiwij
+..jiiij
