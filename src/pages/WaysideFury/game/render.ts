@@ -1,6 +1,8 @@
 // The renderer only reads simulation state; all art is native-resolution pixel art.
 import { HEIGHT, WIDTH, activeHero, type Effect, type Enemy, type GameState, type HeroId, type Projectile } from "./sim";
 
+import { HUB_POINTS, LOCATIONS } from "./content";
+
 interface Sheet { url: string; w: number; h: number; frames: number }
 const SHEETS = {
   joe: { url: "/royale/joe_idle.png", w: 16, h: 24, frames: 6 },
@@ -41,6 +43,11 @@ export class Renderer {
     // A repeatable one-pixel shake preserves the crisp internal grid.
     if (s.hitStop > 0) c.translate(Math.sin(s.time * 93) > 0 ? 1 : -1, 0);
     this.drawGround(s);
+    if (s.scene === "overworld") {
+      this.taxi(s.x, s.y, s.faceX, s.faceY, s.time, s.moving);
+      c.restore();
+      return;
+    }
     for (const effect of s.effects) if (effect.kind === "dash" || effect.kind === "charge") this.effect(effect);
     const actors = [
       { y: s.y, draw: () => this.hero(s) },
@@ -77,11 +84,186 @@ export class Renderer {
   }
 
   private drawGround(s: GameState) {
+    if (s.scene === "overworld") { this.drawOverworld(s); return; }
+    if (s.scene === "hub") { this.drawHub(s); return; }
     if (s.scene === "dungeon" || s.scene === "realm") {
       this.drawDungeonGround(s);
       return;
     }
     this.drawYard(s.time);
+  }
+
+  private drawOverworld(s: GameState) {
+    this.rect(0, 24, WIDTH, HEIGHT - 24, "#21372f");
+    for (let y = 30; y < 166; y += 12) for (let x = 6; x < WIDTH; x += 18) {
+      const n = (x * 7 + y * 3) % 17;
+      this.rect(x, y, 3, 1, n < 9 ? "#304b39" : "#385440");
+      if (n < 5) this.rect(x + 1, y - 2, 1, 3, "#3c5941");
+    }
+    // A small river and a bridge make the atlas feel like a place.
+    for (let x = 0; x < WIDTH; x += 12) {
+      const y = 36 + Math.round(Math.sin(x * 0.03) * 7);
+      this.rect(x, y, 12, 8, "#355458");
+      this.rect(x, y + 2, 8, 1, "#4c6d6a");
+    }
+    this.road(61, 110, 111, 12, true);
+    this.road(160, 75, 12, 47, false);
+    this.road(160, 74, 98, 12, true);
+    this.road(246, 74, 12, 76, false);
+    this.road(139, 59, 12, 24, false);
+    this.road(140, 74, 29, 12, true);
+    for (const [x, y] of [[23, 72], [46, 47], [100, 65], [204, 56], [288, 62], [287, 137], [207, 151], [101, 149], [34, 150]]) this.tree(x, y);
+    this.rect(151, 40, 28, 2, "#a0845c");
+    this.rect(151, 47, 28, 2, "#a0845c");
+    for (const location of LOCATIONS) {
+      const { x, y } = location;
+      if (location.locked) {
+        this.rect(x - 10, y - 14, 20, 15, "#28212f");
+        this.rect(x - 7, y - 18, 14, 5, "#413244");
+        this.rect(x - 6, y - 11, 12, 1, "#a2678d");
+        this.rect(x - 3, y - 8, 6, 5, "#bf83a1");
+        this.rect(x - 2, y - 11, 4, 3, "#bf83a1");
+        this.text(location.name.toUpperCase(), x, y + 12, "#a4a19f", 7);
+        this.text("TAKEN OVER", x, y + 21, "#ae8296", 6);
+      } else if (location.id === "wayside") {
+        this.rect(x - 14, y - 17, 28, 18, "#977755");
+        this.rect(x - 18, y - 22, 36, 6, "#8d5d50");
+        this.rect(x - 13, y - 26, 26, 5, "#b3795b");
+        this.rect(x - 3, y - 8, 6, 9, "#29373c");
+        this.rect(x - 11, y - 12, 5, 5, "#ebc681");
+        this.rect(x + 6, y - 12, 5, 5, "#ebc681");
+        this.text("WAYSIDE", x, y + 12, "#ffe2a9", 8);
+      } else {
+        this.ctx.globalAlpha = 0.12;
+        this.disc(x, y - 5, 23, "#f28996");
+        this.ctx.globalAlpha = 1;
+        this.rect(x - 14, y - 12, 28, 14, "#42323e");
+        this.rect(x - 10, y - 17, 20, 5, "#684654");
+        this.rect(x - 6, y - 13, 12, 10, "#bc6c75");
+        this.rect(x - 3, y - 10, 6, 6, "#f0aa88");
+        this.text("BLAST SITE", x, y + 12, "#ffd6b0", 8);
+      }
+      if (!location.locked) {
+        this.rect(x - 2, y + 2, 4, 3, "#e7c88a");
+        if (Math.hypot(s.x - x, s.y - y) < 24) this.text("INTERACT", x, y - 34, "#fff3cf", 7);
+      }
+    }
+    this.rect(0, 166, WIDTH, 14, "#162b2b");
+    this.text("CHAPTER 1  //  THE BLAST SITE", 160, 174, "#90a893", 7);
+    this.rect(0, 0, WIDTH, 24, INK);
+  }
+
+  private road(x: number, y: number, w: number, h: number, horizontal: boolean) {
+    this.rect(x - 2, y - 2, w + 4, h + 4, "#536054");
+    this.rect(x, y, w, h, "#323e3e");
+    for (let k = 4; k < (horizontal ? w : h); k += 14) {
+      this.rect(horizontal ? x + k : x + w / 2, horizontal ? y + h / 2 : y + k, horizontal ? 6 : 1, horizontal ? 1 : 6, "#968a63");
+    }
+  }
+
+  private tree(x: number, y: number) {
+    this.shadow(x, y, 18);
+    this.rect(x - 2, y - 10, 4, 11, "#584c3e");
+    this.rect(x - 10, y - 20, 20, 12, "#182e2d");
+    this.rect(x - 7, y - 27, 14, 11, "#274336");
+    this.rect(x - 4, y - 30, 8, 7, "#34513a");
+    this.rect(x - 8, y - 19, 8, 2, "#3e5940");
+    this.rect(x + 1, y - 24, 4, 1, "#47634a");
+  }
+
+  private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
+    const c = this.ctx;
+    const horizontal = Math.abs(dx) >= Math.abs(dy);
+    const direction = horizontal ? (dx < 0 ? -1 : 1) : (dy < 0 ? -1 : 1);
+    c.save();
+    c.translate(Math.round(x), Math.round(y - 5));
+    if (!horizontal) c.rotate(Math.PI / 2);
+    if (direction < 0) c.scale(-1, 1);
+    // Headlights are three stepped translucent blocks, without blur.
+    c.globalAlpha = 0.09;
+    for (let k = 0; k < 3; k++) this.rect(13 + k * 5, -6 - k * 2, 6, 12 + k * 4, "#ffe4a4");
+    c.globalAlpha = 1;
+    this.rect(-12, -7, 24, 16, "#142326");
+    this.rect(-10, -9, 5, 3, "#151c25");
+    this.rect(5, -9, 5, 3, "#151c25");
+    this.rect(-10, 7, 5, 3, "#151c25");
+    this.rect(5, 7, 5, 3, "#151c25");
+    this.rect(-13, -6, 26, 12, "#b37e43");
+    this.rect(-12, -7, 24, 12, "#e3ae52");
+    this.rect(-11, -6, 22, 2, "#ffe096");
+    this.rect(-7, -5, 4, 9, "#263d46");
+    this.rect(3, -5, 4, 9, "#2b4751");
+    this.rect(-2, -5, 4, 9, "#f2c66b");
+    this.rect(-2, -3, 4, 3, "#ffe7a3");
+    this.rect(-1, -2, 2, 1, "#35404a");
+    this.rect(4, -2, 2, 2, "#f4c099");
+    for (let k = -9; k < 11; k += 4) this.rect(k, 4, 2, 1, "#4b453c");
+    this.rect(12, -4, 2, 3, "#fff2b7");
+    this.rect(12, 2, 2, 3, "#fff2b7");
+    this.rect(-13, -4, 2, 2, "#de7974");
+    this.rect(-13, 3, 2, 2, "#de7974");
+    if (moving && Math.floor(time * 8) % 2 === 0) this.rect(-17, 2, 2, 2, "#6c7965");
+    c.restore();
+  }
+
+  private drawHub(s: GameState) {
+    this.rect(0, 24, WIDTH, HEIGHT - 24, "#2c4337");
+    for (let y = 34; y < 146; y += 12) for (let x = 5; x < WIDTH; x += 18) {
+      this.rect(x, y, 2, 3, "#476144");
+      this.rect(x + 3, y + 2, 2, 1, "#587251");
+    }
+    this.rect(31, 115, 258, 22, "#786e55");
+    this.rect(80, 83, 24, 54, "#786e55");
+    this.rect(207, 83, 24, 54, "#786e55");
+    this.rect(147, 125, 26, 30, "#786e55");
+    for (let x = 34; x < 288; x += 10) this.rect(x, 116, 7, 2, "#95836a");
+    this.road(0, 143, WIDTH, 23, true);
+    for (const point of HUB_POINTS) {
+      if (point.id !== "taxi") this.building(point.x, point.y, point.id === "shop");
+    }
+    this.tree(18, 81); this.tree(300, 82);
+    this.tree(34, 134); this.tree(286, 134);
+    this.lamp(56, 111, s.time); this.lamp(261, 111, s.time);
+    this.rect(139, 99, 42, 5, "#715f4c");
+    this.rect(142, 104, 3, 6, "#253b35");
+    this.rect(175, 104, 3, 6, "#253b35");
+    this.taxi(160, 151, 1, 0, s.time, false);
+    for (const point of HUB_POINTS) {
+      if (Math.hypot(s.x - point.x, s.y - point.y) < 24) this.text("INTERACT", point.x, point.y + 16, "#fff3cf", 7);
+    }
+    this.rect(0, 166, WIDTH, 14, "#182d2b");
+    this.text("WAYSIDE  //  HOME IS STILL HERE", 160, 174, "#a5b49b", 7);
+    this.rect(0, 0, WIDTH, 24, INK);
+  }
+
+  private building(x: number, y: number, shop: boolean) {
+    this.rect(x - 34, y - 37, 68, 36, shop ? "#a08461" : "#8c8d75");
+    this.rect(x - 33, y - 36, 66, 3, "#d3b98d");
+    for (let k = 0; k < 4; k++) this.rect(x - 31, y - 27 + k * 7, 62, 1, shop ? "#877055" : "#747a68");
+    // Stepped roofs have deliberate GBA-sized shapes.
+    for (let k = 0; k < 5; k++) this.rect(x - 38 + k * 3, y - 40 - k * 3, 76 - k * 6, 4, shop ? "#87624f" : "#526c67");
+    this.rect(x - 25, y - 50, 50, 2, shop ? "#bc9166" : "#88a195");
+    this.rect(x + 23, y - 56, 7, 12, "#78685d");
+    this.rect(x + 21, y - 57, 11, 3, "#a29379");
+    this.rect(x - 6, y - 17, 12, 17, "#24353a");
+    this.rect(x - 4, y - 16, 8, 15, "#4a5450");
+    this.rect(x + 2, y - 8, 1, 2, "#e3c48a");
+    for (const dx of [-23, 15]) {
+      this.rect(x + dx - 1, y - 23, 10, 13, "#525747");
+      this.rect(x + dx, y - 22, 8, 10, "#efc98b");
+      this.rect(x + dx + 3, y - 22, 1, 10, "#8d7755");
+      this.rect(x + dx, y - 18, 8, 1, "#8d7755");
+    }
+    this.rect(x - 20, y - 34, 40, 11, "#263a38");
+    this.text(shop ? "SHOP" : "HOME", x, y - 28, "#ffe4ac", 8);
+    this.rect(x - 9, y - 1, 18, 3, "#b3a183");
+    if (shop) {
+      this.rect(x - 29, y - 8, 9, 8, "#715247");
+      this.rect(x - 27, y - 11, 2, 4, "#f4c374");
+      this.rect(x - 23, y - 11, 2, 4, "#ee9481");
+      this.rect(x + 23, y - 7, 4, 7, "#4c6048");
+      this.rect(x + 21, y - 10, 8, 4, "#6d8554");
+    }
   }
 
   private drawYard(time: number) {

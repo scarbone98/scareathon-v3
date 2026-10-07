@@ -1,3 +1,4 @@
+import { HUB_POINTS, LOCATIONS, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 // Pure deterministic game rules. World coordinates are pixels at 320 x 180.
 export const WIDTH = 320;
 export const HEIGHT = 180;
@@ -41,7 +42,7 @@ export type GameEvent =
 export interface GameState {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   active: HeroId; time: number; scene: Scene; room: number;
-  heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
@@ -65,7 +66,7 @@ function random(s: GameState) {
 export function newGame(seed = 8591): GameState {
   const s: GameState = { x: 75, y: 110, faceX: 1, faceY: 0, moving: false,
     active: "joe", time: 0, scene: "test", room: 0,
-    heroes: { joe: hero("joe"), matt: hero("matt") }, enemies: [], projectiles: [],
+    overlay: null, heroes: { joe: hero("joe"), matt: hero("matt") }, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
@@ -83,12 +84,15 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
   return e;
 }
 export function enterScene(s: GameState, scene: Scene, room = 0): void {
-  s.scene = scene; s.room = room; s.x = 45; s.y = 108;
+  s.scene = scene; s.overlay = null; s.room = room; s.x = 45; s.y = 108;
   s.faceX = 1; s.faceY = 0; s.moving = false;
   s.enemies = []; s.projectiles = []; s.effects = []; s.floaters = [];
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
   s.dashTimer = 0; s.guard = false; s.hitStop = 0;
   s.previousInput = idleInput();
+  if (scene === "overworld") { s.x = 85; s.y = 122; s.notice = "Chapter 1: drive to the Blast Site. Pull over at a marker."; }
+  if (scene === "hub") { s.x = 160; s.y = 123; s.notice = "Wayside: stock up at the SHOP; rest and save at HOME."; }
+  if (scene === "dungeon") s.notice = "The Blast Site is ahead. Investigation begins in the next milestone.";
   if (scene === "test") {
     s.x = 75;
     addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
@@ -251,11 +255,40 @@ function updateVisuals(s: GameState, dt: number) {
   s.floaters = s.floaters.filter(f => f.ttl > 0);
   s.effects = s.effects.filter(e => e.ttl > 0);
 }
+export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
+  if (s.scene === "dungeon" && s.x < 60) return { id: "exit", name: "Return to taxi" };
+  const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
+  return points.find(p => Math.hypot(s.x - p.x, s.y - p.y) < 25) ?? null;
+}
+export function interact(s: GameState): void {
+  const target = interactTarget(s);
+  if (!target) return;
+  if (target.id === "exit") { enterScene(s, "overworld"); return; }
+  if (target.locked) { s.notice = `${target.name}: taken over. A later chapter will open this route.`; return; }
+  if (s.scene === "overworld") { enterScene(s, target.id === "wayside" ? "hub" : "dungeon"); return; }
+  if (target.id === "taxi") { enterScene(s, "overworld"); return; }
+  if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.moving = false; s.notice = ""; }
+}
+export function restAtHome(s: GameState): void {
+  for (const h of Object.values(s.heroes)) { h.hp = h.maxHp; h.ki = h.maxKi; h.stamina = h.maxStamina; }
+  if (!s.areas.includes("wayside")) s.areas.push("wayside");
+  s.events.push({ type: "checkpoint", id: "home" }); s.notice = "Rested. HOME is your retry checkpoint.";
+}
+export function buyItem(s: GameState, id: ShopItemId): boolean {
+  const item = SHOP_ITEMS.find(item => item.id === id)!;
+  if (s.candy < item.cost) { s.notice = "Not enough candy. Monsters drop more."; return false; }
+  if (id === "heal" && activeHero(s).hp >= activeHero(s).maxHp) { s.notice = "Already at full HP."; return false; }
+  s.candy -= item.cost;
+  if (id === "heal") activeHero(s).hp = Math.min(activeHero(s).maxHp, activeHero(s).hp + 55);
+  else for (const h of Object.values(s.heroes)) { if (id === "power") h.power += 2; else h.defense++; }
+  s.notice = `${item.name} purchased.`; return true;
+}
 export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
   s.events.length = 0; s.time += dt;
   updateVisuals(s, dt);
   if (s.scene === "dead" || s.scene === "results" || s.scene === "prologue" || s.scene === "shift") return;
+  if (s.overlay) { s.previousInput = { ...input }; s.moving = false; return; }
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
   s.previousInput = { ...input };
@@ -288,7 +321,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.x = clamp(s.x + s.faceX * speed * strength * dt, 14, WIDTH - 14);
     s.y = clamp(s.y + s.faceY * speed * strength * dt, 48, HEIGHT - 13);
   }
-  if (!combat) { s.charge = 0; return; }
+  if (!combat) { s.charge = 0; if (input.interact && !previous.interact) interact(s); return; }
   if (input.attack && !previous.attack && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
   if (input.ki && s.dashTimer === 0 && !s.guard) {
     s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32);

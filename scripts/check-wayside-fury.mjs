@@ -1,7 +1,10 @@
 // Exercise the pure simulation headlessly, as the Horde Rush balance script does.
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
-import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome } from '../src/pages/WaysideFury/game/sim.ts';
+
+import { LOCATIONS, HUB_POINTS, SHOP_ITEMS } from '../src/pages/WaysideFury/game/content.ts';
+import { SAVE_KEY, readSave, writeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
 
 const DT = 1 / 60;
 const tick = (s, buttons = {}, frames = 1) => {
@@ -128,4 +131,96 @@ const scene = newGame(); enterScene(scene, 'overworld');
 assert.equal(scene.enemies.length, 0); assert.equal(scene.projectiles.length, 0);
 const taxiX = scene.x; tick(scene, { x: 1, attack: true, ki: true }, 20);
 assert.ok(scene.x > taxiX + 30); assert.equal(scene.projectiles.length, 0);
-console.log('Wayside Fury simulation: combat, Ki signatures, guard/dash, tagging, growth, death and determinism pass.');
+// Taxi travel is faster, peaceful, and requires pulling over at open markers.
+const walker = emptyRoom(), taxi = emptyRoom();
+enterScene(walker, 'hub'); enterScene(taxi, 'overworld');
+walker.x = taxi.x = 100;
+tick(walker, { x: 1 }, 30); tick(taxi, { x: 1, attack: true, ki: true, dash: true, guard: true }, 30);
+assert.ok(taxi.x - 100 > (walker.x - 100) * 1.5);
+assert.equal(taxi.enemies.length, 0); assert.equal(taxi.projectiles.length, 0);
+assert.equal(taxi.attackTimer, 0); assert.equal(taxi.dashTimer, 0); assert.equal(taxi.guard, false);
+for (const marker of LOCATIONS.filter(p => p.locked)) {
+  taxi.x = marker.x; taxi.y = marker.y;
+  assert.equal(interactTarget(taxi).id, marker.id);
+  interact(taxi); assert.equal(taxi.scene, 'overworld');
+  assert.ok(taxi.notice.includes('taken over'));
+}
+const wayside = LOCATIONS.find(p => p.id === 'wayside');
+taxi.x = wayside.x; taxi.y = wayside.y; tick(taxi, { interact: true });
+assert.equal(taxi.scene, 'hub');
+for (const point of HUB_POINTS.filter(p => p.id !== 'taxi')) {
+  taxi.overlay = null; taxi.x = point.x; taxi.y = point.y;
+  tick(taxi); tick(taxi, { interact: true }); assert.equal(taxi.overlay, point.id);
+  const frozenX = taxi.x; tick(taxi, { x: 1, attack: true }, 20); assert.equal(taxi.x, frozenX);
+}
+
+// Shop costs are exact, healing caps at max HP, and charms help both heroes.
+const shop = emptyRoom(); shop.candy = 100; shop.heroes.joe.hp = 20;
+const tonic = SHOP_ITEMS.find(item => item.id === 'heal');
+assert.equal(buyItem(shop, 'heal'), true);
+assert.equal(shop.heroes.joe.hp, 75); assert.equal(shop.candy, 100 - tonic.cost);
+assert.equal(buyItem(shop, 'heal'), true); assert.equal(shop.heroes.joe.hp, 100);
+const noNeedCandy = shop.candy;
+assert.equal(buyItem(shop, 'heal'), false); assert.equal(shop.candy, noNeedCandy);
+const stats = Object.fromEntries(Object.entries(shop.heroes).map(([id, h]) => [id, { power: h.power, defense: h.defense }]));
+assert.equal(buyItem(shop, 'power'), true); assert.equal(buyItem(shop, 'defense'), true);
+for (const [id, h] of Object.entries(shop.heroes)) {
+  assert.equal(h.power, stats[id].power + 2); assert.equal(h.defense, stats[id].defense + 1);
+}
+shop.candy = 0; const poorStats = JSON.stringify(shop.heroes);
+assert.equal(buyItem(shop, 'power'), false); assert.equal(shop.candy, 0);
+assert.equal(JSON.stringify(shop.heroes), poorStats);
+
+// HOME rests both heroes, unlocks Wayside progress once, and raises a checkpoint.
+const home = emptyRoom(); enterScene(home, 'hub');
+for (const h of Object.values(home.heroes)) { h.hp = 1; h.ki = 0; h.stamina = 0; }
+restAtHome(home);
+for (const h of Object.values(home.heroes)) {
+  assert.equal(h.hp, h.maxHp); assert.equal(h.ki, h.maxKi); assert.equal(h.stamina, h.maxStamina);
+}
+assert.deepEqual(home.areas, ['wayside']);
+assert.ok(home.events.some(e => e.type === 'checkpoint' && e.id === 'home'));
+restAtHome(home); assert.deepEqual(home.areas, ['wayside']);
+
+// Browser storage is replaceable, guarded, and preserves the HOME retry snapshot.
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+const entries = new Map();
+const storage = { getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value) };
+Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true });
+try {
+  assert.equal(readSave(), null);
+  home.active = 'matt'; home.candy = 19;
+  const firstSave = writeSave(home, null, true);
+  assert.ok(firstSave); assert.equal(firstSave.home.candy, 19);
+  home.candy = 87; home.heroes.joe.level = 2; home.heroes.joe.xp = 7; home.heroes.joe.maxHp = 120;
+  home.heroes.joe.hp = 0; home.heroes.matt.hp = 22; home.areas.push('blast');
+  home.clearedRooms.push('blast-1'); home.bosses.push('blast-boss'); home.deaths = 2;
+  firstSave.lastReported = { areas: ['wayside'], bosses: [], rooms: ['blast-1'], level: 2 };
+  const nextSave = writeSave(home, firstSave);
+  assert.ok(nextSave); assert.equal(nextSave.home.candy, 19, 'ordinary saves retain HOME snapshot');
+  const saved = readSave(); assert.ok(saved); assert.deepEqual(saved, nextSave);
+  assert.deepEqual(saved.lastReported, firstSave.lastReported);
+  assert.deepEqual(saved.unlockedHeroes, ['joe', 'matt']);
+  const continued = restoreSave(saved);
+  assert.equal(continued.scene, 'hub'); assert.equal(continued.candy, 87);
+  assert.equal(continued.heroes.joe.level, 2); assert.equal(continued.active, 'matt');
+  const retried = restoreSave(saved, true);
+  assert.equal(retried.scene, 'hub'); assert.equal(retried.candy, 19);
+  assert.equal(retried.heroes.joe.level, 1, 'retry restores HOME hero stats');
+  assert.equal(retried.active, 'matt'); assert.equal(retried.deaths, 2);
+  assert.deepEqual(retried.areas, ['wayside', 'blast']);
+  assert.deepEqual(retried.clearedRooms, ['blast-1']); assert.deepEqual(retried.bosses, ['blast-boss']);
+  for (const h of Object.values(retried.heroes)) { assert.equal(h.hp, h.maxHp); assert.equal(h.ki, h.maxKi); }
+  retried.heroes.joe.hp = 5;
+  assert.equal(saved.home.heroes.joe.hp, 100, 'restoring copies snapshot hero objects');
+  for (const raw of ['{broken', 'null', '[]', '{}', JSON.stringify({ ...saved, version: 999 }), 'x'.repeat(65537)]) {
+    entries.set(SAVE_KEY, raw); assert.equal(readSave(), null, 'malformed or unsupported save ignored');
+  }
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('storage blocked'); } });
+  assert.doesNotThrow(() => readSave()); assert.equal(readSave(), null);
+  assert.doesNotThrow(() => writeSave(home, saved)); assert.equal(writeSave(home, saved), null);
+} finally {
+  if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
+  else delete globalThis.localStorage;
+}
+console.log('Wayside Fury simulation: combat, deterministic replay, taxi/hub/shop/HOME and save/retry checks pass.');
