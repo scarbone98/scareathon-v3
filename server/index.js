@@ -10,6 +10,7 @@ import postsRoutes, { getPostsPayload, getRecentPostsPayload } from './routes/po
 import leaderboardRoutes from './routes/leaderboard.js';
 import scareathonRoutes from './routes/scareathon.js';
 import { ensureScareathonTables, runStartupSql } from './utils/scareathon.js';
+import { SCAREATHON_GIFT_SQL } from './utils/scareathonGift.js';
 import { readFile } from 'node:fs/promises';
 import waysideRoutes, { ensureDailyRuneIndex } from './routes/wayside.js';
 import weeklyChallengeRoutes from './routes/weeklyChallenges.js';
@@ -156,6 +157,13 @@ async function main() {
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');
+            }
+            // A gift in every player's inbox, for the Scareathon (those who have theirs are passed
+            // over). On its own: nothing above waits on it, and it doesn't wait on what failed above
+            try {
+                await runStartupSql(pool, SCAREATHON_GIFT_SQL);
+            } catch (err) {
+                fastify.log.error({ err }, 'Could not send the Scareathon gifts');
             }
         })();
 

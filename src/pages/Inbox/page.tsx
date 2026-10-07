@@ -31,6 +31,7 @@ import { fetchWithAuth } from "../../fetchWithAuth";
 import { supabase } from "../../supabaseClient";
 import "../../styles/inbox.css";
 import NewsDot from "../../components/NewsDot";
+import GiftBox, { type GiftItem } from "./GiftBox";
 import type {
   InboxConversation,
   InboxMessage,
@@ -184,13 +185,23 @@ function RewardCard({
   onClaim,
   isClaiming,
   error,
+  gift = false,
+  opened = null,
 }: {
   reward: InboxReward;
   onClaim: (reward: InboxReward) => void;
   isClaiming: boolean;
   error: string | null;
+  // sent as a gift: wrapped up, and opened with some ceremony (GiftBox)
+  gift?: boolean;
+  // what was in it, if it's been opened just now
+  opened?: GiftItem | null;
 }) {
   const isPending = reward.status === "pending";
+  // (still the gift box once it's claimed, for as long as you're looking at what came out of it)
+  if (gift && (isPending || opened)) {
+    return <GiftBox item={opened} isClaiming={isClaiming} error={error} onOpen={() => onClaim(reward)} />;
+  }
 
   return (
     <div className="inbox-reward">
@@ -211,7 +222,7 @@ function RewardCard({
         </button>
       ) : (
         <span className="inbox-reward-done">
-          <FaCheck aria-hidden="true" /> Added to your wallet
+          <FaCheck aria-hidden="true" /> {reward.itemId && !reward.coinAmount ? "In your locker" : "Added to your wallet"}
         </span>
       )}
       {error && <p className="inbox-error inbox-reward-error">{error}</p>}
@@ -417,6 +428,7 @@ function ConversationThread({
   const restoreScrollFrom = useRef<number | null>(null);
   const newestShownId = useRef<number | null>(null);
   const [claimErrorByRewardId, setClaimErrorByRewardId] = useState<Record<number, string>>({});
+  const [openedByRewardId, setOpenedByRewardId] = useState<Record<number, GiftItem>>({});
 
   // Pages go newest-first: the first page is the latest messages, older pages load on demand
   const messagesQuery = useInfiniteQuery({
@@ -479,10 +491,13 @@ function ConversationThread({
 
   const claimMutation = useMutation({
     mutationFn: ({ rewardId }: { rewardId: number }) =>
-      inboxPost<{ data: { reward: InboxReward; coinBalance: number | null } }>(
+      inboxPost<{ data: { reward: InboxReward; coinBalance: number | null; item?: GiftItem | null } }>(
         `/inbox/rewards/${rewardId}/claim`
       ),
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (data, variables) => {
+      // (what was in it: a gift box shows it coming out)
+      const item = data.data.item;
+      if (item) setOpenedByRewardId((current) => ({ ...current, [variables.rewardId]: item }));
       setClaimErrorByRewardId((current) => {
         const next = { ...current };
         delete next[variables.rewardId];
@@ -566,6 +581,8 @@ function ConversationThread({
                           claimMutation.variables?.rewardId === message.reward.id
                         }
                         error={claimErrorByRewardId[message.reward.id] || null}
+                        gift={message.metadata?.kind === "gift"}
+                        opened={openedByRewardId[message.reward.id] ?? null}
                       />
                     )}
                   </div>

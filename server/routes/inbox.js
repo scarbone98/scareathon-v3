@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { serializeAvatarItemV2 } from '../utils/avatarV2.js';
 
 const MAX_BODY_LENGTH = 4000;
 const MAX_SUBJECT_LENGTH = 120;
@@ -788,7 +789,11 @@ async function routes(fastify, options) {
             }
 
             const grantedItemInstanceIds = [];
+            // (what the item is, for whoever's opening it: a gift is wrapped until it's claimed)
+            let item = null;
             if (reward.item_id && reward.item_quantity) {
+                const itemRow = await client.query('SELECT * FROM avatar_items WHERE id = $1', [reward.item_id]);
+                item = itemRow.rows[0] ? serializeAvatarItemV2(itemRow.rows[0]) : null;
                 for (let index = 0; index < reward.item_quantity; index += 1) {
                     const itemResult = await client.query(`
                         SELECT public.grant_item_instance($1, $2, $3, $4, $5::jsonb) AS item_instance_id
@@ -823,6 +828,7 @@ async function routes(fastify, options) {
                 data: {
                     reward: serializeReward(updateResult.rows[0]),
                     coinBalance,
+                    item,
                 },
             };
         } catch (error) {
