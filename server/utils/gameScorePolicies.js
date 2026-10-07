@@ -54,6 +54,11 @@ export const GAME_SCORE_POLICIES = new Map([
         score: { min: 0, max: 1000000000, integer: true },
         tickets: { from: 300, full: 50000 },
     }],
+    // Checkpoints report only new areas, bosses, rooms and levels since the last save.
+    ['Wayside Fury', {
+        score: { min: 0, max: 100000, integer: true },
+        tickets: { from: 0, full: 1000 },
+    }],
     // Even a quick loss scores around 11000.
     ['Frog Ball', {
         score: { min: 0, max: 10000000, integer: true },

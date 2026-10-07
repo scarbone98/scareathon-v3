@@ -11,8 +11,11 @@ import { isNewGame } from "./news.ts";
 
 // The attract videos play from Supabase Storage (npm run upload:recordings) rather than
 // public/, so they aren't copied into every deployment; their stills stay in public/
+// This module deliberately exports arcade data and embeds its renderers.
+// eslint-disable-next-line react-refresh/only-export-components
 const RECORDINGS = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/game-recordings`;
 
+// eslint-disable-next-line react-refresh/only-export-components
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
 interface CustomWindow extends Window {
@@ -83,6 +86,7 @@ const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b42
 // (index.mobile.pck), desktops the full set.
 const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=90b0b37";
 const HORDE_RUSH_URL = "/horde-rush";
+const WAYSIDE_FURY_URL = "/wayside-fury";
 const CASINO_URL = "/casino";
 const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
@@ -694,6 +698,29 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Horde Rush", HORDE_RUSH_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "Wayside Fury",
+      earlyAccess: true,
+      availableOnMobile: true,
+      added: "Wed 2026-10-07 9:00 AM PDT (UTC-07:00)",
+      cartridge: {
+        color: "#b34836",
+        tagline: "Five years later, the real evil arrives.",
+        font: { family: "Bangers" },
+        about: { released: "2026", players: "Single player", genre: "Action RPG", developer: "szaneer" },
+      },
+      game: (
+        <GameRenderer
+          title="Wayside Fury"
+          url={WAYSIDE_FURY_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Wayside Fury", WAYSIDE_FURY_URL)
           }
         />
       ),

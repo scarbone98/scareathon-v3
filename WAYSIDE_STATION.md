@@ -71,7 +71,7 @@ vent shows NO SIGNAL bars, shaking the phone rocks the machine, drops dust and c
   Every pushed branch deploys, so push `main` only and batch changes.
 - The API (Railway, `server/`) must list every live origin in its CORS allowlist (`server/index.js`).
   Missing waysidestation.com once broke all data on phones ("LOAD FAILED").
-- The in-site games (`/horde-rush`, `/frog-ball`, ...) and `/reset-password` are classic routes the station
+- The in-site games (`/horde-rush`, `/wayside-fury`, `/frog-ball`, ...) and `/reset-password` are classic routes the station
   still uses. They must survive when the classic site is removed (see the design doc's Switch-over plan).
 
 ## Gotchas
