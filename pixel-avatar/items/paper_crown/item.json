@@ -1,0 +1,17 @@
+{
+  "name": "Paper Crown",
+  "category": "head",
+  "rarity": "common",
+  "price": 50,
+  "release": "released",
+  "dyes": {
+    "dye1": "mustard"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

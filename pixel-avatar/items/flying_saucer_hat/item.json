@@ -1,0 +1,15 @@
+{
+  "name": "Flying Saucer",
+  "category": "head",
+  "rarity": "epic",
+  "price": 360,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

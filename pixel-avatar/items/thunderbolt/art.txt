@@ -1,0 +1,45 @@
+# Crackling
+at: 6,27
+legend:
+  y = flame.2
+  w = flame.3
+--- 0
+...yy
+..yy
+.yy
+yyyyy
+...yy
+..yy
+.yy
+yy
+y
+--- 1
+...ww
+..ww
+.ww
+wwwww
+...ww
+..ww
+.ww
+ww
+w
+--- 3
+...yw
+..yw
+.yw
+ywwwy
+...yw
+..yw
+.yw
+yw
+y
+--- 4
+...ww
+..ww
+.ww
+wwwww
+...ww
+..ww
+.ww
+ww
+w

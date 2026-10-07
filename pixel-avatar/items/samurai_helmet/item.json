@@ -1,0 +1,15 @@
+{
+  "name": "Samurai Helmet",
+  "category": "head",
+  "rarity": "rare",
+  "price": 220,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

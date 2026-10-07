@@ -1,0 +1,9 @@
+# Pink and yellow flowers on a green band
+at: 11,23
+legend:
+  p = rose.2
+  y = mustard.3
+  g = leaf.2
+--- 0
+.p.y.p.y
+gpgygpgyg

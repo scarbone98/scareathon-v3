@@ -1,0 +1,10 @@
+# White, with a blue band
+at: 11,22
+legend:
+  w = bone.3
+  s = bone.2
+  b = denim.2
+--- 0
+..wwwwww
+.wwwwwwws
+.bbbbbbbb

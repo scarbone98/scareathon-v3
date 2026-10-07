@@ -1,0 +1,18 @@
+# For practice
+at: 8,25
+legend:
+  s = wood.3
+  d = wood.2
+  k = wood.0
+--- 0
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+ddd
+.k
+.k

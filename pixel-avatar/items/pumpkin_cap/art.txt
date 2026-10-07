@@ -1,0 +1,14 @@
+# The top of a pumpkin, stalk and all
+at: 11,20
+legend:
+  p = pumpkin.2
+  h = pumpkin.3
+  d = pumpkin.1
+  g = leaf.2
+  l = leaf.3
+--- 0
+....lg
+....g
+.pphpppp
+pphpppdpp
+pphpppdpp

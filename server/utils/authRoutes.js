@@ -22,6 +22,8 @@ export function isPublicRoute(method, url) {
         // Monster Bash spectating (the live socket and past results) is open to
         // guests; betting, chat and /me need a login.
         (method === 'GET' && (url.startsWith('/monster-bash/ws') || url.startsWith('/monster-bash/recent'))) ||
+        // The capsule machine's price and odds are on its glass for all to see (a turn needs a login)
+        (method === 'GET' && url.startsWith('/capsule/machine')) ||
         // Anyone can watch the casino's races; betting needs a login.
         (method === 'GET' && url.startsWith('/casino/racing/ws')) ||
         // Crypt Clash friend matches are open to guests.

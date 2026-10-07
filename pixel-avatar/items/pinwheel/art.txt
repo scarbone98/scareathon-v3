@@ -1,0 +1,75 @@
+# It spins
+at: 7,27
+legend:
+  r = blood.3
+  b = ocean.3
+  y = mustard.3
+  g = leaf.3
+  k = ink.1
+  s = bone.2
+--- 0
+r.b
+.k
+y.g
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 1
+.r
+ykb
+.g
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 2
+y.r
+.k
+g.b
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 3
+.y
+gkr
+.b
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 4
+g.y
+.k
+b.r
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 5
+.g
+bky
+.r
+.s
+.s
+.s
+.s
+.s
+.s
+.s

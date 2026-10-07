@@ -1,0 +1,14 @@
+# Steel, with two horns
+at: 10,21
+legend:
+  w = bone.3
+  b = bone.2
+  s = steel.2
+  t = steel.3
+  d = steel.1
+--- 0
+w.........w
+wb.ssssss.bw
+.bsstsssssb
+..ssssssss
+..dddddddd

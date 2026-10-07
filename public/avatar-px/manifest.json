@@ -1485,6 +1485,33 @@
       "release": "released"
     },
     {
+      "key": "antlers",
+      "name": "Antlers",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 17,
+          "w": 13,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/antlers/0-head.png?v=6ed6600fee"
+        }
+      ],
+      "icon": "/avatar-px/items/antlers/icon.png?v=2c8b9f5602",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 170,
+      "release": "released"
+    },
+    {
       "key": "backpack",
       "name": "Backpack",
       "category": "back",
@@ -1907,6 +1934,35 @@
       "release": "released"
     },
     {
+      "key": "beret",
+      "name": "Beret",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 21,
+          "w": 9,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/beret/0-head.png?v=fc9c16a2dc"
+        }
+      ],
+      "icon": "/avatar-px/items/beret/icon.png?v=86ecd78501",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "black_cat",
       "name": "Black Cat",
       "category": "companion",
@@ -2267,6 +2323,36 @@
       "release": "released"
     },
     {
+      "key": "bone_club",
+      "name": "Bone Club",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 26,
+          "w": 3,
+          "h": 11,
+          "frames": 1,
+          "src": "/avatar-px/items/bone_club/0-held.png?v=0dd5f17e65",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bone_club/icon.png?v=3bf358a324",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
       "key": "bone_wings",
       "name": "Bone Wings",
       "category": "wings",
@@ -2295,6 +2381,36 @@
       "default": false,
       "rarity": "epic",
       "price": 340,
+      "release": "released"
+    },
+    {
+      "key": "boombox",
+      "name": "Boombox",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 3,
+          "y": 35,
+          "w": 8,
+          "h": 4,
+          "frames": 3,
+          "src": "/avatar-px/items/boombox/0-held.png?v=c4a759fecb",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/boombox/icon.png?v=b73e8ffb57",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
       "release": "released"
     },
     {
@@ -2327,6 +2443,36 @@
       "default": true,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "bouquet",
+      "name": "Bouquet",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 29,
+          "w": 5,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/bouquet/0-held.png?v=a61e032b9a",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/bouquet/icon.png?v=a5cd36cd8b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
       "release": "released"
     },
     {
@@ -2386,6 +2532,35 @@
       "default": false,
       "rarity": "uncommon",
       "price": 200,
+      "release": "released"
+    },
+    {
+      "key": "bucket_hat",
+      "name": "Bucket Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 21,
+          "w": 11,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/bucket_hat/0-head.png?v=ce3616f4ec"
+        }
+      ],
+      "icon": "/avatar-px/items/bucket_hat/icon.png?v=3a648de06f",
+      "dyes": {
+        "dye1": "pine"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
@@ -2976,6 +3151,36 @@
       "release": "released"
     },
     {
+      "key": "crystal_ball",
+      "name": "Crystal Ball",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 31,
+          "w": 5,
+          "h": 6,
+          "frames": 5,
+          "src": "/avatar-px/items/crystal_ball/0-held.png?v=762edbf322",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/crystal_ball/icon.png?v=b6c1f751a7",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
+      "release": "released"
+    },
+    {
       "key": "devil_horns",
       "name": "Devil Horns",
       "category": "head",
@@ -3137,6 +3342,100 @@
       "release": "released"
     },
     {
+      "key": "dragon_egg",
+      "name": "Dragon Egg",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 31,
+          "w": 6,
+          "h": 6,
+          "frames": 5,
+          "src": "/avatar-px/items/dragon_egg/0-held.png?v=ae11fc087e",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/dragon_egg/icon.png?v=4e43e88b35",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 320,
+      "release": "released"
+    },
+    {
+      "key": "earmuffs",
+      "name": "Earmuffs",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 23,
+          "w": 12,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/earmuffs/0-head.png?v=45ab1d9a68",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/earmuffs/icon.png?v=eb1240b3d4",
+      "dyes": {
+        "dye1": "rose"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "electric_guitar",
+      "name": "Electric Guitar",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 27,
+          "w": 6,
+          "h": 10,
+          "frames": 1,
+          "src": "/avatar-px/items/electric_guitar/0-held.png?v=77f55bb080",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/electric_guitar/icon.png?v=0b46d6ae93",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
+      "release": "released"
+    },
+    {
       "key": "emerald_pinball",
       "name": "Emerald Pinball",
       "category": "companion",
@@ -3252,6 +3551,33 @@
       "release": "released"
     },
     {
+      "key": "fez",
+      "name": "Fez",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 12,
+          "y": 20,
+          "w": 9,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/fez/0-head.png?v=5f1e79ce57"
+        }
+      ],
+      "icon": "/avatar-px/items/fez/icon.png?v=d98e9ff732",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "fireflies",
       "name": "Fireflies",
       "category": "aura",
@@ -3276,6 +3602,36 @@
       "default": false,
       "rarity": "rare",
       "price": 280,
+      "release": "released"
+    },
+    {
+      "key": "fishbowl",
+      "name": "Fishbowl",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 32,
+          "w": 5,
+          "h": 5,
+          "frames": 5,
+          "src": "/avatar-px/items/fishbowl/0-held.png?v=ed399a438f",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/fishbowl/icon.png?v=c32258df7e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
       "release": "released"
     },
     {
@@ -3306,6 +3662,33 @@
       "default": false,
       "rarity": "uncommon",
       "price": 130,
+      "release": "released"
+    },
+    {
+      "key": "flame_crown",
+      "name": "Flame Crown",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 19,
+          "w": 9,
+          "h": 5,
+          "frames": 6,
+          "src": "/avatar-px/items/flame_crown/0-head.png?v=0209222437"
+        }
+      ],
+      "icon": "/avatar-px/items/flame_crown/icon.png?v=2750ca3678",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 340,
       "release": "released"
     },
     {
@@ -3458,6 +3841,92 @@
       "release": "released"
     },
     {
+      "key": "flower_crown",
+      "name": "Flower Crown",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 23,
+          "w": 9,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/flower_crown/0-head.png?v=add4e853b1"
+        }
+      ],
+      "icon": "/avatar-px/items/flower_crown/icon.png?v=c387a0c7bc",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "flying_saucer_hat",
+      "name": "Flying Saucer",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 18,
+          "w": 13,
+          "h": 5,
+          "frames": 5,
+          "src": "/avatar-px/items/flying_saucer_hat/0-head.png?v=34bb28a1d3"
+        }
+      ],
+      "icon": "/avatar-px/items/flying_saucer_hat/icon.png?v=bee2e0e6d6",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 360,
+      "release": "released"
+    },
+    {
+      "key": "foam_finger",
+      "name": "Foam Finger",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 28,
+          "w": 5,
+          "h": 9,
+          "frames": 1,
+          "src": "/avatar-px/items/foam_finger/0-held.png?v=7436eb83a5",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/foam_finger/icon.png?v=8c889c4dea",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "freckles",
       "name": "Freckles",
       "category": "face_paint",
@@ -3512,6 +3981,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 180,
+      "release": "released"
+    },
+    {
+      "key": "frog_hood",
+      "name": "Frog Hood",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 21,
+          "w": 9,
+          "h": 5,
+          "frames": 4,
+          "src": "/avatar-px/items/frog_hood/0-head.png?v=d3b09125f6",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/frog_hood/icon.png?v=76d79045f0",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
       "release": "released"
     },
     {
@@ -3596,6 +4095,36 @@
       "default": false,
       "rarity": "rare",
       "price": 160,
+      "release": "released"
+    },
+    {
+      "key": "golden_idol",
+      "name": "Golden Idol",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 29,
+          "w": 7,
+          "h": 7,
+          "frames": 4,
+          "src": "/avatar-px/items/golden_idol/0-held.png?v=34b37f2471",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/golden_idol/icon.png?v=adc588bdcd",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 800,
       "release": "released"
     },
     {
@@ -4347,6 +4876,33 @@
       "release": "released"
     },
     {
+      "key": "hard_hat",
+      "name": "Hard Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 21,
+          "w": 11,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/hard_hat/0-head.png?v=66b1139679"
+        }
+      ],
+      "icon": "/avatar-px/items/hard_hat/icon.png?v=16ec0f2bed",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
       "key": "hawaiian_shirt",
       "name": "Hawaiian Shirt",
       "category": "torso",
@@ -4622,6 +5178,66 @@
       "release": "released"
     },
     {
+      "key": "hot_dog",
+      "name": "Hot Dog",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 34,
+          "w": 7,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/hot_dog/0-held.png?v=ce120f2549",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/hot_dog/icon.png?v=fa928d45f9",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
+      "release": "released"
+    },
+    {
+      "key": "ice_cream_cone",
+      "name": "Ice Cream Cone",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 29,
+          "w": 5,
+          "h": 7,
+          "frames": 1,
+          "src": "/avatar-px/items/ice_cream_cone/0-held.png?v=6842705aa4",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/ice_cream_cone/icon.png?v=3d76e19844",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "imp",
       "name": "Imp",
       "category": "companion",
@@ -4755,6 +5371,33 @@
       "release": "released"
     },
     {
+      "key": "jester_hat",
+      "name": "Jester Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 19,
+          "w": 13,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/jester_hat/0-head.png?v=f4184e96ec"
+        }
+      ],
+      "icon": "/avatar-px/items/jester_hat/icon.png?v=e5a4724065",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
+      "release": "released"
+    },
+    {
       "key": "jetpack",
       "name": "Jetpack",
       "category": "back",
@@ -4782,6 +5425,36 @@
       "default": false,
       "rarity": "epic",
       "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "juice_box",
+      "name": "Juice Box",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 31,
+          "w": 4,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/juice_box/0-held.png?v=9df7029abb",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/juice_box/icon.png?v=0e3b2d0768",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
       "release": "released"
     },
     {
@@ -4890,6 +5563,38 @@
       "default": false,
       "rarity": "uncommon",
       "price": 130,
+      "release": "released"
+    },
+    {
+      "key": "laser_sword",
+      "name": "Laser Sword",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 8,
+          "y": 23,
+          "w": 2,
+          "h": 13,
+          "frames": 5,
+          "src": "/avatar-px/items/laser_sword/0-held.png?v=f4443257d6",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/laser_sword/icon.png?v=8f37679970",
+      "dyes": {
+        "dye1": "lime"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
       "release": "released"
     },
     {
@@ -5190,6 +5895,33 @@
       "release": "released"
     },
     {
+      "key": "merchants_top_hat",
+      "name": "Merchant's Top Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 16,
+          "w": 12,
+          "h": 9,
+          "frames": 4,
+          "src": "/avatar-px/items/merchants_top_hat/0-head.png?v=86cece5dc1"
+        }
+      ],
+      "icon": "/avatar-px/items/merchants_top_hat/icon.png?v=18412ea1ae",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "legendary",
+      "price": 700,
+      "release": "released"
+    },
+    {
       "key": "mini_me",
       "name": "Mini Me",
       "category": "companion",
@@ -5436,6 +6168,33 @@
       "release": "released"
     },
     {
+      "key": "mushroom_cap",
+      "name": "Mushroom Cap",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 20,
+          "w": 12,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/mushroom_cap/0-head.png?v=8aa9e8e835"
+        }
+      ],
+      "icon": "/avatar-px/items/mushroom_cap/icon.png?v=9ad8323b6b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
       "key": "music_notes",
       "name": "Music Notes",
       "category": "aura",
@@ -5490,6 +6249,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "newspaper",
+      "name": "Newspaper",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 33,
+          "w": 5,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/newspaper/0-held.png?v=d41bf8bcbc",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/newspaper/icon.png?v=afb8503f3e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
       "release": "released"
     },
     {
@@ -5611,6 +6400,67 @@
       "release": "released"
     },
     {
+      "key": "paintbrush",
+      "name": "Paintbrush",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 8,
+          "y": 27,
+          "w": 2,
+          "h": 10,
+          "frames": 1,
+          "src": "/avatar-px/items/paintbrush/0-held.png?v=ee3d1604c6",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/paintbrush/icon.png?v=a40aed37d5",
+      "dyes": {
+        "dye1": "teal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "paper_crown",
+      "name": "Paper Crown",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 12,
+          "y": 22,
+          "w": 8,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/paper_crown/0-head.png?v=874cbf1a70"
+        }
+      ],
+      "icon": "/avatar-px/items/paper_crown/icon.png?v=cb14570ce6",
+      "dyes": {
+        "dye1": "mustard"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
+      "release": "released"
+    },
+    {
       "key": "party_hat",
       "name": "Party Hat",
       "category": "head",
@@ -5631,6 +6481,36 @@
         "dye1": "teal",
         "dye2": "orange"
       },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "pinwheel",
+      "name": "Pinwheel",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 27,
+          "w": 3,
+          "h": 10,
+          "frames": 6,
+          "src": "/avatar-px/items/pinwheel/0-held.png?v=a7e28925ee",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/pinwheel/icon.png?v=4701743c9a",
+      "dyes": {},
       "occupies": [],
       "hides": [],
       "order": 0,
@@ -5668,6 +6548,33 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "pirate_hat",
+      "name": "Pirate Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 20,
+          "w": 13,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/pirate_hat/0-head.png?v=aa95ff5bd9"
+        }
+      ],
+      "icon": "/avatar-px/items/pirate_hat/icon.png?v=9731e43f34",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 130,
       "release": "released"
     },
     {
@@ -5838,6 +6745,33 @@
       "release": "released"
     },
     {
+      "key": "propeller_beanie",
+      "name": "Propeller Beanie",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 19,
+          "w": 10,
+          "h": 6,
+          "frames": 6,
+          "src": "/avatar-px/items/propeller_beanie/0-head.png?v=7594270962"
+        }
+      ],
+      "icon": "/avatar-px/items/propeller_beanie/icon.png?v=dfbb6ef61e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
       "key": "puffer_vest",
       "name": "Puffer Vest",
       "category": "outer",
@@ -5912,6 +6846,33 @@
       "default": false,
       "rarity": "uncommon",
       "price": 90,
+      "release": "released"
+    },
+    {
+      "key": "pumpkin_cap",
+      "name": "Pumpkin Cap",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 20,
+          "w": 9,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/pumpkin_cap/0-head.png?v=83722267b2"
+        }
+      ],
+      "icon": "/avatar-px/items/pumpkin_cap/icon.png?v=f9d27fba0b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 180,
       "release": "released"
     },
     {
@@ -6296,6 +7257,36 @@
       "release": "released"
     },
     {
+      "key": "ray_gun",
+      "name": "Ray Gun",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 3,
+          "y": 33,
+          "w": 8,
+          "h": 5,
+          "frames": 4,
+          "src": "/avatar-px/items/ray_gun/0-held.png?v=ed43149d47",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/ray_gun/icon.png?v=c460240b08",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 190,
+      "release": "released"
+    },
+    {
       "key": "reaper_hood",
       "name": "Reaper Hood",
       "category": "head",
@@ -6530,6 +7521,90 @@
       "default": false,
       "rarity": "common",
       "price": null,
+      "release": "released"
+    },
+    {
+      "key": "rubber_duck",
+      "name": "Rubber Duck",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 5,
+          "y": 32,
+          "w": 5,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/rubber_duck/0-held.png?v=e711314e56",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/rubber_duck/icon.png?v=f21df00d0a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "sailor_hat",
+      "name": "Sailor Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 22,
+          "w": 9,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/sailor_hat/0-head.png?v=a3da9985a2"
+        }
+      ],
+      "icon": "/avatar-px/items/sailor_hat/icon.png?v=eeb589fb7a",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
+      "key": "samurai_helmet",
+      "name": "Samurai Helmet",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 20,
+          "w": 12,
+          "h": 6,
+          "frames": 1,
+          "src": "/avatar-px/items/samurai_helmet/0-head.png?v=6e19447f26"
+        }
+      ],
+      "icon": "/avatar-px/items/samurai_helmet/icon.png?v=9fe16e9133",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 220,
       "release": "released"
     },
     {
@@ -6806,6 +7881,36 @@
       "release": "released"
     },
     {
+      "key": "space_helmet",
+      "name": "Space Helmet",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 22,
+          "w": 11,
+          "h": 11,
+          "frames": 4,
+          "src": "/avatar-px/items/space_helmet/0-head.png?v=063f2098ac",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/space_helmet/icon.png?v=20a0569f98",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 210,
+      "release": "released"
+    },
+    {
       "key": "space_suit_top",
       "name": "Space Suit Top",
       "category": "torso",
@@ -6833,6 +7938,36 @@
       "default": false,
       "rarity": "rare",
       "price": 170,
+      "release": "released"
+    },
+    {
+      "key": "sparkler",
+      "name": "Sparkler",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 7,
+          "y": 27,
+          "w": 3,
+          "h": 10,
+          "frames": 6,
+          "src": "/avatar-px/items/sparkler/0-held.png?v=2ccf5d6bf2",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/sparkler/icon.png?v=70aa703626",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {
@@ -6947,6 +8082,33 @@
       "release": "released"
     },
     {
+      "key": "straw_hat",
+      "name": "Straw Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 9,
+          "y": 21,
+          "w": 13,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/straw_hat/0-head.png?v=6e75c183bf"
+        }
+      ],
+      "icon": "/avatar-px/items/straw_hat/icon.png?v=75986c8a1c",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
       "key": "striped_scarf",
       "name": "Striped Scarf",
       "category": "neck",
@@ -7045,6 +8207,35 @@
       "release": "released"
     },
     {
+      "key": "sun_visor",
+      "name": "Sun Visor",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 24,
+          "w": 11,
+          "h": 2,
+          "frames": 1,
+          "src": "/avatar-px/items/sun_visor/0-head.png?v=0913c200bb"
+        }
+      ],
+      "icon": "/avatar-px/items/sun_visor/icon.png?v=627d296fe3",
+      "dyes": {
+        "dye1": "teal"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
+      "release": "released"
+    },
+    {
       "key": "sunglasses",
       "name": "Sunglasses",
       "category": "face_acc",
@@ -7072,6 +8263,38 @@
       "default": false,
       "rarity": "uncommon",
       "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "sweatband",
+      "name": "Sweatband",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 11,
+          "y": 27,
+          "w": 11,
+          "h": 3,
+          "frames": 1,
+          "src": "/avatar-px/items/sweatband/0-head.png?v=4ee6feb8da",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/sweatband/icon.png?v=0c6c6d3f37",
+      "dyes": {
+        "dye1": "cherry"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 50,
       "release": "released"
     },
     {
@@ -7379,6 +8602,36 @@
       "release": "released"
     },
     {
+      "key": "tennis_racket",
+      "name": "Tennis Racket",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 25,
+          "w": 5,
+          "h": 11,
+          "frames": 1,
+          "src": "/avatar-px/items/tennis_racket/0-held.png?v=408bdce578",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/tennis_racket/icon.png?v=5b212bd1b2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 110,
+      "release": "released"
+    },
+    {
       "key": "three_d_glasses",
       "name": "3D Glasses",
       "category": "face_acc",
@@ -7406,6 +8659,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 80,
+      "release": "released"
+    },
+    {
+      "key": "thunderbolt",
+      "name": "Thunderbolt",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 27,
+          "w": 5,
+          "h": 9,
+          "frames": 5,
+          "src": "/avatar-px/items/thunderbolt/0-held.png?v=0ac0374718",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/thunderbolt/icon.png?v=f6ab49e30e",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 340,
       "release": "released"
     },
     {
@@ -7463,6 +8746,36 @@
       "default": false,
       "rarity": "epic",
       "price": 380,
+      "release": "released"
+    },
+    {
+      "key": "trident",
+      "name": "Trident",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 6,
+          "y": 21,
+          "w": 5,
+          "h": 16,
+          "frames": 1,
+          "src": "/avatar-px/items/trident/0-held.png?v=cb7baf2235",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/trident/icon.png?v=7c19ca4d62",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 210,
       "release": "released"
     },
     {
@@ -7756,6 +9069,33 @@
       "release": "released"
     },
     {
+      "key": "viking_helmet",
+      "name": "Viking Helmet",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 21,
+          "w": 12,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/viking_helmet/0-head.png?v=1fa1d9c9c9"
+        }
+      ],
+      "icon": "/avatar-px/items/viking_helmet/icon.png?v=5b4da405ab",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 120,
+      "release": "released"
+    },
+    {
       "key": "war_paint",
       "name": "War Paint",
       "category": "face_paint",
@@ -7783,6 +9123,36 @@
       "default": false,
       "rarity": "uncommon",
       "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "watering_can",
+      "name": "Watering Can",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 4,
+          "y": 33,
+          "w": 8,
+          "h": 5,
+          "frames": 1,
+          "src": "/avatar-px/items/watering_can/0-held.png?v=b0afed7ba3",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/watering_can/icon.png?v=770bb4dbf2",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "uncommon",
+      "price": 100,
       "release": "released"
     },
     {
@@ -7917,6 +9287,93 @@
       "default": false,
       "rarity": "uncommon",
       "price": 100,
+      "release": "released"
+    },
+    {
+      "key": "wizard_hat",
+      "name": "Wizard Hat",
+      "category": "head",
+      "parts": [
+        {
+          "slot": "head",
+          "anchor": "head",
+          "x": 10,
+          "y": 14,
+          "w": 12,
+          "h": 11,
+          "frames": 4,
+          "src": "/avatar-px/items/wizard_hat/0-head.png?v=2cc1789001"
+        }
+      ],
+      "icon": "/avatar-px/items/wizard_hat/icon.png?v=aad983a986",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "rare",
+      "price": 200,
+      "release": "released"
+    },
+    {
+      "key": "wooden_sword",
+      "name": "Wooden Sword",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 8,
+          "y": 25,
+          "w": 3,
+          "h": 11,
+          "frames": 1,
+          "src": "/avatar-px/items/wooden_sword/0-held.png?v=68502e5b7b",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/wooden_sword/icon.png?v=c6d3417116",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 70,
+      "release": "released"
+    },
+    {
+      "key": "yo_yo",
+      "name": "Yo-Yo",
+      "category": "held",
+      "parts": [
+        {
+          "slot": "held",
+          "anchor": "body",
+          "x": 9,
+          "y": 37,
+          "w": 2,
+          "h": 6,
+          "frames": 6,
+          "src": "/avatar-px/items/yo_yo/0-held.png?v=148abadcc7",
+          "fits": [
+            "body_kid"
+          ]
+        }
+      ],
+      "icon": "/avatar-px/items/yo_yo/icon.png?v=a68bc3376b",
+      "dyes": {},
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "common",
+      "price": 60,
       "release": "released"
     },
     {

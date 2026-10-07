@@ -453,7 +453,7 @@ export function buildHalloween({ wallZ, sideX, endX, edgeZ, ceilingY, ticketsAt,
   };
   huddle(-5.9, 0, wallZ + 0.4, [0.12, 0.2, 0.09]);
   huddle(-3.95, 0, wallZ + 0.62, [0.16, 0.1]);
-  huddle(-2.0, 0, wallZ + 0.35, [0.1, 0.22, 0.14]);
+  huddle(-1.76, 0, wallZ + 0.35, [0.1, 0.22, 0.14]); // (clear of the capsule machine)
   huddle(-0.7, 0, wallZ + 0.3, [0.18, 0.11]);
   huddle(2.75, 0, wallZ + 0.55, [0.13, 0.2, 0.1]);
   huddle(4.3, 0, wallZ + 0.4, [0.2, 0.12]);

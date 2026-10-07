@@ -1,0 +1,72 @@
+# Fizzing at the end
+at: 7,27
+legend:
+  y = flame.2
+  w = flame.3
+  s = steel.1
+--- 0
+y.y
+.w
+y.y
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 1
+.y
+ywy
+.y
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 2
+y.y
+.w
+y.y
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 3
+.y
+ywy
+.y
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 4
+y.y
+.w
+y.y
+.s
+.s
+.s
+.s
+.s
+.s
+.s
+--- 5
+.y
+ywy
+.y
+.s
+.s
+.s
+.s
+.s
+.s
+.s

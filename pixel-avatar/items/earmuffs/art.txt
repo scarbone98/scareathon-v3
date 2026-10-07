@@ -1,0 +1,14 @@
+# Fluffy, on a steel band
+at: 10,23
+legend:
+  s = steel.2
+  a = dye1.2
+  h = dye1.3
+--- 0
+...ssssss
+..s......s
+.s........s
+.s........s
+aa........aa
+ah........ah
+aa........aa

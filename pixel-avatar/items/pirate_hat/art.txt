@@ -1,0 +1,13 @@
+# Black, with a skull on the front and gold trim
+at: 9,20
+legend:
+  k = ink.1
+  j = ink.2
+  w = bone.3
+  g = gold.2
+--- 0
+....kkkkk
+...kjkkkkk
+..kkkkwwkkk
+.kkkkkwwkkkk
+kgggggggggggk

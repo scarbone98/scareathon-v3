@@ -1,0 +1,29 @@
+# The Merchant's own, its gold badge catching the light
+at: 10,16
+legend:
+  p = felt.2
+  h = felt.3
+  l = felt.3
+  d = felt.1
+  g = old_gold.2
+  y = old_gold.3
+--- 0
+..pppppppp
+..phpppppp
+..phppggpp
+..phppggpp
+..phpppppp
+..llllllll
+..phpppppp
+.dddddddddd
+pppppppppppp
+--- 3
+..pppppppp
+..phpppppp
+..phppygpp
+..phppgypp
+..phpppppp
+..llllllll
+..phpppppp
+.dddddddddd
+pppppppppppp

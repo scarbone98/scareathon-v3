@@ -1,0 +1,29 @@
+# It hovers over your head, lights going round
+at: 9,18
+legend:
+  c = spirit.2
+  h = spirit.3
+  s = steel.2
+  t = steel.3
+  d = steel.1
+  r = blood.3
+  y = flame.2
+  b = ocean.3
+--- 0
+....ccccc
+...chccccc
+.sssssssssss
+stsrsssysssbs
+.ddddddddddd
+--- 2
+....ccccc
+...chccccc
+.sssssssssss
+stsbsssrsssys
+.ddddddddddd
+--- 4
+....ccccc
+...chccccc
+.sssssssssss
+stsysssbsssrs
+.ddddddddddd

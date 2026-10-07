@@ -1,0 +1,18 @@
+# Strung and ready
+at: 6,25
+legend:
+  w = bone.3
+  k = steel.2
+  r = blood.2
+--- 0
+.www
+w.w.w
+ww.ww
+w.w.w
+.www
+..k
+..k
+..r
+..r
+..r
+..r

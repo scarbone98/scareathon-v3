@@ -1,0 +1,9 @@
+# Out of a cracker
+at: 12,22
+legend:
+  a = dye1.3
+  b = dye1.2
+--- 0
+a.a.a.a
+aaaaaaaa
+bbbbbbbb

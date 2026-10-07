@@ -1,0 +1,10 @@
+# With mustard
+at: 5,34
+legend:
+  b = old_gold.2
+  r = blood.2
+  y = mustard.3
+--- 0
+.rrrrr
+bryryrb
+bbbbbbb

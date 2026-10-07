@@ -1,0 +1,19 @@
+# Loaded with paint
+at: 8,27
+legend:
+  a = dye1.2
+  h = dye1.3
+  s = steel.2
+  w = wood.3
+  d = wood.2
+--- 0
+ha
+aa
+.a
+ss
+ww
+wd
+.w
+.w
+.w
+.w

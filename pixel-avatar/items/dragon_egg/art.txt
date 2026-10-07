@@ -1,0 +1,29 @@
+# Cracked, and glowing from inside
+at: 5,31
+legend:
+  g = blood.2
+  d = blood.1
+  h = blood.3
+  f = flame.1
+  y = flame.3
+--- 0
+..gg
+.hggg
+ghgfgg
+gggfgd
+gfggdd
+.gddd
+--- 2
+..gg
+.hggg
+ghgygg
+gggfgd
+gyggdd
+.gddd
+--- 4
+..gg
+.hggg
+ghgfgg
+gggygd
+gfggdd
+.gddd

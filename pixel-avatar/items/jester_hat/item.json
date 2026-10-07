@@ -1,0 +1,15 @@
+{
+  "name": "Jester Hat",
+  "category": "head",
+  "rarity": "uncommon",
+  "price": 130,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+# The propeller turns
+at: 11,19
+legend:
+  r = blood.3
+  y = mustard.3
+  k = ink.1
+  a = denim.2
+  b = mustard.2
+  c = blood.2
+--- 0
+.rrr.yyy
+....k
+..aabbaa
+.aabbaabb
+.aabbaabb
+.ccccccccc
+--- 1
+...ry
+....k
+..aabbaa
+.aabbaabb
+.aabbaabb
+.ccccccccc
+--- 2
+.yyy.rrr
+....k
+..aabbaa
+.aabbaabb
+.aabbaabb
+.ccccccccc
+--- 3
+...yr
+....k
+..aabbaa
+.aabbaabb
+.aabbaabb
+.ccccccccc
+--- 4
+.rrr.yyy
+....k
+..aabbaa
+.aabbaabb
+.aabbaabb
+.ccccccccc
+--- 5
+...ry
+....k
+..aabbaa
+.aabbaabb
+.aabbaabb
+.ccccccccc

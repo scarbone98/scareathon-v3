@@ -1,0 +1,28 @@
+# Something moves inside it
+at: 5,31
+legend:
+  p = witch.3
+  q = witch.2
+  h = spirit.2
+  g = gold.2
+--- 0
+.ppp
+phppp
+ppppq
+pppqq
+.pqq
+ggggg
+--- 2
+.ppp
+ppppp
+pphpq
+pppqq
+.pqq
+ggggg
+--- 4
+.ppp
+ppppp
+ppppq
+pphqq
+.pqq
+ggggg

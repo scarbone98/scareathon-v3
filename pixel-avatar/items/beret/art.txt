@@ -1,0 +1,13 @@
+# Worn to one side, with its little stalk
+at: 11,21
+legend:
+  k = dye1.0
+  a = dye1.2
+  h = dye1.3
+  b = dye1.1
+--- 0
+.....k
+..aaaaaa
+.ahaaaaaa
+.aaaaaaaa
+..bbbbbb

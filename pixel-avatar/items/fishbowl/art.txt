@@ -1,0 +1,24 @@
+# The fish swims back and forth
+at: 5,32
+legend:
+  b = ocean.3
+  w = spirit.1
+  o = pumpkin.2
+--- 0
+.bbb
+bwwwb
+bowwb
+bwwwb
+.bbb
+--- 2
+.bbb
+bwwwb
+bwowb
+bwwwb
+.bbb
+--- 4
+.bbb
+bwwwb
+bwwob
+bwwwb
+.bbb

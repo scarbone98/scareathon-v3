@@ -1,0 +1,31 @@
+# Tall and blue, with gold stars that twinkle
+at: 10,14
+legend:
+  b = felt.2
+  d = felt.1
+  y = gold.3
+  m = gold.1
+--- 0
+......b
+.....bb
+.....bbb
+....bbyb
+....bbbb
+...bbbbbb
+...bybbbb
+..bbbbbbbb
+..bbbbbybb
+.dddddddddd
+bbbbbbbbbbbb
+--- 3
+......b
+.....bb
+.....bbb
+....bbmb
+....bbbb
+...bbbbbb
+...bybbbb
+..bbbbbbbb
+..bbbbbmbb
+.dddddddddd
+bbbbbbbbbbbb

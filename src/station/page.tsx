@@ -17,6 +17,7 @@ import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx
 import DepartureBoard from "./things/DepartureBoard.tsx";
 import { KioskWindow, linkFailed } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
+import Capsule from "./things/Capsule.tsx";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
 import { STATION_FONTS, sans } from "./style/theme.ts";
@@ -112,6 +113,7 @@ type Held =
   | { kind: "shop"; focus?: string }
   | { kind: "wardrobe" }
   | { kind: "letters" }
+  | { kind: "capsule" }
   | { kind: "register" };
 
 
@@ -275,12 +277,13 @@ export default function StationPage() {
   // Walking up to your locker opens it: once you're there and the door's swung open, the
   // wardrobe comes up by itself. Walking up to the scoreboard likewise brings it up full screen
   useEffect(() => {
-    if (at !== "lockers" && at !== "departures") return;
+    // (and the capsule machine, on a big screen: a phone has it on the card under the machine)
+    if (at !== "lockers" && at !== "departures" && !(at === "capsule" && !compact)) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const kind = at === "lockers" ? "wardrobe" : "departures";
-    const open = window.setTimeout(() => setHeld((current) => current ?? { kind }), reduced ? 0 : at === "lockers" ? 1100 : 700);
+    const kind = at === "lockers" ? "wardrobe" : at === "capsule" ? "capsule" : "departures";
+    const open = window.setTimeout(() => setHeld((current) => current ?? { kind }), reduced ? 0 : at === "departures" ? 700 : 1100);
     return () => window.clearTimeout(open);
-  }, [at]);
+  }, [at, compact]);
 
   // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film), once
   // the walk there has been seen
@@ -328,6 +331,7 @@ export default function StationPage() {
     if (held.kind === "shop") return { id: "shop", title: "Item shop", tone: "ledger", full: true, body: <Shop signedIn={signedIn} goTo={goTo} focus={held.focus} /> };
     if (held.kind === "wardrobe") return { id: "wardrobe", title: "Your locker", tone: "ledger", full: true, body: <Wardrobe signedIn={signedIn} goTo={goTo} /> };
     if (held.kind === "letters") return { id: "letters", title: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> };
+    if (held.kind === "capsule") return { id: "capsule", title: "Capsule machine", tone: "ledger", body: <Capsule signedIn={signedIn} goTo={goTo} /> };
     return { id: "register", title: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> };
   })();
 
@@ -430,7 +434,9 @@ export default function StationPage() {
                     { id: "letters", label: "Inbox", tone: "ledger", body: <Letters signedIn={signedIn} goTo={goTo} /> },
                     { id: "register", label: "Settings", tone: "ledger", body: <Register signedIn={signedIn} goTo={goTo} /> },
                   ]
-                : null;
+                : at === "capsule"
+                  ? [{ id: "capsule", label: "Capsule machine", tone: "ledger", body: <Capsule signedIn={signedIn} goTo={goTo} /> }]
+                  : null;
 
   // The arcade: the cartridge arcade itself, once the visitor has walked up to the cabinet
   // The arcade mounts (hidden) as you set off for the cabinet, so it can say where its
@@ -744,6 +750,11 @@ export default function StationPage() {
           {at === "lockers" && (
             <button type="button" onClick={() => setHeld({ kind: "wardrobe" })}>
               Open your locker
+            </button>
+          )}
+          {at === "capsule" && (
+            <button type="button" onClick={() => setHeld({ kind: "capsule" })}>
+              Use the capsule machine
             </button>
           )}
           {at === "mail" && (

@@ -1,0 +1,9 @@
+# Round the forehead, knotted at the back
+at: 11,27
+legend:
+  a = dye1.2
+  b = dye1.1
+--- 0
+aaaaaaaaa
+.........bb
+..........b

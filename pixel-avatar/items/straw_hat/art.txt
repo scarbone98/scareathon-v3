@@ -1,0 +1,13 @@
+# Wide, with a red band
+at: 9,21
+legend:
+  y = old_gold.2
+  h = old_gold.3
+  d = old_gold.1
+  r = blood.2
+--- 0
+....yyyyy
+...yhyyyyy
+...rrrrrrr
+.yyyyyyyyyyy
+ddddddddddddd

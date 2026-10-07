@@ -1,0 +1,15 @@
+{
+  "name": "Wizard Hat",
+  "category": "head",
+  "rarity": "rare",
+  "price": 200,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

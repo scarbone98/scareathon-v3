@@ -1,0 +1,15 @@
+{
+  "name": "Merchant's Top Hat",
+  "category": "head",
+  "rarity": "legendary",
+  "price": 700,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

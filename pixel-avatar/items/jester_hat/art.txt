@@ -1,0 +1,13 @@
+# Red and blue, with bells
+at: 9,19
+legend:
+  y = gold.3
+  r = blood.2
+  b = denim.2
+--- 0
+y...........y
+rr.........bb
+.rrr.....bbb
+..rrrrybbbb
+..rrrrrbbbbb
+..rrrrrbbbbb

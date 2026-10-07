@@ -1,0 +1,13 @@
+# Squeak
+at: 5,32
+legend:
+  y = mustard.3
+  d = mustard.2
+  o = pumpkin.2
+  k = ink.0
+--- 0
+..yy
+oyky
+.yyy
+yyyyy
+.ddd

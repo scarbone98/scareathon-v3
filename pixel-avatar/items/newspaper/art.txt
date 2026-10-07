@@ -1,0 +1,12 @@
+# Today's, folded
+at: 5,33
+legend:
+  w = bone.3
+  k = bone.1
+  d = bone.2
+--- 0
+wwwww
+wkkkw
+wwwww
+wkkww
+ddddd

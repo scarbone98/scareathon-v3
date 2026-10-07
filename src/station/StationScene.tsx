@@ -68,6 +68,7 @@ import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { hasNews, NEWS_EVENT, playedCarts } from "../pages/Arcade/news.ts";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
+import { CAPSULE_TURN_MS, capsuleSignal } from "./capsuleSignal.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
@@ -1160,6 +1161,106 @@ function buildCartRack(games: MachineData[]) {
   });
   group.add(hitBox(width + 0.1, tiers * tierH + 0.1, depth + 0.1, (tiers * tierH) / 2));
   group.userData.stopId = "arcade"; // a tap walks you over to the machine
+  return group;
+}
+
+// The capsule machine, between the cabinet and the board: a stand, the works with their
+// crank and chute, a glass case heaped with capsules, and its sign. A turn of the crank
+// (things/Capsule.tsx) drops a hat or something to hold from the item shop
+function buildCapsule() {
+  const group = new Group();
+  const w = 0.4;
+  const d = 0.34;
+  group.position.set(-2.2, 0, WALL_Z + d / 2 + 0.06);
+  const red = standard("#8a2f2a", 0.55);
+  const iron = standard("#1a1d22", 0.7);
+  const brass = standard("#e2b659", 0.4);
+  group.add(box(0.3, 0.5, 0.26, iron, 0, 0.25, 0));
+  group.add(box(w + 0.04, 0.04, d + 0.04, red, 0, 0.5, 0));
+  group.add(box(w, 0.42, d, red, 0, 0.73, 0));
+  // The front of the works: the price (CAPSULE_PRICE, server/capsule/machine.js), a slot, and
+  // the chute the capsules drop into
+  const front = paint(200, 210, (ctx, cw, ch) => {
+    ctx.fillStyle = "#7a2824";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.strokeStyle = "#e2b659";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(7, 7, cw - 14, ch - 14);
+    ctx.fillStyle = "#120d08";
+    ctx.fillRect(150, 44, 10, 46); // the ticket slot
+    ctx.fillStyle = "#ffd9a0";
+    ctx.textAlign = "center";
+    ctx.font = "700 30px Georgia, serif";
+    ctx.fillText("75", 44, 62);
+    ctx.font = "700 13px Georgia, serif";
+    ctx.fillText("TICKETS", 44, 80);
+    ctx.fillStyle = "#120d08";
+    ctx.beginPath();
+    ctx.roundRect(42, 128, cw - 84, 62, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#e2b659";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  });
+  group.add(plane(w - 0.02, 0.4, standard("#ffffff", 0.7, front), 0, 0.73, d / 2 + 0.002));
+  const crank = new Group();
+  crank.position.set(0, 0.81, d / 2 + 0.02);
+  const dial = new Mesh(new CylinderGeometry(0.065, 0.065, 0.03, 20), brass);
+  dial.rotation.x = Math.PI / 2;
+  crank.add(dial);
+  crank.add(box(0.15, 0.034, 0.03, brass, 0, 0, 0.026));
+  group.add(crank);
+  group.userData.crank = crank;
+
+  // The glass, and the capsules in it (painted, lit from inside): each a coloured lid on a cream cup
+  const glass = new Group();
+  glass.position.y = 1.16;
+  const heap = paint(160, 176, (ctx, _cw, ch) => {
+    const lids = ["#d95763", "#3a9ae0", "#e0b030", "#7ddc8a", "#c58bff", "#ed6c33", "#4cc4c4"];
+    let seed = 7;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const r = 15;
+    for (let row = 0; row < 6; row += 1) {
+      for (let col = -1; col < 6; col += 1) {
+        if (row === 5 && random() < 0.45) continue; // the heap's ragged on top
+        const x = col * r * 2 + (row % 2 ? r : 0) + r + (random() - 0.5) * 5;
+        const y = ch - r - row * r * 1.72 + (random() - 0.5) * 4;
+        const turn = random() * Math.PI * 2;
+        ctx.fillStyle = "#efe6cf";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = lids[Math.floor(random() * lids.length)];
+        ctx.beginPath();
+        ctx.arc(x, y, r, turn, turn + Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = "#1d2a3a";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, r - 1, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  });
+  const heapMaterial = new MeshBasicMaterial({ map: heap, transparent: true });
+  glass.add(plane(w - 0.03, 0.42, heapMaterial, 0, 0, d / 2 - 0.02));
+  [-1, 1].forEach((side) => {
+    const pane = plane(d - 0.03, 0.42, heapMaterial, side * (w / 2 - 0.02), 0, 0);
+    pane.rotation.y = (side * Math.PI) / 2;
+    glass.add(pane);
+  });
+  glass.add(box(w, 0.44, d, new MeshStandardMaterial({ color: "#bfe3f2", transparent: true, opacity: 0.16, roughness: 0.1, metalness: 0.1, depthWrite: false })));
+  [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => glass.add(box(0.02, 0.44, 0.02, brass, sx * (w / 2 - 0.01), 0, sz * (d / 2 - 0.01)))));
+  group.add(glass);
+  group.userData.glass = glass;
+
+  group.add(box(w + 0.04, 0.05, d + 0.04, red, 0, 1.405, 0));
+  group.add(box(0.37, 0.12, 0.03, iron, 0, 1.5, 0));
+  group.add(plane(0.35, 0.0875, new MeshBasicMaterial({ map: signTexture("CAPSULES", "#ffd9a0", "#120d08") }), 0, 1.5, 0.017));
+  addLamp(group, 0, 2.0, 0.9);
+  // (its tap box stands out in front of the board's and the cabinet's, which it sits between)
+  group.add(hitBox(0.52, 1.62, 0.74, 0.8));
+  group.userData.stopId = "capsule";
   return group;
 }
 
@@ -3573,9 +3674,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const warmCabinet = (object: Object3D) => new Promise((resolve) => window.setTimeout(resolve)).then(() => compileShaders(renderer, object, camera, scene));
     const arcade = buildArcade(latest.current.preview, latest.current.arcadeGames, warmCabinet);
     const cartRack = buildCartRack(latest.current.arcadeGames);
+    const capsule = buildCapsule();
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
-    const objects = [bench, lockers, arcade, cartRack, bulletin, events, tickets, departures, mail];
+    const objects = [bench, lockers, arcade, cartRack, capsule, bulletin, events, tickets, departures, mail];
     // The arcade's lamp hangs in the scene itself, not in the arcade, which is hidden while
     // the arcade's own cabinet is over it: hiding a light would rebuild every lit shader
     // there and then, a stall just as the arcade comes up
@@ -3594,7 +3696,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     surfaceLayerRef.current?.appendChild(surfaceLayer);
     const surfaceView = new Matrix4();
     const surfaceClip = new Matrix4();
-    const parents: Record<StopId, Group> = { bench, lockers, arcade, bulletin, events, tickets, departures, mail };
+    const parents: Record<StopId, Group> = { bench, lockers, arcade, capsule, bulletin, events, tickets, departures, mail };
     const placed = SURFACES.map((spec) => {
       const slot = document.createElement("div");
       slot.style.width = `${spec.px[0]}px`;
@@ -4351,6 +4453,24 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         shift += (wantShift - shift) * 0.1;
         if (Math.abs(shift) < 0.5) camera.clearViewOffset();
         else camera.setViewOffset(width, height, 0, shift, width, height); // the HTML layer follows this too
+      }
+
+      // The capsule machine: a turn of the crank (capsuleSignal, from its card) winds the
+      // handle round once and rattles the capsules in the glass
+      {
+        const sinceTurn = performance.now() - capsuleSignal.turnedAt;
+        const crank = capsule.userData.crank as Object3D;
+        const glass = capsule.userData.glass as Object3D;
+        if (sinceTurn < CAPSULE_TURN_MS && !reduced) {
+          const u = sinceTurn / CAPSULE_TURN_MS;
+          crank.rotation.z = -(u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u)) * Math.PI * 2;
+          glass.position.x = Math.sin(sinceTurn * 0.09) * 0.006 * (1 - u);
+          glass.rotation.z = Math.sin(sinceTurn * 0.07) * 0.02 * (1 - u);
+        } else if (crank.rotation.z !== 0 || glass.position.x !== 0) {
+          crank.rotation.z = 0;
+          glass.position.x = 0;
+          glass.rotation.z = 0;
+        }
       }
 
       renderer.render(scene, camera);

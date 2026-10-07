@@ -1,0 +1,17 @@
+# A very big bone
+at: 7,26
+legend:
+  w = bone.3
+  d = bone.2
+--- 0
+w.w
+www
+.d
+.d
+.d
+.d
+.d
+.d
+.d
+www
+w.w

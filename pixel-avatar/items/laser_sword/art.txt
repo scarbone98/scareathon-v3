@@ -1,0 +1,49 @@
+# It hums
+at: 8,23
+legend:
+  a = dye1.2
+  h = dye1.3
+  s = steel.2
+  k = ink.1
+--- 0
+.h
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ss
+kk
+ss
+--- 2
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ss
+kk
+ss
+--- 4
+.h
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ah
+ss
+kk
+ss

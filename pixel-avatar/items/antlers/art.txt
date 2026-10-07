@@ -1,0 +1,13 @@
+# A full set
+at: 9,17
+legend:
+  b = bark.3
+  d = bark.2
+--- 0
+b.b.......b.b
+bb.b.....b.bb
+.bbb.....bbb
+..bd.....db
+...d.....d
+...d.....d
+...d.....d

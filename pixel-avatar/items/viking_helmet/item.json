@@ -1,0 +1,15 @@
+{
+  "name": "Viking Helmet",
+  "category": "head",
+  "rarity": "uncommon",
+  "price": 120,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

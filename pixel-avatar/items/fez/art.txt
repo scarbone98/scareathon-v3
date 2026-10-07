@@ -1,0 +1,13 @@
+# Red, with a gold tassel
+at: 12,20
+legend:
+  r = blood.2
+  h = blood.3
+  k = ink.1
+  y = gold.2
+--- 0
+..rrrrr
+.rrhrrrr
+.rrrrrrrk
+.rrrrrrrk
+.rrrrrrry

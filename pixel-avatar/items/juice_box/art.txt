@@ -1,0 +1,15 @@
+# Apple, with a bendy straw
+at: 6,31
+legend:
+  s = bone.3
+  g = leaf.2
+  h = leaf.3
+  w = bone.3
+  r = blood.2
+--- 0
+...s
+..s
+ghgg
+gwwg
+gwrg
+gggg

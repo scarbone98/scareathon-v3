@@ -1,0 +1,8 @@
+# A band and a peak, no top
+at: 11,24
+legend:
+  a = dye1.2
+  b = dye1.1
+--- 0
+.aaaaaaa
+bbbbbbbbbbb

@@ -1,0 +1,43 @@
+# A gold band, burning
+at: 11,19
+legend:
+  f = flame.1
+  y = flame.2
+  w = flame.3
+  g = gold.2
+--- 0
+..f...f
+.fy.f.yf
+.yyfyfyy
+fywyywyyf
+ggggggggg
+--- 1
+...f.f
+..fy.yf.f
+.fyyfyyyf
+fyywyywyf
+ggggggggg
+--- 2
+.f..f
+.yf.yf.f
+fyyfyyfy
+fywyywyyf
+ggggggggg
+--- 3
+..f...f
+.fy.f.yf
+.yyfyfyy
+fywyywyyf
+ggggggggg
+--- 4
+...f.f
+..fy.yf.f
+.fyyfyyyf
+fyywyywyf
+ggggggggg
+--- 5
+.f..f
+.yf.yf.f
+fyyfyyfy
+fywyywyyf
+ggggggggg

@@ -1,0 +1,15 @@
+{
+  "name": "Flower Crown",
+  "category": "head",
+  "rarity": "common",
+  "price": 70,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

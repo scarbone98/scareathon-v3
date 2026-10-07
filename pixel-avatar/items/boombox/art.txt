@@ -1,0 +1,18 @@
+# By its handle
+at: 3,35
+legend:
+  s = steel.2
+  k = ink.2
+  j = ink.3
+  w = steel.3
+  r = blood.3
+--- 0
+..sssss
+.kjkkkkk
+.kwkrkwk
+.kkkkkkk
+--- 2
+..sssss
+.kjkkkkk
+.kwkkkwk
+.kkkkkkk

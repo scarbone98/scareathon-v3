@@ -1,0 +1,17 @@
+{
+  "name": "Tennis Racket",
+  "category": "held",
+  "rarity": "uncommon",
+  "price": 110,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "held",
+      "file": "art.txt"
+    }
+  ]
+}

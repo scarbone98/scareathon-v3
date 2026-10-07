@@ -1,0 +1,19 @@
+{
+  "name": "Paintbrush",
+  "category": "held",
+  "rarity": "uncommon",
+  "price": 100,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "teal"
+  },
+  "parts": [
+    {
+      "slot": "held",
+      "file": "art.txt"
+    }
+  ]
+}

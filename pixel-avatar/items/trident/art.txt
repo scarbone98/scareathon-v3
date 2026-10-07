@@ -1,0 +1,23 @@
+# Three gold prongs
+at: 6,21
+legend:
+  g = gold.2
+  h = gold.3
+  s = gold.1
+--- 0
+h.h.h
+g.g.g
+ggggg
+..s
+..s
+..s
+..s
+..s
+..s
+..s
+..s
+..s
+..s
+..s
+..s
+..s

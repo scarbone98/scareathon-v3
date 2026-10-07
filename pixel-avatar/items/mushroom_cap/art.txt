@@ -1,0 +1,12 @@
+# Red with white spots
+at: 10,20
+legend:
+  r = blood.2
+  w = bone.3
+  s = bone.2
+--- 0
+...rrrrrr
+..rwrrrwrr
+.rrrrwrrrrr
+rrwrrrrrwrrr
+.ssssssssss

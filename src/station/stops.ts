@@ -5,7 +5,7 @@
 // stand, the pigeonhole wall; then a side wall runs out towards the tracks, with the
 // ticket counter let into its middle and the scoreboard above.
 
-export type StopId = "bench" | "lockers" | "arcade" | "bulletin" | "events" | "tickets" | "departures" | "mail";
+export type StopId = "bench" | "lockers" | "arcade" | "capsule" | "bulletin" | "events" | "tickets" | "departures" | "mail";
 // The four views you turn between (left, the board, right, and the tracks behind you);
 // the others are just where a stop steps back to, folded into one of the four
 export type Heading = "front" | "right" | "back" | "left" | "table" | "mail" | "lockers";
@@ -109,6 +109,17 @@ export const STOPS: Record<StopId, Stop> = {
     // (a phone frames the counter and its adverts close, without the floor and ceiling:
     // the outer adverts' edges can go off the sides)
     phoneFit: 2.0,
+    snug: true,
+  },
+  capsule: {
+    id: "capsule",
+    label: "Capsule machine",
+    heading: "left",
+    // The machine stands between the cabinet and the board, about chest high
+    pos: [-2.2, 1.15, 0.5],
+    target: [-2.2, 0.9, -1.9],
+    fit: 1.2,
+    fitHeight: 1.75,
     snug: true,
   },
   departures: {

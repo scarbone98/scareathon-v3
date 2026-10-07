@@ -1,0 +1,12 @@
+# Soft, with a floppy brim all the way round
+at: 10,21
+legend:
+  a = dye1.2
+  h = dye1.3
+  b = dye1.1
+--- 0
+...aaaaa
+..ahaaaaa
+..aaaaaaa
+.bbbbbbbbb
+bbbbbbbbbbb

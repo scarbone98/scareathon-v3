@@ -1,0 +1,17 @@
+{
+  "name": "Sun Visor",
+  "category": "head",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "dyes": {
+    "dye1": "teal"
+  },
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

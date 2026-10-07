@@ -1,0 +1,12 @@
+# Yellow, with a ridge and a peak
+at: 11,21
+legend:
+  y = mustard.2
+  h = mustard.3
+  d = mustard.1
+--- 0
+...yyyy
+..yhyyyy
+.yyyyyyyy
+.yyyyyyyy
+ddddddddddd

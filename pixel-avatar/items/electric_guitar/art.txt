@@ -1,0 +1,19 @@
+# Held by the neck
+at: 6,27
+legend:
+  k = ink.1
+  s = wood.3
+  a = dye1.2
+  h = dye1.3
+  w = bone.3
+--- 0
+...k
+...s
+...s
+...s
+...s
+..aaa
+.ahaaa
+.aawaa
+.aaaaa
+..aaa

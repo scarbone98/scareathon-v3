@@ -1,0 +1,14 @@
+# Dark, with a gold crest
+at: 9,20
+legend:
+  y = gold.3
+  k = ink.2
+  j = ink.3
+  r = blood.2
+--- 0
+..y.......y
+...y.....y
+....yyyyy
+...kkjkkkk
+..kkrrrrrkk
+.kkkkkkkkkkk

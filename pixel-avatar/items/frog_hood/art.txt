@@ -1,0 +1,20 @@
+# Two big eyes on top
+at: 11,21
+legend:
+  g = leaf.2
+  h = leaf.3
+  d = leaf.1
+  w = bone.3
+  k = ink.0
+--- 0
+.gg...gg
+gwkg.gwkg
+ggggggggg
+gghgggggg
+ddddddddd
+--- 3
+.gg...gg
+gggg.gggg
+ggggggggg
+gghgggggg
+ddddddddd

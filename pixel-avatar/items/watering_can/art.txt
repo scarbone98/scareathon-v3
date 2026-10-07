@@ -1,0 +1,12 @@
+# For the pumpkins
+at: 4,33
+legend:
+  g = pine.2
+  h = pine.3
+  d = pine.1
+--- 0
+....gg
+g..gggg
+.gghgggg
+..ggggg
+..ddddd

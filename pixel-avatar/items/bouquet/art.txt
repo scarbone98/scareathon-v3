@@ -1,0 +1,17 @@
+# Three flowers in paper
+at: 6,29
+legend:
+  r = blood.3
+  p = rose.2
+  y = mustard.3
+  g = leaf.2
+  w = bone.3
+  d = bone.2
+--- 0
+.r.p
+rrypp
+.gyg
+..g
+.www
+.wdw
+..w

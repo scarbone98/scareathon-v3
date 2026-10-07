@@ -1,0 +1,25 @@
+# Out of Tlaloc's temple. Its ruby winks
+at: 5,29
+legend:
+  g = gold.2
+  h = gold.3
+  d = gold.1
+  k = ink.0
+  r = blood.3
+  y = flame.3
+--- 0
+.hgggg
+.gkgkg
+.ggggg
+gggrggg
+.ggggg
+.gg.gg
+ddddddd
+--- 3
+.hgggg
+.gkgkg
+.ggggg
+gggyggg
+.ggggg
+.gg.gg
+ddddddd

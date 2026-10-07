@@ -1,0 +1,20 @@
+# Its tip glows before it fires
+at: 3,33
+legend:
+  s = steel.2
+  t = steel.3
+  b = ocean.3
+  r = blood.3
+  y = flame.3
+--- 0
+..sttsss
+.rsbssss
+..sss
+...ss
+...ss
+--- 3
+..sttsss
+yrsbssss
+..sss
+...ss
+...ss

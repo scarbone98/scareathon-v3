@@ -1,0 +1,30 @@
+# A glass bubble with a glint on it
+at: 10,22
+legend:
+  w = bone.3
+  c = spirit.2
+  s = steel.2
+--- 0
+...wwwwww
+..w......w
+.w.cc.....w
+.w.c......w
+.w........w
+.w........w
+.w........w
+.w........w
+.w........w
+..w......w
+...ssssss
+--- 3
+...wwwwww
+..w......w
+.w..cc....w
+.w...c....w
+.w........w
+.w........w
+.w........w
+.w........w
+.w........w
+..w......w
+...ssssss

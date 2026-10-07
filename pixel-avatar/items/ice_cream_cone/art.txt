@@ -1,0 +1,15 @@
+# One scoop of strawberry
+at: 7,29
+legend:
+  p = rose.2
+  w = bone.3
+  c = gold.1
+  d = wood.2
+--- 0
+.ppp
+pwppp
+ppppp
+.ccc
+.cdc
+..c
+..c

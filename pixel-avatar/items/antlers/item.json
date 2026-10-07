@@ -1,0 +1,15 @@
+{
+  "name": "Antlers",
+  "category": "head",
+  "rarity": "rare",
+  "price": 170,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "head",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}
