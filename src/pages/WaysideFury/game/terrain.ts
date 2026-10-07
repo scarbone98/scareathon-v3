@@ -3,7 +3,7 @@ import { TILE, tileAt, type TileKind, type WorldMap } from './world';
 const MAX_CHUNK_TILES = 4;
 const CHUNK_PIXEL_TARGET = 256;
 const MAX_CACHE_PIXELS = 12_000_000;
-const MATERIALS: Record<TileKind, readonly [string, string, string]> = {
+export const MATERIALS: Record<TileKind, readonly [string, string, string]> = {
   grass: ['#385943', '#668358', '#274638'], dirt: ['#8c795a', '#c0a578', '#716149'],
   road: ['#37474d', '#627074', '#26373d'], water: ['#2c6379', '#8bb7bb', '#244a65'],
   sand: ['#af9e76', '#dfca95', '#918361'], stone: ['#636b70', '#a0a199', '#45515c'],
