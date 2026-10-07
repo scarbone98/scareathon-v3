@@ -47,6 +47,7 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private images = new Map<BuiltinSpriteId, HTMLImageElement>();
   private avatar: HeroAvatar | null = null;
+  private remoteAvatars = new Map<number, HeroAvatar>();
   private detailedSheets = new Map<BuiltinSpriteId, DetailedSheet>();
   private viewport = getRenderViewport(1, 1, window.devicePixelRatio);
   private qualityCap = 3;
@@ -88,6 +89,7 @@ export class Renderer {
     this.resize();
   }
   setAvatar(assets: HeroAvatar) { this.avatar = assets; }
+  setRemoteAvatar(seat: number, assets: HeroAvatar) { this.remoteAvatars.set(seat, assets); }
   reset() {
     this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0;
     this.transition = 0; this.slowFrameTime = 0;
@@ -149,6 +151,7 @@ export class Renderer {
     if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
+    for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(s: GameState, event: GameEvent) {
@@ -215,6 +218,13 @@ export class Renderer {
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
+    for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
+      const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
+      const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
+      this.avatar = ownAvatar;
+    } });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -437,6 +447,7 @@ export class Renderer {
   }
   private hero(s: GameState) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
+    if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
     if (s.charge > .12) {
       c.globalAlpha = .55 + Math.sin(time * 18) * .07; this.glow(s.x, s.y - 12, 19 + Math.min(9, s.charge * 5), color); c.globalAlpha = 1;

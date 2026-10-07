@@ -239,3 +239,25 @@
 .wf-hud-faces .wf-hud-portrait { position: absolute; left: 0; top: 0; width: 32px; height: 32px; background-size: 160px 32px; }
 .wf-hud-faces .wf-tag-face { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; background-size: 110px 22px; box-shadow: 0 0 0 2px #0b1527; }
 .wf-hud-faces .wf-you-face { background-size: 100% 100%; }
+
+.wf-coop-menu { z-index: 8; gap: 12px; }
+.wf-room-code { font-size: 36px; letter-spacing: 10px; color: #b0f3d1; }
+.wf-coop-menu input { width: 180px; min-height: 48px; border: 1px solid #7ea197; border-radius: 10px; text-align: center; font: 700 24px system-ui; letter-spacing: 6px; background: #132631; color: #e3ecd5; user-select: text; }
+.wf-seat-list { width: min(320px, 100%); margin: 0; padding: 0; list-style: none; text-align: left; }
+.wf-seat-list li { padding: 10px 12px; border-bottom: 1px solid #7ea19740; }
+.wf-code-picker { display: flex; gap: 8px; }
+.wf-code-picker > div { display: grid; gap: 6px; }
+.wf-code-picker button { min-width: 48px; padding: 8px; }
+.wf-party-hud { position: absolute; z-index: 3; top: calc(max(12px, env(safe-area-inset-top)) + var(--wf-hud-height) + 4px); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; gap: 6px; max-width: 480px; padding: 4px 6px; border-radius: 8px; background: #0b1527db; pointer-events: none; }
+.wf-party-hud > div { min-width: 0; flex: 1; }
+.wf-party-hud strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 15px; }
+.wf-party-hud .wf-meter { height: 7px; }
+.wf-in-coop .wf-play-band { top: calc(max(12px, env(safe-area-inset-top)) + var(--wf-hud-height) + 44px); }
+.wf-shell .wf-revive-prompt { pointer-events: auto; background: #b0f3d1; }
+@media (orientation: portrait) {
+  .wf-party-hud { top: calc(var(--wf-hud-height) + env(safe-area-inset-top) + 4px); left: 8px; right: 8px; }
+  .wf-in-coop .wf-play-band { top: calc(var(--wf-hud-height) + env(safe-area-inset-top) + 44px); }
+}
+
+.wf-in-coop .wf-save-in-game { top: calc(max(12px, env(safe-area-inset-top)) + var(--wf-hud-height) + 42px); }
+@media (orientation: portrait) { .wf-in-coop .wf-save-in-game { top: calc(var(--wf-hud-height) + env(safe-area-inset-top) + 42px); } }

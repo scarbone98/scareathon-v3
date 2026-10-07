@@ -16,10 +16,27 @@ export interface HeroState {
   stamina: number; maxStamina: number; level: number; xp: number;
   power: number; defense: number; invulnerable: number;
 }
+export interface RemoteHero {
+  seat: number; userId: string; name: string; hero: HeroState;
+  x: number; y: number; faceX: number; faceY: number; moving: boolean;
+  guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
+  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+}
+export interface CoopRuntime {
+  role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
+  playerCount?: number; syncedLevel?: number; downed?: boolean; reviveProgress?: number;
+  spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
+  revivedUntil?: Record<number, number>;
+  worldClearedRooms?: string[];
+}
+export interface CoopHit {
+  type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
+}
 export interface Enemy {
   id: number; kind: "grunt" | "shooter" | "boss";
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
+  baseMaxHp?: number;
   speed: number; cooldown: number; hitTimer: number; kx: number; ky: number;
   miniBoss: boolean; phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
@@ -35,8 +52,11 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | CoopHit
+  | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
+  | { type: "coop-revive"; seat: number }
   | { type: "hit"; x: number; y: number; damage: number; target: "hero" | "enemy" }
-  | { type: "kill"; enemyId: number; kind: Enemy["kind"]; x: number; y: number; sprite: Enemy["sprite"]; radius: number }
+  | { type: "kill"; enemyId: number; kind: Enemy["kind"]; x: number; y: number; sprite: Enemy["sprite"]; radius: number; xp: number }
   | { type: "level"; hero: HeroId; level: number }
   | { type: "swap"; hero: HeroId }
   | { type: "checkpoint"; id: string }
@@ -54,6 +74,8 @@ export interface GameState {
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   candy: number; deaths: number; kills: number; events: GameEvent[];
   previousInput: Input; rngSeed: number; nextId: number;
+  coop?: CoopRuntime;
+  coopRewards?: string[];
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -61,6 +83,59 @@ export function xpForLevel(level: number) { return 75 + (level - 1) * 45; }
 export function createHero(id: HeroId, character: CharacterProgress = { level: 1, xp: 0 }, gear: Gear = { power: 0, ward: 0 }): HeroState {
   const stats = heroStats(id, character, gear);
   return { id, ...stats, ...character, hp: stats.maxHp, ki: stats.maxKi / 2, stamina: stats.maxStamina, invulnerable: 0 };
+}
+const enemyHpScale = (kind: Enemy["kind"], players: number) => 1 + (kind === "boss" ? 0.75 : 0.6) * (players - 1);
+const coopCount = (s: GameState) => s.coop ? s.coop.playerCount ?? 1 : 1;
+function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
+  const percent = e.hp / Math.max(1, e.maxHp);
+  e.baseMaxHp = baseline; e.maxHp = baseline * enemyHpScale(e.kind, coopCount(s)); e.hp = e.maxHp * percent;
+}
+// Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
+// continually create fresh enemies and their rewards.
+function extraCoopSpawns(s: GameState) {
+  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
+  const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
+  const world = getWorld(s.scene, s.room), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
+  for (let n = previous; n < extras; n++) {
+    let x = anchor.x, y = anchor.y;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const angle = (n * 3 + attempt) * Math.PI / 4, radius = 20 + Math.floor(attempt / 4) * 12;
+      const nx = anchor.x + Math.cos(angle) * radius, ny = anchor.y + Math.sin(angle) * radius;
+      if (!isBlocked(world, nx, ny, 7)) { x = nx; y = ny; break; }
+    }
+    const enemy = addEnemy(s, "grunt", x, y);
+    if (anchor.sprite && anchor.kind !== "boss") enemy.sprite = anchor.sprite;
+  }
+  s.coop.spawnedExtras = Math.max(previous, extras);
+}
+export function setCoopPlayerCount(s: GameState, players: number): void {
+  if (!s.coop) return;
+  const previous = coopCount(s), next = clamp(Math.floor(Number.isFinite(players) ? players : 1), 1, 4);
+  s.coop.playerCount = next;
+  if (s.coop.role !== "host") return;
+  for (const e of s.enemies) scaleEnemy(s, e, e.baseMaxHp ?? e.maxHp / enemyHpScale(e.kind, previous));
+  extraCoopSpawns(s);
+}
+export function coopLevelBand(scene: Scene, room: number): readonly [number, number] {
+  if (scene === "realm") return [6, 9];
+  if (scene === "dungeon") {
+    if (room >= 8) return [2, 5];
+    const low = 1 + Math.floor(room / 2); return [low, low + 2];
+  }
+  return [1, 3];
+}
+// Combat level changes only derived hero stats. The permanent character sheet
+// keeps its XP/level, and health/Ki ratios survive both sync and leaving co-op.
+export function syncCoopLevel(s: GameState): void {
+  const band = coopLevelBand(s.scene, s.room);
+  const level = s.coop?.role === "guest" ? clamp(s.character.level, band[0], band[1]) : s.character.level;
+  if (s.coop) s.coop.syncedLevel = s.coop.role === "guest" ? level : undefined;
+  for (const h of Object.values(s.heroes)) {
+    const stats = heroStats(h.id, { ...s.character, level }, s.gear);
+    const hp = h.hp / Math.max(1, h.maxHp), ki = h.ki / Math.max(1, h.maxKi);
+    Object.assign(h, stats, { level, xp: s.character.xp });
+    h.hp = stats.maxHp * hp; h.ki = stats.maxKi * ki;
+  }
 }
 function random(s: GameState) {
   s.rngSeed = (s.rngSeed + 0x6d2b79f5) | 0;
@@ -76,7 +151,7 @@ export function newGame(seed = 8591): GameState {
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
-    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1 };
+    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [] };
   enterScene(s, "test");
   return s;
 }
@@ -86,6 +161,7 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
     x, y, hp: maxHp, maxHp, radius: kind === "boss" ? 16 : 7,
     speed: kind === "boss" ? 20 : kind === "shooter" ? 19 : 23, cooldown: 0.7 + random(s) * 0.5,
     hitTimer: 0, kx: 0, ky: 0, miniBoss: false, phase: 1, pattern: 0, windup: 0, actionTimer: 0, aimX: -1, aimY: 0 };
+  if (s.coop?.role === "host") scaleEnemy(s, e, maxHp);
   s.enemies.push(e);
   return e;
 }
@@ -102,15 +178,17 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
   s.dashTimer = 0; s.guard = false; s.hitStop = 0;
   s.previousInput = idleInput();
+  if (s.coop) { s.coop.spawnedExtras = 0; s.coop.reviveTimers = {}; s.coop.reviveProgress = 0; }
   if (scene === "overworld") s.notice = "Chapter 1: drive east to the Blast Site. Pull over at a marker.";
   if (scene === "hub") s.notice = "Wayside: visit the station, shop, HOME and BBQ yard. Taxi pickup is by the south road.";
   if (scene === "dungeon" || scene === "realm") {
-    if (!s.clearedRooms.includes(world.id)) {
+    if (s.coop?.role !== "guest" && !s.clearedRooms.includes(world.id) && !s.coop?.worldClearedRooms?.includes(world.id)) {
       for (const spawn of world.spawns) {
         const enemy = addEnemy(s, spawn.kind, spawn.x, spawn.y);
         if (spawn.sprite) enemy.sprite = spawn.sprite;
         if (spawn.miniBoss) {
           enemy.miniBoss = true; enemy.hp = enemy.maxHp = 165; enemy.radius = 12; enemy.speed = 18;
+          if (s.coop?.role === "host") scaleEnemy(s, enemy, 165);
         }
       }
     }
@@ -121,10 +199,13 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
       : `${world.name}: clear the eastern route. Explore side trails for supplies.`;
   }
   if (scene === "test") {
-    addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
-    addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
+    if (s.coop?.role !== "guest") {
+      addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
+      addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
+    }
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
   }
+  extraCoopSpawns(s); syncCoopLevel(s);
 }
 // Substeps prevent fast dashes and boss rushes crossing thin tile barriers.
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
@@ -158,7 +239,7 @@ function separateBodies(s: GameState, dt: number) {
   }
 }
 export function advanceStory(s: GameState): void {
-  if (s.scene !== "prologue") return;
+  if (s.scene !== "prologue" || s.coop?.role === "guest") return;
   s.cutscene++; s.sceneTimer = 0;
   if (s.cutscene >= PROLOGUE.length) {
     enterScene(s, "overworld"); s.previousInput.interact = true;
@@ -178,17 +259,26 @@ function effect(s: GameState, kind: Effect["kind"], x: number, y: number, size: 
 function floater(s: GameState, x: number, y: number, text: string, color: string) {
   s.floaters.push({ id: s.nextId++, x, y: y - 10, text, color, ttl: 0.85 });
 }
-function gainXp(s: GameState, amount: number) {
+export function gainXp(s: GameState, amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  if (s.coop?.role === "guest") syncCoopLevel(s);
   const before = s.character.level;
   s.character.xp += amount;
   while (s.character.level < MAX_LEVEL && s.character.xp >= xpForLevel(s.character.level)) {
     s.character.xp -= xpForLevel(s.character.level); s.character.level++;
   }
   s.character.xp = Math.min(s.character.xp, xpForLevel(s.character.level) - 1);
+  const band = coopLevelBand(s.scene, s.room);
+  const level = s.coop?.role === "guest" ? clamp(s.character.level, band[0], band[1]) : s.character.level;
+  if (s.coop?.role === "guest") s.coop.syncedLevel = level;
   for (const h of Object.values(s.heroes)) {
-    const growth = s.character.level - h.level, stats = heroStats(h.id, s.character, s.gear);
-    Object.assign(h, s.character, stats);
-    if (growth > 0) { h.hp = Math.min(h.maxHp, h.hp + growth * 30); h.ki = Math.min(h.maxKi, h.ki + growth * 15); }
+    const growth = s.character.level - (s.coop ? before : h.level), downed = !!s.coop && h.hp <= 0;
+    const stats = heroStats(h.id, { ...s.character, level }, s.gear);
+    Object.assign(h, s.character, stats, { level });
+    if (growth > 0) {
+      if (!downed) h.hp = Math.min(h.maxHp, h.hp + growth * 30);
+      h.ki = Math.min(h.maxKi, h.ki + growth * 15);
+    }
   }
   if (s.character.level > before) {
     s.events.push({ type: "level", hero: s.active, level: s.character.level });
@@ -196,9 +286,10 @@ function gainXp(s: GameState, amount: number) {
     floater(s, s.x, s.y - 15, `LEVEL ${s.character.level}!`, "#f9e77c");
   }
 }
-function grantGear(s: GameState, power: number, ward: number) {
+export function grantGear(s: GameState, power: number, ward: number) {
+  if (![power, ward].every(Number.isFinite)) return;
   s.gear.power = clamp(s.gear.power + power, 0, 10000); s.gear.ward = clamp(s.gear.ward + ward, 0, 10000);
-  for (const h of Object.values(s.heroes)) Object.assign(h, heroStats(h.id, s.character, s.gear));
+  syncCoopLevel(s);
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number) {
   if (e.hp <= 0) return;
@@ -208,12 +299,39 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
-    const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
-    s.candy += candy; s.kills++;
-    floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
-    gainXp(s, e.kind === "boss" ? e.miniBoss ? 95 : 130 : e.kind === "shooter" ? 35 : 28);
-    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius });
+    const xp = e.kind === "boss" ? e.miniBoss ? 95 : 130 : e.kind === "shooter" ? 35 : 28;
+    if (!s.coop) {
+      const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
+      s.candy += candy; s.kills++;
+      floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
+      gainXp(s, xp);
+    }
+    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp });
   }
+}
+// Hosts are the only authority for enemy HP and kill rewards. A beam may hit
+// several enemies, so dedupe the attack/target pair rather than the whole attack.
+export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean {
+  if (s.coop?.role !== "host" || seat === s.coop.seat || !Number.isInteger(seat) || seat < 0 || seat > 3) return false;
+  if (!Number.isInteger(hit.enemyId) || typeof hit.attackId !== "string" || !hit.attackId || hit.attackId.length > 96
+    || ![hit.damage, hit.dx, hit.dy, hit.force].every(Number.isFinite)
+    || hit.damage <= 0 || hit.damage > 100000 || hit.force < 0 || hit.force > 1000
+    || Math.abs(hit.dx) > 1.01 || Math.abs(hit.dy) > 1.01) return false;
+  const enemy = s.enemies.find(e => e.id === hit.enemyId && e.hp > 0);
+  if (!enemy) return false;
+  const key = `${seat}:${hit.attackId}:${hit.enemyId}`;
+  if (s.coop.appliedHits.includes(key)) return false;
+  s.coop.appliedHits.push(key);
+  if (s.coop.appliedHits.length > 2048) s.coop.appliedHits.splice(0, s.coop.appliedHits.length - 2048);
+  hurtEnemy(s, enemy, hit.damage, hit.dx, hit.dy, hit.force);
+  return true;
+}
+function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
+  if (e.hp <= 0) return;
+  if (s.coop?.role === "guest") {
+    s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
+    effect(s, "hit", e.x, e.y, 9, 0.12);
+  } else hurtEnemy(s, e, damage, dx, dy, force);
 }
 export function nextPartyHero(s: GameState): HeroId | null {
   const at = s.party.indexOf(s.active);
@@ -232,12 +350,26 @@ function swapHero(s: GameState): boolean {
   s.events.push({ type: "swap", hero: next }); return true;
 }
 export function requestSwap(s: GameState): boolean {
+  if (s.coop && activeHero(s).hp <= 0) return false;
   return s.swapCooldown === 0 && s.dashTimer === 0 && !s.overlay ? swapHero(s) : false;
 }
-function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sourceY = s.y - s.faceY) {
+export function exitCoop(s: GameState): void {
+  if (!s.coop) return;
+  const players = coopCount(s); s.coop.playerCount = 1;
+  for (const enemy of s.enemies) scaleEnemy(s, enemy, enemy.baseMaxHp ?? enemy.maxHp / enemyHpScale(enemy.kind, players));
+  delete s.coop; syncCoopLevel(s);
+  s.hitStop = 0; s.previousInput = idleInput();
+  if (activeHero(s).hp > 0 || s.scene === "dead" || s.scene === "results") return;
+  const fallen = s.active, next = nextPartyHero(s);
+  if (next) { swapHero(s); s.notice = `${HERO_NAMES[fallen]} is down! ${HERO_NAMES[next]} takes over.`; }
+  else {
+    s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
+    s.events.push({ type: "death" });
+  }
+}
+function damageHero(s: GameState, damage: number, sourceX: number, sourceY: number) {
   const h = activeHero(s);
   if (h.invulnerable > 0 || s.dashTimer > 0 || h.hp <= 0) return;
-  const damage = Math.max(1, Math.round((baseDamage - h.defense * 0.5) * (s.guard ? 0.25 : 1)));
   h.hp = Math.max(0, h.hp - damage); h.invulnerable = s.guard ? 0.12 : 0.5;
   s.hitStop = Math.max(s.hitStop, s.guard ? 0.04 : 0.065);
   if (!s.guard) {
@@ -248,6 +380,11 @@ function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sou
   effect(s, "hit", s.x, s.y, 10, 0.13);
   s.events.push({ type: "hit", x: s.x, y: s.y, damage, target: "hero" });
   if (h.hp === 0) {
+    if (s.coop) {
+      s.coop.downed = true; s.moving = false; s.guard = false; s.vx = s.vy = 0;
+      s.charge = s.dashTimer = s.attackTimer = 0;
+      s.notice = "Downed! A teammate can hold Interact nearby to revive you."; return;
+    }
     const next = nextPartyHero(s);
     if (next) { swapHero(s); s.notice = `${HERO_NAMES[h.id]} is down! ${HERO_NAMES[next]} takes over.`; }
     else {
@@ -256,17 +393,85 @@ function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sou
     }
   }
 }
+const enemyDamage = (s: GameState, baseDamage: number, defense: number, guard: boolean) =>
+  Math.max(1, Math.round((baseDamage * (1 + 0.1 * (coopCount(s) - 1)) - defense * 0.5) * (guard ? 0.25 : 1)));
+function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sourceY = s.y - s.faceY) {
+  damageHero(s, enemyDamage(s, baseDamage, activeHero(s).defense, s.guard), sourceX, sourceY);
+}
+export function applyCoopDamage(s: GameState, damage: number, sourceX: number, sourceY: number): void {
+  if (s.coop?.role !== "guest" || ![damage, sourceX, sourceY].every(Number.isFinite) || damage <= 0 || damage > 100000) return;
+  damageHero(s, Math.round(damage), sourceX, sourceY);
+}
+export function reviveCoopHero(s: GameState): boolean {
+  if (!s.coop || activeHero(s).hp > 0) return false;
+  const h = activeHero(s); h.hp = h.maxHp * 0.4; h.invulnerable = 1;
+  s.coop.downed = false; s.coop.reviveProgress = 0; s.knockX = s.knockY = 0;
+  s.hitStop = 0; s.notice = "Revived! Back in the fight.";
+  effect(s, "level", s.x, s.y, 22, 0.65); return true;
+}
+interface CombatTarget { x: number; y: number; hero: HeroState; guard: boolean; dashTimer: number; seat: number; remote?: RemoteHero }
+function combatTargets(s: GameState): CombatTarget[] {
+  const targets: CombatTarget[] = activeHero(s).hp > 0 ? [{ x: s.x, y: s.y, hero: activeHero(s), guard: s.guard, dashTimer: s.dashTimer, seat: s.coop?.seat ?? 0 }] : [];
+  if (s.coop?.role === "host") for (const remote of s.coop.remoteHeroes) {
+    if (remote.hero.hp <= 0 || remote.downed || remote.scene !== s.scene || remote.room !== s.room) continue;
+    targets.push({ x: remote.x, y: remote.y, hero: remote.hero, guard: remote.guard, dashTimer: remote.dashTimer, seat: remote.seat, remote });
+  }
+  return targets;
+}
+function hurtTarget(s: GameState, target: CombatTarget, damage: number, sourceX: number, sourceY: number) {
+  if (!target.remote) { hurtHero(s, damage, sourceX, sourceY); return; }
+  const coop = s.coop!, until = coop.damageUntil ??= {};
+  if (target.hero.hp <= 0 || target.dashTimer > 0 || target.hero.invulnerable > 0 || (until[target.seat] ?? 0) > s.time) return;
+  const dealt = enemyDamage(s, damage, target.hero.defense, target.guard);
+  until[target.seat] = s.time + (target.guard ? 0.12 : 0.5);
+  target.hero.hp = Math.max(0, target.hero.hp - dealt); target.remote.downed = target.hero.hp === 0;
+  s.events.push({ type: "coop-damage", seat: target.seat, damage: dealt, sourceX, sourceY });
+  effect(s, "hit", target.x, target.y, 10, 0.13);
+}
+function updateCoopRevives(s: GameState, input: Input, dt: number) {
+  const coop = s.coop;
+  if (!coop) return;
+  coop.downed = activeHero(s).hp <= 0;
+  if (coop.role !== "host") return;
+  const teammates = coop.remoteHeroes.filter(peer => peer.scene === s.scene && peer.room === s.room);
+  const players = [{ seat: coop.seat, x: s.x, y: s.y, hp: activeHero(s).hp, interact: input.interact },
+    ...teammates.map(peer => ({ seat: peer.seat, x: peer.x, y: peer.y, hp: peer.hero.hp, interact: peer.interact === true }))];
+  const timers = coop.reviveTimers ??= {}, recentlyRevived = coop.revivedUntil ??= {};
+  for (const player of players) {
+    const helpers = players.some(helper => helper.seat !== player.seat && helper.hp > 0 && helper.interact && Math.hypot(player.x - helper.x, player.y - helper.y) <= 32);
+    timers[player.seat] = player.hp <= 0 && helpers && (recentlyRevived[player.seat] ?? 0) <= s.time ? (timers[player.seat] ?? 0) + dt : 0;
+    if (player.seat === coop.seat) coop.reviveProgress = timers[player.seat] / 2;
+    const peer = teammates.find(peer => peer.seat === player.seat);
+    if (peer) peer.reviveProgress = timers[player.seat] / 2;
+    if (timers[player.seat] + 1e-9 < 2) continue;
+    timers[player.seat] = 0; recentlyRevived[player.seat] = s.time + 3;
+    if (player.seat === coop.seat) reviveCoopHero(s);
+    else if (peer) {
+      peer.hero.hp = peer.hero.maxHp * 0.4; peer.downed = false; peer.reviveProgress = 0;
+      s.events.push({ type: "coop-revive", seat: peer.seat });
+    }
+  }
+}
+function checkCoopWipe(s: GameState) {
+  const coop = s.coop;
+  if (coop?.role !== "host" || s.scene === "dead" || activeHero(s).hp > 0 || coop.remoteHeroes.length < coopCount(s) - 1) return false;
+  if (coop.remoteHeroes.some(peer => peer.hero.hp > 0 && !peer.downed)) return false;
+  s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
+  s.events.push({ type: "death" });
+  return true;
+}
 function melee(s: GameState) {
   s.combo = s.comboWindow > 0 ? s.combo % 3 + 1 : 1;
   s.attackTimer = s.combo === 3 ? 0.28 : 0.2;
   s.comboWindow = 0.8;
   const reach = s.combo === 3 ? 34 : 28;
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
+  const attackId = `melee:${s.nextId++}`;
   let hit = false;
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
-    hurtEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55);
+    attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
     hit = true;
   }
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
@@ -302,7 +507,7 @@ function fireKi(s: GameState) {
   } else s.notice = "Hold Ki to recharge.";
   s.charge = 0;
 }
-function updateBoss(s: GameState, e: Enemy, dt: number) {
+function updateBoss(s: GameState, e: Enemy, dt: number, target: CombatTarget) {
   if (e.phase === 1 && e.hp <= e.maxHp * 0.5) {
     e.phase = 2; e.speed = 29; e.cooldown = Math.min(e.cooldown, 0.7);
     effect(s, "level", e.x, e.y, 35, 0.7);
@@ -312,7 +517,7 @@ function updateBoss(s: GameState, e: Enemy, dt: number) {
   if (e.actionTimer > 0) {
     e.actionTimer = Math.max(0, e.actionTimer - dt);
     moveBody(s, e, e.aimX * (e.phase === 2 ? 190 : 160) * dt, e.aimY * (e.phase === 2 ? 190 : 160) * dt, e.radius);
-    if (Math.hypot(s.x - e.x, s.y - e.y) < e.radius + 10) hurtHero(s, e.phase === 2 ? 28 : 22, e.x, e.y);
+    for (const player of combatTargets(s)) if (Math.hypot(player.x - e.x, player.y - e.y) < e.radius + 10) hurtTarget(s, player, e.phase === 2 ? 28 : 22, e.x, e.y);
     if (e.actionTimer === 0) e.pattern = 1;
     return;
   }
@@ -335,7 +540,7 @@ function updateBoss(s: GameState, e: Enemy, dt: number) {
     }
     return;
   }
-  const dx = s.x - e.x, dy = s.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
+  const dx = target.x - e.x, dy = target.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
   e.aimX = dx / length; e.aimY = dy / length;
   if (e.cooldown === 0) {
     e.windup = e.pattern === 0 ? (e.phase === 2 ? 0.45 : 0.65) : (e.phase === 2 ? 0.6 : 0.8);
@@ -350,10 +555,13 @@ function updateEnemies(s: GameState, dt: number) {
     e.cooldown = Math.max(0, e.cooldown - dt);
     moveBody(s, e, e.kx * dt, e.ky * dt, e.radius);
     e.kx *= Math.max(0, 1 - dt * 9); e.ky *= Math.max(0, 1 - dt * 9);
-    const dx = s.x - e.x, dy = s.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
+    const players = combatTargets(s);
+    const target = players.reduce<CombatTarget | null>((best, candidate) => !best || Math.hypot(candidate.x - e.x, candidate.y - e.y) < Math.hypot(best.x - e.x, best.y - e.y) ? candidate : best, null);
+    if (!target) continue;
+    const dx = target.x - e.x, dy = target.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
     const contact = e.radius + 9;
     if (e.hitTimer > 0 || (length > 230 && e.actionTimer === 0 && e.windup === 0)) continue;
-    if (e.kind === "boss") updateBoss(s, e, dt);
+    if (e.kind === "boss") updateBoss(s, e, dt, target);
     else if (e.kind === "shooter") {
       e.aimX = dx / length; e.aimY = dy / length;
       const direction = length < 62 ? -1 : length > 90 ? 1 : 0;
@@ -366,7 +574,7 @@ function updateEnemies(s: GameState, dt: number) {
       e.aimX = dx / length; e.aimY = dy / length;
       if (length > contact) {
         moveBody(s, e, e.aimX * e.speed * dt, e.aimY * e.speed * dt, e.radius);
-      } else if (e.cooldown === 0) { hurtHero(s, 9, e.x, e.y); e.cooldown = 1.15; }
+      } else if (e.cooldown === 0) { hurtTarget(s, target, 9, e.x, e.y); e.cooldown = 1.15; }
     }
   }
 }
@@ -405,10 +613,13 @@ function updateProjectiles(s: GameState, dt: number) {
         if (e.hp <= 0 || p.hits.includes(e.id) || !collides(e.x, e.y, e.radius)) continue;
         p.hits.push(e.id);
         const length = Math.max(1, Math.hypot(p.vx, p.vy));
-        hurtEnemy(s, e, p.damage, p.vx / length, p.vy / length, p.beam ? 85 : 40);
+        attackEnemy(s, e, p.damage, p.vx / length, p.vy / length, p.beam ? 85 : 40, `projectile:${p.id}`);
         if (!p.beam) { p.ttl = 0; break; }
       }
-    } else if (collides(s.x, s.y, 7)) { hurtHero(s, p.damage, x0, y0); p.ttl = 0; }
+    } else if (s.coop?.role !== "guest") {
+      const target = combatTargets(s).find(player => collides(player.x, player.y, 7));
+      if (target) { hurtTarget(s, target, p.damage, x0, y0); p.ttl = 0; }
+    }
     if (blocked) p.ttl = 0;
   }
   s.projectiles = s.projectiles.filter(p => p.ttl > 0);
@@ -423,6 +634,10 @@ function availableExit(s: GameState): WorldExit | undefined {
   return getWorld(s.scene, s.room).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
 }
 export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
+  if (s.coop && activeHero(s).hp > 0) {
+    const downed = s.coop.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room && Math.hypot(s.x - peer.x, s.y - peer.y) <= 32);
+    if (downed) return { id: `coop-revive-${downed.seat}`, name: `Hold to revive ${downed.name}` };
+  }
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room);
     const chest = world.props.find(p => p.kind === "chest" && !s.clearedRooms.includes(p.id) && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h / 2) < 28);
@@ -445,17 +660,23 @@ function travel(s: GameState, door: WorldExit) {
   s.previousInput.interact = true;
 }
 export function interact(s: GameState): void {
+  if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
   const target = interactTarget(s);
   if (!target) return;
+  if (target.id.startsWith("coop-revive-")) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
-      s.clearedRooms.push(target.id); s.candy += s.room === 8 ? 18 : 25;
-      for (const h of Object.values(s.heroes)) {
-        h.hp = Math.min(h.maxHp, h.hp + 35); h.ki = Math.min(h.maxKi, h.ki + 20);
+      s.clearedRooms.push(target.id);
+      if (!s.coop) {
+        s.candy += s.room === 8 ? 18 : 25;
+        for (const h of Object.values(s.heroes)) {
+          h.hp = Math.min(h.maxHp, h.hp + 35); h.ki = Math.min(h.maxKi, h.ki + 20);
+        }
+        if (s.room === 9) grantGear(s, 1, 0);
       }
-      if (s.room === 9) grantGear(s, 1, 0);
-      s.notice = s.room === 8 ? "Orchard cache: 18 candy, tonic and Ki supplies!" : "Supply cache: 25 candy, tonic and +1 Power for the crew!";
+      s.notice = s.coop ? "Supply cache opened! Everyone receives their own supplies."
+        : s.room === 8 ? "Orchard cache: 18 candy, tonic and Ki supplies!" : "Supply cache: 25 candy, tonic and +1 Power for the crew!";
       s.events.push({ type: "checkpoint", id: target.id }); return;
     }
     if (target.id === "scout") { s.notice = "Scout: Two supply trails survived the blast. Find the orchard north of Split Creek and the old depot south of Furnace Pass."; return; }
@@ -479,6 +700,7 @@ export function interact(s: GameState): void {
   s.notice = dialogue[target.id] ?? "Wayside is quiet... for now.";
 }
 export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): boolean {
+  if (s.coop && activeHero(s).hp <= 0) return false;
   if ((!fromCharacter && (s.scene !== "hub" || s.overlay !== "home")) || s.scene === "dead" || !s.unlockedHeroes.includes(id)) return false;
   if (s.party.includes(id)) {
     if (s.party.length === 1) { s.notice = "Keep at least one hero in the party."; return false; }
@@ -494,11 +716,13 @@ export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): bo
   return true;
 }
 export function restAtHome(s: GameState): void {
+  if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   for (const h of Object.values(s.heroes)) { h.hp = h.maxHp; h.ki = h.maxKi; h.stamina = h.maxStamina; }
   if (!s.areas.includes("wayside")) s.areas.push("wayside");
   s.events.push({ type: "checkpoint", id: "home" }); s.notice = "Rested. HOME is your retry checkpoint.";
 }
 export function buyItem(s: GameState, id: ShopItemId): boolean {
+  if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return false;
   const item = SHOP_ITEMS.find(item => item.id === id)!;
   if (s.candy < item.cost) { s.notice = "Not enough candy. Monsters drop more."; return false; }
   if (id === "heal" && activeHero(s).hp >= activeHero(s).maxHp) { s.notice = "Already at full HP."; return false; }
@@ -519,7 +743,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     return;
   }
   if (s.scene === "shift") {
-    if (s.sceneTimer >= 2.4) {
+    if (s.coop?.role !== "guest" && s.sceneTimer >= 2.4) {
       const target = s.transitionTarget ?? "realm", palette = s.transitionPalette;
       enterScene(s, target); s.palette = palette;
       s.previousInput = { ...input };
@@ -527,6 +751,12 @@ export function step(s: GameState, input: Input, delta: number): void {
     return;
   }
   if (s.scene === "dead" || s.scene === "results") return;
+  updateCoopRevives(s, input, dt);
+  if (checkCoopWipe(s)) return;
+  if (s.coop?.downed) {
+    input = idleInput(); s.previousInput = idleInput(); s.moving = s.guard = false;
+    s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
+  }
   if (s.overlay) { s.previousInput = { ...input }; s.moving = false; return; }
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
@@ -581,9 +811,10 @@ export function step(s: GameState, input: Input, delta: number): void {
   }
   if (!input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
   const hadEnemies = s.enemies.length > 0;
-  updateEnemies(s, dt);
-  separateBodies(s, dt);
+  if (s.coop?.role !== "guest") { updateEnemies(s, dt); separateBodies(s, dt); }
   updateProjectiles(s, dt);
+  if (s.coop?.role === "guest") return;
+  if (checkCoopWipe(s)) return;
   s.enemies = s.enemies.filter(e => e.hp > 0);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";
   if (hadEnemies && s.enemies.length === 0 && s.scene === "dungeon") {

@@ -96,11 +96,14 @@ export function ago(iso: string) {
 
 // The lounge
 
-export type LoungePlayer = { userId: string; name: string; x: number; y: number; say: string | null; saidAt: number | null };
-export type CrowdMember = { userId: string; name: string };
+export type FuryHosting = { game: "Wayside Fury"; code: string; count: number; max: number };
+export type HostingMember = { userId: string; name: string; hosting: FuryHosting };
+export type LoungePlayer = { userId: string; name: string; x: number; y: number; say: string | null; saidAt: number | null; hosting: FuryHosting | null };
+export type CrowdMember = { userId: string; name: string; hosting?: FuryHosting | null };
 
 export type LoungeMessage =
-  | { type: "room"; players: LoungePlayer[]; max: number }
+  | { type: "room"; players: LoungePlayer[]; max: number; hosts: HostingMember[] }
+  | { type: "hosting"; hosts: HostingMember[] }
   | { type: "in"; userId: string; admin: boolean }
   | { type: "out"; reason: "elsewhere" | "kicked" }
   | { type: "enter"; player: LoungePlayer }
@@ -123,6 +126,11 @@ export async function loungeTicket() {
 
 export async function loadCrowd() {
   return readJson<{ data: CrowdMember[] }>(await fetchWithAuth("/wayside-online/lounge/crowd")).then((body) => body.data ?? []);
+}
+
+// Room-owned presence: signed-in station visitors can join even after the host leaves the lounge.
+export async function loadFuryHosts() {
+  return readJson<{ hosts: HostingMember[] }>(await fetchWithAuth("/wayside-fury/coop/hosting")).then((body) => body.hosts ?? []);
 }
 
 // How each player looks, fetched sixty at a time (the most the server takes)

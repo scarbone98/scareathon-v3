@@ -1,10 +1,11 @@
+import { FuryCoop } from "./coop";
 import { MusicDirector, type AudioSettings } from "./music";
 import { FuryAudio } from "./audio";
 import { Renderer, type RenderPresentation } from "./render";
 import type { HeroAvatar } from "./avatar";
 import { GameInput, type InputMode } from "./input";
 import { captureMotion, interpolateMotion, type MotionSnapshot } from "./motion";
-import { newGame, step, type GameEvent, type GameState, type Input } from "./sim";
+import { exitCoop, newGame, step, type GameEvent, type GameState, type Input } from "./sim";
 export interface Callbacks {
   onState: (state: GameState) => void;
   onInputMode: (mode: InputMode) => void;
@@ -18,6 +19,7 @@ export interface Callbacks {
 export class GameController {
   state: GameState = newGame();
   private renderer: Renderer;
+  coop: FuryCoop | null = null;
   private input: GameInput;
   private raf = 0;
   private last = 0;
@@ -50,19 +52,21 @@ export class GameController {
     cb.onInputMode(this.input.mode);
     this.raf = requestAnimationFrame(this.frame);
   }
-  start(state = newGame()) { this.started = true; this.state = state; this.paused = false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
+  start(state = newGame()) { this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [] }; this.paused = false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
   setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) this.state.charge = 0; }
   showTitle() { this.started = false; this.setPaused(true); this.audio.menu(); }
   setAudioSettings(settings: AudioSettings) { this.sound.setSettings(settings); }
   itemGet() { this.sound.jingle("item"); }
-  setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); }
+  setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); this.coop?.setAvatar(assets); }
+  setRemoteAvatar(seat: number, assets: HeroAvatar) { this.renderer.setRemoteAvatar(seat, assets); }
+  setCoop(coop: FuryCoop | null) { this.coop = coop; if (!coop) exitCoop(this.state); else if (coop.room) this.state.coop = { role: coop.isHost ? "host" : "guest", seat: coop.room.seat, remoteHeroes: [], appliedHits: [] }; }
   setTouch(input: Partial<Input>) { this.input.setTouch(input); }
   mutate(action: (state: GameState) => void) {
     this.previousMotion = null;
     const overlay = this.state.overlay;
     this.state.events.length = 0; action(this.state);
     if (!overlay && this.state.overlay) this.input.clearTouch();
-    for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+    for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
     this.state.events.length = 0; if (this.started) this.audio.sync(this.state); this.publish();
   }
   private publish() {
@@ -78,7 +82,7 @@ export class GameController {
     });
   }
   dispose() {
-    cancelAnimationFrame(this.raf); this.input.dispose(); this.renderer.dispose(); this.sound.dispose();
+    this.coop?.leave(); cancelAnimationFrame(this.raf); this.input.dispose(); this.renderer.dispose(); this.sound.dispose();
     for (const gesture of this.audioGestures) window.removeEventListener(gesture, this.unlockAudio, true);
     window.removeEventListener("click", this.uiClick); document.removeEventListener("visibilitychange", this.visibleAudio);
     window.removeEventListener("pageshow", this.visibleAudio);
@@ -88,16 +92,18 @@ export class GameController {
     const input = this.input.read();
     const frameDelta = (now - (this.last || now)) / 1000;
     const delta = Math.min(0.1, frameDelta);
-    this.acc += this.paused ? 0 : delta;
+    this.acc += this.paused && !this.coop?.room ? 0 : delta;
     this.last = now;
     while (this.acc >= 1 / 60) {
       this.previousMotion = captureMotion(this.state);
       const ready = this.state.hitStop <= 0, overlay = this.state.overlay;
-      step(this.state, input, 1 / 60);
+      const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : input;
+      step(this.state, appliedInput, 1 / 60);
+      this.coop?.update(this.state, appliedInput, now);
       this.audio.sync(this.state);
       if (!overlay && this.state.overlay) this.input.clearTouch();
       if (ready) this.input.consume();
-      for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+      for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
       this.acc -= 1 / 60;
     }
     const rendered = this.paused ? this.state : interpolateMotion(this.previousMotion, this.state, this.acc * 60);

@@ -1,9 +1,29 @@
 import { parseSaveRequest } from '../routes/waysideFury.js';
-import { MAX_LEVEL, MAX_MILESTONES, MAX_SAVE_BYTES, inferGear, mergeReceipts, migrateSave, progressScore, sanitizeSave } from '../shared/waysideFury/save.js';
+import { MAX_LEVEL, MAX_MILESTONES, MAX_COOP_REWARDS, MAX_SAVE_BYTES, inferGear, mergeReceipts, migrateSave, progressScore, sanitizeSave } from '../shared/waysideFury/save.js';
 import { hero, legacySave, currentSave, makeServer, memoryDatabase, PLAYER, OTHER_PLAYER } from './helpers/waysideFurySaveFixtures.js';
 
 const checked = extra => sanitizeSave(legacySave(extra)).save;
 describe('Wayside Fury save sheets', () => {
+    test('version-three sheets and legacy migration default missing co-op receipts to an empty list', () => {
+        for (const raw of [legacySave(), legacySave({ version: 2 }), currentSave()]) {
+            delete raw.coopRewards;
+            const save = sanitizeSave(raw).save;
+            expect(save.version).toBe(3);
+            expect(save.coopRewards).toEqual([]);
+            expect(migrateSave(raw).coopRewards).toEqual([]);
+        }
+    });
+    test('co-op receipts sanitize IDs, deduplicate, and retain the most recent 256', () => {
+        const valid = 'ABCD:9d718400-78cf-4798-a9e3-5124bdbf07be:kill_19';
+        const raw = currentSave({ coopRewards: [valid, valid, 'checkpoint:blast-1', '', null, 123,
+            'https://attacker.invalid/receipt', '<script>', 'bad id', 'x'.repeat(129)] });
+        const save = sanitizeSave(raw).save;
+        expect(save.coopRewards).toEqual([valid, 'checkpoint:blast-1']);
+        expect(sanitizeSave(save).save.coopRewards).toEqual(save.coopRewards);
+        const ids = Array.from({ length: MAX_COOP_REWARDS + 20 }, (_, index) => `ABCD:kill:${index}`);
+        expect(sanitizeSave(currentSave({ coopRewards: ids })).save.coopRewards).toEqual(ids.slice(-MAX_COOP_REWARDS));
+        expect(sanitizeSave(currentSave({ coopRewards: { forged: true } })).save.coopRewards).toEqual([]);
+    });
     test('migrates PR1 without resetting progress or its ticket receipt and whitelists fields', () => {
         const old = legacySave({ extra: 'discard me', savedAt: 1234 });
         old.heroes.joe.unknown = 'discard me';

@@ -1,4 +1,4 @@
-import { enterScene, newGame, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
+import { enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
 import type { SaveData, ProgressReceipt } from "../../../../server/shared/waysideFury/save.js";
@@ -28,12 +28,17 @@ export function readSave(key = SAVE_KEY): SaveData | null {
 // Building a snapshot is separate from device storage: a full or blocked device
 // can still save to the account. The legacy writer keeps its failure contract.
 export function makeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
+  const heroes = s.coop?.syncedLevel !== undefined ? Object.fromEntries(HERO_IDS.map(id => {
+    const current = s.heroes[id], personal = createHero(id, s.character, s.gear);
+    return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
+  })) : s.heroes;
   return parseSave({
-    version: SAVE_VERSION, chapter: s.chapter, heroes: s.heroes, active: s.active, party: s.party, candy: s.candy,
+    version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
-    home: home ? { heroes: s.heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
+    coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
+    home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
 }
 export function writeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
@@ -53,6 +58,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
+    s.coopRewards = [...(saved.coopRewards ?? [])];
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }
     if (s.heroes[s.active].hp <= 0) {

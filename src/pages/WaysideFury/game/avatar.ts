@@ -6,7 +6,9 @@ import type { AvatarAnchor, AvatarItem, AvatarLook, AvatarManifest, AvatarRespon
 import { fetchWithAuth } from '../../../fetchWithAuth';
 
 export interface AvatarStrip { canvas: HTMLCanvasElement; frames: number; fps: number }
+export interface AvatarAppearance { profile: AvatarLook["profile"]; outfit: { key: string; dyes: AvatarLook["outfit"][number]["dyes"] }[] }
 export interface HeroAvatar {
+  appearance?: AvatarAppearance;
   body: AvatarStrip;
   back: AvatarStrip[];
   front: AvatarStrip[];
@@ -95,7 +97,7 @@ export async function composeHeroAvatar(look: AvatarLook, manifest: AvatarManife
     companions.push({ canvas, frames: small.frames, fps: small.fps });
   }
   const portrait = await composePortrait(look, manifest, 2);
-  return { body, back, front, companions, bodyKey, rig, portraitUrl: portrait.toDataURL('image/png'), fallback: false };
+  return { appearance: { profile: look.profile, outfit: look.outfit.map(({ item, dyes }) => ({ key: item.itemKey, dyes })) }, body, back, front, companions, bodyKey, rig, portraitUrl: portrait.toDataURL('image/png'), fallback: false };
 }
 
 function pixelFallback(): HeroAvatar {
@@ -157,4 +159,17 @@ export async function loadHeroAvatar(userId: string | null, signal?: AbortSignal
       if (signal?.aborted) cancel(); else fallback();
     });
   });
+}
+
+// Only local catalog keys become image paths; a peer cannot supply asset URLs.
+export async function composeAppearance(appearance: AvatarAppearance): Promise<HeroAvatar> {
+  try {
+    const manifest = await loadAvatarManifest();
+    const catalog = catalogInventory(manifest as CatalogManifest);
+    const outfit = appearance.outfit.slice(0, 24).flatMap(entry => {
+      const item = catalog.find(candidate => candidate.item.itemKey === entry.key)?.item;
+      return item ? [{ item, dyes: entry.dyes }] : [];
+    });
+    return await composeHeroAvatar({ profile: appearance.profile, outfit }, manifest);
+  } catch { return pixelFallback(); }
 }
