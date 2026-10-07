@@ -30,6 +30,7 @@ import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
 import mysteryCryptRoutes from './routes/mysteryCrypt.js';
 import waysideFuryRoutes from './routes/waysideFury.js';
+import waysideFuryCoopRoutes from './routes/waysideFuryCoop.js';
 import scareCapitalistRoutes from './routes/scareCapitalist.js';
 import pictoBoxRoutes from './routes/pictoBox.js';
 import waysideOnlineRoutes, { WAYSIDE_ONLINE_SQL } from './routes/waysideOnline.js';
@@ -197,7 +198,7 @@ async function main() {
         fastify.decorateRequest('user', null);
         // Registered once for every socket route: each registration adds its own
         // raw 'upgrade' listener, so two would handle every connection twice.
-        await fastify.register(websocket, { options: { maxPayload: 8192 } });
+        await fastify.register(websocket, { options: { maxPayload: 65_536 } });
 
         fastify.addHook('preValidation', async (request, reply) => {
             if (isPublicRoute(request.method, request.url)) {
@@ -266,6 +267,7 @@ async function main() {
         fastify.register(homeRoutes, { prefix: '/home' });
         fastify.register(mysteryCryptRoutes, { prefix: '/mystery-crypt' });
         fastify.register(waysideFuryRoutes, { prefix: '/wayside-fury' });
+        fastify.register(waysideFuryCoopRoutes, { prefix: '/wayside-fury/coop' });
         fastify.register(scareCapitalistRoutes, { prefix: '/scare-capitalist' });
         fastify.register(pictoBoxRoutes, { prefix: '/picto-box' });
         fastify.register(waysideOnlineRoutes, { prefix: '/wayside-online' });

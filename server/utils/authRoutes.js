@@ -1,3 +1,5 @@
+import { isWaysideFuryDevAuth } from '../wayside-fury/devAuth.js';
+
 // Which requests skip or soften the Supabase JWT check in index.js.
 
 // A Picto Box photo's picture, /picto-box/photos/<uuid>.jpg (loaded by <img>, so no token)
@@ -30,6 +32,10 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && url.startsWith('/crypt-clash/ws')) ||
         // So are Frog Ball co-op rooms.
         (method === 'GET' && url.startsWith('/frog-ball/ws')) ||
+        // Fury's transport authenticates with a one-use ticket issued after JWT
+        // verification. Unauthenticated sockets cannot create/join/relay.
+        (method === 'GET' && url.split('?')[0] === '/wayside-fury/coop/ws') ||
+        (method === 'POST' && url === '/wayside-fury/coop/dev-ticket' && isWaysideFuryDevAuth()) ||
         // Anyone can watch the Wayside Online lounge and see who's about (coming in needs a login)
         (method === 'GET' && (url.startsWith('/wayside-online/lounge/ws') || url.startsWith('/wayside-online/lounge/crowd'))) ||
         // 8 Bit Evil Returns V2 co-op rooms are open to guests.
