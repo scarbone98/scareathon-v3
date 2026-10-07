@@ -1,0 +1,17 @@
+{
+  "name": "Mini Me",
+  "category": "companion",
+  "rarity": "epic",
+  "price": 450,
+  "release": "released",
+  "dyes": {
+    "dye1": "orange"
+  },
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "mini.txt",
+      "anchor": "free"
+    }
+  ]
+}

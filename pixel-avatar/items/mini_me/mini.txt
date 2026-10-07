@@ -1,0 +1,23 @@
+# A little you, stood beside you. This drawing is only its picture in the shop, and what
+# shows where an avatar can't be drawn twice: on the site the companion is your own avatar,
+# clothes and all, at half size (src/components/avatar/compose.ts, MINI_ME)
+at: 20,35
+legend:
+  h = hair.1
+  s = skin.2
+  e = eyes.1
+  t = dye1.2
+  l = ink.1
+--- 0
+..hhhh
+.hhhhhh
+.hssssh
+.sesses
+.ssssss
+..ssss
+.tttttt
+.tttttt
+.stttts
+..llll
+..l..l
+..l..l

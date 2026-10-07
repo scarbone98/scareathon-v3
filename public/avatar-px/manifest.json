@@ -4071,6 +4071,35 @@
       "release": "released"
     },
     {
+      "key": "mini_me",
+      "name": "Mini Me",
+      "category": "companion",
+      "parts": [
+        {
+          "slot": "companion",
+          "anchor": "free",
+          "x": 20,
+          "y": 35,
+          "w": 7,
+          "h": 12,
+          "frames": 1,
+          "src": "/avatar-px/items/mini_me/0-companion.png?v=667328f1d8"
+        }
+      ],
+      "icon": "/avatar-px/items/mini_me/icon.png?v=f985d091d8",
+      "dyes": {
+        "dye1": "orange"
+      },
+      "occupies": [],
+      "hides": [],
+      "order": 0,
+      "starter": false,
+      "default": false,
+      "rarity": "epic",
+      "price": 450,
+      "release": "released"
+    },
+    {
       "key": "moonlit_graveyard",
       "name": "Moonlit Graveyard",
       "category": "background",

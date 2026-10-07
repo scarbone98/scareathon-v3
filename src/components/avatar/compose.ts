@@ -76,8 +76,15 @@ export function orderedOutfit(look: AvatarLook) {
     .map(({ entry }) => entry);
 }
 
+// The Mini Me companion: not a drawing of its own but the avatar itself, at half size, stood
+// beside it (the item's own art is only its picture in the shop). Where its frame goes: the
+// little one's feet on the same ground, to the right of the big one's
+const MINI_ME = "mini_me";
+const MINI_AT: [number, number] = [17, 23];
+
 // Draws every frame of a look side by side: frame f at x = f * manifest.width.
 export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
+  const mini = look.outfit.some(({ item }) => item.itemKey === MINI_ME);
   const { width, height } = manifest;
   const rig = rigOf(look, manifest);
   const bodyKey = bodyOf(look)?.itemKey;
@@ -99,6 +106,8 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
         entry.item.parts
           // (background items aren't drawn: the banner you have up is your background)
           .filter((part) => part.slot !== "background")
+          // (the Mini Me's stand-in isn't drawn: you are, small, further down)
+          .filter(() => !(mini && entry.item.itemKey === MINI_ME))
           .filter((part) => part.slot === slot && (!bodyKey || !part.fits || part.fits.includes(bodyKey)))
           // a body without the part's anchor (a ghost has no legs) skips it
           .filter((part) => !bodyKey || rig.anchors[part.anchor])
@@ -173,6 +182,20 @@ export async function composeLook(look: AvatarLook, manifest: AvatarManifest) {
       context.restore();
     }
   });
+
+  if (mini) {
+    // You again, without the company you keep (no companion, so no mini of the mini, and
+    // no aura), drawn at half size in every frame
+    const small = await composeLook({ ...look, outfit: look.outfit.filter(({ item }) => item.category !== "companion" && item.category !== "aura") }, manifest);
+    for (let frame = 0; frame < rig.frames; frame++) {
+      context.save();
+      context.beginPath();
+      context.rect(frame * width, 0, width, height);
+      context.clip();
+      context.drawImage(small.canvas, (frame % small.frames) * width, 0, width, height, frame * width + MINI_AT[0], MINI_AT[1], width / 2, height / 2);
+      context.restore();
+    }
+  }
 
   return { canvas, frames: rig.frames, fps: rig.fps };
 }
