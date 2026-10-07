@@ -104,7 +104,7 @@ const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=68fa5b8";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
-const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=37b3a29";
+const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=7b058ef";
 const POCKET_AQUARIUM_URL = "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
