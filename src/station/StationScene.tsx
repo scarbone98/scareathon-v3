@@ -16,6 +16,7 @@ import {
   Shape,
   Path,
   SphereGeometry,
+  SpotLight,
   TorusGeometry,
   Color,
   Float32BufferAttribute,
@@ -1384,6 +1385,46 @@ function buildDepartures() {
   group.userData.face = face;
   addLamp(group, 0, -0.5, 1.0);
   group.add(hitBox(2.8, 1.75, 0.6, 0));
+  // To the left of the board, on the wall: the plaque of whoever's top of it, under a spotlight
+  // of its own (a tap on it, from anywhere: up close to it. See the page, and championPose in
+  // the scene). Made at its real size in a group that undoes the board's scale.
+  const plaque = new Group();
+  // (a little under full size, and set down from the board's middle: it sits under the window
+  // there, clear of its frame)
+  plaque.scale.setScalar(0.85 / 0.6);
+  plaque.position.set(-1.98, -0.42, -0.1);
+  const championTexture = paint(420, 420, (ctx, w, h) => drawChampion(ctx, w, h, null));
+  plaque.add(box(0.74, 0.74, 0.03, standard("#3a2a1c", 0.8)));
+  // (lit by the spot, so it's left its full colour: by the counter it was greyed against the lamp)
+  const championPoster = plane(0.66, 0.66, standard("#e8e0d2", 1, championTexture), 0, 0, 0.02);
+  championPoster.userData.part = "champion";
+  plaque.add(championPoster);
+  // The spot: a little black can on an arm off the wall over the plaque, tipped down at it, the
+  // light it throws (a real one, pooling on the plaque and the wall round it), and the beam
+  // showing faintly in the air
+  const metal = standard("#15181f", 0.6);
+  plaque.add(box(0.03, 0.03, 0.34, metal, 0, 0.62, 0.17));
+  const can = new Mesh(new CylinderGeometry(0.035, 0.06, 0.13, 12), metal);
+  can.position.set(0, 0.6, 0.36);
+  can.rotation.x = -0.62;
+  plaque.add(can);
+  const bulb = new Mesh(new CircleGeometry(0.05, 12), new MeshBasicMaterial({ color: "#fff1c8" }));
+  bulb.position.set(0, 0.548, 0.323);
+  bulb.rotation.x = Math.PI / 2 - 0.62;
+  plaque.add(bulb);
+  const spot = new SpotLight("#ffe9b8", 14, 3.2, 0.52, 0.55, 1.6);
+  spot.position.set(0, 0.6, 0.36);
+  spot.target.position.set(0, -0.02, 0.02);
+  plaque.add(spot, spot.target);
+  const beam = new Mesh(
+    new CylinderGeometry(0.045, 0.4, 0.68, 20, 1, true),
+    new MeshBasicMaterial({ color: "#ffe9b8", transparent: true, opacity: 0.07, blending: AdditiveBlending, depthWrite: false, side: DoubleSide })
+  );
+  beam.position.set(0, 0.29, 0.19);
+  beam.rotation.x = -0.5;
+  plaque.add(beam);
+  group.add(plaque);
+  group.userData.champion = { texture: championTexture, poster: championPoster, beam };
   group.userData.stopId = "departures";
   return group;
 }
@@ -1903,7 +1944,7 @@ function shopAdvertTexture(pick: number, onPicked?: (name: string) => void) {
   return texture;
 }
 
-// The plaque by the ticket counter (square): whoever's top of the Scareboard, their avatar big in
+// The plaque beside the scoreboard (square): whoever's top of the Scareboard, their avatar big in
 // a spotlight, their name and points under it (avatar: their look, drawn, once it's ready)
 function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champion: Boards["champion"], avatar?: { strip: HTMLCanvasElement; width: number; height: number }) {
   ctx.fillStyle = "#161226";
@@ -2022,14 +2063,6 @@ function buildTickets() {
     ad.userData.part = shop ? "advert-shop" : `advert-${name}`;
     group.add(ad);
   });
-  // To the left of the counter, on the wall: the poster of whoever's top of the Scareboard
-  // (a tap on it, from anywhere: up close to it. See the page, and championPose in the scene)
-  const championTexture = paint(420, 420, (ctx, w, h) => drawChampion(ctx, w, h, null));
-  group.add(box(0.74, 0.74, 0.03, wood, -1.5, 1.8, -0.11));
-  const championPoster = plane(0.66, 0.66, standard("#b8b0a4", 1, championTexture), -1.5, 1.8, -0.09);
-  championPoster.userData.part = "champion";
-  group.add(championPoster);
-  group.userData.champion = { texture: championTexture, poster: championPoster };
   const clerk = buildClerk();
   group.add(clerk.eyes, clerk.eyes.userData.grin as Mesh, clerk.hand);
   group.userData.clerk = clerk;
@@ -3855,7 +3888,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const key = champion ? `${champion.name}|${champion.total}|${JSON.stringify(champion.look ?? null)}` : "";
       if (key === championShown) return;
       championShown = key;
-      const { texture } = tickets.userData.champion as { texture: CanvasTexture };
+      const { texture } = departures.userData.champion as { texture: CanvasTexture };
       repaint(texture, (ctx, w, h) => drawChampion(ctx, w, h, champion));
       const look = champion?.look;
       if (!look) return;
@@ -3868,10 +3901,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     // Up close to the champion's poster: square on to it, all of it in view
     const championPose = () => {
-      const { poster } = tickets.userData.champion as { poster: Mesh };
-      tickets.updateWorldMatrix(true, true);
+      const { poster } = departures.userData.champion as { poster: Mesh };
+      departures.updateWorldMatrix(true, true);
       const centre = poster.getWorldPosition(new Vector3());
-      const normal = tickets.getWorldDirection(new Vector3());
+      const normal = departures.getWorldDirection(new Vector3());
       const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
       const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
       const distance = Math.max((0.74 * 1.1) / 2 / Math.tan(halfWidth), (0.74 * 1.15) / 2 / Math.tan(halfHeight));
@@ -4007,8 +4040,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       // The radio on the bench, up close
       if (stopId === "bench" && latest.current.zoom === "radio") return radioPose();
-      // The champion's poster by the ticket counter, up close
-      if (stopId === "tickets" && latest.current.zoom === "champion" && championPoseRef.current) return championPoseRef.current();
+      // The champion's plaque beside the scoreboard, up close
+      if (stopId === "departures" && latest.current.zoom === "champion" && championPoseRef.current) return championPoseRef.current();
       // Reading something up close: square on to it (a leaning flyer is looked down at),
       // just far enough back that all of it fits
       const zoomed = latest.current.zoom ? placed.find(({ spec }) => spec.id === latest.current.zoom && spec.stop === stopId) : null;
@@ -4129,6 +4162,14 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         return null;
       };
       const hits = raycaster.intersectObjects(objects, true);
+      // The champion's plaque hangs where the arcade's generous tap box and its sign's glow reach
+      // across it: if it's the first thing you can actually see along the tap, it's the plaque
+      // that was tapped, not the machine
+      const seen = hits.find(({ object }) => {
+        const material = (object as Mesh).material as Material & { blending?: number };
+        return !(Array.isArray(material) || !material || material.visible === false || (material.transparent && material.blending === AdditiveBlending));
+      });
+      if (seen?.object.userData.part === "champion") return owner(seen.object);
       const first = hits[0] ? owner(hits[0].object) : null;
       if (!first || first.part) return first;
       // The generous tap boxes sit in front; look behind them for the part that was tapped
@@ -4254,11 +4295,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           else partTapped("radio");
         }
         // (up close to the radio, a tap on the bench round it steps back, as one on nothing does)
-        // (the champion's poster by the counter: a tap on it, from anywhere, is a closer look;
-        // up close to it, a tap anywhere else steps back)
+        // (the champion's plaque beside the scoreboard: a tap on it, from anywhere, is a closer
+        // look; up close to it, a tap anywhere else steps back)
         else if (hit?.part === "champion") {
-          if (!(current === "tickets" && latest.current.zoom === "champion")) partTapped("champion");
-        } else if (current === "tickets" && latest.current.zoom === "champion") (emptyTapped ?? (() => select(null)))();
+          if (!(current === "departures" && latest.current.zoom === "champion")) partTapped("champion");
+        } else if (current === "departures" && latest.current.zoom === "champion") (emptyTapped ?? (() => select(null)))();
         // (and sat on the bench, a tap on it or on the sky gets you up, as one on nothing does)
         else if (current === "bench" && hit?.stop === "bench") (emptyTapped ?? (() => select(null)))();
         else if (hit && hit.stop !== current && hit.stop === "bulletin" && hit.part?.startsWith("paper-") && latest.current.papersFromAfar) partTapped(hit.part);
@@ -4579,6 +4620,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const lit = o.userData.stopId === current || o.userData.stopId === hovered;
         lamp.intensity += ((lit ? LAMP_LIT : LAMP_IDLE) - lamp.intensity) * 0.08;
       });
+      // (up close to the champion's plaque you're standing in its spotlight's beam: not drawn, then)
+      (departures.userData.champion as { beam: Mesh }).beam.visible = !(current === "departures" && latest.current.zoom === "champion");
 
       // The empty train comes through every 45 s (first after about 25 s), at about 80 km/h.
       // It sets off far down the line, its headlight a speck on the horizon (the fog hides

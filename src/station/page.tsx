@@ -247,11 +247,14 @@ export default function StationPage() {
   const toRadio = useRef(false);
   // (and up to the board for one of its papers, on a big screen)
   const toPaper = useRef<number | null>(null);
-  // (and up to the ticket counter for the champion's poster beside it)
+  // (and up to the scoreboard for the champion's plaque beside it: that visit is for the
+  // plaque, so the scoreboard doesn't come up full screen over it)
   const toChampion = useRef(false);
+  const forChampion = useRef(false);
   useEffect(() => {
     const paper = toPaper.current;
-    setZoom(at === "bench" && toRadio.current ? "radio" : at === "tickets" && toChampion.current ? "champion" : at === "bulletin" && paper !== null ? `paper-${paper}` : null);
+    forChampion.current = at === "departures" && toChampion.current;
+    setZoom(at === "bench" && toRadio.current ? "radio" : forChampion.current ? "champion" : at === "bulletin" && paper !== null ? `paper-${paper}` : null);
     toRadio.current = false;
     toChampion.current = false;
     toPaper.current = null;
@@ -278,6 +281,7 @@ export default function StationPage() {
   // wardrobe comes up by itself. Walking up to the scoreboard likewise brings it up full screen
   useEffect(() => {
     if (at !== "lockers" && at !== "departures") return;
+    if (at === "departures" && forChampion.current) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const kind = at === "lockers" ? "wardrobe" : "departures";
     const open = window.setTimeout(() => setHeld((current) => current ?? { kind }), reduced ? 0 : at === "lockers" ? 1100 : 700);
@@ -337,12 +341,12 @@ export default function StationPage() {
   // in the card, and on wide screens (where the HTML isn't drawn, or for the poster), pick it up
   const onPart = (part: string) => {
     // The radio on the bench: up close to it (its keys and screen are its own: StationScene)
-    // The champion's poster by the ticket counter: up close to it
+    // The champion's plaque beside the scoreboard: up close to it
     if (part === "champion") {
-      if (at === "tickets") setZoom("champion");
+      if (at === "departures") setZoom("champion");
       else {
         toChampion.current = true;
-        select("tickets");
+        select("departures");
       }
       return;
     }
@@ -543,7 +547,7 @@ export default function StationPage() {
   }, [mobileMenuOpen]);
 
   // (from a paper on the board, a big screen steps right back to the platform)
-  // (and from the champion's poster, back to the platform, not to the counter beside it)
+  // (and from the champion's plaque, back to the platform, not to the scoreboard beside it)
   const stepBack = () => (readsUpClose && zoom !== null && !(at === "bulletin" && !compact) ? setZoom(null) : select(null));
 
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
@@ -636,7 +640,7 @@ export default function StationPage() {
             // On phones things are used through the held card, except what's read where it hangs
             surfacesInteractive={!compact || readsUpClose}
             cardFraction={cardItems ? CARD_FRACTION : 0}
-            zoom={readsUpClose || at === "bench" || at === "tickets" ? zoom : null}
+            zoom={readsUpClose || at === "bench" || at === "tickets" || at === "departures" ? zoom : null}
             onEmptyTap={stepBack}
             onPart={onPart}
             papersFromAfar={!compact}
@@ -712,7 +716,7 @@ export default function StationPage() {
         {at === "capsule" && <Capsule signedIn={signedIn} goTo={goTo} />}
         <TicketDrop />
         {/* The ticketmaster has a word for you as you walk up */}
-        <ClerkSays arrived={at === "tickets" && atArrived && !held && zoom !== "champion"} />
+        <ClerkSays arrived={at === "tickets" && atArrived && !held} />
 
         <Sheet sheet={sheet} onClose={closeSheet} above={Boolean(playing)} />
 
