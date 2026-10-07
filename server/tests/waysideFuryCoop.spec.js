@@ -206,6 +206,29 @@ describe('Wayside Fury four-seat rooms', () => {
 });
 
 describe('Wayside Fury relay validation', () => {
+    test('reward progress uses rooms, whitelists fields, and rejects invalid receipts, arrays and numbers', () => {
+        const reward = { id: 'ABCD:uuid-123:checkpoint:blast-0', kind: 'checkpoint', xp: 50, candy: 0,
+            rooms: ['blast-0', 'blast-0'], areas: ['blast'], bosses: ['blast-watcher'], chapter: 2 };
+        expect(cleanRelay({ type: 'reward', reward: { ...reward, clearedRooms: ['ignored'], unknown: 99 } }).reward).toEqual({ ...reward, rooms: ['blast-0'] });
+        for (const invalid of [
+            { id: 'https://attacker.invalid/reward' }, { kind: 'unknown' }, { xp: NaN }, { xp: Infinity },
+            { xp: -1 }, { candy: 10_001 }, { xp: undefined }, { chapter: 0 },
+            { rooms: 'blast-0' }, { rooms: [null] }, { rooms: [123] }, { rooms: [{}] },
+            { rooms: ['<script>'] }, { rooms: Array(129).fill('blast-0') },
+            { areas: [Infinity] }, { bosses: [{ id: 'boss' }] },
+        ]) expect(cleanRelay({ type: 'reward', reward: { ...reward, ...invalid } })).toBeNull();
+    });
+    test('instanced chest rewards preserve bounded tonic and gear deltas', () => {
+        const reward = { id: 'ABCD:chest:blast-2', kind: 'checkpoint', xp: 0, candy: 0,
+            healHp: 1_000_000, healKi: 1_000_000, power: 10_000, ward: 10_000 };
+        expect(cleanRelay({ type: 'reward', reward }).reward).toEqual(reward);
+        expect(cleanRelay({ type: 'reward', reward: { ...reward, healHp: 0, healKi: 0, power: 0, ward: 0 } }).reward).toEqual({ ...reward, healHp: 0, healKi: 0, power: 0, ward: 0 });
+        for (const [key, max] of [['healHp', 1_000_000], ['healKi', 1_000_000], ['power', 10_000], ['ward', 10_000]]) {
+            for (const value of [-1, max + 1, 1.5, '1', null, NaN, Infinity]) {
+                expect(cleanRelay({ type: 'reward', reward: { ...reward, [key]: value } })).toBeNull();
+            }
+        }
+    });
     test('peers get heroes while only host gets hits and inputs, with authenticated sender identity', () => {
         const { rooms, host, guest, player } = setup();
         const room = rooms.create(host);

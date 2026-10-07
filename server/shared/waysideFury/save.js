@@ -3,6 +3,7 @@
 export const SAVE_VERSION = 3;
 export const MAX_SAVE_BYTES = 65_536;
 export const MAX_MILESTONES = 128;
+export const MAX_COOP_REWARDS = 256;
 export const MAX_LEVEL = 1_000;
 export const HERO_IDS = ['you', 'joe', 'matt', 'alex', 'jon'];
 const LEGACY_HERO_IDS = ['joe', 'matt'];
@@ -19,6 +20,13 @@ const isHero = value => HERO_IDS.includes(value);
 function milestones(value) {
     return [...new Set((Array.isArray(value) ? value : []).filter(id =>
         typeof id === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(id)))].slice(0, MAX_MILESTONES);
+}
+function coopRewards(value) {
+    // Retain recent reward IDs across device reloads and reconnects. They are
+    // receipts only: a room code/UUID may appear in an ID, never an asset URL.
+    const ids = (Array.isArray(value) ? value : []).filter(id =>
+        typeof id === 'string' && /^[A-Za-z0-9:_-]{1,128}$/.test(id));
+    return [...new Set(ids)].slice(-MAX_COOP_REWARDS);
 }
 function party(value) {
     if (!Array.isArray(value)) return ['you', 'joe'];
@@ -148,6 +156,7 @@ export function sanitizeSave(raw) {
         candy: integer(raw.candy, 0, 1_000_000), unlockedHeroes: [...HERO_IDS],
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
+        coopRewards: coopRewards(raw.coopRewards),
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };
 }

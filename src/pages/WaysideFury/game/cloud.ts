@@ -25,7 +25,7 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   if (!remote) return local;
   const difference = progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+  return { ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
 }
 
 // The transport and storage are replaceable so races and disconnected devices

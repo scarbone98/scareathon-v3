@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { newGame, enterScene, addEnemy, activeHero, idleInput, step, interact, interactTarget, applyCoopHit, applyCoopDamage,
-  setCoopPlayerCount, syncCoopLevel, coopLevelBand, reviveCoopHero, requestSwap, exitCoop, createHero, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
+  setCoopPlayerCount, syncCoopLevel, coopLevelBand, reviveCoopHero, requestSwap, exitCoop, gainXp, grantGear, restAtHome, buyItem, xpForLevel, createHero, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
 import { getWorld } from '../src/pages/WaysideFury/game/world.ts';
 
 const DT = 1 / 60;
@@ -52,7 +52,7 @@ assert.equal(otherBeamHits.length, 2); assert.notEqual(otherBeamHits[0].attackId
 assert.equal(second.hp, second.maxHp);
 
 // Authoritative damage is applied once per source attack and target. Its kill
-// follows the same XP/candy/event path as local combat.
+// emits reward metadata for the per-player ledger rather than granting twice.
 const host = cooperative('host', 0);
 host.enemies = [structuredClone(authoritativeEnemy), structuredClone(second)];
 assert.equal(applyCoopHit(host, melee[0], 1), true);
@@ -64,9 +64,10 @@ assert.equal(applyCoopHit(host, { ...melee[0], attackId: 'invalid', damage: NaN 
 assert.equal(applyCoopHit(host, { ...melee[0], attackId: 'self' }, 0), false);
 const kill = { ...melee[0], attackId: 'finisher', damage: 1000 };
 assert.equal(applyCoopHit(host, kill, 1), true);
-assert.equal(host.kills, 1); assert.ok(host.candy > 0); assert.ok(host.character.xp > 0);
+assert.equal(host.kills, 0); assert.equal(host.candy, 0); assert.equal(host.character.xp, 0);
 assert.equal(host.events.filter(e => e.type === 'kill').length, 1);
-assert.equal(applyCoopHit(host, kill, 1), false); assert.equal(host.kills, 1);
+assert.equal(host.events.find(e => e.type === 'kill').xp, 28);
+assert.equal(applyCoopHit(host, kill, 1), false); assert.equal(host.kills, 0);
 assert.equal(applyCoopHit(guest, kill, 0), false, 'guests cannot apply authoritative enemy damage');
 
 // Empty snapshots and doorway inputs never create guest clears or travel.
@@ -241,4 +242,78 @@ exitCoop(stranded); assert.equal(stranded.scene, 'dead'); assert.equal(stranded.
 assert.equal(stranded.events.filter(e => e.type === 'death').length, 1);
 exitCoop(stranded); assert.equal(stranded.deaths, 1, 'leaving cannot create repeated solo deaths');
 
-console.log('Wayside Fury co-op simulation: prediction/authority, scaled waves/damage, guest targeting, downs/revives/wipes and reversible level sync pass.');
+// Every enemy reports its authored XP once. Host personal rewards are applied
+// through the same ledger as guests, so the simulation grants nothing directly.
+for (const [kind, miniBoss, xp] of [['grunt', false, 28], ['shooter', false, 35], ['boss', true, 95], ['boss', false, 130]]) {
+  const rewardsHost = cooperative('host', 0); rewardsHost.enemies = [];
+  const victim = addEnemy(rewardsHost, kind, 180, 110); victim.miniBoss = miniBoss;
+  const reported = { type: 'coop-hit', enemyId: victim.id, damage: 1000, dx: 1, dy: 0, force: 55, attackId: 'reward-test' };
+  assert.equal(applyCoopHit(rewardsHost, reported, 1), true);
+  assert.equal(rewardsHost.events.find(e => e.type === 'kill').xp, xp);
+  assert.equal(rewardsHost.kills, 0); assert.equal(rewardsHost.candy, 0); assert.equal(rewardsHost.character.xp, 0);
+  assert.deepEqual(rewardsHost.coopRewards, []);
+  assert.equal(applyCoopHit(rewardsHost, reported, 1), false);
+}
+
+// Level rewards cannot replace the teammate revive mechanic. Living heroes
+// receive one real level's healing, even when their combat level is synced.
+const growingHost = cooperative('host', 0); growingHost.character.xp = 74;
+activeHero(growingHost).hp = 0; growingHost.heroes.joe.hp = 0; growingHost.heroes.matt.hp = 25;
+growingHost.coop.downed = true;
+gainXp(growingHost, 1);
+assert.deepEqual(growingHost.character, { level: 2, xp: 0 });
+assert.equal(activeHero(growingHost).hp, 0); assert.equal(growingHost.heroes.joe.hp, 0);
+assert.equal(growingHost.heroes.matt.hp, 55); assert.equal(growingHost.coop.downed, true);
+const growingLow = cooperative('guest', 1); enterScene(growingLow, 'realm');
+activeHero(growingLow).hp = 0; growingLow.heroes.joe.hp = 50; growingLow.coop.downed = true;
+gainXp(growingLow, 75);
+assert.deepEqual(growingLow.character, { level: 2, xp: 0 });
+assert.equal(activeHero(growingLow).level, 6); assert.equal(activeHero(growingLow).maxHp, 200);
+assert.equal(activeHero(growingLow).power, 27); assert.equal(activeHero(growingLow).hp, 0);
+assert.equal(growingLow.heroes.joe.hp, 80); assert.equal(growingLow.coop.downed, true);
+const growingHigh = cooperative('guest', 1); growingHigh.character = { level: 50, xp: xpForLevel(50) - 1 };
+for (const id of HERO_IDS) growingHigh.heroes[id] = createHero(id, growingHigh.character);
+enterScene(growingHigh, 'realm'); activeHero(growingHigh).hp = 130; growingHigh.heroes.joe.hp = 0;
+gainXp(growingHigh, 1);
+assert.deepEqual(growingHigh.character, { level: 51, xp: 0 });
+assert.equal(activeHero(growingHigh).level, 9); assert.equal(activeHero(growingHigh).maxHp, 260);
+assert.equal(activeHero(growingHigh).power, 36); assert.equal(activeHero(growingHigh).hp, 160);
+assert.equal(growingHigh.heroes.joe.hp, 0, 'synced levels cannot inflate healing or revive benched heroes');
+
+// Co-op caches delegate all personal supplies to the reward ledger. Opening
+// cannot double-pay the host or revive a benched/downed hero before that ledger.
+for (const room of [8, 9]) {
+  const cacheHost = cooperative('host', 0); enterScene(cacheHost, 'dungeon', room); cacheHost.enemies = [];
+  const chest = getWorld('dungeon', room).props.find(prop => prop.kind === 'chest');
+  cacheHost.x = chest.x + chest.w / 2; cacheHost.y = chest.y + chest.h / 2;
+  activeHero(cacheHost).hp = 50; activeHero(cacheHost).ki = 10; cacheHost.heroes.joe.hp = 0;
+  const beforeSupplies = structuredClone({ heroes: cacheHost.heroes, gear: cacheHost.gear, candy: cacheHost.candy });
+  interact(cacheHost);
+  assert.deepEqual({ heroes: cacheHost.heroes, gear: cacheHost.gear, candy: cacheHost.candy }, beforeSupplies);
+  assert.ok(cacheHost.clearedRooms.includes(chest.id));
+  assert.equal(cacheHost.events.filter(e => e.type === 'checkpoint' && e.id === chest.id).length, 1);
+  interact(cacheHost);
+  assert.equal(cacheHost.events.filter(e => e.type === 'checkpoint' && e.id === chest.id).length, 1, 'cache opens once');
+}
+const blockedDown = cooperative('host', 0); enterScene(blockedDown, 'dungeon', 9); blockedDown.enemies = [];
+const unopened = getWorld('dungeon', 9).props.find(prop => prop.kind === 'chest');
+blockedDown.x = unopened.x + unopened.w / 2; blockedDown.y = unopened.y + unopened.h / 2;
+activeHero(blockedDown).hp = 0; blockedDown.coop.downed = true; blockedDown.candy = 100;
+const downResources = structuredClone({ heroes: blockedDown.heroes, candy: blockedDown.candy, gear: blockedDown.gear });
+interact(blockedDown); restAtHome(blockedDown);
+for (const item of ['heal', 'power', 'defense']) assert.equal(buyItem(blockedDown, item), false);
+assert.deepEqual({ heroes: blockedDown.heroes, candy: blockedDown.candy, gear: blockedDown.gear }, downResources);
+assert.deepEqual(blockedDown.clearedRooms, []); assert.deepEqual(blockedDown.areas, []); assert.deepEqual(blockedDown.events, []);
+const gearedGuest = cooperative('guest', 1); gearedGuest.character = { level: 50, xp: 12 };
+for (const id of HERO_IDS) gearedGuest.heroes[id] = createHero(id, gearedGuest.character);
+enterScene(gearedGuest, 'realm'); activeHero(gearedGuest).hp = 130; activeHero(gearedGuest).ki = 70;
+gearedGuest.heroes.joe.hp = 0;
+grantGear(gearedGuest, 1, 1);
+assert.deepEqual(gearedGuest.character, { level: 50, xp: 12 });
+assert.deepEqual(gearedGuest.gear, { power: 1, ward: 1 });
+assert.equal(activeHero(gearedGuest).level, 9); assert.equal(activeHero(gearedGuest).maxHp, 260);
+assert.equal(activeHero(gearedGuest).hp, 130); assert.equal(activeHero(gearedGuest).ki, 70);
+assert.equal(activeHero(gearedGuest).power, 37); assert.equal(activeHero(gearedGuest).defense, 12);
+assert.equal(gearedGuest.heroes.joe.hp, 0, 'gear grants cannot revive a co-op hero');
+
+console.log('Wayside Fury co-op simulation: prediction/authority, scaling, downs/revives, level sync and per-player reward metadata pass.');

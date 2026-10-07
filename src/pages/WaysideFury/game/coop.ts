@@ -1,3 +1,5 @@
+import { applyCoopReward, rollCoopCandy } from "./coopRewards";
+import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world";
 import { fetchWithAuth } from "../../../fetchWithAuth";
 import type { AvatarAppearance, HeroAvatar } from "./avatar";
 import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
@@ -13,6 +15,7 @@ export interface CoopCallbacks {
 export interface CoopReward {
   id: string; kind: "kill" | "checkpoint"; xp?: number; candy?: number;
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
+  healHp?: number; healKi?: number; power?: number; ward?: number;
 }
 type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y"> & { spawnedExtras?: number };
 interface Sample<T> { at: number; value: T }
@@ -46,10 +49,12 @@ export class FuryCoop {
   private hits: { seat: number; scene: GameState["scene"]; room: number; hit: Extract<GameEvent, { type: "coop-hit" }> }[] = [];
   private rewards: CoopReward[] = [];
   private rewarded = new Set<string>();
+  private rewardSnapshotAt = -1;
   private activeState: GameState | null = null;
   private revived = false;
   private damages: { damage: number; sourceX: number; sourceY: number }[] = [];
   constructor(private cb: CoopCallbacks) {}
+  beginRun() { this.clientId = crypto.randomUUID(); this.rewardSnapshotAt = -1; this.hits = []; this.damages = []; this.rewards = []; this.revived = false; this.rewarded.clear(); }
   setAvatar(avatar: HeroAvatar) { this.appearance = avatar.appearance; this.appearanceSent = false; }
   get isHost() { return !!this.room && this.room.seat === this.room.hostSeat; }
   async connect(kind: "create" | "join", code?: string) { const previous = this.socket; this.socket = null; previous?.close(); this.closed = false; await this.open({ type: kind, code }); }
@@ -121,6 +126,32 @@ export class FuryCoop {
   sendRevive(targetSeat: number) { this.send({ type: "revive", targetSeat }); }
   event(s: GameState, event: GameEvent) {
     if (!this.room) return;
+    // Websocket ordering caches the post-kill/clear world before distributing
+    // rewards. A promoted host therefore cannot resurrect an already-paid kill.
+    if (this.isHost && (event.type === "kill" || event.type === "checkpoint") && this.rewardSnapshotAt !== s.time) {
+      this.send({ type: "state", state: worldState(s) }); this.rewardSnapshotAt = s.time;
+    }
+    if (this.isHost && event.type === "kill") {
+      const id = `${this.clientId}:kill:${event.enemyId}`;
+      for (const player of this.room.players.filter(p => p.connected)) {
+        const reward: CoopReward = { id, kind: "kill", xp: event.xp, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
+        if (player.seat === this.room.seat) { if (applyCoopReward(s, reward)) s.events.push({ type: "checkpoint", id: `coop-reward-${id}` }); }
+        else this.sendReward(reward, player.seat);
+      }
+    }
+    if (this.isHost && event.type === "checkpoint" && !event.id.startsWith("coop-reward-")) {
+      const id = `${this.clientId}:checkpoint:${event.id}`;
+      const areas = event.id === "home" ? ["wayside"] : event.id === `blast-${WATCHER_ROOM}` ? ["blast"] : event.id === "realm-0" ? ["eightbit-realm"] : [];
+      const bosses = event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
+      const rooms = event.id === "home" ? [] : [event.id];
+      for (const player of this.room.players.filter(p => p.connected)) {
+        const cache = event.id.startsWith("loot-");
+        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 3 : 0;
+        const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, chapter: s.chapter,
+          ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : {}) };
+        if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);
+      }
+    }
     if (event.type === "coop-damage") this.send({ ...event, type: "damage", targetSeat: event.seat });
     if (event.type === "coop-revive") this.sendRevive(event.seat);
     if (event.type === "coop-hit") this.send({ ...event, type: "hit", attackId: `${this.clientId}:${event.attackId}`, scene: s.scene, room: s.room });
@@ -152,7 +183,7 @@ export class FuryCoop {
       const blend = buffered(this.worlds, now);
       if (blend) {
         const { a, b, alpha } = blend;
-        if (s.scene !== b.scene || s.room !== b.room) { enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
+        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer });
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && a.scene === b.scene && a.room === b.room ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
@@ -163,7 +194,7 @@ export class FuryCoop {
     for (const damage of this.damages.splice(0)) applyCoopDamage(s, damage.damage, damage.sourceX, damage.sourceY);
     for (const { seat, hit, scene, room: area } of this.hits.splice(0)) if (role === "host" && scene === s.scene && area === s.room) applyCoopHit(s, hit, seat);
     if (this.revived) { reviveCoopHero(s); this.revived = false; }
-    for (const reward of this.rewards.splice(0)) if (!this.rewarded.has(reward.id)) { this.rewarded.add(reward.id); this.cb.onReward?.(s, reward); }
+    for (const reward of this.rewards.splice(0)) if (!this.rewarded.has(reward.id)) { this.rewarded.add(reward.id); if (applyCoopReward(s, reward)) { s.events.push({ type: "checkpoint", id: `coop-reward-${reward.id}` }); this.cb.onReward?.(s, reward); } }
     if (now - this.sentAt < 50) return;
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;

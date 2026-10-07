@@ -143,12 +143,27 @@ export function cleanRelay(message) {
             if (!integer(message.enemyId) || !number(message.damage, 1e5) || message.damage <= 0 || !number(message.dx, 1) || !number(message.dy, 1) || !number(message.force, 1e5) || message.force < 0 || !text(message.attackId, 96) || !scene(message.scene) || !integer(message.room, 999)) return null;
             cleaned = Object.fromEntries(['type', 'enemyId', 'damage', 'dx', 'dy', 'force', 'attackId', 'scene', 'room'].map((key) => [key, message[key]]));
             break;
-        case 'reward':
-            if (!object(message.reward) || !text(message.reward.id, 128) || !['kill', 'checkpoint'].includes(message.reward.kind) || !integer(message.reward.xp, 100_000) || !integer(message.reward.candy, 10_000)) return null;
-            for (const key of ['clearedRooms', 'areas', 'bosses']) if (message.reward[key] !== undefined && (!Array.isArray(message.reward[key]) || message.reward[key].length > 256 || !message.reward[key].every((entry) => text(entry, 96)))) return null;
-            if (message.reward.chapter !== undefined && !integer(message.reward.chapter, 99)) return null;
-            cleaned = { type: 'reward', reward: message.reward };
+        case 'reward': {
+            const raw = message.reward;
+            if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
+            const reward = { id: raw.id, kind: raw.kind, xp: raw.xp, candy: raw.candy };
+            for (const [key, max] of [['healHp', 1_000_000], ['healKi', 1_000_000], ['power', 10_000], ['ward', 10_000]]) {
+                if (raw[key] === undefined) continue;
+                if (!integer(raw[key], max)) return null;
+                reward[key] = raw[key];
+            }
+            for (const key of ['rooms', 'areas', 'bosses']) {
+                if (raw[key] === undefined) continue;
+                if (!Array.isArray(raw[key]) || raw[key].length > 128 || !raw[key].every((entry) => typeof entry === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(entry))) return null;
+                reward[key] = [...new Set(raw[key])];
+            }
+            if (raw.chapter !== undefined) {
+                if (!integer(raw.chapter, 99) || raw.chapter < 1) return null;
+                reward.chapter = raw.chapter;
+            }
+            cleaned = { type: 'reward', reward };
             break;
+        }
         case 'damage':
             if (!integer(message.targetSeat, MAX_SEATS - 1) || !number(message.damage, 1e5) || message.damage <= 0 || !number(message.sourceX) || !number(message.sourceY)) return null;
             cleaned = { type: 'damage', targetSeat: message.targetSeat, damage: message.damage, sourceX: message.sourceX, sourceY: message.sourceY };
