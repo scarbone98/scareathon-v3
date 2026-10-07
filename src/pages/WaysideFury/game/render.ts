@@ -1,7 +1,7 @@
 // The renderer only reads simulation state; all art is native-resolution pixel art.
 import { HEIGHT, WIDTH, activeHero, type Effect, type Enemy, type GameState, type HeroId, type Projectile } from "./sim";
 
-import { HUB_POINTS, LOCATIONS } from "./content";
+import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 
 interface Sheet { url: string; w: number; h: number; frames: number }
 const SHEETS = {
@@ -24,11 +24,16 @@ const INK = "#101722";
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private images = new Map<SpriteId, HTMLImageElement>();
+  private coarse = document.createElement("canvas");
+  private coarseCtx: CanvasRenderingContext2D;
+  private paletteCache = new Map<number, number>();
 
   constructor(canvas: HTMLCanvasElement) {
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
     this.ctx = canvas.getContext("2d")!;
+    this.coarse.width = 160; this.coarse.height = 90;
+    this.coarseCtx = this.coarse.getContext("2d", { willReadFrequently: true })!;
     for (const [id, sheet] of Object.entries(SHEETS)) {
       const image = new Image();
       image.src = sheet.url;
@@ -42,9 +47,22 @@ export class Renderer {
     c.save();
     // A repeatable one-pixel shake preserves the crisp internal grid.
     if (s.hitStop > 0) c.translate(Math.sin(s.time * 93) > 0 ? 1 : -1, 0);
+    if (s.scene === "prologue") {
+      this.drawPrologue(s);
+      if (s.palette === "eightbit") this.applyEightBit();
+      c.restore();
+      return;
+    }
+    if (s.scene === "shift") {
+      this.drawShift(s);
+      if (s.palette === "eightbit" || (s.transitionPalette === "eightbit" && s.sceneTimer > 1.15)) this.applyEightBit();
+      c.restore();
+      return;
+    }
     this.drawGround(s);
     if (s.scene === "overworld") {
       this.taxi(s.x, s.y, s.faceX, s.faceY, s.time, s.moving);
+      if (s.palette === "eightbit") this.applyEightBit();
       c.restore();
       return;
     }
@@ -65,7 +83,213 @@ export class Renderer {
     }
     if (s.scene === "dungeon" && s.room === 2) this.bossBar(s);
     if (s.scene === "test") this.text("WAYSIDE TRAINING YARD", 160, 174, "#91ada2", 7);
+    if (s.palette === "eightbit") this.applyEightBit();
     c.restore();
+  }
+
+  private drawPrologue(s: GameState) {
+    const phase = PROLOGUE[s.cutscene]?.phase ?? "backstory";
+    const time = s.sceneTimer;
+    if (phase === "backstory") {
+      this.rect(0, 0, WIDTH, HEIGHT, "#1e1d36");
+      for (let k = 0; k < 32; k++) this.rect((k * 83) % WIDTH, 12 + (k * 29) % 68, 1, 1, k % 2 ? "#8d759f" : "#eaccc1");
+      this.rect(0, 85, WIDTH, 95, "#34384a");
+      this.rect(0, 85, WIDTH, 4, "#605c6c");
+      this.portal(255, 99, time);
+      for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
+        const x = 75 + index * 39;
+        const y = 106 + Math.sin(time * 4 + index) * 2;
+        this.shadow(x, y);
+        this.sprite(id, x, y, s.time, true);
+      }
+      for (let k = 0; k < 22; k++) {
+        const y = 38 + ((k * 17 + Math.floor(time * 15)) % 75);
+        this.rect(56 + k * 8, y, 2, 2, ["#e9bc73", "#87c0b7", "#c586ad"][k % 3]);
+      }
+      this.text("THE HORDE FELL. THE CREW CAME HOME.", 160, 26, "#ffe4b4", 8);
+      return;
+    }
+    if (phase === "suitup") {
+      const heroes = ["joe", "matt", "alex", "jon"] as const;
+      const id = heroes[Math.floor(time / 0.65) % heroes.length];
+      const color = { joe: "#79ebff", matt: "#ffd06f", alex: "#afd990", jon: "#bc9ce7" }[id];
+      this.rect(0, 0, WIDTH, HEIGHT, "#152733");
+      for (let k = 0; k < 8; k++) this.rect(k * 46 - 48 + Math.floor(time * 30) % 46, 25 + k * 6, 28, 90, "#233943");
+      this.ctx.globalAlpha = 0.16;
+      this.disc(160, 72, 54, color);
+      this.ctx.globalAlpha = 1;
+      this.sprite(id, 160, 110, s.time, false, 3);
+      // Gloves, a belt and shoulder guards sell the gearing-up cuts without new sheets.
+      this.rect(138, 74, 7, 8, color);
+      this.rect(177, 74, 7, 8, color);
+      this.rect(144, 93, 32, 4, "#d5b981");
+      this.rect(158, 93, 5, 4, "#fff0b3");
+      this.text(id.toUpperCase(), 160, 26, color, 11);
+      this.text("GEAR UP", 160, 123, "#ffe9c7", 8);
+      return;
+    }
+    const dark = phase === "dark" || phase === "portal";
+    this.drawBackyard(time, dark);
+    if (phase === "years") {
+      this.text("FIVE YEARS LATER", 160, 41, "#ffe2a2", 15);
+      return;
+    }
+    if (phase === "taxi") {
+      this.road(0, 111, WIDTH, 25, true);
+      const progress = Math.min(1, time / 1.8);
+      for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
+        if (time > 1.25 + index * 0.24) continue;
+        const start = 75 + index * 48;
+        this.sprite(id, start + (160 - start) * progress, 104 + index % 2 * 5, s.time, start > 160);
+      }
+      this.taxi(160 + Math.max(0, time - 2.1) * 62, 123, 1, 0, s.time, time > 2.1);
+      return;
+    }
+    const spots = [[119, 99], [143, 104], [188, 103], [216, 98]];
+    for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
+      const [x, y] = spots[index];
+      this.shadow(x, y);
+      this.sprite(id, x, y, s.time, index > 1 && !dark);
+    }
+    if (dark) {
+      const pulse = Math.sin(time * 7) * 0.08 + 0.17;
+      this.ctx.globalAlpha = pulse;
+      this.disc(268, 50, 26, "#ffac87");
+      this.ctx.globalAlpha = 1;
+      this.rect(264, 35, 8, 19, "#df9078");
+      this.rect(257, 41, 22, 6, "#e8b286");
+      this.rect(262, 46, 12, 3, "#ffddaa");
+      if (phase === "dark" && time < 0.3) {
+        this.ctx.globalAlpha = Math.max(0, 0.9 - time * 3);
+        this.rect(0, 0, WIDTH, HEIGHT, "#fff0cf");
+        this.ctx.globalAlpha = 1;
+      }
+    }
+    if (phase === "portal") {
+      this.portal(264, 99, time);
+      this.architect(241, 101, time);
+    }
+  }
+
+  private drawBackyard(time: number, dark: boolean) {
+    this.rect(0, 0, WIDTH, HEIGHT, dark ? "#1c2034" : "#425b59");
+    this.rect(0, 58, WIDTH, 122, dark ? "#2a343b" : "#3c5941");
+    for (let y = 66; y < 135; y += 11) for (let x = 6; x < WIDTH; x += 15) this.rect(x, y, 3, 1, dark ? "#38414c" : "#55704c");
+    this.rect(12, 36, 79, 36, dark ? "#505360" : "#b39873");
+    this.rect(8, 30, 87, 9, dark ? "#494450" : "#98775c");
+    this.rect(17, 24, 68, 7, dark ? "#55505a" : "#b28d68");
+    this.rect(63, 51, 14, 22, "#36474a");
+    this.rect(25, 45, 20, 15, dark ? "#987d79" : "#f7d59c");
+    this.rect(34, 45, 2, 15, "#746754");
+    this.rect(0, 67, WIDTH, 5, dark ? "#595663" : "#a39876");
+    for (let x = 0; x < WIDTH; x += 12) {
+      this.rect(x, 57, 8, 22, dark ? "#4a4d59" : "#8f8c6c");
+      this.rect(x + 1, 55, 6, 2, dark ? "#67616a" : "#c0af87");
+    }
+    this.rect(97, 86, 138, 40, dark ? "#45414a" : "#8a765e");
+    for (let x = 98; x < 235; x += 14) this.rect(x, 87, 1, 38, dark ? "#353441" : "#675d4e");
+    this.rect(107, 79, 91, 7, dark ? "#6a5558" : "#b98a62");
+    this.rect(113, 86, 4, 9, "#394040");
+    this.rect(188, 86, 4, 9, "#394040");
+    for (const x of [120, 148, 179]) {
+      this.rect(x, 78, 8, 2, "#e4d3ac");
+      this.rect(x + 2, 77, 4, 1, "#b67459");
+    }
+    this.rect(155, 110, 18, 4, "#202c32");
+    this.rect(153, 103, 22, 7, "#464347");
+    this.rect(155, 102, 18, 2, "#b78866");
+    this.rect(158, 114, 2, 8, "#30383c");
+    this.rect(168, 114, 2, 8, "#30383c");
+    for (let k = 0; k < 4; k++) this.rect(156 + k * 4, 100 - Math.floor(time * 5 + k) % 4, 2, 2, "#eeb775");
+    for (let k = 0; k < 8; k++) {
+      const x = 100 + k * 26;
+      const y = 31 + Math.round(Math.sin(k * 0.45) * 8);
+      this.rect(x - 1, y, 27, 1, "#2c333c");
+      this.rect(x, y + 1, 3, 4, dark ? "#ae8a83" : "#f9d598");
+    }
+    this.tree(9, 110); this.tree(307, 110);
+  }
+
+  private architect(x: number, y: number, time: number) {
+    this.shadow(x, y, 22);
+    this.rect(x - 5, y - 37, 10, 10, "#111724");
+    this.rect(x - 7, y - 32, 14, 11, "#101622");
+    for (let k = 0; k < 5; k++) this.rect(x - 6 - k * 2, y - 25 + k * 5, 12 + k * 4, 6, "#111724");
+    this.rect(x - 3, y - 31, 2, 1, "#b784bc");
+    this.rect(x + 2, y - 31, 2, 1, "#b784bc");
+    this.rect(x + 7, y - 21, 9, 4, "#111724");
+    const eggX = x + 18;
+    const eggY = y - 20;
+    this.ctx.globalAlpha = 0.2 + Math.sin(time * 6) * 0.1;
+    this.disc(eggX, eggY - 1, 13, "#e09bc6");
+    this.ctx.globalAlpha = 1;
+    this.rect(eggX - 5, eggY - 9, 10, 18, "#9a71a9");
+    this.rect(eggX - 7, eggY - 5, 14, 11, "#9a71a9");
+    this.rect(eggX - 3, eggY - 11, 6, 2, "#bd8bbb");
+    this.rect(eggX - 3, eggY - 7, 3, 5, "#eed2cf");
+    this.rect(eggX + 1, eggY + 2, 3, 4, "#cc91b2");
+    this.rect(eggX - 2, eggY - 1, 4, 2, Math.sin(time * 6) > 0 ? "#ffe4d7" : "#b888bc");
+  }
+
+  private drawShift(s: GameState) {
+    const time = s.sceneTimer;
+    const progress = Math.min(1, time / 2.4);
+    this.drawGround(s);
+    this.portal(160, 109, s.time, Math.min(1, progress * 4));
+    this.ctx.save();
+    this.ctx.globalAlpha = Math.max(0, 1 - progress * 1.3);
+    this.hero({ ...s, x: s.x + (160 - s.x) * progress, y: s.y + (105 - s.y) * progress - Math.sin(progress * Math.PI) * 11 });
+    this.sprite(s.active === "joe" ? "matt" : "joe", s.x + 19 + (166 - s.x - 19) * progress, s.y + 4 + (104 - s.y - 4) * progress - Math.sin(progress * Math.PI) * 8, s.time, true);
+    this.ctx.restore();
+    for (let k = 0; k < 8; k++) {
+      const y = 25 + (k * 23 + Math.floor(time * 37)) % 140;
+      const shift = (k % 2 ? 1 : -1) * (2 + Math.floor(progress * 13));
+      this.ctx.globalAlpha = 0.2 + progress * 0.3;
+      this.ctx.drawImage(this.ctx.canvas, 0, y, WIDTH, 3, shift, y, WIDTH, 3);
+      this.rect((k * 41) % WIDTH, y, 24 + progress * 42, 1, k % 2 ? "#ae76cd" : "#75c7d0");
+    }
+    this.ctx.globalAlpha = 1;
+    if (time > 0.95 && time < 1.23) {
+      this.ctx.globalAlpha = 0.8 * Math.sin((time - 0.95) / 0.28 * Math.PI);
+      this.rect(0, 24, WIDTH, HEIGHT - 24, "#ead7ef");
+      this.ctx.globalAlpha = 1;
+    }
+    this.text("REALITY IS TEARING", 160, 168, "#edc4e8", 9);
+  }
+
+  private applyEightBit() {
+    const c = this.coarseCtx;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(this.ctx.canvas, 0, 0, 160, 90);
+    const pixels = c.getImageData(0, 0, 160, 90);
+    const colors = [
+      [17, 17, 30], [34, 34, 59], [57, 53, 80], [87, 71, 105],
+      [102, 54, 108], [155, 79, 157], [219, 128, 191], [49, 86, 71],
+      [105, 152, 90], [234, 226, 183], [255, 244, 223], [88, 172, 192],
+      [160, 229, 224], [201, 133, 84], [244, 185, 107], [187, 83, 92],
+    ];
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      const r = pixels.data[i];
+      const g = pixels.data[i + 1];
+      const b = pixels.data[i + 2];
+      const key = (r >> 4) * 256 + (g >> 4) * 16 + (b >> 4);
+      let index = this.paletteCache.get(key);
+      if (index === undefined) {
+        let distance = Infinity;
+        index = 0;
+        for (let k = 0; k < colors.length; k++) {
+          const color = colors[k];
+          const d = (color[0] - r) ** 2 + (color[1] - g) ** 2 + (color[2] - b) ** 2;
+          if (d < distance) { distance = d; index = k; }
+        }
+        this.paletteCache.set(key, index);
+      }
+      pixels.data[i] = colors[index][0];
+      pixels.data[i + 1] = colors[index][1];
+      pixels.data[i + 2] = colors[index][2];
+    }
+    c.putImageData(pixels, 0, 0);
+    this.ctx.drawImage(this.coarse, 0, 0, WIDTH, HEIGHT);
   }
 
   private rect(x: number, y: number, w: number, h: number, color: string) {
@@ -88,7 +312,7 @@ export class Renderer {
   private drawGround(s: GameState) {
     if (s.scene === "overworld") { this.drawOverworld(s); return; }
     if (s.scene === "hub") { this.drawHub(s); return; }
-    if (s.scene === "dungeon" || s.scene === "realm") {
+    if (s.scene === "dungeon" || s.scene === "realm" || s.scene === "shift" || s.palette === "eightbit") {
       this.drawDungeonGround(s);
       return;
     }
@@ -313,7 +537,7 @@ export class Renderer {
   }
 
   private drawDungeonGround(s: GameState) {
-    const realm = s.scene === "realm";
+    const realm = s.palette === "eightbit";
     const bossRoom = s.room === 2 && !realm;
     this.rect(0, 0, WIDTH, HEIGHT, realm ? "#101020" : "#171c27");
     for (let y = 30; y < HEIGHT; y += 16) for (let x = 0; x < WIDTH; x += 16) {
@@ -372,6 +596,11 @@ export class Renderer {
     this.rect(0, 164, WIDTH, 2, realm ? "#8060a0" : "#62575b");
     this.lamp(20, 40, s.time, realm ? "#ff80c0" : "#ff9d66");
     this.lamp(300, 40, s.time, realm ? "#ff80c0" : "#ff9d66");
+    if (realm) {
+      this.portal(46, 67, s.time, 0.6);
+      if (s.enemies.every((enemy) => enemy.hp <= 0)) this.dungeonDoor(292, 108, true, true, s);
+      this.text("8-BIT REALM  //  SOMETHING REMEMBERS YOU", 160, 174, "#db80bf", 7);
+    }
     if (!realm) {
       this.dungeonDoor(45, 108, true, false, s);
       this.dungeonDoor(292, 108, s.enemies.every((enemy) => enemy.hp <= 0), true, s);

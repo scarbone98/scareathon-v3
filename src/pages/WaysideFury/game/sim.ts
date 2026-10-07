@@ -1,4 +1,4 @@
-import { HUB_POINTS, LOCATIONS, SHOP_ITEMS, type ShopItemId } from "./content.ts";
+import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 // Pure deterministic game rules. World coordinates are pixels at 320 x 180.
 export const WIDTH = 320;
 export const HEIGHT = 180;
@@ -42,6 +42,8 @@ export type GameEvent =
 export interface GameState {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   active: HeroId; time: number; scene: Scene; room: number;
+  cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
+  transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
   overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
@@ -66,6 +68,7 @@ function random(s: GameState) {
 export function newGame(seed = 8591): GameState {
   const s: GameState = { x: 75, y: 110, faceX: 1, faceY: 0, moving: false,
     active: "joe", time: 0, scene: "test", room: 0,
+    cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
     overlay: null, heroes: { joe: hero("joe"), matt: hero("matt") }, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
@@ -85,6 +88,10 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 }
 export function enterScene(s: GameState, scene: Scene, room = 0): void {
   s.scene = scene; s.overlay = null; s.room = room; s.x = 45; s.y = 108;
+  s.sceneTimer = 0; s.transitionTarget = null;
+  if (scene === "realm") s.palette = "eightbit";
+  else if (scene !== "shift" && scene !== "results" && scene !== "dead") s.palette = "real";
+  if (scene === "prologue") s.cutscene = 0;
   s.faceX = 1; s.faceY = 0; s.moving = false;
   s.enemies = []; s.projectiles = []; s.effects = []; s.floaters = [];
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
@@ -103,12 +110,33 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
       s.notice = room === 0 ? "The Blast Site — Scorched Road. Clear the way east." : "The Blast Site — Ruined Yard. The Watcher waits ahead.";
     }
   }
+  if (scene === "realm") {
+    addEnemy(s, "grunt", 183, 78).sprite = "pumpkin";
+    addEnemy(s, "grunt", 222, 139).sprite = "ghost";
+    addEnemy(s, "shooter", 262, 94);
+    s.notice = "The 8-Bit Realm! Clear these creatures and find a way out.";
+  }
   if (scene === "test") {
     s.x = 75;
     addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
     addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
   }
+}
+export function advanceStory(s: GameState): void {
+  if (s.scene !== "prologue") return;
+  s.cutscene++; s.sceneTimer = 0;
+  if (s.cutscene >= PROLOGUE.length) {
+    enterScene(s, "overworld"); s.previousInput.interact = true;
+  }
+}
+export function skipPrologue(s: GameState): void {
+  enterScene(s, "overworld"); s.previousInput.interact = true;
+}
+export function beginRealmShift(s: GameState, target: Scene = "realm", palette: "real" | "eightbit" = "eightbit"): void {
+  enterScene(s, "shift");
+  s.transitionTarget = target; s.transitionPalette = palette;
+  s.notice = "A flicker tears the crew into another world...";
 }
 function effect(s: GameState, kind: Effect["kind"], x: number, y: number, size: number, ttl: number, dx = 0, dy = 0) {
   s.effects.push({ id: s.nextId++, kind, x, y, dx, dy, ttl, maxT: ttl, hero: s.active, size });
@@ -310,6 +338,10 @@ function updateVisuals(s: GameState, dt: number) {
   s.effects = s.effects.filter(e => e.ttl > 0);
 }
 export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
+  if (s.scene === "realm") {
+    return s.enemies.length === 0 && Math.hypot(s.x - 292, s.y - 108) < 25
+      ? { id: "next", name: "To be continued" } : null;
+  }
   if (s.scene === "dungeon") {
     if (s.x < 60) return { id: "exit", name: "Return to taxi" };
     if (s.enemies.length === 0 && Math.hypot(s.x - 292, s.y - 108) < 25) {
@@ -323,12 +355,14 @@ export function interactTarget(s: GameState): { id: string; name: string; locked
 export function interact(s: GameState): void {
   const target = interactTarget(s);
   if (!target) return;
+  if (s.scene === "realm") {
+    enterScene(s, "results"); s.previousInput.interact = true; return;
+  }
   if (s.scene === "dungeon") {
-    if (target.id === "exit" || s.room === 2) {
-      const victory = target.id === "next" && s.room === 2;
+    if (target.id === "next" && s.room === 2) beginRealmShift(s);
+    else if (target.id === "exit") {
       enterScene(s, "overworld");
       s.x = LOCATIONS[1].x - 19; s.y = LOCATIONS[1].y + 20;
-      if (victory) s.notice = "Chapter 1 boss cleared! The realm flickers on the horizon. Return to HOME to rest.";
     } else enterScene(s, "dungeon", s.room + 1);
     // Holding the interaction key across a door cannot immediately retreat.
     s.previousInput.interact = true;
@@ -358,9 +392,23 @@ export function buyItem(s: GameState, id: ShopItemId): boolean {
 }
 export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
-  s.events.length = 0; s.time += dt;
+  s.events.length = 0; s.time += dt; s.sceneTimer += dt;
   updateVisuals(s, dt);
-  if (s.scene === "dead" || s.scene === "results" || s.scene === "prologue" || s.scene === "shift") return;
+  if (s.scene === "prologue") {
+    const pressed = input.interact && !s.previousInput.interact;
+    s.previousInput = { ...input };
+    if (pressed) advanceStory(s);
+    return;
+  }
+  if (s.scene === "shift") {
+    if (s.sceneTimer >= 2.4) {
+      const target = s.transitionTarget ?? "realm", palette = s.transitionPalette;
+      enterScene(s, target); s.palette = palette;
+      s.previousInput = { ...input };
+    }
+    return;
+  }
+  if (s.scene === "dead" || s.scene === "results") return;
   if (s.overlay) { s.previousInput = { ...input }; s.moving = false; return; }
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
@@ -417,5 +465,13 @@ export function step(s: GameState, input: Input, delta: number): void {
     }
     s.notice = s.room === 2 ? "The Watcher falls! Chapter 1 is clear. Head through the east gate." : "Room clear! Head through the east gate.";
   }
-  if (input.interact && !previous.interact && s.scene === "dungeon") interact(s);
+  if (hadEnemies && s.enemies.length === 0 && s.scene === "realm") {
+    if (!s.clearedRooms.includes("realm-0")) {
+      s.clearedRooms.push("realm-0");
+      if (!s.areas.includes("eightbit-realm")) s.areas.push("eightbit-realm");
+      s.chapter = 2; s.events.push({ type: "checkpoint", id: "realm-0" });
+    }
+    s.notice = "The path is clear. The real evil has only just begun...";
+  }
+  if (input.interact && !previous.interact && (s.scene === "dungeon" || s.scene === "realm")) interact(s);
 }

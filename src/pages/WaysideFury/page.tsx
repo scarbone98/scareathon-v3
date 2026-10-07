@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { GameController } from "./game/controller";
 import { type InputMode } from "./game/input";
-import { activeHero, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, type GameState, type Input } from "./game/sim";
-import { SHOP_ITEMS } from "./game/content";
+import { activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, type GameState, type Input } from "./game/sim";
+import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { readSave, restoreSave, writeSave } from "./game/save";
 import "./style.css";
 const TUTORIAL_KEY = "wayside-fury-controls-dismissed";
@@ -67,7 +67,7 @@ export default function WaysideFury() {
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
   const [tutorial, setTutorial] = useState(tutorialVisible);
   const handlers = useRef({ pause: () => {}, confirm: () => {} });
-  const begin = (retry = false) => { const next = saveRef.current ? restoreSave(saveRef.current, retry || Object.values(saveRef.current.heroes).every(h => h.hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "overworld"); controller.current?.start(next); setPlaying(true); setPaused(false); setControls(false); };
+  const begin = (retry = false) => { const next = saveRef.current ? restoreSave(saveRef.current, retry || Object.values(saveRef.current.heroes).every(h => h.hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setControls(false); };
   const persist = (s: GameState, home = false) => {
     const next = writeSave(s, saveRef.current, home);
     if (next) { saveRef.current = next; setSaved(next); }
@@ -94,12 +94,15 @@ export default function WaysideFury() {
   }, []);
   const send = (input: Partial<Input>) => controller.current?.setTouch(input);
   const hero = activeHero(state);
+  const cinematic = state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
+  const beat = PROLOGUE[state.cutscene] ?? PROLOGUE[0];
+  const progressScore = (state.areas.length + state.bosses.length) * 1000 + (Math.max(state.heroes.joe.level, state.heroes.matt.level) - 1) * 100 + state.clearedRooms.length * 50;
   const boss = state.enemies.find(e => e.kind === "boss");
   const target = interactTarget(state);
   const prompt = mode === "gamepad" ? "[A / Cross]" : mode === "touch" ? "[Interact]" : "[Enter]";
   const quit = () => { controller.current?.setPaused(true); setPlaying(false); setPaused(false); setControls(false); };
   const dismissTutorial = () => { setTutorial(false); try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* Session-only when storage is blocked. */ } };
-  return <main className={`wf-shell ${mode === "touch" && playing && !paused && !state.overlay ? "wf-has-touch" : ""}`}>
+  return <main className={`wf-shell ${mode === "touch" && playing && !paused && !state.overlay && !cinematic ? "wf-has-touch" : ""}`}>
     <div className="wf-stage"><canvas ref={canvas} aria-label="Wayside Fury action RPG" /></div>
     {!playing ? <div className="wf-overlay wf-menu">
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
@@ -109,12 +112,12 @@ export default function WaysideFury() {
       <button className="wf-secondary" onClick={() => setControls(!controls)}>Controls</button>
       {controls && <Controls mode={mode} />}<p className="wf-small">Chapter 1 · The Blast Site · Early access</p>
     </div> : <>
-      <header className="wf-hud"><div className="wf-hero-hud"><strong>{state.active.toUpperCase()} <small>LV {hero.level}</small></strong>
+      {!cinematic && <header className="wf-hud"><div className="wf-hero-hud"><strong>{state.active.toUpperCase()} <small>LV {hero.level}</small></strong>
         <div className="wf-meter wf-hp"><span style={{width:`${hero.hp / hero.maxHp * 100}%`}} /><small>HP {Math.ceil(hero.hp)} / {hero.maxHp}</small></div>
         <div className="wf-meter wf-ki"><span style={{width:`${hero.ki / hero.maxKi * 100}%`}} /><small>KI {Math.floor(hero.ki)} / {hero.maxKi}</small></div>
         <div className="wf-meter wf-stamina"><span style={{width:`${hero.stamina / hero.maxStamina * 100}%`}} /></div></div>
         <div className="wf-status"><span>◈ {state.candy} candy</span><small>{state.scene === "test" ? "TRAINING YARD" : state.scene === "dungeon" ? ["THE IMPACT", "BREACH APPROACH", "THE WATCHER"][state.room] : state.scene.toUpperCase()}</small></div>
-        <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button></header>
+        <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button></header>}
       {boss && <div className="wf-boss-hud"><strong>THE WATCHER {boss.phase === 2 ? "· ENRAGED" : ""}</strong><div className="wf-meter"><span style={{width:`${boss.hp / boss.maxHp * 100}%`}} /></div><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
       {target && !state.overlay && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}>{prompt} {target.locked ? "Taken over" : target.name}</button>}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
@@ -123,12 +126,22 @@ export default function WaysideFury() {
       {state.overlay === "home" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">THERE'S STILL A LIGHT ON</p><h2>Home, sweet Wayside.</h2><p>Rest restores the crew and sets your retry save.</p><button onClick={() => controller.current?.mutate(s => { restAtHome(s); persist(s, true); })}>Rest & save</button>
         <div className="wf-party"><p className="wf-small">Choose who leads the party. Joe + Matt travel together.</p>{(["joe", "matt", "alex", "jon"] as const).map(id => <button key={id} disabled={id === "alex" || id === "jon"} className="wf-secondary" onClick={() => controller.current?.mutate(s => { if (id === "joe" || id === "matt") { s.active = id; persist(s); } })}>{id.toUpperCase()}{id === "alex" || id === "jon" ? " · LOCKED" : state.active === id ? " · LEAD" : ""}</button>)}</div>
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave home</button></div>}
-      {state.notice && !state.overlay && <p className="wf-notice" role="status">{state.notice}</p>}
-      {tutorial && !paused && !state.overlay && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Move + Attack. Hold Ki; release full bar for a beam." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
-      {mode === "touch" && !paused && !state.overlay && state.scene !== "dead" && <div className="wf-touch-dock"><Stick send={send} /><div className="wf-action-buttons">
+      {state.notice && !state.overlay && !cinematic && <p className="wf-notice" role="status">{state.notice}</p>}
+      {tutorial && !paused && !state.overlay && !cinematic && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Move + Attack. Hold Ki; release full bar for a beam." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
+      {mode === "touch" && !paused && !state.overlay && !cinematic && state.scene !== "dead" && <div className="wf-touch-dock"><Stick send={send} /><div className="wf-action-buttons">
         <TouchButton action="swap" send={send}>Swap</TouchButton><TouchButton action="guard" send={send}>Guard</TouchButton>
         <TouchButton action="dash" send={send}>Dash</TouchButton><TouchButton action="ki" send={send}>Ki (hold)</TouchButton><TouchButton action="attack" send={send}>Attack</TouchButton>
         <TouchButton action="interact" send={send}>Interact</TouchButton></div></div>}
+      {state.scene === "prologue" && !paused && <>
+        <button className="wf-skip wf-secondary" onClick={() => controller.current?.mutate(skipPrologue)}>Skip prologue</button>
+        {(beat.phase === "backstory" || beat.phase === "years") && <div className="wf-story-title"><p className="wf-eyebrow">{beat.phase === "backstory" ? "THE STORY SO FAR" : "A QUIET LIFE"}</p><h2>{beat.phase === "years" ? <>FIVE YEARS<br /><span>LATER</span></> : <>THE CREW<br /><span>MADE IT HOME.</span></>}</h2></div>}
+        <section className="wf-dialogue" aria-label="Story dialogue">
+          {beat.hero && <span className="wf-portrait" style={{ backgroundImage:`url(/mystery-crypt/portraits/${beat.hero}.png)`, backgroundPosition:`-${beat.frame * 72}px 0` }} />}
+          <div><strong>{beat.speaker}</strong><p>{beat.text}</p><button onClick={() => controller.current?.mutate(advanceStory)}>{prompt} {state.cutscene === PROLOGUE.length - 1 ? "Drive out" : "Next"}</button></div>
+        </section>
+      </>}
+      {state.scene === "shift" && <div className="wf-shift-caption"><p className="wf-eyebrow">A FLICKER THROUGH THE CRACK</p><h2>THE WORLD IS BREAKING.</h2><p>"That egg... wait! The portal's pulling us in!"</p><strong>ENTERING THE 8-BIT REALM</strong></div>}
+      {state.scene === "results" && <div className="wf-overlay wf-results"><p className="wf-eyebrow">CHAPTER 1 COMPLETE</p>{state.sceneTimer < 2.2 ? <h2 className="wf-tbc">TO BE<br /><span>CONTINUED</span></h2> : <><h2>Beyond the flicker.</h2><p>The Architect's Creation is still sleeping.</p><p className="wf-result-score">{progressScore.toLocaleString()} <small>progress score</small></p><div className="wf-result-stats"><span>{state.kills}<small>Enemies defeated</small></span><span>LV {hero.level}<small>Crew level</small></span><span>{state.deaths}<small>Deaths</small></span><span>◈ {state.candy}<small>Candy</small></span></div><p className="wf-small">Alex, Jon and the taken-over areas join the story in later chapters.</p><button onClick={quit}>Back to menu</button></>}</div>}
       {state.scene === "dead" && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
       {paused && state.scene !== "dead" && <div className="wf-overlay"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small">{prompt} Resume · Esc / Start pause</p></div>}
     </>}

@@ -1,9 +1,9 @@
 // Exercise the pure simulation headlessly, as the Horde Rush balance script does.
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
-import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift } from '../src/pages/WaysideFury/game/sim.ts';
 
-import { LOCATIONS, HUB_POINTS, SHOP_ITEMS } from '../src/pages/WaysideFury/game/content.ts';
+import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
 import { SAVE_KEY, readSave, writeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
 
 const DT = 1 / 60;
@@ -13,6 +13,37 @@ const tick = (s, buttons = {}, frames = 1) => {
 const emptyRoom = () => { const s = newGame(100); s.enemies = []; return s; };
 const bulletAtHero = (s, damage = 20) => s.projectiles.push({ id: s.nextId++, x: s.x, y: s.y, vx: 0, vy: 0,
   radius: 4, damage, ttl: 1, owner: 'enemy', beam: false, hits: [] });
+
+// Story advances one beat per press, skips directly to the taxi, and resets timers.
+const intro = newGame(); enterScene(intro, 'prologue');
+assert.equal(intro.cutscene, 0); assert.equal(intro.sceneTimer, 0);
+for (let beat = 0; beat < PROLOGUE.length; beat++) {
+  assert.equal(intro.cutscene, beat);
+  tick(intro, { interact: true });
+  if (beat < PROLOGUE.length - 1) {
+    assert.equal(intro.scene, 'prologue'); assert.equal(intro.cutscene, beat + 1);
+    assert.equal(intro.sceneTimer, 0);
+    tick(intro, { interact: true }, 8);
+    assert.equal(intro.cutscene, beat + 1, 'held Interact cannot skip multiple story beats');
+    tick(intro);
+  }
+}
+assert.equal(intro.scene, 'overworld');
+tick(intro, { interact: true }, 8);
+assert.equal(intro.scene, 'overworld', 'held Interact cannot leave the taxi after the last story beat');
+const skipped = newGame(); enterScene(skipped, 'prologue'); tick(skipped, {}, 20);
+advanceStory(skipped); assert.equal(skipped.cutscene, 1); assert.equal(skipped.sceneTimer, 0);
+skipPrologue(skipped); assert.equal(skipped.scene, 'overworld'); assert.equal(skipped.palette, 'real');
+// Realm transitions accept any target scene and palette so future chapters can return.
+const reusableShift = newGame(); beginRealmShift(reusableShift, 'hub', 'eightbit');
+assert.equal(reusableShift.scene, 'shift'); assert.equal(reusableShift.transitionTarget, 'hub');
+assert.equal(reusableShift.palette, 'real'); tick(reusableShift, { attack: true, interact: true }, 143);
+assert.equal(reusableShift.scene, 'shift');
+tick(reusableShift, { interact: true }, 2);
+assert.equal(reusableShift.scene, 'hub'); assert.equal(reusableShift.palette, 'eightbit');
+beginRealmShift(reusableShift, 'overworld', 'real');
+assert.equal(reusableShift.palette, 'eightbit'); tick(reusableShift, {}, 145);
+assert.equal(reusableShift.scene, 'overworld'); assert.equal(reusableShift.palette, 'real');
 
 // Holding Attack creates one strike. Separate taps advance all three hits,
 // and the finisher does more damage with stronger knockback and hit-stop.
@@ -221,8 +252,8 @@ assert.equal(bossRules.projectiles.length, 12);
 const quest = newGame(7); enterScene(quest, 'dungeon');
 let playFrame = 0; const checkpoints = [], usedControls = new Set(), roomFrames = [];
 function playRoom(s) {
-  let frames = 0;
-  while (s.enemies.length && s.scene === 'dungeon' && frames < 15000) {
+  let frames = 0; const scene = s.scene;
+  while (s.enemies.length && s.scene === scene && frames < 15000) {
     const e = s.enemies.reduce((a, b) => Math.hypot(a.x - s.x, a.y - s.y) < Math.hypot(b.x - s.x, b.y - s.y) ? a : b);
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.max(1, Math.hypot(dx, dy)), cycle = playFrame % 240;
     const ki = cycle < 80, attack = !ki && playFrame % 20 === 0, dash = cycle === 110, swap = cycle === 190;
@@ -232,7 +263,7 @@ function playRoom(s) {
     checkpoints.push(...s.events.filter(e => e.type === 'checkpoint').map(e => e.id));
     frames++; playFrame++;
   }
-  assert.equal(s.scene, 'dungeon', 'combat bot survives on default stats');
+  assert.equal(s.scene, scene, 'combat bot survives on default stats');
   assert.equal(s.enemies.length, 0, 'combat bot actually defeats every enemy');
   return frames;
 }
@@ -255,19 +286,36 @@ for (let room = 0; room < 3; room++) {
     assert.equal(quest.scene, 'dungeon', 'holding Enter across a door cannot immediately retreat');
   }
 }
-assert.equal(quest.scene, 'overworld'); assert.ok(quest.notice.includes('Chapter 1 boss cleared'));
+assert.equal(quest.scene, 'shift'); assert.equal(quest.palette, 'real');
 assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
 assert.deepEqual(quest.bosses, ['blast-watcher']); assert.deepEqual(quest.areas, ['blast']);
 assert.deepEqual(checkpoints, ['blast-0', 'blast-1', 'blast-2']);
 assert.equal(quest.kills, 10); assert.equal(quest.deaths, 0);
 assert.deepEqual([...usedControls].sort(), ['attack', 'dash', 'guard', 'ki', 'swap']);
-console.log(`Default-stat combat playthrough: rooms ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s; 10 kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
+tick(quest, { interact: true }, 143); assert.equal(quest.scene, 'shift');
+tick(quest, { interact: true }, 2); assert.equal(quest.scene, 'realm'); assert.equal(quest.palette, 'eightbit');
+assert.equal(quest.sceneTimer, 0); assert.equal(quest.enemies.length, 3);
+assert.deepEqual(quest.enemies.map(e => e.sprite), ['pumpkin', 'ghost', 'imp']);
+assert.equal(interactTarget(quest), null, 'realm has no western retreat');
+quest.x = 292; quest.y = 108; assert.equal(interactTarget(quest), null, 'realm east gate is closed during combat');
+quest.x = 45; quest.y = 108;
+const realmFrames = playRoom(quest);
+assert.equal(quest.chapter, 2); assert.equal(quest.kills, 13); assert.equal(quest.deaths, 0);
+assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
+assert.deepEqual(quest.areas, ['blast', 'eightbit-realm']);
+assert.deepEqual(checkpoints, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
+walkTo(quest, 292, 108); assert.equal(interactTarget(quest).name, 'To be continued');
+tick(quest, { interact: true }); assert.equal(quest.scene, 'results'); assert.equal(quest.sceneTimer, 0);
+tick(quest, { attack: true, ki: true, interact: true }, 135);
+assert.equal(quest.scene, 'results'); assert.ok(quest.sceneTimer > 2.2);
+console.log(`Default-stat chapter playthrough: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; 13 kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
 // Replaying a defeated room cannot re-earn its unique room checkpoint.
+enterScene(quest, 'overworld');
 walkTo(quest, LOCATIONS[1].x, LOCATIONS[1].y); tick(quest); tick(quest, { interact: true });
 assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0);
 const priorCheckpoints = checkpoints.length; playRoom(quest);
 assert.equal(checkpoints.length, priorCheckpoints);
-assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
+assert.deepEqual(quest.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
 const exitAfterClear = structuredClone(quest); exitAfterClear.x = 45;
 assert.equal(interactTarget(exitAfterClear).id, 'exit');
 interact(exitAfterClear); assert.equal(exitAfterClear.scene, 'overworld');
@@ -312,8 +360,8 @@ try {
   const failedRun = writeSave(quest, firstSave); assert.ok(failedRun);
   const afterDeath = restoreSave(failedRun, true);
   assert.equal(afterDeath.scene, 'hub'); assert.equal(afterDeath.deaths, 1);
-  assert.deepEqual(afterDeath.clearedRooms, ['blast-0', 'blast-1', 'blast-2']);
-  assert.deepEqual(afterDeath.bosses, ['blast-watcher']); assert.deepEqual(afterDeath.areas, ['blast']);
+  assert.deepEqual(afterDeath.clearedRooms, ['blast-0', 'blast-1', 'blast-2', 'realm-0']);
+  assert.deepEqual(afterDeath.bosses, ['blast-watcher']); assert.deepEqual(afterDeath.areas, ['blast', 'eightbit-realm']);
   assert.equal(afterDeath.heroes.joe.level, 1); assert.equal(afterDeath.candy, 19);
   assert.deepEqual(failedRun.lastReported, firstSave.lastReported);
   for (const raw of ['{broken', 'null', '[]', '{}', JSON.stringify({ ...saved, version: 999 }), 'x'.repeat(65537)]) {
@@ -326,4 +374,4 @@ try {
   if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
   else delete globalThis.localStorage;
 }
-console.log('Wayside Fury simulation: combat, boss patterns/phase, dungeon progress/replay, taxi/hub/shop/HOME and save/retry checks pass.');
+console.log('Wayside Fury simulation: combat, boss patterns/phase, story/realm/results, progress/replay, taxi/hub/shop/HOME and save/retry checks pass.');

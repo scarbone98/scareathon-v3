@@ -16,3 +16,22 @@ export const SHOP_ITEMS = [
   { id: "defense", name: "Ward charm", description: "Both heroes gain +1 Defense.", cost: 20 },
 ] as const;
 export type ShopItemId = typeof SHOP_ITEMS[number]["id"];
+
+export interface StoryBeat {
+  phase: "backstory" | "years" | "bbq" | "dark" | "portal" | "suitup" | "taxi";
+  speaker: string; hero: "joe" | "matt" | "alex" | "jon" | null; frame: number; text: string;
+}
+export const PROLOGUE: StoryBeat[] = [
+  { phase: "backstory", speaker: "Previously", hero: null, frame: 0, text: "The crew escaped the 8 Bit Evil realm. The hordes fell. For once, the celebration lasted longer than the danger." },
+  { phase: "years", speaker: "Five years later", hero: null, frame: 0, text: "Life is good. Wayside is quiet. Tonight's biggest threat is Joe's cooking." },
+  { phase: "bbq", speaker: "Joe", hero: "joe", frame: 1, text: "Five years without a horde. I think we've finally earned a normal backyard BBQ." },
+  { phase: "bbq", speaker: "Matt", hero: "matt", frame: 1, text: "Then stop charging the grill with ki. Those burgers have a power level." },
+  { phase: "bbq", speaker: "Alex", hero: "alex", frame: 1, text: "If dinner transforms, Jon's on dishes." },
+  { phase: "dark", speaker: "Jon", hero: "jon", frame: 2, text: "Guys? That isn't a cloud. The whole sky just went dark." },
+  { phase: "dark", speaker: "Joe", hero: "joe", frame: 2, text: "An explosion... out past the old road. Something hit the ground." },
+  { phase: "portal", speaker: "The Architect", hero: null, frame: 0, text: "The hordes were only the beginning. Five years of silence... now my Creation can wake." },
+  { phase: "portal", speaker: "Matt", hero: "matt", frame: 2, text: "A portal. And that thing he's carrying... is it an egg? It's alive." },
+  { phase: "suitup", speaker: "Joe", hero: "joe", frame: 4, text: "Gloves on. Gear up. Whatever crawled out of there, we find it before it reaches Wayside." },
+  { phase: "taxi", speaker: "Alex", hero: "alex", frame: 0, text: "Everybody in the taxi. Jon and I will secure Wayside. Joe, Matt: take point at the blast site." },
+  { phase: "taxi", speaker: "Chapter 1 · The Blast Site", hero: null, frame: 0, text: "The real evil has arrived. Drive to Wayside for supplies, or head east to the impact site." },
+];
