@@ -1696,7 +1696,7 @@ function shopAdvertTexture(pick: number, onPicked?: (name: string) => void) {
 function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champion: Boards["champion"], avatar?: { strip: HTMLCanvasElement; width: number; height: number }) {
   ctx.fillStyle = "#161226";
   ctx.fillRect(0, 0, w, h);
-  const spot = ctx.createRadialGradient(w / 2, h * 0.52, 10, w / 2, h * 0.52, w * 0.62);
+  const spot = ctx.createRadialGradient(w / 2, h * 0.47, 10, w / 2, h * 0.47, w * 0.62);
   spot.addColorStop(0, "#5a3a78");
   spot.addColorStop(0.6, "#2a1c40");
   spot.addColorStop(1, "#161226");
@@ -1715,29 +1715,30 @@ function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champ
   ctx.font = "22px Georgia, serif";
   ctx.fillText("\u2605  \u2605  \u2605", w / 2, 88);
   // The avatar, in whole pixels, standing on the floor of the spotlight
-  const floor = h * 0.74;
+  // (everything sits clear of the frame: the points, at the foot, a good line above it)
+  const floor = h * 0.69;
   ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.beginPath();
   ctx.ellipse(w / 2, floor, w * 0.24, 10, 0, 0, Math.PI * 2);
   ctx.fill();
   if (avatar) {
-    const scale = Math.floor((h * 0.6) / avatar.height);
+    const scale = Math.floor((h * 0.5) / avatar.height);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(avatar.strip, 0, 0, avatar.width, avatar.height, Math.round(w / 2 - (avatar.width * scale) / 2), Math.round(floor + scale - avatar.height * scale), avatar.width * scale, avatar.height * scale);
     ctx.imageSmoothingEnabled = true;
   } else {
     ctx.fillStyle = "rgba(248,220,106,0.5)";
     ctx.font = "700 150px Georgia, serif";
-    ctx.fillText("?", w / 2, h * 0.52);
+    ctx.fillText("?", w / 2, h * 0.47);
   }
   ctx.fillStyle = "#0f0b1a";
-  ctx.fillRect(30, h * 0.775, w - 60, 62);
+  ctx.fillRect(30, h * 0.725, w - 60, 58);
   ctx.fillStyle = "#f2ead2";
   ctx.font = "700 34px Georgia, serif";
-  ctx.fillText(champion ? champion.name.toUpperCase() : "WHO WILL IT BE?", w / 2, h * 0.775 + 32, w - 80);
+  ctx.fillText(champion ? champion.name.toUpperCase() : "WHO WILL IT BE?", w / 2, h * 0.725 + 30, w - 80);
   ctx.fillStyle = "#f8dc6a";
   ctx.font = "italic 24px Georgia, serif";
-  ctx.fillText(champion ? `${champion.total} ${champion.total === "1" ? "point" : "points"}` : "Sign in to see the standings", w / 2, h * 0.775 + 92, w - 60);
+  ctx.fillText(champion ? `${champion.total} ${champion.total === "1" ? "point" : "points"}` : "Sign in to see the standings", w / 2, h * 0.725 + 86, w - 70);
 }
 
 function buildTickets() {
@@ -2549,6 +2550,28 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         halloweenRef.current?.userData.sweep(at, vx * scale, vz * scale); // HALLOWEEN: and the fallen streamers
       }
       sweptFrom = { at, t: now };
+    };
+    // Turning to another view stirs the air: the leaves, papers and stubs are carried a
+    // little way round with it (as the streamers overhead swing), each by its own amount,
+    // the lighter for a hop. (Not for a jump of the camera, and not with reduced motion)
+    let litterFacing: number | null = null;
+    const stirLitter = () => {
+      const ahead = camera.getWorldDirection(new Vector3());
+      const yaw = Math.atan2(ahead.x, ahead.z);
+      let turned = litterFacing === null ? 0 : yaw - litterFacing;
+      litterFacing = yaw;
+      if (turned > Math.PI) turned -= Math.PI * 2;
+      if (turned < -Math.PI) turned += Math.PI * 2;
+      if (reduced || Math.abs(turned) < 0.002 || Math.abs(turned) > 0.5) return;
+      // (the way the view sweeps across the floor: to your left as you turn right)
+      const across = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize().multiplyScalar(turned);
+      litter.forEach((piece, i) => {
+        const light = 0.5 + ((i * 37) % 10) / 10; // (some catch more of it than others)
+        piece.vx += across.x * light * 1.1;
+        piece.vz += across.z * light * 1.1;
+        piece.spin += turned * light * 9;
+        if (piece.y <= 0 && Math.hypot(piece.vx, piece.vz) > 0.35) piece.vy = 0.25 + light * 0.3;
+      });
     };
     let lastLitter = performance.now() / 1000;
     const moveLitter = () => {
@@ -3993,6 +4016,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       look.yaw += (look.toYaw - look.yaw) * 0.06;
       look.pitch += (look.toPitch - look.pitch) * 0.06;
       updateArrival(performance.now() / 1000);
+      stirLitter();
       moveLitter();
       movePicked();
       const sway = reduced ? 0 : 1;
