@@ -1,4 +1,5 @@
-// Fans Monster Bash messages out to every connected spectator.
+// Fans a live show's messages (Monster Bash, the casino's races) out to every
+// connected spectator.
 
 const OPEN = 1;
 const HEARTBEAT_MS = 30_000;
@@ -7,7 +8,7 @@ const VIEWER_COUNT_DEBOUNCE_MS = 2_000;
 // buffering the whole fight in server memory; their client reconnects.
 const MAX_BUFFERED_BYTES = 1_000_000;
 
-export function createViewerHub({ log }) {
+export function createViewerHub({ log, name = 'Monster Bash' }) {
     const sockets = new Set();
     let countTimer = null;
 
@@ -61,7 +62,7 @@ export function createViewerHub({ log }) {
                 sockets.delete(socket);
                 scheduleViewerCount();
             });
-            socket.on('error', (error) => log.warn({ err: error }, 'Monster Bash viewer socket error'));
+            socket.on('error', (error) => log.warn({ err: error }, `${name} viewer socket error`));
             // Spectating is read-only for now; anything a client sends is ignored.
             socket.on('message', () => {});
 

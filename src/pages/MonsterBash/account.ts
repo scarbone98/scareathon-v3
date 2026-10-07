@@ -66,7 +66,7 @@ export function useSession() {
   return session;
 }
 
-// The player's coins and bet, refreshed whenever the bout changes or bets are
+// The player's tickets and bet, refreshed whenever the bout changes or bets are
 // paid out. `setAccount` lets the bet slip apply a placed bet immediately.
 export function usePlayerAccount(signedIn: boolean, matchId: string | null, settledMatchId: string | null) {
   const [account, setAccount] = useState<PlayerAccount | null>(null);

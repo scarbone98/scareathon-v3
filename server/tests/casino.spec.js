@@ -23,7 +23,9 @@ import {
     spinReels,
 } from '../shared/casino/index.js';
 import { createRng, random } from '../shared/monster-bash/rng.js';
+import { RACE_GAME, RaceLoop } from '../casino/raceLoop.js';
 import { RoundRefusedError } from '../casino/repository.js';
+import { isPublicRoute } from '../utils/authRoutes.js';
 import casinoRoutes, { parseRaceBet, parseStake } from '../routes/casino.js';
 
 const seeded = (seed) => {
@@ -197,52 +199,61 @@ describe('picture poker', () => {
 });
 
 describe('bet parsing', () => {
-    test('stakes are whole coins within the limits', () => {
+    test('stakes are whole tickets within the limits', () => {
         expect(parseStake(1, 100)).toBe(1);
         expect(parseStake(100, 100)).toBe(100);
         for (const bad of [0, 101, 2.5, '10', null, undefined, NaN, -5]) expect(parseStake(bad, 100)).toBeNull();
     });
 
-    test('a race bet names the card, a lane and a stake', () => {
-        expect(parseRaceBet({ cardId: 'abc', lane: 5, amount: 10 }, 100)).toEqual({ cardId: 'abc', lane: 5, amount: 10 });
-        expect(parseRaceBet({ cardId: 'abc', lane: 6, amount: 10 }, 100)).toBeNull();
-        expect(parseRaceBet({ cardId: 7, lane: 1, amount: 10 }, 100)).toBeNull();
-        expect(parseRaceBet({ cardId: 'abc', lane: 1, amount: 0 }, 100)).toBeNull();
+    test('a race bet names the race, a lane and a stake', () => {
+        expect(parseRaceBet({ raceId: 'abc', lane: 5, amount: 10 }, 100)).toEqual({ raceId: 'abc', lane: 5, amount: 10 });
+        expect(parseRaceBet({ raceId: 'abc', lane: 6, amount: 10 }, 100)).toBeNull();
+        expect(parseRaceBet({ raceId: 7, lane: 1, amount: 10 }, 100)).toBeNull();
+        expect(parseRaceBet({ raceId: 'abc', lane: 1, amount: 0 }, 100)).toBeNull();
         expect(parseRaceBet(null, 100)).toBeNull();
     });
 });
 
-// A wallet and rounds in memory, refusing what the SQL functions refuse.
+// Wallets and rounds in memory, refusing what the SQL functions refuse.
 function fakeRepo(balance = 100) {
+    const key = (userId, game) => userId + ':' + game;
     const repo = {
-        balance,
+        balances: new Map(),
         rounds: [],
-        open: null,
-        async getBalance() {
-            return repo.balance;
+        open: new Map(),
+        nextId: 1,
+        balanceOf: (userId) => repo.balances.get(userId) ?? balance,
+        move(userId, amount) {
+            repo.balances.set(userId, repo.balanceOf(userId) + amount);
+            return repo.balanceOf(userId);
         },
-        async playRound({ game, stake, payout, state }) {
-            if (stake > repo.balance) throw new RoundRefusedError('insufficient_funds');
-            repo.balance += payout - stake;
+        async getBalance(userId) {
+            return repo.balanceOf(userId);
+        },
+        async playRound({ userId, game, stake, payout, state }) {
+            if (stake > repo.balanceOf(userId)) throw new RoundRefusedError('insufficient_funds');
             repo.rounds.push({ game, stake, payout, state });
-            return { roundId: String(repo.rounds.length), balance: repo.balance };
+            return { roundId: String(repo.nextId++), balance: repo.move(userId, payout - stake) };
         },
-        async openRound({ game, stake, state }) {
-            if (repo.open) throw new RoundRefusedError('round_in_progress');
-            if (stake > repo.balance) throw new RoundRefusedError('insufficient_funds');
-            repo.balance -= stake;
-            repo.open = { id: '7', game, stake, state };
-            return { roundId: '7', balance: repo.balance };
+        async openRound({ userId, game, stake, state }) {
+            if (repo.open.has(key(userId, game))) throw new RoundRefusedError('round_in_progress');
+            if (stake > repo.balanceOf(userId)) throw new RoundRefusedError('insufficient_funds');
+            const round = { id: String(repo.nextId++), userId, game, stake, state };
+            repo.open.set(key(userId, game), round);
+            return { roundId: round.id, balance: repo.move(userId, -stake) };
         },
-        async settleRound({ roundId, payout, state }) {
-            if (!repo.open || repo.open.id !== roundId) throw new RoundRefusedError('round_not_open');
-            repo.balance += payout;
-            repo.rounds.push({ ...repo.open, payout, state });
-            repo.open = null;
-            return { roundId, balance: repo.balance };
+        async settleRound({ userId, roundId, payout, state }) {
+            const round = [...repo.open.values()].find((entry) => entry.id === roundId && entry.userId === userId);
+            if (!round) throw new RoundRefusedError('round_not_open');
+            repo.open.delete(key(userId, round.game));
+            repo.rounds.push({ ...round, payout, state });
+            return { roundId, balance: repo.move(userId, payout) };
         },
-        async findOpenRound() {
-            return repo.open;
+        async findOpenRound(userId, game) {
+            return repo.open.get(key(userId, game)) ?? null;
+        },
+        async findOpenRounds(game) {
+            return [...repo.open.values()].filter((round) => round.game === game);
         },
         async pruneOlderThan() {
             return 0;
@@ -251,9 +262,118 @@ function fakeRepo(balance = 100) {
     return repo;
 }
 
+const quietLog = { info() {}, warn() {}, error() {}, child: () => quietLog };
+
+function fakeHub() {
+    const hub = { sent: [], broadcast: (message) => hub.sent.push(message), ofType: (type) => hub.sent.filter((message) => message.type === type) };
+    return hub;
+}
+
+describe('live races', () => {
+    let clock;
+    let repo;
+    let hub;
+    let loop;
+
+    beforeEach(() => {
+        clock = 1_000_000;
+        repo = fakeRepo(100);
+        hub = fakeHub();
+        // Not started: the tests take each step by hand instead of waiting on timers.
+        loop = new RaceLoop({ repo, hub, log: quietLog, rng: seeded('live'), now: () => clock });
+    });
+
+    test('announces a race with odds, never the chances behind them', () => {
+        loop.openRace();
+        const [{ race, now }] = hub.ofType('race');
+        expect(now).toBe(clock);
+        expect(race.bettingClosesAt).toBe(clock + 30_000);
+        expect(race.runners).toHaveLength(RACE_FIELD);
+        expect(race.runners[0]).toEqual({ monster: expect.any(String), odds: expect.any(Number) });
+        expect(race.start).toBeNull();
+    });
+
+    test('takes one bet each while betting is open, and counts them for the crowd', async () => {
+        loop.openRace();
+        const raceId = loop.current.id;
+        const placed = await loop.placeBet({ userId: 'ann', raceId, lane: 2, amount: 10 });
+        expect(placed).toEqual({ bet: { raceId, lane: 2, amount: 10, odds: loop.current.runners[2].odds }, balance: 90 });
+        expect(loop.betFor('ann')).toEqual(placed.bet);
+        expect(loop.betFor('bob')).toBeNull();
+        await loop.placeBet({ userId: 'bob', raceId, lane: 2, amount: 5 });
+        expect(hub.ofType('bets').at(-1).counts).toEqual([0, 0, 2, 0, 0, 0]);
+
+        await expect(loop.placeBet({ userId: 'ann', raceId, lane: 1, amount: 10 })).rejects.toMatchObject({ code: 'already_bet' });
+        await expect(loop.placeBet({ userId: 'cat', raceId: 'some-old-race', lane: 1, amount: 10 })).rejects.toMatchObject({ code: 'betting_closed' });
+        await expect(loop.placeBet({ userId: 'dan', raceId, lane: 1, amount: 500 })).rejects.toMatchObject({ code: 'insufficient_funds' });
+        // A refused bet doesn't hold the player's place.
+        expect(loop.betFor('dan')).toBeNull();
+        expect(repo.balanceOf('ann')).toBe(90);
+    });
+
+    test('closes betting on time and when the race is off', async () => {
+        loop.openRace();
+        const raceId = loop.current.id;
+        clock += 30_000;
+        await expect(loop.placeBet({ userId: 'ann', raceId, lane: 0, amount: 10 })).rejects.toMatchObject({ code: 'betting_closed' });
+        loop.closeRace();
+        await expect(loop.placeBet({ userId: 'ann', raceId, lane: 0, amount: 10 })).rejects.toMatchObject({ code: 'betting_closed' });
+        expect(repo.balanceOf('ann')).toBe(100);
+    });
+
+    test('runs the race when betting closes and pays the winners once it has been shown', async () => {
+        loop.openRace();
+        const raceId = loop.current.id;
+        const runners = loop.current.runners;
+        for (let lane = 0; lane < RACE_FIELD; lane++) await loop.placeBet({ userId: 'player-' + lane, raceId, lane, amount: 10 });
+
+        clock += 30_000;
+        loop.closeRace();
+        const [start] = hub.ofType('start');
+        expect(start).toMatchObject({ id: raceId, startedAt: clock, winner: start.order[0] });
+        // Nobody is paid while the race is still being shown.
+        expect(repo.open.size).toBe(RACE_FIELD);
+
+        await loop.finishRace();
+        expect(hub.ofType('finished')).toEqual([{ type: 'finished', id: raceId }]);
+        expect(repo.open.size).toBe(0);
+        for (let lane = 0; lane < RACE_FIELD; lane++) {
+            const won = lane === start.winner;
+            expect(repo.balanceOf('player-' + lane)).toBe(won ? 90 + racePayout(10, runners[lane].odds) : 90);
+        }
+        // A viewer arriving now sees the finished race.
+        expect(loop.welcomeMessages()[0].race).toMatchObject({ id: raceId, settled: true, start: { winner: start.winner } });
+
+        loop.openRace();
+        expect(loop.current.id).not.toBe(raceId);
+        expect(loop.betFor('player-0')).toBeNull();
+    });
+
+    test('refunds bets a crash left unpaid', async () => {
+        loop.openRace();
+        await loop.placeBet({ userId: 'ann', raceId: loop.current.id, lane: 0, amount: 40 });
+        expect(repo.balanceOf('ann')).toBe(60);
+
+        // The server restarts mid-race: a new loop knows nothing of the old race.
+        const restarted = new RaceLoop({ repo, hub: fakeHub(), log: quietLog, rng: seeded('again'), now: () => clock });
+        await restarted.refundOpenBets();
+        expect(repo.balanceOf('ann')).toBe(100);
+        expect(await repo.findOpenRounds(RACE_GAME)).toEqual([]);
+        restarted.openRace();
+        await expect(restarted.placeBet({ userId: 'ann', raceId: restarted.current.id, lane: 0, amount: 10 })).resolves.toMatchObject({ balance: 90 });
+    });
+
+    test('the feed is open to guests', () => {
+        expect(isPublicRoute('GET', '/casino/racing/ws')).toBe(true);
+        expect(isPublicRoute('POST', '/casino/racing/bet')).toBe(false);
+        expect(isPublicRoute('GET', '/casino/me')).toBe(false);
+    });
+});
+
 describe('casino routes', () => {
     let app;
     let repo;
+    let races;
 
     const start = async (balance, seed = 'routes') => {
         repo = fakeRepo(balance);
@@ -261,7 +381,8 @@ describe('casino routes', () => {
         app.addHook('onRequest', async (request) => {
             request.user = { sub: 'player-1' };
         });
-        await app.register(casinoRoutes, { prefix: '/casino', repo, rng: seeded(seed) });
+        races = new RaceLoop({ repo, hub: fakeHub(), log: quietLog, rng: seeded(seed) });
+        await app.register(casinoRoutes, { prefix: '/casino', repo, rng: seeded(seed), races, startRaces: false });
         await app.ready();
     };
     const post = (url, payload) => app.inject({ method: 'POST', url, payload });
@@ -293,7 +414,7 @@ describe('casino routes', () => {
         const broke = await post('/casino/slots/spin', { amount: 10 });
         expect(broke.statusCode).toBe(409);
         expect(broke.json().error).toBe('insufficient_funds');
-        expect(repo.balance).toBe(5);
+        expect(repo.balanceOf('player-1')).toBe(5);
     });
 
     test('a roulette spin pays each bet by the number that came up', async () => {
@@ -308,25 +429,26 @@ describe('casino routes', () => {
         expect((await post('/casino/roulette/spin', { bets: [{ type: 'red', amount: 101 }] })).statusCode).toBe(400);
     });
 
-    test('a race card shows odds, takes one bet, then is replaced', async () => {
+    test('a race bet is taken now and paid when the race is over', async () => {
         await start(100);
-        const card = (await app.inject({ method: 'GET', url: '/casino/racing/card' })).json();
-        expect(card.runners).toHaveLength(RACE_FIELD);
-        expect(card.runners[0]).toEqual({ monster: expect.any(String), odds: expect.any(Number) });
-        // Asking again doesn't re-roll the field.
-        expect((await app.inject({ method: 'GET', url: '/casino/racing/card' })).json()).toEqual(card);
+        races.openRace();
+        const raceId = races.current.id;
+        expect((await app.inject({ method: 'GET', url: '/casino/racing/bet' })).json()).toEqual({ bet: null });
 
-        const response = await post('/casino/racing/bet', { cardId: card.id, lane: 2, amount: 10 });
-        const body = response.json();
+        const response = await post('/casino/racing/bet', { raceId, lane: 2, amount: 10 });
         expect(response.statusCode).toBe(200);
-        expect(body.payout).toBe(body.winner === 2 ? racePayout(10, card.runners[2].odds) : 0);
-        expect(body.balance).toBe(100 - 10 + body.payout);
-        expect(body.next.id).not.toBe(card.id);
+        expect(response.json()).toEqual({ bet: { raceId, lane: 2, amount: 10, odds: races.current.runners[2].odds }, balance: 90 });
+        expect((await app.inject({ method: 'GET', url: '/casino/racing/bet' })).json().bet).toEqual(response.json().bet);
 
-        const stale = await post('/casino/racing/bet', { cardId: card.id, lane: 2, amount: 10 });
-        expect(stale.statusCode).toBe(409);
-        expect(stale.json().card.id).toBe(body.next.id);
-        expect(repo.rounds).toHaveLength(1);
+        const twice = await post('/casino/racing/bet', { raceId, lane: 3, amount: 10 });
+        expect(twice.statusCode).toBe(409);
+        expect(twice.json().error).toBe('already_bet');
+        expect((await post('/casino/racing/bet', { raceId, lane: 9, amount: 10 })).statusCode).toBe(400);
+
+        races.closeRace();
+        await races.finishRace();
+        const won = races.current.start.winner === 2;
+        expect((await app.inject({ method: 'GET', url: '/casino/me' })).json().balance).toBe(won ? 90 + racePayout(10, races.current.runners[2].odds) : 90);
     });
 
     test('picture poker takes the bet on the deal and pays on the draw', async () => {
@@ -355,6 +477,6 @@ describe('casino routes', () => {
         // The hand is over: drawing again pays nothing more.
         const again = await post('/casino/poker/draw', { holds });
         expect(again.statusCode).toBe(409);
-        expect(repo.balance).toBe(draw.balance);
+        expect(repo.balanceOf('player-1')).toBe(draw.balance);
     });
 });

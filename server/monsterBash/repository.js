@@ -173,7 +173,7 @@ export function createMatchRepository(db = pool) {
                          SELECT m.id FROM monster_bash_matches m
                          WHERE m.created_at < now() - make_interval(days => $1)
                            AND m.status IN ('finished', 'cancelled')
-                           -- Never drop a bout that still owes someone coins.
+                           -- Never drop a bout that still owes someone tickets.
                            AND NOT EXISTS (
                                SELECT 1 FROM monster_bash_bets b
                                WHERE b.match_id = m.id AND b.status = 'open'

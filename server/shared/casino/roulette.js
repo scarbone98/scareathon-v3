@@ -1,5 +1,5 @@
 // Casino roulette: a single-zero wheel with the usual inside and outside bets.
-// `pays` is the winnings per coin bet; the stake comes back on top.
+// `pays` is the winnings per ticket bet; the stake comes back on top.
 
 // The pockets in the order they sit around the wheel.
 export const ROULETTE_WHEEL = [

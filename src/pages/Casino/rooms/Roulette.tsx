@@ -10,7 +10,7 @@ import {
   type RouletteColor,
 } from "../../../../server/shared/casino/index.js";
 import { Outcome, PanelHeading, PlayButton, PlayGate, RoomLayout } from "../parts";
-import { type RoomProps, casinoPost, errorMessage, formatCoins, maxStake, PANEL, prefersReducedMotion, sleep } from "../wallet";
+import { type RoomProps, casinoPost, errorMessage, formatTickets, maxStake, PANEL, prefersReducedMotion, sleep } from "../wallet";
 
 type Spin = { number: number; color: RouletteColor; bets: (RouletteBet & { payout: number })[]; stake: number; payout: number; balance: number };
 type Spot = Pick<RouletteBet, "type" | "value">;
@@ -150,7 +150,7 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
         type="button"
         disabled={spinning || !wallet}
         onClick={() => place(target)}
-        aria-label={`${spotLabel(target)}${amount ? `, ${amount} coins on it` : ""}`}
+        aria-label={`${spotLabel(target)}${amount ? `, ${amount} tickets on it` : ""}`}
         className={`relative flex min-h-[2rem] items-center justify-center border border-amber-200/25 px-1 text-sm font-bold text-orange-50 transition hover:brightness-125 disabled:cursor-default ${className} ${
           won ? "casino-win z-10 outline outline-2 outline-amber-300" : ""
         }`}
@@ -214,7 +214,7 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
       <PlayGate signedIn={signedIn} wallet={wallet} walletFailed={walletFailed} retryWallet={retryWallet}>
         {(ready) => (
           <>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Chip size in coins">
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Chip size in tickets">
               {CHIPS.map((amount) => (
                 <button
                   key={amount}
@@ -232,12 +232,12 @@ export default function Roulette({ signedIn, wallet, walletFailed, retryWallet, 
               ))}
             </div>
             <p className="text-sm text-purple-200/80">
-              <strong className="text-orange-50 tabular-nums">{formatCoins(total)}</strong> on the table
-              <span className="text-purple-200/60"> (up to {formatCoins(ready.limits.maxBet)} a spin)</span>
+              <strong className="text-orange-50 tabular-nums">{formatTickets(total)}</strong> on the table
+              <span className="text-purple-200/60"> (up to {formatTickets(ready.limits.maxBet)} a spin)</span>
             </p>
             <div className="flex gap-2">
               <PlayButton disabled={spinning || total === 0 || total > ready.balance} onClick={spin}>
-                {spinning ? "Spinning…" : total === 0 ? "Place a bet" : total > ready.balance ? "Not enough coins" : `Spin for ${formatCoins(total)}`}
+                {spinning ? "Spinning…" : total === 0 ? "Place a bet" : total > ready.balance ? "Not enough tickets" : `Spin for ${formatTickets(total)}`}
               </PlayButton>
               <button
                 type="button"

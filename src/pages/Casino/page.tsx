@@ -17,7 +17,7 @@ const PicturePoker = lazy(() => import("./rooms/PicturePoker"));
 // own bet slip; the rest are house games sharing the floor's wallet.
 const ROOMS = [
   { id: "monster-bash", name: "Monster Bash", blurb: "Monsters brawl around the clock. Bet with the crowd and watch the odds swing.", monster: "werewolf" },
-  { id: "racing", name: "Monster Racing", blurb: "Six monsters, one sprint. Back the winner at the odds on the card.", monster: "rat" },
+  { id: "racing", name: "Monster Racing", blurb: "A live race every minute. Pick your monster before the off, then watch with everyone else.", monster: "rat" },
   { id: "slots", name: "Slots", blurb: "Three reels of monsters. Line them up for up to 100 times your bet.", monster: "pumpkin" },
   { id: "roulette", name: "Roulette", blurb: "Red or black, odd or even, or one lucky number at 35 to 1.", monster: "skull" },
   { id: "picture-poker", name: "Picture Poker", blurb: "Five picture cards and one swap. Beat the Scarecrow's hand.", monster: "scarecrow" },
@@ -58,7 +58,7 @@ export default function Casino() {
   const room = ROOMS.find((entry) => entry.id === params.get("room"))?.id ?? null;
   const session = useSession();
   const signedIn = Boolean(session);
-  // Re-read on every change of room: Monster Bash moves coins on its own.
+  // Re-read on every change of room: Monster Bash moves tickets on its own.
   const { wallet, failed, refresh, setBalance } = useWallet(signedIn, room);
 
   const enter = (next: RoomId | null) => {
@@ -88,7 +88,7 @@ export default function Casino() {
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="font-zombie text-3xl tracking-wide text-red-500 md:text-4xl">Casino!</h1>
-            {room === null && <p className="text-sm text-purple-200/70">Bet your coins on fights, races, reels, the wheel and the cards.</p>}
+            {room === null && <p className="text-sm text-purple-200/70">Bet your tickets on fights, races, reels, the wheel and the cards.</p>}
           </div>
           {wallet && room !== "monster-bash" && <Balance wallet={wallet} />}
         </header>

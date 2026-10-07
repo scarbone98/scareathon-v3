@@ -1,6 +1,6 @@
 -- The casino's house games (slots, roulette, monster racing, picture poker):
 -- one row per round a player bets on. The server decides every outcome; these
--- functions only move the coins, in one transaction each, and write every
+-- functions only move the tickets, in one transaction each, and write every
 -- movement to currency_transactions.
 --
 -- Most rounds are over at once (play_casino_round). Picture poker takes the

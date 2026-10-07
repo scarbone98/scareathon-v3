@@ -19,12 +19,12 @@ export type MatchInfo = {
   bettingClosesAt?: number;
   /** sha256 of the secret seed, published before the fight for verification. */
   seedHash?: string;
-  /** Coins staked on each side; absent in the local preview. */
+  /** Tickets staked on each side; absent in the local preview. */
   pools?: BetPools;
 };
 
 export type BetPools = {
-  /** Coins players have bet on each side. */
+  /** Tickets players have bet on each side. */
   amounts: [number, number];
   bettors: [number, number];
   /** The house's stake on each side, split by the pre-fight win chance. */

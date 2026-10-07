@@ -1,4 +1,4 @@
-// Reports how much of every coin bet each casino game pays back.
+// Reports how much of every ticket bet each casino game pays back.
 // Usage: npm run balance:casino -- [--races=200000]
 //
 // Slots and roulette are exact. Picture Poker is exact for a player who makes

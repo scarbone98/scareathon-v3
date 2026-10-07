@@ -4,6 +4,7 @@ const PRUNE_BATCH_SIZE = 1000;
 
 // Reasons the casino's SQL functions refuse a round; anything else is a real error.
 const ROUND_REFUSALS = new Set(['insufficient_funds', 'round_in_progress', 'round_not_open', 'invalid_amount']);
+// (the live races add 'betting_closed' and 'already_bet' of their own)
 
 export class RoundRefusedError extends Error {
     constructor(code) {
@@ -55,6 +56,15 @@ export function createCasinoRepository(db = pool) {
                 [userId, game]
             );
             return rows[0] ? { id: String(rows[0].id), stake: Number(rows[0].stake), state: rows[0].state } : null;
+        },
+
+        // Every round of a game still waiting to be paid, whoever's it is.
+        async findOpenRounds(game) {
+            const { rows } = await db.query(
+                `SELECT id, user_id, stake FROM casino_rounds WHERE game = $1 AND status = 'open' ORDER BY id`,
+                [game]
+            );
+            return rows.map((row) => ({ id: String(row.id), userId: row.user_id, stake: Number(row.stake) }));
         },
 
         // Deletes finished rounds past the retention window in small batches

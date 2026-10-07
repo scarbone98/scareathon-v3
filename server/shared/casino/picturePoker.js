@@ -7,7 +7,7 @@ export const POKER_HAND_SIZE = 5;
 
 export const POKER_SYMBOLS = ['candle', 'rat', 'pumpkin', 'ghost', 'skull', 'werewolf'];
 
-// Lowest to highest. `multiplier` is what a 1 coin bet gets back for beating
+// Lowest to highest. `multiplier` is what a 1 ticket bet gets back for beating
 // the dealer with that hand (junk can't beat anything).
 export const POKER_HANDS = [
     { id: 'junk', name: 'Junk', multiplier: 0 },

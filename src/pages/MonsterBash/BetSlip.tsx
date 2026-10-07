@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { FaCoins } from "react-icons/fa";
+import { FaTicketAlt } from "react-icons/fa";
 import { getMonster, type FighterSide } from "../../../server/shared/monster-bash/index.js";
 import { goSignIn } from "../Casino/wallet";
 import { placeBet, type PlayerAccount } from "./account";
@@ -10,9 +10,9 @@ import { SIDE_COLORS } from "./theme";
 const QUICK_AMOUNTS = [10, 50, 100];
 const EMPTY_POOLS: BetPools = { amounts: [0, 0], bettors: [0, 0] };
 
-const formatCoins = (coins: number) => coins.toLocaleString("en-US");
+const formatTickets = (tickets: number) => tickets.toLocaleString("en-US");
 
-// Everything staked on a side: players' coins plus the house's seed.
+// Everything staked on a side: players' tickets plus the house's seed.
 function sideTotal(pools: BetPools, side: number) {
   return pools.amounts[side] + (pools.house?.[side] ?? 0);
 }
@@ -45,14 +45,14 @@ function PoolBar({ match, pools }: { match: LiveMatch; pools: BetPools }) {
       <div className="mt-1.5 flex justify-between text-xs text-purple-200/70 tabular-nums">
         {[0, 1].map((side) => (
           <span key={side} className={side === 1 ? "text-right" : ""}>
-            <strong className="text-orange-50">{formatCoins(sides[side])}</strong> on {names[side]}
+            <strong className="text-orange-50">{formatTickets(sides[side])}</strong> on {names[side]}
             <br />
             {pools.bettors[side]} {pools.bettors[side] === 1 ? "bettor" : "bettors"}
           </span>
         ))}
       </div>
       {houseTotal > 0 && (
-        <p className="mt-1 text-xs text-purple-200/60">Includes {formatCoins(houseTotal)} coins from the house, split by win chance.</p>
+        <p className="mt-1 text-xs text-purple-200/60">Includes {formatTickets(houseTotal)} tickets from the house, split by win chance.</p>
       )}
     </div>
   );
@@ -108,40 +108,40 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
         onClick={goSignIn}
         className="block w-full rounded-md border border-purple-700 bg-purple-950/50 px-4 py-2.5 text-center font-bold text-orange-50 hover:border-purple-400"
       >
-        Sign in to bet coins
+        Sign in to bet tickets
       </button>
     );
   } else if (!account) {
     body = accountFailed ? (
       <p className="text-sm text-red-300" role="alert">
-        Couldn't load your coins.{" "}
+        Couldn't load your tickets.{" "}
         <button type="button" onClick={onRetry} className="font-bold underline">
           Try again
         </button>
       </p>
     ) : (
-      <p className="text-sm text-purple-200/70">Loading your coins…</p>
+      <p className="text-sm text-purple-200/70">Loading your tickets…</p>
     );
   } else if (bet) {
     const pick = names[bet.side];
     if (bet.status === "won") {
-      body = <p className="text-lg font-bold text-amber-300">{pick} won! You got {formatCoins(bet.payout ?? 0)} coins.</p>;
+      body = <p className="text-lg font-bold text-amber-300">{pick} won! You got {formatTickets(bet.payout ?? 0)} tickets.</p>;
     } else if (bet.status === "lost") {
-      body = <p className="text-orange-100/90">{pick} lost your {formatCoins(bet.amount)} coins. Better luck next bout.</p>;
+      body = <p className="text-orange-100/90">{pick} lost your {formatTickets(bet.amount)} tickets. Better luck next bout.</p>;
     } else if (bet.status === "refunded") {
-      body = <p className="text-orange-100/90">Your {formatCoins(bet.amount)} coins were refunded.</p>;
+      body = <p className="text-orange-100/90">Your {formatTickets(bet.amount)} tickets were refunded.</p>;
     } else {
       const unopposed = sideTotal(pools, 1 - bet.side) === 0;
       body = (
         <p className="text-orange-100/90">
-          You bet <strong className="text-orange-50">{formatCoins(bet.amount)}</strong> on{" "}
+          You bet <strong className="text-orange-50">{formatTickets(bet.amount)}</strong> on{" "}
           <strong style={{ color: SIDE_COLORS[bet.side] }}>{pick}</strong>.{" "}
           {unopposed ? (
-            "No one has bet against you yet. If it stays that way, you get your coins back."
+            "No one has bet against you yet. If it stays that way, you get your tickets back."
           ) : (
             <>
               Pays about{" "}
-              <strong className="text-orange-50">{formatCoins(estimatePayout(pools, bet.side, bet.amount, true))}</strong> if{" "}
+              <strong className="text-orange-50">{formatTickets(estimatePayout(pools, bet.side, bet.amount, true))}</strong> if{" "}
               {pick} wins.
             </>
           )}
@@ -153,7 +153,7 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
   } else if (account.balance < account.limits.minBet) {
     body = (
       <p className="text-sm text-purple-200/80">
-        You're out of coins.{" "}
+        You're out of tickets.{" "}
         <Link to="/arcade" className="font-bold text-orange-50 underline">
           Play the arcade
         </Link>{" "}
@@ -200,8 +200,8 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
             inputMode="numeric"
             min={account?.limits.minBet ?? 1}
             max={maxBet}
-            placeholder="Coins"
-            aria-label="Bet amount in coins"
+            placeholder="Tickets"
+            aria-label="Bet amount in tickets"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
             className="w-full min-w-0 rounded-md border border-purple-800 bg-black/60 px-3 py-2 text-orange-50 tabular-nums"
@@ -235,9 +235,9 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
             ? "Pick a monster"
             : validStake
               ? sideTotal(pools, 1 - side) === 0
-                ? `Bet ${formatCoins(stake)} on ${names[side]}`
-                : `Bet ${formatCoins(stake)} on ${names[side]} (pays ~${formatCoins(estimatePayout(pools, side, stake))})`
-              : `Enter 1 to ${formatCoins(maxBet)} coins`}
+                ? `Bet ${formatTickets(stake)} on ${names[side]}`
+                : `Bet ${formatTickets(stake)} on ${names[side]} (pays ~${formatTickets(estimatePayout(pools, side, stake))})`
+              : `Enter 1 to ${formatTickets(maxBet)} tickets`}
         </button>
         {error && <p className="text-sm text-red-300" role="alert">{error}</p>}
       </form>
@@ -250,7 +250,7 @@ export default function BetSlip({ match, phase, secondsToClose, signedIn, accoun
         <h2 className="text-lg font-bold text-orange-50">Bets</h2>
         {signedIn && account && (
           <span className="flex items-center gap-1.5 text-sm text-amber-200 tabular-nums">
-            <FaCoins aria-hidden="true" /> {formatCoins(account.balance)}
+            <FaTicketAlt aria-hidden="true" /> {formatTickets(account.balance)}
           </span>
         )}
       </div>

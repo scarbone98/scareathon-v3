@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { FaCoins } from "react-icons/fa";
+import { FaTicketAlt } from "react-icons/fa";
 import { getMonster } from "../../../server/shared/monster-bash/index.js";
-import { PANEL, formatCoins, goSignIn, maxStake, type RoomProps, type Wallet } from "./wallet";
+import { PANEL, formatTickets, goSignIn, maxStake, type RoomProps, type Wallet } from "./wallet";
 
 // A monster off its sprite sheet, drawn crisp at pixel scale. `walking` runs
 // its walk cycle (see casino.css).
@@ -37,14 +37,14 @@ export function MonsterSprite({
 export function Balance({ wallet }: { wallet: Wallet }) {
   return (
     <span className="flex items-center gap-1.5 text-sm text-amber-200 tabular-nums">
-      <FaCoins aria-hidden="true" /> {formatCoins(wallet.balance)}
-      <span className="sr-only"> coins</span>
+      <FaTicketAlt aria-hidden="true" /> {formatTickets(wallet.balance)}
+      <span className="sr-only"> tickets</span>
     </span>
   );
 }
 
 // Stands in for a game's controls until the player is signed in and their
-// coins have loaded.
+// tickets have loaded.
 export function PlayGate({
   signedIn,
   wallet,
@@ -59,20 +59,20 @@ export function PlayGate({
         onClick={goSignIn}
         className="block w-full rounded-md border border-purple-700 bg-purple-950/50 px-4 py-2.5 text-center font-bold text-orange-50 hover:border-purple-400"
       >
-        Sign in to play for coins
+        Sign in to play for tickets
       </button>
     );
   }
   if (!wallet) {
     return walletFailed ? (
       <p className="text-sm text-red-300" role="alert">
-        Couldn't load your coins.{" "}
+        Couldn't load your tickets.{" "}
         <button type="button" onClick={retryWallet} className="font-bold underline">
           Try again
         </button>
       </p>
     ) : (
-      <p className="text-sm text-purple-200/70">Loading your coins…</p>
+      <p className="text-sm text-purple-200/70">Loading your tickets…</p>
     );
   }
   return <>{children(wallet)}</>;
@@ -95,7 +95,7 @@ export function StakePicker({
   const options = [...QUICK_STAKES.filter((amount) => amount < wallet.limits.maxBet), wallet.limits.maxBet];
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Bet in coins">
+      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Bet in tickets">
         {options.map((amount) => (
           <button
             key={amount}
@@ -112,7 +112,7 @@ export function StakePicker({
           </button>
         ))}
       </div>
-      {wallet.balance < wallet.limits.minBet && <p className="mt-2 text-sm text-purple-200/80">You're out of coins. Play the arcade to earn more.</p>}
+      {wallet.balance < wallet.limits.minBet && <p className="mt-2 text-sm text-purple-200/80">You're out of tickets. Play the arcade to earn more.</p>}
     </div>
   );
 }
@@ -137,10 +137,10 @@ export function Outcome({ payout, stake, children }: { payout: number; stake: nu
     <p className={`text-base ${won ? "font-bold text-amber-300" : "text-orange-100/90"}`} role="status">
       {children}{" "}
       {payout === 0
-        ? `You lost ${formatCoins(stake)} coins.`
+        ? `You lost ${formatTickets(stake)} tickets.`
         : won
-          ? `You won ${formatCoins(payout)} coins!`
-          : `You got ${formatCoins(payout)} coins back.`}
+          ? `You won ${formatTickets(payout)} tickets!`
+          : `You got ${formatTickets(payout)} tickets back.`}
     </p>
   );
 }

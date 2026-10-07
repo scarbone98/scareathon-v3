@@ -335,7 +335,7 @@ export default function MonsterBash() {
         <div className="min-w-0">
           <h2 className="font-zombie text-2xl tracking-wide text-red-500 md:text-3xl">Monster Bash</h2>
           <p className="hidden text-sm text-purple-200/70 sm:block">
-            Monsters fight it out around the clock. Bet your coins and watch the odds swing live.
+            Monsters fight it out around the clock. Bet your tickets and watch the odds swing live.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">

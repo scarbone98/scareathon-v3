@@ -5,7 +5,7 @@
 import { MONSTERS } from '../monster-bash/roster.js';
 
 export const RACE_FIELD = 6;
-// The share of every coin bet the house keeps on average.
+// The share of every ticket bet the house keeps on average.
 export const RACE_HOUSE_EDGE = 0.08;
 export const RACE_MIN_ODDS = 1.1;
 // How long the winner takes, and how far apart the rest come in (seconds).
@@ -21,7 +21,7 @@ function shuffled(items, rng) {
     return list;
 }
 
-// What a 1 coin bet gets back if a monster with this chance wins.
+// What a 1 ticket bet gets back if a monster with this chance wins.
 export function raceOdds(chance) {
     const fair = (1 - RACE_HOUSE_EDGE) / chance;
     return Math.max(RACE_MIN_ODDS, Math.floor(fair * 10) / 10);

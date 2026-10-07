@@ -22,7 +22,7 @@ export const DEFAULT_LOOP_CONFIG = {
     settleRetryMs: 5_000,
     settleAttempts: 5,
     poolBroadcastMs: 500,
-    // Coins the house stakes on each bout, split by the pre-fight win chance.
+    // Tickets the house stakes on each bout, split by the pre-fight win chance.
     houseSeed: 100,
     // Late joiners get this much recent movement; older frames aren't needed
     // because spectators only ever watch the last few seconds.
@@ -45,7 +45,7 @@ export function pickFighters(random = Math.random, previous = null) {
     }
 }
 
-// Splits the house stake by fighter 0's win chance, keeping at least one coin
+// Splits the house stake by fighter 0's win chance, keeping at least one ticket
 // on each side so there is always something to win.
 export function splitHouseSeed(total, p) {
     if (!Number.isInteger(total) || total < 2) return [0, 0];
@@ -169,7 +169,7 @@ export class MonsterBashLoop {
             }
         }
 
-        // Pay out (or refund) any closed bout that still owes coins.
+        // Pay out (or refund) any closed bout that still owes tickets.
         for (const matchId of await this.repo.findUnsettledMatchIds()) {
             const summary = await this.repo.settleMatch(matchId);
             this.log.info({ matchId, summary }, 'Monster Bash bets settled during recovery');
@@ -412,11 +412,11 @@ export class MonsterBashLoop {
         this.log.info({ matchId, summary, attempt }, 'Monster Bash bets settled');
         this.hub.broadcast({ type: 'settled', matchId, summary });
         if (this.chat && summary.settled > 0) {
-            const coins = (summary.paidOut ?? summary.pool).toLocaleString('en-US');
+            const tickets = (summary.paidOut ?? summary.pool).toLocaleString('en-US');
             let text;
-            if (summary.refunded) text = `Bets refunded: ${coins} coins went back.`;
+            if (summary.refunded) text = `Bets refunded: ${tickets} tickets went back.`;
             else if (summary.paidOut === 0) text = 'Nobody backed the winner. The house keeps the pot.';
-            else text = `Payouts sent: ${coins} coins to the winners.`;
+            else text = `Payouts sent: ${tickets} tickets to the winners.`;
             this.hub.broadcast({ type: 'chat', message: this.chat.system(text) });
         }
     }

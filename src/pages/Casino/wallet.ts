@@ -6,7 +6,7 @@ export type Wallet = {
   limits: { minBet: number; maxBet: number };
 };
 
-// What every house game needs from the casino floor: who's playing and their coins.
+// What every house game needs from the casino floor: who's playing and their tickets.
 export type RoomProps = {
   signedIn: boolean;
   wallet: Wallet | null;
@@ -45,7 +45,7 @@ export async function casinoPost<T>(path: string, body: unknown) {
   return readJson<T>(response);
 }
 
-export const formatCoins = (coins: number) => coins.toLocaleString("en-US");
+export const formatTickets = (tickets: number) => tickets.toLocaleString("en-US");
 
 // The most a player can put on one round right now.
 export const maxStake = (wallet: Wallet) => Math.min(wallet.limits.maxBet, wallet.balance);
@@ -64,7 +64,7 @@ export function goSignIn() {
   }
 }
 
-// The player's coins at the house games. Rooms push the balance each round
+// The player's tickets at the house games. Rooms push the balance each round
 // returns; it's re-read whenever `place` changes.
 export function useWallet(signedIn: boolean, place: string | null) {
   const [wallet, setWallet] = useState<Wallet | null>(null);

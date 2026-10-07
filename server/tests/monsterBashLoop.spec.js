@@ -99,7 +99,7 @@ afterEach(() => {
 });
 
 describe('splitHouseSeed', () => {
-    test('splits the stake by win chance with at least a coin on each side', () => {
+    test('splits the stake by win chance with at least a ticket on each side', () => {
         expect(splitHouseSeed(100, 0.5)).toEqual([50, 50]);
         expect(splitHouseSeed(100, 0.52)).toEqual([52, 48]);
         expect(splitHouseSeed(100, 0.999)).toEqual([99, 1]);
@@ -343,7 +343,7 @@ describe('MonsterBashLoop', () => {
         expect(repo.settleMatch).toHaveBeenCalledWith(matchId);
         expect(messages).toContainEqual(expect.objectContaining({ type: 'settled', matchId }));
         const announcement = messages.find((message) => message.type === 'chat');
-        expect(announcement.message).toMatchObject({ system: true, text: 'Payouts sent: 300 coins to the winners.' });
+        expect(announcement.message).toMatchObject({ system: true, text: 'Payouts sent: 300 tickets to the winners.' });
         loop.stop();
     });
 
@@ -364,7 +364,7 @@ describe('MonsterBashLoop', () => {
         loop.stop();
     });
 
-    test('recovery pays out bouts that still owe coins', async () => {
+    test('recovery pays out bouts that still owe tickets', async () => {
         const repo = createFakeRepo();
         repo.findUnsettledMatchIds.mockResolvedValueOnce(['7', '8']);
         const { loop } = createLoop(repo);
@@ -418,7 +418,7 @@ function createSharedDb() {
         }),
         settleMatch: jest.fn(async (matchId) => {
             db.settledCounts[matchId] = (db.settledCounts[matchId] ?? 0) + 1;
-            // Settling is idempotent: only the first call moves coins.
+            // Settling is idempotent: only the first call moves tickets.
             return { settled: db.settledCounts[matchId] === 1 ? 1 : 0, pool: 0, paidOut: 0, refunded: false };
         }),
         findUnsettledMatchIds: jest.fn(async () => []),

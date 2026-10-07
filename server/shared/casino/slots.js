@@ -1,7 +1,7 @@
 // Casino slots: three reels of monsters. Every reel stops on a symbol picked by
 // weight, so the odds are exactly what the table below says. `three` pays for
 // three of a kind; `pair` pays when only the first two reels match. Both are
-// what a 1 coin bet gets back. Tuned with `npm run balance:casino`.
+// what a 1 ticket bet gets back. Tuned with `npm run balance:casino`.
 
 export const SLOT_REELS = 3;
 
@@ -30,7 +30,7 @@ export function spinReels(rng) {
     return Array.from({ length: SLOT_REELS }, () => pickSymbol(rng));
 }
 
-// What a spin pays per coin bet, and which line it was.
+// What a spin pays per ticket bet, and which line it was.
 export function slotResult(reels) {
     const [a, b, c] = reels;
     if (a === b && b === c) return { line: 'three', multiplier: SYMBOLS_BY_ID[a].three };
@@ -38,7 +38,7 @@ export function slotResult(reels) {
     return { line: null, multiplier: 0 };
 }
 
-// The exact share of coins bet that comes back, over every possible spin.
+// The exact share of tickets bet that comes back, over every possible spin.
 export function slotReturnToPlayer() {
     let expected = 0;
     for (const a of SLOT_SYMBOLS) {

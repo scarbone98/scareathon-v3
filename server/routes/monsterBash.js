@@ -34,7 +34,7 @@ export function parseBetRequest(body, maxBet) {
 const BET_REFUSAL_MESSAGES = {
     betting_closed: 'Betting is closed for this bout.',
     already_bet: 'You already have a bet on this bout.',
-    insufficient_funds: "You don't have enough coins for that bet.",
+    insufficient_funds: "You don't have enough tickets for that bet.",
     invalid_side: 'Pick a monster to bet on.',
     invalid_amount: 'That bet amount is not allowed.',
 };
@@ -96,7 +96,7 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
         }
     });
 
-    // The signed-in player's coins and their bet on the current bout.
+    // The signed-in player's tickets and their bet on the current bout.
     fastify.get('/me', async (request, reply) => {
         try {
             const account = await repo.getAccount(request.user.sub, loop.current?.id ?? null);
@@ -110,7 +110,7 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
     fastify.post('/bets', async (request, reply) => {
         const bet = parseBetRequest(request.body, maxBet);
         if (!bet) {
-            return reply.code(400).send({ error: 'invalid_bet', message: `Pick a monster and bet ${MIN_BET} to ${maxBet} coins.` });
+            return reply.code(400).send({ error: 'invalid_bet', message: `Pick a monster and bet ${MIN_BET} to ${maxBet} tickets.` });
         }
         try {
             const result = await loop.placeBet({ userId: request.user.sub, ...bet });
