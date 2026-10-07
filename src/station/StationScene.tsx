@@ -539,7 +539,7 @@ function grainDataUrl() {
 }
 
 const standard = (color: string, roughness = 0.9, map?: Texture) =>
-  new MeshStandardMaterial({ color, roughness, metalness: 0.05, map });
+  new MeshStandardMaterial({ color, roughness, metalness: 0.05, map: map ?? null });
 
 const box = (w: number, h: number, d: number, material: Material, x = 0, y = 0, z = 0) => {
   const mesh = new Mesh(new BoxGeometry(w, h, d), material);
@@ -916,6 +916,8 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
         if (!preview) return null;
         const clip = document.createElement("video");
         video = clip;
+        // The clip comes from Supabase Storage, another origin, and WebGL won't draw it without CORS
+        clip.crossOrigin = "anonymous";
         clip.muted = true;
         clip.defaultMuted = true;
         clip.loop = true;
