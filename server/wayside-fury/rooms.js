@@ -45,7 +45,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
         updateHosting(room.code, connected(host) ? {
             userId: host.userId,
             name: host.name,
-            hosting: { game: 'Wayside Fury', code: room.code, count: players(room).filter(connected).length, max: MAX_SEATS },
+            hosting: { game: 'Wayside Fury', code: room.code, count: players(room).length, max: MAX_SEATS },
         } : null);
     }
     function publicPlayers(room) {

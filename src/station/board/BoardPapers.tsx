@@ -26,6 +26,7 @@ import { isRead, markRead, shopNewSince, useSeen } from "../seen.ts";
 import { useNewShopItems, useNewestShopItem } from "../data.ts";
 import { ON_BANNER_TEXT, bannerStyle, bannerSwatch } from "../banners.ts";
 import { PAPER_GRAIN, pixel, serif, typewriter } from "../style/theme.ts";
+import FuryPresence, { useFuryPresence } from "./FuryPresence";
 
 // The station board is the home page, and its papers are the content. Each kind of paper
 // looks like what it is, so they read at a glance from across the platform:
@@ -673,6 +674,7 @@ const NOTICE_PICTURES = ["/images/grave_bg.png", "/images/cave_bg.png"];
 
 // Every paper reads the same pinned up as up close: coming closer changes nothing on it
 export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
+  const { data: furyHosts = [] } = useFuryPresence(signedIn);
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
   // (today's challenges: two, on one paper)
@@ -720,6 +722,17 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       sheet: { backgroundImage: "none" },
     },
   ];
+  // Active adventures take a live notice slot; their hosts remain visible after leaving the lounge.
+  if (signedIn && furyHosts.length > 0) {
+    papers.push({
+      id: "fury-presence",
+      kind: "HERE NOW",
+      title: "WAYSIDE FURY · JOIN",
+      pinned: <FuryPresence hosts={furyHosts} signedIn={signedIn} goTo={goTo} />,
+      full: <FuryPresence hosts={furyHosts} signedIn={signedIn} goTo={goTo} full />,
+      tint: "#e1cfaa",
+    });
+  }
   // Bottom left: today's challenges (both on the one paper; a lone one has it to itself)
   if (daily) {
     const sheet = dailies.length > 1 ? <DailyChallenges items={dailies} signedIn={signedIn} goTo={goTo} /> : <Challenge item={daily} game={dailyGame} signedIn={signedIn} goTo={goTo} full={false} />;

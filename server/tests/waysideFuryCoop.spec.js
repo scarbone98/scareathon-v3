@@ -194,6 +194,9 @@ describe('Wayside Fury four-seat rooms', () => {
             const room = rooms.create(host);
             rooms.join(guest, { code: room.code });
             expect(listHosting()).toEqual([{ userId: 'host', name: 'Terry', hosting: { game: 'Wayside Fury', code: room.code, count: 2, max: 4 } }]);
+            rooms.disconnect(guest);
+            expect(listHosting()[0].hosting.count).toBe(2); // Reserved seats still occupy capacity.
+            rooms.rejoin(guest, { code: room.code, token: guest.last('room').token });
             rooms.disconnect(host);
             expect(listHosting()).toEqual([]);
             advance(RECONNECT_MS);

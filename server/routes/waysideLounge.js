@@ -2,6 +2,7 @@ import websocket from '@fastify/websocket';
 import pool from '../db/mockDB.js';
 import { isAdminUser } from './inbox.js';
 import { LoungeError, createLounge } from '../waysideOnline/lounge.js';
+import { listHosting, subscribeHosting } from '../wayside-fury/presence.js';
 import {
     RegExpMatcher,
     TextCensor,
@@ -29,7 +30,8 @@ const mask = (line) => censor.applyTo(line, matcher.getAllMatches(line));
 // login's one-use way in), GET /crowd (members who've made an avatar, to fill the room).
 export default async function waysideLoungeRoutes(fastify, { lounge: injectedLounge } = {}) {
     const log = fastify.log.child({ feature: 'wayside-lounge' });
-    const lounge = injectedLounge ?? createLounge({ mask });
+    const lounge = injectedLounge ?? createLounge({ mask, hosting: listHosting });
+    const stopHosting = subscribeHosting(() => lounge.hostingChanged());
 
     if (!fastify.hasDecorator('websocketServer')) {
         await fastify.register(websocket, { options: { maxPayload: 8192 } });
@@ -50,6 +52,7 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
 
     fastify.addHook('onClose', async () => {
         clearInterval(heartbeat);
+        stopHosting();
         lounge.close();
     });
 
@@ -79,7 +82,12 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
                 ORDER BY p.updated_at DESC
                 LIMIT $1
             `, [CROWD_SIZE]);
-            return { data: result.rows.map((row) => ({ userId: row.user_id, name: row.username || 'Someone' })) };
+            const hosts = listHosting();
+            const hostIds = new Set(hosts.map((member) => member.userId));
+            const crowd = result.rows.filter((row) => !hostIds.has(row.user_id)).map((row) => ({
+                userId: row.user_id, name: row.username || 'Someone', hosting: null,
+            }));
+            return { data: [...hosts, ...crowd].slice(0, CROWD_SIZE) };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'Could not see who is about' });

@@ -711,7 +711,7 @@ export function createArcadeGames(): MachineData[] {
         color: "#b34836",
         tagline: "Five years later, the real evil arrives.",
         font: { family: "Bangers" },
-        about: { released: "2026", players: "Single player", genre: "Action RPG", developer: "szaneer" },
+        about: { released: "2026", players: "1–4 players", genre: "Action RPG", developer: "szaneer" },
       },
       game: (
         <GameRenderer

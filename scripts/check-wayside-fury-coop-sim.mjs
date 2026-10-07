@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { newGame, enterScene, addEnemy, activeHero, idleInput, step, interact, interactTarget, applyCoopHit, applyCoopDamage,
   setCoopPlayerCount, syncCoopLevel, coopLevelBand, reviveCoopHero, requestSwap, exitCoop, gainXp, grantGear, restAtHome, buyItem, xpForLevel, createHero, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
-import { getWorld } from '../src/pages/WaysideFury/game/world.ts';
+import { getWorld, WATCHER_ROOM } from '../src/pages/WaysideFury/game/world.ts';
 
 const DT = 1 / 60;
 const cooperative = (role, seat) => {
@@ -316,4 +316,15 @@ assert.equal(activeHero(gearedGuest).hp, 130); assert.equal(activeHero(gearedGue
 assert.equal(activeHero(gearedGuest).power, 37); assert.equal(activeHero(gearedGuest).defense, 12);
 assert.equal(gearedGuest.heroes.joe.hp, 0, 'gear grants cannot revive a co-op hero');
 
-console.log('Wayside Fury co-op simulation: prediction/authority, scaling, downs/revives, level sync and per-player reward metadata pass.');
+// Migration between a remote finishing hit and the next simulation step must
+// retain the pending encounter clear without re-emitting paid kill rewards.
+const finishingHost = cooperative('host', 0); enterScene(finishingHost, 'dungeon', WATCHER_ROOM);
+for (const e of finishingHost.enemies) assert.ok(applyCoopHit(finishingHost, { type: 'coop-hit', enemyId: e.id, damage: 100000, dx: 0, dy: 0, force: 0, attackId: `finish-${e.id}` }, 1));
+const promoted = cooperative('host', 1); enterScene(promoted, 'dungeon', WATCHER_ROOM);
+promoted.enemies = finishingHost.enemies.map(e => ({ ...e, hp: Math.max(0, e.hp) }));
+const migratedEvents = tick(promoted);
+assert.equal(migratedEvents.filter(e => e.type === 'kill').length, 0, 'a paid kill cannot replay after promotion');
+assert.ok(migratedEvents.some(e => e.type === 'checkpoint' && e.id === `blast-${WATCHER_ROOM}`));
+assert.ok(promoted.areas.includes('blast')); assert.ok(promoted.bosses.includes('blast-watcher'));
+
+console.log('Wayside Fury co-op simulation: prediction/authority, migration clears, scaling, downs/revives, level sync and per-player reward metadata pass.');

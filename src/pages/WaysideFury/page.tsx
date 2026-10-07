@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
 import { HeroPortrait } from "./HeroPortrait";
 import { FuryCoop, type CoopRoom } from "./game/coop";
@@ -104,6 +105,11 @@ export default function WaysideFury() {
   const [settings, setSettings] = useState<SaveSettings>(() => saved?.settings ?? { ...DEFAULT_SETTINGS, controls: { ...DEFAULT_SETTINGS.controls, tutorialDismissed: !tutorialVisible() } });
   const settingsRef = useRef(settings);
   const coopRef = useRef<FuryCoop | null>(null);
+  const [coopOpen, setCoopOpen] = useState(() => new URLSearchParams(location.search).has("coop"));
+  const [coopBusy, setCoopBusy] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const joinCode = useRef(new URLSearchParams(location.search).get("coop")?.toUpperCase().slice(0, 4) ?? "");
+  const autoJoined = useRef(false);
   const [coopRoom, setCoopRoom] = useState<CoopRoom | null>(null);
   const storeRef = useRef<CloudSaveStore | null>(null);
   const playingRef = useRef(false);
@@ -155,11 +161,11 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) setCharacterOpen(false); pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const togglePause = () => { if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) setCharacterOpen(false); pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
   const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
-    return overlay ? Array.from(overlay.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button:not(:disabled), input[type=range]:not(:disabled)")) : [];
+    return overlay ? Array.from(overlay.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button:not(:disabled), input:not(:disabled)")) : [];
   };
   handlers.current = { pause: togglePause, confirm: () => {
     // Story and world confirmations are consumed by the simulation exactly once.
@@ -214,7 +220,7 @@ export default function WaysideFury() {
     const connected = connectSaveStore({
       onChange: ({ save, status, ready }) => {
         if (!mounted) return;
-        saveReady = ready; saveRef.current = save; setSaved(save); setSyncStatus(status); setLoadingSave(!ready);
+        saveReady = ready; if (ready) setSignedIn(!!connected.store.userId); saveRef.current = save; setSaved(save); setSyncStatus(status); setLoadingSave(!ready);
         if (!ready && playingRef.current) game.setPaused(true);
         if (ready) {
           const nextSettings = save?.settings ?? { ...DEFAULT_SETTINGS, controls: { ...DEFAULT_SETTINGS.controls, tutorialDismissed: connected.store.userId === null && !tutorialVisible() } };
@@ -239,7 +245,7 @@ export default function WaysideFury() {
         if (mounted) setReward(score);
       },
     }, () => {
-      coop.leave(); exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
+      coop.leave(); setCoopOpen(false); setSignedIn(false); exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
       avatarReady = false; saveReady = false; setCharacterOpen(false); setLoadingAvatar(true); game.setPaused(true);
     });
     storeRef.current = connected.store;
@@ -285,7 +291,7 @@ export default function WaysideFury() {
   }, [characterOpen, mode]);
   const send = (input: Partial<Input>) => controller.current?.setTouch(input);
   const hero = activeHero(state);
-  void coopRoom;
+
   const partner = nextPartyHero(state);
   const cinematic = state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
   const beat = PROLOGUE[state.cutscene] ?? PROLOGUE[0];
@@ -295,7 +301,29 @@ export default function WaysideFury() {
   const touchControls = mode === "touch" && playing && !paused && !state.overlay && !cinematic && state.scene !== "dead";
   const storyTitles = { backstory: "THE CREW MADE IT HOME.", years: "FIVE YEARS LATER", bbq: "A QUIET LIFE", dark: "SOMETHING IN THE SKY", portal: "THE REAL EVIL ARRIVES", suitup: "GEAR UP", taxi: "THE BLAST SITE" };
   const storyEyebrows = { backstory: "THE STORY SO FAR", years: "A QUIET LIFE", bbq: "WAYSIDE · FIVE YEARS LATER", dark: "OUT PAST THE OLD ROAD", portal: "A FLICKER THROUGH THE CRACK", suitup: "JOE · MATT · ALEX · JON", taxi: "CHAPTER 1" };
-  const quit = () => { exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); };
+  const quit = () => { setCoopOpen(false); exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); };
+  const connectCoop = async (kind: "create" | "join", code?: string) => {
+    if (!signedIn || loadingSave || loadingAvatar || coopBusy || !coopRef.current) return;
+    setCoopBusy(true);
+    try {
+      await coopRef.current.connect(kind, code);
+      if (!playingRef.current) {
+        const next = saveRef.current ? restoreSave(saveRef.current) : newGame();
+        if (!saveRef.current) enterScene(next, "hub");
+        playingRef.current = true; controller.current?.start(next); setPlaying(true);
+      }
+      if (avatar) coopRef.current.setAvatar(avatar);
+      pausedRef.current = true; setPaused(true); controller.current?.setPaused(true);
+    } catch (error) { setSaveToast(error instanceof Error ? error.message : "Could not join co-op."); }
+    finally { setCoopBusy(false); }
+  };
+  const coopJoinRef = useRef(connectCoop); coopJoinRef.current = connectCoop;
+  useEffect(() => {
+    if (!joinCode.current || !signedIn || loadingSave || loadingAvatar || autoJoined.current) return;
+    autoJoined.current = true; setCoopOpen(true); void coopJoinRef.current("join", joinCode.current);
+  }, [signedIn, loadingSave, loadingAvatar]);
+  const closeCoop = () => { setCoopOpen(false); if (playingRef.current) { pausedRef.current = false; setPaused(false); controller.current?.setPaused(false); } };
+  const reviveTarget = state.coop?.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === state.scene && peer.room === state.room && Math.hypot(peer.x - state.x, peer.y - state.y) < 32);
   const showTutorial = tutorial && playing && !loadingSave && !loadingAvatar && !cinematic && !paused && !state.overlay && !target;
   const dismissTutorial = () => updateSettings({ ...settingsRef.current, controls: { ...settingsRef.current.controls, tutorialDismissed: true } });
   dismissTutorialRef.current = dismissTutorial;
@@ -311,7 +339,7 @@ export default function WaysideFury() {
     const timer = window.setTimeout(() => { if (epoch === accountEpochRef.current) dismissTutorialRef.current(); }, 7000);
     return () => window.clearTimeout(timer);
   }, [showTutorial, accountEpoch]);
-  return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${playing && (paused || state.overlay || state.scene === "dead") ? "wf-has-modal" : ""} ${touchControls ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
+  return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
     <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
@@ -321,6 +349,7 @@ export default function WaysideFury() {
       <p className="wf-tagline">Five years later, the real evil arrives.</p>
       <div className="wf-crew">{HERO_IDS.map(id => <div key={id}><HeroPortrait id={id} avatar={avatar} /><small>{HERO_NAMES[id]}</small></div>)}</div>
       <button className="wf-primary" disabled={loadingSave || loadingAvatar} onClick={() => begin()}>{loadingSave ? "Loading your save…" : loadingAvatar ? "Loading your look…" : saved ? "Continue adventure" : "Begin adventure"}</button>
+      <button className="wf-secondary" disabled={loadingSave || loadingAvatar} onClick={() => setCoopOpen(true)}>Co-op</button>
       <button className="wf-secondary" onClick={() => setControls(!controls)}>Controls</button>
       {controls && <Controls mode={mode} />}<p className="wf-small">Chapter 1 · The Blast Site · Early access</p>
     </div> : <>
@@ -333,10 +362,16 @@ export default function WaysideFury() {
         <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button>
       </header>}
+      {!cinematic && !paused && coopRoom && <div className="wf-party-hud" aria-label="Party HP">{coopRoom.players.map(player => {
+        const peer = state.coop?.remoteHeroes.find(p => p.seat === player.seat), h = player.seat === coopRoom.seat ? hero : peer?.hero;
+        return <div key={player.seat}><strong>{player.name}{!player.connected ? " · Offline" : h?.hp === 0 ? " · Down" : ""}</strong><Meter value={h?.hp ?? 0} max={h?.maxHp ?? 1} kind="hp" /></div>;
+      })}</div>}
       {!cinematic && <div className="wf-play-band">
+        {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
+        {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
         {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
-        {target && !state.overlay && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><PromptGlyph mode={mode} />{target.locked ? `${target.name} · Taken over` : target.name}</button>}
+        {target && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !target.id.startsWith("coop-revive-") && !state.overlay && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><PromptGlyph mode={mode} />{target.locked ? `${target.name} · Taken over` : target.name}</button>}
         {noticeVisible && state.notice && !state.overlay && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
         {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
@@ -346,7 +381,7 @@ export default function WaysideFury() {
       {state.overlay === "home" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">THERE'S STILL A LIGHT ON</p><h2>Home, sweet Wayside.</h2><p>Rest restores the crew and sets your retry save.</p><button onClick={() => controller.current?.mutate(s => { restAtHome(s); })}>Rest & save</button>
         <div className="wf-party"><p className="wf-small">Choose one or two heroes. Rest to recover benched heroes.</p>{HERO_IDS.map(id => <button key={id} className={`wf-secondary ${state.party.includes(id) ? "wf-in-party" : ""}`} aria-pressed={state.party.includes(id)} onClick={() => controller.current?.mutate(s => { if (toggleParty(s, id)) persist(s); })}><HeroPortrait id={id} avatar={avatar} />{HERO_NAMES[id]} · {state.party.includes(id) ? "IN PARTY" : "BENCH"}</button>)}</div>
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave home</button></div>}
-      {touchControls && <div className="wf-touch-dock"><Stick send={send} sensitivity={settings.controls.stickSensitivity} /><div className="wf-action-buttons">
+      {touchControls && !coopOpen && <div className="wf-touch-dock"><Stick send={send} sensitivity={settings.controls.stickSensitivity} /><div className="wf-action-buttons">
         <TouchButton action="swap" label="Swap hero" send={send} /><TouchButton action="guard" label="Guard (hold)" send={send} />
         <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label="Attack" send={send} />
       </div></div>}
@@ -362,7 +397,8 @@ export default function WaysideFury() {
       {state.scene === "results" && <div className="wf-overlay wf-results"><p className="wf-eyebrow">CHAPTER 1 COMPLETE</p>{state.sceneTimer < 2.2 ? <h2 className="wf-tbc">TO BE<br /><span>CONTINUED</span></h2> : <><h2>Beyond the flicker.</h2><p>The Architect's Creation is still sleeping.</p><p className="wf-result-score">{progressScore.toLocaleString()} <small>progress score</small></p><div className="wf-result-stats"><span>{state.kills}<small>Enemies defeated</small></span><span>LV {state.character.level}<small>Crew level</small></span><span>{state.deaths}<small>Deaths</small></span><span>◈ {state.candy}<small>Candy</small></span></div><p className="wf-small">The taken-over areas open in later chapters.</p><button onClick={quit}>Back to menu</button></>}</div>}
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
       {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
-      {paused && !characterOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
+      {paused && !characterOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
+    {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}
   </main>;
 }

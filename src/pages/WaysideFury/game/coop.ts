@@ -22,7 +22,9 @@ interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room, time: s.time, palette: s.palette,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
-  enemies: s.enemies.filter(e => e.hp > 0), projectiles: s.projectiles.filter(p => p.owner === "enemy"), clearedRooms: [...new Set([...s.clearedRooms, ...(s.coop?.worldClearedRooms ?? [])])],
+  // A guest finishing hit arrives after step. Retain its zero-HP entries until
+  // the next step awards the clear, including if authority migrates that frame.
+  enemies: s.enemies.map(e => ({ ...e, hp: Math.max(0, e.hp) })), projectiles: s.projectiles.filter(p => p.owner === "enemy"), clearedRooms: [...new Set([...s.clearedRooms, ...(s.coop?.worldClearedRooms ?? [])])],
   areas: s.areas, bosses: s.bosses, chapter: s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.

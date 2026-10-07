@@ -51,14 +51,18 @@ function send(socket, message) {
     if (socket.readyState === OPEN) socket.send(JSON.stringify(message));
 }
 
-export function createLounge({ now = Date.now, mask } = {}) {
+export function createLounge({ now = Date.now, mask, hosting = () => [] } = {}) {
     const watchers = new Set();
     const players = new Map(); // userId -> { userId, name, x, y, say, saidAt, socket, admin, moves }
     const bySocket = new Map(); // socket -> userId
     const tickets = new Map(); // ticket -> { userId, name, admin, expires }
     const kicked = new Map(); // userId -> until
 
-    const view = ({ userId, name, x, y, say, saidAt }) => ({ userId, name, x, y, say: say ?? null, saidAt: saidAt ?? null });
+    // Hosting belongs to the game rooms, so it survives a player leaving this lounge.
+    const view = ({ userId, name, x, y, say, saidAt }) => ({
+        userId, name, x, y, say: say ?? null, saidAt: saidAt ?? null,
+        hosting: hosting().find((member) => member.userId === userId)?.hosting ?? null,
+    });
     const broadcast = (message) => watchers.forEach((socket) => send(socket, message));
     const isKicked = (userId) => {
         const until = kicked.get(userId);
@@ -94,7 +98,11 @@ export function createLounge({ now = Date.now, mask } = {}) {
         // A socket opens: it watches, and sees who's in
         watch(socket) {
             watchers.add(socket);
-            send(socket, { type: 'room', players: [...players.values()].map(view), max: MAX_PLAYERS });
+            send(socket, { type: 'room', players: [...players.values()].map(view), max: MAX_PLAYERS, hosts: hosting() });
+        },
+
+        hostingChanged() {
+            broadcast({ type: 'hosting', hosts: hosting() });
         },
 
         join(socket, { ticket } = {}) {

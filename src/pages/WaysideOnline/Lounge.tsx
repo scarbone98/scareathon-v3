@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import type { AvatarLook } from "../../components/avatar/types";
-import { loadCrowd, loadLooks, loungeSocketUrl, loungeTicket, type LoungeMessage, type LoungePlayer } from "./api";
+import { loadCrowd, loadLooks, loungeSocketUrl, loungeTicket, type FuryHosting, type HostingMember, type LoungeMessage, type LoungePlayer } from "./api";
 
 // The lounge: a club room off Wayside Online. Whoever's in walks about (tap the floor)
 // and talks in bubbles; members who aren't in stand around the edges, so the room's
@@ -18,7 +19,7 @@ const WALK_SPEED = 0.22;
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 15000;
 
-type Person = { userId: string; name: string; x: number; y: number; say: string | null; heard: number; live: boolean };
+type Person = { userId: string; name: string; x: number; y: number; say: string | null; heard: number; live: boolean; hosting: FuryHosting | null };
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -212,13 +213,15 @@ function Avatar({
         <span className="lounge-shadow" aria-hidden />
         <AvatarView look={look} height={size} label={person.name} />
       </button>
-      {(person.live || selected) && <div className={`lounge-name ${me ? "lounge-me" : ""} ${person.live ? "" : "opacity-70"}`}>{person.name}</div>}
+      {(person.live || person.hosting || selected) && <div className={`lounge-name ${me ? "lounge-me" : ""} ${person.live || person.hosting ? "" : "opacity-70"}`}>{person.name}</div>}
     </div>
   );
 }
 
 export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSignIn: () => void }) {
+  const navigate = useNavigate();
   const [live, setLive] = useState<Map<string, Person>>(new Map());
+  const [hosts, setHosts] = useState<HostingMember[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [admin, setAdmin] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -276,6 +279,10 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
       switch (message.type) {
         case "room":
           setLive(new Map(message.players.map((p: LoungePlayer) => [p.userId, { ...p, heard: p.saidAt ?? 0, live: true }])));
+          setHosts(message.hosts ?? []);
+          break;
+        case "hosting":
+          setHosts(message.hosts);
           break;
         case "enter":
           setLive((current) => new Map(current).set(message.player.userId, { ...message.player, heard: 0, live: true }));
@@ -332,6 +339,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
       socket.onclose = () => {
         setConnected(false);
         setMe(null);
+        setHosts([]);
         if (closed) return;
         retryTimer = window.setTimeout(connect, retryMs);
         retryMs = Math.min(MAX_RETRY_MS, retryMs * 2);
@@ -364,16 +372,22 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
 
   // Everyone drawn: who's in, then members who aren't, up to the room's crowd
   const people = useMemo(() => {
-    const list: Person[] = [...live.values()];
+    const hosting = new Map(hosts.map((member) => [member.userId, member.hosting]));
+    const list: Person[] = [...live.values()].map((person) => ({ ...person, hosting: hosting.get(person.userId) ?? null }));
+    hosts.filter((member) => !live.has(member.userId)).forEach((member) => {
+      const spot = idleSpot(member.userId, String(amble[member.userId] ?? ""));
+      list.push({ ...member, ...spot, say: null, heard: 0, live: false });
+    });
+    const shown = new Set(list.map((person) => person.userId));
     crowd
-      .filter((member) => !live.has(member.userId))
+      .filter((member) => !shown.has(member.userId))
       .slice(0, Math.max(0, CROWD_SIZE - list.length))
       .forEach((member) => {
         const spot = idleSpot(member.userId, String(amble[member.userId] ?? ""));
-        list.push({ ...member, ...spot, say: null, heard: 0, live: false });
+        list.push({ ...member, ...spot, say: null, heard: 0, live: false, hosting: null });
       });
     return list;
-  }, [live, crowd, amble]);
+  }, [live, crowd, hosts, amble]);
 
   const ids = useMemo(() => people.map((p) => p.userId).sort().join(","), [people]);
   const { data: looks = {} } = useQuery({
@@ -420,7 +434,17 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
         {chosen && (
           <span className="flex items-center gap-2">
             <span className="text-[#1c1b18]">{chosen.name}</span>
-            <span className="text-[#7c7972]">{chosen.live ? (chosen.userId === me ? "(you)" : "here now") : "not in right now"}</span>
+            <span className="text-[#7c7972]">{chosen.hosting ? `Hosting Wayside Fury · ${chosen.hosting.count}/${chosen.hosting.max}` : chosen.live ? (chosen.userId === me ? "(you)" : "here now") : "not in right now"}</span>
+            {chosen.hosting && chosen.userId !== me && (
+              <button
+                type="button"
+                className="wo-button"
+                disabled={chosen.hosting.count >= chosen.hosting.max}
+                onClick={() => signedIn ? navigate(`/wayside-fury?coop=${encodeURIComponent(chosen.hosting!.code)}`) : goSignIn()}
+              >
+                {chosen.hosting.count >= chosen.hosting.max ? "Full" : signedIn ? "Join" : "Sign in to join"}
+              </button>
+            )}
             {admin && chosen.live && chosen.userId !== me && (
               <button
                 type="button"
