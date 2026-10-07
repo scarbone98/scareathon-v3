@@ -24,6 +24,7 @@ import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
 import { useSongs } from "./things/Songs.tsx";
+import { useCarts } from "./things/Carts.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
 import { stationPlaceFor } from "./places.ts";
@@ -228,6 +229,8 @@ export default function StationPage() {
   }, [at]);
   // The radio plays your songs (the ones everyone has, signed out)
   useSongs(signedIn);
+  // Cartridges bought at the counter go on the arcade's shelf (wherever you've signed in)
+  useCarts(signedIn);
 
   // On phones, which of the object's things the card holds, and whether the walk there is done
   const [cardIndex, setCardIndex] = useState(0);

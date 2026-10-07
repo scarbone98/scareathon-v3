@@ -39,7 +39,8 @@ export type MachineData = {
   // screen and can't be played; "shuffle" plays a random other game.
   // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
   // "wayside": WaysideOS, a code prompt on the cabinet's screen (ArcadeV2/waysideOS.ts).
-  // secret: off the shelf until its code is typed into WaysideOS (Arcade/unlocks.ts).
+  // secret: off the shelf until its code is typed into WaysideOS (Arcade/unlocks.ts), or,
+  // for "???" and Snow Globe, until it's bought at the station's ticket counter.
   secret?: boolean;
   special?: "mystery" | "shuffle" | "soon" | "wayside";
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
@@ -1118,6 +1119,8 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Snow Globe",
       earlyAccess: true,
+      // Off the shelf until it's bought at the station's ticket counter (station/things/Carts.tsx)
+      secret: true,
       cartridge: {
         color: "#8fc9e8",
         tagline: "Build a snow globe, then shake it.",
@@ -1363,6 +1366,8 @@ export function createArcadeGames(): MachineData[] {
       // The URL is only there to find its label picture, stills/Mystery.jpg.
       videoUrl: "/game-recordings/Mystery.mp4",
       hasLeaderboard: false,
+      // Off the shelf until it's bought at the station's ticket counter (station/things/Carts.tsx)
+      secret: true,
       special: "mystery",
       game: null,
     },

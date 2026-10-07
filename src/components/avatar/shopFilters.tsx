@@ -37,10 +37,10 @@ const rarities = [
 ];
 
 // Kinds of ware the shop has a tab for but nothing on the shelf yet: things to use inside
-// the arcade's games, and games themselves (soon: what the empty shelf says)
+// the arcade's games (soon: what the empty shelf says). (Games have theirs: the station's
+// cartridges, see things/Carts.tsx)
 export const EMPTY_SHELVES = [
   { value: "game_items", label: "In-game items", soon: "Nothing here yet: things to use in the arcade's games are on their way." },
-  { value: "games", label: "Games", soon: "Nothing here yet: games to buy are on their way." },
 ];
 
 // The categories as tabs, in the order they run. extraCategories: wares that aren't avatar

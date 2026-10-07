@@ -21,6 +21,7 @@ import TicketIcon from "../../components/TicketIcon";
 import { SheetActions } from "../Sheet.tsx";
 import ShopKeeper, { type TriedOn } from "./ShopKeeper.tsx";
 import { useSongShopItems } from "./Songs.tsx";
+import { useCartShopItems } from "./Carts.tsx";
 import { radio } from "../radio.ts";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
@@ -221,7 +222,9 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   // (and songs for the radio on the bench; one being listened to stops when you leave)
   const songItems = useSongShopItems();
   useEffect(() => () => radio.endSample(), []);
-  const wares = [...bannerItems, ...songItems];
+  // (and cartridges for the arcade)
+  const cartItems = useCartShopItems();
+  const wares = [...bannerItems, ...songItems, ...cartItems];
   // Opened on an item (an advert over the window): searched for straight away
   const [filters, setFilters] = useState<ShopFilters>({ ...NO_FILTERS, search: focus ?? "" });
   const topBar = useContext(SheetActions);

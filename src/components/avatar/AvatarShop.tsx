@@ -75,6 +75,8 @@ export type ExtraShopItem = {
   previewing: boolean;
   // (what its Show button says instead: a song's is Listen)
   previewLabel?: string;
+  // (nothing to show or hear: no Show button. An arcade cartridge)
+  noPreview?: boolean;
   onPreview: () => void;
   // (buy: it costs tickets, so it waits until you can afford it)
   action: { label: string; disabled: boolean; buy?: boolean; onClick?: () => void };
@@ -368,17 +370,19 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
                 </div>
 
                 <div className="shop-item-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      item.onPreview();
-                      if (!item.previewing) onTryOn?.({ name: item.name, category: item.category, price: item.price, owned: item.owned, short: cannotAfford });
-                    }}
-                    className={`shop-button is-secondary ${item.previewing ? "is-active" : ""}`}
-                    aria-pressed={item.previewing}
-                  >
-                    {item.previewLabel ?? "Show"}
-                  </button>
+                  {!item.noPreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        item.onPreview();
+                        if (!item.previewing) onTryOn?.({ name: item.name, category: item.category, price: item.price, owned: item.owned, short: cannotAfford });
+                      }}
+                      className={`shop-button is-secondary ${item.previewing ? "is-active" : ""}`}
+                      aria-pressed={item.previewing}
+                    >
+                      {item.previewLabel ?? "Show"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
