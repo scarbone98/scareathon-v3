@@ -9,6 +9,10 @@ import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
 import { isNewGame } from "./news.ts";
 
+// The attract videos play from Supabase Storage (npm run upload:recordings) rather than
+// public/, so they aren't copied into every deployment; their stills stay in public/
+const RECORDINGS = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/game-recordings`;
+
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
 interface CustomWindow extends Window {
@@ -362,7 +366,7 @@ export function createArcadeGames(): MachineData[] {
         cassette: "Admin Terminal",
       },
       // No video: the cabinet draws its screen live. The URL finds its label, stills/WaysideOS.jpg
-      videoUrl: "/game-recordings/WaysideOS.mp4",
+      videoUrl: `${RECORDINGS}/WaysideOS.mp4`,
       hasLeaderboard: false,
       special: "wayside",
       game: null,
@@ -379,7 +383,7 @@ export function createArcadeGames(): MachineData[] {
         cassette: "Wayside Online",
       },
       // No video: the URL finds its label still, stills/WaysideOnline.jpg, which the cabinet shows
-      videoUrl: "/game-recordings/WaysideOnline.mp4",
+      videoUrl: `${RECORDINGS}/WaysideOnline.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -398,7 +402,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Virtual gallery", developer: "sclondon" },
         cassette: "Gallery",
       },
-      videoUrl: "/game-recordings/WaysideGallery.mp4",
+      videoUrl: `${RECORDINGS}/WaysideGallery.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -419,7 +423,7 @@ export function createArcadeGames(): MachineData[] {
         backNote: "Say cheese!",
         cassette: "Picto Box",
       },
-      videoUrl: "/game-recordings/PictoBoxLogo.mp4",
+      videoUrl: `${RECORDINGS}/PictoBoxLogo.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -440,7 +444,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Bungee" },
         about: { released: "2026", players: "Single player", genre: "Any of them", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/Shuffle.mp4",
+      videoUrl: `${RECORDINGS}/Shuffle.mp4`,
       hasLeaderboard: false,
       special: "shuffle",
       game: null,
@@ -454,7 +458,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2024", players: "Multiplayer", genre: "Retro action", developer: "sclondon + scarbone98" },
         backNote: "Beat it with the lights off. Twice.",
       },
-      videoUrl: "/game-recordings/8BitEvilReturnsMenu.mp4",
+      videoUrl: `${RECORDINGS}/8BitEvilReturnsMenu.mp4`,
       game: (
         <GameRenderer
           title="8 Bit Evil Returns"
@@ -507,7 +511,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2024", players: "Single player", genre: "Vertical platformer", developer: "sclondon" },
         backNote: "Don't look down past floor 40. Something looks back.",
       },
-      videoUrl: "/game-recordings/HemlocksTower.mp4",
+      videoUrl: `${RECORDINGS}/HemlocksTower.mp4`,
       game: (
         <GameRenderer
           title="Hemlock's Tower"
@@ -529,7 +533,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2025", players: "Single player", genre: "Pinball", developer: "scarbone98" },
         backNote: "Tilt it during a storm. Trust me.",
       },
-      videoUrl: "/game-recordings/TlalocsCursePinball.mp4",
+      videoUrl: `${RECORDINGS}/TlalocsCursePinball.mp4`,
       game: (
         <GameRenderer
           title="Tlaloc’s Curse"
@@ -549,7 +553,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Russo One" },
         about: { released: "2024", players: "Single player", genre: "Endless runner", developer: "scarbone98" },
       },
-      videoUrl: "/game-recordings/Ooidash.mp4",
+      videoUrl: `${RECORDINGS}/Ooidash.mp4`,
       game: (
         <GameRenderer
           title="Ooidash"
@@ -570,7 +574,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Trick racer", developer: "sclondon" },
         backNote: "Up up down down flip flip. Works on the 3rd river.",
       },
-      videoUrl: "/game-recordings/SalmonRun2_v3.mp4",
+      videoUrl: `${RECORDINGS}/SalmonRun2_v3.mp4`,
       game: (
         <GameRenderer
           title="Salmon Run 2"
@@ -592,7 +596,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Microgames", developer: "sclondon" },
         backNote: "If it asks you a question, lie.",
       },
-      videoUrl: "/game-recordings/WirtWare.mp4",
+      videoUrl: `${RECORDINGS}/WirtWare.mp4`,
       game: (
         <GameRenderer
           title="WirtWare"
@@ -617,7 +621,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-2 players", genre: "Auto-battler", developer: "perhapsJohn" },
         backNote: "Three of a kind levels up. Freeze the good ones.",
       },
-      videoUrl: "/game-recordings/SuperAutoween.mp4",
+      videoUrl: `${RECORDINGS}/SuperAutoween.mp4`,
       game: (
         <GameRenderer
           title="Super Autoween"
@@ -639,7 +643,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Grenze Gotisch", weight: 700 },
         about: { released: "2026", players: "Multiplayer", genre: "Lane card battler", developer: "scarbone98" },
       },
-      videoUrl: "/game-recordings/CryptClash.mp4",
+      videoUrl: `${RECORDINGS}/CryptClash.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -660,7 +664,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Bangers" },
         about: { released: "2026", players: "Everyone watching", genre: "Betting hall", developer: "scarbone98" },
       },
-      videoUrl: "/game-recordings/Casino.mp4",
+      videoUrl: `${RECORDINGS}/Casino.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -678,7 +682,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Black Ops One" },
         about: { released: "2026", players: "Single player", genre: "Crowd-runner shooter", developer: "scarbone98" },
       },
-      videoUrl: "/game-recordings/HordeRush.mp4",
+      videoUrl: `${RECORDINGS}/HordeRush.mp4`,
       game: (
         <GameRenderer
           title="Horde Rush"
@@ -699,7 +703,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Fredoka", weight: 600 },
         about: { released: "2026", players: "Multiplayer", genre: "Rolling platformer", developer: "scarbone98" },
       },
-      videoUrl: "/game-recordings/FrogBall.mp4",
+      videoUrl: `${RECORDINGS}/FrogBall.mp4`,
       game: (
         <GameRenderer
           title="Frog Ball"
@@ -722,7 +726,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Dungeon crawler", developer: "scarbone98" },
         backNote: "The 4th door on the left was never there.",
       },
-      videoUrl: "/game-recordings/MysteryCrypt.mp4",
+      videoUrl: `${RECORDINGS}/MysteryCrypt.mp4`,
       game: (
         <GameRenderer
           title="Mystery Crypt"
@@ -743,7 +747,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Nosifer" },
         about: { released: "2026", players: "Single player", genre: "Snowboarding", developer: "scarbone98" },
       },
-      videoUrl: "/game-recordings/GhostRidge.mp4",
+      videoUrl: `${RECORDINGS}/GhostRidge.mp4`,
       game: (
         <GameRenderer
           title="Ghost Ridge"
@@ -764,7 +768,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Zombie survival shooter", developer: "scarbone98" },
         backNote: "Property of the night shift. DO NOT RETURN.",
       },
-      videoUrl: "/game-recordings/Muertos.mp4",
+      videoUrl: `${RECORDINGS}/Muertos.mp4`,
       game: (
         <GameRenderer
           title="Muertos"
@@ -789,7 +793,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Daily puzzle", developer: "perhapsJohn" },
         backNote: "Come back tomorrow night.",
       },
-      videoUrl: "/game-recordings/31Nights.mp4",
+      videoUrl: `${RECORDINGS}/31Nights.mp4`,
       game: (
         <GameRenderer
           title="31 Nights"
@@ -816,7 +820,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-4 local · online", genre: "Party / push-your-luck", developer: "perhapsJohn" },
         backNote: "Bank it before the dog gets you.",
       },
-      videoUrl: "/game-recordings/TrickOrTreatRush.mp4",
+      videoUrl: `${RECORDINGS}/TrickOrTreatRush.mp4`,
       game: (
         <GameRenderer
           title="Trick or Treat Rush"
@@ -842,7 +846,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-8 online", genre: ".io", developer: "perhapsJohn" },
         backNote: "Stash at home before midnight.",
       },
-      videoUrl: "/game-recordings/TrickOrTreatIo.mp4",
+      videoUrl: `${RECORDINGS}/TrickOrTreatIo.mp4`,
       game: (
         <GameRenderer
           title="Trick or Treat .io"
@@ -870,7 +874,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-4 online", genre: "Stealth", developer: "perhapsJohn" },
         backNote: "Hold still in the hedge.",
       },
-      videoUrl: "/game-recordings/LawnOrder.mp4",
+      videoUrl: `${RECORDINGS}/LawnOrder.mp4`,
       game: (
         <GameRenderer
           title="Lawn Order"
@@ -896,7 +900,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1 player · co-op 2-4 · versus online", genre: "Tower defence", developer: "perhapsJohn" },
         backNote: "Keep one lantern lit.",
       },
-      videoUrl: "/game-recordings/BooPopTD.mp4",
+      videoUrl: `${RECORDINGS}/BooPopTD.mp4`,
       game: (
         <GameRenderer
           title="Boo Pop TD"
@@ -922,7 +926,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1 player · online CB Rally 2-4", genre: "Photo safari", developer: "perhapsJohn" },
         backNote: "Dead centre. Don't flinch.",
       },
-      videoUrl: "/game-recordings/CryptidSnap.mp4",
+      videoUrl: `${RECORDINGS}/CryptidSnap.mp4`,
       game: (
         <GameRenderer
           title="Cryptid Snap"
@@ -950,7 +954,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-4 local, online by room code", genre: "Kart racing", developer: "perhapsJohn" },
         backNote: "Most points after four races takes the Golden Lantern.",
       },
-      videoUrl: "/game-recordings/KartOLantern.mp4",
+      videoUrl: `${RECORDINGS}/KartOLantern.mp4`,
       game: (
         <GameRenderer
           title="Kart-o'-Lantern"
@@ -978,7 +982,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-4 local, online by room code", genre: "Platform fighter", developer: "perhapsJohn" },
         backNote: "Faster KOs and less damage taken score more candy.",
       },
-      videoUrl: "/game-recordings/GraveyardSmash3D.mp4",
+      videoUrl: `${RECORDINGS}/GraveyardSmash3D.mp4`,
       game: (
         <GameRenderer
           title="Graveyard Smash 3D"
@@ -1007,7 +1011,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-4 local, online by room code, up to 30 with bots", genre: "Co-op cooking chaos", developer: "perhapsJohn" },
         backNote: "Endless Night counts coins until the third caller walks out.",
       },
-      videoUrl: "/game-recordings/Overbrewed.mp4",
+      videoUrl: `${RECORDINGS}/Overbrewed.mp4`,
       game: (
         <GameRenderer
           title="Overbrewed"
@@ -1038,7 +1042,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "1-4 players, online or with bots", genre: "Dungeon crawler", developer: "perhapsJohn" },
         backNote: "Endless Crypt counts until the souls run out. 500 a floor.",
       },
-      videoUrl: "/game-recordings/Ghauntlet.mp4",
+      videoUrl: `${RECORDINGS}/Ghauntlet.mp4`,
       game: (
         <GameRenderer
           title="Ghauntlet"
@@ -1062,7 +1066,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Prehistoric heist horror", developer: "scarbone98" },
         backNote: "It can't see you. Stand still.",
       },
-      videoUrl: "/game-recordings/DeepTime.mp4",
+      videoUrl: `${RECORDINGS}/DeepTime.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1087,7 +1091,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Metroidvania", developer: "scarbone98" },
         backNote: "Pick a kid, or go down as yourself.",
       },
-      videoUrl: "/game-recordings/HallowDeep.mp4",
+      videoUrl: `${RECORDINGS}/HallowDeep.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1108,7 +1112,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Patrick Hand" },
         about: { released: "2026", players: "Single player", genre: "Virtual pet sandbox", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/BOB.mp4",
+      videoUrl: `${RECORDINGS}/BOB.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1131,7 +1135,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Mountains of Christmas", weight: 700 },
         about: { released: "2026", players: "Single player", genre: "Toy sandbox", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/SnowGlobe.mp4",
+      videoUrl: `${RECORDINGS}/SnowGlobe.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1151,7 +1155,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Share Tech Mono" },
         about: { released: "2026", players: "Single player", genre: "Breeding sim", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/BreedableMonsters.mp4",
+      videoUrl: `${RECORDINGS}/BreedableMonsters.mp4`,
       // Right-drag to orbit and drag-and-drop between tanks need a mouse
       availableOnMobile: false,
       hasLeaderboard: false,
@@ -1172,7 +1176,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Orbitron", weight: 700 },
         about: { released: "2026", players: "Single player", genre: "Physics sandbox", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/Simulatrix.mp4",
+      videoUrl: `${RECORDINGS}/Simulatrix.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1192,7 +1196,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "Before 2024", players: "Single player", genre: "Retro action", developer: "sclondon + scarbone98" },
         backNote: "Where it all began. Mine, 1986 - J.",
       },
-      videoUrl: "/game-recordings/8BitEvil.mp4",
+      videoUrl: `${RECORDINGS}/8BitEvil.mp4`,
       game: (
         <Suspense fallback={<LoadingSpinner />}>
           <EightBitEvil
@@ -1226,7 +1230,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Pumpkin carving", developer: "sclondon" },
         backNote: "Mirror on for matching eyes.",
       },
-      videoUrl: "/game-recordings/JackOLanternForest.mp4",
+      videoUrl: `${RECORDINGS}/JackOLanternForest.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1320,7 +1324,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Multiplayer", genre: "Survival", developer: "scarbone98" },
         backNote: "test area",
       },
-      videoUrl: "/game-recordings/8BitEvilReturnsV2.mp4",
+      videoUrl: `${RECORDINGS}/8BitEvilReturnsV2.mp4`,
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1349,7 +1353,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Cinzel", weight: 700 },
         about: { released: "Coming soon", players: "Single player", genre: "Adventure", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/FuryFromTheTomb.mp4",
+      videoUrl: `${RECORDINGS}/FuryFromTheTomb.mp4`,
       hasLeaderboard: false,
       special: "soon",
       game: null,
@@ -1362,7 +1366,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Audiowide" },
         about: { released: "Coming soon", players: "Single player", genre: "Simulation", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/SatelliteSim.mp4",
+      videoUrl: `${RECORDINGS}/SatelliteSim.mp4`,
       hasLeaderboard: false,
       special: "soon",
       game: null,
@@ -1375,7 +1379,7 @@ export function createArcadeGames(): MachineData[] {
         font: { family: "Pixelify Sans", weight: 700 },
         about: { released: "Coming soon", players: "Single player", genre: "Metroidvania", developer: "sclondon" },
       },
-      videoUrl: "/game-recordings/Depth.mp4",
+      videoUrl: `${RECORDINGS}/Depth.mp4`,
       hasLeaderboard: false,
       special: "soon",
       game: null,
@@ -1391,7 +1395,7 @@ export function createArcadeGames(): MachineData[] {
       },
       // There's no video: the cabinet draws this one's screen live (ArcadeV2/mysteryScreen.ts).
       // The URL is only there to find its label picture, stills/Mystery.jpg.
-      videoUrl: "/game-recordings/Mystery.mp4",
+      videoUrl: `${RECORDINGS}/Mystery.mp4`,
       hasLeaderboard: false,
       // Off the shelf until it's bought at the station's ticket counter (station/things/Carts.tsx)
       secret: true,

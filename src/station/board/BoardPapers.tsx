@@ -70,10 +70,9 @@ function Photo({ picture, moving = false, className = "", fade }: { picture: Pic
   );
 }
 
-// /game-recordings/Foo.mp4 → /game-recordings/stills/Foo.jpg
+// …/game-recordings/Foo.mp4 (on Supabase Storage) → /game-recordings/stills/Foo.jpg (local)
 function stillFor(videoUrl: string) {
-  const slash = videoUrl.lastIndexOf("/");
-  return `${videoUrl.slice(0, slash)}/stills/${videoUrl.slice(slash + 1).replace(/\.mp4$/i, ".jpg")}`;
+  return `/game-recordings/stills/${videoUrl.slice(videoUrl.lastIndexOf("/") + 1).replace(/\.mp4$/i, ".jpg")}`;
 }
 
 type GameCard = { name: string; color: string; picture: Picture };

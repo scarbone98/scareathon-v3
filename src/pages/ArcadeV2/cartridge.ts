@@ -1187,11 +1187,11 @@ export function createCartridge(
   };
 }
 
-// The label still for a video: /game-recordings/Foo.mp4 → /game-recordings/stills/Foo.jpg,
-// made by scripts/make-cartridge-stills.mjs (npm run stills:arcade).
+// The label still for a video: …/game-recordings/Foo.mp4 → /game-recordings/stills/Foo.jpg,
+// made by scripts/make-cartridge-stills.mjs (npm run stills:arcade). The videos are on
+// Supabase Storage but the stills are served locally.
 export function stillUrlFor(videoUrl: string) {
-  const slash = videoUrl.lastIndexOf("/");
-  return `${videoUrl.slice(0, slash)}/stills/${videoUrl.slice(slash + 1).replace(/\.mp4$/i, ".jpg")}`;
+  return `/game-recordings/stills/${videoUrl.slice(videoUrl.lastIndexOf("/") + 1).replace(/\.mp4$/i, ".jpg")}`;
 }
 
 const VIDEO_FALLBACK_TIMEOUT = 8000;

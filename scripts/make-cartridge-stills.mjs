@@ -1,5 +1,6 @@
 // Pull one frame from each arcade attract video into a small JPEG for the
-// /arcade-v2 cartridge labels: public/game-recordings/stills/<name>.jpg.
+// /arcade-v2 cartridge labels: media/game-recordings/<name>.mp4 →
+// public/game-recordings/stills/<name>.jpg.
 // Phones (iOS Safari especially) won't load a video that isn't playing, so
 // the labels can't rely on grabbing a frame from the video in the browser.
 //
@@ -10,8 +11,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 
-const recordings = new URL("../public/game-recordings/", import.meta.url).pathname;
-const stills = join(recordings, "stills");
+const recordings = new URL("../media/game-recordings/", import.meta.url).pathname;
+const stills = new URL("../public/game-recordings/stills/", import.meta.url).pathname;
 const force = process.argv.includes("--force");
 mkdirSync(stills, { recursive: true });
 
