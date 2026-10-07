@@ -36,6 +36,8 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
+  // An early-access game that still spends its first day in NEW GAMES, like a finished one
+  newShelf?: boolean;
   // When it arrived (an ISO time, like "2026-10-04T16:00:00-06:00"): a "!" badge until it's
   // played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
   added?: string;
@@ -709,8 +711,9 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Wayside Fury",
       earlyAccess: true,
+      newShelf: true,
       availableOnMobile: true,
-      added: "Wed 2026-10-07 9:00 AM PDT (UTC-07:00)",
+      added: "Thu 2026-10-08 9:00 AM PDT (UTC-07:00)",
       cartridge: {
         color: "#b34836",
         tagline: "Five years later, the real evil arrives.",
@@ -1558,12 +1561,12 @@ export function createArcadeGames(): MachineData[] {
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the cassette
-// carts (things to do), new games (finished ones, for their first day), the finished games
+// carts (things to do), new games (finished ones, or early access with newShelf, for their first day), the finished games
 // ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
   if (game.special === "mystery") return 2;
   if (game.special === "soon") return 4;
-  if (game.earlyAccess) return 3;
+  if (game.earlyAccess) return isNewGame(game) ? 1 : 3;
   if (game.cartridge.cassette) return 0;
   return isNewGame(game) ? 1 : 2;
 }
