@@ -2,6 +2,7 @@ import pool from '../db/mockDB.js';
 import calendarSheet from '../db/google-sheets.js';
 import { clearCalendarCache } from './calendar.js';
 import { isAdminUser } from './inbox.js';
+import { latestUnlockedDay } from '../utils/agentTokens.js';
 import {
     FIRST_ACCOUNT_SEASON,
     POINT_CATEGORIES,
@@ -149,10 +150,14 @@ export default async function routes(fastify) {
         }
     });
 
-    // Honor system: any day of this season's calendar, any time
+    // Honor system: any day of this season's calendar, any time. An agent key, though,
+    // can only mark nights that have come (tonight and before, Eastern time)
     fastify.put('/watches/:day', async (request, reply) => {
         const day = parseDay(request.params.day);
         if (!day) return reply.code(400).send({ error: 'Day must be a number between 1 and 31' });
+        if (request.user?.agent && day > latestUnlockedDay()) {
+            return reply.code(403).send({ error: `Night ${day} hasn't come yet. Agents can only mark nights up to tonight.` });
+        }
         try {
             const season = currentSeason();
             await pool.query(`

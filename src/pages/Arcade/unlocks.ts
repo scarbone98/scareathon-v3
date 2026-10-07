@@ -9,6 +9,7 @@ export const SECRET_CARTS: Record<string, string> = {
   AQUA: "Pocket Aquarium",
   VALLEY: "October Valley",
   DENVS: "Denver Vs The Universe",
+  OUTSIDE: "Outside",
 };
 
 export const UNLOCK_EVENT = "arcade:unlocked";

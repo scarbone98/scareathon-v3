@@ -27,6 +27,8 @@ const EightBitEvilV2 = lazy(() => import("../pages/EightBitEvilV2/page"));
 const PictoBox = lazy(() => import("../pages/PictoBox/page"));
 const WaysideOnline = lazy(() => import("../pages/WaysideOnline/page"));
 const ScareCapitalist = lazy(() => import("../pages/ScareCapitalist/page"));
+const Scaredle = lazy(() => import("../pages/DailyPuzzles/Scaredle/page"));
+const CrossBones = lazy(() => import("../pages/DailyPuzzles/CrossBones/page"));
 
 const PAGES: [string, React.ComponentType][] = [
   ["/station", Station],
@@ -43,6 +45,8 @@ const PAGES: [string, React.ComponentType][] = [
   ["/picto-box", PictoBox],
   ["/wayside-online", WaysideOnline],
   ["/scary-capitalist", ScareCapitalist],
+  ["/scaredle", Scaredle],
+  ["/cross-bones", CrossBones],
   // Its first address, from the day it was called Scare Capitalist
   ["/scare-capitalist", ScareCapitalist],
 ];

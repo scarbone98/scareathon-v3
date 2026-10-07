@@ -10,7 +10,7 @@ import { supabase } from "../../supabaseClient";
 import { AvatarView } from "../../components/avatar/AvatarView";
 import { lookFromAvatar } from "../../components/avatar/look";
 import type { AvatarLook, AvatarResponse } from "../../components/avatar/types";
-import { useSummary } from "../data.ts";
+import { formatShortDate, useSummary } from "../data.ts";
 import { useInboxUnreadCount } from "../../pages/Inbox/useInboxUnreadCount";
 import type { GoTo } from "../stops.ts";
 import { Loading, Problem } from "../style/ui.tsx";
@@ -396,6 +396,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
         </form>
         {message && <p className={`mt-2 ${message.ok ? "text-emerald-300" : "text-red-300"}`}>{message.text}</p>}
       </section>
+      <AgentKeys />
       <section>
         <h3 className="text-base text-[#f2ead2]" style={serif}>
           Heading out?
@@ -406,5 +407,101 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
         </button>
       </section>
     </div>
+  );
+}
+
+// Agent keys: let an AI agent (the wayside CLI, agent-cli/ in the repo) check tonight's movie
+// and mark nights watched for you. A key is shown once; the server only keeps its hash.
+type AgentKey = { id: number; name: string; hint: string; createdAt: string; lastUsedAt: string | null };
+
+function AgentKeys() {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [fresh, setFresh] = useState<{ name: string; token: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const { data: keys } = useQuery({
+    queryKey: ["agent-tokens"],
+    queryFn: async () => {
+      const r = await fetchWithAuth("/agent-tokens", { cache: "no-store" });
+      if (!r.ok) throw new Error("Could not load your agent keys");
+      return ((await r.json()) as { data: AgentKey[] }).data;
+    },
+  });
+  const send = async (path: string, init: RequestInit) => {
+    const r = await fetchWithAuth(path, init);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || "Something went wrong");
+    return body.data;
+  };
+  const create = useMutation({
+    mutationFn: (keyName: string) =>
+      send("/agent-tokens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: keyName }) }) as Promise<AgentKey & { token: string }>,
+    onSuccess: (key) => {
+      setFresh({ name: key.name, token: key.token });
+      setCopied(false);
+      setName("");
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["agent-tokens"] });
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+  const revoke = useMutation({
+    mutationFn: (id: number) => send(`/agent-tokens/${id}`, { method: "DELETE" }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["agent-tokens"] }),
+    onError: (e: Error) => setError(e.message),
+  });
+  const copy = async () => {
+    if (!fresh) return;
+    await navigator.clipboard?.writeText(fresh.token).catch(() => {});
+    setCopied(true);
+  };
+
+  return (
+    <section>
+      <h3 className="text-base text-[#f2ead2]" style={serif}>
+        Agent keys
+      </h3>
+      <p className="mt-1 text-stone-400">
+        Let an AI agent check tonight&apos;s movie and mark nights you&apos;ve watched (only nights that have come). It can&apos;t play, spend
+        coins, or touch anything else.
+      </p>
+      {fresh && (
+        <div className="mt-3 max-w-sm rounded border border-emerald-300/40 p-3">
+          <p className="text-emerald-300">Your key for {fresh.name}. Copy it now; it won&apos;t be shown again.</p>
+          <code className="mt-2 block break-all text-xs text-[#f2ead2]">{fresh.token}</code>
+          <div className="mt-2 flex gap-2">
+            <button type="button" className={plateButton} onClick={() => void copy()}>
+              {copied ? "Copied" : "Copy"}
+            </button>
+            <button type="button" className={plateButton} onClick={() => setFresh(null)}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+      {keys && keys.length > 0 && (
+        <ul className="mt-3 max-w-sm space-y-1">
+          {keys.map((key) => (
+            <li key={key.id} className="flex items-center justify-between gap-2">
+              <span>
+                {key.name} <span className="text-stone-500">…{key.hint}</span>
+                <span className="block text-xs text-stone-500">{key.lastUsedAt ? `Last used ${formatShortDate(key.lastUsedAt)}` : "Never used"}</span>
+              </span>
+              <button type="button" className={`${plateButton} shrink-0`} disabled={revoke.isPending} onClick={() => revoke.mutate(key.id)}>
+                Revoke
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="mt-3 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate(name.trim()); }}>
+        <input className={darkField} placeholder="Name it, like Claude" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} aria-label="Agent key name" />
+        <button type="submit" className={`${plateButton} shrink-0`} disabled={!name.trim() || create.isPending}>
+          {create.isPending ? "…" : "Make key"}
+        </button>
+      </form>
+      {error && <p className="mt-2 text-red-300">{error}</p>}
+    </section>
   );
 }
