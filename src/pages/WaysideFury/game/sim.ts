@@ -4,9 +4,7 @@ import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, ty
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
-// Pure deterministic game rules. The viewport is 320 x 180; maps use world coordinates.
-export const WIDTH = 320;
-export const HEIGHT = 180;
+// Pure deterministic game rules. Maps use world coordinates; presentation owns the viewport.
 export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;

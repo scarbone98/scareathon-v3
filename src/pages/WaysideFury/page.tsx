@@ -1,13 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CharacterSheet } from "./CharacterSheet";
 import { HeroPortrait } from "./HeroPortrait";
 import { loadHeroAvatar, type HeroAvatar } from "./game/avatar";
 import { GameController } from "./game/controller";
 import { type InputMode } from "./game/input";
 import { type RenderPresentation } from "./game/render";
-import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, toggleParty, xpForLevel, type GameState, type Input } from "./game/sim";
+import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
-import { getWorld } from "./game/world";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
@@ -35,26 +34,13 @@ function PromptGlyph({ mode }: { mode: InputMode }) {
   const glyph = /playstation|dualshock|dualsense|sony/i.test(pad?.id ?? "") ? "✕" : /switch|nintendo/i.test(pad?.id ?? "") ? "B" : "A";
   return mode === "keyboard" ? <kbd aria-hidden="true">↵</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
 }
-function SceneSurface({ canvas, presentation, onTouch, layoutKey }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void; layoutKey: string }) {
-  const stage = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  useLayoutEffect(() => {
-    const node = stage.current!;
-    const resize = () => {
-      const { width, height } = node.getBoundingClientRect();
-      setScale(Math.max(1, Math.floor(Math.min(width / 320, (height - parseFloat(getComputedStyle(node).paddingBottom)) / 180))));
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(node); resize();
-    return () => observer.disconnect();
-  }, [layoutKey]);
-  return <div className="wf-stage" ref={stage}>
-    <div className="wf-scene-surface" style={{ width: 320 * scale, height: 180 * scale }}>
+function SceneSurface({ canvas, presentation, onTouch }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void }) {
+  return <div className="wf-stage">
+    <div className="wf-scene-surface">
       <canvas ref={canvas} onPointerDown={e => { if (e.pointerType === "touch") onTouch(); }} aria-label="Wayside Fury action RPG" />
       <div className="wf-scene-labels" aria-hidden="true">{presentation?.labels.map(label => <span key={label.id}
         className={`wf-scene-label wf-label-${label.kind}`} style={{ left: `clamp(${Math.min(220, label.text.length * 7 + 16) / 2}px, ${label.x * 100}%, calc(100% - ${Math.min(220, label.text.length * 7 + 16) / 2}px))`, top: `clamp(40px, ${label.y * 100}%, 100%)`, color: label.color, opacity: label.opacity, transform: `translate(-50%, -100%) scale(${label.scale ?? 1})` }}>{label.text}</span>)}</div>
     </div>
-    <p className="wf-rotate-hint">↻ Rotate for the best view · playable in portrait</p>
   </div>;
 }
 function ActionIcon({ action }: { action: keyof Input }) {
@@ -134,8 +120,12 @@ export default function WaysideFury() {
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
   const [reward, setReward] = useState(0);
   const [presentation, setPresentation] = useState<RenderPresentation | null>(null);
-  const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0 });
+  const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0, left: window.visualViewport?.offsetLeft ?? 0 });
   const [tutorial, setTutorial] = useState(tutorialVisible);
+  const [noticeVisible, setNoticeVisible] = useState(false);
+  const [accountEpoch, setAccountEpoch] = useState(0);
+  const accountEpochRef = useRef(0);
+  const dismissTutorialRef = useRef(() => {});
   const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
   const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setControls(false); };
   const persist = (s: GameState, home = false, credit = false) => {
@@ -242,7 +232,7 @@ export default function WaysideFury() {
         if (mounted) setReward(score);
       },
     }, () => {
-      exitRef.current(); avatarAbort?.abort(); avatarAccount = undefined;
+      exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
       avatarReady = false; saveReady = false; setCharacterOpen(false); setLoadingAvatar(true); game.setPaused(true);
     });
     storeRef.current = connected.store;
@@ -257,7 +247,17 @@ export default function WaysideFury() {
     return () => { exitRef.current(); mounted = false; avatarAbort?.abort(); connected.dispose(); storeRef.current = null; window.removeEventListener("pagehide", pagehide); document.removeEventListener("gesturestart", preventGesture); document.removeEventListener("visibilitychange", hidden); window.removeEventListener("blur", blur); game.dispose(); controller.current = null; if (import.meta.env.DEV) Reflect.deleteProperty(window, "__waysideFury"); };
   }, []);
   useEffect(() => {
-    const update = () => setViewport({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0 });
+    // Safari must opt into the full display before env(safe-area-inset-*) can
+    // reserve the notch/home indicator around HUD and controls.
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    if (!meta) return;
+    const original = meta.getAttribute("content");
+    const settings = (original ?? "width=device-width, initial-scale=1").split(",").map(setting => setting.trim()).filter(setting => !setting.startsWith("viewport-fit="));
+    meta.setAttribute("content", [...settings, "viewport-fit=cover"].join(", "));
+    return () => { if (original === null) meta.removeAttribute("content"); else meta.setAttribute("content", original); };
+  }, []);
+  useEffect(() => {
+    const update = () => setViewport({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0, left: window.visualViewport?.offsetLeft ?? 0 });
     window.visualViewport?.addEventListener("resize", update);
     window.visualViewport?.addEventListener("scroll", update);
     window.addEventListener("resize", update); update();
@@ -288,12 +288,26 @@ export default function WaysideFury() {
   const storyTitles = { backstory: "THE CREW MADE IT HOME.", years: "FIVE YEARS LATER", bbq: "A QUIET LIFE", dark: "SOMETHING IN THE SKY", portal: "THE REAL EVIL ARRIVES", suitup: "GEAR UP", taxi: "THE BLAST SITE" };
   const storyEyebrows = { backstory: "THE STORY SO FAR", years: "A QUIET LIFE", bbq: "WAYSIDE · FIVE YEARS LATER", dark: "OUT PAST THE OLD ROAD", portal: "A FLICKER THROUGH THE CRACK", suitup: "JOE · MATT · ALEX · JON", taxi: "CHAPTER 1" };
   const quit = () => { exitRef.current(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); };
+  const showTutorial = tutorial && playing && !loadingSave && !loadingAvatar && !cinematic && !paused && !state.overlay && !target;
   const dismissTutorial = () => updateSettings({ ...settingsRef.current, controls: { ...settingsRef.current.controls, tutorialDismissed: true } });
-  return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${touchControls ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, top: viewport.top } as CSSProperties}>
+  dismissTutorialRef.current = dismissTutorial;
+  useEffect(() => {
+    if (!playing || cinematic || !state.notice) { setNoticeVisible(false); return; }
+    setNoticeVisible(true);
+    const timer = window.setTimeout(() => setNoticeVisible(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [state.notice, playing, cinematic]);
+  useEffect(() => {
+    if (!showTutorial) return;
+    const epoch = accountEpochRef.current;
+    const timer = window.setTimeout(() => { if (epoch === accountEpochRef.current) dismissTutorialRef.current(); }, 7000);
+    return () => window.clearTimeout(timer);
+  }, [showTutorial, accountEpoch]);
+  return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${playing && (paused || state.overlay || state.scene === "dead") ? "wf-has-modal" : ""} ${touchControls ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
     <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
-    <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} layoutKey={JSON.stringify([playing, paused, mode, cinematic, touchControls, state.cutscene, state.room, state.overlay, state.notice, target?.id, !!boss, tutorial, !!reward, viewport.width, viewport.height])} />
+    <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} />
     {!playing ? <div className="wf-overlay wf-menu">
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
       <p className="wf-tagline">Five years later, the real evil arrives.</p>
@@ -302,20 +316,21 @@ export default function WaysideFury() {
       <button className="wf-secondary" onClick={() => setControls(!controls)}>Controls</button>
       {controls && <Controls mode={mode} />}<p className="wf-small">Chapter 1 · The Blast Site · Early access</p>
     </div> : <>
-      {!cinematic && <header className="wf-hud"><div className="wf-hero-hud"><strong><span className="wf-hero-name"><HeroPortrait id={state.active} avatar={avatar} />{HERO_NAMES[state.active]}</span> <small>LV {state.character.level}</small></strong>
-        <Meter value={hero.hp} max={hero.maxHp} kind="hp">HP {Math.ceil(hero.hp)} / {hero.maxHp}</Meter>
-        <Meter value={hero.ki} max={hero.maxKi} kind="ki">KI {Math.floor(hero.ki)} / {hero.maxKi}</Meter>
-        <Meter value={hero.stamina} max={hero.maxStamina} kind="stamina" />
-        <div className="wf-partner">{partner ? <button className="wf-tag-partner" aria-label={`Swap to ${HERO_NAMES[partner]}`} disabled={state.heroes[partner].hp <= 0} onClick={() => controller.current?.mutate(requestSwap)}><HeroPortrait id={partner} avatar={avatar} />{HERO_NAMES[partner]} · {Math.ceil(state.heroes[partner].hp)} HP ↔</button> : "SOLO PARTY"} <span>XP {state.character.xp}/{xpForLevel(state.character.level)}</span></div></div>
-        <div className="wf-status"><span>◈ {state.candy} candy</span><small>{getWorld(state.scene, state.room).name}</small></div>
+      {!cinematic && <header className="wf-hud" aria-label="Hero status"><div className="wf-hero-hud">
+        {partner ? <button className="wf-tag-partner wf-hud-faces" aria-label={`Swap to ${HERO_NAMES[partner]}`} disabled={state.heroes[partner].hp <= 0} onClick={() => controller.current?.mutate(requestSwap)}><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /><HeroPortrait id={partner} avatar={avatar} className="wf-tag-face" /></button> : <span className="wf-hud-faces"><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /></span>}
+        <strong>{HERO_NAMES[state.active]} <small>LV {state.character.level}</small></strong>
+        <Meter value={hero.hp} max={hero.maxHp} kind="hp">HP {Math.ceil(hero.hp)}/{hero.maxHp}</Meter>
+        <Meter value={hero.ki} max={hero.maxKi} kind="ki">KI {Math.floor(hero.ki)}/{hero.maxKi}</Meter>
+      </div>
+        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button>
-        {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
       </header>}
       {!cinematic && <div className="wf-play-band">
+        {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
         {target && !state.overlay && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><PromptGlyph mode={mode} />{target.locked ? `${target.name} · Taken over` : target.name}</button>}
-        {state.notice && !state.overlay && !paused && <p className="wf-notice" role="status">{state.notice}</p>}
-        {tutorial && !paused && !state.overlay && !target && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
+        {noticeVisible && state.notice && !state.overlay && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
+        {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) { controller.current?.itemGet(); persist(s); } })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}

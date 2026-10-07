@@ -5,6 +5,8 @@ import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene,
 
 import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
 import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM, GATEKEEPER_ROOM, isBlocked, cameraTarget, tileAt } from '../src/pages/WaysideFury/game/world.ts';
+import { captureMotion, interpolateMotion } from '../src/pages/WaysideFury/game/motion.ts';
+import { getRenderViewport } from '../src/pages/WaysideFury/game/viewport.ts';
 import { SAVE_KEY, readSave, writeSave, restoreSave, progressReport, mergeReceipts } from '../src/pages/WaysideFury/game/save.ts';
 
 const DT = 1 / 60;
@@ -14,6 +16,41 @@ const tick = (s, buttons = {}, frames = 1) => {
 const emptyRoom = () => { const s = newGame(100); s.enemies = []; return s; };
 const bulletAtHero = (s, damage = 20) => s.projectiles.push({ id: s.nextId++, x: s.x, y: s.y, vx: 0, vy: 0,
   radius: 4, damage, ttl: 1, owner: 'enemy', beam: false, hits: [] });
+
+// 120 Hz presentation frames interpolate the fixed-step simulation without
+// mutating saves, resurrecting deleted actors, or blending across a scene change.
+const motionState = emptyRoom();
+const movingEnemy = addEnemy(motionState, 'grunt', 100, 80);
+const removedEnemy = addEnemy(motionState, 'grunt', 120, 80);
+bulletAtHero(motionState);
+const oldHero = { x: motionState.x, y: motionState.y, time: motionState.time };
+const oldProjectile = { ...motionState.projectiles[0] };
+const motionBefore = captureMotion(motionState);
+motionState.x += 10; motionState.y += 5; motionState.time += 1;
+movingEnemy.x += 8; movingEnemy.y += 4;
+motionState.enemies = motionState.enemies.filter(enemy => enemy.id !== removedEnemy.id);
+const bornEnemy = addEnemy(motionState, 'grunt', 150, 100);
+motionState.projectiles[0].x += 12;
+bulletAtHero(motionState);
+const simulationBeforeRender = structuredClone(motionState);
+const halfwayMotion = interpolateMotion(motionBefore, motionState, 0.5);
+assert.equal(halfwayMotion.x, oldHero.x + 5); assert.equal(halfwayMotion.y, oldHero.y + 2.5);
+assert.equal(halfwayMotion.time, oldHero.time + 0.5);
+assert.equal(halfwayMotion.enemies.find(enemy => enemy.id === movingEnemy.id).x, 104);
+assert.equal(halfwayMotion.enemies.find(enemy => enemy.id === movingEnemy.id).y, 82);
+assert.equal(halfwayMotion.enemies.some(enemy => enemy.id === removedEnemy.id), false);
+assert.deepEqual(halfwayMotion.enemies.find(enemy => enemy.id === bornEnemy.id), bornEnemy);
+assert.equal(halfwayMotion.projectiles[0].x, oldProjectile.x + 6);
+assert.deepEqual(halfwayMotion.projectiles[1], motionState.projectiles[1]);
+assert.deepEqual(motionState, simulationBeforeRender, 'interpolation leaves authoritative simulation state unchanged');
+assert.equal(motionBefore.enemies.get(movingEnemy.id).x, 100, 'snapshot owns its positions');
+assert.equal(interpolateMotion(motionBefore, motionState, -1).x, oldHero.x);
+assert.equal(interpolateMotion(motionBefore, motionState, 2).x, motionState.x);
+assert.equal(interpolateMotion(null, motionState, 0.5), motionState);
+for (const change of [{ scene: 'hub' }, { room: motionState.room + 1 }, { active: 'matt' }]) {
+  const changed = { ...motionState, ...change };
+  assert.equal(interpolateMotion(motionBefore, changed, 0.5), changed, 'scene, room and hero transitions render the new state directly');
+}
 
 // Every authored encounter, doorway and supply cache is reachable through the
 // actual collision layer; blocked rivers/buildings remain solid during a dash.
@@ -33,9 +70,42 @@ for (const m of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD]) {
   const points = [...m.spawns, ...m.exits.map(e => ({ x: e.x + e.w / 2, y: e.y + e.h / 2 })),
     ...m.props.filter(p => p.kind === 'chest').map(p => ({ x: p.x + p.w / 2, y: p.y + p.h / 2 }))];
   for (const p of points) assert.ok(seen.has(Math.floor(p.y / 16) * m.cols + Math.floor(p.x / 16)), `${m.id}: ${p.x},${p.y} is reachable`);
-  assert.deepEqual(cameraTarget(m, -100, -100), { x: 0, y: 0 });
-  assert.deepEqual(cameraTarget(m, m.width + 100, m.height + 100), { x: m.width - 320, y: m.height - 180 });
+  assert.deepEqual(cameraTarget(m, -100, -100, 320, 180), { x: 0, y: 0 });
+  assert.deepEqual(cameraTarget(m, m.width + 100, m.height + 100, 320, 180), { x: m.width - 320, y: m.height - 180 });
 }
+// Native backing size follows CSS and DPR; world units follow the integer
+// device-pixel zoom, so portrait and wide displays reveal different world areas.
+for (const [cssWidth, cssHeight] of [[390, 700], [430, 780], [844, 390], [932, 430], [1280, 800]]) {
+  for (const dpr of [1, 1.25, 2, 3, 4]) {
+    const viewport = getRenderViewport(cssWidth, cssHeight, dpr);
+    const effectiveDpr = Math.min(dpr, 3);
+    assert.ok(Math.abs(viewport.pixelWidth - cssWidth * effectiveDpr) <= 1, 'native canvas width');
+    assert.ok(Math.abs(viewport.pixelHeight - cssHeight * effectiveDpr) <= 1, 'native canvas height');
+    assert.equal(viewport.pixelScale, Math.round(viewport.pixelScale), 'world zoom uses integer device pixels');
+    assert.ok(viewport.pixelScale > 0 && viewport.zoom > 0);
+    assert.ok(Math.abs(viewport.zoom * effectiveDpr - viewport.pixelScale) < 1e-8);
+    assert.ok(Math.abs(viewport.width * viewport.zoom - cssWidth) <= 1, 'logical width follows CSS box');
+    assert.ok(Math.abs(viewport.height * viewport.zoom - cssHeight) <= 1, 'logical height follows CSS box');
+    assert.ok(viewport.width <= 640 && viewport.height <= 400, 'view stays inside the sensible world range');
+  }
+}
+const nativePhone = getRenderViewport(390, 700, 3);
+assert.ok(nativePhone.zoom * 16 >= 40 && nativePhone.zoom * 16 <= 56, 'phone tiles are 40–56 CSS pixels');
+const lowerQuality = getRenderViewport(390, 700, 3, 2);
+assert.equal(lowerQuality.dpr, 2, 'quality fallback changes the backing DPR cap');
+assert.equal(lowerQuality.pixelWidth, 780);
+assert.equal(lowerQuality.pixelHeight, 1400);
+for (const map of [HUB_WORLD, BLAST_WORLDS[WATCHER_ROOM], REALM_WORLD]) {
+  for (const [width, height] of [[240, 400], [480, 180], [640, 400], [map.width + 80, map.height + 64]]) {
+    const left = Math.min(0, (map.width - width) / 2), top = Math.min(0, (map.height - height) / 2);
+    const right = Math.max(left, map.width - width), bottom = Math.max(top, map.height - height);
+    assert.deepEqual(cameraTarget(map, -1000, -1000, width, height), { x: left, y: top }, `${map.id}: near bounds and small-room centering`);
+    assert.deepEqual(cameraTarget(map, map.width + 1000, map.height + 1000, width, height), { x: right, y: bottom }, `${map.id}: far bounds and small-room centering`);
+    const fractional = cameraTarget(map, 397.25, 275.75, width, height);
+    assert.ok(fractional.x >= left && fractional.x <= right && fractional.y >= top && fractional.y <= bottom);
+  }
+}
+
 const collision = newGame(); enterScene(collision, 'hub'); collision.x = 480; collision.y = 200;
 tick(collision, { y: -1, dash: true }, 180);
 assert.ok(collision.y >= 183, 'the station footprint is a natural solid boundary');
