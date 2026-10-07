@@ -312,7 +312,7 @@ function Header({ s, income, bonus, muted, onMute }: { s: State; income: number;
       <div className="mx-auto flex max-w-xl items-start gap-2 lg:max-w-5xl">
         <div className="min-w-0 flex-1">
           <div className="cc-title text-[22px]" style={{ color: ORANGE, textShadow: "0 2px 0 #8a3a00, 0 4px 0 #140a1c" }}>
-            SCARE <span style={{ color: "#c88cff", textShadow: "0 2px 0 #4a1a7a, 0 4px 0 #140a1c" }}>CAPITALIST</span>
+            SCARY <span style={{ color: "#c88cff", textShadow: "0 2px 0 #4a1a7a, 0 4px 0 #140a1c" }}>CAPITALIST</span>
           </div>
           <div className="cc-outline mt-1 truncate text-[26px] leading-tight text-white">{formatMoney(s.cash)}</div>
           <div className="cc-outline-sm text-sm text-[#8ef08a]">{formatMoney(income)}/s</div>

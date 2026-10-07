@@ -79,7 +79,7 @@ export const GAME_SCORE_POLICIES = new Map([
     // posted at a haunt that adds at least 10% to them. The first haunt brings ~100, the
     // balance bot has 5,000 after about 9 hours and ~10^8 after a month; the game caps what
     // it sends at 10^15.
-    ['Scare Capitalist', {
+    ['Scary Capitalist', {
         score: { min: 0, max: 1000000000000000, integer: true },
         tickets: { from: 50, full: 5000 },
     }],

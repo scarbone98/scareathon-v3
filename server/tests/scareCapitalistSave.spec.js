@@ -21,7 +21,7 @@ function validSave(extra = {}) {
     };
 }
 
-describe('Scare Capitalist saves', () => {
+describe('Scary Capitalist saves', () => {
     test('accept a valid save and drop unknown fields', () => {
         const { save, error } = sanitizeSave({ ...validSave(), cheat: true }, NOW);
         expect(error).toBeUndefined();

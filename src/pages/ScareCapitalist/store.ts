@@ -1,4 +1,4 @@
-// Where Scare Capitalist's progress lives: on the player's account when they're signed
+// Where Scary Capitalist's progress lives: on the player's account when they're signed
 // in (scare_capitalist_saves, so it follows them between devices), and in this browser
 // too, so guests keep theirs and a dropped connection never loses anything. An idle game
 // changes every frame, so the browser copy is written every few seconds and the account

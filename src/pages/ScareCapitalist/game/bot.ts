@@ -1,4 +1,4 @@
-// A greedy player for balancing Scare Capitalist headless. It buys whatever adds the most
+// A greedy player for balancing Scary Capitalist headless. It buys whatever adds the most
 // income per dollar, taps unmanaged ventures at a fraction of their speed (a person
 // can't tap them all), and haunts once that would at least double its investors' bonus.
 // Run: npx esbuild src/pages/ScareCapitalist/game/bot.ts --bundle --platform=node --outfile=/tmp/scbot.js && node /tmp/scbot.js [days]

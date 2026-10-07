@@ -12,7 +12,7 @@ export function parseSaveRequest(body, now = Date.now()) {
     return { save: checked.save, revision };
 }
 
-// Scare Capitalist saves: the game runs in the browser and keeps your progress
+// Scary Capitalist saves: the game runs in the browser and keeps your progress
 // here, one save per player, like Mystery Crypt's.
 export default async function scareCapitalistRoutes(fastify) {
     fastify.get('/save', async (request, reply) => {

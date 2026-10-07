@@ -88,7 +88,7 @@ const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
 const MUERTOS_URL = "/muertos";
-const SCARE_CAPITALIST_URL = "/scare-capitalist";
+const SCARY_CAPITALIST_URL = "/scary-capitalist";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
@@ -788,7 +788,7 @@ export function createArcadeGames(): MachineData[] {
     // browser and on the account; a haunt (prestige) that adds 10% to the Phantom Investors
     // earned in all posts that total as PLAYER_DIED.
     {
-      name: "Scare Capitalist",
+      name: "Scary Capitalist",
       added: "2026-10-07T12:00:00-06:00",
       cartridge: {
         color: "#3fae4c",
@@ -799,11 +799,11 @@ export function createArcadeGames(): MachineData[] {
       },
       game: (
         <GameRenderer
-          title="Scare Capitalist"
-          url={SCARE_CAPITALIST_URL}
+          title="Scary Capitalist"
+          url={SCARY_CAPITALIST_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
-            listenForPlayerDiedScores(iframe, "Scare Capitalist", SCARE_CAPITALIST_URL)
+            listenForPlayerDiedScores(iframe, "Scary Capitalist", SCARY_CAPITALIST_URL)
           }
         />
       ),

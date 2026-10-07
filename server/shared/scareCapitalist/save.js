@@ -1,4 +1,4 @@
-// Scare Capitalist's saved progress: cash, ventures, managers, upgrades, séances and
+// Scary Capitalist's saved progress: cash, ventures, managers, upgrades, séances and
 // Phantom Investors. The game plays on the client, so the server only checks a save is
 // well-formed and adds up before storing it. Shared by the game and the server.
 

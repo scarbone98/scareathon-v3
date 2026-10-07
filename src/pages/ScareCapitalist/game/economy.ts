@@ -1,4 +1,4 @@
-// Scare Capitalist's economy: the ventures, their funding rounds, managers, term sheets and
+// Scary Capitalist's economy: the ventures, their funding rounds, managers, term sheets and
 // Phantom Investors, and every formula the game runs on. Pure data and functions, no React,
 // so the balance bot (bot.ts) can run it headless in node.
 //

@@ -40,6 +40,8 @@ const PAGES: [string, React.ComponentType][] = [
   ["/8ber", EightBitEvilV2],
   ["/picto-box", PictoBox],
   ["/wayside-online", WaysideOnline],
+  ["/scary-capitalist", ScareCapitalist],
+  // Its first address, from the day it was called Scare Capitalist
   ["/scare-capitalist", ScareCapitalist],
 ];
 
