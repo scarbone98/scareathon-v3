@@ -1,8 +1,6 @@
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
-// Pure deterministic game rules. The viewport is 320 x 180; maps use world coordinates.
-export const WIDTH = 320;
-export const HEIGHT = 180;
+// Pure deterministic game rules. Maps use world coordinates; presentation owns the viewport.
 export type HeroId = "joe" | "matt";
 export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {

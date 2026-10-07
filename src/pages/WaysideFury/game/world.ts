@@ -1,7 +1,5 @@
 // Maps are tile layouts with a separate collision layer. All positions use world pixels.
 export const TILE = 16;
-export const VIEW_WIDTH = 320;
-export const VIEW_HEIGHT = 180;
 export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | "ash" | "void" | "bridge" | "corrupt";
 export interface WorldProp {
   id: string;
@@ -187,7 +185,7 @@ export const REALM_WORLD = (() => {
 })();
 export const TEST_WORLD = (() => {
   const m = map("training", "Training Yard", 20, 12, "grass");
-  m.height = VIEW_HEIGHT;
+  m.height = 180; // Authored training-yard boundary, independent of the camera.
   paint(m, 0, 0, 320, 48, "stone", true); paint(m, 0, 168, 320, 24, "stone", true);
   paint(m, 0, 0, 16, 192, "stone", true); paint(m, 304, 0, 16, 192, "stone", true);
   m.spawn = { x: 75, y: 110 }; return m;
@@ -211,9 +209,13 @@ export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolea
   }
   return false;
 }
-export function cameraTarget(m: WorldMap, x: number, y: number, faceX = 0, faceY = 0) {
-  return { x: Math.max(0, Math.min(m.width - VIEW_WIDTH, x - VIEW_WIDTH / 2 + faceX * 28)),
-    y: Math.max(0, Math.min(m.height - VIEW_HEIGHT, y - VIEW_HEIGHT / 2 + faceY * 18)) };
+// A smaller room stays centered; a larger map follows within its own bounds.
+// Width and height are supplied by the renderer, never by gameplay rules.
+export function cameraTarget(m: WorldMap, x: number, y: number, width: number, height: number, faceX = 0, faceY = 0) {
+  return {
+    x: m.width <= width ? (m.width - width) / 2 : Math.max(0, Math.min(m.width - width, x - width / 2 + faceX * 28)),
+    y: m.height <= height ? (m.height - height) / 2 : Math.max(0, Math.min(m.height - height, y - height / 2 + faceY * 18)),
+  };
 }
 export function distanceToExit(e: WorldExit, x: number, y: number): number {
   return Math.hypot(x - Math.max(e.x, Math.min(x, e.x + e.w)), y - Math.max(e.y, Math.min(y, e.y + e.h)));

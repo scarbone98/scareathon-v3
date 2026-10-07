@@ -1,9 +1,10 @@
-// The renderer only reads simulation state; all art is native-resolution pixel art.
-import { HEIGHT, WIDTH, activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
+// The renderer only reads simulation state. World units are independent of pixels.
+import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
-import { getWorld, type WorldMap, type WorldProp } from "./world";
+import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { TerrainCache } from "./terrain";
+import { getRenderViewport } from "./viewport";
 
 interface Sheet { url: string; w: number; h: number; frames: number }
 const SHEETS = {
@@ -22,6 +23,10 @@ const SHEETS = {
 type SpriteId = keyof typeof SHEETS;
 const ACCENT: Record<HeroId, string> = { joe: "#79ebff", matt: "#ffd06f" };
 const INK = "#101722";
+// These dimensions author the story's stage; the stage is drawn directly into
+// the native canvas with a responsive transform, never into a small buffer.
+const STAGE_WIDTH = 320, STAGE_HEIGHT = 180, SPRITE_DETAIL = 3;
+interface DetailedSheet { canvas: HTMLCanvasElement; frames: number }
 
 
 export interface RenderLabel {
@@ -39,9 +44,16 @@ interface Tumble { x: number; y: number; sprite: SpriteId; life: number; maxLife
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private images = new Map<SpriteId, HTMLImageElement>();
-  private coarse = document.createElement('canvas');
-  private coarseCtx: CanvasRenderingContext2D;
-  private paletteCache = new Map<number, number>();
+  private detailedSheets = new Map<SpriteId, DetailedSheet>();
+  private viewport = getRenderViewport(1, 1, window.devicePixelRatio);
+  private qualityCap = 3;
+  private slowFrameTime = 0;
+  private resizeObserver: ResizeObserver;
+  private disposed = false;
+  private resize = () => {
+    const { width, height } = this.ctx.canvas.getBoundingClientRect();
+    this.setViewport(width, height);
+  };
   private terrain = new TerrainCache();
   private camera = { x: 0, y: 0 };
   private world: WorldMap | null = null;
@@ -56,18 +68,56 @@ export class Renderer {
   private motionChanged = (event: MediaQueryListEvent) => { this.reducedMotion = event.matches; };
 
   constructor(canvas: HTMLCanvasElement) {
-    canvas.width = WIDTH; canvas.height = HEIGHT;
     this.ctx = canvas.getContext('2d')!;
-    this.coarse.width = 160; this.coarse.height = 90;
-    this.coarseCtx = this.coarse.getContext('2d', { willReadFrequently: true })!;
     for (const [id, sheet] of Object.entries(SHEETS)) {
-      const image = new Image(); image.src = sheet.url; this.images.set(id as SpriteId, image);
+      const image = new Image();
+      image.onload = () => { if (!this.disposed) this.prepareSheet(id as SpriteId, image); };
+      image.src = sheet.url; this.images.set(id as SpriteId, image);
     }
+    this.resizeObserver = new ResizeObserver(this.resize);
+    this.resizeObserver.observe(canvas);
+    window.addEventListener('resize', this.resize);
+    window.visualViewport?.addEventListener('resize', this.resize);
     this.motionQuery.addEventListener('change', this.motionChanged);
+    this.resize();
   }
-  reset() { this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0; }
-  dispose() { this.motionQuery.removeEventListener('change', this.motionChanged); this.terrain.clear(); }
-  project(x: number, y: number) { return { x: (x - Math.round(this.camera.x)) / WIDTH, y: (y - Math.round(this.camera.y)) / HEIGHT }; }
+  reset() {
+    this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0;
+    this.transition = 0; this.slowFrameTime = 0;
+  }
+  dispose() {
+    this.disposed = true; this.resizeObserver.disconnect();
+    window.removeEventListener('resize', this.resize);
+    window.visualViewport?.removeEventListener('resize', this.resize);
+    this.motionQuery.removeEventListener('change', this.motionChanged); this.terrain.clear();
+    for (const image of this.images.values()) image.onload = null;
+    this.images.clear(); this.detailedSheets.clear();
+  }
+  private setViewport(cssWidth: number, cssHeight: number) {
+    if (cssWidth <= 0 || cssHeight <= 0) return;
+    const next = getRenderViewport(cssWidth, cssHeight, window.devicePixelRatio, this.qualityCap);
+    if (next.pixelScale !== this.viewport.pixelScale || next.dpr !== this.viewport.dpr) this.terrain.clear();
+    this.viewport = next;
+    const canvas = this.ctx.canvas;
+    if (canvas.width !== next.pixelWidth) canvas.width = next.pixelWidth;
+    if (canvas.height !== next.pixelHeight) canvas.height = next.pixelHeight;
+    canvas.dataset.pixelScale = `${next.pixelScale}`; canvas.dataset.zoom = `${next.zoom}`;
+    canvas.dataset.renderDpr = `${next.dpr}`; canvas.dataset.qualityCap = `${this.qualityCap}`;
+    canvas.dataset.worldWidth = `${next.width}`; canvas.dataset.worldHeight = `${next.height}`;
+  }
+  private checkQuality(frameDelta: number) {
+    if (Math.min(window.devicePixelRatio || 1, this.qualityCap) !== this.viewport.dpr) this.resize();
+    // Hidden tabs reset the sample. Bound individual gaps so a resumed frame
+    // cannot lower quality alone, while sustained very slow rendering still can.
+    if (document.hidden || frameDelta <= 0) { this.slowFrameTime = 0; return; }
+    this.slowFrameTime = frameDelta > .02 ? this.slowFrameTime + Math.min(frameDelta, .25) : 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, this.qualityCap);
+    if (this.slowFrameTime >= 2 && dpr > 1) {
+      this.qualityCap = dpr > 2 ? 2 : dpr > 1.5 ? 1.5 : 1;
+      this.slowFrameTime = 0; this.resize();
+    }
+  }
+  project(x: number, y: number) { return { x: (x - this.camera.x) / this.viewport.width, y: (y - this.camera.y) / this.viewport.height }; }
   presentation(s: GameState): RenderPresentation {
     const labels: RenderLabel[] = [];
     const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
@@ -91,7 +141,7 @@ export class Renderer {
     if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
-    return { camera: { ...this.camera, width: WIDTH, height: HEIGHT }, labels };
+    return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(s: GameState, event: GameEvent) {
     if (event.type === 'hit') {
@@ -105,8 +155,10 @@ export class Renderer {
     if (event.type === 'death') this.tumbles.push({ x: s.x, y: s.y, sprite: s.active, life: .65, maxLife: .65, scale: 1, flip: s.faceX < 0 });
     if (this.bursts.length > 36) this.bursts.splice(0, this.bursts.length - 36);
   }
-  draw(s: GameState, dt = 1 / 60) {
+  draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     const c = this.ctx;
+    this.checkQuality(frameDelta);
+    const { width, height, pixelScale } = this.viewport;
     dt = Math.min(.05, Math.max(0, dt));
     this.visualTime += dt;
     this.shake = Math.max(0, this.shake - dt * 23);
@@ -115,32 +167,32 @@ export class Renderer {
     for (const tumble of this.tumbles) tumble.life -= dt;
     this.bursts = this.bursts.filter(burst => burst.life > 0);
     this.tumbles = this.tumbles.filter(tumble => tumble.life > 0);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+    c.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
     c.imageSmoothingEnabled = false;
-    c.clearRect(0, 0, WIDTH, HEIGHT);
     if (s.scene === 'prologue' || s.scene === 'shift') {
       this.camera = { x: 0, y: 0 };
       const storyState = this.reducedMotion ? { ...s, time: 0, sceneTimer: 2.5 } : s;
-      if (s.scene === 'prologue') this.drawPrologue(storyState); else this.drawShift(storyState);
-      if (s.palette === 'eightbit' || (s.scene === 'shift' && s.transitionPalette === 'eightbit' && s.sceneTimer > 1.15)) this.applyEightBit();
+      this.drawCinematic(storyState);
+      if (s.palette === 'eightbit' || (s.scene === 'shift' && s.transitionPalette === 'eightbit' && s.sceneTimer > 1.15)) this.applyRealmPalette();
       return;
     }
     const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
-    const maxX = Math.max(0, world.width - WIDTH), maxY = Math.max(0, world.height - HEIGHT);
-    const target = { x: Math.max(0, Math.min(maxX, s.x - WIDTH / 2 + (s.moving ? s.faceX * 24 : 0))), y: Math.max(0, Math.min(maxY, s.y - HEIGHT / 2 + (s.moving ? s.faceY * 15 : 0))) };
+    const target = cameraTarget(world, s.x, s.y, width, height, s.moving ? s.faceX : 0, s.moving ? s.faceY : 0);
     if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
     const ease = this.reducedMotion ? 1 : 1 - Math.exp(-dt * 8.5);
-    this.camera.x = Math.max(0, Math.min(maxX, this.camera.x + (target.x - this.camera.x) * ease));
-    this.camera.y = Math.max(0, Math.min(maxY, this.camera.y + (target.y - this.camera.y) * ease));
+    this.camera.x = world.width <= width ? (world.width - width) / 2 : Math.max(0, Math.min(world.width - width, this.camera.x + (target.x - this.camera.x) * ease));
+    this.camera.y = world.height <= height ? (world.height - height) / 2 : Math.max(0, Math.min(world.height - height, this.camera.y + (target.y - this.camera.y) * ease));
+    c.canvas.dataset.cameraX = `${this.camera.x}`; c.canvas.dataset.cameraY = `${this.camera.y}`;
     this.world = world;
-    // Integer translations preserve the native pixel grid while the camera eases.
-
     c.save();
-    const shakeX = this.reducedMotion ? 0 : Math.round(Math.sin(this.visualTime * 113) * this.shake);
-    const shakeY = this.reducedMotion ? 0 : Math.round(Math.cos(this.visualTime * 97) * this.shake * .5);
-    c.translate(-Math.round(this.camera.x) + shakeX, -Math.round(this.camera.y) + shakeY);
+    const shakeX = this.reducedMotion ? 0 : Math.sin(this.visualTime * 113) * this.shake;
+    const shakeY = this.reducedMotion ? 0 : Math.cos(this.visualTime * 97) * this.shake * .5;
+    c.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
     const motionTime = this.reducedMotion ? 0 : s.time;
-    this.terrain.draw(c, world, this.camera, WIDTH, HEIGHT, motionTime);
+    this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
@@ -148,21 +200,36 @@ export class Renderer {
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
-    else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(Math.round(s.x), Math.round(s.y)); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
+    else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
     c.restore();
-    if (s.palette === 'eightbit') this.applyEightBit();
-    if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, WIDTH, HEIGHT, '#151c2a'); c.globalAlpha = 1; }
+    if (s.palette === 'eightbit') this.applyRealmPalette();
+    if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }
   }
-  private visible(x: number, y: number, margin = 40) { return x >= this.camera.x - margin && x <= this.camera.x + WIDTH + margin && y >= this.camera.y - margin && y <= this.camera.y + HEIGHT + margin; }
+  private visible(x: number, y: number, margin = 40) { return x >= this.camera.x - margin && x <= this.camera.x + this.viewport.width + margin && y >= this.camera.y - margin && y <= this.camera.y + this.viewport.height + margin; }
+  private drawCinematic(s: GameState) {
+    const c = this.ctx, { width, height } = this.viewport;
+    const sky = c.createLinearGradient(0, 0, width, height);
+    sky.addColorStop(0, s.scene === 'shift' ? '#35263f' : '#203342'); sky.addColorStop(1, '#19252f');
+    c.fillStyle = sky; c.fillRect(0, 0, width, height);
+    for (let k = 0; k < 38; k++) {
+      const x = (k * 43.7) % width, y = (k * 19.3 + s.time * 1.2) % height;
+      c.globalAlpha = .12 + Math.sin(k + s.time) * .05; this.disc(x, y, .35 + k % 3 * .15, '#d5c6d6');
+    }
+    c.globalAlpha = 1;
+    const scale = Math.min(width / STAGE_WIDTH, height / STAGE_HEIGHT);
+    c.save(); c.translate((width - STAGE_WIDTH * scale) / 2, (height - STAGE_HEIGHT * scale) * .45); c.scale(scale, scale);
+    if (s.scene === 'prologue') this.drawPrologue(s); else this.drawShift(s);
+    c.restore();
+  }
   private drawShift(s: GameState) {
     const progress = Math.min(1, s.sceneTimer / 2.4);
-    this.rect(0, 0, WIDTH, HEIGHT, '#201e35');
-    for (let y = 0; y < HEIGHT; y += 16) for (let x = 0; x < WIDTH; x += 16) {
+    this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, '#201e35');
+    for (let y = 0; y < STAGE_HEIGHT; y += 16) for (let x = 0; x < STAGE_WIDTH; x += 16) {
       this.rect(x + 1, y + 1, 14, 14, (x + y) % 32 ? '#342b49' : '#40324f');
       this.rect(x + 3, y + 2, 8, 1, '#5c426f');
     }
@@ -172,9 +239,9 @@ export class Renderer {
     this.sprite(s.active === 'joe' ? 'matt' : 'joe', 178 - progress * 12, 113 - Math.sin(progress * Math.PI) * 8, s.time, true);
     this.ctx.globalAlpha = 1;
     if (!this.reducedMotion) for (let k = 0; k < 8; k++) {
-      const y = (k * 23 + Math.floor(s.sceneTimer * 37)) % HEIGHT;
+      const y = (k * 23 + Math.floor(s.sceneTimer * 37)) % STAGE_HEIGHT;
       this.ctx.globalAlpha = .25 + progress * .3;
-      this.rect((k * 41) % WIDTH, y, 24 + progress * 42, 2, k % 2 ? '#ae76cd' : '#75c7d0');
+      this.rect((k * 41) % STAGE_WIDTH, y, 24 + progress * 42, 2, k % 2 ? '#ae76cd' : '#75c7d0');
     }
     this.ctx.globalAlpha = 1;
   }
@@ -191,7 +258,7 @@ export class Renderer {
           this.rect(x + Math.floor(time * 2 + k) % 2, y, k % 2 ? 4 : 2, 2, k % 3 ? '#815181' : '#ab699d');
         }
       } else {
-        const bob = this.reducedMotion ? 0 : Math.round(Math.sin(time * 4) * 2);
+        const bob = this.reducedMotion ? 0 : Math.sin(time * 4) * 2;
         const y = location.y - 18 + bob;
         this.rect(location.x - 3, y - 7, 6, 4, '#f8e2a5');
         this.rect(location.x - 2, y - 3, 4, 2, '#f8e2a5');
@@ -218,7 +285,7 @@ export class Renderer {
       if (open) {
         const bob = this.reducedMotion ? 0 : Math.sin(time * 3) * 2;
         const angle = exit.id === 'west' ? Math.PI : exit.id === 'north' ? -Math.PI / 2 : exit.id === 'south' ? Math.PI / 2 : 0;
-        this.ctx.save(); this.ctx.translate(Math.round(x), Math.round(y + bob)); this.ctx.rotate(angle);
+        this.ctx.save(); this.ctx.translate(x, y + bob); this.ctx.rotate(angle);
         this.rect(-5, -2, 6, 4, '#bfdca9'); this.rect(1, -4, 2, 8, '#e1edbe'); this.rect(3, -2, 2, 4, '#e1edbe'); this.ctx.restore();
       } else {
         this.rect(x - 10, y - 16, 20, 25, '#483e50');
@@ -239,7 +306,7 @@ export class Renderer {
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {
       const sway = this.reducedMotion ? 0 : Math.sin(time * 1.6 + x * .04) * .8;
-      c.save(); c.translate(Math.round(sway), 0); this.tree(x, y);
+      c.save(); c.translate(sway, 0); this.tree(x, y);
       if (prop.kind === 'pine') { this.rect(x - 5, y - 21, 10, 2, '#40534c'); this.rect(x - 3, y - 28, 6, 1, '#647064'); }
       c.restore(); return;
     }
@@ -263,7 +330,7 @@ export class Renderer {
     }
     if (prop.kind === 'flower') {
       for (let k = 0; k < Math.max(2, prop.w / 6); k++) {
-        const px = prop.x + k * 6, py = y - 3 - k % 2 * 3, sway = this.reducedMotion ? 0 : Math.round(Math.sin(time * 2 + k + x) * .5);
+        const px = prop.x + k * 6, py = y - 3 - k % 2 * 3, sway = this.reducedMotion ? 0 : Math.sin(time * 2 + k + x) * .5;
         this.rect(px, py, 1, 5, '#73905b'); this.rect(px - 1 + sway, py, 3, 2, k % 2 ? '#dac389' : '#d0949b');
       } return;
     }
@@ -295,12 +362,23 @@ export class Renderer {
     const { x, y, w, h } = prop, c = this.ctx;
     const station = prop.kind === 'station', home = prop.kind === 'home', shed = prop.kind === 'shed';
     const roof = home ? '#526d66' : shed ? '#5e5960' : '#906957', wall = home ? '#999a7c' : '#ad946e';
-    this.rect(x + 5, y + h - 4, w + 9, 13, '#243531');
+    c.save(); c.translate(x + w / 2 + 7, y + h - 1); c.scale(1, .12);
+    this.glow(0, 0, w * .62, '#101c26'); c.restore();
+    this.rect(x + 5, y + h - 4, w + 9, 8, '#243531');
     this.rect(x + 3, y + h * .4, w - 6, h * .6, wall);
     this.rect(x + w - 16, y + h * .4, 13, h * .6, '#6b6356');
+    const wallShade = c.createLinearGradient(x, y + h * .4, x + w, y + h);
+    wallShade.addColorStop(0, '#ffe5b012'); wallShade.addColorStop(.65, '#1f263300'); wallShade.addColorStop(1, '#1f263336');
+    c.fillStyle = wallShade; c.fillRect(x + 3, y + h * .4, w - 6, h * .6);
     this.rect(x + 5, y + h * .42, w - 23, 3, '#d6bf92');
     for (let py = y + h * .5; py < y + h - 7; py += 9) this.rect(x + 4, py, w - 21, 1, '#8e7e61');
     for (let k = 0; k < 7; k++) this.rect(x - 5 + k * 4, y + h * .4 - k * 5, w + 10 - k * 8, 5, roof);
+    for (let k = 1; k < 7; k++) {
+      const top = y + h * .4 - k * 5;
+      this.rect(x - 4 + k * 4, top, w + 8 - k * 8, .5, home ? '#90a995' : '#c0906b');
+      for (let px = x + k * 4 + 4; px < x + w - k * 4; px += 11) this.rect(px, top + 1.5, .5, 2, home ? '#38564f' : '#725142');
+    }
+    this.rect(x - 5, y + h * .4 + 4, w + 10, 1.5, '#222b343d');
     this.rect(x + 20, y + h * .4 - 32, w - 40, 2, home ? '#88a093' : '#c0966b');
     for (let px = x + 16; px < x + w - 18; px += 18) this.rect(px, y + h * .4 - 20, 9, 1, home ? '#6c837a' : '#ad8261');
     const doorX = x + w / 2;
@@ -309,7 +387,8 @@ export class Renderer {
     const windows = station ? [x + 18, x + 44, x + w - 66, x + w - 40] : [x + 18, x + w - 40];
     for (const wx of windows) {
       this.rect(wx - 2, y + h * .55 - 2, 23, 22, '#596252'); this.rect(wx, y + h * .55, 19, 17, '#ead198');
-      c.globalAlpha = .15 + Math.sin(time * 2 + wx) * .03; this.disc(wx + 9, y + h * .55 + 7, 15, '#ffe1a0'); c.globalAlpha = 1;
+      c.globalAlpha = .3 + Math.sin(time * 2 + wx) * .03; this.glow(wx + 9, y + h * .55 + 7, 18, '#ffe1a0'); c.globalAlpha = 1;
+      this.rect(wx + 1, y + h * .55 + 1, 5, 2, '#fff2c3');
       this.rect(wx + 8, y + h * .55, 2, 17, '#8d7e61'); this.rect(wx, y + h * .55 + 8, 19, 2, '#8d7e61');
     }
     if (station) { this.rect(doorX - 24, y + h * .45, 48, 12, '#2e4544'); this.rect(doorX - 20, y + h * .45 + 2, 40, 2, '#d2bd8a'); }
@@ -323,7 +402,7 @@ export class Renderer {
     for (const tumble of this.tumbles) {
       if (!this.visible(tumble.x, tumble.y, 70)) continue;
       const progress = 1 - tumble.life / tumble.maxLife;
-      c.save(); c.translate(Math.round(tumble.x), Math.round(tumble.y));
+      c.save(); c.translate(tumble.x, tumble.y);
       c.globalAlpha = Math.min(1, tumble.life * 5);
       if (!this.reducedMotion) { c.rotate((tumble.flip ? -1 : 1) * Math.min(Math.PI / 2, progress * 2)); c.translate(progress * 6, -Math.sin(progress * Math.PI) * 6); }
       this.sprite(tumble.sprite, 0, 0, 0, tumble.flip, tumble.scale); c.restore();
@@ -336,7 +415,9 @@ export class Renderer {
       for (let k = 0; k < count; k++) {
         const angle = k * Math.PI * 2 / count + burst.seed;
         const radius = this.reducedMotion ? 4 : progress * burst.strength;
-        this.rect(burst.x + Math.cos(angle) * radius, burst.y + Math.sin(angle) * radius + (burst.maxLife > .3 ? progress * progress * 15 : 0), k % 3 ? 2 : 3, 2, k % 3 ? burst.color : '#fff3c9');
+        const x = burst.x + Math.cos(angle) * radius, y = burst.y + Math.sin(angle) * radius + (burst.maxLife > .3 ? progress * progress * 15 : 0);
+        c.lineCap = 'round'; c.lineWidth = k % 3 ? .8 : 1.3; c.strokeStyle = k % 3 ? burst.color : '#fff3c9';
+        c.beginPath(); c.moveTo(x - Math.cos(angle) * (2 + progress * 2), y - Math.sin(angle) * (2 + progress * 2)); c.lineTo(x, y); c.stroke();
       }
       c.globalAlpha = 1;
     }
@@ -345,7 +426,9 @@ export class Renderer {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
     const time = this.reducedMotion ? 0 : s.time;
     if (s.charge > .12) {
-      c.globalAlpha = .12 + Math.sin(time * 18) * .035; this.disc(s.x, s.y - 12, 12 + Math.min(8, s.charge * 5), color); c.globalAlpha = 1;
+      c.globalAlpha = .55 + Math.sin(time * 18) * .07; this.glow(s.x, s.y - 12, 19 + Math.min(9, s.charge * 5), color); c.globalAlpha = 1;
+      c.strokeStyle = color; c.lineWidth = .65; c.globalAlpha = .45;
+      c.beginPath(); c.ellipse(s.x, s.y - 12, 11 + s.charge * 2, 19, Math.sin(time * 2) * .1, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
       for (let k = 0; k < (this.reducedMotion ? 3 : 8); k++) {
         const a = time * 4 + k * Math.PI / 4, radius = 11 + k % 3 * 3;
         this.rect(s.x + Math.cos(a) * radius, s.y - 10 + Math.sin(a) * 15 - (time * 9 + k * 2) % 5, 2, k % 2 ? 3 : 2, color);
@@ -356,13 +439,13 @@ export class Renderer {
     if (s.moving && !this.reducedMotion) for (let k = 0; k < 3; k++) {
       const life = (time * 3 + k / 3) % 1;
       c.globalAlpha = (1 - life) * .3;
-      this.rect(s.x - s.faceX * life * 14 + (k % 2 ? 3 : -3), s.y - s.faceY * life * 14, 2 + life * 2, 1 + life, '#a9ad8b');
+      this.disc(s.x - s.faceX * life * 14 + (k % 2 ? 3 : -3), s.y - s.faceY * life * 14, .7 + life * 1.2, '#b7b395');
     }
     c.globalAlpha = hero.invulnerable > 0 && Math.floor(time * 16) % 2 === 0 ? .6 : 1;
     const cycle = Math.sin(time * (s.moving ? 15 : 2.8)), bob = this.reducedMotion ? 0 : s.moving ? Math.abs(cycle) * 1.2 : cycle * .5;
     const attackDuration = s.combo === 3 ? .28 : .2, attackProgress = s.attackTimer > 0 ? 1 - s.attackTimer / attackDuration : 0;
     const strike = s.attackTimer > 0 ? (attackProgress < .18 ? -.8 : Math.sin((attackProgress - .18) / .82 * Math.PI)) : 0;
-    c.save(); c.translate(Math.round(s.x), Math.round(s.y - bob));
+    c.save(); c.translate(s.x, s.y - bob);
     if (!this.reducedMotion) {
       const lean = s.dashTimer > 0 ? .12 * s.faceX : s.moving ? .035 * s.faceX + cycle * .015 : 0;
       c.rotate(lean + strike * .12 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
@@ -381,14 +464,14 @@ export class Renderer {
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
     const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
     const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
-    if (boss && enemy.phase === 2) { c.globalAlpha = .17 + Math.sin(time * 9) * .035; this.disc(enemy.x, enemy.y - 23, 28, '#db82cb'); c.globalAlpha = 1; }
+    if (boss && enemy.phase === 2) { c.globalAlpha = .55 + Math.sin(time * 9) * .07; this.glow(enemy.x, enemy.y - 23, 35, '#db82cb'); c.globalAlpha = 1; }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
     if (enemy.windup > 0) {
       c.globalAlpha = .35 + Math.sin(time * 15) * .07; this.disc(enemy.x, enemy.y - 2, boss ? 24 : 12, enemy.phase === 2 ? '#dd669a' : '#fba578'); c.globalAlpha = 1;
       // A simple warning glyph is art, while all readable copy lives in the DOM.
       this.rect(enemy.x - 1, enemy.y - (boss ? 54 : 32), 3, 6, '#ffda9b'); this.rect(enemy.x - 1, enemy.y - (boss ? 46 : 24), 3, 2, '#ffda9b');
     }
-    c.save(); c.translate(Math.round(enemy.x), Math.round(enemy.y));
+    c.save(); c.translate(enemy.x, enemy.y);
     if (!this.reducedMotion) {
       const stagger = enemy.hitTimer / .15;
       c.rotate(enemy.hitTimer > 0 ? -Math.sign(enemy.kx || 1) * stagger * .18 : Math.sin(time * 5) * .015);
@@ -408,10 +491,10 @@ export class Renderer {
     const phase = PROLOGUE[s.cutscene]?.phase ?? "backstory";
     const time = s.sceneTimer;
     if (phase === "backstory") {
-      this.rect(0, 0, WIDTH, HEIGHT, "#1e1d36");
-      for (let k = 0; k < 32; k++) this.rect((k * 83) % WIDTH, 12 + (k * 29) % 68, 1, 1, k % 2 ? "#8d759f" : "#eaccc1");
-      this.rect(0, 85, WIDTH, 95, "#34384a");
-      this.rect(0, 85, WIDTH, 4, "#605c6c");
+      this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#1e1d36");
+      for (let k = 0; k < 32; k++) this.rect((k * 83) % STAGE_WIDTH, 12 + (k * 29) % 68, 1, 1, k % 2 ? "#8d759f" : "#eaccc1");
+      this.rect(0, 85, STAGE_WIDTH, 95, "#34384a");
+      this.rect(0, 85, STAGE_WIDTH, 4, "#605c6c");
       this.portal(255, 99, time);
       for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
         const x = 75 + index * 39;
@@ -429,7 +512,7 @@ export class Renderer {
       const heroes = ["joe", "matt", "alex", "jon"] as const;
       const id = heroes[Math.floor(time / 0.65) % heroes.length];
       const color = { joe: "#79ebff", matt: "#ffd06f", alex: "#afd990", jon: "#bc9ce7" }[id];
-      this.rect(0, 0, WIDTH, HEIGHT, "#152733");
+      this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#152733");
       for (let k = 0; k < 8; k++) this.rect(k * 46 - 48 + Math.floor(time * 30) % 46, 25 + k * 6, 28, 90, "#233943");
       this.ctx.globalAlpha = 0.16;
       this.disc(160, 72, 54, color);
@@ -448,7 +531,7 @@ export class Renderer {
       return;
     }
     if (phase === "taxi") {
-      this.road(0, 111, WIDTH, 25, true);
+      this.road(0, 111, STAGE_WIDTH, 25, true);
       const progress = Math.min(1, time / 1.8);
       for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
         if (time > 1.25 + index * 0.24) continue;
@@ -474,7 +557,7 @@ export class Renderer {
       this.rect(262, 46, 12, 3, "#ffddaa");
       if (phase === "dark" && time < 0.3) {
         this.ctx.globalAlpha = Math.max(0, 0.9 - time * 3);
-        this.rect(0, 0, WIDTH, HEIGHT, "#fff0cf");
+        this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#fff0cf");
         this.ctx.globalAlpha = 1;
       }
     }
@@ -485,17 +568,17 @@ export class Renderer {
   }
 
   private drawBackyard(time: number, dark: boolean) {
-    this.rect(0, 0, WIDTH, HEIGHT, dark ? "#1c2034" : "#425b59");
-    this.rect(0, 58, WIDTH, 122, dark ? "#2a343b" : "#3c5941");
-    for (let y = 66; y < 135; y += 11) for (let x = 6; x < WIDTH; x += 15) this.rect(x, y, 3, 1, dark ? "#38414c" : "#55704c");
+    this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, dark ? "#1c2034" : "#425b59");
+    this.rect(0, 58, STAGE_WIDTH, 122, dark ? "#2a343b" : "#3c5941");
+    for (let y = 66; y < 135; y += 11) for (let x = 6; x < STAGE_WIDTH; x += 15) this.rect(x, y, 3, 1, dark ? "#38414c" : "#55704c");
     this.rect(12, 36, 79, 36, dark ? "#505360" : "#b39873");
     this.rect(8, 30, 87, 9, dark ? "#494450" : "#98775c");
     this.rect(17, 24, 68, 7, dark ? "#55505a" : "#b28d68");
     this.rect(63, 51, 14, 22, "#36474a");
     this.rect(25, 45, 20, 15, dark ? "#987d79" : "#f7d59c");
     this.rect(34, 45, 2, 15, "#746754");
-    this.rect(0, 67, WIDTH, 5, dark ? "#595663" : "#a39876");
-    for (let x = 0; x < WIDTH; x += 12) {
+    this.rect(0, 67, STAGE_WIDTH, 5, dark ? "#595663" : "#a39876");
+    for (let x = 0; x < STAGE_WIDTH; x += 12) {
       this.rect(x, 57, 8, 22, dark ? "#4a4d59" : "#8f8c6c");
       this.rect(x + 1, 55, 6, 2, dark ? "#67616a" : "#c0af87");
     }
@@ -544,44 +627,21 @@ export class Renderer {
     this.rect(eggX - 2, eggY - 1, 4, 2, Math.sin(time * 6) > 0 ? "#ffe4d7" : "#b888bc");
   }
 
-  private applyEightBit() {
-    const c = this.coarseCtx;
-    c.imageSmoothingEnabled = false;
-    c.drawImage(this.ctx.canvas, 0, 0, 160, 90);
-    const pixels = c.getImageData(0, 0, 160, 90);
-    const colors = [
-      [17, 17, 30], [34, 34, 59], [57, 53, 80], [87, 71, 105],
-      [102, 54, 108], [155, 79, 157], [219, 128, 191], [49, 86, 71],
-      [105, 152, 90], [234, 226, 183], [255, 244, 223], [88, 172, 192],
-      [160, 229, 224], [201, 133, 84], [244, 185, 107], [187, 83, 92],
-    ];
-    for (let i = 0; i < pixels.data.length; i += 4) {
-      const r = pixels.data[i];
-      const g = pixels.data[i + 1];
-      const b = pixels.data[i + 2];
-      const key = (r >> 4) * 256 + (g >> 4) * 16 + (b >> 4);
-      let index = this.paletteCache.get(key);
-      if (index === undefined) {
-        let distance = Infinity;
-        index = 0;
-        for (let k = 0; k < colors.length; k++) {
-          const color = colors[k];
-          const d = (color[0] - r) ** 2 + (color[1] - g) ** 2 + (color[2] - b) ** 2;
-          if (d < distance) { distance = d; index = k; }
-        }
-        this.paletteCache.set(key, index);
-      }
-      pixels.data[i] = colors[index][0];
-      pixels.data[i + 1] = colors[index][1];
-      pixels.data[i + 2] = colors[index][2];
-    }
-    c.putImageData(pixels, 0, 0);
-    this.ctx.drawImage(this.coarse, 0, 0, WIDTH, HEIGHT);
+  private applyRealmPalette() {
+    // The realm retains its plum/teal art direction at native resolution.
+    // Color compositing avoids a per-frame readback or a coarse render target.
+    const c = this.ctx, { width, height } = this.viewport;
+    c.save(); c.globalCompositeOperation = 'color'; c.globalAlpha = .2;
+    c.fillStyle = '#ae78bb'; c.fillRect(0, 0, width, height);
+    c.globalCompositeOperation = 'soft-light'; c.globalAlpha = .22;
+    const tint = c.createLinearGradient(0, 0, width, height);
+    tint.addColorStop(0, '#87d9cf'); tint.addColorStop(1, '#a84d9d');
+    c.fillStyle = tint; c.fillRect(0, 0, width, height); c.restore();
   }
 
   private rect(x: number, y: number, w: number, h: number, color: string) {
     this.ctx.fillStyle = color;
-    this.ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    this.ctx.fillRect(x, y, w, h);
   }
 
   private road(x: number, y: number, w: number, h: number, horizontal: boolean) {
@@ -593,24 +653,31 @@ export class Renderer {
   }
 
   private tree(x: number, y: number) {
-    this.shadow(x, y, 18);
+    this.shadow(x + 2, y, 25);
     this.rect(x - 2, y - 10, 4, 11, "#584c3e");
+    this.rect(x - 1.5, y - 9, .5, 9, '#94775b');
     this.rect(x - 10, y - 20, 20, 12, "#182e2d");
     this.rect(x - 7, y - 27, 14, 11, "#274336");
     this.rect(x - 4, y - 30, 8, 7, "#34513a");
     this.rect(x - 8, y - 19, 8, 2, "#3e5940");
     this.rect(x + 1, y - 24, 4, 1, "#47634a");
+    for (let k = 0; k < 13; k++) {
+      const px = x - 7 + (k * 7) % 14, py = y - 26 + (k * 5) % 15;
+      this.rect(px, py, 1.5, .5, k % 3 ? '#527553' : '#729363');
+      this.rect(px + .5, py + 1.5, 1, .5, '#1b3a30');
+    }
+    this.rect(x - 3, y - 30, 5, .5, '#6a865b');
   }
 
   private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
     const c = this.ctx;
     const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4;
     c.save();
-    c.translate(Math.round(x), Math.round(y - 5));
+    c.translate(x, y - 5);
     c.rotate(angle);
-    // Headlights are three stepped translucent blocks, without blur.
-    c.globalAlpha = 0.09;
-    for (let k = 0; k < 3; k++) this.rect(13 + k * 5, -6 - k * 2, 6, 12 + k * 4, "#ffe4a4");
+    const headlights = c.createLinearGradient(12, 0, 37, 0);
+    headlights.addColorStop(0, '#ffeab93d'); headlights.addColorStop(1, '#ffeab900');
+    c.fillStyle = headlights; c.beginPath(); c.moveTo(12, -4); c.lineTo(37, -12); c.lineTo(37, 12); c.lineTo(12, 4); c.fill();
     c.globalAlpha = 1;
     this.rect(-12, -7, 24, 16, "#142326");
     this.rect(-10, -9, 5, 3, "#151c25");
@@ -634,7 +701,7 @@ export class Renderer {
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;
-      this.rect(-14 - life * 24, (k % 2 ? 5 : -4) + life * (k % 2 ? 5 : -5), 2 + life * 3, 2, '#b2a17c');
+      this.disc(-14 - life * 24, (k % 2 ? 5 : -4) + life * (k % 2 ? 5 : -5), .8 + life * 1.7, '#b2a17c');
     }
     c.globalAlpha = 1;
     c.restore();
@@ -643,8 +710,8 @@ export class Renderer {
   private portal(x: number, y: number, time: number, alpha = 1) {
     const c = this.ctx;
     c.save();
-    c.globalAlpha = alpha * 0.14;
-    this.disc(x, y - 15, 30, "#c179e8");
+    c.globalAlpha = alpha * .65;
+    this.glow(x, y - 15, 33, '#c179e8');
     c.globalAlpha = alpha;
     for (let k = 0; k < 32; k++) {
       const a = k * Math.PI / 16;
@@ -652,6 +719,12 @@ export class Renderer {
     }
     this.rect(x - 11, y - 29, 22, 25, "#302044");
     this.rect(x - 7, y - 33, 14, 33, "#302044");
+    const core = c.createRadialGradient(x, y - 15, 2, x, y - 15, 17);
+    core.addColorStop(0, '#bf95cf88'); core.addColorStop(1, '#291c4300');
+    c.fillStyle = core; c.fillRect(x - 10, y - 30, 20, 28);
+    c.strokeStyle = '#e2a5e8'; c.lineWidth = .65; c.globalAlpha = alpha * .65;
+    c.beginPath(); c.ellipse(x, y - 16, 14 + Math.sin(time * 3) * .3, 20, 0, -Math.PI * .7 + time * .2, Math.PI * .8 + time * .2); c.stroke();
+    c.globalAlpha = alpha;
     for (let k = 0; k < 5; k++) {
       const px = x - 7 + ((k * 5 + Math.floor(time * 8)) % 14);
       const py = y - 28 + ((k * 11 + Math.floor(time * 13)) % 23);
@@ -692,8 +765,8 @@ export class Renderer {
 
   private lamp(x: number, y: number, time: number, color = "#f1cf88") {
     const c = this.ctx;
-    c.globalAlpha = 0.07 + Math.sin(time * 3 + x) * 0.02;
-    this.disc(x, y - 9, 14, color);
+    c.globalAlpha = .35 + Math.sin(time * 3 + x) * .04;
+    this.glow(x, y - 9, 22, color);
     c.globalAlpha = 1;
     this.rect(x - 2, y - 15, 4, 14, "#17292d");
     this.rect(x - 4, y - 15, 8, 7, "#6e6653");
@@ -703,57 +776,94 @@ export class Renderer {
   }
 
   private disc(x: number, y: number, radius: number, color: string) {
-    // A stepped circle has the same pixel language as the sprite sheets.
-    for (let dy = -Math.ceil(radius); dy <= radius; dy += 2) {
-      const half = Math.sqrt(Math.max(0, radius * radius - dy * dy));
-      this.rect(x - half, y + dy, half * 2, 2, color);
-    }
+    if (radius <= 0) return;
+    this.ctx.fillStyle = color; this.ctx.beginPath(); this.ctx.arc(x, y, radius, 0, Math.PI * 2); this.ctx.fill();
+  }
+  private glow(x: number, y: number, radius: number, color: string) {
+    if (radius <= 0) return;
+    const c = this.ctx, glow = c.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, `${color}b3`); glow.addColorStop(.35, `${color}50`); glow.addColorStop(1, `${color}00`);
+    c.fillStyle = glow; c.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
   private shadow(x: number, y: number, width = 14) {
-    this.ctx.globalAlpha = 0.42;
-    this.rect(x - width / 2, y - 3, width, 4, "#101b24");
-    this.rect(x - width / 2 + 2, y - 4, width - 4, 6, "#101b24");
-    this.ctx.globalAlpha = 1;
+    const c = this.ctx;
+    c.save(); c.translate(x, y); c.scale(1, .3);
+    const shadow = c.createRadialGradient(0, 0, width * .12, 0, 0, width * .65);
+    shadow.addColorStop(0, '#0c172568'); shadow.addColorStop(.55, '#0c17253d'); shadow.addColorStop(1, '#0c172500');
+    c.fillStyle = shadow; c.fillRect(-width * .7, -width * .7, width * 1.4, width * 1.4); c.restore();
+  }
+
+  private prepareSheet(id: SpriteId, image: HTMLImageElement) {
+    const sheet = SHEETS[id], source = document.createElement('canvas');
+    source.width = image.naturalWidth; source.height = image.naturalHeight;
+    const sourceContext = source.getContext('2d', { willReadFrequently: true })!;
+    sourceContext.drawImage(image, 0, 0);
+    // This small asset read happens once on load, never in the frame loop.
+    const pixels = sourceContext.getImageData(0, 0, source.width, source.height).data;
+    const canvas = document.createElement('canvas'), frames = sheet.frames * 2;
+    canvas.width = sheet.w * SPRITE_DETAIL * frames; canvas.height = sheet.h * SPRITE_DETAIL;
+    const c = canvas.getContext('2d')!;
+    const alpha = (px: number, py: number) => px < 0 || px >= source.width || py < 0 || py >= source.height ? 0 : pixels[(py * source.width + px) * 4 + 3];
+    for (let frame = 0; frame < frames; frame++) for (let y = 0; y < sheet.h; y++) for (let x = 0; x < sheet.w; x++) {
+      const sx = Math.floor(frame / 2) * sheet.w + x, offset = (y * source.width + sx) * 4;
+      const a = pixels[offset + 3]; if (!a) continue;
+      const r = pixels[offset], g = pixels[offset + 1], b = pixels[offset + 2];
+      const stride = id.startsWith('run_') && frame % 2 && y > sheet.h * .68 ? (x < sheet.w / 2 ? -1 : 1) : 0;
+      const breath = !id.startsWith('run_') && y < sheet.h * .65 ? Math.round(Math.sin(frame * Math.PI * 2 / frames)) : 0;
+      const dx = (frame * sheet.w + x) * SPRITE_DETAIL + stride + breath, dy = y * SPRITE_DETAIL;
+      c.globalAlpha = a / 255; c.fillStyle = `rgb(${r} ${g} ${b})`; c.fillRect(dx, dy, 3, 3);
+      const up = y > 0 && alpha(sx, y - 1), left = x > 0 && alpha(sx - 1, y);
+      if (!up && !left) c.clearRect(dx, dy, 1, 1);
+      if (!alpha(sx, y + 1) && !alpha(sx + 1, y)) c.clearRect(dx + 2, dy + 2, 1, 1);
+      if (r + g + b > 150) {
+        c.fillStyle = `rgba(255,243,215,${!up ? .24 : .07})`; c.fillRect(dx + 1, dy, 2, 1);
+        c.fillStyle = 'rgba(12,23,36,.12)'; c.fillRect(dx + 2, dy + 1, 1, 2);
+      }
+    }
+    this.detailedSheets.set(id, { canvas, frames });
   }
 
   private sprite(id: SpriteId, x: number, y: number, time: number, flip = false, scale = 1, hit = false) {
     const c = this.ctx;
     const sheet = SHEETS[id];
-    const image = this.images.get(id)!;
-    const frame = Math.floor(time * (id.startsWith("run_") ? 10 : 6)) % sheet.frames;
-    if (!image.complete || !image.naturalWidth) return;
+    const detailed = this.detailedSheets.get(id);
+    if (!detailed) return;
+    const frame = Math.floor(time * (id.startsWith("run_") ? 20 : 12)) % detailed.frames;
     c.save();
-    c.translate(Math.round(x), Math.round(y));
+    c.translate(x, y);
     if (flip) c.scale(-1, 1);
-    c.drawImage(image, frame * sheet.w, 0, sheet.w, sheet.h, -sheet.w * scale / 2, -sheet.h * scale, sheet.w * scale, sheet.h * scale);
+    const sourceWidth = sheet.w * SPRITE_DETAIL, sourceHeight = sheet.h * SPRITE_DETAIL;
+    c.drawImage(detailed.canvas, frame * sourceWidth, 0, sourceWidth, sourceHeight, -sheet.w * scale / 2, -sheet.h * scale, sheet.w * scale, sheet.h * scale);
     if (hit) {
       c.globalCompositeOperation = "lighter";
       c.globalAlpha *= 0.8;
-      c.drawImage(image, frame * sheet.w, 0, sheet.w, sheet.h, -sheet.w * scale / 2, -sheet.h * scale, sheet.w * scale, sheet.h * scale);
+      c.drawImage(detailed.canvas, frame * sourceWidth, 0, sourceWidth, sourceHeight, -sheet.w * scale / 2, -sheet.h * scale, sheet.w * scale, sheet.h * scale);
     }
     c.restore();
   }
 
   private projectile(shot: Projectile, time: number) {
-    const color = shot.owner === "enemy" ? "#f18c9d" : ACCENT[shot.hero ?? "joe"];
+    const c = this.ctx, color = shot.owner === "enemy" ? "#f18c9d" : ACCENT[shot.hero ?? "joe"];
+    const length = Math.hypot(shot.vx, shot.vy) || 1, dx = shot.vx / length, dy = shot.vy / length;
+    c.save(); c.globalAlpha = .7;
+    this.glow(shot.x, shot.y - 9, shot.radius * 3 + 5, color);
     if (shot.beam) {
-      const length = Math.hypot(shot.vx, shot.vy) || 1;
-      const dx = shot.vx / length;
-      const dy = shot.vy / length;
-      this.ctx.globalAlpha = 0.3;
-      for (let k = 0; k < 7; k++) this.disc(shot.x - dx * k * 5, shot.y - dy * k * 5 - 9, Math.max(2, shot.radius - k * 0.4), color);
-      this.ctx.globalAlpha = 1;
+      const trail = c.createLinearGradient(shot.x - dx * 36, shot.y - dy * 36 - 9, shot.x, shot.y - 9);
+      trail.addColorStop(0, `${color}00`); trail.addColorStop(.6, `${color}a6`); trail.addColorStop(1, '#fff4e2');
+      c.strokeStyle = trail; c.lineCap = 'round'; c.lineWidth = shot.radius * 1.6;
+      c.beginPath(); c.moveTo(shot.x - dx * 36, shot.y - dy * 36 - 9); c.lineTo(shot.x, shot.y - 9); c.stroke();
+      c.globalAlpha = 1;
       this.disc(shot.x, shot.y - 9, shot.radius, color);
       this.disc(shot.x, shot.y - 9, Math.max(2, shot.radius - 2), "#fff8de");
     } else {
-      const norm = Math.hypot(shot.vx, shot.vy) || 1;
-      this.ctx.globalAlpha = 0.4;
-      this.rect(shot.x - shot.vx / norm * 6 - 2, shot.y - shot.vy / norm * 6 - 11, 4, 4, color);
-      this.ctx.globalAlpha = 1;
+      c.globalAlpha = .4; c.strokeStyle = color; c.lineCap = 'round'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(shot.x - dx * 9, shot.y - dy * 9 - 9); c.lineTo(shot.x, shot.y - 9); c.stroke();
+      c.globalAlpha = 1;
       this.disc(shot.x, shot.y - 9, shot.radius + Math.sin(time * 30) * 0.4, color);
-      this.rect(shot.x - 1, shot.y - 10, 2, 2, "#fff8e6");
+      this.disc(shot.x, shot.y - 9, 1.15, "#fff8e6");
     }
+    c.restore();
   }
 
   private effect(effect: Effect) {
@@ -766,22 +876,24 @@ export class Renderer {
       const angle = Math.atan2(effect.dy, effect.dx);
       const radius = effect.size * (0.7 + progress * 0.3);
       c.globalAlpha = Math.min(1, life * 2);
-      for (let k = 0; k <= 12; k++) {
-        const a = angle - 1.1 + k / 12 * 2.2;
-        const x = effect.x + Math.cos(a) * radius;
-        const y = effect.y - 11 + Math.sin(a) * radius;
-        this.rect(x, y, k === 6 ? 4 : 3, 3, k > 2 && k < 10 ? "#fff3d2" : color);
-        if (k % 2 === 0) this.rect(effect.x + Math.cos(a) * (radius - 4), effect.y - 11 + Math.sin(a) * (radius - 4), 2, 2, color);
-      }
+      c.lineCap = 'round'; c.strokeStyle = `${color}55`; c.lineWidth = 7;
+      c.beginPath(); c.arc(effect.x, effect.y - 11, radius, angle - 1.1, angle + 1.1); c.stroke();
+      c.strokeStyle = color; c.lineWidth = 2.3;
+      c.beginPath(); c.arc(effect.x, effect.y - 11, radius, angle - 1.05, angle + 1.05); c.stroke();
+      c.strokeStyle = '#fff3d2'; c.lineWidth = 1;
+      c.beginPath(); c.arc(effect.x, effect.y - 11, radius + .7, angle - .8, angle + .8); c.stroke();
     } else if (effect.kind === "dash") {
       c.globalAlpha = life * 0.38;
       this.sprite(effect.hero ?? "joe", effect.x, effect.y, 0, effect.dx < 0);
       for (let k = 0; k < 3; k++) this.rect(effect.x - effect.dx * (k * 5 + 5), effect.y - 7 - k * 4, 4, 1, color);
     } else if (effect.kind === "hit") {
       c.globalAlpha = life;
+      this.glow(effect.x, effect.y - 9, 11 * life + 2, color);
       for (let k = 0; k < 6; k++) {
         const a = k * Math.PI / 3;
-        this.rect(effect.x + Math.cos(a) * progress * 13, effect.y - 9 + Math.sin(a) * progress * 13, 2, 2, k % 2 ? color : "#fff8d4");
+        c.lineWidth = .8; c.strokeStyle = k % 2 ? color : '#fff8d4'; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(effect.x + Math.cos(a) * progress * 8, effect.y - 9 + Math.sin(a) * progress * 8);
+        c.lineTo(effect.x + Math.cos(a) * progress * 15, effect.y - 9 + Math.sin(a) * progress * 15); c.stroke();
       }
     } else if (effect.kind === "level") {
       c.globalAlpha = life * 0.7;
@@ -791,10 +903,11 @@ export class Renderer {
       }
     } else if (effect.kind === "beam") {
       c.globalAlpha = life * 0.6;
-      this.disc(effect.x, effect.y - 12, 17 * life, color);
+      this.glow(effect.x, effect.y - 12, 26 * life, color);
+      this.disc(effect.x, effect.y - 12, 9 * life, '#fff6dd');
     } else {
       c.globalAlpha = life * 0.3;
-      this.disc(effect.x, effect.y - 12, effect.size, color);
+      this.glow(effect.x, effect.y - 12, effect.size * 1.35, color);
     }
     c.restore();
   }
