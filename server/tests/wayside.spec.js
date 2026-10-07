@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('../db/mockDB.js', () => ({ default: { query: jest.fn() } }));
-const { RUNE_LETTERS, RUNE_REWARD, easternDay, redeemRune, runeCodeFor, DISPENSER_DAILY_WINS, DISPENSER_GOLDEN, FLOOR_DAILY_TICKETS, forgetKnocks, knockDispenser, pickUpFloorTicket, rollDispenser } = await import('../routes/wayside.js');
+const { RUNE_LETTERS, RUNE_REWARD, easternDay, redeemRune, runeCodeFor, DISPENSER_DAILY_WINS, DISPENSER_GOLDEN, FLOOR_DAILY_TICKETS, PAPER_CODE_LENGTH, PAPER_REWARD, forgetKnocks, knockDispenser, paperCodeFor, pickUpFloorTicket, readFloorPaper, redeemPaper, rollDispenser } = await import('../routes/wayside.js');
 
 const ALICE = '22222222-2222-4222-8222-222222222222';
 const at = new Date('2026-10-02T15:00:00Z');
@@ -91,5 +91,44 @@ describe('a ticket stub on the station floor', () => {
         const db = { query: jest.fn().mockResolvedValueOnce({ rows: [{ count: FLOOR_DAILY_TICKETS }] }) };
         await expect(pickUpFloorTicket(db, ALICE, { now: 1e6 })).resolves.toEqual({ status: 'nothing' });
         expect(db.query).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('a scrap of paper on the station floor', () => {
+    const at = new Date('2026-10-07T16:00:00Z');
+    const code = paperCodeFor(easternDay(at), ALICE);
+
+    test('its code is short, in rune letters, and each player has their own', () => {
+        expect(code).toHaveLength(PAPER_CODE_LENGTH);
+        expect([...code].every((letter) => RUNE_LETTERS.includes(letter))).toBe(true);
+        expect(paperCodeFor(easternDay(at), '33333333-3333-4333-8333-333333333333')).not.toBe(code);
+    });
+
+    test('most scraps are only scraps', async () => {
+        const db = { query: jest.fn() };
+        await expect(readFloorPaper(db, ALICE, { random: () => 0.9, date: at })).resolves.toEqual({ code: null });
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('now and then one has the code, till the code is claimed', async () => {
+        const fresh = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+        await expect(readFloorPaper(fresh, ALICE, { random: () => 0, date: at })).resolves.toEqual({ code });
+        const spent = { query: jest.fn().mockResolvedValue({ rows: [{ balance_after: 50 }] }) };
+        await expect(readFloorPaper(spent, ALICE, { random: () => 0, date: at })).resolves.toEqual({ code: null });
+    });
+
+    test('the code pays once a day', async () => {
+        const db = { query: jest.fn().mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ coin_balance: 70 }] }) };
+        await expect(redeemPaper(db, ALICE, ` ${code.toLowerCase()} `, at)).resolves.toEqual({ status: 'granted', kind: 'paper', reward: PAPER_REWARD, coinBalance: 70 });
+        const again = { query: jest.fn().mockResolvedValueOnce({ rows: [{ balance_after: 70 }] }) };
+        await expect(redeemPaper(again, ALICE, code, at)).resolves.toEqual({ status: 'claimed', kind: 'paper', coinBalance: 70 });
+        expect(again.query).toHaveBeenCalledTimes(1);
+    });
+
+    test("somebody else's code, or yesterday's, is no code", async () => {
+        const db = { query: jest.fn() };
+        await expect(redeemPaper(db, ALICE, paperCodeFor(easternDay(at), '33333333-3333-4333-8333-333333333333'), at)).resolves.toEqual({ status: 'invalid' });
+        await expect(redeemPaper(db, ALICE, paperCodeFor('2026-10-01', ALICE), at)).resolves.toEqual({ status: 'invalid' });
+        expect(db.query).not.toHaveBeenCalled();
     });
 });

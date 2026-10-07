@@ -67,6 +67,11 @@ export async function checkRemoteCode(raw: string, send: (code: string) => Promi
     if (response.status === 404) return { ok: false, lines: ["INVALID CODE"] };
     const payload = await response.json();
     if (!response.ok) return { ok: false, lines: ["NO SIGNAL", "TRY AGAIN"] };
+    // (a code off a scrap of paper from the station's floor, not the runes)
+    if (payload.data?.kind === "paper")
+      return payload.data.status === "granted"
+        ? { ok: true, lines: ["SOMEBODY WROTE THAT DOWN", `+${payload.data.reward} TICKETS`] }
+        : { ok: true, lines: ["ALREADY CLAIMED TODAY", "THE FLOOR IS SWEPT AT MIDNIGHT"] };
     if (payload.data?.status === "granted") return { ok: true, lines: ["THE RUNES ACCEPT YOU", `+${payload.data.reward} TICKETS`] };
     return { ok: true, lines: ["ALREADY CLAIMED TODAY", "NEW RUNES AT MIDNIGHT"] };
   } catch {

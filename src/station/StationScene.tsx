@@ -1691,7 +1691,7 @@ function shopAdvertTexture(pick: number, onPicked?: (name: string) => void) {
   return texture;
 }
 
-// The poster by the ticket counter: whoever's top of the Scareboard, their avatar big in
+// The plaque by the ticket counter (square): whoever's top of the Scareboard, their avatar big in
 // a spotlight, their name and points under it (avatar: their look, drawn, once it's ready)
 function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champion: Boards["champion"], avatar?: { strip: HTMLCanvasElement; width: number; height: number }) {
   ctx.fillStyle = "#161226";
@@ -1711,12 +1711,12 @@ function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champ
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#f8dc6a";
   ctx.font = "700 30px Georgia, serif";
-  ctx.fillText("TOP OF THE BOARD", w / 2, 56, w - 60);
-  ctx.font = "22px Georgia, serif";
-  ctx.fillText("\u2605  \u2605  \u2605", w / 2, 88);
+  ctx.fillText("TOP OF THE BOARD", w / 2, 50, w - 60);
+  ctx.font = "17px Georgia, serif";
+  ctx.fillText("\u2605  \u2605  \u2605", w / 2, 75);
   // The avatar, in whole pixels, standing on the floor of the spotlight
   // (everything sits clear of the frame: the points, at the foot, a good line above it)
-  const floor = h * 0.69;
+  const floor = h * 0.665;
   ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.beginPath();
   ctx.ellipse(w / 2, floor, w * 0.24, 10, 0, 0, Math.PI * 2);
@@ -1729,16 +1729,16 @@ function drawChampion(ctx: CanvasRenderingContext2D, w: number, h: number, champ
   } else {
     ctx.fillStyle = "rgba(248,220,106,0.5)";
     ctx.font = "700 150px Georgia, serif";
-    ctx.fillText("?", w / 2, h * 0.47);
+    ctx.fillText("?", w / 2, h * 0.45);
   }
   ctx.fillStyle = "#0f0b1a";
-  ctx.fillRect(30, h * 0.725, w - 60, 58);
+  ctx.fillRect(30, h * 0.7, w - 60, 52);
   ctx.fillStyle = "#f2ead2";
   ctx.font = "700 34px Georgia, serif";
-  ctx.fillText(champion ? champion.name.toUpperCase() : "WHO WILL IT BE?", w / 2, h * 0.725 + 30, w - 80);
+  ctx.fillText(champion ? champion.name.toUpperCase() : "WHO WILL IT BE?", w / 2, h * 0.7 + 27, w - 80);
   ctx.fillStyle = "#f8dc6a";
   ctx.font = "italic 24px Georgia, serif";
-  ctx.fillText(champion ? `${champion.total} ${champion.total === "1" ? "point" : "points"}` : "Sign in to see the standings", w / 2, h * 0.725 + 86, w - 70);
+  ctx.fillText(champion ? `${champion.total} ${champion.total === "1" ? "point" : "points"}` : "Sign in to see the standings", w / 2, h * 0.7 + 76, w - 70);
 }
 
 function buildTickets() {
@@ -1812,9 +1812,9 @@ function buildTickets() {
   });
   // To the left of the counter, on the wall: the poster of whoever's top of the Scareboard
   // (a tap on it, from anywhere: up close to it. See the page, and championPose in the scene)
-  const championTexture = paint(360, 510, (ctx, w, h) => drawChampion(ctx, w, h, null));
-  group.add(box(0.8, 1.1, 0.03, wood, -1.5, 1.85, -0.11));
-  const championPoster = plane(0.72, 1.02, standard("#b8b0a4", 1, championTexture), -1.5, 1.85, -0.09);
+  const championTexture = paint(420, 420, (ctx, w, h) => drawChampion(ctx, w, h, null));
+  group.add(box(0.74, 0.74, 0.03, wood, -1.5, 1.8, -0.11));
+  const championPoster = plane(0.66, 0.66, standard("#b8b0a4", 1, championTexture), -1.5, 1.8, -0.09);
   championPoster.userData.part = "champion";
   group.add(championPoster);
   group.userData.champion = { texture: championTexture, poster: championPoster };
@@ -2416,20 +2416,21 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // The litter: a handful of leaves, a few stubs and scraps of paper, strewn somewhere new each
     // visit over the open platform. Tapped, one skips away; swept by a finger, it's pushed along.
     // (A ticket stub, tapped, is picked up instead: see collectStub)
-    const litter: { mesh: Mesh; vx: number; vz: number; spin: number; y: number; vy: number; rest: number; stub?: boolean }[] = [];
-    const strew = (width: number, depth: number, material: Material, count: number, stub = false) => {
+    // (and a scrap of paper is picked up, read, and thrown back: see readScrap)
+    const litter: { mesh: Mesh; vx: number; vz: number; spin: number; y: number; vy: number; rest: number; stub?: boolean; scrap?: boolean }[] = [];
+    const strew = (width: number, depth: number, material: Material, count: number, kind?: "stub" | "scrap") => {
       for (let i = 0; i < count; i += 1) {
         const size = 0.8 + Math.random() * 0.45;
         const rest = 0.013 + litter.length * 0.0004; // a hair apart, so none flicker through another
         const mesh = plane(width * size, depth * size, material, -5.6 + Math.random() * 9.5, rest, 0.1 + Math.random() * 2.8);
         mesh.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
         scene.add(mesh);
-        litter.push({ mesh, vx: 0, vz: 0, spin: 0, y: 0, vy: 0, rest, stub });
+        litter.push({ mesh, vx: 0, vz: 0, spin: 0, y: 0, vy: 0, rest, stub: kind === "stub", scrap: kind === "scrap" });
       }
     };
     strew(0.16, 0.16, leafMaterial, 9);
-    strew(0.16, 0.08, stubMaterial, 5, true);
-    strew(0.22, 0.22, scrapMaterial, 6);
+    strew(0.16, 0.08, stubMaterial, 5, "stub");
+    strew(0.22, 0.22, scrapMaterial, 6, "scrap");
     const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
     const floorAt = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -2443,7 +2444,71 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const PICK_UP = 0.5; // s: floor to your face
     const PICK_HOLD = 0.75; // the beat it's held there
     const PICK_OFF = 0.55; // then away
-    let picked: { mesh: Mesh; at: number; from: Vector3; turn: Quaternion } | null = null;
+    // (scrap: a paper being read instead. It's held a beat, longer if there's a code to
+    // read on it, then tossed back onto the floor)
+    type Scrap = { piece: (typeof litter)[number]; to: Vector3; flat: Quaternion; hold: number; coded?: MeshBasicMaterial };
+    let picked: { mesh: Mesh; at: number; from: Vector3; turn: Quaternion; scrap?: Scrap } | null = null;
+    const SCRAP_HOLD = 0.9; // s: a look at it
+    const SCRAP_CODE_HOLD = 2.6; // long enough to read a code and remember it
+    const SCRAP_BACK = 0.6; // then back to the floor
+    // The same scrap with a code scribbled across it in red ink
+    const codedScrap = (code: string) =>
+      new MeshBasicMaterial({
+        color: "#d6ceba",
+        transparent: true,
+        alphaTest: 0.3,
+        map: paint(192, 192, (ctx, w, h) => {
+          ctx.scale(w / 64, h / 64);
+          ctx.fillStyle = "#e2d9c0";
+          ctx.beginPath();
+          ctx.moveTo(4, 6);
+          ctx.lineTo(58, 2);
+          ctx.lineTo(62, 40);
+          ctx.lineTo(50, 60);
+          ctx.lineTo(8, 58);
+          ctx.lineTo(2, 30);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "rgba(40,30,20,0.3)";
+          for (let y = 9; y < 20; y += 5) ctx.fillRect(10, y, 40 - ((y * 7) % 11), 1.2);
+          for (let y = 46; y < 56; y += 5) ctx.fillRect(12, y, 30 - ((y * 5) % 9), 1.2);
+          ctx.fillStyle = "#8a1a12";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = "italic 700 13px Georgia, serif";
+          ctx.fillText(code.split("").join(" "), 32, 30, 50);
+          ctx.fillRect(9, 38, 46, 1);
+          ctx.font = "italic 5px Georgia, serif";
+          ctx.fillText("tell the arcade's machine", 32, 42.5, 50);
+        }),
+      });
+    const readScrap = (piece: (typeof litter)[number]) => {
+      if (picked) return;
+      litter.splice(litter.indexOf(piece), 1);
+      const from = piece.mesh.position.clone();
+      // Where it lands again: a little way off, still on the open platform
+      const to = new Vector3(
+        Math.min(Math.max(from.x + (Math.random() - 0.5) * 1.4, END_X + 0.5), SIDE_X - 0.5),
+        piece.rest,
+        Math.min(Math.max(from.z + (Math.random() - 0.5) * 1.2, WALL_Z + 0.5), EDGE_Z - 0.6)
+      );
+      const flat = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2).multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.random() * Math.PI * 2));
+      const scrap: Scrap = { piece, to, flat, hold: SCRAP_HOLD };
+      picked = { mesh: piece.mesh, at: performance.now() / 1000, from, turn: piece.mesh.quaternion.clone(), scrap };
+      piece.mesh.renderOrder = 10;
+      // Now and then there's a code on it (signed in: the server says, and whose it is)
+      fetchWithAuth("/wayside/paper", { method: "POST" })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: { data?: { code?: string | null } } | null) => {
+          const code = body?.data?.code;
+          // (too late if it's already on its way back down)
+          if (!code || picked?.scrap !== scrap || performance.now() / 1000 - picked.at > PICK_UP + scrap.hold) return;
+          scrap.coded = codedScrap(code);
+          piece.mesh.material = scrap.coded;
+          scrap.hold = SCRAP_CODE_HOLD;
+        })
+        .catch(() => undefined); // (signed out, or the server's away: only old news)
+    };
     const heldAt = new Vector3();
     const collectStub = (piece: (typeof litter)[number]) => {
       if (picked) return;
@@ -2453,8 +2518,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       piece.mesh.renderOrder = 10;
       fetchWithAuth("/wayside/floor-ticket", { method: "POST" })
         .then((response) => (response.ok ? response.json() : null))
-        .then((body: { data?: { tickets?: number } } | null) => {
-          if (body?.data?.tickets) window.dispatchEvent(new Event("wayside:tickets"));
+        .then((body: { data?: { tickets?: number; coinBalance?: number } } | null) => {
+          // (how many, and what you have now: the counter that drops down counts up to it)
+          if (body?.data?.tickets) window.dispatchEvent(new CustomEvent("wayside:tickets", { detail: { tickets: body.data.tickets, balance: body.data.coinBalance ?? null } }));
         })
         .catch(() => undefined); // (signed out, or the server's away: it's still picked up)
     };
@@ -2470,7 +2536,29 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         mesh.position.y += Math.sin(e * Math.PI) * 0.12;
         mesh.quaternion.slerpQuaternions(picked.turn, camera.quaternion, e);
         mesh.scale.setScalar(1 + e * 0.6);
-      } else if (k < PICK_UP + PICK_HOLD) {
+      } else if (picked.scrap && k >= PICK_UP + picked.scrap.hold) {
+        // A paper, read: tossed back to the floor, turning over as it goes, and it's litter again
+        const { piece, to, flat, coded } = picked.scrap;
+        const e = (k - PICK_UP - picked.scrap.hold) / SCRAP_BACK;
+        if (e < 1) {
+          mesh.position.lerpVectors(heldAt, to, e * e);
+          mesh.position.y += Math.sin(e * Math.PI) * 0.22;
+          mesh.quaternion.slerpQuaternions(camera.quaternion, flat, e);
+          mesh.scale.setScalar(1.6 - e * 0.6);
+        } else {
+          mesh.position.copy(to);
+          mesh.quaternion.copy(flat);
+          mesh.scale.setScalar(1);
+          mesh.renderOrder = 0;
+          if (coded) {
+            mesh.material = scrapMaterial;
+            coded.map?.dispose();
+            coded.dispose();
+          }
+          litter.push({ ...piece, vx: 0, vz: 0, vy: 0, y: 0, spin: 0 });
+          picked = null;
+        }
+      } else if (k < PICK_UP + (picked.scrap ? picked.scrap.hold : PICK_HOLD)) {
         mesh.position.copy(heldAt);
         mesh.position.y += Math.sin((k - PICK_UP) * 5) * 0.004;
         mesh.quaternion.copy(camera.quaternion);
@@ -2505,6 +2593,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const piece = nearest as (typeof litter)[number];
       if (piece.stub) {
         collectStub(piece);
+        return true;
+      }
+      if (piece.scrap) {
+        readScrap(piece);
         return true;
       }
       const away = new Vector3(piece.mesh.position.x - camera.position.x, 0, piece.mesh.position.z - camera.position.z).normalize();
@@ -3527,7 +3619,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const normal = tickets.getWorldDirection(new Vector3());
       const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
       const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
-      const distance = Math.max((0.8 * 1.1) / 2 / Math.tan(halfWidth), (1.1 * 1.12) / 2 / Math.tan(halfHeight));
+      const distance = Math.max((0.74 * 1.1) / 2 / Math.tan(halfWidth), (0.74 * 1.15) / 2 / Math.tan(halfHeight));
       const eye = centre.add(normal.clone().multiplyScalar(distance));
       return { x: eye.x, y: eye.y, z: eye.z, yaw: Math.atan2(normal.x, normal.z), pitch: 0 };
     };

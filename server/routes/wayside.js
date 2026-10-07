@@ -129,6 +129,58 @@ export async function pickUpFloorTicket(db, userId, { now = Date.now() } = {}) {
     return { status: 'ticket', tickets: FLOOR_TICKET, coinBalance: Number(result.rows[0].coin_balance) };
 }
 
+// A scrap of paper off the station's floor: picked up and read, now and then one has a code
+// scribbled on it, worth a few tickets typed into WaysideOS (where the runes go). The code is
+// the player's own for the day, and pays once: reading more scraps only finds it again, and
+// once it's claimed the scraps are just scraps till tomorrow.
+export const PAPER_CODE_LENGTH = 5;
+export const PAPER_REWARD = 20;
+export const PAPER_CHANCE = 0.25;
+const PAPER_SOURCE = 'paper_code';
+
+export function paperCodeFor(day, userId, secret = process.env.RUNE_SECRET || 'wayside-runes') {
+    const digest = createHmac('sha256', secret).update(`paper:${day}:${userId}`).digest();
+    let code = '';
+    for (let i = 0; i < PAPER_CODE_LENGTH; i += 1) code += RUNE_LETTERS[digest[i] % RUNE_LETTERS.length];
+    return code;
+}
+
+async function paperClaimed(db, userId, day) {
+    const existing = await db.query(`
+        SELECT balance_after FROM currency_transactions
+        WHERE user_id = $1 AND source_type = $2 AND source_id = $3
+        LIMIT 1
+    `, [userId, PAPER_SOURCE, day]);
+    return existing.rows[0] ?? null;
+}
+
+// What's on a scrap just picked up: { code } (null: nothing but old news)
+export async function readFloorPaper(db, userId, { random = Math.random, date = new Date() } = {}) {
+    if (random() >= PAPER_CHANCE) return { code: null };
+    const day = easternDay(date);
+    if (await paperClaimed(db, userId, day)) return { code: null };
+    return { code: paperCodeFor(day, userId) };
+}
+
+// (one at a time for each player, so two sends of the code at once can't both be paid)
+const redeemingPaper = new Set();
+export async function redeemPaper(db, userId, rawCode, date = new Date()) {
+    const day = easternDay(date);
+    if (cleanCode(rawCode) !== paperCodeFor(day, userId)) return { status: 'invalid' };
+    if (redeemingPaper.has(userId)) return { status: 'claimed', kind: 'paper' };
+    redeemingPaper.add(userId);
+    try {
+        const claimed = await paperClaimed(db, userId, day);
+        if (claimed) return { status: 'claimed', kind: 'paper', coinBalance: Number(claimed.balance_after) };
+        const result = await db.query(`
+            SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
+        `, [userId, PAPER_REWARD, PAPER_SOURCE, day, JSON.stringify({ day })]);
+        return { status: 'granted', kind: 'paper', reward: PAPER_REWARD, coinBalance: Number(result.rows[0].coin_balance) };
+    } finally {
+        redeemingPaper.delete(userId);
+    }
+}
+
 export default async function routes(fastify) {
     fastify.post('/dispenser/knock', async (request, reply) => {
         try {
@@ -148,6 +200,15 @@ export default async function routes(fastify) {
         }
     });
 
+    fastify.post('/paper', async (request, reply) => {
+        try {
+            return { data: await readFloorPaper(pool, request.user.sub) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'The ink has run' });
+        }
+    });
+
     // Today's runes, for the tablet (anyone can look)
     fastify.get('/rune', async (request, reply) => {
         const day = easternDay();
@@ -157,7 +218,9 @@ export default async function routes(fastify) {
 
     fastify.post('/codes/redeem', async (request, reply) => {
         try {
-            const result = await redeemRune(pool, request.user.sub, request.body?.code);
+            let result = await redeemRune(pool, request.user.sub, request.body?.code);
+            // (not today's runes: a code off a scrap of paper, perhaps)
+            if (result.status === 'invalid') result = await redeemPaper(pool, request.user.sub, request.body?.code);
             if (result.status === 'invalid') return reply.code(404).send({ error: 'Invalid code' });
             return { data: result };
         } catch (error) {
