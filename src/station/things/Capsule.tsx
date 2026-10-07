@@ -1,21 +1,21 @@
-// The capsule machine beside the arcade: a turn of the crank costs tickets and drops a
-// capsule with a hat or something to hold in it, out of the item shop. Mostly common ones.
-import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+// The capsule machine beside the arcade: wind its crank and 75 tickets go in the slot, the
+// capsules rattle, and one drops out of the chute with a hat or something to hold in it, out
+// of the item shop (mostly common ones). The machine itself does all of that, in the scene;
+// this is what's over it: your ticket count going down, a word of what to do, and the
+// capsule coming open in your hands.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import TicketIcon from "../../components/TicketIcon";
 import { fetchWithAuth } from "../../fetchWithAuth";
-import { CAPSULE_TURN_MS, capsuleSignal } from "../capsuleSignal.ts";
+import { CAPSULE_MS, capsuleMachine } from "../capsuleSignal.ts";
 import { useSummary } from "../data.ts";
 import type { GoTo } from "../stops.ts";
-import { plateButton, serif, stubButton } from "../style/theme.ts";
-import { Problem } from "../style/ui.tsx";
+import { pixel, plate, plateButton, serif, stubButton } from "../style/theme.ts";
 import "./capsule.css";
 
 type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 type Machine = { price: number; odds: Record<Rarity, number>; stock: Record<Rarity, number> };
 type Won = { item: { id: number; name: string; icon: string; rarity: Rarity; category: string }; itemInstanceId: number; coinBalance: number };
-// idle: nothing out. turning: the crank's going. dropped: a capsule, still shut. open: what was in it.
-type Phase = "idle" | "turning" | "dropped" | "open";
 
 const RARITIES: { id: Rarity; label: string; colour: string }[] = [
   { id: "common", label: "Common", colour: "#cfc7da" },
@@ -24,7 +24,8 @@ const RARITIES: { id: Rarity; label: string; colour: string }[] = [
   { id: "epic", label: "Epic", colour: "#c58bff" },
   { id: "legendary", label: "Legendary", colour: "#ffc24a" },
 ];
-const OPENS_AFTER_MS = 900;
+// How long the capsule sits shut in your hands before it bursts
+const OPENS_AFTER_MS = 650;
 
 async function readData<T>(response: Response) {
   const body = await response.json().catch(() => ({}));
@@ -59,141 +60,184 @@ export default function Capsule({ signedIn, goTo }: { signedIn: boolean; goTo: G
     queryFn: () => fetchWithAuth("/capsule/machine").then(readData<Machine>),
     staleTime: 1000 * 60 * 5,
   });
-  const [phase, setPhase] = useState<Phase>("idle");
+  const balance = summary?.coinBalance ?? null;
+  const price = machine.data?.price ?? null;
+  // What the counter reads: your tickets, or mid-turn the count on its way down
+  const [reading, setReading] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const [won, setWon] = useState<Won | null>(null);
+  const [open, setOpen] = useState(false);
+  // (the latest of everything, for the crank, which is wound from the scene)
+  const now = useRef({ signedIn, balance, price, busy });
+  now.current = { signedIn, balance, price, busy };
+  const here = useRef(true);
 
-  const pull = useMutation({
-    mutationFn: async () => {
-      // The crank turns while the server picks; the capsule never beats the crank out
-      capsuleSignal.turnedAt = performance.now();
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const [result] = await Promise.all([fetchWithAuth("/capsule/pull", { method: "POST" }).then(readData<Won>), wait(reduced ? 0 : CAPSULE_TURN_MS)]);
-      return result;
-    },
-    onMutate: () => {
-      setWon(null);
-      setPhase("turning");
-    },
-    onSuccess: (result) => {
-      setWon(result);
-      setPhase("dropped");
+  const cranked = useCallback(async () => {
+    const { signedIn: passenger, balance: tickets, price: cost, busy: turning } = now.current;
+    if (turning || capsuleMachine.phase !== "idle") return;
+    if (!passenger) return setNote("The machine takes passengers' tickets. Sign in at the counter.");
+    if (cost === null || tickets === null) return setNote("The machine's warming up. Try again in a moment.");
+    if (tickets < cost) return setNote(`A turn is ${cost} tickets. You have ${tickets.toLocaleString()}. The arcade pays out.`);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const pace = reduced ? 0 : 1;
+    setBusy(true);
+    setNote(null);
+    setWon(null);
+    setOpen(false);
+    // The tickets go in: the count runs down by the price as they do
+    capsuleMachine.set("paying");
+    const pull = fetchWithAuth("/capsule/pull", { method: "POST" }).then(readData<Won>);
+    pull.catch(() => undefined);
+    const began = performance.now();
+    await new Promise<void>((resolve) => {
+      const step = () => {
+        const u = pace ? Math.min(1, (performance.now() - began) / CAPSULE_MS.pay) : 1;
+        if (here.current) setReading(Math.round(tickets - cost * u));
+        if (u < 1 && here.current) requestAnimationFrame(step);
+        else resolve();
+      };
+      step();
+    });
+    // It shakes for as long as the server takes to say what's in the capsule
+    capsuleMachine.set("shaking");
+    const [result] = await Promise.allSettled([pull, wait(CAPSULE_MS.shake * pace)]);
+    if (!here.current) return;
+    if (result.status === "rejected") {
+      capsuleMachine.set("idle");
+      setReading(null);
+      setBusy(false);
+      setNote(result.reason instanceof Error ? result.reason.message : "The machine jammed. Your tickets are safe; try again.");
       void queryClient.invalidateQueries({ queryKey: ["home-v2", "summary"] });
-      void queryClient.invalidateQueries({ queryKey: ["user", "wallet"] });
-      void queryClient.invalidateQueries({ queryKey: ["marketplace", "shop"] });
-      void queryClient.invalidateQueries({ queryKey: ["avatar"] });
-    },
-    onError: () => setPhase("idle"),
-  });
+      return;
+    }
+    const prize = result.value;
+    capsuleMachine.set("beat");
+    await wait(CAPSULE_MS.beat * pace);
+    capsuleMachine.set("out", RARITIES.find((entry) => entry.id === prize.item.rarity)?.colour);
+    await wait(CAPSULE_MS.out * pace);
+    if (!here.current) return;
+    capsuleMachine.set("revealed");
+    setReading(prize.coinBalance);
+    setWon(prize);
+    void queryClient.invalidateQueries({ queryKey: ["home-v2", "summary"] });
+    void queryClient.invalidateQueries({ queryKey: ["user", "wallet"] });
+    void queryClient.invalidateQueries({ queryKey: ["marketplace", "shop"] });
+    void queryClient.invalidateQueries({ queryKey: ["avatar"] });
+  }, [queryClient]);
 
-  // A dropped capsule pops open by itself after a beat (or at a tap)
+  // The crank is the scene's: it calls here when it's been wound right round
   useEffect(() => {
-    if (phase !== "dropped") return;
-    const open = window.setTimeout(() => setPhase("open"), OPENS_AFTER_MS);
-    return () => window.clearTimeout(open);
-  }, [phase]);
+    here.current = true;
+    capsuleMachine.onCranked = () => void cranked();
+    return () => {
+      here.current = false;
+      capsuleMachine.onCranked = null;
+      capsuleMachine.set("idle");
+    };
+  }, [cranked]);
 
-  const price = machine.data?.price;
-  const balance = summary?.coinBalance;
-  const short = price != null && balance != null && balance < price;
+  // (a word about signing in, say, is stale once you have)
+  useEffect(() => setNote(null), [signedIn]);
+
+  // The capsule in your hands pops open after a beat
+  useEffect(() => {
+    if (!won) return;
+    const burst = window.setTimeout(() => setOpen(true), OPENS_AFTER_MS);
+    return () => window.clearTimeout(burst);
+  }, [won]);
+
+  const putAway = () => {
+    setWon(null);
+    setOpen(false);
+    setBusy(false);
+    setReading(null);
+    capsuleMachine.set("idle");
+  };
+
+  const shown = reading ?? balance;
   const rarity = won?.item.rarity ?? "common";
   const lid = RARITIES.find((entry) => entry.id === rarity)?.colour ?? RARITIES[0].colour;
-  const busy = phase === "turning" || phase === "dropped";
 
   return (
-    <div className={`capsule capsule-rarity-${rarity} is-${phase} flex flex-col gap-3`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Capsule machine</p>
-          <h3 className="mt-1 text-xl text-[#f2ead2]" style={serif}>
-            A hat or a thing to hold, in every capsule
-          </h3>
-        </div>
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-end justify-between p-3 pb-16 text-[#f2ead2] md:p-5 md:pb-6">
+      {/* Your tickets, top middle: they go down as the machine takes them */}
+      <div className={`${plate} flex items-center gap-3 px-3 py-1.5 text-[15px]`}>
         {signedIn && (
-          <p className="flex shrink-0 items-center gap-1.5 text-sm text-amber-300">
-            {balance != null ? <span aria-label={`${balance.toLocaleString()} tickets`}>{balance.toLocaleString()}</span> : "…"}
-            <TicketIcon className="h-4 w-6" perforation="#0d131b" />
-          </p>
-        )}
-      </div>
-
-      <button
-        type="button"
-        className="capsule-stage"
-        onClick={() => phase === "dropped" && setPhase("open")}
-        disabled={phase !== "dropped"}
-        aria-label={phase === "dropped" ? "Open the capsule" : undefined}
-      >
-        {phase === "open" && won && <span className="capsule-rays" aria-hidden />}
-        <Ball colour={phase === "idle" || phase === "turning" ? "#8a2f2a" : lid} />
-        {phase === "open" && won && <img className="capsule-item" src={won.item.icon} alt="" draggable={false} />}
-      </button>
-
-      <div className="min-h-[4.5rem] text-center" aria-live="polite">
-        {phase === "open" && won ? (
-          <div className="capsule-words flex flex-col items-center gap-1">
-            <span className="capsule-chip">{rarity}</span>
-            <span className="text-lg text-[#faf5ed]" style={serif}>
-              {won.item.name}
+          <span className="flex items-center gap-1.5 text-amber-300" aria-live="off">
+            <span className="tabular-nums" aria-label={shown !== null ? `${shown.toLocaleString()} tickets` : undefined}>
+              {shown !== null ? shown.toLocaleString() : "…"}
             </span>
-            <span className="text-xs text-[#9fdcb2]">It's in your locker.</span>
-          </div>
-        ) : (
-          <p className="pt-3 text-sm text-stone-400" style={serif}>
-            {phase === "turning" ? "Clunk. Clunk. Clunk…" : phase === "dropped" ? "Here it comes." : "Turn the crank and see what drops."}
-          </p>
+            <TicketIcon className="h-4 w-6" perforation="#1d2a3a" />
+          </span>
+        )}
+        {price !== null && (
+          <span className="flex items-center gap-1.5 text-[#f2ead2]/80">
+            {signedIn && <span className="text-[#f2ead2]/40">·</span>}
+            {price}
+            <TicketIcon className="h-4 w-6" perforation="#1d2a3a" />a turn
+          </span>
         )}
       </div>
 
-      {pull.error && <Problem message={pull.error.message} />}
-
-      {signedIn ? (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <button type="button" className={stubButton} disabled={busy || short || price == null} onClick={() => pull.mutate()}>
-            {phase === "open" ? "Turn it again" : "Turn the crank"}
-            {price != null && (
-              <span className="flex items-center gap-1">
-                {price}
-                <TicketIcon className="h-4 w-6" perforation="#efe3c8" />
-              </span>
-            )}
-          </button>
-          {phase === "open" && (
-            <button type="button" className={plateButton} onClick={() => goTo("lockers", "wardrobe")}>
-              Go and put it on
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="text-center">
-          <p className="text-sm text-stone-300" style={serif}>
-            The machine takes passengers' tickets.
+      <div className="flex max-w-md flex-col items-center gap-2 self-center text-center">
+        {note ? (
+          <p className="rounded-[3px] bg-[#0b1017]/85 px-3 py-2 text-sm text-amber-200" role="status" style={serif}>
+            {note}
           </p>
-          <button type="button" onClick={() => goTo("tickets")} className={`${stubButton} mt-2`}>
+        ) : (
+          !busy && (
+            <p className="rounded-[3px] bg-[#0b1017]/70 px-3 py-1.5 text-[15px]" style={pixel}>
+              Wind the crank right round
+            </p>
+          )
+        )}
+        {!signedIn && (
+          <button type="button" onClick={() => goTo("tickets")} className={`${stubButton} pointer-events-auto`}>
             Sign in at the counter
           </button>
-        </div>
-      )}
-      {signedIn && short && phase !== "open" && <p className="text-center text-xs text-stone-400">Not enough tickets. The arcade pays out.</p>}
-
-      {machine.data && (
-        <div className="mt-1 border-t border-[#f2ead2]/15 pt-3">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">What's inside</p>
-          <ul className="mt-2 grid grid-cols-1 gap-x-10 gap-y-1 text-sm text-stone-300 sm:grid-cols-2">
-            {RARITIES.filter((entry) => machine.data.stock[entry.id] > 0).map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: entry.colour }} />
-                  {entry.label}
-                  <span className="text-stone-500">({machine.data.stock[entry.id]})</span>
-                </span>
-                <span className="tabular-nums text-[#f2ead2]">{machine.data.odds[entry.id]}%</span>
-              </li>
+        )}
+        {machine.data && !busy && (
+          <p className="rounded-[3px] bg-[#0b1017]/60 px-2 py-1 text-[11px] text-[#f2ead2]/70">
+            {RARITIES.filter((entry) => machine.data.stock[entry.id] > 0).map((entry, index) => (
+              <span key={entry.id}>
+                {index > 0 && " · "}
+                <span style={{ color: entry.colour }}>{entry.label}</span> {machine.data.odds[entry.id]}%
+              </span>
             ))}
-          </ul>
-          <p className="mt-2 text-xs text-stone-500">You can get one you already have. Everything in it is in the item shop too.</p>
+          </p>
+        )}
+      </div>
+
+      {/* The capsule, come up out of the chute into your hands: it bursts, and there's what was in it */}
+      {won && (
+        <div className={`capsule capsule-rarity-${rarity} ${open ? "is-open" : "is-shut"} pointer-events-auto absolute inset-0 z-20 flex flex-col items-center justify-center gap-3`} role="dialog" aria-label="Your capsule">
+          <button type="button" className="capsule-veil absolute inset-0" onClick={open ? putAway : () => setOpen(true)} aria-label={open ? "Put it away" : "Open the capsule"} />
+          <div className="capsule-stage">
+            {open && <span className="capsule-rays" aria-hidden />}
+            {open && <span className="capsule-flash" aria-hidden />}
+            <Ball colour={lid} />
+            {open && <img className="capsule-item" src={won.item.icon} alt="" draggable={false} />}
+          </div>
+          {open && (
+            <div className="capsule-words relative flex flex-col items-center gap-1 text-center" aria-live="polite">
+              <span className="capsule-chip">{rarity}</span>
+              <span className="text-2xl text-[#faf5ed]" style={serif}>
+                {won.item.name}
+              </span>
+              <span className="text-sm text-[#9fdcb2]">It's in your locker.</span>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <button type="button" className={stubButton} onClick={putAway}>
+                  Back to the machine
+                </button>
+                <button type="button" className={plateButton} onClick={() => goTo("lockers", "wardrobe")}>
+                  Go and put it on
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {machine.error && <Problem message="The machine's glass is fogged up. Try again in a moment." />}
     </div>
   );
 }

@@ -4,6 +4,8 @@
 
 export const CAPSULE_PRICE = 75;
 export const CAPSULE_CATEGORIES = ['head', 'held'];
+// Nothing dearer than this in the shop goes in the machine (the Trophy, at 999,999, is for buying).
+export const CAPSULE_MAX_SHOP_PRICE = 5000;
 
 // How likely each rarity is, out of 100.
 export const CAPSULE_ODDS = {

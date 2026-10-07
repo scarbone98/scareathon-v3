@@ -68,7 +68,7 @@ import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { hasNews, NEWS_EVENT, playedCarts } from "../pages/Arcade/news.ts";
 import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
-import { CAPSULE_TURN_MS, capsuleSignal } from "./capsuleSignal.ts";
+import { CAPSULE_MS, CAPSULE_TICKETS, capsuleMachine } from "./capsuleSignal.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
@@ -1164,9 +1164,12 @@ function buildCartRack(games: MachineData[]) {
   return group;
 }
 
-// The capsule machine, between the cabinet and the board: a stand, the works with their
-// crank and chute, a glass case heaped with capsules, and its sign. A turn of the crank
-// (things/Capsule.tsx) drops a hat or something to hold from the item shop
+// The capsule machine, between the cabinet and the board: a squat stand, the works with their
+// crank, ticket slot and chute, a glass case heaped with capsules, and its sign. Wound by hand
+// (see cranking, in the scene), it takes tickets and drops a hat or something to hold from
+// the item shop (things/Capsule.tsx pays and opens it)
+const CAPSULE_LIDS = ["#d95763", "#3a9ae0", "#e0b030", "#7ddc8a", "#c58bff", "#ed6c33", "#4cc4c4"];
+const CAPSULE_RADIUS = 0.042;
 function buildCapsule() {
   const group = new Group();
   const w = 0.4;
@@ -1175,11 +1178,31 @@ function buildCapsule() {
   const red = standard("#8a2f2a", 0.55);
   const iron = standard("#1a1d22", 0.7);
   const brass = standard("#e2b659", 0.4);
-  group.add(box(0.3, 0.5, 0.26, iron, 0, 0.25, 0));
-  group.add(box(w + 0.04, 0.04, d + 0.04, red, 0, 0.5, 0));
-  group.add(box(w, 0.42, d, red, 0, 0.73, 0));
-  // The front of the works: the price (CAPSULE_PRICE, server/capsule/machine.js), a slot, and
-  // the chute the capsules drop into
+  // It stands on one ornate cast-iron leg: a spreading foot on four scrolls, a turned
+  // column swelling and narrowing, and a flare under the works. (radius at each height)
+  const turned: [number, number][] = [
+    [0, 0.17], [0.02, 0.17], [0.045, 0.1], [0.06, 0.055], [0.085, 0.07], [0.12, 0.09], [0.16, 0.06],
+    [0.185, 0.04], [0.2, 0.062], [0.212, 0.062], [0.225, 0.038], [0.255, 0.045], [0.28, 0.13],
+  ];
+  const leg = new Group();
+  turned.slice(1).forEach(([y, radius], i) => {
+    const [below, wider] = turned[i];
+    const ring = new Mesh(new CylinderGeometry(radius, wider, y - below, 12), iron);
+    ring.position.y = (y + below) / 2;
+    leg.add(ring);
+  });
+  for (let foot = 0; foot < 4; foot += 1) {
+    const scroll = new Mesh(new TorusGeometry(0.045, 0.012, 6, 10, Math.PI * 1.4), iron);
+    const around = (foot / 4) * Math.PI * 2 + Math.PI / 4;
+    scroll.position.set(Math.cos(around) * 0.15, 0.045, Math.sin(around) * 0.15);
+    scroll.rotation.y = -around;
+    leg.add(scroll);
+  }
+  group.add(leg);
+  group.add(box(w + 0.04, 0.04, d + 0.04, red, 0, 0.3, 0));
+  group.add(box(w, 0.42, d, red, 0, 0.53, 0));
+  // The front of the works: the price (CAPSULE_PRICE, server/capsule/machine.js), the
+  // ticket slot, and the chute the capsules drop into
   const front = paint(200, 210, (ctx, cw, ch) => {
     ctx.fillStyle = "#7a2824";
     ctx.fillRect(0, 0, cw, ch);
@@ -1187,13 +1210,13 @@ function buildCapsule() {
     ctx.lineWidth = 6;
     ctx.strokeRect(7, 7, cw - 14, ch - 14);
     ctx.fillStyle = "#120d08";
-    ctx.fillRect(150, 44, 10, 46); // the ticket slot
+    ctx.fillRect(150, 44, 10, 46);
     ctx.fillStyle = "#ffd9a0";
     ctx.textAlign = "center";
     ctx.font = "700 30px Georgia, serif";
-    ctx.fillText("75", 44, 62);
-    ctx.font = "700 13px Georgia, serif";
-    ctx.fillText("TICKETS", 44, 80);
+    ctx.fillText("75", 37, 58);
+    ctx.font = "700 10px Georgia, serif";
+    ctx.fillText("TICKETS", 37, 73);
     ctx.fillStyle = "#120d08";
     ctx.beginPath();
     ctx.roundRect(42, 128, cw - 84, 62, 10);
@@ -1202,65 +1225,149 @@ function buildCapsule() {
     ctx.lineWidth = 3;
     ctx.stroke();
   });
-  group.add(plane(w - 0.02, 0.4, standard("#ffffff", 0.7, front), 0, 0.73, d / 2 + 0.002));
+  group.add(plane(w - 0.02, 0.4, standard("#ffffff", 0.7, front), 0, 0.53, d / 2 + 0.002));
+  // (where on the front the slot and the chute are, for the tickets going in and the capsule coming out)
+  group.userData.slot = new Vector3(0.105, 0.602, d / 2 + 0.01);
+  group.userData.chute = new Vector3(0, 0.427, d / 2 + 0.01);
+
   const crank = new Group();
-  crank.position.set(0, 0.81, d / 2 + 0.02);
+  crank.position.set(0, 0.61, d / 2 + 0.02);
   const dial = new Mesh(new CylinderGeometry(0.065, 0.065, 0.03, 20), brass);
   dial.rotation.x = Math.PI / 2;
   crank.add(dial);
   crank.add(box(0.15, 0.034, 0.03, brass, 0, 0, 0.026));
+  crank.add(box(0.04, 0.04, 0.05, standard("#120d08", 0.6), 0.06, 0, 0.05)); // its knob
+  // (a generous disc to take hold of it by)
+  const grip = new Mesh(new CircleGeometry(0.12, 16), new MeshBasicMaterial({ visible: false }));
+  grip.position.z = 0.06;
+  crank.add(grip);
   group.add(crank);
   group.userData.crank = crank;
 
-  // The glass, and the capsules in it (painted, lit from inside): each a coloured lid on a cream cup
+  // The glass, heaped with capsules: each a coloured lid on a cream cup, every one its own way up
   const glass = new Group();
-  glass.position.y = 1.16;
-  const heap = paint(160, 176, (ctx, _cw, ch) => {
-    const lids = ["#d95763", "#3a9ae0", "#e0b030", "#7ddc8a", "#c58bff", "#ed6c33", "#4cc4c4"];
-    let seed = 7;
-    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const r = 15;
-    for (let row = 0; row < 6; row += 1) {
-      for (let col = -1; col < 6; col += 1) {
-        if (row === 5 && random() < 0.45) continue; // the heap's ragged on top
-        const x = col * r * 2 + (row % 2 ? r : 0) + r + (random() - 0.5) * 5;
-        const y = ch - r - row * r * 1.72 + (random() - 0.5) * 4;
-        const turn = random() * Math.PI * 2;
-        ctx.fillStyle = "#efe6cf";
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = lids[Math.floor(random() * lids.length)];
-        ctx.beginPath();
-        ctx.arc(x, y, r, turn, turn + Math.PI);
-        ctx.fill();
-        ctx.strokeStyle = "#1d2a3a";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x, y, r - 1, 0, Math.PI * 2);
-        ctx.stroke();
+  glass.position.y = 0.96;
+  const spots: Matrix4[] = [];
+  const lids: Color[] = [];
+  let seed = 7;
+  const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const turn = new Quaternion();
+  const scale = new Vector3(1, 1, 1);
+  const r = CAPSULE_RADIUS;
+  for (let layer = 0; layer < 5; layer += 1) {
+    const y = -0.2 + r + layer * r * 1.62;
+    const shift = layer % 2 ? r : 0;
+    for (let x = -w / 2 + r + 0.012 + shift; x <= w / 2 - r - 0.008; x += r * 2.02) {
+      for (let z = -d / 2 + r + 0.012 + shift; z <= d / 2 - r - 0.008; z += r * 2.02) {
+        if (layer === 4 && random() < 0.5) continue; // the heap's ragged on top
+        turn.set(random() - 0.5, random() - 0.5, random() - 0.5, random() - 0.5).normalize();
+        spots.push(new Matrix4().compose(new Vector3(x + (random() - 0.5) * 0.008, y + (random() - 0.5) * 0.006, z + (random() - 0.5) * 0.008), turn, scale));
+        lids.push(new Color(CAPSULE_LIDS[Math.floor(random() * CAPSULE_LIDS.length)]));
       }
     }
+  }
+  // (two meshes for the lot: every lid, each its own colour, and every cup)
+  const lidMesh = new InstancedMesh(new SphereGeometry(r, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), standard("#ffffff", 0.35), spots.length);
+  const cupMesh = new InstancedMesh(new SphereGeometry(r, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), standard("#efe6cf", 0.45), spots.length);
+  spots.forEach((spot, i) => {
+    lidMesh.setMatrixAt(i, spot);
+    lidMesh.setColorAt(i, lids[i]);
+    cupMesh.setMatrixAt(i, spot);
   });
-  const heapMaterial = new MeshBasicMaterial({ map: heap, transparent: true });
-  glass.add(plane(w - 0.03, 0.42, heapMaterial, 0, 0, d / 2 - 0.02));
-  [-1, 1].forEach((side) => {
-    const pane = plane(d - 0.03, 0.42, heapMaterial, side * (w / 2 - 0.02), 0, 0);
-    pane.rotation.y = (side * Math.PI) / 2;
-    glass.add(pane);
-  });
-  glass.add(box(w, 0.44, d, new MeshStandardMaterial({ color: "#bfe3f2", transparent: true, opacity: 0.16, roughness: 0.1, metalness: 0.1, depthWrite: false })));
-  [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => glass.add(box(0.02, 0.44, 0.02, brass, sx * (w / 2 - 0.01), 0, sz * (d / 2 - 0.01)))));
+  lidMesh.computeBoundingSphere();
+  cupMesh.computeBoundingSphere();
+  glass.add(lidMesh, cupMesh);
+  glass.add(box(w, 0.4, d, new MeshStandardMaterial({ color: "#bfe3f2", transparent: true, opacity: 0.14, roughness: 0.1, metalness: 0.1, depthWrite: false })));
+  [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => glass.add(box(0.02, 0.4, 0.02, brass, sx * (w / 2 - 0.01), 0, sz * (d / 2 - 0.01)))));
   group.add(glass);
   group.userData.glass = glass;
 
-  group.add(box(w + 0.04, 0.05, d + 0.04, red, 0, 1.405, 0));
-  group.add(box(0.37, 0.12, 0.03, iron, 0, 1.5, 0));
-  group.add(plane(0.35, 0.0875, new MeshBasicMaterial({ map: signTexture("CAPSULES", "#ffd9a0", "#120d08") }), 0, 1.5, 0.017));
-  addLamp(group, 0, 2.0, 0.9);
+  group.add(box(w + 0.04, 0.05, d + 0.04, red, 0, 1.185, 0));
+  // Its sign, off a fairground: red and cream rays, gold letters with a shadow, stars, a
+  // scalloped gold edge, and a ring of bulbs that chase round it
+  const fair = paint(640, 240, (ctx, cw, ch) => {
+    ctx.fillStyle = "#f2e2b6";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.fillStyle = "#b3261e";
+    for (let ray = 0; ray < 24; ray += 2) {
+      const from = (ray / 24) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cw / 2, ch / 2);
+      ctx.arc(cw / 2, ch / 2, cw, from, from + Math.PI / 12);
+      ctx.fill();
+    }
+    // A dark plaque for the words, its ends rounded
+    ctx.fillStyle = "#3a0f12";
+    ctx.beginPath();
+    ctx.roundRect(40, 46, cw - 80, ch - 92, 40);
+    ctx.fill();
+    ctx.strokeStyle = "#e9b949";
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const words = (text: string, font: string, y: number, spacing: string) => {
+      ctx.font = font;
+      ctx.letterSpacing = spacing;
+      ctx.fillStyle = "#1a0607";
+      ctx.fillText(text, cw / 2 + 4, y + 5);
+      ctx.fillStyle = "#f6cf5f";
+      ctx.fillText(text, cw / 2, y);
+      ctx.strokeStyle = "#fff3c4";
+      ctx.lineWidth = 1.5;
+      ctx.strokeText(text, cw / 2, y);
+    };
+    words("★  BITS AND  ★", "italic 700 34px Georgia, 'Times New Roman', serif", 84, "6px");
+    words("BOBBLES", "900 82px Georgia, 'Times New Roman', serif", 142, "10px");
+    // The edge: gold, scalloped
+    ctx.strokeStyle = "#e9b949";
+    ctx.lineWidth = 12;
+    ctx.strokeRect(6, 6, cw - 12, ch - 12);
+    ctx.fillStyle = "#e9b949";
+    for (let x = 20; x < cw; x += 40) {
+      [[12, 0], [ch - 12, Math.PI]].forEach(([y, from]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 14, from, from + Math.PI);
+        ctx.fill();
+      });
+    }
+  });
+  group.add(box(0.6, 0.235, 0.04, iron, 0, 1.345, -0.02));
+  group.add(plane(0.56, 0.21, new MeshBasicMaterial({ map: fair }), 0, 1.345, 0.002));
+  group.userData.bulbs = ringOfBulbs(group, 0.585, 0.228, 0.058, 0, 1.345, 0.012);
+  addLamp(group, 0, 1.9, 0.9);
   // (its tap box stands out in front of the board's and the cabinet's, which it sits between)
-  group.add(hitBox(0.52, 1.62, 0.74, 0.8));
+  group.add(hitBox(0.52, 1.4, 0.74, 0.7));
   group.userData.stopId = "capsule";
+
+  // What a turn shows, kept out of sight till then: the tickets that go in the slot, and the
+  // capsule that comes out (its lid takes the colour of what's in it)
+  const stubTexture = paint(48, 28, (ctx, cw, ch) => {
+    ctx.fillStyle = "#efe3c8";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.strokeStyle = "#1d2a3a";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, cw - 4, ch - 4);
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(15, 4);
+    ctx.lineTo(15, ch - 4);
+    ctx.stroke();
+  });
+  const stubMaterial = new MeshBasicMaterial({ map: stubTexture, side: DoubleSide, fog: false });
+  const stubs = Array.from({ length: CAPSULE_TICKETS }, () => {
+    const stub = plane(0.075, 0.044, stubMaterial);
+    stub.visible = false;
+    return stub;
+  });
+  const prize = new Group();
+  const prizeLid = new MeshBasicMaterial({ color: "#8a2f2a", fog: false });
+  prize.add(new Mesh(new SphereGeometry(CAPSULE_RADIUS, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), prizeLid));
+  prize.add(new Mesh(new SphereGeometry(CAPSULE_RADIUS, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new MeshBasicMaterial({ color: "#efe6cf", fog: false })));
+  prize.visible = false;
+  group.userData.stubs = stubs;
+  group.userData.prize = prize;
+  group.userData.prizeLid = prizeLid;
   return group;
 }
 
@@ -3675,6 +3782,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const arcade = buildArcade(latest.current.preview, latest.current.arcadeGames, warmCabinet);
     const cartRack = buildCartRack(latest.current.arcadeGames);
     const capsule = buildCapsule();
+    // (its tickets and its capsule fly through the room, so they're the scene's, not the machine's)
+    const capsuleExtras = [...(capsule.userData.stubs as Mesh[]), capsule.userData.prize as Group];
+    const capsuleAhead = new Vector3();
+    const capsuleRight = new Vector3();
+    const capsuleSlot = new Vector3();
+    const capsuleFrom = new Vector3();
+    // The crank: how far round it's been wound (radians, clockwise as you look at it), the
+    // hand winding it, and when it was set winding by itself (a tap)
+    let crankWound = 0;
+    let cranking: { angle: number } | null = null;
+    let crankSelf: number | null = null;
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
     const objects = [bench, lockers, arcade, cartRack, capsule, bulletin, events, tickets, departures, mail];
@@ -3798,6 +3916,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     paintBoardsRef.current(latest.current.boards);
     objects.forEach((o) => scene.add(o));
+    capsuleExtras.forEach((o) => scene.add(o));
     // Everything that rattles when tapped (see rattles)
     const rattlers: Object3D[] = [];
     const rattling: Group[] = [];
@@ -4020,14 +4139,45 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       return first;
     };
     const pick = (clientX: number, clientY: number) => pickPart(clientX, clientY)?.stop ?? null;
+    // The capsule machine's crank is wound by hand: take hold of it and go round it. The
+    // angle is the pointer's about the crank's middle, as it lies on the screen
+    const crankAngle = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      const middle = (capsule.userData.crank as Object3D).getWorldPosition(new Vector3()).project(camera);
+      return Math.atan2(clientY - (rect.top + ((1 - middle.y) / 2) * rect.height), clientX - (rect.left + ((middle.x + 1) / 2) * rect.width));
+    };
+    const overCrank = (clientX: number, clientY: number) => {
+      if (latest.current.at !== "capsule" || capsuleMachine.phase !== "idle" || crankSelf !== null) return false;
+      const rect = canvas.getBoundingClientRect();
+      pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      return raycaster.intersectObject(capsule.userData.crank as Object3D, true).length > 0;
+    };
     const onPointerDown = (event: PointerEvent) => {
       if (arrival.active) return;
       sweptFrom = null;
       brushedFrom = null;
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
       canvas.setPointerCapture(event.pointerId);
+      if (overCrank(event.clientX, event.clientY)) cranking = { angle: crankAngle(event.clientX, event.clientY) };
     };
     const onPointerMove = (event: PointerEvent) => {
+      if (cranking) {
+        const angle = crankAngle(event.clientX, event.clientY);
+        let step = angle - cranking.angle;
+        if (step > Math.PI) step -= Math.PI * 2;
+        else if (step < -Math.PI) step += Math.PI * 2;
+        cranking.angle = angle;
+        crankWound += step;
+        // Right round, either way: that's a turn
+        if (Math.abs(crankWound) >= Math.PI * 1.85) {
+          cranking = null;
+          down = null;
+          crankWound = 0;
+          capsuleMachine.onCranked?.();
+        }
+        return;
+      }
       if (down) sweepLitter(event.clientX, event.clientY);
       if (event.pointerType !== "mouse" || down) return;
       const rect = canvas.getBoundingClientRect();
@@ -4037,6 +4187,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       canvas.style.cursor = hovered ? "pointer" : "default";
     };
     const onPointerUp = (event: PointerEvent) => {
+      if (cranking) {
+        // Let go of the crank. Only tapped: it winds itself round (a mouse, a shaky hand)
+        const tapped = down !== null && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 10 && Math.abs(crankWound) < 0.3;
+        cranking = null;
+        down = null;
+        if (tapped) {
+          if (reduced) capsuleMachine.onCranked?.();
+          else crankSelf = performance.now();
+        }
+        return;
+      }
       if (!down) return;
       const dx = event.clientX - down.x;
       const dy = event.clientY - down.y;
@@ -4289,7 +4450,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       // The arcade sign's and the poster's bulbs chase round, two lit to one dark
       if (!reduced) {
         const chase = Math.floor(t * 7);
-        [arcadeObject, events].forEach((object) => {
+        [arcadeObject, events, capsule].forEach((object) => {
           const bulbs = object.userData.bulbs as InstancedMesh | undefined;
           if (!bulbs || bulbs.userData.chase === chase) return;
           bulbs.userData.chase = chase;
@@ -4455,21 +4616,78 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         else camera.setViewOffset(width, height, 0, shift, width, height); // the HTML layer follows this too
       }
 
-      // The capsule machine: a turn of the crank (capsuleSignal, from its card) winds the
-      // handle round once and rattles the capsules in the glass
+      // The capsule machine. Its crank follows the hand winding it (or winds itself round at
+      // a tap), then the turn plays out as its counter says (capsuleMachine): tickets into
+      // the slot, the capsules rattling, a stop, and a capsule out of the chute and up to you
       {
-        const sinceTurn = performance.now() - capsuleSignal.turnedAt;
+        const now = performance.now();
         const crank = capsule.userData.crank as Object3D;
         const glass = capsule.userData.glass as Object3D;
-        if (sinceTurn < CAPSULE_TURN_MS && !reduced) {
-          const u = sinceTurn / CAPSULE_TURN_MS;
-          crank.rotation.z = -(u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u)) * Math.PI * 2;
-          glass.position.x = Math.sin(sinceTurn * 0.09) * 0.006 * (1 - u);
-          glass.rotation.z = Math.sin(sinceTurn * 0.07) * 0.02 * (1 - u);
-        } else if (crank.rotation.z !== 0 || glass.position.x !== 0) {
-          crank.rotation.z = 0;
+        const stubs = capsule.userData.stubs as Mesh[];
+        const prize = capsule.userData.prize as Group;
+        if (crankSelf !== null) {
+          const u = Math.min(1, (now - crankSelf) / 650);
+          crankWound = (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u)) * Math.PI * 2;
+          if (u >= 1) {
+            crankSelf = null;
+            crankWound = 0;
+            capsuleMachine.onCranked?.();
+          }
+        } else if (!cranking && crankWound !== 0) {
+          // Let go part way: it springs back
+          crankWound *= 0.8;
+          if (Math.abs(crankWound) < 0.01) crankWound = 0;
+        }
+        crank.rotation.z = -crankWound;
+
+        const { phase } = capsuleMachine;
+        const since = now - capsuleMachine.since;
+        const winding = cranking !== null || crankSelf !== null;
+        const rattle = phase === "shaking" ? 1 : winding ? 0.25 : 0;
+        if (rattle && !reduced) {
+          glass.position.x = Math.sin(now * 0.085) * 0.006 * rattle;
+          glass.rotation.z = Math.sin(now * 0.067) * 0.03 * rattle;
+          capsule.rotation.z = phase === "shaking" ? Math.sin(now * 0.05) * 0.012 : 0;
+        } else if (glass.position.x !== 0 || capsule.rotation.z !== 0) {
           glass.position.x = 0;
           glass.rotation.z = 0;
+          capsule.rotation.z = 0;
+        }
+
+        // Tickets, one after another, from your hand to the slot
+        const paying = phase === "paying";
+        if (paying) {
+          camera.getWorldDirection(capsuleAhead);
+          capsuleRight.crossVectors(capsuleAhead, camera.up).normalize();
+          capsuleSlot.copy(capsule.userData.slot as Vector3);
+          capsule.localToWorld(capsuleSlot);
+        }
+        stubs.forEach((stub, i) => {
+          const u = paying ? (since - i * 110) / (CAPSULE_MS.pay - (CAPSULE_TICKETS - 1) * 110 - 80) : -1;
+          stub.visible = u > 0 && u < 1;
+          if (!stub.visible) return;
+          capsuleFrom.copy(camera.position).addScaledVector(capsuleAhead, 0.42).addScaledVector(capsuleRight, (i - 2) * 0.035);
+          capsuleFrom.y -= 0.24;
+          stub.position.lerpVectors(capsuleFrom, capsuleSlot, u * u * (3 - 2 * u));
+          stub.position.y += Math.sin(u * Math.PI) * 0.06;
+          stub.quaternion.copy(camera.quaternion);
+          stub.rotateZ(Math.PI / 2 + (1 - u) * (i - 2) * 0.25);
+          stub.scale.setScalar(1 - u * 0.45);
+        });
+
+        // The capsule: out of the chute with a hop, then up to your face
+        prize.visible = phase === "out";
+        if (prize.visible) {
+          (capsule.userData.prizeLid as MeshBasicMaterial).color.set(capsuleMachine.lid);
+          const u = Math.min(1, since / CAPSULE_MS.out);
+          capsuleSlot.copy(capsule.userData.chute as Vector3);
+          capsule.localToWorld(capsuleSlot);
+          camera.getWorldDirection(capsuleAhead);
+          capsuleFrom.copy(camera.position).addScaledVector(capsuleAhead, 0.34);
+          const ease = u * u * (3 - 2 * u);
+          prize.position.lerpVectors(capsuleSlot, capsuleFrom, ease);
+          prize.position.y += Math.sin(Math.min(1, u * 2.2) * Math.PI) * 0.07 - (1 - ease) * 0.02;
+          prize.rotation.set(u * 9, u * 5, 0.4);
         }
       }
 

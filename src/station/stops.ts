@@ -115,11 +115,11 @@ export const STOPS: Record<StopId, Stop> = {
     id: "capsule",
     label: "Capsule machine",
     heading: "left",
-    // The machine stands between the cabinet and the board, about chest high
-    pos: [-2.2, 1.15, 0.5],
-    target: [-2.2, 0.9, -1.9],
-    fit: 1.2,
-    fitHeight: 1.75,
+    // Right up to it: the machine (a little over a metre tall) fills the view, its crank to hand
+    pos: [-2.2, 0.98, 0.5],
+    target: [-2.2, 0.82, -1.9],
+    fit: 0.8,
+    fitHeight: 1.8,
     snug: true,
   },
   departures: {
