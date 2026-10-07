@@ -7,7 +7,7 @@ import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { uploadAvatarComposite } from "./avatarComposite";
 import { itemFitsBody } from "./compose";
-import { CATEGORY_LABELS, WARDROBE_TABS, lookFromAvatar, wearItem } from "./look";
+import { CATEGORY_LABELS, WARDROBE_TABS, lookFromAvatar, wearItem, gameOf } from "./look";
 import { rampSwatch, useAvatarManifest } from "./manifest";
 import type { AvatarData, AvatarLook, AvatarManifest, AvatarResponse, DyeChoice, InventoryEntry } from "./types";
 
@@ -272,6 +272,7 @@ export function AvatarEditor({ onPreviewLookChange, extraTab, initialTab = "all"
                   </span>
                   <img className="wardrobe-icon" src={entry.item.icon} alt="" draggable={false} />
                   <span className="text-sm leading-tight">{entry.item.name}</span>
+                  {gameOf(entry.item) && <span className="wardrobe-item-note">From {gameOf(entry.item)}</span>}
                   {!fits && body && <span className="wardrobe-item-note">Doesn't show on {body.name}</span>}
                 </button>
               );

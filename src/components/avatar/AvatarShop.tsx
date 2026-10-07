@@ -14,7 +14,7 @@ import TicketIcon from "../TicketIcon";
 import LoadingSpinner from "../LoadingSpinner";
 import ErrorDisplay from "../ErrorDisplay";
 import { itemFitsBody } from "./compose";
-import { CATEGORY_LABELS, lookFromAvatar, lookWithItem } from "./look";
+import { CATEGORY_LABELS, gameOf, lookFromAvatar, lookWithItem } from "./look";
 import { EMPTY_SHELVES, type ShopFilters } from "./shopFilters";
 import { useAvatarManifest } from "./manifest";
 import type { AvatarItem, AvatarLook, AvatarResponse } from "./types";
@@ -283,6 +283,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
           </span>
         )}
       </p>
+      {gameOf(item) && <p className="shop-item-game">From {gameOf(item)}</p>}
       {!fits && wornBody && <p className="shop-item-fit">Doesn&apos;t show on your {wornBody.name}</p>}
 
       <div className="shop-item-price">

@@ -83,3 +83,6 @@
 /* Yours already: greyed out (the Owned tag and the buttons stay clear) */
 .shop-item.is-owned { background: #25212c; border-color: #3a3443; border-top-color: #5d5666; }
 .shop-item.is-owned .shop-item-icon, .shop-item.is-owned .shop-item-name, .shop-item.is-owned .shop-item-meta, .shop-item.is-owned .shop-item-price, .shop-item.is-owned .shop-rarity { opacity: .45; filter: grayscale(1); }
+
+/* An item drawn with a game's own sprites: which game */
+.shop-item-game { margin: 0; font-size: 10px; font-weight: 700; color: #f2c35b; }

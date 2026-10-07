@@ -34,6 +34,30 @@ export const CATEGORY_LABELS: Record<string, string> = {
   background: "Background",
 };
 
+// Items drawn with a game's own sprites, and the game each is from (the shop and the locker
+// say so under the item). Keyed by item key; add an item here when it's made from a sprite
+const ITEM_GAMES: Record<string, string> = {
+  body_ghost: "8 Bit Evil Returns",
+  body_pumpkin: "8 Bit Evil Returns",
+  body_scarecrow: "8 Bit Evil Returns",
+  body_shadowbeast: "8 Bit Evil Returns",
+  body_skull: "8 Bit Evil Returns",
+  body_werewolf: "8 Bit Evil Returns",
+  body_zombie: "8 Bit Evil Returns",
+  pumpkin_pal: "8 Bit Evil Returns",
+  will_o_wisp: "8 Bit Evil Returns",
+  acid_potion: "8 Bit Evil Returns",
+  trophy: "8 Bit Evil Returns",
+  extra_life: "8 Bit Evil Returns",
+  hemlock_crow: "Hemlock's Tower",
+  tlaloc_warrior: "Tlaloc's Curse",
+  emerald_pinball: "Tlaloc's Curse",
+  golden_pinball: "Tlaloc's Curse",
+  katana: "Ooidash",
+  magnet: "Ooidash",
+};
+export const gameOf = (item: Pick<AvatarItem, "itemKey">) => ITEM_GAMES[item.itemKey] ?? null;
+
 export function categoriesOf(item: AvatarItem) {
   return [item.category, ...item.occupies];
 }

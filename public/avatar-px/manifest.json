@@ -6446,8 +6446,8 @@
       "order": 0,
       "starter": false,
       "default": false,
-      "rarity": "rare",
-      "price": 200,
+      "rarity": "legendary",
+      "price": 1000,
       "release": "released"
     },
     {
