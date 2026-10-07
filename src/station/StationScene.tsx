@@ -2787,11 +2787,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // Up close: square on to its face, just far enough back that all of it fits
     const radioPose = () => {
       radio.updateWorldMatrix(true, false);
-      const centre = radio.localToWorld(new Vector3(0, 0.13, 0.05));
+      // (in on its screen and keys: the aerial and the end of the grille can go off the edges)
+      const centre = radio.localToWorld(new Vector3(0.025, 0.112, 0.05));
       const normal = radio.getWorldDirection(new Vector3());
       const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
       const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
-      const distance = Math.max(0.5 / 2 / Math.tan(halfWidth), 0.4 / 2 / Math.tan(halfHeight));
+      const distance = Math.max(0.36 / 2 / Math.tan(halfWidth), 0.27 / 2 / Math.tan(halfHeight));
       const eye = centre.add(normal.clone().multiplyScalar(distance));
       return { x: eye.x, y: eye.y, z: eye.z, yaw: Math.atan2(normal.x, normal.z), pitch: 0 };
     };
@@ -3559,7 +3560,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const { at: current, onSelect: select, onTurn: turn, onPart: partTapped, onEmptyTap: emptyTapped } = latest.current;
       const quick = Math.abs(dx) / Math.max(performance.now() - down.t, 1) > 0.3; // a flick
       const swiped = (Math.abs(dx) > 40 || (quick && Math.abs(dx) > 20)) && Math.abs(dx) > Math.abs(dy);
-      if (current === "bench" && swiped && latest.current.zoom !== "radio") {
+      if (current === "bench" && swiped) {
         // Sitting on the bench, a swipe gets you up (as a tap does)
         (emptyTapped ?? (() => select(null)))();
       } else if (!current && swiped) {
@@ -3608,6 +3609,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           if (current === "bench" && latest.current.zoom === "radio") pressRadio(hit.part);
           else partTapped("radio");
         }
+        // (up close to the radio, a tap on the bench round it steps back, as one on nothing does)
+        else if (current === "bench" && latest.current.zoom === "radio" && hit?.stop === "bench") (emptyTapped ?? (() => select(null)))();
         else if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
         else if (!hit && current) (emptyTapped ?? (() => select(null)))();
@@ -3856,7 +3859,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         state.k = reduced ? to : Math.max(0, Math.min(1, state.k + (state.open ? 1 : -1) * dt * (state.kind === "door" ? 2.2 : 3)));
         const e = state.k * state.k * (3 - 2 * state.k);
         if (state.kind === "drawer") thing.position.z = state.z + 0.27 * e;
-        else thing.rotation.y = (thing.userData.swing as number) * 1.85 * e;
+        else thing.rotation.y = (thing.userData.swing as number) * 2.6 * e;
       });
       // Tapped locked drawers and loose signs rattle, and settle
       const rattleNow = performance.now() / 1000;

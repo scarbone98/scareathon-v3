@@ -631,8 +631,9 @@ export default function StationPage() {
         )}
 
         {/* The way back: always in the same place, bottom left (at the arcade, a key on its terminal;
-            on the bench, none: the view is left alone, and a tap anywhere gets up) */}
-        {at && at !== "bench" && !(at === "arcade" && atCabinet) && (
+            on the bench, none: the view is left alone, and a tap anywhere gets up; but up
+            close to its radio, there is) */}
+        {at && (at !== "bench" || zoom === "radio") && !(at === "arcade" && atCabinet) && (
           <button
             type="button"
             onClick={stepBack}
