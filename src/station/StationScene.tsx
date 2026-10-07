@@ -2792,9 +2792,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const normal = radio.getWorldDirection(new Vector3());
       const halfHeight = ((camera.fov * Math.PI) / 180) / 2;
       const halfWidth = Math.atan(Math.tan(halfHeight) * camera.aspect);
-      const distance = Math.max(0.36 / 2 / Math.tan(halfWidth), 0.27 / 2 / Math.tan(halfHeight));
+      const distance = Math.max(0.38 / 2 / Math.tan(halfWidth), 0.31 / 2 / Math.tan(halfHeight));
       const eye = centre.add(normal.clone().multiplyScalar(distance));
-      return { x: eye.x, y: eye.y, z: eye.z, yaw: Math.atan2(normal.x, normal.z), pitch: 0 };
+      // (looking a little up, so the set sits low in the view, under the railing, the line
+      // and the moon)
+      return { x: eye.x, y: eye.y, z: eye.z, yaw: Math.atan2(normal.x, normal.z), pitch: 0.2 };
     };
     // A carrying handle over the top, and the aerial pulled out at a lean
     radio.add(box(0.2, 0.012, 0.02, radioTrim, 0, 0.265, 0));
@@ -2809,6 +2811,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     radio.add(radioHit);
     bench.add(radio);
     bench.add(hitBox(1.6, 0.9, 0.7, 0.4));
+    // (and the sky over the railing behind it: a tap on the view is a tap on the seat it's seen
+    // from. A sheet just past the railing, from the wall to the platform's edge, the bench's own
+    // way round: its x runs back along the platform's depth, its -z is out past the end)
+    bench.add(box(EDGE_Z - WALL_Z, 2.9, 0.02, new MeshBasicMaterial({ visible: false }), 0.3 - (EDGE_Z + WALL_Z) / 2, 2.55, -1.5));
     bench.userData.stopId = "bench";
     addLamp(bench, 0, 1.6, 0.6);
     scene.add(bench);
@@ -3610,7 +3616,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           else partTapped("radio");
         }
         // (up close to the radio, a tap on the bench round it steps back, as one on nothing does)
-        else if (current === "bench" && latest.current.zoom === "radio" && hit?.stop === "bench") (emptyTapped ?? (() => select(null)))();
+        // (and sat on the bench, a tap on it or on the sky gets you up, as one on nothing does)
+        else if (current === "bench" && hit?.stop === "bench") (emptyTapped ?? (() => select(null)))();
         else if (hit && hit.stop !== current) select(hit.stop);
         else if (hit?.part) partTapped(hit.part);
         else if (!hit && current) (emptyTapped ?? (() => select(null)))();

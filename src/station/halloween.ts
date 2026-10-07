@@ -306,7 +306,8 @@ export function buildHalloween({ wallZ, sideX, endX, edgeZ, ceilingY, ticketsAt,
   place(-1.5, 0, wallZ + 0.24, 0.15, 0.1);
   place(-0.25, 0, wallZ + 0.22, 0.13, -0.1);
   place(0.28, 0, wallZ + 0.3, 0.18, 0.2);
-  place(2.25, 0, wallZ + 0.7, 0.15, -0.25);
+  // (clear of the events stand's right-hand cupboard door, which swings out this way)
+  place(2.66, 0, wallZ + 1.05, 0.15, -0.25);
   // The counter faces back along the platform: its top, to one side of the coin slot
   place(ticketsAt[0] - 0.3, ticketsAt[1], ticketsAt[2] - 0.58, 0.11, -Math.PI / 2);
 
