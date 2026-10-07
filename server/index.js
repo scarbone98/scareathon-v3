@@ -29,6 +29,7 @@ import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js
 import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
 import mysteryCryptRoutes from './routes/mysteryCrypt.js';
+import waysideFuryRoutes from './routes/waysideFury.js';
 import scareCapitalistRoutes from './routes/scareCapitalist.js';
 import pictoBoxRoutes from './routes/pictoBox.js';
 import waysideOnlineRoutes, { WAYSIDE_ONLINE_SQL } from './routes/waysideOnline.js';
@@ -162,6 +163,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261011_shop_commons.sql', import.meta.url), 'utf8')); // five more commons in every other category
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261011_pets_cost_more.sql', import.meta.url), 'utf8')); // pets cost twice as much
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261012_add_wayside_fury_game.sql', import.meta.url), 'utf8')); // Wayside Fury's arcade scores
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261012_add_wayside_fury_saves.sql', import.meta.url), 'utf8')); // revisioned Wayside Fury character sheets
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');
@@ -263,6 +265,7 @@ async function main() {
         fastify.register(adminStrapiRoutes, { prefix: '/admin/strapi' });
         fastify.register(homeRoutes, { prefix: '/home' });
         fastify.register(mysteryCryptRoutes, { prefix: '/mystery-crypt' });
+        fastify.register(waysideFuryRoutes, { prefix: '/wayside-fury' });
         fastify.register(scareCapitalistRoutes, { prefix: '/scare-capitalist' });
         fastify.register(pictoBoxRoutes, { prefix: '/picto-box' });
         fastify.register(waysideOnlineRoutes, { prefix: '/wayside-online' });
