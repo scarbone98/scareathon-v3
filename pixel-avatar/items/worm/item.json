@@ -1,0 +1,15 @@
+{
+  "name": "Worm",
+  "category": "companion",
+  "rarity": "common",
+  "price": 220,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "companion",
+      "file": "art.txt",
+      "anchor": "free"
+    }
+  ]
+}

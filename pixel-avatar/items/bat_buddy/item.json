@@ -2,7 +2,7 @@
   "name": "Bat Buddy",
   "category": "companion",
   "rarity": "rare",
-  "price": 250,
+  "price": 500,
   "release": "released",
   "dyes": {},
   "parts": [{ "slot": "companion", "file": "bat.txt", "anchor": "free" }]

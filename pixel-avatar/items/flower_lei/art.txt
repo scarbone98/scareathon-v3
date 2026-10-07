@@ -1,0 +1,11 @@
+# Pink and yellow flowers
+at: 12,33
+legend:
+  p = rose.2
+  y = mustard.3
+  g = leaf.2
+--- 0
+.pypyp
+y.....p
+.p...y
+..ygp

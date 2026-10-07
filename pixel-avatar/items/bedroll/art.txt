@@ -1,0 +1,11 @@
+# Rolled and strapped
+at: 9,33
+legend:
+  a = dye1.2
+  h = dye1.3
+  k = bark.1
+--- 0
+.aaa
+ahka
+aaka
+.aaa

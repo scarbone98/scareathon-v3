@@ -1,0 +1,17 @@
+{
+  "name": "Whistle",
+  "category": "neck",
+  "rarity": "common",
+  "price": 40,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "neck",
+      "file": "art.txt"
+    }
+  ]
+}

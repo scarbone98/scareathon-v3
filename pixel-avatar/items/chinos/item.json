@@ -1,0 +1,24 @@
+{
+  "name": "Chinos",
+  "category": "legs",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "mustard"
+  },
+  "parts": [
+    {
+      "slot": "legs",
+      "file": "waist.txt"
+    },
+    {
+      "slot": "legs",
+      "file": "legs.txt",
+      "anchor": "ground"
+    }
+  ]
+}

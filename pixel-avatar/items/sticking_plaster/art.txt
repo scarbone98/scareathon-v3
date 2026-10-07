@@ -1,0 +1,7 @@
+# On the cheek
+at: 12,31
+legend:
+  b = old_gold.3
+  d = old_gold.2
+--- 0
+bdb

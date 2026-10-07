@@ -1,0 +1,12 @@
+# Green and ridged
+at: 9,34
+legend:
+  g = leaf.2
+  h = leaf.3
+  d = leaf.1
+--- 0
+.dd
+dghd
+dhgg
+dghd
+.dd

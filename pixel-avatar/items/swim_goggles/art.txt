@@ -1,0 +1,10 @@
+# Tight on the eyes
+at: 12,29
+legend:
+  k = ink.1
+  a = dye1.2
+  w = spirit.2
+--- 0
+kkaaaaaa
+..awaawa
+..aaaaaa

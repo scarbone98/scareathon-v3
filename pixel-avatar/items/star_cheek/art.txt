@@ -1,0 +1,8 @@
+# A gold star under one eye
+at: 12,31
+legend:
+  y = gold.3
+--- 0
+.y
+yyy
+.y

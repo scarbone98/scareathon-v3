@@ -1,0 +1,8 @@
+# In your own hair colour
+at: 14,32
+legend:
+  a = hair.1
+  b = hair.2
+--- 0
+ab.ba
+b...b

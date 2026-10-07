@@ -1,0 +1,33 @@
+# Small and see-through
+at: 6,29
+legend:
+  a = spirit.1
+  w = spirit.2
+--- 0
+..aaa.........aaa..
+.aawaa.......aawaa.
+aawaaa.......aaawaa
+.aaawa.......awaaa.
+..aaaa.......aaaa..
+....aa.......aa....
+--- 2
+.aawaa.......aawaa.
+aawaaa.......aaawaa
+.aaawa.......awaaa.
+..aaaa.......aaaa..
+....aa.......aa....
+.
+--- 3
+.aawaa.......aawaa.
+aawaaa.......aaawaa
+.aaawa.......awaaa.
+..aaaa.......aaaa..
+....aa.......aa....
+.
+--- 4
+..aaa.........aaa..
+.aawaa.......aawaa.
+aawaaa.......aaawaa
+.aaawa.......awaaa.
+..aaaa.......aaaa..
+....aa.......aa....

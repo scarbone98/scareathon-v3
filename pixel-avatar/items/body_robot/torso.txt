@@ -1,0 +1,16 @@
+# Its middle
+at: 8,34
+legend:
+  s = steel.2
+  t = steel.3
+  d = steel.1
+  k = spirit.2
+  m = ink.1
+  r = blood.3
+  g = leaf.3
+--- 0
+....stttttd.....
+....strtgtd.....
+....stttttd.....
+....s.ttttd.....
+......ddddd.....

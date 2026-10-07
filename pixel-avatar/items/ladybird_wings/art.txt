@@ -1,0 +1,34 @@
+# Red with black spots
+at: 6,29
+legend:
+  a = blood.2
+  k = ink.0
+  h = blood.3
+--- 0
+..aha.........aha..
+.akaaa.......aaaka.
+ahaaka.......akaaha
+.akaaa.......aaaka.
+..aaaa.......aaaa..
+....aa.......aa....
+--- 2
+.akaaa.......aaaka.
+ahaaka.......akaaha
+.akaaa.......aaaka.
+..aaaa.......aaaa..
+....aa.......aa....
+.
+--- 3
+.akaaa.......aaaka.
+ahaaka.......akaaha
+.akaaa.......aaaka.
+..aaaa.......aaaa..
+....aa.......aa....
+.
+--- 4
+..aha.........aha..
+.akaaa.......aaaka.
+ahaaka.......akaaha
+.akaaa.......aaaka.
+..aaaa.......aaaa..
+....aa.......aa....

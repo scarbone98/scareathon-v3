@@ -1,0 +1,11 @@
+# Fluffy round the top
+at: 12,44
+legend:
+  a = dye1.2
+  h = dye1.3
+  d = dye1.1
+  w = bone.3
+--- 0
+.....w.
+.w...aa
+aa

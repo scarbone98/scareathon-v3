@@ -1,0 +1,15 @@
+{
+  "name": "Dust Motes",
+  "category": "aura",
+  "rarity": "common",
+  "price": 120,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "art.txt",
+      "anchor": "free"
+    }
+  ]
+}

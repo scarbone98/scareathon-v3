@@ -1,0 +1,14 @@
+# A baseball bat across the back
+at: 9,31
+legend:
+  w = wood.3
+  d = wood.2
+  k = ink.1
+--- 0
+w
+ww
+.w
+.wd
+..w
+..d
+..k

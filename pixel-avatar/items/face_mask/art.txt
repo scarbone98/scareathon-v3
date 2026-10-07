@@ -1,0 +1,10 @@
+# Over the nose and mouth
+at: 12,31
+legend:
+  w = dye1.3
+  s = dye1.2
+--- 0
+s......s
+.wwwwww
+.wssssw
+..wwww

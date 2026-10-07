@@ -1,0 +1,8 @@
+# Capri Pants
+at: 13,41
+legend:
+  m = dye1.2
+  h = dye1.3
+--- 0
+m...m
+h...h

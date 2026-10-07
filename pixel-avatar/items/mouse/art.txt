@@ -1,0 +1,19 @@
+# Its tail flicks
+at: 21,44
+legend:
+  a = ash.2
+  b = ash.3
+  k = ink.0
+  p = rose.2
+--- 0
+...b.b
+p.aaaak
+.paaaa
+--- 2
+...b.b
+.paaaak
+..aaaa
+--- 4
+...b.b
+p.aaaak
+.paaaa

@@ -1,0 +1,17 @@
+{
+  "name": "Wind-up Key",
+  "category": "back",
+  "rarity": "common",
+  "price": 70,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "back",
+      "file": "art.txt"
+    }
+  ]
+}

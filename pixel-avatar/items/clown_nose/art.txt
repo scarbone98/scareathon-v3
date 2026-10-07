@@ -1,0 +1,8 @@
+# Red and round
+at: 16,31
+legend:
+  r = blood.2
+  h = blood.3
+--- 0
+hr
+rr

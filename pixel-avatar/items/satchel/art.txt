@@ -1,0 +1,11 @@
+# Leather, with a buckle
+at: 10,35
+legend:
+  a = bark.1
+  b = bark.2
+  g = gold.2
+--- 0
+.aa
+abba
+abga
+.aa

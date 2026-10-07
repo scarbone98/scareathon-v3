@@ -1,0 +1,12 @@
+# Tied at the neck
+at: 12,34
+legend:
+  a = dye1.3
+  d = dye1.2
+  k = dye1.1
+--- 0
+..k.k..
+..aaa..
+.aaaaa.
+..aada.
+..aaaa.

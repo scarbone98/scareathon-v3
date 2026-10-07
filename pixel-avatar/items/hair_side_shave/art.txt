@@ -1,0 +1,13 @@
+# Long on top, short at the side
+at: 11,23
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+...aaaaa
+..ahhaaaa
+..aaaaaaa
+..bbbbaaa
+.b......a
+.b......b

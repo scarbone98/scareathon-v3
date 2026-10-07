@@ -1,0 +1,13 @@
+# Parted in the middle
+at: 11,23
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+..aaaaaa
+.aaha.haa
+aaaa...aaa
+aaa.....aa
+ab.......a
+a........b

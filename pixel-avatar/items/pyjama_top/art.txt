@@ -1,0 +1,14 @@
+# Buttoned to the neck
+at: 12,34
+legend:
+  a = dye1.2
+  h = dye1.3
+  d = dye1.1
+  w = bone.3
+  k = dye1.0
+--- 0
+.aawaa.
+aaawaaa
+aaakaad
+a.awaad
+..dakad

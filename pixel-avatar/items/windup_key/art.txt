@@ -1,0 +1,18 @@
+# It turns
+at: 8,35
+legend:
+  g = gold.2
+  y = gold.3
+  d = gold.1
+--- 0
+yg
+g.gdd
+gg
+--- 2
+.g
+ggggd
+.g
+--- 4
+yg
+g.gdd
+gg

@@ -1,0 +1,8 @@
+# Drawn on, three a side
+at: 12,30
+legend:
+  k = ink.2
+--- 0
+k......k
+.k....k
+k......k

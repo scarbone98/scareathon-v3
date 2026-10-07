@@ -1,0 +1,22 @@
+# It blinks, now and then
+at: 21,43
+legend:
+  s = steel.2
+  t = steel.3
+  d = steel.1
+  k = ink.0
+--- 0
+.stss
+skssks
+ssssss
+dddddd
+--- 4
+.stss
+ssssss
+ssssss
+dddddd
+--- 5
+.stss
+skssks
+ssssss
+dddddd

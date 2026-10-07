@@ -1,0 +1,10 @@
+# Polished
+at: 12,44
+legend:
+  a = dye1.2
+  h = dye1.3
+  d = dye1.1
+--- 0
+.....a.
+.a...ah
+ha

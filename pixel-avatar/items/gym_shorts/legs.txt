@@ -1,0 +1,7 @@
+# Gym Shorts
+at: 13,41
+legend:
+  m = dye1.2
+  w = bone.3
+--- 0
+w...w

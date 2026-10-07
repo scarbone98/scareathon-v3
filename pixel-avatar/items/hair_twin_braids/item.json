@@ -1,0 +1,18 @@
+{
+  "name": "Twin Braids",
+  "category": "hair",
+  "rarity": "common",
+  "price": 50,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "hair",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

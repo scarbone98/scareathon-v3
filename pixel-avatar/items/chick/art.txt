@@ -1,0 +1,31 @@
+# It hops
+at: 22,42
+legend:
+  y = mustard.3
+  d = mustard.2
+  k = ink.0
+  o = pumpkin.2
+--- 0
+.
+.yy
+yyko
+yydy
+.o.o
+--- 2
+.yy
+yyko
+yydy
+.o.o
+.
+--- 3
+.yy
+yyko
+yydy
+.o.o
+.
+--- 4
+.
+.yy
+yyko
+yydy
+.o.o

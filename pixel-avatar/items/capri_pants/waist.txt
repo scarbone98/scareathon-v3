@@ -1,0 +1,8 @@
+# Cut off at the calf
+at: 12,39
+legend:
+  m = dye1.2
+  h = dye1.3
+--- 0
+m.mmmmm
+.mmmmm

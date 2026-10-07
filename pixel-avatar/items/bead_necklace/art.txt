@@ -1,0 +1,9 @@
+# A string of beads
+at: 13,33
+legend:
+  a = dye1.2
+  h = dye1.3
+--- 0
+a...a
+.h.h
+..a

@@ -1,0 +1,19 @@
+{
+  "name": "Apron",
+  "category": "outer",
+  "rarity": "common",
+  "price": 70,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "cloud"
+  },
+  "parts": [
+    {
+      "slot": "outer",
+      "file": "art.txt"
+    }
+  ]
+}

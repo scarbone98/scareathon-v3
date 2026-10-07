@@ -2,7 +2,7 @@
   "name": "Pumpkin Pal",
   "category": "companion",
   "rarity": "legendary",
-  "price": 450,
+  "price": 900,
   "release": "released",
   "dyes": {},
   "parts": [{ "slot": "companion", "png": "pumpkin.png", "frameWidth": 16, "at": [16, 32], "anchor": "free" }]

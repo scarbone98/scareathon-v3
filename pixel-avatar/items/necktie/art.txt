@@ -1,0 +1,12 @@
+# Knotted, hanging straight
+at: 14,33
+legend:
+  a = dye1.2
+  h = dye1.3
+  d = dye1.1
+--- 0
+aaa
+.a
+.h
+.a
+.d

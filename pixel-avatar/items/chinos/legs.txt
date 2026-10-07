@@ -1,0 +1,10 @@
+# Chinos
+at: 13,41
+legend:
+  m = dye1.2
+  k = ink.1
+  c = dye1.1
+--- 0
+m...m
+m...m
+c...c

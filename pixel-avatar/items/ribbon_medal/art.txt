@@ -1,0 +1,13 @@
+# For taking part
+at: 13,33
+legend:
+  r = blood.3
+  b = ocean.3
+  g = gold.2
+  y = gold.3
+--- 0
+r...b
+.r.b
+..g
+.gyg
+..g

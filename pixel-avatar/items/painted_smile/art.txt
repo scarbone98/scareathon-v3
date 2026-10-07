@@ -1,0 +1,7 @@
+# Wide and red
+at: 14,31
+legend:
+  r = blood.2
+--- 0
+r...r
+.rrr

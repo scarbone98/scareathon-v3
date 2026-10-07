@@ -1,0 +1,34 @@
+# Cut from a box and taped on
+at: 6,29
+legend:
+  a = old_gold.2
+  d = old_gold.1
+  w = bone.3
+--- 0
+..aaa.........aaa..
+.adaaa.......aaada.
+aaadaw.......wadaaa
+.aaadw.......wdaaa.
+..aaaa.......aaaa..
+....aa.......aa....
+--- 2
+.adaaa.......aaada.
+aaadaw.......wadaaa
+.aaadw.......wdaaa.
+..aaaa.......aaaa..
+....aa.......aa....
+.
+--- 3
+.adaaa.......aaada.
+aaadaw.......wadaaa
+.aaadw.......wdaaa.
+..aaaa.......aaaa..
+....aa.......aa....
+.
+--- 4
+..aaa.........aaa..
+.adaaa.......aaada.
+aaadaw.......wadaaa
+.aaadw.......wdaaa.
+..aaaa.......aaaa..
+....aa.......aa....

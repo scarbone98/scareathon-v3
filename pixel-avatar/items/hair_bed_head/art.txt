@@ -1,0 +1,13 @@
+# Sticking up every which way
+at: 11,22
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+..a...a.a
+.aaaahaaa
+aaahhaaaaa
+aaaaaaaaaa
+abbbbbbbba
+a........b

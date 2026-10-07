@@ -1,0 +1,12 @@
+# On a cord
+at: 13,33
+legend:
+  k = ink.2
+  s = steel.3
+  t = steel.2
+--- 0
+k...k
+.k.k
+..k
+.ss
+.st

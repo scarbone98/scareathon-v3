@@ -1,0 +1,15 @@
+{
+  "name": "Confetti",
+  "category": "aura",
+  "rarity": "common",
+  "price": 130,
+  "release": "released",
+  "dyes": {},
+  "parts": [
+    {
+      "slot": "front_fx",
+      "file": "art.txt",
+      "anchor": "free"
+    }
+  ]
+}

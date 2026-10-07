@@ -1,0 +1,34 @@
+# Two big leaves
+at: 6,29
+legend:
+  a = leaf.2
+  h = leaf.3
+  d = leaf.1
+--- 0
+..aaa.........aaa..
+.aaaaa.......aaaaa.
+ahhhhd.......dhhhha
+.aaaaa.......aaaaa.
+..adaa.......aada..
+....aa.......aa....
+--- 2
+.aaaaa.......aaaaa.
+ahhhhd.......dhhhha
+.aaaaa.......aaaaa.
+..adaa.......aada..
+....aa.......aa....
+.
+--- 3
+.aaaaa.......aaaaa.
+ahhhhd.......dhhhha
+.aaaaa.......aaaaa.
+..adaa.......aada..
+....aa.......aa....
+.
+--- 4
+..aaa.........aaa..
+.aaaaa.......aaaaa.
+ahhhhd.......dhhhha
+.aaaaa.......aaaaa.
+..adaa.......aada..
+....aa.......aa....

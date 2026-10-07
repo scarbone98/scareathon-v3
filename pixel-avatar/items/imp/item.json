@@ -2,7 +2,7 @@
   "name": "Imp",
   "category": "companion",
   "rarity": "epic",
-  "price": 360,
+  "price": 720,
   "release": "released",
   "dyes": {},
   "parts": [{ "slot": "companion", "png": "imp.png", "frameWidth": 16, "at": [16, 32], "anchor": "free" }]

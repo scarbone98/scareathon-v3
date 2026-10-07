@@ -1,0 +1,23 @@
+# It trundles back and forth
+at: 21,45
+legend:
+  r = blood.2
+  k = ink.0
+--- 0
+.rkrk
+krrrr
+--- 1
+..rkrk
+.krrrr
+--- 2
+...rkrk
+..krrrr
+--- 3
+...rkrk
+..krrrr
+--- 4
+..rkrk
+.krrrr
+--- 5
+.rkrk
+krrrr

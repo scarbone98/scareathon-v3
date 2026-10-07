@@ -1,0 +1,13 @@
+# A gold star on the front
+at: 12,34
+legend:
+  a = dye1.2
+  h = dye1.3
+  d = dye1.1
+  y = gold.3
+--- 0
+.aaaaa.
+aaayaaa
+aayyyad
+a.ayaad
+..daaad

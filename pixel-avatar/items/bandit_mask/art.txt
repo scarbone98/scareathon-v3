@@ -1,0 +1,11 @@
+# A black strip with two eye holes
+at: 12,28
+legend:
+  k = ink.3
+  j = ink.2
+--- 0
+.jjjjjj
+kkk.kk.k
+kkk.kk.k
+kkk.kk.k
+.kkkkkk

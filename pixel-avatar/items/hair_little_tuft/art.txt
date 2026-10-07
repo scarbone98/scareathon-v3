@@ -1,0 +1,12 @@
+# Just the one
+at: 13,22
+legend:
+  a = hair.2
+  b = hair.1
+  h = hair.3
+--- 0
+..a
+.aha
+.aab
+aaaaa
+abbba

@@ -1,0 +1,20 @@
+{
+  "name": "Jelly Shoes",
+  "category": "feet",
+  "rarity": "common",
+  "price": 40,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "teal"
+  },
+  "parts": [
+    {
+      "slot": "feet",
+      "file": "art.txt",
+      "anchor": "ground"
+    }
+  ]
+}

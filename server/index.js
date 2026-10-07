@@ -158,6 +158,8 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261010_capsule_items.sql', import.meta.url), 'utf8')); // fifty hats and held things for the capsule machine
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261010_capsule_machine.sql', import.meta.url), 'utf8')); // and the machine itself
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261011_capsule_commons.sql', import.meta.url), 'utf8')); // ten more commons for it
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261011_shop_commons.sql', import.meta.url), 'utf8')); // five more commons in every other category
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261011_pets_cost_more.sql', import.meta.url), 'utf8')); // pets cost twice as much
             } catch (err) {
                 // The rest of the site still works; only the Scareboard and the runes need these
                 fastify.log.error({ err }, 'Could not create the Scareathon tables');

@@ -1,0 +1,20 @@
+{
+  "name": "Swim Goggles",
+  "category": "face_acc",
+  "rarity": "common",
+  "price": 60,
+  "release": "released",
+  "fits": [
+    "body_kid"
+  ],
+  "dyes": {
+    "dye1": "ocean"
+  },
+  "parts": [
+    {
+      "slot": "face_acc",
+      "file": "art.txt",
+      "anchor": "head"
+    }
+  ]
+}

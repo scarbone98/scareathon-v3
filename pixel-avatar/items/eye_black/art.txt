@@ -1,0 +1,6 @@
+# A smear under each eye
+at: 14,32
+legend:
+  k = ink.1
+--- 0
+kk.kk

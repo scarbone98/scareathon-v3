@@ -1,0 +1,16 @@
+# Its middle
+at: 8,34
+legend:
+  b = bark.3
+  d = bark.2
+  h = old_gold.2
+  k = ink.0
+  w = bone.3
+  r = blood.3
+  g = leaf.3
+--- 0
+.....bbbbb......
+....bbbrbbd.....
+....wbbbbbw.....
+....b.bgbbd.....
+......bbbbd.....

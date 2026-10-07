@@ -1,0 +1,10 @@
+# Cuffed Jeans
+at: 13,41
+legend:
+  m = dye1.2
+  w = bone.3
+  c = dye1.1
+--- 0
+m...m
+m...m
+w...w

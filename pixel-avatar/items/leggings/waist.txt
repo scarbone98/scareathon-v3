@@ -1,0 +1,9 @@
+# Snug to the ankle
+at: 12,39
+legend:
+  m = dye1.2
+  h = dye1.3
+  c = dye1.1
+--- 0
+h.hhhhh
+.mmmmm

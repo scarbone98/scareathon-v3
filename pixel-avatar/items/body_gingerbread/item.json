@@ -1,0 +1,53 @@
+{
+  "name": "Gingerbread",
+  "category": "body",
+  "rarity": "common",
+  "price": 150,
+  "release": "released",
+  "dyes": {},
+  "rig": {
+    "frames": 6,
+    "fps": 6,
+    "anchors": {
+      "head": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "body": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "ground": 0
+    }
+  },
+  "parts": [
+    {
+      "slot": "shadow",
+      "file": "shadow.txt",
+      "anchor": "ground"
+    },
+    {
+      "slot": "body",
+      "file": "legs.txt",
+      "anchor": "ground"
+    },
+    {
+      "slot": "body",
+      "file": "torso.txt",
+      "anchor": "body"
+    },
+    {
+      "slot": "body",
+      "file": "head.txt",
+      "anchor": "head"
+    }
+  ]
+}

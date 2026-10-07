@@ -1,0 +1,14 @@
+# It inches along
+at: 21,45
+legend:
+  p = rose.2
+  d = rose.1
+--- 0
+.pp
+pp.ppd
+--- 2
+..pp
+ppp.pd
+--- 4
+.pp
+pp.ppd

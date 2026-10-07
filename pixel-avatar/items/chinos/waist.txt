@@ -1,0 +1,9 @@
+# Pressed, with a belt
+at: 12,39
+legend:
+  m = dye1.2
+  k = ink.1
+  c = dye1.1
+--- 0
+k.kkkkk
+.mmmmm
