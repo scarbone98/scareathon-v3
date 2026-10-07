@@ -114,7 +114,9 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=b34b0f5";
-const POCKET_AQUARIUM_URL = "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
+// A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
+const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=88497c3";
+const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
 // with the night's candy total at midnight; asks for the session (unityReady) to name the
@@ -1398,6 +1400,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Denver Vs The Universe"
           url={DENVER_VS_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed OUTSIDE into WaysideOS.
+    // Nothing to score: a boy, a foggy wood and a test course.
+    {
+      name: "Outside",
+      added: "2026-10-07T15:00:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#9c2a22",
+        tagline: "A boy in a red shirt. Fog. Keep running.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Platformer", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Outside"
+          url={OUTSIDE_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
