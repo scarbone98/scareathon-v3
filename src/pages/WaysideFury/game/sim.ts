@@ -1,3 +1,6 @@
+import { tickArena, type ArenaRuntime, type ArenaPersonal } from "../u1/hub/arena.ts";
+import type { ArenaRunReceipt } from "../../../../server/shared/waysideFury/u1Arena.js";
+import { ARENA_HUB_POINT } from "../u1/hub/arenaWorld.ts";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -5,7 +8,7 @@ export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
 // Pure deterministic game rules. Maps use world coordinates; presentation owns the viewport.
-export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
+export type Scene = "arena" | "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
   guard: boolean; swap: boolean; interact: boolean;
@@ -52,6 +55,7 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | { type: "arena-finish"; receipt: ArenaRunReceipt; score: number }
   | CoopHit
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
@@ -67,7 +71,7 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "arena" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
@@ -76,6 +80,8 @@ export interface GameState {
   previousInput: Input; rngSeed: number; nextId: number;
   coop?: CoopRuntime;
   coopRewards?: string[];
+  arena?: ArenaRuntime; hubArena?: ArenaPersonal;
+  arenaVitals?: Record<HeroId, HeroState>; arenaRecorded?: string;
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -93,7 +99,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 // Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
 // continually create fresh enemies and their rewards.
 function extraCoopSpawns(s: GameState) {
-  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
+  if (s.scene === "arena" || s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
   const world = getWorld(s.scene, s.room), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
@@ -300,7 +306,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
     const xp = e.kind === "boss" ? e.miniBoss ? 95 : 130 : e.kind === "shooter" ? 35 : 28;
-    if (!s.coop) {
+    if (!s.coop && s.scene !== "arena") {
       const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
       s.candy += candy; s.kills++;
       floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
@@ -647,7 +653,7 @@ export function interactTarget(s: GameState): { id: string; name: string; locked
     const door = availableExit(s);
     return door ? { id: door.id, name: door.name } : null;
   }
-  const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
+  const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? [...HUB_POINTS, ARENA_HUB_POINT] : [];
   return points.find(p => Math.hypot(s.x - p.x, s.y - p.y) < 28) ?? null;
 }
 function travel(s: GameState, door: WorldExit) {
@@ -689,6 +695,7 @@ export function interact(s: GameState): void {
     enterScene(s, target.id === "wayside" ? "hub" : "dungeon");
     s.previousInput.interact = true; return;
   }
+  if (target.id === "u5-arena") { s.overlay = "arena"; s.moving = false; s.vx = s.vy = 0; return; }
   if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return; }
   const dialogue: Record<string, string> = {
@@ -750,6 +757,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     }
     return;
   }
+  if (s.scene === "dead") tickArena(s, 0);
   if (s.scene === "dead" || s.scene === "results") return;
   updateCoopRevives(s, input, dt);
   if (checkCoopWipe(s)) return;
@@ -761,7 +769,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
   s.previousInput = { ...input };
-  const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
+  const combat = s.scene === "arena" || s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
@@ -816,6 +824,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.coop?.role === "guest") return;
   if (checkCoopWipe(s)) return;
   s.enemies = s.enemies.filter(e => e.hp > 0);
+  tickArena(s, dt);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";
   if (hadEnemies && s.enemies.length === 0 && s.scene === "dungeon") {
     const id = `blast-${s.room}`;

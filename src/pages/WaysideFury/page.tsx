@@ -1,3 +1,7 @@
+import { ArenaHud, ArenaPanel } from "./u1/hub/ArenaPanel";
+import { startArena, finishArena } from "./u1/hub/arena";
+import { arenaGame } from "../../../server/shared/waysideFury/u1Arena.js";
+import { submitArcadeScore } from "../Arcade/games";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
@@ -210,6 +214,13 @@ export default function WaysideFury() {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
+        if (event.type === "arena-finish") {
+          const store = storeRef.current;
+          const next = makeSave(s, store?.save ?? null);
+          if (next && store?.ready) store.persist({ ...next, settings: settingsRef.current });
+          void submitArcadeScore(arenaGame(event.receipt.mode), event.score, { arenaRun: event.receipt });
+          return;
+        }
         if (event.type !== "checkpoint" && event.type !== "death") return;
         const store = storeRef.current;
         if (!store?.ready) return;
@@ -396,6 +407,8 @@ export default function WaysideFury() {
         {noticeVisible && state.notice && !state.overlay && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
         {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
+      <ArenaHud state={state} onRetire={() => controller.current?.mutate(s => { finishArena(s); })} />
+      {state.overlay === "arena" && <ArenaPanel state={state} onStart={() => controller.current?.mutate(s => { startArena(s); })} onBack={() => controller.current?.mutate(s => { s.overlay = null; })} />}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) { controller.current?.itemGet(); persist(s); } })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave shop</button></div>}

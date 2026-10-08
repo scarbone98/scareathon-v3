@@ -1,7 +1,7 @@
 export const MAX_MESSAGE_BYTES = 65_536;
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
-export const SCENES = new Set(['test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
+export const SCENES = new Set(['arena', 'test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
 const HERO_IDS = new Set(['you', 'joe', 'matt', 'alex', 'jon']);
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const number = (value, limit = 1e8) => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
@@ -106,6 +106,13 @@ export function cleanWorld(state) {
         if (projectile.hero !== undefined && !HERO_IDS.has(projectile.hero)) return null;
         for (const key of ['radius', 'damage', 'ttl']) if (!number(projectile[key], 1e6)) return null;
         if (projectile.radius <= 0 || projectile.damage < 0) return null;
+    }
+    if (state.arena !== undefined) {
+        const run = state.arena;
+        if (!object(run) || !text(run.id, 128) || !['running', 'finished'].includes(run.status) || !['solo', 'coop'].includes(run.mode)) return null;
+        if (!integer(run.players, 4) || run.players < 1 || !integer(run.wave, 10001) || run.wave < 1 || !integer(run.wavesCleared, 10000) || !integer(run.kills, 180018)) return null;
+        if (!number(run.elapsedMs, 604800000) || run.elapsedMs < 0 || !number(run.intermission, 3) || run.intermission < 0 || typeof run.spawned !== 'boolean' || !text(run.modifier, 40)) return null;
+        if (run.reason !== null && !['retired', 'defeated'].includes(run.reason)) return null;
     }
     return state;
 }

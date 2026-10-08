@@ -28,15 +28,17 @@ export function readSave(key = SAVE_KEY): SaveData | null {
 // Building a snapshot is separate from device storage: a full or blocked device
 // can still save to the account. The legacy writer keeps its failure contract.
 export function makeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
+  const personalHeroes = s.arenaVitals ?? s.heroes;
   const heroes = s.coop?.syncedLevel !== undefined ? Object.fromEntries(HERO_IDS.map(id => {
-    const current = s.heroes[id], personal = createHero(id, s.character, s.gear);
+    const current = personalHeroes[id], personal = createHero(id, s.character, s.gear);
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
-  })) : s.heroes;
+  })) : personalHeroes;
   return parseSave({
     version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
+    u1: { ...previous?.u1, hub: { ...previous?.u1?.hub, arena: s.hubArena ?? previous?.u1?.hub?.arena } },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
@@ -59,6 +61,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
     s.coopRewards = [...(saved.coopRewards ?? [])];
+    s.hubArena = saved.u1?.hub ? { ...saved.u1.hub.arena } : undefined;
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }
     if (s.heroes[s.active].hp <= 0) {

@@ -2,6 +2,8 @@ import pool from '../db/mockDB.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
 import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
+import { isArenaGame } from '../shared/waysideFury/u1Arena.js';
+import { validateArenaScoreSubmission } from '../wayside-fury/arenaScore.js';
 
 const SCORE_SUBMISSION_LIMIT_PER_MINUTE = 20;
 const GAME_LEADERBOARD_TTL = 60 * 1000;
@@ -57,7 +59,7 @@ export function calculateRuleAward(rule, metricValue) {
     return Math.max(0, award);
 }
 
-export function validateScoreSubmission({ game, metricName, metricValue }) {
+export function validateScoreSubmission({ game, metricName, metricValue, arenaRun }) {
     if (!game || !metricName || !Number.isFinite(metricValue)) {
         return {
             ok: false,
@@ -93,7 +95,7 @@ export function validateScoreSubmission({ game, metricName, metricValue }) {
         };
     }
 
-    return { ok: true };
+    return isArenaGame(game) ? validateArenaScoreSubmission({ game, metricValue, arenaRun }) : { ok: true };
 }
 
 function getGameLeaderboardCacheKey(game, metric, limit) {
@@ -210,15 +212,16 @@ async function routes(fastify, options) {
     });
 
     fastify.post('/submitScore', async (request, reply) => {
-        const client = await pool.connect();
+        const client = await (options?.db ?? pool).connect();
         try {
             const userId = request.user.sub;
-            const { game, metricName, metricValue } = request.body;
+            const { game, metricName, metricValue, arenaRun } = request.body;
             const numericMetricValue = Number(metricValue);
             const validation = validateScoreSubmission({
                 game,
                 metricName,
                 metricValue: numericMetricValue,
+                arenaRun,
             });
 
             if (!validation.ok) {
@@ -257,7 +260,7 @@ async function routes(fastify, options) {
             `, [gameId, userId, metricName, numericMetricValue]);
 
             const scoreRow = result.rows[0];
-            const rewardRulesResult = await client.query(`
+            const rewardRulesResult = isArenaGame(game) ? { rows: [] } : await client.query(`
                 SELECT id, reward_type, fixed_amount, multiplier, min_metric_value, max_reward
                 FROM arcade_reward_rules
                 WHERE game_id = $1
@@ -273,7 +276,7 @@ async function routes(fastify, options) {
 
             let coinBalance = null;
             // No rules of its own: the standard tickets for a run (fewer once they've had a day's worth)
-            if (rewardRulesResult.rows.length === 0 && numericMetricValue > 0) {
+            if (!isArenaGame(game) && rewardRulesResult.rows.length === 0 && numericMetricValue > 0) {
                 // One run at a time per player, so two at once are paid on the same day's count in turn
                 await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${PLAY_TICKETS_SOURCE}:${userId}`]);
                 const paidTodayResult = await client.query(`
@@ -317,26 +320,28 @@ async function routes(fastify, options) {
             }
 
             let weeklyChallengeRewards = [];
-            // Savepoint so a failed challenge payout can't abort the transaction and drop the score
-            await client.query('SAVEPOINT weekly_challenge_reward');
-            try {
-                weeklyChallengeRewards = await awardEligibleWeeklyChallengeRewards(client, userId, {
-                    game,
-                    metricName,
-                    metricValue: numericMetricValue,
-                    leaderboardId: scoreRow.id,
-                });
-                await client.query('RELEASE SAVEPOINT weekly_challenge_reward');
-                const latestWeeklyChallengeBalance = weeklyChallengeRewards
-                    .filter((reward) => reward.coinBalance !== null && reward.coinBalance !== undefined)
-                    .at(-1)?.coinBalance;
-                if (latestWeeklyChallengeBalance !== undefined) {
-                    coinBalance = latestWeeklyChallengeBalance;
+            if (!isArenaGame(game)) {
+                // Savepoint so a failed challenge payout can't abort the transaction and drop the score
+                await client.query('SAVEPOINT weekly_challenge_reward');
+                try {
+                    weeklyChallengeRewards = await awardEligibleWeeklyChallengeRewards(client, userId, {
+                        game,
+                        metricName,
+                        metricValue: numericMetricValue,
+                        leaderboardId: scoreRow.id,
+                    });
+                    await client.query('RELEASE SAVEPOINT weekly_challenge_reward');
+                    const latestWeeklyChallengeBalance = weeklyChallengeRewards
+                        .filter((reward) => reward.coinBalance !== null && reward.coinBalance !== undefined)
+                        .at(-1)?.coinBalance;
+                    if (latestWeeklyChallengeBalance !== undefined) {
+                        coinBalance = latestWeeklyChallengeBalance;
+                    }
+                } catch (error) {
+                    await client.query('ROLLBACK TO SAVEPOINT weekly_challenge_reward').catch(() => {});
+                    weeklyChallengeRewards = [];
+                    fastify.log.warn({ err: error }, 'Unable to evaluate weekly challenge rewards');
                 }
-            } catch (error) {
-                await client.query('ROLLBACK TO SAVEPOINT weekly_challenge_reward').catch(() => {});
-                weeklyChallengeRewards = [];
-                fastify.log.warn({ err: error }, 'Unable to evaluate weekly challenge rewards');
             }
 
             await client.query('COMMIT');

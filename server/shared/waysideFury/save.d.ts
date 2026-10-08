@@ -1,3 +1,4 @@
+import type { HubSave } from "./u1Hub.js";
 import type { HeroState } from "../../../src/pages/WaysideFury/game/sim";
 export type HeroId = "you" | "joe" | "matt" | "alex" | "jon";
 export interface CharacterProgress { level: number; xp: number }
@@ -16,6 +17,7 @@ export interface SaveData {
   candy: number; unlockedHeroes: HeroId[]; areas: string[]; bosses: string[]; clearedRooms: string[];
   kills: number; deaths: number; lastReported: ProgressReceipt; home: HomeSnapshot | null;
   coopRewards?: string[];
+  u1?: Record<string, unknown> & { hub?: HubSave };
   gear: Gear; character: CharacterProgress; settings: SaveSettings; savedAt: number;
 }
 export const SAVE_VERSION: 3;

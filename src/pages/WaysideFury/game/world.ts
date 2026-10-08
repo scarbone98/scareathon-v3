@@ -1,3 +1,4 @@
+import { ARENA_WORLD, ARENA_HUB_BUILDING } from "../u1/hub/arenaWorld.ts";
 // Terrain uses tile collision; props use precise base rectangles. Positions are world pixels.
 export const TILE = 16;
 export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | "ash" | "void" | "bridge" | "corrupt";
@@ -157,6 +158,7 @@ export const HUB_WORLD = (() => {
   prop(m, "npc", 816, 384, 16, 24, "Jon"); prop(m, "npc", 336, 224, 16, 24, "Alex");
   prop(m, "car", 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
+  m.props.push(ARENA_HUB_BUILDING);
   m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
 
@@ -246,7 +248,7 @@ export const TEST_WORLD = (() => {
   m.spawn = { x: 75, y: 110 }; return m;
 })();
 export function getWorld(scene: string, room = 0): WorldMap {
-  return scene === "overworld" ? OVERWORLD : scene === "hub" ? HUB_WORLD : scene === "dungeon" ? BLAST_WORLDS[room] ?? BLAST_WORLDS[0] : scene === "realm" ? REALM_WORLD : TEST_WORLD;
+  return scene === "arena" ? ARENA_WORLD : scene === "overworld" ? OVERWORLD : scene === "hub" ? HUB_WORLD : scene === "dungeon" ? BLAST_WORLDS[room] ?? BLAST_WORLDS[0] : scene === "realm" ? REALM_WORLD : TEST_WORLD;
 }
 export function tileAt(m: WorldMap, col: number, row: number): TileKind {
   if (col < 0 || row < 0 || col >= m.cols || row >= m.rows) return "void";

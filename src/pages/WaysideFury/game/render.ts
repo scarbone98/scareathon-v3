@@ -1,3 +1,4 @@
+import { drawArenaFloor } from "../u1/hub/arenaArt";
 // The renderer only reads simulation state. World units are independent of pixels.
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
@@ -209,6 +210,7 @@ export class Renderer {
     c.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
+    drawArenaFloor(c, s);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);

@@ -1,3 +1,5 @@
+import { ARENA_COOP_GAME, ARENA_MAX_SCORE, ARENA_SOLO_GAME } from '../shared/waysideFury/u1Arena.js';
+
 // What a saved score may look like for each arcade game: /games/submitScore
 // rejects anything else, and generated weekly challenges only set targets
 // inside these limits.
@@ -59,6 +61,9 @@ export const GAME_SCORE_POLICIES = new Map([
         score: { min: 0, max: 100000, integer: true },
         tickets: { from: 0, full: 1000 },
     }],
+    // Tournament runs have separate solo/co-op boards and never dispense tickets.
+    [ARENA_SOLO_GAME, { score: { min: 0, max: ARENA_MAX_SCORE, integer: true } }],
+    [ARENA_COOP_GAME, { score: { min: 0, max: ARENA_MAX_SCORE, integer: true } }],
     // Even a quick loss scores around 11000.
     ['Frog Ball', {
         score: { min: 0, max: 10000000, integer: true },

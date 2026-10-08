@@ -1,3 +1,4 @@
+import { prepareArenaPlayer, recordArenaResult } from "../u1/hub/arena";
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world";
 import { fetchWithAuth } from "../../../fetchWithAuth";
@@ -17,7 +18,7 @@ export interface CoopReward {
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y"> & { spawnedExtras?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y"> & { spawnedExtras?: number; arena?: GameState["arena"] };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room, time: s.time, palette: s.palette,
@@ -25,7 +26,7 @@ const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
   enemies: s.enemies.map(e => ({ ...e, hp: Math.max(0, e.hp) })), projectiles: s.projectiles.filter(p => p.owner === "enemy"), clearedRooms: [...new Set([...s.clearedRooms, ...(s.coop?.worldClearedRooms ?? [])])],
-  areas: s.areas, bosses: s.bosses, chapter: s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
+  areas: s.areas, bosses: s.bosses, chapter: s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y, spawnedExtras: s.coop?.spawnedExtras ?? 0, ...(s.arena ? { arena: { ...s.arena } } : {}) });
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.
 // A 100ms playout buffer brackets both enemies and remote heroes at 20Hz.
@@ -130,10 +131,10 @@ export class FuryCoop {
     if (!this.room) return;
     // Websocket ordering caches the post-kill/clear world before distributing
     // rewards. A promoted host therefore cannot resurrect an already-paid kill.
-    if (this.isHost && (event.type === "kill" || event.type === "checkpoint") && this.rewardSnapshotAt !== s.time) {
+    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "arena-finish") && this.rewardSnapshotAt !== s.time) {
       this.send({ type: "state", state: worldState(s) }); this.rewardSnapshotAt = s.time;
     }
-    if (this.isHost && event.type === "kill") {
+    if (this.isHost && event.type === "kill" && s.scene !== "arena") {
       const id = `${this.clientId}:kill:${event.enemyId}`;
       for (const player of this.room.players.filter(p => p.connected)) {
         const reward: CoopReward = { id, kind: "kill", xp: event.xp, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
@@ -166,8 +167,10 @@ export class FuryCoop {
     if (s.coop?.role === "guest" && role === "host" && this.latestWorld) {
       const w = this.latestWorld;
       if (s.coop) s.coop.worldClearedRooms = [...w.clearedRooms];
-      if (s.scene !== w.scene || s.room !== w.room) { enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
+      if (s.scene !== w.scene || s.room !== w.room) { if (w.scene === "arena") prepareArenaPlayer(s); enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer });
+      s.arena = w.arena ? { ...w.arena } : undefined;
+      if (s.arena?.status === "finished" && s.arenaVitals) { this.damages.length = 0; this.revived = false; recordArenaResult(s); s.overlay = "arena"; }
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);
@@ -185,9 +188,11 @@ export class FuryCoop {
       const blend = buffered(this.worlds, now);
       if (blend) {
         const { a, b, alpha } = blend;
-        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
+        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "arena") prepareArenaPlayer(s); if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer });
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && a.scene === b.scene && a.room === b.room ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
+        s.arena = b.arena ? { ...b.arena } : undefined;
+        if (s.arena?.status === "finished" && s.arenaVitals && s.arenaRecorded !== s.arena.id) { this.damages.length = 0; this.revived = false; recordArenaResult(s); if (s.scene === "hub") s.overlay = "arena"; }
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];
       }
