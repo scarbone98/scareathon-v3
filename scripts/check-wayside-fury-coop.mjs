@@ -4,9 +4,11 @@ import { pathToFileURL } from 'node:url';
 import { startFuryTestServer } from './fury-coop-test-server.mjs';
 const base = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5185';
 const modulePath = process.env.PLAYWRIGHT_MODULE ?? 'playwright';
-const { chromium } = await import(modulePath.startsWith('/') ? pathToFileURL(modulePath).href : modulePath);
+const playwright = await import(modulePath.startsWith('/') ? pathToFileURL(modulePath).href : modulePath);
+const browserName = process.env.PLAYWRIGHT_BROWSER ?? 'chromium';
+assert.ok(['chromium', 'webkit', 'firefox'].includes(browserName), `Unsupported browser: ${browserName}`);
 const fixture = await startFuryTestServer(Number(process.env.FURY_TEST_PORT ?? 3000));
-const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
+const browser = await playwright[browserName].launch({ headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
 const errors = [];
 const session = id => {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -21,6 +23,21 @@ async function player(id) {
     localStorage.setItem('wayside-fury-controls-dismissed', '1');
   }, { value: session(id) });
   await context.route('https://**/*', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  // Keep synthetic portrait storage local, including WebKit's upload preflight.
+  await context.route('http://wayside-fury-local.test/**', async route => {
+    const request = route.request();
+    const headers = { 'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET, HEAD, POST, PUT, OPTIONS',
+      'access-control-allow-headers': request.headers()['access-control-request-headers'] ?? '*' };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const key = new URL(request.url()).pathname.match(/^\/storage\/v1\/object\/(?:public\/)?avatar-composites\/([^/]+\.png)$/)?.[1];
+    if (key && ['POST', 'PUT'].includes(request.method())) {
+      // Native WebKit omits Blob bytes from intercepted multipart requests.
+      // The game still composes both real account looks from /user/avatar.
+      return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ Key: `avatar-composites/${key}` }) });
+    }
+    return route.fulfill({ status: 404, headers, contentType: 'application/json', body: '{}' });
+  });
   const page = await context.newPage();
   page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message); });
   page.on('request', request => { if (request.url().includes('/wayside-fury/save')) console.log('SAVE REQUEST', request.method()); });
@@ -144,6 +161,12 @@ try {
     await host.page.setViewportSize({ width, height });
     await game(host.page, () => window.__waysideFury.setTouch({}));
     await host.page.waitForTimeout(250);
+    await host.page.waitForFunction(({ width, height }) => {
+      const pause = document.querySelector('.wf-pause')?.getBoundingClientRect();
+      const canvas = document.querySelector('.wf-stage canvas');
+      return window.innerWidth === width && window.innerHeight === height && pause?.right <= width + 1
+        && canvas && Math.abs(canvas.width - canvas.clientWidth * Number(canvas.dataset.renderDpr)) <= 2;
+    }, { width, height });
     const layout = await game(host.page, () => {
       const rect = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
       const canvas = document.querySelector('.wf-stage canvas');
