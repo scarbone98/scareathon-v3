@@ -13,6 +13,8 @@ import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
+import { getHeroObstacleTarget } from "./game/u1/world/obstacles";
+import "./game/u1/world/world.css";
 import "./style.css";
 const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
 const SAVE_LABELS: Record<SaveStatus, string> = { loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" };
@@ -94,7 +96,7 @@ function Stick({ send, sensitivity }: { send: (input: Partial<Input>) => void; s
     </span>
   </div>;
 }
-function TouchButton({ action, label, send }: { action: keyof Input; label: string; send: (input: Partial<Input>) => void }) {
+function TouchButton({ action, label, send, glyph }: { action: keyof Input; label: string; glyph?: string; send: (input: Partial<Input>) => void }) {
   const pointer = useRef<number | null>(null);
   const [held, setHeld] = useState(false);
   const release = (e: PointerEvent<HTMLButtonElement>) => {
@@ -104,7 +106,7 @@ function TouchButton({ action, label, send }: { action: keyof Input; label: stri
   return <button className={`wf-touch-btn wf-${action} ${held ? "wf-held" : ""}`} aria-label={label} aria-pressed={held} onPointerDown={e => {
     e.preventDefault(); if (pointer.current !== null) return;
     pointer.current = e.pointerId; setHeld(true); e.currentTarget.setPointerCapture(e.pointerId); send({ [action]: true });
-  }} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}><ActionIcon action={action} /></button>;
+  }} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}>{glyph ? <span className="wf-obstacle-action" aria-hidden="true">{glyph}</span> : <ActionIcon action={action} />}</button>;
 }
 function Meter({ value, max, kind, children }: { value: number; max: number; kind: string; children?: ReactNode }) {
   const width = `${Math.max(0, Math.min(100, value / max * 100))}%`;
@@ -210,7 +212,7 @@ export default function WaysideFury() {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
-        if (event.type !== "checkpoint" && event.type !== "death") return;
+        if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "obstacle-cleared") return;
         const store = storeRef.current;
         if (!store?.ready) return;
         const report = progressReport(s, store.save?.lastReported);
@@ -360,6 +362,8 @@ export default function WaysideFury() {
     const timer = window.setTimeout(() => { if (epoch === accountEpochRef.current) dismissTutorialRef.current(); }, 7000);
     return () => window.clearTimeout(timer);
   }, [showTutorial, accountEpoch]);
+  const obstacleAction = getHeroObstacleTarget(state);
+  const showObstacleAction = obstacleAction && !state.enemies.some(e => e.hp > 0 && Math.hypot(e.x - state.x, e.y - state.y) < e.radius + 26);
   return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
     <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
@@ -404,7 +408,7 @@ export default function WaysideFury() {
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave home</button></div>}
       {touchControls && !coopOpen && <div className="wf-touch-dock"><Stick send={send} sensitivity={settings.controls.stickSensitivity} /><div className="wf-action-buttons">
         <TouchButton action="swap" label="Swap hero" send={send} /><TouchButton action="guard" label="Guard (hold)" send={send} />
-        <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label="Attack" send={send} />
+        <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label={showObstacleAction ? obstacleAction.label : "Attack"} glyph={showObstacleAction ? obstacleAction.glyph : undefined} send={send} />
       </div></div>}
       {state.scene === "prologue" && !paused && <>
         <button className="wf-skip wf-secondary" onClick={() => controller.current?.mutate(skipPrologue)}>Skip prologue</button>

@@ -1,4 +1,5 @@
 export const MAX_MESSAGE_BYTES = 65_536;
+import { WORLD_OBSTACLE_IDS } from '../shared/waysideFury/u1World.js';
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
 export const SCENES = new Set(['test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
@@ -88,6 +89,7 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
+    if (state.worldObstacles !== undefined && (!Array.isArray(state.worldObstacles) || state.worldObstacles.length > WORLD_OBSTACLE_IDS.length || !state.worldObstacles.every(id => WORLD_OBSTACLE_IDS.includes(id)))) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
@@ -142,6 +144,10 @@ export function cleanRelay(message) {
         case 'hit':
             if (!integer(message.enemyId) || !number(message.damage, 1e5) || message.damage <= 0 || !number(message.dx, 1) || !number(message.dy, 1) || !number(message.force, 1e5) || message.force < 0 || !text(message.attackId, 96) || !scene(message.scene) || !integer(message.room, 999)) return null;
             cleaned = Object.fromEntries(['type', 'enemyId', 'damage', 'dx', 'dy', 'force', 'attackId', 'scene', 'room'].map((key) => [key, message[key]]));
+            break;
+        case 'obstacle':
+            if (!WORLD_OBSTACLE_IDS.includes(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
+            cleaned = { type: 'obstacle', id: message.id, scene: message.scene, room: message.room };
             break;
         case 'reward': {
             const raw = message.reward;

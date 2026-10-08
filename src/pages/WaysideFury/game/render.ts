@@ -3,6 +3,8 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { obstaclesForState, isObstacleCleared } from "./u1/world/obstacles";
+import { drawHeroObstacle } from "./u1/world/obstacleRender";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -152,9 +154,14 @@ export class Renderer {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
+    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s, gate.id) && Math.hypot(s.x - gate.x - gate.w / 2, s.y - gate.y) < 90) add(gate.id, `${gate.glyph} ${gate.hero[0].toUpperCase() + gate.hero.slice(1)}`, gate.x + gate.w / 2, gate.y - 16, 'hub', '#f0daac');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(s: GameState, event: GameEvent) {
+    if (event.type === 'obstacle-cleared') {
+      this.shake = Math.max(this.shake, 3);
+      this.bursts.push({ x: event.x, y: event.y, color: ACCENT[event.hero], life: .48, maxLife: .48, seed: Math.round(event.x), strength: 30 });
+    }
     if (event.type === 'hit') {
       this.shake = Math.max(this.shake, Math.min(4, 1 + event.damage / 14));
       this.bursts.push({ x: event.x, y: event.y - 9, color: event.target === 'hero' ? '#ffab94' : ACCENT[s.active], life: .22, maxLife: .22, seed: Math.round(event.x + event.y), strength: Math.min(22, 10 + event.damage / 3) });
@@ -214,6 +221,7 @@ export class Renderer {
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
+    for (const gate of obstaclesForState(s)) if (this.visible(gate.x, gate.y, 110)) actors.push({ y: gate.y + gate.h, draw: () => drawHeroObstacle(c, gate, isObstacleCleared(s, gate.id), motionTime) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });

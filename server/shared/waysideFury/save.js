@@ -1,3 +1,4 @@
+import { sanitizeWorldSave } from "./u1World.js";
 // The browser and server share one bounded, versioned character sheet.
 // This is shape validation, not authoritative combat or economy simulation.
 export const SAVE_VERSION = 3;
@@ -157,6 +158,7 @@ export function sanitizeSave(raw) {
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
         coopRewards: coopRewards(raw.coopRewards),
+        u1: { world: sanitizeWorldSave(raw.u1?.world) },
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };
 }

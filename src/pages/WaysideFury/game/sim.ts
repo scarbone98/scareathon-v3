@@ -1,3 +1,5 @@
+import { obstacleBlocks, getHeroObstacleTarget, clearHeroObstacle, obstacleRewardAvailable, releaseBorrowedObstacles } from "./u1/world/obstacles.ts";
+import type { WorldSave } from "../../../../server/shared/waysideFury/u1World.js";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -20,7 +22,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  scene: Scene; room: number; attack?: boolean; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
@@ -28,6 +30,8 @@ export interface CoopRuntime {
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
   revivedUntil?: Record<number, number>;
   worldClearedRooms?: string[];
+  worldObstacles?: string[];
+  worldCycleSeconds?: number;
 }
 export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
@@ -37,6 +41,7 @@ export interface Enemy {
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
   baseMaxHp?: number;
+  nightAmbient?: boolean;
   speed: number; cooldown: number; hitTimer: number; kx: number; ky: number;
   miniBoss: boolean; phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
@@ -52,6 +57,8 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | { type: "obstacle-cleared"; id: string; x: number; y: number; hero: HeroId }
+  | { type: "obstacle-request"; id: string; hero: HeroId; x: number; y: number }
   | CoopHit
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
@@ -76,6 +83,8 @@ export interface GameState {
   previousInput: Input; rngSeed: number; nextId: number;
   coop?: CoopRuntime;
   coopRewards?: string[];
+  u1?: { world?: WorldSave };
+  nightWorld?: { window: string | null };
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -151,7 +160,7 @@ export function newGame(seed = 8591): GameState {
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
-    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [] };
+    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [], u1: { world: { clearedObstacles: [], cycleSeconds: 0 } } };
   enterScene(s, "test");
   return s;
 }
@@ -211,8 +220,8 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
   const world = getWorld(s.scene, s.room), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
-    if (!isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
-    if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
+    if (!isBlocked(world, body.x + dx / pieces, body.y, radius) && !obstacleBlocks(s, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
+    if (!isBlocked(world, body.x, body.y + dy / pieces, radius) && !obstacleBlocks(s, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
   }
 }
 // Relax overlaps without adding velocity: a bounded, time-scaled push settles
@@ -355,9 +364,10 @@ export function requestSwap(s: GameState): boolean {
 }
 export function exitCoop(s: GameState): void {
   if (!s.coop) return;
+  const borrowedObstacles = s.coop.worldObstacles ?? [];
   const players = coopCount(s); s.coop.playerCount = 1;
   for (const enemy of s.enemies) scaleEnemy(s, enemy, enemy.baseMaxHp ?? enemy.maxHp / enemyHpScale(enemy.kind, players));
-  delete s.coop; syncCoopLevel(s);
+  delete s.coop; releaseBorrowedObstacles(s, borrowedObstacles); syncCoopLevel(s);
   s.hitStop = 0; s.previousInput = idleInput();
   if (activeHero(s).hp > 0 || s.scene === "dead" || s.scene === "results") return;
   const fallen = s.active, next = nextPartyHero(s);
@@ -583,18 +593,18 @@ function updateProjectiles(s: GameState, dt: number) {
   for (const p of s.projectiles) {
     const x0 = p.x, y0 = p.y, dx = p.vx * dt, dy = p.vy * dt;
     p.ttl -= dt;
-    if (isBlocked(world, x0, y0, p.radius)) { p.ttl = 0; continue; }
+    if (isBlocked(world, x0, y0, p.radius) || obstacleBlocks(s, x0, y0, p.radius)) { p.ttl = 0; continue; }
     // Trace solids first, including thin footprints crossed between endpoints.
     // Actor hits use only the clear segment, so beams cannot damage through props.
     const pieces = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 2));
     let blocked = false;
     for (let n = 1; n <= pieces; n++) {
       let t = n / pieces;
-      if (isBlocked(world, x0 + dx * t, y0 + dy * t, p.radius)) {
+      if (isBlocked(world, x0 + dx * t, y0 + dy * t, p.radius) || obstacleBlocks(s, x0 + dx * t, y0 + dy * t, p.radius)) {
         let clear = (n - 1) / pieces, solid = t;
         for (let refine = 0; refine < 8; refine++) {
           const middle = (clear + solid) * 0.5;
-          if (isBlocked(world, x0 + dx * middle, y0 + dy * middle, p.radius)) solid = middle;
+          if (isBlocked(world, x0 + dx * middle, y0 + dy * middle, p.radius) || obstacleBlocks(s, x0 + dx * middle, y0 + dy * middle, p.radius)) solid = middle;
           else clear = middle;
         }
         t = clear; blocked = true;
@@ -638,9 +648,11 @@ export function interactTarget(s: GameState): { id: string; name: string; locked
     const downed = s.coop.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room && Math.hypot(s.x - peer.x, s.y - peer.y) <= 32);
     if (downed) return { id: `coop-revive-${downed.seat}`, name: `Hold to revive ${downed.name}` };
   }
+  const gate = getHeroObstacleTarget(s);
+  if (gate) return { id: gate.id, name: gate.label };
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room);
-    const chest = world.props.find(p => p.kind === "chest" && !s.clearedRooms.includes(p.id) && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h / 2) < 28);
+    const chest = world.props.find(p => p.kind === "chest" && obstacleRewardAvailable(s, p.id) && !s.clearedRooms.includes(p.id) && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h / 2) < 28);
     if (chest) return { id: chest.id, name: "Open supply cache", locked: s.enemies.length > 0 };
     const npc = world.props.find(p => p.kind === "npc" && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h) < 28);
     if (npc) return { id: "scout", name: "Talk to the stranded scout" };
@@ -660,10 +672,18 @@ function travel(s: GameState, door: WorldExit) {
   s.previousInput.interact = true;
 }
 export function interact(s: GameState): void {
-  if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
+  if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = interactTarget(s);
   if (!target) return;
+  if (s.coop?.role === "guest") {
+    if (target.id.startsWith("world-")) s.events.push({ type: "obstacle-request", id: target.id, hero: s.active, x: s.x, y: s.y });
+    return;
+  }
   if (target.id.startsWith("coop-revive-")) return;
+  if (target.id.startsWith("world-")) {
+    if (!clearHeroObstacle(s, target.id)) s.notice = `Choose the required hero in Character, then tag them in. ${target.name}`;
+    return;
+  }
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
@@ -761,6 +781,12 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
   s.previousInput = { ...input };
+  // Obstacle Attack consumes one press. JOB E can route the same target via
+  // its context resolver; the dedicated interaction path remains compatible.
+  const gate = getHeroObstacleTarget(s);
+  const obstaclePress = !!gate && input.attack && !previous.attack && !input.ki && !input.guard &&
+    !s.enemies.some(e => e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < e.radius + 26);
+  if (obstaclePress) interact(s);
   const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
@@ -805,7 +831,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
   if (!combat) { s.charge = 0; if (input.interact && !previous.interact) interact(s); return; }
-  if (input.attack && !previous.attack && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
+  if (!obstaclePress && input.attack && !previous.attack && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
   if (input.ki && s.dashTimer === 0 && !s.guard) {
     s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32);
   }

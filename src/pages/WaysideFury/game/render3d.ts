@@ -7,6 +7,8 @@ import { buildOverworldTerrain } from './terrain3d';
 import type { AvatarStrip, HeroAvatar } from './avatar';
 import type { GameEvent, GameState, HeroId } from './sim';
 import type { RenderLabel, RenderPresentation } from './render';
+import { HeroObstacleMeshes } from './u1/world/obstacleRender3d';
+import { obstaclesForState, isObstacleCleared } from './u1/world/obstacles';
 
 const SHEETS = {
   joe: { url: '/royale/joe_idle.png', w: 16, h: 24, frames: 6 },
@@ -91,6 +93,7 @@ export class OverworldRenderer {
   private ambient = new THREE.HemisphereLight(0xd8e9e2, 0x354035, 2.2);
   private lights = Array.from({ length: 4 }, () => new THREE.PointLight(0xffd695, 0, 100, 1.5));
   private lightSources: LightSource[] = [];
+  private obstacleMeshes: HeroObstacleMeshes | null = null;
   private taxi = new THREE.Group();
   private wheels: THREE.Mesh[] = [];
   private taxiShadow: THREE.Mesh;
@@ -196,6 +199,7 @@ export class OverworldRenderer {
     this.makeTaxi();
     this.scene.add(this.taxi);
     this.makeProps();
+    this.obstacleMeshes = new HeroObstacleMeshes(this.scene, OVERWORLD.id, (x, y) => this.terrain.heightAt(x, y));
     this.makeMarkers();
     this.loadSheets();
     this.effectMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0xffdfa6, toneMapped: false }), 96);
@@ -607,6 +611,7 @@ export class OverworldRenderer {
     }
   }
   private updateActors(s: GameState) {
+    this.obstacleMeshes?.update(s, this.reducedMotion ? 0 : this.visualTime);
     // The taxi owns movement; crew portraits are small billboard passengers and
     // stationary station greeters. They never participate in collision or saves.
     const greeters: { id: HeroId; x: number; y: number }[] = [
@@ -696,6 +701,10 @@ export class OverworldRenderer {
     for (const prop of OVERWORLD.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
+    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s, gate.id) && Math.hypot(s.x - gate.x - gate.w / 2, s.y - gate.y) < 90) {
+      const point = this.scratch.set(gate.x + gate.w / 2, this.terrain.heightAt(gate.x, gate.y) + 24, gate.y).project(this.camera);
+      if (point.z > -1 && point.z < 1) labels.push({ id: gate.id, text: `${gate.glyph} ${gate.hero[0].toUpperCase() + gate.hero.slice(1)}`, x: (point.x + 1) / 2, y: (1 - point.y) / 2, kind: 'hub', color: '#f0daac' });
+    }
     return { camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(_s: GameState, event: GameEvent) {
@@ -714,6 +723,7 @@ export class OverworldRenderer {
     for (const seat of this.remoteTaxis.keys()) this.removeRemoteTaxi(seat);
     for (const seat of this.remoteAvatarSheets.keys()) this.releaseRemoteAvatarSheets(seat);
     this.remoteAvatars.clear();
+    this.obstacleMeshes?.dispose(); this.obstacleMeshes = null;
     for (const key of [...this.billboards.keys()]) this.removeBillboard(key);
     if (this.terrain) { this.scene.remove(this.terrain.group); this.terrain.dispose(); }
     const geometries = new Set<THREE.BufferGeometry>(); const materials = new Set<THREE.Material>(); const textures = new Set<THREE.Texture>();
