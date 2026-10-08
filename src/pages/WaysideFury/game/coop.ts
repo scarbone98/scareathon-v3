@@ -1,7 +1,7 @@
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world";
 import { authoritativePickupTarget } from "./collectibles.ts";
-import { AMBIENT_TAXI } from "./dressing.ts";
+import { AMBIENT_TAXI, syncTraffic } from "./dressing.ts";
 import { fetchWithAuth } from "../../../fetchWithAuth";
 import type { AvatarAppearance, HeroAvatar } from "./avatar";
 import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
@@ -19,7 +19,7 @@ export interface CoopReward {
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag" | "traffic"> & { spawnedExtras?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room, time: s.time, palette: s.palette,
@@ -28,7 +28,7 @@ const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room
   // the next step awards the clear, including if authority migrates that frame.
   enemies: s.enemies.map(e => ({ ...e, hp: Math.max(0, e.hp) })), projectiles: s.projectiles.filter(p => p.owner === "enemy"), clearedRooms: [...new Set([...s.clearedRooms, ...(s.coop?.worldClearedRooms ?? [])])],
   areas: s.areas, bosses: s.bosses, chapter: s.coop?.worldChapter ?? s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
-  ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
+  traffic: s.traffic?.map(car => ({ ...car })), ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.
 // A 100ms playout buffer brackets both enemies and remote heroes at 20Hz.
@@ -154,9 +154,9 @@ export class FuryCoop {
       const rooms = event.id === "home" ? [] : [event.id];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
-        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 3 : 0;
+        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
         const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, chapter: s.chapter,
-          ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : {}) };
+          ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : /^(blast-\d+|realm-\d+)$/.test(event.id) ? { healHp: 12, healKi: 8 } : {}) };
         if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);
       }
     }
@@ -177,6 +177,7 @@ export class FuryCoop {
       if (s.scene !== w.scene || s.room !== w.room) { enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
+      syncTraffic(s, w.traffic);
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);
@@ -201,6 +202,7 @@ export class FuryCoop {
         if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: AMBIENT_TAXI.x, y: AMBIENT_TAXI.y });
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer,
           ambientTaxiWrecked: wrecked, ambientTaxiGag: a.ambientTaxiGag >= 0 && b.ambientTaxiGag >= 0 ? a.ambientTaxiGag + (b.ambientTaxiGag - a.ambientTaxiGag) * alpha : b.ambientTaxiGag ?? -1 });
+        syncTraffic(s, b.traffic, a.scene === b.scene ? a.traffic : undefined, alpha);
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && a.scene === b.scene && a.room === b.room ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];

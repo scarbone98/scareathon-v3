@@ -150,12 +150,13 @@ export const OVERWORLD = (() => {
   }
   // A separate pullout keeps this NPC cab off the player's starting position
   // and leaves both traffic lanes open after the crash.
+  paint(m, 368, 512, 64, 32, "road");
   const cab = prop(m, "ambient-taxi", 384, 512, 32, 18); cab.id = "ambient-roadside-taxi";
   const lore = prop(m, "sign", 456, 420, 24, 24, "Old County Road"); lore.id = "roadside-lore-sign";
   const machine = prop(m, "vending", 550, 398, 22, 34, "Candy machine"); machine.id = "roadside-vending";
   prop(m, "diner", 464, 330, 112, 64, "Last Light Diner");
   paint(m, 500, 394, 40, 54, "dirt");
-  prop(m, "car", 606, 402, 36, 22); prop(m, "car", 844, 516, 36, 22);
+  // Passing lane traffic replaces parked cars embedded in roadside scenery.
   prop(m, "rock", 292, 526, 24, 16);
   prop(m, "tree", 748, 274, 24, 32);
   prop(m, "sign", 1000, 414, 24, 24, "Blast Site · East");
@@ -190,6 +191,25 @@ export const HUB_WORLD = (() => {
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
   m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
+
+// Compact mixed groups leave a clear entrance apron and space between fights.
+function encounter(m: WorldMap, x: number, y: number, sprite?: WorldSpawn["sprite"]) {
+  for (const [kind, dx, dy] of [["grunt", -24, -20], ["grunt", -16, 20], ["shooter", 28, 0]] as const) {
+    let placed = false;
+    for (const offsetY of [0, 24, -24, 48, -48, 72, -72]) {
+      for (const offsetX of [0, 24, -24, 48, -48]) {
+        const point = { x: x + dx + offsetX, y: y + dy + offsetY };
+        if (isBlocked(m, point.x, point.y, 10) || Math.hypot(point.x - m.spawn.x, point.y - m.spawn.y) < 150) continue;
+        if (m.exits.some(door => distanceToExit(door, point.x, point.y) < 120)) continue;
+        if (m.spawns.some(other => Math.hypot(point.x - other.x, point.y - other.y) < 24)) continue;
+        m.spawns.push({ kind, ...point, ...(sprite && kind === "grunt" ? { sprite } : {}) });
+        placed = true; break;
+      }
+      if (placed) break;
+    }
+    if (!placed) throw new Error(`No safe encounter slot in ${m.id} at ${x},${y}`);
+  }
+}
 
 export const WATCHER_ROOM = 7;
 export const GATEKEEPER_ROOM = 4;
@@ -252,10 +272,8 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
   if (room === WATCHER_ROOM || room === GATEKEEPER_ROOM) {
     m.spawns = [{ kind: "boss", x: room === WATCHER_ROOM ? 464 : 368, y: cy, miniBoss: room === GATEKEEPER_ROOM }];
   } else {
-    m.spawns = [ { kind: "grunt", x: 224, y: cy - 24 }, { kind: "grunt", x: 288, y: cy + (room === 6 ? 80 : 32) },
-      { kind: "shooter", x: Math.min(m.width - 128, 416), y: cy - 32 } ];
-    if (room === 3 || room === 5) m.spawns.push({ kind: "grunt", x: 672, y: cy + 32 }, { kind: "shooter", x: 752, y: cy - 32 });
-    if (room === 3) m.spawns.push({ kind: "grunt", x: 1008, y: cy - 24 }, { kind: "shooter", x: 1120, y: cy + 32 });
+    const anchors = m.width > 1000 ? [240, 500, 760, 1020] : m.width > 800 ? [240, 480, 720] : [240, 448];
+    for (const x of anchors) encounter(m, x, cy + (room === 6 && x < 400 ? 80 : 0));
   }
   scatter(m, "ash", room + 5);
   return m;
@@ -266,8 +284,7 @@ export const REALM_WORLD = (() => {
   prop(m, "portal", 552, 96, 48, 64);
   exit(m, { id: "east", name: "To be continued", x: 592, y: 144, w: 48, h: 96,
     target: "results", entryX: 0, entryY: 0, requiresClear: true });
-  m.spawns = [{ kind: "grunt", x: 224, y: 176, sprite: "pumpkin" },
-    { kind: "grunt", x: 320, y: 224, sprite: "ghost" }, { kind: "shooter", x: 448, y: 176 }]; return m;
+  encounter(m, 240, 192, "pumpkin"); encounter(m, 448, 192, "ghost"); return m;
 })();
 export const TEST_WORLD = (() => {
   const m = map("training", "Training Yard", 20, 12, "grass");

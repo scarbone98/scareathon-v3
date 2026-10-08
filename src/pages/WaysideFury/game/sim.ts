@@ -2,7 +2,7 @@ import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
 import { availablePickups, collectPickup, pickupBuffs, walkingPickup } from "./collectibles.ts";
-import { updateOverworldDressing } from "./dressing.ts";
+import { updateTraffic, updateOverworldDressing, type TrafficCar } from "./dressing.ts";
 import { interactionPrompt, newContextAttack, resolveContextPress, selectInteractionTarget, updateContextPrompt, type AttackPresentation, type ContextAttackState, type InteractTarget, type InteractionCandidate } from "./contextAttack.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
@@ -71,6 +71,7 @@ export type GameEvent =
   | { type: "checkpoint"; id: string }
   | { type: "death" };
 export interface GameState {
+  traffic?: TrafficCar[];
   foundItems: string[]; ambientTaxiWrecked: boolean; personalTaxiWrecked: boolean; ambientTaxiGag: number; insideDiner: boolean;
   pickupPending?: { id: string; at: number };
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
@@ -171,7 +172,8 @@ export function newGame(seed = 8591): GameState {
   return s;
 }
 export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number): Enemy {
-  const maxHp = kind === "boss" ? 260 : kind === "shooter" ? 24 : 32;
+  const tier = s.scene === "realm" ? 3 : s.scene === "dungeon" ? s.room >= 8 ? 1 : Math.floor(s.room / 2) : 0;
+  const maxHp = kind === "boss" ? 520 : (kind === "shooter" ? 24 : 30) + tier * 6;
   const e: Enemy = { id: s.nextId++, kind, sprite: kind === "boss" ? "shadowbeast" : kind === "shooter" ? "imp" : "zombie",
     x, y, hp: maxHp, maxHp, radius: kind === "boss" ? 16 : 7,
     speed: kind === "boss" ? 20 : kind === "shooter" ? 19 : 23, cooldown: 0.7 + random(s) * 0.5,
@@ -185,6 +187,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
+  if (scene === "overworld") s.traffic = undefined;
   if (scene === "realm") { s.palette = "eightbit"; if (s.clearedRooms.includes("realm-0")) s.chapter = Math.max(2, s.chapter); }
   else if (scene !== "shift" && scene !== "results" && scene !== "dead") s.palette = "real";
   if (scene === "prologue") s.cutscene = 0;
@@ -202,8 +205,8 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
         const enemy = addEnemy(s, spawn.kind, spawn.x, spawn.y);
         if (spawn.sprite) enemy.sprite = spawn.sprite;
         if (spawn.miniBoss) {
-          enemy.miniBoss = true; enemy.hp = enemy.maxHp = 165; enemy.radius = 12; enemy.speed = 18;
-          if (s.coop?.role === "host") scaleEnemy(s, enemy, 165);
+          enemy.miniBoss = true; enemy.hp = enemy.maxHp = 235; enemy.radius = 12; enemy.speed = 18;
+          if (s.coop?.role === "host") scaleEnemy(s, enemy, 235);
         }
       }
     }
@@ -225,9 +228,12 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
 // Substeps prevent fast dashes and boss rushes crossing thin tile barriers.
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
   const world = getWorld(s.scene, s.room), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
+  const blocked = (x: number, y: number) => isBlocked(world, x, y, radius) ||
+    (s.scene === "overworld" && (s.traffic ?? []).some(car => car.active &&
+      Math.abs(x - car.x) < 26 + radius && Math.abs(y - car.y) < 5 + radius));
   for (let n = 0; n < pieces; n++) {
-    if (!isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
-    if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
+    if (!blocked(body.x + dx / pieces, body.y)) body.x += dx / pieces;
+    if (!blocked(body.x, body.y + dy / pieces)) body.y += dy / pieces;
   }
 }
 // Relax overlaps without adding velocity: a bounded, time-scaled push settles
@@ -291,8 +297,8 @@ export function gainXp(s: GameState, amount: number) {
     const stats = heroStats(h.id, { ...s.character, level }, s.gear);
     Object.assign(h, s.character, stats, { level });
     if (growth > 0) {
-      if (!downed) h.hp = Math.min(h.maxHp, h.hp + growth * 30);
-      h.ki = Math.min(h.maxKi, h.ki + growth * 15);
+      if (!downed && h.hp > 0) h.hp = Math.min(h.maxHp, h.hp + growth * 18);
+      h.ki = Math.min(h.maxKi, h.ki + growth * 10);
     }
   }
   if (s.character.level > before) {
@@ -314,9 +320,9 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
-    const xp = e.kind === "boss" ? e.miniBoss ? 95 : 130 : e.kind === "shooter" ? 35 : 28;
+    const xp = e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12;
     if (!s.coop) {
-      const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
+      const candy = e.kind === "boss" ? 35 : 2 + Math.floor(random(s) * 3);
       s.candy += candy; s.kills++;
       floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
       gainXp(s, xp);
@@ -489,7 +495,7 @@ function melee(s: GameState) {
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
-    attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
+    attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.6][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
     hit = true;
   }
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
@@ -535,7 +541,7 @@ function updateBoss(s: GameState, e: Enemy, dt: number, target: CombatTarget) {
   if (e.actionTimer > 0) {
     e.actionTimer = Math.max(0, e.actionTimer - dt);
     moveBody(s, e, e.aimX * (e.phase === 2 ? 190 : 160) * dt, e.aimY * (e.phase === 2 ? 190 : 160) * dt, e.radius);
-    for (const player of combatTargets(s)) if (Math.hypot(player.x - e.x, player.y - e.y) < e.radius + 10) hurtTarget(s, player, e.phase === 2 ? 28 : 22, e.x, e.y);
+    for (const player of combatTargets(s)) if (Math.hypot(player.x - e.x, player.y - e.y) < e.radius + 10) hurtTarget(s, player, e.miniBoss ? (e.phase === 2 ? 24 : 18) : (e.phase === 2 ? 32 : 26), e.x, e.y);
     if (e.actionTimer === 0) e.pattern = 1;
     return;
   }
@@ -550,7 +556,7 @@ function updateBoss(s: GameState, e: Enemy, dt: number, target: CombatTarget) {
         for (let n = 0; n < shots; n++) {
           const angle = offset + n * Math.PI * 2 / shots;
           projectile(s, "enemy", e.x, e.y, Math.cos(angle), Math.sin(angle),
-            e.phase === 2 ? 92 : 74, e.phase === 2 ? 15 : 11, 5);
+            e.phase === 2 ? 92 : 74, e.miniBoss ? (e.phase === 2 ? 12 : 9) : (e.phase === 2 ? 18 : 14), 5);
         }
         effect(s, "hit", e.x, e.y, 38, 0.35);
         e.pattern = 0;
@@ -578,7 +584,7 @@ function updateEnemies(s: GameState, dt: number) {
     if (!target) continue;
     const dx = target.x - e.x, dy = target.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
     const contact = e.radius + 9;
-    if (e.hitTimer > 0 || (length > 230 && e.actionTimer === 0 && e.windup === 0)) continue;
+    if (e.hitTimer > 0 || (length > (e.kind === "boss" || s.scene === "test" ? 230 : 140) && e.actionTimer === 0 && e.windup === 0)) continue;
     if (e.kind === "boss") updateBoss(s, e, dt, target);
     else if (e.kind === "shooter") {
       e.aimX = dx / length; e.aimY = dy / length;
@@ -802,6 +808,12 @@ export function buyItem(s: GameState, id: ShopItemId): boolean {
   else grantGear(s, id === "power" ? 2 : 0, id === "defense" ? 1 : 0);
   s.notice = `${item.name} purchased.`; return true;
 }
+function checkpointRecovery(s: GameState) {
+  for (const hero of Object.values(s.heroes)) {
+    if (hero.hp > 0) hero.hp = Math.min(hero.maxHp, hero.hp + 12);
+    hero.ki = Math.min(hero.maxKi, hero.ki + 8);
+  }
+}
 export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
   // Keep physical button edges separate from the command forwarded to co-op.
@@ -823,6 +835,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   s.transitionCooldown = Math.max(0, s.transitionCooldown - dt);
   updateVisuals(s, dt);
   updateOverworldDressing(s, dt);
+  updateTraffic(s, dt);
   if (s.scene === "prologue") {
     s.previousInput = { ...physicalInput };
     if (usePressed) interact(s, s.contextAttack.target);
@@ -935,6 +948,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     const id = `blast-${s.room}`;
     if (!s.clearedRooms.includes(id)) {
       s.clearedRooms.push(id);
+      if (!s.coop) checkpointRecovery(s);
       if (s.room === GATEKEEPER_ROOM && !s.bosses.includes("blast-gatekeeper")) s.bosses.push("blast-gatekeeper");
       if (s.room === WATCHER_ROOM) {
         if (!s.bosses.includes("blast-watcher")) s.bosses.push("blast-watcher");
@@ -950,6 +964,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (hadEnemies && s.enemies.length === 0 && s.scene === "realm") {
     if (!s.clearedRooms.includes("realm-0")) {
       s.clearedRooms.push("realm-0");
+      if (!s.coop) checkpointRecovery(s);
       if (!s.areas.includes("eightbit-realm")) s.areas.push("eightbit-realm");
     }
     s.chapter = Math.max(s.chapter, 2);

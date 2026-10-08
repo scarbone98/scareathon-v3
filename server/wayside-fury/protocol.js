@@ -95,6 +95,15 @@ export function cleanWorld(state) {
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
     if (state.ambientTaxiWrecked !== undefined && typeof state.ambientTaxiWrecked !== 'boolean') return null;
     if (state.ambientTaxiGag !== undefined && (!number(state.ambientTaxiGag, 4) || state.ambientTaxiGag < -1)) return null;
+    if (state.traffic !== undefined) {
+        if (!Array.isArray(state.traffic) || state.traffic.length !== 2) return null;
+        for (const [index, car] of state.traffic.entries()) {
+            if (!object(car) || typeof car.active !== 'boolean' || car.direction !== (index ? 1 : -1) || car.y !== (index ? 495 : 463)) return null;
+            if (!number(car.x) || car.x < 176 || car.x > 1136 || car.speed !== (index ? 24 : 29)) return null;
+            if (!number(car.velocity, car.speed) || car.velocity * car.direction < 0 || !number(car.updatedAt) || car.updatedAt < 0) return null;
+            if (typeof car.color !== 'string' || !/^#[a-f0-9]{6}$/i.test(car.color)) return null;
+        }
+    }
     for (const key of ['clearedRooms', 'areas', 'bosses']) {
         if (!Array.isArray(state[key]) || state[key].length > 256 || !state[key].every((value) => text(value, 96))) return null;
     }

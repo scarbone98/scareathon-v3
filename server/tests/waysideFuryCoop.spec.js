@@ -57,6 +57,31 @@ const enemy = () => ({
 });
 const appearance = () => ({ profile: { skin: 'peach', hair: 'sandy', eyes: 'ink_eye' }, outfit: [{ key: 'body_kid', dyes: { dye1: 'orange' } }] });
 
+describe('Wayside Fury lane traffic snapshots', () => {
+    const traffic = () => [
+        { x: 600, y: 463, direction: -1, color: '#77999c', speed: 29, velocity: -29, updatedAt: 1, active: true },
+        { x: 176, y: 495, direction: 1, color: '#bd7661', speed: 24, velocity: 0, updatedAt: 1, active: false },
+    ];
+    test('host traffic survives relay, late join and authority migration', () => {
+        const { rooms, host, guest, advance } = setup();
+        const created = rooms.create(host);
+        const snapshot = { ...world(), scene: 'overworld', traffic: traffic() };
+        rooms.relay(host, { type: 'state', state: snapshot });
+        rooms.join(guest, { code: created.code });
+        expect(guest.last('state').state.traffic).toEqual(snapshot.traffic);
+        rooms.disconnect(host); advance(RECONNECT_MS + 1);
+        expect(guest.last('state').state.traffic).toEqual(snapshot.traffic);
+    });
+    test('rejects missing lane slots, off-road poses, reverse motion and malformed traffic', () => {
+        expect(cleanRelay({ type: 'state', state: { ...world(), traffic: traffic() } })).not.toBeNull();
+        for (const cars of [[], traffic().slice(0, 1), [null, traffic()[1]],
+            [{ ...traffic()[0], x: 0 }, traffic()[1]], [{ ...traffic()[0], y: 480 }, traffic()[1]],
+            [{ ...traffic()[0], velocity: 29 }, traffic()[1]], [{ ...traffic()[0], updatedAt: NaN }, traffic()[1]]]) {
+            expect(cleanRelay({ type: 'state', state: { ...world(), traffic: cars } })).toBeNull();
+        }
+    });
+});
+
 describe('Wayside Fury four-seat rooms', () => {
     test('requires a signed-in ticket and it is short-lived and single-use', () => {
         const { rooms, advance } = setup();
