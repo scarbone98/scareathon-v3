@@ -19,13 +19,15 @@ try {
   for(const id of ['woods-lantern-walk','woods-pump-house','woods-heartwood-engine']) {
    const metric=await page.evaluate(async id=>{
     const {enterCampaignMap}=await import('/src/pages/WaysideFury/game/sim.ts');const game=window.__waysideFury;
-    game.mutate(s=>{enterCampaignMap(s,id);s.x=350;s.y=254;for(const e of s.enemies){e.windup=.8;e.tellX=350;e.tellY=254;}if(id==='woods-heartwood-engine')s.enemies[0].phase=2;});
+    game.mutate(s=>{enterCampaignMap(s,id);s.x=id==='woods-lantern-walk'?464:id==='woods-heartwood-engine'?400:320;s.y=254;for(const e of s.enemies){e.windup=.8;e.tellX=s.x;e.tellY=s.y;const len=Math.max(1,Math.hypot(s.x-e.x,s.y-e.y));e.aimX=(s.x-e.x)/len;e.aimY=(s.y-e.y)/len;}if(id==='woods-heartwood-engine')s.enemies[0].phase=2;});
     game.renderer.draw(game.state,0,0);const before=JSON.stringify(game.state);for(let i=0;i<12;i++)game.renderer.draw(game.state,0,0);
     const canvas=document.querySelector('canvas[aria-label="Wayside Fury action RPG"]'),r=canvas.getBoundingClientRect();
     return {unchanged:before===JSON.stringify(game.state),dpr:Number(canvas.dataset.renderDpr),width:canvas.width,height:canvas.height,cssWidth:r.width,cssHeight:r.height,renderer:canvas.dataset.renderer,mapId:game.state.mapId};
    },id);
    assert.ok(metric.unchanged);assert.equal(metric.dpr,dpr);assert.ok(Math.abs(metric.width-metric.cssWidth*dpr)<=1);assert.ok(Math.abs(metric.height-metric.cssHeight*dpr)<=1);assert.equal(metric.renderer,'2d');
-   metrics.push({width,height,gfx,...metric});await page.screenshot({path:`${out}/${width}x${height}-${gfx}-${id}.png`,timeout:120000});
+   metrics.push({width,height,gfx,...metric});const file=`${out}/${width}x${height}-${gfx}-${id}.png`;
+   if(process.env.FURY_WOODS_FULL_SCREENSHOTS==='1')await page.screenshot({path:file,timeout:120000});
+   else {const png=await page.evaluate(()=>document.querySelector('canvas[aria-label="Wayside Fury action RPG"]').toDataURL('image/png').split(',')[1]);await writeFile(file,Buffer.from(png,'base64'));}
   }
   if(gfx==='3d') {
    await page.evaluate(async()=>{const {enterScene}=await import('/src/pages/WaysideFury/game/sim.ts');const g=window.__waysideFury;g.mutate(s=>enterScene(s,'overworld'));g.renderer.draw(g.state,0,0);});

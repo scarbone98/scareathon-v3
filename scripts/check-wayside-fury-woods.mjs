@@ -29,7 +29,7 @@ for(const m of WOODS_WORLDS) {
 for(const hero of HERO_IDS) {
   const a=ready();a.active=hero;a.party=[hero];a.heroes.joe.hp=a.heroes.matt.hp=0;
   enterCampaignMap(a,'woods-layby');woodsInteract(a,'woods-ghost');a.dialogue=null;
-  enterCampaignMap(a,'woods-ranger-gate');woodsInteract(a,'woods-ranger-seal');assert.ok(hasFieldFlag(a,'woods-ranger-seal'));assert.equal(a.active,hero);
+  enterCampaignMap(a,'woods-ranger-gate');if(hero!=='joe')a.heroes.joe.hp=0;if(hero!=='matt')a.heroes.matt.hp=0;woodsInteract(a,'woods-ranger-seal');assert.ok(hasFieldFlag(a,'woods-ranger-seal'));assert.equal(a.active,hero);
   enterCampaignMap(a,'woods-pump-house');a.enemies=[];a.x=308;a.y=308;
   assert.ok(isBlocked(fieldWorld(a),368,224));
   for(let i=0;i<65;i++)step(a,{...idleInput(),ki:true},1/60);

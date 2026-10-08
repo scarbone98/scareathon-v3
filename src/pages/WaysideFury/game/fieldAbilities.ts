@@ -15,5 +15,6 @@ export function solveField(s:GameState,id:string,ability:'breaker-knuckle'|'circ
   if(!knowsField(s,ability)) {s.notice='Rescue the maintenance ghost at the Ranger Lay-by first.';return false;}
   if(!hasFieldFlag(s,id)) s.solvedInteractions.push(id);
   s.notice=ability==='breaker-knuckle'?'Joe assists: cracked housing broken. Your active hero stays equipped.':'Matt assists: bypass powered. The return path stays open.';
+  s.effects.push({id:s.nextId++,kind:ability==='breaker-knuckle'?'slash':'charge',hero:ability==='breaker-knuckle'?'joe':'matt',fieldAssist:true,x:s.x+18,y:s.y,dx:s.faceX,dy:s.faceY,size:24,ttl:.65,maxT:.65});
   s.events.push({type:'checkpoint',id});return true;
 }

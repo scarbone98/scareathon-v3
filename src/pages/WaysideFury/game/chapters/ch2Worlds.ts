@@ -13,10 +13,10 @@ export const WOODS_WORLDS = WOODS_IDS.map((id, i) => {
     if(n%2===0) prop(m,'lamp',100+n*66,132,12,30);
   }
   if(i===0) { prop(m,'bench',160,264,56,24,'Crew rest');prop(m,'sign',144,128,20,36,'Forestry radio'); }
-  if(i===1) { const p=prop(m,'seal',352,184,32,80,'Cracked root housing');p.id='woods-ranger-seal'; }
+  if(i===1) { const p=prop(m,'seal',352,184,32,80,'Cracked root housing');p.id='woods-ranger-seal';p.footprints=[{x:352,y:184,w:32,h:80}]; }
   if(i===3) {
     paint(m,352,16,32,168,'water',true);paint(m,352,264,32,168,'water',true);
-    const p=prop(m,'seal',352,184,32,80,'Unpowered bridge');p.id='woods-pump-bridge';
+    const p=prop(m,'seal',352,184,32,80,'Unpowered bridge');p.id='woods-pump-bridge';p.footprints=[{x:352,y:184,w:32,h:80}];
     prop(m,'socket',296,268,24,24,'Grounded bypass');prop(m,'bench',160,280,56,24,'Midpoint rest');
   }
   if(i===5) { prop(m,'control',288,72,96,64,'Mirror relay'); }

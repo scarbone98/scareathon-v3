@@ -69,7 +69,7 @@ export interface Projectile {
 export interface Effect {
   id: number; kind: "slash" | "beam" | "charge" | "dash" | "level" | "hit";
   x: number; y: number; dx: number; dy: number; ttl: number; maxT: number;
-  hero?: HeroId; size: number;
+  hero?: HeroId; size: number; fieldAssist?: boolean;
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
