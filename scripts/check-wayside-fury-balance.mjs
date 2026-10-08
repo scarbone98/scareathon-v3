@@ -11,7 +11,20 @@ for (const world of [...BLAST_WORLDS, REALM_WORLD]) {
     for (const [i, enemy] of world.spawns.entries()) {
       assert.equal(isBlocked(world, enemy.x, enemy.y, 10), false, `${world.id}: safe spawn`);
       assert.ok(Math.hypot(enemy.x - world.spawn.x, enemy.y - world.spawn.y) >= 150);
-      assert.ok(world.exits.every(exit => distanceToExit(exit, enemy.x, enemy.y) >= 120));
+      // Organic stairs move the exit apron inward by 32 units while keeping
+      // encounter anchors fixed. Preserve the original boundary-clearance check
+      // and separately require the remaining physical breathing room.
+      for (const exit of world.exits) {
+        const boundaryExit = { ...exit };
+        if (world.organic) {
+          if (exit.x === 32) boundaryExit.x = 0;
+          if (exit.x + exit.w === world.width - 32) boundaryExit.x += 32;
+          if (exit.y === 32) boundaryExit.y = 0;
+          if (exit.y + exit.h === world.height - 32) boundaryExit.y += 32;
+        }
+        assert.ok(distanceToExit(boundaryExit, enemy.x, enemy.y) >= 120, `${world.id}: original exit clearance`);
+        assert.ok(distanceToExit(exit, enemy.x, enemy.y) >= (world.organic ? 88 : 120), `${world.id}: stair apron clearance`);
+      }
       assert.ok(world.spawns.some((other, j) => i !== j && Math.hypot(enemy.x - other.x, enemy.y - other.y) <= 80), 'each enemy has a nearby encounter partner');
       assert.ok(world.spawns.every((other, j) => i === j || Math.hypot(enemy.x - other.x, enemy.y - other.y) >= 24), 'formation members do not overlap');
     }

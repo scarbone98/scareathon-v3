@@ -111,10 +111,11 @@ export function createOverworldElevation(world: WorldMap): OverworldElevation {
 interface Batch { positions: number[]; uvs: number[]; colors: number[] }
 const batch = (): Batch => ({ positions: [], uvs: [], colors: [] });
 type Vertex = readonly [number, number, number];
-function quad(target: Batch, nw: Vertex, ne: Vertex, sw: Vertex, se: Vertex, color: THREE.Color, rotation = 0) {
+function quad(target: Batch, nw: Vertex, ne: Vertex, sw: Vertex, se: Vertex, color: THREE.Color, rotation = 0, uvRect: readonly [number,number,number] = [0,0,1]) {
   for (const [vertex, u, v] of [[nw, 0, 1], [sw, 0, 0], [ne, 1, 1], [ne, 1, 1], [sw, 0, 0], [se, 1, 0]] as const) {
     target.positions.push(...vertex);
-    target.uvs.push(rotation ? v : u, rotation ? 1 - u : v);
+    const tu=uvRect[0]+u*uvRect[2],tv=1-uvRect[1]-(1-v)*uvRect[2];
+    target.uvs.push(rotation ? tv : tu, rotation ? 1-tu : tv);
     target.colors.push(color.r, color.g, color.b);
   }
 }
@@ -187,6 +188,23 @@ function tileTexture(kind: TileKind | 'cliff') {
 
 export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; heightAt(x: number, y: number): number; water: THREE.Mesh[]; dispose(): void } {
   const elevation = createOverworldElevation(world), group = new THREE.Group(), water: THREE.Mesh[] = [];
+  const originalHeightAt=elevation.heightAt;
+  const craters=world.props.filter(p=>p.kind==='crater'||p.kind==='impact'||p.kind==='ember-vent');
+  const radiusAt=(p:typeof craters[number],x:number,z:number)=>Math.hypot((x-p.x-p.w/2)/(p.w*.48),(z-p.y-p.h/2)/(p.h*.46));
+  // Fine ground quads below share the exact same bowl/rim function as footing.
+  const bowlHeightAt=(x:number,z:number)=>originalHeightAt(x,z)+craters.reduce((offset,p)=>{
+    const r=radiusAt(p,x,z);if(r>=1.16)return offset;
+    const bowl=-Math.min(p.w,p.h)*.09*Math.pow(Math.max(0,1-r*r),2);
+    const rim=Math.min(p.w,p.h)*.024*Math.exp(-Math.pow((r-.87)/.13,2));
+    return offset+bowl+rim;
+  },0);
+  const nearCraterTile=(x:number,z:number)=>craters.some(p=>x+TILE>p.x-p.w*.1&&x<p.x+p.w*1.1&&z+TILE>p.y-p.h*.1&&z<p.y+p.h*1.1);
+  elevation.heightAt=(x,z)=>{
+    if(!nearCraterTile(Math.floor(x/TILE)*TILE,Math.floor(z/TILE)*TILE))return originalHeightAt(x,z);
+    const px=Math.floor(x/4)*4,pz=Math.floor(z/4)*4,u=(x-px)/4,v=(z-pz)/4;
+    const nw=bowlHeightAt(px,pz),ne=bowlHeightAt(px+4,pz),sw=bowlHeightAt(px,pz+4),se=bowlHeightAt(px+4,pz+4);
+    return u+v<=1?nw+u*(ne-nw)+v*(sw-nw):se+(1-u)*(sw-se)+(1-v)*(ne-se);
+  };
   group.name = 'overworld-terrain';
   const batches = new Map<TileKind | 'cliff', Batch>(), shoreline = batch(), markings = batch(), skirts = batch();
   const shade = new THREE.Color();
@@ -200,7 +218,18 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
     let target = batches.get(material);
     if (!target) { target = batch(); batches.set(material, target); }
     shade.setRGB(1, 1, 1).multiplyScalar(.995 + hash(col, row) % 11 / 1000);
-    quad(target, nw, ne, sw, se, shade, kind !== 'road' && kind !== 'water' ? hash(col, row) % 2 : 0);
+    const nearCrater=nearCraterTile(x,y);
+    const step=4;
+    if(!nearCrater)quad(target,nw,ne,sw,se,shade,kind!=='road'&&kind!=='water'?hash(col,row)%2:0);
+    else for(let dz=0;dz<TILE;dz+=step)for(let dx=0;dx<TILE;dx+=step){
+      const px=x+dx,pz=y+dz;
+      shade.setRGB(1,1,1).multiplyScalar(.995+hash(col,row)%11/1000);
+      for(const p of craters){
+        const r=radiusAt(p,px+step/2,pz+step/2);
+        if(r<1.08)shade.lerp(new THREE.Color(r<.72?'#403435':'#9b8265'),(1-smooth(.9,1.08,r))*.8);
+      }
+      quad(target,point(px,pz),point(px+step,pz),point(px,pz+step),point(px+step,pz+step),shade,kind!=='road'&&kind!=='water'?hash(col,row)%2:0,[dx/TILE,dz/TILE,step/TILE]);
+    }
     if (kind === 'water') {
       shade.set('#d6d4ae');
       // Thin pale edges sit on the lake surface beside the sloping shore bank.

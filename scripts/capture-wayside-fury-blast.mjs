@@ -27,7 +27,7 @@ try {
    const before=JSON.stringify(s),c=canvas.getContext('2d'),scale=Math.min(1320/m.width,740/m.height),ox=(1440-m.width*scale)/2,oy=110;
    c.setTransform(2,0,0,2,0,0);c.fillStyle='#191e29';c.fillRect(0,0,1440,900);c.fillStyle='#eee4cf';c.font='600 28px system-ui';c.fillText(m.name,60,55);c.font='16px system-ui';c.fillStyle='#aab4ba';c.fillText('BLAST SITE · Whole-room Canvas 2D inspection · native DPR 2',60,83);
    c.save();c.translate(ox,oy);c.scale(scale,scale);terrain.draw(c,m,{x:0,y:0},m.width,m.height,0,2*scale,2);
-   [...m.props.map(p=>({y:p.y+p.h,draw:()=>r.prop(p,0,s)})),...s.enemies.map(e=>({y:e.y,draw:()=>r.enemy(s,e)})),{y:s.y,draw:()=>r.hero(s)}].sort((a,b)=>a.y-b.y).forEach(a=>a.draw());
+   [...m.props.map(p=>({y:['puddle','debris','crater','impact','ember-vent','ground-crack','blast-scrap','ash-tuft','bank-stones','plaza-fragment'].includes(p.kind)?-Infinity:p.y+p.h,draw:()=>r.prop(p,0,s)})),...s.enemies.map(e=>({y:e.y,draw:()=>r.enemy(s,e)})),{y:s.y,draw:()=>r.hero(s)}].sort((a,b)=>a.y-b.y).forEach(a=>a.draw());
    c.restore();assertState();function assertState(){if(before!==JSON.stringify(s))throw Error('Rendering mutated simulation');}
    return {room,name:m.name,props:m.props.length,encounters:m.spawns.length,dpr:2,width:canvas.width,height:canvas.height};
   },room));

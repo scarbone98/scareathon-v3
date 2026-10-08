@@ -1,0 +1,31 @@
+[
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "overworld-crater",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "overworld-crater",
+    "immutable": true,
+    "active": "3d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800,
+    "bowl": {
+      "base": 34,
+      "surface": 25.36
+    },
+    "contextLoss": {
+      "active": "2d",
+      "status": "fallback",
+      "immutable": true
+    }
+  }
+]

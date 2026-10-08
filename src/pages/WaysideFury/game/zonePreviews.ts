@@ -35,12 +35,11 @@ for (const [x, z, w, h] of [[981, 537, 22, 31], [1006, 513, 19, 44], [1047, 511,
 }
 for (let k = 0; k < 11; k++) part('rock', k % 2 ? '#636b70' : '#928079', 971 + k * 12, 580 + k % 3 * 5, 4 + k % 3, 3, 4);
 
-// Blast Site: fractured amber rim, scorched trunks and cooling impact shards.
-for (let k = 0; k < 17; k++) {
-  const angle = k * Math.PI * 2 / 17;
-  const x = 1088 + Math.cos(angle) * 63, z = 335 + Math.sin(angle) * 35;
-  part('rock', k % 3 ? '#716149' : '#c0a578', x, z, 8 + k % 3 * 3, 5 + k % 4, 6);
-  if (k % 3 === 0) part('box', '#d49463', x, z, 2, 1, 5, 5);
+// Blast Site: sparse, buried fragments follow the actual scorched depression.
+for (let k = 0; k < 7; k++) {
+  const angle = k * 2.39996;
+  const x = 1104 + Math.cos(angle) * 69, z = 320 + Math.sin(angle) * 40;
+  part('rock', k % 3 ? '#716149' : '#a28d72', x, z, 4 + k % 3 * 2, 2 + k % 2, 3);
 }
 for (const [x, z] of [[1014, 303], [1148, 285], [1170, 343]]) {
   part('box', '#3e3d4a', x, z, 4, 24, 4);
@@ -49,15 +48,17 @@ for (const [x, z] of [[1014, 303], [1148, 285], [1170, 343]]) {
 }
 
 export function drawPreviewPart(c: CanvasRenderingContext2D, p: PreviewPart) {
-  const x = p.x - p.w / 2, base = p.z - p.y, top = base - p.h;
+  const embedded=p.shape==='rock' && p.y===0;
+  const x = p.x - p.w / 2, base = p.z - p.y + (embedded?p.h*.32:0), top = base - p.h;
   c.fillStyle = '#17282e'; c.globalAlpha = .22;
-  c.beginPath(); c.ellipse(p.x + 2, p.z + 2, p.w * .6, p.d * .3, 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
+  c.beginPath(); c.ellipse(p.x + (embedded?0:2), p.z + (embedded?0:2), p.w * .6, p.d * (embedded?.2:.3), 0, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
   c.fillStyle = p.color; c.strokeStyle = '#26373d'; c.lineWidth = .8;
   c.beginPath();
   if (p.shape === 'cone') { c.moveTo(p.x, top); c.lineTo(x + p.w, base); c.lineTo(x, base); }
   else if (p.shape === 'rock') { c.moveTo(x, base - p.h * .4); c.lineTo(x + p.w * .3, top); c.lineTo(x + p.w * .8, top + 1); c.lineTo(x + p.w, base); c.lineTo(x + 2, base + 1); }
   else c.rect(x, top, p.w, p.h);
   c.closePath(); c.fill(); c.stroke();
+  if(embedded){c.fillStyle='#6e705580';for(let n=0;n<6;n++)c.fillRect(x+n*p.w/6,p.z-.5,p.w/5,.8);}
   if (p.shape === 'box' && p.d > 2) {
     c.fillStyle = '#ffffff'; c.globalAlpha = .12; c.fillRect(x + 1, top + .5, Math.max(0, p.w - 2), 1);
     c.fillStyle = '#17282e'; c.globalAlpha = .2; c.fillRect(x + p.w * .7, top + 1, p.w * .3, p.h - 1); c.globalAlpha = 1;

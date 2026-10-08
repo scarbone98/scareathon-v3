@@ -1,0 +1,42 @@
+[
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "woods-ground",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "city-ground",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "woods-ground",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "city-ground",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  }
+]

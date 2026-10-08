@@ -8,6 +8,8 @@ const state=newGame();
 assert.deepEqual(GLOBE_DESTINATIONS.filter(d=>globeAvailable(state,d)).map(d=>d.id),['county','wayside','blast']);
 for(const id of ['woods','city','finale','launch'])assert.equal(globeAvailable(state,GLOBE_DESTINATIONS.find(d=>d.id===id)),false);
 state.campaignMilestones.push('blast-watcher');
+assert.equal(globeAvailable(state,GLOBE_DESTINATIONS.find(d=>d.id==='launch')),false,'Chapter 1 cannot bypass the Woods launch key');
+state.campaignMilestones.push('woods-complete');
 assert.ok(globeAvailable(state,GLOBE_DESTINATIONS.find(d=>d.id==='launch')));
 state.coop={role:'host'};
 assert.ok(GLOBE_DESTINATIONS.every(d=>!globeAvailable(state,d)),'no client can enter unsynchronized travel');delete state.coop;
