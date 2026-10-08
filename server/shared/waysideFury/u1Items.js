@@ -10,6 +10,40 @@ const record = value => value && typeof value === 'object' && !Array.isArray(val
 const integer = (value, maximum = 10_000) => Number.isFinite(value) ? Math.max(0, Math.min(maximum, Math.floor(value))) : 0;
 const knownIds = (value, allowed, maximum) => [...new Set((Array.isArray(value) ? value : [])
   .filter(id => allowed.includes(id)))].slice(-maximum);
+const unsafeKeys = new Set(['__proto__', 'constructor', 'prototype']);
+const invalidTree = Symbol('invalid item namespace');
+function copySafeTree(value, depth = 0) {
+  if (depth > 6) return invalidTree;
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : invalidTree;
+  if (typeof value === 'string') return value.length <= 512 ? value : invalidTree;
+  if (!value || typeof value !== 'object') return invalidTree;
+  if (Array.isArray(value)) {
+    if (value.length > 256 || Object.getPrototypeOf(value) !== Array.prototype
+      || Reflect.ownKeys(value).some(key => typeof key !== 'string' || (key !== 'length' && !/^(0|[1-9][0-9]*)$/.test(key)))) return invalidTree;
+    const copied = [];
+    for (let index = 0; index < value.length; index++) {
+      const entry = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!entry || !Object.hasOwn(entry, 'value')) return invalidTree;
+      const child = copySafeTree(entry.value, depth + 1);
+      if (child === invalidTree) return invalidTree;
+      copied.push(child);
+    }
+    return copied;
+  }
+  const prototype = Object.getPrototypeOf(value), keys = Reflect.ownKeys(value);
+  if ((prototype !== Object.prototype && prototype !== null) || keys.length > 64) return invalidTree;
+  const copied = {};
+  for (const key of keys) {
+    if (typeof key !== 'string' || key.length > 512 || unsafeKeys.has(key)) return invalidTree;
+    const entry = Object.getOwnPropertyDescriptor(value, key);
+    if (!entry?.enumerable || !Object.hasOwn(entry, 'value')) return invalidTree;
+    const child = copySafeTree(entry.value, depth + 1);
+    if (child === invalidTree) return invalidTree;
+    copied[key] = child;
+  }
+  return copied;
+}
 
 export function createItemsSave() {
   return { chips: { owned: [], equipped: [null, null, null], secondWindUsed: false },
@@ -32,4 +66,19 @@ export function sanitizeItemsSave(raw) {
       outfits: knownIds(relics.outfits, OUTFIT_IDS, 3), statBonus: { power: integer(statBonus.power), ward: integer(statBonus.ward) },
       secretBossUnlocked: relics.secretBossUnlocked === true },
     radar: { owned: radar.owned === true, enabled: radar.owned === true && radar.enabled === true } };
+}
+
+// Keep the other sessions' bounded JSON until their domain sanitizers merge.
+// Unknown top-level namespaces and unsafe sibling trees never enter a cloud save.
+export function sanitizeItemsNamespace(raw) {
+  const source = record(raw), cleaned = { items: sanitizeItemsSave(source.items) };
+  for (const name of ['hub', 'world', 'combat']) {
+    try {
+      const entry = Object.getOwnPropertyDescriptor(source, name);
+      if (!entry || !Object.hasOwn(entry, 'value') || !entry.value || typeof entry.value !== 'object' || Array.isArray(entry.value)) continue;
+      const copy = copySafeTree(entry.value);
+      if (copy !== invalidTree) cleaned[name] = copy;
+    } catch { /* A malformed namespace does not discard valid personal items. */ }
+  }
+  return cleaned;
 }

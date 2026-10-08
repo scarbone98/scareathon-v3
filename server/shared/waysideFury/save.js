@@ -1,6 +1,6 @@
 // The browser and server share one bounded, versioned character sheet.
 // This is shape validation, not authoritative combat or economy simulation.
-import { sanitizeItemsSave } from "./u1Items.js";
+import { sanitizeItemsNamespace } from "./u1Items.js";
 export const SAVE_VERSION = 3;
 export const MAX_SAVE_BYTES = 65_536;
 export const MAX_MILESTONES = 128;
@@ -150,7 +150,7 @@ export function sanitizeSave(raw) {
     if (!Array.isArray(raw.areas) || !Array.isArray(raw.bosses) || !Array.isArray(raw.clearedRooms)) return { error: 'Bad milestones' };
     if (!Array.isArray(raw.unlockedHeroes) || !ids.every(id => raw.unlockedHeroes.includes(id))) return { error: 'Bad unlocked heroes' };
     if (!Object.hasOwn(raw, 'home')) return { error: 'Missing HOME snapshot' };
-    const u1 = { ...(isRecord(raw.u1) ? raw.u1 : {}), items: sanitizeItemsSave(raw.u1?.items) };
+    const u1 = sanitizeItemsNamespace(raw.u1);
     const sheet = cleanSheet(raw, legacy, u1.items.relics.statBonus), receipt = raw.lastReported;
     if (!sheet) return { error: 'Bad heroes' };
     if (!isRecord(receipt) || !Array.isArray(receipt.areas) || !Array.isArray(receipt.bosses) || !Array.isArray(receipt.rooms) || !finite(receipt.level)) return { error: 'Bad progress receipt' };

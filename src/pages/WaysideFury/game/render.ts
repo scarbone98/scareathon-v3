@@ -4,8 +4,10 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { chipEffects, CHIP_REGISTRY } from "./u1/items/chips";
+import { relicTargets, RELIC_SUMMON, OUTFITS } from "./u1/items/relics";
+import { itemsState } from "./u1/items/chips";
 import { chipTargets } from "./u1/items/pickups";
-import { drawItemMarker } from "./u1/items/draw";
+import { drawItemMarker, drawWishOutfit } from "./u1/items/draw";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -225,12 +227,16 @@ export class Renderer {
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote, true);
       for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
     for (const item of chipTargets(s)) if (this.visible(item.x, item.y) && Math.hypot(item.x - s.x, item.y - s.y) < 120)
       actors.push({ y: item.y, draw: () => drawItemMarker(c, { ...item, color: CHIP_REGISTRY[item.chip].color }, motionTime, this.reducedMotion) });
+    for (const item of relicTargets(s)) if (this.visible(item.x, item.y) && Math.hypot(item.x - s.x, item.y - s.y) < 120)
+      actors.push({ y: item.y, draw: () => drawItemMarker(c, item, motionTime, this.reducedMotion) });
+    if (s.scene === "hub" && this.visible(RELIC_SUMMON.x, RELIC_SUMMON.y))
+      actors.push({ y: RELIC_SUMMON.y, draw: () => drawItemMarker(c, { ...RELIC_SUMMON, kind: "summon" }, motionTime, this.reducedMotion) });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -451,7 +457,7 @@ export class Renderer {
       c.globalAlpha = 1;
     }
   }
-  private hero(s: GameState) {
+  private hero(s: GameState, isRemote = false) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
     if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
@@ -465,6 +471,9 @@ export class Renderer {
       }
     }
     this.shadow(s.x, s.y, s.dashTimer > 0 ? 19 : 14);
+    const looks = itemsState(s).relics.outfits;
+    const outfit = !isRemote ? OUTFITS.find(o => o.id === looks[looks.length - 1]) : undefined;
+    if (outfit) drawWishOutfit(c, s.x, s.y, outfit.color, outfit.glow, this.reducedMotion ? 0 : s.time);
     this.rect(s.x - 5, s.y + 1, 10, 1, color);
     if (s.moving && !this.reducedMotion) for (let k = 0; k < 3; k++) {
       const life = (time * 3 + k / 3) % 1;

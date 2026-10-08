@@ -1,5 +1,21 @@
 export interface ItemMarker { x: number; y: number; kind: "chip" | "relic" | "radar" | "summon"; color?: string }
 
+export function drawWishOutfit(c: CanvasRenderingContext2D, x: number, y: number, color: string, glow: string, time: number) {
+  c.save(); c.translate(x, y);
+  const sway = Math.sin(time * 3) * 1.5;
+  const cape = c.createLinearGradient(-7, -20, 7, 0);
+  cape.addColorStop(0, glow); cape.addColorStop(.2, color); cape.addColorStop(1, "#20324c");
+  c.fillStyle = cape; c.strokeStyle = glow; c.lineWidth = .6;
+  c.beginPath(); c.moveTo(-5, -17); c.lineTo(5, -17); c.lineTo(9 + sway, -1);
+  c.quadraticCurveTo(sway, -4, -9 + sway, -1); c.closePath(); c.fill(); c.stroke();
+  for (let n = 0; n < 3; n++) {
+    const angle = time * .7 + n * Math.PI * 2 / 3;
+    c.globalAlpha = .5; c.fillStyle = glow;
+    c.beginPath(); c.arc(Math.cos(angle) * 12, -12 + Math.sin(angle) * 4, .6, 0, Math.PI * 2); c.fill();
+  }
+  c.restore();
+}
+
 // Native-resolution vector details scale with the existing world camera/DPR.
 // These markers have no physical footprint and never obscure solid scenery.
 export function drawItemMarker(c: CanvasRenderingContext2D, item: ItemMarker, time: number, still: boolean) {

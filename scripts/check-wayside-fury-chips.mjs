@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createItemsSave, sanitizeItemsSave, CHIP_IDS, RELIC_IDS } from '../server/shared/waysideFury/u1Items.js';
+import { createItemsSave, sanitizeItemsSave, sanitizeItemsNamespace, CHIP_IDS, RELIC_IDS } from '../server/shared/waysideFury/u1Items.js';
 import { CHIPS, itemsState, unlockedChipSlots, grantChip, equipChip, chipEffects, trySecondWind, resetSecondWind } from '../src/pages/WaysideFury/game/u1/items/chips.ts';
 
   const freshState = (level = 1) => ({ character: { level, xp: 0 }, active: 'you',
@@ -100,4 +100,16 @@ import { CHIPS, itemsState, unlockedChipSlots, grantChip, equipChip, chipEffects
   assert.equal(malformed.relics.secretBossUnlocked, false);
   assert.deepEqual(malformed.radar, { owned: false, enabled: false }, 'unowned radar cannot enable');
   for (const bad of [undefined, null, [], 42, 'legacy']) assert.deepEqual(sanitizeItemsSave(bad), createItemsSave());
+  const siblings = { hub: { quests: { completed: ['help-scout'] } }, world: { clearedObstacles: ['test-gate'], cycleSeconds: 72 }, combat: { training: { joe: 2 } } };
+  const namespace = sanitizeItemsNamespace({ ...siblings, unknown: { value: 1 } });
+  assert.deepEqual(namespace, { items: createItemsSave(), ...siblings });
+  assert.notEqual(namespace.world, siblings.world, 'sibling data is copied independently');
+  let deep = 'too deep';
+  for (let level = 0; level < 7; level++) deep = { child: deep };
+  const cyclic = {}; cyclic.child = cyclic;
+  for (const invalid of [deep, cyclic, { entries: Array(257).fill(0) }, Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`key${index}`, 0])),
+    { text: 'x'.repeat(513) }, { count: Infinity }, { missing: undefined }, { method: () => 1 }, new Date(), [], 'wrong type',
+    JSON.parse('{"__proto__":{"polluted":true}}'), { nested: { constructor: {} } }, { nested: [{ prototype: 'bad' }] },
+    Object.create({ inherited: true })]) assert.deepEqual(sanitizeItemsNamespace({ world: invalid }), { items: createItemsSave() });
+  assert.equal({}.polluted, undefined);
   console.log('Wayside Fury chips: all 12 passives, slot/ownership rules, per-player rewards, Second Wind persistence and bounded migration pass.');

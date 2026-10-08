@@ -1,10 +1,11 @@
 import type { GameState, Scene } from "../../sim.ts";
 import { getWorld, isBlocked } from "../../world.ts";
 import { CHIP_REGISTRY, grantChip, itemsState, type ChipId } from "./chips.ts";
+import { gateAvailable, gatedItemTarget } from "./gating.ts";
 
 export interface ChipPickup {
   id: string; chip: ChipId; name: string; kind: "chip";
-  scene: Scene; room: number; x: number; y: number;
+  scene: Scene; room: number; x: number; y: number; gateId?: string;
 }
 // Chip caches extend the personal inventory; hidden lore and snacks remain in
 // JOB E's registry and Collection page. No new found-item save or ticket count.
@@ -24,12 +25,13 @@ export const CHIP_FINDS: readonly ChipPickup[] = [
 
 export function chipTargets(s: GameState): ChipPickup[] {
   const owned = itemsState(s).chips.owned;
-  return CHIP_FINDS.filter(p => p.scene === s.scene && p.room === s.room && !owned.includes(p.chip));
+  return CHIP_FINDS.filter(p => p.scene === s.scene && p.room === s.room && !owned.includes(p.chip))
+    .map(target => gatedItemTarget(s, target));
 }
-export function itemWithinReach(s: GameState, target: { x: number; y: number }, radius = 24): boolean {
-  if (s.heroes[s.active].hp <= 0 || s.coop?.downed || s.overlay || Math.hypot(target.x - s.x, target.y - s.y) > radius) return false;
+export function itemWithinReach(s: GameState, target: { x: number; y: number; gateId?: string }, radius = 24): boolean {
+  if (!gateAvailable(s, target.gateId) || s.heroes[s.active].hp <= 0 || s.coop?.downed || s.overlay || Math.hypot(target.x - s.x, target.y - s.y) > radius) return false;
   const world = getWorld(s.scene, s.room);
-  const steps = Math.max(1, Math.ceil(Math.hypot(target.x - s.x, target.y - s.y) / 4));
+  const steps = Math.max(1, Math.ceil(Math.hypot(target.x - s.x, target.y - s.y) / 2));
   for (let n = 0; n <= steps; n++) {
     if (isBlocked(world, s.x + (target.x - s.x) * n / steps, s.y + (target.y - s.y) * n / steps, 1)) return false;
   }

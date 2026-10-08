@@ -3,7 +3,8 @@ import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, typ
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
 import { createItemsSave, type ItemsSaveState } from "../../../../server/shared/waysideFury/u1Items.js";
 import { chipEffects, itemsState, grantChip, trySecondWind } from "./u1/items/chips.ts";
-import { chipTargets, collectChip, grantCheckpointChip, itemWithinReach } from "./u1/items/pickups.ts";
+import { itemInteractionCandidates, interactItem } from "./u1/items/interactions.ts";
+import { grantCheckpointChip } from "./u1/items/pickups.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
@@ -73,7 +74,7 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "wish" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
@@ -217,6 +218,11 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
     }
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
   }
+  if (scene === "dungeon" && room === 9 && s.coop?.role !== "guest" && itemsState(s).relics.secretBossUnlocked && !s.bosses.includes("relic-echo")) {
+    const echo = addEnemy(s, "boss", 416, 224); echo.sprite = "ghost"; echo.hp = echo.maxHp = 340;
+    if (s.coop?.role === "host") scaleEnemy(s, echo, 340);
+    s.notice = "The Relic Echo answers your wish. A hidden challenger waits in the depot!";
+  }
   extraCoopSpawns(s); syncCoopLevel(s);
 }
 // Substeps prevent fast dashes and boss rushes crossing thin tile barriers.
@@ -321,6 +327,9 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
       gainXp(s, xp);
     }
     if (!s.coop && e.kind === "boss") grantChip(s, e.miniBoss ? "iron-guard" : "focus-lens", "guardian");
+    if (s.scene === "dungeon" && s.room === 9 && e.kind === "boss" && e.sprite === "ghost" && !s.bosses.includes("relic-echo")) {
+      s.bosses.push("relic-echo"); s.events.push({ type: "checkpoint", id: "relic-echo" });
+    }
     s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp });
   }
 }
@@ -665,8 +674,8 @@ function availableExit(s: GameState): WorldExit | undefined {
   return getWorld(s.scene, s.room).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
 }
 export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
-  const item = chipTargets(s).find(target => itemWithinReach(s, target));
-  if (item && activeHero(s).hp > 0) return { id: item.id, name: `Collect ${item.name}` };
+  const item = itemInteractionCandidates(s)[0];
+  if (item) return item;
   if (s.coop && activeHero(s).hp > 0) {
     const downed = s.coop.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room && Math.hypot(s.x - peer.x, s.y - peer.y) <= 32);
     if (downed) return { id: `coop-revive-${downed.seat}`, name: `Hold to revive ${downed.name}` };
@@ -694,7 +703,7 @@ function travel(s: GameState, door: WorldExit) {
 }
 export function interact(s: GameState): void {
   const personalTarget = interactTarget(s);
-  if (personalTarget?.id.startsWith("chip-find-") && collectChip(s, personalTarget.id)) return;
+  if (personalTarget && interactItem(s, personalTarget.id)) return;
   if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
   const target = interactTarget(s);
   if (!target) return;
