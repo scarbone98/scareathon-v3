@@ -1,0 +1,218 @@
+[
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "station",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "reservoir",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "orchard",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "station",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "reservoir",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "orchard",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "station",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "reservoir",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "orchard",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "station",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "reservoir",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "orchard",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  }
+]

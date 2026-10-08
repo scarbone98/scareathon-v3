@@ -1,0 +1,138 @@
+[
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "w": 300,
+        "h": 150,
+        "cssW": 390,
+        "cssH": 844,
+        "visible": false
+      },
+      {
+        "w": 1170,
+        "h": 2532,
+        "cssW": 390,
+        "cssH": 844,
+        "visible": true
+      }
+    ],
+    "loop": "county → Wayside → county",
+    "cancel": true,
+    "contextLoss": false
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "w": 300,
+        "h": 150,
+        "cssW": 1440,
+        "cssH": 900,
+        "visible": false
+      },
+      {
+        "w": 2880,
+        "h": 1800,
+        "cssW": 1440,
+        "cssH": 900,
+        "visible": true
+      }
+    ],
+    "loop": "county → Wayside → county",
+    "cancel": true,
+    "contextLoss": false
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "w": 1170,
+        "h": 2532,
+        "cssW": 390,
+        "cssH": 844,
+        "visible": true
+      },
+      {
+        "w": 1170,
+        "h": 2532,
+        "cssW": 390,
+        "cssH": 844,
+        "visible": true
+      }
+    ],
+    "loop": "county → Wayside → county",
+    "cancel": true,
+    "contextLoss": true
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "w": 2880,
+        "h": 1800,
+        "cssW": 1440,
+        "cssH": 900,
+        "visible": true
+      },
+      {
+        "w": 2880,
+        "h": 1800,
+        "cssW": 1440,
+        "cssH": 900,
+        "visible": true
+      }
+    ],
+    "loop": "county → Wayside → county",
+    "cancel": true,
+    "contextLoss": true
+  },
+  {
+    "gfx": "fallback",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "dpr": 4,
+    "backing": {
+      "w": 1560,
+      "h": 3376,
+      "cssW": 390,
+      "cssH": 844
+    }
+  },
+  {
+    "gfx": "fallback",
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "dpr": 4,
+    "backing": {
+      "w": 3376,
+      "h": 1560,
+      "cssW": 844,
+      "cssH": 390
+    }
+  }
+]
