@@ -1,3 +1,4 @@
+import { drawScorchedDepression, EMBEDDED_BLAST, GROUND_DECALS } from './grounding.ts';
 import type { WorldProp } from './worldBuilder';
 export const BLAST_ART=new Set(['canyon-rock','blast-scrap','ash-tuft','bank-stones','plaza-fragment','wreck-truck','fallen-pole','impact','rubble','broken-bridge','bridge-rail','ruin-house','tractor','hay-bale','shelf','ember-vent','pillar','gate-wall','fountain','fallen-statue','rift-shard','floating-debris','ground-crack','dead-tree','loading-dock','forklift']);
 const cache=new Map<string,HTMLCanvasElement>();
@@ -14,7 +15,7 @@ export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
     const line=(x:number,y:number,xx:number,yy:number,color:string,lw=1)=>{c.strokeStyle=color;c.lineWidth=lw;c.beginPath();c.moveTo(x,y);c.lineTo(xx,yy);c.stroke();};
     const ellipse=(x:number,y:number,rx:number,ry:number,color:string)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
     const poly=(pts:number[][],color:string)=>{c.fillStyle=color;c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();};
-    ellipse(w/2,h*.9,w*.46,h*.09,'#292a31');
+    if (!GROUND_DECALS.has(p.kind) && !EMBEDDED_BLAST.has(p.kind)) ellipse(w/2,h*.93,w*.43,h*.05,'#292a3150');
     const k=p.kind;
     if(k==='blast-scrap'||k==='ash-tuft'||k==='bank-stones'||k==='plaza-fragment') {
       c.clearRect(0,0,w,h);
@@ -40,19 +41,20 @@ export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
       line(w*.5,h*.94,w*.44,h*.18,'#4b403e',5);line(w*.48,h*.8,w*.39,h*.18,'#8a7562',1);
       if(k==='dead-tree'){for(const [x,y] of [[.1,.35],[.9,.28],[.2,.12],[.85,.6]]){line(w*.45,h*.5,w*x,h*y,'#504643',3);line(w*x,h*y,w*(x+.04),h*(y-.1),'#907863',.7);}}
       else {line(w*.08,h*.19,w*.92,h*.27,'#a59070',3);for(const x of [.18,.75]){ellipse(w*x,h*.23,2,3,'#b7b6a2');line(w*x,h*.23,w*(x+.15),h*.86,'#34363c',.7);}}
-    } else if(k==='impact'||k==='ember-vent'||k==='fountain') {
-      ellipse(w*.5,h*.53,w*.47,h*.43,k==='fountain'?'#858682':'#77615c');ellipse(w*.5,h*.52,w*.38,h*.32,'#303039');
-      ellipse(w*.5,h*.53,w*.3,h*.23,k==='fountain'?'#476c75':k==='ember-vent'?'#b25338':'#242630');
+    } else if(k==='impact'||k==='ember-vent') {
+      drawScorchedDepression(c,w,h,k==='ember-vent');
+    } else if(k==='fountain') {
+      ellipse(w*.5,h*.53,w*.47,h*.43,'#858682');ellipse(w*.5,h*.52,w*.38,h*.32,'#303039');
+      ellipse(w*.5,h*.53,w*.3,h*.23,'#476c75');
       for(let n=0;n<18;n++){const a=n*Math.PI/9;line(w*.5+Math.cos(a)*w*.4,h*.53+Math.sin(a)*h*.36,w*.5+Math.cos(a)*w*.46,h*.53+Math.sin(a)*h*.43,'#bc9b7c',.7);}
-      if(k==='ember-vent')for(let n=0;n<8;n++)line(w*(.25+n*.065),h*.65,w*(.3+n*.06),h*(.3+(n%3)*.08),'#f2a45c',1.5);
-      if(k==='fountain'){rect(w*.46,h*.13,w*.08,h*.43,'#a4a593');ellipse(w*.5,h*.17,w*.2,h*.09,'#b5b3a0');}
+      rect(w*.46,h*.13,w*.08,h*.43,'#a4a593');ellipse(w*.5,h*.17,w*.2,h*.09,'#b5b3a0');
     } else if(k==='ground-crack') {
       for(let n=0;n<5;n++){line(n*w/5,h*.5,(n+.6)*w/5,h*(n%2?.2:.8),'#252634',2);line((n+.6)*w/5,h*(n%2?.2:.8),(n+1)*w/5,h*.5,'#ad7977',.7);}
     } else if(k==='rift-shard'||k==='floating-debris'||k==='rubble'||k==='fallen-statue') {
       if(k==='fallen-statue'){rect(w*.1,h*.65,w*.22,h*.24,'#8d8980');poly([[w*.3,h*.76],[w*.45,h*.4],[w*.8,h*.42],[w*.9,h*.65],[w*.7,h*.83]],'#98988b');ellipse(w*.8,h*.35,w*.08,h*.14,'#aeb1a0');line(w*.5,h*.43,w*.61,h*.76,'#555b62',2);}
       else if(k==='rift-shard'){poly([[w*.12,h*.8],[w*.4,h*.04],[w*.82,h*.3],[w*.9,h*.78],[w*.5,h*.95]],'#685574');poly([[w*.4,h*.04],[w*.49,h*.62],[w*.82,h*.3]],'#a38aaa');line(w*.4,h*.15,w*.49,h*.62,'#edbee2',1.3);line(w*.49,h*.62,w*.8,h*.8,'#bb88bc',.8);}
-      else for(let n=0;n<5;n++){const x=w*(.12+n*.14),y=h*(.3+(n%3)*.15);poly([[x,y+h*.28],[x+w*.1,y-h*.22],[x+w*.25,y],[x+w*.2,y+h*.25]],n%2?'#737679':'#969087');line(x+w*.1,y-h*.18,x+w*.2,y,'#c2aaa0',.6);}
-      if(k==='floating-debris'){ellipse(w*.5,h*.95,w*.25,1,'#4f354f');}
+      else for(let n=0;n<5;n++){const x=w*(.12+n*.14),y=h*(.5+(n%3)*.025);poly([[x,y+h*.28],[x+w*.1,y-h*.22],[x+w*.25,y],[x+w*.2,y+h*.25]],n%2?'#737679':'#969087');line(x+w*.1,y-h*.18,x+w*.2,y,'#c2aaa0',.6);}
+
     } else if(k==='canyon-rock') {
       poly([[0,h],[w*.06,h*.25],[w*.3,0],[w*.72,h*.04],[w*.96,h*.34],[w,h]],'#514c51');
       poly([[w*.06,h*.25],[w*.3,0],[w*.72,h*.04],[w*.6,h*.25],[w*.15,h*.4]],'#958777');
@@ -73,6 +75,18 @@ export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
       // Dock and bridge timber, with broken spans visibly absent over water.
       for(let x=0;x<w;x+=9){if(k==='broken-bridge'&&x>w*.3&&x<w*.65)continue;rect(x,h*.25,8,h*.65,'#8d765c');line(x+2,h*.3,x+3,h*.85,'#c1a378',.7);for(const y of [h*.36,h*.8])ellipse(x+4,y,.7,.7,'#373e44');}
       if(k==='bridge-rail'){rect(0,h*.2,w,3,'#b6a184');for(let x=4;x<w;x+=24)rect(x,0,3,h,'#6a6863');}
+    }
+    if (EMBEDDED_BLAST.has(p.kind)) {
+      // Bury the silhouette into its own contact line, with overlapping soil.
+      const base=k==='canyon-rock'?h*.94:k==='rift-shard'?h*.88:h*.73;
+      c.save();c.globalCompositeOperation='destination-in';
+      const mask=c.createLinearGradient(0,base-h*.1,0,base+h*.04);
+      mask.addColorStop(0,'#000');mask.addColorStop(1,'#0000');c.fillStyle=mask;c.fillRect(0,0,w,h);c.restore();
+      for(let n=0;n<18;n++){
+        const x=w*(.06+n*.05),y=base+Math.sin(n*2.7)*h*.025;
+        ellipse(x,y,w*.04,h*.017,n%3?'#655d5180':'#34353880');
+        line(x,y,x+w*.026,y-.7,'#a3947360',.5);
+      }
     }
     cache.set(key,image);
   }

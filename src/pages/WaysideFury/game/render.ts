@@ -1,3 +1,4 @@
+import { drawScorchedDepression, GROUND_DECALS } from './grounding.ts';
 import { drawBlastProp } from "./blastArt";
 import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
 import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
@@ -240,7 +241,8 @@ export class Renderer {
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
-    const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
+    for (const prop of world.props) if (GROUND_DECALS.has(prop.kind) && this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)) this.prop(prop, motionTime, s);
+    const actors = world.props.filter(prop => !GROUND_DECALS.has(prop.kind) && this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
@@ -443,7 +445,7 @@ export class Renderer {
       c.save(); c.translate(x, y - 2); c.scale(1, .25); c.globalAlpha = .65; this.disc(0, 0, prop.w / 2, '#557b84'); c.restore();
       this.rect(x - prop.w / 3, y - 3, prop.w / 2, .6, '#c5d5ce'); return;
     }
-    if (prop.kind === 'debris') { this.rect(x - 4, y - 3, 7, 3, '#796962'); this.rect(x + 2, y - 5, 3, 4, '#b29271'); return; }
+    if (prop.kind === 'debris') { this.rect(x-5,y-1,11,1,'#343c3560'); this.rect(x - 4, y - 3, 7, 3, '#796962'); this.rect(x + 2, y - 5, 3, 4, '#b29271'); return; }
     if (prop.kind === 'mailbox') {
       this.rect(x - 1, y - 14, 2, 15, '#715e46'); this.rect(x - 6, y - 19, 12, 7, '#758f90'); this.rect(x - 5, y - 18, 4, 5, '#496269'); this.rect(x + 5, y - 20, 1, 7, '#b4a486'); this.rect(x + 5, y - 20, 5, 2, '#db8a69'); return;
     }
@@ -466,11 +468,7 @@ export class Renderer {
       } return;
     }
     if (prop.kind === 'crater') {
-      c.save(); c.translate(x, prop.y + prop.h / 2); c.scale(1, .6);
-      this.disc(0, 0, prop.w / 2, '#77605f'); this.disc(0, 0, prop.w / 2 - 5, '#584650');
-      this.disc(0, 0, prop.w / 2 - 14, '#382f3e'); this.disc(0, 0, prop.w / 2 - 24, '#252735');
-      for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12; this.rect(Math.cos(a) * (prop.w / 2 - 9), Math.sin(a) * (prop.w / 2 - 9), 5, 3, k % 2 ? '#a5796c' : '#895e64'); }
-      c.restore(); return;
+      c.save(); c.translate(prop.x, prop.y); drawScorchedDepression(c, prop.w, prop.h); c.restore(); return;
     }
     if (prop.kind === 'flower') {
       for (let k = 0; k < Math.max(2, prop.w / 6); k++) {
@@ -496,9 +494,11 @@ export class Renderer {
       this.rect(prop.x, y - 9, prop.w, 2, '#a3916c'); this.rect(prop.x, y - 4, prop.w, 2, '#71664e');
       for (let px = prop.x; px < prop.x + prop.w; px += 16) { this.rect(px, y - 12, 3, 13, '#887b5d'); this.rect(px, y - 12, 2, 2, '#c0ad7f'); } return;
     }
-    this.shadow(x, y, prop.w + 3);
+    if (prop.kind !== 'rock') this.shadow(x, y, prop.w + 3);
     if (prop.kind === 'rock') {
+      c.save(); c.fillStyle='#1c262b60';c.beginPath();c.ellipse(x,y-1,8,1.7,0,0,Math.PI*2);c.fill();c.restore();
       this.rect(x - 7, y - 6, 14, 6, '#4a4d52'); this.rect(x - 5, y - 10, 10, 5, '#7c7773'); this.rect(x - 4, y - 10, 5, 2, '#a5a087'); this.rect(x + 4, y - 6, 3, 5, '#41464b');
+      for(let n=0;n<9;n++){this.rect(x-7+n*1.7,y-1+(n%2)*.4,2,.8,n%3?'#657054':'#8b8166');}
     } else if (prop.kind === 'sign') {
       this.rect(x - 2, y - 14, 4, 15, '#615643'); this.rect(x - 11, y - 22, 22, 12, '#b09b6f'); this.rect(x - 10, y - 21, 20, 2, '#d6c18b');
       this.rect(x - 6, y - 16, 10, 2, '#524f41'); this.rect(x + 4, y - 18, 2, 6, '#524f41');

@@ -1,3 +1,5 @@
+import { scorchedGroundMesh, contactGroundMesh } from './grounding3d.ts';
+import { footprintGrounding } from './grounding.ts';
 import * as THREE from 'three';
 import type { GameState } from './sim';
 import type { HeroAvatar } from './avatar';
@@ -92,9 +94,22 @@ export class SpaceRenderer {
         for(let n=0;n<=length;n+=16)this.cylinder(g,1,23,'#a6bacb',vertical?0:n-p.w/2,11.5,vertical?n-p.h:0);
         for(const y of [7,20])this.box(g,vertical?1:length,1,vertical?length:1,'#8098ac',0,y,vertical?-p.h/2:0);break;
       }
-      case 'crater':{const rim=this.mesh(g,new THREE.TorusGeometry(p.w*.4,3,12,48),'#9babc0',0,1,-p.h/2);rim.rotation.x=-Math.PI/2;rim.scale.y=.65;this.cylinder(g,p.w*.36,.4,'#46556d',0,.3,-p.h/2);break;}
+      case 'crater':{
+        // Lunar ground is flat: a shaded bowl decal and soft, low regolith rim
+        // conform to that surface rather than hovering as a detached torus.
+        const surface=(x:number,z:number)=>{
+          const r=Math.hypot(x/(p.w*.48),(z+p.h/2)/(p.h*.46));
+          return Math.min(p.w,p.h)*.024*Math.exp(-Math.pow((r-.87)/.13,2));
+        };
+        g.add(scorchedGroundMesh(p.w,p.h,surface,0,-p.h/2));break;
+      }
       case 'flag':this.cylinder(g,1,h,'#d5e3ef');this.box(g,30,15,1,'#c481c4',15,h-10);break;
-      case 'rock':this.mesh(g,new THREE.DodecahedronGeometry(p.w*.5,1),'#8999af',0,5,-p.h/2).scale.y=.5;break;
+      case 'rock':{
+        const foot=footprintGrounding(()=>0,p.x+p.w/2,p.y+p.h/2,p.w,p.h);
+        const rock=this.mesh(g,new THREE.DodecahedronGeometry(p.w*.5,1),'#8999af',0,foot.base+p.w*.09,-p.h/2);
+        rock.scale.y=.5;rock.rotation.set(-foot.tiltX,p.x*.017,-foot.tiltZ);
+        g.add(contactGroundMesh(p.w*1.15,p.h*.8,0,-p.h/2));break;
+      }
       default:this.box(g,p.w,Math.min(h,24),Math.max(4,p.w*.5),'#64778e');
     }
   }
@@ -104,7 +119,7 @@ export class SpaceRenderer {
     const world=getWorld(s.scene,s.room,s.mapId),moon=s.mapId.startsWith('moon-');
     const floor=this.box(this.staticGroup,world.width,2,world.height,moon?'#7d8ba4':'#536778',world.width/2,-1,world.height/2);floor.material.roughness=1;
     // Deterministic regolith stones / paved expansion seams, independent of state.
-    if(moon)for(let n=0;n<100;n++){const x=24+(n*137)%(world.width-48),z=24+(n*79)%(world.height-48);this.mesh(this.staticGroup,new THREE.DodecahedronGeometry(.7+n%3,0),n%3?'#a9b6c8':'#5e708c',x,.4,z).scale.y=.35;}
+    if(moon)for(let n=0;n<100;n++){const x=24+(n*137)%(world.width-48),z=24+(n*79)%(world.height-48);this.mesh(this.staticGroup,new THREE.DodecahedronGeometry(.7+n%3,0),n%3?'#a9b6c8':'#5e708c',x,(.7+n%3)*.35*.36,z).scale.y=.35;}
     else for(let x=0;x<world.width;x+=32)this.box(this.staticGroup,.4,.05,world.height,'#718294',x,.1,world.height/2);
     for(let row=0;row<world.rows;row++)for(let col=0;col<world.cols;col++)if(world.collision[row*world.cols+col])this.box(this.staticGroup,16,12,16,'#566880',col*16+8,6,row*16+8);
     for(const p of world.props)this.buildProp(p);

@@ -1,3 +1,5 @@
+import { scorchedGroundMesh } from './grounding3d.ts';
+import { footprintGrounding } from './grounding.ts';
 import { COUNTY_ART, countyArtwork } from "./countyArt";
 import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
@@ -198,11 +200,11 @@ export class OverworldRenderer {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(1024, 1024);
     Object.assign(this.sun.shadow.camera, { left: -180, right: 180, top: 180, bottom: -180, near: 20, far: 900 });
-    this.sun.shadow.normalBias = .5;
+    this.sun.shadow.normalBias = .12;
     this.sun.shadow.bias = -.00025;
     this.sun.shadow.camera.updateProjectionMatrix();
     this.shadowTexture = this.makeShadowTexture();
-    this.shadowMaterial = new THREE.MeshBasicMaterial({ map: this.shadowTexture, transparent: true, depthWrite: false, opacity: .62, toneMapped: false });
+    this.shadowMaterial = new THREE.MeshBasicMaterial({ map: this.shadowTexture, transparent: true, depthWrite: false, opacity: .62, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     this.shadowGeometry.rotateX(-Math.PI / 2);
     this.taxiShadow = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial);
     this.taxiShadow.scale.set(38, 1, 26);
@@ -314,16 +316,22 @@ export class OverworldRenderer {
     // Repeated cubes/foliage share geometry and are instanced by material. This
     // bounds draw calls independently of the hundreds of map decorations.
     const batches = new Map<string, { geometry: THREE.BufferGeometry; material: THREE.Material; matrices: THREE.Matrix4[] }>();
-    const part = (shape: keyof typeof this.geometries, color: string, x: number, y: number, z: number, w: number, h: number, d: number, rotation = 0, emissive = false) => {
+    const part = (shape: keyof typeof this.geometries, color: string, x: number, y: number, z: number, w: number, h: number, d: number, rotation = 0, emissive = false, tiltX = 0, tiltZ = 0) => {
       const key = `${shape}:${color}:${emissive}`;
       let batch = batches.get(key);
       if (!batch) { batch = { geometry: this.geometries[shape], material: this.material(color, emissive), matrices: [] }; batches.set(key, batch); }
-      this.dummy.position.set(x, y, z); this.dummy.rotation.set(0, rotation, 0); this.dummy.scale.set(w, h, d); this.dummy.updateMatrix();
+      this.dummy.position.set(x, y, z); this.dummy.rotation.set(tiltX, rotation, tiltZ); this.dummy.scale.set(w, h, d); this.dummy.updateMatrix();
       batch.matrices.push(this.dummy.matrix.clone());
+    };
+    const buriedRock=(color:string,x:number,z:number,w:number,h:number,d:number,rotation=0)=>{
+      const ground=footprintGrounding(this.terrain.heightAt,x,z,w*2,d*2,rotation);
+      // Dodecahedron dimensions are radii: .36 h sinks 32% of its full height.
+      part('rock',color,x,ground.base+h*.36,z,w,h,d,rotation,false,-ground.tiltX,-ground.tiltZ);
     };
     for (const preview of ZONE_PREVIEWS) {
       const { shape, color, x, y, z, w, h, d } = preview;
-      part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
+      if(shape==='rock' && y===0) buriedRock(color,x,z,w*.5,h*.5,d*.5,x*.017);
+      else part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
     }
     const shadows: THREE.Matrix4[] = [];
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
@@ -396,7 +404,8 @@ export class OverworldRenderer {
         box('#678359', 0, 1, 0, 7, 2, 5);
         for (let k = 0; k < 3; k++) { box('#7e9659', k * 3 - 3, 3.5, k % 2 * 3, .6, 5, .6); box(k % 2 ? '#e2bf83' : '#d8c3a1', k * 3 - 3, 6, k % 2 * 3, 2.3, 1.5, 2.3); }
       } else if (prop.kind === 'rock') {
-        part('rock', '#7c8272', x, y + 4, z, 6, 6, 5, x); part('rock', '#a0a38a', x - 2, y + 7, z - 1, 3, 3, 3, z);
+        buriedRock('#7c8272',x,z,6,6,5,x);
+        buriedRock('#a0a38a',x-2,z-1,3,3,3,z);
       } else if (prop.kind === 'car') {
         box('#27363f', 0, 3, 0, 30, 4, 17); box(prop.color ?? '#799ba1', 0, 7, 0, 32, 7, 15); box('#a1b5a9', -2, 12, 0, 17, 5, 12);
         box('#314c59', -2, 12, 6.1, 14, 3, .3); box('#ead19a', 16, 8, -4, .5, 2, 3);
@@ -411,15 +420,33 @@ export class OverworldRenderer {
       } else if (prop.kind === 'puddle') {
         // Ground decals are merged separately, never part of the shadow casters.
       } else if (prop.kind === 'debris') {
-        part('rock', '#8b7561', x, y + 1, z, 3, 1.8, 2, x);
-      } else if (prop.kind === 'crater') {
-        for (let k = 0; k < 20; k++) { const angle = k * Math.PI / 10; part('rock', '#8f7366', x + Math.cos(angle) * prop.w * .46, y + 2, z + Math.sin(angle) * prop.h * .35, 4, 2, 3, angle); }
+        buriedRock('#8b7561',x,z,3,1.8,2,x);
+      } else if (prop.kind === 'crater' || prop.kind === 'impact' || prop.kind === 'ember-vent') {
+        this.scene.add(scorchedGroundMesh(prop.w,prop.h,this.terrain.heightAt,prop.x+prop.w/2,prop.y+prop.h/2));
+        // The terrain owns the depression; a few embedded fragments replace
+        // the former levitating, perfectly circular necklace of boulders.
+        for(let k=0;k<9;k++){const a=k*2.39996;buriedRock('#8f7366',x+Math.cos(a)*prop.w*.43,prop.y+prop.h/2+Math.sin(a)*prop.h*.4,1.6+k%3,.7,1.4,a);}
+      } else if (['canyon-rock','rubble','floating-debris','bank-stones','blast-scrap','plaza-fragment','fallen-statue','rift-shard'].includes(prop.kind)) {
+        for(let k=0;k<4;k++)buriedRock('#82776b',prop.x+prop.w*(.18+k*.21),prop.y+prop.h*(.3+(k%2)*.35),prop.w*.12,prop.h*.12,prop.h*.11,k*2.4);
       }
     }
     for (const batch of batches.values()) {
       const mesh = new THREE.InstancedMesh(batch.geometry, batch.material, batch.matrices.length);
       batch.matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
       mesh.castShadow = true; mesh.receiveShadow = true; mesh.computeBoundingSphere(); this.scene.add(mesh);
+    }
+    const contacts=this.world.props.filter(p=>['rock','debris','canyon-rock','rubble','floating-debris','fallen-statue','rift-shard'].includes(p.kind));
+    if(contacts.length){
+      const positions:number[]=[],uvs:number[]=[];
+      for(const p of contacts){
+        const cx=p.x+p.w/2,cz=p.y+p.h*.8,rx=Math.max(5,p.w*.5),rz=Math.max(3,p.h*.22);
+        for(let n=0;n<32;n++)for(const [u,v]of [[0,0],[Math.cos(n*Math.PI/16),Math.sin(n*Math.PI/16)],[Math.cos((n+1)*Math.PI/16),Math.sin((n+1)*Math.PI/16)]]){
+          const px=cx+u*rx,pz=cz+v*rz;positions.push(px,this.terrain.heightAt(px,pz)+.015,pz);uvs.push((u+1)/2,(v+1)/2);
+        }
+      }
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+      const material=this.shadowMaterial.clone();material.side=THREE.DoubleSide;material.opacity=.42;
+      const mesh=new THREE.Mesh(geometry,material);mesh.name='embedded-prop-contact-ao';mesh.renderOrder=2;this.scene.add(mesh);
     }
     const blobs = new THREE.InstancedMesh(this.shadowGeometry, this.shadowMaterial, shadows.length);
     shadows.forEach((matrix, index) => blobs.setMatrixAt(index, matrix)); blobs.computeBoundingSphere(); this.scene.add(blobs);
