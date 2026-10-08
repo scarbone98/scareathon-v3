@@ -122,6 +122,8 @@ const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=5c331f0";
+// A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
+const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=09f890a";
 const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
@@ -1454,6 +1456,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Outside"
           url={OUTSIDE_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed WIND into WaysideOS.
+    // Nothing to score yet: a glider, the clouds, and the airships to fly among.
+    {
+      name: "Daughter Of The Wind",
+      added: "2026-10-08T11:30:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#3f7fd6",
+        tagline: "A white glider. A sea of clouds. Ships of iron.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Flying", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Daughter Of The Wind"
+          url={DAUGHTER_OF_THE_WIND_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
