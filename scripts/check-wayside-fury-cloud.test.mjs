@@ -92,7 +92,7 @@ test('legacy guest migrates, transfers on first sign-in, and remains separate fr
   delete legacy.home.character;
   const d = device(t, new MemoryStorage(legacy));
   await d.store.load(null);
-  assert.equal(d.store.save.version, 3);
+  assert.equal(d.store.save.version, 4);
   assert.equal(d.store.save.candy, 17);
   assert.equal(d.server.calls.length, 0, 'guests never make authenticated save requests');
   await d.store.load(A); await settle();
@@ -123,7 +123,7 @@ test('an existing version2 account migrates You and shared XP while its earlier 
   for (const h of Object.values(legacy.heroes)) { h.power += 4; h.defense += 2; }
   for (const h of Object.values(legacy.home.heroes)) { h.power += 2; h.defense++; }
   const d = device(t); d.server.seed(A, legacy, 8); await d.store.load(A); await settle();
-  assert.equal(d.store.save.version, 3); assert.deepEqual(d.store.save.character, { level: 4, xp: 9 });
+  assert.equal(d.store.save.version, 4); assert.deepEqual(d.store.save.character, { level: 4, xp: 9 });
   assert.deepEqual(d.store.save.party, ['you', 'matt']); assert.equal(d.store.save.active, 'you');
   assert.deepEqual(d.store.save.gear, { power: 4, ward: 2 });
   const retry = restoreSave(d.store.save, true);
@@ -131,7 +131,7 @@ test('an existing version2 account migrates You and shared XP while its earlier 
   assert.equal(retry.candy, 7); assert.deepEqual(retry.areas, ['wayside', 'blast']);
   assert.equal(progressReport(retry, d.store.save.lastReported).score, 0);
   d.store.persist(makeSave(retry, d.store.save), true); await settle();
-  assert.equal(d.server.rows.get(A).save.version, 3); assert.equal(d.paid(), 0, 'migration and HOME retry cannot pay old progress');
+  assert.equal(d.server.rows.get(A).save.version, 4); assert.equal(d.paid(), 0, 'migration and HOME retry cannot pay old progress');
   assert.equal(d.server.rows.get(A).save.lastReported.level, 4);
 });
 

@@ -1,3 +1,4 @@
+import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION, compatibleMap } from '../shared/waysideFury/campaign.js';
 import { randomBytes, randomInt } from 'node:crypto';
 import { MAX_MESSAGE_BYTES, MAX_MESSAGES_PER_SECOND, MAX_SEATS, cleanRelay } from './protocol.js';
 import { updateHosting } from './presence.js';
@@ -54,6 +55,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
     function roomInfo(room, player) {
         return {
             type: 'room', code: room.code, seat: player.seat, hostSeat: room.hostSeat,
+            protocolVersion: Math.min(...players(room).map(peer => peer.protocolVersion)), contentVersion: CAMPAIGN_CONTENT_VERSION,
             token: player.token, status: 'playing', players: publicPlayers(room),
         };
     }
@@ -128,7 +130,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
     }
     function newPlayer(socket, seat) {
         const user = identity(socket);
-        return { ...user, seat, socket, token: randomBytes(24).toString('hex'), goneAt: null, appearance: null, hero: null };
+        return { ...user, protocolVersion: user.protocolVersion ?? 1, seat, socket, token: randomBytes(24).toString('hex'), goneAt: null, appearance: null, hero: null };
     }
 
     const manager = {
@@ -142,13 +144,14 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             tickets.set(ticket, { userId, name: cleanName(name), expires: now() + TICKET_MS });
             return ticket;
         },
-        auth(socket, { ticket }) {
+        auth(socket, { ticket, protocolVersion = 1, contentVersion = 1 }) {
+            if (![1, COOP_PROTOCOL_VERSION].includes(protocolVersion) || contentVersion !== CAMPAIGN_CONTENT_VERSION) throw new RoomError('version');
             if (playerFor(socket)) throw new RoomError('already');
             const user = typeof ticket === 'string' ? tickets.get(ticket) : null;
             if (!user || user.expires <= now()) throw new RoomError('ticket');
             tickets.delete(ticket);
-            socket.waysideFuryUser = { userId: user.userId, name: user.name };
-            send(socket, { type: 'ready', userId: user.userId, name: user.name });
+            socket.waysideFuryUser = { userId: user.userId, name: user.name, protocolVersion };
+            send(socket, { type: 'ready', protocolVersion: COOP_PROTOCOL_VERSION, contentVersion: CAMPAIGN_CONTENT_VERSION, userId: user.userId, name: user.name });
         },
         // Limits include lobby traffic, bad JSON and packets from unauthenticated sockets.
         accept(socket) {
@@ -175,6 +178,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             const user = identity(socket);
             const room = rooms.get(cleanCode(code));
             if (!room) throw new RoomError('missing');
+            if (room.latestState && !compatibleMap(room.latestState.state.scene, room.latestState.state.room, room.latestState.state.mapId, user.protocolVersion)) throw new RoomError('version');
             if (players(room).some((player) => player.userId === user.userId)) throw new RoomError('already');
             const seat = room.players.findIndex((player) => player === null);
             if (seat < 0) throw new RoomError('full');
@@ -193,6 +197,8 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             const room = rooms.get(cleanCode(code));
             const player = room && players(room).find((entry) => typeof token === 'string' && entry.token === token && entry.userId === user.userId);
             if (!player || (player.goneAt !== null && now() - player.goneAt >= RECONNECT_MS)) throw new RoomError('missing');
+            if (room.latestState && !compatibleMap(room.latestState.state.scene, room.latestState.state.room, room.latestState.state.mapId, user.protocolVersion)) throw new RoomError('version');
+            player.protocolVersion = user.protocolVersion;
             const previous = playerFor(socket);
             if (previous && previous.player !== player) leave(socket);
             attach(room, player, socket);
@@ -215,6 +221,8 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             const cleaned = cleanRelay(message);
             if (!cleaned) throw new RoomError('invalid');
             const { room, player, seat } = found;
+            const location = cleaned.type === 'state' ? cleaned.state : cleaned.type === 'hero' ? cleaned.hero : ['hit', 'pickup'].includes(cleaned.type) ? cleaned : null;
+            if (location && !players(room).every(peer => compatibleMap(location.scene, location.room, location.mapId, peer.protocolVersion))) throw new RoomError('version');
             const hostOnly = ['state', 'reward', 'revive', 'damage'].includes(cleaned.type);
             if (hostOnly && seat !== room.hostSeat) throw new RoomError('host');
             const forwarded = { ...cleaned, seat, userId: player.userId, name: player.name, now: now() };

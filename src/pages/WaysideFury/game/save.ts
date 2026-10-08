@@ -1,4 +1,5 @@
-import { enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
+import { WOODS_HANDOFF } from "./campaign.ts";
+import { enterCampaignMap, enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts, ticketDelta } from "../../../../server/shared/waysideFury/save.js";
 import type { SaveData, ProgressReceipt } from "../../../../server/shared/waysideFury/save.js";
@@ -32,7 +33,8 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
   })) : s.heroes;
   return parseSave({
-    version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
+    version: SAVE_VERSION, campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
+    completedCinematics: s.completedCinematics, checkpointMapId: s.coop?.role === "guest" ? previous?.checkpointMapId ?? "hub" : s.checkpointMapId, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
@@ -69,6 +71,8 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.character = { ...snapshot.character }; s.gear = { ...snapshot.gear }; s.unlockedHeroes = [...saved.unlockedHeroes];
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
+    s.campaignMilestones = [...saved.campaignMilestones]; s.solvedInteractions = [...saved.solvedInteractions];
+    s.completedCinematics = [...saved.completedCinematics]; s.checkpointMapId = saved.checkpointMapId;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
     s.coopRewards = [...(saved.coopRewards ?? [])];
     s.foundItems = [...saved.foundItems]; s.ambientTaxiWrecked = s.personalTaxiWrecked = saved.ambientTaxiWrecked;
@@ -82,6 +86,10 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   }
   if (saved?.prologuePending) { enterScene(s, "prologue"); return s; }
   enterScene(s, "hub"); s.x = HUB_WORLD.spawn.x; s.y = HUB_WORLD.spawn.y;
+  if (!retry && saved && saved.checkpointMapId !== "hub") {
+    enterCampaignMap(s, saved.checkpointMapId);
+  }
   s.notice = retry ? "Rested at HOME. The crew is ready." : "Welcome back to Wayside.";
+  if (s.clearedRooms.includes("realm-0")) s.notice = WOODS_HANDOFF;
   return s;
 }

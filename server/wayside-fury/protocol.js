@@ -1,3 +1,4 @@
+import { COOP_PROTOCOL_VERSION, compatibleMap } from '../shared/waysideFury/campaign.js';
 import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
 const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
 export const MAX_MESSAGE_BYTES = 65_536;
@@ -36,13 +37,14 @@ export function cleanInput(input) {
 
 export function cleanHero(remote) {
     if (!object(remote) || !object(remote.hero) || !HERO_IDS.has(remote.hero.id) || !scene(remote.scene) || !integer(remote.room, 999)) return null;
+    if (!compatibleMap(remote.scene, remote.room, remote.mapId, COOP_PROTOCOL_VERSION)) return null;
     const hero = { id: remote.hero.id };
     for (const key of ['hp', 'maxHp', 'ki', 'maxKi', 'stamina', 'maxStamina', 'level', 'xp', 'power', 'defense', 'invulnerable']) {
         if (!number(remote.hero[key], 1e6) || remote.hero[key] < 0) return null;
         hero[key] = remote.hero[key];
     }
     if (hero.maxHp < 1 || hero.hp > hero.maxHp || hero.ki > hero.maxKi || hero.stamina > hero.maxStamina) return null;
-    const cleaned = { hero, scene: remote.scene, room: remote.room };
+    const cleaned = { hero, scene: remote.scene, room: remote.room, ...(remote.mapId !== undefined ? { mapId: remote.mapId } : {}) };
     for (const key of ['x', 'y', 'faceX', 'faceY', 'attackTimer', 'combo', 'charge', 'dashTimer']) {
         if (!number(remote[key], key === 'faceX' || key === 'faceY' ? 1 : 1e6)) return null;
         cleaned[key] = remote[key];
@@ -89,6 +91,8 @@ export function cleanAppearance(appearance) {
 
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
+    if (!compatibleMap(state.scene, state.room, state.mapId, COOP_PROTOCOL_VERSION)) return null;
+    if (state.protocolVersion !== undefined && state.protocolVersion !== COOP_PROTOCOL_VERSION) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
@@ -97,6 +101,10 @@ export function cleanWorld(state) {
     if (state.ambientTaxiGag !== undefined && (!number(state.ambientTaxiGag, 4) || state.ambientTaxiGag < -1)) return null;
     for (const key of ['clearedRooms', 'areas', 'bosses']) {
         if (!Array.isArray(state[key]) || state[key].length > 256 || !state[key].every((value) => text(value, 96))) return null;
+    }
+    for (const key of ['campaignMilestones', 'solvedInteractions', 'completedCinematics']) {
+        if (state[key] !== undefined && (!Array.isArray(state[key]) || state[key].length > 128 ||
+            !state[key].every(id => typeof id === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(id)))) return null;
     }
     for (const enemy of state.enemies) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
@@ -145,10 +153,12 @@ export function cleanRelay(message) {
         }
         case 'hit':
             if (!integer(message.enemyId) || !number(message.damage, 1e5) || message.damage <= 0 || !number(message.dx, 1) || !number(message.dy, 1) || !number(message.force, 1e5) || message.force < 0 || !text(message.attackId, 96) || !scene(message.scene) || !integer(message.room, 999)) return null;
+            if (!compatibleMap(message.scene, message.room, message.mapId, COOP_PROTOCOL_VERSION)) return null;
             cleaned = Object.fromEntries(['type', 'enemyId', 'damage', 'dx', 'dy', 'force', 'attackId', 'scene', 'room'].map((key) => [key, message[key]]));
             break;
         case 'pickup':
             if (!PICKUP_IDS.has(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
+            if (!compatibleMap(message.scene, message.room, message.mapId, COOP_PROTOCOL_VERSION)) return null;
             cleaned = { type: 'pickup', id: message.id, scene: message.scene, room: message.room };
             break;
         case 'reward': {
@@ -191,6 +201,7 @@ export function cleanRelay(message) {
         default:
             return null;
     }
+    if (message.mapId !== undefined && ['hit', 'pickup'].includes(message.type)) cleaned.mapId = message.mapId;
     if (message.targetSeat !== undefined) {
         if (!integer(message.targetSeat, MAX_SEATS - 1)) return null;
         cleaned.targetSeat = message.targetSeat;

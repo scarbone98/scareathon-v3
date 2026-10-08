@@ -1,8 +1,9 @@
+import { campaignLocations } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
 import { ZONE_PREVIEWS, drawPreviewPart } from './zonePreviews';
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
-import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
+import { HUB_POINTS, PROLOGUE } from "./content";
 import { parkedCarPose, cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { drawCanopy, drawTaxiBody, drawTaxiWreck } from "./scenery";
 import { QualityRecovery } from './qualityRecovery';
@@ -146,7 +147,7 @@ export class Renderer {
       if (point.x < .02 || point.x > .98 || point.y < .05 || point.y > .95) return;
       labels.push({ id, text, ...point, kind, color, opacity, scale });
     };
-    if (s.scene === 'overworld') for (const location of LOCATIONS) {
+    if (s.scene === 'overworld') for (const location of campaignLocations(s)) {
       const distance = Math.hypot(s.x - location.x, s.y - location.y);
       if (distance < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y + 24, location.locked ? 'locked' : 'location');
     }
@@ -210,7 +211,7 @@ export class Renderer {
       if (s.palette === 'eightbit' || (s.scene === 'shift' && s.transitionPalette === 'eightbit' && s.sceneTimer > 1.15)) this.applyRealmPalette();
       return;
     }
-    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room);
+    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
     const target = cameraTarget(world, s.x, s.y, width, height, s.moving ? s.faceX : 0, s.moving ? s.faceY : 0);
     if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
@@ -331,8 +332,8 @@ export class Renderer {
     this.ctx.globalAlpha = 1;
   }
 
-  private locationMarkers(_s: GameState, time: number) {
-    for (const location of LOCATIONS) {
+  private locationMarkers(s: GameState, time: number) {
+    for (const location of campaignLocations(s)) {
       if (!this.visible(location.x, location.y, 80)) continue;
       if (location.locked) {
         this.ctx.globalAlpha = .1 + Math.sin(time * 3) * .025;

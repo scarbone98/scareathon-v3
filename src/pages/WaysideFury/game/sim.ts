@@ -1,4 +1,5 @@
-import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
+import { campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF } from "./campaign.ts";
+import { HUB_POINTS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
 import { availablePickups, collectPickup, pickupBuffs, walkingPickup } from "./collectibles.ts";
@@ -24,7 +25,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  scene: Scene; room: number; mapId?: string; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
@@ -33,7 +34,7 @@ export interface CoopRuntime {
   revivedUntil?: Record<number, number>;
   reviveHoldTarget?: string;
   worldClearedRooms?: string[];
-  worldChapter?: number;
+  worldChapter?: number; protocolVersion?: number;
 }
 export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
@@ -75,7 +76,7 @@ export interface GameState {
   pickupPending?: { id: string; at: number };
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   vx: number; vy: number; knockX: number; knockY: number; transitionCooldown: number;
-  active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
+  active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number; mapId: string;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
   overlay: "shop" | "home" | "diner" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
@@ -83,6 +84,7 @@ export interface GameState {
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
+  campaignMilestones: string[]; solvedInteractions: string[]; completedCinematics: string[]; checkpointMapId: string;
   candy: number; deaths: number; kills: number; events: GameEvent[];
   previousInput: Input; rngSeed: number; nextId: number;
   coop?: CoopRuntime;
@@ -108,7 +110,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 function extraCoopSpawns(s: GameState) {
   if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
-  const world = getWorld(s.scene, s.room), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
+  const world = getWorld(s.scene, s.room, s.mapId), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
     let x = anchor.x, y = anchor.y;
     for (let attempt = 0; attempt < 12; attempt++) {
@@ -159,12 +161,12 @@ function random(s: GameState) {
 export function newGame(seed = 8591): GameState {
   const s: GameState = { foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
     x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
-    active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0,
+    active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0, mapId: "training",
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
     overlay: null, heroes: Object.fromEntries(HERO_IDS.map(id => [id, createHero(id)])) as Record<HeroId, HeroState>, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
-    swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
+    swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1, campaignMilestones: [], solvedInteractions: [], completedCinematics: [], checkpointMapId: "hub",
     candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [],
     contextAttack: newContextAttack(), dialogue: null };
   enterScene(s, "test");
@@ -181,8 +183,11 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
   s.enemies.push(e);
   return e;
 }
-export function enterScene(s: GameState, scene: Scene, room = 0): void {
-  const world = getWorld(scene, room);
+export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string): void {
+  const resolved = resolveCampaignMap(mapId ?? legacyMapId(scene, room) ?? "unknown");
+  if (resolved.fallback) { scene = "hub"; room = 0; }
+  const world = resolved.map;
+  s.mapId = world.id;
   s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
@@ -221,11 +226,30 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
     }
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
   }
+  if (s.clearedRooms.includes("realm-0")) {
+    s.chapter = Math.max(2, s.chapter);
+    if (!s.campaignMilestones.includes("realm-0")) s.campaignMilestones.push("realm-0");
+    if (scene === "hub" || scene === "overworld") s.notice = WOODS_HANDOFF;
+  }
+  if (resolved.fallback) s.notice = "Unknown area. Returned safely to Wayside.";
   extraCoopSpawns(s); syncCoopLevel(s);
 }
+export function enterCampaignMap(s: GameState, mapId: string): boolean {
+  const resolved = resolveCampaignMap(mapId);
+  if (s.coop && resolved.definition.minProtocol > (s.coop.protocolVersion ?? 1)) {
+    s.notice = "Everyone must update Wayside Fury before entering this area."; return false;
+  }
+  const area = getArea(resolved.definition.areaId);
+  if (!resolved.fallback && area && !canEnter(s, area.id)) {
+    s.notice = "Complete the previous chapter to open this route."; return false;
+  }
+  enterScene(s, resolved.definition.scene as Scene, resolved.definition.room, mapId);
+  return !resolved.fallback;
+}
+
 // Substeps prevent fast dashes and boss rushes crossing thin tile barriers.
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
-  const world = getWorld(s.scene, s.room), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
+  const world = getWorld(s.scene, s.room, s.mapId), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
     if (!isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
     if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
@@ -598,7 +622,7 @@ function updateEnemies(s: GameState, dt: number) {
   }
 }
 function updateProjectiles(s: GameState, dt: number) {
-  const world = getWorld(s.scene, s.room);
+  const world = getWorld(s.scene, s.room, s.mapId);
   for (const p of s.projectiles) {
     const x0 = p.x, y0 = p.y, dx = p.vx * dt, dy = p.vy * dt;
     p.ttl -= dt;
@@ -650,7 +674,7 @@ function updateVisuals(s: GameState, dt: number) {
   s.effects = s.effects.filter(e => e.ttl > 0);
 }
 function availableExit(s: GameState): WorldExit | undefined {
-  return getWorld(s.scene, s.room).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
+  return getWorld(s.scene, s.room, s.mapId).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
 }
 // Driving the taxi is less precise than walking, so overworld stops get a wider
 // trigger zone than on-foot interactions (28).
@@ -671,14 +695,14 @@ export function interactTarget(s: GameState): InteractTarget | null {
   }
   for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
   if (s.scene === "dungeon" || s.scene === "realm") {
-    const world = getWorld(s.scene, s.room);
+    const world = getWorld(s.scene, s.room, s.mapId);
     for (const prop of world.props) {
       if (prop.kind === "chest" && !s.clearedRooms.includes(prop.id)) add({ id: prop.id, name: "Open supply cache", kind: "use", locked: s.enemies.length > 0, x: prop.x + prop.w / 2, y: prop.y + prop.h / 2 });
       if (prop.kind === "npc") add({ id: "scout", name: `Talk to ${prop.label ?? "the stranded scout"}`, kind: "talk", x: prop.x + prop.w / 2, y: prop.y + prop.h });
     }
     for (const door of world.exits) if (!door.requiresClear || s.enemies.length === 0) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
   }
-  const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
+  const points = s.scene === "overworld" ? campaignLocations(s) : s.scene === "hub" ? HUB_POINTS : [];
   for (const point of points) {
     const npc = point.id === "alex" || point.id === "jon";
     const taxi = point.id === "taxi" || s.scene === "overworld";
@@ -719,8 +743,8 @@ function travel(s: GameState, door: WorldExit) {
   if (door.target === "realm") beginRealmShift(s);
   else {
     enterScene(s, typeof door.target === "number" ? "dungeon" : door.target,
-      typeof door.target === "number" ? door.target : 0);
-    if (s.scene !== "results") { s.x = door.entryX; s.y = door.entryY; }
+      typeof door.target === "number" ? door.target : 0, door.targetMapId);
+    if (s.scene !== "results" && (!door.targetMapId || s.mapId === door.targetMapId)) { s.x = door.entryX; s.y = door.entryY; }
   }
   s.previousInput.attack = s.previousInput.interact = true;
 }
@@ -752,19 +776,22 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
       s.events.push({ type: "checkpoint", id: target.id }); return;
     }
     if (target.id === "scout") { openDialogue(s, "Stranded scout", ["Scout: Two supply trails survived the blast. Find the orchard north of Split Creek and the old depot south of Furnace Pass."]); return; }
-    const door = getWorld(s.scene, s.room).exits.find(exit => exit.id === target.id);
+    const door = getWorld(s.scene, s.room, s.mapId).exits.find(exit => exit.id === target.id);
     if (door) travel(s, door);
     return;
   }
   if (target.locked) { s.notice = `${target.name}: taken over. A later chapter will open this route.`; return; }
   if (s.scene === "overworld") {
-    enterScene(s, target.id === "wayside" ? "hub" : "dungeon");
+    if (!canEnter(s, target.id)) { s.notice = "Complete the previous chapter to open this route."; return; }
+    const area = getArea(target.id);
+    if (!area?.available) { openDialogue(s, "Next chapter", [WOODS_HANDOFF]); return; }
+    enterCampaignMap(s, area.mapIds[0]);
     s.previousInput.attack = s.previousInput.interact = true; return;
   }
   if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return; }
   const dialogue: Record<string, string> = {
-    station: "Wayside Station is safe. Alex and Jon are holding the town while Joe and Matt investigate the Blast Site.",
+    station: s.clearedRooms.includes("realm-0") ? WOODS_HANDOFF : "Wayside Station is safe. Alex and Jon are holding the town while Joe and Matt investigate the Blast Site.",
     bbq: "The grill is still warm. The crew will finish dinner when Wayside is safe.",
     alex: "Alex: The station is secure. I can tag in when you need help. There are supplies hidden off the main route.",
     jon: "Jon: HOME restores the whole crew. Stock up before you go, and don't forget to tag your partner in.",
@@ -939,12 +966,12 @@ export function step(s: GameState, input: Input, delta: number): void {
   s.enemies = s.enemies.filter(e => e.hp > 0);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";
   if (hadEnemies && s.enemies.length === 0 && s.scene === "dungeon") {
-    const id = `blast-${s.room}`;
+    const id = s.mapId;
     if (!s.clearedRooms.includes(id)) {
       s.clearedRooms.push(id);
       if (!s.coop) checkpointRecovery(s);
-      if (s.room === GATEKEEPER_ROOM && !s.bosses.includes("blast-gatekeeper")) s.bosses.push("blast-gatekeeper");
-      if (s.room === WATCHER_ROOM) {
+      if (id === `blast-${GATEKEEPER_ROOM}` && !s.bosses.includes("blast-gatekeeper")) s.bosses.push("blast-gatekeeper");
+      if (id === `blast-${WATCHER_ROOM}`) {
         if (!s.bosses.includes("blast-watcher")) s.bosses.push("blast-watcher");
         if (!s.areas.includes("blast")) s.areas.push("blast");
       }
@@ -962,12 +989,13 @@ export function step(s: GameState, input: Input, delta: number): void {
       if (!s.areas.includes("eightbit-realm")) s.areas.push("eightbit-realm");
     }
     s.chapter = Math.max(s.chapter, 2);
+    if (!s.campaignMilestones.includes("realm-0")) s.campaignMilestones.push("realm-0");
     s.events.push({ type: "checkpoint", id: "realm-0" });
-    s.notice = "The path is clear. The real evil has only just begun...";
+    s.notice = "The path is clear. Return to Wayside: Alex has a lead on Hollow Woods.";
   }
   // Walking through an open boundary changes zones without a button press.
   if ((s.scene === "dungeon" || s.scene === "realm") && s.transitionCooldown === 0) {
-    const world = getWorld(s.scene, s.room), door = availableExit(s);
+    const world = getWorld(s.scene, s.room, s.mapId), door = availableExit(s);
     if (door && (s.x < 20 || s.x > world.width - 20 || s.y < 20 || s.y > world.height - 20)) travel(s, door);
   }
 }

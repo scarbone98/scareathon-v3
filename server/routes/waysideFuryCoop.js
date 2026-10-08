@@ -7,6 +7,7 @@ import { listHosting } from '../wayside-fury/presence.js';
 const LOOP_MS = 250;
 const HEARTBEAT_MS = 30_000;
 const ERRORS = {
+    version: 'Everyone must update Wayside Fury before entering this area.',
     auth: 'Sign in to play co-op.',
     ticket: 'Your connection ticket expired. Reconnect to try again.',
     missing: "There's no room with that code or your seat expired.",

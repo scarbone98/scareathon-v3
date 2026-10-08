@@ -65,7 +65,7 @@ describe('Wayside Fury four-seat rooms', () => {
         const ticket = rooms.issueTicket({ userId: 'ann', name: 'Ann' });
         const socket = fakeSocket();
         rooms.auth(socket, { ticket });
-        expect(socket.last('ready')).toEqual({ type: 'ready', userId: 'ann', name: 'Ann' });
+        expect(socket.last('ready')).toEqual({ type: 'ready', userId: 'ann', name: 'Ann', protocolVersion: 2, contentVersion: 1 });
         expect(errorCode(() => rooms.auth(fakeSocket(), { ticket }))).toBe('ticket');
         const expired = rooms.issueTicket({ userId: 'ann', name: 'Ann' });
         advance(TICKET_MS);

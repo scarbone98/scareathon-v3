@@ -12,15 +12,16 @@ export interface HomeSnapshot {
   candy: number; chapter: number; gear: Gear; character: CharacterProgress;
 }
 export interface SaveData {
-  version: 3; chapter: number; heroes: Record<HeroId, HeroState>; active: HeroId; party: HeroId[];
+  version: 4; chapter: number; heroes: Record<HeroId, HeroState>; active: HeroId; party: HeroId[];
   candy: number; unlockedHeroes: HeroId[]; areas: string[]; bosses: string[]; clearedRooms: string[];
   kills: number; deaths: number; lastReported: ProgressReceipt; home: HomeSnapshot | null;
+  campaignMilestones: string[]; solvedInteractions: string[]; completedCinematics: string[]; checkpointMapId: string;
   resetAt?: number; prologuePending?: boolean;
   coopRewards?: string[];
   foundItems: string[]; ambientTaxiWrecked: boolean;
   gear: Gear; character: CharacterProgress; settings: SaveSettings; savedAt: number;
 }
-export const SAVE_VERSION: 3;
+export const SAVE_VERSION: 4;
 export const MAX_SAVE_BYTES: number;
 export const MAX_MILESTONES: number;
 export const MAX_COOP_REWARDS: number;

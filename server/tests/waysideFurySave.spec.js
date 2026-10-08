@@ -9,7 +9,7 @@ describe('Wayside Fury save sheets', () => {
         for (const raw of [legacySave(), legacySave({ version: 2 }), currentSave()]) {
             delete raw.coopRewards;
             const save = sanitizeSave(raw).save;
-            expect(save.version).toBe(3);
+            expect(save.version).toBe(4);
             expect(save.coopRewards).toEqual([]);
             expect(migrateSave(raw).coopRewards).toEqual([]);
         }
@@ -29,7 +29,7 @@ describe('Wayside Fury save sheets', () => {
         const old = legacySave({ extra: 'discard me', savedAt: 1234 });
         old.heroes.joe.unknown = 'discard me';
         const save = migrateSave(old);
-        expect(save.version).toBe(3); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
+        expect(save.version).toBe(4); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
         expect(save.lastReported).toEqual(old.lastReported); expect(save.extra).toBeUndefined();
         expect(save.settings).toEqual({ musicVolume: 0.6, sfxVolume: 0.8, controls: { tutorialDismissed: false, stickSensitivity: 1 } });
         expect(save.gear).toEqual({ power: 0, ward: 0 }); expect(save.savedAt).toBe(1234);
@@ -171,7 +171,7 @@ describe('Wayside Fury revisioned routes', () => {
                 expect(stale.json().save).toEqual(sanitizeSave(latest).save);
             }
             expect(db.rows.get(PLAYER).save.candy).toBe(91);
-            expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(3);
+            expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(4);
         } finally { await app.close(); }
     });
     test('malformed and oversized requests get400 without touching the database', async () => {

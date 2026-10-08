@@ -510,9 +510,9 @@ completedZones.push('realm-0'); clearedCheckpoints.push('realm-0');
 assert.deepEqual(quest.clearedRooms, completedZones);
 assert.deepEqual(quest.areas, ['blast', 'eightbit-realm']);
 assert.deepEqual(checkpoints, clearedCheckpoints);
-openDoor(quest, 'east'); assert.equal(quest.scene, 'results'); assert.equal(quest.sceneTimer, 0);
-tick(quest, { attack: true, ki: true, interact: true }, 135);
-assert.equal(quest.scene, 'results'); assert.ok(quest.sceneTimer > 2.2);
+openDoor(quest, 'east'); assert.equal(quest.scene, 'hub'); assert.equal(quest.sceneTimer, 0);
+tick(quest, {}, 135);
+assert.equal(quest.scene, 'hub'); assert.ok(quest.sceneTimer > 2.2);
 console.log(`Default-stat 10-zone chapter: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; ${quest.kills} kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
 // Revisiting completed maps keeps their routes open, without replenishing caches
 // or paying receipted milestones again, including after a HOME retry.
