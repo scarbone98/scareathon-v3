@@ -6,6 +6,8 @@ import { CATEGORY_LABELS } from "./look";
 
 export type ShopFilters = { search: string; classification: string; rarity: string };
 
+// Shared shop defaults; editing this module refreshes its non-component consumers too.
+// eslint-disable-next-line react-refresh/only-export-components
 export const NO_FILTERS: ShopFilters = { search: "", classification: "", rarity: "" };
 
 // Some kinds of thing are filtered together: one tab for several
@@ -39,12 +41,16 @@ const rarities = [
 // Kinds of ware the shop has a tab for but nothing on the shelf yet: things to use inside
 // the arcade's games (soon: what the empty shelf says). (Games have theirs: the station's
 // cartridges, see things/Carts.tsx)
+// Shared with AvatarShop so its empty-state copy matches these tabs.
+// eslint-disable-next-line react-refresh/only-export-components
 export const EMPTY_SHELVES = [
   { value: "game_items", label: "In-game items", soon: "Nothing here yet: things to use in the arcade's games are on their way." },
 ];
 
 // The categories as tabs, in the order they run. extraCategories: wares that aren't avatar
 // items (the station's banners), as [value, plural label]
+// Tabs and the swipe hook share the same order; callers import this module together.
+// eslint-disable-next-line react-refresh/only-export-components
 export function shopTabs(extraCategories: [string, string][] = []) {
   return [...classifications, ...extraCategories.map(([value, label]) => ({ value, label })), ...EMPTY_SHELVES];
 }
@@ -93,6 +99,8 @@ export function ShopCategoryTabs({
 
 // Swiping sideways across the wares turns to the next tab, or the one before: the touch
 // handlers for whatever holds them (an up-and-down drag is left to scroll)
+// Keep the filter controls and their gesture hook in the same public module.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTabSwipe(filters: ShopFilters, onChange: (next: ShopFilters) => void, extraCategories: [string, string][] = []) {
   const start = useRef<{ x: number; y: number } | null>(null);
   return {

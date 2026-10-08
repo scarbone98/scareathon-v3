@@ -18,6 +18,7 @@ const ResetPassword = lazy(() => import("../pages/Authentication/ResetPassword/p
 const Casino = lazy(() => import("../pages/Casino/page"));
 const CryptClash = lazy(() => import("../pages/Royale/page"));
 const HordeRush = lazy(() => import("../pages/HordeRush/page"));
+const WaysideFury = lazy(() => import("../pages/WaysideFury/page"));
 const MysteryCrypt = lazy(() => import("../pages/MysteryCrypt/page"));
 const FrogBall = lazy(() => import("../pages/FrogBall/page"));
 const GhostRidge = lazy(() => import("../pages/GhostRidge/page"));
@@ -35,6 +36,7 @@ const PAGES: [string, React.ComponentType][] = [
   ["/casino", Casino],
   ["/crypt-clash", CryptClash],
   ["/horde-rush", HordeRush],
+  ["/wayside-fury", WaysideFury],
   ["/mystery-crypt", MysteryCrypt],
   ["/frog-ball", FrogBall],
   ["/ghost-ridge", GhostRidge],

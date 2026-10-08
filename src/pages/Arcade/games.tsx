@@ -9,10 +9,13 @@ import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
 import { isNewGame } from "./news.ts";
 
-// The attract videos play from Supabase Storage (npm run upload:recordings) rather than
-// public/, so they aren't copied into every deployment; their stills stay in public/
+// Most attract videos play from Supabase Storage (npm run upload:recordings) so
+// they aren't copied into every deployment; their stills stay in public/.
+// This module deliberately exports arcade data and embeds its renderers.
+// eslint-disable-next-line react-refresh/only-export-components
 const RECORDINGS = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/+$/, "")}/storage/v1/object/public/game-recordings`;
 
+// eslint-disable-next-line react-refresh/only-export-components
 const EightBitEvil = lazy(() => import("./8BitEvil/GameRenderer.jsx"));
 
 interface CustomWindow extends Window {
@@ -33,6 +36,8 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
+  // An early-access game that still spends its first day in NEW GAMES, like a finished one
+  newShelf?: boolean;
   // When it arrived (an ISO time, like "2026-10-04T16:00:00-06:00"): a "!" badge until it's
   // played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
   added?: string;
@@ -83,6 +88,7 @@ const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b42
 // (index.mobile.pck), desktops the full set.
 const SUPER_AUTOWEEN_URL = "https://perhapsjohn.github.io/SuperAutoween/?v=90b0b37";
 const HORDE_RUSH_URL = "/horde-rush";
+const WAYSIDE_FURY_URL = "/wayside-fury";
 const CASINO_URL = "/casino";
 const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
@@ -698,6 +704,32 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Horde Rush", HORDE_RUSH_URL)
+          }
+        />
+      ),
+    },
+    {
+      name: "Wayside Fury",
+      // Kept local until the owner can move the preview to Supabase Storage.
+      videoUrl: "/game-recordings/WaysideFury.mp4",
+      earlyAccess: true,
+      newShelf: true,
+      availableOnMobile: true,
+      added: "Wed 2026-10-07 9:41 PM PDT (UTC-07:00)",
+      cartridge: {
+        color: "#b34836",
+        tagline: "Five years later, the real evil arrives.",
+        font: { family: "Bangers" },
+        about: { released: "2026", players: "1–4 players", genre: "Action RPG", developer: "szaneer" },
+      },
+      game: (
+        <GameRenderer
+          title="Wayside Fury"
+          url={WAYSIDE_FURY_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Wayside Fury", WAYSIDE_FURY_URL)
           }
         />
       ),
@@ -1531,12 +1563,12 @@ export function createArcadeGames(): MachineData[] {
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the cassette
-// carts (things to do), new games (finished ones, for their first day), the finished games
+// carts (things to do), new games (finished ones, or early access with newShelf, for their first day), the finished games
 // ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
   if (game.special === "mystery") return 2;
   if (game.special === "soon") return 4;
-  if (game.earlyAccess) return 3;
+  if (game.earlyAccess) return isNewGame(game) ? 1 : 3;
   if (game.cartridge.cassette) return 0;
   return isNewGame(game) ? 1 : 2;
 }

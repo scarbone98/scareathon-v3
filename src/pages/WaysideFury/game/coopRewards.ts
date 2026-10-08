@@ -1,0 +1,35 @@
+import { gainXp, grantGear, syncCoopLevel, type GameState } from "./sim.ts";
+import { MAX_COOP_REWARDS } from "../../../../server/shared/waysideFury/save.js";
+import type { CoopReward } from "./coop";
+import { grantPickup } from "./collectibles.ts";
+
+// Roll separately for each authenticated seat. The stable event ID means a
+// retransmitted reward always describes the same personal loot.
+export function rollCoopCandy(id: string, userId: string, boss: boolean) {
+  let hash = 2166136261;
+  for (const char of `${id}:${userId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return (boss ? 35 : 3) + (hash >>> 0) % (boss ? 8 : 3);
+}
+export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
+  const receipts = s.coopRewards ??= [];
+  if (receipts.includes(reward.id)) return false;
+  receipts.push(reward.id);
+  if (receipts.length > MAX_COOP_REWARDS) receipts.splice(0, receipts.length - MAX_COOP_REWARDS);
+  if (reward.kind === "pickup") return reward.pickupId ? grantPickup(s, reward.pickupId) : false;
+  const repeatedArea = s.coop?.role !== "host" && reward.areas?.some(id => id !== "wayside" && s.areas.includes(id));
+  gainXp(s, (reward.xp ?? 0) + (repeatedArea ? 75 : 0));
+  s.candy = Math.min(1_000_000, s.candy + (reward.candy ?? 0));
+  if (reward.power || reward.ward) grantGear(s, reward.power ?? 0, reward.ward ?? 0);
+  for (const hero of Object.values(s.heroes)) {
+    if (hero.hp > 0) hero.hp = Math.min(hero.maxHp, hero.hp + (reward.healHp ?? 0));
+    hero.ki = Math.min(hero.maxKi, hero.ki + (reward.healKi ?? 0));
+  }
+  if (reward.kind === "kill") s.kills++;
+  s.areas = [...new Set([...s.areas, ...(reward.areas ?? [])])];
+  s.bosses = [...new Set([...s.bosses, ...(reward.bosses ?? [])])];
+  s.clearedRooms = [...new Set([...s.clearedRooms, ...(reward.rooms ?? [])])];
+  s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
+  syncCoopLevel(s);
+  s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
+  return true;
+}

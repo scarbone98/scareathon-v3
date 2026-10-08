@@ -53,6 +53,41 @@ describe('Wayside Online lounge', () => {
         expect(lounge.size).toBe(1);
     });
 
+    test('room-owned hosting presence survives leaving the lounge and updates watchers', () => {
+        const hosting = { game: 'Wayside Fury', code: 'FURY23', count: 2, max: 4 };
+        let hosts = [{ userId: 'ann', name: 'Ann', hosting }];
+        const lounge = createLounge({ hosting: () => hosts });
+        const ann = fakeSocket(), watcher = fakeSocket();
+        lounge.watch(ann);
+        lounge.join(ann, { ticket: lounge.ticket({ userId: 'ann', name: 'Ann' }) });
+        lounge.watch(watcher);
+        expect(watcher.last('room').players[0].hosting).toEqual(hosting);
+        expect(watcher.last('room').hosts).toEqual(hosts);
+        lounge.disconnect(ann);
+        expect(lounge.size).toBe(0);
+        lounge.hostingChanged();
+        expect(watcher.last('hosting')).toEqual({ type: 'hosting', hosts });
+        hosts = [{ userId: 'ann', name: 'Ann', hosting: { ...hosting, count: 4 } }];
+        lounge.hostingChanged();
+        expect(watcher.last('hosting').hosts[0].hosting.count).toBe(4);
+        hosts = [];
+        lounge.hostingChanged();
+        expect(watcher.last('hosting').hosts).toEqual([]);
+    });
+
+    test('clients cannot announce an arbitrary hosting room through lounge messages', () => {
+        const lounge = createLounge();
+        const ann = fakeSocket();
+        lounge.watch(ann);
+        lounge.join(ann, {
+            ticket: lounge.ticket({ userId: 'ann', name: 'Ann' }),
+            hosting: { game: 'Wayside Fury', code: 'MADEUP', count: 1, max: 4 },
+        });
+        expect(ann.last('enter').player.hosting).toBeNull();
+        lounge.hostingChanged();
+        expect(ann.last('hosting').hosts).toEqual([]);
+    });
+
     test('a ticket works once, and not after a minute', () => {
         const { lounge, tick } = setup();
         const socket = fakeSocket();
