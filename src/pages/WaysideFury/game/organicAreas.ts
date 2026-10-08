@@ -67,7 +67,10 @@ function local(m: WorldMap, index: number, arrivals: AreaPoint[]) {
     const center={x:e.x+e.w/2,y:e.y+e.h/2};
     // Same ID, target, gate and arrival anchor; only its physical apron moves.
     ribbon(m,[old,center,{x:Math.max(80,Math.min(m.width-80,center.x)),y:cy}],64,path);
+    // Stairs retain authored carriageways and their paved entrance connectors.
+    const paving=blast?m.tiles.flatMap((tile,i)=>['road','stone','bridge'].includes(tile)?[{i,tile}]:[]):[];
     paint(m,e.x,e.y,e.w,e.h,path);
+    for(const {i,tile} of paving) m.tiles[i]=tile;
     m.organic.stairs.push(center);
     // Close the former opening with a visible boundary, retaining entry clearance.
     if(old.x<32) paint(m,0,e.y,16,e.h,ground,true);
