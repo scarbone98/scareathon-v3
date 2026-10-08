@@ -31,6 +31,7 @@ export interface CoopRuntime {
   playerCount?: number; syncedLevel?: number; downed?: boolean; reviveProgress?: number;
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
   revivedUntil?: Record<number, number>;
+  reviveHoldTarget?: string;
   worldClearedRooms?: string[];
   worldChapter?: number;
 }
@@ -192,7 +193,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
   s.dashTimer = 0; s.guard = false; s.hitStop = 0;
   s.previousInput = idleInput();
-  if (s.coop) { s.coop.spawnedExtras = 0; s.coop.reviveTimers = {}; s.coop.reviveProgress = 0; }
+  if (s.coop) { s.coop.spawnedExtras = 0; s.coop.reviveTimers = {}; s.coop.reviveProgress = 0; s.coop.reviveHoldTarget = undefined; }
   if (scene === "overworld") s.notice = "Chapter 1: drive east to the Blast Site. Pull over at a marker.";
   if (scene === "hub") s.notice = "Wayside: visit the station, shop, HOME and BBQ yard. Taxi pickup is by the south road.";
   if (scene === "dungeon" || scene === "realm") {
@@ -800,18 +801,27 @@ export function buyItem(s: GameState, id: ShopItemId): boolean {
 }
 export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
+  // Keep physical button edges separate from the command forwarded to co-op.
+  // Pad A sets both flags, while touch/J must synthesize a held revive command.
+  const physicalInput = { ...input };
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
   refreshContextAttack(s);
   const attackPressed = input.attack && !s.previousInput.attack;
   const interactPressed = input.interact && !s.previousInput.interact;
-  let attackAction = attackPressed ? resolveContextPress(s.contextAttack, hostileWithinMeleeReach(s), nonCombatContext(s), s.time, input.attackPresentation) : "none";
+  const heldAttackAction = input.attack ? resolveContextPress(s.contextAttack, hostileWithinMeleeReach(s), nonCombatContext(s), s.time, input.attackPresentation) : "none";
+  let attackAction = attackPressed ? heldAttackAction : "none";
   // Standard pad A supplies both bindings. Resolve that physical press once.
   let usePressed = attackPressed ? attackAction === "interact" : interactPressed;
+  if (s.coop) {
+    if (!input.attack) s.coop.reviveHoldTarget = undefined;
+    else if (attackPressed) s.coop.reviveHoldTarget = heldAttackAction === "interact" && s.contextAttack.target?.id.startsWith("coop-revive-") ? s.contextAttack.target.id : undefined;
+  }
+  if (input.attack) input.interact = heldAttackAction === "interact" && !!s.coop?.reviveHoldTarget && s.coop.reviveHoldTarget === s.contextAttack.target?.id;
   s.transitionCooldown = Math.max(0, s.transitionCooldown - dt);
   updateVisuals(s, dt);
   updateOverworldDressing(s, dt);
   if (s.scene === "prologue") {
-    s.previousInput = { ...input };
+    s.previousInput = { ...physicalInput };
     if (usePressed) interact(s, s.contextAttack.target);
     return;
   }
@@ -819,15 +829,15 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.coop?.role !== "guest" && s.sceneTimer >= 2.4) {
       const target = s.transitionTarget ?? "realm", palette = s.transitionPalette;
       enterScene(s, target); s.palette = palette;
-      s.previousInput = { ...input };
+      s.previousInput = { ...physicalInput };
     }
     return;
   }
   if (s.scene === "dead" || s.scene === "results") return;
-  const dialogueInput = s.dialogue ? { ...input } : null;
+  const dialogueInput = s.dialogue ? physicalInput : null;
   let dialogueControlsSuppressed = !!dialogueInput;
   if (s.dialogue) {
-    s.previousInput = { ...input }; s.moving = false;
+    s.previousInput = { ...physicalInput }; s.moving = false;
     if (usePressed) interact(s, s.contextAttack.target);
     if (!s.coop) return;
     // A conversation is local in co-op. Keep its physical button edges while
@@ -836,7 +846,6 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
     s.guard = false;
   }
-  if (input.attack && s.contextAttack.target?.id.startsWith("coop-revive-") && resolveContextPress(s.contextAttack, hostileWithinMeleeReach(s), nonCombatContext(s), s.time, input.attackPresentation) === "interact") input.interact = true;
   updateCoopRevives(s, input, dt);
   if (checkCoopWipe(s)) return;
   if (s.coop?.downed) {
@@ -844,13 +853,13 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
   }
   if (s.overlay) {
-    s.previousInput = { ...input }; s.moving = false;
+    s.previousInput = { ...physicalInput }; s.moving = false;
     if (s.overlay === "diner" && usePressed) interact(s, s.contextAttack.target);
     return;
   }
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = dialogueInput ? idleInput() : s.previousInput;
-  s.previousInput = { ...(dialogueInput ?? input) };
+  s.previousInput = { ...physicalInput };
   const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);

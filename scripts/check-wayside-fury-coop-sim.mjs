@@ -242,6 +242,70 @@ near(fallen.hero.hp, 40); assert.equal(fallen.downed, false);
 fallen.hero.hp = 0; fallen.downed = true;
 assert.equal(tick(reviving, { interact: true }, 120).filter(e => e.type === 'coop-revive').length, 0, 'stale down samples cannot duplicate a revive');
 
+// Unified Attack resolves the physical pad A press before either local revive
+// timers or forwarded guest Interact commands see it. Keep raw held edges.
+const reviveContext = (role = 'host') => {
+  const s = cooperative(role, role === 'host' ? 0 : 1); s.enemies = [];
+  const ally = peer(s, role === 'host' ? 1 : 0); ally.hero.hp = 0; ally.downed = true;
+  s.coop.remoteHeroes = [ally]; s.coop.playerCount = 2;
+  s.faceX = 1; s.faceY = 0; activeHero(s).invulnerable = 100;
+  tick(s, {}, 10);
+  assert.equal(s.contextAttack.displayed.targetId, `coop-revive-${ally.seat}`);
+  return { s, ally };
+};
+const { s: combatRevive, ally: combatFallen } = reviveContext();
+const reviveHostile = addEnemy(combatRevive, 'grunt', combatRevive.x + 18, combatRevive.y);
+reviveHostile.hp = reviveHostile.maxHp = 1000; reviveHostile.speed = 0; reviveHostile.cooldown = 100;
+const rawPadA = { ...idleInput(), attack: true, interact: true };
+step(combatRevive, rawPadA, DT);
+assert.ok(combatRevive.attackTimer > 0); assert.ok(reviveHostile.hp < reviveHostile.maxHp, 'pad A swings when a hostile is in melee reach');
+assert.equal(rawPadA.interact, false, 'the applied/forwarded pad command cannot also revive');
+assert.equal(combatRevive.previousInput.attack, true); assert.equal(combatRevive.previousInput.interact, true, 'physical pad edges survive command normalization');
+near(combatFallen.reviveProgress, 0);
+const singleSwingHp = reviveHostile.hp;
+tick(combatRevive, { attack: true, interact: true }, 130);
+assert.equal(reviveHostile.hp, singleSwingHp, 'holding pad A does not create additional attack edges');
+assert.equal(combatFallen.hero.hp, 0); near(combatFallen.reviveProgress, 0);
+combatRevive.enemies = [];
+tick(combatRevive, { attack: true, interact: true }, 130);
+assert.equal(combatFallen.hero.hp, 0, 'a swing press cannot become a revive hold after the hostile leaves');
+tick(combatRevive);
+const padRevival = tick(combatRevive, { attack: true, interact: true }, 120);
+assert.equal(padRevival.filter(e => e.type === 'coop-revive').length, 1, 'a fresh pad A hold revives without a hostile');
+near(combatFallen.hero.hp, 40);
+
+const { s: touchRevive, ally: touchFallen } = reviveContext();
+const touchEvents = [];
+for (let frame = 0; frame < 120; frame++) {
+  const primary = { ...idleInput(), attack: true, attackPresentation: { action: 'interact', targetId: `coop-revive-${touchFallen.seat}` } };
+  step(touchRevive, primary, DT); touchEvents.push(...touchRevive.events);
+  assert.equal(primary.interact, true, 'touch/J accepted revive holds supply the co-op hold command');
+  assert.equal(touchRevive.previousInput.interact, false, 'a synthesized revive command cannot become a physical Enter edge');
+}
+assert.equal(touchEvents.filter(e => e.type === 'coop-revive').length, 1); near(touchFallen.hero.hp, 40);
+
+const { s: dedicatedRevive, ally: dedicatedFallen } = reviveContext();
+const dedicatedHostile = addEnemy(dedicatedRevive, 'grunt', dedicatedRevive.x + 18, dedicatedRevive.y);
+dedicatedHostile.speed = 0; dedicatedHostile.cooldown = 100;
+const enterHold = { ...idleInput(), interact: true };
+step(dedicatedRevive, enterHold, DT);
+assert.equal(enterHold.interact, true, 'dedicated Enter keeps its hold command even when Attack has combat priority');
+assert.equal(dedicatedRevive.attackTimer, 0); near(dedicatedFallen.reviveProgress, DT / 2);
+
+const { s: forwardingGuest, ally: guestFallen } = reviveContext('guest');
+const guestHostile = addEnemy(forwardingGuest, 'grunt', forwardingGuest.x + 18, forwardingGuest.y);
+const guestPadA = { ...idleInput(), attack: true, interact: true };
+step(forwardingGuest, guestPadA, DT);
+assert.equal(forwardingGuest.events.filter(e => e.type === 'coop-hit').length, 1);
+assert.equal(guestPadA.interact, false, 'guest hit prediction forwards no simultaneous revive command');
+assert.equal(forwardingGuest.previousInput.interact, true);
+assert.equal(guestHostile.hp, guestHostile.maxHp); assert.equal(guestFallen.hero.hp, 0);
+const { s: forwardingRevive, ally: forwardingFallen } = reviveContext('guest');
+const guestHold = { ...idleInput(), attack: true };
+step(forwardingRevive, guestHold, DT);
+assert.equal(guestHold.interact, true, 'a guest touch/J revive hold is forwarded to host authority');
+assert.equal(forwardingRevive.previousInput.interact, false); assert.equal(forwardingFallen.hero.hp, 0, 'the guest waits for the host to award revival');
+
 // A guest waits downed for host authority. A party wipes only when all connected
 // seats have supplied their state and are down; a joining seat cannot cause it.
 activeHero(projectileGuest).invulnerable = 0; projectileGuest.hitStop = 0;

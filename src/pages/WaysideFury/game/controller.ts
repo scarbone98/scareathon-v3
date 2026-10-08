@@ -103,7 +103,7 @@ export class GameController {
     while (this.acc >= 1 / 60) {
       this.previousMotion = captureMotion(this.state);
       const ready = this.state.hitStop <= 0, overlay = this.state.overlay, dialogue = !!this.state.dialogue;
-      const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : input;
+      const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : { ...input };
       step(this.state, appliedInput, 1 / 60);
       this.coop?.update(this.state, dialogue || this.state.dialogue ? idleInput() : appliedInput, now);
       this.audio.sync(this.state);
