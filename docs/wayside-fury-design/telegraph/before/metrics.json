@@ -1,0 +1,126 @@
+[
+  {
+    "name": "390x844-2d-blast-7",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-2d-woods-heartwood-engine",
+    "woodsBehavior": "foreman",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-2d-city-hatching",
+    "behavior": "architect",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-2d-moon-m08",
+    "behavior": "warden",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-3d-blast-7",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-3d-woods-heartwood-engine",
+    "woodsBehavior": "foreman",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-3d-city-hatching",
+    "behavior": "architect",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "390x844-3d-moon-m08",
+    "behavior": "warden",
+    "immutable": true,
+    "gfx": "3d",
+    "dpr": "3",
+    "native": true
+  },
+  {
+    "name": "1440x900-2d-blast-7",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-2d-woods-heartwood-engine",
+    "woodsBehavior": "foreman",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-2d-city-hatching",
+    "behavior": "architect",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-2d-moon-m08",
+    "behavior": "warden",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-3d-blast-7",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-3d-woods-heartwood-engine",
+    "woodsBehavior": "foreman",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-3d-city-hatching",
+    "behavior": "architect",
+    "immutable": true,
+    "gfx": "2d",
+    "dpr": "2",
+    "native": true
+  },
+  {
+    "name": "1440x900-3d-moon-m08",
+    "behavior": "warden",
+    "immutable": true,
+    "gfx": "3d",
+    "dpr": "2",
+    "native": true
+  }
+]
