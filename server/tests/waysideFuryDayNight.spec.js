@@ -240,6 +240,7 @@ describe('night persistence, protocol and reward boundaries', () => {
         const gate = obstacles.HERO_OBSTACLES.find(g => g.worldId === 'overworld');
         state.active = gate.hero; state.x = gate.x + gate.w / 2; state.y = gate.y + gate.h + 13;
         creature.x = state.x + 12; creature.y = state.y;
+        for (let i = 0; i < 10; i++) sim.step(state, sim.idleInput(), 1 / 60);
         sim.step(state, { ...sim.idleInput(), attack: true }, 1 / 60);
         expect(obstacles.isObstacleCleared(state, gate.id)).toBe(true);
         expect(state.candy).toBe(0); expect(state.kills).toBe(0);

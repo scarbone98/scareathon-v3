@@ -1,3 +1,4 @@
+import { sanitizeItemsSave } from "../../../../server/shared/waysideFury/u1Items.js";
 import { mergeCombatProgress, sanitizeCombatSave } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { enterScene, newGame, createHero, itemsGear, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { worldSave } from "./u1/world/obstacles.ts";
@@ -47,7 +48,6 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     u1: { ...previous?.u1, ...s.u1, world: worldSave(s), combat: mergeCombatProgress(previous?.u1?.combat, s.u1?.combat), hub: { ...previous?.u1?.hub, arena: s.hubArena ?? previous?.u1?.hub?.arena, quests: s.hubQuests ?? previous?.u1?.hub?.quests, cosmetic: s.hubCosmetic ?? null, eventSerial: s.hubQuestSerial ?? 0 } },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     foundItems: s.foundItems, ambientTaxiWrecked: s.ambientTaxiWrecked || s.personalTaxiWrecked || previous?.ambientTaxiWrecked === true,
-    u1: { ...previous?.u1, ...s.u1 },
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
 }
@@ -68,7 +68,11 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
-    s.u1 = { ...saved.u1, combat: sanitizeCombatSave(saved.u1?.combat) };
+    s.u1 = { ...saved.u1, items: sanitizeItemsSave(saved.u1?.items), combat: sanitizeCombatSave(saved.u1?.combat) };
+    s.u1 = structuredClone(s.u1);
+    s.foundItems = [...saved.foundItems]; s.ambientTaxiWrecked = s.personalTaxiWrecked = saved.ambientTaxiWrecked;
+    for (const id of [...saved.bosses, ...saved.clearedRooms]) grantCheckpointChip(s, id);
+    s.events.length = 0;
     s.coopRewards = [...(saved.coopRewards ?? [])];
     s.hubArena = saved.u1?.hub ? { ...saved.u1.hub.arena } : undefined;
     s.hubQuests = createQuestSave(saved.u1?.hub?.quests); s.hubCosmetic = saved.u1?.hub?.cosmetic ?? null; s.hubQuestSerial = saved.u1?.hub?.eventSerial ?? 0;

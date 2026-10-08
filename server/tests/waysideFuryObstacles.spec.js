@@ -68,7 +68,7 @@ describe('Update 1 hero obstacles', () => {
             const remote = { ...base, savedAt: 1, u1: { sibling: { source: 'remote' }, world: { clearedObstacles: ['world-joe-road', 'bad'], cycleSeconds: 450 } } };
             const merged = mergeSaves(local, remote);
             assert.deepEqual(merged.u1.world, { clearedObstacles: ['${gateId}', 'world-joe-road'], cycleSeconds: 20 });
-            assert.deepEqual(merged.u1.sibling, local.u1.sibling);
+            assert.equal(merged.u1.sibling, undefined, "unrecognized namespaces are rejected");
             assert.deepEqual(merged.lastReported, mergeReceipts(local.lastReported, remote.lastReported));
             assert.deepEqual(merged.clearedRooms, []);
             assert.equal(progressScore(merged), progressScore(local));

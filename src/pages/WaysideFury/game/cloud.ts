@@ -27,14 +27,16 @@ export function receiptScore(now: ProgressReceipt, before: ProgressReceipt) {
     additions(now.foundItems ?? [], before.foundItems ?? []) * 20);
 }
 export function mergeSaves(local: SaveData | null, remote: SaveData | null): SaveData | null {
+  local = local ? parseSave(local) : null;
+  remote = remote ? parseSave(remote) : null;
   if (!local) return remote;
   if (!remote) return local;
   const difference = progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return mergePersonalItems({ ...winner, coopRewards: winner.coopRewards ?? [], foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]), ambientTaxiWrecked: local.ambientTaxiWrecked || remote.ambientTaxiWrecked, lastReported: mergeReceipts(local.lastReported, remote.lastReported) }, local, remote);
+  return mergePersonalProgress({ ...winner, coopRewards: winner.coopRewards ?? [], foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]), ambientTaxiWrecked: local.ambientTaxiWrecked || remote.ambientTaxiWrecked, lastReported: mergeReceipts(local.lastReported, remote.lastReported) }, local, remote);
 }
 
-function mergePersonalItems(winner: SaveData, local: SaveData, remote: SaveData): SaveData {
+function mergePersonalProgress(winner: SaveData, local: SaveData, remote: SaveData): SaveData {
   const recent = local.savedAt > remote.savedAt ? local : remote;
   const alternate = recent === local ? remote : local;
   const hub = mergeHubSaves(winner.u1?.hub, local.u1?.hub, remote.u1?.hub);
@@ -217,7 +219,7 @@ export class CloudSaveStore {
     if (this.flushing || !this.userId || !this.ready || this.disposed) return;
     this.flushing = true; const epoch = this.epoch;
     let writing: { save: SaveData; credit: boolean } | null = null;
-    let itemConflicts = 0;
+    let personalConflicts = 0;
     try {
       if (!this.revisionKnown) {
         await this.reconcile(epoch);
@@ -232,14 +234,19 @@ export class CloudSaveStore {
           const remote = this.decode(response.body);
           // Discard all queued snapshots from before the conflict, including
           // a checkpoint queued while this request was in flight.
-          const merged = remote.save && this.save ? mergePersonalItems(remote.save, this.save, remote.save) : remote.save;
+          let merged = remote.save;
+          // Recover each personal namespace while the server revision owns the
+          // campaign and paid receipts. Include progress queued during the PUT.
+          for (const personal of [writing.save, this.save, this.queuedSnapshot()]) {
+            if (merged && personal) merged = mergePersonalProgress(merged, personal, merged);
+          }
           this.pending = null; this.save = merged; this.revision = remote.revision;
           this.confirmed = mergeReceipts(remote.save?.lastReported); this.unconfirmed = null;
           if (merged) this.write(merged);
           this.cb.onReplaced(merged, "conflict");
           if (merged && JSON.stringify(merged) !== JSON.stringify(remote.save)) {
             this.pending = { save: merged, credit: false }; writing = null;
-            if (++itemConflicts >= 3) { this.notify("saving"); this.retry(); return; }
+            if (++personalConflicts >= 3) { this.notify("saving"); this.retry(); return; }
             continue;
           }
           this.notify("saved"); return;

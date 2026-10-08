@@ -19,6 +19,11 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   receipts.push(reward.id);
   if (receipts.length > MAX_COOP_REWARDS) receipts.splice(0, receipts.length - MAX_COOP_REWARDS);
   if (reward.kind === "pickup") return reward.pickupId ? grantPickup(s, reward.pickupId) : false;
+  if (s.scene === "arena") {
+    if (reward.kind === "kill") s.kills++;
+    trackHubCoopReward(s, reward);
+    return true;
+  }
   const repeatedArea = s.coop?.role !== "host" && reward.areas?.some(id => id !== "wayside" && s.areas.includes(id));
   gainXp(s, (reward.xp ?? 0) + (repeatedArea ? 75 : 0));
   s.candy = Math.min(1_000_000, s.candy + (reward.kind === "kill" ? Math.floor((reward.candy ?? 0) * chipEffects(s).candyMultiplier) + chipEffects(s).candyBonusPerKill : reward.candy ?? 0));
@@ -33,7 +38,6 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.clearedRooms = [...new Set([...s.clearedRooms, ...(reward.rooms ?? [])])];
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
   syncCoopLevel(s); trackHubCoopReward(s, reward);
-  if (s.scene === "arena") return true;
   for (const id of [...(reward.bosses ?? []), ...(reward.rooms ?? [])]) grantCheckpointChip(s, id);
   s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
   return true;

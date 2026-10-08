@@ -24,6 +24,7 @@ function atGate(gate, role) {
   state.party = ['you', gate.hero]; state.active = gate.hero;
   state.faceX = 1; state.faceY = 0; state.transitionCooldown = 1;
   state.heroes[gate.hero].invulnerable = 30;
+  tick(state, {}, 10);
   return state;
 }
 

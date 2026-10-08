@@ -4,7 +4,7 @@ import { HUB_QUEST_NPCS, QUESTS, acceptQuest, claimQuest, createQuestSave, progr
 import { applyPendingHubChips } from "./rewardAdapter.ts";
 
 export function hubQuestContext(s: GameState): QuestContext {
-  return { candy: s.candy, kills: s.kills, bosses: s.bosses, clearedRooms: s.clearedRooms };
+  return { candy: s.candy, kills: s.kills, bosses: s.bosses, clearedRooms: s.clearedRooms, hiddenFound: s.foundItems };
 }
 export function tickHubQuests(s: GameState): void {
   const before = s.hubQuests ?? createQuestSave();
@@ -53,6 +53,11 @@ export function selectHubCosmetic(s: GameState, id: string | null): boolean {
   return true;
 }
 export function trackHubQuestEvent(s: GameState, event: GameEvent): void {
+  if (event.type === "pickup") {
+    tickHubQuests(s);
+    s.hubQuests = progressQuests(s.hubQuests!, { id: `hidden:${event.id}`, type: "hidden-found", targetId: event.id, amount: 1 });
+    return;
+  }
   if (event.type !== "kill" || s.coop) return;
   tickHubQuests(s);
   if (!s.hubQuests!.entries.some(entry => entry.status === "active")) return;

@@ -116,14 +116,13 @@ export interface GameState {
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   candy: number; deaths: number; kills: number; events: GameEvent[];
   previousInput: Input; rngSeed: number; nextId: number;
-  u1: { combat: CombatProgress; [namespace: string]: unknown };
   training: TrainingRuntime | null;
   fusion: FusionRuntime;
   coop?: CoopRuntime;
   coopRewards?: string[];
   contextAttack: ContextAttackState;
   dialogue: { speaker: string; lines: string[]; index: number } | null;
-  u1?: { items: ItemsSaveState; world?: WorldSave; combat: CombatProgress; [key: string]: unknown };
+  u1: { items: ItemsSaveState; world?: WorldSave; combat: CombatProgress; [key: string]: unknown };
   nightWorld?: { window: string | null };
   arena?: ArenaRuntime; hubArena?: ArenaPersonal;
   hubQuests?: HubQuestSave; hubQuestId?: string; hubCosmetic?: string | null; hubQuestSerial?: number;
@@ -374,7 +373,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
       floater(s, e.x, e.y + 13, `+${reward} candy`, "#eea2fc");
       gainXp(s, xp);
     }
-    if (!s.coop && e.kind === "boss") grantChip(s, e.miniBoss ? "iron-guard" : "focus-lens", "guardian");
+    if (!s.coop && s.scene !== "arena" && e.kind === "boss") grantChip(s, e.miniBoss ? "iron-guard" : "focus-lens", "guardian");
     if (s.scene === "dungeon" && s.room === 9 && e.kind === "boss" && e.sprite === "ghost" && !s.bosses.includes("relic-echo")) {
       s.bosses.push("relic-echo"); s.events.push({ type: "checkpoint", id: "relic-echo" });
     }
@@ -752,7 +751,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.scene === "dead" || s.scene === "results" || s.scene === "shift" || s.overlay || s.coop?.downed) return null;
   const candidates: InteractionCandidate[] = [...itemInteractionCandidates(s)];
   const gate = getHeroObstacleTarget(s);
-  if (gate) candidates.push({ id: gate.id, name: gate.label, kind: "use", x: gate.x + gate.w / 2, y: gate.y + gate.h / 2, distance: 0, radius: 28 });
+  if (gate) candidates.push({ id: gate.id, name: gate.label, kind: "use", requiredHero: gate.hero, x: gate.x + gate.w / 2, y: gate.y + gate.h / 2, distance: 0, radius: 28 });
   const add = (target: InteractTarget, radius = 28, distance = Math.hypot(s.x - target.x, s.y - target.y)) => candidates.push({ ...target, radius, distance });
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
@@ -821,6 +820,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target && interactItem(s, target.id)) return;
   if (target?.id === TRAINING_BOARD.id) { s.overlay = "training"; s.vx = s.vy = 0; s.moving = false; return; }
   if (!target) return;
+  if (target.id.startsWith("world-") && (s.previousInput.ki || s.previousInput.guard)) return;
   if (target.id === "story-next") { advanceStory(s); return; }
   if (target.id === "dialog-next") { advanceDialogue(s); return; }
   if (target.id === "diner-entry") { s.overlay = "diner"; s.insideDiner = true; s.vx = s.vy = 0; s.moving = false; return; }
@@ -829,7 +829,8 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("u8-quest-")) { openHubQuest(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
-  if (s.coop?.role === "guest") {
+  if (s.coop?.role === "guest" && target.id === "home" && s.scene === "hub") { s.overlay = "home"; s.vx = s.vy = 0; s.moving = false; return; }
+  if (s.coop?.role === "guest" && target.kind !== "talk") {
     if (target.id.startsWith("world-")) s.events.push({ type: "obstacle-request", id: target.id, hero: s.active, x: s.x, y: s.y });
     return;
   }
@@ -837,7 +838,6 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
     if (!clearHeroObstacle(s, target.id)) s.notice = `Choose the required hero in Character, then tag them in. ${target.name}`;
     return;
   }
-  if (s.coop?.role === "guest" && target.kind !== "talk") return;
 
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
@@ -1022,7 +1022,9 @@ export function step(s: GameState, input: Input, delta: number): void {
     moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
+  const wasTraining = !!s.training;
   tickTraining(s, dt);
+  if (wasTraining && !s.training) { s.charge = 0; return; }
   walkingPickup(s);
   if (!combat || s.scene === "hub" && !s.training) {
     s.charge = 0;

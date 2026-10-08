@@ -5,7 +5,7 @@ import { CombatHud } from "./u1/combat/CombatHud";
 import { requestFusion } from "./game/u1/combat/fusion";
 import { QuestLog, QuestDialogue } from "./u1/hub/QuestLog";
 import { createQuestSave } from "./u1/hub/quests";
-import { hubQuestContext, canUseHubQuest, acceptHubQuest, claimHubQuest, selectHubCosmetic } from "./u1/hub/hubRules";
+import { hubQuestContext, canUseHubQuest, acceptHubQuest, claimHubQuest, selectHubCosmetic, trackHubQuestEvent } from "./u1/hub/hubRules";
 import { ArenaHud, ArenaPanel } from "./u1/hub/ArenaPanel";
 import { startArena, finishArena } from "./u1/hub/arena";
 import { arenaGame } from "../../../server/shared/waysideFury/u1Arena.js";
@@ -95,6 +95,7 @@ function ActionIcon({ action, glyph }: { action: keyof Input; glyph?: ActionProm
     taxi: <><path d="m5 13 3-7h14l3 7M3 13h24v10H3V13Zm5 10v4m14-4v4M12 6V3h6v3" /><path d="M6 18h3m12 0h3M11 18h8" /></>,
     next: <><path d="m11 5 10 10-10 10" /><path d="m4 5 10 10L4 25" /></>,
   };
+  if (glyph && ["you", "joe", "matt", "alex", "jon"].includes(glyph)) return <span className="wf-obstacle-action" aria-hidden="true">{glyph === "you" ? "★" : glyph === "joe" ? "✊" : glyph === "matt" ? "↔" : glyph === "alex" ? "⌘" : "♨"}</span>;
   return <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{glyph && glyph !== "attack" ? contextPaths[glyph] : paths[action]}</svg>;
 }
 function Stick({ send, sensitivity }: { send: (input: Partial<Input>) => void; sensitivity: number }) {
@@ -253,6 +254,7 @@ export default function WaysideFury() {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
+        if (event.type === "pickup") trackHubQuestEvent(s, event);
         if (event.type === "quest-save" || event.type === "kill" && s.hubQuests?.entries.some(entry => entry.status === "active")) {
           const store = storeRef.current, next = makeSave(s, store?.save ?? null);
           if (next && store?.ready) store.persist({ ...next, settings: settingsRef.current });

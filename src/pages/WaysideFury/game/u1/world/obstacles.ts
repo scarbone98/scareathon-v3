@@ -1,3 +1,5 @@
+import { defaultCombatProgress } from "../../../../../../server/shared/waysideFury/u1Combat.js";
+import { createItemsSave } from "../../../../../../server/shared/waysideFury/u1Items.js";
 import type { GameState, HeroId } from "../../sim.ts";
 import { getWorld, isBlocked, type CollisionRect } from "../../world.ts";
 import { sanitizeWorldSave, type WorldSave } from "../../../../../../server/shared/waysideFury/u1World.js";
@@ -26,7 +28,7 @@ export const HERO_OBSTACLES: readonly HeroObstacle[] = [
   make("world-joe-county", "overworld", "boulder", "joe", 752, 320),
 ];
 export function worldSave(s: GameState): WorldSave {
-  s.u1 ??= {}; s.u1.world ??= sanitizeWorldSave(undefined); return s.u1.world;
+  s.u1 ??= { combat: defaultCombatProgress(), items: createItemsSave() }; s.u1.world ??= sanitizeWorldSave(undefined); return s.u1.world;
 }
 export function obstaclesForState(s: Pick<GameState, "scene" | "room">): readonly HeroObstacle[] {
   const id = s.scene === "dungeon" ? `blast-${s.room}` : s.scene === "realm" ? `realm-${s.room}` : s.scene;

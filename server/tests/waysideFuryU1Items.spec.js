@@ -1,6 +1,9 @@
 import { describe, test, expect } from '@jest/globals';
 import { sanitizeSave } from '../shared/waysideFury/save.js';
 import { createItemsSave, mergeItemsSaves, sanitizeItemsSave, sanitizeItemsNamespace } from '../shared/waysideFury/u1Items.js';
+import { sanitizeHubSave } from '../shared/waysideFury/u1Hub.js';
+import { sanitizeWorldSave } from '../shared/waysideFury/u1World.js';
+import { sanitizeCombatSave } from '../shared/waysideFury/u1Combat.js';
 import { legacySave } from './helpers/waysideFurySaveFixtures.js';
 
 describe('Wayside Fury personal Update 1 inventory', () => {
@@ -20,7 +23,7 @@ describe('Wayside Fury personal Update 1 inventory', () => {
       world: { clearedObstacles: ['test-gate'], cycleSeconds: 72 }, combat: { training: { joe: 2 } } } });
     const result = sanitizeSave(raw).save;
     expect(result.u1.items).toEqual(items);
-    expect(result.u1.hub).toEqual(raw.u1.hub); expect(result.u1.world).toEqual(raw.u1.world); expect(result.u1.combat).toEqual(raw.u1.combat);
+    expect(result.u1.hub).toEqual(sanitizeHubSave(raw.u1.hub)); expect(result.u1.world).toEqual(sanitizeWorldSave(raw.u1.world)); expect(result.u1.combat).toEqual(sanitizeCombatSave(raw.u1.combat));
     expect(result.u1.world).not.toBe(raw.u1.world);
     expect(result.lastReported).toEqual(raw.lastReported);
     expect(result.clearedRooms).toEqual(raw.clearedRooms);
@@ -95,7 +98,7 @@ describe('Wayside Fury personal Update 1 inventory', () => {
       { nested: [{ prototype: 'bad' }] }, Object.create({ inherited: true }), { nested: Object.create({ inherited: true }) }];
     for (const world of malicious) expect(sanitizeItemsNamespace({ world })).toEqual({ items: createItemsSave() });
     expect(sanitizeSave(legacySave({ u1: { world: malicious[0], unknown: { anything: true }, hub: { accepted: [] } } })).save.u1)
-      .toEqual({ items: createItemsSave(), hub: { accepted: [] } });
+      .toEqual({ items: createItemsSave(), hub: sanitizeHubSave(undefined), world: sanitizeWorldSave(undefined), combat: sanitizeCombatSave(undefined) });
     expect({}.polluted).toBeUndefined();
   });
 });

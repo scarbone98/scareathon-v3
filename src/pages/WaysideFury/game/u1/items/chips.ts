@@ -1,3 +1,4 @@
+import { defaultCombatProgress } from "../../../../../../server/shared/waysideFury/u1Combat.js";
 import { CHIP_IDS, createItemsSave, type ChipId, type ItemsSaveState } from "../../../../../../server/shared/waysideFury/u1Items.js";
 import type { GameState } from "../../sim.ts";
 export { CHIP_IDS, createItemsSave };
@@ -23,7 +24,7 @@ export const CHIPS: readonly ChipDefinition[] = [
 export const CHIP_REGISTRY = Object.fromEntries(CHIPS.map(chip => [chip.id, chip])) as Record<ChipId, ChipDefinition>;
 
 export function itemsState(s: GameState): ItemsSaveState {
-  s.u1 ??= { items: createItemsSave() };
+  s.u1 ??= { items: createItemsSave(), combat: defaultCombatProgress() };
   s.u1.items ??= createItemsSave();
   return s.u1.items;
 }

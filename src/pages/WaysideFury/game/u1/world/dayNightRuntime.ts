@@ -53,8 +53,12 @@ export function updateNightOverworld(s: GameState, dt: number): void {
   s.nightWorld.window = plan.window;
   for (const spawn of plan.spawns) {
     if (population >= MAX_NIGHT_MONSTERS) break;
-    if (!nightPassable(s, spawn.x, spawn.y, 7)) continue;
-    const enemy = addEnemy(s, "grunt", spawn.x, spawn.y) as NightAmbientEnemy;
+    const offsets = [[0, 0], [-16, 0], [16, 0], [0, -16], [0, 16], [-32, 0], [32, 0], [0, -32], [0, 32]];
+    const position = offsets.map(([dx, dy]) => ({ x: spawn.x + dx, y: spawn.y + dy }))
+      .find(point => nightPassable(s, point.x, point.y, 7) && [...cars, ...s.enemies]
+        .every(body => Math.hypot(point.x - body.x, point.y - body.y) > body.radius + 12));
+    if (!position) continue;
+    const enemy = addEnemy(s, "grunt", position.x, position.y) as NightAmbientEnemy;
     enemy.sprite = spawn.sprite ?? "ghost"; enemy.nightAmbient = true;
     enemy.speed = enemy.sprite === "ghost" ? 11 : 9;
     enemy.cooldown = 1_000_000; population++;

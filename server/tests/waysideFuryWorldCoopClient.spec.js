@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { createContext, SourceTextModule, SyntheticModule } from 'node:vm';
 import ts from 'typescript';
 import * as worldSave from '../shared/waysideFury/u1World.js';
+import * as combatSave from '../shared/waysideFury/u1Combat.js';
+import * as itemsSave from '../shared/waysideFury/u1Items.js';
 
 // Run the actual client queue and obstacle validator with a controlled receipt
 // clock; transport, unrelated combat, and rendering remain outside this check.
@@ -20,6 +22,8 @@ const source = (relative) => new SourceTextModule(ts.transpileModule(
 ).outputText, { context });
 const obstacles = source('../../src/pages/WaysideFury/game/u1/world/obstacles.ts');
 await obstacles.link(specifier => specifier.endsWith('/u1World.js') ? synthetic(worldSave)
+    : specifier.endsWith('/u1Combat.js') ? synthetic(combatSave)
+    : specifier.endsWith('/u1Items.js') ? synthetic(itemsSave)
     : synthetic({ getWorld: () => ({}), isBlocked: () => false }));
 const sim = synthetic({
     activeHero: state => state.heroes[state.active], applyCoopHit: () => false,
@@ -28,6 +32,11 @@ const sim = synthetic({
     enterScene: (state, scene, room) => { state.scene = scene; state.room = room; },
 });
 const dependencies = {
+    './u1/combat/fusion': synthetic({ beginFusionSession: () => {}, syncFusionWorld: () => {}, elapsedFusionWorld: value => value }),
+    '../u1/hub/arena': synthetic({ prepareArenaPlayer: () => {}, recordArenaResult: () => {} }),
+    './u1/items/chips': synthetic({ chipEffects: () => ({ incomingDamageMultiplier: 1, secondWind: false }) }),
+    './collectibles.ts': synthetic({ authoritativePickupTarget: () => undefined }),
+    './dressing.ts': synthetic({ AMBIENT_TAXI: { x: 0, y: 0 } }),
     './coopRewards': synthetic({ applyCoopReward: () => false, rollCoopCandy: () => 0 }),
     './u1/world/obstacles': obstacles,
     './u1/world/dayNightRuntime': synthetic({ worldCycleSeconds: () => 0 }),
@@ -53,7 +62,7 @@ function setup() {
     const coop = new FuryCoop({ onRoom: () => {}, onToast: () => {}, onAvatar: () => {} });
     coop.room = room();
     const state = { scene: 'dungeon', room: 0, x: 56, y: 192, active: 'you', heroes: { you: { id: 'you', hp: 40 } },
-        enemies: [], projectiles: [], clearedRooms: [], areas: [], bosses: [], events: [], u1: { world: { clearedObstacles: [], cycleSeconds: 0 } },
+        enemies: [], projectiles: [], clearedRooms: [], areas: [], bosses: [], events: [], fusion: { intent: 0, specialRequest: 0, world: { nextId: 1, forms: [], cooldowns: {} } }, u1: { world: { clearedObstacles: [], cycleSeconds: 0 } },
         coop: { role: 'host', seat: 0, remoteHeroes: [], appliedHits: [] }, time: 1, chapter: 1, rngSeed: 1, nextId: 1 };
     const hero = (overrides = {}) => coop.receive({ type: 'hero', seat: 1, input: idle,
         hero: { x: gate.x + gate.w / 2, y: gate.y + gate.h + 12, scene: 'dungeon', room: 0,
