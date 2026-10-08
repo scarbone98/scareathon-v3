@@ -1,0 +1,642 @@
+[
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "station-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "forest-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "garden-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "reservoir-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "causeway-west",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "causeway-east",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "city-boulevard",
+    "mapId": "city-boulevard",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "city-market",
+    "mapId": "city-market",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "station-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "forest-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "garden-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "reservoir-junction",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "causeway-west",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "causeway-east",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "city-boulevard",
+    "mapId": "city-boulevard",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "city-market",
+    "mapId": "city-market",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "station-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "forest-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "garden-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "reservoir-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "causeway-west",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "causeway-east",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "city-boulevard",
+    "mapId": "city-boulevard",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "city-market",
+    "mapId": "city-market",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "station-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "forest-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "garden-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "reservoir-junction",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "causeway-west",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "causeway-east",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "city-boulevard",
+    "mapId": "city-boulevard",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "city-market",
+    "mapId": "city-market",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  }
+]

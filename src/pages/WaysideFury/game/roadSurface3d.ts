@@ -21,6 +21,14 @@ export function buildRoadSurface(world:WorldMap,heightAt:(x:number,y:number)=>nu
       for(const [ox,oy] of [[0,0],[0,16],[16,0],[16,0],[0,16],[16,16]])point(px+ox,py+oy);
     }
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geometry.computeVertexNormals();
+    // Match continuous terrain normals; independently shaded decal triangles
+    // otherwise reveal a faceted checkerboard on causeway bank slopes.
+    const normals=geometry.getAttribute('normal'),normal=new THREE.Vector3();
+    for(let i=0;i<positions.length/3;i++) {
+      const px=positions[i*3],py=positions[i*3+2];
+      normal.set(heightAt(px-.5,py)-heightAt(px+.5,py),1,heightAt(px,py-.5)-heightAt(px,py+.5)).normalize();
+      normals.setXYZ(i,normal.x,normal.y,normal.z);
+    }
     const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.name=`road-ribbon-${x}-${y}`;group.add(mesh);resources.push({geometry,material,texture});
   }
   return {group,dispose:()=>{for(const r of resources){r.geometry.dispose();r.material.dispose();r.texture.dispose();}group.clear();}};
