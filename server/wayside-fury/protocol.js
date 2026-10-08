@@ -49,6 +49,10 @@ export function cleanHero(remote) {
         if (typeof remote[key] !== 'boolean') return null;
         cleaned[key] = remote[key];
     }
+    if (remote.questCosmetic !== undefined) {
+        if (remote.questCosmetic !== null && !["bbq-apron", "station-scarf"].includes(remote.questCosmetic)) return null;
+        cleaned.questCosmetic = remote.questCosmetic;
+    }
     if (remote.downed !== undefined) {
         if (typeof remote.downed !== 'boolean') return null;
         cleaned.downed = remote.downed;
@@ -154,6 +158,10 @@ export function cleanRelay(message) {
             const raw = message.reward;
             if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
             const reward = { id: raw.id, kind: raw.kind, xp: raw.xp, candy: raw.candy };
+            if (raw.enemyKind !== undefined) {
+                if (!["grunt", "shooter", "boss"].includes(raw.enemyKind)) return null;
+                reward.enemyKind = raw.enemyKind;
+            }
             for (const [key, max] of [['healHp', 1_000_000], ['healKi', 1_000_000], ['power', 10_000], ['ward', 10_000]]) {
                 if (raw[key] === undefined) continue;
                 if (!integer(raw[key], max)) return null;

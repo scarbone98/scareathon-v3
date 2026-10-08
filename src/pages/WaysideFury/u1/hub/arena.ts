@@ -17,6 +17,7 @@ export function arenaReceipt(run: ArenaRuntime): ArenaRunReceipt {
 }
 export function prepareArenaPlayer(s: GameState): void {
   if (s.arenaVitals) return;
+  s.arenaLead = s.active;
   s.arenaVitals = Object.fromEntries(Object.entries(s.heroes).map(([id, h]) => [id, { ...h }])) as Record<HeroId, HeroState>;
   for (const h of Object.values(s.heroes)) { h.hp = h.maxHp; h.ki = h.maxKi; h.stamina = h.maxStamina; }
   if (s.coop) { s.coop.downed = false; s.coop.reviveProgress = 0; }
@@ -31,7 +32,12 @@ export function recordArenaResult(s: GameState): void {
   save.runs++;
   if (s.arenaVitals) {
     for (const [id, before] of Object.entries(s.arenaVitals)) Object.assign(s.heroes[id as HeroId], before);
-    delete s.arenaVitals;
+    const originalLead = s.arenaLead;
+    const living = s.party.find(id => s.heroes[id].hp > 0);
+    if (originalLead && s.party.includes(originalLead) && s.heroes[originalLead].hp > 0) s.active = originalLead;
+    else if (living) s.active = living;
+    else if (originalLead && s.heroes[originalLead].hp > 0) { s.party = [originalLead, ...s.party.filter(id => id !== originalLead)].slice(0, 2); s.active = originalLead; }
+    delete s.arenaVitals; delete s.arenaLead;
   }
   if (s.coop) { s.coop.downed = false; s.coop.reviveProgress = 0; }
   s.events.push({ type: "arena-finish", receipt: arenaReceipt(run), score });

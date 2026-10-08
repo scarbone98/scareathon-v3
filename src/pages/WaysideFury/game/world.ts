@@ -1,3 +1,4 @@
+import { HUB_QUEST_NPCS } from "../u1/hub/quests.ts";
 import { ARENA_WORLD, ARENA_HUB_BUILDING } from "../u1/hub/arenaWorld.ts";
 // Terrain uses tile collision; props use precise base rectangles. Positions are world pixels.
 export const TILE = 16;
@@ -159,6 +160,8 @@ export const HUB_WORLD = (() => {
   prop(m, "car", 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
   m.props.push(ARENA_HUB_BUILDING);
+  for (const npc of HUB_QUEST_NPCS.filter(n => !n.hero)) m.props.push({ id: npc.id, kind: "npc", x: npc.x - 8, y: npc.y - 28, w: 16, h: 28, label: npc.name,
+    footprints: [{ x: npc.x - 5, y: npc.y - 6, w: 10, h: 6 }] });
   m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
 

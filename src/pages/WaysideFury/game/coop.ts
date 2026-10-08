@@ -14,7 +14,7 @@ export interface CoopCallbacks {
   onReward?(state: GameState, reward: CoopReward): void;
 }
 export interface CoopReward {
-  id: string; kind: "kill" | "checkpoint"; xp?: number; candy?: number;
+  id: string; kind: "kill" | "checkpoint"; enemyKind?: "grunt" | "shooter" | "boss"; xp?: number; candy?: number;
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
@@ -134,10 +134,10 @@ export class FuryCoop {
     if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "arena-finish") && this.rewardSnapshotAt !== s.time) {
       this.send({ type: "state", state: worldState(s) }); this.rewardSnapshotAt = s.time;
     }
-    if (this.isHost && event.type === "kill" && s.scene !== "arena") {
+    if (this.isHost && event.type === "kill") {
       const id = `${this.clientId}:kill:${event.enemyId}`;
       for (const player of this.room.players.filter(p => p.connected)) {
-        const reward: CoopReward = { id, kind: "kill", xp: event.xp, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
+        const reward: CoopReward = { id, kind: "kill", xp: s.scene === "arena" ? 0 : event.xp, candy: s.scene === "arena" ? 0 : rollCoopCandy(id, player.userId, event.kind === "boss"), enemyKind: event.kind };
         if (player.seat === this.room.seat) { if (applyCoopReward(s, reward)) s.events.push({ type: "checkpoint", id: `coop-reward-${id}` }); }
         else this.sendReward(reward, player.seat);
       }
@@ -206,7 +206,7 @@ export class FuryCoop {
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, questCosmetic: s.hubCosmetic ?? null, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });

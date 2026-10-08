@@ -1,3 +1,5 @@
+import { hubQuestTarget, openHubQuest, tickHubQuests, trackHubQuestEvent } from "../u1/hub/hubRules.ts";
+import type { HubQuestSave } from "../u1/hub/quests.ts";
 import { tickArena, type ArenaRuntime, type ArenaPersonal } from "../u1/hub/arena.ts";
 import type { ArenaRunReceipt } from "../../../../server/shared/waysideFury/u1Arena.js";
 import { ARENA_HUB_POINT } from "../u1/hub/arenaWorld.ts";
@@ -23,7 +25,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  scene: Scene; room: number; questCosmetic?: string | null; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
@@ -55,6 +57,7 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | { type: "quest-save"; id: string; kind: "accepted" | "claimed" | "cosmetic" }
   | { type: "arena-finish"; receipt: ArenaRunReceipt; score: number }
   | CoopHit
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
@@ -71,7 +74,7 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | "arena" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "arena" | "quest" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
@@ -81,7 +84,8 @@ export interface GameState {
   coop?: CoopRuntime;
   coopRewards?: string[];
   arena?: ArenaRuntime; hubArena?: ArenaPersonal;
-  arenaVitals?: Record<HeroId, HeroState>; arenaRecorded?: string;
+  hubQuests?: HubQuestSave; hubQuestId?: string; hubCosmetic?: string | null; hubQuestSerial?: number;
+  arenaVitals?: Record<HeroId, HeroState>; arenaLead?: HeroId; arenaRecorded?: string;
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -312,7 +316,9 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
       floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
       gainXp(s, xp);
     }
-    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp });
+    if (!s.coop && s.scene === "arena") s.kills++;
+    const event: GameEvent = { type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp };
+    s.events.push(event); trackHubQuestEvent(s, event);
   }
 }
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
@@ -644,6 +650,8 @@ export function interactTarget(s: GameState): { id: string; name: string; locked
     const downed = s.coop.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room && Math.hypot(s.x - peer.x, s.y - peer.y) <= 32);
     if (downed) return { id: `coop-revive-${downed.seat}`, name: `Hold to revive ${downed.name}` };
   }
+  const quest = hubQuestTarget(s);
+  if (quest) return quest;
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room);
     const chest = world.props.find(p => p.kind === "chest" && !s.clearedRooms.includes(p.id) && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h / 2) < 28);
@@ -666,9 +674,10 @@ function travel(s: GameState, door: WorldExit) {
   s.previousInput.interact = true;
 }
 export function interact(s: GameState): void {
-  if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
   const target = interactTarget(s);
-  if (!target) return;
+  if (!target || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
+  if (target.id.startsWith("u8-quest-")) { openHubQuest(s, target.id); return; }
+  if (s.coop?.role === "guest") return;
   if (target.id.startsWith("coop-revive-")) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
@@ -742,7 +751,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
   s.transitionCooldown = Math.max(0, s.transitionCooldown - dt);
-  updateVisuals(s, dt);
+  updateVisuals(s, dt); tickHubQuests(s);
   if (s.scene === "prologue") {
     const pressed = input.interact && !s.previousInput.interact;
     s.previousInput = { ...input };

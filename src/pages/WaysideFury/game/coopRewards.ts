@@ -1,3 +1,4 @@
+import { trackHubCoopReward } from "../u1/hub/hubRules.ts";
 import { gainXp, grantGear, syncCoopLevel, type GameState } from "./sim.ts";
 import { MAX_COOP_REWARDS } from "../../../../server/shared/waysideFury/save.js";
 import type { CoopReward } from "./coop";
@@ -27,7 +28,8 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.bosses = [...new Set([...s.bosses, ...(reward.bosses ?? [])])];
   s.clearedRooms = [...new Set([...s.clearedRooms, ...(reward.rooms ?? [])])];
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
-  syncCoopLevel(s);
+  syncCoopLevel(s); trackHubCoopReward(s, reward);
+  if (s.scene === "arena") return true;
   s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
   return true;
 }

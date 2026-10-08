@@ -1,3 +1,4 @@
+import { drawQuestNpc, drawQuestCosmetic } from "../u1/hub/questArt";
 import { drawArenaFloor } from "../u1/hub/arenaArt";
 // The renderer only reads simulation state. World units are independent of pixels.
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
@@ -223,7 +224,7 @@ export class Renderer {
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
-      const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
+      const remote = { ...s, ...peer, hubCosmetic: peer.questCosmetic, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
       if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
       for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
@@ -340,6 +341,7 @@ export class Renderer {
     if (prop.kind === 'portal') { if (s.scene !== 'overworld') this.portal(x, y, time); return; }
     if (prop.kind === 'car') { this.taxi(x, y, 1, 0, time, false); return; }
     if (prop.kind === 'npc') {
+      if (prop.id.startsWith('u8-quest-')) { drawQuestNpc(c, prop.id, x, y, time); return; }
       this.shadow(x, y);
       const id = prop.label === 'Jon' ? 'jon' : 'alex';
       this.sprite(id, x, y - (this.reducedMotion ? 0 : Math.sin(time * 2 + x) * .5), time); return;
@@ -485,6 +487,7 @@ export class Renderer {
     const sprite = (s.moving || s.dashTimer > 0) && (s.active === 'joe' || s.active === 'matt') ? `run_${s.active}` as const : s.active;
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
+    drawQuestCosmetic(c, s);
     c.restore(); c.globalAlpha = 1;
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;

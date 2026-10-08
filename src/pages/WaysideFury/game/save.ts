@@ -1,3 +1,4 @@
+import { createQuestSave } from "../u1/hub/quests.ts";
 import { enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
@@ -34,11 +35,11 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
   })) : personalHeroes;
   return parseSave({
-    version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
+    version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.arenaLead && s.party.includes(s.arenaLead) ? s.arenaLead : s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
-    u1: { ...previous?.u1, hub: { ...previous?.u1?.hub, arena: s.hubArena ?? previous?.u1?.hub?.arena } },
+    u1: { ...previous?.u1, hub: { ...previous?.u1?.hub, arena: s.hubArena ?? previous?.u1?.hub?.arena, quests: s.hubQuests ?? previous?.u1?.hub?.quests, cosmetic: s.hubCosmetic ?? null, eventSerial: s.hubQuestSerial ?? 0 } },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
@@ -62,6 +63,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
     s.coopRewards = [...(saved.coopRewards ?? [])];
     s.hubArena = saved.u1?.hub ? { ...saved.u1.hub.arena } : undefined;
+    s.hubQuests = createQuestSave(saved.u1?.hub?.quests); s.hubCosmetic = saved.u1?.hub?.cosmetic ?? null; s.hubQuestSerial = saved.u1?.hub?.eventSerial ?? 0;
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }
     if (s.heroes[s.active].hp <= 0) {

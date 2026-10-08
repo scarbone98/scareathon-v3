@@ -78,6 +78,7 @@ export class GameController {
     if (blocked !== this.soundBlocked) { this.soundBlocked = blocked; this.cb.onSoundBlocked?.(blocked); }
     const s = this.state;
     this.cb.onState({ ...s,
+      hubQuests: s.hubQuests ? structuredClone(s.hubQuests) : undefined,
       arena: s.arena ? { ...s.arena } : undefined, hubArena: s.hubArena ? { ...s.hubArena } : undefined,
       heroes: Object.fromEntries(Object.entries(s.heroes).map(([id, hero]) => [id, { ...hero }])) as GameState["heroes"],
       character: { ...s.character }, gear: { ...s.gear }, party: [...s.party], unlockedHeroes: [...s.unlockedHeroes],

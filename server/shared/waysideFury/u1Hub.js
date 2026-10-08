@@ -1,3 +1,4 @@
+import { sanitizeHubQuests } from "./u1HubQuests.js";
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const count = value => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1_000_000_000, Math.floor(value))) : 0;
 const safe = (value, depth = 0) => {
@@ -17,5 +18,7 @@ export function preserveU1Namespaces(raw) {
 }
 export function sanitizeHubSave(raw) {
     const arena = record(raw) && record(raw.arena) ? raw.arena : {};
-    return { arena: { soloBest: count(arena.soloBest), coopBest: count(arena.coopBest), runs: count(arena.runs) } };
+    const quests = sanitizeHubQuests(record(raw) ? raw.quests : undefined);
+    const cosmetic = record(raw) && typeof raw.cosmetic === "string" && quests.cosmetics.includes(raw.cosmetic) ? raw.cosmetic : null;
+    return { arena: { soloBest: count(arena.soloBest), coopBest: count(arena.coopBest), runs: count(arena.runs) }, quests, cosmetic, eventSerial: count(record(raw) ? raw.eventSerial : undefined) };
 }

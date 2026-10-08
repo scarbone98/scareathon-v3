@@ -1,5 +1,6 @@
 import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
+import { mergeHubSaves } from "../../../../server/shared/waysideFury/u1HubMerge.js";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "local" | "offline" | "unavailable";
 export interface SaveTransport {
@@ -25,7 +26,13 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   if (!remote) return local;
   const difference = progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+  return { ...mergeHubProgress(winner, local, remote), coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+}
+
+// Only the caller's account snapshots reach this helper. Keep the campaign
+// winner and sibling namespaces while preserving monotonic hub receipts.
+function mergeHubProgress(primary: SaveData, ...others: (SaveData | null | undefined)[]): SaveData {
+  return { ...primary, u1: { ...primary.u1, hub: mergeHubSaves(primary.u1?.hub, ...others.map(save => save?.u1?.hub)) } };
 }
 
 // The transport and storage are replaceable so races and disconnected devices
@@ -149,12 +156,13 @@ export class CloudSaveStore {
     this.revision = remote.revision; this.revisionKnown = true;
     this.confirmed = mergeReceipts(this.confirmed, remote.save?.lastReported);
     const next = mergeSaves(this.save, remote.save);
+    const hubChanged = JSON.stringify(next?.u1?.hub) !== JSON.stringify(this.save?.u1?.hub);
     const difference = remote.save && this.save ? progressScore(remote.save) - progressScore(this.save) : 0;
     const remoteWins = remote.save && (!this.save || difference > 0 || difference === 0 && remote.save.savedAt >= this.save.savedAt);
     this.save = next;
     if (next && this.unconfirmed && receiptScore(next.lastReported, this.confirmed) === 0) this.unconfirmed = null;
     if (next) this.write(next);
-    if (remoteWins && this.ready) this.cb.onReplaced(next, "load");
+    if ((remoteWins || hubChanged) && this.ready) this.cb.onReplaced(next, "load");
     if (next && this.pending) this.pending = { save: next, credit: this.unconfirmed !== null };
     return !!next && JSON.stringify(next) !== JSON.stringify(remote.save);
   }
@@ -190,10 +198,12 @@ export class CloudSaveStore {
     this.running = running;
     return running;
   }
+  private queuedSnapshot(): SaveData | undefined { return this.pending?.save; }
   private async runFlush() {
     if (this.flushing || !this.userId || !this.ready || this.disposed) return;
     this.flushing = true; const epoch = this.epoch;
     let writing: { save: SaveData; credit: boolean } | null = null;
+    let hubConflictRetried = false;
     try {
       if (!this.revisionKnown) {
         await this.reconcile(epoch);
@@ -207,11 +217,25 @@ export class CloudSaveStore {
         if (response.status === 409) {
           const remote = this.decode(response.body);
           // Discard all queued snapshots from before the conflict, including
-          // a checkpoint queued while this request was in flight.
-          this.pending = null; this.save = remote.save; this.revision = remote.revision;
+          // campaign checkpoints queued in flight. Hub receipts are monotonic
+          // and can be retried once against the winning revision without credit.
+          const merged = remote.save ? mergeHubProgress(remote.save, this.save, writing.save, this.queuedSnapshot()) : null;
+          const hubChanged = !!merged && JSON.stringify(merged.u1?.hub) !== JSON.stringify(remote.save?.u1?.hub);
+          this.pending = merged && hubChanged ? { save: merged, credit: false } : null;
+          this.save = merged; this.revision = remote.revision;
           this.confirmed = mergeReceipts(remote.save?.lastReported); this.unconfirmed = null;
-          if (remote.save) this.write(remote.save);
-          this.cb.onReplaced(remote.save, "conflict"); this.notify("saved"); return;
+          if (merged) this.write(merged);
+          this.cb.onReplaced(merged, "conflict");
+          if (merged && hubChanged) {
+            writing = null;
+            if (!hubConflictRetried) {
+              hubConflictRetried = true; this.notify("saving"); continue;
+            }
+            // Concurrent devices may advance again during the single retry.
+            // Retain our bounded union locally and let the normal retry resume.
+            this.notify("offline"); this.retry(); return;
+          }
+          this.notify("saved"); return;
         }
         const revision = (response.body as { revision?: number })?.revision;
         if (response.status !== 200 || !Number.isInteger(revision) || revision! < 1) throw new Error("Could not save progress");

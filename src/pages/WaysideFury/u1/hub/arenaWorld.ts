@@ -10,7 +10,7 @@ for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
 const props: WorldProp[] = [
   ...[80, 544].flatMap(x => [72, 336].map(y => ({ id: `arena-light-${x}-${y}`, kind: "lamp" as const,
     x, y, w: 16, h: 40, footprints: [{ x: x + 5, y: y + 35, w: 6, h: 6 }] }))),
-  { id: "arena-marquee", kind: "sign", x: 304, y: 42, w: 32, h: 24, label: "WAYSIDE TOURNAMENT", footprints: [] },
+  { id: "arena-marquee", kind: "sign", x: 304, y: 42, w: 32, h: 24, label: "WAYSIDE TOURNAMENT", footprints: [{ x: 318, y: 60, w: 4, h: 6 }] },
 ];
 export const ARENA_WORLD: WorldMap = { id: "u5-arena", name: "Wayside Tournament", width, height, cols, rows,
   tiles, collision, props, spawns: [], exits: [], spawn: { x: 320, y: 304 } };
