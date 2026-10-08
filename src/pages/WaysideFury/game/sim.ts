@@ -307,12 +307,14 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
   return e;
 }
 export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string): void {
+  const previousInterior = interiorDefinition(s.mapId);
   const resolved = resolveCampaignMap(mapId ?? legacyMapId(scene, room) ?? "unknown");
   if (resolved.fallback) { scene = "hub"; room = 0; }
   else if (mapId && !["prologue", "shift", "results", "dead"].includes(scene)) {
     scene = resolved.definition.scene as Scene; room = resolved.definition.room;
   }
   const world = resolved.map;
+  if (previousInterior && world.id === previousInterior.parent) s.checkpointMapId = world.id;
   s.mapId = world.id;
   s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
@@ -983,6 +985,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (woodsInteract(s,target.id) || cityInteract(s,target.id) || spaceInteract(s,target.id)) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
+      if (s.clearedRooms.includes(target.id)) return;
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
       s.clearedRooms.push(target.id);
       if (!s.coop) {

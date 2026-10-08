@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
-import {newGame,enterCampaignMap,idleInput} from '../src/pages/WaysideFury/game/sim.ts';
+import {newGame,enterCampaignMap,interact,idleInput} from '../src/pages/WaysideFury/game/sim.ts';
 import {makeSave,restoreSave} from '../src/pages/WaysideFury/game/save.ts';
 import {INTERIORS} from '../src/pages/WaysideFury/game/interiors.ts';
 import {cleanWorld} from '../server/wayside-fury/protocol.js';
@@ -19,5 +19,13 @@ for(const room of INTERIORS) {
  client.room.hostSeat=1;client.update(guest,idleInput(),300);assert.equal(guest.coop.role,'host');assert.equal(guest.mapId,room.id);
  assert.equal(restoreSave(makeSave(guest,null)).mapId,room.id,'promoted host resumes the interior');
  client.event(guest,{type:'checkpoint',id:`${room.id}-entered`});assert.ok(messages.some(m=>m.type==='state'));assert.ok(!messages.some(m=>m.type==='reward'),'door snapshots never manufacture room reward receipts');
+ // Snapshot-driven return must update the guest anchor before host promotion.
+ client.room.hostSeat=0;guest.coop.role='guest';
+ interact(host,{id:`${room.id}-exit`,kind:'use',name:'Return',x:224,y:304});
+ const returned={...host,protocolVersion:COOP_PROTOCOL_VERSION};
+ client.worlds=[{at:400,value:returned},{at:500,value:returned}];client.latestWorld=returned;
+ client.update(guest,idleInput(),600);assert.equal(guest.mapId,room.parent);assert.equal(guest.checkpointMapId,room.parent);
+ client.room.hostSeat=1;client.update(guest,idleInput(),700);
+ assert.notEqual(restoreSave(makeSave(guest,null)).mapId,room.id,'exit-before-promotion never resumes inside the old interior');
 }
 console.log('Interiors co-op: nine server-valid snapshots, guest arrival, diner state, host migration, save restore and reward-free door checkpoints pass.');

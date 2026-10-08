@@ -27,7 +27,7 @@ function ribbon(m: WorldMap, points: AreaPoint[], width: number, tile: TileKind)
       const index=row*m.cols+col;
       // A trail never removes authored water, gates, cliffs or collision.
       if(tile==='road' && m.tiles[index]==='water') { m.tiles[index]='bridge'; m.collision[index]=0; }
-      else if(!m.collision[index] && !(m.tiles[index]==='stone' && tile!=='stone')) m.tiles[index]=tile;
+      else if(!m.collision[index] && m.tiles[index]!=='stone') m.tiles[index]=tile;
     }
   }
 }
@@ -47,10 +47,11 @@ function local(m: WorldMap, index: number, arrivals: AreaPoint[]) {
   const keepPaving=m.props.some(p=>p.kind==="car");
   if(!city) m.tiles=m.tiles.map((tile,i)=>!m.collision[i]&&(tile==='dirt'||tile==='sand'||tile==='stone'&&!keepPaving||tile==='corrupt'&&!woods)?ground:tile);
   else m.tiles=m.tiles.map(tile=>tile==='road'?'stone':tile);
-  const reserved=[m.spawn,...arrivals,...m.spawns,...m.props.filter(p=>['seal','socket','chest','npc'].includes(p.kind)).map(p=>({x:p.x+p.w/2,y:p.y+p.h+16})),...HIDDEN_PICKUPS.filter(p=>p.mapId===m.id||!p.mapId&&p.scene==='dungeon'&&m.id===`blast-${p.room}`)];
+  const reserved=[m.spawn,...arrivals,...m.spawns,...m.props.filter(p=>['seal','socket','chest','npc'].includes(p.kind)).map(p=>({x:p.x+p.w/2,y:p.y+p.h+16})),...HIDDEN_PICKUPS.filter(p=>p.scene==='dungeon'&&m.id===`blast-${p.room}`)];
   const lower=index%2===0,sign=lower?1:-1;
   const points=[m.spawn,{x:144,y:cy+sign*64},{x:272,y:cy+sign*56},{x:336,y:cy},{x:400,y:cy},{x:m.width-208,y:cy-sign*64},{x:m.width-64,y:cy}];
   ribbon(m,points,72,path);
+  for (const car of m.props.filter(p=>p.kind==="car")) ribbon(m,[{x:car.x+car.w/2,y:car.y+car.h+16},{x:car.x+car.w/2,y:cy}],48,"stone");
   // A second contour route forms an actual walkable loop around an island.
   ribbon(m,[{x:144,y:cy+sign*64},{x:184,y:cy-sign*104},{x:272,y:cy-sign*96},{x:336,y:cy}],52,path);
   // Irregular islands introduce an alcove and a detour, with generous combat pockets.

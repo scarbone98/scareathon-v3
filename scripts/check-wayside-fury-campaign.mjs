@@ -149,4 +149,4 @@ try {
   rooms.leave(legacy);
   assert.equal(modern.sent.filter(message => message.type === 'room').at(-1).protocolVersion, 2);
 } finally { rooms.close(); }
-console.log('Campaign foundation: unchanged Chapter 1 dungeon geometry, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');
+console.log('Campaign foundation: preserved Chapter 1 routing and encounters, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');
