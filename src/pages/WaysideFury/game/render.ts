@@ -5,6 +5,9 @@ import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { obstaclesForState, isObstacleCleared } from "./u1/world/obstacles";
 import { drawHeroObstacle } from "./u1/world/obstacleRender";
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
+import { drawDayNightLighting } from "./u1/world/dayNightRender";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -175,6 +178,8 @@ export class Renderer {
   }
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     const c = this.ctx;
+    const daylight = sampleDayNight(worldCycleSeconds(s));
+    c.canvas.dataset.worldPhase = s.scene === 'overworld' ? daylight.phase : '';
     // Paused menus and snapshots do not establish a gameplay frame budget.
     this.checkQuality(dt > 0 ? frameDelta : 0);
     const { width, height, pixelScale } = this.viewport;
@@ -238,6 +243,7 @@ export class Renderer {
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
+    if (s.scene === 'overworld') drawDayNightLighting(c, world, { ...this.camera, width, height }, this.reducedMotion ? { ...daylight, seconds: 0 } : daylight, s, s.enemies.filter(e => e.nightAmbient));
     c.restore();
     if (s.palette === 'eightbit') this.applyRealmPalette();
     if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }

@@ -14,6 +14,7 @@ import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } fr
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
 import { getHeroObstacleTarget } from "./game/u1/world/obstacles";
+import { WorldClock } from "./game/u1/world/WorldClock";
 import "./game/u1/world/world.css";
 import "./style.css";
 const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
@@ -363,7 +364,7 @@ export default function WaysideFury() {
     return () => window.clearTimeout(timer);
   }, [showTutorial, accountEpoch]);
   const obstacleAction = getHeroObstacleTarget(state);
-  const showObstacleAction = obstacleAction && !state.enemies.some(e => e.hp > 0 && Math.hypot(e.x - state.x, e.y - state.y) < e.radius + 26);
+  const showObstacleAction = obstacleAction && !state.enemies.some(e => e.hp > 0 && !e.nightAmbient && Math.hypot(e.x - state.x, e.y - state.y) < e.radius + 26);
   return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
     <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
@@ -384,7 +385,7 @@ export default function WaysideFury() {
         <Meter value={hero.hp} max={hero.maxHp} kind="hp">HP {Math.ceil(hero.hp)}/{hero.maxHp}</Meter>
         <Meter value={hero.ki} max={hero.maxKi} kind="ki">KI {Math.floor(hero.ki)}/{hero.maxKi}</Meter>
       </div>
-        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span></div>
+        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span><WorldClock state={state} /></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button>
       </header>}
       {!cinematic && !paused && coopRoom && <div className="wf-party-hud" aria-label="Party HP">{coopRoom.players.map(player => {

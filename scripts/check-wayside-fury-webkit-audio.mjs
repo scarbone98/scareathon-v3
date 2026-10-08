@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const baseUrl = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5173';
+const readyTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
 const moduleName = process.env.PLAYWRIGHT_MODULE;
 let playwright;
 try {
@@ -53,6 +54,11 @@ async function audible(page, label) {
 
 async function run(gesture) {
   const context = await browser.newContext({ ...device });
+  await context.addInitScript(() => {
+    const mute = () => document.querySelectorAll('audio,video').forEach(media => { media.muted = true; });
+    new MutationObserver(mute).observe(document, { childList: true, subtree: true });
+    document.addEventListener('play', event => { if (event.target instanceof HTMLMediaElement) event.target.muted = true; }, true);
+  });
   const errors = [];
   // A fresh guest, and a tap on UI that stops bubbling. Blocking other gesture
   // types proves each required capture listener works independently.
@@ -65,13 +71,17 @@ async function run(gesture) {
     const NativeContext = window.AudioContext ?? window.webkitAudioContext;
     const connect = AudioNode.prototype.connect;
     AudioNode.prototype.connect = function (...args) {
-      const result = connect.apply(this, args);
       if (args[0] === this.context.destination && this instanceof DynamicsCompressorNode) {
         const analyser = this.context.createAnalyser(); analyser.fftSize = 2048;
         connect.call(this, analyser);
-        probe.taps.push({ ctx: this.context, analyser });
+        // Keep the real post-compressor signal measurable while silencing only
+        // this test browser's final output on the shared development machine.
+        const mute = this.context.createGain(); mute.gain.value = 0;
+        connect.call(analyser, mute); connect.call(mute, this.context.destination);
+        probe.taps.push({ ctx: this.context, analyser, mute });
+        return args[0];
       }
-      return result;
+      return connect.apply(this, args);
     };
     class ObservedContext extends NativeContext {
       constructor(...args) {
@@ -90,9 +100,10 @@ async function run(gesture) {
     if (window.webkitAudioContext) window.webkitAudioContext = ObservedContext;
   }, { gesture });
   const page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.message));
+  page.setDefaultTimeout(readyTimeout);
+  page.on('pageerror', error => { errors.push(error.message); console.error(error.message); });
   try {
-    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'domcontentloaded' });
+    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'commit', timeout: readyTimeout });
     await page.waitForFunction(() => !!window.__waysideFury && !!document.querySelector('.wf-stage canvas')?.dataset.pixelScale);
     assert.equal(await page.evaluate(() => window.__furyAudioProbe.contexts.length), 0, 'no context is created before user input');
     await page.evaluate(() => {

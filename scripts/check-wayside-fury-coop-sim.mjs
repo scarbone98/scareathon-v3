@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { newGame, enterScene, addEnemy, activeHero, idleInput, step, interact, interactTarget, applyCoopHit, applyCoopDamage,
   setCoopPlayerCount, syncCoopLevel, coopLevelBand, reviveCoopHero, requestSwap, exitCoop, gainXp, grantGear, restAtHome, buyItem, xpForLevel, createHero, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
 import { getWorld, WATCHER_ROOM } from '../src/pages/WaysideFury/game/world.ts';
+import { HERO_OBSTACLES, isObstacleCleared } from '../src/pages/WaysideFury/game/u1/world/obstacles.ts';
 
 const DT = 1 / 60;
 const cooperative = (role, seat) => {
@@ -282,9 +283,19 @@ assert.equal(growingHigh.heroes.joe.hp, 0, 'synced levels cannot inflate healing
 
 // Co-op caches delegate all personal supplies to the reward ledger. Opening
 // cannot double-pay the host or revive a benched/downed hero before that ledger.
+function openHeroCacheGate(state, chest) {
+  const gate = HERO_OBSTACLES.find(entry => entry.rewardId === chest.id);
+  assert.ok(gate, 'optional supply cache has its authored hero gate');
+  const active = state.active;
+  state.active = gate.hero; state.x = gate.x + gate.w / 2; state.y = gate.y + gate.h + 12;
+  interact(state);
+  assert.equal(isObstacleCleared(state, gate.id), true, 'required hero opens the shared supply-cache entrance');
+  state.active = active; state.events.length = 0;
+}
 for (const room of [8, 9]) {
   const cacheHost = cooperative('host', 0); enterScene(cacheHost, 'dungeon', room); cacheHost.enemies = [];
   const chest = getWorld('dungeon', room).props.find(prop => prop.kind === 'chest');
+  openHeroCacheGate(cacheHost, chest);
   cacheHost.x = chest.x + chest.w / 2; cacheHost.y = chest.y + chest.h / 2;
   activeHero(cacheHost).hp = 50; activeHero(cacheHost).ki = 10; cacheHost.heroes.joe.hp = 0;
   const beforeSupplies = structuredClone({ heroes: cacheHost.heroes, gear: cacheHost.gear, candy: cacheHost.candy });
@@ -297,6 +308,7 @@ for (const room of [8, 9]) {
 }
 const blockedDown = cooperative('host', 0); enterScene(blockedDown, 'dungeon', 9); blockedDown.enemies = [];
 const unopened = getWorld('dungeon', 9).props.find(prop => prop.kind === 'chest');
+openHeroCacheGate(blockedDown, unopened);
 blockedDown.x = unopened.x + unopened.w / 2; blockedDown.y = unopened.y + unopened.h / 2;
 activeHero(blockedDown).hp = 0; blockedDown.coop.downed = true; blockedDown.candy = 100;
 const downResources = structuredClone({ heroes: blockedDown.heroes, candy: blockedDown.candy, gear: blockedDown.gear });

@@ -9,6 +9,9 @@ import type { GameEvent, GameState, HeroId } from './sim';
 import type { RenderLabel, RenderPresentation } from './render';
 import { HeroObstacleMeshes } from './u1/world/obstacleRender3d';
 import { obstaclesForState, isObstacleCleared } from './u1/world/obstacles';
+import { sampleDayNight } from './u1/world/dayNight';
+import { worldCycleSeconds } from './u1/world/dayNightRuntime';
+import { collectDayNightLights } from './u1/world/dayNightRender';
 
 const SHEETS = {
   joe: { url: '/royale/joe_idle.png', w: 16, h: 24, frames: 6 },
@@ -578,16 +581,19 @@ export class OverworldRenderer {
     this.postMaterial.uniforms.focus.value = this.camera.position.distanceTo(this.taxi.position) - 9;
     this.canvas.dataset.cameraX = this.target.x.toFixed(2); this.canvas.dataset.cameraY = this.target.z.toFixed(2);
   }
-  private atmosphere() {
+  private atmosphere(s: GameState) {
     const time = this.reducedMotion ? 0 : this.visualTime;
-    // A slow dusk-to-night cycle with a bright initial golden hour.
-    const daylight = .58 + Math.cos(time * Math.PI * 2 / 180) * .42;
+    const sample = sampleDayNight(worldCycleSeconds(s));
+    this.canvas.dataset.worldPhase = sample.phase;
+    const daylight = 1 - sample.nightFactor;
     this.sky.setRGB(.16 + daylight * .30, .21 + daylight * .37, .30 + daylight * .34);
     const fog = this.scene.fog as THREE.Fog; fog.color.copy(this.sky);
     this.ambient.intensity = 1.25 + daylight * 1.25; this.sun.intensity = .65 + daylight * 1.9;
     this.sun.color.setRGB(1, .72 + daylight * .20, .57 + daylight * .23);
     this.headlights.intensity = 22 + (1 - daylight) * 40;
-    const nearest = this.lightSources.map(light => ({ light, distance: (light.x - this.target.x) ** 2 + (light.y - this.target.z) ** 2 })).sort((a, b) => a.distance - b.distance);
+    const monsterLights = collectDayNightLights(OVERWORLD, sample, undefined, s.enemies.filter(enemy => enemy.nightAmbient))
+      .filter(light => light.kind === 'monster').map(light => ({ x: light.x, y: light.y, height: this.terrain.heightAt(light.x, light.y) + 14, color: new THREE.Color(light.color).getHex(), strength: 38 * light.intensity }));
+    const nearest = [...this.lightSources, ...monsterLights].map(light => ({ light, distance: (light.x - this.target.x) ** 2 + (light.y - this.target.z) ** 2 })).sort((a, b) => a.distance - b.distance);
     this.lights.forEach((light, index) => {
       const source = nearest[index];
       if (!source || source.distance > 240 ** 2) { light.intensity = 0; return; }
@@ -678,7 +684,7 @@ export class OverworldRenderer {
     if (this.disposed || this.contextLost || this.renderer.getContext().isContextLost()) throw new Error('The 3D graphics context is unavailable');
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
-    this.follow(s, dt); this.atmosphere(); this.updateActors(s); this.updateEffects(s, dt);
+    this.follow(s, dt); this.atmosphere(s); this.updateActors(s); this.updateEffects(s, dt);
     this.renderer.info.reset();
     if (this.postTarget) {
       this.renderer.setRenderTarget(this.postTarget); this.renderer.render(this.scene, this.camera);

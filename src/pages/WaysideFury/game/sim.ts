@@ -1,5 +1,6 @@
 import { obstacleBlocks, getHeroObstacleTarget, clearHeroObstacle, obstacleRewardAvailable, releaseBorrowedObstacles } from "./u1/world/obstacles.ts";
 import type { WorldSave } from "../../../../server/shared/waysideFury/u1World.js";
+import { advanceWorldClock, updateNightOverworld, resetNightEncounter } from "./u1/world/dayNightRuntime.ts";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -102,7 +103,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 // Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
 // continually create fresh enemies and their rewards.
 function extraCoopSpawns(s: GameState) {
-  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
+  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0 && !e.nightAmbient)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
   const world = getWorld(s.scene, s.room), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
@@ -184,6 +185,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   if (scene === "prologue") s.cutscene = 0;
   s.faceX = 1; s.faceY = 0; s.moving = false;
   s.enemies = []; s.projectiles = []; s.effects = []; s.floaters = [];
+  resetNightEncounter(s);
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
   s.dashTimer = 0; s.guard = false; s.hitStop = 0;
   s.previousInput = idleInput();
@@ -301,7 +303,7 @@ export function grantGear(s: GameState, power: number, ward: number) {
   syncCoopLevel(s);
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number) {
-  if (e.hp <= 0) return;
+  if (e.hp <= 0 || e.nightAmbient) return;
   const dealt = Math.round(damage);
   e.hp -= dealt; e.hitTimer = 0.18; s.hitStop = Math.max(s.hitStop, force >= 80 ? 0.07 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
@@ -321,6 +323,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
 // several enemies, so dedupe the attack/target pair rather than the whole attack.
 export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean {
+  if (s.scene === "overworld" || s.enemies.find(e => e.id === hit.enemyId)?.nightAmbient) return false;
   if (s.coop?.role !== "host" || seat === s.coop.seat || !Number.isInteger(seat) || seat < 0 || seat > 3) return false;
   if (!Number.isInteger(hit.enemyId) || typeof hit.attackId !== "string" || !hit.attackId || hit.attackId.length > 96
     || ![hit.damage, hit.dx, hit.dy, hit.force].every(Number.isFinite)
@@ -336,6 +339,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
   return true;
 }
 function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
+  if (e.nightAmbient) return;
   if (e.hp <= 0) return;
   if (s.coop?.role === "guest") {
     s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
@@ -754,6 +758,8 @@ export function buyItem(s: GameState, id: ShopItemId): boolean {
 export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
+  advanceWorldClock(s, dt);
+  updateNightOverworld(s, dt);
   s.transitionCooldown = Math.max(0, s.transitionCooldown - dt);
   updateVisuals(s, dt);
   if (s.scene === "prologue") {
@@ -785,7 +791,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   // its context resolver; the dedicated interaction path remains compatible.
   const gate = getHeroObstacleTarget(s);
   const obstaclePress = !!gate && input.attack && !previous.attack && !input.ki && !input.guard &&
-    !s.enemies.some(e => e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < e.radius + 26);
+    !s.enemies.some(e => e.hp > 0 && !e.nightAmbient && Math.hypot(e.x - s.x, e.y - s.y) < e.radius + 26);
   if (obstaclePress) interact(s);
   const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
   s.attackTimer = Math.max(0, s.attackTimer - dt);

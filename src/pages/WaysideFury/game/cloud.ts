@@ -1,5 +1,6 @@
 import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
+import { mergeWorldSaves } from "../../../../server/shared/waysideFury/u1World.js";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "local" | "offline" | "unavailable";
 export interface SaveTransport {
@@ -21,11 +22,11 @@ export function receiptScore(now: ProgressReceipt, before: ProgressReceipt) {
     additions(now.rooms, before.rooms) * 50 + Math.max(0, now.level - before.level) * 100);
 }
 export function mergeSaves(local: SaveData | null, remote: SaveData | null): SaveData | null {
-  if (!local) return remote;
-  if (!remote) return local;
-  const difference = progressScore(local) - progressScore(remote);
-  const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+  const difference = local && remote ? progressScore(local) - progressScore(remote) : 0;
+  const winner = local && remote ? difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote : local ?? remote;
+  if (!winner) return null;
+  return { ...winner, u1: { ...winner.u1, world: mergeWorldSaves(local?.u1?.world, remote?.u1?.world, winner.u1?.world ?? null) },
+    coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local?.lastReported, remote?.lastReported) };
 }
 
 // The transport and storage are replaceable so races and disconnected devices

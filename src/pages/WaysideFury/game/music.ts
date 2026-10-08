@@ -1,4 +1,5 @@
 /** Procedural Wayside Fury soundtrack. No recorded audio is loaded by this module. */
+import { mixNightScore } from './u1/world/nightMusic.ts';
 export type Mood = 'off' | 'title' | 'bbq' | 'hub' | 'taxi' | 'cozy' | 'dungeon' | 'boss' | 'haywire';
 export type MusicMood = Mood;
 export type Jingle = 'victory' | 'level' | 'item' | 'gameOver' | 'taxiHorn' | 'darkSky';
@@ -206,6 +207,7 @@ export class MusicDirector {
   private budget = new VoiceBudget(8);
   private mood: Mood = 'off';
   private realm = 0;
+  private night = 0;
   private realmApplied = false;
   private paused = false;
   private visible = true;
@@ -368,6 +370,7 @@ export class MusicDirector {
       if ('detune' in voice.source) voice.source.detune.setTargetAtTime(-300 * this.realm, ctx.currentTime, 0.18);
     }
   }
+  setNight(amount: number): void { this.night = clamp(amount); }
   setSettings(settings: AudioSettings): void {
     this.settings = { musicVolume: Number.isFinite(settings.musicVolume) ? clamp(settings.musicVolume) : 0.6,
       sfxVolume: Number.isFinite(settings.sfxVolume) ? clamp(settings.sfxVolume) : 0.8 };
@@ -434,7 +437,8 @@ export class MusicDirector {
     while (run.next < now + 0.13 && guard++ < 32) {
       if (run.fadeEnd !== null && run.next >= run.fadeEnd) break;
       const stepDuration = 15 / meta.bpm;
-      for (const note of scoreStep(run.mood, run.bar, run.step, this.realm > 0.01)) {
+      const notes = scoreStep(run.mood, run.bar, run.step, this.realm > 0.01);
+      for (const note of run.mood === 'taxi' ? mixNightScore(notes, run.bar, run.step, this.night) : notes) {
         // Crossfade stems remain clear, rather than doubling dense percussion/arps.
         if (this.outgoingRun && note.lane !== 'lead' && note.lane !== 'bass' &&
             (run === this.outgoingRun || note.lane === 'stab' || note.lane === 'arp')) continue;

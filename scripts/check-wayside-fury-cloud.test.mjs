@@ -174,7 +174,7 @@ test('merge chooses progress, then timestamp, while retaining both devices\' tic
   assert.deepEqual(merged.lastReported, mergeReceipts(local.lastReported, remote.lastReported));
   const later = { ...local, candy: 88, savedAt: 6_000 };
   assert.equal(mergeSaves(local, later).candy, 88);
-  assert.equal(mergeSaves(null, remote), remote); assert.equal(mergeSaves(local, null), local);
+  assert.deepEqual(mergeSaves(null, remote), remote); assert.deepEqual(mergeSaves(local, null), local);
   assert.equal(mergeSaves(null, null), null);
 });
 

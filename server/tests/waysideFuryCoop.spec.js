@@ -306,14 +306,14 @@ describe('Wayside Fury relay validation', () => {
     });
 });
 
-async function makeServer({ dev = false, production = false } = {}) {
+async function makeServer({ dev = false, production = false, now } = {}) {
     const app = Fastify();
     app.decorateRequest('user', null);
     app.addHook('preValidation', async (request) => {
         if (request.headers.authorization === 'Bearer test-player') request.user = { sub: 'signed-in' };
     });
     await app.register(websocket, { options: { maxPayload: MAX_MESSAGE_BYTES } });
-    const rooms = createRoomManager();
+    const rooms = createRoomManager({ now });
     managers.push(rooms);
     await app.register(waysideFuryCoopRoutes, {
         prefix: '/wayside-fury/coop', rooms,
@@ -370,8 +370,8 @@ describe('Wayside Fury websocket registration and auth', () => {
         const connections = [];
         try {
             const auth = async (name) => {
-                const connection = await openSocket(app); connections.push(connection);
                 const ticket = await app.inject({ method: 'POST', url: '/wayside-fury/coop/dev-ticket', payload: { userId: `dev-${name}`, name } });
+                const connection = await openSocket(app); connections.push(connection);
                 connection.send({ type: 'auth', ticket: ticket.json().ticket });
                 await connection.next('ready');
                 return connection;
@@ -387,6 +387,8 @@ describe('Wayside Fury websocket registration and auth', () => {
             expect((await guest.next('room')).players.map((player) => player.userId)).toEqual(['dev-host', 'dev-guest']);
             guest.send({ type: 'hero', hero: hero(), input: input() });
             expect((await host.next('hero')).hero).toMatchObject({ userId: 'dev-guest', seat: 1 });
+            guest.send({ type: 'obstacle', id: 'world-joe-road', scene: 'dungeon', room: 0, seat: 0, userId: 'forged' });
+            expect(await host.next('obstacle')).toMatchObject({ id: 'world-joe-road', scene: 'dungeon', room: 0, seat: 1, userId: 'dev-guest' });
             guest.send({ type: 'state', state: world() });
             expect((await guest.next('error')).code).toBe('host');
             host.send({ type: 'state', state: { ...world(), enemies: [{ id: 1 }] } });
@@ -401,9 +403,13 @@ describe('Wayside Fury websocket registration and auth', () => {
     });
 
     test('malformed packets count toward the socket rate limit and flooding closes the connection', async () => {
-        const { app } = await makeServer();
-        const { socket } = await openSocket(app);
+        const { app, rooms } = await makeServer({ now: () => 1_000_000 });
+        const ticket = rooms.issueTicket({ userId: 'rate-test', name: 'Rate Test' });
+        const connection = await openSocket(app);
+        const { socket } = connection;
         try {
+            connection.send({ type: 'auth', ticket });
+            await connection.next('ready');
             const closed = new Promise((resolve) => socket.once('close', (code) => resolve(code)));
             for (let index = 0; index <= MAX_MESSAGES_PER_SECOND; index++) socket.send('not-json');
             expect(await closed).toBe(4008);

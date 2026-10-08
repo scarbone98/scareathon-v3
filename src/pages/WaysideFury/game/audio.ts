@@ -2,6 +2,8 @@ import { PROLOGUE } from "./content.ts";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world.ts";
 import { activeHero, type GameState, type GameEvent } from "./sim.ts";
 import type { MusicDirector, Mood } from "./music.ts";
+import { sampleDayNight } from "./u1/world/dayNight.ts";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime.ts";
 
 export function moodForState(s: GameState, current: Mood = "dungeon"): Mood {
   if (s.scene === "prologue") {
@@ -30,10 +32,11 @@ export class FuryAudio {
   private mood: Mood = "title";
   private previous: Previous | null = null;
   constructor(sound: MusicDirector) { this.sound = sound; }
-  menu() { this.previous = null; this.mood = "title"; this.sound.setCharge(null); this.sound.setRealm(0); this.sound.setMood("title"); this.sound.setPaused(false); }
+  menu() { this.previous = null; this.mood = "title"; this.sound.setNight?.(0); this.sound.setCharge(null); this.sound.setRealm(0); this.sound.setMood("title"); this.sound.setPaused(false); }
   start(s: GameState) { this.previous = null; this.sound.setPaused(false); this.sync(s); }
   sync(s: GameState) {
     this.mood = moodForState(s, this.mood); this.sound.setMood(this.mood); this.sound.setRealm(realmForState(s));
+    this.sound.setNight?.(s.scene === "overworld" ? sampleDayNight(worldCycleSeconds(s)).nightFactor : 0);
     const phase = s.scene === "prologue" ? PROLOGUE[s.cutscene]?.phase : undefined;
     const taxi = s.scene === "overworld" || phase === "taxi";
     if ((phase === "dark" || phase === "portal") && this.previous?.phase !== "dark" && this.previous?.phase !== "portal") this.sound.jingle("darkSky");

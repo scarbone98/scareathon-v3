@@ -3,10 +3,15 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { startFuryTestServer } from './fury-coop-test-server.mjs';
 const base = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5185';
+const startupTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
+const actionTimeout = fallback => Number(process.env.FURY_ACTION_TIMEOUT ?? fallback);
+assert.ok(Number.isFinite(actionTimeout(30000)) && actionTimeout(30000) > 0, 'FURY_ACTION_TIMEOUT must be positive');
 const modulePath = process.env.PLAYWRIGHT_MODULE ?? 'playwright';
 const { chromium } = await import(modulePath.startsWith('/') ? pathToFileURL(modulePath).href : modulePath);
-const fixture = await startFuryTestServer(Number(process.env.FURY_TEST_PORT ?? 3000));
-const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
+const fixturePort = Number(process.env.FURY_TEST_PORT ?? 3000);
+const fixtureOrigin = `http://127.0.0.1:${fixturePort}`;
+const fixture = await startFuryTestServer(fixturePort);
+const browser = await chromium.launch({ headless: true, args: ['--mute-audio'], ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
 const errors = [];
 const session = id => {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
@@ -16,17 +21,37 @@ const session = id => {
 };
 async function player(id) {
   const context = await browser.newContext({ viewport: { width: 640, height: 360 }, deviceScaleFactor: Number(process.env.FURY_TEST_DPR ?? 3), hasTouch: true });
-  await context.addInitScript(({ value }) => {
+  context.setDefaultTimeout(actionTimeout(30000));
+  await context.addInitScript(({ value, apiOrigin }) => {
     localStorage.setItem('sb-wayside-fury-local-auth-token', JSON.stringify(value));
     localStorage.setItem('wayside-fury-controls-dismissed', '1');
-  }, { value: session(id) });
-  await context.route('https://**/*', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+    const NativeWebSocket = window.WebSocket;
+    window.WebSocket = class FixtureWebSocket extends NativeWebSocket {
+      constructor(url, protocols) {
+        const target = new URL(url, location.href);
+        if (target.pathname === '/wayside-fury/coop/ws') {
+          const fixture = new URL(`${target.pathname}${target.search}`, apiOrigin);
+          fixture.protocol = 'ws:'; url = fixture.href;
+        }
+        super(url, protocols);
+      }
+    };
+  }, { value: session(id), apiOrigin: fixtureOrigin });
+  await context.route('**/*', async route => {
+    const target = new URL(route.request().url());
+    if (target.pathname === '/wayside-fury/save' || target.pathname.startsWith('/wayside-fury/coop/') || target.pathname === '/user/avatar') {
+      const response = await route.fetch({ url: `${fixtureOrigin}${target.pathname}${target.search}` });
+      await route.fulfill({ response });
+    } else if (target.protocol === 'https:') {
+      await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    } else await route.continue();
+  });
   const page = await context.newPage();
   page.on('pageerror', error => { errors.push(error.message); console.error('PAGE ERROR', error.message); });
   page.on('request', request => { if (request.url().includes('/wayside-fury/save')) console.log('SAVE REQUEST', request.method()); });
   page.on('console', message => { if (message.type() === 'error') console.error('BROWSER', message.text()); });
-  await page.goto(`${base}/wayside-fury`, { waitUntil: "domcontentloaded", timeout: 120000 });
-  try { await page.waitForFunction(() => window.__waysideFury && !document.querySelector('.wf-primary')?.disabled, null, { timeout: 120000 }); } catch (error) { console.error('BOOT', await page.evaluate(() => ({ body: document.body.innerText, controller: !!window.__waysideFury }))); throw error; }
+  await page.goto(`${base}/wayside-fury`, { waitUntil: "domcontentloaded", timeout: startupTimeout });
+  try { await page.waitForFunction(() => window.__waysideFury && !document.querySelector('.wf-primary')?.disabled, null, { timeout: startupTimeout }); } catch (error) { console.error('BOOT', await page.evaluate(() => ({ body: document.body.innerText, controller: !!window.__waysideFury }))); throw error; }
   return { context, page };
 }
 async function resume(page) {
@@ -99,7 +124,7 @@ try {
   console.log("Two-player movement and scaled HP passed.");
   await resume(host.page);
   const beforeLabels = await Promise.all([host.page, guest.page].map(snapshot));
-  try { await host.page.waitForFunction(() => document.querySelector('.wf-scene-label')?.textContent?.includes('Guest') || [...document.querySelectorAll('.wf-scene-label')].some(el => el.textContent.includes('Guest')), null, { timeout: 15000 }); }
+  try { await host.page.waitForFunction(() => document.querySelector('.wf-scene-label')?.textContent?.includes('Guest') || [...document.querySelectorAll('.wf-scene-label')].some(el => el.textContent.includes('Guest')), null, { timeout: actionTimeout(15000) }); }
   catch (error) {
     const afterLabels = await Promise.all([host.page, guest.page].map(snapshot));
     for (const [index, name] of ['host', 'guest'].entries()) console.error('PEER LABEL', name, JSON.stringify({ before: beforeLabels[index], after: afterLabels[index] }));
@@ -111,7 +136,7 @@ try {
   await resume(guest.page);
   await guest.page.waitForFunction(() => Math.abs(window.__waysideFury.state.enemies[0].x - 145) < 1);
   await game(guest.page, () => { window.__waysideFury.mutate(s => { s.x = 120; s.y = 110; s.heroes[s.active].hp = s.heroes[s.active].maxHp; s.heroes[s.active].invulnerable = 60; s.coop.downed = false; s.attackTimer = s.hitStop = 0; s.previousInput.attack = false; s.faceX = 1; s.faceY = 0; }); window.__waysideFury.setPaused(false); window.__waysideFury.setTouch({ x: 0, y: 0, attack: true }); });
-  try { await host.page.waitForFunction(() => window.__waysideFury.state.enemies[0].hp < 51.2, null, { timeout: 60000 }); }
+  try { await host.page.waitForFunction(() => window.__waysideFury.state.enemies[0].hp < 51.2, null, { timeout: actionTimeout(60000) }); }
   catch (error) { for (const [name, page] of [['host', host.page], ['guest', guest.page]]) console.error('COMBAT', name, await game(page, () => { const c = window.__waysideFury, s = c.state; return { x: s.x, y: s.y, hero: s.heroes[s.active], enemies: s.enemies, coop: s.coop, previousInput: s.previousInput, attackTimer: s.attackTimer, paused: c.paused, room: c.coop.room }; })); throw error; }
   await game(guest.page, () => window.__waysideFury.setTouch({ attack: false }));
   console.log("Guest attack reached host.");

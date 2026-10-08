@@ -5,3 +5,10 @@ export function sanitizeWorldSave(raw) {
         cycleSeconds: typeof raw?.cycleSeconds === "number" && Number.isFinite(raw.cycleSeconds) && raw.cycleSeconds >= 0 ? raw.cycleSeconds % 480 : 0,
     };
 }
+export function mergeWorldSaves(local, remote, winner = remote ?? local) {
+    const left = sanitizeWorldSave(local), right = sanitizeWorldSave(remote);
+    return {
+        clearedObstacles: [...new Set([...left.clearedObstacles, ...right.clearedObstacles])],
+        cycleSeconds: sanitizeWorldSave(winner).cycleSeconds,
+    };
+}

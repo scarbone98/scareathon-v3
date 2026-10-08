@@ -1,6 +1,7 @@
 import { FuryCoop } from "./coop";
 import { MusicDirector, type AudioSettings } from "./music";
 import { FuryAudio } from "./audio";
+import { advanceWorldClock } from "./u1/world/dayNightRuntime";
 import type { RenderPresentation } from "./render";
 import { GraphicsRenderer, readGraphicsMode, type GraphicsMode, type GraphicsStatus } from "./graphics";
 import type { HeroAvatar } from "./avatar";
@@ -96,6 +97,9 @@ export class GameController {
     const input = this.input.read();
     const frameDelta = (now - (this.last || now)) / 1000;
     const delta = Math.min(0.1, frameDelta);
+    // The world clock keeps real time, including menu/visibility pauses. Active
+    // simulation ticks account for delta; capped or paused time is added once.
+    if (this.started) advanceWorldClock(this.state, Math.max(0, this.paused && !this.coop?.room ? frameDelta : frameDelta - delta));
     this.acc += this.paused && !this.coop?.room ? 0 : delta;
     this.last = now;
     while (this.acc >= 1 / 60) {
