@@ -165,12 +165,15 @@ export function sanitizeSave(raw) {
     if (!isRecord(receipt) || !Array.isArray(receipt.areas) || !Array.isArray(receipt.bosses) || !Array.isArray(receipt.rooms) || !finite(receipt.level)) return { error: 'Bad progress receipt' };
     return { save: { version: SAVE_VERSION, chapter: integer(raw.chapter, 1, 99), ...sheet,
         campaignMilestones: milestones([...(raw.version === 4 && Array.isArray(raw.campaignMilestones) ? raw.campaignMilestones : []),
-            ...(raw.clearedRooms.includes('realm-0') ? ['realm-0'] : [])]),
+            ...(raw.clearedRooms.includes('realm-0') ? ['realm-0'] : []),
+            // Pre-Woods Space saves retain their legitimate onward access.
+            ...(raw.version === 4 && raw.campaignMilestones?.some(id => ['moon-departed','moon-arrived','space-complete'].includes(id)) ? ['woods-complete','breaker-knuckle','circuit-spark'] : [])]),
         solvedInteractions: raw.version === 4 ? milestones(raw.solvedInteractions) : [],
         completedCinematics: raw.version === 4 ? milestones(raw.completedCinematics) : [],
         checkpointMapId: raw.version === 4 && mapDefinition(raw.checkpointMapId) &&
             (['hub', 'overworld'].includes(raw.checkpointMapId) || raw.clearedRooms.includes(raw.checkpointMapId) ||
-              (raw.checkpointMapId === 'space-launch' && (raw.bosses.includes('blast-watcher') || raw.clearedRooms.includes('realm-0') || raw.campaignMilestones?.includes('space-dev-entry'))) ||
+              (raw.checkpointMapId === 'space-launch' && raw.campaignMilestones?.some(id => ['woods-complete','moon-departed','space-complete','space-dev-entry'].includes(id))) ||
+              (['woods-layby','woods-pump-house'].includes(raw.checkpointMapId) && raw.clearedRooms.includes('realm-0')) ||
               (['moon-m01','moon-m03','moon-m06','moon-m09'].includes(raw.checkpointMapId) &&
                (raw.campaignMilestones?.includes(`${raw.checkpointMapId}-visited`) || (raw.checkpointMapId === 'moon-m01' && raw.campaignMilestones?.includes('moon-departed'))))) ? raw.checkpointMapId : 'hub',
         candy: integer(raw.candy, 0, 1_000_000), unlockedHeroes: [...HERO_IDS],

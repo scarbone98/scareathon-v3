@@ -77,9 +77,10 @@ try {
   assert.equal(state.mapId, 'hub'); assert.match(state.notice, /Unknown area/);
 } finally { BLAST_WORLDS[0].exits.pop(); }
 enterScene(state, 'overworld'); state.x = 656; state.y = 176;
-interact(state); assert.equal(state.scene, 'overworld'); assert.match(state.dialogue.lines[0], /coming next/);
+interact(state); assert.equal(state.mapId, 'woods-layby'); assert.equal(state.dialogue, null);
 assert.ok(!state.areas.includes('woods'), 'stub never grants an area receipt');
 
+enterScene(state, "hub"); state.checkpointMapId = "hub";
 const current = makeSave(state, null, true);
 for (const version of [1, 2, 3, 4]) {
   const fixture = structuredClone(current); fixture.version = version;
@@ -121,6 +122,8 @@ const world = { scene: 'dungeon', room: 0, mapId: 'blast-0', protocolVersion: CO
   transitionPalette: 'real', cutscene: 0, sceneTimer: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1, rngSeed: 1, nextId: 1 };
 assert.ok(cleanWorld(world));
 assert.ok(cleanWorld({ ...world, mapId: 'moon-m01' }));
+assert.ok(cleanWorld({ ...world, mapId: 'moon-m01', protocolVersion: 3 }));
+assert.equal(cleanWorld({ ...world, mapId: 'woods-layby', protocolVersion: 3 }), null);
 assert.equal(cleanWorld({ ...world, mapId: 'moon-m01', protocolVersion: 2 }), null);
 assert.equal(cleanWorld({ ...world, mapId: 'hub' }), null);
 assert.equal(cleanWorld({ ...world, mapId: null }), null);

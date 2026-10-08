@@ -1,6 +1,6 @@
 import { record, refillCrew } from "./chapters/ch3.ts";
 import { onMoon } from "./lunar.ts";
-import { WOODS_HANDOFF } from "./campaign.ts";
+import { campaignHandoff } from "./campaign.ts";
 import { enterCampaignMap, enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts, ticketDelta } from "../../../../server/shared/waysideFury/save.js";
@@ -69,7 +69,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
   if (saved) {
     s.difficulty = saved.settings.difficulty ?? "normal";
-    const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
+    const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
     s.heroes = Object.fromEntries(HERO_IDS.map(id => [id, { ...snapshot.heroes[id] }])) as Record<HeroId, HeroState>;
     s.character = { ...snapshot.character }; s.gear = { ...snapshot.gear }; s.unlockedHeroes = [...saved.unlockedHeroes];
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
@@ -89,8 +89,9 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   }
   if (saved?.prologuePending) { enterScene(s, "prologue"); return s; }
   enterScene(s, "hub"); s.x = HUB_WORLD.spawn.x; s.y = HUB_WORLD.spawn.y;
-  if (saved && saved.checkpointMapId !== "hub" && (!retry || saved.checkpointMapId.startsWith("moon-") || saved.checkpointMapId === "space-launch")) {
+  if (saved && saved.checkpointMapId !== "hub" && (!retry || saved.checkpointMapId.startsWith("woods-") || saved.checkpointMapId.startsWith("moon-") || saved.checkpointMapId === "space-launch")) {
     const anchor=retry && saved.checkpointMapId === "moon-m09" ? "moon-m06" : saved.checkpointMapId;
+    if(anchor.startsWith("woods-")) refillCrew(s);
     enterCampaignMap(s, anchor);
     if(onMoon(s)) {record(s.campaignMilestones,"moon-arrived");record(s.completedCinematics,"space-outbound");refillCrew(s);}
     if(anchor === "space-launch" && s.campaignMilestones.includes("moon-returning")) {
@@ -99,6 +100,6 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     }
   }
   s.notice = retry ? "Rested at HOME. The crew is ready." : "Welcome back to Wayside.";
-  if (s.mapId === "hub" && s.clearedRooms.includes("realm-0")) s.notice = WOODS_HANDOFF;
+  if (s.mapId === "hub" && s.clearedRooms.includes("realm-0")) s.notice = campaignHandoff(s);
   return s;
 }

@@ -16,7 +16,7 @@ import { findWalkRoute } from './check-wayside-fury-collision.mjs';
 const dt=1/60;
 const ticks=(s,n,input={})=>{for(let f=0;f<n;f++)step(s,{...idleInput(),...input},dt);};
 const use=(s,id)=>{const t=spaceTargets(s).find(t=>t.id===id);assert.ok(t,id);s.x=t.x;s.y=t.y;interact(s,t);};
-function ready(id='you') {const s=newGame();s.party=[id];s.active=id;s.bosses.push('blast-watcher');assert.ok(enterCampaignMap(s,'space-launch'));return s;}
+function ready(id='you') {const s=newGame();s.party=[id];s.active=id;s.bosses.push('blast-watcher');s.campaignMilestones.push('woods-complete');assert.ok(enterCampaignMap(s,'space-launch'));return s;}
 assert.equal(OVERWORLD.width,2304);assert.equal(OVERWORLD.height,1536);
 assert.equal(MOON_WORLDS.length,9);assert.equal(new Set(MOON_WORLDS.map(w=>w.id)).size,9);
 for(const world of [LAUNCH_WORLD,...MOON_WORLDS]) {
@@ -30,7 +30,7 @@ for(const world of [LAUNCH_WORLD,...MOON_WORLDS]) {
  for(const target of spaceTargets(s)) {assert.ok(!isBlocked(terrain,target.x,target.y,7),`${world.id}/${target.id} interaction point`);assert.ok(findWalkRoute(terrain,terrain.spawn,target).length);}
  for(const door of world.exits) assert.ok(findWalkRoute(terrain,terrain.spawn,{x:Math.max(24,Math.min(world.width-24,door.x+door.w/2)),y:Math.max(24,Math.min(world.height-24,door.y+door.h/2))}).length,`${world.id}/${door.id}`);
 }
-const fresh=newGame();assert.equal(canEnter(fresh,'space'),false);fresh.clearedRooms.push('realm-0');assert.equal(canEnter(fresh,'space'),true);
+const fresh=newGame();assert.equal(canEnter(fresh,'space'),false);fresh.clearedRooms.push('realm-0');assert.equal(canEnter(fresh,'space'),false);fresh.campaignMilestones.push('woods-complete');assert.equal(canEnter(fresh,'space'),true);
 for(const hero of HERO_IDS) {
  const s=ready(hero),before=progressReport(s).score;use(s,'space-board');assert.equal(s.film,null);
  use(s,'space-fuel');const solves=s.solvedInteractions.length;use(s,'space-fuel');assert.equal(s.solvedInteractions.length,solves);

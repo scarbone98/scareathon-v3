@@ -97,7 +97,7 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (!compatibleMap(state.scene, state.room, state.mapId, state.protocolVersion ?? 1)) return null;
-    if (state.protocolVersion !== undefined && ![1,2,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
+    if (state.protocolVersion !== undefined && ![1,2,3,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
@@ -124,6 +124,8 @@ export function cleanWorld(state) {
         if (enemy.archetype !== undefined && !['charger','kiter','shield','swarm','ambusher'].includes(enemy.archetype)) return null;
         if (enemy.combatLevel !== undefined && (!integer(enemy.combatLevel, 1000) || enemy.combatLevel < 1)) return null;
         if (enemy.baseMaxHp !== undefined && (!number(enemy.baseMaxHp, 1e6) || enemy.baseMaxHp <= 0)) return null;
+        if (enemy.woodsBehavior !== undefined && !['rooted','lantern','wisp','bailiff','foreman'].includes(enemy.woodsBehavior)) return null;
+        for (const key of ['tellX','tellY']) if (enemy[key] !== undefined && !number(enemy[key], 1e6)) return null;
         if (enemy.behavior !== undefined && !['rat','walker','scout','echo','satellite','inspector','warden'].includes(enemy.behavior)) return null;
         for (const key of ['poise','burst','exposed','escapeIframes']) if (enemy[key] !== undefined && (!number(enemy[key], 100) || enemy[key] < 0)) return null;
         if (enemy.shieldBroken !== undefined && typeof enemy.shieldBroken !== 'boolean') return null;
