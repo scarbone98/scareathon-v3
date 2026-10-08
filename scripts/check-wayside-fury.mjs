@@ -280,20 +280,20 @@ restAtHome(party); assert.equal(toggleParty(party, 'joe'), true); assert.equal(p
 
 // Kills award candy and XP, grow every stat, and emit a visible level-up.
 const progression = emptyRoom();
-for (let i = 0; i < 4; i++) { const e = addEnemy(progression, 'grunt', progression.x + 15 + i, progression.y); e.hp = 1; }
+for (let i = 0; i < 7; i++) { const e = addEnemy(progression, 'grunt', progression.x + 15 + i, progression.y); e.hp = 1; }
 tick(progression, { attack: true });
-assert.equal(progression.kills, 4);
-assert.equal(progression.events.filter(e => e.type === 'kill').length, 4);
+assert.equal(progression.kills, 7);
+assert.equal(progression.events.filter(e => e.type === 'kill').length, 7);
 assert.ok(progression.events.filter(e => e.type === 'kill').every(e => Number.isFinite(e.x) && Number.isFinite(e.y) && e.sprite === 'zombie' && e.radius === 7),
   'KO rendering has complete enemy snapshots after dead enemies are removed');
-assert.ok(progression.candy >= 12);
+assert.ok(progression.candy >= 14);
 assert.equal(activeHero(progression).level, 2);
-assert.equal(activeHero(progression).xp, 4 * 28 - xpForLevel(1));
+assert.equal(activeHero(progression).xp, 7 * 12 - xpForLevel(1));
 assert.ok(activeHero(progression).maxHp > 100 && activeHero(progression).maxKi > 60);
 assert.ok(activeHero(progression).power > 12 && activeHero(progression).defense > 3);
 assert.ok(progression.effects.some(e => e.kind === 'level'));
 assert.equal(progression.events.filter(e => e.type === 'level').length, 1, 'one shared level emits one jingle/event');
-assert.deepEqual(progression.character, { level: 2, xp: 4 * 28 - xpForLevel(1) });
+assert.deepEqual(progression.character, { level: 2, xp: 7 * 12 - xpForLevel(1) });
 for (const h of Object.values(progression.heroes)) { assert.equal(h.level, 2); assert.equal(h.xp, progression.character.xp); }
 assert.ok(progression.floaters.some(f => f.text.endsWith('candy')));
 
@@ -498,14 +498,14 @@ assert.equal(quest.kills, dungeonKills); assert.equal(quest.deaths, 0);
 assert.deepEqual([...usedControls].sort(), ['attack', 'dash', 'guard', 'ki', 'swap']);
 tick(quest, { interact: true }, 143); assert.equal(quest.scene, 'shift');
 tick(quest, { interact: true }, 2); assert.equal(quest.scene, 'realm'); assert.equal(quest.palette, 'eightbit');
-assert.equal(quest.sceneTimer, 0); assert.equal(quest.enemies.length, 3);
-assert.deepEqual(quest.enemies.map(e => e.sprite), ['pumpkin', 'ghost', 'imp']);
+assert.equal(quest.sceneTimer, 0); assert.equal(quest.enemies.length, 6);
+assert.deepEqual(quest.enemies.map(e => e.sprite), ['pumpkin', 'pumpkin', 'imp', 'ghost', 'ghost', 'imp']);
 assert.equal(interactTarget(quest), null, 'realm has no western retreat');
 quest.x = REALM_WORLD.width - 64; quest.y = REALM_WORLD.spawn.y;
 assert.equal(interactTarget(quest), null, 'realm east gate is closed during combat');
 quest.x = REALM_WORLD.spawn.x; quest.y = REALM_WORLD.spawn.y;
 const realmFrames = playRoom(quest);
-assert.equal(quest.chapter, 2); assert.equal(quest.kills, dungeonKills + 3); assert.equal(quest.deaths, 0);
+assert.equal(quest.chapter, 2); assert.equal(quest.kills, dungeonKills + 6); assert.equal(quest.deaths, 0);
 completedZones.push('realm-0'); clearedCheckpoints.push('realm-0');
 assert.deepEqual(quest.clearedRooms, completedZones);
 assert.deepEqual(quest.areas, ['blast', 'eightbit-realm']);
@@ -541,7 +541,7 @@ const progress = newGame();
 const zero = progressReport(progress);
 assert.equal(zero.score, 0); assert.deepEqual(zero.receipt, { areas: [], bosses: [], rooms: [], level: 1 });
 progress.areas = ['wayside']; assert.equal(progressReport(progress).score, 1000);
-progress.areas = []; progress.bosses = ['blast-watcher']; assert.equal(progressReport(progress).score, 1000);
+progress.areas = []; progress.bosses = ['blast-watcher']; assert.equal(progressReport(progress).score, 0);
 progress.bosses = []; progress.character.level = 3;
 assert.equal(progressReport(progress).score, 200, 'shared party levels pay once');
 progress.character.level = 4; assert.equal(progressReport(progress).score, 300);
@@ -550,7 +550,7 @@ progress.clearedRooms = ['blast-0', 'blast-1']; assert.equal(progressReport(prog
 progress.areas = ['wayside', 'blast', 'blast']; progress.bosses = ['blast-watcher', 'blast-watcher'];
 progress.clearedRooms = ['blast-0', 'blast-1', 'blast-1'];
 progress.character.level = 3;
-const earned = progressReport(progress); assert.equal(earned.score, 3300);
+const earned = progressReport(progress); assert.equal(earned.score, 2300);
 assert.equal(progressReport(progress, earned.receipt).score, 0, 'repeated checkpoints send nothing');
 progress.areas = []; progress.bosses = []; progress.clearedRooms = [];
 progress.character.level = 1;

@@ -13,7 +13,7 @@ const state = newGame(); enterScene(state, item.scene, item.room); state.x = ite
 assert.ok(collectPickup(state, item.id)); assert.equal(state.heroes.you.hp, 65);
 assert.equal(collectPickup(state, item.id), false); assert.equal(state.heroes.you.hp, 65);
 assert.equal(availablePickups(state).some(pickup => pickup.id === item.id), false);
-const report = progressReport(state); assert.equal(report.score, 20);
+const report = progressReport(state); assert.equal(report.score, 0);
 const save = makeSave(state, null, true, report.receipt); assert.ok(save);
 const restored = restoreSave(save); enterScene(restored, item.scene, item.room); restored.x = item.x; restored.y = item.y;
 assert.equal(collectPickup(restored, item.id), false); assert.equal(progressReport(restored, save.lastReported).score, 0);
@@ -53,7 +53,7 @@ assert.equal(visiting.ambientTaxiWrecked, true, 'leaving co-op restores the pers
 assert.equal(visiting.ambientTaxiGag, -1, 'leaving the host resets its transient gag animation');
 assert.equal(applyCoopReward(again, reward), false, 'a reload retains pickup and co-op receipts');
 const merged = mergeSaves(save, guestSave); assert.ok(merged.foundItems.includes(item.id)); assert.ok(merged.foundItems.includes(candy.id));
-assert.equal(progressReport(restoreSave(merged), merged.lastReported).score, 20, 'only a previously unreported personal find earns a delta');
+assert.equal(progressReport(restoreSave(merged), merged.lastReported).score, 0, 'personal finds do not add ticket bonuses');
 const diner = HIDDEN_PICKUPS.find(pickup => pickup.requiresDiner), dinner = newGame(); enterScene(dinner, diner.scene); dinner.x = diner.x; dinner.y = diner.y;
 assert.equal(collectPickup(dinner, diner.id), false, 'the counter tin can only be discovered inside the diner');
 dinner.insideDiner = true; assert.ok(collectPickup(dinner, diner.id)); assert.equal(collectPickup(dinner, diner.id), false);

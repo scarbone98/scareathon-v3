@@ -8,7 +8,7 @@ import { grantPickup } from "./collectibles.ts";
 export function rollCoopCandy(id: string, userId: string, boss: boolean) {
   let hash = 2166136261;
   for (const char of `${id}:${userId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return (boss ? 35 : 3) + (hash >>> 0) % (boss ? 8 : 3);
+  return (boss ? 35 : 2) + (hash >>> 0) % (boss ? 8 : 3);
 }
 export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   const receipts = s.coopRewards ??= [];

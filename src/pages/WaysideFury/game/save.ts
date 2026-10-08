@@ -6,6 +6,14 @@ export { mergeReceipts };
 export type { SaveData, HomeSnapshot, ProgressReceipt, SaveSettings, Gear, CharacterProgress } from "../../../../server/shared/waysideFury/save.js";
 export const SAVE_KEY = "wayside-fury-save";
 
+// One policy for local reports and account-save acknowledgements.
+export function ticketDelta(now: ProgressReceipt, before: ProgressReceipt): number {
+  const current = mergeReceipts(now), reported = mergeReceipts(before);
+  const additions = (a: string[], b: string[]) => a.filter(id => !b.includes(id)).length;
+  const rooms = current.rooms.filter(id => /^(blast-\d+|realm-\d+)$/.test(id));
+  return Math.min(100000, additions(current.areas, reported.areas) * 1000 +
+    Math.max(0, current.level - reported.level) * 100 + additions(rooms, reported.rooms) * 50);
+}
 export function progressReport(s: GameState, previous?: ProgressReceipt | null): { score: number; receipt: ProgressReceipt } {
   const reported = mergeReceipts(previous);
   const current: ProgressReceipt = {
@@ -13,10 +21,7 @@ export function progressReport(s: GameState, previous?: ProgressReceipt | null):
     level: s.character.level,
     ...(s.foundItems.length ? { foundItems: [...new Set(s.foundItems)] } : {}),
   };
-  const additions = (now: string[], before: string[]) => now.filter(id => !before.includes(id)).length;
-  const score = (additions(current.areas, reported.areas) + additions(current.bosses, reported.bosses)) * 1000 +
-    Math.max(0, current.level - reported.level) * 100 + additions(current.rooms, reported.rooms) * 50 +
-    additions(current.foundItems ?? [], reported.foundItems ?? []) * 20;
+  const score = ticketDelta(current, reported);
   return { score: Math.min(100000, Math.max(0, Math.floor(score))), receipt: mergeReceipts(reported, current) };
 }
 export function parseSave(raw: unknown): SaveData | null { return sanitizeSave(raw).save ?? null; }

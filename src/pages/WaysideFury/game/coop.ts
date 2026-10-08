@@ -154,9 +154,9 @@ export class FuryCoop {
       const rooms = event.id === "home" ? [] : [event.id];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
-        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 3 : 0;
+        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
         const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, chapter: s.chapter,
-          ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : {}) };
+          ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : /^(blast-\d+|realm-\d+)$/.test(event.id) ? { healHp: 12, healKi: 8 } : {}) };
         if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);
       }
     }

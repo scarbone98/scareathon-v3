@@ -196,7 +196,7 @@ test('boot uploads the higher-progress snapshot and receipt union without paying
 test('receipt score counts only new milestones and level increases, and caps each payout', () => {
   const before = { areas: ['wayside'], bosses: [], rooms: ['blast-0'], level: 2 };
   const after = { areas: ['wayside', 'blast'], bosses: ['blast-watcher'], rooms: ['blast-0', 'blast-1'], level: 4 };
-  assert.equal(receiptScore(after, before), 2_250);
+  assert.equal(receiptScore(after, before), 1_250);
   assert.equal(receiptScore(after, after), 0);
   assert.equal(receiptScore(before, after), 0);
   assert.equal(receiptScore({ ...after, level: 10_000 }, emptyReceipt()), 100_000);
@@ -390,7 +390,7 @@ test('a guest can retry the same unreported checkpoint when device storage recov
   assert.equal(d.server.calls.length, 0);
 });
 
-test('personal finds and the taxi wreck survive cloud reload, with one revisioned ticket delta', async t => {
+test('personal finds and the taxi wreck survive cloud reload without ticket bonuses', async t => {
   const first = 'pickup-c1-road-rock', second = 'pickup-c1-tree-candy';
   const server = new AtomicServer(); server.seed(A, snapshot());
   const devices = [device(t, new MemoryStorage(), server), device(t, new MemoryStorage(), server)];
@@ -399,7 +399,7 @@ test('personal finds and the taxi wreck survive cloud reload, with one revisione
   const save = snapshot({ foundItems: [first], ambientTaxiWrecked: true, receipt });
   for (const d of devices) d.store.persist(save, true);
   await settle();
-  assert.equal(devices.reduce((total, d) => total + d.paid(), 0), 20);
+  assert.equal(devices.reduce((total, d) => total + d.paid(), 0), 0);
   assert.deepEqual(server.rows.get(A).save.foundItems, [first]);
   const reloaded = device(t, new MemoryStorage(), server); await reloaded.store.load(A); await settle();
   assert.deepEqual(reloaded.store.save.foundItems, [first]); assert.equal(reloaded.store.save.ambientTaxiWrecked, true);

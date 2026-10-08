@@ -1,4 +1,4 @@
-import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
+import { SAVE_KEY, parseSave, ticketDelta, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
 
@@ -17,10 +17,7 @@ const OWNER_KEY = `${SAVE_KEY}-owner`;
 const GUEST_KEY = `${SAVE_KEY}:guest`;
 const accountKey = (id: string) => `${SAVE_KEY}:account:${id}`;
 export function receiptScore(now: ProgressReceipt, before: ProgressReceipt) {
-  const additions = (a: string[], b: string[]) => a.filter(id => !b.includes(id)).length;
-  return Math.min(100000, (additions(now.areas, before.areas) + additions(now.bosses, before.bosses)) * 1000 +
-    additions(now.rooms, before.rooms) * 50 + Math.max(0, now.level - before.level) * 100 +
-    additions(now.foundItems ?? [], before.foundItems ?? []) * 20);
+  return ticketDelta(now, before);
 }
 export function mergeSaves(local: SaveData | null, remote: SaveData | null): SaveData | null {
   if (!local) return remote;
