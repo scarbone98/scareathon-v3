@@ -1,3 +1,4 @@
+import { enemyWindupTell } from './enemyWindup';
 import { COUNTY_ART, countyArtwork } from "./countyArt";
 import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
@@ -770,7 +771,12 @@ export class OverworldRenderer {
     for (const key of [...this.billboards.keys()]) if (key.startsWith('enemy-') && !liveEnemies.has(key)) this.removeBillboard(key);
     for (const enemy of s.enemies) if (enemy.hp > 0) {
       const actor = this.billboard(`enemy-${enemy.id}`, enemy.sprite, enemy.x, enemy.y, enemy.radius > 10 ? 1.5 : 1);
-      if (actor) for (const sprite of actor.sprites) sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : 0xffffff);
+      if (actor) actor.sprites.forEach((sprite, index) => {
+        const tell = enemyWindupTell(enemy), scale = enemy.radius > 10 ? 1.5 : 1;
+        const sheet = actor.sheets[index];
+        sprite.scale.set(sheet.w * scale * (tell ? 1.045 : 1), sheet.h * scale * (tell ? .94 : 1), 1);
+        sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : tell ? 0xffe5bd : 0xffffff);
+      });
     }
     for (const prop of this.world.props) if (prop.kind === 'npc') this.billboard(prop.id, prop.label === 'Jon' ? 'jon' : 'alex', prop.x + prop.w / 2, prop.y + prop.h);
   }

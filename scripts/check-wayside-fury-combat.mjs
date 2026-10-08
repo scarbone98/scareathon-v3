@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { activeHero, addEnemy, applyCoopHit, combatXp, createHero, encounterLevel, enterScene, idleInput, newGame, setCoopPlayerCount, step, syncCoopLevel } from '../src/pages/WaysideFury/game/sim.ts';
 import { getWorld, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 import { makeSave, parseSave, progressReport, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
-import { drawLunarTelegraph } from '../src/pages/WaysideFury/game/renderSpace2d.ts';
 import { applyCoopReward } from '../src/pages/WaysideFury/game/coopRewards.ts';
 import { cleanHero, cleanRelay, cleanWorld } from '../server/wayside-fury/protocol.js';
 
@@ -86,9 +85,6 @@ for (const [id, beams] of [['joe', 1], ['matt', 3], ['alex', 2], ['jon', 1]]) {
 const remote = { hero: createHero('joe'), x: 120, y: 110, faceX: 1, faceY: 0, moving: false, guard: false, attackTimer: 0, combo: 1, charge: 0, dashTimer: 0, meleeCharge: .8, scene: 'test', room: 0 };
 assert.equal(cleanHero(remote).meleeCharge, .8);
 assert.equal(cleanHero({ ...remote, meleeCharge: 2 }), null);
-
-const legacyNova = { ...enemy, kind: 'boss', behavior: undefined, archetype: undefined, burst: 0, windup: .8, pattern: 1 };
-assert.equal(drawLunarTelegraph(null, legacyNova), false, 'legacy nova retains its radial telegraph renderer');
 
 // Each co-op seat uses its permanent sheet, including delayed/map-crossing rewards.
 const veteran = newGame(); veteran.character.level = 30; enterScene(veteran, 'realm');

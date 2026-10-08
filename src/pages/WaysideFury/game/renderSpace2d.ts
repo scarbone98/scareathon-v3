@@ -1,3 +1,4 @@
+import { applyEnemyWindup } from './enemyWindup';
 // Native-resolution Space scenery and shared film compositions.
 // Draw functions sample simulation only; no timeline, collision or rewards live here.
 import type { SuitPose } from './heroVisuals';
@@ -86,13 +87,6 @@ export function drawMoonGround(c:CanvasRenderingContext2D,world:WorldMap,s:GameS
   if(world.id==='moon-m08') {ellipse(c,400,288,180,122,'#11182912');if(s.enemies.some(e=>e.behavior==='warden'&&e.phase===2&&!e.shieldBroken)) {c.strokeStyle=magenta;c.lineWidth=3;c.beginPath();c.ellipse(400,288,180,122,0,0,Math.PI*2);c.stroke();}}
   c.restore();
 }
-export function drawLunarTelegraph(c:CanvasRenderingContext2D,e:Enemy) {
-  if((!e.behavior && (e.kind==='boss' || !e.archetype) && !(e.burst??0))||e.windup<=0)return false;
-  c.save();c.strokeStyle=amber;c.fillStyle='#f5c77628';c.lineWidth=2;
-  if((e.burst??0)>0 || e.behavior==='warden'&&e.pattern===2 || e.behavior==='inspector'&&e.pattern===1) {c.beginPath();c.ellipse(e.x+((e.burst??0)>0?0:e.aimX*64),e.y+((e.burst??0)>0?0:e.aimY*64),64,64,0,0,Math.PI*2);c.fill();c.stroke();}
-  else {const length=e.behavior==='walker'?68:150;c.beginPath();c.moveTo(e.x-e.aimY*10,e.y+e.aimX*10);c.lineTo(e.x+e.aimX*length-e.aimY*10,e.y+e.aimY*length+e.aimX*10);c.lineTo(e.x+e.aimX*length+e.aimY*10,e.y+e.aimY*length-e.aimX*10);c.lineTo(e.x+e.aimY*10,e.y-e.aimX*10);c.closePath();c.fill();c.stroke();}
-  c.restore();return true;
-}
 export function drawSpaceFilm(c:CanvasRenderingContext2D,s:GameState,w:number,h:number,reduced:boolean,cast:(id:GameState['active'],x:number,y:number,pose?:SuitPose)=>void) {
   if(!s.film)return;
   const {shot,progress}=sampleSpaceFilm(s.film.id,s.film.elapsed),t=reduced?.5:progress;
@@ -132,6 +126,7 @@ export function drawLunarBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
   if(!e.behavior)return false;
   c.save();const x=e.x,y=e.y;
   ellipse(c,x,y,e.radius*1.25,4,'#11182950');
+  c.save();applyEnemyWindup(c,e);
   if(e.behavior==='rat') {
     c.strokeStyle='#bbc9d3';c.lineWidth=2;c.beginPath();c.moveTo(x-7,y-4);c.quadraticCurveTo(x-18,y-13,x-21,y-5);c.stroke();
     ellipse(c,x,y-6,10,6,'#c4ccd1');ellipse(c,x+7,y-8,5,5,'#a3afb9');ellipse(c,x+5,y-13,3,4,'#e5ddd1');ellipse(c,x+10,y-9,1,1,ink);
@@ -141,7 +136,7 @@ export function drawLunarBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
     c.translate(x,y-hop);c.fillStyle='#d4dee5';c.fillRect(-7,-18,14,14);c.fillRect(-8,-5,5,5);c.fillRect(3,-5,5,5);
     ellipse(c,0,-22,10,11,'#a6d1de80');ellipse(c,0,-22,6,7,'#789887');ellipse(c,-2,-23,1,1,ink);ellipse(c,3,-23,1,1,ink);line(c,-8,-14,8,-14,amber,2);
   } else if(e.behavior==='echo') {
-    c.globalAlpha=e.windup>0?.4:.8;c.fillStyle='#d7d6f2';c.beginPath();c.moveTo(x-9,y);c.lineTo(x-9,y-12);c.bezierCurveTo(x-9,y-29,x+9,y-29,x+9,y-12);c.lineTo(x+9,y);c.lineTo(x+3,y-4);c.lineTo(x,y);c.lineTo(x-4,y-4);c.closePath();c.fill();ellipse(c,x-3,y-16,1.5,2,ink);ellipse(c,x+4,y-16,1.5,2,ink);
+    c.globalAlpha=.8;c.fillStyle='#d7d6f2';c.beginPath();c.moveTo(x-9,y);c.lineTo(x-9,y-12);c.bezierCurveTo(x-9,y-29,x+9,y-29,x+9,y-12);c.lineTo(x+9,y);c.lineTo(x+3,y-4);c.lineTo(x,y);c.lineTo(x-4,y-4);c.closePath();c.fill();ellipse(c,x-3,y-16,1.5,2,ink);ellipse(c,x+4,y-16,1.5,2,ink);
   } else if(e.behavior==='satellite') {
     line(c,x,y-22,x,y-35,silver,1);ellipse(c,x,y-35,2,2,magenta);ellipse(c,x,y-18,7,10,amber);ellipse(c,x,y-18,3,5,'#fff4c5');
     for(const side of [-1,1]) {c.fillStyle='#526981';c.fillRect(x+side*12-5,y-22,10,7);line(c,x+side*5,y-18,x+side*12,y-18,silver);}
@@ -156,7 +151,7 @@ export function drawLunarBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
     ellipse(c,x-4,y-15,2,3,silver);ellipse(c,x+4,y-15,2,3,silver);
     if(e.behavior==='warden'&&e.phase===2&&!e.shieldBroken) {c.strokeStyle=magenta;c.lineWidth=2;c.beginPath();c.ellipse(x,y-19,r+10,r*.6,0,0,Math.PI*2);c.stroke();}
   }
-  c.restore();
+  c.restore();c.restore();
   const width=e.kind==='boss'?56:22,top=y-(e.kind==='boss'?58:38);
   c.fillStyle=ink;c.fillRect(x-width/2-1,top-1,width+2,5);c.fillStyle='#673e54';c.fillRect(x-width/2,top,width,3);c.fillStyle=magenta;c.fillRect(x-width/2,top,width*Math.max(0,e.hp)/e.maxHp,3);
   return true;

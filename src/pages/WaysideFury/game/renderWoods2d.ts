@@ -1,3 +1,4 @@
+import { applyEnemyWindup } from './enemyWindup';
 import type { Enemy, GameState } from './sim.ts';
 import { hasFieldFlag } from './fieldAbilities.ts';
 const pine='#28483f',moss='#78935d',amber='#f2c879',plum='#785078';
@@ -6,6 +7,7 @@ export function drawWoodsBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
   if(!e.woodsBehavior) return false;
   c.save();c.translate(e.x,e.y);
   ellipse(c,0,1,e.radius*1.15,5,'#101e2366');
+  c.save();applyEnemyWindup(c,{...e,x:0,y:0});
   const large=e.kind==='boss',h=large?48:27,w=large?25:12;
   const material=c.createLinearGradient(-w,-h,w,0);material.addColorStop(0,moss);material.addColorStop(.45,pine);material.addColorStop(1,'#152e2b');
   if(e.woodsBehavior==='wisp') {
@@ -35,20 +37,11 @@ export function drawWoodsBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
     }
     ellipse(c,-5,-h+10,2,2,amber);ellipse(c,5,-h+10,2,2,amber);
   }
+  c.restore();
   const width=large?56:26;c.fillStyle='#13292c';c.fillRect(-width/2,-h-12,width,5);c.fillStyle=e.hitTimer>0?'#fff0c4':plum;c.fillRect(-width/2,-h-11,width*Math.max(0,e.hp)/e.maxHp,3);
   c.restore();
   if(e.woodsBehavior==='wisp'&&(e.exposed??0)===0) for(const ally of s.enemies.filter(a=>a.id!==e.id&&Math.hypot(a.x-e.x,a.y-e.y)<160)) {c.save();c.strokeStyle='#f2c87960';c.lineWidth=1.2;c.beginPath();c.moveTo(e.x,e.y-18);c.quadraticCurveTo((e.x+ally.x)/2,e.y-40,ally.x,ally.y-18);c.stroke();c.restore();}
   return true;
-}
-export function drawWoodsTell(c:CanvasRenderingContext2D,e:Enemy) {
-  if(!e.woodsBehavior) return false;
-  c.save();c.strokeStyle=amber;c.fillStyle='#f2c87938';c.lineWidth=2;
-  if((e.burst??0)>0) {c.beginPath();c.arc(e.x,e.y,48,0,Math.PI*2);c.fill();c.stroke();}
-  else if(['lantern','rooted'].includes(e.woodsBehavior)&&e.actionTimer>0||e.windup>0&&['rooted','lantern'].includes(e.woodsBehavior)) {
-    c.beginPath();c.arc(e.tellX??e.x,e.tellY??e.y,e.woodsBehavior==='rooted'?22:24,0,Math.PI*2);c.fill();c.stroke();
-    if(e.woodsBehavior==='rooted') {c.beginPath();c.moveTo(e.x,e.y);c.quadraticCurveTo(e.x+30,e.y+30,e.tellX!,e.tellY!);c.stroke();}
-  } else if(e.windup>0) {c.translate(e.x,e.y);c.rotate(Math.atan2(e.aimY,e.aimX));c.fillRect(0,-24,190,48);c.strokeRect(0,-24,190,48);}
-  c.restore();return true;
 }
 export function drawWoodsMachinery(c:CanvasRenderingContext2D,s:GameState) {
   if(s.mapId!=='woods-heartwood-engine') return;
@@ -58,4 +51,10 @@ export function drawWoodsMachinery(c:CanvasRenderingContext2D,s:GameState) {
     ellipse(c,x,314,18,16,broken?'#536969':pine);c.strokeStyle=amber;c.lineWidth=2;c.beginPath();c.moveTo(x-8,306);c.lineTo(x+2,315);c.lineTo(x-4,324);c.stroke();
     if(powered) ellipse(c,x,314,5,5,amber);c.restore();
   }
+}
+
+// Released fire remains visible while damaging; never preview its landing point.
+export function drawWoodsHazard(c:CanvasRenderingContext2D,e:Enemy) {
+  if(e.hp<=0 || e.woodsBehavior!=='lantern' || e.windup>0 || e.actionTimer<=0) return;
+  c.save();ellipse(c,e.tellX??e.x,e.tellY??e.y,24,24,'#f2a35f48');c.restore();
 }

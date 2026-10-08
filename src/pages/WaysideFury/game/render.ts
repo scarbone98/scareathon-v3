@@ -1,10 +1,11 @@
+import { applyEnemyWindup } from "./enemyWindup";
 import { drawBlastProp } from "./blastArt";
-import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
-import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
+import { drawCityGround, drawCityEnemy, drawCityProp, drawCityStory } from "./chapters/ch4Art";
+import { drawWoodsBody, drawWoodsHazard, drawWoodsMachinery } from "./renderWoods2d";
 import { fieldWorld } from "./fieldAbilities";
 import { drawCountyProp } from "./countyArt";
 import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
-import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
+import { drawSpaceProp, drawMoonGround, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
 import { lunarLift, hasSpaceFlag } from "./lunar";
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
@@ -239,7 +240,7 @@ export class Renderer {
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
-    for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
+    for (const enemy of s.enemies) if (this.visible(enemy.tellX ?? enemy.x, enemy.tellY ?? enemy.y, 30)) drawWoodsHazard(this.ctx, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
@@ -643,17 +644,12 @@ export class Renderer {
     const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
     if (boss && enemy.phase === 2) { c.globalAlpha = .55 + Math.sin(time * 9) * .07; this.glow(enemy.x, enemy.y - 23, 35, '#db82cb'); c.globalAlpha = 1; }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
-    if (enemy.windup > 0) {
-      c.globalAlpha = .35 + Math.sin(time * 15) * .07; this.disc(enemy.x, enemy.y - 2, boss ? 24 : 12, enemy.phase === 2 ? '#dd669a' : '#fba578'); c.globalAlpha = 1;
-      // A simple warning glyph is art, while all readable copy lives in the DOM.
-      this.rect(enemy.x - 1, enemy.y - (boss ? 54 : 32), 3, 6, '#ffda9b'); this.rect(enemy.x - 1, enemy.y - (boss ? 46 : 24), 3, 2, '#ffda9b');
-    }
     c.save(); c.translate(enemy.x, enemy.y);
+    applyEnemyWindup(c, { ...enemy, x: 0, y: 0 });
     if (!this.reducedMotion) {
       const stagger = enemy.hitTimer / .15;
       c.rotate(enemy.hitTimer > 0 ? -Math.sign(enemy.kx || 1) * stagger * .18 : Math.sin(time * 5) * .015);
       c.translate(0, -Math.abs(Math.sin(time * 7)) * .7);
-      if (enemy.windup > 0) c.scale(1.08, .93);
     }
     this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
     if (enemy.archetype === 'shield' && enemy.windup === 0 && enemy.actionTimer === 0) {
@@ -882,39 +878,6 @@ export class Renderer {
       const px = x - 7 + ((k * 5 + Math.floor(time * 8)) % 14);
       const py = y - 28 + ((k * 11 + Math.floor(time * 13)) % 23);
       this.rect(px, py, 2, 3, "#9772b5");
-    }
-    c.restore();
-  }
-
-  private bossTelegraph(s: GameState, enemy: Enemy) {
-    if(drawWoodsTell(this.ctx,enemy)) return;
-    if(drawCityTelegraph(this.ctx,enemy)) return;
-    if(drawLunarTelegraph(this.ctx,enemy)) return;
-    if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
-    const c = this.ctx;
-    const color = enemy.phase === 2 ? "#ec7ead" : "#efab7a";
-    c.save();
-    c.globalAlpha = enemy.windup > 0 ? 0.3 + (this.reducedMotion ? 0 : Math.sin(s.time * 23) * 0.08) : 0.2;
-    if (enemy.pattern === 0) {
-      const rushing = enemy.actionTimer > 0;
-      for (let k = 0; k < (rushing ? 8 : 24); k++) {
-        const distance = (rushing ? -1 : 1) * k * 5;
-        const x = enemy.x + enemy.aimX * distance;
-        const y = enemy.y + enemy.aimY * distance;
-        if (!this.visible(x, y, 20)) continue;
-        this.disc(x, y, rushing ? 9 - k * 0.6 : 9, color);
-        if (k % 6 === 0) this.rect(x - 1, y - 1, 3, 3, "#ffddbb");
-      }
-    } else {
-      for (const radius of [24, 43, 64]) for (let k = 0; k < 48; k++) {
-        if (k % 4 === 0) continue;
-        const a = k * Math.PI / 24;
-        this.rect(enemy.x + Math.cos(a) * radius, enemy.y + Math.sin(a) * radius, 2, 2, color);
-      }
-      for (let k = 0; k < (enemy.phase === 2 ? 12 : 8); k++) {
-        const a = k * Math.PI * 2 / (enemy.phase === 2 ? 12 : 8);
-        this.rect(enemy.x + Math.cos(a) * 34, enemy.y + Math.sin(a) * 34, 4, 4, "#ffddbb");
-      }
     }
     c.restore();
   }
