@@ -20,7 +20,7 @@ export function roadMarks(world: WorldMap, col: number, row: number): readonly R
     const right = Math.min(x + TILE, rect.x + rect.w), bottom = Math.min(y + TILE, rect.y + rect.h);
     if (right > left && bottom > top) result.push({ x: left, y: top, w: right - left, h: bottom - top, color, kind });
   };
-  const segments = world.roads.filter(road => overlaps(road, tile));
+  const segments = world.roads.filter(road => !road.curve && overlaps(road, tile));
   for (const road of segments) {
     const horizontal = road.direction === 'horizontal';
     const axis = horizontal ? x : y, begin = horizontal ? road.x : road.y;

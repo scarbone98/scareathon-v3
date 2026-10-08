@@ -36,8 +36,9 @@ assert.equal(createHash('sha256').update(JSON.stringify(legacyCounty)).digest('h
 assert.ok(legacyExits);
 for (const [index, world] of ALL_WORLDS.slice(0,14).entries()) {
   const { exits, ...geometry } = world;
-  if (index !== 0) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
-  else { assert.equal(world.width,2304); assert.equal(world.height,1536); }
+  if (index >= 12) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
+  else if (index === 0) { assert.equal(world.width,2304); assert.equal(world.height,1536); }
+  // Organic area geometry intentionally changes; areas.mjs checks its frozen routing/encounters.
   assert.ok(!isBlocked(world, world.spawn.x, world.spawn.y));
   for (const exit of exits) {
     const destination = getMap(exit.targetMapId);

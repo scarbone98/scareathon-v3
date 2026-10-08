@@ -115,9 +115,11 @@ tick(ki); assert.ok(ki.projectiles.some(projectile => projectile.beam), 'release
 console.log('Wayside Fury context Attack unit checks passed (selection, timing, combat, dialogue, co-op, dedicated controls and Ki).');
 
 const diner = newGame(); enterScene(diner, 'overworld'); diner.x = 520; diner.y = 405;
-interact(diner); assert.equal(diner.overlay, 'diner'); assert.equal(diner.insideDiner, true);
+interact(diner); assert.equal(diner.mapId, 'interior-diner'); assert.equal(diner.overlay, null); assert.equal(diner.insideDiner, true);
+diner.x=216; diner.y=152;
 tick(diner, {}, 10); tick(diner, { attack: true });
 assert.ok(diner.foundItems.includes('pickup-c1-diner'), 'context Attack finds candy inside the diner');
+diner.x=224; diner.y=304;
 tick(diner, {}, 10); tick(diner, { attack: true });
-assert.equal(diner.overlay, null, 'context Attack leaves the diner after its one-time find');
+assert.equal(diner.mapId, 'overworld', 'context Attack leaves the diner after its one-time find');
 assert.equal(diner.insideDiner, false);

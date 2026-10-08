@@ -1,0 +1,1509 @@
+[
+  {
+    "id": "overworld",
+    "spawn": {
+      "x": 208,
+      "y": 480
+    },
+    "spawns": [],
+    "exits": []
+  },
+  {
+    "id": "hub",
+    "spawn": {
+      "x": 480,
+      "y": 416
+    },
+    "spawns": [],
+    "exits": []
+  },
+  {
+    "id": "blast-0",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 192
+      },
+      {
+        "kind": "grunt",
+        "x": 424,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 432,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 452,
+        "y": 192
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Return to taxi",
+        "target": "overworld",
+        "entryX": 1088,
+        "entryY": 400,
+        "targetMapId": "overworld"
+      },
+      {
+        "id": "east",
+        "name": "Split Creek",
+        "target": 1,
+        "entryX": 56,
+        "entryY": 272,
+        "requiresClear": true,
+        "targetMapId": "blast-1"
+      }
+    ]
+  },
+  {
+    "id": "blast-1",
+    "spawn": {
+      "x": 56,
+      "y": 272
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 456,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 464,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 508,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 696,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 704,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 748,
+        "y": 272
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Scorched Road",
+        "target": 0,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-0"
+      },
+      {
+        "id": "east",
+        "name": "Ruined Yard",
+        "target": 2,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-2"
+      },
+      {
+        "id": "north",
+        "name": "Ash Orchard · optional",
+        "target": 8,
+        "entryX": 328,
+        "entryY": 320,
+        "targetMapId": "blast-8"
+      }
+    ]
+  },
+  {
+    "id": "blast-2",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 192
+      },
+      {
+        "kind": "grunt",
+        "x": 424,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 432,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 452,
+        "y": 192
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Split Creek",
+        "target": 1,
+        "entryX": 896,
+        "entryY": 272,
+        "targetMapId": "blast-1"
+      },
+      {
+        "id": "east",
+        "name": "Furnace Pass",
+        "target": 3,
+        "entryX": 56,
+        "entryY": 272,
+        "requiresClear": true,
+        "targetMapId": "blast-3"
+      }
+    ]
+  },
+  {
+    "id": "blast-3",
+    "spawn": {
+      "x": 56,
+      "y": 272
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 476,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 484,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 528,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 736,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 744,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 788,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 996,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 1004,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 1048,
+        "y": 272
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Ruined Yard",
+        "target": 2,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-2"
+      },
+      {
+        "id": "east",
+        "name": "Sentinel Gate",
+        "target": 4,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-4"
+      },
+      {
+        "id": "south",
+        "name": "Old Supply Depot · optional",
+        "target": 9,
+        "entryX": 328,
+        "entryY": 64,
+        "targetMapId": "blast-9"
+      }
+    ]
+  },
+  {
+    "id": "blast-4",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "boss",
+        "x": 368,
+        "y": 192,
+        "miniBoss": true
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Furnace Pass",
+        "target": 3,
+        "entryX": 1216,
+        "entryY": 272,
+        "targetMapId": "blast-3"
+      },
+      {
+        "id": "east",
+        "name": "Shattered Courtyard",
+        "target": 5,
+        "entryX": 56,
+        "entryY": 272,
+        "requiresClear": true,
+        "targetMapId": "blast-5"
+      }
+    ]
+  },
+  {
+    "id": "blast-5",
+    "spawn": {
+      "x": 56,
+      "y": 272
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 456,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 464,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 508,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 696,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 704,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 748,
+        "y": 272
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Sentinel Gate",
+        "target": 4,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-4"
+      },
+      {
+        "id": "east",
+        "name": "Rift Approach",
+        "target": 6,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-6"
+      }
+    ]
+  },
+  {
+    "id": "blast-6",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 252
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 292
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 272
+      },
+      {
+        "kind": "grunt",
+        "x": 424,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 432,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 452,
+        "y": 192
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Shattered Courtyard",
+        "target": 5,
+        "entryX": 896,
+        "entryY": 272,
+        "targetMapId": "blast-5"
+      },
+      {
+        "id": "east",
+        "name": "The Watcher's Hollow",
+        "target": 7,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-7"
+      }
+    ]
+  },
+  {
+    "id": "blast-7",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "boss",
+        "x": 464,
+        "y": 192,
+        "miniBoss": false
+      }
+    ],
+    "exits": [
+      {
+        "id": "west",
+        "name": "Rift Approach",
+        "target": 6,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-6"
+      },
+      {
+        "id": "east",
+        "name": "Enter the realm rift",
+        "target": "realm",
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "realm-0"
+      }
+    ]
+  },
+  {
+    "id": "blast-8",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 192
+      },
+      {
+        "kind": "grunt",
+        "x": 424,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 432,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 452,
+        "y": 192
+      }
+    ],
+    "exits": [
+      {
+        "id": "south",
+        "name": "Split Creek",
+        "target": 1,
+        "entryX": 328,
+        "entryY": 64,
+        "targetMapId": "blast-1"
+      }
+    ]
+  },
+  {
+    "id": "blast-9",
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "x": 216,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 224,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 268,
+        "y": 192
+      },
+      {
+        "kind": "grunt",
+        "x": 424,
+        "y": 172
+      },
+      {
+        "kind": "grunt",
+        "x": 432,
+        "y": 212
+      },
+      {
+        "kind": "shooter",
+        "x": 452,
+        "y": 192
+      }
+    ],
+    "exits": [
+      {
+        "id": "north",
+        "name": "Furnace Pass",
+        "target": 3,
+        "entryX": 688,
+        "entryY": 480,
+        "targetMapId": "blast-3"
+      }
+    ]
+  },
+  {
+    "id": "city-boulevard",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [],
+    "exits": [
+      {
+        "id": "city-taxi",
+        "name": "Return to county taxi",
+        "target": "overworld",
+        "targetMapId": "overworld",
+        "entryX": 1032,
+        "entryY": 580
+      },
+      {
+        "id": "city-boulevard-next",
+        "name": "Neon Market",
+        "target": 1,
+        "targetMapId": "city-market",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true,
+        "requiresInteraction": "city-anchor-0"
+      }
+    ]
+  },
+  {
+    "id": "city-market",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [],
+    "exits": [
+      {
+        "id": "city-market-return",
+        "name": "Blackout Boulevard",
+        "target": 0,
+        "targetMapId": "city-boulevard",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-market-next",
+        "name": "Clockroof Walk",
+        "target": 2,
+        "targetMapId": "city-clockroof",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      },
+      {
+        "id": "city-market-exchange-shortcut",
+        "name": "Restored Exchange shortcut",
+        "target": 6,
+        "targetMapId": "city-switchmaster",
+        "entryX": 320,
+        "entryY": 370,
+        "requiresInteraction": "city-market-shortcut"
+      }
+    ]
+  },
+  {
+    "id": "city-clockroof",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "clockwolf",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "shooter",
+        "behavior": "neon-imp",
+        "sprite": "imp",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-clockroof-return",
+        "name": "Neon Market",
+        "target": 1,
+        "targetMapId": "city-market",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-clockroof-next",
+        "name": "Blackout Exchange · Ticket Hall",
+        "target": 3,
+        "targetMapId": "city-ticket-hall",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true,
+        "requiresInteraction": "city-anchor-2"
+      }
+    ]
+  },
+  {
+    "id": "city-ticket-hall",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "turnstile",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "shooter",
+        "behavior": "neon-imp",
+        "sprite": "imp",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-ticket-hall-return",
+        "name": "Clockroof Walk",
+        "target": 2,
+        "targetMapId": "city-clockroof",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-ticket-hall-next",
+        "name": "Rat Cable Run",
+        "target": 4,
+        "targetMapId": "city-cable-run",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-cable-run",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "cable-rat",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "grunt",
+        "behavior": "cable-rat",
+        "sprite": "zombie",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-cable-run-return",
+        "name": "Blackout Exchange · Ticket Hall",
+        "target": 3,
+        "targetMapId": "city-ticket-hall",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-cable-run-next",
+        "name": "Transformer Floor",
+        "target": 5,
+        "targetMapId": "city-transformer",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-transformer",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "turnstile",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "shooter",
+        "behavior": "neon-imp",
+        "sprite": "imp",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-transformer-return",
+        "name": "Rat Cable Run",
+        "target": 4,
+        "targetMapId": "city-cable-run",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-transformer-next",
+        "name": "Switchmaster Booth",
+        "target": 6,
+        "targetMapId": "city-switchmaster",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true,
+        "requiresInteraction": "city-anchor-5"
+      }
+    ]
+  },
+  {
+    "id": "city-switchmaster",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "boss",
+        "behavior": "switchmaster",
+        "sprite": "shadowbeast",
+        "x": 360,
+        "y": 208
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-switchmaster-return",
+        "name": "Transformer Floor",
+        "target": 5,
+        "targetMapId": "city-transformer",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-switchmaster-next",
+        "name": "Backstage 8-Bit · Platform",
+        "target": 7,
+        "targetMapId": "city-backstage",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      },
+      {
+        "id": "city-exchange-market-shortcut",
+        "name": "Restored market / taxi",
+        "target": 1,
+        "targetMapId": "city-market",
+        "entryX": 320,
+        "entryY": 48,
+        "requiresInteraction": "city-market-shortcut"
+      }
+    ]
+  },
+  {
+    "id": "city-backstage",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "shooter",
+        "behavior": "neon-imp",
+        "sprite": "imp",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "grunt",
+        "behavior": "turnstile",
+        "sprite": "zombie",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-backstage-return",
+        "name": "Switchmaster Booth",
+        "target": 6,
+        "targetMapId": "city-switchmaster",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-backstage-next",
+        "name": "The Old Escape Door",
+        "target": 8,
+        "targetMapId": "city-doorway",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-doorway",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [],
+    "exits": [
+      {
+        "id": "city-doorway-return",
+        "name": "Backstage 8-Bit · Platform",
+        "target": 7,
+        "targetMapId": "city-backstage",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-doorway-next",
+        "name": "Eggworks · Delivery Floor",
+        "target": 9,
+        "targetMapId": "city-delivery",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-delivery",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "cable-rat",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "grunt",
+        "behavior": "turnstile",
+        "sprite": "zombie",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-delivery-return",
+        "name": "The Old Escape Door",
+        "target": 8,
+        "targetMapId": "city-doorway",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-delivery-next",
+        "name": "Shell Press",
+        "target": 10,
+        "targetMapId": "city-shell-press",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-shell-press",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "clockwolf",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "shooter",
+        "behavior": "neon-imp",
+        "sprite": "imp",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-shell-press-return",
+        "name": "Eggworks · Delivery Floor",
+        "target": 9,
+        "targetMapId": "city-delivery",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-shell-press-next",
+        "name": "Incubator Gallery",
+        "target": 11,
+        "targetMapId": "city-gallery",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-gallery",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "behavior": "turnstile",
+        "sprite": "zombie",
+        "x": 340,
+        "y": 168
+      },
+      {
+        "kind": "grunt",
+        "behavior": "clockwolf",
+        "sprite": "zombie",
+        "x": 436,
+        "y": 248
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-gallery-return",
+        "name": "Shell Press",
+        "target": 10,
+        "targetMapId": "city-shell-press",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-gallery-next",
+        "name": "Control Balcony · Workshop",
+        "target": 12,
+        "targetMapId": "city-balcony",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-balcony",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [],
+    "exits": [
+      {
+        "id": "city-balcony-return",
+        "name": "Incubator Gallery",
+        "target": 11,
+        "targetMapId": "city-gallery",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-balcony-next",
+        "name": "Hatching Chamber",
+        "target": 13,
+        "targetMapId": "city-hatching",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "city-hatching",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [
+      {
+        "kind": "boss",
+        "behavior": "architect",
+        "sprite": "shadowbeast",
+        "x": 360,
+        "y": 208
+      }
+    ],
+    "exits": [
+      {
+        "id": "city-hatching-return",
+        "name": "Control Balcony · Workshop",
+        "target": 12,
+        "targetMapId": "city-balcony",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-hatching-next",
+        "name": "Last Order · Survivor Refuge",
+        "target": 14,
+        "targetMapId": "city-refuge",
+        "entryX": 56,
+        "entryY": 208,
+        "requiresClear": true,
+        "requiresInteraction": "city-evacuation"
+      }
+    ]
+  },
+  {
+    "id": "city-refuge",
+    "spawn": {
+      "x": 64,
+      "y": 208
+    },
+    "spawns": [],
+    "exits": [
+      {
+        "id": "city-refuge-return",
+        "name": "Hatching Chamber",
+        "target": 13,
+        "targetMapId": "city-hatching",
+        "entryX": 580,
+        "entryY": 208
+      },
+      {
+        "id": "city-home",
+        "name": "Bring survivors home · Chapter 5 rally",
+        "target": "hub",
+        "targetMapId": "hub",
+        "entryX": 480,
+        "entryY": 416,
+        "requiresInteraction": "city-evacuation"
+      }
+    ]
+  },
+  {
+    "id": "woods-layby",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [],
+    "exits": [
+      {
+        "id": "woods-layby-to-woods-ranger-gate",
+        "name": "Hollow Woods · Ranger Gate",
+        "target": 1,
+        "targetMapId": "woods-ranger-gate",
+        "entryX": 48,
+        "entryY": 224,
+        "requiresClear": true
+      },
+      {
+        "id": "woods-taxi",
+        "name": "Return to county taxi",
+        "target": "overworld",
+        "targetMapId": "overworld",
+        "entryX": 656,
+        "entryY": 224
+      }
+    ]
+  },
+  {
+    "id": "woods-ranger-gate",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "sprite": "zombie",
+        "woodsBehavior": "rooted",
+        "x": 480,
+        "y": 200
+      },
+      {
+        "kind": "grunt",
+        "sprite": "zombie",
+        "woodsBehavior": "rooted",
+        "x": 560,
+        "y": 264
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-ranger-gate-to-woods-layby",
+        "name": "Hollow Woods · Ranger Lay-by",
+        "target": 0,
+        "targetMapId": "woods-layby",
+        "entryX": 656,
+        "entryY": 224
+      },
+      {
+        "id": "woods-ranger-gate-to-woods-lantern-walk",
+        "name": "Hollow Woods · Lantern Walk",
+        "target": 2,
+        "targetMapId": "woods-lantern-walk",
+        "entryX": 48,
+        "entryY": 224,
+        "requiresClear": true,
+        "requiresInteraction": "woods-ranger-seal"
+      }
+    ]
+  },
+  {
+    "id": "woods-lantern-walk",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "sprite": "ghost",
+        "woodsBehavior": "wisp",
+        "x": 464,
+        "y": 160
+      },
+      {
+        "kind": "shooter",
+        "sprite": "pumpkin",
+        "woodsBehavior": "lantern",
+        "x": 544,
+        "y": 224
+      },
+      {
+        "kind": "grunt",
+        "sprite": "zombie",
+        "woodsBehavior": "rooted",
+        "x": 400,
+        "y": 272
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-lantern-walk-to-woods-ranger-gate",
+        "name": "Hollow Woods · Ranger Gate",
+        "target": 1,
+        "targetMapId": "woods-ranger-gate",
+        "entryX": 656,
+        "entryY": 224
+      },
+      {
+        "id": "woods-lantern-walk-to-woods-pump-house",
+        "name": "Hollow Woods · Pump House",
+        "target": 3,
+        "targetMapId": "woods-pump-house",
+        "entryX": 48,
+        "entryY": 224,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "woods-pump-house",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "shooter",
+        "sprite": "pumpkin",
+        "woodsBehavior": "lantern",
+        "x": 496,
+        "y": 176
+      },
+      {
+        "kind": "grunt",
+        "sprite": "zombie",
+        "woodsBehavior": "rooted",
+        "x": 560,
+        "y": 272
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-pump-house-to-woods-lantern-walk",
+        "name": "Hollow Woods · Lantern Walk",
+        "target": 2,
+        "targetMapId": "woods-lantern-walk",
+        "entryX": 656,
+        "entryY": 224
+      },
+      {
+        "id": "woods-pump-house-to-woods-conveyor-yard",
+        "name": "Hollow Woods · Conveyor Yard",
+        "target": 4,
+        "targetMapId": "woods-conveyor-yard",
+        "entryX": 48,
+        "entryY": 224,
+        "requiresClear": true,
+        "requiresInteraction": "woods-pump-bridge"
+      },
+      {
+        "id": "woods-pump-house-to-woods-lunch-shed",
+        "name": "Hollow Woods · Lost Lunch Shed",
+        "target": 7,
+        "targetMapId": "woods-lunch-shed",
+        "entryX": 144,
+        "entryY": 400,
+        "requiresClear": true
+      }
+    ]
+  },
+  {
+    "id": "woods-conveyor-yard",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "boss",
+        "sprite": "imp",
+        "woodsBehavior": "bailiff",
+        "x": 448,
+        "y": 224
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-conveyor-yard-to-woods-pump-house",
+        "name": "Hollow Woods · Pump House",
+        "target": 3,
+        "targetMapId": "woods-pump-house",
+        "entryX": 656,
+        "entryY": 224
+      },
+      {
+        "id": "woods-conveyor-yard-to-woods-mirror-sawmill",
+        "name": "Hollow Woods · Mirror Sawmill",
+        "target": 5,
+        "targetMapId": "woods-mirror-sawmill",
+        "entryX": 48,
+        "entryY": 224,
+        "requiresClear": true
+      },
+      {
+        "id": "woods-conveyor-yard-to-woods-lunch-shed",
+        "name": "Hollow Woods · Lost Lunch Shed",
+        "target": 7,
+        "targetMapId": "woods-lunch-shed",
+        "entryX": 144,
+        "entryY": 48
+      }
+    ]
+  },
+  {
+    "id": "woods-mirror-sawmill",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "grunt",
+        "sprite": "ghost",
+        "woodsBehavior": "wisp",
+        "x": 480,
+        "y": 168
+      },
+      {
+        "kind": "grunt",
+        "sprite": "zombie",
+        "woodsBehavior": "rooted",
+        "x": 544,
+        "y": 272
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-mirror-sawmill-to-woods-conveyor-yard",
+        "name": "Hollow Woods · Conveyor Yard",
+        "target": 4,
+        "targetMapId": "woods-conveyor-yard",
+        "entryX": 656,
+        "entryY": 224
+      },
+      {
+        "id": "woods-mirror-sawmill-to-woods-heartwood-engine",
+        "name": "Hollow Woods · Heartwood Engine",
+        "target": 6,
+        "targetMapId": "woods-heartwood-engine",
+        "entryX": 48,
+        "entryY": 224,
+        "requiresClear": true,
+        "requiresInteraction": "woods-mirror-return"
+      }
+    ]
+  },
+  {
+    "id": "woods-heartwood-engine",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "boss",
+        "sprite": "shadowbeast",
+        "woodsBehavior": "foreman",
+        "x": 448,
+        "y": 224
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-heartwood-engine-to-woods-mirror-sawmill",
+        "name": "Hollow Woods · Mirror Sawmill",
+        "target": 5,
+        "targetMapId": "woods-mirror-sawmill",
+        "entryX": 656,
+        "entryY": 224
+      },
+      {
+        "id": "woods-home",
+        "name": "Return with launch key",
+        "target": "hub",
+        "targetMapId": "hub",
+        "entryX": 480,
+        "entryY": 416,
+        "requiresClear": true,
+        "requiresInteraction": "woods-complete"
+      }
+    ]
+  },
+  {
+    "id": "woods-lunch-shed",
+    "spawn": {
+      "x": 64,
+      "y": 224
+    },
+    "spawns": [
+      {
+        "kind": "shooter",
+        "sprite": "pumpkin",
+        "woodsBehavior": "lantern",
+        "x": 496,
+        "y": 224
+      }
+    ],
+    "exits": [
+      {
+        "id": "woods-lunch-shed-to-woods-pump-house",
+        "name": "Hollow Woods · Pump House",
+        "target": 3,
+        "targetMapId": "woods-pump-house",
+        "entryX": 144,
+        "entryY": 48
+      },
+      {
+        "id": "woods-lunch-shed-to-woods-conveyor-yard",
+        "name": "Hollow Woods · Conveyor Yard",
+        "target": 4,
+        "targetMapId": "woods-conveyor-yard",
+        "entryX": 144,
+        "entryY": 400,
+        "requiresClear": true
+      },
+      {
+        "id": "woods-lunch-shortcut",
+        "name": "Shortcut · Ranger Lay-by",
+        "target": 0,
+        "targetMapId": "woods-layby",
+        "entryX": 144,
+        "entryY": 224
+      }
+    ]
+  }
+]

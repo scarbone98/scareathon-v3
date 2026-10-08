@@ -196,7 +196,7 @@ for (const world of maps) {
   }
 }
 for (const point of LOCATIONS) findInteractionApproach(OVERWORLD, point.id, point);
-for (const point of HUB_POINTS) findInteractionApproach(HUB_WORLD, point.id, point);
+for (const point of HUB_POINTS) findInteractionApproach(HUB_WORLD, point.id === "station" ? "interior-station-door" : point.id, point);
 
 // Verify authored shapes too, so a change to the footprint generator cannot be
 // masked by the independently constructed rectangle fixtures below.

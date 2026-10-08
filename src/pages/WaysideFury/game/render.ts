@@ -1,3 +1,4 @@
+import { drawAreaGround, drawInteriorGround, drawBuildingDoors } from './renderAreas2d.ts';
 import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
 import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
 import { fieldWorld } from "./fieldAbilities";
@@ -232,6 +233,8 @@ export class Renderer {
     c.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
+    drawAreaGround(c,world);
+    drawInteriorGround(c,world);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
     drawWoodsMachinery(c,s);
@@ -254,6 +257,7 @@ export class Renderer {
       this.avatar = ownAvatar;
     } });
     for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
+    for (const door of world.radarAnchors?.filter(anchor=>anchor.id.endsWith("-door")) ?? []) actors.push({y:door.y,draw:()=>drawBuildingDoors(c,s)});
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
     if (s.scene === 'overworld') this.rockGag(s, motionTime);

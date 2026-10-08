@@ -1,3 +1,4 @@
+import { INTERIORS, interiorDefinition } from './interiors.ts';
 import { inCity, cityTargets, cityInteract, enterCityRoom, cityClear, applyCityRequest } from "./chapters/ch4.ts";
 import { configureCityEnemy, isCityBehavior, cityDamage, updateCityEnemy } from "./enemies/city.ts";
 import { interruptCityBoss } from "./bosses/architect.ts";
@@ -367,6 +368,8 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   if ((scene === "hub" || scene === "overworld") && canEnter(s, "forest")) s.notice = campaignHandoff(s);
   if (resolved.fallback) s.notice = "Unknown area. Returned safely to Wayside.";
   extraCoopSpawns(s); syncCoopLevel(s); enterSpaceRoom(s); enterCityRoom(s); enterWoods(s);
+  const interior = interiorDefinition(s.mapId);
+  if (interior) { s.insideDiner = interior.theme === "diner"; s.checkpointMapId = interior.id; s.spaceOutfit = false; s.notice = `${interior.name}: explore on foot. Use the exit mat to return.`; }
 }
 export function enterCampaignMap(s: GameState, mapId: string): boolean {
   const resolved = resolveCampaignMap(mapId);
@@ -377,6 +380,11 @@ export function enterCampaignMap(s: GameState, mapId: string): boolean {
   if (!resolved.fallback && area && !canEnter(s, area.id)) {
     s.notice = "Complete the previous chapter to open this route."; return false;
   }
+  const interior = interiorDefinition(mapId);
+  if (interior) {
+    const parent = resolveCampaignMap(interior.parent), parentArea = getArea(parent.definition.areaId);
+    if (parentArea && !canEnter(s, parentArea.id)) { s.notice = "Complete the previous chapter to open this route."; return false; }
+  }
   enterScene(s, resolved.definition.scene as Scene, resolved.definition.room, mapId);
   return !resolved.fallback;
 }
@@ -385,8 +393,8 @@ export function enterCampaignMap(s: GameState, mapId: string): boolean {
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
   const world = lunarWorld(s), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
-    if (!(s.coop && s.scene === "overworld" && (body.x + dx / pieces < 42 || body.x + dx / pieces > 1878)) && !isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
-    if (!(s.coop && s.scene === "overworld" && (body.y + dy / pieces < 42 || body.y + dy / pieces > 918)) && !isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
+    if (!(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (body.x + dx / pieces < 42 || body.x + dx / pieces > 1878)) && !isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
+    if (!(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (body.y + dy / pieces < 42 || body.y + dy / pieces > 918)) && !isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
   }
 }
 // Relax overlaps without adding velocity: a bounded, time-scaled push settles
@@ -871,6 +879,9 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
+  for (const room of INTERIORS) if (s.mapId === room.parent) add({ id: `${room.id}-door`, name: `Enter ${room.name}`, kind: "use", x: room.x, y: room.y }, s.scene === "overworld" ? 46 : 32);
+  const interior = interiorDefinition(s.mapId);
+  if (interior) for (const p of getWorld(s.scene, s.room, s.mapId).props) if (p.id.endsWith("-ledger") || p.id.endsWith("-keeper")) add({id:p.id,name:p.kind === "npc" ? `Talk to ${p.label}` : "Read local ledger",kind:"talk",x:p.x+p.w/2,y:p.y+p.h+12},36);
   for (const target of cityTargets(s)) add(target, 36);
   for (const target of woodsTargets(s)) add(target, 34);
   for (const target of spaceTargets(s)) add(target, 34);
@@ -879,21 +890,22 @@ export function interactTarget(s: GameState): InteractTarget | null {
     const world = getWorld(s.scene, s.room, s.mapId);
     for (const prop of world.props) {
       if (prop.kind === "chest" && !s.clearedRooms.includes(prop.id)) add({ id: prop.id, name: "Open supply cache", kind: "use", locked: s.enemies.length > 0, x: prop.x + prop.w / 2, y: prop.y + prop.h / 2 });
-      if (prop.kind === "npc") add({ id: "scout", name: `Talk to ${prop.label ?? "the stranded scout"}`, kind: "talk", x: prop.x + prop.w / 2, y: prop.y + prop.h });
+      if (!interior && prop.kind === "npc") add({ id: "scout", name: `Talk to ${prop.label ?? "the stranded scout"}`, kind: "talk", x: prop.x + prop.w / 2, y: prop.y + prop.h });
     }
     for (const door of world.exits) if ((!door.requiresClear || s.enemies.length === 0) && (!door.requiresInteraction || hasSpaceFlag(s,door.requiresInteraction))) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
   }
   const points = s.scene === "overworld" ? campaignLocations(s) : s.scene === "hub" ? HUB_POINTS : [];
   for (const point of points) {
+    if (point.id === "station" && !(s.scene === "hub" && (s.campaignMilestones.includes("city-complete") || s.coop?.worldCampaignMilestones?.includes("city-complete")))) continue;
     const npc = point.id === "alex" || point.id === "jon";
     const taxi = point.id === "taxi" || s.scene === "overworld";
-    add({ ...point, name: npc ? `Talk to ${point.name}` : point.id === "taxi" ? "Enter taxi" : s.scene === "overworld" ? `Leave taxi · ${point.name}` : point.name,
+    add({ ...point, ...(point.id === "station" ? {y:224} : {}), name: npc ? `Talk to ${point.name}` : point.id === "taxi" ? "Enter taxi" : s.scene === "overworld" ? `Leave taxi · ${point.name}` : point.name,
       kind: npc ? "talk" : taxi ? "taxi" : "use" }, s.scene === "overworld" ? OVERWORLD_STOP_RADIUS : undefined);
   }
   if (s.scene === "overworld") {
     if (!s.coop) for (const stop of COUNTY_STOPS) add({ ...stop, kind: "talk" }, OVERWORLD_PROP_RADIUS);
     add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444  }, OVERWORLD_PROP_RADIUS);
-    add({ id: "diner-entry", name: "Enter diner", kind: "use", x: 520, y: 405  }, OVERWORLD_PROP_RADIUS);
+
   }
   return selectInteractionTarget(candidates, s.x, s.y, s.faceX, s.faceY);
 }
@@ -922,10 +934,11 @@ function openDialogue(s: GameState, speaker: string, lines: string[]): void {
   s.notice = lines[0];
 }
 function travel(s: GameState, door: WorldExit) {
+  const leavingInterior = !!interiorDefinition(s.mapId);
   if (door.id === "moon-shack-lift" || door.id === "moon-ring-lift") record(s.solvedInteractions,door.id);
   if (door.target === "realm") beginRealmShift(s);
   else if (door.targetMapId) {
-    if (enterCampaignMap(s, door.targetMapId)) { s.x = door.entryX; s.y = door.entryY; }
+    if (enterCampaignMap(s, door.targetMapId)) { s.x = door.entryX; s.y = door.entryY; if (leavingInterior) { s.checkpointMapId = door.targetMapId; s.events.push({type:"checkpoint",id:"interior-return"}); } }
   } else {
     enterScene(s, typeof door.target === "number" ? "dungeon" : door.target,
       typeof door.target === "number" ? door.target : 0, door.targetMapId);
@@ -941,7 +954,22 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (countyStop) { openDialogue(s, countyStop.name, [countyStop.text]); return; }
   if (target.id === "story-next") { advanceStory(s); return; }
   if (target.id === "dialog-next") { advanceDialogue(s); return; }
-  if (target.id === "diner-entry") { s.overlay = "diner"; s.insideDiner = true; s.vx = s.vy = 0; s.moving = false; return; }
+  if (target.id.endsWith("-door") || target.id === "diner-entry") {
+    const room = INTERIORS.find(room => `${room.id}-door` === target.id || target.id === "diner-entry" && room.theme === "diner");
+    if (room) {
+      if (s.coop?.role === "guest") { s.notice = "The party host leads everyone through doors."; return; }
+      if (enterCampaignMap(s, room.id)) {
+        s.previousInput.attack = s.previousInput.interact = true;
+        s.events.push({type:"checkpoint",id:`${room.id}-entered`});
+      }
+      return;
+    }
+  }
+  const interior = interiorDefinition(s.mapId);
+  if (interior && (target.id.endsWith("-ledger") || target.id.endsWith("-keeper"))) {
+    if (target.id.endsWith("-keeper")) refillCrew(s);
+    openDialogue(s, target.id.endsWith("-keeper") ? "Caretaker" : "Local ledger", [interior.lore, ...(interior.theme === "station" ? [s.clearedRooms.includes("realm-0") ? campaignHandoff(s) : "Wayside Station is safe. Alex and Jon are holding the town."] : [])]); return;
+  }
   if (target.id === "diner-leave") { s.overlay = null; s.insideDiner = false; return; }
   if (target.id.startsWith("pickup-")) { collectPickup(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
@@ -1030,7 +1058,7 @@ function checkpointRecovery(s: GameState) {
   }
 }
 export function enforceCountyPartyBounds(s: GameState) {
-  if(s.coop && s.scene === "overworld" && (s.x > 1878 || s.y > 918)) {
+  if(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (s.x > 1878 || s.y > 918)) {
     s.x=208; s.y=480; s.vx=s.vy=0;
     s.notice="Party travel returns to the original county roads. New districts are solo-only in this release.";
   }
@@ -1108,7 +1136,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = dialogueInput ? idleInput() : s.previousInput;
   s.previousInput = { ...physicalInput };
-  const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
+  const combat = !interiorDefinition(s.mapId) && (s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
@@ -1141,7 +1169,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     const ease = 1 - Math.exp(-dt * (s.moving ? 6.5 : 9));
     s.vx += (driveX - s.vx) * ease; s.vy += (driveY - s.vy) * ease;
     const oldX = s.x, oldY = s.y;
-    if(s.coop && (s.x > 1850 && s.vx > 0 || s.y > 890 && s.vy > 0)) s.notice = "New county districts and world routes are solo-only in this release. The original county roads stay open to your party.";
+    if(s.coop && (s.coop.protocolVersion ?? 1) < 6 && (s.x > 1850 && s.vx > 0 || s.y > 890 && s.vy > 0)) s.notice = "New county districts and world routes are solo-only in this release. The original county roads stay open to your party.";
     moveBody(s, s, s.vx * dt, s.vy * dt, 10);
     if (s.x === oldX) s.vx *= 0.5;
     if (s.y === oldY) s.vy *= 0.5;
