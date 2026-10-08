@@ -54,8 +54,8 @@ export class GameController {
     cb.onInputMode(this.input.mode);
     this.raf = requestAnimationFrame(this.frame);
   }
-  start(state = newGame()) { this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [] }; this.paused = false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
-  setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) this.state.charge = 0; }
+  start(state = newGame()) { this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [] }; this.paused = false; this.state.localPaused=false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
+  setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.state.localPaused=paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) this.state.charge = 0; }
   showTitle() { this.started = false; this.setPaused(true); this.audio.menu(); }
   get graphicsMode() { return this.renderer.graphicsMode; }
   setGraphicsMode(mode: GraphicsMode) { this.renderer.setGraphicsMode(mode); }

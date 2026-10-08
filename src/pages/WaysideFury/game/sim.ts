@@ -1,6 +1,6 @@
 import { tickSpaceFilm, type FilmState } from "./cinematics.ts";
 import { enterSpaceRoom, spaceTargets, spaceInteract, completeSpaceFilm, record, refillCrew, spaceCheckpoint } from "./chapters/ch3.ts";
-import { onMoon, hasSpaceFlag, tickLunar, tryBoundLink, advanceBoundLink, lunarWorld } from "./lunar.ts";
+import { onMoon, hasSpaceFlag, tickLunar, tryBoundLink, advanceBoundLink, lunarWorld, brakeBound } from "./lunar.ts";
 import { configureLunarEnemy, lunarDamage, updateLunarEnemy } from "./enemies/lunar.ts";
 import type { LunarBehavior } from "./chapters/ch3Worlds.ts";
 import { sameCampaignMap, campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF } from "./campaign.ts";
@@ -80,7 +80,7 @@ export type GameEvent =
   | { type: "checkpoint"; id: string }
   | { type: "death" };
 export interface GameState {
-  spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
+  localPaused: boolean; spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
   boundTravel: { from: {x:number;y:number}; to:{x:number;y:number}; elapsed:number } | null;
   film: FilmState | null; filmCaptionHold: boolean; filmSkipHeld: number; filmHold: boolean; fuelGag: number;
 
@@ -144,7 +144,8 @@ export function setCoopPlayerCount(s: GameState, players: number): void {
   for (const e of s.enemies) scaleEnemy(s, e, e.baseMaxHp ?? e.maxHp / enemyHpScale(e.kind, previous));
   extraCoopSpawns(s);
 }
-export function coopLevelBand(scene: Scene, room: number): readonly [number, number] {
+export function coopLevelBand(scene: Scene, room: number, mapId?: string): readonly [number, number] {
+  if (mapId?.startsWith("moon-") || mapId === "space-launch") return [1,MAX_LEVEL];
   if (scene === "realm") return [6, 9];
   if (scene === "dungeon") {
     if (room >= 8) return [2, 5];
@@ -155,7 +156,7 @@ export function coopLevelBand(scene: Scene, room: number): readonly [number, num
 // Combat level changes only derived hero stats. The permanent character sheet
 // keeps its XP/level, and health/Ki ratios survive both sync and leaving co-op.
 export function syncCoopLevel(s: GameState): void {
-  const band = coopLevelBand(s.scene, s.room);
+  const band = coopLevelBand(s.scene, s.room, s.mapId);
   const level = s.coop?.role === "guest" ? clamp(s.character.level, band[0], band[1]) : s.character.level;
   if (s.coop) s.coop.syncedLevel = s.coop.role === "guest" ? level : undefined;
   for (const h of Object.values(s.heroes)) {
@@ -172,7 +173,7 @@ function random(s: GameState) {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
 export function newGame(seed = 8591): GameState {
-  const s: GameState = { spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
+  const s: GameState = { localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
     x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
     active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0, mapId: "training",
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
@@ -326,7 +327,7 @@ export function gainXp(s: GameState, amount: number) {
     s.character.xp -= xpForLevel(s.character.level); s.character.level++;
   }
   s.character.xp = Math.min(s.character.xp, xpForLevel(s.character.level) - 1);
-  const band = coopLevelBand(s.scene, s.room);
+  const band = coopLevelBand(s.scene, s.room, s.mapId);
   const level = s.coop?.role === "guest" ? clamp(s.character.level, band[0], band[1]) : s.character.level;
   if (s.coop?.role === "guest") s.coop.syncedLevel = level;
   for (const h of Object.values(s.heroes)) {
@@ -789,6 +790,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("pickup-")) { collectPickup(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
+  if (target.id === "space-air-option") {spaceInteract(s,target.id);return;}
   if (s.coop?.role === "guest" && target.kind !== "talk") return;
   if (spaceInteract(s,target.id)) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
@@ -815,7 +817,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (s.scene === "overworld") {
     if (!canEnter(s, target.id)) { s.notice = "Complete the previous chapter to open this route."; return; }
     const area = getArea(target.id);
-    if (!area?.available) { openDialogue(s, "Next chapter", [WOODS_HANDOFF]); return; }
+    if (!area?.available) { openDialogue(s, "Next chapter", [target.id === "city" ? "The Prism Lens exposes Old City’s Eggworks. Chapter 4 continues here next. The Moon stays open for free return visits." : WOODS_HANDOFF]); return; }
     enterCampaignMap(s, area.mapIds[0]);
     s.previousInput.attack = s.previousInput.interact = true; return;
   }
@@ -951,7 +953,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   }
   if (input.swap && !previous.swap) requestSwap(s);
   const h = activeHero(s);
-  if(onMoon(s) && input.guard) {s.boundTimer=0;s.boundTravel=null;s.dashTimer=0;}
+  if(onMoon(s) && input.guard) brakeBound(s);
   s.guard = combat && input.guard && s.dashTimer === 0 && !input.ki;
   const length = Math.hypot(input.x, input.y);
   s.moving = length > 0.1;

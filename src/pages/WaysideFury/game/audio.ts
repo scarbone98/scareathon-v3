@@ -1,9 +1,11 @@
+import { spaceAudio } from "./spaceAudio.ts";
 import { PROLOGUE } from "./content.ts";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world.ts";
 import { activeHero, type GameState, type GameEvent } from "./sim.ts";
 import type { MusicDirector, Mood } from "./music.ts";
 
 export function moodForState(s: GameState, current: Mood = "dungeon"): Mood {
+  const space=spaceAudio(s);if(space) return space.mood;
   if (s.scene === "prologue") {
     const phase = PROLOGUE[s.cutscene]?.phase;
     if (phase === "dark" || phase === "portal") return "off";
@@ -22,7 +24,7 @@ export function realmForState(s: GameState): number {
   if (s.scene === "shift") return Math.max(0, Math.min(1, s.transitionPalette === "eightbit" ? (s.sceneTimer - 1.15) / .8 : 1 - (s.sceneTimer - 1.15) / .8));
   return s.palette === "eightbit" ? 1 : 0;
 }
-interface Previous { phase: string | undefined; taxi: boolean; attack: number; dash: number; nextId: number }
+interface Previous { spaceShot: string | null; phase: string | undefined; taxi: boolean; attack: number; dash: number; nextId: number }
 // Scene routing is separate from synthesis, so story/realm transitions can be
 // checked without an AudioContext. Only simulation edges trigger combat SFX.
 export class FuryAudio {
@@ -34,6 +36,8 @@ export class FuryAudio {
   start(s: GameState) { this.previous = null; this.sound.setPaused(false); this.sync(s); }
   sync(s: GameState) {
     this.mood = moodForState(s, this.mood); this.sound.setMood(this.mood); this.sound.setRealm(realmForState(s));
+    const space=spaceAudio(s);
+    if(space?.cue && space.key!==this.previous?.spaceShot) this.sound.playSfx(space.cue,.7);
     const phase = s.scene === "prologue" ? PROLOGUE[s.cutscene]?.phase : undefined;
     const taxi = s.scene === "overworld" || phase === "taxi";
     if ((phase === "dark" || phase === "portal") && this.previous?.phase !== "dark" && this.previous?.phase !== "portal") this.sound.jingle("darkSky");
@@ -46,7 +50,7 @@ export class FuryAudio {
     }
     const hero = activeHero(s);
     this.sound.setCharge(s.charge > 0 && s.scene !== "dead" ? hero.ki / hero.maxKi : null);
-    this.previous = { phase, taxi, attack: s.attackTimer, dash: s.dashTimer, nextId: s.nextId };
+    this.previous = { spaceShot: space?.key ?? null, phase, taxi, attack: s.attackTimer, dash: s.dashTimer, nextId: s.nextId };
   }
   event(s: GameState, event: GameEvent) {
     if (event.type === "ambient-taxi-crash") this.sound.playSfx("crunch");
@@ -57,7 +61,7 @@ export class FuryAudio {
     if (event.type === "death") { this.sound.setCharge(null); this.sound.jingle("gameOver"); }
     if (event.type === "checkpoint") {
       if (event.id.startsWith("loot-")) this.sound.jingle("item");
-      if ([`blast-${WATCHER_ROOM}`, `blast-${GATEKEEPER_ROOM}`, "realm-0"].includes(event.id)) this.sound.jingle("victory");
+      if ([`blast-${WATCHER_ROOM}`, `blast-${GATEKEEPER_ROOM}`, "realm-0", "moon-m06", "moon-m08"].includes(event.id)) this.sound.jingle("victory");
     }
   }
 }

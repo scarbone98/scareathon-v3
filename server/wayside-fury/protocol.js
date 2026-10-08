@@ -185,7 +185,7 @@ export function cleanRelay(message) {
                 if (!integer(raw[key], max)) return null;
                 reward[key] = raw[key];
             }
-            for (const key of ['rooms', 'areas', 'bosses', 'campaignMilestones']) {
+            for (const key of ['rooms', 'areas', 'bosses', 'campaignMilestones', 'solvedInteractions', 'completedCinematics']) {
                 if (raw[key] === undefined) continue;
                 if (!Array.isArray(raw[key]) || raw[key].length > 128 || !raw[key].every((entry) => typeof entry === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(entry))) return null;
                 reward[key] = [...new Set(raw[key])];

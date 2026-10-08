@@ -25,9 +25,9 @@ export const SPACE_FILMS: Record<SpaceFilmId, readonly SpaceShot[]> = {
     {id:'R5',duration:3,composition:'helmet',caption:'Helmets unseal. Joe sneezes a silver sparkle. Alex raises the Prism Lens: Old City’s false skyline peels away.'}],
   'space-revisit': [{id:'V1',duration:5,composition:'moon',caption:'Back to Dead Air. Fresh oxygen, familiar footprints. No fare required.'}],
 };
-export function sampleSpaceFilm(id: SpaceFilmId, elapsed: number) {
+export function sampleSpaceFilm(id: SpaceFilmId, elapsed: number, hasLens=true) {
   const shots=SPACE_FILMS[id]; let start=0;
-  for (const shot of shots) { if (elapsed<start+shot.duration) return {shot,progress:Math.max(0,(elapsed-start)/shot.duration)}; start+=shot.duration; }
+  for (const shot of shots) { if (elapsed<start+shot.duration) return {shot: id==='space-return'&&shot.id==='R5'&&!hasLens ? {...shot,caption:'Five helmets unseal. Joe sneezes a tiny silver sparkle. Mission control refills the crew: the lunar relay is waiting when you are ready.'} : shot,progress:Math.max(0,(elapsed-start)/shot.duration)}; start+=shot.duration; }
   return {shot:shots[shots.length-1],progress:1};
 }
 export const filmDuration = (id:SpaceFilmId) => SPACE_FILMS[id].reduce((n,s)=>n+s.duration,0);

@@ -5,9 +5,9 @@ export const hasSpaceFlag = (s:GameState,id:string) => s.solvedInteractions.incl
 export function lunarLift(s:Pick<GameState,'boundTimer'>) { return Math.sin(Math.PI*(1-Math.min(.4,s.boundTimer)/.4))*12; }
 export function tickLunar(s:GameState,dt:number) {
   s.boundTimer=Math.max(0,s.boundTimer-dt);
-  if (!onMoon(s)||s.film||s.dialogue||s.overlay||s.coop?.downed||s.heroes[s.active].hp<=0) return;
+  if (!onMoon(s)||s.localPaused||s.film||s.dialogue||s.overlay||s.coop?.downed||s.heroes[s.active].hp<=0) return;
   const world=getWorld(s.scene,s.room,s.mapId);
-  const safe=[0,2,5,6,7,8].includes(s.room)||hasSpaceFlag(s,'moon-unlimited-air');
+  const safe=[0,2,5,6,7,8].includes(s.room)||s.solvedInteractions.includes('moon-unlimited-air');
   const near=world.props.some(p=>p.kind==='air'&&Math.hypot(s.x-(p.x+p.w/2),s.y-(p.y+p.h+10))<40);
   if (safe||near) { s.oxygen=Math.min(100,s.oxygen+dt*50); if (s.oxygen>25) s.oxygenWarned=false; }
   else s.oxygen=Math.max(0,s.oxygen-dt);
@@ -42,4 +42,9 @@ export function lunarWorld(s:GameState) {
   const world=getWorld(s.scene,s.room,s.mapId);
   if(world.id!=='moon-m05') return world;
   return {...world,props:world.props.filter(p=>p.kind!=='seal'||!hasSpaceFlag(s,p.id))};
+}
+
+export function brakeBound(s:GameState) {
+  if(s.boundTravel) { s.x=s.boundTravel.from.x; s.y=s.boundTravel.from.y; }
+  s.boundTravel=null;s.boundTimer=0;s.dashTimer=0;
 }

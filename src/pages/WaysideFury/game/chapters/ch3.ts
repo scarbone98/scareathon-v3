@@ -9,7 +9,7 @@ export const hasMilestone = (s:GameState,id:string) => s.campaignMilestones.incl
 export const record = (list:string[],id:string) => { if(!list.includes(id)) list.push(id); };
 export function refillCrew(s:GameState) {for(const h of Object.values(s.heroes)) { h.hp=h.maxHp;h.ki=h.maxKi;h.stamina=h.maxStamina; } s.oxygen=100;}
 export function spaceCheckpoint(s:GameState,mapId=s.mapId) {
-  s.checkpointMapId=mapId; s.events.push({type:'checkpoint',id:`${mapId}-rest`});
+  if(['space-launch','moon-m01','moon-m03','moon-m06','moon-m09'].includes(mapId)) s.checkpointMapId=mapId; s.events.push({type:'checkpoint',id:`${mapId}-rest`});
 }
 export function spaceTargets(s:GameState):InteractTarget[] {
   const point=(id:string,name:string,x:number,y:number):InteractTarget=>({id,name,x,y,kind:'use'});
@@ -19,7 +19,7 @@ export function spaceTargets(s:GameState):InteractTarget[] {
     point('space-replay','Replay outbound film',120,294)];
   if(!onMoon(s)) return [];
   const targets:InteractTarget[]=[];
-  if(s.room===0) targets.push(point('space-home',hasMilestone(s,'prism-lens')?'Return with Prism Lens':'Return for supplies',148,200),point('space-air-option',hasSpaceFlag(s,'moon-unlimited-air')?'Use normal air tank':'Unlimited air · same rewards',88,280));
+  if(s.room===0) targets.push(point('space-home',hasMilestone(s,'prism-lens')?'Return with Prism Lens':'Return for supplies',148,200),point('space-air-option',s.solvedInteractions.includes('moon-unlimited-air')?'Use normal air tank':'Unlimited air · same rewards',88,280));
   if(s.room===2) targets.push(point('moon-radio','Matt · Restore survey relay',232,170));
   if(s.room===4) targets.push(point('moon-basalt','Joe · Break basalt plug',304,170),point('moon-bridge','Matt · Power service bridge',288,238));
   if(s.room===8) targets.push(point('moon-lens','Remove Prism Lens',260,150));
@@ -53,7 +53,7 @@ export function spaceInteract(s:GameState,id:string):boolean {
   if(id==='space-air-option') {
     if(s.solvedInteractions.includes('moon-unlimited-air')) s.solvedInteractions=s.solvedInteractions.filter(i=>i!=='moon-unlimited-air');
     else record(s.solvedInteractions,'moon-unlimited-air');
-    s.notice=hasSpaceFlag(s,'moon-unlimited-air')?'Unlimited air enabled. Rewards unchanged.':'Normal tank enabled. Reserve air has no penalty.';spaceCheckpoint(s);return true;
+    s.notice=s.solvedInteractions.includes('moon-unlimited-air')?'Unlimited air enabled. Rewards unchanged.':'Normal tank enabled. Reserve air has no penalty.';s.events.push({type:'checkpoint',id:'personal-air-option'});return true;
   }
   if(id==='moon-rest') {refillCrew(s);spaceCheckpoint(s);s.notice='All five crew members refilled. Lunar checkpoint saved.';return true;}
   if(id==='moon-radio') {record(s.solvedInteractions,id);record(s.solvedInteractions,'moon-shack-lift');spaceCheckpoint(s);refillCrew(s);s.notice='Matt restores the survey relay. Crater Hop and the landing shortcut are open.';return true;}
@@ -87,13 +87,16 @@ export function enterSpaceRoom(s:GameState) {
   s.film=null;s.boundTimer=0;s.boundTravel=null;s.oxygen=100;s.oxygenWarned=false;
   s.spaceOutfit=onMoon(s);
   if(onMoon(s)) {
-    s.chapter=Math.max(3,s.chapter);record(s.campaignMilestones,'comet-bound');record(s.campaignMilestones,`${s.mapId}-visited`);
+    s.chapter=Math.max(3,s.chapter);record(s.campaignMilestones,'moon-departed');record(s.campaignMilestones,'comet-bound');record(s.campaignMilestones,`${s.mapId}-visited`);
     if(s.room===0) s.notice='Alex: Dash makes a short Comet Bound. Guard brakes. Extra lift gives no extra invulnerability. Free return at the lander.';
     else s.notice=`${getWorld(s.scene,s.room,s.mapId).name} · Air posts are free. Clear relay encounters and follow the service lane.`;
     if([0,2,5,8].includes(s.room)) {refillCrew(s);spaceCheckpoint(s);}
     if(s.room===5) record(s.solvedInteractions,'moon-ring-lift');
     // Pylons persist for this boss attempt only, never across a retry.
-    if(s.room===7) s.solvedInteractions=s.solvedInteractions.filter(id=>!id.startsWith('moon-m08-pylon-'));
+    if(s.room===7) {
+      s.solvedInteractions=s.solvedInteractions.filter(id=>!id.startsWith('moon-m08-pylon-'));
+      if(s.coop?.role==='host') s.coop.worldSolvedInteractions=s.coop.worldSolvedInteractions?.filter(id=>!id.startsWith('moon-m08-pylon-'));
+    }
   }
   if(s.mapId==='space-launch') s.notice=hasMilestone(s,'moon-home')?'Successful landings: 1-ish. Free return visits remain available.':'Wayside Aerospace: mission control, fuel panel, suit lockers, then board.';
 }

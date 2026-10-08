@@ -27,7 +27,8 @@ export function lunarDamage(s:GameState,e:Enemy,damage:number,force:number) {
 }
 export function updateLunarEnemy(s:GameState,e:Enemy,dt:number,target:LunarTarget,api:LunarCombat) {
   const dx=target.x-e.x,dy=target.y-e.y,len=Math.max(1,Math.hypot(dx,dy));
-  const damage=Math.max(9,Math.min(40,9+s.character.level*1.2));
+  const level=Math.max(s.character.level,...(s.coop?.remoteHeroes.map(p=>p.hero.level)??[]));
+  const damage=9+level*1.5;
   const hitNear=(radius:number,amount=damage)=> {for(const t of api.targets()) if(Math.hypot(t.x-e.x,t.y-e.y)<radius) api.hurt(t,amount,e.x,e.y);};
   const aim=()=>{e.aimX=dx/len;e.aimY=dy/len;};
   if(e.kind==='boss'&&e.phase===1&&e.hp<=e.maxHp*.5) {

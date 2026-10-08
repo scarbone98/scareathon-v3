@@ -451,7 +451,7 @@ export default function WaysideFury() {
   }, [showTutorial, accountEpoch]);
   const inlineSave = playing && !cinematic && !paused && !state.overlay && !coopOpen && state.scene !== "dead";
   return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
-    {!inlineSave && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
+    {!inlineSave && !state.film && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
@@ -506,7 +506,7 @@ export default function WaysideFury() {
       </div></div>}
       {state.mapId.startsWith("moon-") && !state.film && !paused && <p className="wf-oxygen" role="status">{state.oxygen <= 0 ? "Reserve air — refill when convenient" : `Air ${Math.ceil(state.oxygen)}% · Free air posts`}</p>}
       {state.film && !paused && <section className="wf-space-film" aria-label="Space film captions">
-        <p>{sampleSpaceFilm(state.film.id,state.film.elapsed).shot.caption}</p>
+        <p>{sampleSpaceFilm(state.film.id,state.film.elapsed,state.campaignMilestones.includes("prism-lens")||state.coop?.worldCampaignMilestones?.includes("prism-lens")===true).shot.caption}</p>
         <div><button onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);send({guard:true});}} onPointerUp={()=>send({guard:false})} onPointerCancel={()=>send({guard:false})} onLostPointerCapture={()=>send({guard:false})} onKeyDown={e=>{if(e.key===" "||e.key==="Enter")send({guard:true});}} onKeyUp={()=>send({guard:false})}>Hold Skip · {Math.round(state.filmSkipHeld*100)}%{state.coop ? " · party vote" : ""}</button>
         <button onClick={()=>controller.current?.mutate(s=>{s.filmCaptionHold=!s.filmCaptionHold;s.filmHold=s.filmCaptionHold;})}>Hold captions: {state.filmHold ? "on" : "off"}</button></div>
       </section>}

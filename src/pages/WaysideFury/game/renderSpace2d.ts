@@ -54,6 +54,7 @@ export function drawSpaceProp(c:CanvasRenderingContext2D,p:WorldProp,s:GameState
     c.fillStyle='#465a6b';c.fillRect(p.x,p.y+10,p.w,p.h-10);
     const powered=hasSpaceFlag(s,p.id)||p.kind==='air';ellipse(c,x,p.y+10,p.w*.42,7,p.kind==='air'?'#95dde7':powered?amber:magenta);
     c.fillStyle=ink;c.font='bold 7px sans-serif';c.textAlign='center';c.fillText(p.kind==='air'?'AIR':powered?'OFF':'⚡',x,p.y+13);
+    if(p.kind==='socket'&&s.mapId==='space-launch'&&s.fuelGag>=0&&s.fuelGag<4) {const a=-s.fuelGag*8;line(c,x,p.y+10,x+Math.cos(a)*7,p.y+10+Math.sin(a)*5,ink,1.5);}
     if(p.kind==='air') {line(c,x+7,y,x+17,y+9,'#b7dce6',2);ellipse(c,x+18,y+10,3,3,amber);}
   }
   if(p.kind==='seal'&&!hasSpaceFlag(s,p.id)) {c.fillStyle='#52647b';c.fillRect(p.x,p.y,p.w,p.h);line(c,x-8,p.y+4,x+2,p.y+15,amber,2);line(c,x+2,p.y+15,x-4,y-5,amber,2);}
@@ -71,6 +72,7 @@ export function drawMoonGround(c:CanvasRenderingContext2D,world:WorldMap,s:GameS
   // Quiet regolith: bounded smooth grain and long side shadows, no checkerboard.
   for(let n=0;n<260;n++) {const x=24+(n*137)% (world.width-48),y=24+(n*79)%(world.height-48);ellipse(c,x,y,1+(n%4)*.5,.7,n%3?'#dae4f226':'#11182924');}
   c.strokeStyle='#c1cbd355';c.lineWidth=1;for(let n=0;n<10;n++) {c.beginPath();c.ellipse(100+n*61,70+(n%2)*(world.height-140),34,12,-.3,0,Math.PI*2);c.stroke();}
+  if(world.id==='moon-m05') for(const [x,y] of [[450,128],[590,260],[420,280]]) {c.strokeStyle='#ce6bbb70';c.beginPath();c.ellipse(x,y,18,12,0,0,Math.PI*2);c.stroke();}
   if(world.id==='moon-m01') earth(c,world.width-88,52,24);
   for(const link of world.boundLinks??[]) {
     line(c,link.from.x,link.from.y,link.to.x,link.to.y,'#f5c77670',2);
@@ -127,4 +129,45 @@ export function drawSpaceFilm(c:CanvasRenderingContext2D,s:GameState,w:number,h:
     }
   }
   c.fillStyle=amber;c.font='bold 7px sans-serif';c.textAlign='left';c.fillText(`${shot.id} · ${s.film.id.replace('space-','').toUpperCase()}`,8,12);c.restore();
+}
+export function drawLunarBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
+  if(!e.behavior)return false;
+  c.save();const x=e.x,y=e.y;
+  ellipse(c,x,y,e.radius*1.25,4,'#11182950');
+  if(e.behavior==='rat') {
+    c.strokeStyle='#bbc9d3';c.lineWidth=2;c.beginPath();c.moveTo(x-7,y-4);c.quadraticCurveTo(x-18,y-13,x-21,y-5);c.stroke();
+    ellipse(c,x,y-6,10,6,'#c4ccd1');ellipse(c,x+7,y-8,5,5,'#a3afb9');ellipse(c,x+5,y-13,3,4,'#e5ddd1');ellipse(c,x+10,y-9,1,1,ink);
+    for(const yy of [-9,-7])line(c,x+12,y+yy,x+17,y+yy+1,silver,.5);
+  } else if(e.behavior==='walker') {
+    const hop=e.actionTimer>0?Math.sin(Math.PI*e.actionTimer/.6)*9:0;
+    c.translate(x,y-hop);c.fillStyle='#d4dee5';c.fillRect(-7,-18,14,14);c.fillRect(-8,-5,5,5);c.fillRect(3,-5,5,5);
+    ellipse(c,0,-22,10,11,'#a6d1de80');ellipse(c,0,-22,6,7,'#789887');ellipse(c,-2,-23,1,1,ink);ellipse(c,3,-23,1,1,ink);line(c,-8,-14,8,-14,amber,2);
+  } else if(e.behavior==='echo') {
+    c.globalAlpha=e.windup>0?.4:.8;c.fillStyle='#d7d6f2';c.beginPath();c.moveTo(x-9,y);c.lineTo(x-9,y-12);c.bezierCurveTo(x-9,y-29,x+9,y-29,x+9,y-12);c.lineTo(x+9,y);c.lineTo(x+3,y-4);c.lineTo(x,y);c.lineTo(x-4,y-4);c.closePath();c.fill();ellipse(c,x-3,y-16,1.5,2,ink);ellipse(c,x+4,y-16,1.5,2,ink);
+  } else if(e.behavior==='satellite') {
+    line(c,x,y-22,x,y-35,silver,1);ellipse(c,x,y-35,2,2,magenta);ellipse(c,x,y-18,7,10,amber);ellipse(c,x,y-18,3,5,'#fff4c5');
+    for(const side of [-1,1]) {c.fillStyle='#526981';c.fillRect(x+side*12-5,y-22,10,7);line(c,x+side*5,y-18,x+side*12,y-18,silver);}
+    const ally=s.enemies.find(a=>a.behavior==='echo'&&a.hp>0&&Math.hypot(a.x-x,a.y-y)<180);if(ally)line(c,x,y-18,ally.x,ally.y-14,'#ce6bbb70',1);
+  } else if(e.behavior==='inspector') {
+    ellipse(c,x,y-16,17,16,'#d68d58');for(const side of [-1,0,1]) {c.strokeStyle='#996342';c.beginPath();c.ellipse(x+side*6,y-16,5,15,0,0,Math.PI*2);c.stroke();}
+    ellipse(c,x,y-21,23,24,'#dae4f24d');line(c,x-15,y-4,x+15,y-4,silver,2);ellipse(c,x-5,y-19,2,3,ink);ellipse(c,x+5,y-19,2,3,ink);c.fillStyle=amber;c.fillRect(x+19,y-8,8,4);
+  } else {
+    const r=e.behavior==='warden'?48:17;
+    ellipse(c,x,y-19,r,r*.28,'#98aabd');ellipse(c,x,y-23,r*.55,r*.38,'#dae4f2');ellipse(c,x,y-15,r*.45,r*.2,'#604a76');
+    for(let n=0;n<5;n++)ellipse(c,x+(n-2)*r*.32,y-19,r*.055,2,e.phase===2?magenta:amber);
+    ellipse(c,x-4,y-15,2,3,silver);ellipse(c,x+4,y-15,2,3,silver);
+    if(e.behavior==='warden'&&e.phase===2&&!e.shieldBroken) {c.strokeStyle=magenta;c.lineWidth=2;c.beginPath();c.ellipse(x,y-19,r+10,r*.6,0,0,Math.PI*2);c.stroke();}
+  }
+  c.restore();
+  const width=e.kind==='boss'?56:22,top=y-(e.kind==='boss'?58:38);
+  c.fillStyle=ink;c.fillRect(x-width/2-1,top-1,width+2,5);c.fillStyle='#673e54';c.fillRect(x-width/2,top,width,3);c.fillStyle=magenta;c.fillRect(x-width/2,top,width*Math.max(0,e.hp)/e.maxHp,3);
+  return true;
+}
+export function drawLaunchEstablishing(c:CanvasRenderingContext2D,s:GameState,w:number,h:number,world:WorldMap,hero:()=>void) {
+  c.save();c.fillStyle=ink;c.fillRect(0,0,w,h);
+  const scale=Math.min(w/560,h/430);c.translate((w-world.width*scale)/2,(h-world.height*scale)/2);c.scale(scale,scale);
+  c.fillStyle='#52616d';c.fillRect(0,0,512,384);
+  for(let n=0;n<24;n++)line(c,n*24,0,n*24,336,'#899aa820',1);
+  for(const p of world.props) drawSpaceProp(c,p,s);
+  hero();c.fillStyle=amber;c.font='bold 12px sans-serif';c.textAlign='center';c.fillText('WAYSIDE AEROSPACE',256,370);c.restore();
 }

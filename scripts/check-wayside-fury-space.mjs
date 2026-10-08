@@ -4,10 +4,11 @@ import { LAUNCH_WORLD, MOON_WORLDS, moonId } from '../src/pages/WaysideFury/game
 import { SPACE_FILMS, filmDuration, sampleSpaceFilm } from '../src/pages/WaysideFury/game/chapters/ch3Films.ts';
 import { startSpaceFilm } from '../src/pages/WaysideFury/game/cinematics.ts';
 import { spaceTargets } from '../src/pages/WaysideFury/game/chapters/ch3.ts';
-import { tickLunar, lunarWorld, tryBoundLink, advanceBoundLink } from '../src/pages/WaysideFury/game/lunar.ts';
+import { brakeBound, tickLunar, lunarWorld, tryBoundLink, advanceBoundLink } from '../src/pages/WaysideFury/game/lunar.ts';
 import { lunarDamage, updateLunarEnemy } from '../src/pages/WaysideFury/game/enemies/lunar.ts';
 import { getMap, canEnter } from '../src/pages/WaysideFury/game/campaign.ts';
 import { isBlocked, OVERWORLD } from '../src/pages/WaysideFury/game/world.ts';
+import { applyCoopReward } from '../src/pages/WaysideFury/game/coopRewards.ts';
 import { makeSave, restoreSave, progressReport } from '../src/pages/WaysideFury/game/save.ts';
 import { compatibleMap, CHAPTER_REWARDS, COOP_PROTOCOL_VERSION } from '../server/shared/waysideFury/campaign.js';
 import { cleanWorld, cleanHero } from '../server/wayside-fury/protocol.js';
@@ -59,7 +60,7 @@ for(const [id,shots] of Object.entries(SPACE_FILMS)) {
 const air=ready();air.campaignMilestones.push('moon-departed');enterScene(air,'dungeon',1,moonId(1));air.x=400;air.y=220;const hp=activeHero(air).hp;
  for(let n=0;n<11000;n++)tickLunar(air,dt);assert.equal(air.oxygen,0);assert.equal(activeHero(air).hp,hp);assert.match(air.notice,/Reserve air/);
  air.x=MOON_WORLDS[1].props.find(p=>p.kind==='air').x+12;air.y=MOON_WORLDS[1].props.find(p=>p.kind==='air').y+42;for(let n=0;n<120;n++)tickLunar(air,dt);assert.ok(air.oxygen>99);
- air.oxygen=20;air.dialogue={speaker:'Radio',lines:['hello'],index:0};tickLunar(air,1);assert.equal(air.oxygen,20);air.dialogue=null;
+ air.oxygen=20;air.dialogue={speaker:'Radio',lines:['hello'],index:0};tickLunar(air,1);assert.equal(air.oxygen,20);air.dialogue=null;air.localPaused=true;tickLunar(air,1);assert.equal(air.oxygen,20);air.localPaused=false;
  const link=MOON_WORLDS[1].boundLinks[0];air.x=link.from.x;air.y=link.from.y;air.faceX=1;air.faceY=0;assert.ok(tryBoundLink(air));for(let n=0;n<24;n++)advanceBoundLink(air,dt);assert.ok(Math.abs(air.x-link.to.x)<.01);
  air.boundTimer=.3;air.dashTimer=.1;ticks(air,1,{guard:true});assert.equal(air.boundTimer,0);assert.equal(air.dashTimer,0);
  const dash=ready();dash.campaignMilestones.push('moon-departed');enterScene(dash,'dungeon',0,moonId(0));dash.x=300;dash.y=250;ticks(dash,1,{dash:true});const inv=activeHero(dash).invulnerable;assert.equal(inv,.23);assert.ok(dash.boundTimer>.23);ticks(dash,15);assert.equal(activeHero(dash).invulnerable,0);assert.ok(dash.boundTimer>0);
@@ -89,4 +90,11 @@ const holding=ready();startSpaceFilm(holding,'space-outbound');ticks(holding,60,
 // New fields are validated rather than silently stripped by the relay.
 assert.equal(cleanWorld({film:{id:'bad',elapsed:1}}),null);
 assert.equal(cleanHero({hero:createHero('you'),scene:'dungeon',room:0,mapId:'moon-m01',x:64,y:192,faceX:1,faceY:0,attackTimer:0,combo:0,charge:0,dashTimer:0,moving:false,guard:false,filmSkip:true,spaceOutfit:true,boundTimer:.2}).filmSkip,true);
+// Checkpoint interactions on combat routes preserve the last safe authored rest.
+const checkpoint=ready();checkpoint.campaignMilestones.push('moon-departed');enterScene(checkpoint,'dungeon',2,moonId(2));enterScene(checkpoint,'dungeon',4,moonId(4));use(checkpoint,'moon-basalt');assert.equal(makeSave(checkpoint,null).checkpointMapId,'moon-m03');assert.equal(restoreSave(makeSave(checkpoint,null)).mapId,'moon-m03');
+const retry=ready();retry.campaignMilestones.push('moon-departed');retry.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],worldSolvedInteractions:['moon-m08-pylon-0']};enterScene(retry,'dungeon',7,moonId(7));assert.deepEqual(retry.coop.worldSolvedInteractions,[]);
+const brake=ready();brake.campaignMilestones.push('moon-departed');enterScene(brake,'dungeon',1,moonId(1));brake.x=link.from.x;brake.y=link.from.y;brake.faceX=1;brake.faceY=0;assert.ok(tryBoundLink(brake));advanceBoundLink(brake,.2);brakeBound(brake);assert.ok(!isBlocked(MOON_WORLDS[1],brake.x,brake.y));assert.equal(brake.x,link.from.x);
+const guest=ready();applyCoopReward(guest,{id:'space-test-checkpoint',kind:'checkpoint',campaignMilestones:['moon-departed'],solvedInteractions:['moon-radio'],completedCinematics:['space-outbound']});const guestSave=makeSave(guest,null);assert.ok(guestSave.solvedInteractions.includes('moon-radio'));assert.ok(guestSave.completedCinematics.includes('space-outbound'));
+const oldHome=makeSave(ready(),null,true);const lunarRetry=ready();lunarRetry.character={level:7,xp:0};for(const id of HERO_IDS)lunarRetry.heroes[id]=createHero(id,lunarRetry.character);lunarRetry.campaignMilestones.push('moon-departed');enterScene(lunarRetry,'dungeon',5,moonId(5));const retryData=makeSave(lunarRetry,oldHome);assert.equal(restoreSave(retryData,true).character.level,7);assert.equal(restoreSave(retryData,true).mapId,'moon-m06');
+assert.match(sampleSpaceFilm('space-return',18,false).shot.caption,/lunar relay is waiting/);
 console.log('Chapter 3: nine-room graph, five heroes, ability gates, watch/skip/reload, reserve air, safe bounds, distinct lunar AI, boss poise/pylons, party scaling, protocol fencing and zero ticket inflation pass.');

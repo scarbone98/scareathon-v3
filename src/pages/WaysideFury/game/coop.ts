@@ -20,7 +20,7 @@ export interface CoopCallbacks {
 export interface CoopReward {
   id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string;
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
-  campaignMilestones?: string[];
+  campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
 type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit">> & { spawnedExtras?: number; protocolVersion?: number };
@@ -33,7 +33,7 @@ const worldState = (s: GameState): WorldState => ({ protocolVersion: s.coop?.pro
   // the next step awards the clear, including if authority migrates that frame.
   enemies: s.enemies.map(e => ({ ...e, hp: Math.max(0, e.hp) })), projectiles: s.projectiles.filter(p => p.owner === "enemy"), clearedRooms: [...new Set([...s.clearedRooms, ...(s.coop?.worldClearedRooms ?? [])])],
   campaignMilestones: campaignIds(s.coop?.worldCampaignMilestones, s.campaignMilestones),
-  solvedInteractions: campaignIds(s.coop?.worldSolvedInteractions, s.solvedInteractions),
+  solvedInteractions: campaignIds(s.coop?.worldSolvedInteractions, s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"),
   completedCinematics: campaignIds(s.coop?.worldCompletedCinematics, s.completedCinematics),
   areas: s.areas, bosses: [...new Set([...s.bosses, ...(s.coop?.worldBosses ?? [])])], chapter: Math.max(s.coop?.worldChapter ?? 1,s.chapter), rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
   ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
@@ -171,11 +171,13 @@ export class FuryCoop {
       const spaceBosses = event.id === "moon-m06" ? ["moon-cheese-inspector"] : event.id === "moon-m08" || event.id === "moon-m09-rest" ? ["moon-apogee-warden"] : [];
       const bosses = spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
       const rooms = event.id === "home" ? [] : [event.id];
-      const campaignMilestones = event.id.startsWith("moon-") || event.id.startsWith("space-") ? s.campaignMilestones : [];
+      const campaignMilestones = event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones) : [];
+      const solvedInteractions = campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air") : [];
+      const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics) : [];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
         const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
-        const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, campaignMilestones, chapter: s.chapter,
+        const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, campaignMilestones, solvedInteractions, completedCinematics, chapter: s.chapter,
           ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : /^(blast-\d+|realm-\d+)$/.test(event.id) ? { healHp: 12, healKi: 8 } : {}) };
         if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);
       }

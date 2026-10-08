@@ -1,4 +1,4 @@
-import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawSpaceSuit, drawSpaceFilm } from "./renderSpace2d";
+import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceSuit, drawSpaceFilm } from "./renderSpace2d";
 import { lunarLift, hasSpaceFlag } from "./lunar";
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
@@ -132,7 +132,7 @@ export class Renderer {
   project(x: number, y: number) { return { x: (x - this.camera.x) / this.viewport.width, y: (y - this.camera.y) / this.viewport.height }; }
   presentation(s: GameState): RenderPresentation {
     const labels: RenderLabel[] = [];
-    if(s.film) return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
+    if(s.film || s.mapId === "space-launch" && s.sceneTimer<3 && !s.moving) return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
       const point = this.project(x, y);
       if (point.x < .02 || point.x > .98 || point.y < .05 || point.y > .95) return;
@@ -206,6 +206,9 @@ export class Renderer {
       this.drawCinematic(storyState);
       if (s.palette === 'eightbit' || (s.scene === 'shift' && s.transitionPalette === 'eightbit' && s.sceneTimer > 1.15)) this.applyRealmPalette();
       return;
+    }
+    if(s.mapId === 'space-launch' && s.sceneTimer < 3 && !s.moving) {
+      drawLaunchEstablishing(c,s,width,height,getWorld(s.scene,s.room,s.mapId),()=>this.hero(s));return;
     }
     const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
@@ -607,6 +610,7 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
+    if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
     const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
     const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
