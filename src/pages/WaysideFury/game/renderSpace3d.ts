@@ -114,9 +114,11 @@ export class SpaceRenderer {
     this.telegraph.scale.set(world.width,world.height,1);this.telegraph.position.set(world.width/2,.5,world.height/2);
   }
   private actor(id:string,x:number,y:number,lift:number,key:string,draw:(c:CanvasRenderingContext2D)=>void,w=32,h=48) {
-    let a=this.actors.get(id);if(!a){const canvas=document.createElement('canvas');canvas.width=128;canvas.height=192;const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+    let a=this.actors.get(id);if(!a){const canvas=document.createElement('canvas');canvas.width=Math.max(128,Math.ceil(w*this.viewport.zoom*this.viewport.dpr));canvas.height=Math.max(192,Math.ceil(h*this.viewport.zoom*this.viewport.dpr));const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
       const mesh=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,toneMapped:false}));mesh.center.set(.5,2/48);this.scene.add(mesh);a={mesh,texture,canvas,key:''};this.actors.set(id,a);}
-    if(a.key!==key){const c=a.canvas.getContext('2d')!;c.clearRect(0,0,128,192);draw(c);a.texture.needsUpdate=true;a.key=key;}
+    const pw=Math.max(128,Math.ceil(w*this.viewport.zoom*this.viewport.dpr)),ph=Math.max(192,Math.ceil(h*this.viewport.zoom*this.viewport.dpr));
+    if(a.canvas.width!==pw||a.canvas.height!==ph){a.texture.dispose();a.canvas.width=pw;a.canvas.height=ph;a.texture=new THREE.CanvasTexture(a.canvas);a.texture.colorSpace=THREE.SRGBColorSpace;a.mesh.material.map=a.texture;a.mesh.material.needsUpdate=true;a.key='';}
+    if(a.key!==key){const c=a.canvas.getContext('2d')!;c.clearRect(0,0,a.canvas.width,a.canvas.height);c.save();c.scale(a.canvas.width/128,a.canvas.height/192);draw(c);c.restore();a.texture.needsUpdate=true;a.key=key;}
     a.mesh.visible=true;a.mesh.position.set(x,lift+1,y);a.mesh.scale.set(w,h,1);
   }
   private drawFilm(s:GameState) {
@@ -165,7 +167,8 @@ export class SpaceRenderer {
     if(s.film){this.drawFilm(s);return;}
     this.staticGroup.visible=true;this.telegraph.visible=true;this.filmSet.visible=false;this.filmKey='';
     const world=getWorld(s.scene,s.room,s.mapId),establish=s.mapId==='space-launch'&&s.sceneTimer<3&&!s.moving;
-    const vw=establish?Math.max(560,430*width/height):this.viewport.width,vh=establish?vw*height/width:this.viewport.height;
+    const boss=s.enemies.find(e=>e.kind==='boss'&&e.hp>0&&Math.hypot(e.x-s.x,e.y-s.y)<180);
+    const vw=establish?Math.max(560,430*width/height):boss?Math.max(200,this.viewport.width):this.viewport.width,vh=vw*height/width;
     const target=new THREE.Vector2(establish?world.width/2:s.x,establish?world.height/2:s.y);
     if(!this.ready||dt===0)this.focus.copy(target);else this.focus.lerp(target,1-Math.exp(-dt*8.5));this.ready=true;
     this.camera.left=-vw/2;this.camera.right=vw/2;this.camera.top=vh/2;this.camera.bottom=-vh/2;this.camera.updateProjectionMatrix();
