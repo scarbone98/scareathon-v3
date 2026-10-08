@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { AREAS, CHAPTERS, canEnter, campaignLocations, getMap, sameCampaignMap } from '../src/pages/WaysideFury/game/campaign.ts';
 import { newGame, enterScene, enterCampaignMap, interact, interactTarget, idleInput, step, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
-import { ALL_WORLDS, BLAST_WORLDS, HUB_WORLD, REALM_WORLD, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
+import { COOP_OVERWORLD, ALL_WORLDS, BLAST_WORLDS, HUB_WORLD, REALM_WORLD, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 import { makeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
 import { CAMPAIGN_MAPS, CHAPTER_REWARDS, COOP_PROTOCOL_VERSION, compatibleMap } from '../server/shared/waysideFury/campaign.js';
 import { sanitizeSave, ticketDelta, receiptTotalScore, MAX_MILESTONES, MAX_SAVE_BYTES } from '../server/shared/waysideFury/save.js';
@@ -31,6 +31,9 @@ const hashes = [
   'f3923cf123ff8b0e4a18b00fdc2a2592fbdba98ae477bc86a0c0f04ec9b3d189',
   'e73f9f2f9ee14f3df6bf444c442c9dbf9159babfce81cc092837b072cf13f15b',
 ];
+const {exits: legacyExits,...legacyCounty}=COOP_OVERWORLD;
+assert.equal(createHash('sha256').update(JSON.stringify(legacyCounty)).digest('hex'),'c59ebfaa1b214b9c710027f167cc0c239a57be57d6affd3f79624c67d0166818', 'party county retains exact original geometry');
+assert.ok(legacyExits);
 for (const [index, world] of ALL_WORLDS.slice(0,14).entries()) {
   const { exits, ...geometry } = world;
   if (index !== 0) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);

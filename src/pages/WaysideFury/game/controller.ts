@@ -41,6 +41,7 @@ export class GameController {
     if (button && !button.classList.contains("wf-touch-btn")) void this.sound.unlock().then(() => this.sound.playSfx("select"));
   };
   private previousMotion: MotionSnapshot | null = null;
+  private presentationSuspended = false;
   constructor(canvas: HTMLCanvasElement, private cb: Callbacks, graphicsMode = readGraphicsMode()) {
     this.renderer = new GraphicsRenderer(canvas, graphicsMode, cb.onGraphics);
     this.input = new GameInput(cb.onInputMode, cb.onPause, cb.onConfirm, cb.onNavigate, this.unlockAudio);
@@ -54,9 +55,10 @@ export class GameController {
     cb.onInputMode(this.input.mode);
     this.raf = requestAnimationFrame(this.frame);
   }
-  start(state = newGame()) { this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [] }; this.paused = false; this.state.localPaused=false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
+  start(state = newGame()) { this.presentationSuspended=false; this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [] }; this.paused = false; this.state.localPaused=false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
+  setPresentationSuspended(suspended: boolean) { this.presentationSuspended=suspended; if(!suspended)this.renderer.reset(); }
   setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.state.localPaused=paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) this.state.charge = 0; }
-  showTitle() { this.started = false; this.setPaused(true); this.audio.menu(); }
+  showTitle() { this.presentationSuspended=false; this.started = false; this.setPaused(true); this.audio.menu(); }
   get graphicsMode() { return this.renderer.graphicsMode; }
   setGraphicsMode(mode: GraphicsMode) { this.renderer.setGraphicsMode(mode); }
   setAudioSettings(settings: AudioSettings) { this.sound.setSettings(settings); }
@@ -112,6 +114,7 @@ export class GameController {
       for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
       this.acc -= 1 / 60;
     }
+    if(this.presentationSuspended) { if(now-this.hudAt>80){this.hudAt=now;this.publish();} return; }
     const rendered = this.paused ? this.state : interpolateMotion(this.previousMotion, this.state, this.acc * 60);
     this.renderer.draw(rendered, this.paused ? 0 : delta, frameDelta);
     if (now - this.presentationAt > 30) { this.presentationAt = now; this.cb.onPresentation?.(this.renderer.presentation(rendered)); }

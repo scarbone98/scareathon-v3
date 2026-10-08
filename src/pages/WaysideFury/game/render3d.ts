@@ -6,7 +6,7 @@ import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
 import * as THREE from 'three';
 import { LOCATIONS } from './content';
-import { parkedCarPose, OVERWORLD, type WorldProp } from './world';
+import { parkedCarPose, OVERWORLD, type WorldMap, type WorldProp } from './world';
 import { getRenderViewport } from './viewport';
 import { buildOverworldTerrain } from './terrain3d';
 import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
@@ -176,7 +176,7 @@ export class OverworldRenderer {
     this.canvas.dataset.worldHeight = `${this.viewport.height}`;
   };
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(private canvas: HTMLCanvasElement, private world: WorldMap = OVERWORLD) {
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false });
     try {
     this.space = new SpaceRenderer(this.renderer,this.canvas);
@@ -189,7 +189,7 @@ export class OverworldRenderer {
     this.canvas.addEventListener('webglcontextlost', this.loseContext);
     this.canvas.dataset.renderer = '3d';
     this.canvas.dataset.qualityTier = QUALITY[this.tier].name;
-    this.terrain = buildOverworldTerrain(OVERWORLD);
+    this.terrain = buildOverworldTerrain(this.world);
     this.scene.add(this.terrain.group);
     this.scene.fog = new THREE.Fog(0x748f8c, 320, 1100);
     this.scene.background = this.sky;
@@ -326,7 +326,7 @@ export class OverworldRenderer {
     }
     const shadows: THREE.Matrix4[] = [];
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
-    for (const prop of OVERWORLD.props) {
+    for (const prop of this.world.props) {
       const parking = prop.kind === 'car' ? parkedCarPose(prop) : null;
       const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
@@ -684,7 +684,7 @@ export class OverworldRenderer {
     if (!this.cameraReady) this.target.set(targetX, elevation + 7, targetZ);
     else this.target.lerp(this.scratch.set(targetX, elevation + 7, targetZ), ease);
     const distance = this.viewport.height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
-    const far = Math.ceil(distance + Math.hypot(OVERWORLD.width, OVERWORLD.height) + 256);
+    const far = Math.ceil(distance + Math.hypot(this.world.width, this.world.height) + 256);
     if (this.camera.far !== far) {
       this.camera.near = 1; this.camera.far = far; this.camera.updateProjectionMatrix();
       this.postMaterial.uniforms.nearPlane.value = this.camera.near;
@@ -698,8 +698,8 @@ export class OverworldRenderer {
       this.ray.setFromCamera(new THREE.Vector2(sx, sy), this.camera);
       if (this.ray.ray.intersectPlane(this.groundPlane, this.scratch)) { minX = Math.min(minX, this.scratch.x); maxX = Math.max(maxX, this.scratch.x); minZ = Math.min(minZ, this.scratch.z); maxZ = Math.max(maxZ, this.scratch.z); }
     }
-    const fixX = maxX - minX > OVERWORLD.width ? OVERWORLD.width / 2 - (minX + maxX) / 2 : minX < 0 ? -minX : maxX > OVERWORLD.width ? OVERWORLD.width - maxX : 0;
-    const fixZ = maxZ - minZ > OVERWORLD.height ? OVERWORLD.height / 2 - (minZ + maxZ) / 2 : minZ < 0 ? -minZ : maxZ > OVERWORLD.height ? OVERWORLD.height - maxZ : 0;
+    const fixX = maxX - minX > this.world.width ? this.world.width / 2 - (minX + maxX) / 2 : minX < 0 ? -minX : maxX > this.world.width ? this.world.width - maxX : 0;
+    const fixZ = maxZ - minZ > this.world.height ? this.world.height / 2 - (minZ + maxZ) / 2 : minZ < 0 ? -minZ : maxZ > this.world.height ? this.world.height - maxZ : 0;
     this.target.x += fixX; this.target.z += fixZ; this.camera.position.x += fixX; this.camera.position.z += fixZ;
     this.camera.lookAt(this.target); this.camera.updateMatrixWorld(); this.cameraReady = true;
     if (!this.reducedMotion && this.crashShake > 0) { this.camera.position.x += Math.sin(this.visualTime * 113) * this.crashShake; this.camera.position.z += Math.cos(this.visualTime * 97) * this.crashShake * .4; }
@@ -772,7 +772,7 @@ export class OverworldRenderer {
       const actor = this.billboard(`enemy-${enemy.id}`, enemy.sprite, enemy.x, enemy.y, enemy.radius > 10 ? 1.5 : 1);
       if (actor) for (const sprite of actor.sprites) sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : 0xffffff);
     }
-    for (const prop of OVERWORLD.props) if (prop.kind === 'npc') this.billboard(prop.id, prop.label === 'Jon' ? 'jon' : 'alex', prop.x + prop.w / 2, prop.y + prop.h);
+    for (const prop of this.world.props) if (prop.kind === 'npc') this.billboard(prop.id, prop.label === 'Jon' ? 'jon' : 'alex', prop.x + prop.w / 2, prop.y + prop.h);
   }
   private updateEffects(s: GameState, dt: number) {
     for (const burst of this.bursts) burst.age += dt;
@@ -816,7 +816,7 @@ export class OverworldRenderer {
         particle(bird.x, ground, bird.y, 1.2, 0x36434b); particle(bird.x - 2, ground + bird.wing, bird.y, .9, 0x36434b); particle(bird.x + 2, ground + bird.wing, bird.y, .9, 0x36434b);
       }
       for (let k = 0; k < 14; k++) {
-        const x = (k * 83 + s.time * 7) % OVERWORLD.width, y = 390 + (k * 23 + s.time * 2) % 200;
+        const x = (k * 83 + s.time * 7) % this.world.width, y = 390 + (k * 23 + s.time * 2) % 200;
         if (this.nearView(x, y, 20)) particle(x, this.terrain.heightAt(x, y) + 4 + Math.sin(s.time + k) * 2, y, .6, k % 2 ? 0xbbaa71 : 0xcf9866);
       }
     }
@@ -862,8 +862,8 @@ export class OverworldRenderer {
       labels.push({ id, text, x: screenX, y: screenY, kind, color, opacity });
     };
     for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
-    for (const prop of OVERWORLD.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
-    for (const prop of OVERWORLD.props) if (prop.label && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
+    for (const prop of this.world.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
+    for (const prop of this.world.props) if (prop.label && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');

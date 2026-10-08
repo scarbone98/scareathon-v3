@@ -6,7 +6,7 @@ export function lunarLift(s:Pick<GameState,'boundTimer'>) { return Math.sin(Math
 export function tickLunar(s:GameState,dt:number) {
   s.boundTimer=Math.max(0,s.boundTimer-dt);
   if (!onMoon(s)||s.localPaused||s.film||s.dialogue||s.overlay||s.coop?.downed||s.heroes[s.active].hp<=0) return;
-  const world=getWorld(s.scene,s.room,s.mapId);
+  const world=getWorld(s.scene,s.room,s.mapId,!!s.coop);
   const safe=[0,2,5,6,7,8].includes(s.room)||s.solvedInteractions.includes('moon-unlimited-air');
   const near=world.props.some(p=>p.kind==='air'&&Math.hypot(s.x-(p.x+p.w/2),s.y-(p.y+p.h+10))<40);
   if (safe||near) { s.oxygen=Math.min(100,s.oxygen+dt*50); if (s.oxygen>25) s.oxygenWarned=false; }
@@ -16,7 +16,7 @@ export function tickLunar(s:GameState,dt:number) {
 }
 export function tryBoundLink(s:GameState) {
   if (!onMoon(s)) return false;
-  const world=getWorld(s.scene,s.room,s.mapId);
+  const world=getWorld(s.scene,s.room,s.mapId,!!s.coop);
   for (const link of world.boundLinks??[]) for (const [from,to] of [[link.from,link.to],[link.to,link.from]]) {
     if (Math.hypot(s.x-from.x,s.y-from.y)>link.radius) continue;
     const dx=to.x-from.x,dy=to.y-from.y;
@@ -32,14 +32,14 @@ export function advanceBoundLink(s:GameState,dt:number) {
   travel.elapsed=Math.min(.4,travel.elapsed+dt); const t=travel.elapsed/.4;
   s.x=travel.from.x+(travel.to.x-travel.from.x)*t; s.y=travel.from.y+(travel.to.y-travel.from.y)*t;
   if(t>=1) {
-    if(isBlocked(getWorld(s.scene,s.room,s.mapId),s.x,s.y,7)) {s.x=travel.from.x;s.y=travel.from.y;}
+    if(isBlocked(getWorld(s.scene,s.room,s.mapId,!!s.coop),s.x,s.y,7)) {s.x=travel.from.x;s.y=travel.from.y;}
     s.boundTravel=null;
   }
   return true;
 }
 // Solved machinery removes the same precise footprint used by movement and QA.
 export function lunarWorld(s:GameState) {
-  const world=getWorld(s.scene,s.room,s.mapId);
+  const world=getWorld(s.scene,s.room,s.mapId,!!s.coop);
   if(world.id!=='moon-m05') return world;
   return {...world,props:world.props.filter(p=>p.kind!=='seal'||!hasSpaceFlag(s,p.id))};
 }

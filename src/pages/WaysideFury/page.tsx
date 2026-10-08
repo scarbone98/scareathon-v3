@@ -1,3 +1,8 @@
+import { GlobeTravel } from "./GlobeTravel";
+import { globeAvailable, type GlobeDestination } from "./game/globe";
+import { COUNTY_STOPS } from "./game/county";
+import { LOCATIONS } from "./game/content";
+import { getMap } from "./game/campaign";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
@@ -12,7 +17,7 @@ import { showAttackPresentation, type InputMode } from "./game/input";
 import type { ActionPrompt } from "./game/contextAttack";
 import { type RenderPresentation } from "./game/render";
 import { sampleSpaceFilm } from "./game/chapters/ch3Films";
-import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterScene, interact, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
+import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterCampaignMap, enterScene, interact, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
@@ -184,6 +189,8 @@ export default function WaysideFury() {
   const [saveToast, setSaveToast] = useState("");
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [state, setState] = useState<GameState>(newGame);
+  const [worldRoute, setWorldRoute] = useState(false);
+  const worldRouteRef=useRef(false);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const [characterOpen, setCharacterOpen] = useState(false);
@@ -269,7 +276,7 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (newGameConfirm) { if (!newGameBusyRef.current) setNewGameConfirm(false); return; } if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const togglePause = () => { if (worldRoute) return;  if (newGameConfirm) { if (!newGameBusyRef.current) setNewGameConfirm(false); return; } if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
   const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
@@ -313,7 +320,7 @@ export default function WaysideFury() {
     let avatarAccount: string | null | undefined;
     let avatarAbort: AbortController | null = null;
     let saveReady = false, avatarReady = false;
-    const resumeWhenReady = () => game.setPaused(pausedRef.current || !playingRef.current || !saveReady || !avatarReady);
+    const resumeWhenReady = () => game.setPaused(pausedRef.current || worldRouteRef.current || !playingRef.current || !saveReady || !avatarReady);
     const refreshAvatar = (id: string | null) => {
       if (avatarAccount === id) return;
       avatarAccount = id; avatarAbort?.abort(); avatarAbort = new AbortController();
@@ -343,7 +350,7 @@ export default function WaysideFury() {
         if (playingRef.current) {
           const next = save ? restoreSave(save) : newGame();
           if (!save) enterScene(next, "prologue");
-          game.start(next); resumeWhenReady();
+          worldRouteRef.current=false; setWorldRoute(false); game.start(next); resumeWhenReady();
         }
         if (reason === "conflict") setSaveToast("A newer account save was loaded.");
       },
@@ -449,8 +456,17 @@ export default function WaysideFury() {
     const timer = window.setTimeout(() => { if (epoch === accountEpochRef.current) dismissTutorialRef.current(); }, 7000);
     return () => window.clearTimeout(timer);
   }, [showTutorial, accountEpoch]);
+  const atWorldStop = !state.film && !state.enemies.length && !state.dialogue && !state.overlay && (state.scene === "hub" && Math.hypot(state.x-480,state.y-440)<64 || state.scene === "overworld" && [...LOCATIONS,...COUNTY_STOPS].some(stop=>Math.hypot(state.x-stop.x,state.y-stop.y)<64) || ["space-launch","blast-0"].includes(state.mapId) && (()=>{const m=getMap(state.mapId);return !!m&&Math.hypot(state.x-m.spawn.x,state.y-m.spawn.y)<64;})());
+  const openWorldRoute = () => { if (!atWorldStop || state.coop) return; worldRouteRef.current=true; controller.current?.setTouch({}); controller.current?.mutate(s=>{s.checkpointMapId=s.mapId;persist(s);}); controller.current?.setPaused(true); controller.current?.setPresentationSuspended(true); setWorldRoute(true); };
+  const closeWorldRoute = () => { controller.current?.setPresentationSuspended(false); worldRouteRef.current=false; setWorldRoute(false); controller.current?.setTouch({}); controller.current?.setPaused(pausedRef.current); };
+  const landWorldRoute = (destination: GlobeDestination) => {
+    const game=controller.current; if(!game)return;
+    game.mutate(s=>{if(!globeAvailable(s,destination))return;if(enterCampaignMap(s,destination.mapId)){s.checkpointMapId=destination.mapId;s.notice=`County Cruiser arrived at ${destination.name}.`;persist(s);}});
+    closeWorldRoute();
+  };
   const inlineSave = playing && !cinematic && !paused && !state.overlay && !coopOpen && state.scene !== "dead";
   return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
+    {worldRoute && playing && <GlobeTravel state={state} avatar={avatar} mode={graphicsMode} onMode={updateGraphics} onLand={landWorldRoute} onClose={closeWorldRoute} />}
     {!inlineSave && !state.film && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
@@ -481,6 +497,7 @@ export default function WaysideFury() {
         {showTutorial && mode !== "touch" && !paused && !state.overlay && !actionPrompt.target && <span className="wf-action-hint" aria-label={actionPrompt.label}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.label}</span>}
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
+        {atWorldStop && !paused && !worldRoute && <button className="wf-world-route" disabled={!!state.coop} onClick={openWorldRoute}>{state.coop ? "World route · solo only for now" : "World route · County Cruiser"}</button>}
         {boss && <div className="wf-boss-hud"><strong>{boss.behavior === "warden" ? "APOGEE WARDEN" : boss.behavior === "inspector" ? "CHEESE INSPECTOR" : boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.behavior ? boss.phase === 2 && !boss.shieldBroken && boss.behavior === "warden" ? "GROUND THE THREE PYLONS" : boss.windup > 0 ? "MARKED ATTACK — MOVE OR GUARD" : "Read the pattern; strike during recovery" : boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
         {actionPrompt.target && !(noticeVisible && state.notice) && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}

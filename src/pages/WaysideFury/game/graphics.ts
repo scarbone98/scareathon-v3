@@ -1,3 +1,4 @@
+import { OVERWORLD, COOP_OVERWORLD, type WorldMap } from "./world";
 import type { HeroAvatar } from './avatar';
 import { Renderer, type RenderPresentation } from './render';
 import type { GameEvent, GameState } from './sim';
@@ -37,6 +38,7 @@ export class GraphicsRenderer {
   private remoteAvatars = new Map<number, HeroAvatar>();
   private generation = 0;
   private loading = false;
+  private partyWorld = false;
   private failed = false;
   private disposed = false;
   private selected: GraphicsMode;
@@ -70,8 +72,9 @@ export class GraphicsRenderer {
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed) return;
     this.depth?.syncRemotePeers(s);
+    if (this.partyWorld !== !!s.coop) { this.partyWorld = !!s.coop; this.generation++; this.loading=false; this.releaseDepth(); }
     const wantsDepth = this.selected === '3d' && (s.scene === 'overworld' || s.mapId==='space-launch' || s.mapId.startsWith('moon-'));
-    if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth();
+    if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth(s.coop ? COOP_OVERWORLD : OVERWORLD);
     if (wantsDepth && this.depth && !this.failed) {
       try {
         this.depth.draw(s, dt, frameDelta);
@@ -99,7 +102,7 @@ export class GraphicsRenderer {
     this.releaseDepth(); this.flat.dispose(); this.avatar = null; this.remoteAvatars.clear();
     this.canvas.style.visibility = '';
   }
-  private loadDepth() {
+  private loadDepth(world: WorldMap) {
     const generation = ++this.generation;
     this.loading = true;
     void import('./render3d').then(({ OverworldRenderer: DepthRenderer }) => {
@@ -110,7 +113,7 @@ export class GraphicsRenderer {
       overlay.style.visibility = 'hidden';
       this.overlay = overlay;
       this.canvas.insertAdjacentElement('afterend', overlay);
-      this.depth = new DepthRenderer(overlay);
+      this.depth = new DepthRenderer(overlay, world);
       if (this.avatar) this.depth.setAvatar(this.avatar);
       for (const [seat, avatar] of this.remoteAvatars) this.depth.setRemoteAvatar(seat, avatar);
     }).catch(error => {

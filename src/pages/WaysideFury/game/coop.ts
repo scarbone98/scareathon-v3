@@ -7,7 +7,7 @@ import { authoritativePickupTarget } from "./collectibles.ts";
 import { AMBIENT_TAXI } from "./dressing.ts";
 import { fetchWithAuth } from "../../../fetchWithAuth";
 import type { AvatarAppearance, HeroAvatar } from "./avatar";
-import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
+import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, enforceCountyPartyBounds, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
 
 export interface CoopPlayer { seat: number; userId: string; name: string; connected: boolean }
 export interface CoopRoom { type: "room"; code: string; seat: number; hostSeat: number; token: string; protocolVersion?: number; contentVersion?: number; players: CoopPlayer[] }
@@ -248,6 +248,7 @@ export class FuryCoop {
     if (now - this.sentAt < 50) return;
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
+    enforceCountyPartyBounds(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
       filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });

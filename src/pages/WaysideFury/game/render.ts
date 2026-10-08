@@ -212,7 +212,7 @@ export class Renderer {
     if(s.mapId === 'space-launch' && s.sceneTimer < 3 && !s.moving) {
       drawLaunchEstablishing(c,s,width,height,getWorld(s.scene,s.room,s.mapId),()=>this.hero(s));return;
     }
-    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId);
+    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId, !!s.coop);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
     const target = cameraTarget(world, s.x, s.y, width, height, s.moving ? s.faceX : 0, s.moving ? s.faceY : 0);
     if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
@@ -220,6 +220,7 @@ export class Renderer {
     this.camera.x = world.width <= width ? (world.width - width) / 2 : Math.max(0, Math.min(world.width - width, this.camera.x + (target.x - this.camera.x) * ease));
     this.camera.y = world.height <= height ? (world.height - height) / 2 : Math.max(0, Math.min(world.height - height, this.camera.y + (target.y - this.camera.y) * ease));
     c.canvas.dataset.cameraX = `${this.camera.x}`; c.canvas.dataset.cameraY = `${this.camera.y}`;
+    if (this.world && this.world !== world && this.world.id === world.id) this.terrain.clear();
     this.world = world;
     c.save();
     const shakeX = this.reducedMotion ? 0 : Math.sin(this.visualTime * 113) * this.shake;

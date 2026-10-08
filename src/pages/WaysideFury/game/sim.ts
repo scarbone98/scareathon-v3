@@ -739,7 +739,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
       kind: npc ? "talk" : taxi ? "taxi" : "use" }, s.scene === "overworld" ? OVERWORLD_STOP_RADIUS : undefined);
   }
   if (s.scene === "overworld") {
-    for (const stop of COUNTY_STOPS) add({ ...stop, kind: "talk" }, OVERWORLD_PROP_RADIUS);
+    if (!s.coop) for (const stop of COUNTY_STOPS) add({ ...stop, kind: "talk" }, OVERWORLD_PROP_RADIUS);
     add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444  }, OVERWORLD_PROP_RADIUS);
     add({ id: "diner-entry", name: "Enter diner", kind: "use", x: 520, y: 405  }, OVERWORLD_PROP_RADIUS);
   }
@@ -873,7 +873,14 @@ function checkpointRecovery(s: GameState) {
     hero.ki = Math.min(hero.maxKi, hero.ki + 8);
   }
 }
+export function enforceCountyPartyBounds(s: GameState) {
+  if(s.coop && s.scene === "overworld" && (s.x > 1878 || s.y > 918)) {
+    s.x=208; s.y=480; s.vx=s.vy=0;
+    s.notice="Party travel returns to the original county roads. New districts are solo-only in this release.";
+  }
+}
 export function step(s: GameState, input: Input, delta: number): void {
+  enforceCountyPartyBounds(s);
   const dt = clamp(delta, 0, 0.05);
   // Keep physical button edges separate from the command forwarded to co-op.
   // Pad A sets both flags, while touch/J must synthesize a held revive command.
