@@ -8,7 +8,7 @@ const playwright = await import(modulePath.startsWith('/') ? pathToFileURL(modul
 const browserName = process.env.PLAYWRIGHT_BROWSER ?? 'chromium';
 assert.ok(['chromium', 'webkit', 'firefox'].includes(browserName), `Unsupported browser: ${browserName}`);
 const fixture = await startFuryTestServer(Number(process.env.FURY_TEST_PORT ?? 3000));
-const browser = await playwright[browserName].launch({ headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
+const browser = await playwright[browserName].launch({ headless: true, args: browserName === "chromium" ? ["--mute-audio"] : [], ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
 const errors = [];
 const session = id => {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');

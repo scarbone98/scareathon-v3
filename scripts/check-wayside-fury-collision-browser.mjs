@@ -20,7 +20,7 @@ try {
 }
 await mkdir(shots, { recursive: true });
 const browser = await playwright.chromium.launch({ headless: process.env.FURY_HEADED !== '1',
-  args: ['--disable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'],
+  args: ['--mute-audio', '--disable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'],
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}) });
 console.log('Chromium launched');
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });

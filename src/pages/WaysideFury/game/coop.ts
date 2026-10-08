@@ -1,4 +1,5 @@
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
+import { chipEffects } from "./u1/items/chips";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world";
 import { authoritativePickupTarget } from "./collectibles.ts";
 import { AMBIENT_TAXI } from "./dressing.ts";
@@ -150,8 +151,8 @@ export class FuryCoop {
     if (this.isHost && event.type === "checkpoint" && !event.id.startsWith("coop-reward-") && !event.id.startsWith("personal-")) {
       const id = `${this.clientId}:checkpoint:${event.id}`;
       const areas = event.id === "home" ? ["wayside"] : event.id === `blast-${WATCHER_ROOM}` ? ["blast"] : event.id === "realm-0" ? ["eightbit-realm"] : [];
-      const bosses = event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
-      const rooms = event.id === "home" ? [] : [event.id];
+      const bosses = event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : event.id === "relic-echo" ? ["relic-echo"] : [];
+      const rooms = ["home", "relic-echo"].includes(event.id) ? [] : [event.id];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
         const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 3 : 0;
@@ -188,7 +189,17 @@ export class FuryCoop {
       const blend = buffered(samples, now); if (!blend) return [];
       const { a, b, alpha } = blend;
       const same = a.scene === b.scene && a.room === b.room;
-      return [{ ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y }];
+      const latest = samples[samples.length - 1];
+      const peer = { ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y,
+        chipDamageMultiplier: latest.value.chipDamageMultiplier, secondWindReady: latest.value.secondWindReady, chipSnapshotAt: latest.at };
+      const spent = s.coop?.remoteSecondWindSpent;
+      if (spent?.[peer.seat]?.userId === peer.userId) {
+        // Buffered pre-hit packets cannot recharge a host-predicted revive.
+        // Observe the personal spent state before accepting a later HOME reset.
+        if (latest.at > spent[peer.seat].at && peer.secondWindReady === false) delete spent[peer.seat];
+        else peer.secondWindReady = false;
+      } else if (spent?.[peer.seat]) delete spent[peer.seat];
+      return [peer];
     });
     if (role === "guest") {
       const blend = buffered(this.worlds, now);
@@ -220,8 +231,10 @@ export class FuryCoop {
     if (now - this.sentAt < 50) return;
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
+    const chips = chipEffects(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0,
+      chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });

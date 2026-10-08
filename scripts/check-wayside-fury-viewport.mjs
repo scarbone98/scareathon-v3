@@ -1,3 +1,4 @@
+import { muteWebKitContext } from './wayside-fury-browser-audio.mjs';
 // Requires a running Vite development server and Playwright with its browser installed.
 // FURY_BASE_URL=http://127.0.0.1:5185 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
 //   node scripts/check-wayside-fury-viewport.mjs
@@ -18,7 +19,7 @@ try {
 assert.ok(playwright[browserName], `Unknown Playwright browser: ${browserName}`);
 let browser;
 try {
-  browser = await playwright[browserName].launch({ headless: true });
+  browser = await playwright[browserName].launch({ headless: true, ...(browserName === 'chromium' ? { args: ['--mute-audio'] } : {}) });
 } catch (error) {
   console.error(`Cannot launch Playwright ${browserName}. Ensure its browser is installed (playwright install ${browserName}) and the environment permits browser processes.\n${error.message}`);
   process.exit(1);
@@ -276,6 +277,7 @@ async function run(size, iframe = false) {
   const phone = size.width !== 1280;
   const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr, hasTouch: true, isMobile: phone,
     ...(phone ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' } : {}) });
+  if (browserName === 'webkit') await muteWebKitContext(context);
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   const prefix = `${size.width}x${size.height}-dpr${size.dpr}${iframe ? '-iframe' : ''}`;

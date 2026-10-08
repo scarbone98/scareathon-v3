@@ -14,7 +14,7 @@ const playwright = await import(moduleName.startsWith('/') ? pathToFileURL(modul
 assert.ok(['chromium', 'webkit', 'firefox'].includes(browserName), `Unknown Playwright browser: ${browserName}`);
 const shots = '/tmp/fury-arcade-shots';
 await mkdir(shots, { recursive: true });
-const browser = await playwright[browserName].launch({ headless: true });
+const browser = await playwright[browserName].launch({ headless: true, args: browserName === "chromium" ? ["--mute-audio"] : [] });
 const results = [];
 let activePage;
 let primaryError;

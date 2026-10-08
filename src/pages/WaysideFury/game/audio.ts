@@ -51,6 +51,7 @@ export class FuryAudio {
   event(s: GameState, event: GameEvent) {
     if (event.type === "ambient-taxi-crash") this.sound.playSfx("crunch");
     if (event.type === "pickup") this.sound.jingle("item");
+    if (event.type === "item") this.sound.jingle("item");
     if (event.type === "hit") this.sound.playSfx(event.target === "hero" ? s.guard ? "block" : "hurt" : "hit", Math.min(1.5, .5 + event.damage / 30));
     if (event.type === "swap") this.sound.playSfx("swap");
     if (event.type === "level") this.sound.jingle("level");

@@ -2,12 +2,17 @@ import type { HeroAvatar } from "./game/avatar";
 import { HERO_IDS, HERO_NAMES, xpForLevel, type GameState, type HeroId } from "./game/sim";
 import type { SaveSettings } from "./game/save";
 import type { InputMode } from "./game/input";
+import { RelicsPanel } from "./u1/RelicsPanel";
+import { ChipsPanel } from "./u1/ChipsPanel";
+import type { ChipId } from "./game/u1/items/chips";
 import { HeroPortrait } from "./HeroPortrait";
 interface Props {
   state: GameState; avatar: HeroAvatar | null; settings: SaveSettings; mode: InputMode;
+  onWish: (id: string) => void;
+  onEquipChip: (id: ChipId | null, slot: number) => void;
   onSettings: (settings: SaveSettings) => void; onParty: (id: HeroId) => void; onBack: () => void;
 }
-export function CharacterSheet({ state, avatar, settings, mode, onSettings, onParty, onBack }: Props) {
+export function CharacterSheet({ state, avatar, settings, mode, onSettings, onParty, onEquipChip, onWish, onBack }: Props) {
   const { level, xp } = state.character;
   const areas = [{ id: "wayside", name: "Wayside Station" }, { id: "blast", name: "Blast Site" }, { id: "eightbit-realm", name: "8-Bit Realm" }];
   const volume = (kind: "musicVolume" | "sfxVolume", value: number) => onSettings({ ...settings, [kind]: value });
@@ -16,6 +21,8 @@ export function CharacterSheet({ state, avatar, settings, mode, onSettings, onPa
       <header className="wf-character-heading"><HeroPortrait id="you" avatar={avatar} /><div><p className="wf-eyebrow">YOUR CHARACTER</p><h2>You <small>LV {level}</small></h2><p>{xp} / {xpForLevel(level)} XP · ◈ {state.candy} candy</p>
         <progress aria-label="Experience toward next level" max={xpForLevel(level)} value={xp} /></div></header>
       <div className="wf-character-grid">
+        <ChipsPanel state={state} onEquip={onEquipChip} />
+        <RelicsPanel state={state} onWish={onWish} />
         <section aria-label="Gear"><h3>Gear</h3><div className="wf-gear-slot"><span>✦</span><div><strong>Power charm</strong><p>{state.gear.power ? `+${state.gear.power} Power` : "Empty slot"}</p></div></div>
           <div className="wf-gear-slot"><span>◇</span><div><strong>Ward charm</strong><p>{state.gear.ward ? `+${state.gear.ward} Defense` : "Empty slot"}</p></div></div><p className="wf-small">Gear strengthens every hero. Your outfit is cosmetic.</p></section>
         <section aria-label="Area progress"><h3>Journey · Chapter {state.chapter}</h3>{areas.map(area => <p className="wf-area-progress" key={area.id}><span>{area.name}</span><strong>{state.areas.includes(area.id) ? "Cleared" : "Ahead"}</strong></p>)}

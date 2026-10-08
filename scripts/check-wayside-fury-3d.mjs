@@ -1,3 +1,4 @@
+import { muteWebKitContext } from './wayside-fury-browser-audio.mjs';
 // Run against the Vite development server (the game exposes its inspection API in DEV).
 // FURY_BASE_URL=http://127.0.0.1:5185 \
 // PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node scripts/check-wayside-fury-3d.mjs
@@ -33,10 +34,10 @@ assert.ok(Object.hasOwn(backendArgs, backend), `Unknown FURY_WEBGL_BACKEND: ${ba
 if (backend !== 'default') assert.equal(browserName, 'chromium', 'FURY_WEBGL_BACKEND applies to Chromium browsers');
 const extraArgs = JSON.parse(process.env.PLAYWRIGHT_ARGS ?? '[]');
 assert.ok(Array.isArray(extraArgs) && extraArgs.every(value => typeof value === 'string'), 'PLAYWRIGHT_ARGS must be a JSON array of browser flags');
-const launchOptions = { headless: headless === 'true' || headless === '1',
+const launchOptions = { headless: browserName === 'webkit' || headless === 'true' || headless === '1',
   ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
-  ...([...backendArgs[backend], ...extraArgs].length ? { args: [...backendArgs[backend], ...extraArgs] } : {}) };
+  args: [...(browserName === 'chromium' ? ['--mute-audio'] : []), ...backendArgs[backend], ...extraArgs] };
 const browser = await playwright[browserName].launch(launchOptions);
 const errors = [];
 const measurements = [];
@@ -51,6 +52,7 @@ async function contextFor(size, init) {
   const phone = size.width < 1000;
   const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr, hasTouch: true, isMobile: phone,
     ...(phone ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' } : {}) });
+  if (browserName === 'webkit') await muteWebKitContext(context);
   context.setDefaultTimeout(startupTimeout);
   context.setDefaultNavigationTimeout(startupTimeout);
   if (init) await context.addInitScript(init);
