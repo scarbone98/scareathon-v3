@@ -494,6 +494,32 @@ test('an offline checkpoint survives dispose and reload, then pays once after it
   assert.deepEqual(third.store.save.lastReported, save.lastReported);
 });
 
+test('offline reconciliation updates the running local campaign with recovered remote items before its next save', async t => {
+  const receipt = { areas: ['wayside', 'blast'], bosses: [], rooms: ['blast-0'], level: 5 };
+  const local = snapshot({ chapter: 2, level: 5, candy: 71, areas: receipt.areas, rooms: receipt.rooms, receipt, savedAt: 1_000 });
+  local.u1.items.chips = { owned: ['iron-guard'], equipped: ['iron-guard', null, null], secondWindUsed: false };
+  const remote = snapshot({ savedAt: 6_000 });
+  remote.u1.items.chips = { owned: ['scanner'], equipped: ['scanner', null, null], secondWindUsed: false };
+  remote.u1.items.radar = { owned: true, enabled: false };
+  remote.u1.items.relics = { ...remote.u1.items.relics, cycle: 1, wishes: ['wish-power'], statBonus: { power: 2, ward: 0 } };
+  const expected = mergeSaves(local, remote);
+  const d = device(t, new MemoryStorage(local)); d.server.seed(A, remote); d.server.failGets = 1;
+  await d.store.load(A); await settle();
+  assert.equal(d.status(), 'offline');
+  const before = d.replacements.length;
+  d.store.retryNow(); await settle();
+  assert.equal(d.replacements.length, before + 1, 'merged inventory must notify the active game even when local campaign progress wins');
+  const running = restoreSave(d.replacements.at(-1).save);
+  assert.equal(running.chapter, local.chapter); assert.equal(running.candy, local.candy);
+  assert.deepEqual(running.u1.items, expected.u1.items);
+  assert.equal(running.heroes.you.power, local.heroes.you.power + 2, 'the recovered wish is applied exactly once');
+  const next = makeSave(running, d.store.save);
+  d.store.persist(next); await settle();
+  assert.deepEqual(d.server.rows.get(A).save.u1.items, expected.u1.items, 'the next active-game snapshot preserves recovered inventory');
+  assert.equal(d.server.rows.get(A).save.heroes.you.power, running.heroes.you.power);
+  assert.equal(d.paid(), 0, 'recovery and the next ordinary save award no ticket credit');
+});
+
 test('reconnecting to equal progress with a newer remote timestamp replaces the running device save', async t => {
   const local = snapshot({ level: 3, candy: 17, savedAt: 1_000, areas: ['wayside'], home: true });
   const remote = { ...local, candy: 88, savedAt: 2_000 };
