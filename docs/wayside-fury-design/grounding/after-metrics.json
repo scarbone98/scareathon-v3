@@ -1,0 +1,102 @@
+[
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "scorched-road",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "rift-approach",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "watchers-hollow",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "overworld-crater",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "2d",
+    "name": "moon-rocks",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "scorched-road",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "rift-approach",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "watchers-hollow",
+    "immutable": true,
+    "active": "2d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "overworld-crater",
+    "immutable": true,
+    "active": "3d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "phase": "after",
+    "mode": "3d",
+    "name": "moon-rocks",
+    "immutable": true,
+    "active": "3d",
+    "dpr": "2",
+    "width": 2880,
+    "height": 1800
+  }
+]
