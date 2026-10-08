@@ -1,0 +1,96 @@
+{
+  "results": [
+    {
+      "behavior": "rooted",
+      "earlyDiff": 0,
+      "tellDiff": 8197
+    },
+    {
+      "behavior": "lantern",
+      "earlyDiff": 0,
+      "tellDiff": 2769
+    },
+    {
+      "behavior": "wisp",
+      "earlyDiff": 0,
+      "tellDiff": 10713
+    },
+    {
+      "behavior": "bailiff",
+      "earlyDiff": 0,
+      "tellDiff": 9693
+    },
+    {
+      "behavior": "foreman",
+      "earlyDiff": 0,
+      "tellDiff": 9186
+    },
+    {
+      "behavior": "cable-rat",
+      "earlyDiff": 0,
+      "tellDiff": 1798
+    },
+    {
+      "behavior": "neon-imp",
+      "earlyDiff": 0,
+      "tellDiff": 2448
+    },
+    {
+      "behavior": "turnstile",
+      "earlyDiff": 0,
+      "tellDiff": 2801
+    },
+    {
+      "behavior": "clockwolf",
+      "earlyDiff": 0,
+      "tellDiff": 3919
+    },
+    {
+      "behavior": "switchmaster",
+      "earlyDiff": 0,
+      "tellDiff": 9828
+    },
+    {
+      "behavior": "architect",
+      "earlyDiff": 0,
+      "tellDiff": 9826
+    },
+    {
+      "behavior": "rat",
+      "earlyDiff": 0,
+      "tellDiff": 1188
+    },
+    {
+      "behavior": "walker",
+      "earlyDiff": 0,
+      "tellDiff": 1948
+    },
+    {
+      "behavior": "echo",
+      "earlyDiff": 0,
+      "tellDiff": 1434
+    },
+    {
+      "behavior": "satellite",
+      "earlyDiff": 0,
+      "tellDiff": 1547
+    },
+    {
+      "behavior": "scout",
+      "earlyDiff": 0,
+      "tellDiff": 1514
+    },
+    {
+      "behavior": "inspector",
+      "earlyDiff": 0,
+      "tellDiff": 6254
+    },
+    {
+      "behavior": "warden",
+      "earlyDiff": 0,
+      "tellDiff": 8171
+    }
+  ],
+  "hidden": true,
+  "visible": true
+}

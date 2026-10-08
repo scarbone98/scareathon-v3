@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { AREAS, CHAPTERS, canEnter, campaignLocations, getMap, sameCampaignMap } from '../src/pages/WaysideFury/game/campaign.ts';
@@ -9,25 +10,32 @@ import { sanitizeSave, ticketDelta, receiptTotalScore, MAX_MILESTONES, MAX_SAVE_
 import { cleanWorld, cleanHero } from '../server/wayside-fury/protocol.js';
 import { createRoomManager } from '../server/wayside-fury/rooms.js';
 
+const blastBaseline=JSON.parse(readFileSync(new URL('./fixtures/wayside-fury-blast-progression.json',import.meta.url),'utf8'));
+// Organic stairs move edge aprons inward by 32 units without changing travel.
+const stairExits = m => m.exits.map(e => ({ ...e,
+  x: e.x === 0 ? 32 : e.x + e.w >= m.width ? m.width - e.w - 32 : e.x,
+  y: e.y === 0 ? 32 : e.y + e.h >= m.height ? m.height - e.h - 32 : e.y,
+}));
+assert.deepEqual(BLAST_WORLDS.map(m=>({id:m.id,name:m.name,width:m.width,height:m.height,spawn:m.spawn,exits:m.exits,bosses:m.spawns.filter(s=>s.kind==='boss'),budget:m.spawns.length,caches:m.props.filter(p=>p.kind==='chest').map(({id,label,x,y,w,h})=>({id,label,x,y,w,h}))})),blastBaseline.map(m => ({ ...m, exits: stairExits(m) })),'BLAST rebuild retains original travel, bosses, encounter budgets and caches with organic stair aprons');
 assert.equal(BLAST_WORLDS.length, 10);
 assert.deepEqual(CHAPTERS.map(chapter => chapter.id), ['blast', 'woods', 'space', 'city', 'finale']);
 for (const registry of [AREAS, CHAPTERS, CAMPAIGN_MAPS]) assert.equal(new Set(registry.map(entry => entry.id)).size, registry.length);
 assert.deepEqual(ALL_WORLDS.map(map => map.id), CAMPAIGN_MAPS.map(map => map.id));
-// Pre-extraction geometry hashes include every tile, footprint, prop, road and
-// encounter. Exit destinations intentionally change only at the coda handoff.
+// Geometry snapshots include every tile, footprint, prop, road and encounter.
+// BLAST snapshots reflect the authored rebuild; legacy progression is independently frozen.
 const hashes = [
   'a4aa5db2728dbbada3496b065cea20125c8bbabd1ebc957c4020171460396270',
   'ffd29900e657244adfc5fc104d098c5f3cdb0728ebced3c28e25d75546aea5a6',
-  '3573a15d79082ec2e77f799306d3e121276445692ce62d5c2428ab874e308f94',
-  'd4c5a3f6a820eae75bc3539990841b330b6be733854dce35c4763876412c233b',
-  'a93b7df53b18b697bbe5fb729458397e3ba1cb1e764de0136eea5dbcb1ca33ad',
-  '4b9a299aa4ca2bce9e1986e3dda83afcb9e517e20333db5d74ba280064b17877',
-  '38c8c2d7013232ad8b7d833aeb95d1cd66490c6debd569df2dba8068490c87c8',
-  'c078d5cf321feeef330e2c3fc52c4353ef55e819e8747d98f80c37722f2e88d8',
-  'c3ced219650f6c5a132c370385237de22df58e5dd8685390901e65f20722ddae',
-  '42dbecffac1418f4d6e36a06107da3e666ec6545aa794d63f93983e109b89b9b',
-  '802e692e4216493ef6cf13d83817b3c0804ea5d21b8c18f71a05d307cc9e7dc4',
-  '5c9e472f08ccf13dbe456d855f1f2b7695922dd70969c79e61aae1cd9acd23f4',
+  '0db07fff45ba3ee62d17ba12c7b61f5d863245ad2a395509098cb9b9ce902b7b',
+  '8a7a6efc7063df6552bdc61c78da1d7fa4283b46bb8e9574ead8556e80815c32',
+  '91ce88470b66b7127a6e39691e5bb12749417ebd95f631b09b4945fbb9c11349',
+  '1cf1a279177813366abc3505853d22f8f378fb5ae1e74ba8792bc37b64bf0915',
+  'ff8674ab2930d478cc68688e8091c72f3a4750ff2dd2721f71641478443ed849',
+  '6ec569855827a6f6d8e2bd8fc01af2f152a3debf9265335a1188c76df6613bd2',
+  'a1fde5074e1b338cdbb797603798fcd9839808804b253bc9c29fe11229f97848',
+  '8f1dae7e9abeb51728cf9cf2a895451acc6fef504c8338f46e0320aa0f9827f6',
+  'a7e097110c2b806580da302504db5b71ad1508b8b49507ac58af45bd0cd8af81',
+  'a795ff383c2d75b0158e91c9eadb4cac5f46e4034756865690b83365b247d48f',
   'f3923cf123ff8b0e4a18b00fdc2a2592fbdba98ae477bc86a0c0f04ec9b3d189',
   'e73f9f2f9ee14f3df6bf444c442c9dbf9159babfce81cc092837b072cf13f15b',
 ];
@@ -149,4 +157,4 @@ try {
   rooms.leave(legacy);
   assert.equal(modern.sent.filter(message => message.type === 'room').at(-1).protocolVersion, 2);
 } finally { rooms.close(); }
-console.log('Campaign foundation: preserved Chapter 1 routing and encounters, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');
+console.log('Campaign foundation: preserved Chapter 1 routing, encounters and authored BLAST geometry, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');

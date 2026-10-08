@@ -39,14 +39,15 @@ function landform(m: WorldMap, points: AreaPoint[], kind: 'water'|'cliff', color
   }
 }
 function local(m: WorldMap, index: number, arrivals: AreaPoint[]) {
-  const woods=m.id.startsWith('woods-'),city=m.id.startsWith('city-');
+  const woods=m.id.startsWith('woods-'),city=m.id.startsWith('city-'),blast=m.id.startsWith('blast-');
   const ground:TileKind=woods?(m.id==='woods-mirror-sawmill'?'corrupt':'grass'):city?(m.id.includes('backstage')||m.id.includes('doorway')?'corrupt':'stone'):'ash';
   const path:TileKind=woods?'dirt':city?'stone':'dirt',cy=m.spawn.y;
   m.organic={trails:[],landforms:[],stairs:[]};
-  // Remove the old straight band, retaining all authored solid terrain and roads.
+  // Retain the Blast rebuild’s authored paving; add contour trails and stairs.
+  // Other local maps replace the old straight band, retaining solid terrain.
   const keepPaving=m.props.some(p=>p.kind==="car");
-  if(!city) m.tiles=m.tiles.map((tile,i)=>!m.collision[i]&&(tile==='dirt'||tile==='sand'||tile==='stone'&&!keepPaving||tile==='corrupt'&&!woods)?ground:tile);
-  else m.tiles=m.tiles.map(tile=>tile==='road'?'stone':tile);
+  if(!city&&!blast) m.tiles=m.tiles.map((tile,i)=>!m.collision[i]&&(tile==='dirt'||tile==='sand'||tile==='stone'&&!keepPaving||tile==='corrupt'&&!woods)?ground:tile);
+  else if(city) m.tiles=m.tiles.map(tile=>tile==='road'?'stone':tile);
   const reserved=[m.spawn,...arrivals,...m.spawns,...m.props.filter(p=>['seal','socket','chest','npc'].includes(p.kind)).map(p=>({x:p.x+p.w/2,y:p.y+p.h+16})),...HIDDEN_PICKUPS.filter(p=>p.scene==='dungeon'&&m.id===`blast-${p.room}`)];
   const lower=index%2===0,sign=lower?1:-1;
   const points=[m.spawn,{x:144,y:cy+sign*64},{x:272,y:cy+sign*56},{x:336,y:cy},{x:400,y:cy},{x:m.width-208,y:cy-sign*64},{x:m.width-64,y:cy}];

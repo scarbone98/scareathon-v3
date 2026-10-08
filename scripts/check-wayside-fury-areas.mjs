@@ -6,6 +6,7 @@ import {newGame,enterCampaignMap,interact,step,idleInput} from '../src/pages/Way
 import {makeSave,restoreSave,progressReport,parseSave} from '../src/pages/WaysideFury/game/save.ts';
 import {fieldWorld} from '../src/pages/WaysideFury/game/fieldAbilities.ts';
 import {availablePickups,collectPickup,authoritativePickupTarget} from '../src/pages/WaysideFury/game/collectibles.ts';
+import {BLAST_ENCOUNTER_ANCHORS} from '../src/pages/WaysideFury/game/blastLayouts.ts';
 import {compatibleMap,COOP_PROTOCOL_VERSION} from '../server/shared/waysideFury/campaign.js';
 const ready=()=>{const s=newGame();s.clearedRooms=['realm-0'];s.campaignMilestones=['woods-complete','space-complete'];return s;};
 function reachable(m,radius=7) {
@@ -23,7 +24,21 @@ const baseline=JSON.parse(readFileSync(new URL('../docs/wayside-fury-design/area
 for(const before of baseline) {
  const current=ALL_WORLDS.find(m=>m.id===before.id);assert.ok(current);
  assert.deepEqual(current.spawn,before.spawn,`${before.id} spawn preserved`);
- assert.deepEqual(current.spawns,before.spawns,`${before.id} encounters preserved`);
+ if(before.id.startsWith('blast-')) {
+  // The design rebuild moves ordinary squads into its authored combat pockets.
+  // Preserve enemy identities/counts and validate the new anchors independently.
+  const identities = spawns => spawns.map(({x, y, ...identity}) => identity);
+  assert.deepEqual(identities(current.spawns),identities(before.spawns),`${before.id} encounter identities preserved`);
+  const room=Number(before.id.slice(6));
+  if(!current.spawns.some(s=>s.kind==='boss')) {
+   const anchors=BLAST_ENCOUNTER_ANCHORS[room];
+   assert.equal(current.spawns.length,anchors.length*3);
+   for(const [i,[x,y]] of anchors.entries()) for(const spawn of current.spawns.slice(i*3,i*3+3)) {
+    assert.ok(Math.hypot(spawn.x-x,spawn.y-y)<=128,`${before.id} squad ${i} stays in its authored pocket`);
+    assert.ok(!isBlocked(current,spawn.x,spawn.y,10),`${before.id} squad ${i} is collision safe`);
+   }
+  } else assert.deepEqual(current.spawns,before.spawns,`${before.id} boss anchors preserved`);
+ } else assert.deepEqual(current.spawns,before.spawns,`${before.id} encounters preserved`);
  assert.deepEqual(current.exits.map(e=>Object.fromEntries(Object.entries(e).filter(([key,value])=>!["x","y","w","h"].includes(key)&&value!==undefined))),before.exits,`${before.id} exit identities, rewards/gates and arrivals preserved`);
 }
 let exits=0,doors=0;

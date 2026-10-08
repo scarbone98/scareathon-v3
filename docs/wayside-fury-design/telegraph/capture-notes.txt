@@ -1,0 +1,28 @@
+TELE — enemy attack indicators, 2026-10-08
+
+Before/after: paused native-DPR fixtures at 390x844 DPR 3 and 1440x900 DPR 2,
+with default Canvas and optional 3D. Blast, Woods and City share Canvas in
+3D preference; Moon uses real Metal WebGL. These are visual evidence, not
+sustained FPS or thermal measurements. All browser launches use --mute-audio.
+
+Directional rays, lanes, cones, target circles, boss ground rings and long
+warning glyphs are removed. Live boss HUD pattern announcements are replaced
+with static recovery hints. The final 250 ms of each existing enemy wind-up
+shows a subtle body tint and squash. Countdown, attack timing, damage, AI,
+existing audio cues, saves, receipts and co-op state are unchanged. Shields,
+traversal pads and released projectiles remain visible. The lantern's active
+fire patch appears only after release, while it can actually deal damage.
+No implemented attack is an unavoidable full-arena attack, so there is no
+screen-edge exception in this content.
+
+Reproduce on Vite port 5219:
+FURY_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs FURY_WEBGL_BACKEND=metal \
+  node scripts/capture-wayside-fury-telegraph.mjs before|after
+FURY_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
+  node scripts/check-wayside-fury-telegraph-browser.mjs
+node scripts/check-wayside-fury-telegraph.mjs
+
+The body-tells regression checks all 18 authored Woods/City/lunar body paths:
+no visual change across the long countdown, a visible change in the final
+250 ms, and no pre-release fire patch. Each capture asserts native backing
+and authoritative-state equality across repeated draws.
