@@ -15,6 +15,7 @@ export function cityTargets(s:GameState):InteractTarget[] {
   return targets;
 }
 export function cityInteract(s:GameState,id:string):boolean {
+  if(s.scene==='hub'&&id==='station'&&hasMilestone(s,'city-complete')) {s.dialogue={speaker:'Alex',index:0,lines:['Everybody made it home. The survivors are safe at Wayside’s shelter rally.','The Creation tore open Haywire Junction. Chapter 5: Last Stop, Everywhere. We go together.']};return true;}
   if(!inCity(s)) return false;
   if(id==='city-vendor') {if(!hasMilestone(s,'city-restored')) s.dialogue={speaker:'Market shelter',index:0,lines:['Civilians and unpossessed monsters are sheltering together. Restore the Exchange and we can reopen our supply stall.']};else s.overlay='shop';return true;}
   if(id==='city-rest') {refillCrew(s);s.checkpointMapId=s.mapId;cityCheckpoint(s,`${s.mapId}-rest`);s.overlay='home';s.notice='Safe workshop: crew refilled. Change your party or return to the route.';return true;}

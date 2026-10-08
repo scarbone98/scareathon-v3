@@ -1,6 +1,7 @@
 import type { WorldProp } from '../worldBuilder.ts';
 import type { Enemy, GameState } from '../sim.ts';
-import { isCityBehavior } from '../enemies/city.ts';
+import { CITY_RAT_OUTLETS } from './ch4Worlds.ts';
+import { isCityBehavior, cityRatOutlet } from '../enemies/city.ts';
 import { cityLanes } from '../bosses/architect.ts';
 import { hasSpaceFlag } from '../lunar.ts';
 import { hasMilestone } from './ch3.ts';
@@ -21,7 +22,7 @@ export function drawCityGround(c:CanvasRenderingContext2D,s:GameState) {
     c.fillStyle='#12323D';c.fillRect(x-10,84,60,5);
     for(let n=0;n<6;n++) {c.fillStyle=warm?amber:'#657789';c.fillRect(x-8+n*10,85,5,2);}
   }
-  if(s.room===4||s.room===9) for(const [x,y] of [[340,168],[436,248]]) {c.strokeStyle=amber;c.lineWidth=2;c.strokeRect(x-12,y-12,24,24);for(let n=0;n<3;n++) line(c,x-8,y-6+n*6,x+8,y-6+n*6,ink,2);}
+  if(s.room===4||s.room===9||s.enemies.some(e=>e.behavior==='cable-rat')) for(const {x,y} of CITY_RAT_OUTLETS) {c.strokeStyle=amber;c.lineWidth=2;c.strokeRect(x-12,y-12,24,24);for(let n=0;n<3;n++) line(c,x-8,y-6+n*6,x+8,y-6+n*6,ink,2);}
   for(const target of s.room===13?[{id:'city-pedestal-0',x:220,y:130},{id:'city-pedestal-1',x:440,y:130},{id:'city-pedestal-2',x:320,y:310}]:[0,2,5].includes(s.room)?[{id:`city-anchor-${s.room}`,x:196,y:290}]:[]) {
     const solved=hasSpaceFlag(s,target.id);c.strokeStyle=solved?amber:violet;c.lineWidth=2;c.beginPath();c.arc(target.x,target.y,17,0,Math.PI*(target.id==='city-pedestal-2'?1.5:2));c.stroke();
     if(solved) {line(c,target.x-6,target.y,target.x-1,target.y+6,amber,2);line(c,target.x-1,target.y+6,target.x+8,target.y-7,amber,2);}
@@ -49,7 +50,8 @@ export function drawCityTelegraph(c:CanvasRenderingContext2D,e:Enemy):boolean {
   else if(e.behavior==='architect') {
     if(e.pattern%2===0) {for(const [x,y] of [[420,250],[440,170]]) {c.beginPath();c.arc(x,y,18,0,Math.PI*2);c.stroke();}}
     else {c.beginPath();c.moveTo(e.x,e.y);const a=Math.atan2(e.aimY,e.aimX);c.arc(e.x,e.y,200,a-.45,a+.45);c.closePath();c.fill();c.stroke();}
-  } else {line(c,e.x,e.y,e.x+e.aimX*(e.behavior==='cable-rat'?126:30),e.y+e.aimY*(e.behavior==='cable-rat'?126:30),amber,14);}
+  } else if(e.behavior==='cable-rat') {const pad=cityRatOutlet(e);line(c,e.x,e.y,pad.x,pad.y,amber,14);}
+  else {line(c,e.x,e.y,e.x+e.aimX*30,e.y+e.aimY*30,amber,14);}
   c.restore();return true;
 }
 export function drawCityEnemy(c:CanvasRenderingContext2D,e:Enemy):boolean {
@@ -94,5 +96,21 @@ export function drawCityProp(c:CanvasRenderingContext2D,p:WorldProp,s:GameState)
     for(const x of [8,w-25]) {c.fillStyle=ink;c.fillRect(x,10,17,22);const glow=c.createLinearGradient(x,10,x+17,32);glow.addColorStop(0,warm?'#F2C879':'#657485');glow.addColorStop(1,'#293E4A');c.fillStyle=glow;c.fillRect(x+2,12,13,18);line(c,x+8,12,x+8,30,ink,1);line(c,x+2,21,x+15,21,ink,1);}
     c.fillStyle='#172630';c.fillRect(w/2-7,h-22,14,22);line(c,w/2+3,h-12,w/2+3,h-9,amber,1.5);c.fillStyle=warm?amber:violet;c.fillRect(4,2,w-8,3);
   }
+  c.restore();return true;
+}
+
+export function drawCityStory(c:CanvasRenderingContext2D,s:GameState,width:number,height:number):boolean {
+  if(s.mapId!=='city-hatching'||s.dialogue?.speaker!=='Jon') return false;
+  c.save();c.fillStyle='#172630';c.fillRect(0,height*.10,width,height*.66);
+  const scale=Math.min(width/180,height/270),x=width/2,y=height*.34,index=s.dialogue.index;
+  c.translate(x,y);c.scale(scale,scale);
+  const light=c.createRadialGradient(0,0,4,0,0,58);light.addColorStop(0,'#e9e4d5');light.addColorStop(.6,'#756d90');light.addColorStop(1,'#172630');oval(c,0,0,58,60,light);
+  c.strokeStyle=violet;c.lineWidth=3;c.beginPath();c.ellipse(0,-4,44,55,0,Math.PI,Math.PI*2);c.stroke();
+  const shell=c.createLinearGradient(-20,-32,20,22);shell.addColorStop(0,'#fff6dc');shell.addColorStop(1,'#b0bdb6');oval(c,0,-6,21,34,shell);
+  oval(c,0,9,9,4,ink);oval(c,-9,-8,3,4,ink);oval(c,9,-8,3,4,ink);
+  for(const side of [-1,1]) {line(c,side*18,8,side*30,20,'#eee7d7',5);line(c,side*10,23,side*19,34,'#eee7d7',5);}
+  line(c,-40,30,-28,13,amber,3);line(c,-23,23,-11,6,amber,3);
+  if(index===0) {oval(c,-40,5,7,16,'#fff6dcaa');for(let n=0;n<5;n++)line(c,-47+n*3,-6,-47+n*3,16,'#9467C288',1);}
+  else {c.strokeStyle=amber;c.lineWidth=1;c.beginPath();c.ellipse(-40,24,8,3,0,0,Math.PI*2);c.stroke();}
   c.restore();return true;
 }

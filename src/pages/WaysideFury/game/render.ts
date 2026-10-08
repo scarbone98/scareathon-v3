@@ -1,4 +1,4 @@
-import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp } from "./chapters/ch4Art";
+import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
 import { drawCountyProp } from "./countyArt";
 import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
 import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
@@ -135,6 +135,7 @@ export class Renderer {
   project(x: number, y: number) { return { x: (x - this.camera.x) / this.viewport.width, y: (y - this.camera.y) / this.viewport.height }; }
   presentation(s: GameState): RenderPresentation {
     const labels: RenderLabel[] = [];
+    if(s.mapId==='city-hatching'&&s.dialogue?.speaker==='Jon') return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     if(s.film || s.mapId === "space-launch" && s.sceneTimer<3 && !s.moving) return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
       const point = this.project(x, y);
@@ -258,7 +259,8 @@ export class Renderer {
     c.restore();
     if(s.mapId==='city-hatching'&&s.dialogue?.speaker==='Jon') {
       // A screen-space foreground keeps all five identities visible on phones.
-      c.save();c.fillStyle='#172630db';c.fillRect(0,height*.48,width,height*.28);
+      drawCityStory(c,s,width,height);
+      c.save();
       for(const [index,id] of (['joe','matt','alex','jon','you'] as const).entries()) this.hero({...s,active:id,x:width/2+(index-2)*Math.min(34,width/6),y:height*.68,spaceOutfit:false,moving:false,guard:false,attackTimer:0,charge:0});
       c.restore();
     }

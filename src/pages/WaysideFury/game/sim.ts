@@ -830,6 +830,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
   if (target.id === "space-air-option") {spaceInteract(s,target.id);return;}
+  if (s.scene === "hub" && target.id === "station" && cityInteract(s, target.id)) return;
   if(s.coop?.role==='guest' && (target.id.startsWith('city-anchor-')||target.id==='city-signal-switch'||target.id.startsWith('city-pedestal-'))) {
     s.events.push({type:'coop-hit',enemyId:0,damage:1,dx:0,dy:0,force:0,attackId:`relay-use:${s.nextId++}`,relayId:target.id,relayKind:'interact'});return;
   }

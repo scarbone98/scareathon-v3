@@ -1,5 +1,6 @@
 import { map, paint, prop, exit, type WorldMap } from '../worldBuilder.ts';
 export type CityBehavior = 'cable-rat' | 'neon-imp' | 'turnstile' | 'clockwolf' | 'switchmaster' | 'architect';
+export const CITY_RAT_OUTLETS=[{x:340,y:168},{x:436,y:248}] as const;
 export const CITY_MAP_IDS = ['city-boulevard','city-market','city-clockroof','city-ticket-hall','city-cable-run','city-transformer','city-switchmaster','city-backstage','city-doorway','city-delivery','city-shell-press','city-gallery','city-balcony','city-hatching','city-refuge'] as const;
 const names = ['Blackout Boulevard','Neon Market','Clockroof Walk','Blackout Exchange · Ticket Hall','Rat Cable Run','Transformer Floor','Switchmaster Booth','Backstage 8-Bit · Platform','The Old Escape Door','Eggworks · Delivery Floor','Shell Press','Incubator Gallery','Control Balcony · Workshop','Hatching Chamber','Last Order · Survivor Refuge'];
 export const CITY_WORLDS: WorldMap[] = CITY_MAP_IDS.map((id, room) => {
