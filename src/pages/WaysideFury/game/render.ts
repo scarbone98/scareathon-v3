@@ -1,4 +1,5 @@
-import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceSuit, drawSpaceFilm } from "./renderSpace2d";
+import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
+import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
 import { lunarLift, hasSpaceFlag } from "./lunar";
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
@@ -197,7 +198,7 @@ export class Renderer {
     c.imageSmoothingEnabled = false;
     if(s.film) {
       this.camera={x:0,y:0};
-      drawSpaceFilm(c,s,width,height,this.reducedMotion,(id,x,y)=>this.hero({...s,active:id,x,y,spaceOutfit:true,boundTimer:0,moving:false}));
+      drawSpaceFilm(c,s,width,height,this.reducedMotion,(id,x,y,pose)=>this.hero({...s,active:id,x,y,spaceOutfit:true,boundTimer:0,moving:false},pose));
       return;
     }
     if (s.scene === 'prologue' || s.scene === 'shift') {
@@ -236,12 +237,12 @@ export class Renderer {
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
-    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
+    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
       if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
-      for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
+      for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
@@ -561,8 +562,14 @@ export class Renderer {
       c.globalAlpha = 1;
     }
   }
-  private hero(s: GameState) {
+  private hero(s: GameState, pose?:SuitPose) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
+    const suited = resolveHeroVisual(this.reducedMotion ? {...s,time:0} : s, this.avatar,pose);
+    if (suited) {
+      this.shadow(s.x,s.y,14);
+      drawHeroVisual(c,suited,s.x,s.y-lunarLift(s));
+      return;
+    }
     if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
     if (s.charge > .12) {
@@ -602,7 +609,7 @@ export class Renderer {
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
     c.restore(); c.globalAlpha = 1;
-    drawSpaceSuit(c,s);
+
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
       c.globalAlpha = .6; this.rect(x - 5, y - 7, 10, 13, color); this.rect(x - 3, y + 6, 6, 3, color); c.globalAlpha = 1;

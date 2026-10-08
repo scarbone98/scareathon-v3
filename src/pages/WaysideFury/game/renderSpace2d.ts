@@ -1,9 +1,10 @@
-// Part A vector staging. Part B can replace cast art through the spaceOutfit flag.
+// Native-resolution Space scenery and shared film compositions.
 // Draw functions sample simulation only; no timeline, collision or rewards live here.
+import type { SuitPose } from './heroVisuals';
 import type { GameState, Enemy } from './sim.ts';
 import type { WorldMap, WorldProp } from './world.ts';
 import { sampleSpaceFilm } from './chapters/ch3Films.ts';
-import { hasSpaceFlag, lunarLift } from './lunar.ts';
+import { hasSpaceFlag } from './lunar.ts';
 const silver='#dae4f2',ink='#111829',amber='#f5c776',magenta='#ce6bbb';
 function ellipse(c:CanvasRenderingContext2D,x:number,y:number,rx:number,ry:number,color:string|CanvasGradient) {c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
 function line(c:CanvasRenderingContext2D,x:number,y:number,xx:number,yy:number,color:string,w=1) {c.strokeStyle=color;c.lineWidth=w;c.beginPath();c.moveTo(x,y);c.lineTo(xx,yy);c.stroke();}
@@ -71,7 +72,11 @@ export function drawMoonGround(c:CanvasRenderingContext2D,world:WorldMap,s:GameS
   c.save();c.fillStyle='#858ea4';c.fillRect(16,16,world.width-32,world.height-32);
   // Quiet regolith: bounded smooth grain and long side shadows, no checkerboard.
   for(let n=0;n<260;n++) {const x=24+(n*137)% (world.width-48),y=24+(n*79)%(world.height-48);ellipse(c,x,y,1+(n%4)*.5,.7,n%3?'#dae4f226':'#11182924');}
-  c.strokeStyle='#c1cbd355';c.lineWidth=1;for(let n=0;n<10;n++) {c.beginPath();c.ellipse(100+n*61,70+(n%2)*(world.height-140),34,12,-.3,0,Math.PI*2);c.stroke();}
+  c.fillStyle='#b9c5d214';c.fillRect(32,world.height/2-40,world.width-64,80);
+  for(let n=0;n<14;n++) {const x=56+(n*97)%(world.width-112),y=44+(n%2)*(world.height-88),r=8+n%4*6;
+    const g=c.createRadialGradient(x-3,y-2,1,x,y,r);g.addColorStop(0,'#48546f60');g.addColorStop(.7,'#63718d40');g.addColorStop(1,'#bbc8da00');ellipse(c,x,y,r,r*.5,g);
+    c.lineWidth=.7;c.strokeStyle='#dce7f488';c.beginPath();c.ellipse(x,y,r,r*.5,-.15,Math.PI,Math.PI*2);c.stroke();c.strokeStyle='#43536e66';c.beginPath();c.ellipse(x+2,y+2,r,r*.5,-.15,0,Math.PI);c.stroke();}
+
   if(world.id==='moon-m05') for(const [x,y] of [[450,128],[590,260],[420,280]]) {c.strokeStyle='#ce6bbb70';c.beginPath();c.ellipse(x,y,18,12,0,0,Math.PI*2);c.stroke();}
   if(world.id==='moon-m01') earth(c,world.width-88,52,24);
   for(const link of world.boundLinks??[]) {
@@ -88,14 +93,7 @@ export function drawLunarTelegraph(c:CanvasRenderingContext2D,e:Enemy) {
   else {const length=e.behavior==='walker'?68:150;c.beginPath();c.moveTo(e.x-e.aimY*10,e.y+e.aimX*10);c.lineTo(e.x+e.aimX*length-e.aimY*10,e.y+e.aimY*length+e.aimX*10);c.lineTo(e.x+e.aimX*length+e.aimY*10,e.y+e.aimY*length-e.aimX*10);c.lineTo(e.x+e.aimY*10,e.y-e.aimX*10);c.closePath();c.fill();c.stroke();}
   c.restore();return true;
 }
-export function drawSpaceSuit(c:CanvasRenderingContext2D,s:GameState) {
-  if(!s.spaceOutfit)return;
-  const lift=lunarLift(s),colors={you:'#a1efd0',joe:'#7ae1ef',matt:'#f5c776',alex:'#b5d999',jon:'#c8a5ed'};
-  c.save();c.translate(s.x,s.y-lift);c.strokeStyle=colors[s.active];c.lineWidth=1.2;c.fillStyle='#eff5f744';
-  c.beginPath();c.ellipse(0,-19,10,11,0,0,Math.PI*2);c.fill();c.stroke();line(c,-6,-26,-2,-28,'#fff9e9',1.5);
-  c.fillStyle='#f1f5ee';c.fillRect(-7,-12,14,9);line(c,-5,-11,-5,-4,colors[s.active],1.5);line(c,5,-11,5,-4,colors[s.active],1.5);c.restore();
-}
-export function drawSpaceFilm(c:CanvasRenderingContext2D,s:GameState,w:number,h:number,reduced:boolean,cast:(id:GameState['active'],x:number,y:number)=>void) {
+export function drawSpaceFilm(c:CanvasRenderingContext2D,s:GameState,w:number,h:number,reduced:boolean,cast:(id:GameState['active'],x:number,y:number,pose?:SuitPose)=>void) {
   if(!s.film)return;
   const {shot,progress}=sampleSpaceFilm(s.film.id,s.film.elapsed),t=reduced?.5:progress;
   c.save();c.fillStyle=ink;c.fillRect(0,0,w,h);
@@ -103,9 +101,9 @@ export function drawSpaceFilm(c:CanvasRenderingContext2D,s:GameState,w:number,h:
   const x=w*.5,y=h*.55,kind=shot.composition;
   if(['crew','lockers','helmet','cabin','burger'].includes(kind)) {
     const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,'#35495c');g.addColorStop(1,ink);c.fillStyle=g;c.fillRect(w*.04,h*.08,w*.92,h*.6);
-    for(let n=0;n<5;n++) {const xx=w*(.15+n*.175),yy=h*.48+(n%2)*4;
+    for(let n=0;n<5;n++) {const portrait=h>w*1.4; const xx=portrait?w*(n<3?.2+n*.3:.35+(n-3)*.3):w*(.15+n*.175),yy=portrait?h*(n<3?.34:.57):h*.48+(n%2)*4;
       if(kind==='lockers') {c.fillStyle='#899bac';c.fillRect(xx-12,h*.17,24,h*.4);line(c,xx,h*.2,xx,h*.35,amber,1);}
-      cast((['joe','matt','alex','jon','you'] as const)[n],xx,yy);
+      c.save();c.translate(xx,yy);const scale=kind==='helmet'?1.35:1;c.scale(scale,scale);cast((['joe','matt','alex','jon','you'] as const)[n],0,0,kind==='helmet'?(s.film.id==='space-return'?'helmet-off':'helmet-on'):kind==='crew'?'interact':'idle');c.restore();
       c.fillStyle=silver;c.font='5px sans-serif';c.textAlign='center';c.fillText(['Joe','Matt','Alex','Jon','You'][n],xx,yy+12);
     }
     if(kind==='burger') {const bx=w*(.25+t*.45),by=h*(.23+Math.sin(t*Math.PI)*.05);ellipse(c,bx,by,7,4,'#edb574');c.fillStyle='#62815b';c.fillRect(bx-7,by+1,14,2);line(c,bx,by,w*.67,h*.4,'#dae4f260');}
@@ -128,7 +126,7 @@ export function drawSpaceFilm(c:CanvasRenderingContext2D,s:GameState,w:number,h:
       if(kind==='reentry') {c.strokeStyle=amber;c.lineWidth=3;c.beginPath();c.arc(x,yy-32,25,Math.PI,Math.PI*2);c.stroke();line(c,x-25,yy-32,x,yy,silver);line(c,x+25,yy-32,x,yy,silver);}
     }
   }
-  c.fillStyle=amber;c.font='bold 7px sans-serif';c.textAlign='left';c.fillText(`${shot.id} · ${s.film.id.replace('space-','').toUpperCase()}`,8,12);c.restore();
+  c.restore();
 }
 export function drawLunarBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
   if(!e.behavior)return false;

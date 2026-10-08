@@ -1,3 +1,4 @@
+import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 import { ZONE_PREVIEWS } from './zonePreviews';
 import { QualityRecovery } from './qualityRecovery';
@@ -87,6 +88,7 @@ void main(){
 
 export class OverworldRenderer {
   private renderer: THREE.WebGLRenderer;
+  private space: SpaceRenderer | null = null;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 1, 1800);
   private terrain: ReturnType<typeof buildOverworldTerrain>;
@@ -176,6 +178,7 @@ export class OverworldRenderer {
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false });
     try {
+    this.space = new SpaceRenderer(this.renderer,this.canvas);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.12;
@@ -516,6 +519,7 @@ export class OverworldRenderer {
     }
   }
   setAvatar(avatar: HeroAvatar) {
+    this.space?.setAvatar(avatar);
     if (this.disposed) return;
     this.avatar = avatar;
     for (const key of [...this.billboards.keys()]) if (key === 'crew-you' || key === 'driver') this.removeBillboard(key);
@@ -523,6 +527,7 @@ export class OverworldRenderer {
     this.avatarSheets = this.composeAvatarSheets(avatar);
   }
   setRemoteAvatar(seat: number, avatar: HeroAvatar) {
+    this.space?.setRemoteAvatar(seat,avatar);
     if (this.disposed) return;
     this.releaseRemoteAvatarSheets(seat);
     this.remoteAvatars.set(seat, avatar);
@@ -809,6 +814,8 @@ export class OverworldRenderer {
 
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed || this.contextLost || this.renderer.getContext().isContextLost()) throw new Error('The 3D graphics context is unavailable');
+    if (isSpaceScene(s)) { this.space!.draw(s,dt); return; }
+    if(this.renderer.getPixelRatio()!==Math.min(window.devicePixelRatio||1,QUALITY[this.tier].cap))this.resize();
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
@@ -833,6 +840,7 @@ export class OverworldRenderer {
     this.canvas.dataset.drawCalls = `${this.renderer.info.render.calls}`; this.canvas.dataset.triangles = `${this.renderer.info.render.triangles}`;
   }
   presentation(s: GameState): RenderPresentation {
+    if(isSpaceScene(s)) return this.space!.presentation(s);
     const labels: RenderLabel[] = [];
     const add = (id: string | number, text: string, x: number, z: number, height: number, kind: RenderLabel['kind'], color?: string, opacity?: number) => {
       const point = this.scratch.set(x, this.terrain.heightAt(x, z) + height, z).project(this.camera);
@@ -856,9 +864,10 @@ export class OverworldRenderer {
       if (this.bursts.length > 8) this.bursts.shift();
     }
   }
-  reset() { this.cameraReady = false; this.slowTime = 0; this.qualityRecovery.reset(); this.bursts = []; }
+  reset() { this.space?.reset(); this.cameraReady = false; this.slowTime = 0; this.qualityRecovery.reset(); this.bursts = []; }
   dispose() {
     if (this.disposed) return; this.disposed = true;
+    this.space?.dispose(); this.space=null;
     this.resizeObserver?.disconnect(); window.removeEventListener('resize', this.resize);
     window.visualViewport?.removeEventListener('resize', this.resize); this.motionQuery.removeEventListener('change', this.motionChanged);
     this.canvas.removeEventListener('webglcontextlost', this.loseContext);
