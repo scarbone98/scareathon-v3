@@ -1,4 +1,6 @@
 import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
+import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
+import { fieldWorld } from "./fieldAbilities";
 import { drawCountyProp } from "./countyArt";
 import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
 import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
@@ -214,7 +216,7 @@ export class Renderer {
     if(s.mapId === 'space-launch' && s.sceneTimer < 3 && !s.moving) {
       drawLaunchEstablishing(c,s,width,height,getWorld(s.scene,s.room,s.mapId),()=>this.hero(s));return;
     }
-    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId, !!s.coop);
+    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : fieldWorld(s);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
     const target = cameraTarget(world, s.x, s.y, width, height, s.moving ? s.faceX : 0, s.moving ? s.faceY : 0);
     if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
@@ -232,6 +234,7 @@ export class Renderer {
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
+    drawWoodsMachinery(c,s);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
@@ -245,11 +248,12 @@ export class Renderer {
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
-      const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
+      const remote = { ...s, ...peer, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
       if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
+    for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
     if (s.scene === 'overworld') this.rockGag(s, motionTime);
@@ -576,6 +580,7 @@ export class Renderer {
   }
   private hero(s: GameState, pose?:SuitPose) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
+    if (s.meleeCharge > .25) { c.save(); c.strokeStyle = color; c.lineWidth = 2; c.beginPath(); c.arc(s.x, s.y - 10, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.meleeCharge / .6)); c.stroke(); c.restore(); }
     const suited = resolveHeroVisual(this.reducedMotion ? {...s,time:0} : s, this.avatar,pose);
     if (suited) {
       this.shadow(s.x,s.y,14);
@@ -629,9 +634,11 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
-    if(drawCityEnemy(this.ctx,enemy) || drawLunarBody(this.ctx,enemy,s)) return;
+    if(drawWoodsBody(this.ctx,enemy,s)) return;
+    if(drawCityEnemy(this.ctx,enemy)) return;
+    if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
-    const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
+    const id = enemy.sprite;
     const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
     if (boss && enemy.phase === 2) { c.globalAlpha = .55 + Math.sin(time * 9) * .07; this.glow(enemy.x, enemy.y - 23, 35, '#db82cb'); c.globalAlpha = 1; }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
@@ -648,6 +655,11 @@ export class Renderer {
       if (enemy.windup > 0) c.scale(1.08, .93);
     }
     this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
+    if (enemy.archetype === 'shield' && enemy.windup === 0 && enemy.actionTimer === 0) {
+      const facing = Math.atan2(enemy.aimY, enemy.aimX);
+      c.save(); c.strokeStyle = '#90daed'; c.lineWidth = 2.5; c.beginPath();
+      c.arc(enemy.x, enemy.y - 8, 15, facing - .9, facing + .9); c.stroke(); c.restore();
+    }
     if (enemy.hp < enemy.maxHp || boss) {
       const width = boss ? 48 : 18, top = enemy.y - SHEETS[id].h * scale - 6;
       this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);
@@ -874,7 +886,9 @@ export class Renderer {
   }
 
   private bossTelegraph(s: GameState, enemy: Enemy) {
-    if(drawCityTelegraph(this.ctx,enemy) || drawLunarTelegraph(this.ctx,enemy)) return;
+    if(drawWoodsTell(this.ctx,enemy)) return;
+    if(drawCityTelegraph(this.ctx,enemy)) return;
+    if(drawLunarTelegraph(this.ctx,enemy)) return;
     if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
     const c = this.ctx;
     const color = enemy.phase === 2 ? "#ec7ead" : "#efab7a";

@@ -4,6 +4,7 @@ export interface CharacterProgress { level: number; xp: number }
 export interface ProgressReceipt { areas: string[]; bosses: string[]; rooms: string[]; level: number; foundItems?: string[] }
 export interface Gear { power: number; ward: number }
 export interface SaveSettings {
+  difficulty?: "normal" | "hard";
   musicVolume: number; sfxVolume: number;
   controls: { tutorialDismissed: boolean; stickSensitivity: number };
 }

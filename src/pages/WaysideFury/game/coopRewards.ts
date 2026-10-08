@@ -1,4 +1,4 @@
-import { gainXp, grantGear, syncCoopLevel, type GameState } from "./sim.ts";
+import { combatXp, gainXp, grantGear, syncCoopLevel, type GameState } from "./sim.ts";
 import { MAX_COOP_REWARDS } from "../../../../server/shared/waysideFury/save.js";
 import type { CoopReward } from "./coop";
 import { grantPickup } from "./collectibles.ts";
@@ -17,7 +17,8 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   if (receipts.length > MAX_COOP_REWARDS) receipts.splice(0, receipts.length - MAX_COOP_REWARDS);
   if (reward.kind === "pickup") return reward.pickupId ? grantPickup(s, reward.pickupId) : false;
   const repeatedArea = s.coop?.role !== "host" && reward.areas?.some(id => id !== "wayside" && s.areas.includes(id));
-  gainXp(s, (reward.xp ?? 0) + (repeatedArea ? 75 : 0));
+  const xp = reward.kind === "kill" && (reward.xp ?? 0) > 0 ? combatXp(s, reward.xp!, reward.xpLevel) : reward.xp ?? 0;
+  gainXp(s, xp + (repeatedArea ? 75 : 0));
   s.candy = Math.min(1_000_000, s.candy + (reward.candy ?? 0));
   if (reward.power || reward.ward) grantGear(s, reward.power ?? 0, reward.ward ?? 0);
   for (const hero of Object.values(s.heroes)) {
@@ -33,6 +34,6 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.completedCinematics = [...new Set([...s.completedCinematics,...(reward.completedCinematics ?? [])])];
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
   syncCoopLevel(s);
-  s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
+  s.notice = reward.kind === "kill" ? `+${xp} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
   return true;
 }

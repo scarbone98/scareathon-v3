@@ -19,7 +19,7 @@ export function suitPose(s:GameState):SuitPose {
   if(s.boundTimer>0) return s.boundTimer<.08?'dash-land':'bound';
   if(s.effects.some(e=>e.kind==='beam'&&e.hero===s.active&&e.ttl>.05))return 'release';
   if(s.guard) return 'guard';
-  if(s.charge>.12) return 'charge';
+  if(s.charge>.12 || s.meleeCharge>.25) return 'charge';
   if(s.heroes[s.active].invulnerable>.3) return 'hurt';
   if(s.previousInput.interact) return 'interact';
   return s.moving?'walk':'idle';

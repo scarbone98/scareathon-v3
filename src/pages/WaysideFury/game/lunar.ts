@@ -1,3 +1,4 @@
+import { fieldWorld } from './fieldAbilities.ts';
 import type { GameState } from './sim.ts';
 import { getWorld, isBlocked } from './world.ts';
 export const onMoon = (s: Pick<GameState,'mapId'>) => s.mapId.startsWith('moon-m');
@@ -40,7 +41,7 @@ export function advanceBoundLink(s:GameState,dt:number) {
 // Solved machinery removes the same precise footprint used by movement and QA.
 export function lunarWorld(s:GameState) {
   const world=getWorld(s.scene,s.room,s.mapId,!!s.coop);
-  if(world.id!=='moon-m05') return world;
+  if(world.id!=='moon-m05') return fieldWorld(s);
   return {...world,props:world.props.filter(p=>p.kind!=='seal'||!hasSpaceFlag(s,p.id))};
 }
 

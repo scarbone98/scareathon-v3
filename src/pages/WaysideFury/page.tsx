@@ -24,7 +24,7 @@ import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
 import "./style.css";
 import "./design.css";
-const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
+const DEFAULT_SETTINGS: SaveSettings = { difficulty: "normal", musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
 const SAVE_LABELS: Record<SaveStatus, string> = { loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" };
 const TUTORIAL_KEY = "wayside-fury-controls-dismissed";
 function tutorialVisible() { try { return localStorage.getItem(TUTORIAL_KEY) !== "1"; } catch { return true; } }
@@ -32,7 +32,7 @@ function Controls({ mode }: { mode: InputMode }) {
   return <section className="wf-controls-panel" aria-label="Controls">
     <h2>Controls</h2>
     <dl><dt>Move</dt><dd>WASD / arrows · left stick / d-pad</dd>
-      <dt>Attack / Use</dt><dd>J · A / Cross · nearby talk, use or 3-hit combo</dd>
+      <dt>Attack / Use</dt><dd>J · A / Cross · nearby talk/use · tap: 3-hit combo · hold/release: charged strike</dd>
       <dt>Ki</dt><dd>K · X / Square · tap: blast, hold: charge</dd>
       <dt>Signature</dt><dd>Release Ki at a full bar for your hero's beam</dd>
       <dt>Dash / Guard</dt><dd>L / Shift · B / Circle / RT or RB</dd>
@@ -41,15 +41,19 @@ function Controls({ mode }: { mode: InputMode }) {
     <p>{mode === "touch" ? "Use the stick and buttons below. Hold Ki or Guard while moving." : "Controllers connect automatically. Charge somewhere safe."}</p>
   </section>;
 }
-function GraphicsSettings({ mode, status, onChange, onNewGame, resetDisabled }: { mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void; onNewGame: () => void; resetDisabled: boolean }) {
+function GraphicsSettings({ mode, status, onChange, onNewGame, resetDisabled, difficulty, onDifficulty, inCoop, hardUnlocked }: { difficulty: "normal" | "hard"; onDifficulty: (value: "normal" | "hard") => void; inCoop: boolean; hardUnlocked: boolean; mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void; onNewGame: () => void; resetDisabled: boolean }) {
   return <section className="wf-graphics-settings" aria-label="Graphics settings">
-    <h2>Settings</h2><p>Overworld graphics</p>
+    <h2>Settings</h2><p>Combat difficulty</p>
+    <div role="radiogroup" aria-label="Combat difficulty">
+      {(["normal", "hard"] as const).map(value => <button key={value} role="radio" aria-checked={difficulty === value} disabled={inCoop} className="wf-secondary" onClick={() => onDifficulty(value)}>{value === "hard" ? "Hard" : "Normal"}</button>)}
+    </div>
+    <p className="wf-small">{inCoop ? "The host sets difficulty before joining co-op." : hardUnlocked ? "Chapter 1 cleared: Hard unlocked. Faster decisions, flanking and stronger attacks." : "Normal is approachable. You can opt into Hard here at any time."}</p><p>Overworld graphics</p>
     <div role="radiogroup" aria-label="Overworld graphics">
       <button role="radio" aria-checked={mode === "2d"} className="wf-secondary" onClick={() => onChange("2d")}>2D</button>
       <button role="radio" aria-checked={mode === "3d"} className="wf-secondary" onClick={() => onChange("3d")}>3D HD-2D</button>
     </div>
-    <p className="wf-small">3D applies to the taxi overworld; space currently uses the shared 2D presentation. Remembered on this device.</p>
-    <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D overworld selected. Other scenes use 2D." : "2D overworld selected."}</p>
+    <p className="wf-small">3D applies to the county and Space. Other dungeons use 2D. Remembered on this device.</p>
+    <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D selected for county and Space. Other dungeons use 2D." : "2D overworld selected."}</p>
     <button className="wf-secondary" disabled={resetDisabled} onClick={onNewGame}>New Game</button>
     <p className="wf-small">Restart the story. Your Collection and lore cards stay with you. Leave co-op first to restart.</p>
   </section>;
@@ -223,7 +227,7 @@ export default function WaysideFury() {
   const accountEpochRef = useRef(0);
   const dismissTutorialRef = useRef(() => {});
   const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
-  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); if (import.meta.env.DEV && !retry && new URLSearchParams(location.search).get("chapter") === "3") { next.campaignMilestones.push("space-dev-entry"); enterScene(next,"dungeon",0,"space-launch"); } controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
+  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); if (import.meta.env.DEV && !retry && new URLSearchParams(location.search).get("chapter") === "3") { next.campaignMilestones.push("space-dev-entry"); enterScene(next,"dungeon",0,"space-launch"); } next.difficulty = settingsRef.current.difficulty ?? "normal"; controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
   const confirmNewGame = async () => {
     const store = storeRef.current;
     if (!store || resetDisabled || newGameBusyRef.current) return;
@@ -260,7 +264,7 @@ export default function WaysideFury() {
     if (next && !store.persist({ ...next, settings: settingsRef.current }, !!report?.score)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
   };
   const updateSettings = (next: SaveSettings) => {
-    settingsRef.current = next; setSettings(next); controller.current?.setAudioSettings(next); setTutorial(!next.controls.tutorialDismissed);
+    settingsRef.current = next; setSettings(next); controller.current?.mutate(s => { if (!s.coop) s.difficulty = next.difficulty ?? "normal"; }); controller.current?.setAudioSettings(next); setTutorial(!next.controls.tutorialDismissed);
     const store = storeRef.current, game = controller.current;
     if (!store?.ready || !game || newGameBusyRef.current) return;
     const snapshot = makeSave(game.state, store.save);
@@ -427,7 +431,7 @@ export default function WaysideFury() {
       if (!playingRef.current) {
         const next = saveRef.current ? restoreSave(saveRef.current) : newGame();
         if (!saveRef.current) enterScene(next, "hub");
-        playingRef.current = true; controller.current?.start(next); setPlaying(true);
+        playingRef.current = true; next.difficulty = settingsRef.current.difficulty ?? "normal"; controller.current?.start(next); setPlaying(true);
       }
       if (avatar) coopRef.current.setAvatar(avatar);
       pausedRef.current = true; setPaused(true); controller.current?.setPaused(true);
@@ -478,7 +482,7 @@ export default function WaysideFury() {
       <div className="wf-title-actions"><button className="wf-primary" disabled={loadingSave || loadingAvatar} onClick={() => begin()}>{loadingSave ? "Loading your save…" : loadingAvatar ? "Loading your look…" : saved ? "Continue adventure" : "Begin adventure"}</button><button className="wf-secondary" disabled={resetDisabled} onClick={requestNewGame}>New Game</button></div>
       <button className="wf-secondary" disabled={loadingSave || loadingAvatar} onClick={() => setCoopOpen(true)}>Co-op</button>
       <div className="wf-menu-options"><button className="wf-secondary" onClick={() => { setControls(!controls); setSettingsOpen(false); }}>Controls</button><button className="wf-secondary" onClick={() => { setSettingsOpen(!settingsOpen); setControls(false); }}>Settings</button></div>
-      {controls && <Controls mode={mode} />}{settingsOpen && <GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} />}<p className="wf-small">Chapter 1 · The Blast Site</p>
+      {controls && <Controls mode={mode} />}{settingsOpen && <GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} difficulty={settings.difficulty ?? "normal"} onDifficulty={difficulty => updateSettings({ ...settingsRef.current, difficulty })} inCoop={!!state.coop} hardUnlocked={state.clearedRooms.includes("realm-0") || state.bosses.includes("blast-watcher")} />}<p className="wf-small">Chapter 1 · The Blast Site</p>
     </div> : <>
       {!cinematic && <header className="wf-hud" aria-label="Hero status"><div className="wf-hero-hud">
         {partner ? <button className="wf-tag-partner wf-hud-faces" aria-label={`Swap to ${HERO_NAMES[partner]}`} disabled={state.heroes[partner].hp <= 0} onClick={() => controller.current?.mutate(requestSwap)}><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /><HeroPortrait id={partner} avatar={avatar} className="wf-tag-face" /></button> : <span className="wf-hud-faces"><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /></span>}
@@ -498,12 +502,12 @@ export default function WaysideFury() {
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
         {atWorldStop && !paused && !worldRoute && <button className="wf-world-route" disabled={!!state.coop} onClick={openWorldRoute}>{state.coop ? "World route · solo only for now" : "World route · County Cruiser"}</button>}
-        {boss && <div className="wf-boss-hud"><strong>{boss.behavior === "architect" ? "THE ARCHITECT" : boss.behavior === "switchmaster" ? "SWITCHMASTER" : boss.behavior === "warden" ? "APOGEE WARDEN" : boss.behavior === "inspector" ? "CHEESE INSPECTOR" : boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.behavior === "architect" || boss.behavior === "switchmaster" ? (boss.exposed ?? 0) > 0 ? "RELAY OPEN · COMBO / KI" : boss.behavior === "switchmaster" ? "TWO SAFE LANES · KI-HIT THE SWITCH" : "KI-HIT A RELAY · AVOID THE BROKEN SIGIL" : boss.behavior ? boss.phase === 2 && !boss.shieldBroken && boss.behavior === "warden" ? "GROUND THE THREE PYLONS" : boss.windup > 0 ? "MARKED ATTACK — MOVE OR GUARD" : "Read the pattern; strike during recovery" : boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
+        {boss && <div className="wf-boss-hud"><strong>{boss.woodsBehavior === "foreman" ? "THE FOREMAN" : boss.woodsBehavior === "bailiff" ? "BRIAR BAILIFF" : boss.behavior === "architect" ? "THE ARCHITECT" : boss.behavior === "switchmaster" ? "SWITCHMASTER" : boss.behavior === "warden" ? "APOGEE WARDEN" : boss.behavior === "inspector" ? "CHEESE INSPECTOR" : boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.woodsBehavior ? boss.woodsBehavior === "foreman" && boss.phase === 2 && !boss.shieldBroken ? "BREAK HOUSINGS · HOLD KI AT BOTH BYPASSES" : boss.windup > 0 ? "MARKED ROOT LANE · DASH ASIDE" : "Strike during recovery; watch for break-out bursts" : boss.behavior === "architect" || boss.behavior === "switchmaster" ? (boss.exposed ?? 0) > 0 ? "RELAY OPEN · COMBO / KI" : boss.behavior === "switchmaster" ? "TWO SAFE LANES · KI-HIT THE SWITCH" : "KI-HIT A RELAY · AVOID THE BROKEN SIGIL" : boss.behavior ? boss.phase === 2 && !boss.shieldBroken && boss.behavior === "warden" ? "GROUND THE THREE PYLONS" : boss.windup > 0 ? "MARKED ATTACK — MOVE OR GUARD" : "Read the pattern; strike during recovery" : boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
         {actionPrompt.target && !(noticeVisible && state.notice) && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}
         {target && !(noticeVisible && state.notice) && actionPrompt.action !== "interact" && !target.id.startsWith("coop-revive-") && !state.coop?.downed && !state.overlay && !state.dialogue && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={target.kind} /><PromptGlyph mode={mode} />{target.name}</button>}
         {noticeVisible && state.notice && !showTutorial && !state.overlay && !state.dialogue && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
-        {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
+        {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A tap/hold attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag to move. Hold Attack, then release for a charged strike. Hold Ki for your signature." : "WASD move · tap/hold J attack · hold K signature · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) { controller.current?.itemGet(); persist(s); } })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}
@@ -543,7 +547,7 @@ export default function WaysideFury() {
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
       {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
       {paused && collectionOpen && state.scene !== "dead" && <Collection state={state} onBack={() => setCollectionOpen(false)} />}
-      {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
+      {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} difficulty={settings.difficulty ?? "normal"} onDifficulty={difficulty => updateSettings({ ...settingsRef.current, difficulty })} inCoop={!!state.coop} hardUnlocked={state.clearedRooms.includes("realm-0") || state.bosses.includes("blast-watcher")} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
       {paused && !characterOpen && !collectionOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><p className="wf-pause-summary">LV {state.character.level} · ◈ {state.candy} candy · {SAVE_LABELS[syncStatus]}</p><div className="wf-pause-actions"><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><button className="wf-secondary" onClick={quit}>Quit to menu</button></div><Controls mode={mode} /><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
     {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}

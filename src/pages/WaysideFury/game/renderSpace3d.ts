@@ -187,7 +187,7 @@ export class SpaceRenderer {
     };
     const visualState=window.matchMedia('(prefers-reduced-motion: reduce)').matches?{...s,time:0}:s;
     suited('local',visualState,this.avatar);
-    for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
+    for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
     for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,0,`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
     const c=this.telegraphCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
     for(const e of s.enemies)if(e.hp>0)drawLunarTelegraph(c,e);

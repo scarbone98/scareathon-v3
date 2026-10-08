@@ -99,7 +99,7 @@ const boundary = newGame(); enterScene(boundary, 'dungeon'); boundary.x = 100; b
 tick(boundary, { y: -1, dash: true }, 180);
 assert.ok(boundary.y >= 39, 'dash cannot tunnel through the cliff/tree boundary');
 const mini = newGame(); enterScene(mini, 'dungeon', GATEKEEPER_ROOM);
-assert.ok(mini.enemies[0].miniBoss); assert.ok(mini.enemies[0].maxHp < 260);
+assert.ok(mini.enemies[0].miniBoss); assert.equal(mini.enemies[0].maxHp, 235 * (10 + (mini.enemies[0].combatLevel - 1) * 3) / 10);
 
 assert.equal(tileAt(OVERWORLD, -1, 1), 'void', 'autotile neighbors outside the map do not wrap');
 assert.equal(tileAt(OVERWORLD, OVERWORLD.cols, 0), 'void');
@@ -404,6 +404,8 @@ watcher.hp = watcher.maxHp / 2;
 tick(bossRules, { guard: true });
 assert.equal(watcher.phase, 2); assert.ok(watcher.speed > 20);
 assert.ok(bossRules.floaters.some(f => f.text === 'ENRAGED!'));
+assert.ok(watcher.burst > 0, "phase change warns before break-out");
+for (let f = 0; f < 90 && watcher.burst > 0; f++) tick(bossRules, { guard: true });
 bossRules.projectiles = []; watcher.pattern = 1; watcher.cooldown = 0; watcher.actionTimer = 0; watcher.windup = 0;
 tick(bossRules, { guard: true }); assert.ok(watcher.windup <= 0.6);
 for (let f = 0; f < 50 && watcher.windup > 0; f++) tick(bossRules, { guard: true });
@@ -412,14 +414,15 @@ assert.equal(bossRules.projectiles.length, 12);
 // Play the complete dungeon with default stats and only ordinary game inputs.
 // This bot charges, aims, attacks, guards, dashes and tags. It gets no healing
 // or stats beyond legitimate level-ups and found items, and walks to each room's east gate.
-const quest = newGame(7); assert.equal(quest.active, 'you'); assert.deepEqual(quest.party, ['you', 'joe']); enterScene(quest, 'dungeon');
+const quest = newGame(7); quest.difficulty = process.env.FURY_DIFFICULTY === "hard" ? "hard" : "normal"; assert.equal(quest.active, 'you'); assert.deepEqual(quest.party, ['you', 'joe']); enterScene(quest, 'dungeon');
+if (quest.difficulty === "hard") quest.party = ["you", "jon"];
 let playFrame = 0; const checkpoints = [], usedControls = new Set(), roomFrames = [];
 function playRoom(s) {
   let frames = 0; const scene = s.scene; let route = [], routeEnemy = null;
   while (s.enemies.length && s.scene === scene && frames < 15000) {
     const e = s.enemies.reduce((a, b) => Math.hypot(a.x - s.x, a.y - s.y) < Math.hypot(b.x - s.x, b.y - s.y) ? a : b);
     // Follow walkable waypoints around rims and props, using normal controls.
-    if (routeEnemy !== e.id || frames % 30 === 0 || !route.length) {
+    if (routeEnemy !== e.id || frames % (s.difficulty === "hard" ? 120 : 30) === 0 || !route.length) {
       route = findWalkRoute(getWorld(s.scene, s.room), s, e); routeEnemy = e.id;
     }
     while (route.length > 1 && Math.hypot(route[0].x - s.x, route[0].y - s.y) < 3) route.shift();
@@ -429,13 +432,33 @@ function playRoom(s) {
     // without a monster in reach now correctly travels back through it.
     const ki = cycle < 80, attack = !ki && playFrame % 20 === 0 && (!interactTarget(s) || hostileWithinMeleeReach(s)), dash = cycle === 110, swap = cycle === 190;
     const input = { ...idleInput(), x: dx / length, y: dy / length, ki, attack, dash, swap, guard: !ki && !attack && !dash };
+    if (s.difficulty === 'hard') {
+      input.dash = false; // Save stamina for telegraphed threats and charged release.
+      // All crew are already unlocked. Jon's rally and charged strikes are real
+      // starter-compatible tools; read ground warnings before committing.
+      input.attack = !ki && (cycle >= 80 && cycle < 130 || cycle >= 145 && playFrame % 16 === 0) && (!interactTarget(s) || hostileWithinMeleeReach(s));
+      input.guard = !ki && !input.attack && !dash;
+      const threat = s.enemies.find(enemy => {
+        if (enemy.windup <= 0 || enemy.windup > .35 || activeHero(s).invulnerable > .12) return false;
+        const px = s.x - enemy.x, py = s.y - enemy.y;
+        if (enemy.burst > 0 || enemy.kind === 'boss' && enemy.pattern === 1) return Math.hypot(px, py) < 90;
+        const forward = px * enemy.aimX + py * enemy.aimY, across = Math.abs(px * enemy.aimY - py * enemy.aimX);
+        return forward > -enemy.radius && forward < 170 && across < 30;
+      });
+      if (threat) {
+        input.x = -threat.aimY; input.y = threat.aimX;
+        input.dash = threat.windup < .3 && s.dashTimer === 0 && activeHero(s).stamina >= 25;
+        input.guard = !input.dash && !ki && !input.attack;
+      }
+    }
     for (const key of ['attack', 'ki', 'dash', 'swap', 'guard']) if (input[key]) usedControls.add(key);
     step(s, input, DT);
     checkpoints.push(...s.events.filter(e => e.type === 'checkpoint').map(e => e.id));
     frames++; playFrame++;
   }
-  assert.equal(s.scene, scene, 'combat bot survives on default stats');
+  assert.equal(s.scene, scene, `combat bot survives ${s.difficulty} on starter stats in room ${s.room}`);
   assert.equal(s.enemies.length, 0, `combat bot defeats every enemy in ${s.scene}:${s.room}, hero ${s.x.toFixed(1)},${s.y.toFixed(1)}, remaining ${s.enemies.map(e => `${e.kind}@${e.x.toFixed(1)},${e.y.toFixed(1)}`).join(';')}`);
+  if (s.difficulty === "hard") console.log(`Hard room ${s.scene}:${s.room}: ${Math.round(frames / 60)}s, ${Math.round(activeHero(s).hp)} HP`);
   return frames;
 }
 function walkTo(s, x, y) {
@@ -492,7 +515,8 @@ for (let room = 0; room <= WATCHER_ROOM; room++) {
 assert.equal(quest.scene, 'shift'); assert.equal(quest.palette, 'real');
 assert.deepEqual(quest.clearedRooms, completedZones);
 assert.deepEqual(quest.bosses, ['blast-gatekeeper', 'blast-watcher']); assert.deepEqual(quest.areas, ['blast']);
-assert.deepEqual(checkpoints, clearedCheckpoints);
+assert.deepEqual(checkpoints.filter(id => !id.startsWith('personal-')), clearedCheckpoints);
+for (const id of checkpoints.filter(id => id.startsWith('personal-'))) assert.ok(quest.foundItems.includes(id.slice('personal-'.length)), 'personal checkpoint belongs to an actual find');
 const dungeonKills = BLAST_WORLDS.reduce((n, m) => n + m.spawns.length, 0);
 assert.equal(quest.kills, dungeonKills); assert.equal(quest.deaths, 0);
 assert.deepEqual([...usedControls].sort(), ['attack', 'dash', 'guard', 'ki', 'swap']);
@@ -509,11 +533,12 @@ assert.equal(quest.chapter, 2); assert.equal(quest.kills, dungeonKills + 6); ass
 completedZones.push('realm-0'); clearedCheckpoints.push('realm-0');
 assert.deepEqual(quest.clearedRooms, completedZones);
 assert.deepEqual(quest.areas, ['blast', 'eightbit-realm']);
-assert.deepEqual(checkpoints, clearedCheckpoints);
+assert.deepEqual(checkpoints.filter(id => !id.startsWith('personal-')), clearedCheckpoints);
+for (const id of checkpoints.filter(id => id.startsWith('personal-'))) assert.ok(quest.foundItems.includes(id.slice('personal-'.length)), 'personal checkpoint belongs to an actual find');
 openDoor(quest, 'east'); assert.equal(quest.scene, 'hub'); assert.equal(quest.sceneTimer, 0);
 tick(quest, {}, 135);
 assert.equal(quest.scene, 'hub'); assert.ok(quest.sceneTimer > 2.2);
-console.log(`Default-stat 10-zone chapter: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; ${quest.kills} kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
+console.log(`${quest.difficulty} starter-stat 10-zone chapter: dungeon ${roomFrames.map(n => (n / 60).toFixed(1)).join('/')}s, realm ${(realmFrames / 60).toFixed(1)}s; ${quest.kills} kills, level ${activeHero(quest).level}, ${quest.candy} candy, no deaths.`);
 // Revisiting completed maps keeps their routes open, without replenishing caches
 // or paying receipted milestones again, including after a HOME retry.
 const beforeReplay = progressReport(quest);

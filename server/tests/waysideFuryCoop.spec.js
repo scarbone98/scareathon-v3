@@ -2,10 +2,12 @@ import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import waysideFuryCoopRoutes from '../routes/waysideFuryCoop.js';
 import { createRoomManager, RoomError, CODE_LENGTH, RECONNECT_MS, TICKET_MS, MAX_MESSAGE_BYTES, MAX_MESSAGES_PER_SECOND } from '../wayside-fury/rooms.js';
-import { cleanRelay, cleanAppearance } from '../wayside-fury/protocol.js';
+import { cleanRelay, cleanAppearance, cleanWorld } from '../wayside-fury/protocol.js';
 import { isWaysideFuryDevAuth } from '../wayside-fury/devAuth.js';
 import { listHosting, subscribeHosting } from '../wayside-fury/presence.js';
 import { isOptionalAuthRoute, isPublicRoute } from '../utils/authRoutes.js';
+
+import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION } from '../shared/waysideFury/campaign.js';
 
 const managers = [];
 afterEach(() => { managers.splice(0).forEach((manager) => manager.close()); });
@@ -408,5 +410,34 @@ describe('Wayside Fury websocket registration and auth', () => {
             for (let index = 0; index <= MAX_MESSAGES_PER_SECOND; index++) socket.send('not-json');
             expect(await closed).toBe(4008);
         } finally { socket.terminate(); await app.close(); }
+    });
+});
+
+
+describe('merged chapter content compatibility', () => {
+    test('protocol 4 stays compatible in legacy areas but cannot join or travel into merged chapters', () => {
+        const { rooms } = setup();
+        const connect = (id, protocolVersion, contentVersion) => {
+            const socket = fakeSocket();
+            rooms.auth(socket, { ticket: rooms.issueTicket({ userId: id, name: id }), protocolVersion, contentVersion });
+            return socket;
+        };
+        const host = connect('current', COOP_PROTOCOL_VERSION, CAMPAIGN_CONTENT_VERSION);
+        const old = connect('previous', 4, 3);
+        expect(old.last('ready')).toMatchObject({ protocolVersion: 4, contentVersion: 3 });
+        const room = rooms.create(host);
+        rooms.join(old, { code: room.code });
+        rooms.relay(host, { type: 'state', state: { ...world(), protocolVersion: 4, mapId: 'training' } });
+        for (const mapId of ['woods-layby', 'city-boulevard']) {
+            const snapshot = { ...world(), protocolVersion: COOP_PROTOCOL_VERSION, scene: 'dungeon', mapId };
+            expect(cleanWorld(snapshot)).not.toBeNull();
+            expect(cleanWorld({ ...snapshot, protocolVersion: 4 })).toBeNull();
+            expect(errorCode(() => rooms.relay(host, { type: 'state', state: snapshot }))).toBe('version');
+            rooms.leave(old);
+            rooms.relay(host, { type: 'state', state: snapshot });
+            expect(errorCode(() => rooms.join(old, { code: room.code }))).toBe('version');
+            rooms.relay(host, { type: 'state', state: { ...world(), protocolVersion: COOP_PROTOCOL_VERSION, mapId: 'training' } });
+            rooms.join(old, { code: room.code });
+        }
     });
 });

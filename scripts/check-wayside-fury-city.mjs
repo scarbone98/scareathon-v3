@@ -23,7 +23,7 @@ for(const w of CITY_WORLDS) {
  const s=fixture();enterScene(s,'dungeon',0,w.id);for(const t of cityTargets(s)) {assert.equal(isBlocked(w,t.x,t.y),false,t.id);assert.ok(findWalkRoute(w,w.spawn,t).length,t.id);}
 }
 const blocked=fixture();blocked.campaignMilestones=[];assert.equal(enterCampaignMap(blocked,CITY_MAP_IDS[0]),false);
-for(const version of [1,2,3]) {const s=fixture();s.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:version};assert.equal(enterCampaignMap(s,CITY_MAP_IDS[0]),false);assert.equal(compatibleMap('dungeon',0,CITY_MAP_IDS[0],version),false);}
+for(const version of [1,2,3,4]) {const s=fixture();s.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:version};assert.equal(enterCampaignMap(s,CITY_MAP_IDS[0]),false);assert.equal(compatibleMap('dungeon',0,CITY_MAP_IDS[0],version),false);}
 const gates=fixture();enterCampaignMap(gates,CITY_MAP_IDS[0]);gates.x=620;gates.y=208;assert.equal(interactTarget(gates),null);cityInteract(gates,'city-anchor-0');assert.equal(interactTarget(gates).id,'city-boulevard-next');assert.equal(gates.active,'you');interact(gates);assert.equal(gates.mapId,'city-market');
 cityInteract(gates,'city-rest');assert.equal(toggleParty(gates,'joe'),true);assert.equal(toggleParty(gates,'jon'),true);gates.overlay=null;
 for(const level of [1,12]) {
@@ -56,6 +56,11 @@ for(const level of [1,12]) {
 }
 const s=fixture();enterScene(s,'dungeon',0,'city-ticket-hall');const shield=s.enemies.find(e=>e.behavior==='turnstile');shield.aimX=1;shield.aimY=0;assert.ok(cityDamage(shield,100,-1,0,30)<cityDamage(shield,100,1,0,30));
 enterScene(s,'dungeon',0,'city-switchmaster');const boss=s.enemies[0];for(let n=0;n<5;n++)cityDamage(boss,10,1,0,55);assert.ok(boss.burst>0);assert.equal(cityLanes(boss).length,2);
+// City owns its break-out movement; the generic Chapter 1/Moon burst must not consume it.
+const breakout=fixture();enterScene(breakout,'dungeon',0,'city-switchmaster');
+const cityBoss=breakout.enemies[0];cityBoss.x=380;cityBoss.y=208;cityBoss.burst=.01;cityBoss.windup=.01;
+step(breakout,idleInput(),1/60);
+assert.ok(Math.hypot(cityBoss.x-320,cityBoss.y-208)<1,'City break-out returns to the authored open apron');
 const snapshot={...s,protocolVersion:COOP_PROTOCOL_VERSION};assert.ok(cleanWorld(snapshot));assert.equal(cleanWorld({...snapshot,protocolVersion:3}),null);
 const remote={hero:createHero('jon'),scene:s.scene,room:s.room,mapId:s.mapId,x:64,y:208,faceX:1,faceY:0,attackTimer:0,combo:0,charge:0,dashTimer:0,moving:false,guard:true,guardTimer:.1};assert.equal(cleanHero(remote).guardTimer,.1);assert.equal(cleanHero({...remote,guardTimer:-1}),null);
 // Each authored behavior steps and emits its own readable pattern, including a single bank.

@@ -16,7 +16,7 @@ import { findWalkRoute } from './check-wayside-fury-collision.mjs';
 const dt=1/60;
 const ticks=(s,n,input={})=>{for(let f=0;f<n;f++)step(s,{...idleInput(),...input},dt);};
 const use=(s,id)=>{const t=spaceTargets(s).find(t=>t.id===id);assert.ok(t,id);s.x=t.x;s.y=t.y;interact(s,t);};
-function ready(id='you') {const s=newGame();s.party=[id];s.active=id;s.bosses.push('blast-watcher');assert.ok(enterCampaignMap(s,'space-launch'));return s;}
+function ready(id='you') {const s=newGame();s.party=[id];s.active=id;s.bosses.push('blast-watcher');s.campaignMilestones.push('woods-complete');assert.ok(enterCampaignMap(s,'space-launch'));return s;}
 assert.equal(OVERWORLD.width,2304);assert.equal(OVERWORLD.height,1536);
 assert.equal(MOON_WORLDS.length,9);assert.equal(new Set(MOON_WORLDS.map(w=>w.id)).size,9);
 for(const world of [LAUNCH_WORLD,...MOON_WORLDS]) {
@@ -30,7 +30,7 @@ for(const world of [LAUNCH_WORLD,...MOON_WORLDS]) {
  for(const target of spaceTargets(s)) {assert.ok(!isBlocked(terrain,target.x,target.y,7),`${world.id}/${target.id} interaction point`);assert.ok(findWalkRoute(terrain,terrain.spawn,target).length);}
  for(const door of world.exits) assert.ok(findWalkRoute(terrain,terrain.spawn,{x:Math.max(24,Math.min(world.width-24,door.x+door.w/2)),y:Math.max(24,Math.min(world.height-24,door.y+door.h/2))}).length,`${world.id}/${door.id}`);
 }
-const fresh=newGame();assert.equal(canEnter(fresh,'space'),false);fresh.clearedRooms.push('realm-0');assert.equal(canEnter(fresh,'space'),true);
+const fresh=newGame();assert.equal(canEnter(fresh,'space'),false);fresh.clearedRooms.push('realm-0');assert.equal(canEnter(fresh,'space'),false);fresh.campaignMilestones.push('woods-complete');assert.equal(canEnter(fresh,'space'),true);
 for(const hero of HERO_IDS) {
  const s=ready(hero),before=progressReport(s).score;use(s,'space-board');assert.equal(s.film,null);
  use(s,'space-fuel');const solves=s.solvedInteractions.length;use(s,'space-fuel');assert.equal(s.solvedInteractions.length,solves);
@@ -73,9 +73,10 @@ for(const world of MOON_WORLDS.filter(w=>w.spawns.length)) {
   for(let n=0;n<240;n++) {e.cooldown=Math.max(0,e.cooldown-dt);updateLunarEnemy(s,e,dt,api.targets()[0],api);}
   assert.ok(trace.length,`${e.behavior} acts`);traces.push(e.behavior);
   if(e.kind==='boss') {
-    for(let n=0;n<5;n++)lunarDamage(s,e,10,80);assert.ok(e.burst>0,'poise causes break-out burst');
+    s.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[]};
+    for(let n=0;n<6;n++)applyCoopHit(s,{type:'coop-hit',enemyId:e.id,damage:10,dx:0,dy:0,force:80,attackId:`poise-${e.id}-${n}`},1);assert.ok(e.burst>0,'poise causes break-out burst');
     e.hp=e.maxHp*.49;updateLunarEnemy(s,e,dt,api.targets()[0],api);assert.equal(e.phase,2);
-    if(e.behavior==='warden') {e.burst=0;assert.ok(lunarDamage(s,e,100,0)<10);for(let n=0;n<3;n++)s.solvedInteractions.push(`moon-m08-pylon-${n}`);e.burst=0;updateLunarEnemy(s,e,dt,api.targets()[0],api);assert.ok(e.exposed>5.9 && e.exposed<=6);assert.ok(e.shieldBroken);assert.equal(lunarDamage(s,e,100,0),100);}
+    if(e.behavior==='warden') {e.burst=0;e.escapeIframes=0;assert.ok(lunarDamage(s,e,100,0)<10);for(let n=0;n<3;n++)s.solvedInteractions.push(`moon-m08-pylon-${n}`);e.burst=0;e.escapeIframes=0;updateLunarEnemy(s,e,dt,api.targets()[0],api);assert.ok(e.exposed>5.9 && e.exposed<=6);assert.ok(e.shieldBroken);assert.equal(lunarDamage(s,e,100,0),100);}
   }
  }
 }

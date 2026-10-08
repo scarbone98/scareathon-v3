@@ -30,3 +30,12 @@ Reproduce:
 The commands above passed. Server Jest passed 40 suites / 462 tests. Review has no remaining findings after fixing guest relay authority, checkpoint receipt deduplication and local guest handoff dialogue.
 
 The City browser script checks 390 × 844 at DPR 3 and 1440 × 900 at DPR 2, both renderer choices, repeated-render state immutability, and unavailable-WebGL fallback. Captures/metrics default to `/private/tmp/fury-ch4-shots`; the final verified matrix is in `/private/tmp/fury-ch4-final-shots`. These are emulation evidence, not sustained-device performance measurements.
+
+
+## Design branch merge — October 8, 2026
+
+Merged `origin/wayside-fury-design` into `wayside-fury-CH4`, retaining the playable Woods route, charged melee/Normal-Hard combat, native Space presentation and County Cruiser alongside every City map, enemy, Night Anchor, restoration state and five-person Architect scene. Combined routing and checkpoint/retry migrations support Woods → Space → City. Both Woods and City use native-DPR shared Canvas when the optional 3D preference is selected. Update 1 remains absent; optional content hooks and the allowlisted ticket budget are unchanged.
+
+The two source branches independently used protocol 4/content 3 for different maps. The combined client now advertises protocol 5/content 4. The server still accepts protocol 4/content 3 for compatible legacy/Space areas, but blocks Woods/City travel and joining for those older clients. A room-manager regression covers both cases. City keeps its own poise, phase changes and authored breakout movement; the incoming generic Chapter 1/Moon burst handler must not consume City bursts. The Woods browser harness now waits for chapter HUD layout and ResizeObserver before sampling native canvas dimensions, preserving its original DPR assertions.
+
+City starter-gear combat passed at levels 1 and 12. The muted City matrix passed 390 × 844 DPR 3 and 1440 × 900 DPR 2 in both graphics preferences, including unavailable-WebGL fallback and repeated-draw state equality. Captures are in `/private/tmp/fury-ch4-merge-shots`. The first default-worker server run timed out in unrelated socket/casino tests under host contention; the full rerun with `--runInBand --testTimeout=30000` passed **40 suites / 464 tests**. These remain emulation and automated combat evidence; sustained real-phone performance is unmeasured. The chapter plan and section 11 were not edited.

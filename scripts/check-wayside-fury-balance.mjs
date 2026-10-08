@@ -54,3 +54,6 @@ const report = progressReport(tickets); assert.equal(report.score, 1600, 'only a
 assert.equal(progressReport(tickets, report.receipt).score, 0);
 tickets.character.level = 1; assert.equal(progressReport(tickets, report.receipt).score, 0, 'HOME rollback retains high-water mark');
 console.log('Wayside Fury balance: density, safe formations, entrance breathing room, level pacing, recovery and exact ticket deltas pass.');
+
+// Combat pass is part of balance acceptance, including boss wall-pin regression.
+await import('./check-wayside-fury-combat.mjs');
