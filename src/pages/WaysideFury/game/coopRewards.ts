@@ -1,6 +1,7 @@
 import { gainXp, grantGear, syncCoopLevel, type GameState } from "./sim.ts";
 import { MAX_COOP_REWARDS } from "../../../../server/shared/waysideFury/save.js";
 import type { CoopReward } from "./coop";
+import { grantPickup } from "./collectibles.ts";
 
 // Roll separately for each authenticated seat. The stable event ID means a
 // retransmitted reward always describes the same personal loot.
@@ -14,6 +15,7 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   if (receipts.includes(reward.id)) return false;
   receipts.push(reward.id);
   if (receipts.length > MAX_COOP_REWARDS) receipts.splice(0, receipts.length - MAX_COOP_REWARDS);
+  if (reward.kind === "pickup") return reward.pickupId ? grantPickup(s, reward.pickupId) : false;
   const repeatedArea = s.coop?.role !== "host" && reward.areas?.some(id => id !== "wayside" && s.areas.includes(id));
   gainXp(s, (reward.xp ?? 0) + (repeatedArea ? 75 : 0));
   s.candy = Math.min(1_000_000, s.candy + (reward.candy ?? 0));

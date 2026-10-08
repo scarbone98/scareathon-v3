@@ -1,7 +1,7 @@
 import type { HeroState } from "../../../src/pages/WaysideFury/game/sim";
 export type HeroId = "you" | "joe" | "matt" | "alex" | "jon";
 export interface CharacterProgress { level: number; xp: number }
-export interface ProgressReceipt { areas: string[]; bosses: string[]; rooms: string[]; level: number }
+export interface ProgressReceipt { areas: string[]; bosses: string[]; rooms: string[]; level: number; foundItems?: string[] }
 export interface Gear { power: number; ward: number }
 export interface SaveSettings {
   musicVolume: number; sfxVolume: number;
@@ -16,6 +16,7 @@ export interface SaveData {
   candy: number; unlockedHeroes: HeroId[]; areas: string[]; bosses: string[]; clearedRooms: string[];
   kills: number; deaths: number; lastReported: ProgressReceipt; home: HomeSnapshot | null;
   coopRewards?: string[];
+  foundItems: string[]; ambientTaxiWrecked: boolean;
   gear: Gear; character: CharacterProgress; settings: SaveSettings; savedAt: number;
 }
 export const SAVE_VERSION: 3;

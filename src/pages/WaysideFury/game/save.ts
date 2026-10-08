@@ -11,10 +11,12 @@ export function progressReport(s: GameState, previous?: ProgressReceipt | null):
   const current: ProgressReceipt = {
     areas: [...new Set(s.areas)], bosses: [...new Set(s.bosses)], rooms: [...new Set(s.clearedRooms)],
     level: s.character.level,
+    ...(s.foundItems.length ? { foundItems: [...new Set(s.foundItems)] } : {}),
   };
   const additions = (now: string[], before: string[]) => now.filter(id => !before.includes(id)).length;
   const score = (additions(current.areas, reported.areas) + additions(current.bosses, reported.bosses)) * 1000 +
-    Math.max(0, current.level - reported.level) * 100 + additions(current.rooms, reported.rooms) * 50;
+    Math.max(0, current.level - reported.level) * 100 + additions(current.rooms, reported.rooms) * 50 +
+    additions(current.foundItems ?? [], reported.foundItems ?? []) * 20;
   return { score: Math.min(100000, Math.max(0, Math.floor(score))), receipt: mergeReceipts(reported, current) };
 }
 export function parseSave(raw: unknown): SaveData | null { return sanitizeSave(raw).save ?? null; }
@@ -38,6 +40,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
+    foundItems: s.foundItems, ambientTaxiWrecked: s.ambientTaxiWrecked || s.personalTaxiWrecked || previous?.ambientTaxiWrecked === true,
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
 }
@@ -59,6 +62,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
     s.coopRewards = [...(saved.coopRewards ?? [])];
+    s.foundItems = [...saved.foundItems]; s.ambientTaxiWrecked = s.personalTaxiWrecked = saved.ambientTaxiWrecked;
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }
     if (s.heroes[s.active].hp <= 0) {

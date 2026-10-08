@@ -1,3 +1,5 @@
+import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
+const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
 export const MAX_MESSAGE_BYTES = 65_536;
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
@@ -91,6 +93,8 @@ export function cleanWorld(state) {
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
+    if (state.ambientTaxiWrecked !== undefined && typeof state.ambientTaxiWrecked !== 'boolean') return null;
+    if (state.ambientTaxiGag !== undefined && (!number(state.ambientTaxiGag, 4) || state.ambientTaxiGag < -1)) return null;
     for (const key of ['clearedRooms', 'areas', 'bosses']) {
         if (!Array.isArray(state[key]) || state[key].length > 256 || !state[key].every((value) => text(value, 96))) return null;
     }
@@ -143,10 +147,18 @@ export function cleanRelay(message) {
             if (!integer(message.enemyId) || !number(message.damage, 1e5) || message.damage <= 0 || !number(message.dx, 1) || !number(message.dy, 1) || !number(message.force, 1e5) || message.force < 0 || !text(message.attackId, 96) || !scene(message.scene) || !integer(message.room, 999)) return null;
             cleaned = Object.fromEntries(['type', 'enemyId', 'damage', 'dx', 'dy', 'force', 'attackId', 'scene', 'room'].map((key) => [key, message[key]]));
             break;
+        case 'pickup':
+            if (!PICKUP_IDS.has(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
+            cleaned = { type: 'pickup', id: message.id, scene: message.scene, room: message.room };
+            break;
         case 'reward': {
             const raw = message.reward;
-            if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
+            if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint', 'pickup'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
             const reward = { id: raw.id, kind: raw.kind, xp: raw.xp, candy: raw.candy };
+            if (raw.kind === 'pickup') {
+                if (!PICKUP_IDS.has(raw.pickupId) || raw.xp !== 0 || raw.candy !== 0) return null;
+                reward.pickupId = raw.pickupId;
+            }
             for (const [key, max] of [['healHp', 1_000_000], ['healKi', 1_000_000], ['power', 10_000], ['ward', 10_000]]) {
                 if (raw[key] === undefined) continue;
                 if (!integer(raw[key], max)) return null;

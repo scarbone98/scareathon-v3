@@ -226,7 +226,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             }
             room.lastActive = now();
             if (cleaned.type === 'state') room.latestState = forwarded;
-            if (cleaned.type === 'hit' || cleaned.type === 'input') {
+            if (cleaned.type === 'hit' || cleaned.type === 'input' || cleaned.type === 'pickup') {
                 if (seat !== room.hostSeat) send(room.players[room.hostSeat]?.socket, forwarded);
             } else if (cleaned.targetSeat !== undefined && hostOnly) {
                 send(room.players[cleaned.targetSeat]?.socket, forwarded);

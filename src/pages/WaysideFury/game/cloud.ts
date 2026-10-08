@@ -1,5 +1,6 @@
 import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
+import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "local" | "offline" | "unavailable";
 export interface SaveTransport {
@@ -18,14 +19,18 @@ const accountKey = (id: string) => `${SAVE_KEY}:account:${id}`;
 export function receiptScore(now: ProgressReceipt, before: ProgressReceipt) {
   const additions = (a: string[], b: string[]) => a.filter(id => !b.includes(id)).length;
   return Math.min(100000, (additions(now.areas, before.areas) + additions(now.bosses, before.bosses)) * 1000 +
-    additions(now.rooms, before.rooms) * 50 + Math.max(0, now.level - before.level) * 100);
+    additions(now.rooms, before.rooms) * 50 + Math.max(0, now.level - before.level) * 100 +
+    additions(now.foundItems ?? [], before.foundItems ?? []) * 20);
 }
 export function mergeSaves(local: SaveData | null, remote: SaveData | null): SaveData | null {
   if (!local) return remote;
   if (!remote) return local;
   const difference = progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+  return { ...winner, coopRewards: winner.coopRewards ?? [],
+    foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]),
+    ambientTaxiWrecked: local.ambientTaxiWrecked || remote.ambientTaxiWrecked,
+    lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
 }
 
 // The transport and storage are replaceable so races and disconnected devices

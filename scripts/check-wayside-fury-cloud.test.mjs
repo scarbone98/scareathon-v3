@@ -8,9 +8,9 @@ import { newGame, restAtHome, createHero, HERO_IDS } from '../src/pages/WaysideF
 const A = 'account-a', B = 'account-b';
 const clone = value => value == null ? value : structuredClone(value);
 const emptyReceipt = () => ({ areas: [], bosses: [], rooms: [], level: 1 });
-function snapshot({ chapter = 1, level = 1, xp = 0, candy = 0, areas = [], bosses = [], rooms = [], receipt = emptyReceipt(), savedAt = 1_000, home = false } = {}) {
+function snapshot({ chapter = 1, level = 1, xp = 0, candy = 0, areas = [], bosses = [], rooms = [], foundItems = [], ambientTaxiWrecked = false, receipt = emptyReceipt(), savedAt = 1_000, home = false } = {}) {
   const state = newGame();
-  Object.assign(state, { chapter, candy, areas, bosses, clearedRooms: rooms });
+  Object.assign(state, { chapter, candy, areas, bosses, clearedRooms: rooms, foundItems, ambientTaxiWrecked });
   state.character = { level, xp };
   state.heroes = Object.fromEntries(HERO_IDS.map(id => [id, createHero(id, state.character, state.gear)]));
   const save = makeSave(state, null, home, receipt);
@@ -388,4 +388,24 @@ test('a guest can retry the same unreported checkpoint when device storage recov
   d.store.persist(save, true);
   assert.equal(d.paid(), receiptScore(save.lastReported, emptyReceipt()));
   assert.equal(d.server.calls.length, 0);
+});
+
+test('personal finds and the taxi wreck survive cloud reload, with one revisioned ticket delta', async t => {
+  const first = 'pickup-c1-road-rock', second = 'pickup-c1-tree-candy';
+  const server = new AtomicServer(); server.seed(A, snapshot());
+  const devices = [device(t, new MemoryStorage(), server), device(t, new MemoryStorage(), server)];
+  await Promise.all(devices.map(d => d.store.load(A))); await settle();
+  const receipt = { ...emptyReceipt(), foundItems: [first] };
+  const save = snapshot({ foundItems: [first], ambientTaxiWrecked: true, receipt });
+  for (const d of devices) d.store.persist(save, true);
+  await settle();
+  assert.equal(devices.reduce((total, d) => total + d.paid(), 0), 20);
+  assert.deepEqual(server.rows.get(A).save.foundItems, [first]);
+  const reloaded = device(t, new MemoryStorage(), server); await reloaded.store.load(A); await settle();
+  assert.deepEqual(reloaded.store.save.foundItems, [first]); assert.equal(reloaded.store.save.ambientTaxiWrecked, true);
+  reloaded.store.persist(save, true); await settle(); assert.equal(reloaded.paid(), 0);
+  const merged = mergeSaves(save, snapshot({ foundItems: [second], receipt: { ...emptyReceipt(), foundItems: [second] } }));
+  assert.deepEqual(merged.foundItems, [first, second]);
+  assert.deepEqual(merged.lastReported.foundItems, [first, second]);
+  assert.equal(merged.ambientTaxiWrecked, true);
 });

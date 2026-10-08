@@ -1,3 +1,4 @@
+import { cleanFoundItems } from './collectibles.js';
 // The browser and server share one bounded, versioned character sheet.
 // This is shape validation, not authoritative combat or economy simulation.
 export const SAVE_VERSION = 3;
@@ -40,6 +41,8 @@ export function mergeReceipts(...receipts) {
         merged.areas = milestones([...merged.areas, ...(Array.isArray(receipt.areas) ? receipt.areas : [])]);
         merged.bosses = milestones([...merged.bosses, ...(Array.isArray(receipt.bosses) ? receipt.bosses : [])]);
         merged.rooms = milestones([...merged.rooms, ...(Array.isArray(receipt.rooms) ? receipt.rooms : [])]);
+        const found = cleanFoundItems([...(merged.foundItems ?? []), ...(Array.isArray(receipt.foundItems) ? receipt.foundItems : [])]);
+        if (found.length) merged.foundItems = found;
         // Preserve the ticket high-water mark even when a HOME retry lowers stats.
         merged.level = Math.max(merged.level, integer(receipt.level, 1, Number.MAX_SAFE_INTEGER));
     }
@@ -157,6 +160,7 @@ export function sanitizeSave(raw) {
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
         coopRewards: coopRewards(raw.coopRewards),
+        foundItems: cleanFoundItems(raw.foundItems), ambientTaxiWrecked: raw.ambientTaxiWrecked === true,
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };
 }
