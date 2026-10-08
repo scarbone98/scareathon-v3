@@ -3,7 +3,7 @@ import { mixNightScore } from './u1/world/nightMusic.ts';
 export type Mood = 'off' | 'title' | 'bbq' | 'hub' | 'taxi' | 'cozy' | 'dungeon' | 'boss' | 'haywire';
 export type MusicMood = Mood;
 export type Jingle = 'victory' | 'level' | 'item' | 'gameOver' | 'taxiHorn' | 'darkSky';
-export type SfxName = 'attack' | 'hit' | 'hurt' | 'block' | 'dash' | 'ki' | 'beam' | 'swap' | 'select' | 'crunch';
+export type SfxName = 'attack' | 'hit' | 'hurt' | 'block' | 'dash' | 'ki' | 'beam' | 'swap' | 'select' | 'crunch' | 'fusion' | 'fusionSpecial' | 'unfuse';
 export interface AudioSettings { musicVolume: number; sfxVolume: number }
 type TrackMood = Exclude<Mood, 'off'>;
 type Instrument = 'pulse' | 'triangle' | 'sine' | 'noise' | 'power';
@@ -554,6 +554,9 @@ export class MusicDirector {
       case 'ki': tone(67, 0.13, 16, 0.12); break;
       case 'beam': tone(45, 0.3, 29, 0.105); noise(0.25, 2200, 0.11); break;
       case 'swap': tone(79, 0.1, 7, 0.07); break;
+      case 'fusion': tone(48, 0.48, 36, 0.1); tone(55, 0.48, 36, 0.08); noise(0.34, 4700, 0.09); break;
+      case 'fusionSpecial': tone(36, 0.55, 40, 0.13); tone(43, 0.45, 30, 0.1); noise(0.5, 2800, 0.14); break;
+      case 'unfuse': tone(84, 0.28, -24, 0.075); break;
       case 'select': tone(81, 0.055, 0, 0.065); break;
       case 'crunch': tone(35, 0.32, -23, 0.16); noise(0.28, 1700, 0.22); noise(0.1, 6400, 0.12); break;
     }

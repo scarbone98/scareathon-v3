@@ -57,6 +57,11 @@ export class FuryAudio {
     if (event.type === "item") this.sound.jingle("item");
     if (event.type === "obstacle-cleared") { this.sound.playSfx(event.hero === "alex" ? "select" : event.hero === "jon" ? "beam" : "hit"); this.sound.jingle("item"); }
     if (event.type === "hit") this.sound.playSfx(event.target === "hero" ? s.guard ? "block" : "hurt" : "hit", Math.min(1.5, .5 + event.damage / 30));
+    if (event.type === "training-complete") this.sound.jingle("level");
+    if (event.type === "training-failed") this.sound.playSfx("select");
+    if (event.type === "fusion-start") this.sound.playSfx("fusion");
+    if (event.type === "fusion-special") this.sound.playSfx("fusionSpecial");
+    if (event.type === "fusion-end") this.sound.playSfx("unfuse");
     if (event.type === "swap") this.sound.playSfx("swap");
     if (event.type === "level") this.sound.jingle("level");
     if (event.type === "death") { this.sound.setCharge(null); this.sound.jingle("gameOver"); }

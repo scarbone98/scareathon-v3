@@ -1,3 +1,4 @@
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
@@ -35,11 +36,12 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
 function mergePersonalItems(winner: SaveData, local: SaveData, remote: SaveData): SaveData {
   const recent = local.savedAt > remote.savedAt ? local : remote;
   const alternate = recent === local ? remote : local;
+  const combat = mergeCombatProgress(local.u1?.combat, remote.u1?.combat);
   const world = mergeWorldSaves(local.u1?.world, remote.u1?.world, winner.u1?.world ?? null);
   const items = mergeItemsSaves(recent.u1?.items, alternate.u1?.items);
-  if (JSON.stringify(items) === JSON.stringify(winner.u1?.items) && JSON.stringify(world) === JSON.stringify(winner.u1?.world)) return winner;
+  if (JSON.stringify(items) === JSON.stringify(winner.u1?.items) && JSON.stringify(world) === JSON.stringify(winner.u1?.world) && JSON.stringify(combat) === JSON.stringify(winner.u1?.combat)) return winner;
   // Re-derive hero stats from the selected campaign gear and merged wishes.
-  return parseSave({ ...winner, savedAt: Math.max(local.savedAt, remote.savedAt), u1: { ...winner.u1, items, world } })!;
+  return parseSave({ ...winner, savedAt: Math.max(local.savedAt, remote.savedAt), u1: { ...winner.u1, items, world, combat } })!;
 }
 
 // The transport and storage are replaceable so races and disconnected devices
@@ -170,7 +172,7 @@ export class CloudSaveStore {
     this.save = next;
     if (next && this.unconfirmed && receiptScore(next.lastReported, this.confirmed) === 0) this.unconfirmed = null;
     if (next) this.write(next);
-    if ((remoteWins || itemsChanged || worldChanged) && this.ready) this.cb.onReplaced(next, "load");
+    if ((remoteWins || itemsChanged || worldChanged || JSON.stringify(next?.u1?.combat) !== JSON.stringify(this.save?.u1?.combat)) && this.ready) this.cb.onReplaced(next, "load");
     if (next && this.pending) this.pending = { save: next, credit: this.unconfirmed !== null };
     return !!next && JSON.stringify(next) !== JSON.stringify(remote.save);
   }

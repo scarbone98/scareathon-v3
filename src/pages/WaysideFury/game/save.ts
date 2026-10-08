@@ -1,3 +1,4 @@
+import { mergeCombatProgress, sanitizeCombatSave } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { enterScene, newGame, createHero, itemsGear, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { worldSave } from "./u1/world/obstacles.ts";
 import { HUB_WORLD } from "./world.ts";
@@ -41,6 +42,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
+    u1: { ...previous?.u1, ...s.u1, combat: mergeCombatProgress(previous?.u1?.combat, s.u1.combat) },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     foundItems: s.foundItems, ambientTaxiWrecked: s.ambientTaxiWrecked || s.personalTaxiWrecked || previous?.ambientTaxiWrecked === true,
     u1: { ...previous?.u1, ...s.u1 },
@@ -64,6 +66,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
+    s.u1 = { ...saved.u1, combat: sanitizeCombatSave(saved.u1?.combat) };
     s.coopRewards = [...(saved.coopRewards ?? [])];
     s.foundItems = [...saved.foundItems]; s.ambientTaxiWrecked = s.personalTaxiWrecked = saved.ambientTaxiWrecked;
     s.u1 = structuredClone(saved.u1!);

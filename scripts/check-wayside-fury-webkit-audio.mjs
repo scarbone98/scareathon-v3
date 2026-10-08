@@ -65,6 +65,8 @@ async function run(gesture) {
     for (const name of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
       if (name !== gesture) window.addEventListener(name, event => event.stopImmediatePropagation(), { capture: true });
     }
+    const muteMedia = () => document.querySelectorAll('audio, video').forEach(media => { media.muted = true; });
+    new MutationObserver(muteMedia).observe(document, { childList: true, subtree: true });
     const NativeContext = window.AudioContext ?? window.webkitAudioContext;
     const connect = AudioNode.prototype.connect;
     const outputs = new WeakMap();

@@ -1,3 +1,4 @@
+import { TRAINING_BOARD } from "./u1/combat/training.ts";
 // Shared world geometry keeps render markers and interaction checks in sync.
 export const LOCATIONS = [
   { id: "wayside", name: "Wayside", x: 208, y: 480, locked: false },
@@ -10,6 +11,7 @@ export const HUB_POINTS = [
   { id: "home", name: "Home", x: 776, y: 256 },
   { id: "taxi", name: "Taxi", x: 480, y: 440 },
   { id: "station", name: "Wayside Station", x: 480, y: 192 },
+  TRAINING_BOARD,
   { id: "bbq", name: "The BBQ yard", x: 800, y: 432 },
   { id: "alex", name: "Alex", x: 344, y: 248 },
   { id: "jon", name: "Jon", x: 824, y: 408 },

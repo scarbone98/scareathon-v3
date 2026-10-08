@@ -1,3 +1,4 @@
+import { beginFusionSession, syncFusionWorld, elapsedFusionWorld, type FusionWorld } from "./u1/combat/fusion";
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
 import { chipEffects } from "./u1/items/chips";
 import { clearHeroObstacle, worldSave, syncWorldObstacles } from "./u1/world/obstacles";
@@ -22,7 +23,7 @@ export interface CoopReward {
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number; worldObstacles?: string[]; worldCycleSeconds?: number; nightEncounterWindow?: string | null };
+type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number; fusions?: FusionWorld; worldObstacles?: string[]; worldCycleSeconds?: number; nightEncounterWindow?: string | null };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room, time: s.time, palette: s.palette,
@@ -33,7 +34,7 @@ const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room
   areas: s.areas, bosses: s.bosses, chapter: s.coop?.worldChapter ?? s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
   ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0,
   worldObstacles: [...(s.coop?.worldObstacles ?? worldSave(s).clearedObstacles)],
-  worldCycleSeconds: worldCycleSeconds(s), nightEncounterWindow: s.nightWorld?.window ?? null });
+  worldCycleSeconds: worldCycleSeconds(s), nightEncounterWindow: s.nightWorld?.window ?? null, fusions: structuredClone(s.fusion.world) });
 
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.
@@ -110,6 +111,7 @@ export class FuryCoop {
   }
   private receiveRoom(room: CoopRoom) {
     const previous = this.room;
+    if ((!previous || previous.code !== room.code) && this.activeState) beginFusionSession(this.activeState);
     for (const player of room.players) if (player.seat !== room.seat && !previous?.players.some(p => p.userId === player.userId)) this.cb.onToast(`${player.name} joined the party.`);
     for (const player of previous?.players ?? []) if (!room.players.some(p => p.userId === player.userId)) { this.peers.delete(player.seat); this.appearances.delete(player.seat); this.cb.onToast(`${player.name} left the party.`); }
     if (previous && previous.hostSeat !== room.hostSeat) this.cb.onToast(`${room.players.find(p => p.seat === room.hostSeat)?.name ?? "A teammate"} is now hosting.`);
@@ -121,7 +123,7 @@ export class FuryCoop {
       const player = this.room?.players.find(p => p.seat === message.seat);
       if (!player) return;
       const samples = this.peers.get(message.seat) ?? [];
-      samples.push({ at, value: { ...message.hero, seat: player.seat, userId: player.userId, name: player.name, interact: message.input.interact } });
+      samples.push({ at, value: { ...message.hero, seat: player.seat, userId: player.userId, name: player.name, interact: message.input.interact, fusionIntent: message.hero.fusionIntent ?? 0, fusionSpecial: message.hero.fusionSpecial ?? 0 } });
       if (samples.length > 12) samples.shift(); this.peers.set(message.seat, samples);
       if (message.appearance) { const key = JSON.stringify(message.appearance); if (this.appearances.get(message.seat) !== key) { this.appearances.set(message.seat, key); this.cb.onAvatar(message.seat, message.appearance); } }
     }
@@ -201,6 +203,7 @@ export class FuryCoop {
       if (s.scene !== w.scene || s.room !== w.room) { enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
+      syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds[this.worlds.length - 1]?.at ?? now)) / 1000)));
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.nightWorld = { window: w.nightEncounterWindow ?? null };
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
@@ -215,7 +218,7 @@ export class FuryCoop {
       const same = a.scene === b.scene && a.room === b.room;
       const latest = samples[samples.length - 1];
       const peer = { ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y,
-        chipDamageMultiplier: latest.value.chipDamageMultiplier, secondWindReady: latest.value.secondWindReady, chipSnapshotAt: latest.at };
+        fusionIntent: Math.max(0, (latest.value.fusionIntent ?? 0) - (now - latest.at) / 1000), fusionSpecial: latest.value.fusionSpecial, chipDamageMultiplier: latest.value.chipDamageMultiplier, secondWindReady: latest.value.secondWindReady, chipSnapshotAt: latest.at };
       const spent = s.coop?.remoteSecondWindSpent;
       if (spent?.[peer.seat]?.userId === peer.userId) {
         // Buffered pre-hit packets cannot recharge a host-predicted revive.
@@ -239,6 +242,7 @@ export class FuryCoop {
         syncWorldObstacles(s, b.worldObstacles ?? []);
         s.coop.worldCycleSeconds = b.worldCycleSeconds ?? 0;
         s.nightWorld = { window: b.nightEncounterWindow ?? null };
+        syncFusionWorld(s, elapsedFusionWorld(b.fusions, Math.max(0, (now - (this.worlds.find(sample => sample.value === b)?.at ?? now)) / 1000)));
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && a.scene === b.scene && a.room === b.room ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];
@@ -266,7 +270,7 @@ export class FuryCoop {
     const chips = chipEffects(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
       moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0,
-      chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind };
+      chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind, fusionIntent: s.fusion.intent, fusionSpecial: s.fusion.specialRequest };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });
