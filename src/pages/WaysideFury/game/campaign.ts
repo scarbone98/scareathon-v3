@@ -1,3 +1,4 @@
+import { CITY_MAP_IDS } from "./chapters/ch4Worlds.ts";
 import { ALL_WORLDS, HUB_WORLD } from "./world.ts";
 import { LAUNCH_WORLD, MOON_WORLDS } from "./chapters/ch3Worlds.ts";
 import { LOCATIONS } from "./content.ts";
@@ -13,7 +14,7 @@ export const AREAS: readonly AreaDefinition[] = [
   { id: "woods", locationId: "forest", mapIds: [], levelBand: [6, 10], prerequisites: ["realm-0"], environment: EARTH_ENVIRONMENT, renderer: "shared-2d", available: false },
   { id: "space", mapIds: [LAUNCH_WORLD.id], levelBand: [1, 14], prerequisites: ["blast-watcher"], environment: EARTH_ENVIRONMENT, renderer: "space", available: true },
   { id: "moon", mapIds: MOON_WORLDS.map(m=>m.id), levelBand: [1, 14], prerequisites: ["moon-departed"], environment: lunar, renderer: "space", available: true },
-  { id: "city", locationId: "city", mapIds: [], levelBand: [13, 18], prerequisites: ["space-complete"], environment: EARTH_ENVIRONMENT, renderer: "shared-2d", available: false },
+  { id: "city", locationId: "city", mapIds: [...CITY_MAP_IDS], levelBand: [1, 22], prerequisites: ["space-complete"], environment: EARTH_ENVIRONMENT, renderer: "shared-2d", available: true },
   { id: "finale", mapIds: [], levelBand: [17, 22], prerequisites: ["city-complete"], environment: EARTH_ENVIRONMENT, renderer: "shared-2d", available: false },
 ];
 function chapter(id: string, number: number, name: string, prerequisites: string[], areaIds: string[], completionMilestone: string): ChapterDefinition {

@@ -169,6 +169,7 @@ export function sanitizeSave(raw) {
         completedCinematics: raw.version === 4 ? milestones(raw.completedCinematics) : [],
         checkpointMapId: raw.version === 4 && mapDefinition(raw.checkpointMapId) &&
             (['hub', 'overworld'].includes(raw.checkpointMapId) || raw.clearedRooms.includes(raw.checkpointMapId) ||
+              (['city-boulevard','city-market','city-balcony','city-refuge'].includes(raw.checkpointMapId) && raw.campaignMilestones?.includes('space-complete')) ||
               (raw.checkpointMapId === 'space-launch' && (raw.bosses.includes('blast-watcher') || raw.clearedRooms.includes('realm-0') || raw.campaignMilestones?.includes('space-dev-entry'))) ||
               (['moon-m01','moon-m03','moon-m06','moon-m09'].includes(raw.checkpointMapId) &&
                (raw.campaignMilestones?.includes(`${raw.checkpointMapId}-visited`) || (raw.checkpointMapId === 'moon-m01' && raw.campaignMilestones?.includes('moon-departed'))))) ? raw.checkpointMapId : 'hub',

@@ -121,7 +121,7 @@ export class FuryCoop {
     if (previous && previous.hostSeat !== room.hostSeat) this.cb.onToast(`${room.players.find(p => p.seat === room.hostSeat)?.name ?? "A teammate"} is now hosting.`);
     this.room = room; this.appearanceSent = false; this.cb.onRoom(room);
   }
-  private receive(message: { type: string; id: string; seat: number; userId: string; name: string; hero: RemoteHero; appearance?: AvatarAppearance; state: WorldState; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string; reward: CoopReward; targetSeat?: number; scene: GameState["scene"]; room: number; mapId?: string; input: Input; sourceX: number; sourceY: number }) {
+  private receive(message: { type: string; id: string; seat: number; userId: string; name: string; hero: RemoteHero; appearance?: AvatarAppearance; state: WorldState; enemyId: number; damage: number; dx: number; dy: number; force: number; relayX?: number; relayY?: number; relayId?: string; relayKind?: "ki"|"interact"; attackId: string; reward: CoopReward; targetSeat?: number; scene: GameState["scene"]; room: number; mapId?: string; input: Input; sourceX: number; sourceY: number }) {
     const at = performance.now();
     if (message.type === "hero" && message.seat !== this.room?.seat) {
       const player = this.room?.players.find(p => p.seat === message.seat);
@@ -140,7 +140,7 @@ export class FuryCoop {
       this.latestWorld = message.state;
       this.worlds.push({ at, value: message.state }); if (this.worlds.length > 12) this.worlds.shift();
     }
-    if (message.type === "hit" && this.isHost) this.hits.push({ seat: message.seat, scene: message.scene, room: message.room, mapId: message.mapId, hit: { type: "coop-hit", enemyId: message.enemyId, damage: message.damage, dx: message.dx, dy: message.dy, force: message.force, attackId: message.attackId } });
+    if (message.type === "hit" && this.isHost) this.hits.push({ seat: message.seat, scene: message.scene, room: message.room, mapId: message.mapId, hit: { type: "coop-hit", enemyId: message.enemyId, damage: message.damage, dx: message.dx, dy: message.dy, force: message.force, attackId: message.attackId, relayId: message.relayId, relayKind: message.relayKind,relayX:message.relayX,relayY:message.relayY } });
     if (message.type === "reward" && (message.targetSeat === undefined || message.targetSeat === this.room?.seat)) this.rewards.push(message.reward);
     if (message.type === "pickup" && this.isHost) this.pickupRequests.push({ seat: message.seat, id: message.id, scene: message.scene, room: message.room, mapId: message.mapId });
     if (message.type === "damage" && message.targetSeat === this.room?.seat) this.damages.push({ damage: message.damage, sourceX: message.sourceX, sourceY: message.sourceY });
@@ -169,11 +169,13 @@ export class FuryCoop {
       const id = `${this.clientId}:checkpoint:${event.id}`;
       const areas = event.id === "home" ? ["wayside"] : event.id === `blast-${WATCHER_ROOM}` ? ["blast"] : event.id === "realm-0" ? ["eightbit-realm"] : [];
       const spaceBosses = event.id === "moon-m06" ? ["moon-cheese-inspector"] : event.id === "moon-m08" || event.id === "moon-m09-rest" ? ["moon-apogee-warden"] : [];
-      const bosses = spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
-      const rooms = event.id === "home" ? [] : [event.id];
-      const campaignMilestones = event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones) : [];
-      const solvedInteractions = campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air") : [];
-      const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics) : [];
+      const cityBosses = event.id === "city-switchmaster" ? ["city-switchmaster"] : event.id === "city-hatching" ? ["city-architect"] : [];
+      const bosses = cityBosses.length ? cityBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
+      const cityEvent=event.id.startsWith("city-");
+      const rooms = event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
+      const campaignMilestones = event.id.startsWith("city-") || event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones).filter(id=>!cityEvent||id.startsWith("city-")||id==="night-anchor") : [];
+      const solvedInteractions = campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
+      const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics).filter(id=>!cityEvent||id.startsWith("city-")) : [];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
         const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
@@ -250,7 +252,7 @@ export class FuryCoop {
     const player = room.players.find(p => p.seat === room.seat)!;
     enforceCountyPartyBounds(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });
