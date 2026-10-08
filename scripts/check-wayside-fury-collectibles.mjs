@@ -5,9 +5,19 @@ import { getWorld, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 import { makeSave, restoreSave, progressReport } from '../src/pages/WaysideFury/game/save.ts';
 import { applyCoopReward } from '../src/pages/WaysideFury/game/coopRewards.ts';
 import { mergeSaves, receiptScore } from '../src/pages/WaysideFury/game/cloud.ts';
-for (const chapter of [1, 2]) assert.equal(HIDDEN_PICKUPS.filter(item => item.chapter === chapter).length, chapter === 1 ? 17 : 16);
+for (const chapter of [1, 2]) assert.equal(HIDDEN_PICKUPS.filter(item => item.chapter === chapter).length, chapter === 1 ? 19 : 16);
 assert.equal(new Set(HIDDEN_PICKUPS.map(item => item.id)).size, HIDDEN_PICKUPS.length);
 for (const item of HIDDEN_PICKUPS) assert.equal(isBlocked(getWorld(item.scene, item.room), item.x, item.y, 7), false, `${item.id} must have a reachable, honest footprint`);
+for (let room = 0; room < 10; room++) assert.ok(HIDDEN_PICKUPS.some(item => item.chapter === 1 && item.scene === 'dungeon' && item.room === room), `blast-${room}: Chapter 1 secret exists`);
+for (const id of ['pickup-c1-rift-survey', 'pickup-c1-hollow-survey']) {
+  const find=HIDDEN_PICKUPS.find(p => p.id===id), original=newGame();
+  enterScene(original,find.scene,find.room);original.x=find.x;original.y=find.y;
+  const candy=original.candy;assert.ok(collectPickup(original,id));assert.equal(original.candy,candy);
+  const receipt=progressReport(original);assert.equal(receipt.score,0,'new lore cannot inflate tickets');
+  const saved=makeSave(original,null), loaded=restoreSave(saved);
+  assert.ok(loaded.foundItems.includes(id),'new lore survives existing save format');
+  enterScene(loaded,find.scene,find.room);loaded.x=find.x;loaded.y=find.y;assert.equal(collectPickup(loaded,id),false);
+}
 const item = HIDDEN_PICKUPS.find(pickup => pickup.kind === 'snack');
 const state = newGame(); enterScene(state, item.scene, item.room); state.x = item.x; state.y = item.y; state.heroes.you.hp = 40;
 assert.ok(collectPickup(state, item.id)); assert.equal(state.heroes.you.hp, 65);
@@ -57,4 +67,4 @@ assert.equal(progressReport(restoreSave(merged), merged.lastReported).score, 0, 
 const diner = HIDDEN_PICKUPS.find(pickup => pickup.requiresDiner), dinner = newGame(); enterScene(dinner, diner.scene); dinner.x = diner.x; dinner.y = diner.y;
 assert.equal(collectPickup(dinner, diner.id), false, 'the counter tin can only be discovered inside the diner');
 dinner.insideDiner = true; assert.ok(collectPickup(dinner, diner.id)); assert.equal(collectPickup(dinner, diner.id), false);
-console.log('Wayside Fury collectibles: 17 / 16 per chapter, reachable positions, one-time rewards, HOME/cloud persistence, non-stacking buffs, per-player host approval and ticket deltas pass.');
+console.log('Wayside Fury collectibles: 19 / 16 per chapter, reachable positions, one-time rewards, HOME/cloud persistence, non-stacking buffs, per-player host approval and ticket deltas pass.');

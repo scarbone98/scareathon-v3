@@ -4,6 +4,8 @@ import { newGame, enterScene, addEnemy, idleInput, step, interactTarget, activeH
 import { LOCATIONS, HUB_POINTS } from '../src/pages/WaysideFury/game/content.ts';
 import { TILE, OVERWORLD, HUB_WORLD, BLAST_WORLDS, REALM_WORLD, TEST_WORLD, isBlocked, tileAt } from '../src/pages/WaysideFury/game/world.ts';
 
+import { HIDDEN_PICKUPS } from '../server/shared/waysideFury/collectibles.js';
+import { BLAST_ART } from '../src/pages/WaysideFury/game/blastArt.ts';
 import { COUNTY_STOPS } from '../src/pages/WaysideFury/game/county.ts';
 
 for (const stop of COUNTY_STOPS) assert.equal(isBlocked(OVERWORLD,stop.x,stop.y,10), false, `${stop.id}: safe taxi anchor`);
@@ -161,8 +163,16 @@ for (const world of maps) {
       : exit.target === 'realm' ? REALM_WORLD : OVERWORLD;
     assert.ok(navigation(destination).reachable({ x: exit.entryX, y: exit.entryY }), `${world.id}: ${exit.id} arrives safely in ${destination.id}`);
   }
+  if (world.id.startsWith('blast-')) {
+    for (const spawn of world.spawns) assert.ok(field.reachable(spawn), `${world.id}: authored encounter is connected to spawn`);
+    for (const item of HIDDEN_PICKUPS.filter(item => item.scene === 'dungeon' && item.room === roomFor(world))) {
+      assert.ok(field.reachable(item), `${world.id}: existing/new secret ${item.id} is reachable`);
+    }
+    assert.ok(world.props.filter(p => BLAST_ART.has(p.kind)).length >= 10, `${world.id}: distinct landmark dressing`);
+    assert.equal(world.spawns.length, [6,9,6,12,1,9,6,1,6,6][roomFor(world)], `${world.id}: original encounter budget`);
+  }
   for (const prop of world.props) {
-    if (['flower', 'puddle', 'debris', 'reeds'].includes(prop.kind)) {
+    if (['flower', 'puddle', 'debris', 'reeds', 'impact', 'ground-crack', 'floating-debris', 'broken-bridge', 'blast-scrap', 'ash-tuft', 'bank-stones', 'plaza-fragment'].includes(prop.kind)) {
       assert.equal(prop.footprints?.length ?? 0, 0, `${prop.id}: ground dressing remains walk-through`);
       continue;
     }

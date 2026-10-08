@@ -1,0 +1,432 @@
+[
+  {
+    "id": "blast-0",
+    "name": "Scorched Road",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Return to taxi",
+        "x": 0,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": "overworld",
+        "entryX": 1088,
+        "entryY": 400,
+        "targetMapId": "overworld"
+      },
+      {
+        "id": "east",
+        "name": "Split Creek",
+        "x": 592,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 1,
+        "entryX": 56,
+        "entryY": 272,
+        "requiresClear": true,
+        "targetMapId": "blast-1"
+      }
+    ],
+    "bosses": [],
+    "budget": 6,
+    "caches": []
+  },
+  {
+    "id": "blast-1",
+    "name": "Split Creek",
+    "width": 960,
+    "height": 544,
+    "spawn": {
+      "x": 56,
+      "y": 272
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Scorched Road",
+        "x": 0,
+        "y": 224,
+        "w": 48,
+        "h": 96,
+        "target": 0,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-0"
+      },
+      {
+        "id": "east",
+        "name": "Ruined Yard",
+        "x": 912,
+        "y": 224,
+        "w": 48,
+        "h": 96,
+        "target": 2,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-2"
+      },
+      {
+        "id": "north",
+        "name": "Ash Orchard · optional",
+        "x": 288,
+        "y": 0,
+        "w": 80,
+        "h": 48,
+        "target": 8,
+        "entryX": 328,
+        "entryY": 320,
+        "targetMapId": "blast-8"
+      }
+    ],
+    "bosses": [],
+    "budget": 9,
+    "caches": []
+  },
+  {
+    "id": "blast-2",
+    "name": "Ruined Yard",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Split Creek",
+        "x": 0,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 1,
+        "entryX": 896,
+        "entryY": 272,
+        "targetMapId": "blast-1"
+      },
+      {
+        "id": "east",
+        "name": "Furnace Pass",
+        "x": 592,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 3,
+        "entryX": 56,
+        "entryY": 272,
+        "requiresClear": true,
+        "targetMapId": "blast-3"
+      }
+    ],
+    "bosses": [],
+    "budget": 6,
+    "caches": []
+  },
+  {
+    "id": "blast-3",
+    "name": "Furnace Pass",
+    "width": 1280,
+    "height": 544,
+    "spawn": {
+      "x": 56,
+      "y": 272
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Ruined Yard",
+        "x": 0,
+        "y": 224,
+        "w": 48,
+        "h": 96,
+        "target": 2,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-2"
+      },
+      {
+        "id": "east",
+        "name": "Sentinel Gate",
+        "x": 1232,
+        "y": 224,
+        "w": 48,
+        "h": 96,
+        "target": 4,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-4"
+      },
+      {
+        "id": "south",
+        "name": "Old Supply Depot · optional",
+        "x": 640,
+        "y": 496,
+        "w": 96,
+        "h": 48,
+        "target": 9,
+        "entryX": 328,
+        "entryY": 64,
+        "targetMapId": "blast-9"
+      }
+    ],
+    "bosses": [],
+    "budget": 12,
+    "caches": []
+  },
+  {
+    "id": "blast-4",
+    "name": "Sentinel Gate",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Furnace Pass",
+        "x": 0,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 3,
+        "entryX": 1216,
+        "entryY": 272,
+        "targetMapId": "blast-3"
+      },
+      {
+        "id": "east",
+        "name": "Shattered Courtyard",
+        "x": 592,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 5,
+        "entryX": 56,
+        "entryY": 272,
+        "requiresClear": true,
+        "targetMapId": "blast-5"
+      }
+    ],
+    "bosses": [
+      {
+        "kind": "boss",
+        "x": 368,
+        "y": 192,
+        "miniBoss": true
+      }
+    ],
+    "budget": 1,
+    "caches": []
+  },
+  {
+    "id": "blast-5",
+    "name": "Shattered Courtyard",
+    "width": 960,
+    "height": 544,
+    "spawn": {
+      "x": 56,
+      "y": 272
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Sentinel Gate",
+        "x": 0,
+        "y": 224,
+        "w": 48,
+        "h": 96,
+        "target": 4,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-4"
+      },
+      {
+        "id": "east",
+        "name": "Rift Approach",
+        "x": 912,
+        "y": 224,
+        "w": 48,
+        "h": 96,
+        "target": 6,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-6"
+      }
+    ],
+    "bosses": [],
+    "budget": 9,
+    "caches": []
+  },
+  {
+    "id": "blast-6",
+    "name": "Rift Approach",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Shattered Courtyard",
+        "x": 0,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 5,
+        "entryX": 896,
+        "entryY": 272,
+        "targetMapId": "blast-5"
+      },
+      {
+        "id": "east",
+        "name": "The Watcher's Hollow",
+        "x": 592,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 7,
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "blast-7"
+      }
+    ],
+    "bosses": [],
+    "budget": 6,
+    "caches": []
+  },
+  {
+    "id": "blast-7",
+    "name": "The Watcher's Hollow",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "west",
+        "name": "Rift Approach",
+        "x": 0,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": 6,
+        "entryX": 576,
+        "entryY": 192,
+        "targetMapId": "blast-6"
+      },
+      {
+        "id": "east",
+        "name": "Enter the realm rift",
+        "x": 592,
+        "y": 144,
+        "w": 48,
+        "h": 96,
+        "target": "realm",
+        "entryX": 56,
+        "entryY": 192,
+        "requiresClear": true,
+        "targetMapId": "realm-0"
+      }
+    ],
+    "bosses": [
+      {
+        "kind": "boss",
+        "x": 464,
+        "y": 192,
+        "miniBoss": false
+      }
+    ],
+    "budget": 1,
+    "caches": []
+  },
+  {
+    "id": "blast-8",
+    "name": "Ash Orchard",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "south",
+        "name": "Split Creek",
+        "x": 288,
+        "y": 336,
+        "w": 80,
+        "h": 48,
+        "target": 1,
+        "entryX": 328,
+        "entryY": 64,
+        "targetMapId": "blast-1"
+      }
+    ],
+    "bosses": [],
+    "budget": 6,
+    "caches": [
+      {
+        "id": "loot-blast-8",
+        "label": "Orchard cache",
+        "x": 480,
+        "y": 176,
+        "w": 24,
+        "h": 24
+      }
+    ]
+  },
+  {
+    "id": "blast-9",
+    "name": "Old Supply Depot",
+    "width": 640,
+    "height": 384,
+    "spawn": {
+      "x": 56,
+      "y": 192
+    },
+    "exits": [
+      {
+        "id": "north",
+        "name": "Furnace Pass",
+        "x": 288,
+        "y": 0,
+        "w": 80,
+        "h": 48,
+        "target": 3,
+        "entryX": 688,
+        "entryY": 480,
+        "targetMapId": "blast-3"
+      }
+    ],
+    "bosses": [],
+    "budget": 6,
+    "caches": [
+      {
+        "id": "loot-blast-9",
+        "label": "Supply cache",
+        "x": 480,
+        "y": 176,
+        "w": 24,
+        "h": 24
+      }
+    ]
+  }
+]
