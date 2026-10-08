@@ -1,3 +1,5 @@
+import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawSpaceSuit, drawSpaceFilm } from "./renderSpace2d";
+import { lunarLift, hasSpaceFlag } from "./lunar";
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
 import { ZONE_PREVIEWS, drawPreviewPart } from './zonePreviews';
@@ -57,8 +59,8 @@ export class Renderer {
   private remoteAvatars = new Map<number, HeroAvatar>();
   private detailedSheets = new Map<BuiltinSpriteId, DetailedSheet>();
   private viewport = getRenderViewport(1, 1, window.devicePixelRatio);
-  private qualityCap = 3;
-  private slowFrameTime = 0;
+  private qualityCap = Infinity;
+
   private qualityRecovery = new QualityRecovery();
   private resizeObserver: ResizeObserver;
   private disposed = false;
@@ -100,7 +102,7 @@ export class Renderer {
   setRemoteAvatar(seat: number, assets: HeroAvatar) { this.remoteAvatars.set(seat, assets); }
   reset() {
     this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0;
-    this.transition = 0; this.slowFrameTime = 0; this.qualityRecovery.reset();
+    this.transition = 0; this.qualityRecovery.reset();
     this.kiPose = 0; this.previousKi = null; this.previousHero = null;
   }
   dispose() {
@@ -124,24 +126,13 @@ export class Renderer {
     canvas.dataset.worldWidth = `${next.width}`; canvas.dataset.worldHeight = `${next.height}`;
   }
   private checkQuality(frameDelta: number) {
-    if (Math.min(window.devicePixelRatio || 1, this.qualityCap) !== this.viewport.dpr) this.resize();
-    // Hidden tabs reset the sample. Bound individual gaps so a resumed frame
-    // cannot lower quality alone, while sustained very slow rendering still can.
-    if (document.hidden || frameDelta <= 0) { this.slowFrameTime = 0; this.qualityRecovery.reset(); return; }
-    this.slowFrameTime = frameDelta > .02 ? this.slowFrameTime + Math.min(frameDelta, .25) : 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, this.qualityCap);
-    if (this.slowFrameTime >= 2 && dpr > 1) {
-      this.qualityCap = dpr > 2 ? 2 : dpr > 1.5 ? 1.5 : 1;
-      this.slowFrameTime = 0; this.qualityRecovery.reset(); this.resize();
-    }
-    if (this.qualityRecovery.sample(frameDelta) && this.qualityCap < 3) {
-      this.qualityCap = this.qualityCap >= 2 ? 3 : this.qualityCap >= 1.5 ? 2 : 1.5;
-      this.slowFrameTime = 0; this.resize();
-    }
+    if ((window.devicePixelRatio || 1) !== this.viewport.dpr) this.resize();
+    if (document.hidden || frameDelta <= 0) { this.qualityRecovery.reset(); }
   }
   project(x: number, y: number) { return { x: (x - this.camera.x) / this.viewport.width, y: (y - this.camera.y) / this.viewport.height }; }
   presentation(s: GameState): RenderPresentation {
     const labels: RenderLabel[] = [];
+    if(s.film) return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
       const point = this.project(x, y);
       if (point.x < .02 || point.x > .98 || point.y < .05 || point.y > .95) return;
@@ -204,6 +195,11 @@ export class Renderer {
     c.clearRect(0, 0, c.canvas.width, c.canvas.height);
     c.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
     c.imageSmoothingEnabled = false;
+    if(s.film) {
+      this.camera={x:0,y:0};
+      drawSpaceFilm(c,s,width,height,this.reducedMotion,(id,x,y)=>this.hero({...s,active:id,x,y,spaceOutfit:true,boundTimer:0,moving:false}));
+      return;
+    }
     if (s.scene === 'prologue' || s.scene === 'shift') {
       this.camera = { x: 0, y: 0 };
       const storyState = this.reducedMotion ? { ...s, time: 0, sceneTimer: 2.5 } : s;
@@ -226,6 +222,7 @@ export class Renderer {
     c.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
+    drawMoonGround(c,world,s);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
@@ -364,7 +361,7 @@ export class Renderer {
     this.ctx.globalAlpha = 1;
     for (const exit of world.exits) {
       if (!this.visible(exit.x + exit.w / 2, exit.y + exit.h / 2, 100)) continue;
-      const open = !exit.requiresClear || s.enemies.every(enemy => enemy.hp <= 0);
+      const open = (!exit.requiresClear || s.enemies.every(enemy => enemy.hp <= 0)) && (!exit.requiresInteraction || hasSpaceFlag(s,exit.requiresInteraction));
       const x = exit.x + exit.w / 2, y = exit.y + exit.h / 2;
       this.ctx.globalAlpha = .17;
       this.disc(x, y, 17, open ? '#b9dfaf' : '#c57f99'); this.ctx.globalAlpha = 1;
@@ -396,6 +393,7 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
+    if(drawSpaceProp(this.ctx,prop,s)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {
@@ -587,7 +585,7 @@ export class Renderer {
     const cycle = Math.sin(time * (s.moving ? 15 : 2.8)), bob = this.reducedMotion ? 0 : s.moving ? Math.abs(cycle) * 1.2 : cycle * .5;
     const attackDuration = s.combo === 3 ? .28 : .2, attackProgress = s.attackTimer > 0 ? 1 - s.attackTimer / attackDuration : 0;
     const strike = s.attackTimer > 0 ? (attackProgress < .18 ? -.8 : Math.sin((attackProgress - .18) / .82 * Math.PI)) : 0;
-    c.save(); c.translate(s.x, s.y - bob);
+    c.save(); c.translate(s.x, s.y - bob - (s.spaceOutfit ? lunarLift(s) : 0));
     if (!this.reducedMotion) {
       const lean = s.dashTimer > 0 ? .12 * s.faceX : s.moving ? .035 * s.faceX + cycle * .015 : 0;
       c.rotate(lean + strike * .12 * s.faceX - this.kiPose / .24 * .1 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
@@ -601,6 +599,7 @@ export class Renderer {
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
     c.restore(); c.globalAlpha = 1;
+    drawSpaceSuit(c,s);
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
       c.globalAlpha = .6; this.rect(x - 5, y - 7, 10, 13, color); this.rect(x - 3, y + 6, 6, 3, color); c.globalAlpha = 1;
@@ -852,6 +851,7 @@ export class Renderer {
   }
 
   private bossTelegraph(s: GameState, enemy: Enemy) {
+    if(drawLunarTelegraph(this.ctx,enemy)) return;
     if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
     const c = this.ctx;
     const color = enemy.phase === 2 ? "#ec7ead" : "#efab7a";

@@ -34,11 +34,11 @@ interface Burst { x: number; y: number; age: number; color: number }
 const clamp = THREE.MathUtils.clamp;
 const FORWARD = new THREE.Vector3(.24, .82, .52).normalize();
 const QUALITY = [
-  { name: 'high', cap: 3, shadows: true, fx: 2 },
-  { name: 'medium', cap: 3, shadows: false, fx: 1 },
-  { name: 'balanced', cap: 2, shadows: false, fx: 1 },
-  { name: 'low', cap: 1.5, shadows: false, fx: 0 },
-  { name: 'minimum', cap: 1, shadows: false, fx: 0 },
+  { name: 'high', cap: Infinity, shadows: true, fx: 2 },
+  { name: 'medium', cap: Infinity, shadows: false, fx: 1 },
+  { name: 'balanced', cap: Infinity, shadows: false, fx: 1 },
+  { name: 'low', cap: Infinity, shadows: false, fx: 0 },
+  { name: 'minimum', cap: Infinity, shadows: false, fx: 0 },
 ] as const;
 
 // Depth-aware tilt shift and a soft highlight bloom share one native-resolution
@@ -326,7 +326,19 @@ export class OverworldRenderer {
       const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
       const box = (color: string, ox: number, oy: number, oz: number, w: number, h: number, d: number, emissive = false) => part('box', color, x + ox, y + oy, z + oz, w, h, d, 0, emissive);
-      if (prop.kind === 'tree' || prop.kind === 'pine') {
+      if (prop.kind === 'rocket') {
+        part('cylinder', '#e8edf1', x, y+52, z, 24, 104, 24);
+        part('cone', '#dae4f2', x, y+114, z, 24, 30, 24);
+        box('#f5c776',0,44,0,25,10,25);
+      } else if (prop.kind === 'gantry') {
+        for(const side of [-1,1]) box('#778b9e',side*40,68,0,8,136,8);
+        for(let n=0;n<5;n++) box('#9bb0c1',0,16+n*28,0,88,4,8);
+      } else if (prop.kind === 'tank') {
+        part('cylinder','#bdcbd8',x,y+27,z,prop.w,54,prop.w);
+        box('#f5c776',0,3,0,prop.w,4,prop.w);
+      } else if (prop.kind === 'control' || prop.kind === 'locker') {
+        box('#415466',0,20,0,prop.w,40,40);box('#78bdd3',0,24,21,prop.w-8,18,2);
+      } else if (prop.kind === 'tree' || prop.kind === 'pine') {
         box('#795944', 0, 11, 0, 4, 22, 4);
         box('#ad8961', -1.7, 12, 1, .6, 14, 3);
         if (prop.kind === 'pine') {
@@ -346,6 +358,9 @@ export class OverworldRenderer {
         const cz = prop.y + prop.h / 2;
         part('box', '#26373d', x, y + 6, cz, prop.w, 12, prop.h);
         for (let offset = 0; offset < prop.h; offset += 12) part('box', '#e8ba70', x, y + 12.2, prop.y + offset + 3, prop.w, .5, 6);
+      } else if (prop.kind === 'fence' && prop.h > 20) {
+        for(let oz=0;oz<=prop.h;oz+=16) part('box','#aebdcc',x,y+10,prop.y+oz,3,20,3);
+        for(const height of [7,18]) part('box','#bac8d5',x,y+height,prop.y+prop.h/2,2,1.5,prop.h);
       } else if (prop.kind === 'fence') {
         for (let offset = -prop.w / 2; offset <= prop.w / 2; offset += 12) {
           box('#aa9670', offset, 7, 0, 3.3, 14, 3.3); box('#e1c997', offset, 14.5, 0, 4, 1.2, 4);

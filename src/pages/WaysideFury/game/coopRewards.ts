@@ -28,6 +28,7 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.areas = [...new Set([...s.areas, ...(reward.areas ?? [])])];
   s.bosses = [...new Set([...s.bosses, ...(reward.bosses ?? [])])];
   s.clearedRooms = [...new Set([...s.clearedRooms, ...(reward.rooms ?? [])])];
+  s.campaignMilestones = [...new Set([...s.campaignMilestones, ...(reward.campaignMilestones ?? [])])];
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
   syncCoopLevel(s);
   s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";

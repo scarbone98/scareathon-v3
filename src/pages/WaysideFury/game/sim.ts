@@ -1,3 +1,8 @@
+import { tickSpaceFilm, type FilmState } from "./cinematics.ts";
+import { enterSpaceRoom, spaceTargets, spaceInteract, completeSpaceFilm, record, refillCrew, spaceCheckpoint } from "./chapters/ch3.ts";
+import { onMoon, hasSpaceFlag, tickLunar, tryBoundLink, advanceBoundLink, lunarWorld } from "./lunar.ts";
+import { configureLunarEnemy, lunarDamage, updateLunarEnemy } from "./enemies/lunar.ts";
+import type { LunarBehavior } from "./chapters/ch3Worlds.ts";
 import { sameCampaignMap, campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF } from "./campaign.ts";
 import { HUB_POINTS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
@@ -25,6 +30,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
+  filmSkip?: boolean; filmHold?: boolean; spaceOutfit?: boolean; boundTimer?: number;
   scene: Scene; room: number; mapId?: string; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
@@ -41,6 +47,7 @@ export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
 }
 export interface Enemy {
+  behavior?: LunarBehavior; poise?: number; burst?: number; exposed?: number; shieldBroken?: boolean;
   id: number; kind: "grunt" | "shooter" | "boss";
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
@@ -73,6 +80,10 @@ export type GameEvent =
   | { type: "checkpoint"; id: string }
   | { type: "death" };
 export interface GameState {
+  spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
+  boundTravel: { from: {x:number;y:number}; to:{x:number;y:number}; elapsed:number } | null;
+  film: FilmState | null; filmCaptionHold: boolean; filmSkipHeld: number; filmHold: boolean; fuelGag: number;
+
   foundItems: string[]; ambientTaxiWrecked: boolean; personalTaxiWrecked: boolean; ambientTaxiGag: number; insideDiner: boolean;
   pickupPending?: { id: string; at: number };
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
@@ -121,6 +132,7 @@ function extraCoopSpawns(s: GameState) {
     }
     const enemy = addEnemy(s, "grunt", x, y);
     if (anchor.sprite && anchor.kind !== "boss") enemy.sprite = anchor.sprite;
+    if (onMoon(s)) configureLunarEnemy(s,enemy, "rat");
   }
   s.coop.spawnedExtras = Math.max(previous, extras);
 }
@@ -160,7 +172,7 @@ function random(s: GameState) {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
 export function newGame(seed = 8591): GameState {
-  const s: GameState = { foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
+  const s: GameState = { spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
     x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
     active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0, mapId: "training",
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
@@ -211,10 +223,11 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
       for (const spawn of world.spawns) {
         const enemy = addEnemy(s, spawn.kind, spawn.x, spawn.y);
         if (spawn.sprite) enemy.sprite = spawn.sprite;
-        if (spawn.miniBoss) {
+        if (spawn.miniBoss && !spawn.behavior) {
           enemy.miniBoss = true; enemy.hp = enemy.maxHp = 235; enemy.radius = 12; enemy.speed = 18;
           if (s.coop?.role === "host") scaleEnemy(s, enemy, 235);
         }
+        if (spawn.behavior) configureLunarEnemy(s, enemy, spawn.behavior);
       }
     }
     s.notice = scene === "realm" ? "The 8-Bit Realm! Clear the creatures and find the eastern rift."
@@ -237,7 +250,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   }
   if ((scene === "hub" || scene === "overworld") && canEnter(s, "forest")) s.notice = WOODS_HANDOFF;
   if (resolved.fallback) s.notice = "Unknown area. Returned safely to Wayside.";
-  extraCoopSpawns(s); syncCoopLevel(s);
+  extraCoopSpawns(s); syncCoopLevel(s); enterSpaceRoom(s);
 }
 export function enterCampaignMap(s: GameState, mapId: string): boolean {
   const resolved = resolveCampaignMap(mapId);
@@ -254,7 +267,7 @@ export function enterCampaignMap(s: GameState, mapId: string): boolean {
 
 // Substeps prevent fast dashes and boss rushes crossing thin tile barriers.
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
-  const world = getWorld(s.scene, s.room, s.mapId), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
+  const world = lunarWorld(s), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
     if (!isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
     if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
@@ -338,7 +351,10 @@ export function grantGear(s: GameState, power: number, ward: number) {
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number) {
   if (e.hp <= 0) return;
-  const dealt = Math.round(damage);
+  const allowed = lunarDamage(s,e,damage,force);
+  if(allowed <= 0) return;
+  const dealt = Math.max(1, Math.round(allowed));
+  if(e.behavior && e.kind === "boss") force *= .04;
   e.hp -= dealt; e.hitTimer = 0.18; s.hitStop = Math.max(s.hitStop, force >= 80 ? 0.07 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
@@ -608,6 +624,10 @@ function updateEnemies(s: GameState, dt: number) {
     if (!target) continue;
     const dx = target.x - e.x, dy = target.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
     const contact = e.radius + 9;
+    if (e.behavior) {
+      updateLunarEnemy(s,e,dt,target,{ move: (body,dx,dy)=>moveBody(s,body,dx,dy,body.radius), shot: (body,dx,dy,speed,damage,radius=5)=>projectile(s,"enemy",body.x,body.y,dx,dy,speed,damage,radius), hurt:(t,d,x,y)=>hurtTarget(s,t as CombatTarget,d,x,y), targets:()=>combatTargets(s) });
+      continue;
+    }
     if (e.hitTimer > 0 || (length > (e.kind === "boss" || s.scene === "test" ? 230 : 140) && e.actionTimer === 0 && e.windup === 0)) continue;
     if (e.kind === "boss") updateBoss(s, e, dt, target);
     else if (e.kind === "shooter") {
@@ -679,12 +699,13 @@ function updateVisuals(s: GameState, dt: number) {
   s.effects = s.effects.filter(e => e.ttl > 0);
 }
 function availableExit(s: GameState): WorldExit | undefined {
-  return getWorld(s.scene, s.room, s.mapId).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
+  return getWorld(s.scene, s.room, s.mapId).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0) && (!e.requiresInteraction || hasSpaceFlag(s,e.requiresInteraction)));
 }
 // Driving the taxi is less precise than walking, so overworld stops get a wider
 // trigger zone than on-foot interactions (28).
 const OVERWORLD_STOP_RADIUS = 72, OVERWORLD_PROP_RADIUS = 46;
 export function interactTarget(s: GameState): InteractTarget | null {
+  if (s.film) return null;
   if (s.overlay === "diner") {
     const item = availablePickups(s).find(pickup => pickup.requiresDiner);
     return item ? { id: item.id, name: `Pick up ${item.name}`, kind: "use", x: item.x, y: item.y }
@@ -698,6 +719,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
+  for (const target of spaceTargets(s)) add(target, 34);
   for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room, s.mapId);
@@ -705,7 +727,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
       if (prop.kind === "chest" && !s.clearedRooms.includes(prop.id)) add({ id: prop.id, name: "Open supply cache", kind: "use", locked: s.enemies.length > 0, x: prop.x + prop.w / 2, y: prop.y + prop.h / 2 });
       if (prop.kind === "npc") add({ id: "scout", name: `Talk to ${prop.label ?? "the stranded scout"}`, kind: "talk", x: prop.x + prop.w / 2, y: prop.y + prop.h });
     }
-    for (const door of world.exits) if (!door.requiresClear || s.enemies.length === 0) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
+    for (const door of world.exits) if ((!door.requiresClear || s.enemies.length === 0) && (!door.requiresInteraction || hasSpaceFlag(s,door.requiresInteraction))) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
   }
   const points = s.scene === "overworld" ? campaignLocations(s) : s.scene === "hub" ? HUB_POINTS : [];
   for (const point of points) {
@@ -745,6 +767,7 @@ function openDialogue(s: GameState, speaker: string, lines: string[]): void {
   s.notice = lines[0];
 }
 function travel(s: GameState, door: WorldExit) {
+  if (door.id === "moon-shack-lift" || door.id === "moon-ring-lift") record(s.solvedInteractions,door.id);
   if (door.target === "realm") beginRealmShift(s);
   else if (door.targetMapId) {
     if (enterCampaignMap(s, door.targetMapId)) { s.x = door.entryX; s.y = door.entryY; }
@@ -767,6 +790,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
   if (s.coop?.role === "guest" && target.kind !== "talk") return;
+  if (spaceInteract(s,target.id)) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
@@ -849,6 +873,16 @@ export function step(s: GameState, input: Input, delta: number): void {
   // Pad A sets both flags, while touch/J must synthesize a held revive command.
   const physicalInput = { ...input };
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
+  if(s.fuelGag>=0) s.fuelGag=Math.min(4,s.fuelGag+dt);
+  if(s.film) {
+    const ended=tickSpaceFilm(s,input,dt); s.previousInput={...physicalInput};
+    if(ended) {
+      const action=completeSpaceFilm(s,ended);
+      if(action==='moon') {enterScene(s,"dungeon",0,"moon-m01");spaceCheckpoint(s);}
+      if(action==='earth') {enterScene(s,"dungeon",0,"space-launch");s.spaceOutfit=false;refillCrew(s);spaceCheckpoint(s);}
+    }
+    return;
+  }
   refreshContextAttack(s);
   const attackPressed = input.attack && !s.previousInput.attack;
   const interactPressed = input.interact && !s.previousInput.interact;
@@ -890,6 +924,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
     s.guard = false;
   }
+  tickLunar(s,dt);
   updateCoopRevives(s, input, dt);
   if (checkCoopWipe(s)) return;
   if (s.coop?.downed) {
@@ -916,6 +951,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   }
   if (input.swap && !previous.swap) requestSwap(s);
   const h = activeHero(s);
+  if(onMoon(s) && input.guard) {s.boundTimer=0;s.boundTravel=null;s.dashTimer=0;}
   s.guard = combat && input.guard && s.dashTimer === 0 && !input.ki;
   const length = Math.hypot(input.x, input.y);
   s.moving = length > 0.1;
@@ -926,6 +962,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (combat && input.dash && !previous.dash && s.dashTimer === 0 && h.stamina >= 25) {
     h.stamina -= 25; s.dashTimer = 0.18; h.invulnerable = Math.max(h.invulnerable, 0.23);
     s.guard = false; s.charge = 0;
+    if(onMoon(s)) {s.boundTimer=.4;tryBoundLink(s);}
     effect(s, "dash", s.x, s.y, 14, 0.23, s.faceX, s.faceY);
   }
   if (s.scene === "overworld") {
@@ -939,12 +976,12 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = (s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : 70) * pickupBuffs(s).speed;
+    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : 70) * pickupBuffs(s).speed;
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);
     s.vx = moveX * speed * strength; s.vy = moveY * speed * strength;
-    moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
+    if(!advanceBoundLink(s,dt)) moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
   walkingPickup(s);
@@ -958,7 +995,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (usePressed) {
     const scene = s.scene, room = s.room;
     interact(s, s.contextAttack.target);
-    if (s.overlay || s.scene !== scene || s.room !== room || s.dialogue && !s.coop) return;
+    if (s.film || s.overlay || s.scene !== scene || s.room !== room || s.dialogue && !s.coop) return;
     if (s.dialogue) { dialogueControlsSuppressed = true; input = idleInput(); }
   }
   if (!dialogueControlsSuppressed && input.ki && s.dashTimer === 0 && !s.guard) {
@@ -982,6 +1019,12 @@ export function step(s: GameState, input: Input, delta: number): void {
         if (!s.bosses.includes("blast-watcher")) s.bosses.push("blast-watcher");
         if (!s.areas.includes("blast")) s.areas.push("blast");
       }
+    }
+    if(onMoon(s)) {
+      if(s.room===5) {record(s.bosses,"moon-cheese-inspector");spaceCheckpoint(s);refillCrew(s);}
+      if(s.room===7) record(s.bosses,"moon-apogee-warden");
+      s.events.push({type:"checkpoint",id});s.notice="Lunar encounter clear. The next relay route is open.";
+      return;
     }
     s.events.push({ type: "checkpoint", id });
     s.notice = s.room === WATCHER_ROOM ? "The Watcher falls! Chapter 1 is clear. Head through the eastern rift."

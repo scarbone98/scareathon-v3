@@ -70,7 +70,7 @@ export class GraphicsRenderer {
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed) return;
     this.depth?.syncRemotePeers(s);
-    const wantsDepth = this.selected === '3d' && s.scene === 'overworld';
+    const wantsDepth = this.selected === '3d' && s.scene === 'overworld' && !s.film;
     if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth();
     if (wantsDepth && this.depth && !this.failed) {
       try {

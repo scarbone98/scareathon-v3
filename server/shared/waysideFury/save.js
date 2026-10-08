@@ -168,7 +168,10 @@ export function sanitizeSave(raw) {
         solvedInteractions: raw.version === 4 ? milestones(raw.solvedInteractions) : [],
         completedCinematics: raw.version === 4 ? milestones(raw.completedCinematics) : [],
         checkpointMapId: raw.version === 4 && mapDefinition(raw.checkpointMapId) &&
-            (['hub', 'overworld'].includes(raw.checkpointMapId) || raw.clearedRooms.includes(raw.checkpointMapId)) ? raw.checkpointMapId : 'hub',
+            (['hub', 'overworld'].includes(raw.checkpointMapId) || raw.clearedRooms.includes(raw.checkpointMapId) ||
+              (raw.checkpointMapId === 'space-launch' && (raw.bosses.includes('blast-watcher') || raw.clearedRooms.includes('realm-0') || raw.campaignMilestones?.includes('space-dev-entry'))) ||
+              (['moon-m01','moon-m03','moon-m06','moon-m09'].includes(raw.checkpointMapId) &&
+               (raw.campaignMilestones?.includes(`${raw.checkpointMapId}-visited`) || (raw.checkpointMapId === 'moon-m01' && raw.campaignMilestones?.includes('moon-departed'))))) ? raw.checkpointMapId : 'hub',
         candy: integer(raw.candy, 0, 1_000_000), unlockedHeroes: [...HERO_IDS],
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),

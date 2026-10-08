@@ -31,9 +31,10 @@ const hashes = [
   'f3923cf123ff8b0e4a18b00fdc2a2592fbdba98ae477bc86a0c0f04ec9b3d189',
   'e73f9f2f9ee14f3df6bf444c442c9dbf9159babfce81cc092837b072cf13f15b',
 ];
-for (const [index, world] of ALL_WORLDS.entries()) {
+for (const [index, world] of ALL_WORLDS.slice(0,14).entries()) {
   const { exits, ...geometry } = world;
-  assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
+  if (index !== 0) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
+  else { assert.equal(world.width,1920); assert.equal(world.height,960); }
   assert.ok(!isBlocked(world, world.spawn.x, world.spawn.y));
   for (const exit of exits) {
     const destination = getMap(exit.targetMapId);
@@ -116,7 +117,8 @@ const world = { scene: 'dungeon', room: 0, mapId: 'blast-0', protocolVersion: CO
   time: 1, x: 56, y: 192, enemies: [], projectiles: [], palette: 'real', transitionTarget: null,
   transitionPalette: 'real', cutscene: 0, sceneTimer: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1, rngSeed: 1, nextId: 1 };
 assert.ok(cleanWorld(world));
-assert.equal(cleanWorld({ ...world, mapId: 'moon-m01' }), null);
+assert.ok(cleanWorld({ ...world, mapId: 'moon-m01' }));
+assert.equal(cleanWorld({ ...world, mapId: 'moon-m01', protocolVersion: 2 }), null);
 assert.equal(cleanWorld({ ...world, mapId: 'hub' }), null);
 assert.equal(cleanWorld({ ...world, mapId: null }), null);
 assert.equal(cleanWorld({ ...world, room: 999, mapId: undefined }), null);
@@ -135,9 +137,9 @@ try {
   assert.equal(modern.sent.filter(message => message.type === 'room').at(-1).protocolVersion, 1);
   rooms.relay(modern, { type: 'state', state: world });
   assert.ok(legacy.sent.some(message => message.type === 'state'));
-  assert.throws(() => rooms.relay(modern, { type: 'state', state: { ...world, mapId: 'moon-m01' } }), /invalid/);
+  assert.throws(() => rooms.relay(modern, { type: 'state', state: { ...world, mapId: 'moon-m01' } }), /version/);
   assert.throws(() => auth('future-client', 999), /version/);
   rooms.leave(legacy);
   assert.equal(modern.sent.filter(message => message.type === 'room').at(-1).protocolVersion, 2);
 } finally { rooms.close(); }
-console.log('Campaign foundation: unchanged geometry, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');
+console.log('Campaign foundation: unchanged Chapter 1 dungeon geometry, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');

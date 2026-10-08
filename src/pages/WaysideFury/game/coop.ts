@@ -20,13 +20,14 @@ export interface CoopCallbacks {
 export interface CoopReward {
   id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string;
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
+  campaignMilestones?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics">> & { spawnedExtras?: number; protocolVersion?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit">> & { spawnedExtras?: number; protocolVersion?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const campaignIds = (...lists: (string[] | undefined)[]) => [...new Set(lists.flatMap(ids => ids ?? []))].slice(0, MAX_MILESTONES);
-const worldState = (s: GameState): WorldState => ({ protocolVersion: COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette,
+const worldState = (s: GameState): WorldState => ({ protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
@@ -34,7 +35,7 @@ const worldState = (s: GameState): WorldState => ({ protocolVersion: COOP_PROTOC
   campaignMilestones: campaignIds(s.coop?.worldCampaignMilestones, s.campaignMilestones),
   solvedInteractions: campaignIds(s.coop?.worldSolvedInteractions, s.solvedInteractions),
   completedCinematics: campaignIds(s.coop?.worldCompletedCinematics, s.completedCinematics),
-  areas: s.areas, bosses: [...new Set([...s.bosses, ...(s.coop?.worldBosses ?? [])])], chapter: s.coop?.worldChapter ?? s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
+  areas: s.areas, bosses: [...new Set([...s.bosses, ...(s.coop?.worldBosses ?? [])])], chapter: Math.max(s.coop?.worldChapter ?? 1,s.chapter), rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
   ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.
@@ -167,12 +168,14 @@ export class FuryCoop {
     if (this.isHost && event.type === "checkpoint" && !event.id.startsWith("coop-reward-") && !event.id.startsWith("personal-")) {
       const id = `${this.clientId}:checkpoint:${event.id}`;
       const areas = event.id === "home" ? ["wayside"] : event.id === `blast-${WATCHER_ROOM}` ? ["blast"] : event.id === "realm-0" ? ["eightbit-realm"] : [];
-      const bosses = event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
+      const spaceBosses = event.id === "moon-m06" ? ["moon-cheese-inspector"] : event.id === "moon-m08" || event.id === "moon-m09-rest" ? ["moon-apogee-warden"] : [];
+      const bosses = spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
       const rooms = event.id === "home" ? [] : [event.id];
+      const campaignMilestones = event.id.startsWith("moon-") || event.id.startsWith("space-") ? s.campaignMilestones : [];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
         const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
-        const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, chapter: s.chapter,
+        const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, campaignMilestones, chapter: s.chapter,
           ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : /^(blast-\d+|realm-\d+)$/.test(event.id) ? { healHp: 12, healKi: 8 } : {}) };
         if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);
       }
@@ -195,7 +198,7 @@ export class FuryCoop {
         s.coop.worldSolvedInteractions = [...(w.solvedInteractions ?? [])];
         s.coop.worldCompletedCinematics = [...(w.completedCinematics ?? [])]; }
       if (s.scene !== w.scene || s.room !== w.room || s.mapId !== w.mapId) { enterScene(s, w.scene, w.room, w.mapId); s.x = w.x; s.y = w.y; }
-      Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer,
+      Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer, film: w.film ? {...w.film} : null, spaceOutfit: w.spaceOutfit ?? s.spaceOutfit,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
@@ -222,7 +225,7 @@ export class FuryCoop {
         const wrecked = b.ambientTaxiWrecked ?? false;
         s.personalTaxiWrecked ||= s.ambientTaxiWrecked || wrecked;
         if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: AMBIENT_TAXI.x, y: AMBIENT_TAXI.y });
-        Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer,
+        Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer, film: b.film ? {...b.film} : null, spaceOutfit: b.spaceOutfit ?? s.spaceOutfit,
           ambientTaxiWrecked: wrecked, ambientTaxiGag: a.ambientTaxiGag >= 0 && b.ambientTaxiGag >= 0 ? a.ambientTaxiGag + (b.ambientTaxiGag - a.ambientTaxiGag) * alpha : b.ambientTaxiGag ?? -1 });
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && sameCampaignMap(a, b) ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
@@ -244,7 +247,7 @@ export class FuryCoop {
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });

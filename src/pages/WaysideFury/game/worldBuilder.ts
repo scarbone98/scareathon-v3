@@ -4,7 +4,7 @@ export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | 
 export interface CollisionRect { x: number; y: number; w: number; h: number }
 export interface WorldProp {
   id: string;
-  kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal";
+  kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal" | "rocket" | "gantry" | "tank" | "control" | "locker" | "air" | "socket" | "seal" | "lander" | "dish" | "flag";
   // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
   // Fixed parked-car heading; never inferred from the player or camera.
@@ -14,11 +14,12 @@ export interface WorldProp {
 export interface WorldExit {
   id: string; name: string; x: number; y: number; w: number; h: number;
   target: number | "overworld" | "hub" | "results" | "realm";
-  targetMapId?: string;
+  targetMapId?: string; requiresInteraction?: string;
   entryX: number; entryY: number; requiresClear?: boolean;
 }
 export interface WorldSpawn {
   kind: "grunt" | "shooter" | "boss"; x: number; y: number;
+  behavior?: import("./chapters/ch3Worlds.ts").LunarBehavior;
   sprite?: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast"; miniBoss?: boolean;
 }
 export interface RoadSegment extends CollisionRect {
@@ -30,6 +31,7 @@ export interface RoadSegment extends CollisionRect {
 export interface WorldMap {
   id: string; name: string; width: number; height: number; cols: number; rows: number;
   roads: RoadSegment[]; tiles: TileKind[]; collision: number[]; props: WorldProp[]; exits: WorldExit[];
+  boundLinks?: { id: string; from: { x: number; y: number }; to: { x: number; y: number }; radius: number }[];
   radarAnchors?: { id: string; x: number; y: number }[];
   spawns: WorldSpawn[]; spawn: { x: number; y: number };
 }

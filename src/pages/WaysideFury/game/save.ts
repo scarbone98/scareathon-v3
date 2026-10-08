@@ -1,3 +1,5 @@
+import { record, refillCrew } from "./chapters/ch3.ts";
+import { onMoon } from "./lunar.ts";
 import { WOODS_HANDOFF } from "./campaign.ts";
 import { enterCampaignMap, enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
@@ -86,10 +88,16 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   }
   if (saved?.prologuePending) { enterScene(s, "prologue"); return s; }
   enterScene(s, "hub"); s.x = HUB_WORLD.spawn.x; s.y = HUB_WORLD.spawn.y;
-  if (!retry && saved && saved.checkpointMapId !== "hub") {
-    enterCampaignMap(s, saved.checkpointMapId);
+  if (saved && saved.checkpointMapId !== "hub" && (!retry || saved.checkpointMapId.startsWith("moon-") || saved.checkpointMapId === "space-launch")) {
+    const anchor=retry && saved.checkpointMapId === "moon-m09" ? "moon-m06" : saved.checkpointMapId;
+    enterCampaignMap(s, anchor);
+    if(onMoon(s)) {record(s.campaignMilestones,"moon-arrived");record(s.completedCinematics,"space-outbound");refillCrew(s);}
+    if(anchor === "space-launch" && s.campaignMilestones.includes("moon-returning")) {
+      s.spaceOutfit=false;record(s.campaignMilestones,"moon-home");record(s.completedCinematics,"space-return");
+      if(s.campaignMilestones.includes("prism-lens")) {record(s.campaignMilestones,"space-complete");s.chapter=Math.max(4,s.chapter);}
+    }
   }
   s.notice = retry ? "Rested at HOME. The crew is ready." : "Welcome back to Wayside.";
-  if (s.clearedRooms.includes("realm-0")) s.notice = WOODS_HANDOFF;
+  if (s.mapId === "hub" && s.clearedRooms.includes("realm-0")) s.notice = WOODS_HANDOFF;
   return s;
 }

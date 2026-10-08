@@ -64,7 +64,7 @@ for (const m of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD]) {
 for (const [cssWidth, cssHeight] of [[390, 700], [430, 780], [844, 390], [932, 430], [1280, 800]]) {
   for (const dpr of [1, 1.25, 2, 3, 4]) {
     const viewport = getRenderViewport(cssWidth, cssHeight, dpr);
-    const effectiveDpr = Math.min(dpr, 3);
+    const effectiveDpr = dpr;
     assert.ok(Math.abs(viewport.pixelWidth - cssWidth * effectiveDpr) <= 1, 'native canvas width');
     assert.ok(Math.abs(viewport.pixelHeight - cssHeight * effectiveDpr) <= 1, 'native canvas height');
     assert.equal(viewport.pixelScale, Math.round(viewport.pixelScale), 'world zoom uses integer device pixels');

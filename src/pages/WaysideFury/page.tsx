@@ -11,6 +11,7 @@ import { readGraphicsMode, rememberGraphicsMode, type GraphicsMode, type Graphic
 import { showAttackPresentation, type InputMode } from "./game/input";
 import type { ActionPrompt } from "./game/contextAttack";
 import { type RenderPresentation } from "./game/render";
+import { sampleSpaceFilm } from "./game/chapters/ch3Films";
 import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterScene, interact, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
@@ -42,7 +43,7 @@ function GraphicsSettings({ mode, status, onChange, onNewGame, resetDisabled }: 
       <button role="radio" aria-checked={mode === "2d"} className="wf-secondary" onClick={() => onChange("2d")}>2D</button>
       <button role="radio" aria-checked={mode === "3d"} className="wf-secondary" onClick={() => onChange("3d")}>3D HD-2D</button>
     </div>
-    <p className="wf-small">Applies to the taxi overworld. Remembered on this device.</p>
+    <p className="wf-small">3D applies to the taxi overworld; space currently uses the shared 2D presentation. Remembered on this device.</p>
     <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D overworld selected. Other scenes use 2D." : "2D overworld selected."}</p>
     <button className="wf-secondary" disabled={resetDisabled} onClick={onNewGame}>New Game</button>
     <p className="wf-small">Restart the story. Your Collection and lore cards stay with you. Leave co-op first to restart.</p>
@@ -215,7 +216,7 @@ export default function WaysideFury() {
   const accountEpochRef = useRef(0);
   const dismissTutorialRef = useRef(() => {});
   const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
-  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
+  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); if (import.meta.env.DEV && !retry && new URLSearchParams(location.search).get("chapter") === "3") { next.campaignMilestones.push("space-dev-entry"); enterScene(next,"dungeon",0,"space-launch"); } controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
   const confirmNewGame = async () => {
     const store = storeRef.current;
     if (!store || resetDisabled || newGameBusyRef.current) return;
@@ -400,7 +401,7 @@ export default function WaysideFury() {
   const hero = activeHero(state);
 
   const partner = nextPartyHero(state);
-  const cinematic = state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
+  const cinematic = !!state.film || state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
   const beat = PROLOGUE[state.cutscene] ?? PROLOGUE[0];
   const progressScore = (state.areas.length + state.bosses.length) * 1000 + (state.character.level - 1) * 100 + state.clearedRooms.length * 50;
   const boss = state.enemies.find(e => e.kind === "boss");
@@ -480,7 +481,7 @@ export default function WaysideFury() {
         {showTutorial && mode !== "touch" && !paused && !state.overlay && !actionPrompt.target && <span className="wf-action-hint" aria-label={actionPrompt.label}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.label}</span>}
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
-        {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
+        {boss && <div className="wf-boss-hud"><strong>{boss.behavior === "warden" ? "APOGEE WARDEN" : boss.behavior === "inspector" ? "CHEESE INSPECTOR" : boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.behavior ? boss.phase === 2 && !boss.shieldBroken && boss.behavior === "warden" ? "GROUND THE THREE PYLONS" : boss.windup > 0 ? "MARKED ATTACK — MOVE OR GUARD" : "Read the pattern; strike during recovery" : boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
         {actionPrompt.target && !(noticeVisible && state.notice) && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}
         {target && !(noticeVisible && state.notice) && actionPrompt.action !== "interact" && !target.id.startsWith("coop-revive-") && !state.coop?.downed && !state.overlay && !state.dialogue && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={target.kind} /><PromptGlyph mode={mode} />{target.name}</button>}
@@ -503,6 +504,12 @@ export default function WaysideFury() {
         <TouchButton action="swap" label="Swap hero" send={send} /><TouchButton action="guard" label="Guard (hold)" send={send} />
         <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label="Attack" send={send} prompt={actionPrompt} />
       </div></div>}
+      {state.mapId.startsWith("moon-") && !state.film && !paused && <p className="wf-oxygen" role="status">{state.oxygen <= 0 ? "Reserve air — refill when convenient" : `Air ${Math.ceil(state.oxygen)}% · Free air posts`}</p>}
+      {state.film && !paused && <section className="wf-space-film" aria-label="Space film captions">
+        <p>{sampleSpaceFilm(state.film.id,state.film.elapsed).shot.caption}</p>
+        <div><button onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);send({guard:true});}} onPointerUp={()=>send({guard:false})} onPointerCancel={()=>send({guard:false})} onLostPointerCapture={()=>send({guard:false})} onKeyDown={e=>{if(e.key===" "||e.key==="Enter")send({guard:true});}} onKeyUp={()=>send({guard:false})}>Hold Skip · {Math.round(state.filmSkipHeld*100)}%{state.coop ? " · party vote" : ""}</button>
+        <button onClick={()=>controller.current?.mutate(s=>{s.filmCaptionHold=!s.filmCaptionHold;s.filmHold=s.filmCaptionHold;})}>Hold captions: {state.filmHold ? "on" : "off"}</button></div>
+      </section>}
       {state.dialogue && !paused && <section className="wf-dialogue wf-world-dialogue" aria-label={`${state.dialogue.speaker} dialogue`} role="dialog">
         <div><strong>{state.dialogue.speaker}</strong><p>{state.dialogue.lines[state.dialogue.index]}</p><button onClick={() => controller.current?.mutate(advanceDialogue)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.dialogue.index < state.dialogue.lines.length - 1 ? "Next" : "Continue"}</button></div>
       </section>}

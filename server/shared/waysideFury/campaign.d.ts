@@ -1,5 +1,5 @@
-export const CAMPAIGN_CONTENT_VERSION: 1;
-export const COOP_PROTOCOL_VERSION: 2;
+export const CAMPAIGN_CONTENT_VERSION: 2;
+export const COOP_PROTOCOL_VERSION: 3;
 export interface CampaignMap { readonly id: string; readonly scene: string; readonly room: number; readonly areaId: string; readonly minProtocol: number }
 export const CAMPAIGN_MAPS: readonly CampaignMap[];
 export function mapDefinition(id: string): CampaignMap | undefined;
