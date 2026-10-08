@@ -32,6 +32,7 @@ assert.equal(host.ambientTaxiWrecked, true, 'a teammate passing triggers the hos
 assert.ok(host.events.every(event => event.type === 'ambient-taxi-crash'), 'the rock never creates player damage or combat projectiles');
 
 assert.equal(isBlocked(OVERWORLD, AMBIENT_TAXI.x, AMBIENT_TAXI.y - 8, 7), true, 'cab and wreck share a solid footprint');
+for (const side of [-1, 1]) assert.equal(isBlocked(OVERWORLD, AMBIENT_TAXI.x + side * 25, AMBIENT_TAXI.y, 10), false, 'the pullout fences leave an honest approach on both sides of the cab');
 for (const y of [463, 480, 495]) for (let x = 154; x <= 1154; x += 8) assert.equal(isBlocked(OVERWORLD, x, y, 10), false, `road lane clear at ${x},${y}`);
 assert.equal(isBlocked(OVERWORLD, 400, 554, 10), false, 'the item under the wreck has an open approach');
 for (let time = 0; time < 80; time += .5) {

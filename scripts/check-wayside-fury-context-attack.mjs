@@ -78,6 +78,7 @@ try {
       console.log(`${label}: talk, dialog and swing pass`);
 
       await prepare(page, 'overworld', 0, 378, 480, phone);
+      await page.waitForFunction(() => window.__waysideFury.state.sceneTimer > 0.3);
       await page.evaluate(() => {
         const game = window.__waysideFury; game.setPaused(true);
         game.mutate(s => { s.ambientTaxiWrecked = false; s.ambientTaxiGag = -1; });
@@ -93,6 +94,11 @@ try {
       await walk(page, { x: 1 }, () => window.__waysideFury.state.x > 418, phone);
       await page.waitForFunction(() => window.__waysideFury.state.ambientTaxiWrecked && window.__waysideFury.state.ambientTaxiGag >= 2);
       assert.equal(await page.evaluate(() => window.__waysideFury.state.heroes.you.hp), hp, 'stray rock never damages the player');
+      await page.evaluate(() => {
+        const game = window.__waysideFury; game.setPaused(true);
+        game.mutate(s => { s.x = 378; s.y = 480; s.vx = 0; s.vy = 0; });
+      });
+      await page.waitForTimeout(500); // Let the 3D camera settle at the shared capture anchor.
       await page.screenshot({ path: `${shots}/${label}-overworld-after.png` });
       console.log(`${label}: taxi gag pass`);
 
@@ -101,6 +107,7 @@ try {
         const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
         const { getWorld, isBlocked } = await import('/src/pages/WaysideFury/game/world.ts');
         const game = window.__waysideFury;
+        game.setPaused(false);
         let chosen;
         game.mutate(s => {
           enterScene(s, 'hub'); s.enemies = []; s.notice = '';
@@ -111,19 +118,25 @@ try {
         });
         return { id: chosen.id, name: chosen.name };
       });
-      await page.waitForTimeout(450);
+      await page.waitForFunction(id => window.__waysideFury.state.contextAttack.displayed.targetId === id &&
+        (document.querySelector('.wf-attack')?.getAttribute('aria-label') ?? document.querySelector('.wf-interact-prompt')?.textContent)?.includes('Pick up'), pickup.id);
       await press(page, phone);
       await page.waitForFunction(id => window.__waysideFury.state.foundItems.includes(id), pickup.id);
       await page.screenshot({ path: `${shots}/${label}-pickup.png` });
       await page.getByRole('button', { name: 'Pause', exact: true }).click();
       await page.getByRole('button', { name: 'Collection', exact: true }).click();
       await page.getByRole('dialog', { name: 'Collection' }).waitFor({ state: 'visible' });
+      await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('.wf-collection')).opacity) >= 0.99);
       assert.ok(await page.getByRole('dialog', { name: 'Collection' }).textContent(), 'Collection renders found totals and silhouettes');
       await page.screenshot({ path: `${shots}/${label}-collection.png` });
       assert.deepEqual(errors, [], `${label}: no browser errors`);
       results.push({ label, pickup, rockSafe: true, talkAndSwing: true });
     } catch (error) {
       console.error(`${label}: ${error.message}; browser errors: ${errors.join('; ')}`);
+      console.error('Gameplay state:', await page.evaluate(() => {
+        const s = window.__waysideFury?.state;
+        return s && { scene: s.scene, x: s.x, y: s.y, found: s.foundItems, target: s.contextAttack, input: s.previousInput, paused: document.querySelector('.wf-pause-panel') !== null };
+      }).catch(() => undefined));
       await page.screenshot({ path: `${shots}/${label}-failure.png` }).catch(() => {});
       throw error;
     } finally { await context.close(); }

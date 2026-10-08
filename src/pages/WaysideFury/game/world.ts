@@ -141,7 +141,13 @@ export const OVERWORLD = (() => {
   prop(m, "crater", 1024, 272, 160, 96);
   // Overworld portals are rendered at their location markers, at these base positions.
   prop(m, "portal", 632, 120, 48, 56); prop(m, "portal", 1008, 504, 48, 56);
-  for (let x = 336; x < 1040; x += 144) { prop(m, "lamp", x, 422, 12, 30); prop(m, "fence", x + 32, 526, 64, 12); }
+  for (let x = 336; x < 1040; x += 144) {
+    prop(m, "lamp", x, 422, 12, 30);
+    if (x === 336) {
+      // Two short runs frame the cab's pullout instead of crossing its body.
+      prop(m, "fence", 328, 526, 32, 12); prop(m, "fence", 448, 526, 32, 12);
+    } else prop(m, "fence", x + 32, 526, 64, 12);
+  }
   // A separate pullout keeps this NPC cab off the player's starting position
   // and leaves both traffic lanes open after the crash.
   const cab = prop(m, "ambient-taxi", 384, 512, 32, 18); cab.id = "ambient-roadside-taxi";
