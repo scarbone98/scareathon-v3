@@ -119,7 +119,7 @@ const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.htm
 // the server's /october-valley/ws.
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
-const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=68d0611";
+const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=e258ba5";
 const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
@@ -715,7 +715,7 @@ export function createArcadeGames(): MachineData[] {
       earlyAccess: true,
       newShelf: true,
       availableOnMobile: true,
-      added: "Thu 2026-10-08 9:00 AM PDT (UTC-07:00)",
+      added: "Wed 2026-10-07 9:41 PM PDT (UTC-07:00)",
       cartridge: {
         color: "#b34836",
         tagline: "Five years later, the real evil arrives.",

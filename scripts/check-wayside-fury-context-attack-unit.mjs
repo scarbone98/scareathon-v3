@@ -60,9 +60,15 @@ assert.ok(talking.attackTimer > 0, 'walking away restores the normal attack');
 
 const fighting = scoutState(); fighting.faceX = 1; fighting.faceY = 0;
 const enemy = addEnemy(fighting, 'grunt', fighting.x + 18, fighting.y); enemy.cooldown = 100; enemy.speed = 0;
-tick(fighting, { attack: true, interact: true });
+const appliedA = { ...idleInput(), attack: true, interact: true };
+step(fighting, appliedA, 1 / 60);
 assert.equal(fighting.dialogue, null, 'hostile precedence prevents a gamepad press from talking');
 assert.ok(fighting.attackTimer > 0); assert.ok(enemy.hp < enemy.maxHp);
+assert.equal(appliedA.interact, false, 'swing precedence clears the applied Interact command');
+assert.equal(fighting.previousInput.interact, true, 'physical gamepad Interact remains held for edge detection');
+fighting.enemies = [];
+tick(fighting, { attack: true, interact: true }, 20);
+assert.equal(fighting.dialogue, null, 'a held pad A cannot create a later talk edge when the hostile leaves');
 
 const dedicated = scoutState(); interact(dedicated);
 assert.ok(dedicated.dialogue, 'dedicated direct Interact still selects a fresh target');

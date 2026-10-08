@@ -26,6 +26,7 @@ async function walk(page, input, reached, touch) {
   await page.waitForTimeout(280);
 }
 async function press(page, phone) {
+  await page.waitForFunction(() => !window.__waysideFury.state.previousInput.attack);
   if (!phone) { await page.keyboard.press('j'); return; }
   const button = page.locator('.wf-attack');
   const box = await button.boundingBox();
@@ -66,9 +67,26 @@ try {
       assert.equal(await page.evaluate(() => window.__waysideFury.state.attackTimer), 0, 'talk never also swings');
       await page.screenshot({ path: `${shots}/${label}-dialog.png` });
       // Next/Continue uses the same action until the conversation closes.
-      for (let beat = 0; beat < 6 && await page.locator('.wf-dialogue').isVisible(); beat++) {
-        await page.waitForTimeout(280); await press(page, phone); await page.waitForTimeout(200);
+      for (let beat = 0; beat < 6; beat++) {
+        const dialogue = await page.evaluate(() => {
+          const d = window.__waysideFury.state.dialogue;
+          return d && { index: d.index, label: d.index < d.lines.length - 1 ? 'Next' : 'Continue' };
+        });
+        if (!dialogue) break;
+        await page.waitForFunction(({ phone, label }) => {
+          const s = window.__waysideFury.state;
+          return s.contextAttack.displayed.targetId === 'dialog-next' &&
+            (phone ? document.querySelector('.wf-attack')?.getAttribute('aria-label') === label
+              : document.querySelector('.wf-world-dialogue button')?.textContent.includes(label));
+        }, { phone, label: dialogue.label });
+        await press(page, phone);
+        await page.waitForFunction(index => {
+          const d = window.__waysideFury.state.dialogue;
+          return !d || d.index > index;
+        }, dialogue.index, { timeout: 15000 });
       }
+      await page.waitForFunction(() => !window.__waysideFury.state.dialogue && !window.__waysideFury.state.previousInput.attack);
+      await page.locator('.wf-dialogue').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('.wf-dialogue').isVisible(), false, 'Attack advances and closes the conversation');
       await walk(page, { y: 1 }, () => window.__waysideFury.state.y > 207, phone);
       await page.waitForFunction(() => window.__waysideFury.state.contextAttack?.displayed.action === 'attack');
@@ -82,12 +100,18 @@ try {
       await page.evaluate(() => {
         const game = window.__waysideFury; game.setPaused(true);
         game.mutate(s => { s.ambientTaxiWrecked = false; s.ambientTaxiGag = -1; });
+        game.renderer.reset();
       });
       await page.waitForFunction(graphics => {
         const canvas = document.querySelector('.wf-stage canvas:not(.wf-canvas-3d)');
         if (graphics === '3d' && canvas?.dataset.gfxStatus === 'fallback') throw Error(canvas.dataset.gfxError);
         return canvas?.dataset.gfx === graphics;
       }, graphics, { timeout: 120000 });
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const captureCamera = await page.evaluate(graphics => {
+        const canvas = document.querySelector(graphics === '3d' ? '.wf-canvas-3d' : '.wf-stage canvas:not(.wf-canvas-3d)');
+        return { x: Number(canvas.dataset.cameraX), y: Number(canvas.dataset.cameraY) };
+      }, graphics);
       await page.screenshot({ path: `${shots}/${label}-overworld-before.png` });
       const hp = await page.evaluate(() => window.__waysideFury.state.heroes.you.hp);
       await page.evaluate(() => window.__waysideFury.setPaused(false));
@@ -95,10 +119,13 @@ try {
       await page.waitForFunction(() => window.__waysideFury.state.ambientTaxiWrecked && window.__waysideFury.state.ambientTaxiGag >= 2);
       assert.equal(await page.evaluate(() => window.__waysideFury.state.heroes.you.hp), hp, 'stray rock never damages the player');
       await page.evaluate(() => {
-        const game = window.__waysideFury; game.setPaused(true);
-        game.mutate(s => { s.x = 378; s.y = 480; s.vx = 0; s.vy = 0; });
+        window.__waysideFury.mutate(s => { s.x = 378; s.y = 480; s.vx = 0; s.vy = 0; s.moving = false; });
       });
-      await page.waitForTimeout(500); // Let the 3D camera settle at the shared capture anchor.
+      await page.waitForFunction(({ graphics, anchor }) => {
+        const canvas = document.querySelector(graphics === '3d' ? '.wf-canvas-3d' : '.wf-stage canvas:not(.wf-canvas-3d)');
+        return Math.abs(Number(canvas.dataset.cameraX) - anchor.x) < 1 && Math.abs(Number(canvas.dataset.cameraY) - anchor.y) < 1;
+      }, { graphics, anchor: captureCamera }, { timeout: 15000 });
+      await page.evaluate(() => window.__waysideFury.setPaused(true));
       await page.screenshot({ path: `${shots}/${label}-overworld-after.png` });
       console.log(`${label}: taxi gag pass`);
 
@@ -135,7 +162,9 @@ try {
       console.error(`${label}: ${error.message}; browser errors: ${errors.join('; ')}`);
       console.error('Gameplay state:', await page.evaluate(() => {
         const s = window.__waysideFury?.state;
-        return s && { scene: s.scene, x: s.x, y: s.y, found: s.foundItems, target: s.contextAttack, input: s.previousInput, paused: document.querySelector('.wf-pause-panel') !== null };
+        return s && { scene: s.scene, time: s.time, x: s.x, y: s.y, found: s.foundItems, dialogue: s.dialogue,
+          target: s.contextAttack, input: s.previousInput, paused: window.__waysideFury.paused,
+          uiPaused: document.querySelector('.wf-pause-panel') !== null };
       }).catch(() => undefined));
       await page.screenshot({ path: `${shots}/${label}-failure.png` }).catch(() => {});
       throw error;
