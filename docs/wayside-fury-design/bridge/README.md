@@ -77,3 +77,24 @@ Set `FURY_PLAYWRIGHT_MODULE` to an installed Playwright `index.mjs` when it is
 outside this checkout. The two new browser scripts always launch muted Chrome;
 the real WebGL fixture uses Metal. Baseline images were captured before the fix.
 These are desktop browser phone/DPR fixtures, not real-iPhone thermal/FPS results.
+
+## Design merge verification
+
+Merged `origin/wayside-fury-design` into `wayside-fury-BRIDGE`, keeping deck
+geometry, broken gaps and actor heights alongside embedded rock art, terrain
+bowls and contact decals. Canvas combines both ground classifications before
+sorting actors; both optional 3D renderers retain the shared deck heights.
+
+Post-merge TypeScript, changed-file ESLint, `npm run check:wayside-fury` and
+21 targeted scripts passed: grounding, bridge, collision, areas, globe, balance,
+campaign, woods, woods-combat, space, space-combat, city, combat, coop-sim,
+coop-rewards, quality, labels, dressing, interiors-coop, roads and telegraph.
+The real Metal WebGL bridge regression passed at DPR 3 with state immutability.
+The muted areas browser check passed keyboard travel, held-input debounce,
+personal pickup deduplication, save resume and unavailable-WebGL fallback.
+Its first run pressed during a fixture prompt transition and timed out waiting
+for the pickup; the harness now waits through the presentation grace period
+before keyboard presses, and the rerun passed. Correctness review found no issues.
+
+There is no `make verify` target in this repository. No server files changed.
+These browser results use desktop emulation, not real-phone thermal testing.
