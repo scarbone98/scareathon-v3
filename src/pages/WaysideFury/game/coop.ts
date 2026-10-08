@@ -4,7 +4,7 @@ import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION, compatibleMap, legacyM
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world";
 import { authoritativePickupTarget } from "./collectibles.ts";
-import { AMBIENT_TAXI } from "./dressing.ts";
+import { ambientTaxi } from "./dressing.ts";
 import { fetchWithAuth } from "../../../fetchWithAuth";
 import type { AvatarAppearance, HeroAvatar } from "./avatar";
 import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, enforceCountyPartyBounds, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, encounterLevel, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
@@ -229,7 +229,7 @@ export class FuryCoop {
         if (s.scene !== b.scene || s.room !== b.room || s.mapId !== b.mapId) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room, b.mapId); s.x = b.x + 18; s.y = b.y + 10; }
         const wrecked = b.ambientTaxiWrecked ?? false;
         s.personalTaxiWrecked ||= s.ambientTaxiWrecked || wrecked;
-        if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: AMBIENT_TAXI.x, y: AMBIENT_TAXI.y });
+        if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: ambientTaxi(s).x, y: ambientTaxi(s).y });
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer, film: b.film ? {...b.film} : null, spaceOutfit: b.spaceOutfit ?? s.spaceOutfit,
           ambientTaxiWrecked: wrecked, ambientTaxiGag: a.ambientTaxiGag >= 0 && b.ambientTaxiGag >= 0 ? a.ambientTaxiGag + (b.ambientTaxiGag - a.ambientTaxiGag) * alpha : b.ambientTaxiGag ?? -1 });
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && sameCampaignMap(a, b) ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });

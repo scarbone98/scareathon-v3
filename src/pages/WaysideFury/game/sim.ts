@@ -906,7 +906,8 @@ export function interactTarget(s: GameState): InteractTarget | null {
   }
   if (s.scene === "overworld") {
     if (!s.coop) for (const stop of COUNTY_STOPS) add({ ...stop, kind: "talk" }, OVERWORLD_PROP_RADIUS);
-    add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444  }, OVERWORLD_PROP_RADIUS);
+    const sign=getWorld(s.scene,s.room,s.mapId,!!s.coop && (s.coop.protocolVersion ?? 1)<6).props.find(p=>p.id==="roadside-lore-sign");
+    if(sign)add({id:sign.id,name:"Read roadside sign",kind:"use",x:sign.x+sign.w/2,y:sign.y+sign.h},OVERWORLD_PROP_RADIUS);
 
   }
   return selectInteractionTarget(candidates, s.x, s.y, s.faceX, s.faceY);

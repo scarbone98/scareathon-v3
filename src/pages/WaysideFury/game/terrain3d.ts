@@ -1,3 +1,4 @@
+import { roadMask } from './roadClearance.ts';
 import { roadGround } from './roadNetwork.ts';
 import { buildRoadSurface } from './roadSurface3d.ts';
 // Presentation-only height data. The simulation keeps its original flat map.
@@ -141,7 +142,7 @@ function geometry(data: Batch, heightAt?: (x: number, y: number) => number) {
   return result;
 }
 
-function tileTexture(kind: TileKind | 'cliff') {
+function tileTexture(kind: TileKind | 'cliff', detail = true) {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = TILE * 16;
   const context = canvas.getContext('2d')!; context.scale(4, 4);
   const [base, light, dark] = MATERIALS[kind === 'cliff' ? 'stone' : kind];
@@ -155,7 +156,7 @@ function tileTexture(kind: TileKind | 'cliff') {
     fill(seed % 64, (seed >>> 8) % 64, n % 5 ? .3 : .8, .3, n % 3 ? dark : light);
   }
   context.globalAlpha = .65;
-  if (kind === 'grass') for (let n = 0; n < 12; n++) {
+  if (kind === 'grass' && detail) for (let n = 0; n < 12; n++) {
     const seed = hash(n + 9, 8), x = 3 + seed % 55, y = 5 + (seed >>> 6) % 53;
     context.lineWidth = .55; context.lineCap = 'round';
     context.strokeStyle = n % 3 ? '#80977790' : '#192f3580';
@@ -208,7 +209,7 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
     return u+v<=1?nw+u*(ne-nw)+v*(sw-nw):se+(1-u)*(sw-se)+(1-v)*(ne-se);
   };
   group.name = 'overworld-terrain';
-  const batches = new Map<TileKind | 'cliff', Batch>(), shoreline = batch(), markings = batch(), skirts = batch();
+  const batches = new Map<TileKind | 'cliff' | 'grass-clear', Batch>(), shoreline = batch(), markings = batch(), skirts = batch();
   const shade = new THREE.Color();
   const point = (x: number, y: number, lift = 0): Vertex => [x, elevation.heightAt(x, y) + lift, y];
   for (let row = 0; row < world.rows; row++) for (let col = 0; col < world.cols; col++) {
@@ -216,7 +217,7 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
     const nw = point(x, y), ne = point(x + TILE, y), sw = point(x, y + TILE), se = point(x + TILE, y + TILE);
     const heights = [nw[1], ne[1], sw[1], se[1]], slope = Math.max(...heights) - Math.min(...heights);
     const atWater = [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dc, dr]) => tileAt(world, col + dc, row + dr) === 'water');
-    const material = slope >= 9 && kind !== 'road' && kind !== 'water' && kind !== 'bridge' ? atWater ? 'sand' : 'cliff' : kind;
+    const material = slope >= 9 && kind !== 'road' && kind !== 'water' && kind !== 'bridge' ? atWater ? 'sand' : 'cliff' : kind==='grass' && roadMask(world).intersects({x,y,w:TILE,h:TILE},true) ? 'grass-clear' : kind;
     let target = batches.get(material);
     if (!target) { target = batch(); batches.set(material, target); }
     shade.setRGB(1, 1, 1).multiplyScalar(.995 + hash(col, row) % 11 / 1000);
@@ -248,7 +249,7 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
   }
   const geometries: THREE.BufferGeometry[] = [], materials: THREE.Material[] = [], textures: THREE.Texture[] = [];
   for (const [kind, data] of batches) {
-    const texture = tileTexture(kind); textures.push(texture);
+    const texture = tileTexture(kind==='grass-clear'?'grass':kind,kind!=='grass-clear'); textures.push(texture);
     const material = new THREE.MeshStandardMaterial({
       map: texture, vertexColors: true, roughness: kind === 'water' ? .3 : 1,
       metalness: kind === 'water' ? .12 : 0,

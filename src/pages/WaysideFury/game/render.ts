@@ -1,3 +1,4 @@
+import { groundScatter, roadMask } from './roadClearance.ts';
 import { drawWalkableSurface, isGroundProp } from "./walkableSurfaces";
 import { drawScorchedDepression, GROUND_DECALS } from './grounding.ts';
 import { drawAreaGround, drawInteriorGround, drawBuildingDoors } from './renderAreas2d.ts';
@@ -12,7 +13,7 @@ import { drawSpaceProp, drawMoonGround, drawLunarBody, drawLaunchEstablishing, d
 import { lunarLift, hasSpaceFlag } from "./lunar";
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
-import { ZONE_PREVIEWS, drawPreviewPart } from './zonePreviews';
+import { zonePreviews, drawPreviewPart } from './zonePreviews';
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, PROLOGUE } from "./content";
@@ -22,7 +23,7 @@ import { QualityRecovery } from './qualityRecovery';
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
+import { ambientTaxi, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
 import { availablePickups } from './collectibles';
 
 interface Sheet { url: string; w: number; h: number; frames: number }
@@ -166,7 +167,7 @@ export class Renderer {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
-    if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y - 38, 'caption');
+    if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y - 38, 'caption');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels, focus: this.project(s.x, s.y) };
   }
   onEvent(s: GameState, event: GameEvent) {
@@ -249,7 +250,7 @@ export class Renderer {
     const visibleProps = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30));
     for (const prop of visibleProps.filter(prop => isGroundProp(prop) || GROUND_DECALS.has(prop.kind))) this.prop(prop, motionTime, s);
     const actors = visibleProps.filter(prop => !isGroundProp(prop) && !GROUND_DECALS.has(prop.kind)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
-    if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
+    if (s.scene === 'overworld') for (const part of zonePreviews(world)) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
@@ -313,14 +314,14 @@ export class Renderer {
       for (let k = 0; k < 15; k++) {
         const a = k * 2.4, spread = impact * (25 + k % 5 * 8);
         c.globalAlpha = (1 - impact / .75) * .5;
-        this.disc(AMBIENT_TAXI.x + Math.cos(a) * spread, AMBIENT_TAXI.y - 12 + Math.sin(a) * spread * .5 - impact * 8, 3 + impact * 7, k % 4 ? '#b8a786' : '#ffe2a4');
+        this.disc(ambientTaxi(s).x + Math.cos(a) * spread, ambientTaxi(s).y - 12 + Math.sin(a) * spread * .5 - impact * 8, 3 + impact * 7, k % 4 ? '#b8a786' : '#ffe2a4');
       } c.globalAlpha = 1;
     }
-    if (s.ambientTaxiWrecked && this.visible(AMBIENT_TAXI.x, AMBIENT_TAXI.y, 90)) {
+    if (s.ambientTaxiWrecked && this.visible(ambientTaxi(s).x, ambientTaxi(s).y, 90)) {
       for (let k = 0; k < 6; k++) {
         const life = (time * .42 + k / 6) % 1;
         c.globalAlpha = (1 - life) * .4;
-        this.disc(AMBIENT_TAXI.x + Math.sin(time + k) * (2 + life * 8), AMBIENT_TAXI.y - 21 - life * 35, 3 + life * 7, '#727776');
+        this.disc(ambientTaxi(s).x + Math.sin(time + k) * (2 + life * 8), ambientTaxi(s).y - 21 - life * 35, 3 + life * 7, '#727776');
       } c.globalAlpha = 1;
     }
   }
@@ -423,6 +424,7 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
+    if(this.world && groundScatter(prop) && roadMask(this.world).intersects(prop))return;
     if(drawWalkableSurface(this.ctx,prop)) return;
     if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;

@@ -13,7 +13,7 @@ export function buildRoadSurface(world:WorldMap,heightAt:(x:number,y:number)=>nu
     const canvas=document.createElement('canvas');canvas.width=canvas.height=size*scale;
     const c=canvas.getContext('2d')!;c.scale(scale,scale);c.translate(-x,-y);drawRoadNetwork(c,world);
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;
-    const material=new THREE.MeshStandardMaterial({map:texture,transparent:true,alphaTest:.02,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    const material=new THREE.MeshStandardMaterial({map:texture,transparent:true,depthWrite:false,alphaTest:.02,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
     const positions:number[]=[],uvs:number[]=[];
     const point=(px:number,py:number)=>{positions.push(px,heightAt(px,py)+.06,py);uvs.push((px-x)/size,1-(py-y)/size);};
     for(let dy=0;dy<size&&y+dy<world.height;dy+=16)for(let dx=0;dx<size&&x+dx<world.width;dx+=16) {

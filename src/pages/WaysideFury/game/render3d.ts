@@ -1,3 +1,4 @@
+import { roadMask, groundScatter } from './roadClearance.ts';
 import { buildWalkableSurfaces } from './walkableSurfaces3d';
 import { isWalkableSurface, surfaceElevationAt } from './walkableSurfaces';
 import { scorchedGroundMesh } from './grounding3d.ts';
@@ -6,7 +7,7 @@ import { enemyWindupTell } from './enemyWindup';
 import { COUNTY_ART, countyArtwork } from "./countyArt";
 import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
-import { ZONE_PREVIEWS } from './zonePreviews';
+import { zonePreviews } from './zonePreviews';
 import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
 import * as THREE from 'three';
@@ -14,7 +15,7 @@ import { LOCATIONS } from './content';
 import { parkedCarPose, OVERWORLD, type WorldMap, type WorldProp } from './world';
 import { getRenderViewport } from './viewport';
 import { buildOverworldTerrain } from './terrain3d';
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
+import { AMBIENT_TAXI, ambientTaxi, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
 import { availablePickups } from './collectibles';
 import type { AvatarStrip, HeroAvatar } from './avatar';
 import type { GameEvent, GameState, HeroId } from './sim';
@@ -327,11 +328,12 @@ export class OverworldRenderer {
       batch.matrices.push(this.dummy.matrix.clone());
     };
     const buriedRock=(color:string,x:number,z:number,w:number,h:number,d:number,rotation=0)=>{
+      if(roadMask(this.world).intersects({x:x-w,y:z-d,w:w*2,h:d*2}))return;
       const ground=footprintGrounding(this.terrain.heightAt,x,z,w*2,d*2,rotation);
       // Dodecahedron dimensions are radii: .36 h sinks 32% of its full height.
       part('rock',color,x,ground.base+h*.36,z,w,h,d,rotation,false,-ground.tiltX,-ground.tiltZ);
     };
-    for (const preview of ZONE_PREVIEWS) {
+    for (const preview of zonePreviews(this.world)) {
       const { shape, color, x, y, z, w, h, d } = preview;
       if(shape==='rock' && y===0) buriedRock(color,x,z,w*.5,h*.5,d*.5,x*.017);
       else part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
@@ -347,7 +349,7 @@ export class OverworldRenderer {
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
     buildWalkableSurfaces(this.scene, this.world, (x,y) => this.terrain.heightAt(x,y));
     for (const prop of this.world.props) {
-      if (isWalkableSurface(prop)) continue;
+      if (isWalkableSurface(prop) || groundScatter(prop) && roadMask(this.world).intersects(prop,true)) continue;
       const parking = prop.kind === 'car' ? parkedCarPose(prop) : null;
       const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
@@ -466,7 +468,7 @@ export class OverworldRenderer {
   }
 
   private makePuddles() {
-    const puddles = this.world.props.filter(prop => prop.kind === 'puddle');
+    const puddles = this.world.props.filter(prop => prop.kind === 'puddle' && !roadMask(this.world).intersects(prop));
     if (!puddles.length) return;
     // Two draws for every puddle. Concentric subdivisions follow local slopes;
     // baked world positions keep terrain sampling and geometry out of the frame loop.
@@ -539,7 +541,8 @@ export class OverworldRenderer {
     this.ambientCab.traverse(object => { if (object instanceof THREE.PointLight) object.intensity = 0; });
     // Place the parked cab once. Proximity only triggers its one-shot wreck gag;
     // it never changes this pose or recycles a vehicle slot.
-    const { x, y } = AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
+    const cab=this.world.props.find(p=>p.id===AMBIENT_TAXI.id);
+    const {x,y}=cab ? {x:cab.x+cab.w/2,y:cab.y+cab.h} : AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
     this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
     this.scene.add(this.ambientCab, this.wreckCab);
     const part = (group: THREE.Group, color: string, x: number, y: number, z: number, w: number, h: number, d: number) => {
@@ -912,16 +915,16 @@ export class OverworldRenderer {
       const angle = k * Math.PI / 4, spread = burst.age * 50;
       particle(burst.x + Math.cos(angle) * spread, this.terrain.heightAt(burst.x, burst.y) + 8 + Math.sin(burst.age * 6) * 12, burst.y + Math.sin(angle) * spread, (1 - burst.age / .48) * 1.5, burst.color);
     }
-    if (s.ambientTaxiWrecked && this.nearView(AMBIENT_TAXI.x, AMBIENT_TAXI.y, 80)) {
+    if (s.ambientTaxiWrecked && this.nearView(ambientTaxi(s).x, ambientTaxi(s).y, 80)) {
       for (let k = 0; k < 6; k++) {
         const life = ((this.reducedMotion ? 0 : s.time) * .42 + k / 6) % 1;
-        particle(AMBIENT_TAXI.x + Math.sin(s.time + k) * life * 7, this.terrain.heightAt(AMBIENT_TAXI.x, AMBIENT_TAXI.y) + 19 + life * 30, AMBIENT_TAXI.y + life * 3, 2 + life * 3, 0x78817d);
+        particle(ambientTaxi(s).x + Math.sin(s.time + k) * life * 7, this.terrain.heightAt(ambientTaxi(s).x, ambientTaxi(s).y) + 19 + life * 30, ambientTaxi(s).y + life * 3, 2 + life * 3, 0x78817d);
       }
     }
     const crashAge = s.ambientTaxiGag - TAXI_ROCK_IMPACT;
     if (!this.reducedMotion && crashAge >= 0 && crashAge < .7) for (let k = 0; k < 12; k++) {
       const angle = k * 2.4, spread = crashAge * (25 + k % 5 * 9);
-      particle(AMBIENT_TAXI.x + Math.cos(angle) * spread, this.terrain.heightAt(AMBIENT_TAXI.x, AMBIENT_TAXI.y) + 12 + Math.sin(crashAge * 4) * 13, AMBIENT_TAXI.y + Math.sin(angle) * spread, (1 - crashAge / .7) * (k % 3 ? 3 : 1), k % 3 ? 0xb4a482 : 0xffdda0);
+      particle(ambientTaxi(s).x + Math.cos(angle) * spread, this.terrain.heightAt(ambientTaxi(s).x, ambientTaxi(s).y) + 12 + Math.sin(crashAge * 4) * 13, ambientTaxi(s).y + Math.sin(angle) * spread, (1 - crashAge / .7) * (k % 3 ? 3 : 1), k % 3 ? 0xb4a482 : 0xffdda0);
     }
     for (const pickup of availablePickups(s)) {
       if (Math.hypot(pickup.x - s.x, pickup.y - s.y) > 80 || !this.nearView(pickup.x, pickup.y, 20)) continue;
@@ -981,7 +984,7 @@ export class OverworldRenderer {
     for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
     for (const prop of this.world.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
     for (const prop of this.world.props) if (prop.label && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
-    if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
+    if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
     const focus = this.scratch.set(s.x, this.terrain.heightAt(s.x, s.y), s.y).project(this.camera);

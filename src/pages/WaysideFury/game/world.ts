@@ -1,3 +1,4 @@
+import { clearRoads } from './roadClearance.ts';
 import { shapeOrganicAreas } from './organicAreas.ts';
 import { INTERIOR_WORLDS, attachInteriorDoors } from './interiors.ts';
 import { dressBlast, BLAST_ENCOUNTER_ANCHORS } from "./blastLayouts.ts";
@@ -25,7 +26,7 @@ const makeOverworld = (expanded: boolean) => {
   paint(m, 1056, 384, 64, 32, 'stone'); // Blast Site entrance apron.
   paint(m, 1008, 544, 64, 48, 'stone'); // City gate approach.
   paint(m, 368, 512, 64, 32, 'stone'); // Cab pullout, clear of the fence.
-  paint(m, 576, 416, 48, 32, 'stone');
+  paint(m, 576, expanded ? 400 : 416, 48, expanded ? 48 : 32, 'stone');
   paint(m, 864, 512, 48, 48, 'stone');
   prop(m, "station", 136, 320, 160, 112, "Wayside Station");
   prop(m, "crater", 1024, 272, 160, 96);
@@ -45,7 +46,7 @@ const makeOverworld = (expanded: boolean) => {
   const machine = prop(m, "vending", 550, 398, 22, 34, "Candy machine"); machine.id = "roadside-vending";
   prop(m, "diner", 464, 330, 112, 64, "Last Light Diner");
   paint(m, 500, 394, 40, 54, "dirt");
-  parkedCar(m, 584, 418, 36, 22); parkedCar(m, 866, 514, 36, 22);
+  parkedCar(m, expanded ? 578 : 584, expanded ? 414 : 418, 36, 22); parkedCar(m, 866, 514, 36, 22);
   prop(m, "rock", 292, 526, 24, 16);
   prop(m, "tree", 748, 274, 24, 32);
   prop(m, "sign", 1000, 414, 24, 24, "Blast Site · East");
@@ -162,3 +163,5 @@ export function getWorld(scene: string, room = 0, mapId?: string, coop = false):
 export const ALL_WORLDS = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, LAUNCH_WORLD, ...MOON_WORLDS, ...CITY_WORLDS, ...WOODS_WORLDS, ...INTERIOR_WORLDS];
 shapeOrganicAreas(ALL_WORLDS);
 attachInteriorDoors(ALL_WORLDS);
+
+export const ROAD_RELOCATIONS = ALL_WORLDS.flatMap(clearRoads);

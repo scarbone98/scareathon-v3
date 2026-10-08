@@ -1,8 +1,9 @@
 import type { GameState } from './sim';
 
 // Authored once for collision, both renderers and the host's one-shot gag.
-export const AMBIENT_TAXI = { id: 'ambient-roadside-taxi', x: 400, y: 530 };
-export const ROADSIDE_SIGN = { id: 'roadside-lore-sign', x: 468, y: 444 };
+export const AMBIENT_TAXI = { id: 'ambient-roadside-taxi', x: 400, y: 538 };
+export const ambientTaxi = (s?: Partial<Pick<GameState, 'coop'>>) => s?.coop && (s.coop.protocolVersion ?? 1) < 6 ? { ...AMBIENT_TAXI, y: 530 } : AMBIENT_TAXI;
+export const ROADSIDE_SIGN = { id: 'roadside-lore-sign', x: 468, y: 436 };
 export const ROADSIDE_VENDING = { id: 'roadside-vending', x: 561, y: 432 };
 export const TAXI_ROCK_IMPACT = 1.2;
 export const TAXI_GAG_DURATION = 3.5;
@@ -12,7 +13,7 @@ export function updateOverworldDressing(s: GameState, dt: number) {
   if (s.ambientTaxiGag < 0) {
     if (s.ambientTaxiWrecked) return;
     const drivers = [s, ...(s.coop?.remoteHeroes ?? []).filter(hero => hero.scene === 'overworld')];
-    if (!drivers.some(driver => Math.hypot(driver.x - AMBIENT_TAXI.x, driver.y - AMBIENT_TAXI.y) < 126)) return;
+    if (!drivers.some(driver => Math.hypot(driver.x - ambientTaxi(s).x, driver.y - ambientTaxi(s).y) < 126)) return;
     s.ambientTaxiGag = 0;
   }
   const previous = s.ambientTaxiGag;
@@ -21,14 +22,14 @@ export function updateOverworldDressing(s: GameState, dt: number) {
     // This is scenery: it never creates a damaging projectile or player hit.
     s.ambientTaxiWrecked = true;
     s.personalTaxiWrecked = true;
-    s.events.push({ type: 'ambient-taxi-crash', x: AMBIENT_TAXI.x, y: AMBIENT_TAXI.y });
+    s.events.push({ type: 'ambient-taxi-crash', x: ambientTaxi(s).x, y: ambientTaxi(s).y });
   }
 }
 
-export function taxiRockPosition(s: Pick<GameState, 'ambientTaxiGag'>) {
+export function taxiRockPosition(s: Pick<GameState, 'ambientTaxiGag'> & Partial<Pick<GameState, 'coop'>>) {
   if (s.ambientTaxiGag < 0 || s.ambientTaxiGag >= TAXI_ROCK_IMPACT) return null;
   const t = s.ambientTaxiGag / TAXI_ROCK_IMPACT;
-  return { x: 1092 + (AMBIENT_TAXI.x - 1092) * t, y: 320 + (AMBIENT_TAXI.y - 320) * t,
+  return { x: 1092 + (ambientTaxi(s).x - 1092) * t, y: 320 + (ambientTaxi(s).y - 320) * t,
     height: 38 * (1 - t) + Math.sin(t * Math.PI) * 148, rotation: t * 8 };
 }
 

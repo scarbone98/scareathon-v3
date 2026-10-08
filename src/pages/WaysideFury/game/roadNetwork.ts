@@ -1,3 +1,4 @@
+import { clipRoadEnds, drawRoadEndings } from './roadEndings.ts';
 // One polyline network supplies pavement, junction paint and exact ribbon queries.
 // Crossings in current content are at grade; a water causeway is not an overpass.
 import type { RoadSegment, WorldMap } from './worldBuilder.ts';
@@ -30,13 +31,14 @@ export function networkPaint(world:WorldMap):RoadPaint[] {
         const p=at(d),next=at(Math.min(length,d+2));
         // Stop bars sit before the open junction, perpendicular to each approach.
         if(junctionAt(world,r,p.x,p.y)!==junctionAt(world,r,next.x,next.y)) {
+          if(i===1 && r.start!=='junction' && d<44 || i===points.length-1 && r.end!=='junction' && d>length-44)continue;
           const half=roadWidth(r)/2-7;
           result.push({a:{x:p.x-dy*half,y:p.y+dx*half},b:{x:p.x+dy*half,y:p.y-dx*half},width:1.8,kind:'stop'});
         }
       }
       for(let d=(10-run%36+36)%36;d+14<length;d+=36) {
         const p=at(d),q=at(d+14);
-        if(i===1&&d<16||i===points.length-1&&d+14>length-16)continue;
+        if(i===1&&d<44||i===points.length-1&&d+14>length-44)continue;
         if([p,q,at(d+7)].some(p=>junctionAt(world,r,p.x,p.y)))continue;
         result.push({a:p,b:q,width:1.2,kind:'lane'});
       }
@@ -96,12 +98,16 @@ const paintCache=new WeakMap<WorldMap,RoadPaint[]>();
 export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
   if(!world.roads.length)return;
   c.save();c.lineJoin='round';c.lineCap='round';
+  for(const p of world.props??[]) if(['barrier','bridge-rail','gate-wall','portal'].includes(p.kind)) for(const r of p.footprints??[]) {
+    c.beginPath();c.rect(-20000,-20000,40000,40000);c.rect(r.x,r.y,r.w,r.h);c.clip('evenodd');
+  }
   // Union in two passes: every curb first, then every asphalt ribbon. No road
   // can leave its curb inside another road, including T/X/Y joins and bends.
   for(const [color,inset] of [['#a1a392',0],['#3b4f55',3]] as const) {
     c.strokeStyle=color;
     for(const r of world.roads) {
-      c.lineWidth=roadWidth(r)-inset;c.beginPath();roadPoints(r).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke();
+      c.save();clipRoadEnds(c,r,world);
+      c.lineWidth=roadWidth(r)-inset;c.beginPath();roadPoints(r).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke();c.restore();
     }
     c.fillStyle=color;
     for(const {corner,a,b} of curbCorners(world,inset)) {
@@ -109,6 +115,7 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
       c.quadraticCurveTo(corner.x,corner.y,b.x,b.y);c.closePath();c.fill();
     }
   }
+  drawRoadEndings(c,world);
   let marks=paintCache.get(world);if(!marks){marks=networkPaint(world);paintCache.set(world,marks);}
   c.lineCap='butt';
   for(const mark of marks) {c.strokeStyle=mark.kind==='lane'?'#c6b991':'#e0ded0';c.lineWidth=mark.width;c.beginPath();c.moveTo(mark.a.x,mark.a.y);c.lineTo(mark.b.x,mark.b.y);c.stroke();}

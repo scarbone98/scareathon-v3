@@ -8,7 +8,7 @@ for(const [name,roads] of [
  ['Y',[segment('stem',[{x:160,y:320},{x:160,y:160}]),segment('left',[{x:32,y:32},{x:160,y:160}]),segment('right',[{x:160,y:160},{x:320,y:32}])]],
 ]) {
  const world={roads};assert.ok(onRoad(world,160,160),`${name}: merged center`);
- let radii=0;drawRoadNetwork({save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},fill(){},closePath(){},quadraticCurveTo(){radii++;}},world);assert.ok(radii>0,`${name}: tangent curb radii`);
+ let radii=0;drawRoadNetwork({save(){},restore(){},translate(){},rotate(){},rect(){},clip(){},fillRect(){},createLinearGradient(){return {addColorStop(){}}},beginPath(){},moveTo(){},lineTo(){},stroke(){},fill(){},closePath(){},quadraticCurveTo(){radii++;}},world);assert.ok(radii>0,`${name}: tangent curb radii`);
  const marks=networkPaint(world);assert.ok(marks.some(m=>m.kind==='stop'),`${name}: stop bars`);
  for(const m of marks.filter(m=>m.kind==='lane')) {
   const owner=roads.find(r=>roadDistance(r,m.a.x,m.a.y)<1);assert.ok(owner);
@@ -36,3 +36,6 @@ for(let i=0;i<OVERWORLD.tiles.length;i++)if(OVERWORLD.tiles[i]==='bridge') {
  for(const dx of [.1,15.9])for(const dy of [.1,15.9])if(!onRoad(OVERWORLD,x+dx,y+dy))assert.equal(isBlocked(OVERWORLD,x+dx,y+dy,0),true,'water outside the ribbon remains solid');
 }
 console.log('Road network: T/X/Y junction paint, exact ribbon coverage and all county/co-op/hub centerlines pass.');
+
+const short={roads:[{...segment('short',[{x:160,y:32},{x:160,y:96}]),start:'entrance'},segment('main',[{x:32,y:96},{x:320,y:96}])]};
+assert.ok(!networkPaint(short).some(m=>m.kind==='stop' && m.a.y===m.b.y && m.a.y<76),'short entrance thresholds never receive stop bars');

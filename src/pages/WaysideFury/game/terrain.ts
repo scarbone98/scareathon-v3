@@ -1,3 +1,4 @@
+import { roadMask } from './roadClearance.ts';
 import { drawRoadNetwork, roadGround } from './roadNetwork.ts';
 import { roadMarks } from './roadMarkings';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
@@ -92,6 +93,7 @@ export class TerrainCache {
         for (let k = 0; k < 9; k++) {
           const blade = hash(col * 31 + k, row * 43 + k);
           const px = 1 + blade % 135 / 10, py = 2 + (blade >>> 8) % 120 / 10;
+          if (roadMask(world).intersects({x:col*TILE+px-1,y:row*TILE+py-1,w:3,h:3})) continue;
           c.strokeStyle = k % 3 ? '#80977770' : '#192f3570';
           c.beginPath(); c.moveTo(x + px, y + py + 1);
           c.quadraticCurveTo(x + px + .4, y + py, x + px - .35, y + py - .6); c.stroke();
@@ -99,7 +101,7 @@ export class TerrainCache {
           c.quadraticCurveTo(x + px + .8, y + py + .2, x + px + 1, y + py); c.stroke();
         }
         c.restore();
-        if (n % 19 === 0) { fill(7, 8, .15, 1.5, '#b5b88b'); fill(7, 7.8, .4, .4, '#e4d7a0'); }
+        if (n % 19 === 0 && !roadMask(world).contains(col*TILE+7,row*TILE+8)) { fill(7, 8, .15, 1.5, '#b5b88b'); fill(7, 7.8, .4, .4, '#e4d7a0'); }
       }
       if (kind === 'stone' || kind === 'ash' || kind === 'void' || kind === 'corrupt') {
         c.save(); c.globalAlpha = .45;
@@ -134,7 +136,10 @@ export class TerrainCache {
           fill(ex, ey, ew, eh, dark);
           for (let k = 0; k < 8; k++) fill(dx ? ex : k * 2, dy ? ey : k * 2, .5, .5, light);
         } else if (kind === 'grass') {
-          for (let k = 0; k < 8; k++) fill(dx ? ex + k % 2 : k * 2, dy ? ey + k % 2 : k * 2, 1, 1, k % 3 ? dark : light);
+          for (let k = 0; k < 8; k++) {
+            const px=dx ? ex+k%2 : k*2, py=dy ? ey+k%2 : k*2;
+            if(!roadMask(world).contains(col*TILE+px,row*TILE+py))fill(px,py,1,1,k%3 ? dark : light);
+          }
         }
         // A soft bank shadow joins materials without enlarging the collision map.
         const shade = c.createLinearGradient(x + ex, y + ey, x + ex + (dx ? ew : 0), y + ey + (dy ? eh : 0));

@@ -1,3 +1,5 @@
+import { roadMask } from './roadClearance.ts';
+import { overlaps, type WorldMap } from './worldBuilder.ts';
 // Scenic miniatures at destination markers. These are presentation only: no
 // collision, pickups, spawns or progression data are added to the world map.
 export interface PreviewPart {
@@ -63,4 +65,34 @@ export function drawPreviewPart(c: CanvasRenderingContext2D, p: PreviewPart) {
     c.fillStyle = '#ffffff'; c.globalAlpha = .12; c.fillRect(x + 1, top + .5, Math.max(0, p.w - 2), 1);
     c.fillStyle = '#17282e'; c.globalAlpha = .2; c.fillRect(x + p.w * .7, top + 1, p.w * .3, p.h - 1); c.globalAlpha = 1;
   }
+}
+
+// Keep each miniature's trunk/roof/windows together; presentation cannot leave
+// flowers on a plaza or a building base on the road after its curve changes.
+const clearPreviews = new WeakMap<WorldMap, PreviewPart[]>();
+export function zonePreviews(world: WorldMap): PreviewPart[] {
+  let result=clearPreviews.get(world);if(result)return result;
+  result=[];
+  const groups=new Map<string,PreviewPart[]>(),mask=roadMask(world);
+  for(const p of ZONE_PREVIEWS){const key=`${p.groundX},${p.groundZ}`;const parts=groups.get(key)??[];parts.push(p);groups.set(key,parts);}
+  const bases=[...groups.values()].map(parts=>({parts,x:parts[0].groundX-Math.max(...parts.map(p=>p.w))/2,y:parts[0].groundZ-Math.max(...parts.map(p=>p.d))/2,w:Math.max(...parts.map(p=>p.w)),h:Math.max(...parts.map(p=>p.d))}));
+  for(const [index,parts] of [...groups.values()].entries()) {
+    const root=parts[0],w=Math.max(...parts.map(p=>p.w)),h=Math.max(...parts.map(p=>p.d));
+    const rect={x:root.groundX-w/2,y:root.groundZ-h/2,w,h};
+    let dx=0,dy=0;
+    if(mask.intersects(rect)) {
+      if(Math.max(...parts.map(p=>p.h+p.y))<=6)continue;
+      const candidates:{dx:number;dy:number;distance:number}[]=[];
+      for(let y=-128;y<=128;y+=4)for(let x=-128;x<=128;x+=4)candidates.push({dx:x,dy:y,distance:x*x+y*y});
+      candidates.sort((a,b)=>a.distance-b.distance);
+      const spot=candidates.find(p=>!mask.intersects({...rect,x:rect.x+p.dx,y:rect.y+p.dy})
+        && !bases.some((base,i)=>i!==index && overlaps({...rect,x:rect.x+p.dx,y:rect.y+p.dy},base))
+        && !world.props.some(prop=>(prop.footprints??[]).some(base=>overlaps({...rect,x:rect.x+p.dx,y:rect.y+p.dy},base))));
+      if(!spot)throw new Error(`${world.id}: no roadside miniature placement at ${root.groundX},${root.groundZ}`);
+      dx=spot.dx;dy=spot.dy;
+    }
+    bases[index].x+=dx;bases[index].y+=dy;
+    result.push(...parts.map(p=>({...p,x:p.x+dx,z:p.z+dy,groundX:p.groundX+dx,groundZ:p.groundZ+dy})));
+  }
+  clearPreviews.set(world,result);return result;
 }

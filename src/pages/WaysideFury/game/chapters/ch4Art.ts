@@ -1,3 +1,4 @@
+import { getWorld } from '../world.ts';
 import { applyEnemyWindup } from '../enemyWindup';
 import type { WorldProp } from '../worldBuilder.ts';
 import type { Enemy, GameState } from '../sim.ts';
@@ -23,7 +24,9 @@ export function drawCityGround(c:CanvasRenderingContext2D,s:GameState) {
     for(let n=0;n<6;n++) {c.fillStyle=warm?amber:'#657789';c.fillRect(x-8+n*10,85,5,2);}
   }
   if(s.room===4||s.room===9||s.enemies.some(e=>e.behavior==='cable-rat')) for(const {x,y} of CITY_RAT_OUTLETS) {c.strokeStyle=amber;c.lineWidth=2;c.strokeRect(x-12,y-12,24,24);for(let n=0;n<3;n++) line(c,x-8,y-6+n*6,x+8,y-6+n*6,ink,2);}
-  for(const target of s.room===13?[{id:'city-pedestal-0',x:220,y:130},{id:'city-pedestal-1',x:440,y:130},{id:'city-pedestal-2',x:320,y:310}]:[0,2,5].includes(s.room)?[{id:`city-anchor-${s.room}`,x:196,y:290}]:[]) {
+  for(const authored of s.room===13?[{id:'city-pedestal-0',x:220,y:130},{id:'city-pedestal-1',x:440,y:130},{id:'city-pedestal-2',x:320,y:310}]:[0,2,5].includes(s.room)?[{id:`city-anchor-${s.room}`,x:196,y:290}]:[]) {
+    const prop=getWorld(s.scene,s.room,s.mapId).props.find(p=>p.id===authored.id);
+    const target=prop ? {id:authored.id,x:prop.x+prop.w/2,y:prop.y+prop.h+12} : authored;
     const solved=hasSpaceFlag(s,target.id);c.strokeStyle=solved?amber:violet;c.lineWidth=2;c.beginPath();c.arc(target.x,target.y,17,0,Math.PI*(target.id==='city-pedestal-2'?1.5:2));c.stroke();
     if(solved) {line(c,target.x-6,target.y,target.x-1,target.y+6,amber,2);line(c,target.x-1,target.y+6,target.x+8,target.y-7,amber,2);}
   }
