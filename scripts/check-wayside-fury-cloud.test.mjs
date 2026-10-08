@@ -389,3 +389,22 @@ test('a guest can retry the same unreported checkpoint when device storage recov
   assert.equal(d.paid(), receiptScore(save.lastReported, emptyReceipt()));
   assert.equal(d.server.calls.length, 0);
 });
+
+test('offline world discovery merge reaches the active game even when local campaign wins', async t => {
+  const local = snapshot({ level: 3, candy: 17, areas: ['wayside'], home: true });
+  const remote = snapshot({ savedAt: 2_000 });
+  local.u1.world = { clearedObstacles: ['world-joe-road'], cycleSeconds: 60 };
+  remote.u1.world = { clearedObstacles: ['world-matt-station'], cycleSeconds: 300 };
+  const d = device(t, new MemoryStorage(local)); d.server.seed(A, remote); d.server.failGets = 1;
+  await d.store.load(A); await settle();
+  const previous = d.replacements.length;
+  d.store.retryNow(); await settle();
+  assert.ok(d.replacements.length > previous, 'merged gates must notify the running game');
+  const active = restoreSave(d.replacements.at(-1).save);
+  const next = makeSave(active, d.store.save);
+  assert.deepEqual(next.u1.world, { clearedObstacles: ['world-joe-road', 'world-matt-station'], cycleSeconds: 60 });
+  assert.equal(next.character.level, 3); assert.equal(next.candy, 17);
+  d.store.persist(next, false); await settle();
+  assert.deepEqual(d.server.rows.get(A).save.u1.world.clearedObstacles, next.u1.world.clearedObstacles);
+  assert.equal(d.paid(), 0);
+});

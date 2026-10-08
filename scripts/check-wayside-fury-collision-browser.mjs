@@ -115,7 +115,10 @@ async function hold(keys, seconds) {
   });
   try {
     for (const key of keys) await page.keyboard.down(key);
-    await page.waitForFunction(seconds => window.__waysideFury.state.time - window.__waysideCollisionTrace.started >= seconds, seconds, { timeout: actionTimeout(15000) });
+    // Slow render frames may advance several fixed simulation steps. Require
+    // the full observation count as well as the requested movement duration.
+    await page.waitForFunction(seconds => window.__waysideFury.state.time - window.__waysideCollisionTrace.started >= seconds
+      && window.__waysideCollisionTrace.samples.length >= 12, seconds, { timeout: actionTimeout(15000) });
   } catch (error) {
     console.error('Movement wait state', await page.evaluate(() => {
       const controller = window.__waysideFury, state = controller.state, trace = window.__waysideCollisionTrace;
