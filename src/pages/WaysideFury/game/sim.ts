@@ -1,6 +1,9 @@
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
+import { availablePickups, collectPickup, pickupBuffs, walkingPickup } from "./collectibles.ts";
+import { updateOverworldDressing } from "./dressing.ts";
+import { interactionPrompt, newContextAttack, resolveContextPress, selectInteractionTarget, updateContextPrompt, type AttackPresentation, type ContextAttackState, type InteractTarget, type InteractionCandidate } from "./contextAttack.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
@@ -9,6 +12,7 @@ export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prolog
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
   guard: boolean; swap: boolean; interact: boolean;
+  attackPresentation?: AttackPresentation;
 }
 export const idleInput = (): Input => ({ x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false });
 export interface HeroState {
@@ -28,6 +32,7 @@ export interface CoopRuntime {
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
   revivedUntil?: Record<number, number>;
   worldClearedRooms?: string[];
+  worldChapter?: number;
 }
 export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
@@ -53,6 +58,9 @@ export interface Effect {
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
   | CoopHit
+  | { type: "pickup"; id: string }
+  | { type: "coop-pickup"; id: string }
+  | { type: "ambient-taxi-crash"; x: number; y: number }
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
   | { type: "hit"; x: number; y: number; damage: number; target: "hero" | "enemy" }
@@ -62,12 +70,14 @@ export type GameEvent =
   | { type: "checkpoint"; id: string }
   | { type: "death" };
 export interface GameState {
+  foundItems: string[]; ambientTaxiWrecked: boolean; personalTaxiWrecked: boolean; ambientTaxiGag: number; insideDiner: boolean;
+  pickupPending?: { id: string; at: number };
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   vx: number; vy: number; knockX: number; knockY: number; transitionCooldown: number;
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "diner" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
@@ -76,6 +86,8 @@ export interface GameState {
   previousInput: Input; rngSeed: number; nextId: number;
   coop?: CoopRuntime;
   coopRewards?: string[];
+  contextAttack: ContextAttackState;
+  dialogue: { speaker: string; lines: string[]; index: number } | null;
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -144,14 +156,16 @@ function random(s: GameState) {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
 export function newGame(seed = 8591): GameState {
-  const s: GameState = { x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
+  const s: GameState = { foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
+    x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
     active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0,
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
     overlay: null, heroes: Object.fromEntries(HERO_IDS.map(id => [id, createHero(id)])) as Record<HeroId, HeroState>, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
-    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [] };
+    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [],
+    contextAttack: newContextAttack(), dialogue: null };
   enterScene(s, "test");
   return s;
 }
@@ -167,7 +181,7 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 }
 export function enterScene(s: GameState, scene: Scene, room = 0): void {
   const world = getWorld(scene, room);
-  s.scene = scene; s.overlay = null; s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
+  s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
   if (scene === "realm") { s.palette = "eightbit"; if (s.clearedRooms.includes("realm-0")) s.chapter = Math.max(2, s.chapter); }
@@ -242,11 +256,11 @@ export function advanceStory(s: GameState): void {
   if (s.scene !== "prologue" || s.coop?.role === "guest") return;
   s.cutscene++; s.sceneTimer = 0;
   if (s.cutscene >= PROLOGUE.length) {
-    enterScene(s, "overworld"); s.previousInput.interact = true;
+    enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true;
   }
 }
 export function skipPrologue(s: GameState): void {
-  enterScene(s, "overworld"); s.previousInput.interact = true;
+  enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true;
 }
 export function beginRealmShift(s: GameState, target: Scene = "realm", palette: "real" | "eightbit" = "eightbit"): void {
   enterScene(s, "shift");
@@ -355,6 +369,9 @@ export function requestSwap(s: GameState): boolean {
 }
 export function exitCoop(s: GameState): void {
   if (!s.coop) return;
+  s.ambientTaxiWrecked ||= s.personalTaxiWrecked;
+  s.personalTaxiWrecked = s.ambientTaxiWrecked;
+  s.ambientTaxiGag = -1;
   const players = coopCount(s); s.coop.playerCount = 1;
   for (const enemy of s.enemies) scaleEnemy(s, enemy, enemy.baseMaxHp ?? enemy.maxHp / enemyHpScale(enemy.kind, players));
   delete s.coop; syncCoopLevel(s);
@@ -633,22 +650,65 @@ function updateVisuals(s: GameState, dt: number) {
 function availableExit(s: GameState): WorldExit | undefined {
   return getWorld(s.scene, s.room).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
 }
-export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
-  if (s.coop && activeHero(s).hp > 0) {
-    const downed = s.coop.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room && Math.hypot(s.x - peer.x, s.y - peer.y) <= 32);
-    if (downed) return { id: `coop-revive-${downed.seat}`, name: `Hold to revive ${downed.name}` };
+export function interactTarget(s: GameState): InteractTarget | null {
+  if (s.overlay === "diner") {
+    const item = availablePickups(s).find(pickup => pickup.requiresDiner);
+    return item ? { id: item.id, name: `Pick up ${item.name}`, kind: "use", x: item.x, y: item.y }
+      : { id: "diner-leave", name: "Leave diner", kind: "use", x: s.x, y: s.y };
   }
+  if (s.scene === "prologue") return { id: "story-next", name: s.cutscene === PROLOGUE.length - 1 ? "Continue to the taxi" : "Next", kind: "next", x: s.x, y: s.y };
+  if (s.dialogue) return { id: "dialog-next", name: s.dialogue.index < s.dialogue.lines.length - 1 ? "Next" : "Continue", kind: "next", x: s.x, y: s.y };
+  if (s.scene === "dead" || s.scene === "results" || s.scene === "shift" || s.overlay || s.coop?.downed) return null;
+  const candidates: InteractionCandidate[] = [];
+  const add = (target: InteractTarget, radius = 28, distance = Math.hypot(s.x - target.x, s.y - target.y)) => candidates.push({ ...target, radius, distance });
+  if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
+    if (peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
+  }
+  for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room);
-    const chest = world.props.find(p => p.kind === "chest" && !s.clearedRooms.includes(p.id) && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h / 2) < 28);
-    if (chest) return { id: chest.id, name: "Open supply cache", locked: s.enemies.length > 0 };
-    const npc = world.props.find(p => p.kind === "npc" && Math.hypot(s.x - p.x - p.w / 2, s.y - p.y - p.h) < 28);
-    if (npc) return { id: "scout", name: "Talk to the stranded scout" };
-    const door = availableExit(s);
-    return door ? { id: door.id, name: door.name } : null;
+    for (const prop of world.props) {
+      if (prop.kind === "chest" && !s.clearedRooms.includes(prop.id)) add({ id: prop.id, name: "Open supply cache", kind: "use", locked: s.enemies.length > 0, x: prop.x + prop.w / 2, y: prop.y + prop.h / 2 });
+      if (prop.kind === "npc") add({ id: "scout", name: `Talk to ${prop.label ?? "the stranded scout"}`, kind: "talk", x: prop.x + prop.w / 2, y: prop.y + prop.h });
+    }
+    for (const door of world.exits) if (!door.requiresClear || s.enemies.length === 0) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
   }
   const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
-  return points.find(p => Math.hypot(s.x - p.x, s.y - p.y) < 28) ?? null;
+  for (const point of points) {
+    const npc = point.id === "alex" || point.id === "jon";
+    const taxi = point.id === "taxi" || s.scene === "overworld";
+    add({ ...point, name: npc ? `Talk to ${point.name}` : point.id === "taxi" ? "Enter taxi" : s.scene === "overworld" ? `Leave taxi · ${point.name}` : point.name,
+      kind: npc ? "talk" : taxi ? "taxi" : "use" });
+  }
+  if (s.scene === "overworld") {
+    add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444 });
+    add({ id: "diner-entry", name: "Enter diner", kind: "use", x: 520, y: 405 });
+  }
+  return selectInteractionTarget(candidates, s.x, s.y, s.faceX, s.faceY);
+}
+export function hostileWithinMeleeReach(s: GameState): boolean {
+  const nextCombo = s.comboWindow > 0 ? s.combo % 3 + 1 : 1, reach = nextCombo === 3 ? 34 : 28;
+  return s.enemies.some(enemy => {
+    const dx = enemy.x - s.x, dy = enemy.y - s.y, distance = Math.hypot(dx, dy);
+    return enemy.hp > 0 && distance <= reach + enemy.radius && (dx * s.faceX + dy * s.faceY) / Math.max(1, distance) >= -.1;
+  });
+}
+export const nonCombatContext = (s: GameState) => !!s.dialogue || s.scene === "prologue" || s.scene === "overworld" || s.scene === "hub" || !!s.overlay;
+function refreshContextAttack(s: GameState): void {
+  s.contextAttack.target = interactTarget(s);
+  updateContextPrompt(s.contextAttack, interactionPrompt(s.contextAttack.target, hostileWithinMeleeReach(s), nonCombatContext(s)), s.time);
+}
+export function advanceDialogue(s: GameState): void {
+  if (!s.dialogue) return;
+  if (s.dialogue.index + 1 < s.dialogue.lines.length) s.dialogue.index++;
+  else s.dialogue = null;
+  s.previousInput.attack = s.previousInput.interact = true;
+}
+function openDialogue(s: GameState, speaker: string, lines: string[]): void {
+  s.dialogue = { speaker, lines, index: 0 }; s.vx = s.vy = 0; s.moving = false; s.charge = 0;
+  s.attackTimer = s.dashTimer = 0; s.guard = false; s.knockX = s.knockY = 0;
+  // Keep the existing notice channel useful for screen readers and save checks.
+  s.notice = lines[0];
 }
 function travel(s: GameState, door: WorldExit) {
   if (door.target === "realm") beginRealmShift(s);
@@ -657,13 +717,20 @@ function travel(s: GameState, door: WorldExit) {
       typeof door.target === "number" ? door.target : 0);
     if (s.scene !== "results") { s.x = door.entryX; s.y = door.entryY; }
   }
-  s.previousInput.interact = true;
+  s.previousInput.attack = s.previousInput.interact = true;
 }
-export function interact(s: GameState): void {
-  if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
-  const target = interactTarget(s);
+export function interact(s: GameState, selected?: InteractTarget | null): void {
+  if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
+  const target = selected === undefined ? interactTarget(s) : selected;
   if (!target) return;
+  if (target.id === "story-next") { advanceStory(s); return; }
+  if (target.id === "dialog-next") { advanceDialogue(s); return; }
+  if (target.id === "diner-entry") { s.overlay = "diner"; s.insideDiner = true; s.vx = s.vy = 0; s.moving = false; return; }
+  if (target.id === "diner-leave") { s.overlay = null; s.insideDiner = false; return; }
+  if (target.id.startsWith("pickup-")) { collectPickup(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
+  if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
+  if (s.coop?.role === "guest" && target.kind !== "talk") return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
@@ -679,17 +746,17 @@ export function interact(s: GameState): void {
         : s.room === 8 ? "Orchard cache: 18 candy, tonic and Ki supplies!" : "Supply cache: 25 candy, tonic and +1 Power for the crew!";
       s.events.push({ type: "checkpoint", id: target.id }); return;
     }
-    if (target.id === "scout") { s.notice = "Scout: Two supply trails survived the blast. Find the orchard north of Split Creek and the old depot south of Furnace Pass."; return; }
-    const door = availableExit(s);
+    if (target.id === "scout") { openDialogue(s, "Stranded scout", ["Scout: Two supply trails survived the blast. Find the orchard north of Split Creek and the old depot south of Furnace Pass."]); return; }
+    const door = getWorld(s.scene, s.room).exits.find(exit => exit.id === target.id);
     if (door) travel(s, door);
     return;
   }
   if (target.locked) { s.notice = `${target.name}: taken over. A later chapter will open this route.`; return; }
   if (s.scene === "overworld") {
     enterScene(s, target.id === "wayside" ? "hub" : "dungeon");
-    s.previousInput.interact = true; return;
+    s.previousInput.attack = s.previousInput.interact = true; return;
   }
-  if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.interact = true; return; }
+  if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return; }
   const dialogue: Record<string, string> = {
     station: "Wayside Station is safe. Alex and Jon are holding the town while Joe and Matt investigate the Blast Site.",
@@ -697,7 +764,7 @@ export function interact(s: GameState): void {
     alex: "Alex: The station is secure. I can tag in when you need help. There are supplies hidden off the main route.",
     jon: "Jon: HOME restores the whole crew. Stock up before you go, and don't forget to tag your partner in.",
   };
-  s.notice = dialogue[target.id] ?? "Wayside is quiet... for now.";
+  openDialogue(s, target.id === "alex" ? "Alex" : target.id === "jon" ? "Jon" : target.name, [dialogue[target.id] ?? "Wayside is quiet... for now."]);
 }
 export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): boolean {
   if (s.coop && activeHero(s).hp <= 0) return false;
@@ -734,12 +801,18 @@ export function buyItem(s: GameState, id: ShopItemId): boolean {
 export function step(s: GameState, input: Input, delta: number): void {
   const dt = clamp(delta, 0, 0.05);
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
+  refreshContextAttack(s);
+  const attackPressed = input.attack && !s.previousInput.attack;
+  const interactPressed = input.interact && !s.previousInput.interact;
+  let attackAction = attackPressed ? resolveContextPress(s.contextAttack, hostileWithinMeleeReach(s), nonCombatContext(s), s.time, input.attackPresentation) : "none";
+  // Standard pad A supplies both bindings. Resolve that physical press once.
+  let usePressed = attackPressed ? attackAction === "interact" : interactPressed;
   s.transitionCooldown = Math.max(0, s.transitionCooldown - dt);
   updateVisuals(s, dt);
+  updateOverworldDressing(s, dt);
   if (s.scene === "prologue") {
-    const pressed = input.interact && !s.previousInput.interact;
     s.previousInput = { ...input };
-    if (pressed) advanceStory(s);
+    if (usePressed) interact(s, s.contextAttack.target);
     return;
   }
   if (s.scene === "shift") {
@@ -751,16 +824,33 @@ export function step(s: GameState, input: Input, delta: number): void {
     return;
   }
   if (s.scene === "dead" || s.scene === "results") return;
+  const dialogueInput = s.dialogue ? { ...input } : null;
+  let dialogueControlsSuppressed = !!dialogueInput;
+  if (s.dialogue) {
+    s.previousInput = { ...input }; s.moving = false;
+    if (usePressed) interact(s, s.contextAttack.target);
+    if (!s.coop) return;
+    // A conversation is local in co-op. Keep its physical button edges while
+    // letting the host's shared enemies, projectiles and clear rewards advance.
+    input = idleInput(); usePressed = false; attackAction = "none";
+    s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
+    s.guard = false;
+  }
+  if (input.attack && s.contextAttack.target?.id.startsWith("coop-revive-") && resolveContextPress(s.contextAttack, hostileWithinMeleeReach(s), nonCombatContext(s), s.time, input.attackPresentation) === "interact") input.interact = true;
   updateCoopRevives(s, input, dt);
   if (checkCoopWipe(s)) return;
   if (s.coop?.downed) {
     input = idleInput(); s.previousInput = idleInput(); s.moving = s.guard = false;
     s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
   }
-  if (s.overlay) { s.previousInput = { ...input }; s.moving = false; return; }
+  if (s.overlay) {
+    s.previousInput = { ...input }; s.moving = false;
+    if (s.overlay === "diner" && usePressed) interact(s, s.contextAttack.target);
+    return;
+  }
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
-  const previous = s.previousInput;
-  s.previousInput = { ...input };
+  const previous = dialogueInput ? idleInput() : s.previousInput;
+  s.previousInput = { ...(dialogueInput ?? input) };
   const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
@@ -796,7 +886,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : 70;
+    const speed = (s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : 70) * pickupBuffs(s).speed;
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);
@@ -804,12 +894,24 @@ export function step(s: GameState, input: Input, delta: number): void {
     moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
-  if (!combat) { s.charge = 0; if (input.interact && !previous.interact) interact(s); return; }
-  if (input.attack && !previous.attack && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
-  if (input.ki && s.dashTimer === 0 && !s.guard) {
-    s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32);
+  walkingPickup(s);
+  if (!combat) {
+    s.charge = 0;
+    if (usePressed) interact(s, s.contextAttack.target);
+    else if (attackPressed && attackAction === "attack" && s.scene !== "overworld" && s.attackTimer === 0 && !input.ki) melee(s);
+    return;
   }
-  if (!input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
+  if (attackPressed && attackAction === "attack" && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
+  if (usePressed) {
+    const scene = s.scene, room = s.room;
+    interact(s, s.contextAttack.target);
+    if (s.overlay || s.scene !== scene || s.room !== room || s.dialogue && !s.coop) return;
+    if (s.dialogue) { dialogueControlsSuppressed = true; input = idleInput(); }
+  }
+  if (!dialogueControlsSuppressed && input.ki && s.dashTimer === 0 && !s.guard) {
+    s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32 * pickupBuffs(s).charge);
+  }
+  if (!dialogueControlsSuppressed && !input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
   const hadEnemies = s.enemies.length > 0;
   if (s.coop?.role !== "guest") { updateEnemies(s, dt); separateBodies(s, dt); }
   updateProjectiles(s, dt);
@@ -842,7 +944,6 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.events.push({ type: "checkpoint", id: "realm-0" });
     s.notice = "The path is clear. The real evil has only just begun...";
   }
-  if (input.interact && !previous.interact && (s.scene === "dungeon" || s.scene === "realm")) interact(s);
   // Walking through an open boundary changes zones without a button press.
   if ((s.scene === "dungeon" || s.scene === "realm") && s.transitionCooldown === 0) {
     const world = getWorld(s.scene, s.room), door = availableExit(s);

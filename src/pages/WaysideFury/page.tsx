@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
+import { Collection } from "./Collection";
 import { HeroPortrait } from "./HeroPortrait";
 import { FuryCoop, type CoopRoom } from "./game/coop";
 import { composeAppearance, loadHeroAvatar, type HeroAvatar } from "./game/avatar";
 import { GameController } from "./game/controller";
 import { readGraphicsMode, rememberGraphicsMode, type GraphicsMode, type GraphicsStatus } from "./game/graphics";
-import { type InputMode } from "./game/input";
+import { showAttackPresentation, type InputMode } from "./game/input";
+import type { ActionPrompt } from "./game/contextAttack";
 import { type RenderPresentation } from "./game/render";
-import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
+import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterScene, interact, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
@@ -22,7 +24,7 @@ function Controls({ mode }: { mode: InputMode }) {
   return <section className="wf-controls-panel" aria-label="Controls">
     <h2>Controls</h2>
     <dl><dt>Move</dt><dd>WASD / arrows · left stick / d-pad</dd>
-      <dt>Attack</dt><dd>J · A / Cross · 3-hit combo</dd>
+      <dt>Attack / Use</dt><dd>J · A / Cross · nearby talk, use or 3-hit combo</dd>
       <dt>Ki</dt><dd>K · X / Square · tap: blast, hold: charge</dd>
       <dt>Signature</dt><dd>Release Ki at a full bar for your hero's beam</dd>
       <dt>Dash / Guard</dt><dd>L / Shift · B / Circle / RT or RB</dd>
@@ -42,23 +44,23 @@ function GraphicsSettings({ mode, status, onChange }: { mode: GraphicsMode; stat
     <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D overworld selected. Other scenes use 2D." : "Classic 2D selected."}</p>
   </section>;
 }
-function PromptGlyph({ mode }: { mode: InputMode }) {
+function PromptGlyph({ mode, action = "interact" }: { mode: InputMode; action?: "attack" | "interact" }) {
   if (mode === "touch") return null;
   const pad = Array.from(navigator.getGamepads?.() ?? []).find(p => p?.connected);
   const glyph = /playstation|dualshock|dualsense|sony/i.test(pad?.id ?? "") ? "✕" : /switch|nintendo/i.test(pad?.id ?? "") ? "B" : "A";
-  return mode === "keyboard" ? <kbd aria-hidden="true">↵</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
+  return mode === "keyboard" ? <kbd aria-hidden="true">{action === "attack" ? "J" : "↵"}</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
 }
 function SceneSurface({ canvas, presentation, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
   return <div className="wf-stage">
     <div className="wf-scene-surface" onPointerDown={e => { if (e.pointerType === "touch") onTouch(); }}>
       <canvas ref={canvas} aria-label="Wayside Fury action RPG" />
       <div className="wf-scene-labels" aria-hidden="true">{presentation?.labels.map(label => <span key={label.id}
-        className={`wf-scene-label wf-label-${label.kind}`} style={{ left: `clamp(${Math.min(220, label.text.length * 7 + 16) / 2}px, ${label.x * 100}%, calc(100% - ${Math.min(220, label.text.length * 7 + 16) / 2}px))`, top: `clamp(40px, ${label.y * 100}%, 100%)`, color: label.color, opacity: label.opacity, transform: `translate(-50%, -100%) scale(${label.scale ?? 1})` }}>{label.text}</span>)}</div>
+        className={`wf-scene-label wf-label-${label.kind}`} style={{ left: `clamp(${Math.min(220, label.text.length * 7 + 16) / 2}px, ${label.x * 100}%, calc(100% - ${Math.min(220, label.text.length * 7 + 16) / 2}px))`, top: `clamp(var(--wf-label-top, 40px), ${label.y * 100}%, 100%)`, color: label.color, opacity: label.opacity, transform: `translate(-50%, -100%) scale(${label.scale ?? 1})` }}>{label.text}</span>)}</div>
     </div>
     {soundBlocked && <button className="wf-sound-chip" onClick={onSound}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M11 4 6 8H3v8h3l5 4V4Z" /><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></svg>Tap for sound</button>}
   </div>;
 }
-function ActionIcon({ action }: { action: keyof Input }) {
+function ActionIcon({ action, glyph }: { action: keyof Input; glyph?: ActionPrompt["glyph"] }) {
   const paths: Partial<Record<keyof Input, ReactNode>> = {
     attack: <><path d="m7 21 14-14 3-5-5 3L5 19" /><path d="m5 15 8 8M3 25l4-4" /></>,
     ki: <><circle cx="15" cy="15" r="6" /><path d="M15 1v5m0 18v5M1 15h5m18 0h5M5 5l4 4m12 12 4 4M25 5l-4 4M9 21l-4 4" /></>,
@@ -66,7 +68,13 @@ function ActionIcon({ action }: { action: keyof Input }) {
     guard: <path d="M15 2 26 7v9c0 7-11 12-11 12S4 23 4 16V7L15 2Z" />,
     swap: <><path d="M4 10h21l-5-5m5 5-5 5M26 21H5l5 5m-5-5 5-5" /></>,
   };
-  return <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[action]}</svg>;
+  const contextPaths: Partial<Record<ActionPrompt["glyph"], ReactNode>> = {
+    talk: <path d="M5 4h20a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H13l-8 5v-5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3ZM8 12h14M8 17h9" />,
+    use: <><path d="M10 16V7a2 2 0 0 1 4 0v8-10a2 2 0 0 1 4 0v10-7a2 2 0 0 1 4 0v8-4a2 2 0 0 1 4 0v8c0 5-3 8-8 8h-3c-3 0-5-2-7-4l-5-5a2.5 2.5 0 0 1 3-4l4 3" /></>,
+    taxi: <><path d="m5 13 3-7h14l3 7M3 13h24v10H3V13Zm5 10v4m14-4v4M12 6V3h6v3" /><path d="M6 18h3m12 0h3M11 18h8" /></>,
+    next: <><path d="m11 5 10 10-10 10" /><path d="m4 5 10 10L4 25" /></>,
+  };
+  return <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{glyph && glyph !== "attack" ? contextPaths[glyph] : paths[action]}</svg>;
 }
 function Stick({ send, sensitivity }: { send: (input: Partial<Input>) => void; sensitivity: number }) {
   const drag = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -94,17 +102,29 @@ function Stick({ send, sensitivity }: { send: (input: Partial<Input>) => void; s
     </span>
   </div>;
 }
-function TouchButton({ action, label, send }: { action: keyof Input; label: string; send: (input: Partial<Input>) => void }) {
+function TouchButton({ action, label, send, prompt }: { action: keyof Input; label: string; send: (input: Partial<Input>) => void; prompt?: ActionPrompt }) {
   const pointer = useRef<number | null>(null);
   const [held, setHeld] = useState(false);
+  const glyph = prompt?.glyph ?? "attack";
+  const lastGlyph = useRef(glyph);
+  const [outgoing, setOutgoing] = useState<ActionPrompt["glyph"] | null>(null);
+  useEffect(() => {
+    if (lastGlyph.current === glyph) return;
+    setOutgoing(lastGlyph.current); lastGlyph.current = glyph;
+    const timer = window.setTimeout(() => setOutgoing(null), 120);
+    return () => window.clearTimeout(timer);
+  }, [glyph]);
   const release = (e: PointerEvent<HTMLButtonElement>) => {
     if (pointer.current !== e.pointerId) return;
     pointer.current = null; setHeld(false); send({ [action]: false });
   };
-  return <button className={`wf-touch-btn wf-${action} ${held ? "wf-held" : ""}`} aria-label={label} aria-pressed={held} onPointerDown={e => {
+  return <button className={`wf-touch-btn wf-${action} ${held ? "wf-held" : ""}`} aria-label={prompt?.label ?? label} aria-pressed={held} data-glyph={action === "attack" ? glyph : action} onPointerDown={e => {
     e.preventDefault(); if (pointer.current !== null) return;
-    pointer.current = e.pointerId; setHeld(true); e.currentTarget.setPointerCapture(e.pointerId); send({ [action]: true });
-  }} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}><ActionIcon action={action} /></button>;
+    pointer.current = e.pointerId; setHeld(true); e.currentTarget.setPointerCapture(e.pointerId); send({ [action]: true, ...(action === "attack" && prompt ? { attackPresentation: { action: prompt.action, targetId: prompt.targetId } } : {}) });
+  }} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}>
+    {outgoing && <span className="wf-action-glyph wf-glyph-out" aria-hidden="true"><ActionIcon action={action} glyph={outgoing} /></span>}
+    <span className={`wf-action-glyph ${outgoing ? "wf-glyph-in" : ""}`} key={glyph}><ActionIcon action={action} glyph={action === "attack" ? glyph : undefined} /></span>
+  </button>;
 }
 function Meter({ value, max, kind, children }: { value: number; max: number; kind: string; children?: ReactNode }) {
   const width = `${Math.max(0, Math.min(100, value / max * 100))}%`;
@@ -139,6 +159,7 @@ export default function WaysideFury() {
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const [characterOpen, setCharacterOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
   const [controls, setControls] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [graphicsMode, setGraphicsMode] = useState<GraphicsMode>(readGraphicsMode);
@@ -157,7 +178,7 @@ export default function WaysideFury() {
   const accountEpochRef = useRef(0);
   const dismissTutorialRef = useRef(() => {});
   const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
-  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setControls(false); setSettingsOpen(false); };
+  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
   const persist = (s: GameState, home = false, credit = false) => {
     const store = storeRef.current;
     if (!store?.ready) return;
@@ -182,7 +203,7 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const togglePause = () => { if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
   const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
@@ -210,7 +231,7 @@ export default function WaysideFury() {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
-        if (event.type !== "checkpoint" && event.type !== "death") return;
+        if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "ambient-taxi-crash") return;
         const store = storeRef.current;
         if (!store?.ready) return;
         const report = progressReport(s, store.save?.lastReported);
@@ -267,7 +288,7 @@ export default function WaysideFury() {
       },
     }, () => {
       coop.leave(); setCoopOpen(false); setSignedIn(false); exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
-      avatarReady = false; saveReady = false; setCharacterOpen(false); setLoadingAvatar(true); game.setPaused(true);
+      avatarReady = false; saveReady = false; setCharacterOpen(false); setCollectionOpen(false); setLoadingAvatar(true); game.setPaused(true);
     });
     storeRef.current = connected.store;
     if (import.meta.env.DEV) Object.defineProperty(window, "__waysideFury", { value: game, configurable: true });
@@ -318,11 +339,13 @@ export default function WaysideFury() {
   const beat = PROLOGUE[state.cutscene] ?? PROLOGUE[0];
   const progressScore = (state.areas.length + state.bosses.length) * 1000 + (state.character.level - 1) * 100 + state.clearedRooms.length * 50;
   const boss = state.enemies.find(e => e.kind === "boss");
-  const target = interactTarget(state);
+  const target = state.contextAttack.target;
+  const actionPrompt = state.contextAttack.displayed;
+  useLayoutEffect(() => showAttackPresentation(actionPrompt), [actionPrompt]);
   const touchControls = mode === "touch" && playing && !paused && !state.overlay && !cinematic && state.scene !== "dead";
   const storyTitles = { backstory: "THE CREW MADE IT HOME.", years: "FIVE YEARS LATER", bbq: "A QUIET LIFE", dark: "SOMETHING IN THE SKY", portal: "THE REAL EVIL ARRIVES", suitup: "GEAR UP", taxi: "THE BLAST SITE" };
   const storyEyebrows = { backstory: "THE STORY SO FAR", years: "A QUIET LIFE", bbq: "WAYSIDE · FIVE YEARS LATER", dark: "OUT PAST THE OLD ROAD", portal: "A FLICKER THROUGH THE CRACK", suitup: "JOE · MATT · ALEX · JON", taxi: "CHAPTER 1" };
-  const quit = () => { setCoopOpen(false); exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setControls(false); setSettingsOpen(false); };
+  const quit = () => { setCoopOpen(false); exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
   const connectCoop = async (kind: "create" | "join", code?: string) => {
     if (!signedIn || loadingSave || loadingAvatar || coopBusy || !coopRef.current) return;
     setCoopBusy(true);
@@ -345,7 +368,7 @@ export default function WaysideFury() {
   }, [signedIn, loadingSave, loadingAvatar]);
   const closeCoop = () => { setCoopOpen(false); if (playingRef.current) { pausedRef.current = false; setPaused(false); controller.current?.setPaused(false); } };
   const reviveTarget = state.coop?.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === state.scene && peer.room === state.room && Math.hypot(peer.x - state.x, peer.y - state.y) < 32);
-  const showTutorial = tutorial && playing && !loadingSave && !loadingAvatar && !cinematic && !paused && !state.overlay && !target;
+  const showTutorial = tutorial && playing && !loadingSave && !loadingAvatar && !cinematic && !paused && !state.overlay && !state.dialogue && !target;
   const dismissTutorial = () => updateSettings({ ...settingsRef.current, controls: { ...settingsRef.current.controls, tutorialDismissed: true } });
   dismissTutorialRef.current = dismissTutorial;
   useEffect(() => {
@@ -388,38 +411,50 @@ export default function WaysideFury() {
         return <div key={player.seat}><strong>{player.name}{!player.connected ? " · Offline" : h?.hp === 0 ? " · Down" : ""}</strong><Meter value={h?.hp ?? 0} max={h?.maxHp ?? 1} kind="hp" /></div>;
       })}</div>}
       {!cinematic && <div className="wf-play-band">
+        {mode !== "touch" && !paused && !state.overlay && !actionPrompt.target && <span className="wf-action-hint" aria-label={actionPrompt.label}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.label}</span>}
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
         {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
-        {target && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !target.id.startsWith("coop-revive-") && !state.overlay && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><PromptGlyph mode={mode} />{target.locked ? `${target.name} · Taken over` : target.name}</button>}
-        {noticeVisible && state.notice && !state.overlay && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
+        {actionPrompt.target && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}
+        {target && actionPrompt.action !== "interact" && !target.id.startsWith("coop-revive-") && !state.coop?.downed && !state.overlay && !state.dialogue && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={target.kind} /><PromptGlyph mode={mode} />{target.name}</button>}
+        {noticeVisible && state.notice && !state.overlay && !state.dialogue && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
         {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) { controller.current?.itemGet(); persist(s); } })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave shop</button></div>}
+      {state.overlay === "diner" && <div className="wf-overlay wf-place-panel wf-diner-interior" role="dialog" aria-label="Last Light Diner">
+        <p className="wf-eyebrow">LAST LIGHT DINER</p><h2>A light along the old road.</h2>
+        <div className="wf-diner-room" aria-hidden="true"><span className="wf-diner-window">☾</span><span className="wf-diner-booth" /><span className="wf-diner-counter">COFFEE · PIE · CANDY</span><span className="wf-diner-stools">● · ● · ●</span></div>
+        {!state.foundItems.includes("pickup-c1-diner") ? <button onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph="use" /><PromptGlyph mode={mode} action="attack" />Look under the counter</button> : <p className="wf-small">The candy tin is empty. The owner left the coffee warm.</p>}
+        <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; s.insideDiner = false; })}>Leave diner</button>
+      </div>}
       {state.overlay === "home" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">THERE'S STILL A LIGHT ON</p><h2>Home, sweet Wayside.</h2><p>Rest restores the crew and sets your retry save.</p><button onClick={() => controller.current?.mutate(s => { restAtHome(s); })}>Rest & save</button>
         <div className="wf-party"><p className="wf-small">Choose one or two heroes. Rest to recover benched heroes.</p>{HERO_IDS.map(id => <button key={id} className={`wf-secondary ${state.party.includes(id) ? "wf-in-party" : ""}`} aria-pressed={state.party.includes(id)} onClick={() => controller.current?.mutate(s => { if (toggleParty(s, id)) persist(s); })}><HeroPortrait id={id} avatar={avatar} />{HERO_NAMES[id]} · {state.party.includes(id) ? "IN PARTY" : "BENCH"}</button>)}</div>
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave home</button></div>}
       {touchControls && !coopOpen && <div className="wf-touch-dock"><Stick send={send} sensitivity={settings.controls.stickSensitivity} /><div className="wf-action-buttons">
         <TouchButton action="swap" label="Swap hero" send={send} /><TouchButton action="guard" label="Guard (hold)" send={send} />
-        <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label="Attack" send={send} />
+        <TouchButton action="dash" label="Dash" send={send} /><TouchButton action="ki" label="Ki blast (hold to charge)" send={send} /><TouchButton action="attack" label="Attack" send={send} prompt={actionPrompt} />
       </div></div>}
+      {state.dialogue && !paused && <section className="wf-dialogue wf-world-dialogue" aria-label={`${state.dialogue.speaker} dialogue`} role="dialog">
+        <div><strong>{state.dialogue.speaker}</strong><p>{state.dialogue.lines[state.dialogue.index]}</p><button onClick={() => controller.current?.mutate(advanceDialogue)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.dialogue.index < state.dialogue.lines.length - 1 ? "Next" : "Continue"}</button></div>
+      </section>}
       {state.scene === "prologue" && !paused && <>
         <button className="wf-skip wf-secondary" onClick={() => controller.current?.mutate(skipPrologue)}>Skip prologue</button>
         <div className="wf-story-title" key={beat.phase}><p className="wf-eyebrow">{storyEyebrows[beat.phase]}</p><h2>{storyTitles[beat.phase]}</h2></div>
         <section className="wf-dialogue" aria-label="Story dialogue">
           {beat.hero && <span className="wf-portrait" style={{ backgroundImage:`url(/mystery-crypt/portraits/${beat.hero}.png)`, backgroundPosition:`-${beat.frame * 72}px 0` }} />}
-          <div><strong>{beat.speaker}</strong><p>{beat.text}</p><button onClick={() => controller.current?.mutate(advanceStory)}><PromptGlyph mode={mode} />{state.cutscene === PROLOGUE.length - 1 ? "Drive out" : "Next"}</button></div>
+          <div><strong>{beat.speaker}</strong><p>{beat.text}</p><button onClick={() => controller.current?.mutate(advanceStory)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.cutscene === PROLOGUE.length - 1 ? "Drive out" : "Next"}</button></div>
         </section>
       </>}
       {state.scene === "shift" && <div className="wf-shift-caption"><p className="wf-eyebrow">A FLICKER THROUGH THE CRACK</p><h2>THE WORLD IS BREAKING.</h2><p>"That egg... wait! The portal's pulling us in!"</p><strong>ENTERING THE 8-BIT REALM</strong></div>}
       {state.scene === "results" && <div className="wf-overlay wf-results"><p className="wf-eyebrow">CHAPTER 1 COMPLETE</p>{state.sceneTimer < 2.2 ? <h2 className="wf-tbc">TO BE<br /><span>CONTINUED</span></h2> : <><h2>Beyond the flicker.</h2><p>The Architect's Creation is still sleeping.</p><p className="wf-result-score">{progressScore.toLocaleString()} <small>progress score</small></p><div className="wf-result-stats"><span>{state.kills}<small>Enemies defeated</small></span><span>LV {state.character.level}<small>Crew level</small></span><span>{state.deaths}<small>Deaths</small></span><span>◈ {state.candy}<small>Candy</small></span></div><p className="wf-small">The taken-over areas open in later chapters.</p><button onClick={quit}>Back to menu</button></>}</div>}
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
       {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
+      {paused && collectionOpen && state.scene !== "dead" && <Collection state={state} onBack={() => setCollectionOpen(false)} />}
       {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
-      {paused && !characterOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
+      {paused && !characterOpen && !collectionOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
     {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}
   </main>;

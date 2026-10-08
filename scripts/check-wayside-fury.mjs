@@ -2,7 +2,7 @@
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
 import { findWalkRoute, findInteractionApproach } from './check-wayside-fury-collision.mjs';
-import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty, HERO_IDS, createHero, nextPartyHero, requestSwap } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, hostileWithinMeleeReach, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty, HERO_IDS, createHero, nextPartyHero, requestSwap } from '../src/pages/WaysideFury/game/sim.ts';
 
 import { LOCATIONS, HUB_POINTS, SHOP_ITEMS, PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
 import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM, GATEKEEPER_ROOM, cameraTarget, tileAt } from '../src/pages/WaysideFury/game/world.ts';
@@ -411,7 +411,7 @@ assert.equal(bossRules.projectiles.length, 12);
 
 // Play the complete dungeon with default stats and only ordinary game inputs.
 // This bot charges, aims, attacks, guards, dashes and tags. It gets no healing
-// or stats beyond legitimate level-ups, and walks to each room's east gate.
+// or stats beyond legitimate level-ups and found items, and walks to each room's east gate.
 const quest = newGame(7); assert.equal(quest.active, 'you'); assert.deepEqual(quest.party, ['you', 'joe']); enterScene(quest, 'dungeon');
 let playFrame = 0; const checkpoints = [], usedControls = new Set(), roomFrames = [];
 function playRoom(s) {
@@ -425,7 +425,9 @@ function playRoom(s) {
     while (route.length > 1 && Math.hypot(route[0].x - s.x, route[0].y - s.y) < 3) route.shift();
     const waypoint = route[0];
     const dx = waypoint.x - s.x, dy = waypoint.y - s.y, length = Math.max(1, Math.hypot(dx, dy)), cycle = playFrame % 240;
-    const ki = cycle < 80, attack = !ki && playFrame % 20 === 0, dash = cycle === 110, swap = cycle === 190;
+    // Read the context control as a player would: swinging at an entry gate
+    // without a monster in reach now correctly travels back through it.
+    const ki = cycle < 80, attack = !ki && playFrame % 20 === 0 && (!interactTarget(s) || hostileWithinMeleeReach(s)), dash = cycle === 110, swap = cycle === 190;
     const input = { ...idleInput(), x: dx / length, y: dy / length, ki, attack, dash, swap, guard: !ki && !attack && !dash };
     for (const key of ['attack', 'ki', 'dash', 'swap', 'guard']) if (input[key]) usedControls.add(key);
     step(s, input, DT);

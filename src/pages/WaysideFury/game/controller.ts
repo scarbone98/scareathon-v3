@@ -6,7 +6,7 @@ import { GraphicsRenderer, readGraphicsMode, type GraphicsMode, type GraphicsSta
 import type { HeroAvatar } from "./avatar";
 import { GameInput, type InputMode } from "./input";
 import { captureMotion, interpolateMotion, type MotionSnapshot } from "./motion";
-import { exitCoop, newGame, step, type GameEvent, type GameState, type Input } from "./sim";
+import { exitCoop, idleInput, newGame, step, type GameEvent, type GameState, type Input } from "./sim";
 export interface Callbacks {
   onState: (state: GameState) => void;
   onInputMode: (mode: InputMode) => void;
@@ -83,6 +83,8 @@ export class GameController {
       enemies: s.enemies.map(enemy => ({ ...enemy })), effects: s.effects.map(effect => ({ ...effect })),
       floaters: s.floaters.map(floater => ({ ...floater })), projectiles: s.projectiles.map(shot => ({ ...shot, hits: [...shot.hits] })),
       clearedRooms: [...s.clearedRooms], areas: [...s.areas], bosses: [...s.bosses], previousInput: { ...s.previousInput }, events: [...s.events],
+      foundItems: [...s.foundItems],
+      contextAttack: { ...s.contextAttack }, dialogue: s.dialogue ? { ...s.dialogue, lines: [...s.dialogue.lines] } : null,
     });
   }
   dispose() {
@@ -100,10 +102,10 @@ export class GameController {
     this.last = now;
     while (this.acc >= 1 / 60) {
       this.previousMotion = captureMotion(this.state);
-      const ready = this.state.hitStop <= 0, overlay = this.state.overlay;
+      const ready = this.state.hitStop <= 0, overlay = this.state.overlay, dialogue = !!this.state.dialogue;
       const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : input;
       step(this.state, appliedInput, 1 / 60);
-      this.coop?.update(this.state, appliedInput, now);
+      this.coop?.update(this.state, dialogue || this.state.dialogue ? idleInput() : appliedInput, now);
       this.audio.sync(this.state);
       if (!overlay && this.state.overlay) this.input.clearTouch();
       if (ready) this.input.consume();

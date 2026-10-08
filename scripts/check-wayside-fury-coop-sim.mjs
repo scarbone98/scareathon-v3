@@ -87,6 +87,47 @@ const peer = (s, seat = 1, x = s.x + 24, y = s.y) => ({ seat, userId: `player-${
 const hostileBullet = (s, x = s.x, y = s.y, damage = 20) => s.projectiles.push({ id: s.nextId++, x, y, vx: 0, vy: 0,
   radius: 4, damage, ttl: 1, owner: 'enemy', beam: false, hits: [] });
 
+// A host's local conversation cannot pause shared combat or consume a held
+// physical Attack/Interact button as another Next press on a later frame.
+const conversingHost = cooperative('host', 0); enterScene(conversingHost, 'dungeon', 8);
+conversingHost.enemies = []; conversingHost.x = 152; conversingHost.y = 174; conversingHost.faceX = 0; conversingHost.faceY = -1;
+const talkingPeer = peer(conversingHost, 1, 320, 192); conversingHost.coop.remoteHeroes = [talkingPeer];
+const dialogueHunter = addEnemy(conversingHost, 'grunt', 360, 192); dialogueHunter.cooldown = 100;
+interact(conversingHost); assert.ok(conversingHost.dialogue);
+const talkingPosition = { x: conversingHost.x, y: conversingHost.y, active: conversingHost.active, ki: activeHero(conversingHost).ki };
+const movingShot = { id: conversingHost.nextId++, x: 320, y: 260, vx: 0, vy: 20, radius: 4, damage: 20, ttl: 1, owner: 'enemy', beam: false, hits: [] };
+conversingHost.projectiles.push(movingShot); hostileBullet(conversingHost, talkingPeer.x, talkingPeer.y);
+const conversationEvents = tick(conversingHost, { x: 1, y: 1, ki: true, dash: true, swap: true, guard: true }, 10);
+assert.ok(dialogueHunter.x < 360, 'enemy AI keeps approaching the remote player while the host talks');
+assert.ok(movingShot.y > 260 && movingShot.ttl < 1, 'host projectiles keep moving and expiring during local dialogue');
+assert.ok(conversationEvents.some(event => event.type === 'coop-damage' && event.seat === talkingPeer.seat), 'host projectiles still damage the remote player');
+assert.equal(conversingHost.x, talkingPosition.x); assert.equal(conversingHost.y, talkingPosition.y); assert.equal(conversingHost.active, talkingPosition.active);
+assert.equal(conversingHost.attackTimer, 0); assert.equal(conversingHost.dashTimer, 0); assert.equal(conversingHost.charge, 0); assert.equal(conversingHost.guard, false);
+assert.ok(activeHero(conversingHost).ki < talkingPosition.ki + 1, 'only passive Ki regeneration continues during dialogue');
+conversingHost.dialogue.lines = ['First', 'Second', 'Third']; conversingHost.dialogue.index = 0;
+tick(conversingHost, {}, 10); tick(conversingHost, { attack: true, interact: true });
+assert.equal(conversingHost.dialogue.index, 1, 'one shared gamepad binding advances dialogue once');
+tick(conversingHost, { attack: true, interact: true }, 20);
+assert.equal(conversingHost.dialogue.index, 1, 'held Attack cannot advance another co-op dialogue line');
+assert.equal(conversingHost.previousInput.attack, true); assert.equal(conversingHost.previousInput.interact, true);
+tick(conversingHost); tick(conversingHost, { interact: true });
+assert.equal(conversingHost.dialogue.index, 2, 'dedicated Interact still advances one line');
+tick(conversingHost, { interact: true }, 20); assert.equal(conversingHost.dialogue.index, 2);
+tick(conversingHost); tick(conversingHost, { attack: true, interact: true });
+assert.equal(conversingHost.dialogue, null);
+tick(conversingHost, { attack: true, interact: true }, 2);
+assert.equal(conversingHost.attackTimer, 0, 'closing dialogue cannot convert the same held press into a swing');
+
+const clearingConversation = cooperative('host', 0); enterScene(clearingConversation, 'dungeon');
+clearingConversation.coop.remoteHeroes = [peer(clearingConversation)];
+clearingConversation.dialogue = { speaker: 'Scout', lines: ['Stay sharp.'], index: 0 };
+for (const remaining of clearingConversation.enemies.slice(1)) remaining.hp = 0;
+assert.equal(applyCoopHit(clearingConversation, { type: 'coop-hit', enemyId: clearingConversation.enemies[0].id, damage: 1000, dx: 1, dy: 0, force: 0, attackId: 'dialogue-clear' }, 1), true);
+const conversationClear = tick(clearingConversation, {}, 6); // Allow the ordinary lethal-hit stop to finish.
+assert.ok(clearingConversation.clearedRooms.includes('blast-0'), 'remote kills record encounter clears while the host talks');
+assert.ok(conversationClear.some(event => event.type === 'checkpoint' && event.id === 'blast-0'), 'co-op dialogue does not suppress shared checkpoint events');
+assert.ok(clearingConversation.dialogue, 'shared clear events preserve the local conversation');
+
 // Joining and leaving rescale every live enemy's maximum while retaining the
 // health percentage. Spawn slots are paid once per encounter, even on rejoin.
 const scaled = cooperative('host', 0);
