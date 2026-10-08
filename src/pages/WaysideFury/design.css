@@ -1,0 +1,90 @@
+/* Wayside's ink / pine / amber presentation. Scoped to the game, not the site shell. */
+.wf-shell { font-variant-numeric: tabular-nums; }
+.wf-menu {
+  background: linear-gradient(90deg, #06151c5c, #06151c38 50%, #06151c5c),
+    radial-gradient(ellipse at 50% 48%, #07151cdf 0%, #07151c80 38%, #07151c26 72%),
+    url('/wayside-fury/title-landscape.webp') center / cover;
+  gap: 16px;
+}
+.wf-menu h1 { font-size: clamp(48px, 9vw, 96px); font-weight: 900; letter-spacing: .045em; text-shadow: 0 3px 0 #203438, 0 12px 36px #0008; }
+.wf-menu h1 span { color: #ffd28b; letter-spacing: .18em; margin-right: -.18em; text-shadow: 0 3px 0 #8a552e, 0 10px 34px #dc953540; }
+.wf-menu .wf-eyebrow { color: #b9d6ca; font-size: 11px; letter-spacing: .22em; }
+.wf-menu .wf-tagline { color: #eee3cf; text-shadow: 0 2px 8px #06151c; }
+.wf-menu .wf-crew { margin: 8px 0; gap: 16px; }
+.wf-menu .wf-hero-face { border-color: #bbcfb56b; background-color: #20393bd9; box-shadow: 0 6px 16px #0004, inset 0 1px #fff2; }
+.wf-menu .wf-crew small { color: #cbd5c6; font-size: 11px; }
+.wf-shell .wf-primary { min-width: 240px; min-height: 50px; background: linear-gradient(#f3ce8d, #dca35b); border-color: #ffe8b6; box-shadow: 0 4px 0 #624427, 0 8px 28px #030e1a60; }
+.wf-shell .wf-secondary { background: linear-gradient(#2a434bea, #172f38f2); border-color: #7d9c946b; }
+.wf-menu > .wf-secondary { min-width: 240px; }
+.wf-menu-options { width: 240px; }
+.wf-menu-options > button { flex: 1; }
+.wf-overlay > * { flex-shrink: 0; }
+.wf-overlay { scrollbar-width: thin; scrollbar-color: #65867b #112731; }
+.wf-hud { background: #0b1b27f5; box-shadow: 0 6px 20px #05151d40, inset 0 1px #d0e8cf18; }
+.wf-meter { height: 20px; border-radius: 6px; background: #101f2b; border-color: #86aaa54d; }
+.wf-meter > .wf-meter-fill { background: linear-gradient(#3f7c69, #28594e); }
+.wf-ki > .wf-meter-fill { background: linear-gradient(#446d98, #304b70); }
+.wf-meter small { font-size: 11px; line-height: 18px; color: #fff8e8; text-shadow: 0 1px 2px #07141d, 0 0 3px #07141d; }
+.wf-scene-label { white-space: pre; overflow: hidden; text-overflow: ellipsis; padding: 5px 8px; border-radius: 8px; background: #0a1a26ed; border-color: #9ebba866; box-shadow: 0 3px 10px #08162250; }
+.wf-label-floater { overflow: visible; padding: 0; border: 0; background: none; box-shadow: none; }
+.wf-shell .wf-touch-btn { border-radius: 20px; border-color: #b6d7c578; box-shadow: 0 3px 0 #06172299, inset 0 1px #e3ffdf33, 0 5px 14px #03151c30; }
+.wf-stick { opacity: .82; border-width: 1px; background: radial-gradient(circle, #547f7b26 42%, #142e38a6 43%); }
+.wf-stick-thumb { background: radial-gradient(circle at 40% 25%, #a6d1be, #507e79); border-width: 1px; }
+.wf-character section { border-color: #6c918b55; background: #102530e8; }
+.wf-character h3 { letter-spacing: .04em; }
+.wf-collection-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.wf-collection-heading button { flex: none; }
+.wf-collection progress { height: 6px; margin: 14px 0; }
+.wf-collection .wf-collection-grid { gap: 12px; }
+.wf-collection .wf-collection-item { border-radius: 12px; padding: 14px; background: linear-gradient(145deg, #24473f, #19352f); }
+.wf-collection .wf-unfound { background: #10212c; border-style: dashed; }
+.wf-collection .wf-unfound p, .wf-collection .wf-unfound strong { color: #a1b1b3; }
+.wf-collection .wf-unfound .wf-collection-icon { color: #728e91; text-shadow: none; }
+.wf-collection-icon { border: 1px solid #b9ccad33; border-radius: 8px; background: #08182260; }
+@media (hover: hover) {
+  .wf-shell button:hover:not(:disabled) { filter: brightness(1.12); }
+}
+@media (orientation: portrait) {
+  .wf-hud { box-shadow: none; }
+  .wf-menu { background-position: center, center, 55% center; }
+  .wf-menu .wf-crew { gap: 12px; }
+  .wf-touch-dock { background: linear-gradient(#172f38, #0b1c28); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .wf-menu { gap: 8px; padding-top: max(30px, env(safe-area-inset-top)); }
+  .wf-menu h1 { font-size: 40px; }
+  .wf-menu .wf-crew { margin: 0; gap: 12px; }
+  .wf-menu .wf-crew .wf-hero-face { width: 32px; height: 32px; background-size: 160px 32px; }
+  .wf-menu .wf-crew .wf-you-face { background-size: 100% 100%; }
+  .wf-menu .wf-primary { min-height: 44px; }
+  .wf-menu .wf-tagline { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wf-shell button { transition: none; }
+}
+.wf-pause-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(360px, 100%); }
+.wf-pause-panel > h2 { font-size: 28px; font-weight: 750; margin: 0; }
+.wf-pause-actions > button:first-child { background: linear-gradient(#f3ce8d, #dca35b); }
+@media (max-height: 500px) and (orientation: landscape) {
+  .wf-pause-panel { justify-content: flex-start; }
+  .wf-pause-panel > .wf-controls-panel { width: min(580px, 100%); }
+}
+@media (min-width: 700px) and (max-height: 500px) and (orientation: landscape) {
+  .wf-menu { display: grid; grid-template-columns: minmax(240px, 340px) minmax(240px, 300px); column-gap: 40px; row-gap: 10px; justify-content: center; align-content: safe center; }
+  .wf-menu > .wf-eyebrow { grid-column: 1; grid-row: 1; }
+  .wf-menu > h1 { grid-column: 1; grid-row: 2 / 4; }
+  .wf-menu > .wf-tagline { grid-column: 1; grid-row: 4; }
+  .wf-menu > .wf-crew { grid-column: 1; grid-row: 5 / 7; justify-content: center; }
+  .wf-menu > .wf-primary { grid-column: 2; grid-row: 2; }
+  .wf-menu > .wf-secondary { grid-column: 2; grid-row: 3; }
+  .wf-menu > .wf-menu-options { grid-column: 2; grid-row: 4; width: 100%; }
+  .wf-menu > .wf-small { grid-column: 2; grid-row: 5; font-size: 11px; }
+  .wf-menu > .wf-controls-panel, .wf-menu > .wf-graphics-settings { grid-column: 1 / -1; width: 100%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wf-scene-label:not(.wf-label-floater) { transition: left 60ms linear, top 60ms linear; }
+}
+.wf-collection progress { appearance: none; border: 0; background: #28424c; border-radius: 999px; overflow: hidden; }
+.wf-collection progress::-webkit-progress-bar { background: #28424c; }
+.wf-collection progress::-webkit-progress-value { background: #94c9ae; border-radius: 999px; }
+.wf-collection progress::-moz-progress-bar { background: #94c9ae; border-radius: 999px; }

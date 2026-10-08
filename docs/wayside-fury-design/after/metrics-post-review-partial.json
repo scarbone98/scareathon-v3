@@ -1,0 +1,215 @@
+[
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 1179,
+        "height": 2556,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "9.5",
+        "cameraY": "-52",
+        "renderMs": "9.400",
+        "frameMs": "212.600"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 590,
+        "height": 978,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117.89999999999999",
+        "worldHeight": "195.6",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "148.83140508175987",
+        "cameraY": "381.82147566213035",
+        "renderMs": "1.200",
+        "frameMs": "1060.900"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "overworld-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "131",
+      "worldHeight": "217.33333333333334",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "148.83140508175987",
+      "cameraY": "381.82147566213035",
+      "renderMs": "3.100",
+      "frameMs": "643.800"
+    }
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 786,
+        "height": 1304,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "414.5",
+        "cameraY": "307.3333333333333",
+        "renderMs": "27.300",
+        "frameMs": "210.000"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "hub-hud-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "131",
+      "worldHeight": "217.33333333333334",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "414.5",
+      "cameraY": "307.3333333333333",
+      "renderMs": "2.700",
+      "frameMs": "365.400"
+    }
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 590,
+        "height": 978,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117.89999999999999",
+        "worldHeight": "195.6",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "170.53856508769246",
+        "cameraY": "21.35151256278747",
+        "renderMs": "6.600",
+        "frameMs": "212.600"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "battle-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "131",
+      "worldHeight": "217.33333333333334",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "170.83140508175987",
+      "cameraY": "21.837343799764458",
+      "renderMs": "5.000",
+      "frameMs": "852.600"
+    }
+  }
+]

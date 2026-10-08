@@ -145,7 +145,14 @@ async function immutablePresentation(frame, label) {
     const game = window.__waysideFury;
     game.setPaused(true);
     const before = JSON.stringify(game.state), worldBefore = JSON.stringify(OVERWORLD);
-    for (let index = 0; index < 12; index++) await new Promise(requestAnimationFrame);
+    // Exercise presentation synchronously: save/avatar readiness callbacks may
+    // legitimately resume the live controller between animation frames. They
+    // are not renderer mutations. Advance visual time and compare the complete
+    // authoritative state/world across the same twelve rendering passes.
+    for (let index = 0; index < 12; index++) {
+      game.renderer.draw(game.state, 1 / 60, 0);
+      game.renderer.presentation(game.state);
+    }
     return { sameState: before === JSON.stringify(game.state), sameWorld: worldBefore === JSON.stringify(OVERWORLD) };
   });
   assert.ok(result.sameState, `${label}: presentation cannot mutate authoritative simulation`);

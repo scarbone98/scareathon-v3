@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
+import { layoutLabels } from "./game/labelLayout";
 import { Collection } from "./Collection";
 import { HeroPortrait } from "./HeroPortrait";
 import { FuryCoop, type CoopRoom } from "./game/coop";
@@ -16,6 +17,7 @@ import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } fr
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
 import "./style.css";
+import "./design.css";
 const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
 const SAVE_LABELS: Record<SaveStatus, string> = { loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" };
 const TUTORIAL_KEY = "wayside-fury-controls-dismissed";
@@ -41,7 +43,7 @@ function GraphicsSettings({ mode, status, onChange }: { mode: GraphicsMode; stat
       <button role="radio" aria-checked={mode === "3d"} className="wf-secondary" onClick={() => onChange("3d")}>3D HD-2D</button>
     </div>
     <p className="wf-small">Applies to the taxi overworld. Remembered on this device.</p>
-    <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D overworld selected. Other scenes use 2D." : "Classic 2D selected."}</p>
+    <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D overworld selected. Other scenes use 2D." : "2D overworld selected."}</p>
   </section>;
 }
 function PromptGlyph({ mode, action = "interact" }: { mode: InputMode; action?: "attack" | "interact" }) {
@@ -51,11 +53,30 @@ function PromptGlyph({ mode, action = "interact" }: { mode: InputMode; action?: 
   return mode === "keyboard" ? <kbd aria-hidden="true">{action === "attack" ? "J" : "↵"}</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
 }
 function SceneSurface({ canvas, presentation, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
-  return <div className="wf-stage">
+  const stage = useRef<HTMLDivElement>(null);
+  const [bounds, setBounds] = useState({ width: 1, height: 1, top: 40 });
+  useLayoutEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+    const measure = () => {
+      // Read the resolved custom property through a probe: it may contain calc()/env().
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;top:var(--wf-label-top,40px);visibility:hidden';
+      element.append(probe);
+      const top = parseFloat(getComputedStyle(probe).top) || 40; probe.remove();
+      setBounds({ width: element.clientWidth, height: element.clientHeight, top });
+    };
+    const observer = new ResizeObserver(measure); observer.observe(element); measure();
+    const shellObserver = new MutationObserver(measure);
+    if (element.parentElement) shellObserver.observe(element.parentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => { observer.disconnect(); shellObserver.disconnect(); };
+  }, []);
+  const labels = layoutLabels(presentation?.labels ?? [], bounds.width, bounds.height, bounds.top, presentation?.focus);
+  return <div className="wf-stage" ref={stage}>
     <div className="wf-scene-surface" onPointerDown={e => { if (e.pointerType === "touch") onTouch(); }}>
       <canvas ref={canvas} aria-label="Wayside Fury action RPG" />
-      <div className="wf-scene-labels" aria-hidden="true">{presentation?.labels.map(label => <span key={label.id}
-        className={`wf-scene-label wf-label-${label.kind}`} style={{ left: `clamp(${Math.min(220, label.text.length * 7 + 16) / 2}px, ${label.x * 100}%, calc(100% - ${Math.min(220, label.text.length * 7 + 16) / 2}px))`, top: `clamp(var(--wf-label-top, 40px), ${label.y * 100}%, 100%)`, color: label.color, opacity: label.opacity, transform: `translate(-50%, -100%) scale(${label.scale ?? 1})` }}>{label.text}</span>)}</div>
+      <div className="wf-scene-labels" aria-hidden="true">{labels.map(label => <span key={label.id}
+        className={`wf-scene-label wf-label-${label.kind}`} style={{ left: label.left, top: label.bottom, width: label.width, height: label.height, color: label.color, opacity: label.opacity, transform: `translate(-50%, -100%) scale(${label.scale ?? 1})` }}>{label.text}</span>)}</div>
     </div>
     {soundBlocked && <button className="wf-sound-chip" onClick={onSound}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M11 4 6 8H3v8h3l5 4V4Z" /><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></svg>Tap for sound</button>}
   </div>;
@@ -454,7 +475,7 @@ export default function WaysideFury() {
       {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
       {paused && collectionOpen && state.scene !== "dead" && <Collection state={state} onBack={() => setCollectionOpen(false)} />}
       {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
-      {paused && !characterOpen && !collectionOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
+      {paused && !characterOpen && !collectionOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><div className="wf-pause-actions"><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><button className="wf-secondary" onClick={quit}>Quit to menu</button></div><Controls mode={mode} /><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
     {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}
   </main>;

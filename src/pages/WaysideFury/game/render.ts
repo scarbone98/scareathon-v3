@@ -3,6 +3,7 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { drawCanopy, drawTaxiBody } from "./scenery";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -41,6 +42,7 @@ export interface RenderLabel {
 export interface RenderPresentation {
   camera: { x: number; y: number; width: number; height: number };
   labels: RenderLabel[];
+  focus?: { x: number; y: number };
 }
 interface PixelBurst { x: number; y: number; color: string; life: number; maxLife: number; seed: number; strength: number }
 interface Tumble { x: number; y: number; sprite: SpriteId; life: number; maxLife: number; scale: number; flip: boolean }
@@ -155,7 +157,7 @@ export class Renderer {
     }
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
     if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y - 38, 'caption');
-    return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
+    return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels, focus: this.project(s.x, s.y) };
   }
   onEvent(s: GameState, event: GameEvent) {
     if (event.type === 'ambient-taxi-crash') {
@@ -548,7 +550,10 @@ export class Renderer {
       c.beginPath(); c.ellipse(s.x, s.y - 12, 11 + s.charge * 2, 19, Math.sin(time * 2) * .1, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
       for (let k = 0; k < (this.reducedMotion ? 3 : 8); k++) {
         const a = time * 4 + k * Math.PI / 4, radius = 11 + k % 3 * 3;
-        this.rect(s.x + Math.cos(a) * radius, s.y - 10 + Math.sin(a) * 15 - (time * 9 + k * 2) % 5, 2, k % 2 ? 3 : 2, color);
+        const px = s.x + Math.cos(a) * radius, py = s.y - 10 + Math.sin(a) * 15 - (time * 9 + k * 2) % 5;
+        c.strokeStyle = color; c.lineWidth = .6; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(px - Math.cos(a) * 2, py + 2); c.lineTo(px, py); c.stroke();
+        this.disc(px, py, .6, '#fff3cf');
       }
     }
     this.shadow(s.x, s.y, s.dashTimer > 0 ? 19 : 14);
@@ -776,19 +781,7 @@ export class Renderer {
 
   private tree(x: number, y: number) {
     this.shadow(x + 2, y, 25);
-    this.rect(x - 2, y - 10, 4, 11, "#584c3e");
-    this.rect(x - 1.5, y - 9, .5, 9, '#94775b');
-    this.rect(x - 10, y - 20, 20, 12, "#182e2d");
-    this.rect(x - 7, y - 27, 14, 11, "#274336");
-    this.rect(x - 4, y - 30, 8, 7, "#34513a");
-    this.rect(x - 8, y - 19, 8, 2, "#3e5940");
-    this.rect(x + 1, y - 24, 4, 1, "#47634a");
-    for (let k = 0; k < 13; k++) {
-      const px = x - 7 + (k * 7) % 14, py = y - 26 + (k * 5) % 15;
-      this.rect(px, py, 1.5, .5, k % 3 ? '#527553' : '#729363');
-      this.rect(px + .5, py + 1.5, 1, .5, '#1b3a30');
-    }
-    this.rect(x - 3, y - 30, 5, .5, '#6a865b');
+    drawCanopy(this.ctx, x, y);
   }
 
   private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
@@ -801,25 +794,7 @@ export class Renderer {
     headlights.addColorStop(0, '#ffeab93d'); headlights.addColorStop(1, '#ffeab900');
     c.fillStyle = headlights; c.beginPath(); c.moveTo(12, -4); c.lineTo(37, -12); c.lineTo(37, 12); c.lineTo(12, 4); c.fill();
     c.globalAlpha = 1;
-    this.rect(-12, -7, 24, 16, "#142326");
-    this.rect(-10, -9, 5, 3, "#151c25");
-    this.rect(5, -9, 5, 3, "#151c25");
-    this.rect(-10, 7, 5, 3, "#151c25");
-    this.rect(5, 7, 5, 3, "#151c25");
-    this.rect(-13, -6, 26, 12, "#b37e43");
-    this.rect(-12, -7, 24, 12, "#e3ae52");
-    this.rect(-11, -6, 22, 2, "#ffe096");
-    this.rect(-7, -5, 4, 9, "#263d46");
-    this.rect(3, -5, 4, 9, "#2b4751");
-    this.rect(-2, -5, 4, 9, "#f2c66b");
-    this.rect(-2, -3, 4, 3, "#ffe7a3");
-    this.rect(-1, -2, 2, 1, "#35404a");
-    this.rect(4, -2, 2, 2, "#f4c099");
-    for (let k = -9; k < 11; k += 4) this.rect(k, 4, 2, 1, "#4b453c");
-    this.rect(12, -4, 2, 3, "#fff2b7");
-    this.rect(12, 2, 2, 3, "#fff2b7");
-    this.rect(-13, -4, 2, 2, "#de7974");
-    this.rect(-13, 3, 2, 2, "#de7974");
+    drawTaxiBody(c);
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;
@@ -972,6 +947,7 @@ export class Renderer {
     c.save();
     c.translate(x, y);
     if (flip) c.scale(-1, 1);
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const sourceWidth = sheet.w * SPRITE_DETAIL, sourceHeight = sheet.h * SPRITE_DETAIL;
     c.drawImage(detailed.canvas, frame * sourceWidth, 0, sourceWidth, sourceHeight, -sheet.w * scale / 2, -sheet.h * scale, sheet.w * scale, sheet.h * scale);
     if (hit) {

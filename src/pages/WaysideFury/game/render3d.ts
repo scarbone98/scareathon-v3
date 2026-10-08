@@ -806,7 +806,8 @@ export class OverworldRenderer {
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
-    return { camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
+    const focus = this.scratch.set(s.x, this.terrain.heightAt(s.x, s.y), s.y).project(this.camera);
+    return { focus: { x: (focus.x + 1) / 2, y: (1 - focus.y) / 2 }, camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(_s: GameState, event: GameEvent) {
     if (event.type === 'ambient-taxi-crash') { this.crashShake = 3; this.bursts.push({ x: event.x, y: event.y, age: 0, color: 0xffdfa4 }); }
