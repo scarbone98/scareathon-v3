@@ -21,6 +21,7 @@
     "balance:royale": "node scripts/royale-balance.mjs",
     "balance:horde-rush": "node scripts/horde-rush-balance.mjs",
     "check:wayside-fury": "node scripts/check-wayside-fury.mjs",
+    "check:wayside-fury-campaign": "node scripts/check-wayside-fury-campaign.mjs",
     "check:wayside-fury-cloud": "node --test scripts/check-wayside-fury-cloud.test.mjs",
     "check:wayside-fury-music": "node scripts/check-wayside-fury-music.mjs && node scripts/check-wayside-fury-audio.mjs",
     "check:wayside-fury-webkit-audio": "node scripts/check-wayside-fury-webkit-audio.mjs",

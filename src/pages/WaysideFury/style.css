@@ -288,3 +288,9 @@
 .wf-diner-booth{position:absolute;left:16px;bottom:16px;width:80px;height:34px;border-radius:8px;background:#8c4545;border:4px solid #b77967}
 .wf-diner-counter{position:absolute;right:12px;top:24px;width:178px;padding:24px 8px 12px;border-bottom:12px solid #9b7755;background:#3b2924;color:#ffd9a1;letter-spacing:1px;font-size:9px}
 .wf-diner-stools{position:absolute;right:28px;bottom:12px;color:#c07860;font-size:28px}
+
+.wf-space-film { position:absolute; z-index:12; left:5%; right:5%; bottom:max(30px,env(safe-area-inset-bottom)); padding:16px; border:1px solid #a6bfd0; border-radius:16px; background:#111829ee; color:#f2f5fa; font-size:clamp(16px,2vw,22px); }
+.wf-space-film p { margin:0 0 12px; line-height:1.5; }
+.wf-space-film div { display:flex; gap:12px; flex-wrap:wrap; }
+.wf-space-film button { min-height:48px; padding:10px 16px; border-radius:10px; color:#111829; background:#f5c776; }
+.wf-oxygen { position:absolute; left:16px; bottom:calc(var(--wf-touch-reserve, 180px) + 20px); background:#111829e8; padding:8px 12px; border-radius:12px; color:#dae4f2; pointer-events:none; }

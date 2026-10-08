@@ -1,4 +1,4 @@
-import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
+import { SAVE_KEY, makeNewGameSave, parseSave, ticketDelta, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
 
@@ -17,19 +17,17 @@ const OWNER_KEY = `${SAVE_KEY}-owner`;
 const GUEST_KEY = `${SAVE_KEY}:guest`;
 const accountKey = (id: string) => `${SAVE_KEY}:account:${id}`;
 export function receiptScore(now: ProgressReceipt, before: ProgressReceipt) {
-  const additions = (a: string[], b: string[]) => a.filter(id => !b.includes(id)).length;
-  return Math.min(100000, (additions(now.areas, before.areas) + additions(now.bosses, before.bosses)) * 1000 +
-    additions(now.rooms, before.rooms) * 50 + Math.max(0, now.level - before.level) * 100 +
-    additions(now.foundItems ?? [], before.foundItems ?? []) * 20);
+  return ticketDelta(now, before);
 }
 export function mergeSaves(local: SaveData | null, remote: SaveData | null): SaveData | null {
   if (!local) return remote;
   if (!remote) return local;
-  const difference = progressScore(local) - progressScore(remote);
+  const resetDifference = (local.resetAt ?? 0) - (remote.resetAt ?? 0);
+  const difference = resetDifference || progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
   return { ...winner, coopRewards: winner.coopRewards ?? [],
     foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]),
-    ambientTaxiWrecked: local.ambientTaxiWrecked || remote.ambientTaxiWrecked,
+    ambientTaxiWrecked: resetDifference ? winner.ambientTaxiWrecked : local.ambientTaxiWrecked || remote.ambientTaxiWrecked,
     lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
 }
 
@@ -46,6 +44,7 @@ export class CloudSaveStore {
   private controllers = new Set<AbortController>();
   private pending: { save: SaveData; credit: boolean } | null = null;
   private flushing = false;
+  private resetting = false;
   private running: Promise<void> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private confirmed = mergeReceipts();
@@ -154,7 +153,7 @@ export class CloudSaveStore {
     this.revision = remote.revision; this.revisionKnown = true;
     this.confirmed = mergeReceipts(this.confirmed, remote.save?.lastReported);
     const next = mergeSaves(this.save, remote.save);
-    const difference = remote.save && this.save ? progressScore(remote.save) - progressScore(this.save) : 0;
+    const difference = remote.save && this.save ? ((remote.save.resetAt ?? 0) - (this.save.resetAt ?? 0) || progressScore(remote.save) - progressScore(this.save)) : 0;
     const remoteWins = remote.save && (!this.save || difference > 0 || difference === 0 && remote.save.savedAt >= this.save.savedAt);
     this.save = next;
     if (next && this.unconfirmed && receiptScore(next.lastReported, this.confirmed) === 0) this.unconfirmed = null;
@@ -163,10 +162,49 @@ export class CloudSaveStore {
     if (next && this.pending) this.pending = { save: next, credit: this.unconfirmed !== null };
     return !!next && JSON.stringify(next) !== JSON.stringify(remote.save);
   }
+  // Confirm the account replacement before touching local story progress.
+  // Existing writes finish first; a concurrent writer or account switch cancels it.
+  async newGame(): Promise<SaveData> {
+    if (!this.ready || this.disposed || this.resetting) throw new Error("Save is not ready");
+    const epoch = this.epoch;
+    this.resetting = true;
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    try {
+      if (this.running) await this.running;
+      if (epoch !== this.epoch) throw new Error("Account changed");
+      let previous = this.save;
+      if (this.userId) {
+        const response = await this.send("GET", null, epoch);
+        if (response.status !== 200) throw new Error("Could not load account save");
+        const remote = this.decode(response.body);
+        if (epoch !== this.epoch) throw new Error("Account changed");
+        previous = mergeSaves(previous, remote.save);
+        const fresh = makeNewGameSave(previous);
+        const written = await this.send("PUT", { save: fresh, revision: remote.revision }, epoch);
+        if (epoch !== this.epoch) throw new Error("Account changed");
+        const revision = (written.body as { revision?: number })?.revision;
+        if (written.status !== 200 || !Number.isInteger(revision) || revision! < 1) throw new Error("Could not reset account save");
+        this.revision = revision!; this.revisionKnown = true;
+        this.save = fresh;
+      } else {
+        const fresh = makeNewGameSave(previous);
+        this.write(fresh);
+        if (!this.locallyDurable) throw new Error("Device storage unavailable");
+        this.save = fresh;
+      }
+      this.pending = null; this.unconfirmed = null;
+      this.confirmed = mergeReceipts(this.save.lastReported);
+      if (this.retryTimer) clearTimeout(this.retryTimer);
+      this.retryTimer = null; this.write(this.save);
+      this.notify(this.userId ? "saved" : "local");
+      return this.save;
+    } finally { this.resetting = false; if (this.pending) this.retry(); }
+  }
   // A checkpoint is durable locally immediately. Account rewards are released
   // only after its revisioned write wins, so concurrent devices cannot both pay.
   persist(save: SaveData, credit = false) {
-    if (!this.ready || this.disposed) return false;
+    if (!this.ready || this.disposed || this.resetting) return false;
     const previous = this.confirmed;
     if (credit && !this.unconfirmed) this.unconfirmed = mergeReceipts(this.confirmed);
     this.save = save; this.write(save);
@@ -196,7 +234,7 @@ export class CloudSaveStore {
     return running;
   }
   private async runFlush() {
-    if (this.flushing || !this.userId || !this.ready || this.disposed) return;
+    if (this.resetting || this.flushing || !this.userId || !this.ready || this.disposed) return;
     this.flushing = true; const epoch = this.epoch;
     let writing: { save: SaveData; credit: boolean } | null = null;
     try {

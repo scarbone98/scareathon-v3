@@ -1,0 +1,248 @@
+{
+  "reference": "Siraj round 3b notes, overriding earlier notes",
+  "generator": "terrain.ts and terrain3d.ts both consume roadMarks; lane orientation comes from authored RoadSegment.direction, with full-dash rejection at perpendicular intersections and corners.",
+  "maps": [
+    {
+      "id": "overworld",
+      "name": "Wayside County",
+      "roads": [
+        {
+          "id": "county",
+          "x": 32,
+          "y": 448,
+          "w": 1216,
+          "h": 64,
+          "direction": "horizontal",
+          "start": "barrier",
+          "end": "barrier"
+        },
+        {
+          "id": "station",
+          "x": 176,
+          "y": 432,
+          "w": 64,
+          "h": 80,
+          "direction": "vertical",
+          "start": "entrance",
+          "end": "junction"
+        },
+        {
+          "id": "forest",
+          "x": 624,
+          "y": 240,
+          "w": 64,
+          "h": 272,
+          "direction": "vertical",
+          "start": "entrance",
+          "end": "junction"
+        },
+        {
+          "id": "blast",
+          "x": 1056,
+          "y": 416,
+          "w": 64,
+          "h": 96,
+          "direction": "vertical",
+          "start": "entrance",
+          "end": "junction"
+        },
+        {
+          "id": "city",
+          "x": 1008,
+          "y": 448,
+          "w": 64,
+          "h": 96,
+          "direction": "vertical",
+          "start": "junction",
+          "end": "entrance"
+        }
+      ],
+      "barriers": [
+        {
+          "x": 32,
+          "y": 448,
+          "w": 8,
+          "h": 64
+        },
+        {
+          "x": 1240,
+          "y": 448,
+          "w": 8,
+          "h": 64
+        }
+      ],
+      "audit": "County road connects all four branches. West/east end at solid boundary rails; station, forest, blast and city branches meet a doorway or paved zone approach."
+    },
+    {
+      "id": "hub",
+      "name": "Wayside Town",
+      "roads": [
+        {
+          "id": "town",
+          "x": 32,
+          "y": 288,
+          "w": 896,
+          "h": 64,
+          "direction": "horizontal",
+          "start": "barrier",
+          "end": "barrier"
+        }
+      ],
+      "barriers": [
+        {
+          "x": 32,
+          "y": 288,
+          "w": 8,
+          "h": 64
+        },
+        {
+          "x": 920,
+          "y": 288,
+          "w": 8,
+          "h": 64
+        }
+      ],
+      "audit": "Town road ends at solid west/east boundary rails. Shop/home paths meet the road; station path crosses it and reaches the south boundary. Taxi lot joins that path."
+    },
+    {
+      "id": "blast-0",
+      "name": "Scorched Road",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main dirt corridor connects west/east exits."
+    },
+    {
+      "id": "blast-1",
+      "name": "Split Creek",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main dirt corridor connects west/east exits through the creek bridge; north branch connects the Orchard exit."
+    },
+    {
+      "id": "blast-2",
+      "name": "Ruined Yard",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main dirt corridor connects west/east exits; parked car sits in a connected paved bay."
+    },
+    {
+      "id": "blast-3",
+      "name": "Furnace Pass",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main dirt corridor connects west/east exits; south branch connects the Supply Depot exit."
+    },
+    {
+      "id": "blast-4",
+      "name": "Sentinel Gate",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main dirt corridor passes through the paved Sentinel Gate and connects west/east exits."
+    },
+    {
+      "id": "blast-5",
+      "name": "Shattered Courtyard",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main dirt corridor connects west/east exits; parking driveway length follows the taller room and reaches the corridor."
+    },
+    {
+      "id": "blast-6",
+      "name": "Rift Approach",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main corridor meets the deliberate corrupted crater/portal zone and connects west/east exits."
+    },
+    {
+      "id": "blast-7",
+      "name": "The Watcher's Hollow",
+      "roads": [],
+      "barriers": [],
+      "audit": "Main corridor meets the Watcher crater/portal zone and connects the west entrance and realm exit."
+    },
+    {
+      "id": "blast-8",
+      "name": "Ash Orchard",
+      "roads": [],
+      "barriers": [
+        {
+          "x": 288,
+          "y": 32,
+          "w": 80,
+          "h": 8
+        }
+      ],
+      "audit": "Optional dirt crossroad: south is the return exit; north ends at a solid hazard rail; east/west stop at the solid stone boundary."
+    },
+    {
+      "id": "blast-9",
+      "name": "Old Supply Depot",
+      "roads": [],
+      "barriers": [
+        {
+          "x": 288,
+          "y": 344,
+          "w": 80,
+          "h": 8
+        }
+      ],
+      "audit": "Optional dirt crossroad: north is the return exit; south ends at a solid hazard rail; east/west stop at the solid stone boundary. Parking is outside the north branch."
+    },
+    {
+      "id": "realm-0",
+      "name": "The 8-Bit Realm",
+      "roads": [],
+      "barriers": [],
+      "audit": "Stone approach joins the portal and east results exit; west terminates at the solid void boundary. No asphalt or lane markings."
+    },
+    {
+      "id": "training",
+      "name": "Training Yard",
+      "roads": [],
+      "barriers": [],
+      "audit": "Enclosed yard; no roads."
+    }
+  ],
+  "traffic": {
+    "decision": "removed",
+    "evidence": "../round3b-before/traffic-run.json",
+    "observedJumpsWorldUnits": [
+      128.21666666666692,
+      977.6
+    ],
+    "removed": [
+      "trafficForState generator",
+      "2D moving-traffic actor allocation and drawing",
+      "3D traffic mesh construction",
+      "3D traffic storage and per-frame transforms"
+    ],
+    "retained": [
+      "player and co-op taxis",
+      "ambient parked taxi and one-shot boulder wreck",
+      "cars in clear, connected paved parking bays"
+    ],
+    "beforeScreenshots": "Before moving-traffic removal; road and taxi art edits were already present during this inspection."
+  },
+  "captures": {
+    "mode": "2D",
+    "viewports": [
+      {
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      {
+        "width": 1440,
+        "height": 900,
+        "dpr": 2
+      }
+    ],
+    "nativeScreenshots": "Paused for stable native-DPR art inspection; live driving and boulder impact verified separately in metrics.json.",
+    "devServers": 1,
+    "browserArgs": [
+      "--mute-audio",
+      "--use-angle=metal",
+      "--enable-gpu"
+    ]
+  }
+}

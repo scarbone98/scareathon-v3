@@ -1,4 +1,5 @@
 // Presentation-only height data. The simulation keeps its original flat map.
+import { roadMarks } from './roadMarkings';
 import * as THREE from 'three';
 import { MATERIALS } from './terrain';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
@@ -117,30 +118,48 @@ function quad(target: Batch, nw: Vertex, ne: Vertex, sw: Vertex, se: Vertex, col
     target.colors.push(color.r, color.g, color.b);
   }
 }
-function geometry(data: Batch) {
+function geometry(data: Batch, heightAt?: (x: number, y: number) => number) {
   const result = new THREE.BufferGeometry();
   result.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
   result.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
   result.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
-  result.computeVertexNormals(); result.computeBoundingSphere();
+  result.computeVertexNormals();
+  if (heightAt) {
+    // Shared world-space normals remove triangle seams on continuous ground.
+    // Cliff skirts keep their face normals; elevation and collision stay intact.
+    const normals = result.getAttribute('normal'), normal = new THREE.Vector3();
+    for (let i = 0; i < normals.count; i++) {
+      const x = data.positions[i * 3], z = data.positions[i * 3 + 2];
+      normal.set(heightAt(x - .5, z) - heightAt(x + .5, z), 1, heightAt(x, z - .5) - heightAt(x, z + .5)).normalize();
+      normals.setXYZ(i, normal.x, normal.y, normal.z);
+    }
+  }
+  result.computeBoundingSphere();
   return result;
 }
 
 function tileTexture(kind: TileKind | 'cliff') {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = TILE * 4;
-  const context = canvas.getContext('2d')!;
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = TILE * 16;
+  const context = canvas.getContext('2d')!; context.scale(4, 4);
   const [base, light, dark] = MATERIALS[kind === 'cliff' ? 'stone' : kind];
   const fill = (x: number, y: number, w: number, h: number, color: string) => {
     context.fillStyle = color; context.fillRect(x, y, w, h);
   };
   fill(0, 0, 64, 64, base);
-  for (let n = 0; n < 110; n++) {
+  context.globalAlpha = .26;
+  for (let n = 0; n < 440; n++) {
     const seed = hash(n, kind.length);
-    fill(seed % 64, (seed >>> 8) % 64, n % 5 ? 1 : 3, 1, n % 3 ? dark : light);
+    fill(seed % 64, (seed >>> 8) % 64, n % 5 ? .3 : .8, .3, n % 3 ? dark : light);
   }
+  context.globalAlpha = .65;
   if (kind === 'grass') for (let n = 0; n < 12; n++) {
     const seed = hash(n + 9, 8), x = 3 + seed % 55, y = 5 + (seed >>> 6) % 53;
-    fill(x, y, 1, 4, light); fill(x - 2, y + 3, 5, 1, light); fill(x + 2, y + 2, 1, 3, '#82945f');
+    context.lineWidth = .55; context.lineCap = 'round';
+    context.strokeStyle = n % 3 ? '#80977790' : '#192f3580';
+    context.beginPath(); context.moveTo(x, y + 3);
+    context.quadraticCurveTo(x + 1.2, y, x - 1, y - 2); context.stroke();
+    context.beginPath(); context.moveTo(x, y + 3);
+    context.quadraticCurveTo(x + 2.5, y + .5, x + 3, y); context.stroke();
   }
   if (kind === 'water') for (let y = 10; y < 64; y += 19) {
     fill(y % 11 + 5, y, 30, 1, light); fill(y % 11 + 16, y + 2, 23, 1, '#427f92');
@@ -160,8 +179,9 @@ function tileTexture(kind: TileKind | 'cliff') {
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.NearestFilter; texture.minFilter = THREE.NearestFilter;
-  texture.generateMipmaps = false; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.magFilter = THREE.LinearFilter; texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.anisotropy = 4;
+  texture.generateMipmaps = true; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   return texture;
 }
 
@@ -179,7 +199,7 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
     const material = slope >= 9 && kind !== 'road' && kind !== 'water' && kind !== 'bridge' ? atWater ? 'sand' : 'cliff' : kind;
     let target = batches.get(material);
     if (!target) { target = batch(); batches.set(material, target); }
-    shade.setRGB(1, 1, 1).multiplyScalar(.92 + hash(col, row) % 17 / 100);
+    shade.setRGB(1, 1, 1).multiplyScalar(.995 + hash(col, row) % 11 / 1000);
     quad(target, nw, ne, sw, se, shade, kind !== 'road' && kind !== 'water' ? hash(col, row) % 2 : 0);
     if (kind === 'water') {
       shade.set('#d6d4ae');
@@ -189,11 +209,10 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
       if (tileAt(world, col - 1, row) !== 'water') quad(shoreline, point(x, y, .12), point(x + .7, y, .12), point(x, y + TILE, .12), point(x + .7, y + TILE, .12), shade);
       if (tileAt(world, col + 1, row) !== 'water') quad(shoreline, point(x + TILE - .7, y, .12), point(x + TILE, y, .12), point(x + TILE - .7, y + TILE, .12), point(x + TILE, y + TILE, .12), shade);
     }
-    if (kind === 'road' && col % 2 === 0 && row % 2 === 0) {
-      const vertical = tileAt(world, col - 1, row) !== 'road' || tileAt(world, col + 1, row) !== 'road';
-      const rx = x + (vertical ? 7.5 : 4), ry = y + (vertical ? 4 : 7.5), rw = vertical ? .75 : 7, rh = vertical ? 7 : .75;
-      shade.set('#c7b68c');
-      quad(markings, point(rx, ry, .08), point(rx + rw, ry, .08), point(rx, ry + rh, .08), point(rx + rw, ry + rh, .08), shade);
+    if (kind === 'road') for (const mark of roadMarks(world, col, row)) {
+      const { x: rx, y: ry, w: rw, h: rh } = mark;
+      shade.set(mark.color);
+      quad(markings, point(rx, ry, .15), point(rx + rw, ry, .15), point(rx, ry + rh, .15), point(rx + rw, ry + rh, .15), shade);
     }
   }
   const geometries: THREE.BufferGeometry[] = [], materials: THREE.Material[] = [], textures: THREE.Texture[] = [];
@@ -204,7 +223,7 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
       metalness: kind === 'water' ? .12 : 0,
       transparent: kind === 'water', opacity: kind === 'water' ? .92 : 1,
     });
-    const shape = geometry(data), mesh = new THREE.Mesh(shape, material);
+    const shape = geometry(data, kind === 'cliff' ? undefined : elevation.heightAt), mesh = new THREE.Mesh(shape, material);
     mesh.name = `terrain-${kind}`; mesh.receiveShadow = true;
     geometries.push(shape); materials.push(material); group.add(mesh);
     if (kind === 'water') water.push(mesh);

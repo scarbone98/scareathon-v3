@@ -92,7 +92,7 @@ test('legacy guest migrates, transfers on first sign-in, and remains separate fr
   delete legacy.home.character;
   const d = device(t, new MemoryStorage(legacy));
   await d.store.load(null);
-  assert.equal(d.store.save.version, 3);
+  assert.equal(d.store.save.version, 4);
   assert.equal(d.store.save.candy, 17);
   assert.equal(d.server.calls.length, 0, 'guests never make authenticated save requests');
   await d.store.load(A); await settle();
@@ -123,7 +123,7 @@ test('an existing version2 account migrates You and shared XP while its earlier 
   for (const h of Object.values(legacy.heroes)) { h.power += 4; h.defense += 2; }
   for (const h of Object.values(legacy.home.heroes)) { h.power += 2; h.defense++; }
   const d = device(t); d.server.seed(A, legacy, 8); await d.store.load(A); await settle();
-  assert.equal(d.store.save.version, 3); assert.deepEqual(d.store.save.character, { level: 4, xp: 9 });
+  assert.equal(d.store.save.version, 4); assert.deepEqual(d.store.save.character, { level: 4, xp: 9 });
   assert.deepEqual(d.store.save.party, ['you', 'matt']); assert.equal(d.store.save.active, 'you');
   assert.deepEqual(d.store.save.gear, { power: 4, ward: 2 });
   const retry = restoreSave(d.store.save, true);
@@ -131,7 +131,7 @@ test('an existing version2 account migrates You and shared XP while its earlier 
   assert.equal(retry.candy, 7); assert.deepEqual(retry.areas, ['wayside', 'blast']);
   assert.equal(progressReport(retry, d.store.save.lastReported).score, 0);
   d.store.persist(makeSave(retry, d.store.save), true); await settle();
-  assert.equal(d.server.rows.get(A).save.version, 3); assert.equal(d.paid(), 0, 'migration and HOME retry cannot pay old progress');
+  assert.equal(d.server.rows.get(A).save.version, 4); assert.equal(d.paid(), 0, 'migration and HOME retry cannot pay old progress');
   assert.equal(d.server.rows.get(A).save.lastReported.level, 4);
 });
 
@@ -196,7 +196,7 @@ test('boot uploads the higher-progress snapshot and receipt union without paying
 test('receipt score counts only new milestones and level increases, and caps each payout', () => {
   const before = { areas: ['wayside'], bosses: [], rooms: ['blast-0'], level: 2 };
   const after = { areas: ['wayside', 'blast'], bosses: ['blast-watcher'], rooms: ['blast-0', 'blast-1'], level: 4 };
-  assert.equal(receiptScore(after, before), 2_250);
+  assert.equal(receiptScore(after, before), 1_250);
   assert.equal(receiptScore(after, after), 0);
   assert.equal(receiptScore(before, after), 0);
   assert.equal(receiptScore({ ...after, level: 10_000 }, emptyReceipt()), 100_000);
@@ -390,7 +390,7 @@ test('a guest can retry the same unreported checkpoint when device storage recov
   assert.equal(d.server.calls.length, 0);
 });
 
-test('personal finds and the taxi wreck survive cloud reload, with one revisioned ticket delta', async t => {
+test('personal finds and the taxi wreck survive cloud reload without ticket bonuses', async t => {
   const first = 'pickup-c1-road-rock', second = 'pickup-c1-tree-candy';
   const server = new AtomicServer(); server.seed(A, snapshot());
   const devices = [device(t, new MemoryStorage(), server), device(t, new MemoryStorage(), server)];
@@ -399,7 +399,7 @@ test('personal finds and the taxi wreck survive cloud reload, with one revisione
   const save = snapshot({ foundItems: [first], ambientTaxiWrecked: true, receipt });
   for (const d of devices) d.store.persist(save, true);
   await settle();
-  assert.equal(devices.reduce((total, d) => total + d.paid(), 0), 20);
+  assert.equal(devices.reduce((total, d) => total + d.paid(), 0), 0);
   assert.deepEqual(server.rows.get(A).save.foundItems, [first]);
   const reloaded = device(t, new MemoryStorage(), server); await reloaded.store.load(A); await settle();
   assert.deepEqual(reloaded.store.save.foundItems, [first]); assert.equal(reloaded.store.save.ambientTaxiWrecked, true);

@@ -1,10 +1,14 @@
+import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
+import { campaignLocations, sameCampaignMap } from "./campaign.ts";
+import { ZONE_PREVIEWS } from './zonePreviews';
+import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
 import * as THREE from 'three';
 import { LOCATIONS } from './content';
-import { OVERWORLD, type WorldProp } from './world';
+import { parkedCarPose, OVERWORLD, type WorldProp } from './world';
 import { getRenderViewport } from './viewport';
 import { buildOverworldTerrain } from './terrain3d';
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition, trafficForState } from './dressing';
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
 import { availablePickups } from './collectibles';
 import type { AvatarStrip, HeroAvatar } from './avatar';
 import type { GameEvent, GameState, HeroId } from './sim';
@@ -23,7 +27,7 @@ const SHEETS = {
 };
 type SpriteId = keyof typeof SHEETS;
 interface SpriteSheet { texture: THREE.Texture; frames: number; w: number; h: number; fps: number }
-interface Billboard { group: THREE.Group; sprites: THREE.Sprite[]; sheets: SpriteSheet[]; shadow: THREE.Mesh; source: string; x: number; y: number }
+interface Billboard { group: THREE.Group; sprites: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; sheets: SpriteSheet[]; shadow: THREE.Mesh; source: string; x: number; y: number }
 interface RemoteTaxi { group: THREE.Group; wheels: THREE.Mesh[]; shadow: THREE.Mesh }
 interface Portal { group: THREE.Group; ring: THREE.Mesh; core: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>; x: number; y: number }
 interface LightSource { x: number; y: number; height: number; color: number; strength: number }
@@ -31,11 +35,11 @@ interface Burst { x: number; y: number; age: number; color: number }
 const clamp = THREE.MathUtils.clamp;
 const FORWARD = new THREE.Vector3(.24, .82, .52).normalize();
 const QUALITY = [
-  { name: 'high', cap: 3, shadows: true, fx: 2 },
-  { name: 'medium', cap: 3, shadows: false, fx: 1 },
-  { name: 'balanced', cap: 2, shadows: false, fx: 1 },
-  { name: 'low', cap: 1.5, shadows: false, fx: 0 },
-  { name: 'minimum', cap: 1, shadows: false, fx: 0 },
+  { name: 'high', cap: Infinity, shadows: true, fx: 2 },
+  { name: 'medium', cap: Infinity, shadows: false, fx: 1 },
+  { name: 'balanced', cap: Infinity, shadows: false, fx: 1 },
+  { name: 'low', cap: Infinity, shadows: false, fx: 0 },
+  { name: 'minimum', cap: Infinity, shadows: false, fx: 0 },
 ] as const;
 
 // Depth-aware tilt shift and a soft highlight bloom share one native-resolution
@@ -84,6 +88,7 @@ void main(){
 
 export class OverworldRenderer {
   private renderer: THREE.WebGLRenderer;
+  private space: SpaceRenderer | null = null;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 1, 1800);
   private terrain: ReturnType<typeof buildOverworldTerrain>;
@@ -96,7 +101,6 @@ export class OverworldRenderer {
   private taxi = new THREE.Group();
   private ambientCab = new THREE.Group();
   private wreckCab = new THREE.Group();
-  private trafficCars: THREE.Group[] = [];
   private strayRock: THREE.Mesh | null = null;
   private strayRockShadow: THREE.Mesh | null = null;
   private crashShake = 0;
@@ -132,6 +136,7 @@ export class OverworldRenderer {
   private visualTime = 0;
   private tier = 0;
   private slowTime = 0;
+  private qualityRecovery = new QualityRecovery();
   private frameEma = 16.67;
   private renderEma = 0;
   private disposed = false;
@@ -173,6 +178,7 @@ export class OverworldRenderer {
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false });
     try {
+    this.space = new SpaceRenderer(this.renderer,this.canvas);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.12;
@@ -313,12 +319,29 @@ export class OverworldRenderer {
       this.dummy.position.set(x, y, z); this.dummy.rotation.set(0, rotation, 0); this.dummy.scale.set(w, h, d); this.dummy.updateMatrix();
       batch.matrices.push(this.dummy.matrix.clone());
     };
+    for (const preview of ZONE_PREVIEWS) {
+      const { shape, color, x, y, z, w, h, d } = preview;
+      part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
+    }
     const shadows: THREE.Matrix4[] = [];
     for (const prop of OVERWORLD.props) {
-      const x = prop.x + prop.w / 2, z = prop.y + prop.h * .8;
+      const parking = prop.kind === 'car' ? parkedCarPose(prop) : null;
+      const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
       const box = (color: string, ox: number, oy: number, oz: number, w: number, h: number, d: number, emissive = false) => part('box', color, x + ox, y + oy, z + oz, w, h, d, 0, emissive);
-      if (prop.kind === 'tree' || prop.kind === 'pine') {
+      if (prop.kind === 'rocket') {
+        part('cylinder', '#e8edf1', x, y+52, z, 24, 104, 24);
+        part('cone', '#dae4f2', x, y+114, z, 24, 30, 24);
+        box('#f5c776',0,44,0,25,10,25);
+      } else if (prop.kind === 'gantry') {
+        for(const side of [-1,1]) box('#778b9e',side*40,68,0,8,136,8);
+        for(let n=0;n<5;n++) box('#9bb0c1',0,16+n*28,0,88,4,8);
+      } else if (prop.kind === 'tank') {
+        part('cylinder','#bdcbd8',x,y+27,z,prop.w,54,prop.w);
+        box('#f5c776',0,3,0,prop.w,4,prop.w);
+      } else if (prop.kind === 'control' || prop.kind === 'locker') {
+        box('#415466',0,20,0,prop.w,40,40);box('#78bdd3',0,24,21,prop.w-8,18,2);
+      } else if (prop.kind === 'tree' || prop.kind === 'pine') {
         box('#795944', 0, 11, 0, 4, 22, 4);
         box('#ad8961', -1.7, 12, 1, .6, 14, 3);
         if (prop.kind === 'pine') {
@@ -334,6 +357,13 @@ export class OverworldRenderer {
         box('#263d42', 0, 16, 0, 2.4, 32, 2.4); box('#364b4c', 0, 1, 0, 7, 2, 7);
         box('#bd9657', 0, 31, 0, 7, 7, 7); box('#ffe5a8', 0, 31, 0, 5.2, 5.5, 7.1, true); box('#263b3b', 0, 36, 0, 9, 2, 9);
         this.lightSources.push({ x, y: z, height: y + 31, color: 0xffcd84, strength: 85 });
+      } else if (prop.kind === 'barrier') {
+        const cz = prop.y + prop.h / 2;
+        part('box', '#26373d', x, y + 6, cz, prop.w, 12, prop.h);
+        for (let offset = 0; offset < prop.h; offset += 12) part('box', '#e8ba70', x, y + 12.2, prop.y + offset + 3, prop.w, .5, 6);
+      } else if (prop.kind === 'fence' && prop.h > 20) {
+        for(let oz=0;oz<=prop.h;oz+=16) part('box','#aebdcc',x,y+10,prop.y+oz,3,20,3);
+        for(const height of [7,18]) part('box','#bac8d5',x,y+height,prop.y+prop.h/2,2,1.5,prop.h);
       } else if (prop.kind === 'fence') {
         for (let offset = -prop.w / 2; offset <= prop.w / 2; offset += 12) {
           box('#aa9670', offset, 7, 0, 3.3, 14, 3.3); box('#e1c997', offset, 14.5, 0, 4, 1.2, 4);
@@ -354,7 +384,7 @@ export class OverworldRenderer {
       } else if (prop.kind === 'rock') {
         part('rock', '#7c8272', x, y + 4, z, 6, 6, 5, x); part('rock', '#a0a38a', x - 2, y + 7, z - 1, 3, 3, 3, z);
       } else if (prop.kind === 'car') {
-        box('#27363f', 0, 3, 0, 30, 4, 17); box('#799ba1', 0, 7, 0, 32, 7, 15); box('#a1b5a9', -2, 12, 0, 17, 5, 12);
+        box('#27363f', 0, 3, 0, 30, 4, 17); box(prop.color ?? '#799ba1', 0, 7, 0, 32, 7, 15); box('#a1b5a9', -2, 12, 0, 17, 5, 12);
         box('#314c59', -2, 12, 6.1, 14, 3, .3); box('#ead19a', 16, 8, -4, .5, 2, 3);
       } else if (prop.kind === 'sign') {
         box('#816a50', 0, 9, 0, 2.5, 18, 2.5); box('#466057', 0, 17, 0, 17, 9, 2); box('#c8bb8e', 0, 19, 1.1, 11, .6, .3);
@@ -383,6 +413,10 @@ export class OverworldRenderer {
   private makeRoadsideVehicles() {
     this.ambientCab = this.taxi.clone(true);
     this.ambientCab.traverse(object => { if (object instanceof THREE.PointLight) object.intensity = 0; });
+    // Place the parked cab once. Proximity only triggers its one-shot wreck gag;
+    // it never changes this pose or recycles a vehicle slot.
+    const { x, y } = AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
+    this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
     this.scene.add(this.ambientCab, this.wreckCab);
     const part = (group: THREE.Group, color: string, x: number, y: number, z: number, w: number, h: number, d: number) => {
       const mesh = new THREE.Mesh(this.geometries.box, this.material(color)); mesh.position.set(x, y, z); mesh.scale.set(w, h, d); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
@@ -395,13 +429,8 @@ export class OverworldRenderer {
     this.strayRock = new THREE.Mesh(this.geometries.rock, this.material('#898476')); this.strayRock.scale.set(9, 8, 8); this.strayRock.castShadow = true;
     this.strayRockShadow = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial); this.strayRockShadow.scale.set(22, 1, 16);
     this.scene.add(this.strayRock, this.strayRockShadow);
-    for (const color of ['#77999c', '#bd7661']) {
-      const group = new THREE.Group(); part(group, '#26373e', 0, 3, 0, 30, 5, 15); part(group, color, 0, 7, 0, 32, 6, 14);
-      part(group, color, -2, 12, 0, 17, 6, 11); part(group, '#314b58', -2, 12, 5.7, 14, 4, .4);
-      for (const x of [-10, 10]) for (const z of [-7, 7]) part(group, '#182a31', x, 3, z, 5, 5, 2);
-      part(group, '#ead9ad', 16.2, 8, 4, .5, 2, 3); this.scene.add(group); this.trafficCars.push(group);
-    }
-    for (const group of [this.wreckCab, ...this.trafficCars]) {
+    {
+      const group = this.wreckCab;
       const batches = new Map<string, { source: THREE.Mesh; matrices: THREE.Matrix4[] }>();
       for (const child of [...group.children]) {
         if (!(child instanceof THREE.Mesh) || Array.isArray(child.material)) continue;
@@ -416,10 +445,8 @@ export class OverworldRenderer {
     }
   }
   private updateDressing(s: GameState) {
-    const { x, y } = AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
-    this.ambientCab.visible = !s.ambientTaxiWrecked && this.nearView(x, y, 80);
-    this.wreckCab.visible = s.ambientTaxiWrecked && this.nearView(x, y, 80);
-    this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
+    this.ambientCab.visible = !s.ambientTaxiWrecked;
+    this.wreckCab.visible = s.ambientTaxiWrecked;
     const rock = taxiRockPosition(s);
     if (this.strayRock && this.strayRockShadow) {
       this.strayRock.visible = this.strayRockShadow.visible = !!rock && this.nearView(rock.x, rock.y, 190);
@@ -428,10 +455,6 @@ export class OverworldRenderer {
         this.strayRockShadow.position.set(rock.x, ground + .5, rock.y);
       }
     }
-    trafficForState(s).forEach((traffic, index) => {
-      const group = this.trafficCars[index]; group.position.set(traffic.x, this.terrain.heightAt(traffic.x, traffic.y), traffic.y);
-      group.rotation.y = traffic.direction < 0 ? Math.PI : 0; group.visible = this.nearView(traffic.x, traffic.y, 55);
-    });
   }
   private buildStation(prop: WorldProp, part: (shape: keyof OverworldRenderer['geometries'], color: string, x: number, y: number, z: number, w: number, h: number, d: number, rotation?: number, emissive?: boolean) => void) {
     const x = prop.x + prop.w / 2, z = prop.y + prop.h / 2;
@@ -475,7 +498,8 @@ export class OverworldRenderer {
         core.scale.set(ring.scale.x * .88, ring.scale.y * .9, 1); core.position.set(0, 23, -.7);
         group.add(core, ring); this.scene.add(group); this.portals.push({ group, ring, core, x: location.x, y: location.y });
         this.lightSources.push({ x: location.x, y: location.y, height: height + 24, color: location.locked ? 0xd096ff : 0xffb58a, strength: 75 });
-      } else {
+      }
+      if (location.id !== 'blast') {
         const group = new THREE.Group(); group.position.set(location.x, height + 26, location.y);
         const arrow = new THREE.Mesh(new THREE.ConeGeometry(3.6, 6.5, 4), new THREE.MeshBasicMaterial({ color: 0xffe4a0, toneMapped: false })); arrow.rotation.z = Math.PI;
         group.add(arrow); this.markers.push(group); this.scene.add(group);
@@ -495,6 +519,7 @@ export class OverworldRenderer {
     }
   }
   setAvatar(avatar: HeroAvatar) {
+    this.space?.setAvatar(avatar);
     if (this.disposed) return;
     this.avatar = avatar;
     for (const key of [...this.billboards.keys()]) if (key === 'crew-you' || key === 'driver') this.removeBillboard(key);
@@ -502,6 +527,7 @@ export class OverworldRenderer {
     this.avatarSheets = this.composeAvatarSheets(avatar);
   }
   setRemoteAvatar(seat: number, avatar: HeroAvatar) {
+    this.space?.setRemoteAvatar(seat,avatar);
     if (this.disposed) return;
     this.releaseRemoteAvatarSheets(seat);
     this.remoteAvatars.set(seat, avatar);
@@ -531,24 +557,36 @@ export class OverworldRenderer {
     let actor = this.billboards.get(key);
     if (actor && actor.source !== source) { this.removeBillboard(key); actor = undefined; }
     if (!actor) {
-      const group = new THREE.Group(); const sprites: THREE.Sprite[] = [];
+      const group = new THREE.Group(); const sprites: Billboard["sprites"] = [];
       for (const sheet of sheets) {
         const texture = sheet.texture.clone(); texture.needsUpdate = true; texture.repeat.set(1 / sheet.frames, 1);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: .08, depthWrite: true, toneMapped: false }));
-        sprite.center.set(.5, 0); sprite.scale.set(sheet.w * scale, sheet.h * scale, 1); group.add(sprite); sprites.push(sprite);
+        // Upright cutout planes cannot pitch into the terrain like THREE.Sprite.
+        // Alpha-tested opaque pixels write real depth, including avatar layers.
+        const geometry = new THREE.PlaneGeometry(1, 1); geometry.translate(0, .5, 0);
+        const sprite = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: texture, alphaTest: .5, depthTest: true, depthWrite: true, toneMapped: false, side: THREE.DoubleSide }));
+        sprite.rotation.y = Math.atan2(FORWARD.x, FORWARD.z);
+        sprite.scale.set(sheet.w * scale, sheet.h * scale, 1); group.add(sprite); sprites.push(sprite);
       }
       const shadow = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial); shadow.scale.set(20 * scale, 1, 13 * scale);
       group.add(shadow); this.scene.add(group); actor = { group, sprites, sheets, shadow, source, x, y }; this.billboards.set(key, actor);
     }
     actor.x = x; actor.y = y;
-    actor.group.position.set(x, this.terrain.heightAt(x, y) + .4, y);
+    const ground = this.terrain.heightAt(x, y);
+    // Support both corners of the feet on sloped triangles, without lifting
+    // their contact shadow or moving the simulation's collision position.
+    const halfWidth = Math.max(...actor.sprites.map(sprite => sprite.scale.x)) / 2;
+    const yaw = Math.atan2(FORWARD.x, FORWARD.z);
+    const dx = Math.cos(yaw) * halfWidth, dz = -Math.sin(yaw) * halfWidth;
+    const footing = Math.max(ground, this.terrain.heightAt(x - dx, y - dz), this.terrain.heightAt(x + dx, y + dz));
+    actor.group.position.set(x, footing + .35, y);
+    actor.shadow.position.y = ground - footing;
     const time = this.reducedMotion ? 0 : this.visualTime;
     actor.sprites.forEach((sprite, index) => {
-      const sheet = actor!.sheets[index]; const map = (sprite.material as THREE.SpriteMaterial).map!;
+      const sheet = actor!.sheets[index]; const map = sprite.material.map!;
       map.offset.x = Math.floor(time * sheet.fps) % sheet.frames / sheet.frames;
       // Layer depth offsets follow the camera, preserving wardrobe order.
-      const bob = this.reducedMotion ? 0 : Math.sin(time * 3 + x) * .5;
-      sprite.position.set(FORWARD.x * index * .08, bob + FORWARD.y * index * .08, FORWARD.z * index * .08);
+      const bob = this.reducedMotion ? 0 : (1 + Math.sin(time * 3 + x)) * .25;
+      sprite.position.set(FORWARD.x * index * .08, bob + index * .02, FORWARD.z * index * .08);
     });
     actor.group.visible = this.nearView(x, y, 80);
     return actor;
@@ -556,7 +594,7 @@ export class OverworldRenderer {
   private removeBillboard(key: string) {
     const actor = this.billboards.get(key); if (!actor) return;
     this.scene.remove(actor.group);
-    for (const sprite of actor.sprites) { sprite.material.map?.dispose(); sprite.material.dispose(); }
+    for (const sprite of actor.sprites) { sprite.geometry.dispose(); sprite.material.map?.dispose(); sprite.material.dispose(); }
     this.billboards.delete(key);
   }
   private remoteTaxi(seat: number) {
@@ -582,7 +620,7 @@ export class OverworldRenderer {
   syncRemotePeers(s: GameState) {
     // The bridge can release departed actors even while this renderer is dormant
     // behind a 2D scene. Raw avatar canvases stay available for a later reunion.
-    const seats = new Set((s.coop?.remoteHeroes ?? []).filter(peer => peer.scene === s.scene && peer.room === s.room).map(peer => peer.seat));
+    const seats = new Set((s.coop?.remoteHeroes ?? []).filter(peer => sameCampaignMap(s, peer)).map(peer => peer.seat));
     for (const seat of this.remoteTaxis.keys()) if (!seats.has(seat)) this.removeRemoteTaxi(seat);
     for (const seat of this.remoteAvatarSheets.keys()) if (!seats.has(seat)) this.releaseRemoteAvatarSheets(seat);
   }
@@ -609,14 +647,17 @@ export class OverworldRenderer {
     this.canvas.dataset.postFx = quality.fx === 2 ? 'depth-dof,bloom,vignette' : quality.fx === 1 ? 'bloom,vignette' : 'off';
   }
   private checkQuality(frameDelta: number) {
-    if (document.hidden || frameDelta <= 0) { this.slowTime = 0; return; }
+    if (document.hidden || frameDelta <= 0) { this.slowTime = 0; this.qualityRecovery.reset(); return; }
     const ms = frameDelta * 1000;
     this.frameEma += (ms - this.frameEma) * .035;
     // Bound isolated resume gaps while still adapting to sustained severe stalls.
     const sample = Math.min(frameDelta, .25);
     this.slowTime = ms > 20 ? this.slowTime + sample : Math.max(0, this.slowTime - sample * 2);
     if (this.slowTime >= 2 && this.tier < QUALITY.length - 1) {
-      this.tier++; this.slowTime = 0; this.configureQuality(); this.resize();
+      this.tier++; this.slowTime = 0; this.qualityRecovery.reset(); this.configureQuality(); this.resize();
+    }
+    if (this.qualityRecovery.sample(frameDelta) && this.tier > 0) {
+      this.tier--; this.slowTime = 0; this.configureQuality(); this.resize();
     }
     if (Math.abs(this.renderer.getPixelRatio() - Math.min(window.devicePixelRatio || 1, QUALITY[this.tier].cap)) > .01) this.resize();
   }
@@ -630,6 +671,12 @@ export class OverworldRenderer {
     if (!this.cameraReady) this.target.set(targetX, elevation + 7, targetZ);
     else this.target.lerp(this.scratch.set(targetX, elevation + 7, targetZ), ease);
     const distance = this.viewport.height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
+    const far = Math.ceil(distance + Math.hypot(OVERWORLD.width, OVERWORLD.height) + 256);
+    if (this.camera.far !== far) {
+      this.camera.near = 1; this.camera.far = far; this.camera.updateProjectionMatrix();
+      this.postMaterial.uniforms.nearPlane.value = this.camera.near;
+      this.postMaterial.uniforms.farPlane.value = far;
+    }
     this.camera.position.copy(this.target).addScaledVector(FORWARD, distance);
     this.camera.lookAt(this.target); this.camera.updateMatrixWorld();
     // Clamp the perspective ground footprint, including its wider far edge.
@@ -695,13 +742,8 @@ export class OverworldRenderer {
       { id: 'you', x: 256, y: 435 }, { id: 'joe', x: 277, y: 441 }, { id: 'matt', x: 296, y: 446 },
     ];
     for (const hero of greeters) this.billboard(`crew-${hero.id}`, hero.id, hero.x, hero.y, hero.id === 'you' ? .65 : 1);
-    const driver = this.billboard('driver', s.active, s.x, s.y, s.active === 'you' ? .2 : .35);
-    if (driver) {
-      driver.shadow.visible = false;
-      driver.group.position.copy(this.taxi.position); driver.group.position.y += 12;
-      driver.group.position.addScaledVector(FORWARD, 4.7);
-    }
-    const peers = (s.coop?.remoteHeroes ?? []).filter(peer => peer.scene === s.scene && peer.room === s.room);
+    // Occupants sit behind the opaque cabin glass; no cutout through the roof.
+    const peers = (s.coop?.remoteHeroes ?? []).filter(peer => sameCampaignMap(s, peer));
     this.syncRemotePeers(s);
     for (const peer of peers) {
       const taxi = this.remoteTaxi(peer.seat), elevation = this.terrain.heightAt(peer.x, peer.y);
@@ -710,12 +752,6 @@ export class OverworldRenderer {
       taxi.group.visible = this.nearView(peer.x, peer.y, 80);
       for (const wheel of taxi.wheels) wheel.rotation.y = this.reducedMotion || !peer.moving ? 0 : this.visualTime * 16;
       taxi.shadow.position.set(peer.x + 3, elevation + .3, peer.y + 2); taxi.shadow.visible = taxi.group.visible;
-      const passenger = this.billboard(`peer-driver-${peer.seat}`, peer.hero.id, peer.x, peer.y, peer.hero.id === 'you' ? .2 : .35, peer.seat);
-      if (passenger) {
-        passenger.shadow.visible = false;
-        passenger.group.position.copy(taxi.group.position); passenger.group.position.y += 12;
-        passenger.group.position.addScaledVector(FORWARD, 4.7);
-      }
     }
     const liveEnemies = new Set(s.enemies.filter(enemy => enemy.hp > 0).map(enemy => `enemy-${enemy.id}`));
     for (const key of [...this.billboards.keys()]) if (key.startsWith('enemy-') && !liveEnemies.has(key)) this.removeBillboard(key);
@@ -778,10 +814,21 @@ export class OverworldRenderer {
 
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed || this.contextLost || this.renderer.getContext().isContextLost()) throw new Error('The 3D graphics context is unavailable');
+    if (isSpaceScene(s)) { this.space!.draw(s,dt); return; }
+    if(this.renderer.getPixelRatio()!==Math.min(window.devicePixelRatio||1,QUALITY[this.tier].cap))this.resize();
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
-    this.follow(s, dt); this.atmosphere(); this.updateActors(s); this.updateDressing(s); this.updateEffects(s, dt);
+    this.follow(s, dt); this.atmosphere();
+    const gates = campaignLocations(s);
+    for (const portal of this.portals) {
+      const gate = gates.find(location => location.x === portal.x && location.y === portal.y);
+      if (gate && gate.id !== 'blast') portal.group.visible &&= gate.locked;
+    }
+    for (const marker of this.markers) {
+      const gate = gates.find(location => location.x === marker.position.x && location.y === marker.position.z);
+      marker.visible = !gate?.locked;
+    } this.updateActors(s); this.updateDressing(s); this.updateEffects(s, dt);
     this.renderer.info.reset();
     if (this.postTarget) {
       this.renderer.setRenderTarget(this.postTarget); this.renderer.render(this.scene, this.camera);
@@ -793,6 +840,7 @@ export class OverworldRenderer {
     this.canvas.dataset.drawCalls = `${this.renderer.info.render.calls}`; this.canvas.dataset.triangles = `${this.renderer.info.render.triangles}`;
   }
   presentation(s: GameState): RenderPresentation {
+    if(isSpaceScene(s)) return this.space!.presentation(s);
     const labels: RenderLabel[] = [];
     const add = (id: string | number, text: string, x: number, z: number, height: number, kind: RenderLabel['kind'], color?: string, opacity?: number) => {
       const point = this.scratch.set(x, this.terrain.heightAt(x, z) + height, z).project(this.camera);
@@ -800,13 +848,14 @@ export class OverworldRenderer {
       if (point.z < -1 || point.z > 1 || screenX < .02 || screenX > .98 || screenY < .05 || screenY > .95) return;
       labels.push({ id, text, x: screenX, y: screenY, kind, color, opacity });
     };
-    for (const location of LOCATIONS) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
+    for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
     for (const prop of OVERWORLD.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
     for (const prop of OVERWORLD.props) if (prop.label && ['diner', 'sign', 'vending'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
-    for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
-    return { camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
+    for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
+    const focus = this.scratch.set(s.x, this.terrain.heightAt(s.x, s.y), s.y).project(this.camera);
+    return { focus: { x: (focus.x + 1) / 2, y: (1 - focus.y) / 2 }, camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(_s: GameState, event: GameEvent) {
     if (event.type === 'ambient-taxi-crash') { this.crashShake = 3; this.bursts.push({ x: event.x, y: event.y, age: 0, color: 0xffdfa4 }); }
@@ -815,9 +864,10 @@ export class OverworldRenderer {
       if (this.bursts.length > 8) this.bursts.shift();
     }
   }
-  reset() { this.cameraReady = false; this.slowTime = 0; this.bursts = []; }
+  reset() { this.space?.reset(); this.cameraReady = false; this.slowTime = 0; this.qualityRecovery.reset(); this.bursts = []; }
   dispose() {
     if (this.disposed) return; this.disposed = true;
+    this.space?.dispose(); this.space=null;
     this.resizeObserver?.disconnect(); window.removeEventListener('resize', this.resize);
     window.visualViewport?.removeEventListener('resize', this.resize); this.motionQuery.removeEventListener('change', this.motionChanged);
     this.canvas.removeEventListener('webglcontextlost', this.loseContext);

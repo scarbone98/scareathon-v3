@@ -1,5 +1,6 @@
 import pool from '../db/mockDB.js';
-import { MAX_SAVE_BYTES, sanitizeSave } from '../shared/waysideFury/save.js';
+import { cleanFoundItems } from '../shared/waysideFury/collectibles.js';
+import { MAX_SAVE_BYTES, sanitizeSave, mergeReceipts } from '../shared/waysideFury/save.js';
 
 export function parseSaveRequest(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Missing body' };
@@ -39,6 +40,14 @@ export default async function waysideFuryRoutes(fastify, options = {}) {
         if (parsed.error) return reply.code(400).send({ error: parsed.error });
         const userId = request.user.sub;
         try {
+            const current = await db.query('SELECT save, revision FROM wayside_fury_saves WHERE user_id = $1', [userId]);
+            const row = current.rows[0];
+            if (row && (row.save.resetAt ?? 0) > (parsed.save.resetAt ?? 0)) {
+                return reply.code(409).send({ error: 'Your story was restarted elsewhere', save: row.save, revision: row.revision });
+            }
+            // Never erase the account's earned-ticket max or Collection on reset.
+            parsed.save.lastReported = mergeReceipts(row?.save.lastReported, parsed.save.lastReported);
+            parsed.save.foundItems = cleanFoundItems([...(row?.save.foundItems ?? []), ...parsed.save.foundItems]);
             const result = parsed.revision === null
                 ? await db.query(`
                     INSERT INTO wayside_fury_saves (user_id, save)
@@ -53,9 +62,9 @@ export default async function waysideFuryRoutes(fastify, options = {}) {
                     RETURNING revision
                 `, [userId, JSON.stringify(parsed.save), parsed.revision]);
             if (result.rows[0]) return { revision: result.rows[0].revision };
-            const current = await db.query('SELECT save, revision FROM wayside_fury_saves WHERE user_id = $1', [userId]);
-            const row = current.rows[0];
-            return reply.code(409).send({ error: 'Your save changed somewhere else', save: row?.save ?? null, revision: row?.revision ?? null });
+            const latest = await db.query('SELECT save, revision FROM wayside_fury_saves WHERE user_id = $1', [userId]);
+            const latestRow = latest.rows[0];
+            return reply.code(409).send({ error: 'Your save changed somewhere else', save: latestRow?.save ?? null, revision: latestRow?.revision ?? null });
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'Could not save your progress' });

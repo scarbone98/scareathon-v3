@@ -1,7 +1,8 @@
+import { chapterRewardScore, mapDefinition } from './campaign.js';
 import { cleanFoundItems } from './collectibles.js';
 // The browser and server share one bounded, versioned character sheet.
 // This is shape validation, not authoritative combat or economy simulation.
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const MAX_SAVE_BYTES = 65_536;
 export const MAX_MILESTONES = 128;
 export const MAX_COOP_REWARDS = 256;
@@ -140,13 +141,19 @@ function cleanHome(raw, legacy) {
 }
 export function sanitizeSave(raw) {
     if (!isRecord(raw)) return { error: 'Save must be an object' };
-    if (![1, 2, SAVE_VERSION].includes(raw.version)) return { error: 'Unknown save version' };
+    if (![1, 2, 3, SAVE_VERSION].includes(raw.version)) return { error: 'Unknown save version' };
     try {
         if (new TextEncoder().encode(JSON.stringify(raw)).byteLength > MAX_SAVE_BYTES) return { error: 'Save too large' };
     } catch {
         return { error: 'Save must be serializable' };
     }
-    const legacy = raw.version < SAVE_VERSION, ids = legacy ? LEGACY_HERO_IDS : HERO_IDS;
+    let legacy;
+    switch (raw.version) {
+        case 1: case 2: legacy = true; break;
+        case 3: case 4: legacy = false; break;
+        default: return { error: 'Unknown save version' };
+    }
+    const ids = legacy ? LEGACY_HERO_IDS : HERO_IDS;
     if (!ids.includes(raw.active)) return { error: 'Unknown active hero' };
     if (['chapter', 'candy', 'kills', 'deaths'].some(field => !finite(raw[field]))) return { error: 'Bad progress numbers' };
     if (!Array.isArray(raw.areas) || !Array.isArray(raw.bosses) || !Array.isArray(raw.clearedRooms)) return { error: 'Bad milestones' };
@@ -156,9 +163,20 @@ export function sanitizeSave(raw) {
     if (!sheet) return { error: 'Bad heroes' };
     if (!isRecord(receipt) || !Array.isArray(receipt.areas) || !Array.isArray(receipt.bosses) || !Array.isArray(receipt.rooms) || !finite(receipt.level)) return { error: 'Bad progress receipt' };
     return { save: { version: SAVE_VERSION, chapter: integer(raw.chapter, 1, 99), ...sheet,
+        campaignMilestones: milestones([...(raw.version === 4 && Array.isArray(raw.campaignMilestones) ? raw.campaignMilestones : []),
+            ...(raw.clearedRooms.includes('realm-0') ? ['realm-0'] : [])]),
+        solvedInteractions: raw.version === 4 ? milestones(raw.solvedInteractions) : [],
+        completedCinematics: raw.version === 4 ? milestones(raw.completedCinematics) : [],
+        checkpointMapId: raw.version === 4 && mapDefinition(raw.checkpointMapId) &&
+            (['hub', 'overworld'].includes(raw.checkpointMapId) || raw.clearedRooms.includes(raw.checkpointMapId) ||
+              (raw.checkpointMapId === 'space-launch' && (raw.bosses.includes('blast-watcher') || raw.clearedRooms.includes('realm-0') || raw.campaignMilestones?.includes('space-dev-entry'))) ||
+              (['moon-m01','moon-m03','moon-m06','moon-m09'].includes(raw.checkpointMapId) &&
+               (raw.campaignMilestones?.includes(`${raw.checkpointMapId}-visited`) || (raw.checkpointMapId === 'moon-m01' && raw.campaignMilestones?.includes('moon-departed'))))) ? raw.checkpointMapId : 'hub',
         candy: integer(raw.candy, 0, 1_000_000), unlockedHeroes: [...HERO_IDS],
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
+        ...(raw.resetAt ? { resetAt: integer(raw.resetAt, 0, Number.MAX_SAFE_INTEGER) } : {}),
+        ...(raw.prologuePending === true ? { prologuePending: true } : {}),
         coopRewards: coopRewards(raw.coopRewards),
         foundItems: cleanFoundItems(raw.foundItems), ambientTaxiWrecked: raw.ambientTaxiWrecked === true,
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
@@ -174,4 +192,17 @@ export function progressScore(save) {
     const bestXp = earnedXp(save.character);
     return save.chapter * 1_000_000_000_000 + save.areas.length * 1_000_000_000 +
         save.bosses.length * 10_000_000 + save.clearedRooms.length * 100_000 + bestXp;
+}
+
+// One policy for local reports and account-save acknowledgements.
+export function ticketDelta(now, before) {
+  const current = mergeReceipts(now), reported = mergeReceipts(before);
+  return Math.min(100000, chapterRewardScore(current, reported) +
+    Math.max(0, current.level - reported.level) * 100);
+}
+
+// Lifetime total is unbounded by the per-checkpoint submission cap.
+export function receiptTotalScore(receipt) {
+    const current = mergeReceipts(receipt);
+    return chapterRewardScore(current) + (current.level - 1) * 100;
 }

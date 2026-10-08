@@ -1,0 +1,2249 @@
+[
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "north-south",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 656,
+    "y": 340,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "591",
+      "cameraY": "232.66666666666669",
+      "renderMs": "5.200",
+      "frameMs": "1416.600"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "east-west",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 540,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "475",
+      "cameraY": "372.6666666666667",
+      "renderMs": "9.400",
+      "frameMs": "183.400"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "intersection",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 656,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "591",
+      "cameraY": "372.6666666666667",
+      "renderMs": "16.500",
+      "frameMs": "233.400"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "east-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 1210,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "1145",
+      "cameraY": "372.6666666666667",
+      "renderMs": "8.400",
+      "frameMs": "233.300"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "west-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 70,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "5",
+      "cameraY": "372.6666666666667",
+      "renderMs": "27.700",
+      "frameMs": "400.000"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "taxi-family",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 438,
+    "y": 494,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "373",
+      "cameraY": "386.6666666666667",
+      "renderMs": "25.900",
+      "frameMs": "150.000"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "ambient-intact",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 438,
+    "y": 494,
+    "wrecked": false,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "373",
+      "cameraY": "386.6666666666667",
+      "renderMs": "19.700",
+      "frameMs": "116.600"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "forest-entrance",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 656,
+    "y": 248,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "591",
+      "cameraY": "140.66666666666669",
+      "renderMs": "7.300",
+      "frameMs": "116.700"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-entrance",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 1088,
+    "y": 430,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "1023",
+      "cameraY": "322.6666666666667",
+      "renderMs": "1.700",
+      "frameMs": "83.300"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "city-entrance",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 1040,
+    "y": 522,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "975",
+      "cameraY": "414.6666666666667",
+      "renderMs": "10.500",
+      "frameMs": "99.900"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "town-east-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "hub",
+    "x": 890,
+    "y": 320,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "825",
+      "cameraY": "212.66666666666669",
+      "renderMs": "117.000",
+      "frameMs": "183.400"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "town-west-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "hub",
+    "x": 70,
+    "y": 320,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "5",
+      "cameraY": "212.66666666666669",
+      "renderMs": "20.100",
+      "frameMs": "366.600"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "town-parking",
+    "fixture": "paused native-resolution inspection",
+    "scene": "hub",
+    "x": 490,
+    "y": 430,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "425",
+      "cameraY": "322.6666666666667",
+      "renderMs": "17.900",
+      "frameMs": "33.300"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "orchard-closed-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "dungeon",
+    "x": 328,
+    "y": 80,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "263",
+      "cameraY": "0",
+      "renderMs": "15.900",
+      "frameMs": "350.000"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "depot-parking",
+    "fixture": "paused native-resolution inspection",
+    "scene": "dungeon",
+    "x": 360,
+    "y": 128,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "295",
+      "cameraY": "20.66666666666667",
+      "renderMs": "29.900",
+      "frameMs": "100.000"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "depot-closed-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "dungeon",
+    "x": 328,
+    "y": 320,
+    "wrecked": true,
+    "canvas": {
+      "width": 1170,
+      "height": 1932,
+      "cssWidth": 390,
+      "cssHeight": 644,
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "263",
+      "cameraY": "169.33333333333334",
+      "renderMs": "10.700",
+      "frameMs": "50.000"
+    },
+    "controls": [
+      {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 57
+      },
+      {
+        "x": 338,
+        "y": 6,
+        "right": 382,
+        "bottom": 50
+      },
+      {
+        "x": 51,
+        "y": 725,
+        "right": 147,
+        "bottom": 821
+      },
+      {
+        "x": 198,
+        "y": 776,
+        "right": 254,
+        "bottom": 832
+      },
+      {
+        "x": 198,
+        "y": 714,
+        "right": 254,
+        "bottom": 770
+      },
+      {
+        "x": 260,
+        "y": 776,
+        "right": 316,
+        "bottom": 832
+      },
+      {
+        "x": 260,
+        "y": 714,
+        "right": 316,
+        "bottom": 770
+      },
+      {
+        "x": 322,
+        "y": 745,
+        "right": 378,
+        "bottom": 801
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "muted-live-drive",
+    "start": {
+      "time": 0.9000000000000011,
+      "x": 500,
+      "y": 495
+    },
+    "end": {
+      "x": 663.8422249304555,
+      "y": 495,
+      "time": 2.933333333333328
+    },
+    "samples": [
+      {
+        "x": 504.8607412087286,
+        "y": 495,
+        "time": 1.0000000000000013
+      },
+      {
+        "x": 515.0455382004974,
+        "y": 495,
+        "time": 1.100000000000001
+      },
+      {
+        "x": 528.0097360290423,
+        "y": 495,
+        "time": 1.2000000000000006
+      },
+      {
+        "x": 542.4249083263522,
+        "y": 495,
+        "time": 1.3000000000000003
+      },
+      {
+        "x": 557.5975557172691,
+        "y": 495,
+        "time": 1.4
+      },
+      {
+        "x": 565.346810244606,
+        "y": 495,
+        "time": 1.4499999999999997
+      },
+      {
+        "x": 581.0347391667592,
+        "y": 495,
+        "time": 1.5499999999999994
+      },
+      {
+        "x": 596.8718237785201,
+        "y": 495,
+        "time": 1.649999999999999
+      },
+      {
+        "x": 612.7867744881204,
+        "y": 495,
+        "time": 1.7499999999999987
+      },
+      {
+        "x": 615.4439034659231,
+        "y": 495,
+        "time": 1.7666666666666653
+      },
+      {
+        "x": 631.404062421726,
+        "y": 495,
+        "time": 1.866666666666665
+      },
+      {
+        "x": 647.3832635728611,
+        "y": 495,
+        "time": 1.9666666666666646
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "live-boulder-impact",
+    "wrecked": true
+  },
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "errors": []
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "north-south",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 656,
+    "y": 340,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "476",
+      "cameraY": "227.5",
+      "renderMs": "1.200",
+      "frameMs": "50.000"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "east-west",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 540,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "360",
+      "cameraY": "367.5",
+      "renderMs": "5.200",
+      "frameMs": "166.600"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "intersection",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 656,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "476",
+      "cameraY": "367.5",
+      "renderMs": "14.700",
+      "frameMs": "83.300"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "east-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 1210,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "920",
+      "cameraY": "367.5",
+      "renderMs": "9.000",
+      "frameMs": "50.000"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "west-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 70,
+    "y": 480,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "0",
+      "cameraY": "367.5",
+      "renderMs": "4.700",
+      "frameMs": "33.400"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "taxi-family",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 438,
+    "y": 494,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "258",
+      "cameraY": "381.5",
+      "renderMs": "25.400",
+      "frameMs": "16.700"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "ambient-intact",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 438,
+    "y": 494,
+    "wrecked": false,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "258",
+      "cameraY": "381.5",
+      "renderMs": "7.300",
+      "frameMs": "16.600"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "forest-entrance",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 656,
+    "y": 248,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "476",
+      "cameraY": "135.5",
+      "renderMs": "6.800",
+      "frameMs": "83.300"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "blast-entrance",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 1088,
+    "y": 430,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "908",
+      "cameraY": "317.5",
+      "renderMs": "57.700",
+      "frameMs": "316.700"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "city-entrance",
+    "fixture": "paused native-resolution inspection",
+    "scene": "overworld",
+    "x": 1040,
+    "y": 522,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "860",
+      "cameraY": "409.5",
+      "renderMs": "5.900",
+      "frameMs": "450.000"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "town-east-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "hub",
+    "x": 890,
+    "y": 320,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "600",
+      "cameraY": "207.5",
+      "renderMs": "5.800",
+      "frameMs": "66.700"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "town-west-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "hub",
+    "x": 70,
+    "y": 320,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "0",
+      "cameraY": "207.5",
+      "renderMs": "9.800",
+      "frameMs": "299.900"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "town-parking",
+    "fixture": "paused native-resolution inspection",
+    "scene": "hub",
+    "x": 490,
+    "y": 430,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "310",
+      "cameraY": "317.5",
+      "renderMs": "127.000",
+      "frameMs": "16.700"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "orchard-closed-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "dungeon",
+    "x": 328,
+    "y": 80,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "148",
+      "cameraY": "0",
+      "renderMs": "32.900",
+      "frameMs": "50.000"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "depot-parking",
+    "fixture": "paused native-resolution inspection",
+    "scene": "dungeon",
+    "x": 360,
+    "y": 128,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "180",
+      "cameraY": "15.5",
+      "renderMs": "3.800",
+      "frameMs": "133.300"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "depot-closed-end",
+    "fixture": "paused native-resolution inspection",
+    "scene": "dungeon",
+    "x": 328,
+    "y": 320,
+    "wrecked": true,
+    "canvas": {
+      "width": 2880,
+      "height": 1800,
+      "cssWidth": 1440,
+      "cssHeight": 900,
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "148",
+      "cameraY": "159",
+      "renderMs": "2.600",
+      "frameMs": "400.000"
+    },
+    "controls": [
+      {
+        "x": 12,
+        "y": 12,
+        "right": 432,
+        "bottom": 70
+      },
+      {
+        "x": 379,
+        "y": 19,
+        "right": 423,
+        "bottom": 63
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "muted-live-drive",
+    "start": {
+      "time": 0.6500000000000004,
+      "x": 500,
+      "y": 495
+    },
+    "end": {
+      "x": 661.1763201340076,
+      "y": 495,
+      "time": 2.666666666666662
+    },
+    "samples": [
+      {
+        "x": 504.8607412087286,
+        "y": 495,
+        "time": 0.7500000000000007
+      },
+      {
+        "x": 515.0455382004974,
+        "y": 495,
+        "time": 0.850000000000001
+      },
+      {
+        "x": 523.4786080888837,
+        "y": 495,
+        "time": 0.9166666666666679
+      },
+      {
+        "x": 537.5103629306207,
+        "y": 495,
+        "time": 1.016666666666668
+      },
+      {
+        "x": 552.4828488581192,
+        "y": 495,
+        "time": 1.1166666666666676
+      },
+      {
+        "x": 560.1714405191005,
+        "y": 495,
+        "time": 1.1666666666666674
+      },
+      {
+        "x": 575.7838700677744,
+        "y": 495,
+        "time": 1.266666666666667
+      },
+      {
+        "x": 586.3016724368038,
+        "y": 495,
+        "time": 1.3333333333333335
+      },
+      {
+        "x": 594.2255173631038,
+        "y": 495,
+        "time": 1.3833333333333333
+      },
+      {
+        "x": 610.1307368046328,
+        "y": 495,
+        "time": 1.483333333333333
+      },
+      {
+        "x": 623.4207740542985,
+        "y": 495,
+        "time": 1.566666666666666
+      },
+      {
+        "x": 631.404062421726,
+        "y": 495,
+        "time": 1.6166666666666658
+      },
+      {
+        "x": 644.719196229642,
+        "y": 495,
+        "time": 1.6999999999999988
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "live-boulder-impact",
+    "wrecked": true
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "errors": []
+  }
+]

@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { mergeReceipts, receiptTotalScore } from '../shared/waysideFury/save.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { awardEligibleWeeklyChallengeRewards } from './weeklyChallenges.js';
 import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
@@ -34,6 +35,26 @@ export function playTicketsFor(game, metricName, metricValue, paidToday) {
     if (paid < PLAY_TICKETS_FULL_UNTIL) return earned;
     const halvings = Math.floor((paid - PLAY_TICKETS_FULL_UNTIL) / PLAY_TICKETS_TAPER_STEP) + 1;
     return Math.max(1, Math.ceil(earned / 2 ** halvings));
+}
+
+// Called under the player's payout lock. The save receipt and ticket ledger
+// survive story resets; client checkpoint scores only request the unpaid delta.
+export async function furyRewardProgress(client, userId, submitted) {
+    const saved = await client.query('SELECT save FROM wayside_fury_saves WHERE user_id = $1', [userId]);
+    const ledger = await client.query(`
+        SELECT GREATEST(
+            COALESCE(MAX((metadata->>'furyProgressMax')::bigint), 0),
+            COALESCE(SUM(CASE WHEN metadata->>'furyProgressMax' IS NULL
+                THEN (metadata->>'metricValue')::bigint ELSE 0 END), 0)
+        ) AS progress_max
+        FROM currency_transactions
+        WHERE user_id = $1 AND source_type IN ('arcade_play', 'arcade_score')
+          AND metadata->>'game' = 'Wayside Fury' AND metadata->>'metricName' = 'score'
+    `, [userId]);
+    const before = Number(ledger.rows[0]?.progress_max ?? 0);
+    const total = receiptTotalScore(mergeReceipts(saved.rows[0]?.save?.lastReported));
+    const metricValue = Math.min(submitted, Math.max(0, total - before));
+    return { metricValue, max: before + metricValue };
 }
 
 export function calculateRuleAward(rule, metricValue) {
@@ -168,7 +189,9 @@ export async function getPlayerBests(db, userId) {
     return result.rows.map((row) => ({ game: row.game, metricValue: Number(row.best), place: Number(row.place) }));
 }
 
-async function routes(fastify, options) {
+async function routes(fastify, options = {}) {
+    const db = options.db ?? pool;
+    const awardWeeklyRewards = options.awardWeeklyRewards ?? awardEligibleWeeklyChallengeRewards;
     // (anyone can look, as with the leaderboards themselves)
     fastify.get('/playerBests', async (request, reply) => {
         const userId = String(request.query?.userId || '');
@@ -210,7 +233,7 @@ async function routes(fastify, options) {
     });
 
     fastify.post('/submitScore', async (request, reply) => {
-        const client = await pool.connect();
+        const client = await db.connect();
         try {
             const userId = request.user.sub;
             const { game, metricName, metricValue } = request.body;
@@ -257,6 +280,12 @@ async function routes(fastify, options) {
             `, [gameId, userId, metricName, numericMetricValue]);
 
             const scoreRow = result.rows[0];
+            let rewardMetricValue = numericMetricValue, furyProgressMax;
+            if (game === 'Wayside Fury' && metricName === 'score') {
+                await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${PLAY_TICKETS_SOURCE}:${userId}`]);
+                const progress = await furyRewardProgress(client, userId, numericMetricValue);
+                rewardMetricValue = progress.metricValue; furyProgressMax = progress.max;
+            }
             const rewardRulesResult = await client.query(`
                 SELECT id, reward_type, fixed_amount, multiplier, min_metric_value, max_reward
                 FROM arcade_reward_rules
@@ -267,13 +296,13 @@ async function routes(fastify, options) {
                   AND (ends_at IS NULL OR ends_at > now())
             `, [gameId, metricName]);
 
-            let coinsAwarded = rewardRulesResult.rows.reduce((total, rule) => {
-                return total + calculateRuleAward(rule, numericMetricValue);
+            let coinsAwarded = game === 'Wayside Fury' && rewardMetricValue === 0 ? 0 : rewardRulesResult.rows.reduce((total, rule) => {
+                return total + calculateRuleAward(rule, rewardMetricValue);
             }, 0);
 
             let coinBalance = null;
             // No rules of its own: the standard tickets for a run (fewer once they've had a day's worth)
-            if (rewardRulesResult.rows.length === 0 && numericMetricValue > 0) {
+            if (rewardRulesResult.rows.length === 0 && rewardMetricValue > 0) {
                 // One run at a time per player, so two at once are paid on the same day's count in turn
                 await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${PLAY_TICKETS_SOURCE}:${userId}`]);
                 const paidTodayResult = await client.query(`
@@ -283,7 +312,7 @@ async function routes(fastify, options) {
                       AND source_type = $2
                       AND created_at >= (date_trunc('day', now() AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York')
                 `, [userId, PLAY_TICKETS_SOURCE]);
-                const playTickets = playTicketsFor(game, metricName, numericMetricValue, paidTodayResult.rows[0]?.paid);
+                const playTickets = playTicketsFor(game, metricName, rewardMetricValue, paidTodayResult.rows[0]?.paid);
                 if (playTickets > 0) {
                     const playResult = await client.query(`
                         SELECT public.grant_currency($1, $2, $3, $4, $5::jsonb) AS coin_balance
@@ -292,7 +321,7 @@ async function routes(fastify, options) {
                         playTickets,
                         PLAY_TICKETS_SOURCE,
                         String(scoreRow.id),
-                        JSON.stringify({ gameId, game, metricName, metricValue: numericMetricValue }),
+                        JSON.stringify({ gameId, game, metricName, metricValue: rewardMetricValue, ...(furyProgressMax !== undefined ? { furyProgressMax } : {}) }),
                     ]);
                     coinBalance = Number(playResult.rows[0].coin_balance);
                     coinsAwarded = playTickets;
@@ -309,7 +338,8 @@ async function routes(fastify, options) {
                         gameId,
                         game,
                         metricName,
-                        metricValue: numericMetricValue,
+                        metricValue: rewardMetricValue,
+                        ...(furyProgressMax !== undefined ? { furyProgressMax } : {}),
                         ruleIds: rewardRulesResult.rows.map((rule) => rule.id),
                     }),
                 ]);
@@ -320,7 +350,7 @@ async function routes(fastify, options) {
             // Savepoint so a failed challenge payout can't abort the transaction and drop the score
             await client.query('SAVEPOINT weekly_challenge_reward');
             try {
-                weeklyChallengeRewards = await awardEligibleWeeklyChallengeRewards(client, userId, {
+                weeklyChallengeRewards = await awardWeeklyRewards(client, userId, {
                     game,
                     metricName,
                     metricValue: numericMetricValue,

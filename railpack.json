@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "caches": {
+    "npm-install": { "directory": "/root/.npm", "type": "shared" },
+    "vite": { "directory": "/app/node_modules/.vite", "type": "shared" }
+  },
+  "steps": {
+    "install": {
+      "deployOutputs": [],
+      "commands": [
+        { "path": "/app/node_modules/.bin" },
+        { "src": "package.json", "dest": "package.json" },
+        { "src": "package-lock.json", "dest": "package-lock.json" },
+        "npm ci --prefer-offline"
+      ],
+      "caches": ["npm-install"]
+    },
+    "build": { "caches": ["vite"] }
+  }
+}

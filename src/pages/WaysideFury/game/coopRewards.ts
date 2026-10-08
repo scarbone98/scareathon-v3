@@ -8,7 +8,7 @@ import { grantPickup } from "./collectibles.ts";
 export function rollCoopCandy(id: string, userId: string, boss: boolean) {
   let hash = 2166136261;
   for (const char of `${id}:${userId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return (boss ? 35 : 3) + (hash >>> 0) % (boss ? 8 : 3);
+  return (boss ? 35 : 2) + (hash >>> 0) % (boss ? 8 : 3);
 }
 export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   const receipts = s.coopRewards ??= [];
@@ -28,6 +28,9 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.areas = [...new Set([...s.areas, ...(reward.areas ?? [])])];
   s.bosses = [...new Set([...s.bosses, ...(reward.bosses ?? [])])];
   s.clearedRooms = [...new Set([...s.clearedRooms, ...(reward.rooms ?? [])])];
+  s.campaignMilestones = [...new Set([...s.campaignMilestones, ...(reward.campaignMilestones ?? [])])];
+  s.solvedInteractions = [...new Set([...s.solvedInteractions,...(reward.solvedInteractions ?? [])])];
+  s.completedCinematics = [...new Set([...s.completedCinematics,...(reward.completedCinematics ?? [])])];
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
   syncCoopLevel(s);
   s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";

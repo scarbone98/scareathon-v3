@@ -1,12 +1,19 @@
+import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
+import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
+import { lunarLift, hasSpaceFlag } from "./lunar";
+import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 // The renderer only reads simulation state. World units are independent of pixels.
+import { ZONE_PREVIEWS, drawPreviewPart } from './zonePreviews';
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
-import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
-import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { HUB_POINTS, PROLOGUE } from "./content";
+import { parkedCarPose, cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { drawCanopy, drawTaxiBody, drawTaxiWreck } from "./scenery";
+import { QualityRecovery } from './qualityRecovery';
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition, trafficForState } from './dressing';
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
 import { availablePickups } from './collectibles';
 
 interface Sheet { url: string; w: number; h: number; frames: number }
@@ -41,6 +48,7 @@ export interface RenderLabel {
 export interface RenderPresentation {
   camera: { x: number; y: number; width: number; height: number };
   labels: RenderLabel[];
+  focus?: { x: number; y: number };
 }
 interface PixelBurst { x: number; y: number; color: string; life: number; maxLife: number; seed: number; strength: number }
 interface Tumble { x: number; y: number; sprite: SpriteId; life: number; maxLife: number; scale: number; flip: boolean }
@@ -52,8 +60,9 @@ export class Renderer {
   private remoteAvatars = new Map<number, HeroAvatar>();
   private detailedSheets = new Map<BuiltinSpriteId, DetailedSheet>();
   private viewport = getRenderViewport(1, 1, window.devicePixelRatio);
-  private qualityCap = 3;
-  private slowFrameTime = 0;
+  private qualityCap = Infinity;
+
+  private qualityRecovery = new QualityRecovery();
   private resizeObserver: ResizeObserver;
   private disposed = false;
   private resize = () => {
@@ -94,7 +103,7 @@ export class Renderer {
   setRemoteAvatar(seat: number, assets: HeroAvatar) { this.remoteAvatars.set(seat, assets); }
   reset() {
     this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0;
-    this.transition = 0; this.slowFrameTime = 0;
+    this.transition = 0; this.qualityRecovery.reset();
     this.kiPose = 0; this.previousKi = null; this.previousHero = null;
   }
   dispose() {
@@ -118,26 +127,19 @@ export class Renderer {
     canvas.dataset.worldWidth = `${next.width}`; canvas.dataset.worldHeight = `${next.height}`;
   }
   private checkQuality(frameDelta: number) {
-    if (Math.min(window.devicePixelRatio || 1, this.qualityCap) !== this.viewport.dpr) this.resize();
-    // Hidden tabs reset the sample. Bound individual gaps so a resumed frame
-    // cannot lower quality alone, while sustained very slow rendering still can.
-    if (document.hidden || frameDelta <= 0) { this.slowFrameTime = 0; return; }
-    this.slowFrameTime = frameDelta > .02 ? this.slowFrameTime + Math.min(frameDelta, .25) : 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, this.qualityCap);
-    if (this.slowFrameTime >= 2 && dpr > 1) {
-      this.qualityCap = dpr > 2 ? 2 : dpr > 1.5 ? 1.5 : 1;
-      this.slowFrameTime = 0; this.resize();
-    }
+    if ((window.devicePixelRatio || 1) !== this.viewport.dpr) this.resize();
+    if (document.hidden || frameDelta <= 0) { this.qualityRecovery.reset(); }
   }
   project(x: number, y: number) { return { x: (x - this.camera.x) / this.viewport.width, y: (y - this.camera.y) / this.viewport.height }; }
   presentation(s: GameState): RenderPresentation {
     const labels: RenderLabel[] = [];
+    if(s.film || s.mapId === "space-launch" && s.sceneTimer<3 && !s.moving) return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
       const point = this.project(x, y);
       if (point.x < .02 || point.x > .98 || point.y < .05 || point.y > .95) return;
       labels.push({ id, text, ...point, kind, color, opacity, scale });
     };
-    if (s.scene === 'overworld') for (const location of LOCATIONS) {
+    if (s.scene === 'overworld') for (const location of campaignLocations(s)) {
       const distance = Math.hypot(s.x - location.x, s.y - location.y);
       if (distance < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y + 24, location.locked ? 'locked' : 'location');
     }
@@ -153,9 +155,9 @@ export class Renderer {
     if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
-    for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
+    for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
     if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y - 38, 'caption');
-    return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
+    return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels, focus: this.project(s.x, s.y) };
   }
   onEvent(s: GameState, event: GameEvent) {
     if (event.type === 'ambient-taxi-crash') {
@@ -194,6 +196,11 @@ export class Renderer {
     c.clearRect(0, 0, c.canvas.width, c.canvas.height);
     c.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
     c.imageSmoothingEnabled = false;
+    if(s.film) {
+      this.camera={x:0,y:0};
+      drawSpaceFilm(c,s,width,height,this.reducedMotion,(id,x,y,pose)=>this.hero({...s,active:id,x,y,spaceOutfit:true,boundTimer:0,moving:false},pose));
+      return;
+    }
     if (s.scene === 'prologue' || s.scene === 'shift') {
       this.camera = { x: 0, y: 0 };
       const storyState = this.reducedMotion ? { ...s, time: 0, sceneTimer: 2.5 } : s;
@@ -201,7 +208,10 @@ export class Renderer {
       if (s.palette === 'eightbit' || (s.scene === 'shift' && s.transitionPalette === 'eightbit' && s.sceneTimer > 1.15)) this.applyRealmPalette();
       return;
     }
-    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room);
+    if(s.mapId === 'space-launch' && s.sceneTimer < 3 && !s.moving) {
+      drawLaunchEstablishing(c,s,width,height,getWorld(s.scene,s.room,s.mapId),()=>this.hero(s));return;
+    }
+    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
     const target = cameraTarget(world, s.x, s.y, width, height, s.moving ? s.faceX : 0, s.moving ? s.faceY : 0);
     if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
@@ -216,22 +226,23 @@ export class Renderer {
     c.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
+    drawMoonGround(c,world,s);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
-    if (s.scene === 'overworld') for (const traffic of trafficForState(s)) if (this.visible(traffic.x, traffic.y, 50)) actors.push({ y: traffic.y, draw: () => this.parkedCar(traffic.x, traffic.y, traffic.color, traffic.direction) });
+    if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
-    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
-    for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
+    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
+    for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
       if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
-      for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
+      for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
@@ -322,8 +333,8 @@ export class Renderer {
     this.ctx.globalAlpha = 1;
   }
 
-  private locationMarkers(_s: GameState, time: number) {
-    for (const location of LOCATIONS) {
+  private locationMarkers(s: GameState, time: number) {
+    for (const location of campaignLocations(s)) {
       if (!this.visible(location.x, location.y, 80)) continue;
       if (location.locked) {
         this.ctx.globalAlpha = .1 + Math.sin(time * 3) * .025;
@@ -354,7 +365,7 @@ export class Renderer {
     this.ctx.globalAlpha = 1;
     for (const exit of world.exits) {
       if (!this.visible(exit.x + exit.w / 2, exit.y + exit.h / 2, 100)) continue;
-      const open = !exit.requiresClear || s.enemies.every(enemy => enemy.hp <= 0);
+      const open = (!exit.requiresClear || s.enemies.every(enemy => enemy.hp <= 0)) && (!exit.requiresInteraction || hasSpaceFlag(s,exit.requiresInteraction));
       const x = exit.x + exit.w / 2, y = exit.y + exit.h / 2;
       this.ctx.globalAlpha = .17;
       this.disc(x, y, 17, open ? '#b9dfaf' : '#c57f99'); this.ctx.globalAlpha = 1;
@@ -386,6 +397,7 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
+    if(drawSpaceProp(this.ctx,prop,s)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {
@@ -396,15 +408,14 @@ export class Renderer {
     }
     if (prop.kind === 'lamp') { this.lamp(x, y, time, s.palette === 'eightbit' ? '#db9cdb' : '#efce8f'); return; }
     if (prop.kind === 'portal') { if (s.scene !== 'overworld') this.portal(x, y, time); return; }
-    if (prop.kind === 'car') { this.parkedCar(x, y, prop.color ?? '#799ba1'); return; }
+    if (prop.kind === 'car') {
+      const pose = parkedCarPose(prop);
+      this.parkedCar(pose.x, pose.y + 7.5, prop.color ?? '#799ba1', pose.heading); return;
+    }
     if (prop.kind === 'ambient-taxi') {
       if (!s.ambientTaxiWrecked) this.taxi(x, y, 1, 0, time, false);
       else {
-        this.shadow(x, y, 37); this.rect(x - 16, y - 10, 32, 9, '#716343'); this.rect(x - 15, y - 12, 29, 5, '#ad874b');
-        this.rect(x - 10, y - 17, 19, 8, '#5d5c55'); this.rect(x - 7, y - 16, 11, 5, '#293e45');
-        this.rect(x - 14, y - 3, 5, 4, '#17282e'); this.rect(x + 8, y - 3, 5, 4, '#17282e');
-        this.disc(x + 2, y - 18, 8, '#6c6b65'); this.rect(x - 3, y - 23, 7, 3, '#989180'); this.rect(x + 10, y - 10, 6, 2, '#e8ba70');
-        this.rect(x - 6, y - 10, 1, 5, '#252c35'); this.rect(x - 10, y - 7, 4, 1, '#252c35');
+        this.shadow(x, y, 37); c.save(); c.translate(x, y); drawTaxiWreck(c); c.restore();
       } return;
     }
     if (prop.kind === 'bush') {
@@ -449,6 +460,19 @@ export class Renderer {
         const px = prop.x + k * 6, py = y - 3 - k % 2 * 3, sway = this.reducedMotion ? 0 : Math.sin(time * 2 + k + x) * .5;
         this.rect(px, py, 1, 5, '#73905b'); this.rect(px - 1 + sway, py, 3, 2, k % 2 ? '#dac389' : '#d0949b');
       } return;
+    }
+    if (prop.kind === 'barrier') {
+      // Full-width hazard rail at the physical map boundary; the footprint is
+      // the rail's ground projection, shared with the road authoring helper.
+      this.rect(prop.x, prop.y, prop.w, prop.h, '#26373d');
+      const vertical = prop.h > prop.w, length = vertical ? prop.h : prop.w;
+      for (let offset = 0; offset < length; offset += 12) {
+        this.rect(prop.x + (vertical ? 1 : offset), prop.y + (vertical ? offset : 1),
+          vertical ? prop.w - 2 : Math.min(6, length - offset), vertical ? Math.min(6, length - offset) : prop.h - 2, '#e8ba70');
+      }
+      for (const far of [false, true]) this.rect(prop.x + (!vertical && far ? prop.w - 2 : -2),
+        prop.y + (vertical && far ? prop.h - 2 : -2), vertical ? prop.w + 4 : 4, vertical ? 4 : prop.h + 4, '#929587');
+      return;
     }
     if (prop.kind === 'fence') {
       this.rect(prop.x + 2, y - 3, prop.w, 3, '#243b31');
@@ -538,8 +562,14 @@ export class Renderer {
       c.globalAlpha = 1;
     }
   }
-  private hero(s: GameState) {
+  private hero(s: GameState, pose?:SuitPose) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
+    const suited = resolveHeroVisual(this.reducedMotion ? {...s,time:0} : s, this.avatar,pose);
+    if (suited) {
+      this.shadow(s.x,s.y,14);
+      drawHeroVisual(c,suited,s.x,s.y-lunarLift(s));
+      return;
+    }
     if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
     if (s.charge > .12) {
@@ -548,7 +578,10 @@ export class Renderer {
       c.beginPath(); c.ellipse(s.x, s.y - 12, 11 + s.charge * 2, 19, Math.sin(time * 2) * .1, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
       for (let k = 0; k < (this.reducedMotion ? 3 : 8); k++) {
         const a = time * 4 + k * Math.PI / 4, radius = 11 + k % 3 * 3;
-        this.rect(s.x + Math.cos(a) * radius, s.y - 10 + Math.sin(a) * 15 - (time * 9 + k * 2) % 5, 2, k % 2 ? 3 : 2, color);
+        const px = s.x + Math.cos(a) * radius, py = s.y - 10 + Math.sin(a) * 15 - (time * 9 + k * 2) % 5;
+        c.strokeStyle = color; c.lineWidth = .6; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(px - Math.cos(a) * 2, py + 2); c.lineTo(px, py); c.stroke();
+        this.disc(px, py, .6, '#fff3cf');
       }
     }
     this.shadow(s.x, s.y, s.dashTimer > 0 ? 19 : 14);
@@ -562,7 +595,7 @@ export class Renderer {
     const cycle = Math.sin(time * (s.moving ? 15 : 2.8)), bob = this.reducedMotion ? 0 : s.moving ? Math.abs(cycle) * 1.2 : cycle * .5;
     const attackDuration = s.combo === 3 ? .28 : .2, attackProgress = s.attackTimer > 0 ? 1 - s.attackTimer / attackDuration : 0;
     const strike = s.attackTimer > 0 ? (attackProgress < .18 ? -.8 : Math.sin((attackProgress - .18) / .82 * Math.PI)) : 0;
-    c.save(); c.translate(s.x, s.y - bob);
+    c.save(); c.translate(s.x, s.y - bob - (s.spaceOutfit ? lunarLift(s) : 0));
     if (!this.reducedMotion) {
       const lean = s.dashTimer > 0 ? .12 * s.faceX : s.moving ? .035 * s.faceX + cycle * .015 : 0;
       c.rotate(lean + strike * .12 * s.faceX - this.kiPose / .24 * .1 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
@@ -576,6 +609,7 @@ export class Renderer {
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
     c.restore(); c.globalAlpha = 1;
+
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
       c.globalAlpha = .6; this.rect(x - 5, y - 7, 10, 13, color); this.rect(x - 3, y + 6, 6, 3, color); c.globalAlpha = 1;
@@ -583,6 +617,7 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
+    if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
     const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
     const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
@@ -776,50 +811,21 @@ export class Renderer {
 
   private tree(x: number, y: number) {
     this.shadow(x + 2, y, 25);
-    this.rect(x - 2, y - 10, 4, 11, "#584c3e");
-    this.rect(x - 1.5, y - 9, .5, 9, '#94775b');
-    this.rect(x - 10, y - 20, 20, 12, "#182e2d");
-    this.rect(x - 7, y - 27, 14, 11, "#274336");
-    this.rect(x - 4, y - 30, 8, 7, "#34513a");
-    this.rect(x - 8, y - 19, 8, 2, "#3e5940");
-    this.rect(x + 1, y - 24, 4, 1, "#47634a");
-    for (let k = 0; k < 13; k++) {
-      const px = x - 7 + (k * 7) % 14, py = y - 26 + (k * 5) % 15;
-      this.rect(px, py, 1.5, .5, k % 3 ? '#527553' : '#729363');
-      this.rect(px + .5, py + 1.5, 1, .5, '#1b3a30');
-    }
-    this.rect(x - 3, y - 30, 5, .5, '#6a865b');
+    drawCanopy(this.ctx, x, y);
   }
 
   private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
     const c = this.ctx;
-    const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4;
-    c.save();
-    c.translate(x, y - 5);
-    c.rotate(angle);
+    this.shadow(x, y, 37);
+    c.save(); c.translate(x, y - 8); c.rotate(Math.atan2(dy, dx));
     const headlights = c.createLinearGradient(12, 0, 37, 0);
     headlights.addColorStop(0, '#ffeab93d'); headlights.addColorStop(1, '#ffeab900');
     c.fillStyle = headlights; c.beginPath(); c.moveTo(12, -4); c.lineTo(37, -12); c.lineTo(37, 12); c.lineTo(12, 4); c.fill();
-    c.globalAlpha = 1;
-    this.rect(-12, -7, 24, 16, "#142326");
-    this.rect(-10, -9, 5, 3, "#151c25");
-    this.rect(5, -9, 5, 3, "#151c25");
-    this.rect(-10, 7, 5, 3, "#151c25");
-    this.rect(5, 7, 5, 3, "#151c25");
-    this.rect(-13, -6, 26, 12, "#b37e43");
-    this.rect(-12, -7, 24, 12, "#e3ae52");
-    this.rect(-11, -6, 22, 2, "#ffe096");
-    this.rect(-7, -5, 4, 9, "#263d46");
-    this.rect(3, -5, 4, 9, "#2b4751");
-    this.rect(-2, -5, 4, 9, "#f2c66b");
-    this.rect(-2, -3, 4, 3, "#ffe7a3");
-    this.rect(-1, -2, 2, 1, "#35404a");
-    this.rect(4, -2, 2, 2, "#f4c099");
-    for (let k = -9; k < 11; k += 4) this.rect(k, 4, 2, 1, "#4b453c");
-    this.rect(12, -4, 2, 3, "#fff2b7");
-    this.rect(12, 2, 2, 3, "#fff2b7");
-    this.rect(-13, -4, 2, 2, "#de7974");
-    this.rect(-13, 3, 2, 2, "#de7974");
+    c.restore();
+    c.save(); c.translate(x, y);
+    // All headings retain the upright side-on cabin and the wreck's artwork.
+    if (dx < 0) c.scale(-1, 1);
+    drawTaxiBody(c, 'side');
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;
@@ -856,6 +862,7 @@ export class Renderer {
   }
 
   private bossTelegraph(s: GameState, enemy: Enemy) {
+    if(drawLunarTelegraph(this.ctx,enemy)) return;
     if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
     const c = this.ctx;
     const color = enemy.phase === 2 ? "#ec7ead" : "#efab7a";
@@ -972,6 +979,7 @@ export class Renderer {
     c.save();
     c.translate(x, y);
     if (flip) c.scale(-1, 1);
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     const sourceWidth = sheet.w * SPRITE_DETAIL, sourceHeight = sheet.h * SPRITE_DETAIL;
     c.drawImage(detailed.canvas, frame * sourceWidth, 0, sourceWidth, sourceHeight, -sheet.w * scale / 2, -sheet.h * scale, sheet.w * scale, sheet.h * scale);
     if (hit) {

@@ -12,10 +12,10 @@ export interface RenderViewport {
   height: number;
 }
 
-export function getRenderViewport(cssWidth: number, cssHeight: number, deviceDpr: number, dprCap = 3): RenderViewport {
+export function getRenderViewport(cssWidth: number, cssHeight: number, deviceDpr: number, dprCap = Infinity): RenderViewport {
   cssWidth = Number.isFinite(cssWidth) ? Math.max(1, cssWidth) : 1;
   cssHeight = Number.isFinite(cssHeight) ? Math.max(1, cssHeight) : 1;
-  const dpr = Math.min(Number.isFinite(deviceDpr) && deviceDpr > 0 ? deviceDpr : 1, Math.max(1, Math.min(3, dprCap)));
+  const dpr = Math.min(Number.isFinite(deviceDpr) && deviceDpr > 0 ? deviceDpr : 1, Math.max(1, dprCap));
   const pixelWidth = Math.round(cssWidth * dpr), pixelHeight = Math.round(cssHeight * dpr);
   // 48 CSS-pixel tiles on phones, 64 on roomy desktops. The native-resolution
   // addendum takes precedence over the old 240-world-unit minimum: small phones

@@ -1,5 +1,6 @@
+import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
 import { parseSaveRequest } from '../routes/waysideFury.js';
-import { MAX_LEVEL, MAX_MILESTONES, MAX_COOP_REWARDS, MAX_SAVE_BYTES, inferGear, mergeReceipts, migrateSave, progressScore, sanitizeSave } from '../shared/waysideFury/save.js';
+import { MAX_LEVEL, MAX_MILESTONES, MAX_COOP_REWARDS, MAX_SAVE_BYTES, inferGear, mergeReceipts, migrateSave, progressScore, sanitizeSave, ticketDelta } from '../shared/waysideFury/save.js';
 import { hero, legacySave, currentSave, makeServer, memoryDatabase, PLAYER, OTHER_PLAYER } from './helpers/waysideFurySaveFixtures.js';
 
 const checked = extra => sanitizeSave(legacySave(extra)).save;
@@ -8,7 +9,7 @@ describe('Wayside Fury save sheets', () => {
         for (const raw of [legacySave(), legacySave({ version: 2 }), currentSave()]) {
             delete raw.coopRewards;
             const save = sanitizeSave(raw).save;
-            expect(save.version).toBe(3);
+            expect(save.version).toBe(4);
             expect(save.coopRewards).toEqual([]);
             expect(migrateSave(raw).coopRewards).toEqual([]);
         }
@@ -28,7 +29,7 @@ describe('Wayside Fury save sheets', () => {
         const old = legacySave({ extra: 'discard me', savedAt: 1234 });
         old.heroes.joe.unknown = 'discard me';
         const save = migrateSave(old);
-        expect(save.version).toBe(3); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
+        expect(save.version).toBe(4); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
         expect(save.lastReported).toEqual(old.lastReported); expect(save.extra).toBeUndefined();
         expect(save.settings).toEqual({ musicVolume: 0.6, sfxVolume: 0.8, controls: { tutorialDismissed: false, stickSensitivity: 1 } });
         expect(save.gear).toEqual({ power: 0, ward: 0 }); expect(save.savedAt).toBe(1234);
@@ -132,6 +133,29 @@ describe('Wayside Fury save sheets', () => {
 });
 
 describe('Wayside Fury revisioned routes', () => {
+    test('a story reset keeps the server ticket max and Collection, so replay earns no tickets', async () => {
+        const { app, db } = await makeServer();
+        const receipt = { areas: ['wayside', 'blast'], bosses: ['blast-watcher'], rooms: ['blast-1'], level: 7 };
+        const foundItems = [HIDDEN_PICKUPS.find(item => item.kind === 'lore').id];
+        try {
+            await app.inject({ method: 'PUT', url: '/wayside-fury/save', payload: {
+                save: currentSave({ chapter: 2, candy: 99, foundItems, lastReported: receipt }), revision: null } });
+            const fresh = currentSave({ candy: 0, areas: [], bosses: [], clearedRooms: [], kills: 0, deaths: 0,
+                foundItems: [], lastReported: { areas: [], bosses: [], rooms: [], level: 1 }, resetAt: 1000, prologuePending: true });
+            const reset = await app.inject({ method: 'PUT', url: '/wayside-fury/save', payload: { save: fresh, revision: 1 } });
+            expect(reset.statusCode).toBe(200);
+            const stored = (await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save;
+            expect(stored).toMatchObject({ chapter: 1, candy: 0, areas: [], bosses: [], clearedRooms: [],
+                home: null, resetAt: 1000, prologuePending: true, foundItems, lastReported: receipt });
+            expect(ticketDelta(receipt, stored.lastReported)).toBe(0);
+            expect(ticketDelta({ ...receipt, level: 8 }, stored.lastReported)).toBe(100);
+            // Even a refreshed revision cannot upload progress from before the reset.
+            const stale = await app.inject({ method: 'PUT', url: '/wayside-fury/save', payload: { save: currentSave(), revision: 2 } });
+            expect(stale.statusCode).toBe(409);
+            expect(db.rows.get(PLAYER).save).toEqual(stored);
+        } finally { await app.close(); }
+    });
+
     test('GET is empty, first PUT creates revision1, updates advance, and stale PUT returns the newer save', async () => {
         const { app, db } = await makeServer();
         try {
@@ -147,7 +171,7 @@ describe('Wayside Fury revisioned routes', () => {
                 expect(stale.json().save).toEqual(sanitizeSave(latest).save);
             }
             expect(db.rows.get(PLAYER).save.candy).toBe(91);
-            expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(3);
+            expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(4);
         } finally { await app.close(); }
     });
     test('malformed and oversized requests get400 without touching the database', async () => {

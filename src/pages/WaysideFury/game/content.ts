@@ -4,6 +4,7 @@ export const LOCATIONS = [
   { id: "blast", name: "The Blast Site", x: 1088, y: 352, locked: false },
   { id: "forest", name: "Hollow Woods", x: 656, y: 176, locked: true },
   { id: "city", name: "Old City", x: 1032, y: 560, locked: true },
+  { id: "space", name: "County Launch Compound", x: 1584, y: 432, locked: true },
 ] as const;
 export const HUB_POINTS = [
   { id: "shop", name: "Shop", x: 168, y: 240 },

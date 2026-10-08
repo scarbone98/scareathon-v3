@@ -1,3 +1,4 @@
+import { roadMarks } from './roadMarkings';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
 
 const MAX_CHUNK_TILES = 4;
@@ -36,6 +37,11 @@ export class TerrainCache {
     // evicting visible chunks would rerasterize static terrain every frame.
     this.cacheBudgetPixels = Math.max(MAX_CACHE_PIXELS, visible.size * chunkPixels);
     this.trim(this.cacheBudgetPixels, visible);
+    // Adjacent cached images share exact physical-pixel edges even as the
+    // camera eases. Actors retain their independent subpixel interpolation.
+    c.save();
+    const transform = c.getTransform();
+    c.setTransform(transform.a, transform.b, transform.c, transform.d, Math.round(transform.e), Math.round(transform.f));
     for (let cy = minY; cy < maxY; cy++) for (let cx = minX; cx < maxX; cx++) {
       const key = keyFor(cx, cy);
       let chunk = this.chunks.get(key);
@@ -48,6 +54,7 @@ export class TerrainCache {
       this.chunks.delete(key); this.chunks.set(key, chunk);
       c.drawImage(chunk, cx * chunkSize, cy * chunkSize, chunkSize, chunkSize);
     }
+    c.restore();
     this.animate(c, world, camera, width, height, time);
   }
   private trim(budget: number, visible: Set<string>) {
@@ -70,23 +77,33 @@ export class TerrainCache {
       const x = tx * TILE, y = ty * TILE, n = hash(col, row);
       const fill = (dx: number, dy: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x + dx, y + dy, w, h); };
       fill(0, 0, TILE, TILE, base);
-      const lightFall = c.createLinearGradient(x, y, x + TILE, y + TILE);
-      lightFall.addColorStop(0, n % 2 ? '#ffffff0b' : '#ffe9c008'); lightFall.addColorStop(1, '#111c2711');
-      c.fillStyle = lightFall; c.fillRect(x, y, TILE, TILE);
-      for (let k = 0; k < 13; k++) {
-        const px = (n >>> (k % 7 * 3)) % 30 / 2, py = (n >>> (k % 8 * 2 + 1)) % 30 / 2;
-        fill(px, py, k % 4 ? .5 : 1.5, .5, k % 2 ? light : dark);
+      // Low-contrast fine grain replaces the alternating tile-sized bevels.
+      // Seed in world space so chunks meet without lighting seams.
+      c.save(); c.globalAlpha = .22;
+      for (let k = 0; k < 56; k++) {
+        const grain = hash(col * 61 + k, row * 73 + k * 7);
+        const px = (grain % 157) / 10, py = ((grain >>> 9) % 157) / 10;
+        fill(px, py, k % 5 ? .18 : .5, .16, k % 2 ? light : dark);
       }
+      c.restore();
       if (kind === 'grass') {
-        for (let k = 0; k < 3; k++) {
-          const px = 2 + (n + k * 5) % 11, py = 3 + (n + k * 7) % 10;
-          fill(px, py, .5, 2, light); fill(px - .5, py + 1.5, 2, .5, light);
-          fill(px + 1, py + 2, .5, 1, '#82945f');
+        c.save(); c.lineWidth = .16; c.lineCap = 'round';
+        for (let k = 0; k < 9; k++) {
+          const blade = hash(col * 31 + k, row * 43 + k);
+          const px = 1 + blade % 135 / 10, py = 2 + (blade >>> 8) % 120 / 10;
+          c.strokeStyle = k % 3 ? '#80977770' : '#192f3570';
+          c.beginPath(); c.moveTo(x + px, y + py + 1);
+          c.quadraticCurveTo(x + px + .4, y + py, x + px - .35, y + py - .6); c.stroke();
+          c.beginPath(); c.moveTo(x + px, y + py + 1);
+          c.quadraticCurveTo(x + px + .8, y + py + .2, x + px + 1, y + py); c.stroke();
         }
-        if (n % 19 === 0) { fill(7, 8, .5, 2, '#d7c78a'); fill(7.5, 7.5, 1, 1, '#f0df9b'); }
+        c.restore();
+        if (n % 19 === 0) { fill(7, 8, .15, 1.5, '#b5b88b'); fill(7, 7.8, .4, .4, '#e4d7a0'); }
       }
       if (kind === 'stone' || kind === 'ash' || kind === 'void' || kind === 'corrupt') {
-        fill(0, 0, TILE, .5, dark); fill(0, 0, .5, TILE, dark); fill(1, 1, 13, .5, light);
+        c.save(); c.globalAlpha = .45;
+        fill(0, 0, TILE, .18, dark); fill(0, 0, .18, TILE, dark); fill(1, .3, 13, .15, light);
+        c.restore();
         if (n % 3 === 0) { fill(8, 9, 4, .5, dark); fill(10, 9.5, .5, 3, dark); fill(11, 10, 2, .5, dark); }
       }
       if (kind === 'stone' && inside(world, col, row) && world.collision[row * world.cols + col]) {
@@ -103,19 +120,16 @@ export class TerrainCache {
         }
         for (const px of [2, 13]) { fill(px, 1, .5, .5, '#514e46'); fill(px, 13, .5, .5, '#514e46'); }
       }
-      if (kind === 'road') {
-        const vertical = terrainAt(world, col - 1, row) !== 'road' || terrainAt(world, col + 1, row) !== 'road';
-        if (vertical && col % 2 === 0 && row % 2 === 0) fill(7, 4, 1, 7, '#c7b68c');
-        else if (!vertical && row % 2 === 0 && col % 2 === 0) fill(4, 7, 7, 1, '#c7b68c');
+      if (kind === 'road') for (const mark of roadMarks(world, col, row)) {
+        fill(mark.x - col * TILE, mark.y - row * TILE, mark.w, mark.h, mark.color);
       }
       const edges = [[0, -1, 0, 0, TILE, 2], [0, 1, 0, TILE - 2, TILE, 2], [-1, 0, 0, 0, 2, TILE], [1, 0, TILE - 2, 0, 2, TILE]];
       for (const [dx, dy, ex, ey, ew, eh] of edges) {
         const neighbor = terrainAt(world, col + dx, row + dy);
-        if (neighbor === kind) continue;
+        if (neighbor === kind || kind === 'road') continue;
         if (kind === 'water') {
           fill(ex, ey, ew, eh, '#9d9a71'); fill(ex + (dx === -1 ? 1.5 : 0), ey + (dy === -1 ? 1.5 : 0), dx ? .5 : ew, dy ? .5 : eh, '#cad0a2');
-        } else if (kind === 'road') { fill(ex, ey, ew, eh, '#929587'); if (dy === 1) fill(ex, ey, ew, .5, '#d4caae'); }
-        else if (kind === 'dirt' || kind === 'sand') {
+        } else if (kind === 'dirt' || kind === 'sand') {
           fill(ex, ey, ew, eh, dark);
           for (let k = 0; k < 8; k++) fill(dx ? ex : k * 2, dy ? ey : k * 2, .5, .5, light);
         } else if (kind === 'grass') {

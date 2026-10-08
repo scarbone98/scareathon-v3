@@ -1,0 +1,1520 @@
+[
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 1179,
+        "height": 2556,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "9.5",
+        "cameraY": "-52",
+        "renderMs": "17.800",
+        "frameMs": "1005.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 652,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "142.50010058797736",
+        "cameraY": "371.33348253857775",
+        "renderMs": "149.200",
+        "frameMs": "985.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 652,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "414.5",
+        "cameraY": "307.3333333333333",
+        "renderMs": "1.300",
+        "frameMs": "225.100"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 652,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "164.5",
+        "cameraY": "11.333333333333329",
+        "renderMs": "3.600",
+        "frameMs": "193.000"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 852,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "164.5",
+        "cameraY": "11.333333333333329",
+        "renderMs": "1.400",
+        "frameMs": "686.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 852,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "164.5",
+        "cameraY": "11.333333333333329",
+        "renderMs": "1.300",
+        "frameMs": "1122.900"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "0",
+        "cameraY": "44.5",
+        "renderMs": "13.100",
+        "frameMs": "426.200"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "66.0158156070994",
+        "cameraY": "414.5072952272184",
+        "renderMs": "15.800",
+        "frameMs": "1206.300"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "338",
+        "cameraY": "350.5",
+        "renderMs": "3.600",
+        "frameMs": "1079.000"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "88",
+        "cameraY": "54.5",
+        "renderMs": "1.400",
+        "frameMs": "1030.900"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "88",
+        "cameraY": "54.5",
+        "renderMs": "1.500",
+        "frameMs": "215.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "88",
+        "cameraY": "54.5",
+        "renderMs": "2.900",
+        "frameMs": "610.300"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "-20",
+        "cameraY": "-22.5",
+        "renderMs": "2.100",
+        "frameMs": "1019.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "28",
+        "cameraY": "367.5",
+        "renderMs": "2.000",
+        "frameMs": "1061.500"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "300",
+        "cameraY": "303.5",
+        "renderMs": "2.100",
+        "frameMs": "182.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "20.200",
+        "frameMs": "218.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "10.500",
+        "frameMs": "833.000"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "9.700",
+        "frameMs": "1068.200"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 1179,
+        "height": 2556,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "9.5",
+        "cameraY": "-52",
+        "renderMs": "17.500",
+        "frameMs": "1013.000"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 786,
+        "height": 1304,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "renderer": "2d",
+        "gfx": "3d",
+        "gfxStatus": "ready",
+        "cameraX": "142.5",
+        "cameraY": "357.08616893504245",
+        "renderMs": "102.800",
+        "frameMs": "411.600"
+      },
+      {
+        "width": 1179,
+        "height": 1956,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "212.400",
+        "renderMs": "11.500",
+        "frameEmaMs": "2587.414",
+        "renderEmaMs": "2087.424",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 590,
+        "height": 978,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117.89999999999999",
+        "worldHeight": "195.6",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "420.7156393072728",
+        "cameraY": "317.6452845504882",
+        "renderMs": "2.300",
+        "frameMs": "1062.300"
+      },
+      {
+        "width": 1179,
+        "height": 1956,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "204.900",
+        "renderMs": "16.700",
+        "frameEmaMs": "2504.026",
+        "renderEmaMs": "1921.766",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 652,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "164.51706825539557",
+        "cameraY": "11.361650133633368",
+        "renderMs": "5.300",
+        "frameMs": "214.800"
+      },
+      {
+        "width": 1179,
+        "height": 1956,
+        "cssWidth": 393,
+        "cssHeight": 652,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "131",
+        "worldHeight": "217.33333333333334",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "204.900",
+        "renderMs": "16.700",
+        "frameEmaMs": "2504.026",
+        "renderEmaMs": "1921.766",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 852,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "164.50476939913102",
+        "cameraY": "11.3412459242581",
+        "renderMs": "1.500",
+        "frameMs": "1021.400"
+      },
+      {
+        "width": 1179,
+        "height": 2556,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "204.900",
+        "renderMs": "16.700",
+        "frameEmaMs": "2504.026",
+        "renderEmaMs": "1921.766",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-portrait",
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 393,
+        "height": 852,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "164.50476939913102",
+        "cameraY": "11.3412459242581",
+        "renderMs": "1.300",
+        "frameMs": "1034.500"
+      },
+      {
+        "width": 1179,
+        "height": 2556,
+        "cssWidth": 393,
+        "cssHeight": 852,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "131",
+        "worldHeight": "284",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "204.900",
+        "renderMs": "16.700",
+        "frameEmaMs": "2504.026",
+        "renderEmaMs": "1921.766",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "0",
+        "cameraY": "44.5",
+        "renderMs": "2.700",
+        "frameMs": "626.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "3d",
+        "gfxStatus": "ready",
+        "cameraX": "66",
+        "cameraY": "414.5",
+        "renderMs": "20.000",
+        "frameMs": "205.800"
+      },
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "cameraX": "233.18",
+        "cameraY": "480.00",
+        "frameMs": "833.000",
+        "renderMs": "5.400",
+        "frameEmaMs": "679.903",
+        "renderEmaMs": "376.599",
+        "drawCalls": "91",
+        "triangles": "38453"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 1704,
+        "height": 786,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "338",
+        "cameraY": "350.5",
+        "renderMs": "13.200",
+        "frameMs": "206.100"
+      },
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "cameraX": "233.18",
+        "cameraY": "480.00",
+        "frameMs": "833.000",
+        "renderMs": "5.400",
+        "frameEmaMs": "679.903",
+        "renderEmaMs": "376.599",
+        "drawCalls": "91",
+        "triangles": "38453"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "88.7090579557596",
+        "cameraY": "54.82706546550883",
+        "renderMs": "4.400",
+        "frameMs": "1027.500"
+      },
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "cameraX": "233.18",
+        "cameraY": "480.00",
+        "frameMs": "833.000",
+        "renderMs": "5.400",
+        "frameEmaMs": "679.903",
+        "renderEmaMs": "376.599",
+        "drawCalls": "91",
+        "triangles": "38453"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "88.3030619579087",
+        "cameraY": "54.63979266368324",
+        "renderMs": "1.200",
+        "frameMs": "1034.800"
+      },
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "cameraX": "233.18",
+        "cameraY": "480.00",
+        "frameMs": "833.000",
+        "renderMs": "5.400",
+        "frameEmaMs": "679.903",
+        "renderEmaMs": "376.599",
+        "drawCalls": "91",
+        "triangles": "38453"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "iphone-landscape",
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 852,
+        "height": 393,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "pixelScale": "3",
+        "zoom": "3",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "88.3030619579087",
+        "cameraY": "54.63979266368324",
+        "renderMs": "1.300",
+        "frameMs": "1046.400"
+      },
+      {
+        "width": 2556,
+        "height": 1179,
+        "cssWidth": 852,
+        "cssHeight": 393,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "284",
+        "worldHeight": "131",
+        "cameraX": "233.18",
+        "cameraY": "480.00",
+        "frameMs": "833.000",
+        "renderMs": "5.400",
+        "frameEmaMs": "679.903",
+        "renderEmaMs": "376.599",
+        "drawCalls": "91",
+        "triangles": "38453"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "-20",
+        "cameraY": "-22.5",
+        "renderMs": "1.700",
+        "frameMs": "397.200"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "3d",
+        "gfxStatus": "ready",
+        "cameraX": "28",
+        "cameraY": "367.5",
+        "renderMs": "6.800",
+        "frameMs": "405.100"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "618.300",
+        "renderMs": "18.200",
+        "frameEmaMs": "484.980",
+        "renderEmaMs": "417.932",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 2160,
+        "height": 1350,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "6",
+        "zoom": "4",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "300",
+        "cameraY": "303.5",
+        "renderMs": "10.900",
+        "frameMs": "214.300"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "618.300",
+        "renderMs": "18.200",
+        "frameEmaMs": "484.980",
+        "renderEmaMs": "417.932",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "8.500",
+        "frameMs": "201.800"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "618.300",
+        "renderMs": "18.200",
+        "frameEmaMs": "484.980",
+        "renderEmaMs": "417.932",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "7.000",
+        "frameMs": "422.100"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "618.300",
+        "renderMs": "18.200",
+        "frameEmaMs": "484.980",
+        "renderEmaMs": "417.932",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "1.600",
+        "frameMs": "1039.000"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "618.300",
+        "renderMs": "18.200",
+        "frameEmaMs": "484.980",
+        "renderEmaMs": "417.932",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  }
+]

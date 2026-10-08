@@ -66,7 +66,7 @@ const kill = { ...melee[0], attackId: 'finisher', damage: 1000 };
 assert.equal(applyCoopHit(host, kill, 1), true);
 assert.equal(host.kills, 0); assert.equal(host.candy, 0); assert.equal(host.character.xp, 0);
 assert.equal(host.events.filter(e => e.type === 'kill').length, 1);
-assert.equal(host.events.find(e => e.type === 'kill').xp, 28);
+assert.equal(host.events.find(e => e.type === 'kill').xp, 12);
 assert.equal(applyCoopHit(host, kill, 1), false); assert.equal(host.kills, 0);
 assert.equal(applyCoopHit(guest, kill, 0), false, 'guests cannot apply authoritative enemy damage');
 
@@ -135,19 +135,19 @@ enterScene(scaled, 'dungeon');
 const originalCount = scaled.enemies.length, grunt = scaled.enemies[0], boss = addEnemy(scaled, 'boss', 250, 170);
 grunt.hp = grunt.maxHp * 0.37; boss.hp = boss.maxHp * 0.62;
 setCoopPlayerCount(scaled, 2);
-near(grunt.maxHp, 32 * 1.6); near(boss.maxHp, 260 * 1.75);
+near(grunt.maxHp, 30 * 1.6); near(boss.maxHp, 520 * 1.75);
 near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
 assert.equal(scaled.enemies.length, originalCount + 2);
 setCoopPlayerCount(scaled, 4);
-near(grunt.maxHp, 32 * 2.8); near(boss.maxHp, 260 * 3.25);
+near(grunt.maxHp, 30 * 2.8); near(boss.maxHp, 520 * 3.25);
 near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
 assert.equal(scaled.enemies.length, originalCount + 4);
 setCoopPlayerCount(scaled, 1); setCoopPlayerCount(scaled, 4);
 assert.equal(scaled.enemies.length, originalCount + 4, 'leave/rejoin cannot farm more wave enemies');
-setCoopPlayerCount(scaled, 1); near(grunt.maxHp, 32); near(boss.maxHp, 260);
+setCoopPlayerCount(scaled, 1); near(grunt.maxHp, 30); near(boss.maxHp, 520);
 near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
 setCoopPlayerCount(scaled, 4); enterScene(scaled, 'dungeon', 4);
-near(scaled.enemies.find(e => e.miniBoss).maxHp, 165 * 3.25);
+near(scaled.enemies.find(e => e.miniBoss).maxHp, 235 * 3.25);
 assert.equal(scaled.enemies.length, getWorld('dungeon', 4).spawns.length + 3);
 scaled.enemies = []; setCoopPlayerCount(scaled, 1); setCoopPlayerCount(scaled, 4);
 assert.equal(scaled.enemies.length, 0, 'joining an already cleared wave cannot respawn it');
@@ -349,7 +349,7 @@ exitCoop(stranded); assert.equal(stranded.deaths, 1, 'leaving cannot create repe
 
 // Every enemy reports its authored XP once. Host personal rewards are applied
 // through the same ledger as guests, so the simulation grants nothing directly.
-for (const [kind, miniBoss, xp] of [['grunt', false, 28], ['shooter', false, 35], ['boss', true, 95], ['boss', false, 130]]) {
+for (const [kind, miniBoss, xp] of [['grunt', false, 12], ['shooter', false, 16], ['boss', true, 90], ['boss', false, 160]]) {
   const rewardsHost = cooperative('host', 0); rewardsHost.enemies = [];
   const victim = addEnemy(rewardsHost, kind, 180, 110); victim.miniBoss = miniBoss;
   const reported = { type: 'coop-hit', enemyId: victim.id, damage: 1000, dx: 1, dy: 0, force: 55, attackId: 'reward-test' };
@@ -368,21 +368,21 @@ growingHost.coop.downed = true;
 gainXp(growingHost, 1);
 assert.deepEqual(growingHost.character, { level: 2, xp: 0 });
 assert.equal(activeHero(growingHost).hp, 0); assert.equal(growingHost.heroes.joe.hp, 0);
-assert.equal(growingHost.heroes.matt.hp, 55); assert.equal(growingHost.coop.downed, true);
+assert.equal(growingHost.heroes.matt.hp, 43); assert.equal(growingHost.coop.downed, true);
 const growingLow = cooperative('guest', 1); enterScene(growingLow, 'realm');
 activeHero(growingLow).hp = 0; growingLow.heroes.joe.hp = 50; growingLow.coop.downed = true;
 gainXp(growingLow, 75);
 assert.deepEqual(growingLow.character, { level: 2, xp: 0 });
 assert.equal(activeHero(growingLow).level, 6); assert.equal(activeHero(growingLow).maxHp, 200);
 assert.equal(activeHero(growingLow).power, 27); assert.equal(activeHero(growingLow).hp, 0);
-assert.equal(growingLow.heroes.joe.hp, 80); assert.equal(growingLow.coop.downed, true);
+assert.equal(growingLow.heroes.joe.hp, 68); assert.equal(growingLow.coop.downed, true);
 const growingHigh = cooperative('guest', 1); growingHigh.character = { level: 50, xp: xpForLevel(50) - 1 };
 for (const id of HERO_IDS) growingHigh.heroes[id] = createHero(id, growingHigh.character);
 enterScene(growingHigh, 'realm'); activeHero(growingHigh).hp = 130; growingHigh.heroes.joe.hp = 0;
 gainXp(growingHigh, 1);
 assert.deepEqual(growingHigh.character, { level: 51, xp: 0 });
 assert.equal(activeHero(growingHigh).level, 9); assert.equal(activeHero(growingHigh).maxHp, 260);
-assert.equal(activeHero(growingHigh).power, 36); assert.equal(activeHero(growingHigh).hp, 160);
+assert.equal(activeHero(growingHigh).power, 36); assert.equal(activeHero(growingHigh).hp, 148);
 assert.equal(growingHigh.heroes.joe.hp, 0, 'synced levels cannot inflate healing or revive benched heroes');
 
 // Co-op caches delegate all personal supplies to the reward ledger. Opening

@@ -1,0 +1,1408 @@
+[
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "10",
+        "cameraY": "-50.66666666666666",
+        "renderMs": "5.800",
+        "frameMs": "1161.400"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "check": "quality-recovery",
+    "low": 1,
+    "restored": 3,
+    "sameState": true
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 780,
+        "height": 1288,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "143",
+        "cameraY": "372.6098793401399",
+        "renderMs": "4.700",
+        "frameMs": "204.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "overworld-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "143",
+      "cameraY": "372.6098793401399",
+      "renderMs": "7.000",
+      "frameMs": "208.300"
+    }
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 780,
+        "height": 1288,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "415",
+        "cameraY": "308.6666666666667",
+        "renderMs": "4.200",
+        "frameMs": "411.600"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "hub-hud-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "415",
+      "cameraY": "308.6666666666667",
+      "renderMs": "9.900",
+      "frameMs": "417.900"
+    }
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 780,
+        "height": 1288,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "165",
+        "cameraY": "12.666666666666671",
+        "renderMs": "1.000",
+        "frameMs": "580.100"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "battle-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "9",
+      "zoom": "3",
+      "renderDpr": "3",
+      "qualityCap": "3",
+      "worldWidth": "130",
+      "worldHeight": "214.66666666666666",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "165",
+      "cameraY": "12.666666666666671",
+      "renderMs": "6.700",
+      "frameMs": "225.700"
+    }
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "165",
+        "cameraY": "12.666666666666671",
+        "renderMs": "3.500",
+        "frameMs": "196.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "165",
+        "cameraY": "12.666666666666671",
+        "renderMs": "3.300",
+        "frameMs": "213.400"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "2d",
+    "scene": "collection-scrolled",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "165",
+        "cameraY": "12.666666666666671",
+        "renderMs": "5.700",
+        "frameMs": "212.800"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "-20",
+        "cameraY": "-22.5",
+        "renderMs": "2.000",
+        "frameMs": "110.200"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "check": "quality-recovery",
+    "low": 1,
+    "restored": 2,
+    "sameState": true
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 2160,
+        "height": 1350,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "6",
+        "zoom": "4",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "28",
+        "cameraY": "367.5",
+        "renderMs": "16.600",
+        "frameMs": "318.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "overworld-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "28",
+      "cameraY": "367.5",
+      "renderMs": "23.300",
+      "frameMs": "104.600"
+    }
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 2160,
+        "height": 1350,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "6",
+        "zoom": "4",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "300",
+        "cameraY": "303.5",
+        "renderMs": "2.400",
+        "frameMs": "107.600"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "hub-hud-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "300",
+      "cameraY": "303.5",
+      "renderMs": "5.900",
+      "frameMs": "123.300"
+    }
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 2160,
+        "height": 1350,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "6",
+        "zoom": "4",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "3.000",
+        "frameMs": "114.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "battle-native",
+    "fixture": "paused native-detail inspection",
+    "canvas": {
+      "pixelScale": "8",
+      "zoom": "4",
+      "renderDpr": "2",
+      "qualityCap": "3",
+      "worldWidth": "360",
+      "worldHeight": "225",
+      "renderer": "2d",
+      "gfx": "2d",
+      "gfxStatus": "ready",
+      "cameraX": "50",
+      "cameraY": "7.5",
+      "renderMs": "3.300",
+      "frameMs": "1027.100"
+    }
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "9.500",
+        "frameMs": "119.500"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "25.000",
+        "frameMs": "1080.300"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "2d",
+    "scene": "collection-scrolled",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "14.700",
+        "frameMs": "120.300"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "3",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "-20",
+        "cameraY": "-22.5",
+        "renderMs": "2.800",
+        "frameMs": "116.000"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "check": "quality-recovery",
+    "low": 1,
+    "restored": 2,
+    "sameState": true
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 2160,
+        "height": 1350,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "6",
+        "zoom": "4",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "3d",
+        "gfxStatus": "ready",
+        "cameraX": "28",
+        "cameraY": "367.5",
+        "renderMs": "37.800",
+        "frameMs": "1378.700"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "9750.500",
+        "renderMs": "26.500",
+        "frameEmaMs": "596.277",
+        "renderEmaMs": "1928.809",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "300",
+        "cameraY": "303.5",
+        "renderMs": "7.000",
+        "frameMs": "1084.800"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "111.100",
+        "renderMs": "100.900",
+        "frameEmaMs": "539.631",
+        "renderEmaMs": "1397.729",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "2.600",
+        "frameMs": "1104.300"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "111.100",
+        "renderMs": "100.900",
+        "frameEmaMs": "539.631",
+        "renderEmaMs": "1397.729",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "1.500",
+        "frameMs": "163.500"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "111.100",
+        "renderMs": "100.900",
+        "frameEmaMs": "539.631",
+        "renderEmaMs": "1397.729",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "15.100",
+        "frameMs": "1014.000"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "111.100",
+        "renderMs": "100.900",
+        "frameEmaMs": "539.631",
+        "renderEmaMs": "1397.729",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "dpr": 2,
+      "touch": false
+    },
+    "gfx": "3d",
+    "scene": "collection-scrolled",
+    "canvases": [
+      {
+        "width": 1440,
+        "height": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "pixelScale": "4",
+        "zoom": "4",
+        "renderDpr": "1",
+        "qualityCap": "1",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "50",
+        "cameraY": "7.5",
+        "renderMs": "4.300",
+        "frameMs": "1058.700"
+      },
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "111.100",
+        "renderMs": "100.900",
+        "frameEmaMs": "539.631",
+        "renderEmaMs": "1397.729",
+        "drawCalls": "120",
+        "triangles": "39963"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "title",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "10",
+        "cameraY": "-50.66666666666666",
+        "renderMs": "5.600",
+        "frameMs": "69.700"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "check": "quality-recovery",
+    "low": 1,
+    "restored": 3,
+    "sameState": true
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "overworld",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "pixelScale": "9",
+        "zoom": "3",
+        "renderDpr": "3",
+        "qualityCap": "3",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "renderer": "2d",
+        "gfx": "3d",
+        "gfxStatus": "ready",
+        "cameraX": "143",
+        "cameraY": "363.35230105928645",
+        "renderMs": "20.200",
+        "frameMs": "90.900"
+      },
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "1119.000",
+        "renderMs": "13.000",
+        "frameEmaMs": "234.268",
+        "renderEmaMs": "79.036",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "hub-hud",
+    "canvases": [
+      {
+        "width": 780,
+        "height": 1288,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "pixelScale": "6",
+        "zoom": "3",
+        "renderDpr": "2",
+        "qualityCap": "2",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "415",
+        "cameraY": "308.6666666666667",
+        "renderMs": "2.500",
+        "frameMs": "123.300"
+      },
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "109.100",
+        "renderMs": "25.500",
+        "frameEmaMs": "226.318",
+        "renderEmaMs": "70.121",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "battle",
+    "canvases": [
+      {
+        "width": 585,
+        "height": 966,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117",
+        "worldHeight": "193.2",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "171.28307374525787",
+        "cameraY": "23.041793569092505",
+        "renderMs": "1.600",
+        "frameMs": "739.400"
+      },
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "130",
+        "worldHeight": "214.66666666666666",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "109.100",
+        "renderMs": "25.500",
+        "frameEmaMs": "226.318",
+        "renderEmaMs": "70.121",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "pause",
+    "canvases": [
+      {
+        "width": 585,
+        "height": 1266,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117",
+        "worldHeight": "253.2",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "171.47409185350116",
+        "cameraY": "23.357218342704495",
+        "renderMs": "26.400",
+        "frameMs": "99.600"
+      },
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "109.100",
+        "renderMs": "25.500",
+        "frameEmaMs": "226.318",
+        "renderEmaMs": "70.121",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "collection",
+    "canvases": [
+      {
+        "width": 585,
+        "height": 1266,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117",
+        "worldHeight": "253.2",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "171.47409185350116",
+        "cameraY": "23.357218342704495",
+        "renderMs": "1.200",
+        "frameMs": "93.800"
+      },
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "109.100",
+        "renderMs": "25.500",
+        "frameEmaMs": "226.318",
+        "renderEmaMs": "70.121",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "size": {
+      "name": "390x844",
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "touch": true
+    },
+    "gfx": "3d",
+    "scene": "collection-scrolled",
+    "canvases": [
+      {
+        "width": 585,
+        "height": 1266,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "pixelScale": "5",
+        "zoom": "3.3333333333333335",
+        "renderDpr": "1.5",
+        "qualityCap": "1.5",
+        "worldWidth": "117",
+        "worldHeight": "253.2",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "171.47409185350116",
+        "cameraY": "23.357218342704495",
+        "renderMs": "8.000",
+        "frameMs": "109.800"
+      },
+      {
+        "width": 1170,
+        "height": 2532,
+        "cssWidth": 390,
+        "cssHeight": 844,
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "medium",
+        "postFx": "bloom,vignette",
+        "renderDpr": "3",
+        "zoom": "3",
+        "worldWidth": "130",
+        "worldHeight": "281.3333333333333",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "109.100",
+        "renderMs": "25.500",
+        "frameEmaMs": "226.318",
+        "renderEmaMs": "70.121",
+        "drawCalls": "73",
+        "triangles": "36895"
+      }
+    ],
+    "errors": []
+  }
+]

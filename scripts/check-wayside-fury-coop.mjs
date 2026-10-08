@@ -146,8 +146,8 @@ try {
   await host.page.waitForFunction(() => document.querySelector('.wf-save-status')?.textContent === 'Saved');
   for (const id of ['dev-host', 'dev-guest']) {
     const sheet = fixture.sheets.get(id)?.save;
-    assert.equal(sheet?.character.xp, 28, `${id} gets full personal kill XP`);
-    assert.ok(sheet?.candy >= 3 && sheet?.candy <= 5, `${id} gets personal candy`);
+    assert.equal(sheet?.character.xp, 12, `${id} gets full personal kill XP`);
+    assert.ok(sheet?.candy >= 2 && sheet?.candy <= 4, `${id} gets personal candy`);
     assert.ok(sheet?.coopRewards.some(receipt => receipt.includes(':kill:')), `${id} stores durable reward receipts`);
   }
   const ratio = await game(host.page, () => window.__waysideFury.state.enemies[0].hp / window.__waysideFury.state.enemies[0].maxHp);
