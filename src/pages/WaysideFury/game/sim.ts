@@ -1,3 +1,4 @@
+import { COUNTY_STOPS } from "./county.ts";
 import { tickSpaceFilm, type FilmState } from "./cinematics.ts";
 import { enterSpaceRoom, spaceTargets, spaceInteract, completeSpaceFilm, record, refillCrew, spaceCheckpoint } from "./chapters/ch3.ts";
 import { onMoon, hasSpaceFlag, tickLunar, tryBoundLink, advanceBoundLink, lunarWorld, brakeBound } from "./lunar.ts";
@@ -270,8 +271,8 @@ export function enterCampaignMap(s: GameState, mapId: string): boolean {
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
   const world = lunarWorld(s), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
-    if (!isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
-    if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
+    if (!(s.coop && s.scene === "overworld" && (body.x + dx / pieces < 42 || body.x + dx / pieces > 1878)) && !isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
+    if (!(s.coop && s.scene === "overworld" && (body.y + dy / pieces < 42 || body.y + dy / pieces > 918)) && !isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
   }
 }
 // Relax overlaps without adding velocity: a bounded, time-scaled push settles
@@ -738,6 +739,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
       kind: npc ? "talk" : taxi ? "taxi" : "use" }, s.scene === "overworld" ? OVERWORLD_STOP_RADIUS : undefined);
   }
   if (s.scene === "overworld") {
+    for (const stop of COUNTY_STOPS) add({ ...stop, kind: "talk" }, OVERWORLD_PROP_RADIUS);
     add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444  }, OVERWORLD_PROP_RADIUS);
     add({ id: "diner-entry", name: "Enter diner", kind: "use", x: 520, y: 405  }, OVERWORLD_PROP_RADIUS);
   }
@@ -783,6 +785,8 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = selected === undefined ? interactTarget(s) : selected;
   if (!target) return;
+  const countyStop = COUNTY_STOPS.find(stop => stop.id === target.id);
+  if (countyStop) { openDialogue(s, countyStop.name, [countyStop.text]); return; }
   if (target.id === "story-next") { advanceStory(s); return; }
   if (target.id === "dialog-next") { advanceDialogue(s); return; }
   if (target.id === "diner-entry") { s.overlay = "diner"; s.insideDiner = true; s.vx = s.vy = 0; s.moving = false; return; }
@@ -968,17 +972,18 @@ export function step(s: GameState, input: Input, delta: number): void {
     effect(s, "dash", s.x, s.y, 14, 0.23, s.faceX, s.faceY);
   }
   if (s.scene === "overworld") {
-    const strength = Math.min(1, length), driveX = length > 0.1 ? input.x / length * 160 * strength : 0;
-    const driveY = length > 0.1 ? input.y / length * 160 * strength : 0;
+    const strength = Math.min(1, length), driveX = length > 0.1 ? input.x / length * (input.dash ? 240 : input.guard ? 80 : 160) * strength : 0;
+    const driveY = length > 0.1 ? input.y / length * (input.dash ? 240 : input.guard ? 80 : 160) * strength : 0;
     const ease = 1 - Math.exp(-dt * (s.moving ? 6.5 : 9));
     s.vx += (driveX - s.vx) * ease; s.vy += (driveY - s.vy) * ease;
     const oldX = s.x, oldY = s.y;
+    if(s.coop && (s.x > 1850 && s.vx > 0 || s.y > 890 && s.vy > 0)) s.notice = "New county districts and world routes are solo-only in this release. The original county roads stay open to your party.";
     moveBody(s, s, s.vx * dt, s.vy * dt, 10);
     if (s.x === oldX) s.vx *= 0.5;
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : 70) * pickupBuffs(s).speed;
+    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : !combat && input.dash ? 112 : 70) * pickupBuffs(s).speed;
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);

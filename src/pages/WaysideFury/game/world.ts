@@ -1,16 +1,17 @@
+import { dressCounty } from "./county.ts";
 import { compound, LAUNCH_WORLD, MOON_WORLDS } from "./chapters/ch3Worlds.ts";
 import { TILE, tileAt, map, paint, prop, parkedCar, boundary, exit, road, scatter, encounter, type WorldMap } from "./worldBuilder.ts";
 export * from "./worldBuilder.ts";
 
 export const OVERWORLD = (() => {
-  const m = map("overworld", "Wayside County", 120, 60, "grass");
+  const m = map("overworld", "Wayside County", 144, 96, "grass");
   boundary(m, "grass");
   paint(m, 224, 192, 224, 208, "sand"); paint(m, 240, 208, 192, 176, "water", true);
   paint(m, 864, 80, 272, 144, "sand"); paint(m, 880, 96, 240, 112, "water", true);
   paint(m, 1008, 256, 176, 160, "ash"); paint(m, 1024, 272, 144, 112, "corrupt");
   paint(m, 576, 80, 160, 160, "corrupt"); paint(m, 944, 544, 176, 96, "corrupt");
   // Paint the roads after regional terrain so corruption cannot cut a branch off.
-  road(m, { id: 'county', x: 32, y: 448, w: 1856, h: 64, direction: 'horizontal', start: 'barrier', end: 'barrier' });
+  road(m, { id: 'county', x: 32, y: 448, w: 2240, h: 64, direction: 'horizontal', start: 'barrier', end: 'barrier' });
   road(m, { id: 'station', x: 176, y: 432, w: 64, h: 80, direction: 'vertical', start: 'entrance', end: 'junction' });
   road(m, { id: 'forest', x: 624, y: 240, w: 64, h: 272, direction: 'vertical', start: 'entrance', end: 'junction' });
   road(m, { id: 'blast', x: 1056, y: 416, w: 64, h: 96, direction: 'vertical', start: 'entrance', end: 'junction' });
@@ -61,7 +62,7 @@ export const OVERWORLD = (() => {
   road(m, { id: 'launch', x: 1552, y: 416, w: 64, h: 96, direction: 'vertical', start: 'entrance', end: 'junction' });
   compound(m, 1328, 80);
   prop(m,"barrier",1536,410,96,8,"Pedestrian gate · park taxi outside");
-  m.spawn = { x: 208, y: 480 }; scatter(m, "grass", 9); return m;
+  m.spawn = { x: 208, y: 480 }; scatter(m, "grass", 9); dressCounty(m); return m;
 })();
 export const HUB_WORLD = (() => {
   const m = map("hub", "Wayside Town", 60, 34, "grass"); boundary(m, "grass");

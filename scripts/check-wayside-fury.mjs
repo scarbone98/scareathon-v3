@@ -76,7 +76,7 @@ for (const [cssWidth, cssHeight] of [[390, 700], [430, 780], [844, 390], [932, 4
   }
 }
 const nativePhone = getRenderViewport(390, 700, 3);
-assert.ok(nativePhone.zoom * 16 >= 40 && nativePhone.zoom * 16 <= 56, 'phone tiles are 40–56 CSS pixels');
+assert.ok(nativePhone.zoom * 16 >= 32 && nativePhone.zoom * 16 <= 40, 'phone tiles retain detail with seven hero heights of horizontal awareness');
 const lowerQuality = getRenderViewport(390, 700, 3, 2);
 assert.equal(lowerQuality.dpr, 2, 'quality fallback changes the backing DPR cap');
 assert.equal(lowerQuality.pixelWidth, 780);

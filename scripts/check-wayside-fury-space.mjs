@@ -17,7 +17,7 @@ const dt=1/60;
 const ticks=(s,n,input={})=>{for(let f=0;f<n;f++)step(s,{...idleInput(),...input},dt);};
 const use=(s,id)=>{const t=spaceTargets(s).find(t=>t.id===id);assert.ok(t,id);s.x=t.x;s.y=t.y;interact(s,t);};
 function ready(id='you') {const s=newGame();s.party=[id];s.active=id;s.bosses.push('blast-watcher');assert.ok(enterCampaignMap(s,'space-launch'));return s;}
-assert.equal(OVERWORLD.width,1920);assert.equal(OVERWORLD.height,960);
+assert.equal(OVERWORLD.width,2304);assert.equal(OVERWORLD.height,1536);
 assert.equal(MOON_WORLDS.length,9);assert.equal(new Set(MOON_WORLDS.map(w=>w.id)).size,9);
 for(const world of [LAUNCH_WORLD,...MOON_WORLDS]) {
  assert.ok(!isBlocked(world,world.spawn.x,world.spawn.y),world.id);

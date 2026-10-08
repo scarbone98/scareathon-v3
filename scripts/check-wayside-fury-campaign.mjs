@@ -34,7 +34,7 @@ const hashes = [
 for (const [index, world] of ALL_WORLDS.slice(0,14).entries()) {
   const { exits, ...geometry } = world;
   if (index !== 0) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
-  else { assert.equal(world.width,1920); assert.equal(world.height,960); }
+  else { assert.equal(world.width,2304); assert.equal(world.height,1536); }
   assert.ok(!isBlocked(world, world.spawn.x, world.spawn.y));
   for (const exit of exits) {
     const destination = getMap(exit.targetMapId);

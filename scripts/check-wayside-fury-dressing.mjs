@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, TAXI_GAG_DURATION, taxiRockPosition, updateOverworldDressing } from '../src/pages/WaysideFury/game/dressing.ts';
 import { OVERWORLD, HUB_WORLD, BLAST_WORLDS, TILE, tileAt, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 
+import { COUNTY_STOPS, COUNTY_DISTRICTS } from '../src/pages/WaysideFury/game/county.ts';
+
+assert.equal(COUNTY_DISTRICTS.length, 3);
+for (const stop of COUNTY_STOPS) assert.equal(isBlocked(OVERWORLD, stop.x, stop.y, 10), false, `${stop.id}: taxi apron clears new scenery`);
+for (const kind of ['water-tower', 'windmill', 'bench', 'crate', 'reeds']) assert.ok(OVERWORLD.props.some(p => p.kind === kind), `original ${kind} dressing is authored`);
+
 const state = overrides => ({ scene: 'overworld', x: 208, y: 480, time: 0, ambientTaxiWrecked: false, ambientTaxiGag: -1, events: [], ...overrides });
 const fresh = state();
 updateOverworldDressing(fresh, .1);

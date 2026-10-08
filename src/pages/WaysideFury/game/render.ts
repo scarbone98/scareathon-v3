@@ -1,3 +1,4 @@
+import { drawCountyProp } from "./countyArt";
 import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
 import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
 import { lunarLift, hasSpaceFlag } from "./lunar";
@@ -397,12 +398,12 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
-    if(drawSpaceProp(this.ctx,prop,s)) return;
+    if(drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {
       const sway = this.reducedMotion ? 0 : Math.sin(time * 1.6 + x * .04) * .8;
-      c.save(); c.translate(x + sway, y); const variation = .86 + (Math.floor(x) % 5) * .06; c.scale(variation, variation); this.tree(0, 0);
+      c.save(); if (prop.w > 32 && s.x > prop.x - 8 && s.x < prop.x + prop.w + 8 && s.y > prop.y && s.y < prop.y + prop.h - 10) c.globalAlpha = .38; c.translate(x + sway, y); const variation = .86 + (Math.floor(x) % 5) * .06; c.scale(variation * prop.w / 24, variation * prop.h / 32); this.tree(0, 0);
       if (prop.kind === 'pine') { this.rect(-5, -21, 10, 2, '#40534c'); this.rect(-3, -28, 6, 1, '#647064'); }
       c.restore(); return;
     }

@@ -1,3 +1,4 @@
+import { COUNTY_ART, countyArtwork } from "./countyArt";
 import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 import { ZONE_PREVIEWS } from './zonePreviews';
@@ -324,12 +325,24 @@ export class OverworldRenderer {
       part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
     }
     const shadows: THREE.Matrix4[] = [];
+    const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
     for (const prop of OVERWORLD.props) {
       const parking = prop.kind === 'car' ? parkedCarPose(prop) : null;
       const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
       const box = (color: string, ox: number, oy: number, oz: number, w: number, h: number, d: number, emissive = false) => part('box', color, x + ox, y + oy, z + oz, w, h, d, 0, emissive);
-      if (prop.kind === 'rocket') {
+      if (COUNTY_ART.has(prop.kind)) {
+        let material=countyMaterials.get(prop.kind);
+        if(!material) {
+          const texture = new THREE.CanvasTexture(countyArtwork(prop.kind)); texture.colorSpace = THREE.SRGBColorSpace;
+          material=new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: .08, side: THREE.DoubleSide });
+          countyMaterials.set(prop.kind,material);
+        }
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(prop.w, prop.h), material);
+        mesh.position.set(x, y + prop.h / 2, prop.y + prop.h);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), FORWARD);
+        this.scene.add(mesh);
+      } else if (prop.kind === 'rocket') {
         part('cylinder', '#e8edf1', x, y+52, z, 24, 104, 24);
         part('cone', '#dae4f2', x, y+114, z, 24, 30, 24);
         box('#f5c776',0,44,0,25,10,25);
@@ -347,8 +360,8 @@ export class OverworldRenderer {
         if (prop.kind === 'pine') {
           for (let k = 0; k < 3; k++) part('cone', ['#2e4d43', '#42624c', '#527955'][k], x, y + 15 + k * 9, z, 14 - k * 3, 20 - k * 3, 14 - k * 3, x * .017);
         } else {
-          part('rock', '#2d5040', x, y + 25, z, 14, 13, 12, x * .017);
-          part('rock', '#49704e', x - 4, y + 31, z - 2, 10, 11, 10, z * .015);
+          part('rock', '#2d5040', x, y + prop.h * .7, z, prop.w * .6, prop.h * .4, prop.w * .5, x * .017);
+          part('rock', '#49704e', x - 4, y + prop.h * .88, z - 2, prop.w * .42, prop.h * .34, prop.w * .4, z * .015);
           part('rock', '#658a57', x - 5, y + 36, z - 3, 5, 5, 5, x * .025);
           box('#92aa6f', -5, 35, 6, 2, 1, 2);
         }
@@ -850,7 +863,7 @@ export class OverworldRenderer {
     };
     for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
     for (const prop of OVERWORLD.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
-    for (const prop of OVERWORLD.props) if (prop.label && ['diner', 'sign', 'vending'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
+    for (const prop of OVERWORLD.props) if (prop.label && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');

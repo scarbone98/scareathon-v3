@@ -142,6 +142,7 @@ async function layout(frame, label) {
 async function immutablePresentation(frame, label) {
   const result = await frame.evaluate(async () => {
     const { OVERWORLD } = await import('/src/pages/WaysideFury/game/world.ts');
+    if (OVERWORLD.width !== 2304 || !OVERWORLD.props.some(p => p.kind === 'water-tower')) throw new Error('Expanded county geometry missing in 3D');
     const game = window.__waysideFury;
     game.setPaused(true);
     const before = JSON.stringify(game.state), worldBefore = JSON.stringify(OVERWORLD);

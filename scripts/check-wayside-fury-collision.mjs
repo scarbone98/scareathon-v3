@@ -4,6 +4,9 @@ import { newGame, enterScene, addEnemy, idleInput, step, interactTarget, activeH
 import { LOCATIONS, HUB_POINTS } from '../src/pages/WaysideFury/game/content.ts';
 import { TILE, OVERWORLD, HUB_WORLD, BLAST_WORLDS, REALM_WORLD, TEST_WORLD, isBlocked, tileAt } from '../src/pages/WaysideFury/game/world.ts';
 
+import { COUNTY_STOPS } from '../src/pages/WaysideFury/game/county.ts';
+
+for (const stop of COUNTY_STOPS) assert.equal(isBlocked(OVERWORLD,stop.x,stop.y,10), false, `${stop.id}: safe taxi anchor`);
 const GRID = 4, SWEEP = 2, DT = 1 / 60;
 const maps = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD];
 const fields = new Map();
@@ -159,7 +162,7 @@ for (const world of maps) {
     assert.ok(navigation(destination).reachable({ x: exit.entryX, y: exit.entryY }), `${world.id}: ${exit.id} arrives safely in ${destination.id}`);
   }
   for (const prop of world.props) {
-    if (['flower', 'puddle', 'debris'].includes(prop.kind)) {
+    if (['flower', 'puddle', 'debris', 'reeds'].includes(prop.kind)) {
       assert.equal(prop.footprints?.length ?? 0, 0, `${prop.id}: ground dressing remains walk-through`);
       continue;
     }

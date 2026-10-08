@@ -4,7 +4,7 @@ export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | 
 export interface CollisionRect { x: number; y: number; w: number; h: number }
 export interface WorldProp {
   id: string;
-  kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal" | "rocket" | "gantry" | "tank" | "control" | "locker" | "air" | "socket" | "seal" | "lander" | "dish" | "flag";
+  kind: "keeper" | "bench" | "crate" | "reeds" | "water-tower" | "windmill" | "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal" | "rocket" | "gantry" | "tank" | "control" | "locker" | "air" | "socket" | "seal" | "lander" | "dish" | "flag";
   // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
   // Fixed parked-car heading; never inferred from the player or camera.
@@ -56,14 +56,18 @@ export function baseFootprints(kind: WorldProp["kind"], x: number, y: number, w:
   const base = (width: number, height: number, offset = 0): CollisionRect[] =>
     [{ x: cx - width / 2, y: bottom - height + offset, w: width, h: height }];
   switch (kind) {
-    case "flower": case "puddle": case "debris": return [];
+    case "flower": case "puddle": case "debris": case "reeds": return [];
+    case "bench": return base(w - 8, 8);
+    case "crate": return base(w - 4, 10);
+    case "water-tower": return [{ x: x + 8, y: bottom - 8, w: 6, h: 8 }, { x: x + w - 14, y: bottom - 8, w: 6, h: 8 }];
+    case "windmill": return base(8, 10);
     case "bush": return base(Math.max(8, w * .6), 5);
     case "tree": case "pine": return base(4, 11, 1);
     case "lamp": return base(6, 6, 1);
     case "sign": case "mailbox": return base(4, 6, 1);
     case "vending": return base(w - 4, 10);
     case "rock": return base(14, 6);
-    case "npc": return base(10, 6, 1);
+    case "keeper": case "npc": return base(10, 6, 1);
     case "chest": return base(22, 12);
     case "car": case "ambient-taxi": return base(30, 17, 1);
     case "bbq": return base(24, 12, 4);

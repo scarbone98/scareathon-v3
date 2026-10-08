@@ -61,6 +61,7 @@ for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WO
   if (world === OVERWORLD) assert.ok(counts.horizontal && counts.vertical, 'both real road orientations are exercised');
 }
 
+assert.deepEqual(['garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'].filter(id => OVERWORLD.roads.some(r => r.id === id)), ['garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'], 'two district loops and the causeway remain authored roads');
 for (const room of [8, 9]) {
   const world = BLAST_WORLDS[room], y = room === 8 ? 36 : world.height - 36;
   assert.ok(world.props.some(p => p.kind === 'barrier' && contains(p, 328, y)), 'optional dirt branch ends at a visible barrier');
