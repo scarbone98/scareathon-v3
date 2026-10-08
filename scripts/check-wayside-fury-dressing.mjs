@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, TAXI_GAG_DURATION, taxiRockPosition, trafficForState, updateOverworldDressing } from '../src/pages/WaysideFury/game/dressing.ts';
-import { OVERWORLD, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, TAXI_GAG_DURATION, taxiRockPosition, updateOverworldDressing } from '../src/pages/WaysideFury/game/dressing.ts';
+import { OVERWORLD, HUB_WORLD, BLAST_WORLDS, TILE, tileAt, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 
 const state = overrides => ({ scene: 'overworld', x: 208, y: 480, time: 0, ambientTaxiWrecked: false, ambientTaxiGag: -1, events: [], ...overrides });
 const fresh = state();
@@ -35,10 +35,16 @@ assert.equal(isBlocked(OVERWORLD, AMBIENT_TAXI.x, AMBIENT_TAXI.y - 8, 7), true, 
 for (const side of [-1, 1]) assert.equal(isBlocked(OVERWORLD, AMBIENT_TAXI.x + side * 25, AMBIENT_TAXI.y, 10), false, 'the pullout fences leave an honest approach on both sides of the cab');
 for (const y of [463, 480, 495]) for (let x = 154; x <= 1154; x += 8) assert.equal(isBlocked(OVERWORLD, x, y, 10), false, `road lane clear at ${x},${y}`);
 assert.equal(isBlocked(OVERWORLD, 400, 554, 10), false, 'the item under the wreck has an open approach');
-for (let time = 0; time < 80; time += .5) {
-  for (const car of trafficForState({ x: 700, y: 463, time })) {
-    assert.ok([463, 495].includes(car.y), 'ambient traffic keeps to its authored lane');
-    if (car.y === 463) assert.ok(Math.abs(car.x - 700) >= 40, 'ambient traffic leaves the player space');
+for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS]) {
+  for (const car of world.props.filter(p => ['car', 'ambient-taxi'].includes(p.kind))) {
+    if (world.id.startsWith('blast')) {
+      const x = Math.floor((car.x + car.w / 2) / TILE), end = Math.floor(world.spawn.y / TILE);
+      for (let y = Math.floor((car.y + car.h) / TILE); y <= end; y++) assert.ok(['stone', 'dirt'].includes(tileAt(world, x, y)), `${world.id}: parking drive connects to main path`);
+    }
+    for (const r of car.footprints) for (const x of [r.x, r.x + r.w - .01]) for (const y of [r.y, r.y + r.h - .01]) {
+      assert.equal(tileAt(world, Math.floor(x / TILE), Math.floor(y / TILE)), 'stone', `${world.id}: parked car sits in its paved lot`);
+      assert.equal(isBlocked({ ...world, props: world.props.filter(p => p !== car) }, x, y, 0), false, `${world.id}: parked car clears other props`);
+    }
   }
 }
-console.log('Wayside Fury dressing: host-authoritative one-shot crash, safe lanes, solid wreck and traffic headway pass.');
+console.log('Wayside Fury dressing: host-authoritative one-shot crash, safe lanes, solid wreck and unobstructed parked-car lots pass.');

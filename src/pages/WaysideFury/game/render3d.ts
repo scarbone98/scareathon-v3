@@ -6,7 +6,7 @@ import { LOCATIONS } from './content';
 import { OVERWORLD, type WorldProp } from './world';
 import { getRenderViewport } from './viewport';
 import { buildOverworldTerrain } from './terrain3d';
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition, trafficForState } from './dressing';
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
 import { availablePickups } from './collectibles';
 import type { AvatarStrip, HeroAvatar } from './avatar';
 import type { GameEvent, GameState, HeroId } from './sim';
@@ -98,7 +98,6 @@ export class OverworldRenderer {
   private taxi = new THREE.Group();
   private ambientCab = new THREE.Group();
   private wreckCab = new THREE.Group();
-  private trafficCars: THREE.Group[] = [];
   private strayRock: THREE.Mesh | null = null;
   private strayRockShadow: THREE.Mesh | null = null;
   private crashShake = 0;
@@ -341,6 +340,10 @@ export class OverworldRenderer {
         box('#263d42', 0, 16, 0, 2.4, 32, 2.4); box('#364b4c', 0, 1, 0, 7, 2, 7);
         box('#bd9657', 0, 31, 0, 7, 7, 7); box('#ffe5a8', 0, 31, 0, 5.2, 5.5, 7.1, true); box('#263b3b', 0, 36, 0, 9, 2, 9);
         this.lightSources.push({ x, y: z, height: y + 31, color: 0xffcd84, strength: 85 });
+      } else if (prop.kind === 'barrier') {
+        const cz = prop.y + prop.h / 2;
+        part('box', '#26373d', x, y + 6, cz, prop.w, 12, prop.h);
+        for (let offset = 0; offset < prop.h; offset += 12) part('box', '#e8ba70', x, y + 12.2, prop.y + offset + 3, prop.w, .5, 6);
       } else if (prop.kind === 'fence') {
         for (let offset = -prop.w / 2; offset <= prop.w / 2; offset += 12) {
           box('#aa9670', offset, 7, 0, 3.3, 14, 3.3); box('#e1c997', offset, 14.5, 0, 4, 1.2, 4);
@@ -402,13 +405,8 @@ export class OverworldRenderer {
     this.strayRock = new THREE.Mesh(this.geometries.rock, this.material('#898476')); this.strayRock.scale.set(9, 8, 8); this.strayRock.castShadow = true;
     this.strayRockShadow = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial); this.strayRockShadow.scale.set(22, 1, 16);
     this.scene.add(this.strayRock, this.strayRockShadow);
-    for (const color of ['#77999c', '#bd7661']) {
-      const group = new THREE.Group(); part(group, '#26373e', 0, 3, 0, 30, 5, 15); part(group, color, 0, 7, 0, 32, 6, 14);
-      part(group, color, -2, 12, 0, 17, 6, 11); part(group, '#314b58', -2, 12, 5.7, 14, 4, .4);
-      for (const x of [-10, 10]) for (const z of [-7, 7]) part(group, '#182a31', x, 3, z, 5, 5, 2);
-      part(group, '#ead9ad', 16.2, 8, 4, .5, 2, 3); this.scene.add(group); this.trafficCars.push(group);
-    }
-    for (const group of [this.wreckCab, ...this.trafficCars]) {
+    {
+      const group = this.wreckCab;
       const batches = new Map<string, { source: THREE.Mesh; matrices: THREE.Matrix4[] }>();
       for (const child of [...group.children]) {
         if (!(child instanceof THREE.Mesh) || Array.isArray(child.material)) continue;
@@ -435,10 +433,6 @@ export class OverworldRenderer {
         this.strayRockShadow.position.set(rock.x, ground + .5, rock.y);
       }
     }
-    trafficForState(s).forEach((traffic, index) => {
-      const group = this.trafficCars[index]; group.position.set(traffic.x, this.terrain.heightAt(traffic.x, traffic.y), traffic.y);
-      group.rotation.y = traffic.direction < 0 ? Math.PI : 0; group.visible = this.nearView(traffic.x, traffic.y, 55);
-    });
   }
   private buildStation(prop: WorldProp, part: (shape: keyof OverworldRenderer['geometries'], color: string, x: number, y: number, z: number, w: number, h: number, d: number, rotation?: number, emissive?: boolean) => void) {
     const x = prop.x + prop.w / 2, z = prop.y + prop.h / 2;

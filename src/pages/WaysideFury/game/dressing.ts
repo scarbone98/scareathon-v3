@@ -32,20 +32,6 @@ export function taxiRockPosition(s: Pick<GameState, 'ambientTaxiGag'>) {
     height: 38 * (1 - t) + Math.sin(t * Math.PI) * 148, rotation: t * 8 };
 }
 
-export function trafficForState(s: Pick<GameState, 'x' | 'y' | 'time' | 'coop'>) {
-  return [0, 1].map(index => {
-    const direction = index ? 1 : -1, y = index ? 495 : 463;
-    let x = 150 + ((s.time * (index ? 24 : -29) + (index ? 600 : 900)) % 980 + 980) % 980;
-    for (const driver of [s, ...(s.coop?.remoteHeroes ?? []).filter(hero => hero.scene === 'overworld')]) {
-      if (Math.abs(driver.y - y) > 25) continue;
-      // Keep a full car's headway if a player is in this lane.
-      if (Math.abs(driver.x - x) < 64) x = driver.x - direction * 64;
-    }
-    // The ambient cab is pulled off the lower lane, leaving the road passable.
-    return { x, y, direction, color: index ? '#bd7661' : '#77999c' };
-  });
-}
-
 export function roadsideBirds(s: Pick<GameState, 'x' | 'y' | 'time' | 'moving'>) {
   return Array.from({ length: 7 }, (_, index) => {
     const homeX = 298 + index * 113, homeY = index % 2 ? 543 : 434;

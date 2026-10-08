@@ -4,7 +4,7 @@ export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | 
 export interface CollisionRect { x: number; y: number; w: number; h: number }
 export interface WorldProp {
   id: string;
-  kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal";
+  kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal";
   // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
   footprints?: CollisionRect[];
@@ -18,9 +18,15 @@ export interface WorldSpawn {
   kind: "grunt" | "shooter" | "boss"; x: number; y: number;
   sprite?: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast"; miniBoss?: boolean;
 }
+export interface RoadSegment extends CollisionRect {
+  id: string;
+  direction: 'horizontal' | 'vertical';
+  start: 'junction' | 'entrance' | 'barrier';
+  end: 'junction' | 'entrance' | 'barrier';
+}
 export interface WorldMap {
   id: string; name: string; width: number; height: number; cols: number; rows: number;
-  tiles: TileKind[]; collision: number[]; props: WorldProp[]; exits: WorldExit[];
+  roads: RoadSegment[]; tiles: TileKind[]; collision: number[]; props: WorldProp[]; exits: WorldExit[];
   spawns: WorldSpawn[]; spawn: { x: number; y: number };
 }
 
@@ -29,7 +35,7 @@ export interface WorldMap {
 function map(id: string, name: string, cols: number, rows: number, ground: TileKind): WorldMap {
   return { id, name, width: cols * TILE, height: rows * TILE, cols, rows,
     tiles: Array<TileKind>(cols * rows).fill(ground), collision: Array<number>(cols * rows).fill(0),
-    props: [], exits: [], spawns: [], spawn: { x: 56, y: Math.floor(rows / 2) * TILE } };
+    roads: [], props: [], exits: [], spawns: [], spawn: { x: 56, y: Math.floor(rows / 2) * TILE } };
 }
 function paint(m: WorldMap, x: number, y: number, w: number, h: number, tile: TileKind, solid = false) {
   for (let row = Math.max(0, Math.floor(y / TILE)); row < Math.min(m.rows, Math.ceil((y + h) / TILE)); row++) {
@@ -55,6 +61,7 @@ function baseFootprints(kind: WorldProp["kind"], x: number, y: number, w: number
     case "chest": return base(22, 12);
     case "car": case "ambient-taxi": return base(30, 17, 1);
     case "bbq": return base(24, 12, 4);
+    case "barrier": return [{ x, y, w, h }];
     case "fence": return base(w, 4, 1);
     case "portal":
       // Solid frame feet leave a wide opening through the glowing center.
@@ -96,6 +103,20 @@ function exit(m: WorldMap, e: WorldExit) {
   paint(m, e.x, e.y, e.w, e.h, m.id.startsWith("blast") ? "dirt" : "stone");
   m.props = m.props.filter(p => !(p.x < e.x + e.w && p.x + p.w > e.x && p.y < e.y + e.h && p.y + p.h > e.y));
 }
+// Direction belongs to the authored segment, not a guess from neighboring tiles.
+// A road end must name a junction, entrance, or physical boundary barrier.
+function road(m: WorldMap, segment: RoadSegment) {
+  m.roads.push(segment);
+  const { x, y, w, h, direction, start, end } = segment;
+  paint(m, x, y, w, h, 'road');
+  for (const [terminal, far] of [[start, false], [end, true]] as const) {
+    if (terminal !== 'barrier') continue;
+    const horizontal = direction === 'horizontal';
+    const block = prop(m, 'barrier', x + (horizontal && far ? w - 8 : 0),
+      y + (!horizontal && far ? h - 8 : 0), horizontal ? 8 : w, horizontal ? h : 8);
+    block.id = `${segment.id}-${far ? 'end' : 'start'}-barrier`;
+  }
+}
 function overlaps(a: CollisionRect, b: CollisionRect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
@@ -132,11 +153,20 @@ export const OVERWORLD = (() => {
   boundary(m, "grass");
   paint(m, 224, 192, 224, 208, "sand"); paint(m, 240, 208, 192, 176, "water", true);
   paint(m, 864, 80, 272, 144, "sand"); paint(m, 880, 96, 240, 112, "water", true);
-  paint(m, 144, 448, 1024, 64, "road"); paint(m, 176, 352, 64, 144, "road");
-  paint(m, 624, 144, 64, 336, "road"); paint(m, 1056, 320, 64, 192, "road");
-  paint(m, 1008, 480, 64, 112, "road");
   paint(m, 1008, 256, 176, 160, "ash"); paint(m, 1024, 272, 144, 112, "corrupt");
   paint(m, 576, 80, 160, 160, "corrupt"); paint(m, 944, 544, 176, 96, "corrupt");
+  // Paint the roads after regional terrain so corruption cannot cut a branch off.
+  road(m, { id: 'county', x: 32, y: 448, w: 1216, h: 64, direction: 'horizontal', start: 'barrier', end: 'barrier' });
+  road(m, { id: 'station', x: 176, y: 432, w: 64, h: 80, direction: 'vertical', start: 'entrance', end: 'junction' });
+  road(m, { id: 'forest', x: 624, y: 240, w: 64, h: 272, direction: 'vertical', start: 'entrance', end: 'junction' });
+  road(m, { id: 'blast', x: 1056, y: 416, w: 64, h: 96, direction: 'vertical', start: 'entrance', end: 'junction' });
+  road(m, { id: 'city', x: 1008, y: 448, w: 64, h: 96, direction: 'vertical', start: 'junction', end: 'entrance' });
+  paint(m, 624, 176, 64, 64, 'stone'); // Forest gate approach.
+  paint(m, 1056, 384, 64, 32, 'stone'); // Blast Site entrance apron.
+  paint(m, 1008, 544, 64, 48, 'stone'); // City gate approach.
+  paint(m, 368, 512, 64, 32, 'stone'); // Cab pullout, clear of the fence.
+  paint(m, 576, 416, 48, 32, 'stone');
+  paint(m, 864, 512, 48, 48, 'stone');
   prop(m, "station", 136, 320, 160, 112, "Wayside Station");
   prop(m, "crater", 1024, 272, 160, 96);
   // Overworld portals are rendered at their location markers, at these base positions.
@@ -155,7 +185,7 @@ export const OVERWORLD = (() => {
   const machine = prop(m, "vending", 550, 398, 22, 34, "Candy machine"); machine.id = "roadside-vending";
   prop(m, "diner", 464, 330, 112, 64, "Last Light Diner");
   paint(m, 500, 394, 40, 54, "dirt");
-  prop(m, "car", 606, 402, 36, 22); prop(m, "car", 844, 516, 36, 22);
+  prop(m, "car", 584, 422, 36, 22); prop(m, "car", 866, 514, 36, 22);
   prop(m, "rock", 292, 526, 24, 16);
   prop(m, "tree", 748, 274, 24, 32);
   prop(m, "sign", 1000, 414, 24, 24, "Blast Site · East");
@@ -163,6 +193,8 @@ export const OVERWORLD = (() => {
   for (let n = 0; n < 22; n++) {
     const x = 282 + n * 39, y = n % 2 ? 556 + n % 3 * 11 : 393 - n % 3 * 14;
     if (x > 472 && x < 580 && y < 448 || x > 1000 && y < 440) continue;
+    // Keep authored roadside foliage wholly off roads and paved parking bays.
+    if (![x, x + 24].every(px => [y, y + 36].every(py => tileAt(m, Math.floor(px / TILE), Math.floor(py / TILE)) === 'grass'))) continue;
     prop(m, n % 4 ? "bush" : "pine", x, y, n % 4 ? 22 : 24, n % 4 ? 14 : 36);
     prop(m, "flower", x + 19, y + 16, 18, 12);
   }
@@ -176,10 +208,12 @@ export const OVERWORLD = (() => {
 })();
 export const HUB_WORLD = (() => {
   const m = map("hub", "Wayside Town", 60, 34, "grass"); boundary(m, "grass");
-  paint(m, 64, 288, 832, 64, "road"); paint(m, 448, 160, 64, 352, "dirt");
+  paint(m, 448, 160, 64, 352, "dirt");
   paint(m, 128, 224, 80, 80, "dirt"); paint(m, 736, 240, 80, 64, "dirt");
   paint(m, 352, 160, 256, 80, "stone");
   paint(m, 64, 384, 208, 112, "sand"); paint(m, 80, 400, 176, 80, "water", true);
+  road(m, { id: 'town', x: 32, y: 288, w: 896, h: 64, direction: 'horizontal', start: 'barrier', end: 'barrier' });
+  paint(m, 512, 400, 80, 64, 'stone'); // Taxi parking joins the town footpath.
   prop(m, "station", 368, 64, 224, 112, "Wayside Station");
   prop(m, "shop", 104, 144, 128, 80, "Shop");
   prop(m, "home", 704, 144, 144, 96, "Home");
@@ -211,7 +245,8 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
   if (room === 2 || room === 5 || room === 9) {
     prop(m, "shed", m.width - 208, 64, 112, 72);
     prop(m, "fence", 96, m.height - 80, 144, 12);
-    prop(m, "car", 288, 80, 40, 24);
+    paint(m, 368, 96, 64, Math.max(48, cy - 144), 'stone'); // Parking drive meets each room's main path.
+    prop(m, "car", 384, 104, 40, 24);
   }
   if (room === 3) {
     paint(m, 640, cy, 96, m.height - cy, "dirt");
@@ -240,8 +275,10 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
   if (room === 3) exit(m, { id: "south", name: "Old Supply Depot · optional", x: 640, y: m.height - 48, w: 96, h: 48,
     target: 9, entryX: 328, entryY: 64 });
   if (room === 8 || room === 9) {
-    paint(m, 288, 0, 80, m.height, "dirt");
+    paint(m, 288, 32, 80, m.height - 64, "dirt");
     const orchard = room === 8;
+    // The optional branch has one exit; its other end stops at a closed rail.
+    prop(m, 'barrier', 288, orchard ? 32 : m.height - 40, 80, 8);
     exit(m, { id: orchard ? "south" : "north", name: orchard ? "Split Creek" : "Furnace Pass",
       x: 288, y: orchard ? m.height - 48 : 0, w: 80, h: 48, target: orchard ? 1 : 3,
       entryX: orchard ? 328 : 688, entryY: orchard ? 64 : 480 });

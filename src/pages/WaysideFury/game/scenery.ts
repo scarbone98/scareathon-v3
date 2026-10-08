@@ -35,21 +35,39 @@ export function drawCanopy(c: CanvasRenderingContext2D, x: number, y: number) {
   c.drawImage(canopy, x - 16, y - 38, 32, 40); c.restore();
 }
 
-export function drawTaxiBody(c: CanvasRenderingContext2D) {
-  const panel = (x: number, y: number, w: number, h: number, color: string) => {
-    c.fillStyle = color; c.fillRect(x, y, w, h);
-  };
-  // Match the crew sprites: one-unit ink contour, broad three-tone panels.
-  // Keep native-DPR edges and smooth world motion; only the art is simplified.
-  for (const x of [-10, 6]) for (const y of [-9, 6]) panel(x, y, 5, 3, '#17282e');
-  panel(-14, -6, 28, 12, '#17282e'); panel(-12, -8, 24, 16, '#17282e');
-  panel(-13, -5, 26, 10, '#d8a354'); panel(-11, -7, 22, 14, '#d8a354');
-  panel(-11, -7, 22, 2, '#efd08b'); panel(-11, 5, 22, 2, '#a97540');
-  panel(-8, -5, 15, 10, '#17282e'); panel(-7, -4, 13, 8, '#365965');
-  panel(-7, -4, 3, 2, '#799ba1'); panel(-2, -5, 4, 10, '#d8a354');
-  panel(-3, -2, 6, 4, '#17282e'); panel(-2, -1, 4, 2, '#efd08b');
-  for (const y of [-4, 2]) {
-    panel(11, y, 2, 2, '#efd08b'); panel(-13, y, 1, 2, '#b96e60');
+// The wreck is the reference asset: muted ochre, slate glass, block panels and
+// dark wheel/crease accents. All cab states share this palette and ground anchor.
+const CAB = { shadow: '#716343', body: '#ad874b', light: '#e8ba70', glass: '#293e45', ink: '#17282e' };
+export function drawTaxiBody(c: CanvasRenderingContext2D, view: 'side' | 'front' | 'rear' = 'side') {
+  const panel = (x: number, y: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
+  if (view === 'side') {
+    panel(-16, -10, 32, 9, CAB.shadow); panel(-15, -12, 29, 8, CAB.body);
+    panel(-10, -23, 19, 14, CAB.body); panel(-9, -24, 17, 2, CAB.light);
+    panel(-7, -21, 13, 8, CAB.glass); panel(-1, -21, 1, 8, CAB.body);
+    panel(-7, -21, 11, 1, '#5d5c55');
+    panel(-15, -12, 5, 2, CAB.light); panel(9, -12, 6, 2, CAB.light);
+    panel(-14, -3, 5, 4, CAB.ink); panel(8, -3, 5, 4, CAB.ink);
+    panel(-6, -11, 1, 7, CAB.shadow); panel(-4, -10, 3, 1, CAB.ink);
+    panel(14, -9, 2, 3, CAB.light); panel(-16, -9, 1, 2, '#925b49');
+  } else {
+    panel(-10, -11, 20, 10, CAB.shadow); panel(-9, -14, 18, 11, CAB.body);
+    panel(-8, -23, 16, 12, CAB.body); panel(-7, -24, 14, 2, CAB.light);
+    panel(-6, -21, 12, 7, CAB.glass); panel(-6, -21, 11, 1, '#5d5c55');
+    panel(-8, -13, 16, 2, CAB.light);
+    panel(-10, -3, 4, 4, CAB.ink); panel(6, -3, 4, 4, CAB.ink);
+    for (const x of [-8, 5]) panel(x, -8, 3, 2, view === 'front' ? CAB.light : '#925b49');
+    panel(-3, -6, 6, 2, CAB.ink);
   }
-  for (const x of [-9, -5, 3, 7]) panel(x, 5, 2, 1, '#17282e');
+  panel(-4, -28, 8, 4, CAB.light);
+  for (const x of [-3, -1, 1]) panel(x, -27, 1, 2, CAB.ink);
+}
+
+export function drawTaxiWreck(c: CanvasRenderingContext2D) {
+  const panel = (x: number, y: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
+  panel(-16, -10, 32, 9, CAB.shadow); panel(-15, -12, 29, 5, CAB.body);
+  panel(-10, -17, 19, 8, '#5d5c55'); panel(-7, -16, 11, 5, CAB.glass);
+  panel(-14, -3, 5, 4, CAB.ink); panel(8, -3, 5, 4, CAB.ink);
+  c.fillStyle = '#6c6b65'; c.beginPath(); c.arc(2, -18, 8, 0, Math.PI * 2); c.fill();
+  panel(-3, -23, 7, 3, '#989180'); panel(10, -10, 6, 2, CAB.light);
+  panel(-6, -10, 1, 5, '#252c35'); panel(-10, -7, 4, 1, '#252c35');
 }

@@ -4,12 +4,12 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
-import { drawCanopy, drawTaxiBody } from "./scenery";
+import { drawCanopy, drawTaxiBody, drawTaxiWreck } from "./scenery";
 import { QualityRecovery } from './qualityRecovery';
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
-import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition, trafficForState } from './dressing';
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
 import { availablePickups } from './collectibles';
 
 interface Sheet { url: string; w: number; h: number; frames: number }
@@ -231,7 +231,6 @@ export class Renderer {
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
-    if (s.scene === 'overworld') for (const traffic of trafficForState(s)) if (this.visible(traffic.x, traffic.y, 50)) actors.push({ y: traffic.y, draw: () => this.parkedCar(traffic.x, traffic.y, traffic.color, traffic.direction) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
@@ -410,11 +409,7 @@ export class Renderer {
     if (prop.kind === 'ambient-taxi') {
       if (!s.ambientTaxiWrecked) this.taxi(x, y, 1, 0, time, false);
       else {
-        this.shadow(x, y, 37); this.rect(x - 16, y - 10, 32, 9, '#716343'); this.rect(x - 15, y - 12, 29, 5, '#ad874b');
-        this.rect(x - 10, y - 17, 19, 8, '#5d5c55'); this.rect(x - 7, y - 16, 11, 5, '#293e45');
-        this.rect(x - 14, y - 3, 5, 4, '#17282e'); this.rect(x + 8, y - 3, 5, 4, '#17282e');
-        this.disc(x + 2, y - 18, 8, '#6c6b65'); this.rect(x - 3, y - 23, 7, 3, '#989180'); this.rect(x + 10, y - 10, 6, 2, '#e8ba70');
-        this.rect(x - 6, y - 10, 1, 5, '#252c35'); this.rect(x - 10, y - 7, 4, 1, '#252c35');
+        this.shadow(x, y, 37); c.save(); c.translate(x, y); drawTaxiWreck(c); c.restore();
       } return;
     }
     if (prop.kind === 'bush') {
@@ -459,6 +454,19 @@ export class Renderer {
         const px = prop.x + k * 6, py = y - 3 - k % 2 * 3, sway = this.reducedMotion ? 0 : Math.sin(time * 2 + k + x) * .5;
         this.rect(px, py, 1, 5, '#73905b'); this.rect(px - 1 + sway, py, 3, 2, k % 2 ? '#dac389' : '#d0949b');
       } return;
+    }
+    if (prop.kind === 'barrier') {
+      // Full-width hazard rail at the physical map boundary; the footprint is
+      // the rail's ground projection, shared with the road authoring helper.
+      this.rect(prop.x, prop.y, prop.w, prop.h, '#26373d');
+      const vertical = prop.h > prop.w, length = vertical ? prop.h : prop.w;
+      for (let offset = 0; offset < length; offset += 12) {
+        this.rect(prop.x + (vertical ? 1 : offset), prop.y + (vertical ? offset : 1),
+          vertical ? prop.w - 2 : Math.min(6, length - offset), vertical ? Math.min(6, length - offset) : prop.h - 2, '#e8ba70');
+      }
+      for (const far of [false, true]) this.rect(prop.x + (!vertical && far ? prop.w - 2 : -2),
+        prop.y + (vertical && far ? prop.h - 2 : -2), vertical ? prop.w + 4 : 4, vertical ? 4 : prop.h + 4, '#929587');
+      return;
     }
     if (prop.kind === 'fence') {
       this.rect(prop.x + 2, y - 3, prop.w, 3, '#243b31');
@@ -794,15 +802,17 @@ export class Renderer {
 
   private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
     const c = this.ctx;
-    const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4;
-    c.save();
-    c.translate(x, y - 5);
-    c.rotate(angle);
+    this.shadow(x, y, 37);
+    c.save(); c.translate(x, y - 8); c.rotate(Math.atan2(dy, dx));
     const headlights = c.createLinearGradient(12, 0, 37, 0);
     headlights.addColorStop(0, '#ffeab93d'); headlights.addColorStop(1, '#ffeab900');
     c.fillStyle = headlights; c.beginPath(); c.moveTo(12, -4); c.lineTo(37, -12); c.lineTo(37, 12); c.lineTo(12, 4); c.fill();
-    c.globalAlpha = 1;
-    drawTaxiBody(c);
+    c.restore();
+    c.save(); c.translate(x, y);
+    // Keep the side-view cabin upright when driving west. N/S use the same
+    // car's front/rear elevations, never a rotated or upside-down side sprite.
+    if (dx < 0) c.scale(-1, 1);
+    drawTaxiBody(c, Math.abs(dy) > Math.abs(dx) ? dy > 0 ? 'front' : 'rear' : 'side');
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;
