@@ -25,11 +25,13 @@ await mkdir(shots, { recursive: true });
 const fixture = await startFuryTestServer(port);
 const api = `http://127.0.0.1:${fixture.app.server.address().port}`;
 const angle = process.env.FURY_BROWSER_ANGLE ?? (process.platform === 'darwin' ? 'metal' : 'swiftshader');
+const graphicsArgs = angle === 'off' ? ['--disable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'] :
+  [`--use-angle=${angle}`, angle === 'swiftshader' ? '--enable-unsafe-swiftshader' : '--enable-gpu'];
 const browser = await chromium.launch({ headless: true,
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
   ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
-  args: ['--mute-audio', `--use-angle=${angle}`, angle === 'swiftshader' ? '--enable-unsafe-swiftshader' : '--enable-gpu'] });
-const errors = [], submissions = [], measurements = [], captureIssues = [];
+  args: ['--mute-audio', ...graphicsArgs] });
+const errors = [], submissions = [], measurements = [], captureIssues = [], qualityIssues = [];
 let activePage;
 
 function session(id) {
@@ -238,7 +240,11 @@ async function solo(size, graphics) {
     const best = await page.evaluate(() => window.__waysideFury.state.hubArena.soloBest);
     assert.equal(best, score);
     assert.equal(await page.locator('.wf-stage canvas').first().getAttribute('data-gfx'), '2d', 'hub/arena share the 2D scene in both graphics modes');
-    assert.equal(Number(await page.locator('.wf-stage canvas').first().getAttribute('data-render-dpr')), size.dpr, 'the shared arena/hub renderer preserves native DPR');
+    const renderDpr = Number(await page.locator('.wf-stage canvas').first().getAttribute('data-render-dpr'));
+    if (renderDpr !== size.dpr) {
+      qualityIssues.push({ label, requestedDpr: size.dpr, renderDpr });
+      console.warn(`NATIVE DPR UNAVAILABLE ${label}: requested ${size.dpr}, renderer ${renderDpr}; continuing independent UI/save assertions`);
+    }
     await capture(page, `u5-arena-result-${label}`);
     const arenaSave = await saved(page, 'dev-host');
     assert.equal(arenaSave.u1.hub.arena.soloBest, score);
@@ -248,7 +254,7 @@ async function solo(size, graphics) {
       await waitForState(page, () => window.__waysideFury && !document.querySelector('.wf-primary')?.disabled, null, bootTimeout);
       await begin(page);
       assert.equal(await page.evaluate(() => window.__waysideFury.state.hubArena.soloBest), score, 'reload preserves solo best');
-      measurements.push({ label, score, best });
+      measurements.push({ label, score, best, renderDpr });
       console.log(`Passed solo arena: ${label}`);
       return;
     }
@@ -289,12 +295,13 @@ async function solo(size, graphics) {
     assert.equal(await page.getByRole('button', { name: 'Deliver 18 candy', exact: true }).count(), 0);
     assert.equal(await page.evaluate(() => window.__waysideFury.state.candy), candy, 'reload preserves claimed quest and inventory');
     assert.equal(await page.evaluate(() => window.__waysideFury.state.hubCosmetic), 'bbq-apron', 'reload preserves the worn cosmetic');
-    measurements.push({ label, score, best, candy, savedCosmetic: 'bbq-apron' });
+    measurements.push({ label, score, best, candy, savedCosmetic: 'bbq-apron', renderDpr });
     console.log(`Passed solo arena and quest UI: ${label}`);
   } catch (error) {
     const state = await page.evaluate(() => {
       const game = window.__waysideFury, s = game?.state;
-      return { started: game?.started, paused: game?.paused, scene: s?.scene, overlay: s?.overlay, time: s?.time, arena: s?.arena, hp: s?.heroes[s.active]?.hp, coop: s?.coop && { role: s.coop.role, playerCount: s.coop.playerCount }, hidden: document.hidden };
+      return { started: game?.started, paused: game?.paused, scene: s?.scene, overlay: s?.overlay, time: s?.time, arena: s?.arena, hp: s?.heroes[s.active]?.hp, coop: s?.coop && { role: s.coop.role, playerCount: s.coop.playerCount }, hidden: document.hidden,
+        canvas: { ...document.querySelector('.wf-stage canvas')?.dataset }, lastFrame: game?.last, frameAccumulator: game?.acc };
     }).catch(error => ({ error: error.message }));
     console.error(`FAILURE state ${label}: ${JSON.stringify(state)}`);
     await writeFile(`${shots}/hub-failure-${label}.json`, JSON.stringify(state, null, 2));
@@ -355,8 +362,9 @@ try {
   if (!skipCoop) await coop();
   assert.equal(errors.length, 0, errors.join('\n'));
   assert.ok(submissions.some(s => s.arenaRun.mode === 'solo') && (skipCoop || submissions.some(s => s.arenaRun.mode === 'coop')));
-  await writeFile(`${shots}/hub-check.json`, JSON.stringify({ measurements, submissions, captureIssues }, null, 2));
+  await writeFile(`${shots}/hub-check.json`, JSON.stringify({ measurements, submissions, captureIssues, qualityIssues }, null, 2));
   if (captureIssues.length) console.warn(`${captureIssues.length} visual captures unavailable; UI/save assertions are independent of those captures.`);
+  assert.equal(qualityIssues.length, 0, `Native DPR visual QA failed: ${JSON.stringify(qualityIssues)}`);
   console.log(`Wayside Fury ${arenaOnly ? 'U5' : 'U5/U8'} checks passed. Screenshots: ${shots}/`);
 } catch (error) {
   if (activePage && !activePage.isClosed()) {
