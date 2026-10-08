@@ -68,6 +68,21 @@ export function sanitizeItemsSave(raw) {
     radar: { owned: radar.owned === true, enabled: radar.owned === true && radar.enabled === true } };
 }
 
+// Campaign progress and personal item intent can come from different devices.
+// Wish rewards belong to one relic cycle branch; adding branches would duplicate them.
+export function mergeItemsSaves(preferredMostRecent, alternate) {
+  const preferred = sanitizeItemsSave(preferredMostRecent), other = sanitizeItemsSave(alternate);
+  const chips = preferred.chips.owned.length ? preferred.chips : other.chips;
+  const relics = other.relics.cycle > preferred.relics.cycle ? other.relics : preferred.relics;
+  return sanitizeItemsSave({
+    chips: { ...chips, owned: [...preferred.chips.owned, ...other.chips.owned] },
+    relics: { ...relics, collected: preferred.relics.cycle === other.relics.cycle
+      ? [...preferred.relics.collected, ...other.relics.collected] : relics.collected },
+    radar: { owned: preferred.radar.owned || other.radar.owned,
+      enabled: preferred.radar.owned ? preferred.radar.enabled : other.radar.enabled },
+  });
+}
+
 // Keep the other sessions' bounded JSON until their domain sanitizers merge.
 // Unknown top-level namespaces and unsafe sibling trees never enter a cloud save.
 export function sanitizeItemsNamespace(raw) {

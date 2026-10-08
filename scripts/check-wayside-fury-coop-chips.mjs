@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { newGame, createHero, activeHero, idleInput, step, applyCoopDamage } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, createHero, activeHero, idleInput, step, applyCoopDamage, enterScene, interact, restAtHome } from '../src/pages/WaysideFury/game/sim.ts';
 import { grantChip, equipChip, chipEffects, itemsState } from '../src/pages/WaysideFury/game/u1/items/chips.ts';
+import { progressReport, makeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
+import { getWorld } from '../src/pages/WaysideFury/game/world.ts';
 import { cleanHero, cleanRelay } from '../server/wayside-fury/protocol.js';
 
 const cooperative = (role, seat) => {
@@ -74,4 +76,59 @@ for (const invalid of [{ chipDamageMultiplier: 0.5 }, { chipDamageMultiplier: '0
   { secondWindReady: 'true' }, { secondWindReady: 1 }]) assert.equal(cleanHero({ ...modernPacket, ...invalid }), null);
 const spentPacket = cleanHero({ ...modernPacket, chipDamageMultiplier: 1, secondWindReady: false, chipSnapshotAt: 999 });
 assert.equal(spentPacket.secondWindReady, false); assert.equal(spentPacket.chipSnapshotAt, undefined, 'host receipt timestamps never come from peers');
+
+// Guests can use HOME locally while host authority still owns world travel.
+const homeGuest = guestWithChip('second-wind');
+applyCoopDamage(homeGuest, 8, 0, 0); assert.equal(itemsState(homeGuest).chips.secondWindUsed, true);
+enterScene(homeGuest, 'hub'); homeGuest.x = 776; homeGuest.y = 256;
+homeGuest.heroes.joe.hp = 0;
+for (const hero of Object.values(homeGuest.heroes)) { hero.ki = 0; hero.stamina = 1; }
+homeGuest.vx = 10; homeGuest.vy = 20; homeGuest.moving = true;
+const personalProgress = structuredClone({ character: homeGuest.character, candy: homeGuest.candy, kills: homeGuest.kills, deaths: homeGuest.deaths });
+interact(homeGuest);
+assert.equal(homeGuest.overlay, 'home'); assert.equal(homeGuest.vx, 0); assert.equal(homeGuest.vy, 0); assert.equal(homeGuest.moving, false);
+restAtHome(homeGuest);
+assert.equal(chipEffects(homeGuest).secondWind, true, 'guest HOME recharges its personal Second Wind');
+for (const hero of Object.values(homeGuest.heroes)) {
+  assert.equal(hero.hp, hero.maxHp); assert.equal(hero.ki, hero.maxKi); assert.equal(hero.stamina, hero.maxStamina);
+}
+const firstHomeReport = progressReport(homeGuest);
+assert.equal(firstHomeReport.score, 1000, 'first HOME grants only the existing Wayside area delta');
+assert.deepEqual(homeGuest.clearedRooms, [], 'personal rest adds no room milestones');
+homeGuest.overlay = null; activeHero(homeGuest).invulnerable = 0;
+applyCoopDamage(homeGuest, 100000, 0, 0);
+assert.equal(itemsState(homeGuest).chips.secondWindUsed, true);
+interact(homeGuest); assert.equal(homeGuest.overlay, 'home'); restAtHome(homeGuest);
+assert.equal(chipEffects(homeGuest).secondWind, true, 'a later guest rest recharges again');
+assert.equal(progressReport(homeGuest, firstHomeReport.receipt).score, 0, 'later rests pay no second Wayside ticket delta');
+assert.deepEqual({ character: homeGuest.character, candy: homeGuest.candy, kills: homeGuest.kills, deaths: homeGuest.deaths }, personalProgress);
+homeGuest.overlay = null; activeHero(homeGuest).invulnerable = 0; applyCoopDamage(homeGuest, 100000, 0, 0);
+activeHero(homeGuest).invulnerable = 0; applyCoopDamage(homeGuest, 100000, 0, 0);
+assert.equal(homeGuest.coop.downed, true);
+interact(homeGuest); assert.equal(homeGuest.overlay, null, 'downed guests cannot open HOME');
+restAtHome(homeGuest); assert.equal(activeHero(homeGuest).hp, 0); assert.equal(itemsState(homeGuest).chips.secondWindUsed, true);
+
+const travelGuest = cooperative('guest', 1);
+enterScene(travelGuest, 'hub'); travelGuest.x = 480; travelGuest.y = 440; interact(travelGuest);
+assert.equal(travelGuest.scene, 'hub', 'guest HOME access does not allow taxi travel');
+enterScene(travelGuest, 'overworld'); travelGuest.x = 208; travelGuest.y = 480; interact(travelGuest);
+assert.equal(travelGuest.scene, 'overworld', 'overworld world travel stays host-authoritative');
+enterScene(travelGuest, 'dungeon', 0); travelGuest.enemies = [];
+travelGuest.x = getWorld('dungeon', 0).width - 18; travelGuest.y = getWorld('dungeon', 0).spawn.y;
+interact(travelGuest); assert.equal(travelGuest.room, 0, 'dungeon exits stay host-authoritative');
+
+const oldBosses = ['blast-gatekeeper', 'blast-watcher'], oldCaches = ['loot-blast-8', 'loot-blast-9'];
+const legacyFixture = { version: 1, chapter: 1, heroes: { joe: createHero('joe'), matt: createHero('matt') }, active: 'joe',
+  party: ['joe', 'matt'], unlockedHeroes: ['joe', 'matt'], candy: 19, areas: ['wayside'], bosses: oldBosses,
+  clearedRooms: oldCaches, kills: 3, deaths: 0, lastReported: { areas: ['wayside'], bosses: oldBosses, rooms: oldCaches, level: 1 }, home: null };
+const restoredLegacy = restoreSave(legacyFixture);
+const expectedBackfill = ['iron-guard', 'focus-lens', 'candy-magnet', 'ki-saver'];
+assert.deepEqual(itemsState(restoredLegacy).chips.owned, expectedBackfill, 'old completed bosses/caches grant their new chips');
+assert.deepEqual(restoredLegacy.bosses, oldBosses); assert.deepEqual(restoredLegacy.clearedRooms, oldCaches);
+assert.equal(restoredLegacy.candy, legacyFixture.candy); assert.equal(restoredLegacy.kills, legacyFixture.kills);
+assert.deepEqual(restoredLegacy.events, [], 'restore does not queue acquisition sounds');
+assert.equal(progressReport(restoredLegacy, legacyFixture.lastReported).score, 0, 'chip backfill changes no ticket progress');
+const backfilledSave = makeSave(restoredLegacy, null, false, legacyFixture.lastReported);
+assert.deepEqual(backfilledSave.lastReported, legacyFixture.lastReported);
+assert.deepEqual(itemsState(restoreSave(backfilledSave)).chips.owned, expectedBackfill, 'repeated restores cannot duplicate backfilled chips');
 console.log('Wayside Fury co-op chips: last-survivor mitigation/revive, one-time readiness, raw damage parity and legacy/validated hero metadata pass.');

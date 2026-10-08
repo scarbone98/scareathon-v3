@@ -1,5 +1,6 @@
 import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
+import { mergeItemsSaves } from "../../../../server/shared/waysideFury/u1Items.js";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "local" | "offline" | "unavailable";
 export interface SaveTransport {
@@ -25,7 +26,16 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   if (!remote) return local;
   const difference = progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+  return mergePersonalItems({ ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) }, local, remote);
+}
+
+function mergePersonalItems(winner: SaveData, local: SaveData, remote: SaveData): SaveData {
+  const recent = local.savedAt > remote.savedAt ? local : remote;
+  const alternate = recent === local ? remote : local;
+  const items = mergeItemsSaves(recent.u1?.items, alternate.u1?.items);
+  if (JSON.stringify(items) === JSON.stringify(winner.u1?.items)) return winner;
+  // Re-derive hero stats from the selected campaign gear and merged wishes.
+  return parseSave({ ...winner, savedAt: Math.max(local.savedAt, remote.savedAt), u1: { ...winner.u1, items } })!;
 }
 
 // The transport and storage are replaceable so races and disconnected devices
@@ -194,6 +204,7 @@ export class CloudSaveStore {
     if (this.flushing || !this.userId || !this.ready || this.disposed) return;
     this.flushing = true; const epoch = this.epoch;
     let writing: { save: SaveData; credit: boolean } | null = null;
+    let itemConflicts = 0;
     try {
       if (!this.revisionKnown) {
         await this.reconcile(epoch);
@@ -208,10 +219,17 @@ export class CloudSaveStore {
           const remote = this.decode(response.body);
           // Discard all queued snapshots from before the conflict, including
           // a checkpoint queued while this request was in flight.
-          this.pending = null; this.save = remote.save; this.revision = remote.revision;
+          const merged = remote.save && this.save ? mergePersonalItems(remote.save, this.save, remote.save) : remote.save;
+          this.pending = null; this.save = merged; this.revision = remote.revision;
           this.confirmed = mergeReceipts(remote.save?.lastReported); this.unconfirmed = null;
-          if (remote.save) this.write(remote.save);
-          this.cb.onReplaced(remote.save, "conflict"); this.notify("saved"); return;
+          if (merged) this.write(merged);
+          this.cb.onReplaced(merged, "conflict");
+          if (merged && JSON.stringify(merged) !== JSON.stringify(remote.save)) {
+            this.pending = { save: merged, credit: false }; writing = null;
+            if (++itemConflicts >= 3) { this.notify("saving"); this.retry(); return; }
+            continue;
+          }
+          this.notify("saved"); return;
         }
         const revision = (response.body as { revision?: number })?.revision;
         if (response.status !== 200 || !Number.isInteger(revision) || revision! < 1) throw new Error("Could not save progress");

@@ -6,7 +6,7 @@ const base = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5185';
 const modulePath = process.env.PLAYWRIGHT_MODULE ?? 'playwright';
 const { chromium } = await import(modulePath.startsWith('/') ? pathToFileURL(modulePath).href : modulePath);
 const fixture = await startFuryTestServer(Number(process.env.FURY_TEST_PORT ?? 3000));
-const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
+const browser = await chromium.launch({ headless: true, args: ['--mute-audio'], ...(process.env.PLAYWRIGHT_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE } : {}) });
 const errors = [];
 const session = id => {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');

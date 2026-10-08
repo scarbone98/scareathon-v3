@@ -352,7 +352,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
 }
 function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
   if (e.hp <= 0) return;
-  if (chipEffects(s).scanner && e.windup > 0) damage *= 1.15;
+  if (chipEffects(s).scanner && !("nightAmbient" in e && e.nightAmbient) && e.windup > 0) damage *= 1.15;
   if (s.coop?.role === "guest") {
     s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
     effect(s, "hit", e.x, e.y, 9, 0.12);
@@ -704,6 +704,10 @@ function travel(s: GameState, door: WorldExit) {
 export function interact(s: GameState): void {
   const personalTarget = interactTarget(s);
   if (personalTarget && interactItem(s, personalTarget.id)) return;
+  if (s.coop?.role === "guest" && s.scene === "hub" && personalTarget?.id === "home"
+    && !s.overlay && !s.coop.downed && activeHero(s).hp > 0) {
+    s.overlay = "home"; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return;
+  }
   if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
   const target = interactTarget(s);
   if (!target) return;
@@ -814,7 +818,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   s.swapCooldown = Math.max(0, s.swapCooldown - dt);
   const passives = chipEffects(s);
   for (const h of Object.values(s.heroes)) {
-    if (h.id === s.active && h.hp > 0 && !s.enemies.some(e => e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 100))
+    if (h.id === s.active && h.hp > 0 && !s.enemies.some(e => e.hp > 0 && !("nightAmbient" in e && e.nightAmbient) && Math.hypot(e.x - s.x, e.y - s.y) < 100))
       h.hp = Math.min(h.maxHp, h.hp + passives.passiveHealPerSecond * dt);
     h.invulnerable = Math.max(0, h.invulnerable - dt);
     h.stamina = Math.min(h.maxStamina, h.stamina + dt * 20);

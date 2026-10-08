@@ -4,6 +4,7 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { chipEffects, CHIP_REGISTRY } from "./u1/items/chips";
+import { radarPickupTarget } from "./u1/items/radar";
 import { relicTargets, RELIC_SUMMON, OUTFITS } from "./u1/items/relics";
 import { itemsState } from "./u1/items/chips";
 import { chipTargets } from "./u1/items/pickups";
@@ -237,6 +238,8 @@ export class Renderer {
       actors.push({ y: item.y, draw: () => drawItemMarker(c, item, motionTime, this.reducedMotion) });
     if (s.scene === "hub" && this.visible(RELIC_SUMMON.x, RELIC_SUMMON.y))
       actors.push({ y: RELIC_SUMMON.y, draw: () => drawItemMarker(c, { ...RELIC_SUMMON, kind: "summon" }, motionTime, this.reducedMotion) });
+    const radar = radarPickupTarget(s);
+    if (radar && this.visible(radar.x, radar.y)) actors.push({ y: radar.y, draw: () => drawItemMarker(c, radar, motionTime, this.reducedMotion) });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -523,12 +526,12 @@ export class Renderer {
       if (enemy.windup > 0) c.scale(1.08, .93);
     }
     this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
-    if (chipEffects(s).scanner && enemy.windup > 0) {
+    if (chipEffects(s).scanner && !("nightAmbient" in enemy && enemy.nightAmbient) && enemy.windup > 0) {
       c.save(); c.strokeStyle = "#9fffe3"; c.lineWidth = .8;
       c.beginPath(); c.arc(enemy.x, enemy.y - (boss ? 20 : 12), boss ? 8 : 5, 0, Math.PI * 2); c.stroke();
       c.beginPath(); c.moveTo(enemy.x - 11, enemy.y - 20); c.lineTo(enemy.x - 7, enemy.y - 20); c.moveTo(enemy.x + 7, enemy.y - 20); c.lineTo(enemy.x + 11, enemy.y - 20); c.stroke(); c.restore();
     }
-    if (enemy.hp < enemy.maxHp || boss || chipEffects(s).scanner) {
+    if (enemy.hp < enemy.maxHp || boss || (chipEffects(s).scanner && !("nightAmbient" in enemy && enemy.nightAmbient))) {
       const width = boss ? 48 : 18, top = enemy.y - SHEETS[id].h * scale - 6;
       this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);
       this.rect(enemy.x - width / 2, top, width, 2, '#613448');

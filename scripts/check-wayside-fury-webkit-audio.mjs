@@ -1,3 +1,4 @@
+import { muteWebKitContext } from './wayside-fury-browser-audio.mjs';
 // Run against Vite: FURY_BASE_URL=http://127.0.0.1:5173 node scripts/check-wayside-fury-webkit-audio.mjs
 // Install Playwright/WebKit first (npx playwright install webkit). An external
 // installation can be selected with PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs.
@@ -53,6 +54,7 @@ async function audible(page, label) {
 
 async function run(gesture) {
   const context = await browser.newContext({ ...device });
+  await muteWebKitContext(context, false);
   const errors = [];
   // A fresh guest, and a tap on UI that stops bubbling. Blocking other gesture
   // types proves each required capture listener works independently.
@@ -64,13 +66,22 @@ async function run(gesture) {
     }
     const NativeContext = window.AudioContext ?? window.webkitAudioContext;
     const connect = AudioNode.prototype.connect;
+    const outputs = new WeakMap();
     AudioNode.prototype.connect = function (...args) {
-      const result = connect.apply(this, args);
-      if (args[0] === this.context.destination && this instanceof DynamicsCompressorNode) {
-        const analyser = this.context.createAnalyser(); analyser.fftSize = 2048;
-        connect.call(this, analyser);
-        probe.taps.push({ ctx: this.context, analyser });
+      if (args[0] === this.context.destination) {
+        // Tap before this test-only output mute, retaining real graph RMS.
+        if (this instanceof DynamicsCompressorNode) {
+          const analyser = this.context.createAnalyser(); analyser.fftSize = 2048;
+          connect.call(this, analyser); probe.taps.push({ ctx: this.context, analyser });
+        }
+        let output = outputs.get(this.context);
+        if (!output) {
+          output = this.context.createGain(); output.gain.value = 0;
+          connect.call(output, this.context.destination); outputs.set(this.context, output);
+        }
+        args[0] = output;
       }
+      const result = connect.apply(this, args);
       return result;
     };
     class ObservedContext extends NativeContext {

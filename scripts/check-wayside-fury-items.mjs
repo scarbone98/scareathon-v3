@@ -42,6 +42,8 @@ tick(dash, { dash: true }); assert.ok(dash.dashTimer > 0); assert.ok(activeHero(
 const vital = loadout('vital-spark'); activeHero(vital).hp = 40; tick(vital, {}, 60); assert.ok(activeHero(vital).hp > 40.7);
 const hostile = addEnemy(vital, 'grunt', vital.x + 80, vital.y); hostile.speed = 0; hostile.cooldown = 999;
 const hp = activeHero(vital).hp; tick(vital, {}, 30); assert.equal(activeHero(vital).hp, hp, 'healing waits for safety');
+hostile.nightAmbient = true;
+tick(vital, {}, 30); assert.ok(activeHero(vital).hp > hp, 'noncombat night visitors do not block safe healing');
 
 // Compare damage delivered through the projectile collision path, rather than
 // merely asserting that the chip's returned multiplier has the expected value.

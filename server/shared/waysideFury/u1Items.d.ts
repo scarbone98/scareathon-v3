@@ -12,4 +12,5 @@ export const WISH_IDS: readonly string[];
 export const OUTFIT_IDS: readonly string[];
 export function createItemsSave(): ItemsSaveState;
 export function sanitizeItemsSave(raw: unknown): ItemsSaveState;
+export function mergeItemsSaves(preferredMostRecent: unknown, alternate: unknown): ItemsSaveState;
 export function sanitizeItemsNamespace(raw: unknown): { items: ItemsSaveState; [key: string]: unknown };

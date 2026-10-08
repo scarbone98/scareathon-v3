@@ -89,7 +89,7 @@ export function availableWishes(s: GameState): WishOption[] {
   const choices: WishOption[] = [];
   if (unowned[0]) choices.push(outfitWish(unowned[0]));
   choices.push(relics.cycle % 2 === 0 ? powerWish : wardWish);
-  if (!relics.secretBossUnlocked) choices.push(secretBossWish);
+  if (!relics.secretBossUnlocked && !s.bosses.includes("relic-echo")) choices.push(secretBossWish);
   else if (unowned[1]) choices.push(outfitWish(unowned[1]));
   else choices.push(relics.cycle % 2 === 0 ? wardWish : powerWish);
   return choices;

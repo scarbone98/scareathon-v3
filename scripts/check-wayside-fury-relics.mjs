@@ -5,6 +5,7 @@ import { makeSave, restoreSave, progressReport } from '../src/pages/WaysideFury/
 import { sanitizeItemsSave, RELIC_IDS, WISH_IDS, OUTFIT_IDS } from '../server/shared/waysideFury/u1Items.js';
 import { itemsState } from '../src/pages/WaysideFury/game/u1/items/chips.ts';
 import { chipTargets, collectChip } from '../src/pages/WaysideFury/game/u1/items/pickups.ts';
+import { registerItemGateAnchors } from '../src/pages/WaysideFury/game/u1/items/gating.ts';
 import { RELICS, RELIC_SUMMON, OUTFITS, WISH_OPTIONS, relicTargets, collectRelic,
   hasAllRelics, readyToSummon, availableWishes, chooseWish } from '../src/pages/WaysideFury/game/u1/items/relics.ts';
 
@@ -118,7 +119,7 @@ for (const cycle of [1, 2]) {
 }
 for (const [id, room, gateId, x, y] of [
   ['chip-find-ki-coil', 0, 'world-joe-road', 164, 96],
-  ['chip-find-combo-extender', 2, 'world-alex-yard', 292, 88],
+  ['chip-find-combo-extender', 2, 'world-alex-yard', 372, 88],
 ]) {
   const state = stateAt('dungeon', room);
   const original = chipTargets(state).find(target => target.id === id);
@@ -126,14 +127,26 @@ for (const [id, room, gateId, x, y] of [
   state.u1.world = { clearedObstacles: [] };
   const gated = chipTargets(state).find(target => target.id === id);
   assert.deepEqual({ x: gated.x, y: gated.y, gateId: gated.gateId }, { x, y, gateId });
-  // The yard anchor sits beside a car footprint: approach from the open west
-  // side, rather than placing the hero inside that prop for a test shortcut.
+  // Approach from legal ground beside the reward anchor.
   state.x = x - 12; state.y = y;
   assert.equal(isBlocked(getWorld('dungeon', room), state.x, state.y, 7), false);
   assert.equal(collectChip(state, id), false);
   state.u1.world.clearedObstacles.push(gateId);
   assert.equal(collectChip(state, id), true);
 }
+const registeredGateState = stateAt('dungeon', 2);
+registeredGateState.u1.world = { clearedObstacles: [] };
+try {
+  const registry = [{ id: 'world-alex-yard', rewardAnchor: { x: 380, y: 92 } }];
+  registerItemGateAnchors(registry);
+  let target = chipTargets(registeredGateState).find(item => item.id === 'chip-find-combo-extender');
+  assert.deepEqual({ x: target.x, y: target.y, gateId: target.gateId }, { x: 380, y: 92, gateId: 'world-alex-yard' }, 'merged world registry owns item gate coordinates');
+  registry[0].rewardAnchor.x = 9999;
+  assert.equal(chipTargets(registeredGateState).find(item => item.id === target.id).x, 380, 'registration copies anchors');
+  registerItemGateAnchors([{ id: 'world-alex-yard', rewardAnchor: { x: NaN, y: 92 } }]);
+  target = chipTargets(registeredGateState).find(item => item.id === target.id);
+  assert.deepEqual({ x: target.x, y: target.y }, { x: 372, y: 88 }, 'invalid registry anchor retains the validated fallback');
+} finally { registerItemGateAnchors([]); }
 
 const summoner = stateAt('hub');
 summoner.x = RELIC_SUMMON.x; summoner.y = RELIC_SUMMON.y;
@@ -149,6 +162,20 @@ summoner.x = RELIC_SUMMON.x;
 assert.equal(chooseWish(summoner, 'invented-wish'), false);
 assert.equal(chooseWish(summoner, 'outfit-orchard-gold'), false, 'only this cycle\'s offered wishes can grant');
 assert.equal(itemsState(summoner).relics.collected.length, 7, 'rejected choice leaves the set intact');
+
+const guestVictor = stateAt('hub'); completeSet(guestVictor);
+guestVictor.bosses.push('relic-echo');
+assert.equal(itemsState(guestVictor).relics.secretBossUnlocked, false, 'a guest can defeat the host challenger without a personal unlock');
+const beforeRejectedWish = structuredClone(itemsState(guestVictor).relics);
+assert.equal(availableWishes(guestVictor).some(wish => wish.id === 'wish-secret-boss'), false, 'a defeated challenger cannot be unlocked again');
+assert.equal(chooseWish(guestVictor, 'wish-secret-boss'), false);
+assert.deepEqual(itemsState(guestVictor).relics, beforeRejectedWish, 'rejecting the defeated challenger leaves all seven relics and rewards intact');
+assert.ok(availableWishes(guestVictor).some(wish => wish.id === 'wish-power'));
+assert.ok(availableWishes(guestVictor).some(wish => wish.id === 'outfit-starlight-crew'), 'a second cosmetic replaces the unavailable challenger');
+assert.equal(chooseWish(guestVictor, 'outfit-starlight-crew'), true, 'the replacement cosmetic remains usable');
+completeSet(guestVictor); itemsState(guestVictor).relics.outfits = OUTFITS.map(outfit => outfit.id);
+assert.ok(availableWishes(guestVictor).some(wish => wish.id === 'wish-power'), 'the second stat replaces the challenger when all cosmetics are owned');
+assert.equal(chooseWish(guestVictor, 'wish-power'), true);
 
 const originalPower = summoner.heroes.you.power, originalGear = { ...summoner.gear };
 const beforeProgress = progressReport(summoner);

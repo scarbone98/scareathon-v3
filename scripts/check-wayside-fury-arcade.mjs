@@ -11,7 +11,7 @@ const moduleName = process.env.PLAYWRIGHT_MODULE ?? 'playwright';
 const { chromium } = await import(moduleName.startsWith('/') ? pathToFileURL(moduleName).href : moduleName);
 const shots = '/tmp/fury-arcade-shots';
 await mkdir(shots, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
 const results = [];
 let activePage;
 try {

@@ -9,6 +9,10 @@ import { readGraphicsMode, rememberGraphicsMode, type GraphicsMode, type Graphic
 import { type InputMode } from "./game/input";
 import { type RenderPresentation } from "./game/render";
 import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceStory, buyItem, enterScene, interact, interactTarget, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
+import { ItemsHud } from "./u1/ItemsHud";
+import "./game/u1/items/integrations";
+import { toggleRadar } from "./game/u1/items/radar";
+import { hiddenRadarTargets } from "./game/u1/items/hiddenRadar";
 import { RelicsPanel } from "./u1/RelicsPanel";
 import { chooseWish } from "./game/u1/items/relics";
 import { equipChip } from "./game/u1/items/chips";
@@ -387,6 +391,7 @@ export default function WaysideFury() {
         <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button>
       </header>}
+      {!cinematic && !paused && !state.overlay && state.scene !== "dead" && <ItemsHud state={state} hiddenTargets={hiddenRadarTargets(state)} onToggleRadar={() => controller.current?.mutate(s => { if (toggleRadar(s)) persist(s); })} />}
       {!cinematic && !paused && coopRoom && <div className="wf-party-hud" aria-label="Party HP">{coopRoom.players.map(player => {
         const peer = state.coop?.remoteHeroes.find(p => p.seat === player.seat), h = player.seat === coopRoom.seat ? hero : peer?.hero;
         return <div key={player.seat}><strong>{player.name}{!player.connected ? " · Offline" : h?.hp === 0 ? " · Down" : ""}</strong><Meter value={h?.hp ?? 0} max={h?.maxHp ?? 1} kind="hp" /></div>;

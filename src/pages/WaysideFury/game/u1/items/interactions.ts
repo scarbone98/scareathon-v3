@@ -1,4 +1,5 @@
 import type { GameState } from "../../sim.ts";
+import { RADAR_PICKUP, radarPickupTarget, collectRadar } from "./radar.ts";
 import { chipTargets, collectChip, itemWithinReach } from "./pickups.ts";
 import { relicTargets, collectRelic, readyToSummon, RELIC_SUMMON } from "./relics.ts";
 
@@ -8,7 +9,8 @@ export interface ItemInteractionCandidate {
 /** Add these local candidates to JOB E's once-per-frame context selection. */
 export function itemInteractionCandidates(s: GameState): ItemInteractionCandidate[] {
   if (s.overlay || s.heroes[s.active].hp <= 0 || s.coop?.downed) return [];
-  const targets = [...chipTargets(s), ...relicTargets(s)]
+  const radar = radarPickupTarget(s);
+  const targets = [...chipTargets(s), ...relicTargets(s), ...(radar ? [radar] : [])]
     .filter(target => itemWithinReach(s, target)).map(target => ({
       id: target.id, name: `Collect ${target.name}`, kind: "use" as const,
       x: target.x, y: target.y, distance: Math.hypot(target.x - s.x, target.y - s.y), radius: 24,
@@ -22,5 +24,5 @@ export function interactItem(s: GameState, id: string): boolean {
   if (id === "relic-summon" && readyToSummon(s)) {
     s.overlay = "wish"; s.vx = s.vy = 0; s.moving = false; return true;
   }
-  return collectChip(s, id) || collectRelic(s, id);
+  return collectChip(s, id) || collectRelic(s, id) || (id === RADAR_PICKUP.id && collectRadar(s));
 }

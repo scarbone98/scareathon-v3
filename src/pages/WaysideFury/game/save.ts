@@ -1,5 +1,6 @@
 import { enterScene, newGame, createHero, itemsGear, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
+import { grantCheckpointChip } from "./u1/items/pickups.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
 import type { SaveData, ProgressReceipt } from "../../../../server/shared/waysideFury/save.js";
 export { mergeReceipts };
@@ -61,6 +62,8 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
     s.coopRewards = [...(saved.coopRewards ?? [])];
     s.u1 = structuredClone(saved.u1!);
+    for (const id of [...saved.bosses, ...saved.clearedRooms]) grantCheckpointChip(s, id);
+    s.events.length = 0;
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry && s.u1) s.u1.items.chips.secondWindUsed = false;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }
