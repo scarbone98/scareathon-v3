@@ -1,5 +1,6 @@
 // The browser and server share one bounded, versioned character sheet.
 // This is shape validation, not authoritative combat or economy simulation.
+import { sanitizeCombatSave } from "./u1Combat.js";
 export const SAVE_VERSION = 3;
 export const MAX_SAVE_BYTES = 65_536;
 export const MAX_MILESTONES = 128;
@@ -157,6 +158,7 @@ export function sanitizeSave(raw) {
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
         coopRewards: coopRewards(raw.coopRewards),
+        u1: { combat: sanitizeCombatSave(raw.u1?.combat) },
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };
 }

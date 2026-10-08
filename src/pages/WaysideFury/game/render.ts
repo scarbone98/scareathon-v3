@@ -1,4 +1,5 @@
 // The renderer only reads simulation state. World units are independent of pixels.
+import { renderTrainingGrounds } from "./u1/combat/trainingRender";
 import { drawFusionForm } from "./u1/combat/fusionRender";
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
@@ -211,6 +212,7 @@ export class Renderer {
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     this.ambient(s, world, motionTime);
+    renderTrainingGrounds(c, s, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);

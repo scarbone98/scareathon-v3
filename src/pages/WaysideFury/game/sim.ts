@@ -1,3 +1,6 @@
+import { defaultCombatProgress, type CombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
+import { TRAINING_BOARD, cancelTraining, tickTraining, trainingMelee, trainingProjectile, type TrainingRuntime, type TrainingFailure, type ChallengeTier } from "./u1/combat/training.ts";
+import { signatureDefinition } from "./u1/combat/signature.ts";
 import { createFusionRuntime, requestFusion, tickFusion, localFusion, consumeFusionSpecial, resetFusion, type FusionRuntime } from "./u1/combat/fusion.ts";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
@@ -56,6 +59,8 @@ export type GameEvent =
   | { type: "fusion-start"; id: number; heroes: [HeroId, HeroId]; seats: [number, number] }
   | { type: "fusion-end"; id: number }
   | { type: "fusion-special"; id: number }
+  | { type: "training-complete"; hero: HeroId; tier: ChallengeTier }
+  | { type: "training-failed"; hero: HeroId; tier: ChallengeTier; reason: TrainingFailure }
   | CoopHit
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
@@ -71,13 +76,15 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "training" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   candy: number; deaths: number; kills: number; events: GameEvent[];
   previousInput: Input; rngSeed: number; nextId: number;
+  u1: { combat: CombatProgress; [namespace: string]: unknown };
+  training: TrainingRuntime | null;
   fusion: FusionRuntime;
   coop?: CoopRuntime;
   coopRewards?: string[];
@@ -156,7 +163,7 @@ export function newGame(seed = 8591): GameState {
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
-    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, fusion: createFusionRuntime(), coopRewards: [] };
+    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, u1: { combat: defaultCombatProgress() }, training: null, fusion: createFusionRuntime(), coopRewards: [] };
   enterScene(s, "test");
   return s;
 }
@@ -172,7 +179,7 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 }
 export function enterScene(s: GameState, scene: Scene, room = 0): void {
   const world = getWorld(scene, room);
-  resetFusion(s);
+  resetFusion(s); cancelTraining(s);
   s.scene = scene; s.overlay = null; s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
@@ -472,6 +479,7 @@ function melee(s: GameState) {
   s.attackTimer = s.combo === 3 ? 0.28 : 0.2;
   s.comboWindow = 0.8;
   const reach = (s.combo === 3 ? 34 : 28) + (localFusion(s) ? 8 : 0);
+  trainingMelee(s, reach, s.faceX, s.faceY);
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
   const attackId = `melee:${s.nextId++}`;
   let hit = false;
@@ -484,11 +492,12 @@ function melee(s: GameState) {
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
 }
 function projectile(s: GameState, owner: Projectile["owner"], x: number, y: number, dx: number, dy: number,
-  speed: number, damage: number, radius: number, beam = false) {
+  speed: number, damage: number, radius: number, beam = false, ttl = beam ? 0.8 : 3.5) {
   s.projectiles.push({ id: s.nextId++, owner, x, y, vx: dx * speed, vy: dy * speed, damage,
-    radius, beam, hero: owner === "hero" ? s.active : undefined, ttl: beam ? 0.8 : 3.5, hits: [] });
+    radius, beam, hero: owner === "hero" ? s.active : undefined, ttl, hits: [] });
 }
 function fireKi(s: GameState) {
+  if (s.scene === "hub" && !s.training) { s.charge = 0; return; }
   const h = activeHero(s);
   if (localFusion(s) && consumeFusionSpecial(s)) {
     for (const angle of [-0.12, 0, 0.12]) {
@@ -500,19 +509,14 @@ function fireKi(s: GameState) {
     s.notice = "FUSION: Wayside Supernova!"; s.charge = 0; return;
   }
   if (h.ki >= h.maxKi - 0.01) {
-    h.ki = 0;
-    const signature = {
-      you: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "YOU: Fury Wave!" },
-      joe: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "JOE: Wayside Wave!" },
-      matt: { angles: [-0.16, 0, 0.16], damage: 1.8, radius: 6, size: 105, name: "MATT: Golden Fury!" },
-      alex: { angles: [-0.1, 0.1], damage: 2.4, radius: 7, size: 115, name: "ALEX: Twin Comet!" },
-      jon: { angles: [0], damage: 4.8, radius: 12, size: 140, name: "JON: Night Breaker!" },
-    }[s.active];
+    const signature = signatureDefinition(s);
+    h.ki = signature.kiRefund;
+    h.stamina = Math.min(h.maxStamina, h.stamina + signature.staminaRestore);
     for (const angle of signature.angles) {
       const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
       const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
-      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 245,
-        h.power * signature.damage, signature.radius, true);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, signature.speed,
+        h.power * signature.damage, signature.radius, true, signature.ttl);
     }
     effect(s, "beam", s.x, s.y, signature.size, 0.36, s.faceX, s.faceY);
     s.notice = signature.name;
@@ -625,6 +629,8 @@ function updateProjectiles(s: GameState, dt: number) {
       return Math.hypot(x - x0 - dx * t, y - y0 - dy * t) < radius + p.radius;
     };
     if (p.owner === "hero") {
+      const hitTraining = trainingProjectile(s, p, x0, y0);
+      if (!p.beam && hitTraining) continue;
       for (const e of s.enemies) {
         if (e.hp <= 0 || p.hits.includes(e.id) || !collides(e.x, e.y, e.radius)) continue;
         p.hits.push(e.id);
@@ -664,7 +670,7 @@ export function interactTarget(s: GameState): { id: string; name: string; locked
     return door ? { id: door.id, name: door.name } : null;
   }
   const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
-  return points.find(p => Math.hypot(s.x - p.x, s.y - p.y) < 28) ?? null;
+  return points.find(p => (p.id !== TRAINING_BOARD.id || !s.training) && Math.hypot(s.x - p.x, s.y - p.y) < 28) ?? null;
 }
 function travel(s: GameState, door: WorldExit) {
   if (door.target === "realm") beginRealmShift(s);
@@ -676,8 +682,10 @@ function travel(s: GameState, door: WorldExit) {
   s.previousInput.interact = true;
 }
 export function interact(s: GameState): void {
-  if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
+  if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = interactTarget(s);
+  if (target?.id === TRAINING_BOARD.id) { s.overlay = "training"; s.vx = s.vy = 0; s.moving = false; return; }
+  if (s.coop?.role === "guest") return;
   if (!target) return;
   if (target.id.startsWith("coop-revive-")) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
@@ -778,7 +786,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
   s.previousInput = { ...input };
-  const combat = ["test", "dungeon", "realm", "arena"].includes(s.scene);
+  const combat = ["test", "dungeon", "realm", "arena"].includes(s.scene) || s.scene === "hub" && !!s.training;
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
@@ -822,7 +830,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
-  if (!combat) { s.charge = 0; if (input.interact && !previous.interact) interact(s); return; }
+  tickTraining(s, dt);
+  if (!combat || s.scene === "hub" && !s.training) { s.charge = 0; if (input.interact && !previous.interact) interact(s); return; }
   if (input.attack && !previous.attack && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
   if (input.ki && s.dashTimer === 0 && !s.guard) {
     s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32);

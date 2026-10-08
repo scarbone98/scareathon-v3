@@ -1,3 +1,4 @@
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 
@@ -25,7 +26,7 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   if (!remote) return local;
   const difference = progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+  return { ...winner, u1: { ...winner.u1, combat: mergeCombatProgress(local.u1?.combat, remote.u1?.combat) }, coopRewards: winner.coopRewards ?? [], lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
 }
 
 // The transport and storage are replaceable so races and disconnected devices
@@ -194,6 +195,7 @@ export class CloudSaveStore {
     if (this.flushing || !this.userId || !this.ready || this.disposed) return;
     this.flushing = true; const epoch = this.epoch;
     let writing: { save: SaveData; credit: boolean } | null = null;
+    let trainingConflicts = 0;
     try {
       if (!this.revisionKnown) {
         await this.reconcile(epoch);
@@ -206,12 +208,26 @@ export class CloudSaveStore {
         if (epoch !== this.epoch) return;
         if (response.status === 409) {
           const remote = this.decode(response.body);
-          // Discard all queued snapshots from before the conflict, including
-          // a checkpoint queued while this request was in flight.
-          this.pending = null; this.save = remote.save; this.revision = remote.revision;
+          // Campaign state and its paid receipt follow the winning revision.
+          // Personal training tiers survive the rollback, including tiers earned
+          // while this request was in flight, and are retried without credit.
+          const remoteCombat = mergeCombatProgress(remote.save?.u1?.combat);
+          // persist() may have queued a newer sheet during the awaited PUT.
+          const queued = this.pending as { save: SaveData; credit: boolean } | null;
+          const combat = mergeCombatProgress(remoteCombat, writing.save.u1?.combat, this.save?.u1?.combat, queued?.save.u1?.combat);
+          const needsTrainingWrite = !!remote.save && JSON.stringify(combat.training) !== JSON.stringify(remoteCombat.training);
+          const next = remote.save && needsTrainingWrite ? { ...remote.save, u1: { ...remote.save.u1, combat } } : remote.save;
+          this.pending = next && needsTrainingWrite ? { save: next, credit: false } : null;
+          this.save = next; this.revision = remote.revision;
           this.confirmed = mergeReceipts(remote.save?.lastReported); this.unconfirmed = null;
-          if (remote.save) this.write(remote.save);
-          this.cb.onReplaced(remote.save, "conflict"); this.notify("saved"); return;
+          if (next) this.write(next);
+          writing = null;
+          this.cb.onReplaced(next, "conflict");
+          if (!this.pending) { this.notify("saved"); return; }
+          if (++trainingConflicts >= 3) {
+            this.notify(this.locallyDurable ? "offline" : "unavailable"); this.retry(); return;
+          }
+          this.notify("saving"); continue;
         }
         const revision = (response.body as { revision?: number })?.revision;
         if (response.status !== 200 || !Number.isInteger(revision) || revision! < 1) throw new Error("Could not save progress");

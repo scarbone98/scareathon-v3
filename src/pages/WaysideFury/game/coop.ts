@@ -170,7 +170,7 @@ export class FuryCoop {
       if (s.coop) s.coop.worldClearedRooms = [...w.clearedRooms];
       if (s.scene !== w.scene || s.room !== w.room) { enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer });
-      syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds.at(-1)?.at ?? now)) / 1000)));
+      syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds[this.worlds.length - 1]?.at ?? now)) / 1000)));
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);

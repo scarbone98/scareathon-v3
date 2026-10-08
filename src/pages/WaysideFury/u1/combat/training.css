@@ -1,0 +1,10 @@
+.wf-training-tiers { display: grid; gap: 8px; padding: 0; list-style: none; text-align: left; }
+.wf-training-tiers li { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid #688a783d; border-radius: 8px; color: #bbccc1; }
+.wf-training-tiers li > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #253b46; color: #eadaac; }
+.wf-training-tiers small { display: block; font-size: 11px; margin-top: 3px; line-height: 1.4; }
+.wf-training-tiers .wf-tier-earned { border-color: #98d5b1; color: #e4f4da; background: #3059455c; }
+.wf-training-hud { display: grid; gap: 5px; width: min(350px,100%); padding: 8px 12px; background: #18382ff0; border: 1px solid #b0d499; border-radius: 8px; font-size: 12px; pointer-events: auto; }
+.wf-training-hud > div { display: flex; justify-content: space-between; gap: 8px; }
+.wf-training-hud progress { width: 100%; height: 5px; accent-color: #ffe19d; }
+.wf-shell .wf-training-hud button { min-height: 28px; padding: 3px 8px; font-size: 11px; }
+.wf-signature-tier { color: #e8d29b; display: block; font-size: 10px; margin-top: 4px; }

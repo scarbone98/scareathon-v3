@@ -7,3 +7,5 @@
 .wf-fusion-active span { font-size: 11px; color: #e2e6f5; }
 .wf-fusion-active meter { width: 100%; height: 5px; accent-color: #a7f5ea; }
 @media (max-width: 480px) { .wf-combat-hud { width: min(280px, 100%); } .wf-shell .wf-fusion-button { min-height: 42px; padding: 5px 10px; } }
+
+.wf-shell .wf-combat-save-status { position: static; align-self: flex-end; max-width: 100%; font-size: 10px; }

@@ -79,7 +79,7 @@ export class GameController {
     const s = this.state;
     this.cb.onState({ ...s,
       heroes: Object.fromEntries(Object.entries(s.heroes).map(([id, hero]) => [id, { ...hero }])) as GameState["heroes"],
-      fusion: structuredClone(s.fusion),
+      fusion: structuredClone(s.fusion), u1: structuredClone(s.u1), training: structuredClone(s.training),
       character: { ...s.character }, gear: { ...s.gear }, party: [...s.party], unlockedHeroes: [...s.unlockedHeroes],
       enemies: s.enemies.map(enemy => ({ ...enemy })), effects: s.effects.map(effect => ({ ...effect })),
       floaters: s.floaters.map(floater => ({ ...floater })), projectiles: s.projectiles.map(shot => ({ ...shot, hits: [...shot.hits] })),

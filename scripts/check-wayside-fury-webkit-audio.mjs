@@ -62,15 +62,24 @@ async function run(gesture) {
     for (const name of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
       if (name !== gesture) window.addEventListener(name, event => event.stopImmediatePropagation(), { capture: true });
     }
+    const muteMedia = () => document.querySelectorAll('audio, video').forEach(media => { media.muted = true; });
+    new MutationObserver(muteMedia).observe(document, { childList: true, subtree: true });
     const NativeContext = window.AudioContext ?? window.webkitAudioContext;
     const connect = AudioNode.prototype.connect;
     AudioNode.prototype.connect = function (...args) {
-      const result = connect.apply(this, args);
-      if (args[0] === this.context.destination && this instanceof DynamicsCompressorNode) {
-        const analyser = this.context.createAnalyser(); analyser.fftSize = 2048;
-        connect.call(this, analyser);
-        probe.taps.push({ ctx: this.context, analyser });
+      // Probe real audio before a silent output gate, preserving activation/RMS checks.
+      if (args[0] === this.context.destination) {
+        const silent = this.context.createGain(); silent.gain.value = 0;
+        connect.call(silent, this.context.destination);
+        connect.call(this, silent);
+        if (this instanceof DynamicsCompressorNode) {
+          const analyser = this.context.createAnalyser(); analyser.fftSize = 2048;
+          connect.call(this, analyser);
+          probe.taps.push({ ctx: this.context, analyser });
+        }
+        return args[0];
       }
+      const result = connect.apply(this, args);
       return result;
     };
     class ObservedContext extends NativeContext {

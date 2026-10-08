@@ -1,3 +1,4 @@
+import { mergeCombatProgress, sanitizeCombatSave } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
@@ -37,6 +38,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
+    u1: { ...previous?.u1, ...s.u1, combat: mergeCombatProgress(previous?.u1?.combat, s.u1.combat) },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
   });
@@ -58,6 +60,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
+    s.u1 = { ...saved.u1, combat: sanitizeCombatSave(saved.u1?.combat) };
     s.coopRewards = [...(saved.coopRewards ?? [])];
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }

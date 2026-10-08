@@ -306,14 +306,14 @@ describe('Wayside Fury relay validation', () => {
     });
 });
 
-async function makeServer({ dev = false, production = false } = {}) {
+async function makeServer({ dev = false, production = false, now } = {}) {
     const app = Fastify();
     app.decorateRequest('user', null);
     app.addHook('preValidation', async (request) => {
         if (request.headers.authorization === 'Bearer test-player') request.user = { sub: 'signed-in' };
     });
     await app.register(websocket, { options: { maxPayload: MAX_MESSAGE_BYTES } });
-    const rooms = createRoomManager();
+    const rooms = createRoomManager({ now });
     managers.push(rooms);
     await app.register(waysideFuryCoopRoutes, {
         prefix: '/wayside-fury/coop', rooms,
@@ -401,9 +401,13 @@ describe('Wayside Fury websocket registration and auth', () => {
     });
 
     test('malformed packets count toward the socket rate limit and flooding closes the connection', async () => {
-        const { app } = await makeServer();
-        const { socket } = await openSocket(app);
+        const { app, rooms } = await makeServer({ now: () => 1_000_000 });
+        const ticket = rooms.issueTicket({ userId: 'rate-test', name: 'Rate Test' });
+        const connection = await openSocket(app);
+        const { socket } = connection;
         try {
+            connection.send({ type: 'auth', ticket });
+            await connection.next('ready');
             const closed = new Promise((resolve) => socket.once('close', (code) => resolve(code)));
             for (let index = 0; index <= MAX_MESSAGES_PER_SECOND; index++) socket.send('not-json');
             expect(await closed).toBe(4008);
