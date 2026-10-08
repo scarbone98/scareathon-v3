@@ -1,3 +1,5 @@
+import { buildWalkableSurfaces } from './walkableSurfaces3d';
+import { isWalkableSurface, surfaceHeightAt } from './walkableSurfaces';
 import { scorchedGroundMesh, contactGroundMesh } from './grounding3d.ts';
 import { footprintGrounding } from './grounding.ts';
 import * as THREE from 'three';
@@ -67,6 +69,7 @@ export class SpaceRenderer {
     this.cylinder(g,9,8,'#3e4e62',0,4);
   }
   private buildProp(p:WorldProp) {
+    if(isWalkableSurface(p)) return;
     const g=new THREE.Group();g.position.set(p.x+p.w/2,0,p.y+p.h);this.props.set(p.id,g);this.staticGroup.add(g);
     const h=p.h;
     switch(p.kind){
@@ -123,6 +126,7 @@ export class SpaceRenderer {
     else for(let x=0;x<world.width;x+=32)this.box(this.staticGroup,.4,.05,world.height,'#718294',x,.1,world.height/2);
     for(let row=0;row<world.rows;row++)for(let col=0;col<world.cols;col++)if(world.collision[row*world.cols+col])this.box(this.staticGroup,16,12,16,'#566880',col*16+8,6,row*16+8);
     for(const p of world.props)this.buildProp(p);
+    buildWalkableSurfaces(this.staticGroup,world);
     for(const e of world.exits)this.box(this.staticGroup,e.w,.1,e.h,'#c39d69',e.x+e.w/2,.15,e.y+e.h/2);
     this.groundEffectsCanvas.width=world.width*2;this.groundEffectsCanvas.height=world.height*2;
     this.groundEffectsTexture.dispose();this.groundEffectsTexture=new THREE.CanvasTexture(this.groundEffectsCanvas);(this.groundEffects.material as THREE.MeshBasicMaterial).map=this.groundEffectsTexture;
@@ -188,22 +192,22 @@ export class SpaceRenderer {
     if(!this.ready||dt===0)this.focus.copy(target);else this.focus.lerp(target,1-Math.exp(-dt*8.5));this.ready=true;
     this.camera.left=-vw/2;this.camera.right=vw/2;this.camera.top=vh/2;this.camera.bottom=-vh/2;this.camera.updateProjectionMatrix();
     this.camera.position.set(this.focus.x,650,this.focus.y+400);this.camera.lookAt(this.focus.x,0,this.focus.y);this.camera.updateMatrixWorld();
-    for(const p of world.props){const g=this.props.get(p.id)!;g.visible=p.kind!=='seal'||!hasSpaceFlag(s,p.id);if(p.kind==='gantry'||p.kind==='rocket'){const occluded=Math.abs(s.x-g.position.x)<p.w/2+14&&s.y<g.position.z+12;g.traverse(o=>{if(o instanceof THREE.Mesh){const m=o.material as THREE.MeshStandardMaterial;m.transparent=occluded;m.opacity=occluded?.35:1;m.depthWrite=!occluded;}});}}
+    for(const p of world.props){const g=this.props.get(p.id);if(!g)continue;g.visible=p.kind!=='seal'||!hasSpaceFlag(s,p.id);if(p.kind==='gantry'||p.kind==='rocket'){const occluded=Math.abs(s.x-g.position.x)<p.w/2+14&&s.y<g.position.z+12;g.traverse(o=>{if(o instanceof THREE.Mesh){const m=o.material as THREE.MeshStandardMaterial;m.transparent=occluded;m.opacity=occluded?.35:1;m.depthWrite=!occluded;}});}}
     for(const a of this.actors.values())a.mesh.visible=false;
     const suited=(id:string,state:GameState,avatar:HeroAvatar|null)=>{
       const v=resolveHeroVisual(state,avatar);if(!v){
         const frame=Math.floor(state.time*8),image=this.street.get(state.active);
-        this.actor(id,state.x,state.y,0,`street:${state.active}:${frame}:${avatar?.portraitUrl??''}:${image?.complete}`,c=>{c.imageSmoothingEnabled=false;
+        this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y),`street:${state.active}:${frame}:${avatar?.portraitUrl??''}:${image?.complete}`,c=>{c.imageSmoothingEnabled=false;
           if(state.active==='you'&&avatar){for(const strip of [...avatar.back,avatar.body,...avatar.front])c.drawImage(strip.canvas,(frame%strip.frames)*32,0,32,48,0,0,128,192);}
           else if(image?.complete&&image.naturalWidth)c.drawImage(image,(frame%(state.active==='jon'?5:6))*16,0,16,24,0,0,128,192);
         });return;
       }
-      this.actor(id,state.x,state.y,lunarLift(state),`${state.active}:${v.pose}:${v.facing}:${v.frame}:${v.appearanceReady}:${avatar?.portraitUrl??''}`,c=>{c.drawImage(v.canvas,0,0);c.drawImage(v.visor,0,0);});
+      this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y)+lunarLift(state),`${state.active}:${v.pose}:${v.facing}:${v.frame}:${v.appearanceReady}:${avatar?.portraitUrl??''}`,c=>{c.drawImage(v.canvas,0,0);c.drawImage(v.visor,0,0);});
     };
     const visualState=window.matchMedia('(prefers-reduced-motion: reduce)').matches?{...s,time:0}:s;
     suited('local',visualState,this.avatar);
     for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
-    for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,0,`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
+    for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,surfaceHeightAt(world,e.x,e.y),`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
     const c=this.groundEffectsCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
     // Ground shadows retain the collision position while bound billboards lift.
     for(const a of this.actors.values())if(a.mesh.visible){c.fillStyle='#15233e60';c.beginPath();c.ellipse(a.mesh.position.x,a.mesh.position.z,14,5,0,0,Math.PI*2);c.fill();}

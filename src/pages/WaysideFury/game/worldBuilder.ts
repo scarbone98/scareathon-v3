@@ -5,13 +5,14 @@ export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | 
 export interface CollisionRect { x: number; y: number; w: number; h: number }
 export interface WorldProp {
   id: string;
-  kind: "canyon-rock" | "blast-scrap" | "ash-tuft" | "bank-stones" | "plaza-fragment" | "wreck-truck" | "fallen-pole" | "impact" | "rubble" | "broken-bridge" | "bridge-rail" | "ruin-house" | "tractor" | "hay-bale" | "shelf" | "ember-vent" | "pillar" | "gate-wall" | "fountain" | "fallen-statue" | "rift-shard" | "floating-debris" | "ground-crack" | "dead-tree" | "loading-dock" | "forklift" | "keeper" | "bench" | "crate" | "reeds" | "water-tower" | "windmill" | "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal" | "rocket" | "gantry" | "tank" | "control" | "locker" | "air" | "socket" | "seal" | "lander" | "dish" | "flag";
+  kind: "bridge" | "dock" | "boardwalk" | "catwalk" | "ramp" | "stairs" | "rug" | "floor-decal" | "canyon-rock" | "blast-scrap" | "ash-tuft" | "bank-stones" | "plaza-fragment" | "wreck-truck" | "fallen-pole" | "impact" | "rubble" | "broken-bridge" | "bridge-rail" | "ruin-house" | "tractor" | "hay-bale" | "shelf" | "ember-vent" | "pillar" | "gate-wall" | "fountain" | "fallen-statue" | "rift-shard" | "floating-debris" | "ground-crack" | "dead-tree" | "loading-dock" | "forklift" | "keeper" | "bench" | "crate" | "reeds" | "water-tower" | "windmill" | "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal" | "rocket" | "gantry" | "tank" | "control" | "locker" | "air" | "socket" | "seal" | "lander" | "dish" | "flag";
   // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
   // Fixed parked-car heading; never inferred from the player or camera.
   parkingHeading?: 1 | -1;
   interiorId?: string;
   footprints?: CollisionRect[];
+  surface?: { direction?: "horizontal" | "vertical"; deckHeight?: number; gap?: readonly [number, number] };
 }
 export interface WorldExit {
   id: string; name: string; x: number; y: number; w: number; h: number;
@@ -62,13 +63,14 @@ export function baseFootprints(kind: WorldProp["kind"], x: number, y: number, w:
     [{ x: cx - width / 2, y: bottom - height + offset, w: width, h: height }];
   switch (kind) {
     case "blast-scrap": case "ash-tuft": case "bank-stones": case "plaza-fragment":
-    case "impact": case "ground-crack": case "floating-debris": case "broken-bridge": return [];
+    case "impact": case "ground-crack": case "floating-debris": case "broken-bridge":
+    case "bridge": case "dock": case "loading-dock": case "boardwalk": case "catwalk":
+    case "ramp": case "stairs": case "rug": case "floor-decal": return [];
     case "rubble": return base(w * .7, h * .35);
     case "dead-tree": case "fallen-pole": return base(8, 8);
     case "bridge-rail": return base(w, 4);
     case "pillar": case "rift-shard": return base(w * .65, 12);
     case "ember-vent": return base(w * .85, h * .6);
-    case "loading-dock": return base(w, 8);
     case "flower": case "puddle": case "debris": case "reeds": return [];
     case "bench": return base(w - 8, 8);
     case "crate": return base(w - 4, 10);

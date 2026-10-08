@@ -5,6 +5,7 @@ import { LOCATIONS, HUB_POINTS } from '../src/pages/WaysideFury/game/content.ts'
 import { TILE, OVERWORLD, HUB_WORLD, BLAST_WORLDS, REALM_WORLD, TEST_WORLD, isBlocked, tileAt } from '../src/pages/WaysideFury/game/world.ts';
 
 import { HIDDEN_PICKUPS } from '../server/shared/waysideFury/collectibles.js';
+import { isWalkableSurface } from '../src/pages/WaysideFury/game/walkableSurfaces.ts';
 import { BLAST_ART } from '../src/pages/WaysideFury/game/blastArt.ts';
 import { COUNTY_STOPS } from '../src/pages/WaysideFury/game/county.ts';
 
@@ -172,7 +173,7 @@ for (const world of maps) {
     assert.equal(world.spawns.length, [6,9,6,12,1,9,6,1,6,6][roomFor(world)], `${world.id}: original encounter budget`);
   }
   for (const prop of world.props) {
-    if (['flower', 'puddle', 'debris', 'reeds', 'impact', 'ground-crack', 'floating-debris', 'broken-bridge', 'blast-scrap', 'ash-tuft', 'bank-stones', 'plaza-fragment'].includes(prop.kind)) {
+    if (isWalkableSurface(prop) || ['flower', 'puddle', 'debris', 'reeds', 'impact', 'ground-crack', 'floating-debris', 'broken-bridge', 'blast-scrap', 'ash-tuft', 'bank-stones', 'plaza-fragment'].includes(prop.kind)) {
       assert.equal(prop.footprints?.length ?? 0, 0, `${prop.id}: ground dressing remains walk-through`);
       continue;
     }

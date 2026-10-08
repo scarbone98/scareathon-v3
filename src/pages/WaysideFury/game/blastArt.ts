@@ -1,3 +1,4 @@
+import { drawWalkableSurface } from './walkableSurfaces.ts';
 import { drawScorchedDepression, EMBEDDED_BLAST, GROUND_DECALS } from './grounding.ts';
 import type { WorldProp } from './worldBuilder';
 export const BLAST_ART=new Set(['canyon-rock','blast-scrap','ash-tuft','bank-stones','plaza-fragment','wreck-truck','fallen-pole','impact','rubble','broken-bridge','bridge-rail','ruin-house','tractor','hay-bale','shelf','ember-vent','pillar','gate-wall','fountain','fallen-statue','rift-shard','floating-debris','ground-crack','dead-tree','loading-dock','forklift']);
@@ -5,6 +6,7 @@ const cache=new Map<string,HTMLCanvasElement>();
 // Original Canvas illustrations at 4 source pixels per world unit. Fine material
 // marks are deterministic and cached; no raster upscaling or borrowed game art.
 export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
+  if(drawWalkableSurface(ctx,p))return true;
   if(!BLAST_ART.has(p.kind))return false;
   const key=`${p.kind}:${p.w}:${p.h}`;
   let image=cache.get(key);
@@ -71,10 +73,6 @@ export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
       for(const y of [h*.3,h*.65,h*.9]){rect(0,y,w,3,'#9d9d8a');for(let n=0;n<3;n++){rect(6+n*w*.27,y-h*.2,w*.2,h*.18,n%2?'#a0805a':'#697777');line(7+n*w*.27,y-h*.14,10+n*w*.27,y-2,'#cfb892',.7);}}
     } else if(k==='hay-bale') {
       c.fillStyle='#9a8058';c.beginPath();c.roundRect(2,h*.15,w-4,h*.75,5);c.fill();for(let n=0;n<35;n++)line(4+(n*13)%(w-8),h*.2+(n*7)%(h*.6),8+(n*13)%(w-8),h*.24+(n*7)%(h*.6),'#c6a46a',.5);for(const x of [.25,.7])line(w*x,h*.18,w*x,h*.87,'#3a383c',2);
-    } else {
-      // Dock and bridge timber, with broken spans visibly absent over water.
-      for(let x=0;x<w;x+=9){if(k==='broken-bridge'&&x>w*.3&&x<w*.65)continue;rect(x,h*.25,8,h*.65,'#8d765c');line(x+2,h*.3,x+3,h*.85,'#c1a378',.7);for(const y of [h*.36,h*.8])ellipse(x+4,y,.7,.7,'#373e44');}
-      if(k==='bridge-rail'){rect(0,h*.2,w,3,'#b6a184');for(let x=4;x<w;x+=24)rect(x,0,3,h,'#6a6863');}
     }
     if (EMBEDDED_BLAST.has(p.kind)) {
       // Bury the silhouette into its own contact line, with overlapping soil.
