@@ -114,6 +114,15 @@ async function effective(frame, mode) {
 async function layout(frame, label) {
   // Let DOM entrance animations finish before checking the visible controls.
   await frame.waitForTimeout(240);
+  // Resuming the real Pause panel restores the touch dock and changes the scene
+  // height. Wait for the renderer's resize frame before taking geometry samples.
+  await frame.waitForFunction(() => {
+    const original = document.querySelector('.wf-stage canvas:not(.wf-canvas-3d)');
+    const canvas = original?.dataset.gfx === '3d' ? document.querySelector('.wf-canvas-3d') : original;
+    if (!canvas) return false;
+    const box = canvas.getBoundingClientRect(), dpr = Number(canvas.dataset.renderDpr);
+    return dpr > 0 && Math.abs(canvas.width - box.width * dpr) <= 2 && Math.abs(canvas.height - box.height * dpr) <= 2;
+  }, null, { timeout: startupTimeout });
   const result = await frame.evaluate(() => {
     const rect = element => { const box = element.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height }; };
     const visible = element => { const style = getComputedStyle(element); return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0 && element.getBoundingClientRect().width > 0; };
@@ -130,8 +139,8 @@ async function layout(frame, label) {
   assert.ok(inside(result.canvas, result.width, result.height), `${label}: canvas inside viewport`);
   const dpr = Number(result.canvas.data.renderDpr);
   assert.ok(dpr > 0 && dpr <= Math.min(result.dpr, 3), `${label}: native DPR with quality cap`);
-  assert.ok(Math.abs(result.canvas.pixelWidth - result.canvas.width * dpr) <= 2, `${label}: backing width follows CSS/DPR`);
-  assert.ok(Math.abs(result.canvas.pixelHeight - result.canvas.height * dpr) <= 2, `${label}: backing height follows CSS/DPR`);
+  assert.ok(Math.abs(result.canvas.pixelWidth - result.canvas.width * dpr) <= 2, `${label}: backing width follows CSS/DPR: ${JSON.stringify(result.canvas)}`);
+  assert.ok(Math.abs(result.canvas.pixelHeight - result.canvas.height * dpr) <= 2, `${label}: backing height follows CSS/DPR: ${JSON.stringify(result.canvas)}`);
   assert.equal(result.controls.filter(box => box.selector === '.wf-touch-btn').length, 5, `${label}: all five touch actions`);
   for (const box of [...result.controls, ...result.ui]) assert.ok(inside(box, result.width, result.height), `${label}: clipped ${box.selector}: ${JSON.stringify(box)}`);
   for (const box of result.controls.filter(box => box.selector === '.wf-touch-btn')) assert.ok(box.width >= 56 && box.height >= 56, `${label}: thumb-sized ${box.label}`);
@@ -140,15 +149,34 @@ async function layout(frame, label) {
 }
 
 async function immutablePresentation(frame, label) {
-  const result = await frame.evaluate(async () => {
-    const { OVERWORLD } = await import('/src/pages/WaysideFury/game/world.ts');
-    const game = window.__waysideFury;
-    game.setPaused(true);
-    const before = JSON.stringify(game.state), worldBefore = JSON.stringify(OVERWORLD);
-    for (let index = 0; index < 12; index++) await new Promise(requestAnimationFrame);
-    return { sameState: before === JSON.stringify(game.state), sameWorld: worldBefore === JSON.stringify(OVERWORLD) };
-  });
-  assert.ok(result.sameState, `${label}: presentation cannot mutate authoritative simulation`);
+  // The app's save/settings callbacks restore its React pause state. A DEV-only
+  // controller pause can therefore be undone by a pending settings save; use
+  // the real pause control while observing presentation-only frames.
+  await frame.getByRole('button', { name: 'Pause', exact: true }).click();
+  await frame.getByRole('button', { name: 'Resume', exact: true }).waitFor({ state: 'visible' });
+  let result;
+  try {
+    result = await frame.evaluate(async () => {
+      const { OVERWORLD } = await import('/src/pages/WaysideFury/game/world.ts');
+      const game = window.__waysideFury;
+      const before = JSON.stringify(game.state), worldBefore = JSON.stringify(OVERWORLD), pausedBefore = game.paused;
+      for (let index = 0; index < 12; index++) await new Promise(requestAnimationFrame);
+      const after = JSON.stringify(game.state), previous = JSON.parse(before), current = JSON.parse(after);
+      const changed = Object.keys({ ...previous, ...current }).filter(key => JSON.stringify(previous[key]) !== JSON.stringify(current[key]))
+        .map(key => ({ key, before: previous[key], after: current[key] }));
+      return { sameState: before === after, sameWorld: worldBefore === JSON.stringify(OVERWORLD), pausedBefore, pausedAfter: game.paused, changed };
+    });
+  } finally {
+    // Remove the panel for layout/captures while retaining the frozen scene.
+    // Keep both actions in one task so no simulation frame occurs between them.
+    await frame.evaluate(() => {
+      [...document.querySelectorAll('.wf-pause-panel button')].find(button => button.textContent === 'Resume')?.click();
+      window.__waysideFury.setPaused(true);
+    });
+    await frame.getByRole('button', { name: 'Resume', exact: true }).waitFor({ state: 'hidden' });
+  }
+  assert.ok(result.pausedBefore && result.pausedAfter, `${label}: app pause remains active during presentation`);
+  assert.ok(result.sameState, `${label}: presentation cannot mutate authoritative simulation: ${JSON.stringify(result.changed)}`);
   assert.ok(result.sameWorld, `${label}: presentation cannot change world/collision data`);
 }
 
@@ -370,6 +398,10 @@ async function fallback() {
     await navigate(unavailable.page, '/wayside-fury?gfx=3d');
     await unavailable.page.getByRole('button', { name: /Begin adventure|Continue adventure/ }).click({ timeout: startupTimeout });
     await unavailable.page.getByRole('button', { name: 'Skip prologue' }).click();
+    // WebKit's emulated mobile context can report zero maxTouchPoints. Select
+    // the input mode explicitly, as boot() does for the other phone scenarios.
+    await unavailable.page.evaluate(() => window.__waysideFury.setTouch({}));
+    await unavailable.page.locator('.wf-touch-dock').waitFor({ state: 'visible' });
     await unavailable.page.waitForFunction(() => document.querySelector('.wf-stage canvas:not(.wf-canvas-3d)')?.dataset.gfxStatus === 'fallback');
     await effective(unavailable.page.mainFrame(), '2d');
     assert.equal(await unavailable.page.evaluate(() => window.__waysideFury.graphicsMode), '3d', 'unsupported WebGL preserves the preference');

@@ -95,10 +95,10 @@ try {
       await page.waitForFunction(() => window.__waysideFury.state.ambientTaxiWrecked && window.__waysideFury.state.ambientTaxiGag >= 2);
       assert.equal(await page.evaluate(() => window.__waysideFury.state.heroes.you.hp), hp, 'stray rock never damages the player');
       await page.evaluate(() => {
-        const game = window.__waysideFury; game.setPaused(true);
-        game.mutate(s => { s.x = 378; s.y = 480; s.vx = 0; s.vy = 0; });
+        window.__waysideFury.mutate(s => { s.x = 378; s.y = 480; s.vx = 0; s.vy = 0; s.moving = false; });
       });
       await page.waitForTimeout(500); // Let the 3D camera settle at the shared capture anchor.
+      await page.evaluate(() => window.__waysideFury.setPaused(true));
       await page.screenshot({ path: `${shots}/${label}-overworld-after.png` });
       console.log(`${label}: taxi gag pass`);
 
