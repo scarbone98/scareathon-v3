@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { isArenaGame } from '../shared/waysideFury/u1Arena.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
 import { createConversationWithMessage } from './inbox.js';
 import { awardWeeklyChallengePoint } from '../utils/scareathon.js';
@@ -443,6 +444,9 @@ export function scoreSubmissionCompletesChallenge(challenge, submission) {
 }
 
 export async function getVerifiedWeeklyChallengeCompletion(client, userId, challenge, submission = null) {
+    if (isArenaGame(challenge?.gameName)) {
+        return { completed: false, reason: 'arena_score_only' };
+    }
     if (isArcadeRunsChallenge(challenge)) {
         return getArcadeRunsCompletion(client, userId, challenge);
     }

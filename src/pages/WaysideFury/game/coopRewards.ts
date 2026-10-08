@@ -1,3 +1,4 @@
+import { trackHubCoopReward } from "../u1/hub/hubRules.ts";
 import { gainXp, grantGear, syncCoopLevel, type GameState } from "./sim.ts";
 import { chipEffects } from "./u1/items/chips.ts";
 import { grantCheckpointChip } from "./u1/items/pickups.ts";
@@ -31,8 +32,9 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.bosses = [...new Set([...s.bosses, ...(reward.bosses ?? [])])];
   s.clearedRooms = [...new Set([...s.clearedRooms, ...(reward.rooms ?? [])])];
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
+  syncCoopLevel(s); trackHubCoopReward(s, reward);
+  if (s.scene === "arena") return true;
   for (const id of [...(reward.bosses ?? []), ...(reward.rooms ?? [])]) grantCheckpointChip(s, id);
-  syncCoopLevel(s);
   s.notice = reward.kind === "kill" ? `+${reward.xp ?? 0} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
   return true;
 }

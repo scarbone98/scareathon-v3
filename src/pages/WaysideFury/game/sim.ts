@@ -5,6 +5,11 @@ import { defaultCombatProgress, type CombatProgress } from "../../../../server/s
 import { TRAINING_BOARD, cancelTraining, tickTraining, trainingMelee, trainingProjectile, type TrainingRuntime, type TrainingFailure, type ChallengeTier } from "./u1/combat/training.ts";
 import { signatureDefinition } from "./u1/combat/signature.ts";
 import { createFusionRuntime, requestFusion, tickFusion, localFusion, consumeFusionSpecial, resetFusion, type FusionRuntime } from "./u1/combat/fusion.ts";
+import { hubQuestTarget, openHubQuest, tickHubQuests, trackHubQuestEvent } from "../u1/hub/hubRules.ts";
+import type { HubQuestSave } from "../u1/hub/quests.ts";
+import { tickArena, type ArenaRuntime, type ArenaPersonal } from "../u1/hub/arena.ts";
+import type { ArenaRunReceipt } from "../../../../server/shared/waysideFury/u1Arena.js";
+import { ARENA_HUB_POINT } from "../u1/hub/arenaWorld.ts";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -19,7 +24,7 @@ export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
 // Pure deterministic game rules. Maps use world coordinates; presentation owns the viewport.
-export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
+export type Scene = "arena" | "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
   guard: boolean; swap: boolean; interact: boolean; fusion?: boolean;
@@ -35,7 +40,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  scene: Scene; room: number; attack?: boolean; downed?: boolean; reviveProgress?: number; interact?: boolean; fusionIntent?: number; fusionSpecial?: number;
+  scene: Scene; room: number; attack?: boolean; questCosmetic?: string | null; downed?: boolean; reviveProgress?: number; interact?: boolean; fusionIntent?: number; fusionSpecial?: number;
   chipDamageMultiplier?: number; secondWindReady?: boolean; chipSnapshotAt?: number;
 }
 export interface CoopRuntime {
@@ -82,6 +87,8 @@ export type GameEvent =
   | { type: "fusion-special"; id: number }
   | { type: "training-complete"; hero: HeroId; tier: ChallengeTier }
   | { type: "training-failed"; hero: HeroId; tier: ChallengeTier; reason: TrainingFailure }
+  | { type: "quest-save"; id: string; kind: "accepted" | "claimed" | "cosmetic" }
+  | { type: "arena-finish"; receipt: ArenaRunReceipt; score: number }
   | CoopHit
   | { type: "pickup"; id: string }
   | { type: "coop-pickup"; id: string }
@@ -102,7 +109,7 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | "diner" | "wish" | "training" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "diner" | "wish" | "training" | "arena" | "quest" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
@@ -118,6 +125,9 @@ export interface GameState {
   dialogue: { speaker: string; lines: string[]; index: number } | null;
   u1?: { items: ItemsSaveState; world?: WorldSave; combat: CombatProgress; [key: string]: unknown };
   nightWorld?: { window: string | null };
+  arena?: ArenaRuntime; hubArena?: ArenaPersonal;
+  hubQuests?: HubQuestSave; hubQuestId?: string; hubCosmetic?: string | null; hubQuestSerial?: number;
+  arenaVitals?: Record<HeroId, HeroState>; arenaLead?: HeroId; arenaRecorded?: string;
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -140,7 +150,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 // Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
 // continually create fresh enemies and their rewards.
 function extraCoopSpawns(s: GameState) {
-  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0 && !e.nightAmbient)) return;
+  if (s.scene === "arena" || s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0 && !e.nightAmbient)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
   const world = getWorld(s.scene, s.room), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
@@ -356,7 +366,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
     const xp = e.kind === "boss" ? e.miniBoss ? 95 : 130 : e.kind === "shooter" ? 35 : 28;
-    if (!s.coop) {
+    if (!s.coop && s.scene !== "arena") {
       const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
       const effects = chipEffects(s);
       const reward = Math.floor(candy * effects.candyMultiplier) + effects.candyBonusPerKill;
@@ -368,7 +378,9 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     if (s.scene === "dungeon" && s.room === 9 && e.kind === "boss" && e.sprite === "ghost" && !s.bosses.includes("relic-echo")) {
       s.bosses.push("relic-echo"); s.events.push({ type: "checkpoint", id: "relic-echo" });
     }
-    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp });
+    if (!s.coop && s.scene === "arena") s.kills++;
+    const event: GameEvent = { type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp };
+    s.events.push(event); trackHubQuestEvent(s, event);
   }
 }
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
@@ -746,6 +758,8 @@ export function interactTarget(s: GameState): InteractTarget | null {
     if (peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
   for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
+  const quest = hubQuestTarget(s);
+  if (quest) add({ ...quest, kind: "talk", x: s.x, y: s.y });
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room);
     for (const prop of world.props) {
@@ -754,7 +768,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
     }
     for (const door of world.exits) if (!door.requiresClear || s.enemies.length === 0) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
   }
-  const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? HUB_POINTS : [];
+  const points = s.scene === "overworld" ? LOCATIONS : s.scene === "hub" ? [...HUB_POINTS, ARENA_HUB_POINT] : [];
   for (const point of points) {
     if (point.id === TRAINING_BOARD.id && s.training) continue;
     const npc = point.id === "alex" || point.id === "jon";
@@ -812,6 +826,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id === "diner-entry") { s.overlay = "diner"; s.insideDiner = true; s.vx = s.vy = 0; s.moving = false; return; }
   if (target.id === "diner-leave") { s.overlay = null; s.insideDiner = false; return; }
   if (target.id.startsWith("pickup-")) { collectPickup(s, target.id); return; }
+  if (target.id.startsWith("u8-quest-")) { openHubQuest(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
   if (s.coop?.role === "guest") {
@@ -850,6 +865,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
     enterScene(s, target.id === "wayside" ? "hub" : "dungeon");
     s.previousInput.attack = s.previousInput.interact = true; return;
   }
+  if (target.id === "u5-arena") { s.overlay = "arena"; s.moving = false; s.vx = s.vy = 0; return; }
   if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return; }
   const dialogue: Record<string, string> = {
@@ -917,6 +933,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   updateVisuals(s, dt);
   updateOverworldDressing(s, dt);
   tickFusion(s, dt);
+  tickHubQuests(s);
   if (s.scene === "prologue") {
     s.previousInput = { ...physicalInput };
     if (usePressed) interact(s, s.contextAttack.target);
@@ -930,6 +947,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     }
     return;
   }
+  if (s.scene === "dead") tickArena(s, 0);
   if (s.scene === "dead" || s.scene === "results") return;
   const dialogueInput = s.dialogue ? physicalInput : null;
   let dialogueControlsSuppressed = !!dialogueInput;
@@ -1029,6 +1047,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.coop?.role === "guest") return;
   if (checkCoopWipe(s)) return;
   s.enemies = s.enemies.filter(e => e.hp > 0);
+  tickArena(s, dt);
   if (hadEnemies && s.enemies.length === 0 && s.scene === "test") s.notice = "Training yard clear. Joe and Matt are ready!";
   if (hadEnemies && s.enemies.length === 0 && s.scene === "dungeon") {
     const id = `blast-${s.room}`;

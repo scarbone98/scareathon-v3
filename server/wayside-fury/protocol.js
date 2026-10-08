@@ -6,7 +6,7 @@ export const MAX_MESSAGE_BYTES = 65_536;
 import { WORLD_OBSTACLE_IDS } from '../shared/waysideFury/u1World.js';
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
-export const SCENES = new Set(['test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
+export const SCENES = new Set(['arena', 'test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
 const HERO_IDS = new Set(['you', 'joe', 'matt', 'alex', 'jon']);
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const number = (value, limit = 1e8) => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
@@ -57,6 +57,10 @@ export function cleanHero(remote) {
     for (const key of ['moving', 'guard']) {
         if (typeof remote[key] !== 'boolean') return null;
         cleaned[key] = remote[key];
+    }
+    if (remote.questCosmetic !== undefined) {
+        if (remote.questCosmetic !== null && !["bbq-apron", "station-scarf"].includes(remote.questCosmetic)) return null;
+        cleaned.questCosmetic = remote.questCosmetic;
     }
     if (remote.downed !== undefined) {
         if (typeof remote.downed !== 'boolean') return null;
@@ -143,6 +147,13 @@ export function cleanWorld(state) {
         if (!fusions || fusions.forms.some(form => form.scene !== state.scene || form.room !== state.room)) return null;
         state = { ...state, fusions };
     }
+    if (state.arena !== undefined) {
+        const run = state.arena;
+        if (!object(run) || !text(run.id, 128) || !['running', 'finished'].includes(run.status) || !['solo', 'coop'].includes(run.mode)) return null;
+        if (!integer(run.players, 4) || run.players < 1 || !integer(run.wave, 10001) || run.wave < 1 || !integer(run.wavesCleared, 10000) || !integer(run.kills, 180018)) return null;
+        if (!number(run.elapsedMs, 604800000) || run.elapsedMs < 0 || !number(run.intermission, 3) || run.intermission < 0 || typeof run.spawned !== 'boolean' || !text(run.modifier, 40)) return null;
+        if (run.reason !== null && !['retired', 'defeated'].includes(run.reason)) return null;
+    }
     return state;
 }
 
@@ -194,6 +205,10 @@ export function cleanRelay(message) {
             if (raw.kind === 'pickup') {
                 if (!PICKUP_IDS.has(raw.pickupId) || raw.xp !== 0 || raw.candy !== 0) return null;
                 reward.pickupId = raw.pickupId;
+            }
+            if (raw.enemyKind !== undefined) {
+                if (!["grunt", "shooter", "boss"].includes(raw.enemyKind)) return null;
+                reward.enemyKind = raw.enemyKind;
             }
             for (const [key, max] of [['healHp', 1_000_000], ['healKi', 1_000_000], ['power', 10_000], ['ward', 10_000]]) {
                 if (raw[key] === undefined) continue;

@@ -1,3 +1,5 @@
+import { HUB_QUEST_NPCS } from "../src/pages/WaysideFury/u1/hub/quests.ts";
+import { ARENA_WORLD, ARENA_HUB_POINT } from "../src/pages/WaysideFury/u1/hub/arenaWorld.ts";
 // Radius-aware navigation and collision regressions; also run by the main check.
 import assert from 'node:assert/strict';
 import { newGame, enterScene, addEnemy, idleInput, step, interact, interactTarget, activeHero } from '../src/pages/WaysideFury/game/sim.ts';
@@ -6,10 +8,10 @@ import { TILE, OVERWORLD, HUB_WORLD, BLAST_WORLDS, REALM_WORLD, TEST_WORLD, isBl
 import { HERO_OBSTACLES, obstaclesForState, isObstacleCleared } from '../src/pages/WaysideFury/game/u1/world/obstacles.ts';
 
 const GRID = 4, SWEEP = 2, DT = 1 / 60;
-const maps = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD];
+const maps = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, ARENA_WORLD];
 const fields = new Map();
 const heroRadius = world => world.id === OVERWORLD.id ? 10 : 7;
-const sceneFor = world => world.id === OVERWORLD.id ? 'overworld' : world.id === HUB_WORLD.id ? 'hub'
+const sceneFor = world => world.id === ARENA_WORLD.id ? 'arena' : world.id === OVERWORLD.id ? 'overworld' : world.id === HUB_WORLD.id ? 'hub'
   : world.id === REALM_WORLD.id ? 'realm' : world.id === TEST_WORLD.id ? 'test' : 'dungeon';
 const roomFor = world => Math.max(0, BLAST_WORLDS.findIndex(entry => entry.id === world.id));
 const obstacleWorlds = new Map();
@@ -217,7 +219,7 @@ for (const world of maps) {
   }
 }
 for (const point of LOCATIONS) findInteractionApproach(OVERWORLD, point.id, point);
-for (const point of HUB_POINTS) findInteractionApproach(HUB_WORLD, point.id, point);
+for (const point of [...HUB_POINTS.filter(p => !HUB_QUEST_NPCS.some(n => n.x === p.x && n.y === p.y)), ...HUB_QUEST_NPCS, ARENA_HUB_POINT]) findInteractionApproach(HUB_WORLD, point.id, point);
 
 // Verify authored shapes too, so a change to the footprint generator cannot be
 // masked by the independently constructed rectangle fixtures below.

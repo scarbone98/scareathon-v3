@@ -1,4 +1,5 @@
 import { beginFusionSession, syncFusionWorld, elapsedFusionWorld, type FusionWorld } from "./u1/combat/fusion";
+import { prepareArenaPlayer, recordArenaResult } from "../u1/hub/arena";
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
 import { chipEffects } from "./u1/items/chips";
 import { clearHeroObstacle, worldSave, syncWorldObstacles } from "./u1/world/obstacles";
@@ -19,11 +20,11 @@ export interface CoopCallbacks {
   onReward?(state: GameState, reward: CoopReward): void;
 }
 export interface CoopReward {
-  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string;
+  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string; enemyKind?: "grunt" | "shooter" | "boss";
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number; fusions?: FusionWorld; worldObstacles?: string[]; worldCycleSeconds?: number; nightEncounterWindow?: string | null };
+type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number; arena?: GameState["arena"]; fusions?: FusionWorld; worldObstacles?: string[]; worldCycleSeconds?: number; nightEncounterWindow?: string | null };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room, time: s.time, palette: s.palette,
@@ -34,7 +35,7 @@ const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room
   areas: s.areas, bosses: s.bosses, chapter: s.coop?.worldChapter ?? s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
   ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0,
   worldObstacles: [...(s.coop?.worldObstacles ?? worldSave(s).clearedObstacles)],
-  worldCycleSeconds: worldCycleSeconds(s), nightEncounterWindow: s.nightWorld?.window ?? null, fusions: structuredClone(s.fusion.world) });
+  worldCycleSeconds: worldCycleSeconds(s), nightEncounterWindow: s.nightWorld?.window ?? null, fusions: structuredClone(s.fusion.world), ...(s.arena ? { arena: { ...s.arena } } : {}) });
 
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.
@@ -160,13 +161,13 @@ export class FuryCoop {
     }
     // Websocket ordering caches the post-kill/clear world before distributing
     // rewards. A promoted host therefore cannot resurrect an already-paid kill.
-    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "ambient-taxi-crash") && this.rewardSnapshotAt !== s.time) {
+    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "ambient-taxi-crash" || event.type === "arena-finish") && this.rewardSnapshotAt !== s.time) {
       this.send({ type: "state", state: worldState(s) }); this.rewardSnapshotAt = s.time;
     }
     if (this.isHost && event.type === "kill") {
       const id = `${this.clientId}:kill:${event.enemyId}`;
       for (const player of this.room.players.filter(p => p.connected)) {
-        const reward: CoopReward = { id, kind: "kill", xp: event.xp, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
+        const reward: CoopReward = { id, kind: "kill", xp: s.scene === "arena" ? 0 : event.xp, candy: s.scene === "arena" ? 0 : rollCoopCandy(id, player.userId, event.kind === "boss"), enemyKind: event.kind };
         if (player.seat === this.room.seat) { if (applyCoopReward(s, reward)) s.events.push({ type: "checkpoint", id: `coop-reward-${id}` }); }
         else this.sendReward(reward, player.seat);
       }
@@ -200,10 +201,12 @@ export class FuryCoop {
       if (s.coop) { s.coop.worldClearedRooms = [...w.clearedRooms]; s.coop.worldChapter = w.chapter; }
       if (w.worldCycleSeconds !== undefined) worldSave(s).cycleSeconds = w.worldCycleSeconds;
       syncWorldObstacles(s, w.worldObstacles ?? []);
-      if (s.scene !== w.scene || s.room !== w.room) { enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
+      if (s.scene !== w.scene || s.room !== w.room) { if (w.scene === "arena") prepareArenaPlayer(s); enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
       syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds[this.worlds.length - 1]?.at ?? now)) / 1000)));
+      s.arena = w.arena ? { ...w.arena } : undefined;
+      if (s.arena?.status === "finished" && s.arenaVitals) { this.damages.length = 0; this.revived = false; recordArenaResult(s); s.overlay = "arena"; }
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.nightWorld = { window: w.nightEncounterWindow ?? null };
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
@@ -233,7 +236,7 @@ export class FuryCoop {
       if (blend) {
         const { a, b, alpha } = blend;
         s.coop.worldChapter = b.chapter;
-        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
+        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "arena") prepareArenaPlayer(s); if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
         const wrecked = b.ambientTaxiWrecked ?? false;
         s.personalTaxiWrecked ||= s.ambientTaxiWrecked || wrecked;
         if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: AMBIENT_TAXI.x, y: AMBIENT_TAXI.y });
@@ -244,6 +247,8 @@ export class FuryCoop {
         s.nightWorld = { window: b.nightEncounterWindow ?? null };
         syncFusionWorld(s, elapsedFusionWorld(b.fusions, Math.max(0, (now - (this.worlds.find(sample => sample.value === b)?.at ?? now)) / 1000)));
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && a.scene === b.scene && a.room === b.room ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
+        s.arena = b.arena ? { ...b.arena } : undefined;
+        if (s.arena?.status === "finished" && s.arenaVitals && s.arenaRecorded !== s.arena.id) { this.damages.length = 0; this.revived = false; recordArenaResult(s); if (s.scene === "hub") s.overlay = "arena"; }
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];
       }
@@ -269,7 +274,7 @@ export class FuryCoop {
     const player = room.players.find(p => p.seat === room.seat)!;
     const chips = chipEffects(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0,
+      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, questCosmetic: s.hubCosmetic ?? null, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0,
       chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind, fusionIntent: s.fusion.intent, fusionSpecial: s.fusion.specialRequest };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
