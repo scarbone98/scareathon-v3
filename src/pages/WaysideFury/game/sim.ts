@@ -1,3 +1,7 @@
+import { inCity, cityTargets, cityInteract, enterCityRoom, cityClear, applyCityRequest } from "./chapters/ch4.ts";
+import { configureCityEnemy, isCityBehavior, cityDamage, updateCityEnemy } from "./enemies/city.ts";
+import { interruptCityBoss } from "./bosses/architect.ts";
+import type { CityBehavior } from "./chapters/ch4Worlds.ts";
 import { COUNTY_STOPS } from "./county.ts";
 import { tickSpaceFilm, type FilmState } from "./cinematics.ts";
 import { enterWoods, woodsTargets, woodsInteract, tickWoodsField, clearWoods, inWoods } from "./chapters/ch2.ts";
@@ -35,7 +39,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  filmSkip?: boolean; filmHold?: boolean; spaceOutfit?: boolean; boundTimer?: number; meleeCharge?: number;
+  guardTimer?: number; filmSkip?: boolean; filmHold?: boolean; spaceOutfit?: boolean; boundTimer?: number; meleeCharge?: number;
   scene: Scene; room: number; mapId?: string; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
@@ -49,13 +53,13 @@ export interface CoopRuntime {
   worldBosses?: string[]; worldCampaignMilestones?: string[]; worldSolvedInteractions?: string[]; worldCompletedCinematics?: string[];
 }
 export interface CoopHit {
-  type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
+  type: "coop-hit"; relayId?: string; relayKind?: "ki" | "interact"; relayX?: number; relayY?: number; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
 }
 export type Archetype = "charger" | "kiter" | "shield" | "swarm" | "ambusher";
 export interface Enemy {
   archetype?: Archetype; combatLevel?: number; escapeIframes?: number;
   woodsBehavior?: WoodsBehavior; tellX?: number; tellY?: number;
-  behavior?: LunarBehavior; poise?: number; burst?: number; exposed?: number; shieldBroken?: boolean;
+  behavior?: LunarBehavior | CityBehavior; poise?: number; burst?: number; exposed?: number; shieldBroken?: boolean;
   id: number; kind: "grunt" | "shooter" | "boss";
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
@@ -64,6 +68,7 @@ export interface Enemy {
   miniBoss: boolean; phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
 export interface Projectile {
+  originX?: number; originY?: number; relayHit?: boolean; signal?: boolean; bounceDistance?: number; bounceVx?: number; bounceVy?: number;
   id: number; x: number; y: number; vx: number; vy: number; radius: number;
   damage: number; ttl: number; owner: "hero" | "enemy"; hero?: HeroId;
   beam: boolean; hits: number[];
@@ -102,7 +107,7 @@ export interface GameState {
   overlay: "shop" | "home" | "diner" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   difficulty: "normal" | "hard"; meleeCharge: number; meleeHolding: boolean;
-  attackTimer: number; combo: number; comboWindow: number; charge: number;
+  guardTimer?: number; attackTimer: number; combo: number; comboWindow: number; charge: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   campaignMilestones: string[]; solvedInteractions: string[]; completedCinematics: string[]; checkpointMapId: string;
@@ -144,6 +149,7 @@ function extraCoopSpawns(s: GameState) {
     if (onMoon(s)) configureLunarEnemy(s,enemy, "rat");
     else enemy.archetype = enemy.kind === "boss" ? undefined : archetypeFor(enemy);
     if (inWoods(s)) { enemy.sprite="zombie"; configureWoodsEnemy(s,enemy,"rooted"); }
+    if (inCity(s)) configureCityEnemy(s,enemy,"cable-rat");
   }
   s.coop.spawnedExtras = Math.max(previous, extras);
 }
@@ -156,7 +162,7 @@ export function setCoopPlayerCount(s: GameState, players: number): void {
   extraCoopSpawns(s);
 }
 export function coopLevelBand(scene: Scene, room: number, mapId?: string): readonly [number, number] {
-  if (mapId?.startsWith("woods-") || mapId?.startsWith("moon-") || mapId === "space-launch") return [1,MAX_LEVEL];
+  if (mapId?.startsWith("woods-") || mapId?.startsWith("city-") || mapId?.startsWith("moon-") || mapId === "space-launch") return [1,MAX_LEVEL];
   if (scene === "realm") return [6, 9];
   if (scene === "dungeon") {
     if (room >= 8) return [2, 5];
@@ -317,7 +323,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   s.enemies = []; s.projectiles = []; s.effects = []; s.floaters = [];
   s.meleeCharge = 0; s.meleeHolding = false;
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
-  s.dashTimer = 0; s.guard = false; s.hitStop = 0;
+  s.dashTimer = 0; s.guard = false; s.guardTimer = 0; s.hitStop = 0;
   s.previousInput = idleInput();
   if (s.coop) { s.coop.spawnedExtras = 0; s.coop.reviveTimers = {}; s.coop.reviveProgress = 0; s.coop.reviveHoldTarget = undefined; }
   if (scene === "overworld") s.notice = "Chapter 1: drive east to the Blast Site. Pull over at a marker.";
@@ -332,7 +338,10 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
           scaleEnemy(s, enemy, 235 * (10 + ((enemy.combatLevel ?? 1) - 1) * 3) / 10);
         }
         if (spawn.woodsBehavior) configureWoodsEnemy(s, enemy, spawn.woodsBehavior);
-        if (spawn.behavior) configureLunarEnemy(s, enemy, spawn.behavior);
+        if (spawn.behavior) {
+          if(isCityBehavior(spawn.behavior)) configureCityEnemy(s,enemy,spawn.behavior);
+          else configureLunarEnemy(s, enemy, spawn.behavior);
+        }
         else enemy.archetype = enemy.kind === "boss" ? undefined : archetypeFor(enemy);
       }
     }
@@ -357,7 +366,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   }
   if ((scene === "hub" || scene === "overworld") && canEnter(s, "forest")) s.notice = campaignHandoff(s);
   if (resolved.fallback) s.notice = "Unknown area. Returned safely to Wayside.";
-  extraCoopSpawns(s); syncCoopLevel(s); enterSpaceRoom(s); enterWoods(s);
+  extraCoopSpawns(s); syncCoopLevel(s); enterSpaceRoom(s); enterCityRoom(s); enterWoods(s);
 }
 export function enterCampaignMap(s: GameState, mapId: string): boolean {
   const resolved = resolveCampaignMap(mapId);
@@ -459,12 +468,12 @@ export function grantGear(s: GameState, power: number, ward: number) {
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, ki = false) {
   if (e.hp <= 0 || (e.escapeIframes ?? 0) > 0 || (!e.woodsBehavior && (e.burst ?? 0) > 0)) return;
-  const allowed = e.woodsBehavior ? woodsDamage(s,e,damage,force,ki) : lunarDamage(s,e,damage,force);
+  const allowed = isCityBehavior(e.behavior) ? cityDamage(e,damage,dx,dy,force) : e.woodsBehavior ? woodsDamage(s,e,damage,force,ki) : lunarDamage(s,e,damage,force);
   if(allowed <= 0) return;
   const braced = !e.behavior && !e.woodsBehavior && e.archetype === "shield" && e.windup === 0 && e.actionTimer === 0 && dx * e.aimX + dy * e.aimY < -.3;
   const dealt = Math.max(1, Math.round(allowed * (braced && force < 100 ? .25 : 1)));
   if (e.kind === "boss") {
-    if (!e.woodsBehavior) {
+    if (!e.woodsBehavior && !isCityBehavior(e.behavior)) {
       e.poise = (e.poise ?? 0) + 1;
       const world = getWorld(s.scene, s.room, s.mapId);
       if (e.poise >= 6 || force > 0 && isBlocked(world, e.x + dx * 18, e.y + dy * 18, e.radius)) startBossBurst(s, e);
@@ -495,6 +504,11 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
     || ![hit.damage, hit.dx, hit.dy, hit.force].every(Number.isFinite)
     || hit.damage <= 0 || hit.damage > 100000 || hit.force < 0 || hit.force > 1000
     || Math.abs(hit.dx) > 1.01 || Math.abs(hit.dy) > 1.01) return false;
+  if(hit.relayId) {
+    const relayKey=`${seat}:${hit.attackId}:${hit.relayId}`;
+    if(s.coop.appliedHits.includes(relayKey)||hit.relayKind!=="ki"&&hit.relayKind!=="interact"||!applyCityRequest(s,seat,hit.relayId,hit.relayKind,hit.relayX !== undefined && hit.relayY !== undefined ? {x:hit.relayX,y:hit.relayY,dx:hit.dx,dy:hit.dy} : undefined)) return false;
+    s.coop.appliedHits.push(relayKey);if(s.coop.appliedHits.length>2048)s.coop.appliedHits.splice(0,s.coop.appliedHits.length-2048);return true;
+  }
   const enemy = s.enemies.find(e => e.id === hit.enemyId && e.hp > 0);
   if (!enemy) return false;
   const key = `${seat}:${hit.attackId}:${hit.enemyId}`;
@@ -662,7 +676,7 @@ function melee(s: GameState, charged = false) {
 }
 function projectile(s: GameState, owner: Projectile["owner"], x: number, y: number, dx: number, dy: number,
   speed: number, damage: number, radius: number, beam = false) {
-  s.projectiles.push({ id: s.nextId++, owner, x, y, vx: dx * speed, vy: dy * speed, damage,
+  s.projectiles.push({ id: s.nextId++, owner, originX:x, originY:y, x, y, vx: dx * speed, vy: dy * speed, damage,
     radius, beam, hero: owner === "hero" ? s.active : undefined, ttl: beam ? 0.8 : 3.5, hits: [] });
 }
 function fireKi(s: GameState) {
@@ -750,13 +764,13 @@ function updateEnemies(s: GameState, dt: number) {
     const target = players.reduce<CombatTarget | null>((best, candidate) => !best || Math.hypot(candidate.x - e.x, candidate.y - e.y) < Math.hypot(best.x - e.x, best.y - e.y) ? candidate : best, null);
     if (!target) continue;
     const dx = target.x - e.x, dy = target.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
-    if (e.kind === "boss" && !e.woodsBehavior && updateBossBurst(s, e, dt)) continue;
+    if (e.kind === "boss" && !e.woodsBehavior && !isCityBehavior(e.behavior) && updateBossBurst(s, e, dt)) continue;
     if (e.woodsBehavior) {
       updateWoodsEnemy(s,e,dt,target,{ move:(body,dx,dy)=>moveBody(s,body,dx,dy,body.radius), shot:(body,dx,dy,speed,damage,radius=5)=>projectile(s,"enemy",body.x,body.y,dx,dy,speed,damage,radius), hurt:(t,d,x,y)=>hurtTarget(s,t as CombatTarget,d,x,y), targets:()=>combatTargets(s) });
       continue;
     }
     if (e.behavior) {
-      updateLunarEnemy(s,e,dt,target,{ move: (body,dx,dy)=>moveBody(s,body,dx,dy,body.radius), shot: (body,dx,dy,speed,damage,radius=5)=>projectile(s,"enemy",body.x,body.y,dx,dy,speed,damage,radius), hurt:(t,d,x,y)=>hurtTarget(s,t as CombatTarget,d,x,y), targets:()=>combatTargets(s) });
+      (isCityBehavior(e.behavior) ? updateCityEnemy : updateLunarEnemy)(s,e,dt,target,{ summon:(behavior: "turnstile"|"neon-imp",x:number,y:number)=> {const add=addEnemy(s,behavior==="neon-imp"?"shooter":"grunt",x,y);configureCityEnemy(s,add,behavior);}, move: (body,dx,dy)=>moveBody(s,body,dx,dy,body.radius), shot: (body,dx,dy,speed,damage,radius=5)=>projectile(s,"enemy",body.x,body.y,dx,dy,speed,damage,radius), hurt:(t,d,x,y)=>hurtTarget(s,t as CombatTarget,d,x,y), targets:()=>combatTargets(s) });
       continue;
     }
     if (e.kind !== "boss" && e.hitTimer > 0 || (length > (e.kind === "boss" || s.scene === "test" ? 230 : 140) && e.actionTimer === 0 && e.windup === 0)) continue;
@@ -767,6 +781,10 @@ function updateEnemies(s: GameState, dt: number) {
 function updateProjectiles(s: GameState, dt: number) {
   const world = getWorld(s.scene, s.room, s.mapId);
   for (const p of s.projectiles) {
+    if(p.bounceDistance !== undefined) {
+      p.bounceDistance -= Math.hypot(p.vx,p.vy)*dt;
+      if(p.bounceDistance<=0) {p.vx=p.bounceVx!;p.vy=p.bounceVy!;delete p.bounceDistance;}
+    }
     const x0 = p.x, y0 = p.y, dx = p.vx * dt, dy = p.vy * dt;
     p.ttl -= dt;
     if (isBlocked(world, x0, y0, p.radius)) { p.ttl = 0; continue; }
@@ -795,6 +813,15 @@ function updateProjectiles(s: GameState, dt: number) {
       return Math.hypot(x - x0 - dx * t, y - y0 - dy * t) < radius + p.radius;
     };
     if (p.owner === "hero") {
+      if(inCity(s)) for(const boss of s.enemies.filter(e=>isCityBehavior(e.behavior)&&e.kind==='boss')) {
+        const switches=cityTargets(s).filter(t=>t.id==='city-signal-switch'||t.id.startsWith('city-pedestal-')&&!(boss.phase===2&&t.id==='city-pedestal-2'));
+        const relay=switches.find(t=>collides(t.x,t.y-24,18));
+        if(relay&&!p.relayHit) {
+          p.relayHit=true;
+          if(s.coop?.role==='guest') s.events.push({type:'coop-hit',enemyId:boss.id,damage:1,dx:p.vx/Math.hypot(p.vx,p.vy),dy:p.vy/Math.hypot(p.vx,p.vy),force:0,attackId:`relay:${p.id}`,relayId:relay.id,relayKind:'ki',relayX:p.originX,relayY:p.originY});
+          else interruptCityBoss(boss);
+        }
+      }
       for (const e of s.enemies) {
         if (e.hp <= 0 || p.hits.includes(e.id) || !collides(e.x, e.y, e.radius)) continue;
         p.hits.push(e.id);
@@ -804,7 +831,14 @@ function updateProjectiles(s: GameState, dt: number) {
       }
     } else if (s.coop?.role !== "guest") {
       const target = combatTargets(s).find(player => collides(player.x, player.y, 7));
-      if (target) { hurtTarget(s, target, p.damage, x0, y0); p.ttl = 0; }
+      if (target) {
+        const guardTime=target.remote?.guardTimer ?? s.guardTimer ?? 1;
+        if(p.signal && target.hero.id==='jon' && target.guard && guardTime<=.3) {
+          const boss=s.enemies.find(e=>e.behavior==='switchmaster');if(boss) interruptCityBoss(boss);
+          s.notice='Jon deflects the relay signal! Switchmaster exposed.';
+        } else hurtTarget(s, target, p.damage, x0, y0);
+        p.ttl = 0;
+      }
     }
     if (blocked) p.ttl = 0;
   }
@@ -837,6 +871,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
+  for (const target of cityTargets(s)) add(target, 36);
   for (const target of woodsTargets(s)) add(target, 34);
   for (const target of spaceTargets(s)) add(target, 34);
   for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
@@ -912,9 +947,12 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
   if (target.id === "space-air-option") {spaceInteract(s,target.id);return;}
+  if (s.scene === "hub" && target.id === "station" && cityInteract(s, target.id)) return;
+  if(s.coop?.role==='guest' && (target.id.startsWith('city-anchor-')||target.id==='city-signal-switch'||target.id.startsWith('city-pedestal-'))) {
+    s.events.push({type:'coop-hit',enemyId:0,damage:1,dx:0,dy:0,force:0,attackId:`relay-use:${s.nextId++}`,relayId:target.id,relayKind:'interact'});return;
+  }
   if (s.coop?.role === "guest" && target.kind !== "talk") return;
-  if (woodsInteract(s,target.id)) return;
-  if (spaceInteract(s,target.id)) return;
+  if (woodsInteract(s,target.id) || cityInteract(s,target.id) || spaceInteract(s,target.id)) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
@@ -955,7 +993,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
 }
 export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): boolean {
   if (s.coop && activeHero(s).hp <= 0) return false;
-  if ((!fromCharacter && (s.scene !== "hub" || s.overlay !== "home")) || s.scene === "dead" || !s.unlockedHeroes.includes(id)) return false;
+  if ((!fromCharacter && ((s.scene !== "hub" && !inCity(s)) || s.overlay !== "home")) || s.scene === "dead" || !s.unlockedHeroes.includes(id)) return false;
   if (s.party.includes(id)) {
     if (s.party.length === 1) { s.notice = "Keep at least one hero in the party."; return false; }
     const next = s.party.find(member => member !== id)!;
@@ -1084,6 +1122,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   const h = activeHero(s);
   if(onMoon(s) && input.guard) brakeBound(s);
   s.guard = combat && input.guard && s.dashTimer === 0 && !input.ki;
+  s.guardTimer = s.guard ? (s.guardTimer ?? 0) + dt : 0;
   const length = Math.hypot(input.x, input.y);
   s.moving = length > 0.1;
   if (s.moving && s.dashTimer === 0) {
@@ -1165,6 +1204,7 @@ export function step(s: GameState, input: Input, delta: number): void {
         if (!s.areas.includes("blast")) s.areas.push("blast");
       }
     }
+    if(cityClear(s)) return;
     if(inWoods(s)) { clearWoods(s); return; }
     if(onMoon(s)) {
       if(s.room===5) {record(s.bosses,"moon-cheese-inspector");spaceCheckpoint(s);refillCrew(s);}

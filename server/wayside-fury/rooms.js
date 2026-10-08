@@ -55,7 +55,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
     function roomInfo(room, player) {
         return {
             type: 'room', code: room.code, seat: player.seat, hostSeat: room.hostSeat,
-            protocolVersion: Math.min(...players(room).map(peer => peer.protocolVersion)), contentVersion: player.protocolVersion >= 3 ? CAMPAIGN_CONTENT_VERSION : 1,
+            protocolVersion: Math.min(...players(room).map(peer => peer.protocolVersion)), contentVersion: player.protocolVersion >= 5 ? CAMPAIGN_CONTENT_VERSION : player.protocolVersion === 4 ? 3 : player.protocolVersion === 3 ? 2 : 1,
             token: player.token, status: 'playing', players: publicPlayers(room),
         };
     }
@@ -145,13 +145,13 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             return ticket;
         },
         auth(socket, { ticket, protocolVersion = 1, contentVersion = CAMPAIGN_CONTENT_VERSION }) {
-            if (![1, 2, COOP_PROTOCOL_VERSION].includes(protocolVersion) || ![1,CAMPAIGN_CONTENT_VERSION].includes(contentVersion) || (protocolVersion === COOP_PROTOCOL_VERSION && contentVersion !== CAMPAIGN_CONTENT_VERSION)) throw new RoomError('version');
+            if (![1, 2, 3, 4, COOP_PROTOCOL_VERSION].includes(protocolVersion) || ![1,2,3,CAMPAIGN_CONTENT_VERSION].includes(contentVersion) || (protocolVersion === COOP_PROTOCOL_VERSION && contentVersion !== CAMPAIGN_CONTENT_VERSION)) throw new RoomError('version');
             if (playerFor(socket)) throw new RoomError('already');
             const user = typeof ticket === 'string' ? tickets.get(ticket) : null;
             if (!user || user.expires <= now()) throw new RoomError('ticket');
             tickets.delete(ticket);
             socket.waysideFuryUser = { userId: user.userId, name: user.name, protocolVersion };
-            send(socket, { type: 'ready', protocolVersion: protocolVersion >= 3 ? COOP_PROTOCOL_VERSION : 2, contentVersion: protocolVersion >= 3 ? CAMPAIGN_CONTENT_VERSION : 1, userId: user.userId, name: user.name });
+            send(socket, { type: 'ready', protocolVersion: protocolVersion >= 3 ? protocolVersion : 2, contentVersion: protocolVersion >= 5 ? CAMPAIGN_CONTENT_VERSION : protocolVersion === 4 ? 3 : protocolVersion === 3 ? 2 : 1, userId: user.userId, name: user.name });
         },
         // Limits include lobby traffic, bad JSON and packets from unauthenticated sockets.
         accept(socket) {

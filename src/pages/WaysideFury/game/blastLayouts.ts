@@ -1,12 +1,15 @@
-import { paint, prop, type WorldMap, type WorldProp } from './worldBuilder.ts';
+import { paint, prop, road, type WorldMap, type WorldProp } from './worldBuilder.ts';
 // Original, fixed layouts. No seed/scatter: cover, silhouettes and secret pockets
 // are authored independently from encounters and durable progression receipts.
 export function dressBlast(m: WorldMap, room: number) {
   const p=(kind:WorldProp['kind'],x:number,y:number,w:number,h:number)=>prop(m,kind,x,y,w,h);
   const ground=(x:number,y:number,w:number,h:number,t:Parameters<typeof paint>[5],solid=false)=>paint(m,x,y,w,h,t,solid);
   if(room===0) {
-    ground(32,144,576,96,'road');ground(96,64,416,64,'stone');ground(96,256,448,64,'dirt');
+    ground(96,64,416,64,'stone');ground(96,256,448,64,'dirt');
     ground(96,112,64,176,'dirt');ground(496,112,64,176,'dirt');
+    // Paint the continuous carriageway last; side paths cannot erase its lanes.
+    ground(48,144,16,96,'stone');ground(576,144,16,96,'stone');
+    road(m,{id:'scorched-road',x:64,y:144,w:512,h:96,direction:'horizontal',start:'entrance',end:'entrance'});
     p('wreck-truck',176,52,112,66);p('wreck-truck',346,258,126,64);p('wreck-truck',490,66,80,50);
     p('impact',310,148,82,44);p('impact',100,248,54,32);p('impact',500,210,48,28);
     p('fallen-pole',62,62,62,58);p('fallen-pole',432,58,42,74);p('fallen-pole',170,278,80,44);

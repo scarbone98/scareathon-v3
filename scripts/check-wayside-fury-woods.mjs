@@ -8,7 +8,7 @@ import { canEnter, getMap } from '../src/pages/WaysideFury/game/campaign.ts';
 import { isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 import { makeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
 import { sanitizeSave, ticketDelta } from '../server/shared/waysideFury/save.js';
-import { compatibleMap } from '../server/shared/waysideFury/campaign.js';
+import { compatibleMap, COOP_PROTOCOL_VERSION } from '../server/shared/waysideFury/campaign.js';
 const ready=()=>{const s=newGame();s.clearedRooms=['realm-0'];s.bosses=['blast-watcher'];return s;};
 const s=ready();assert.equal(canEnter(s,'space'),false);assert.equal(enterCampaignMap(s,'woods-layby'),true);
 assert.equal(WOODS_WORLDS.length,8);
@@ -16,7 +16,7 @@ for(const m of WOODS_WORLDS) {
   assert.ok(!isBlocked(m,m.spawn.x,m.spawn.y),m.id);
   for(const e of m.exits) {const dest=getMap(e.targetMapId);assert.ok(dest);assert.ok(!isBlocked(dest,e.entryX,e.entryY),`${m.id}/${e.id}`);}
   for(const spawn of m.spawns) assert.ok(!isBlocked(m,spawn.x,spawn.y,spawn.kind==='boss'?22:9),`${m.id} spawn`);
-  assert.equal(compatibleMap('dungeon',WOODS_WORLDS.indexOf(m),m.id,3),false);
+  for (const protocol of [1,2,3,4]) assert.equal(compatibleMap('dungeon',WOODS_WORLDS.indexOf(m),m.id,protocol),false);
 }
 // Every room and exit is reachable on the collision grid after its binary gate is solved.
 for(const m of WOODS_WORLDS) {
@@ -49,11 +49,11 @@ for(let i=0;i<6;i++)woodsDamage(s,boss,10,55);assert.ok(boss.burst>0,'poise brea
 const before=makeSave(s,null);s.enemies=[];clearWoods(s);assert.equal(canEnter(s,'space'),true);assert.equal(s.chapter,3);assert.equal(ticketDelta(makeSave(s,before).lastReported,before.lastReported),0);
 const legacy=makeSave(ready(),null);assert.equal(sanitizeSave({...legacy,version:3}).save.campaignMilestones.includes('woods-complete'),false);
 const oldSpace=sanitizeSave({...legacy,campaignMilestones:['moon-departed']}).save;assert.ok(oldSpace.campaignMilestones.includes('woods-complete'));
-for(const count of [1,4]) {const a=ready();if(count===4)a.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],playerCount:4,protocolVersion:4};enterCampaignMap(a,'woods-conveyor-yard');const e=a.enemies[0];assert.ok(e.maxHp>100);assert.equal(e.woodsBehavior,'bailiff');e.hp=e.maxHp*.4;updateWoodsEnemy(a,e,.1,target,api);assert.equal(e.phase,2);}
+for(const count of [1,4]) {const a=ready();if(count===4)a.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],playerCount:4,protocolVersion:COOP_PROTOCOL_VERSION};enterCampaignMap(a,'woods-conveyor-yard');const e=a.enemies[0];assert.ok(e.maxHp>100);assert.equal(e.woodsBehavior,'bailiff');e.hp=e.maxHp*.4;updateWoodsEnemy(a,e,.1,target,api);assert.equal(e.phase,2);}
 const old=ready();old.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:2};assert.equal(enterCampaignMap(old,'woods-layby'),false);
 // Wisp's light changes allies' defense; a Ki hit extinguishes it. Root tells are interruptible.
 enterCampaignMap(s,'woods-lantern-walk');const wisp=s.enemies.find(e=>e.woodsBehavior==='wisp'),root=s.enemies.find(e=>e.woodsBehavior==='rooted');
 assert.ok(Math.abs(woodsDamage(s,root,100,55)-55)<1e-9);woodsDamage(s,wisp,10,40,true);assert.equal(woodsDamage(s,root,100,55),100);root.windup=1;woodsDamage(s,root,10,55);assert.equal(root.windup,0);
-const hosted=ready();hosted.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],playerCount:4,protocolVersion:4};enterCampaignMap(hosted,'woods-lantern-walk');assert.ok(hosted.enemies.every(e=>e.woodsBehavior));const candle=hosted.enemies.find(e=>e.woodsBehavior==='wisp');assert.ok(applyCoopHit(hosted,{enemyId:candle.id,attackId:'guest-id:projectile:99',damage:10,dx:1,dy:0,force:40},1));assert.equal(candle.exposed,5);
+const hosted=ready();hosted.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],playerCount:4,protocolVersion:COOP_PROTOCOL_VERSION};enterCampaignMap(hosted,'woods-lantern-walk');assert.ok(hosted.enemies.every(e=>e.woodsBehavior));const candle=hosted.enemies.find(e=>e.woodsBehavior==='wisp');assert.ok(applyCoopHit(hosted,{enemyId:candle.id,attackId:'guest-id:projectile:99',damage:10,dx:1,dy:0,force:40},1));assert.equal(candle.exposed,5);
 assert.ok(woodsTargets(s).length===0);assert.equal(typeof configureWoodsEnemy,'function');assert.equal(typeof applyCoopHit,'function');assert.equal(typeof interact,'function');assert.equal(typeof enterScene,'function');assert.ok(hits>=0);
 console.log('Woods: room graph/collision, five solo assists, held Ki machinery, mirror detour, retry persistence, phases/poise/anchors, scaling, legacy guards, migration and zero ticket inflation pass.');

@@ -52,6 +52,7 @@ export function cleanHero(remote) {
     for (const key of ['filmSkip', 'filmHold', 'spaceOutfit']) {
         if (remote[key] !== undefined) {if (typeof remote[key] !== 'boolean') return null;cleaned[key] = remote[key];}
     }
+    if(remote.guardTimer !== undefined) {if(!number(remote.guardTimer,1e6)||remote.guardTimer<0) return null;cleaned.guardTimer=remote.guardTimer;}
     if (remote.meleeCharge !== undefined) { if (!number(remote.meleeCharge, 1.2) || remote.meleeCharge < 0) return null; cleaned.meleeCharge = remote.meleeCharge; }
     if (remote.boundTimer !== undefined) { if (!number(remote.boundTimer, .4) || remote.boundTimer < 0) return null; cleaned.boundTimer=remote.boundTimer; }
     for (const key of ['moving', 'guard']) {
@@ -97,7 +98,7 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (!compatibleMap(state.scene, state.room, state.mapId, state.protocolVersion ?? 1)) return null;
-    if (state.protocolVersion !== undefined && ![1,2,3,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
+    if (state.protocolVersion !== undefined && ![1,2,3,4,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
@@ -126,7 +127,7 @@ export function cleanWorld(state) {
         if (enemy.baseMaxHp !== undefined && (!number(enemy.baseMaxHp, 1e6) || enemy.baseMaxHp <= 0)) return null;
         if (enemy.woodsBehavior !== undefined && !['rooted','lantern','wisp','bailiff','foreman'].includes(enemy.woodsBehavior)) return null;
         for (const key of ['tellX','tellY']) if (enemy[key] !== undefined && !number(enemy[key], 1e6)) return null;
-        if (enemy.behavior !== undefined && !['rat','walker','scout','echo','satellite','inspector','warden'].includes(enemy.behavior)) return null;
+        if (enemy.behavior !== undefined && !['rat','walker','scout','echo','satellite','inspector','warden','cable-rat','neon-imp','turnstile','clockwolf','switchmaster','architect'].includes(enemy.behavior)) return null;
         for (const key of ['poise','burst','exposed','escapeIframes']) if (enemy[key] !== undefined && (!number(enemy[key], 100) || enemy[key] < 0)) return null;
         if (enemy.shieldBroken !== undefined && typeof enemy.shieldBroken !== 'boolean') return null;
         if (enemy.radius <= 0 || enemy.speed < 0 || enemy.pattern < 0) return null;
@@ -135,6 +136,8 @@ export function cleanWorld(state) {
         if (!object(projectile) || !integer(projectile.id) || !number(projectile.x) || !number(projectile.y) || !number(projectile.vx) || !number(projectile.vy)) return null;
         if (!['hero', 'enemy'].includes(projectile.owner) || typeof projectile.beam !== 'boolean' || !Array.isArray(projectile.hits) || projectile.hits.length > 200 || !projectile.hits.every((id) => integer(id))) return null;
         if (projectile.hero !== undefined && !HERO_IDS.has(projectile.hero)) return null;
+        if(projectile.signal !== undefined && typeof projectile.signal !== 'boolean') return null;
+        for(const key of ['bounceDistance','bounceVx','bounceVy']) if(projectile[key] !== undefined && !number(projectile[key],1e6)) return null;
         for (const key of ['radius', 'damage', 'ttl']) if (!number(projectile[key], 1e6)) return null;
         if (projectile.radius <= 0 || projectile.damage < 0) return null;
     }
@@ -173,7 +176,9 @@ export function cleanRelay(message) {
         case 'hit':
             if (!integer(message.enemyId) || !number(message.damage, 1e5) || message.damage <= 0 || !number(message.dx, 1) || !number(message.dy, 1) || !number(message.force, 1e5) || message.force < 0 || !text(message.attackId, 96) || !scene(message.scene) || !integer(message.room, 999)) return null;
             if (!compatibleMap(message.scene, message.room, message.mapId, COOP_PROTOCOL_VERSION)) return null;
-            cleaned = Object.fromEntries(['type', 'enemyId', 'damage', 'dx', 'dy', 'force', 'attackId', 'scene', 'room'].map((key) => [key, message[key]]));
+            if(message.relayId !== undefined && (!['city-anchor-0','city-anchor-2','city-anchor-5','city-signal-switch','city-pedestal-0','city-pedestal-1','city-pedestal-2'].includes(message.relayId)||!['ki','interact'].includes(message.relayKind)||!message.mapId?.startsWith('city-'))) return null;
+            if(message.relayKind==='ki'&&(!number(message.relayX)||!number(message.relayY))) return null;
+            cleaned = Object.fromEntries(['type', 'enemyId', 'damage', 'dx', 'dy', 'force', 'attackId', 'scene', 'room', ...(message.relayId ? ['relayId','relayKind',...(message.relayKind==='ki'?['relayX','relayY']:[])] : [])].map((key) => [key, message[key]]));
             break;
         case 'pickup':
             if (!PICKUP_IDS.has(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;

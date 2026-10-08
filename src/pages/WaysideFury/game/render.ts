@@ -1,4 +1,5 @@
 import { drawBlastProp } from "./blastArt";
+import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
 import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
 import { fieldWorld } from "./fieldAbilities";
 import { drawCountyProp } from "./countyArt";
@@ -137,6 +138,7 @@ export class Renderer {
   project(x: number, y: number) { return { x: (x - this.camera.x) / this.viewport.width, y: (y - this.camera.y) / this.viewport.height }; }
   presentation(s: GameState): RenderPresentation {
     const labels: RenderLabel[] = [];
+    if(s.mapId==='city-hatching'&&s.dialogue?.speaker==='Jon') return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     if(s.film || s.mapId === "space-launch" && s.sceneTimer<3 && !s.moving) return {camera:{...this.camera,width:this.viewport.width,height:this.viewport.height},labels,focus:{x:.5,y:.5}};
     const add = (id: string | number, text: string, x: number, y: number, kind: RenderLabel['kind'], color?: string, opacity?: number, scale?: number) => {
       const point = this.project(x, y);
@@ -174,7 +176,7 @@ export class Renderer {
     }
     if (event.type === 'kill') {
       this.bursts.push({ x: event.x, y: event.y - 12, color: event.kind === 'boss' ? '#d488cf' : '#94b58a', life: .48, maxLife: .48, seed: event.enemyId, strength: event.kind === 'boss' ? 36 : 23 });
-      this.tumbles.push({ x: event.x, y: event.y, sprite: event.sprite, life: .34, maxLife: .34, scale: event.radius > 10 ? 1.6 : 1, flip: event.x > s.x });
+      if(!s.mapId.startsWith('city-')) this.tumbles.push({ x: event.x, y: event.y, sprite: event.sprite, life: .34, maxLife: .34, scale: event.radius > 10 ? 1.6 : 1, flip: event.x > s.x });
     }
     if (event.type === 'death') this.tumbles.push({ x: s.x, y: s.y, sprite: s.active, life: .65, maxLife: .65, scale: 1, flip: s.faceX < 0 });
     if (this.bursts.length > 36) this.bursts.splice(0, this.bursts.length - 36);
@@ -232,6 +234,7 @@ export class Renderer {
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawMoonGround(c,world,s);
+    drawCityGround(c,s);
     drawWoodsMachinery(c,s);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
@@ -259,6 +262,13 @@ export class Renderer {
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
     c.restore();
+    if(s.mapId==='city-hatching'&&s.dialogue?.speaker==='Jon') {
+      // A screen-space foreground keeps all five identities visible on phones.
+      drawCityStory(c,s,width,height);
+      c.save();
+      for(const [index,id] of (['joe','matt','alex','jon','you'] as const).entries()) this.hero({...s,active:id,x:width/2+(index-2)*Math.min(34,width/6),y:height*.68,spaceOutfit:false,moving:false,guard:false,attackTimer:0,charge:0});
+      c.restore();
+    }
     if (s.palette === 'eightbit') this.applyRealmPalette();
     if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }
   }
@@ -404,7 +414,7 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
-    if(drawBlastProp(this.ctx,prop) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
+    if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {
@@ -626,6 +636,7 @@ export class Renderer {
   }
   private enemy(s: GameState, enemy: Enemy) {
     if(drawWoodsBody(this.ctx,enemy,s)) return;
+    if(drawCityEnemy(this.ctx,enemy)) return;
     if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
     const id = enemy.sprite;
@@ -877,6 +888,7 @@ export class Renderer {
 
   private bossTelegraph(s: GameState, enemy: Enemy) {
     if(drawWoodsTell(this.ctx,enemy)) return;
+    if(drawCityTelegraph(this.ctx,enemy)) return;
     if(drawLunarTelegraph(this.ctx,enemy)) return;
     if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
     const c = this.ctx;

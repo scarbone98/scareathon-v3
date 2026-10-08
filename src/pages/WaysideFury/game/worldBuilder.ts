@@ -20,7 +20,7 @@ export interface WorldExit {
 export interface WorldSpawn {
   kind: "grunt" | "shooter" | "boss"; x: number; y: number;
   woodsBehavior?: import("./chapters/ch2Worlds.ts").WoodsBehavior;
-  behavior?: import("./chapters/ch3Worlds.ts").LunarBehavior;
+  behavior?: import("./chapters/ch3Worlds.ts").LunarBehavior | import("./chapters/ch4Worlds.ts").CityBehavior;
   sprite?: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast"; miniBoss?: boolean;
 }
 export interface RoadSegment extends CollisionRect {

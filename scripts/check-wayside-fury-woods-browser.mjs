@@ -15,11 +15,14 @@ try {
   await page.goto(`${base}/wayside-fury?gfx=${gfx}`,{waitUntil:'domcontentloaded',timeout:120000});
   await page.waitForFunction(()=>window.__waysideFury,null,{timeout:120000});
   await page.getByRole('button',{name:/Begin adventure|Continue adventure/}).click();
+  await page.waitForFunction(()=>!document.querySelector('.wf-title-actions'),null,{timeout:120000});
   await page.evaluate(async()=>{const {enterCampaignMap}=await import('/src/pages/WaysideFury/game/sim.ts');const game=window.__waysideFury;game.setPaused(true);game.mutate(s=>{s.clearedRooms=['realm-0'];s.campaignMilestones=['breaker-knuckle','circuit-spark'];enterCampaignMap(s,'woods-layby');});});
   for(const id of ['woods-lantern-walk','woods-pump-house','woods-heartwood-engine']) {
    const metric=await page.evaluate(async id=>{
     const {enterCampaignMap}=await import('/src/pages/WaysideFury/game/sim.ts');const game=window.__waysideFury;
     game.mutate(s=>{enterCampaignMap(s,id);s.x=id==='woods-lantern-walk'?464:id==='woods-heartwood-engine'?400:320;s.y=254;for(const e of s.enemies){e.windup=.8;e.tellX=s.x;e.tellY=s.y;const len=Math.max(1,Math.hypot(s.x-e.x,s.y-e.y));e.aimX=(s.x-e.x)/len;e.aimY=(s.y-e.y)/len;}if(id==='woods-heartwood-engine')s.enemies[0].phase=2;});
+    // Let the chapter HUD layout and ResizeObserver settle at native DPR.
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     game.renderer.draw(game.state,0,0);const before=JSON.stringify(game.state);for(let i=0;i<12;i++)game.renderer.draw(game.state,0,0);
     const canvas=document.querySelector('canvas[aria-label="Wayside Fury action RPG"]'),r=canvas.getBoundingClientRect();
     return {unchanged:before===JSON.stringify(game.state),dpr:Number(canvas.dataset.renderDpr),width:canvas.width,height:canvas.height,cssWidth:r.width,cssHeight:r.height,renderer:canvas.dataset.renderer,mapId:game.state.mapId};

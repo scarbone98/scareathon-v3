@@ -1,4 +1,5 @@
 import { dressBlast, BLAST_ENCOUNTER_ANCHORS } from "./blastLayouts.ts";
+import { CITY_WORLDS } from "./chapters/ch4Worlds.ts";
 import { WOODS_WORLDS } from "./chapters/ch2Worlds.ts";
 import { dressCounty } from "./county.ts";
 import { compound, LAUNCH_WORLD, MOON_WORLDS } from "./chapters/ch3Worlds.ts";
@@ -156,4 +157,4 @@ export function getWorld(scene: string, room = 0, mapId?: string, coop = false):
   return scene === "overworld" ? OVERWORLD : scene === "hub" ? HUB_WORLD : scene === "dungeon" ? BLAST_WORLDS[room] ?? BLAST_WORLDS[0] : scene === "realm" ? REALM_WORLD : TEST_WORLD;
 }
 
-export const ALL_WORLDS = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, LAUNCH_WORLD, ...MOON_WORLDS, ...WOODS_WORLDS];
+export const ALL_WORLDS = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, LAUNCH_WORLD, ...MOON_WORLDS, ...CITY_WORLDS, ...WOODS_WORLDS];
