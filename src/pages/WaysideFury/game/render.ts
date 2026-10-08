@@ -1,3 +1,4 @@
+import { drawWalkableSurface, isGroundProp } from "./walkableSurfaces";
 import { drawAreaGround, drawInteriorGround, drawBuildingDoors } from './renderAreas2d.ts';
 import { applyEnemyWindup } from "./enemyWindup";
 import { drawBlastProp } from "./blastArt";
@@ -244,7 +245,9 @@ export class Renderer {
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.tellX ?? enemy.x, enemy.tellY ?? enemy.y, 30)) drawWoodsHazard(this.ctx, enemy);
-    const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
+    const visibleProps = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30));
+    for (const prop of visibleProps.filter(isGroundProp)) this.prop(prop, motionTime, s);
+    const actors = visibleProps.filter(prop => !isGroundProp(prop)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
@@ -419,6 +422,7 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
+    if(drawWalkableSurface(this.ctx,prop)) return;
     if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;

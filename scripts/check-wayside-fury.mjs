@@ -1,6 +1,7 @@
 // Exercise the pure simulation headlessly, as the Horde Rush balance script does.
 // Run with Node 24+: node scripts/check-wayside-fury.mjs
 import assert from 'node:assert/strict';
+import './check-wayside-fury-bridge.mjs';
 import { findWalkRoute, findInteractionApproach } from './check-wayside-fury-collision.mjs';
 import { newGame, step, idleInput, addEnemy, activeHero, xpForLevel, enterScene, interact, interactTarget, hostileWithinMeleeReach, buyItem, restAtHome, advanceStory, skipPrologue, beginRealmShift, toggleParty, HERO_IDS, createHero, nextPartyHero, requestSwap } from '../src/pages/WaysideFury/game/sim.ts';
 

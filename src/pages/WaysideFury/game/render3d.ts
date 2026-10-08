@@ -1,3 +1,5 @@
+import { buildWalkableSurfaces } from './walkableSurfaces3d';
+import { isWalkableSurface, surfaceElevationAt } from './walkableSurfaces';
 import { enemyWindupTell } from './enemyWindup';
 import { COUNTY_ART, countyArtwork } from "./countyArt";
 import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
@@ -342,7 +344,9 @@ export class OverworldRenderer {
     }
     const shadows: THREE.Matrix4[] = [];
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
+    buildWalkableSurfaces(this.scene, this.world, (x,y) => this.terrain.heightAt(x,y));
     for (const prop of this.world.props) {
+      if (isWalkableSurface(prop)) continue;
       const parking = prop.kind === 'car' ? parkedCarPose(prop) : null;
       const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
@@ -792,7 +796,7 @@ export class OverworldRenderer {
     if (!this.reducedMotion && this.crashShake > 0) { this.camera.position.x += Math.sin(this.visualTime * 113) * this.crashShake; this.camera.position.z += Math.cos(this.visualTime * 97) * this.crashShake * .4; }
     // Controller already interpolates actors. Only the camera gets follow ease;
     // the taxi stays on the supplied collision/interaction position and surface.
-    const actorElevation = this.terrain.heightAt(s.x, s.y);
+    const actorElevation = surfaceElevationAt(this.world, s.x, s.y, (x,y) => this.terrain.heightAt(x,y));
     this.taxi.position.set(s.x, actorElevation + (s.moving && !this.reducedMotion ? Math.sin(this.visualTime * 26) * .16 : 0), s.y);
     const heading = -Math.atan2(s.faceY, s.faceX);
     const turn = Math.atan2(Math.sin(heading - this.heading), Math.cos(heading - this.heading));
@@ -847,7 +851,7 @@ export class OverworldRenderer {
     const peers = (s.coop?.remoteHeroes ?? []).filter(peer => sameCampaignMap(s, peer));
     this.syncRemotePeers(s);
     for (const peer of peers) {
-      const taxi = this.remoteTaxi(peer.seat), elevation = this.terrain.heightAt(peer.x, peer.y);
+      const taxi = this.remoteTaxi(peer.seat), elevation = surfaceElevationAt(this.world, peer.x, peer.y, (x,y) => this.terrain.heightAt(x,y));
       taxi.group.position.set(peer.x, elevation + (peer.moving && !this.reducedMotion ? Math.sin(this.visualTime * 26) * .16 : 0), peer.y);
       taxi.group.rotation.y = -Math.atan2(peer.faceY, peer.faceX);
       taxi.group.visible = this.nearView(peer.x, peer.y, 80);

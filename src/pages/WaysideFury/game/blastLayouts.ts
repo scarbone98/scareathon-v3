@@ -19,7 +19,9 @@ export function dressBlast(m: WorldMap, room: number) {
     ground(64,208,800,96,'dirt');ground(288,0,80,256,'dirt');ground(144,64,208,80,'sand');
     ground(400,32,160,480,'sand');ground(448,32,64,480,'water',true);
     ground(416,224,128,96,'bridge');ground(128,368,704,64,'dirt');ground(128,256,64,176,'dirt');ground(784,256,64,176,'dirt');ground(416,384,128,48,'bridge');
-    p('broken-bridge',416,96,128,66);p('bridge-rail',416,216,128,12);p('bridge-rail',416,316,128,12);p('bridge-rail',416,432,128,12);
+    // Deck ends stop exactly at the creek banks; the central water gap stays solid.
+    ground(416,96,32,64,'bridge');ground(512,96,32,64,'bridge');
+    p('broken-bridge',416,96,128,64);p('bridge',416,224,128,96);p('bridge',416,384,128,48);p('bridge-rail',416,216,128,12);p('bridge-rail',416,316,128,12);p('bridge-rail',416,432,128,12);
     for(const [x,y] of [[384,60],[532,164],[388,340],[544,452],[608,368],[256,432],[128,320],[688,88]])p('rubble',x,y,32,24);
     for(const [x,y] of [[432,64],[516,112],[424,180],[524,328],[420,464],[536,480],[400,368],[548,64]])p('reeds',x,y,24,32);
     p('fallen-pole',160,56,36,44);p('crate',592,432,24,28);p('bench',700,344,48,28);p('sign',350,184,24,24);
@@ -38,6 +40,7 @@ export function dressBlast(m: WorldMap, room: number) {
     p('canyon-rock',352,196,64,76);p('canyon-rock',872,244,64,76);
     for(const [x,y,w,h] of [[294,36,128,84],[728,40,126,82],[458,436,120,64],[928,440,112,62]])p('ember-vent',x,y,w,h);
     for(const [x,y] of [[176,64],[464,32],[620,100],[896,54],[1072,110],[184,342],[328,432],[776,426],[1104,380],[1190,336]])p('rubble',x,y,48,36);
+    for(const [x,y,w] of [[256,128,208],[688,128,208],[400,384,240],[864,384,240]])p('bridge',x,y,w,48);
     for(const [x,y,w] of [[256,116,208],[688,116,208],[400,430,240],[864,430,240]])p('bridge-rail',x,y,w,12);
     p('crate',526,54,26,30);p('crate',598,76,24,28);p('shelf',752,340,38,42);p('fallen-pole',1048,54,58,42);
   } else if(room===4) {
