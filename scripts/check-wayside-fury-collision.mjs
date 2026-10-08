@@ -1,16 +1,30 @@
+import { HUB_QUEST_NPCS } from "../src/pages/WaysideFury/u1/hub/quests.ts";
+import { ARENA_WORLD, ARENA_HUB_POINT } from "../src/pages/WaysideFury/u1/hub/arenaWorld.ts";
 // Radius-aware navigation and collision regressions; also run by the main check.
 import assert from 'node:assert/strict';
-import { newGame, enterScene, addEnemy, idleInput, step, interactTarget, activeHero } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, enterScene, addEnemy, idleInput, step, interact, interactTarget, activeHero } from '../src/pages/WaysideFury/game/sim.ts';
 import { LOCATIONS, HUB_POINTS } from '../src/pages/WaysideFury/game/content.ts';
 import { TILE, OVERWORLD, HUB_WORLD, BLAST_WORLDS, REALM_WORLD, TEST_WORLD, isBlocked, tileAt } from '../src/pages/WaysideFury/game/world.ts';
+import { HERO_OBSTACLES, obstaclesForState, isObstacleCleared } from '../src/pages/WaysideFury/game/u1/world/obstacles.ts';
 
 const GRID = 4, SWEEP = 2, DT = 1 / 60;
-const maps = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD];
+const maps = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, ARENA_WORLD];
 const fields = new Map();
-const heroRadius = world => world === OVERWORLD ? 10 : 7;
-const sceneFor = world => world === OVERWORLD ? 'overworld' : world === HUB_WORLD ? 'hub'
-  : world === REALM_WORLD ? 'realm' : world === TEST_WORLD ? 'test' : 'dungeon';
-const roomFor = world => Math.max(0, BLAST_WORLDS.indexOf(world));
+const heroRadius = world => world.id === OVERWORLD.id ? 10 : 7;
+const sceneFor = world => world.id === ARENA_WORLD.id ? 'arena' : world.id === OVERWORLD.id ? 'overworld' : world.id === HUB_WORLD.id ? 'hub'
+  : world.id === REALM_WORLD.id ? 'realm' : world.id === TEST_WORLD.id ? 'test' : 'dungeon';
+const roomFor = world => Math.max(0, BLAST_WORLDS.findIndex(entry => entry.id === world.id));
+const obstacleWorlds = new Map();
+function navigationWorld(world, state) {
+  if (!state) return world;
+  const gates = obstaclesForState(state);
+  if (!gates.length) return world;
+  const key = `${world.id}:${gates.map(gate => `${gate.id}:${isObstacleCleared(state, gate.id)}`).join(',')}`;
+  if (!obstacleWorlds.has(key)) obstacleWorlds.set(key, { ...world, props: [...world.props, ...gates.map(gate => ({
+    ...gate, kind: 'rock', footprints: [...gate.walls, ...(isObstacleCleared(state, gate.id) ? [] : [gate])],
+  }))] });
+  return obstacleWorlds.get(key);
+}
 
 // Checking the entire edge matters: checking tile or grid centers alone can
 // claim that a thin fence is traversable when it lies between sampled centers.
@@ -110,7 +124,8 @@ function navigation(world, radius = heroRadius(world)) {
   return field;
 }
 
-export function findWalkRoute(world, from, to) {
+export function findWalkRoute(world, from, to, state) {
+  world = navigationWorld(world, state);
   const radius = heroRadius(world);
   if (clearSegment(world, from, to, radius)) return [{ x: to.x, y: to.y }];
   const route = navigation(world).route(from, to), result = [];
@@ -124,8 +139,19 @@ export function findWalkRoute(world, from, to) {
   }
   return result;
 }
-export function findInteractionApproach(world, targetId, point, range = 28) {
-  const state = newGame(); enterScene(state, sceneFor(world), roomFor(world)); state.enemies = [];
+export function findInteractionApproach(world, targetId, point, range = 28, suppliedState) {
+  const state = suppliedState ? { ...suppliedState } : newGame();
+  if (!suppliedState) enterScene(state, sceneFor(world), roomFor(world));
+  state.enemies = [];
+  const gate = HERO_OBSTACLES.find(entry => entry.rewardId === targetId);
+  if (gate && !suppliedState) {
+    assert.equal(isObstacleCleared(state, gate.id), false, 'authored supply entrance starts gated');
+    state.active = gate.hero; state.x = gate.x + gate.w / 2; state.y = gate.y + gate.h + 12;
+    assert.equal(interactTarget(state)?.id, gate.id, 'required hero can approach the supply entrance');
+    interact(state);
+    assert.equal(isObstacleCleared(state, gate.id), true, 'required hero opens the supply entrance before cache navigation');
+  }
+  world = navigationWorld(world, state);
   const matches = candidate => {
     state.x = candidate.x; state.y = candidate.y;
     return interactTarget(state)?.id === targetId;
@@ -193,7 +219,7 @@ for (const world of maps) {
   }
 }
 for (const point of LOCATIONS) findInteractionApproach(OVERWORLD, point.id, point);
-for (const point of HUB_POINTS) findInteractionApproach(HUB_WORLD, point.id, point);
+for (const point of [...HUB_POINTS.filter(p => !HUB_QUEST_NPCS.some(n => n.x === p.x && n.y === p.y)), ...HUB_QUEST_NPCS, ARENA_HUB_POINT]) findInteractionApproach(HUB_WORLD, point.id, point);
 
 // Verify authored shapes too, so a change to the footprint generator cannot be
 // masked by the independently constructed rectangle fixtures below.

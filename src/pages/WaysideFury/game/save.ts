@@ -1,5 +1,10 @@
-import { enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
+import { sanitizeItemsSave } from "../../../../server/shared/waysideFury/u1Items.js";
+import { mergeCombatProgress, sanitizeCombatSave } from "../../../../server/shared/waysideFury/u1Combat.js";
+import { enterScene, newGame, createHero, itemsGear, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
+import { worldSave } from "./u1/world/obstacles.ts";
+import { createQuestSave } from "../u1/hub/quests.ts";
 import { HUB_WORLD } from "./world.ts";
+import { grantCheckpointChip } from "./u1/items/pickups.ts";
 import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
 import type { SaveData, ProgressReceipt } from "../../../../server/shared/waysideFury/save.js";
 export { mergeReceipts };
@@ -30,15 +35,17 @@ export function readSave(key = SAVE_KEY): SaveData | null {
 // Building a snapshot is separate from device storage: a full or blocked device
 // can still save to the account. The legacy writer keeps its failure contract.
 export function makeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
+  const personalHeroes = s.arenaVitals ?? s.heroes;
   const heroes = s.coop?.syncedLevel !== undefined ? Object.fromEntries(HERO_IDS.map(id => {
-    const current = s.heroes[id], personal = createHero(id, s.character, s.gear);
+    const current = personalHeroes[id], personal = createHero(id, s.character, itemsGear(s));
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
-  })) : s.heroes;
+  })) : personalHeroes;
   return parseSave({
-    version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
+    version: SAVE_VERSION, chapter: s.chapter, heroes, active: s.arenaLead && s.party.includes(s.arenaLead) ? s.arenaLead : s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
+    u1: { ...previous?.u1, ...s.u1, world: worldSave(s), combat: mergeCombatProgress(previous?.u1?.combat, s.u1?.combat), hub: { ...previous?.u1?.hub, arena: s.hubArena ?? previous?.u1?.hub?.arena, quests: s.hubQuests ?? previous?.u1?.hub?.quests, cosmetic: s.hubCosmetic ?? null, eventSerial: s.hubQuestSerial ?? 0 } },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     foundItems: s.foundItems, ambientTaxiWrecked: s.ambientTaxiWrecked || s.personalTaxiWrecked || previous?.ambientTaxiWrecked === true,
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
@@ -61,9 +68,16 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
     s.candy = snapshot.candy; s.chapter = snapshot.chapter;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
-    s.coopRewards = [...(saved.coopRewards ?? [])];
+    s.u1 = { ...saved.u1, items: sanitizeItemsSave(saved.u1?.items), combat: sanitizeCombatSave(saved.u1?.combat) };
+    s.u1 = structuredClone(s.u1);
     s.foundItems = [...saved.foundItems]; s.ambientTaxiWrecked = s.personalTaxiWrecked = saved.ambientTaxiWrecked;
+    for (const id of [...saved.bosses, ...saved.clearedRooms]) grantCheckpointChip(s, id);
+    s.events.length = 0;
+    s.coopRewards = [...(saved.coopRewards ?? [])];
+    s.hubArena = saved.u1?.hub ? { ...saved.u1.hub.arena } : undefined;
+    s.hubQuests = createQuestSave(saved.u1?.hub?.quests); s.hubCosmetic = saved.u1?.hub?.cosmetic ?? null; s.hubQuestSerial = saved.u1?.hub?.eventSerial ?? 0;
     s.kills = saved.kills; s.deaths = saved.deaths;
+    if (retry && s.u1) s.u1.items.chips.secondWindUsed = false;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }
     if (s.heroes[s.active].hp <= 0) {
       const other = s.party.find(id => s.heroes[id].hp > 0);

@@ -8,13 +8,16 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const baseUrl = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5173';
+const startupTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
+const actionTimeout = Number(process.env.FURY_ACTION_TIMEOUT ?? 30000);
+assert.ok(Number.isFinite(actionTimeout) && actionTimeout > 0, 'FURY_ACTION_TIMEOUT must be positive');
 const moduleName = process.env.PLAYWRIGHT_MODULE ?? 'playwright';
 const browserName = process.env.PLAYWRIGHT_BROWSER ?? 'chromium';
 const playwright = await import(moduleName.startsWith('/') ? pathToFileURL(moduleName).href : moduleName);
 assert.ok(['chromium', 'webkit', 'firefox'].includes(browserName), `Unknown Playwright browser: ${browserName}`);
 const shots = '/tmp/fury-arcade-shots';
 await mkdir(shots, { recursive: true });
-const browser = await playwright[browserName].launch({ headless: true });
+const browser = await playwright[browserName].launch({ headless: true, args: browserName === "chromium" ? ["--mute-audio"] : [] });
 const results = [];
 let activePage;
 let primaryError;
@@ -34,11 +37,21 @@ async function stage(label, action, timeout = 30000) {
   } finally { clearTimeout(timer); }
 }
 
+async function evaluateStartup(page, callback) {
+  let deadline;
+  try {
+    return await Promise.race([
+      page.evaluate(callback),
+      new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error(`Arcade module initialization exceeded ${startupTimeout}ms`)), startupTimeout); }),
+    ]);
+  } finally { clearTimeout(deadline); }
+}
 try {
   for (const size of [{ width: 1280, height: 900, dpr: 2 }, { width: 390, height: 844, dpr: 3 }]) {
     const label = `${size.width}x${size.height}`;
     console.log(`Checking Wayside Fury arcade at ${label}`);
     const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr });
+    context.setDefaultTimeout(actionTimeout);
     const page = await context.newPage();
     activePage = page;
     const errors = [];
@@ -65,9 +78,11 @@ try {
         return draw.apply(this, args);
       };
     });
-    await page.goto(`${baseUrl}/wayside-fury`);
-    await page.waitForFunction(() => !!window.__waysideFury);
-    const registry = await page.evaluate(async () => {
+    await page.goto(`${baseUrl}/wayside-fury`, { waitUntil: 'domcontentloaded', timeout: startupTimeout });
+    await page.waitForFunction(() => !!window.__waysideFury, null, { timeout: startupTimeout });
+    console.log(`${label}: game controller ready; loading arcade cabinet modules`);
+    const registry = await evaluateStartup(page, async () => {
+      window.__waysideFury.dispose();
       const loadedModule = filename => {
         const module = performance.getEntriesByType('resource').find(resource => new URL(resource.name).pathname.endsWith(`/deps/${filename}`));
         if (!module) throw new Error(`Vite optimized module is missing: ${filename}`);
@@ -87,7 +102,6 @@ try {
       const games = createArcadeGames();
       const game = games.find(game => game.name === 'Wayside Fury');
       if (!game) throw new Error('Wayside Fury is missing from the registry');
-      window.__waysideFury.dispose();
       const host = document.createElement('div');
       document.body.replaceChildren(host);
       // Use the real registry entry in the station's cabinet configuration.
@@ -107,7 +121,7 @@ try {
     });
     assert.equal(registry.videoUrl, '/game-recordings/WaysideFury.mp4');
     assert.equal(registry.stillUrl, '/game-recordings/stills/WaysideFury.jpg');
-    await page.getByRole('button', { name: 'Show all games', exact: true }).waitFor({ timeout: 60000 });
+    await page.getByRole('button', { name: 'Show all games', exact: true }).waitFor({ timeout: startupTimeout });
     console.log(`${label}: cabinet built`);
     // The cabinet UI appears before shader compilation finishes. Its render
     // loop creates the preview afterward; avoid spending the gesture before
@@ -126,7 +140,7 @@ try {
     assert.ok(video.muted && video.loop, 'cabinet attract clip is muted and loops');
     await page.screenshot({ path: `${shots}/cabinet-${label}.png` });
     console.log(`${label}: local video playing on the cabinet`);
-    await page.evaluate(() => window.__furyMountIndex());
+    await evaluateStartup(page, () => window.__furyMountIndex());
     await page.getByRole('textbox', { name: 'Search games' }).fill('Wayside Fury');
     const image = page.getByRole('dialog', { name: 'All games' }).locator('img[src="/game-recordings/stills/WaysideFury.jpg"]');
     await image.waitFor();

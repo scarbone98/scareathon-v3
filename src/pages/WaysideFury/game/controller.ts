@@ -1,6 +1,7 @@
 import { FuryCoop } from "./coop";
 import { MusicDirector, type AudioSettings } from "./music";
 import { FuryAudio } from "./audio";
+import { advanceWorldClock } from "./u1/world/dayNightRuntime";
 import type { RenderPresentation } from "./render";
 import { GraphicsRenderer, readGraphicsMode, type GraphicsMode, type GraphicsStatus } from "./graphics";
 import type { HeroAvatar } from "./avatar";
@@ -78,7 +79,10 @@ export class GameController {
     if (blocked !== this.soundBlocked) { this.soundBlocked = blocked; this.cb.onSoundBlocked?.(blocked); }
     const s = this.state;
     this.cb.onState({ ...s,
+      hubQuests: s.hubQuests ? structuredClone(s.hubQuests) : undefined,
+      arena: s.arena ? { ...s.arena } : undefined, hubArena: s.hubArena ? { ...s.hubArena } : undefined,
       heroes: Object.fromEntries(Object.entries(s.heroes).map(([id, hero]) => [id, { ...hero }])) as GameState["heroes"],
+      fusion: structuredClone(s.fusion), u1: structuredClone(s.u1), training: structuredClone(s.training),
       character: { ...s.character }, gear: { ...s.gear }, party: [...s.party], unlockedHeroes: [...s.unlockedHeroes],
       enemies: s.enemies.map(enemy => ({ ...enemy })), effects: s.effects.map(effect => ({ ...effect })),
       floaters: s.floaters.map(floater => ({ ...floater })), projectiles: s.projectiles.map(shot => ({ ...shot, hits: [...shot.hits] })),
@@ -98,12 +102,15 @@ export class GameController {
     const input = this.input.read();
     const frameDelta = (now - (this.last || now)) / 1000;
     const delta = Math.min(0.1, frameDelta);
+    // The world clock keeps real time, including menu/visibility pauses. Active
+    // simulation ticks account for delta; capped or paused time is added once.
+    if (this.started) advanceWorldClock(this.state, Math.max(0, this.paused && !this.coop?.room ? frameDelta : frameDelta - delta));
     this.acc += this.paused && !this.coop?.room ? 0 : delta;
     this.last = now;
     while (this.acc >= 1 / 60) {
       this.previousMotion = captureMotion(this.state);
       const ready = this.state.hitStop <= 0, overlay = this.state.overlay, dialogue = !!this.state.dialogue;
-      const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : { ...input };
+      const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false, fusion: false } : { ...input };
       step(this.state, appliedInput, 1 / 60);
       this.coop?.update(this.state, dialogue || this.state.dialogue ? idleInput() : appliedInput, now);
       this.audio.sync(this.state);

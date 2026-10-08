@@ -2,12 +2,12 @@
 // against the same prompt, including the glyph captured when a press began.
 export type InteractKind = "talk" | "use" | "taxi" | "next";
 export interface InteractTarget {
-  id: string; name: string; kind: InteractKind; x: number; y: number; locked?: boolean;
+  id: string; name: string; kind: InteractKind; x: number; y: number; locked?: boolean; requiredHero?: "you" | "joe" | "matt" | "alex" | "jon";
 }
 export interface InteractionCandidate extends InteractTarget { distance: number; radius: number }
 export interface AttackPresentation { action: "attack" | "interact"; targetId?: string }
 export interface ActionPrompt extends AttackPresentation {
-  glyph: "attack" | InteractKind; label: string; target: InteractTarget | null;
+  glyph: "attack" | InteractKind | "you" | "joe" | "matt" | "alex" | "jon"; label: string; target: InteractTarget | null;
 }
 export interface ContextAttackState {
   target: InteractTarget | null; displayed: ActionPrompt; previous: ActionPrompt;
@@ -28,11 +28,11 @@ export function selectInteractionTarget(candidates: InteractionCandidate[], x: n
   eligible.sort((a, b) => Number(facing(b)) - Number(facing(a)) || a.distance - b.distance || a.id.localeCompare(b.id));
   const selected = eligible[0];
   if (!selected) return null;
-  return { id: selected.id, name: selected.name, kind: selected.kind, x: selected.x, y: selected.y, locked: selected.locked };
+  return { id: selected.id, name: selected.name, kind: selected.kind, x: selected.x, y: selected.y, locked: selected.locked, requiredHero: selected.requiredHero };
 }
 export function interactionPrompt(target: InteractTarget | null, hostileInReach: boolean, nonCombat: boolean): ActionPrompt {
   return target && (nonCombat || !hostileInReach)
-    ? { action: "interact", glyph: target.kind, label: target.name, targetId: target.id, target }
+    ? { action: "interact", glyph: target.requiredHero ?? target.kind, label: target.name, targetId: target.id, target }
     : attackPrompt();
 }
 const promptKey = (prompt: AttackPresentation) => `${prompt.action}:${prompt.targetId ?? ""}`;

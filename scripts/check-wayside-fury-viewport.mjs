@@ -1,3 +1,4 @@
+import { muteWebKitContext } from './wayside-fury-browser-audio.mjs';
 // Requires a running Vite development server and Playwright with its browser installed.
 // FURY_BASE_URL=http://127.0.0.1:5185 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
 //   node scripts/check-wayside-fury-viewport.mjs
@@ -6,6 +7,9 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 
 const baseUrl = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5185';
+const startupTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
+const actionTimeout = Number(process.env.FURY_ACTION_TIMEOUT ?? 30000);
+assert.ok(Number.isFinite(actionTimeout) && actionTimeout > 0, 'FURY_ACTION_TIMEOUT must be positive');
 const browserName = process.env.PLAYWRIGHT_BROWSER ?? 'chromium';
 const moduleName = process.env.PLAYWRIGHT_MODULE;
 let playwright;
@@ -18,7 +22,7 @@ try {
 assert.ok(playwright[browserName], `Unknown Playwright browser: ${browserName}`);
 let browser;
 try {
-  browser = await playwright[browserName].launch({ headless: true });
+  browser = await playwright[browserName].launch({ headless: true, ...(browserName === 'chromium' ? { args: ['--mute-audio'] } : {}) });
 } catch (error) {
   console.error(`Cannot launch Playwright ${browserName}. Ensure its browser is installed (playwright install ${browserName}) and the environment permits browser processes.\n${error.message}`);
   process.exit(1);
@@ -36,12 +40,21 @@ const inside = (box, width, height) => box.x >= -1 && box.y >= -1 && box.x + box
 const overlaps = (a, b) => a.x < b.x + b.width - 1 && a.x + a.width > b.x + 1 && a.y < b.y + b.height - 1 && a.y + a.height > b.y + 1;
 
 async function ready(frame) {
-  await frame.waitForFunction(() => {
-    const canvas = document.querySelector('.wf-stage canvas');
-    if (!window.__waysideFury || !canvas?.dataset.pixelScale) return false;
-    const dpr = Number(canvas.dataset.renderDpr);
-    return Math.abs(canvas.width - canvas.clientWidth * dpr) <= 2 && Math.abs(canvas.height - canvas.clientHeight * dpr) <= 2;
-  });
+  try {
+    await frame.waitForFunction(() => {
+      const canvas = document.querySelector('.wf-stage canvas');
+      if (!window.__waysideFury || !canvas?.dataset.pixelScale) return false;
+      const dpr = Number(canvas.dataset.renderDpr);
+      return Math.abs(canvas.width - canvas.clientWidth * dpr) <= 2 && Math.abs(canvas.height - canvas.clientHeight * dpr) <= 2;
+    });
+  } catch (error) {
+    console.error('Renderer wait state', await frame.evaluate(() => {
+      const canvas = document.querySelector('.wf-stage canvas');
+      return { controller: !!window.__waysideFury, canvas: canvas && { width: canvas.width, height: canvas.height,
+        clientWidth: canvas.clientWidth, clientHeight: canvas.clientHeight, dataset: { ...canvas.dataset } } };
+    }));
+    throw error;
+  }
 }
 
 async function check(page, frame, label, { gameplay = false, native = false, controls = true, story = false } = {}) {
@@ -276,15 +289,16 @@ async function run(size, iframe = false) {
   const phone = size.width !== 1280;
   const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr, hasTouch: true, isMobile: phone,
     ...(phone ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' } : {}) });
+  if (browserName === 'webkit') await muteWebKitContext(context);
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   const prefix = `${size.width}x${size.height}-dpr${size.dpr}${iframe ? '-iframe' : ''}`;
   try {
-    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await page.waitForFunction(() => !!window.__waysideFury);
+    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'domcontentloaded', timeout: startupTimeout });
+    await page.waitForFunction(() => !!window.__waysideFury, null, { timeout: startupTimeout });
     const frame = iframe ? await mountArcadeFrame(page) : page.mainFrame();
     await check(page, frame, `${prefix}-title`, { native: true });
-    await frame.getByRole('button', { name: /Begin adventure|Continue adventure/ }).tap();
+    await frame.getByRole('button', { name: /Begin adventure|Continue adventure/ }).tap({ timeout: startupTimeout });
     await frame.getByRole('button', { name: 'Skip prologue' }).waitFor();
     await check(page, frame, `${prefix}-prologue`, { story: true });
     for (const beat of [1, 2, 5, 7, 9, 10]) {

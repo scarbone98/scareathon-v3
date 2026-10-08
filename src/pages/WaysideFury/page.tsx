@@ -1,4 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { TrainingPanel, TrainingHud } from "./u1/combat/TrainingPanel";
+import { startTraining, cancelTraining } from "./game/u1/combat/training";
+import { CombatHud } from "./u1/combat/CombatHud";
+import { requestFusion } from "./game/u1/combat/fusion";
+import { QuestLog, QuestDialogue } from "./u1/hub/QuestLog";
+import { createQuestSave } from "./u1/hub/quests";
+import { hubQuestContext, canUseHubQuest, acceptHubQuest, claimHubQuest, selectHubCosmetic, trackHubQuestEvent } from "./u1/hub/hubRules";
+import { ArenaHud, ArenaPanel } from "./u1/hub/ArenaPanel";
+import { startArena, finishArena } from "./u1/hub/arena";
+import { arenaGame } from "../../../server/shared/waysideFury/u1Arena.js";
+import { submitArcadeScore } from "../Arcade/games";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
 import { Collection } from "./Collection";
@@ -11,10 +22,19 @@ import { showAttackPresentation, type InputMode } from "./game/input";
 import type { ActionPrompt } from "./game/contextAttack";
 import { type RenderPresentation } from "./game/render";
 import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterScene, interact, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
+import { ItemsHud } from "./u1/ItemsHud";
+import "./game/u1/items/integrations";
+import { toggleRadar } from "./game/u1/items/radar";
+import { hiddenRadarTargets } from "./game/u1/items/hiddenRadar";
+import { RelicsPanel } from "./u1/RelicsPanel";
+import { chooseWish } from "./game/u1/items/relics";
+import { equipChip } from "./game/u1/items/chips";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
+import { WorldClock } from "./game/u1/world/WorldClock";
+import "./game/u1/world/world.css";
 import "./style.css";
 const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
 const SAVE_LABELS: Record<SaveStatus, string> = { loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" };
@@ -28,6 +48,7 @@ function Controls({ mode }: { mode: InputMode }) {
       <dt>Ki</dt><dd>K · X / Square · tap: blast, hold: charge</dd>
       <dt>Signature</dt><dd>Release Ki at a full bar for your hero's beam</dd>
       <dt>Dash / Guard</dt><dd>L / Shift · B / Circle / RT or RB</dd>
+      <dt>Fusion</dt><dd>F · left stick click · two full Ki bars; both partners consent in co-op</dd>
       <dt>Swap</dt><dd>Q / E · LB / Y · Tag partner</dd>
       <dt>Interact / Pause</dt><dd>Enter / Esc · A / Cross / Start</dd></dl>
     <p>{mode === "touch" ? "Use the stick and buttons below. Hold Ki or Guard while moving." : "Controllers connect automatically. Charge somewhere safe."}</p>
@@ -74,6 +95,7 @@ function ActionIcon({ action, glyph }: { action: keyof Input; glyph?: ActionProm
     taxi: <><path d="m5 13 3-7h14l3 7M3 13h24v10H3V13Zm5 10v4m14-4v4M12 6V3h6v3" /><path d="M6 18h3m12 0h3M11 18h8" /></>,
     next: <><path d="m11 5 10 10-10 10" /><path d="m4 5 10 10L4 25" /></>,
   };
+  if (glyph && ["you", "joe", "matt", "alex", "jon"].includes(glyph)) return <span className="wf-obstacle-action" aria-hidden="true">{glyph === "you" ? "★" : glyph === "joe" ? "✊" : glyph === "matt" ? "↔" : glyph === "alex" ? "⌘" : "♨"}</span>;
   return <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{glyph && glyph !== "attack" ? contextPaths[glyph] : paths[action]}</svg>;
 }
 function Stick({ send, sensitivity }: { send: (input: Partial<Input>) => void; sensitivity: number }) {
@@ -160,6 +182,7 @@ export default function WaysideFury() {
   const [paused, setPaused] = useState(false);
   const [characterOpen, setCharacterOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const [questLogOpen, setQuestLogOpen] = useState(false);
   const [controls, setControls] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [graphicsMode, setGraphicsMode] = useState<GraphicsMode>(readGraphicsMode);
@@ -178,7 +201,7 @@ export default function WaysideFury() {
   const accountEpochRef = useRef(0);
   const dismissTutorialRef = useRef(() => {});
   const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
-  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
+  const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setQuestLogOpen(false); setControls(false); setSettingsOpen(false); };
   const persist = (s: GameState, home = false, credit = false) => {
     const store = storeRef.current;
     if (!store?.ready) return;
@@ -203,7 +226,7 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const togglePause = () => { if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setQuestLogOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
   const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
@@ -231,7 +254,22 @@ export default function WaysideFury() {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
-        if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "ambient-taxi-crash") return;
+        if (event.type === "pickup") trackHubQuestEvent(s, event);
+        if (event.type === "quest-save" || event.type === "kill" && s.hubQuests?.entries.some(entry => entry.status === "active")) {
+          const store = storeRef.current, next = makeSave(s, store?.save ?? null);
+          if (next && store?.ready) store.persist({ ...next, settings: settingsRef.current });
+          if (event.type === "quest-save" && event.kind === "claimed") controller.current?.itemGet();
+          return;
+        }
+        if (event.type === "arena-finish") {
+          const store = storeRef.current;
+          const next = makeSave(s, store?.save ?? null);
+          if (next && store?.ready) store.persist({ ...next, settings: settingsRef.current });
+          void submitArcadeScore(arenaGame(event.receipt.mode), event.score, { arenaRun: event.receipt });
+          return;
+        }
+        if (event.type === "training-complete") { persist(s); return; }
+        if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "ambient-taxi-crash" && event.type !== "item" && event.type !== "obstacle-cleared") return;
         const store = storeRef.current;
         if (!store?.ready) return;
         const report = progressReport(s, store.save?.lastReported);
@@ -342,10 +380,11 @@ export default function WaysideFury() {
   const target = state.contextAttack.target;
   const actionPrompt = state.contextAttack.displayed;
   useLayoutEffect(() => showAttackPresentation(actionPrompt), [actionPrompt]);
+  const relicBoss = state.scene === "dungeon" && state.room === 9 && boss?.sprite === "ghost";
   const touchControls = mode === "touch" && playing && !paused && !state.overlay && !cinematic && state.scene !== "dead";
   const storyTitles = { backstory: "THE CREW MADE IT HOME.", years: "FIVE YEARS LATER", bbq: "A QUIET LIFE", dark: "SOMETHING IN THE SKY", portal: "THE REAL EVIL ARRIVES", suitup: "GEAR UP", taxi: "THE BLAST SITE" };
   const storyEyebrows = { backstory: "THE STORY SO FAR", years: "A QUIET LIFE", bbq: "WAYSIDE · FIVE YEARS LATER", dark: "OUT PAST THE OLD ROAD", portal: "A FLICKER THROUGH THE CRACK", suitup: "JOE · MATT · ALEX · JON", taxi: "CHAPTER 1" };
-  const quit = () => { setCoopOpen(false); exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
+  const quit = () => { setCoopOpen(false); exitRef.current(); coopRef.current?.leave(); playingRef.current = false; pausedRef.current = false; controller.current?.showTitle(); setPlaying(false); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setQuestLogOpen(false); setControls(false); setSettingsOpen(false); };
   const connectCoop = async (kind: "create" | "join", code?: string) => {
     if (!signedIn || loadingSave || loadingAvatar || coopBusy || !coopRef.current) return;
     setCoopBusy(true);
@@ -383,8 +422,9 @@ export default function WaysideFury() {
     const timer = window.setTimeout(() => { if (epoch === accountEpochRef.current) dismissTutorialRef.current(); }, 7000);
     return () => window.clearTimeout(timer);
   }, [showTutorial, accountEpoch]);
+  const combatBand = playing && !cinematic && !paused && !state.overlay && (Boolean(state.training) || ["test", "dungeon", "realm", "arena"].includes(state.scene));
   return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
-    <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
+    {!combatBand && <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
@@ -403,24 +443,33 @@ export default function WaysideFury() {
         <Meter value={hero.hp} max={hero.maxHp} kind="hp">HP {Math.ceil(hero.hp)}/{hero.maxHp}</Meter>
         <Meter value={hero.ki} max={hero.maxKi} kind="ki">KI {Math.floor(hero.ki)}/{hero.maxKi}</Meter>
       </div>
-        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span></div>
+        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span><WorldClock state={state} /></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button>
       </header>}
+      {!cinematic && !paused && !state.overlay && state.scene !== "dead" && <ItemsHud state={state} hiddenTargets={hiddenRadarTargets(state)} onToggleRadar={() => controller.current?.mutate(s => { if (toggleRadar(s)) persist(s); })} />}
       {!cinematic && !paused && coopRoom && <div className="wf-party-hud" aria-label="Party HP">{coopRoom.players.map(player => {
         const peer = state.coop?.remoteHeroes.find(p => p.seat === player.seat), h = player.seat === coopRoom.seat ? hero : peer?.hero;
         return <div key={player.seat}><strong>{player.name}{!player.connected ? " · Offline" : h?.hp === 0 ? " · Down" : ""}</strong><Meter value={h?.hp ?? 0} max={h?.maxHp ?? 1} kind="hp" /></div>;
       })}</div>}
       {!cinematic && <div className="wf-play-band">
+        {combatBand && <span className={`wf-save-status wf-save-${syncStatus} wf-combat-save-status`} role="status">{SAVE_LABELS[syncStatus]}</span>}
         {mode !== "touch" && !paused && !state.overlay && !actionPrompt.target && <span className="wf-action-hint" aria-label={actionPrompt.label}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.label}</span>}
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
-        {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
+        {boss && <div className="wf-boss-hud"><strong>{relicBoss ? "THE RELIC ECHO" : boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : relicBoss ? "A wish brought this challenger" : "Chapter 1 guardian"}</small></div>}
+        {!paused && <TrainingHud state={state} cancel={() => controller.current?.mutate(cancelTraining)} />}
+        {!paused && <CombatHud state={state} trigger={() => controller.current?.mutate(requestFusion)} />}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
         {actionPrompt.target && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}
         {target && actionPrompt.action !== "interact" && !target.id.startsWith("coop-revive-") && !state.coop?.downed && !state.overlay && !state.dialogue && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={target.kind} /><PromptGlyph mode={mode} />{target.name}</button>}
         {noticeVisible && state.notice && !state.overlay && !state.dialogue && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
         {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag left to move. Hold the spark to charge Ki." : "WASD move · J attack · hold K charge · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
+      {state.overlay === "wish" && <div className="wf-overlay wf-place-panel"><RelicsPanel state={state} onWish={id => controller.current?.mutate(s => { if (chooseWish(s, id)) { s.overlay = null; } })} /><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave altar</button></div>}
+      {state.overlay === "training" && <TrainingPanel state={state} start={() => controller.current?.mutate(startTraining)} leave={() => controller.current?.mutate(s => { s.overlay = null; })} />}
+      <ArenaHud state={state} onRetire={() => controller.current?.mutate(s => { finishArena(s); })} />
+      {state.overlay === "arena" && <ArenaPanel state={state} onStart={() => controller.current?.mutate(s => { startArena(s); })} onBack={() => controller.current?.mutate(s => { s.overlay = null; })} />}
+      {state.overlay === "quest" && state.hubQuestId && !paused && <QuestDialogue questId={state.hubQuestId} save={createQuestSave(state.hubQuests)} context={hubQuestContext(state)} canAct={id => canUseHubQuest(state, id)} onAccept={id => controller.current?.mutate(s => { acceptHubQuest(s, id); })} onClaim={id => controller.current?.mutate(s => { claimHubQuest(s, id); })} onBack={() => controller.current?.mutate(s => { s.overlay = null; })} />}
       {state.overlay === "shop" && <div className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) { controller.current?.itemGet(); persist(s); } })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}
         <p className="wf-small" role="status">{state.notice}</p><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave shop</button></div>}
@@ -451,10 +500,11 @@ export default function WaysideFury() {
       {state.scene === "shift" && <div className="wf-shift-caption"><p className="wf-eyebrow">A FLICKER THROUGH THE CRACK</p><h2>THE WORLD IS BREAKING.</h2><p>"That egg... wait! The portal's pulling us in!"</p><strong>ENTERING THE 8-BIT REALM</strong></div>}
       {state.scene === "results" && <div className="wf-overlay wf-results"><p className="wf-eyebrow">CHAPTER 1 COMPLETE</p>{state.sceneTimer < 2.2 ? <h2 className="wf-tbc">TO BE<br /><span>CONTINUED</span></h2> : <><h2>Beyond the flicker.</h2><p>The Architect's Creation is still sleeping.</p><p className="wf-result-score">{progressScore.toLocaleString()} <small>progress score</small></p><div className="wf-result-stats"><span>{state.kills}<small>Enemies defeated</small></span><span>LV {state.character.level}<small>Crew level</small></span><span>{state.deaths}<small>Deaths</small></span><span>◈ {state.candy}<small>Candy</small></span></div><p className="wf-small">The taken-over areas open in later chapters.</p><button onClick={quit}>Back to menu</button></>}</div>}
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
-      {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
+      {paused && questLogOpen && state.scene !== "dead" && <QuestLog save={createQuestSave(state.hubQuests)} context={hubQuestContext(state)} canAct={id => canUseHubQuest(state, id)} cosmetic={state.hubCosmetic} onCosmetic={id => controller.current?.mutate(s => { selectHubCosmetic(s, id); })} onAccept={id => controller.current?.mutate(s => { acceptHubQuest(s, id); })} onClaim={id => controller.current?.mutate(s => { claimHubQuest(s, id); })} onBack={() => setQuestLogOpen(false)} />}
+      {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onWish={id => controller.current?.mutate(s => { chooseWish(s, id); })} onEquipChip={(id, slot) => controller.current?.mutate(s => { if (equipChip(s, id, slot)) persist(s); })} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
       {paused && collectionOpen && state.scene !== "dead" && <Collection state={state} onBack={() => setCollectionOpen(false)} />}
       {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
-      {paused && !characterOpen && !collectionOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
+      {paused && !characterOpen && !collectionOpen && !questLogOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setQuestLogOpen(true)}>Quest log</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><Controls mode={mode} /><button className="wf-secondary" onClick={quit}>Quit to menu</button><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
     {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}
   </main>;

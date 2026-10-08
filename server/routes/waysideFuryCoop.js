@@ -107,7 +107,7 @@ export default async function waysideFuryCoopRoutes(fastify, { rooms: injectedRo
                         if (typeof message.t !== 'number' || !Number.isFinite(message.t)) throw new RoomError('invalid');
                         socket.send(JSON.stringify({ type: 'pong', t: message.t, now: Date.now() }));
                         break;
-                    case 'hero': case 'input': case 'state': case 'hit': case 'pickup': case 'reward': case 'revive': case 'damage':
+                    case 'hero': case 'input': case 'state': case 'hit': case 'pickup': case 'reward': case 'revive': case 'damage': case 'obstacle':
                         rooms.relay(socket, message);
                         break;
                     default: throw new RoomError('invalid');

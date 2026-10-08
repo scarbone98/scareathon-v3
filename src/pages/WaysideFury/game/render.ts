@@ -1,8 +1,23 @@
+import { drawQuestNpc, drawQuestCosmetic } from "../u1/hub/questArt";
+import { drawArenaFloor } from "../u1/hub/arenaArt";
 // The renderer only reads simulation state. World units are independent of pixels.
+import { renderTrainingGrounds } from "./u1/combat/trainingRender";
+import { drawFusionForm } from "./u1/combat/fusionRender";
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { chipEffects, CHIP_REGISTRY } from "./u1/items/chips";
+import { radarPickupTarget } from "./u1/items/radar";
+import { relicTargets, RELIC_SUMMON, OUTFITS } from "./u1/items/relics";
+import { itemsState } from "./u1/items/chips";
+import { chipTargets } from "./u1/items/pickups";
+import { drawItemMarker, drawWishOutfit } from "./u1/items/draw";
+import { obstaclesForState, isObstacleCleared } from "./u1/world/obstacles";
+import { drawHeroObstacle } from "./u1/world/obstacleRender";
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
+import { drawDayNightLighting } from "./u1/world/dayNightRender";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -154,6 +169,7 @@ export class Renderer {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
+    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s, gate.id) && Math.hypot(s.x - gate.x - gate.w / 2, s.y - gate.y) < 90) add(gate.id, `${gate.glyph} ${gate.hero[0].toUpperCase() + gate.hero.slice(1)}`, gate.x + gate.w / 2, gate.y - 16, 'hub', '#f0daac');
     if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y - 38, 'caption');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
   }
@@ -161,6 +177,10 @@ export class Renderer {
     if (event.type === 'ambient-taxi-crash') {
       this.shake = Math.max(this.shake, 5);
       this.bursts.push({ x: event.x, y: event.y - 10, color: '#ffe0a1', life: .48, maxLife: .48, seed: 79, strength: 32 });
+    }
+    if (event.type === 'obstacle-cleared') {
+      this.shake = Math.max(this.shake, 3);
+      this.bursts.push({ x: event.x, y: event.y, color: ACCENT[event.hero], life: .48, maxLife: .48, seed: Math.round(event.x), strength: 30 });
     }
     if (event.type === 'hit') {
       this.shake = Math.max(this.shake, Math.min(4, 1 + event.damage / 14));
@@ -175,6 +195,8 @@ export class Renderer {
   }
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     const c = this.ctx;
+    const daylight = sampleDayNight(worldCycleSeconds(s));
+    c.canvas.dataset.worldPhase = s.scene === 'overworld' ? daylight.phase : '';
     // Paused menus and snapshots do not establish a gameplay frame budget.
     this.checkQuality(dt > 0 ? frameDelta : 0);
     const { width, height, pixelScale } = this.viewport;
@@ -216,12 +238,15 @@ export class Renderer {
     c.translate(-this.camera.x + shakeX, -this.camera.y + shakeY);
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
+    drawArenaFloor(c, s);
     this.ambient(s, world, motionTime);
+    renderTrainingGrounds(c, s, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const traffic of trafficForState(s)) if (this.visible(traffic.x, traffic.y, 50)) actors.push({ y: traffic.y, draw: () => this.parkedCar(traffic.x, traffic.y, traffic.color, traffic.direction) });
+    for (const gate of obstaclesForState(s)) if (this.visible(gate.x, gate.y, 110)) actors.push({ y: gate.y + gate.h, draw: () => drawHeroObstacle(c, gate, isObstacleCleared(s, gate.id), motionTime) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
@@ -229,17 +254,26 @@ export class Renderer {
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
-      const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      const remote = { ...s, ...peer, hubCosmetic: peer.questCosmetic, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote, peer.seat);
       for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
+    for (const item of chipTargets(s)) if (this.visible(item.x, item.y) && Math.hypot(item.x - s.x, item.y - s.y) < 120)
+      actors.push({ y: item.y, draw: () => drawItemMarker(c, { ...item, color: CHIP_REGISTRY[item.chip].color }, motionTime, this.reducedMotion) });
+    for (const item of relicTargets(s)) if (this.visible(item.x, item.y) && Math.hypot(item.x - s.x, item.y - s.y) < 120)
+      actors.push({ y: item.y, draw: () => drawItemMarker(c, item, motionTime, this.reducedMotion) });
+    if (s.scene === "hub" && this.visible(RELIC_SUMMON.x, RELIC_SUMMON.y))
+      actors.push({ y: RELIC_SUMMON.y, draw: () => drawItemMarker(c, { ...RELIC_SUMMON, kind: "summon" }, motionTime, this.reducedMotion) });
+    const radar = radarPickupTarget(s);
+    if (radar && this.visible(radar.x, radar.y)) actors.push({ y: radar.y, draw: () => drawItemMarker(c, radar, motionTime, this.reducedMotion) });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
     if (s.scene === 'overworld') this.rockGag(s, motionTime);
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
+    if (s.scene === 'overworld') drawDayNightLighting(c, world, { ...this.camera, width, height }, this.reducedMotion ? { ...daylight, seconds: 0 } : daylight, s, s.enemies.filter(e => e.nightAmbient));
     c.restore();
     if (s.palette === 'eightbit') this.applyRealmPalette();
     if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }
@@ -425,6 +459,7 @@ export class Renderer {
       this.rect(x + 5, y - 18, 2, 6, '#deb787'); this.rect(x - 6, y - 5, 13, 3, '#323b40'); return;
     }
     if (prop.kind === 'npc') {
+      if (prop.id.startsWith('u8-quest-')) { drawQuestNpc(c, prop.id, x, y, time); return; }
       this.shadow(x, y);
       const id = prop.label === 'Jon' ? 'jon' : 'alex';
       this.sprite(id, x, y - (this.reducedMotion ? 0 : Math.sin(time * 2 + x) * .5), time); return;
@@ -538,10 +573,12 @@ export class Renderer {
       c.globalAlpha = 1;
     }
   }
-  private hero(s: GameState) {
+  private hero(s: GameState, seat = s.coop?.seat ?? 0) {
+    const isRemote = seat !== (s.coop?.seat ?? 0);
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
     if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
+    drawFusionForm(c, s, seat, false, this.reducedMotion);
     if (s.charge > .12) {
       c.globalAlpha = .55 + Math.sin(time * 18) * .07; this.glow(s.x, s.y - 12, 19 + Math.min(9, s.charge * 5), color); c.globalAlpha = 1;
       c.strokeStyle = color; c.lineWidth = .65; c.globalAlpha = .45;
@@ -552,6 +589,9 @@ export class Renderer {
       }
     }
     this.shadow(s.x, s.y, s.dashTimer > 0 ? 19 : 14);
+    const looks = itemsState(s).relics.outfits;
+    const outfit = !isRemote ? OUTFITS.find(o => o.id === looks[looks.length - 1]) : undefined;
+    if (outfit) drawWishOutfit(c, s.x, s.y, outfit.color, outfit.glow, this.reducedMotion ? 0 : s.time);
     this.rect(s.x - 5, s.y + 1, 10, 1, color);
     if (s.moving && !this.reducedMotion) for (let k = 0; k < 3; k++) {
       const life = (time * 3 + k / 3) % 1;
@@ -575,7 +615,9 @@ export class Renderer {
     const sprite = (s.moving || s.dashTimer > 0) && (s.active === 'joe' || s.active === 'matt') ? `run_${s.active}` as const : s.active;
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
+    drawQuestCosmetic(c, s);
     c.restore(); c.globalAlpha = 1;
+    drawFusionForm(c, s, seat, true, this.reducedMotion);
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
       c.globalAlpha = .6; this.rect(x - 5, y - 7, 10, 13, color); this.rect(x - 3, y + 6, 6, 3, color); c.globalAlpha = 1;
@@ -601,7 +643,12 @@ export class Renderer {
       if (enemy.windup > 0) c.scale(1.08, .93);
     }
     this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
-    if (enemy.hp < enemy.maxHp || boss) {
+    if (chipEffects(s).scanner && !("nightAmbient" in enemy && enemy.nightAmbient) && enemy.windup > 0) {
+      c.save(); c.strokeStyle = "#9fffe3"; c.lineWidth = .8;
+      c.beginPath(); c.arc(enemy.x, enemy.y - (boss ? 20 : 12), boss ? 8 : 5, 0, Math.PI * 2); c.stroke();
+      c.beginPath(); c.moveTo(enemy.x - 11, enemy.y - 20); c.lineTo(enemy.x - 7, enemy.y - 20); c.moveTo(enemy.x + 7, enemy.y - 20); c.lineTo(enemy.x + 11, enemy.y - 20); c.stroke(); c.restore();
+    }
+    if (enemy.hp < enemy.maxHp || boss || (chipEffects(s).scanner && !("nightAmbient" in enemy && enemy.nightAmbient))) {
       const width = boss ? 48 : 18, top = enemy.y - SHEETS[id].h * scale - 6;
       this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);
       this.rect(enemy.x - width / 2, top, width, 2, '#613448');

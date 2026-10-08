@@ -2,6 +2,8 @@ import { PROLOGUE } from "./content.ts";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world.ts";
 import { activeHero, type GameState, type GameEvent } from "./sim.ts";
 import type { MusicDirector, Mood } from "./music.ts";
+import { sampleDayNight } from "./u1/world/dayNight.ts";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime.ts";
 
 export function moodForState(s: GameState, current: Mood = "dungeon"): Mood {
   if (s.scene === "prologue") {
@@ -30,10 +32,11 @@ export class FuryAudio {
   private mood: Mood = "title";
   private previous: Previous | null = null;
   constructor(sound: MusicDirector) { this.sound = sound; }
-  menu() { this.previous = null; this.mood = "title"; this.sound.setCharge(null); this.sound.setRealm(0); this.sound.setMood("title"); this.sound.setPaused(false); }
+  menu() { this.previous = null; this.mood = "title"; this.sound.setNight?.(0); this.sound.setCharge(null); this.sound.setRealm(0); this.sound.setMood("title"); this.sound.setPaused(false); }
   start(s: GameState) { this.previous = null; this.sound.setPaused(false); this.sync(s); }
   sync(s: GameState) {
     this.mood = moodForState(s, this.mood); this.sound.setMood(this.mood); this.sound.setRealm(realmForState(s));
+    this.sound.setNight?.(s.scene === "overworld" ? sampleDayNight(worldCycleSeconds(s)).nightFactor : 0);
     const phase = s.scene === "prologue" ? PROLOGUE[s.cutscene]?.phase : undefined;
     const taxi = s.scene === "overworld" || phase === "taxi";
     if ((phase === "dark" || phase === "portal") && this.previous?.phase !== "dark" && this.previous?.phase !== "portal") this.sound.jingle("darkSky");
@@ -51,7 +54,14 @@ export class FuryAudio {
   event(s: GameState, event: GameEvent) {
     if (event.type === "ambient-taxi-crash") this.sound.playSfx("crunch");
     if (event.type === "pickup") this.sound.jingle("item");
+    if (event.type === "item") this.sound.jingle("item");
+    if (event.type === "obstacle-cleared") { this.sound.playSfx(event.hero === "alex" ? "select" : event.hero === "jon" ? "beam" : "hit"); this.sound.jingle("item"); }
     if (event.type === "hit") this.sound.playSfx(event.target === "hero" ? s.guard ? "block" : "hurt" : "hit", Math.min(1.5, .5 + event.damage / 30));
+    if (event.type === "training-complete") this.sound.jingle("level");
+    if (event.type === "training-failed") this.sound.playSfx("select");
+    if (event.type === "fusion-start") this.sound.playSfx("fusion");
+    if (event.type === "fusion-special") this.sound.playSfx("fusionSpecial");
+    if (event.type === "fusion-end") this.sound.playSfx("unfuse");
     if (event.type === "swap") this.sound.playSfx("swap");
     if (event.type === "level") this.sound.jingle("level");
     if (event.type === "death") { this.sound.setCharge(null); this.sound.jingle("gameOver"); }

@@ -1,0 +1,11 @@
+.wf-combat-hud { width: min(330px, 100%); align-self: center; pointer-events: auto; }
+.wf-shell .wf-fusion-button { display: grid; grid-template-columns: 26px 1fr; gap: 1px 5px; width: 100%; min-height: 46px; padding: 7px 12px; border: 1px solid #8de0ed99; background: linear-gradient(110deg, #214753f0, #423555f0); color: #effbff; box-shadow: 0 3px 14px #10182760; text-align: left; }
+.wf-fusion-button > span { grid-row: span 2; font-size: 24px; align-self: center; color: #ffe2a2; }
+.wf-fusion-button small { font-size: 10px; color: #d5e1e8; line-height: 1.2; }
+.wf-shell .wf-fusion-button:disabled { opacity: .72; cursor: default; }
+.wf-fusion-active { display: grid; gap: 3px; padding: 7px 12px; border: 1px solid #9cefff; border-radius: 9px; background: linear-gradient(110deg, #23475af2, #493158f2); color: #fff0ce; font-size: 13px; box-shadow: 0 0 16px #8ccfea22; }
+.wf-fusion-active span { font-size: 11px; color: #e2e6f5; }
+.wf-fusion-active meter { width: 100%; height: 5px; accent-color: #a7f5ea; }
+@media (max-width: 480px) { .wf-combat-hud { width: min(280px, 100%); } .wf-shell .wf-fusion-button { min-height: 42px; padding: 5px 10px; } }
+
+.wf-shell .wf-combat-save-status { position: static; align-self: flex-end; max-width: 100%; font-size: 10px; }

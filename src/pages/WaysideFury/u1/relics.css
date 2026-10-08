@@ -1,0 +1,25 @@
+.wf-character .wf-relic-panel { grid-column: 1 / -1; padding: 16px; background: radial-gradient(ellipse at 100% 0, #705b292a, transparent 65%), #0c192be8; }
+.wf-relic-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 0; margin: 15px 0; list-style: none; }
+.wf-relic-list li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px; border: 1px solid #495c7180; border-radius: 9px; background: #142637; }
+.wf-relic-list li.is-found { border-color: #ba9a57a6; background: linear-gradient(110deg, #826c2429, transparent), #182c36; }
+.wf-relic-list li.is-future { opacity: .68; border-style: dashed; }
+.wf-relic-glyph { position: relative; display: grid; place-items: center; flex: none; width: 36px; height: 40px; color: #61798d; font-size: 32px; }
+.wf-relic-glyph small { position: absolute; bottom: 0; right: 0; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: #223b47; color: #bdd5ce; font-size: 9px; }
+.is-found .wf-relic-glyph { color: #f8cd74; text-shadow: 0 0 13px #f3c95670; }
+.wf-relic-list li > span:nth-child(2) { flex: 1; min-width: 0; }
+.wf-relic-list strong { display: block; font-size: 12px; line-height: 1.4; }
+.wf-relic-list small { display: block; margin-top: 3px; color: #adc3bc; font-size: 10px; }
+.wf-relic-status { color: #a9bdc8; font-size: 10px; }
+.is-found .wf-relic-status { color: #e8cb8f; }
+.wf-wish-altar { margin-top: 15px; padding: 12px; border: 1px solid #87765380; border-radius: 10px; background: #4d3c2014; }
+.wf-wish-altar.is-ready { border-color: #e4c87e; box-shadow: 0 0 22px #f0d76c12; }
+.wf-wish-heading { display: flex; align-items: center; gap: 10px; }
+.wf-wish-heading > span { flex: none; color: #e8c576; font-size: 34px; line-height: 1; }
+.wf-wish-heading h4 { margin: 0; font-size: 14px; color: #ead292; }
+.wf-wish-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.wf-character .wf-wish-option { display: flex; align-items: flex-start; gap: 8px; min-height: 92px; min-width: 0; padding: 11px 8px; text-align: left; border-color: #958b66; }
+.wf-wish-option > span:first-child { color: #e3cf85; font-size: 20px; }
+.wf-wish-option strong { display: block; font-size: 12px; line-height: 1.35; }
+.wf-wish-option small { display: block; margin-top: 5px; color: #bfd2c9; font-size: 10px; font-weight: 400; line-height: 1.5; }
+.wf-character .wf-wish-option:disabled { opacity: .55; }
+@media (max-width: 600px) { .wf-relic-list { grid-template-columns: 1fr; } .wf-wish-options { grid-template-columns: 1fr; } .wf-character .wf-wish-option { min-height: 58px; padding: 10px; } .wf-character .wf-relic-panel { padding: 12px; } }

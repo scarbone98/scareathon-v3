@@ -174,8 +174,71 @@ test('merge chooses progress, then timestamp, while retaining both devices\' tic
   assert.deepEqual(merged.lastReported, mergeReceipts(local.lastReported, remote.lastReported));
   const later = { ...local, candy: 88, savedAt: 6_000 };
   assert.equal(mergeSaves(local, later).candy, 88);
-  assert.equal(mergeSaves(null, remote), remote); assert.equal(mergeSaves(local, null), local);
+  assert.deepEqual(mergeSaves(null, remote), remote); assert.deepEqual(mergeSaves(local, null), local);
   assert.equal(mergeSaves(null, null), null);
+});
+
+test('higher campaign progress retains a newer HOME inventory, radar, and wish without paying tickets', async t => {
+  const campaign = snapshot({ chapter: 2, level: 5, candy: 71, areas: ['wayside', 'blast'], rooms: ['blast-0'], home: true, savedAt: 1_000,
+    receipt: { areas: ['wayside', 'blast'], bosses: [], rooms: ['blast-0'], level: 5 } });
+  campaign.u1.hub = { arena: { bestScore: 42 } };
+  campaign.u1.items.chips.owned = ['iron-guard'];
+  const personal = snapshot({ candy: 7, home: true, savedAt: 6_000 });
+  personal.u1.items.chips = { owned: ['scanner', 'second-wind'], equipped: ['second-wind', null, null], secondWindUsed: false };
+  personal.u1.items.radar = { owned: true, enabled: true };
+  personal.u1.items.relics = { ...personal.u1.items.relics, cycle: 1, collected: ['station-crest'], wishes: ['wish-power'], statBonus: { power: 2, ward: 0 } };
+  const merged = mergeSaves(personal, campaign);
+  assert.equal(merged.chapter, campaign.chapter); assert.equal(merged.candy, campaign.candy);
+  assert.deepEqual(merged.u1.hub, campaign.u1.hub);
+  assert.deepEqual(merged.u1.items.chips, { ...personal.u1.items.chips, owned: ['scanner', 'second-wind', 'iron-guard'] });
+  assert.deepEqual(merged.u1.items.radar, personal.u1.items.radar);
+  assert.deepEqual(merged.u1.items.relics, personal.u1.items.relics);
+  assert.equal(merged.heroes.you.power, campaign.heroes.you.power + 2);
+  assert.equal(merged.home.heroes.you.power, campaign.home.heroes.you.power + 2);
+  assert.deepEqual(merged.gear, campaign.gear);
+  assert.deepEqual(parseSave(merged).heroes, merged.heroes, 'wish stats are derived once across sanitization');
+  assert.deepEqual(mergeSaves(campaign, personal), merged, 'item recency does not depend on campaign winner argument order');
+  assert.deepEqual(merged.lastReported, mergeReceipts(personal.lastReported, campaign.lastReported));
+  assert.equal(progressReport(restoreSave(merged), merged.lastReported).score, 0);
+  const server = new AtomicServer(); server.seed(A, campaign);
+  const d = device(t, new MemoryStorage(personal), server);
+  await d.store.load(A); await settle();
+  assert.deepEqual(d.store.save.u1.items, merged.u1.items);
+  assert.deepEqual(server.rows.get(A).save.u1.items, merged.u1.items);
+  assert.equal(d.paid(), 0);
+});
+
+test('cloud item merge keeps a higher relic cycle and chooses only one conflicting same-cycle wish', () => {
+  const campaign = snapshot({ chapter: 2, level: 5, savedAt: 1_000 });
+  const personal = snapshot({ savedAt: 6_000 });
+  campaign.u1.items.relics = { ...campaign.u1.items.relics, cycle: 2, wishes: ['wish-power', 'wish-power'], statBonus: { power: 4, ward: 0 } };
+  personal.u1.items.relics = { ...personal.u1.items.relics, cycle: 1,
+    collected: ['station-crest', 'blast-ember', 'realm-prism', 'forest-sigil', 'city-medallion', 'frost-bell', 'final-star'],
+    wishes: ['wish-ward'], statBonus: { power: 0, ward: 1 } };
+  assert.deepEqual(mergeSaves(campaign, personal).u1.items.relics, campaign.u1.items.relics, 'a stale collection cannot refill relics after a wish scatters them');
+  campaign.u1.items.relics = { ...campaign.u1.items.relics, cycle: 1, collected: ['station-crest'], wishes: ['wish-power'], statBonus: { power: 2, ward: 0 } };
+  personal.u1.items.relics.collected = ['blast-ember'];
+  const merged = mergeSaves(campaign, personal);
+  assert.deepEqual(merged.u1.items.relics, { ...personal.u1.items.relics, collected: ['blast-ember', 'station-crest'] });
+  assert.equal(merged.heroes.you.power, campaign.heroes.you.power, 'the discarded power wish cannot leak into hero stats');
+  assert.equal(merged.heroes.you.defense, campaign.heroes.you.defense + 1);
+  assert.deepEqual(mergeSaves(merged, personal).u1.items, merged.u1.items, 'repeated merges do not accumulate wish rewards');
+});
+
+test('cloud item merge preserves newest unequip, radar toggle, and Second Wind recharge intent', () => {
+  const campaign = snapshot({ chapter: 2, savedAt: 1_000 });
+  campaign.u1.items.chips = { owned: ['scanner', 'second-wind'], equipped: ['second-wind', 'scanner', null], secondWindUsed: true };
+  campaign.u1.items.radar = { owned: true, enabled: true };
+  const personal = snapshot({ savedAt: 6_000 });
+  personal.u1.items.chips = { owned: ['second-wind'], equipped: [null, null, null], secondWindUsed: false };
+  personal.u1.items.radar = { owned: true, enabled: false };
+  const merged = mergeSaves(campaign, personal);
+  assert.deepEqual(merged.u1.items.chips, { ...personal.u1.items.chips, owned: ['second-wind', 'scanner'] });
+  assert.deepEqual(merged.u1.items.radar, personal.u1.items.radar);
+  const legacy = snapshot({ savedAt: 9_000 });
+  const fallback = mergeSaves(campaign, legacy);
+  assert.deepEqual(fallback.u1.items.chips, campaign.u1.items.chips);
+  assert.deepEqual(fallback.u1.items.radar, campaign.u1.items.radar);
 });
 
 test('boot uploads the higher-progress snapshot and receipt union without paying again', async t => {
@@ -237,6 +300,73 @@ test('409 replaces an in-flight checkpoint and discards even a newer queued snap
   assert.equal(d.paid(), 0);
   assert.equal(d.status(), 'saved');
   assert.deepEqual(JSON.parse(d.storage.getItem(SAVE_KEY)), remote);
+});
+
+test('409 retains and uploads newer personal items while the remote campaign and receipt remain authoritative', async t => {
+  const d = device(t); d.server.seed(A, snapshot());
+  await d.store.load(A); await settle();
+  const remote = snapshot({ chapter: 2, level: 7, candy: 109, savedAt: 5_000,
+    receipt: { areas: ['blast'], bosses: [], rooms: ['blast-0'], level: 7 } });
+  d.server.seed(A, remote, d.server.rows.get(A).revision + 1);
+  const gate = d.server.deferNext('PUT'), before = d.server.calls.length;
+  d.store.persist(checkpoint({ savedAt: 2_000 }), true); await gate.started;
+  const queued = checkpoint({ chapter: 3, candy: 999, savedAt: 9_000 });
+  queued.u1.items.chips = { owned: ['scanner', 'second-wind'], equipped: ['second-wind', null, null], secondWindUsed: false };
+  queued.u1.items.radar = { owned: true, enabled: false };
+  queued.u1.items.relics = { ...queued.u1.items.relics, cycle: 1, wishes: ['wish-power'], statBonus: { power: 2, ward: 0 } };
+  d.store.persist(queued, true); gate.release(); await settle();
+  const merged = d.store.save;
+  assert.equal(merged.chapter, remote.chapter); assert.equal(merged.candy, remote.candy);
+  assert.deepEqual(merged.character, remote.character); assert.deepEqual(merged.clearedRooms, remote.clearedRooms);
+  assert.deepEqual(merged.lastReported, remote.lastReported, 'discarded checkpoint receipts cannot authorize credit');
+  assert.deepEqual(merged.u1.items, queued.u1.items);
+  assert.equal(merged.heroes.you.power, remote.heroes.you.power + 2);
+  assert.deepEqual(parseSave(merged).heroes, merged.heroes);
+  assert.deepEqual(d.server.rows.get(A).save, merged);
+  assert.deepEqual(d.replacements.at(-1), { save: merged, reason: 'conflict' });
+  assert.equal(d.server.calls.slice(before).filter(call => call.method === 'PUT').length, 2, 'one item-only retry follows the failed campaign PUT');
+  assert.equal(d.paid(), 0); assert.equal(d.status(), 'saved');
+  d.store.retryNow(); await settle();
+  assert.equal(d.paid(), 0);
+  assert.equal(d.server.calls.slice(before).filter(call => call.method === 'PUT').length, 2);
+});
+
+test('sustained item conflicts defer after three PUTs per flush and recover without ticket credit', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const remote = snapshot({ chapter: 2, level: 7, candy: 109, savedAt: 5_000,
+    receipt: { areas: ['blast'], bosses: [], rooms: ['blast-0'], level: 7 } });
+  const server = new AtomicServer(); server.seed(A, remote);
+  const request = server.request;
+  let conflicting = false;
+  server.request = async (...args) => {
+    if (args[1] === 'PUT' && conflicting) server.seed(A, remote, server.rows.get(A).revision + 1);
+    return request(...args);
+  };
+  const d = device(t, new MemoryStorage(), server);
+  await d.store.load(A); await settle();
+  const before = server.calls.length, personal = checkpoint({ chapter: 3, candy: 999, savedAt: 9_000 });
+  personal.u1.items.chips = { owned: ['scanner'], equipped: ['scanner', null, null], secondWindUsed: false };
+  personal.u1.items.radar = { owned: true, enabled: true };
+  personal.u1.items.relics = { ...personal.u1.items.relics, cycle: 1, wishes: ['wish-power'], statBonus: { power: 2, ward: 0 } };
+  conflicting = true; d.store.persist(personal, true); await settle();
+  const puts = () => server.calls.slice(before).filter(call => call.method === 'PUT');
+  assert.equal(puts().length, 3, 'a flush stops after its third item conflict');
+  assert.equal(d.status(), 'saving'); assert.equal(d.paid(), 0);
+  assert.deepEqual(d.store.save.u1.items, personal.u1.items);
+  assert.equal(d.store.save.chapter, remote.chapter); assert.equal(d.store.save.candy, remote.candy);
+  assert.deepEqual(d.store.save.lastReported, remote.lastReported);
+  assert.deepEqual(JSON.parse(d.storage.getItem(SAVE_KEY)), d.store.save, 'pending items remain durable during backoff');
+  t.mock.timers.tick(9_999); await settle();
+  assert.equal(puts().length, 3, 'the existing ten-second backoff defers another flush');
+  t.mock.timers.tick(1); await settle();
+  assert.equal(puts().length, 6, 'a still-conflicting retry is also capped at three PUTs');
+  assert.equal(d.status(), 'saving'); assert.equal(d.paid(), 0);
+  conflicting = false; t.mock.timers.tick(10_000); await settle();
+  assert.equal(puts().length, 7, 'the retained item-only snapshot commits when conflicts stop');
+  assert.equal(d.status(), 'saved'); assert.equal(d.paid(), 0);
+  assert.deepEqual(server.rows.get(A).save, d.store.save);
+  assert.deepEqual(server.rows.get(A).save.u1.items, personal.u1.items);
+  assert.deepEqual(server.rows.get(A).save.lastReported, remote.lastReported);
 });
 
 test('a failed PUT keeps a device snapshot, pays nothing offline, and pays once after retry', async t => {
@@ -364,6 +494,32 @@ test('an offline checkpoint survives dispose and reload, then pays once after it
   assert.deepEqual(third.store.save.lastReported, save.lastReported);
 });
 
+test('offline reconciliation updates the running local campaign with recovered remote items before its next save', async t => {
+  const receipt = { areas: ['wayside', 'blast'], bosses: [], rooms: ['blast-0'], level: 5 };
+  const local = snapshot({ chapter: 2, level: 5, candy: 71, areas: receipt.areas, rooms: receipt.rooms, receipt, savedAt: 1_000 });
+  local.u1.items.chips = { owned: ['iron-guard'], equipped: ['iron-guard', null, null], secondWindUsed: false };
+  const remote = snapshot({ savedAt: 6_000 });
+  remote.u1.items.chips = { owned: ['scanner'], equipped: ['scanner', null, null], secondWindUsed: false };
+  remote.u1.items.radar = { owned: true, enabled: false };
+  remote.u1.items.relics = { ...remote.u1.items.relics, cycle: 1, wishes: ['wish-power'], statBonus: { power: 2, ward: 0 } };
+  const expected = mergeSaves(local, remote);
+  const d = device(t, new MemoryStorage(local)); d.server.seed(A, remote); d.server.failGets = 1;
+  await d.store.load(A); await settle();
+  assert.equal(d.status(), 'offline');
+  const before = d.replacements.length;
+  d.store.retryNow(); await settle();
+  assert.equal(d.replacements.length, before + 1, 'merged inventory must notify the active game even when local campaign progress wins');
+  const running = restoreSave(d.replacements.at(-1).save);
+  assert.equal(running.chapter, local.chapter); assert.equal(running.candy, local.candy);
+  assert.deepEqual(running.u1.items, expected.u1.items);
+  assert.equal(running.heroes.you.power, local.heroes.you.power + 2, 'the recovered wish is applied exactly once');
+  const next = makeSave(running, d.store.save);
+  d.store.persist(next); await settle();
+  assert.deepEqual(d.server.rows.get(A).save.u1.items, expected.u1.items, 'the next active-game snapshot preserves recovered inventory');
+  assert.equal(d.server.rows.get(A).save.heroes.you.power, running.heroes.you.power);
+  assert.equal(d.paid(), 0, 'recovery and the next ordinary save award no ticket credit');
+});
+
 test('reconnecting to equal progress with a newer remote timestamp replaces the running device save', async t => {
   const local = snapshot({ level: 3, candy: 17, savedAt: 1_000, areas: ['wayside'], home: true });
   const remote = { ...local, candy: 88, savedAt: 2_000 };
@@ -408,4 +564,23 @@ test('personal finds and the taxi wreck survive cloud reload, with one revisione
   assert.deepEqual(merged.foundItems, [first, second]);
   assert.deepEqual(merged.lastReported.foundItems, [first, second]);
   assert.equal(merged.ambientTaxiWrecked, true);
+});
+
+test('offline world discovery merge reaches the active game even when local campaign wins', async t => {
+  const local = snapshot({ level: 3, candy: 17, areas: ['wayside'], home: true });
+  const remote = snapshot({ savedAt: 2_000 });
+  local.u1.world = { clearedObstacles: ['world-joe-road'], cycleSeconds: 60 };
+  remote.u1.world = { clearedObstacles: ['world-matt-station'], cycleSeconds: 300 };
+  const d = device(t, new MemoryStorage(local)); d.server.seed(A, remote); d.server.failGets = 1;
+  await d.store.load(A); await settle();
+  const previous = d.replacements.length;
+  d.store.retryNow(); await settle();
+  assert.ok(d.replacements.length > previous, 'merged gates must notify the running game');
+  const active = restoreSave(d.replacements.at(-1).save);
+  const next = makeSave(active, d.store.save);
+  assert.deepEqual(next.u1.world, { clearedObstacles: ['world-joe-road', 'world-matt-station'], cycleSeconds: 60 });
+  assert.equal(next.character.level, 3); assert.equal(next.candy, 17);
+  d.store.persist(next, false); await settle();
+  assert.deepEqual(d.server.rows.get(A).save.u1.world.clearedObstacles, next.u1.world.clearedObstacles);
+  assert.equal(d.paid(), 0);
 });

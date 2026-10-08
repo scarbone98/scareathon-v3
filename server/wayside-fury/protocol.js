@@ -1,9 +1,12 @@
 import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
 const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
+import { cleanFusionWorld } from '../shared/waysideFury/u1Fusion.js';
+
 export const MAX_MESSAGE_BYTES = 65_536;
+import { WORLD_OBSTACLE_IDS } from '../shared/waysideFury/u1World.js';
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
-export const SCENES = new Set(['test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
+export const SCENES = new Set(['arena', 'test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
 const HERO_IDS = new Set(['you', 'joe', 'matt', 'alex', 'jon']);
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const number = (value, limit = 1e8) => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
@@ -31,6 +34,10 @@ export function cleanInput(input) {
         if (typeof input[key] !== 'boolean') return null;
         cleaned[key] = input[key];
     }
+    if (input.fusion !== undefined) {
+        if (typeof input.fusion !== 'boolean') return null;
+        cleaned.fusion = input.fusion;
+    }
     return cleaned;
 }
 
@@ -51,6 +58,10 @@ export function cleanHero(remote) {
         if (typeof remote[key] !== 'boolean') return null;
         cleaned[key] = remote[key];
     }
+    if (remote.questCosmetic !== undefined) {
+        if (remote.questCosmetic !== null && !["bbq-apron", "station-scarf"].includes(remote.questCosmetic)) return null;
+        cleaned.questCosmetic = remote.questCosmetic;
+    }
     if (remote.downed !== undefined) {
         if (typeof remote.downed !== 'boolean') return null;
         cleaned.downed = remote.downed;
@@ -58,6 +69,22 @@ export function cleanHero(remote) {
     if (remote.reviveProgress !== undefined) {
         if (!number(remote.reviveProgress, 1) || remote.reviveProgress < 0) return null;
         cleaned.reviveProgress = remote.reviveProgress;
+    }
+    if (remote.chipDamageMultiplier !== undefined) {
+        if (![1, 0.88].includes(remote.chipDamageMultiplier)) return null;
+        cleaned.chipDamageMultiplier = remote.chipDamageMultiplier;
+    }
+    if (remote.secondWindReady !== undefined) {
+        if (typeof remote.secondWindReady !== 'boolean') return null;
+        cleaned.secondWindReady = remote.secondWindReady;
+    }
+    if (remote.fusionIntent !== undefined) {
+        if (!number(remote.fusionIntent, 1.5) || remote.fusionIntent < 0) return null;
+        cleaned.fusionIntent = remote.fusionIntent;
+    }
+    if (remote.fusionSpecial !== undefined) {
+        if (!integer(remote.fusionSpecial, 100_000_000)) return null;
+        cleaned.fusionSpecial = remote.fusionSpecial;
     }
     return cleaned;
 }
@@ -90,6 +117,9 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
+    if (state.worldObstacles !== undefined && (!Array.isArray(state.worldObstacles) || state.worldObstacles.length > WORLD_OBSTACLE_IDS.length || !state.worldObstacles.every(id => WORLD_OBSTACLE_IDS.includes(id)))) return null;
+    if (state.worldCycleSeconds !== undefined && (!number(state.worldCycleSeconds, 480) || state.worldCycleSeconds < 0 || state.worldCycleSeconds >= 480)) return null;
+    if (state.nightEncounterWindow !== undefined && state.nightEncounterWindow !== null && (typeof state.nightEncounterWindow !== 'string' || !/^night:[0-4]$/.test(state.nightEncounterWindow))) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
@@ -100,6 +130,7 @@ export function cleanWorld(state) {
     }
     for (const enemy of state.enemies) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
+        if (enemy.nightAmbient !== undefined && typeof enemy.nightAmbient !== 'boolean') return null;
         if (!['zombie', 'pumpkin', 'ghost', 'imp', 'shadowbeast'].includes(enemy.sprite) || typeof enemy.miniBoss !== 'boolean' || ![1, 2].includes(enemy.phase)) return null;
         for (const key of ['radius', 'speed', 'cooldown', 'hitTimer', 'kx', 'ky', 'pattern', 'windup', 'actionTimer', 'aimX', 'aimY']) if (!number(enemy[key], 1e6)) return null;
         if (enemy.radius <= 0 || enemy.speed < 0 || enemy.pattern < 0) return null;
@@ -110,6 +141,18 @@ export function cleanWorld(state) {
         if (projectile.hero !== undefined && !HERO_IDS.has(projectile.hero)) return null;
         for (const key of ['radius', 'damage', 'ttl']) if (!number(projectile[key], 1e6)) return null;
         if (projectile.radius <= 0 || projectile.damage < 0) return null;
+    }
+    if (state.fusions !== undefined) {
+        const fusions = cleanFusionWorld(state.fusions);
+        if (!fusions || fusions.forms.some(form => form.scene !== state.scene || form.room !== state.room)) return null;
+        state = { ...state, fusions };
+    }
+    if (state.arena !== undefined) {
+        const run = state.arena;
+        if (!object(run) || !text(run.id, 128) || !['running', 'finished'].includes(run.status) || !['solo', 'coop'].includes(run.mode)) return null;
+        if (!integer(run.players, 4) || run.players < 1 || !integer(run.wave, 10001) || run.wave < 1 || !integer(run.wavesCleared, 10000) || !integer(run.kills, 180018)) return null;
+        if (!number(run.elapsedMs, 604800000) || run.elapsedMs < 0 || !number(run.intermission, 3) || run.intermission < 0 || typeof run.spawned !== 'boolean' || !text(run.modifier, 40)) return null;
+        if (run.reason !== null && !['retired', 'defeated'].includes(run.reason)) return null;
     }
     return state;
 }
@@ -151,6 +194,10 @@ export function cleanRelay(message) {
             if (!PICKUP_IDS.has(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
             cleaned = { type: 'pickup', id: message.id, scene: message.scene, room: message.room };
             break;
+        case 'obstacle':
+            if (!WORLD_OBSTACLE_IDS.includes(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
+            cleaned = { type: 'obstacle', id: message.id, scene: message.scene, room: message.room };
+            break;
         case 'reward': {
             const raw = message.reward;
             if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint', 'pickup'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
@@ -158,6 +205,10 @@ export function cleanRelay(message) {
             if (raw.kind === 'pickup') {
                 if (!PICKUP_IDS.has(raw.pickupId) || raw.xp !== 0 || raw.candy !== 0) return null;
                 reward.pickupId = raw.pickupId;
+            }
+            if (raw.enemyKind !== undefined) {
+                if (!["grunt", "shooter", "boss"].includes(raw.enemyKind)) return null;
+                reward.enemyKind = raw.enemyKind;
             }
             for (const [key, max] of [['healHp', 1_000_000], ['healKi', 1_000_000], ['power', 10_000], ['ward', 10_000]]) {
                 if (raw[key] === undefined) continue;

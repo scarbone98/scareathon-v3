@@ -1,4 +1,9 @@
+import { beginFusionSession, syncFusionWorld, elapsedFusionWorld, type FusionWorld } from "./u1/combat/fusion";
+import { prepareArenaPlayer, recordArenaResult } from "../u1/hub/arena";
 import { applyCoopReward, rollCoopCandy } from "./coopRewards";
+import { chipEffects } from "./u1/items/chips";
+import { clearHeroObstacle, worldSave, syncWorldObstacles } from "./u1/world/obstacles";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world";
 import { authoritativePickupTarget } from "./collectibles.ts";
 import { AMBIENT_TAXI } from "./dressing.ts";
@@ -15,11 +20,11 @@ export interface CoopCallbacks {
   onReward?(state: GameState, reward: CoopReward): void;
 }
 export interface CoopReward {
-  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string;
+  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string; enemyKind?: "grunt" | "shooter" | "boss";
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & { spawnedExtras?: number; arena?: GameState["arena"]; fusions?: FusionWorld; worldObstacles?: string[]; worldCycleSeconds?: number; nightEncounterWindow?: string | null };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room, time: s.time, palette: s.palette,
@@ -28,7 +33,10 @@ const worldState = (s: GameState): WorldState => ({ scene: s.scene, room: s.room
   // the next step awards the clear, including if authority migrates that frame.
   enemies: s.enemies.map(e => ({ ...e, hp: Math.max(0, e.hp) })), projectiles: s.projectiles.filter(p => p.owner === "enemy"), clearedRooms: [...new Set([...s.clearedRooms, ...(s.coop?.worldClearedRooms ?? [])])],
   areas: s.areas, bosses: s.bosses, chapter: s.coop?.worldChapter ?? s.chapter, rngSeed: s.rngSeed, nextId: s.nextId, x: s.x, y: s.y,
-  ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0 });
+  ambientTaxiWrecked: s.ambientTaxiWrecked, ambientTaxiGag: s.ambientTaxiGag, spawnedExtras: s.coop?.spawnedExtras ?? 0,
+  worldObstacles: [...(s.coop?.worldObstacles ?? worldSave(s).clearedObstacles)],
+  worldCycleSeconds: worldCycleSeconds(s), nightEncounterWindow: s.nightWorld?.window ?? null, fusions: structuredClone(s.fusion.world), ...(s.arena ? { arena: { ...s.arena } } : {}) });
+
 
 // Each clock uses receipt time, avoiding assumptions about synchronized devices.
 // A 100ms playout buffer brackets both enemies and remote heroes at 20Hz.
@@ -59,8 +67,9 @@ export class FuryCoop {
   private activeState: GameState | null = null;
   private revived = false;
   private damages: { damage: number; sourceX: number; sourceY: number }[] = [];
+  private obstacleRequests: { seat: number; userId: string; id: string; scene: GameState["scene"]; room: number; actor: { hero: RemoteHero["hero"]["id"]; x: number; y: number; hp: number } }[] = [];
   constructor(private cb: CoopCallbacks) {}
-  beginRun() { this.clientId = crypto.randomUUID(); this.rewardSnapshotAt = -1; this.hits = []; this.damages = []; this.rewards = []; this.pickupRequests = []; this.revived = false; this.rewarded.clear(); }
+  beginRun() { this.clientId = crypto.randomUUID(); this.rewardSnapshotAt = -1; this.hits = []; this.damages = []; this.rewards = []; this.pickupRequests = []; this.obstacleRequests = []; this.revived = false; this.rewarded.clear(); }
   setAvatar(avatar: HeroAvatar) { this.appearance = avatar.appearance; this.appearanceSent = false; }
   get isHost() { return !!this.room && this.room.seat === this.room.hostSeat; }
   async connect(kind: "create" | "join", code?: string) { const previous = this.socket; this.socket = null; previous?.close(); this.closed = false; await this.open({ type: kind, code }); }
@@ -103,6 +112,7 @@ export class FuryCoop {
   }
   private receiveRoom(room: CoopRoom) {
     const previous = this.room;
+    if ((!previous || previous.code !== room.code) && this.activeState) beginFusionSession(this.activeState);
     for (const player of room.players) if (player.seat !== room.seat && !previous?.players.some(p => p.userId === player.userId)) this.cb.onToast(`${player.name} joined the party.`);
     for (const player of previous?.players ?? []) if (!room.players.some(p => p.userId === player.userId)) { this.peers.delete(player.seat); this.appearances.delete(player.seat); this.cb.onToast(`${player.name} left the party.`); }
     if (previous && previous.hostSeat !== room.hostSeat) this.cb.onToast(`${room.players.find(p => p.seat === room.hostSeat)?.name ?? "A teammate"} is now hosting.`);
@@ -114,7 +124,7 @@ export class FuryCoop {
       const player = this.room?.players.find(p => p.seat === message.seat);
       if (!player) return;
       const samples = this.peers.get(message.seat) ?? [];
-      samples.push({ at, value: { ...message.hero, seat: player.seat, userId: player.userId, name: player.name, interact: message.input.interact } });
+      samples.push({ at, value: { ...message.hero, seat: player.seat, userId: player.userId, name: player.name, interact: message.input.interact, fusionIntent: message.hero.fusionIntent ?? 0, fusionSpecial: message.hero.fusionSpecial ?? 0 } });
       if (samples.length > 12) samples.shift(); this.peers.set(message.seat, samples);
       if (message.appearance) { const key = JSON.stringify(message.appearance); if (this.appearances.get(message.seat) !== key) { this.appearances.set(message.seat, key); this.cb.onAvatar(message.seat, message.appearance); } }
     }
@@ -123,6 +133,14 @@ export class FuryCoop {
       this.worlds.push({ at, value: message.state }); if (this.worlds.length > 12) this.worlds.shift();
     }
     if (message.type === "hit" && this.isHost) this.hits.push({ seat: message.seat, scene: message.scene, room: message.room, hit: { type: "coop-hit", enemyId: message.enemyId, damage: message.damage, dx: message.dx, dy: message.dy, force: message.force, attackId: message.attackId } });
+    if (message.type === "obstacle" && this.isHost) {
+      const sample = this.peers.get(message.seat)?.slice(-1)[0], peer = sample?.value;
+      if (peer && sample && at - sample.at <= 400 && peer.scene === message.scene && peer.room === message.room &&
+        this.room?.players.some(p => p.seat === message.seat && p.userId === peer.userId && p.connected)) {
+        this.obstacleRequests.push({ seat: message.seat, userId: peer.userId, id: message.id, scene: message.scene, room: message.room,
+          actor: { hero: peer.hero.id, x: peer.x, y: peer.y, hp: peer.hero.hp } });
+      }
+    }
     if (message.type === "reward" && (message.targetSeat === undefined || message.targetSeat === this.room?.seat)) this.rewards.push(message.reward);
     if (message.type === "pickup" && this.isHost) this.pickupRequests.push({ seat: message.seat, id: message.id, scene: message.scene, room: message.room });
     if (message.type === "damage" && message.targetSeat === this.room?.seat) this.damages.push({ damage: message.damage, sourceX: message.sourceX, sourceY: message.sourceY });
@@ -134,15 +152,22 @@ export class FuryCoop {
   event(s: GameState, event: GameEvent) {
     if (!this.room) return;
     if (this.isHost && event.type === "checkpoint" && event.id === "realm-0" && s.coop) s.coop.worldChapter = Math.max(2, s.coop.worldChapter ?? s.chapter);
+    if (event.type === "obstacle-request") {
+      // A swap or final approach may happen between normal 20Hz packets. Send
+      // the current actor first so the host validates this exact action pose.
+      this.send({ type: "hero", hero: { hero: { ...s.heroes[event.hero] }, x: event.x, y: event.y, faceX: s.faceX, faceY: s.faceY,
+        moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room }, input: s.previousInput });
+      this.send({ type: "obstacle", id: event.id, scene: s.scene, room: s.room });
+    }
     // Websocket ordering caches the post-kill/clear world before distributing
     // rewards. A promoted host therefore cannot resurrect an already-paid kill.
-    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "ambient-taxi-crash") && this.rewardSnapshotAt !== s.time) {
+    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "ambient-taxi-crash" || event.type === "arena-finish") && this.rewardSnapshotAt !== s.time) {
       this.send({ type: "state", state: worldState(s) }); this.rewardSnapshotAt = s.time;
     }
     if (this.isHost && event.type === "kill") {
       const id = `${this.clientId}:kill:${event.enemyId}`;
       for (const player of this.room.players.filter(p => p.connected)) {
-        const reward: CoopReward = { id, kind: "kill", xp: event.xp, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
+        const reward: CoopReward = { id, kind: "kill", xp: s.scene === "arena" ? 0 : event.xp, candy: s.scene === "arena" ? 0 : rollCoopCandy(id, player.userId, event.kind === "boss"), enemyKind: event.kind };
         if (player.seat === this.room.seat) { if (applyCoopReward(s, reward)) s.events.push({ type: "checkpoint", id: `coop-reward-${id}` }); }
         else this.sendReward(reward, player.seat);
       }
@@ -150,8 +175,8 @@ export class FuryCoop {
     if (this.isHost && event.type === "checkpoint" && !event.id.startsWith("coop-reward-") && !event.id.startsWith("personal-")) {
       const id = `${this.clientId}:checkpoint:${event.id}`;
       const areas = event.id === "home" ? ["wayside"] : event.id === `blast-${WATCHER_ROOM}` ? ["blast"] : event.id === "realm-0" ? ["eightbit-realm"] : [];
-      const bosses = event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
-      const rooms = event.id === "home" ? [] : [event.id];
+      const bosses = event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : event.id === "relic-echo" ? ["relic-echo"] : [];
+      const rooms = ["home", "relic-echo"].includes(event.id) ? [] : [event.id];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
         const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 3 : 0;
@@ -174,10 +199,16 @@ export class FuryCoop {
       const w = this.latestWorld;
       s.personalTaxiWrecked ||= s.ambientTaxiWrecked || w.ambientTaxiWrecked === true;
       if (s.coop) { s.coop.worldClearedRooms = [...w.clearedRooms]; s.coop.worldChapter = w.chapter; }
-      if (s.scene !== w.scene || s.room !== w.room) { enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
+      if (w.worldCycleSeconds !== undefined) worldSave(s).cycleSeconds = w.worldCycleSeconds;
+      syncWorldObstacles(s, w.worldObstacles ?? []);
+      if (s.scene !== w.scene || s.room !== w.room) { if (w.scene === "arena") prepareArenaPlayer(s); enterScene(s, w.scene, w.room); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
+      syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds[this.worlds.length - 1]?.at ?? now)) / 1000)));
+      s.arena = w.arena ? { ...w.arena } : undefined;
+      if (s.arena?.status === "finished" && s.arenaVitals) { this.damages.length = 0; this.revived = false; recordArenaResult(s); s.overlay = "arena"; }
       s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
+      s.nightWorld = { window: w.nightEncounterWindow ?? null };
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);
     }
@@ -188,25 +219,46 @@ export class FuryCoop {
       const blend = buffered(samples, now); if (!blend) return [];
       const { a, b, alpha } = blend;
       const same = a.scene === b.scene && a.room === b.room;
-      return [{ ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y }];
+      const latest = samples[samples.length - 1];
+      const peer = { ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y,
+        fusionIntent: Math.max(0, (latest.value.fusionIntent ?? 0) - (now - latest.at) / 1000), fusionSpecial: latest.value.fusionSpecial, chipDamageMultiplier: latest.value.chipDamageMultiplier, secondWindReady: latest.value.secondWindReady, chipSnapshotAt: latest.at };
+      const spent = s.coop?.remoteSecondWindSpent;
+      if (spent?.[peer.seat]?.userId === peer.userId) {
+        // Buffered pre-hit packets cannot recharge a host-predicted revive.
+        // Observe the personal spent state before accepting a later HOME reset.
+        if (latest.at > spent[peer.seat].at && peer.secondWindReady === false) delete spent[peer.seat];
+        else peer.secondWindReady = false;
+      } else if (spent?.[peer.seat]) delete spent[peer.seat];
+      return [peer];
     });
     if (role === "guest") {
       const blend = buffered(this.worlds, now);
       if (blend) {
         const { a, b, alpha } = blend;
         s.coop.worldChapter = b.chapter;
-        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
+        if (s.scene !== b.scene || s.room !== b.room) { if (b.scene === "arena") prepareArenaPlayer(s); if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room); s.x = b.x + 18; s.y = b.y + 10; }
         const wrecked = b.ambientTaxiWrecked ?? false;
         s.personalTaxiWrecked ||= s.ambientTaxiWrecked || wrecked;
         if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: AMBIENT_TAXI.x, y: AMBIENT_TAXI.y });
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer,
           ambientTaxiWrecked: wrecked, ambientTaxiGag: a.ambientTaxiGag >= 0 && b.ambientTaxiGag >= 0 ? a.ambientTaxiGag + (b.ambientTaxiGag - a.ambientTaxiGag) * alpha : b.ambientTaxiGag ?? -1 });
+        syncWorldObstacles(s, b.worldObstacles ?? []);
+        s.coop.worldCycleSeconds = b.worldCycleSeconds ?? 0;
+        s.nightWorld = { window: b.nightEncounterWindow ?? null };
+        syncFusionWorld(s, elapsedFusionWorld(b.fusions, Math.max(0, (now - (this.worlds.find(sample => sample.value === b)?.at ?? now)) / 1000)));
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && a.scene === b.scene && a.room === b.room ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
+        s.arena = b.arena ? { ...b.arena } : undefined;
+        if (s.arena?.status === "finished" && s.arenaVitals && s.arenaRecorded !== s.arena.id) { this.damages.length = 0; this.revived = false; recordArenaResult(s); if (s.scene === "hub") s.overlay = "arena"; }
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];
       }
     }
     syncCoopLevel(s);
+    for (const request of this.obstacleRequests.splice(0)) if (role === "host" && request.scene === s.scene && request.room === s.room) {
+      if (room.players.some(p => p.seat === request.seat && p.userId === request.userId && p.connected)) {
+        clearHeroObstacle(s, request.id, request.actor);
+      }
+    }
     for (const damage of this.damages.splice(0)) applyCoopDamage(s, damage.damage, damage.sourceX, damage.sourceY);
     for (const { seat, hit, scene, room: area } of this.hits.splice(0)) if (role === "host" && scene === s.scene && area === s.room) applyCoopHit(s, hit, seat);
     for (const request of this.pickupRequests.splice(0)) {
@@ -220,8 +272,10 @@ export class FuryCoop {
     if (now - this.sentAt < 50) return;
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
+    const chips = chipEffects(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, questCosmetic: s.hubCosmetic ?? null, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0,
+      chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind, fusionIntent: s.fusion.intent, fusionSpecial: s.fusion.specialRequest };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });
@@ -230,6 +284,6 @@ export class FuryCoop {
     this.closed = true; clearTimeout(this.reconnectTimer); this.send({ type: "leave" }); this.socket?.close(); this.socket = null;
     this.room = null;
     if (this.activeState?.coop) exitCoop(this.activeState);
-    this.peers.clear(); this.appearances.clear(); this.worlds = []; this.latestWorld = null; this.hits = []; this.rewards = []; this.pickupRequests = []; this.damages = []; this.revived = false; this.rewarded.clear(); this.cb.onRoom(null);
+    this.peers.clear(); this.appearances.clear(); this.worlds = []; this.latestWorld = null; this.hits = []; this.rewards = []; this.pickupRequests = []; this.obstacleRequests = []; this.damages = []; this.revived = false; this.rewarded.clear(); this.cb.onRoom(null);
   }
 }

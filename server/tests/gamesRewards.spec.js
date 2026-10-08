@@ -1,5 +1,6 @@
 import { calculateRuleAward, playTicketsFor, PLAY_TICKETS, PLAY_TICKETS_DAILY_BACKSTOP, PLAY_TICKETS_FULL_UNTIL, PLAY_TICKETS_RUN_CAP, PLAY_TICKETS_TAPER_STEP, validateScoreSubmission } from '../routes/games.js';
 import { GAME_SCORE_POLICIES } from '../utils/gameScorePolicies.js';
+import { isArenaGame } from '../shared/waysideFury/u1Arena.js';
 
 describe('calculateRuleAward', () => {
     test('returns fixed awards when the metric clears the threshold', () => {
@@ -450,8 +451,13 @@ describe('playTicketsFor', () => {
         expect(playTicketsFor('Ooidash', 'score', 500, PLAY_TICKETS_DAILY_BACKSTOP + 500)).toBe(0);
     });
 
-    test('every scored game has a ticket scale', () => {
+    test('ticket-paying games have scales and tournament boards pay none', () => {
         for (const [game, policy] of GAME_SCORE_POLICIES) {
+            if (isArenaGame(game)) {
+                expect(policy.tickets).toBeUndefined();
+                expect(playTicketsFor(game, 'score', policy.score.max, 0)).toBe(0);
+                continue;
+            }
             expect(policy.tickets).toBeDefined();
             expect(policy.tickets.full).toBeGreaterThan(policy.tickets.from);
             expect(playTicketsFor(game, 'score', policy.tickets.full, 0)).toBe(PLAY_TICKETS);

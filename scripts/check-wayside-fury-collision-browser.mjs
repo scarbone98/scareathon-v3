@@ -8,6 +8,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const baseUrl = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5185';
+const startupTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
+const actionTimeout = fallback => Number(process.env.FURY_ACTION_TIMEOUT ?? fallback);
+assert.ok(Number.isFinite(actionTimeout(15000)) && actionTimeout(15000) > 0, 'FURY_ACTION_TIMEOUT must be positive');
 const shots = '/tmp/fury-collision-shots';
 const moduleName = process.env.PLAYWRIGHT_MODULE;
 console.log(`Starting Wayside Fury browser checks (PID ${process.pid})`);
@@ -20,10 +23,11 @@ try {
 }
 await mkdir(shots, { recursive: true });
 const browser = await playwright.chromium.launch({ headless: process.env.FURY_HEADED !== '1',
-  args: ['--disable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'],
+  args: ['--mute-audio', '--disable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'],
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}) });
 console.log('Chromium launched');
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+context.setDefaultTimeout(actionTimeout(30000));
 await context.addInitScript(() => localStorage.setItem('wayside-fury-controls-dismissed', '1'));
 const page = await context.newPage();
 await page.bringToFront();
@@ -34,16 +38,20 @@ const results = [];
 
 async function prepare({ scene, room = 0, kind, slide = false, canopy = false }) {
   return page.evaluate(async ({ scene, room, kind, slide, canopy }) => {
-    const [{ getWorld, isBlocked }, { enterScene }] = await Promise.all([
+    const [{ getWorld, isBlocked }, { enterScene, newGame }, { obstacleBlocks }] = await Promise.all([
       import('/src/pages/WaysideFury/game/world.ts'),
       import('/src/pages/WaysideFury/game/sim.ts'),
+      import('/src/pages/WaysideFury/game/u1/world/obstacles.ts'),
     ]);
     const world = getWorld(scene, room), radius = 7;
+    const probe = newGame(); enterScene(probe, scene, room);
+    probe.u1 = window.__waysideFury.state.u1;
     const clearLine = (x1, y1, x2, y2) => {
       const pieces = Math.ceil(Math.hypot(x2 - x1, y2 - y1));
       for (let n = 0; n <= pieces; n++) {
         const fraction = n / Math.max(1, pieces);
-        if (isBlocked(world, x1 + (x2 - x1) * fraction, y1 + (y2 - y1) * fraction, radius)) return false;
+        const x = x1 + (x2 - x1) * fraction, y = y1 + (y2 - y1) * fraction;
+        if (isBlocked(world, x, y, radius) || obstacleBlocks(probe, x, y, radius)) return false;
       }
       return true;
     };
@@ -83,22 +91,41 @@ async function prepare({ scene, room = 0, kind, slide = false, canopy = false })
 }
 
 async function hold(keys, seconds) {
+  await page.bringToFront();
+  if (await page.evaluate(() => window.__waysideFury.paused)) {
+    const resume = page.getByRole('button', { name: 'Resume', exact: true });
+    await resume.waitFor({ state: 'visible' });
+    assert.ok(await resume.isEnabled(), 'the visible pause menu can resume the movement fixture');
+    await resume.click({ force: true });
+    await page.waitForFunction(() => !window.__waysideFury.paused);
+  }
   await page.evaluate(async () => {
     const { getWorld, isBlocked } = await import('/src/pages/WaysideFury/game/world.ts');
+    const { obstacleBlocks } = await import('/src/pages/WaysideFury/game/u1/world/obstacles.ts');
     const trace = { running: true, started: window.__waysideFury.state.time, samples: [] };
     window.__waysideCollisionTrace = trace;
     const sample = () => {
       if (!trace.running) return;
       const state = window.__waysideFury.state;
       trace.samples.push({ x: state.x, y: state.y, time: state.time, dash: state.dashTimer,
-        scene: state.scene, blocked: isBlocked(getWorld(state.scene, state.room), state.x, state.y, 7) });
+        scene: state.scene, blocked: isBlocked(getWorld(state.scene, state.room), state.x, state.y, 7) || obstacleBlocks(state, state.x, state.y, 7) });
       requestAnimationFrame(sample);
     };
     requestAnimationFrame(sample);
   });
   try {
     for (const key of keys) await page.keyboard.down(key);
-    await page.waitForFunction(seconds => window.__waysideFury.state.time - window.__waysideCollisionTrace.started >= seconds, seconds, { timeout: 15000 });
+    // Slow render frames may advance several fixed simulation steps. Require
+    // the full observation count as well as the requested movement duration.
+    await page.waitForFunction(seconds => window.__waysideFury.state.time - window.__waysideCollisionTrace.started >= seconds
+      && window.__waysideCollisionTrace.samples.length >= 12, seconds, { timeout: actionTimeout(15000) });
+  } catch (error) {
+    console.error('Movement wait state', await page.evaluate(() => {
+      const controller = window.__waysideFury, state = controller.state, trace = window.__waysideCollisionTrace;
+      return { paused: controller.paused, hidden: document.hidden, scene: state.scene, overlay: state.overlay,
+        elapsed: state.time - trace.started, frames: trace.samples.length, last: trace.samples.at(-1) };
+    }));
+    throw error;
   } finally {
     for (const key of keys) await page.keyboard.up(key);
   }
@@ -139,9 +166,9 @@ async function contact(label, spec, dash = false) {
 
 try {
   console.log(`Loading Wayside Fury collision preview: ${baseUrl}`);
-  await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'commit', timeout: 120000 });
+  await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'commit', timeout: startupTimeout });
   console.log('Preview navigation committed; waiting for actual game controller');
-  await page.waitForFunction(() => !!window.__waysideFury && !!document.querySelector('.wf-stage canvas')?.dataset.pixelScale, null, { timeout: 120000 });
+  await page.waitForFunction(() => !!window.__waysideFury && !!document.querySelector('.wf-stage canvas')?.dataset.pixelScale, null, { timeout: startupTimeout });
   console.log('Wayside Fury controller and renderer ready');
   const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio }));
   assert.deepEqual(viewport, { width: 390, height: 844, dpr: 3 }, 'requested phone viewport is active');
@@ -164,9 +191,9 @@ try {
     const button = document.querySelector('.wf-primary'), rect = button?.getBoundingClientRect();
     return rect && rect.width > 0 && rect.height > 0;
   });
-  await page.getByRole('button', { name: /Begin adventure|Continue adventure/ }).click();
+  await page.getByRole('button', { name: /Begin adventure|Continue adventure/ }).click({ timeout: startupTimeout });
   console.log('Adventure started');
-  await page.getByRole('button', { name: 'Skip prologue' }).click();
+  await page.getByRole('button', { name: 'Skip prologue' }).click({ timeout: startupTimeout });
   console.log('Prologue skipped; live keyboard collision checks beginning');
   await contact('tree-walk', { scene: 'hub', kind: 'tree' });
   await contact('rock-walk', { scene: 'dungeon', room: 0, kind: 'rock' });
