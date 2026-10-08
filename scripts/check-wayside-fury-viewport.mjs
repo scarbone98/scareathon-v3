@@ -7,6 +7,9 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 
 const baseUrl = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5185';
+const startupTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
+const actionTimeout = Number(process.env.FURY_ACTION_TIMEOUT ?? 30000);
+assert.ok(Number.isFinite(actionTimeout) && actionTimeout > 0, 'FURY_ACTION_TIMEOUT must be positive');
 const browserName = process.env.PLAYWRIGHT_BROWSER ?? 'chromium';
 const moduleName = process.env.PLAYWRIGHT_MODULE;
 let playwright;
@@ -37,12 +40,21 @@ const inside = (box, width, height) => box.x >= -1 && box.y >= -1 && box.x + box
 const overlaps = (a, b) => a.x < b.x + b.width - 1 && a.x + a.width > b.x + 1 && a.y < b.y + b.height - 1 && a.y + a.height > b.y + 1;
 
 async function ready(frame) {
-  await frame.waitForFunction(() => {
-    const canvas = document.querySelector('.wf-stage canvas');
-    if (!window.__waysideFury || !canvas?.dataset.pixelScale) return false;
-    const dpr = Number(canvas.dataset.renderDpr);
-    return Math.abs(canvas.width - canvas.clientWidth * dpr) <= 2 && Math.abs(canvas.height - canvas.clientHeight * dpr) <= 2;
-  });
+  try {
+    await frame.waitForFunction(() => {
+      const canvas = document.querySelector('.wf-stage canvas');
+      if (!window.__waysideFury || !canvas?.dataset.pixelScale) return false;
+      const dpr = Number(canvas.dataset.renderDpr);
+      return Math.abs(canvas.width - canvas.clientWidth * dpr) <= 2 && Math.abs(canvas.height - canvas.clientHeight * dpr) <= 2;
+    });
+  } catch (error) {
+    console.error('Renderer wait state', await frame.evaluate(() => {
+      const canvas = document.querySelector('.wf-stage canvas');
+      return { controller: !!window.__waysideFury, canvas: canvas && { width: canvas.width, height: canvas.height,
+        clientWidth: canvas.clientWidth, clientHeight: canvas.clientHeight, dataset: { ...canvas.dataset } } };
+    }));
+    throw error;
+  }
 }
 
 async function check(page, frame, label, { gameplay = false, native = false, controls = true, story = false } = {}) {
@@ -282,11 +294,11 @@ async function run(size, iframe = false) {
   page.on('pageerror', error => errors.push(error.message));
   const prefix = `${size.width}x${size.height}-dpr${size.dpr}${iframe ? '-iframe' : ''}`;
   try {
-    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await page.waitForFunction(() => !!window.__waysideFury);
+    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'domcontentloaded', timeout: startupTimeout });
+    await page.waitForFunction(() => !!window.__waysideFury, null, { timeout: startupTimeout });
     const frame = iframe ? await mountArcadeFrame(page) : page.mainFrame();
     await check(page, frame, `${prefix}-title`, { native: true });
-    await frame.getByRole('button', { name: /Begin adventure|Continue adventure/ }).tap();
+    await frame.getByRole('button', { name: /Begin adventure|Continue adventure/ }).tap({ timeout: startupTimeout });
     await frame.getByRole('button', { name: 'Skip prologue' }).waitFor();
     await check(page, frame, `${prefix}-prologue`, { story: true });
     for (const beat of [1, 2, 5, 7, 9, 10]) {

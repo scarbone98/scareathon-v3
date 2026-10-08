@@ -1,3 +1,4 @@
+import type { WorldSave } from "./u1World.js";
 import type { HeroState } from "../../../src/pages/WaysideFury/game/sim";
 import type { ItemsSaveState } from "./u1Items.js";
 export type HeroId = "you" | "joe" | "matt" | "alex" | "jon";
@@ -18,7 +19,7 @@ export interface SaveData {
   kills: number; deaths: number; lastReported: ProgressReceipt; home: HomeSnapshot | null;
   coopRewards?: string[];
   foundItems: string[]; ambientTaxiWrecked: boolean;
-  u1?: { items: ItemsSaveState; [key: string]: unknown };
+  u1?: { items: ItemsSaveState; world?: WorldSave; [key: string]: unknown };
   gear: Gear; character: CharacterProgress; settings: SaveSettings; savedAt: number;
 }
 export const SAVE_VERSION: 3;

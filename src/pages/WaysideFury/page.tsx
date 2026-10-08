@@ -22,6 +22,8 @@ import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
 import type { CloudSaveStore, SaveStatus } from "./game/cloud";
+import { WorldClock } from "./game/u1/world/WorldClock";
+import "./game/u1/world/world.css";
 import "./style.css";
 const DEFAULT_SETTINGS: SaveSettings = { musicVolume: .6, sfxVolume: .8, controls: { tutorialDismissed: false, stickSensitivity: 1 } };
 const SAVE_LABELS: Record<SaveStatus, string> = { loading: "Loading save…", saving: "Saving…", saved: "Saved", local: "Saved on this device", offline: "Offline, saved on this device", unavailable: "Save unavailable, keep this tab open" };
@@ -238,7 +240,7 @@ export default function WaysideFury() {
     const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
-        if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "ambient-taxi-crash" && event.type !== "item") return;
+        if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "ambient-taxi-crash" && event.type !== "item" && event.type !== "obstacle-cleared") return;
         const store = storeRef.current;
         if (!store?.ready) return;
         const report = progressReport(s, store.save?.lastReported);
@@ -411,7 +413,7 @@ export default function WaysideFury() {
         <Meter value={hero.hp} max={hero.maxHp} kind="hp">HP {Math.ceil(hero.hp)}/{hero.maxHp}</Meter>
         <Meter value={hero.ki} max={hero.maxKi} kind="ki">KI {Math.floor(hero.ki)}/{hero.maxKi}</Meter>
       </div>
-        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span></div>
+        <div className="wf-status" aria-label={`${state.candy} candy`}><span>◈ {state.candy}</span><WorldClock state={state} /></div>
         <button className="wf-pause" aria-label="Pause" onClick={togglePause}>Ⅱ</button>
       </header>}
       {!cinematic && !paused && !state.overlay && state.scene !== "dead" && <ItemsHud state={state} hiddenTargets={hiddenRadarTargets(state)} onToggleRadar={() => controller.current?.mutate(s => { if (toggleRadar(s)) persist(s); })} />}

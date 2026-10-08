@@ -9,6 +9,11 @@ import { relicTargets, RELIC_SUMMON, OUTFITS } from "./u1/items/relics";
 import { itemsState } from "./u1/items/chips";
 import { chipTargets } from "./u1/items/pickups";
 import { drawItemMarker, drawWishOutfit } from "./u1/items/draw";
+import { obstaclesForState, isObstacleCleared } from "./u1/world/obstacles";
+import { drawHeroObstacle } from "./u1/world/obstacleRender";
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
+import { drawDayNightLighting } from "./u1/world/dayNightRender";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -160,6 +165,7 @@ export class Renderer {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
+    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s, gate.id) && Math.hypot(s.x - gate.x - gate.w / 2, s.y - gate.y) < 90) add(gate.id, `${gate.glyph} ${gate.hero[0].toUpperCase() + gate.hero.slice(1)}`, gate.x + gate.w / 2, gate.y - 16, 'hub', '#f0daac');
     if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y - 38, 'caption');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
   }
@@ -167,6 +173,10 @@ export class Renderer {
     if (event.type === 'ambient-taxi-crash') {
       this.shake = Math.max(this.shake, 5);
       this.bursts.push({ x: event.x, y: event.y - 10, color: '#ffe0a1', life: .48, maxLife: .48, seed: 79, strength: 32 });
+    }
+    if (event.type === 'obstacle-cleared') {
+      this.shake = Math.max(this.shake, 3);
+      this.bursts.push({ x: event.x, y: event.y, color: ACCENT[event.hero], life: .48, maxLife: .48, seed: Math.round(event.x), strength: 30 });
     }
     if (event.type === 'hit') {
       this.shake = Math.max(this.shake, Math.min(4, 1 + event.damage / 14));
@@ -181,6 +191,8 @@ export class Renderer {
   }
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     const c = this.ctx;
+    const daylight = sampleDayNight(worldCycleSeconds(s));
+    c.canvas.dataset.worldPhase = s.scene === 'overworld' ? daylight.phase : '';
     // Paused menus and snapshots do not establish a gameplay frame budget.
     this.checkQuality(dt > 0 ? frameDelta : 0);
     const { width, height, pixelScale } = this.viewport;
@@ -228,6 +240,7 @@ export class Renderer {
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const traffic of trafficForState(s)) if (this.visible(traffic.x, traffic.y, 50)) actors.push({ y: traffic.y, draw: () => this.parkedCar(traffic.x, traffic.y, traffic.color, traffic.direction) });
+    for (const gate of obstaclesForState(s)) if (this.visible(gate.x, gate.y, 110)) actors.push({ y: gate.y + gate.h, draw: () => drawHeroObstacle(c, gate, isObstacleCleared(s, gate.id), motionTime) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
@@ -254,6 +267,7 @@ export class Renderer {
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
+    if (s.scene === 'overworld') drawDayNightLighting(c, world, { ...this.camera, width, height }, this.reducedMotion ? { ...daylight, seconds: 0 } : daylight, s, s.enemies.filter(e => e.nightAmbient));
     c.restore();
     if (s.palette === 'eightbit') this.applyRealmPalette();
     if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }

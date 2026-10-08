@@ -1,6 +1,7 @@
 import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
 const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
 export const MAX_MESSAGE_BYTES = 65_536;
+import { WORLD_OBSTACLE_IDS } from '../shared/waysideFury/u1World.js';
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
 export const SCENES = new Set(['test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
@@ -98,6 +99,9 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
+    if (state.worldObstacles !== undefined && (!Array.isArray(state.worldObstacles) || state.worldObstacles.length > WORLD_OBSTACLE_IDS.length || !state.worldObstacles.every(id => WORLD_OBSTACLE_IDS.includes(id)))) return null;
+    if (state.worldCycleSeconds !== undefined && (!number(state.worldCycleSeconds, 480) || state.worldCycleSeconds < 0 || state.worldCycleSeconds >= 480)) return null;
+    if (state.nightEncounterWindow !== undefined && state.nightEncounterWindow !== null && (typeof state.nightEncounterWindow !== 'string' || !/^night:[0-4]$/.test(state.nightEncounterWindow))) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
@@ -108,6 +112,7 @@ export function cleanWorld(state) {
     }
     for (const enemy of state.enemies) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
+        if (enemy.nightAmbient !== undefined && typeof enemy.nightAmbient !== 'boolean') return null;
         if (!['zombie', 'pumpkin', 'ghost', 'imp', 'shadowbeast'].includes(enemy.sprite) || typeof enemy.miniBoss !== 'boolean' || ![1, 2].includes(enemy.phase)) return null;
         for (const key of ['radius', 'speed', 'cooldown', 'hitTimer', 'kx', 'ky', 'pattern', 'windup', 'actionTimer', 'aimX', 'aimY']) if (!number(enemy[key], 1e6)) return null;
         if (enemy.radius <= 0 || enemy.speed < 0 || enemy.pattern < 0) return null;
@@ -158,6 +163,10 @@ export function cleanRelay(message) {
         case 'pickup':
             if (!PICKUP_IDS.has(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
             cleaned = { type: 'pickup', id: message.id, scene: message.scene, room: message.room };
+            break;
+        case 'obstacle':
+            if (!WORLD_OBSTACLE_IDS.includes(message.id) || !scene(message.scene) || !integer(message.room, 999)) return null;
+            cleaned = { type: 'obstacle', id: message.id, scene: message.scene, room: message.room };
             break;
         case 'reward': {
             const raw = message.reward;

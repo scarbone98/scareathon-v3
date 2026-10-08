@@ -2,6 +2,7 @@ import { SAVE_KEY, parseSave, type SaveData, type ProgressReceipt } from "./save
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
 import { mergeItemsSaves } from "../../../../server/shared/waysideFury/u1Items.js";
+import { mergeWorldSaves } from "../../../../server/shared/waysideFury/u1World.js";
 
 export type SaveStatus = "loading" | "saving" | "saved" | "local" | "offline" | "unavailable";
 export interface SaveTransport {
@@ -34,10 +35,11 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
 function mergePersonalItems(winner: SaveData, local: SaveData, remote: SaveData): SaveData {
   const recent = local.savedAt > remote.savedAt ? local : remote;
   const alternate = recent === local ? remote : local;
+  const world = mergeWorldSaves(local.u1?.world, remote.u1?.world, winner.u1?.world ?? null);
   const items = mergeItemsSaves(recent.u1?.items, alternate.u1?.items);
-  if (JSON.stringify(items) === JSON.stringify(winner.u1?.items)) return winner;
+  if (JSON.stringify(items) === JSON.stringify(winner.u1?.items) && JSON.stringify(world) === JSON.stringify(winner.u1?.world)) return winner;
   // Re-derive hero stats from the selected campaign gear and merged wishes.
-  return parseSave({ ...winner, savedAt: Math.max(local.savedAt, remote.savedAt), u1: { ...winner.u1, items } })!;
+  return parseSave({ ...winner, savedAt: Math.max(local.savedAt, remote.savedAt), u1: { ...winner.u1, items, world } })!;
 }
 
 // The transport and storage are replaceable so races and disconnected devices
@@ -161,13 +163,14 @@ export class CloudSaveStore {
     this.revision = remote.revision; this.revisionKnown = true;
     this.confirmed = mergeReceipts(this.confirmed, remote.save?.lastReported);
     const next = mergeSaves(this.save, remote.save);
+    const worldChanged = JSON.stringify(next?.u1?.world) !== JSON.stringify(this.save?.u1?.world);
     const difference = remote.save && this.save ? progressScore(remote.save) - progressScore(this.save) : 0;
     const remoteWins = remote.save && (!this.save || difference > 0 || difference === 0 && remote.save.savedAt >= this.save.savedAt);
     const itemsChanged = JSON.stringify(next?.u1?.items) !== JSON.stringify(this.save?.u1?.items);
     this.save = next;
     if (next && this.unconfirmed && receiptScore(next.lastReported, this.confirmed) === 0) this.unconfirmed = null;
     if (next) this.write(next);
-    if ((remoteWins || itemsChanged) && this.ready) this.cb.onReplaced(next, "load");
+    if ((remoteWins || itemsChanged || worldChanged) && this.ready) this.cb.onReplaced(next, "load");
     if (next && this.pending) this.pending = { save: next, credit: this.unconfirmed !== null };
     return !!next && JSON.stringify(next) !== JSON.stringify(remote.save);
   }

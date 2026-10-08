@@ -7,6 +7,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const baseUrl = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5173';
+const readyTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 120000);
 const moduleName = process.env.PLAYWRIGHT_MODULE;
 let playwright;
 try {
@@ -101,9 +102,10 @@ async function run(gesture) {
     if (window.webkitAudioContext) window.webkitAudioContext = ObservedContext;
   }, { gesture });
   const page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.message));
+  page.setDefaultTimeout(readyTimeout);
+  page.on('pageerror', error => { errors.push(error.message); console.error(error.message); });
   try {
-    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'domcontentloaded' });
+    await page.goto(new URL('/wayside-fury', baseUrl).href, { waitUntil: 'commit', timeout: readyTimeout });
     await page.waitForFunction(() => !!window.__waysideFury && !!document.querySelector('.wf-stage canvas')?.dataset.pixelScale);
     assert.equal(await page.evaluate(() => window.__furyAudioProbe.contexts.length), 0, 'no context is created before user input');
     await page.evaluate(() => {

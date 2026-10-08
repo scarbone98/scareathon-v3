@@ -9,6 +9,11 @@ import { availablePickups } from './collectibles';
 import type { AvatarStrip, HeroAvatar } from './avatar';
 import type { GameEvent, GameState, HeroId } from './sim';
 import type { RenderLabel, RenderPresentation } from './render';
+import { HeroObstacleMeshes } from './u1/world/obstacleRender3d';
+import { obstaclesForState, isObstacleCleared } from './u1/world/obstacles';
+import { sampleDayNight } from './u1/world/dayNight';
+import { worldCycleSeconds } from './u1/world/dayNightRuntime';
+import { collectDayNightLights } from './u1/world/dayNightRender';
 
 const SHEETS = {
   joe: { url: '/royale/joe_idle.png', w: 16, h: 24, frames: 6 },
@@ -93,6 +98,7 @@ export class OverworldRenderer {
   private ambient = new THREE.HemisphereLight(0xd8e9e2, 0x354035, 2.2);
   private lights = Array.from({ length: 4 }, () => new THREE.PointLight(0xffd695, 0, 100, 1.5));
   private lightSources: LightSource[] = [];
+  private obstacleMeshes: HeroObstacleMeshes | null = null;
   private taxi = new THREE.Group();
   private ambientCab = new THREE.Group();
   private wreckCab = new THREE.Group();
@@ -205,6 +211,7 @@ export class OverworldRenderer {
     this.scene.add(this.taxi);
     this.makeRoadsideVehicles();
     this.makeProps();
+    this.obstacleMeshes = new HeroObstacleMeshes(this.scene, OVERWORLD.id, (x, y) => this.terrain.heightAt(x, y));
     this.makeMarkers();
     this.loadSheets();
     this.effectMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0xffdfa6, toneMapped: false }), 96);
@@ -656,16 +663,19 @@ export class OverworldRenderer {
     this.postMaterial.uniforms.focus.value = this.camera.position.distanceTo(this.taxi.position) - 9;
     this.canvas.dataset.cameraX = this.target.x.toFixed(2); this.canvas.dataset.cameraY = this.target.z.toFixed(2);
   }
-  private atmosphere() {
+  private atmosphere(s: GameState) {
     const time = this.reducedMotion ? 0 : this.visualTime;
-    // A slow dusk-to-night cycle with a bright initial golden hour.
-    const daylight = .58 + Math.cos(time * Math.PI * 2 / 180) * .42;
+    const sample = sampleDayNight(worldCycleSeconds(s));
+    this.canvas.dataset.worldPhase = sample.phase;
+    const daylight = 1 - sample.nightFactor;
     this.sky.setRGB(.16 + daylight * .30, .21 + daylight * .37, .30 + daylight * .34);
     const fog = this.scene.fog as THREE.Fog; fog.color.copy(this.sky);
     this.ambient.intensity = 1.25 + daylight * 1.25; this.sun.intensity = .65 + daylight * 1.9;
     this.sun.color.setRGB(1, .72 + daylight * .20, .57 + daylight * .23);
     this.headlights.intensity = 22 + (1 - daylight) * 40;
-    const nearest = this.lightSources.map(light => ({ light, distance: (light.x - this.target.x) ** 2 + (light.y - this.target.z) ** 2 })).sort((a, b) => a.distance - b.distance);
+    const monsterLights = collectDayNightLights(OVERWORLD, sample, undefined, s.enemies.filter(enemy => enemy.nightAmbient))
+      .filter(light => light.kind === 'monster').map(light => ({ x: light.x, y: light.y, height: this.terrain.heightAt(light.x, light.y) + 14, color: new THREE.Color(light.color).getHex(), strength: 38 * light.intensity }));
+    const nearest = [...this.lightSources, ...monsterLights].map(light => ({ light, distance: (light.x - this.target.x) ** 2 + (light.y - this.target.z) ** 2 })).sort((a, b) => a.distance - b.distance);
     this.lights.forEach((light, index) => {
       const source = nearest[index];
       if (!source || source.distance > 240 ** 2) { light.intensity = 0; return; }
@@ -689,6 +699,7 @@ export class OverworldRenderer {
     }
   }
   private updateActors(s: GameState) {
+    this.obstacleMeshes?.update(s, this.reducedMotion ? 0 : this.visualTime);
     // The taxi owns movement; crew portraits are small billboard passengers and
     // stationary station greeters. They never participate in collision or saves.
     const greeters: { id: HeroId; x: number; y: number }[] = [
@@ -781,7 +792,7 @@ export class OverworldRenderer {
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
-    this.follow(s, dt); this.atmosphere(); this.updateActors(s); this.updateDressing(s); this.updateEffects(s, dt);
+    this.follow(s, dt); this.atmosphere(s); this.updateActors(s); this.updateDressing(s); this.updateEffects(s, dt);
     this.renderer.info.reset();
     if (this.postTarget) {
       this.renderer.setRenderTarget(this.postTarget); this.renderer.render(this.scene, this.camera);
@@ -806,6 +817,10 @@ export class OverworldRenderer {
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
+    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s, gate.id) && Math.hypot(s.x - gate.x - gate.w / 2, s.y - gate.y) < 90) {
+      const point = this.scratch.set(gate.x + gate.w / 2, this.terrain.heightAt(gate.x, gate.y) + 24, gate.y).project(this.camera);
+      if (point.z > -1 && point.z < 1) labels.push({ id: gate.id, text: `${gate.glyph} ${gate.hero[0].toUpperCase() + gate.hero.slice(1)}`, x: (point.x + 1) / 2, y: (1 - point.y) / 2, kind: 'hub', color: '#f0daac' });
+    }
     return { camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(_s: GameState, event: GameEvent) {
@@ -825,6 +840,7 @@ export class OverworldRenderer {
     for (const seat of this.remoteTaxis.keys()) this.removeRemoteTaxi(seat);
     for (const seat of this.remoteAvatarSheets.keys()) this.releaseRemoteAvatarSheets(seat);
     this.remoteAvatars.clear();
+    this.obstacleMeshes?.dispose(); this.obstacleMeshes = null;
     for (const key of [...this.billboards.keys()]) this.removeBillboard(key);
     if (this.terrain) { this.scene.remove(this.terrain.group); this.terrain.dispose(); }
     const geometries = new Set<THREE.BufferGeometry>(); const materials = new Set<THREE.Material>(); const textures = new Set<THREE.Texture>();

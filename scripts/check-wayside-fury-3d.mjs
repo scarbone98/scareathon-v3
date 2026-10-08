@@ -151,35 +151,36 @@ async function layout(frame, label) {
 }
 
 async function immutablePresentation(frame, label) {
-  // The app's save/settings callbacks restore its React pause state. A DEV-only
-  // controller pause can therefore be undone by a pending settings save; use
-  // the real pause control while observing presentation-only frames.
-  await frame.getByRole('button', { name: 'Pause', exact: true }).click();
-  await frame.getByRole('button', { name: 'Resume', exact: true }).waitFor({ state: 'visible' });
-  let result;
-  try {
-    result = await frame.evaluate(async () => {
-      const { OVERWORLD } = await import('/src/pages/WaysideFury/game/world.ts');
-      const game = window.__waysideFury;
-      const before = JSON.stringify(game.state), worldBefore = JSON.stringify(OVERWORLD), pausedBefore = game.paused;
-      for (let index = 0; index < 12; index++) await new Promise(requestAnimationFrame);
-      const after = JSON.stringify(game.state), previous = JSON.parse(before), current = JSON.parse(after);
-      const changed = Object.keys({ ...previous, ...current }).filter(key => JSON.stringify(previous[key]) !== JSON.stringify(current[key]))
-        .map(key => ({ key, before: previous[key], after: current[key] }));
-      return { sameState: before === after, sameWorld: worldBefore === JSON.stringify(OVERWORLD), pausedBefore, pausedAfter: game.paused, changed };
-    });
-  } finally {
-    // Remove the panel for layout/captures while retaining the frozen scene.
-    // Keep both actions in one task so no simulation frame occurs between them.
-    await frame.evaluate(() => {
-      [...document.querySelectorAll('.wf-pause-panel button')].find(button => button.textContent === 'Resume')?.click();
-      window.__waysideFury.setPaused(true);
-    });
-    await frame.getByRole('button', { name: 'Resume', exact: true }).waitFor({ state: 'hidden' });
-  }
-  assert.ok(result.pausedBefore && result.pausedAfter, `${label}: app pause remains active during presentation`);
-  assert.ok(result.sameState, `${label}: presentation cannot mutate authoritative simulation: ${JSON.stringify(result.changed)}`);
+  const result = await frame.evaluate(async () => {
+    const { OVERWORLD } = await import('/src/pages/WaysideFury/game/world.ts');
+    const { DAY_NIGHT_CYCLE_SECONDS, advanceDayNightSeconds } = await import('/src/pages/WaysideFury/game/u1/world/dayNight.ts');
+    const game = window.__waysideFury;
+    game.setPaused(true);
+    const before = JSON.parse(JSON.stringify(game.state)), worldBefore = JSON.stringify(OVERWORLD), clockFrameBefore = game.last;
+    for (let index = 0; index < 12; index++) await new Promise(requestAnimationFrame);
+    const after = JSON.parse(JSON.stringify(game.state));
+    const differences = [];
+    const diff = (left, right, path = '') => {
+      if (JSON.stringify(left) === JSON.stringify(right)) return;
+      if (left && right && typeof left === 'object' && typeof right === 'object') {
+        for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) diff(left[key], right[key], path ? `${path}.${key}` : key);
+      } else differences.push({ path, before: left, after: right });
+    };
+    diff(before, after);
+    const beforeClock = before.u1?.world?.cycleSeconds, afterClock = after.u1?.world?.cycleSeconds;
+    const elapsed = (game.last - clockFrameBefore) / 1000;
+    const expectedClock = advanceDayNightSeconds(beforeClock, elapsed);
+    const comparable = state => { delete state.u1.world.cycleSeconds; return JSON.stringify(state); };
+    return { sameState: comparable(before) === comparable(after), sameWorld: worldBefore === JSON.stringify(OVERWORLD),
+      differences, beforeClock, afterClock, expectedClock, elapsed, cycle: DAY_NIGHT_CYCLE_SECONDS };
+  });
+  console.log(`${label}: paused state diff ${JSON.stringify(result.differences)}`);
+  assert.ok(result.differences.every(diff => diff.path === 'u1.world.cycleSeconds'), `${label}: paused frames may advance only the real-time world clock: ${JSON.stringify(result.differences)}`);
+  assert.ok(result.sameState, `${label}: presentation cannot mutate authoritative simulation`);
   assert.ok(result.sameWorld, `${label}: presentation cannot change world/collision data`);
+  assert.ok(Number.isFinite(result.beforeClock) && Number.isFinite(result.afterClock) && result.elapsed >= 0, `${label}: paused clock remains initialized`);
+  const clockError = Math.abs(result.afterClock - result.expectedClock);
+  assert.ok(Math.min(clockError, result.cycle - clockError) < 0.000001, `${label}: paused clock follows actual elapsed frame time: ${JSON.stringify(result)}`);
 }
 
 async function deterministicScene(frame) {

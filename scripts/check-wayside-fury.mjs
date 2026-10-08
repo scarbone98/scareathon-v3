@@ -9,6 +9,7 @@ import { getWorld, BLAST_WORLDS, OVERWORLD, HUB_WORLD, REALM_WORLD, WATCHER_ROOM
 import { captureMotion, interpolateMotion } from '../src/pages/WaysideFury/game/motion.ts';
 import { getRenderViewport } from '../src/pages/WaysideFury/game/viewport.ts';
 import { SAVE_KEY, readSave, writeSave, restoreSave, progressReport, mergeReceipts } from '../src/pages/WaysideFury/game/save.ts';
+import { HERO_OBSTACLES, isObstacleCleared } from '../src/pages/WaysideFury/game/u1/world/obstacles.ts';
 
 const DT = 1 / 60;
 const tick = (s, buttons = {}, frames = 1) => {
@@ -420,7 +421,7 @@ function playRoom(s) {
     const e = s.enemies.reduce((a, b) => Math.hypot(a.x - s.x, a.y - s.y) < Math.hypot(b.x - s.x, b.y - s.y) ? a : b);
     // Follow walkable waypoints around rims and props, using normal controls.
     if (routeEnemy !== e.id || frames % 30 === 0 || !route.length) {
-      route = findWalkRoute(getWorld(s.scene, s.room), s, e); routeEnemy = e.id;
+      route = findWalkRoute(getWorld(s.scene, s.room), s, e, s); routeEnemy = e.id;
     }
     while (route.length > 1 && Math.hypot(route[0].x - s.x, route[0].y - s.y) < 3) route.shift();
     const waypoint = route[0];
@@ -440,7 +441,7 @@ function playRoom(s) {
 }
 function walkTo(s, x, y) {
   const world = getWorld(s.scene, s.room);
-  const route = findWalkRoute(world, s, { x, y });
+  const route = findWalkRoute(world, s, { x, y }, s);
   for (const point of route) {
     for (let f = 0; f < 2500 && Math.hypot(point.x - s.x, point.y - s.y) > 1.5; f++) {
       const dx = point.x - s.x, dy = point.y - s.y, length = Math.hypot(dx, dy);
@@ -453,6 +454,22 @@ function walkTo(s, x, y) {
   assert.ok(Math.hypot(x - s.x, y - s.y) <= 4);
 }
 const completedZones = [], clearedCheckpoints = [];
+function selectQuestHero(state, hero) {
+  if (state.active === hero) return;
+  if (!state.party.includes(hero)) {
+    const partner = state.party.find(id => id !== state.active);
+    if (partner) assert.equal(toggleParty(state, partner, true), true);
+    assert.equal(toggleParty(state, hero, true), true, 'character sheet can select the required hero');
+  }
+  tick(state, {}, 120);
+  assert.equal(requestSwap(state), true, 'tag control selects the required hero');
+  assert.equal(state.active, hero);
+}
+function restoreQuestParty(state, party, active) {
+  for (const id of [...state.party]) if (!party.includes(id)) assert.equal(toggleParty(state, id, true), true);
+  for (const id of party) if (!state.party.includes(id)) assert.equal(toggleParty(state, id, true), true);
+  selectQuestHero(state, active);
+}
 function openDoor(s, id) {
   const world = getWorld(s.scene, s.room), door = world.exits.find(e => e.id === id);
   assert.ok(door);
@@ -471,7 +488,15 @@ for (let room = 0; room <= WATCHER_ROOM; room++) {
     openDoor(quest, room === 1 ? 'north' : 'south'); assert.equal(quest.room, side);
     roomFrames.push(playRoom(quest)); completedZones.push(`blast-${side}`); clearedCheckpoints.push(`blast-${side}`);
     const chest = getWorld('dungeon', side).props.find(p => p.kind === 'chest');
-    const approach = findInteractionApproach(getWorld('dungeon', side), chest.id, { x: chest.x + chest.w / 2, y: chest.y + chest.h / 2 });
+    const gate = HERO_OBSTACLES.find(entry => entry.rewardId === chest.id);
+    assert.ok(gate);
+    const originalParty = [...quest.party], originalActive = quest.active;
+    selectQuestHero(quest, gate.hero);
+    walkTo(quest, gate.x + gate.w / 2, gate.y + gate.h + 12);
+    assert.equal(interactTarget(quest)?.id, gate.id);
+    tick(quest); tick(quest, { attack: true });
+    assert.equal(isObstacleCleared(quest, gate.id), true, 'required hero opens the supply entrance with context Attack');
+    const approach = findInteractionApproach(getWorld('dungeon', side), chest.id, { x: chest.x + chest.w / 2, y: chest.y + chest.h / 2 }, 28, quest);
     walkTo(quest, approach.x, approach.y);
     const beforeLoot = quest.candy;
     assert.equal(interactTarget(quest).id, chest.id); tick(quest); tick(quest, { interact: true });
@@ -479,6 +504,7 @@ for (let room = 0; room <= WATCHER_ROOM; room++) {
     assert.ok(quest.clearedRooms.includes(chest.id)); completedZones.push(chest.id);
     const afterLoot = quest.candy; tick(quest); tick(quest, { interact: true });
     assert.equal(quest.candy, afterLoot, 'a supply cache pays only once');
+    restoreQuestParty(quest, originalParty, originalActive);
     openDoor(quest, room === 1 ? 'south' : 'north'); assert.equal(quest.room, room);
     assert.equal(quest.enemies.length, 0, 'cleared routes stay open when returning from a side trail');
   }

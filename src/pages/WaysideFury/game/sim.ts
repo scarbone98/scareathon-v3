@@ -1,3 +1,6 @@
+import { obstacleBlocks, getHeroObstacleTarget, clearHeroObstacle, obstacleRewardAvailable, releaseBorrowedObstacles } from "./u1/world/obstacles.ts";
+import type { WorldSave } from "../../../../server/shared/waysideFury/u1World.js";
+import { advanceWorldClock, updateNightOverworld, resetNightEncounter } from "./u1/world/dayNightRuntime.ts";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -28,7 +31,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  scene: Scene; room: number; attack?: boolean; downed?: boolean; reviveProgress?: number; interact?: boolean;
   chipDamageMultiplier?: number; secondWindReady?: boolean; chipSnapshotAt?: number;
 }
 export interface CoopRuntime {
@@ -40,6 +43,8 @@ export interface CoopRuntime {
   worldClearedRooms?: string[];
   worldChapter?: number;
   remoteSecondWindSpent?: Record<number, { userId: string; at: number }>;
+  worldObstacles?: string[];
+  worldCycleSeconds?: number;
 }
 export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
@@ -49,6 +54,7 @@ export interface Enemy {
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
   baseMaxHp?: number;
+  nightAmbient?: boolean;
   speed: number; cooldown: number; hitTimer: number; kx: number; ky: number;
   miniBoss: boolean; phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
@@ -65,6 +71,8 @@ export interface Effect {
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
   | { type: "item"; id: string; kind: "chip" | "relic" | "radar" | "wish" }
+  | { type: "obstacle-cleared"; id: string; x: number; y: number; hero: HeroId }
+  | { type: "obstacle-request"; id: string; hero: HeroId; x: number; y: number }
   | CoopHit
   | { type: "pickup"; id: string }
   | { type: "coop-pickup"; id: string }
@@ -96,7 +104,8 @@ export interface GameState {
   coopRewards?: string[];
   contextAttack: ContextAttackState;
   dialogue: { speaker: string; lines: string[]; index: number } | null;
-  u1?: { items: ItemsSaveState; [key: string]: unknown };
+  u1?: { items: ItemsSaveState; world?: WorldSave; [key: string]: unknown };
+  nightWorld?: { window: string | null };
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
@@ -119,7 +128,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 // Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
 // continually create fresh enemies and their rewards.
 function extraCoopSpawns(s: GameState) {
-  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
+  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0 && !e.nightAmbient)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
   const world = getWorld(s.scene, s.room), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
@@ -179,7 +188,7 @@ export function newGame(seed = 8591): GameState {
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
     candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [],
-    u1: { items: createItemsSave() }, contextAttack: newContextAttack(), dialogue: null };
+    u1: { items: createItemsSave(), world: { clearedObstacles: [], cycleSeconds: 0 } }, contextAttack: newContextAttack(), dialogue: null };
   enterScene(s, "test");
   return s;
 }
@@ -203,6 +212,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
   if (scene === "prologue") s.cutscene = 0;
   s.faceX = 1; s.faceY = 0; s.moving = false;
   s.enemies = []; s.projectiles = []; s.effects = []; s.floaters = [];
+  resetNightEncounter(s);
   s.attackTimer = 0; s.combo = 0; s.comboWindow = 0; s.charge = 0;
   s.dashTimer = 0; s.guard = false; s.hitStop = 0;
   s.previousInput = idleInput();
@@ -244,8 +254,8 @@ export function enterScene(s: GameState, scene: Scene, room = 0): void {
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
   const world = getWorld(s.scene, s.room), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
-    if (!isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
-    if (!isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
+    if (!isBlocked(world, body.x + dx / pieces, body.y, radius) && !obstacleBlocks(s, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
+    if (!isBlocked(world, body.x, body.y + dy / pieces, radius) && !obstacleBlocks(s, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
   }
 }
 // Relax overlaps without adding velocity: a bounded, time-scaled push settles
@@ -325,7 +335,7 @@ export function grantGear(s: GameState, power: number, ward: number) {
   syncCoopLevel(s);
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number) {
-  if (e.hp <= 0) return;
+  if (e.hp <= 0 || e.nightAmbient) return;
   const dealt = Math.round(damage);
   e.hp -= dealt; e.hitTimer = 0.18; s.hitStop = Math.max(s.hitStop, force >= 80 ? 0.07 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
@@ -351,6 +361,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
 // several enemies, so dedupe the attack/target pair rather than the whole attack.
 export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean {
+  if (s.scene === "overworld" || s.enemies.find(e => e.id === hit.enemyId)?.nightAmbient) return false;
   if (s.coop?.role !== "host" || seat === s.coop.seat || !Number.isInteger(seat) || seat < 0 || seat > 3) return false;
   if (!Number.isInteger(hit.enemyId) || typeof hit.attackId !== "string" || !hit.attackId || hit.attackId.length > 96
     || ![hit.damage, hit.dx, hit.dy, hit.force].every(Number.isFinite)
@@ -366,6 +377,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
   return true;
 }
 function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
+  if (e.nightAmbient) return;
   if (e.hp <= 0) return;
   if (chipEffects(s).scanner && !("nightAmbient" in e && e.nightAmbient) && e.windup > 0) damage *= 1.15;
   if (s.coop?.role === "guest") {
@@ -398,9 +410,10 @@ export function exitCoop(s: GameState): void {
   s.ambientTaxiWrecked ||= s.personalTaxiWrecked;
   s.personalTaxiWrecked = s.ambientTaxiWrecked;
   s.ambientTaxiGag = -1;
+  const borrowedObstacles = s.coop.worldObstacles ?? [];
   const players = coopCount(s); s.coop.playerCount = 1;
   for (const enemy of s.enemies) scaleEnemy(s, enemy, enemy.baseMaxHp ?? enemy.maxHp / enemyHpScale(enemy.kind, players));
-  delete s.coop; syncCoopLevel(s);
+  delete s.coop; releaseBorrowedObstacles(s, borrowedObstacles); syncCoopLevel(s);
   s.hitStop = 0; s.previousInput = idleInput();
   if (activeHero(s).hp > 0 || s.scene === "dead" || s.scene === "results") return;
   const fallen = s.active, next = nextPartyHero(s);
@@ -641,18 +654,18 @@ function updateProjectiles(s: GameState, dt: number) {
   for (const p of s.projectiles) {
     const x0 = p.x, y0 = p.y, dx = p.vx * dt, dy = p.vy * dt;
     p.ttl -= dt;
-    if (isBlocked(world, x0, y0, p.radius)) { p.ttl = 0; continue; }
+    if (isBlocked(world, x0, y0, p.radius) || obstacleBlocks(s, x0, y0, p.radius)) { p.ttl = 0; continue; }
     // Trace solids first, including thin footprints crossed between endpoints.
     // Actor hits use only the clear segment, so beams cannot damage through props.
     const pieces = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 2));
     let blocked = false;
     for (let n = 1; n <= pieces; n++) {
       let t = n / pieces;
-      if (isBlocked(world, x0 + dx * t, y0 + dy * t, p.radius)) {
+      if (isBlocked(world, x0 + dx * t, y0 + dy * t, p.radius) || obstacleBlocks(s, x0 + dx * t, y0 + dy * t, p.radius)) {
         let clear = (n - 1) / pieces, solid = t;
         for (let refine = 0; refine < 8; refine++) {
           const middle = (clear + solid) * 0.5;
-          if (isBlocked(world, x0 + dx * middle, y0 + dy * middle, p.radius)) solid = middle;
+          if (isBlocked(world, x0 + dx * middle, y0 + dy * middle, p.radius) || obstacleBlocks(s, x0 + dx * middle, y0 + dy * middle, p.radius)) solid = middle;
           else clear = middle;
         }
         t = clear; blocked = true;
@@ -704,6 +717,8 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.dialogue) return { id: "dialog-next", name: s.dialogue.index < s.dialogue.lines.length - 1 ? "Next" : "Continue", kind: "next", x: s.x, y: s.y };
   if (s.scene === "dead" || s.scene === "results" || s.scene === "shift" || s.overlay || s.coop?.downed) return null;
   const candidates: InteractionCandidate[] = [...itemInteractionCandidates(s)];
+  const gate = getHeroObstacleTarget(s);
+  if (gate) candidates.push({ id: gate.id, name: gate.label, kind: "use", x: gate.x + gate.w / 2, y: gate.y + gate.h / 2, distance: 0, radius: 28 });
   const add = (target: InteractTarget, radius = 28, distance = Math.hypot(s.x - target.x, s.y - target.y)) => candidates.push({ ...target, radius, distance });
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
@@ -712,7 +727,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.scene === "dungeon" || s.scene === "realm") {
     const world = getWorld(s.scene, s.room);
     for (const prop of world.props) {
-      if (prop.kind === "chest" && !s.clearedRooms.includes(prop.id)) add({ id: prop.id, name: "Open supply cache", kind: "use", locked: s.enemies.length > 0, x: prop.x + prop.w / 2, y: prop.y + prop.h / 2 });
+      if (prop.kind === "chest" && obstacleRewardAvailable(s, prop.id) && !s.clearedRooms.includes(prop.id)) add({ id: prop.id, name: "Open supply cache", kind: "use", locked: s.enemies.length > 0, x: prop.x + prop.w / 2, y: prop.y + prop.h / 2 });
       if (prop.kind === "npc") add({ id: "scout", name: `Talk to ${prop.label ?? "the stranded scout"}`, kind: "talk", x: prop.x + prop.w / 2, y: prop.y + prop.h });
     }
     for (const door of world.exits) if (!door.requiresClear || s.enemies.length === 0) add({ id: door.id, name: door.name, kind: door.target === "overworld" ? "taxi" : "use", x: door.x + door.w / 2, y: door.y + door.h / 2 }, 25, distanceToExit(door, s.x, s.y));
@@ -775,7 +790,16 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("pickup-")) { collectPickup(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
+  if (s.coop?.role === "guest") {
+    if (target.id.startsWith("world-")) s.events.push({ type: "obstacle-request", id: target.id, hero: s.active, x: s.x, y: s.y });
+    return;
+  }
+  if (target.id.startsWith("world-")) {
+    if (!clearHeroObstacle(s, target.id)) s.notice = `Choose the required hero in Character, then tag them in. ${target.name}`;
+    return;
+  }
   if (s.coop?.role === "guest" && target.kind !== "talk") return;
+
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
@@ -851,6 +875,8 @@ export function step(s: GameState, input: Input, delta: number): void {
   // Pad A sets both flags, while touch/J must synthesize a held revive command.
   const physicalInput = { ...input };
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
+  advanceWorldClock(s, dt);
+  updateNightOverworld(s, dt);
   refreshContextAttack(s);
   const attackPressed = input.attack && !s.previousInput.attack;
   const interactPressed = input.interact && !s.previousInput.interact;

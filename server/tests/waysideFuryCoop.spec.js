@@ -370,8 +370,8 @@ describe('Wayside Fury websocket registration and auth', () => {
         const connections = [];
         try {
             const auth = async (name) => {
-                const connection = await openSocket(app); connections.push(connection);
                 const ticket = await app.inject({ method: 'POST', url: '/wayside-fury/coop/dev-ticket', payload: { userId: `dev-${name}`, name } });
+                const connection = await openSocket(app); connections.push(connection);
                 connection.send({ type: 'auth', ticket: ticket.json().ticket });
                 await connection.next('ready');
                 return connection;
@@ -387,6 +387,8 @@ describe('Wayside Fury websocket registration and auth', () => {
             expect((await guest.next('room')).players.map((player) => player.userId)).toEqual(['dev-host', 'dev-guest']);
             guest.send({ type: 'hero', hero: hero(), input: input() });
             expect((await host.next('hero')).hero).toMatchObject({ userId: 'dev-guest', seat: 1 });
+            guest.send({ type: 'obstacle', id: 'world-joe-road', scene: 'dungeon', room: 0, seat: 0, userId: 'forged' });
+            expect(await host.next('obstacle')).toMatchObject({ id: 'world-joe-road', scene: 'dungeon', room: 0, seat: 1, userId: 'dev-guest' });
             guest.send({ type: 'state', state: world() });
             expect((await guest.next('error')).code).toBe('host');
             host.send({ type: 'state', state: { ...world(), enemies: [{ id: 1 }] } });

@@ -174,7 +174,7 @@ test('merge chooses progress, then timestamp, while retaining both devices\' tic
   assert.deepEqual(merged.lastReported, mergeReceipts(local.lastReported, remote.lastReported));
   const later = { ...local, candy: 88, savedAt: 6_000 };
   assert.equal(mergeSaves(local, later).candy, 88);
-  assert.equal(mergeSaves(null, remote), remote); assert.equal(mergeSaves(local, null), local);
+  assert.deepEqual(mergeSaves(null, remote), remote); assert.deepEqual(mergeSaves(local, null), local);
   assert.equal(mergeSaves(null, null), null);
 });
 
@@ -564,4 +564,23 @@ test('personal finds and the taxi wreck survive cloud reload, with one revisione
   assert.deepEqual(merged.foundItems, [first, second]);
   assert.deepEqual(merged.lastReported.foundItems, [first, second]);
   assert.equal(merged.ambientTaxiWrecked, true);
+});
+
+test('offline world discovery merge reaches the active game even when local campaign wins', async t => {
+  const local = snapshot({ level: 3, candy: 17, areas: ['wayside'], home: true });
+  const remote = snapshot({ savedAt: 2_000 });
+  local.u1.world = { clearedObstacles: ['world-joe-road'], cycleSeconds: 60 };
+  remote.u1.world = { clearedObstacles: ['world-matt-station'], cycleSeconds: 300 };
+  const d = device(t, new MemoryStorage(local)); d.server.seed(A, remote); d.server.failGets = 1;
+  await d.store.load(A); await settle();
+  const previous = d.replacements.length;
+  d.store.retryNow(); await settle();
+  assert.ok(d.replacements.length > previous, 'merged gates must notify the running game');
+  const active = restoreSave(d.replacements.at(-1).save);
+  const next = makeSave(active, d.store.save);
+  assert.deepEqual(next.u1.world, { clearedObstacles: ['world-joe-road', 'world-matt-station'], cycleSeconds: 60 });
+  assert.equal(next.character.level, 3); assert.equal(next.candy, 17);
+  d.store.persist(next, false); await settle();
+  assert.deepEqual(d.server.rows.get(A).save.u1.world.clearedObstacles, next.u1.world.clearedObstacles);
+  assert.equal(d.paid(), 0);
 });
