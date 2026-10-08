@@ -1,3 +1,5 @@
+import { roadGround } from './roadNetwork.ts';
+import { buildRoadSurface } from './roadSurface3d.ts';
 // Presentation-only height data. The simulation keeps its original flat map.
 import { roadMarks } from './roadMarkings';
 import * as THREE from 'three';
@@ -210,7 +212,7 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
   const shade = new THREE.Color();
   const point = (x: number, y: number, lift = 0): Vertex => [x, elevation.heightAt(x, y) + lift, y];
   for (let row = 0; row < world.rows; row++) for (let col = 0; col < world.cols; col++) {
-    const x = col * TILE, y = row * TILE, kind = tileAt(world, col, row);
+    const x = col * TILE, y = row * TILE, kind = roadGround(world, tileAt(world, col, row));
     const nw = point(x, y), ne = point(x + TILE, y), sw = point(x, y + TILE), se = point(x + TILE, y + TILE);
     const heights = [nw[1], ne[1], sw[1], se[1]], slope = Math.max(...heights) - Math.min(...heights);
     const atWater = [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dc, dr]) => tileAt(world, col + dc, row + dr) === 'water');
@@ -279,7 +281,9 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
   const skirtShape = geometry(skirts), skirtMaterial = new THREE.MeshStandardMaterial({ color: '#45515c', vertexColors: true, roughness: 1, side: THREE.DoubleSide });
   const skirtMesh = new THREE.Mesh(skirtShape, skirtMaterial); skirtMesh.name = 'terrain-cutaway'; skirtMesh.receiveShadow = true;
   geometries.push(skirtShape); materials.push(skirtMaterial); group.add(skirtMesh);
+  const roads = buildRoadSurface(world, elevation.heightAt); group.add(roads.group);
   return { group, heightAt: elevation.heightAt, water, dispose: () => {
+    roads.dispose();
     for (const shape of geometries) shape.dispose();
     for (const material of materials) material.dispose();
     for (const texture of textures) texture.dispose();

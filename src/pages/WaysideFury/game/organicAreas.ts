@@ -1,5 +1,6 @@
+import { roadPoints, roadWidth, projectRoad, onRoad } from './roadNetwork.ts';
 import { HIDDEN_PICKUPS } from '../../../../server/shared/waysideFury/collectibles.js';
-import { TILE, paint, prop, overlaps, type WorldMap, type TileKind } from './worldBuilder.ts';
+import { TILE, paint, prop, type WorldMap, type TileKind } from './worldBuilder.ts';
 export interface AreaPoint { x: number; y: number }
 export interface AreaTrail { points: AreaPoint[]; width: number; tile: TileKind }
 export interface AreaLandform { points: AreaPoint[]; kind: 'cliff' | 'water'; color: string }
@@ -17,7 +18,8 @@ export function insidePolygon(p: AreaPoint, points: AreaPoint[]) {
   return inside;
 }
 function ribbon(m: WorldMap, points: AreaPoint[], width: number, tile: TileKind) {
-  const layout=m.organic??={trails:[],landforms:[],stairs:[]};layout.trails.push({points,width,tile});
+  const layout=m.organic??={trails:[],landforms:[],stairs:[]};
+  if(tile!=='road')layout.trails.push({points,width,tile});
   // Foot trails are native vector artwork over existing passable ground.
   // Only taxi roads need a material grid for the optional depth renderer.
   if (tile !== "road") return;
@@ -51,6 +53,9 @@ function local(m: WorldMap, index: number, arrivals: AreaPoint[]) {
   const reserved=[m.spawn,...arrivals,...m.spawns,...m.props.filter(p=>['seal','socket','chest','npc'].includes(p.kind)).map(p=>({x:p.x+p.w/2,y:p.y+p.h+16})),...HIDDEN_PICKUPS.filter(p=>p.scene==='dungeon'&&m.id===`blast-${p.room}`)];
   const lower=index%2===0,sign=lower?1:-1;
   const points=[m.spawn,{x:144,y:cy+sign*64},{x:272,y:cy+sign*56},{x:336,y:cy},{x:400,y:cy},{x:m.width-208,y:cy-sign*64},{x:m.width-64,y:cy}];
+  if(['city-boulevard','city-market','city-clockroof'].includes(m.id)) {
+    m.roads.push({id:`${m.id}-street`,x:32,y:cy-36,w:m.width-64,h:72,direction:'horizontal',start:'entrance',end:'entrance',curve:points,curveWidth:72});
+  }
   ribbon(m,points,72,path);
   for (const car of m.props.filter(p=>p.kind==="car")) ribbon(m,[{x:car.x+car.w/2,y:car.y+car.h+16},{x:car.x+car.w/2,y:cy}],48,"stone");
   // A second contour route forms an actual walkable loop around an island.
@@ -100,14 +105,37 @@ export function shapeOrganicAreas(worlds: WorldMap[]) {
       const horizontal=r.direction==='horizontal',a={x:r.x+(horizontal?0:r.w/2),y:r.y+(horizontal?r.h/2:0)},b={x:r.x+(horizontal?r.w:r.w/2),y:r.y+(horizontal?r.h/2:r.h)};
       const points=r.id==='county' ? [a,{x:208,y:480},{x:352,y:480},{x:520,y:480},{x:832,y:480},{x:944,y:480},{x:1088,y:480},{x:1280,y:464},{x:1584,y:480},{x:1840,y:512},{x:2064,y:544},b] : [a,{x:a.x+(b.x-a.x)*.25+(horizontal?0:80),y:a.y+(b.y-a.y)*.25+(horizontal?-64:0)},{x:a.x+(b.x-a.x)*.65+(horizontal?0:112),y:a.y+(b.y-a.y)*.65+(horizontal?64:0)},b];
       r.curve=points;r.curveWidth=64;
-      // Restore the old lane to grass, then paint a broad curved replacement.
-      for(let row=Math.floor(r.y/TILE);row<Math.ceil((r.y+r.h)/TILE);row++) for(let col=Math.floor(r.x/TILE);col<Math.ceil((r.x+r.w)/TILE);col++) {
-        if(!county.roads.some(other=>other!==r&&!other.curve&&overlaps({x:col*TILE,y:row*TILE,w:TILE,h:TILE},other))) county.tiles[row*county.cols+col]='grass';
-      }
-      ribbon(county,points,64,'road');
     }
-    // Repaint overlaps after all old lanes have been removed.
-    for(const r of county.roads) if(r.curve) ribbon(county,r.curve,r.curveWidth??64,'road');
-    county.props=county.props.filter(p=>!['tree','pine','rock','bush','fence','reeds'].includes(p.kind)||!(p.footprints??[]).some(r=>county.organic!.trails.some(t=>t.points.slice(1).some((b,i)=>distance({x:r.x+r.w/2,y:r.y+r.h/2},t.points[i],b)<t.width/2+12))));
+    // Snap junction terminals onto their adjoining centerline; this removes
+    // rounded caps extending past T junctions and makes district loops connect.
+    for(const r of county.roads) {
+      const points=roadPoints(r).map(p=>({...p}));
+      for(const [index,kind] of [[0,r.start],[points.length-1,r.end]] as const) {
+        if(kind!=='junction')continue;
+        const p=points[index];
+        const candidates=county.roads.filter(other=>other!==r).flatMap(other=>{
+          const q=roadPoints(other);return q.slice(1).map((b,i)=>projectRoad(p,q[i],b));
+        }).sort((a,b)=>a.distance-b.distance);
+        if(candidates[0]?.distance<144)points[index]={x:candidates[0].x,y:candidates[0].y};
+      }
+      r.curve=points;r.curveWidth=roadWidth(r);
+    }
+    // Remove ALL old raster lanes before rasterizing any new ribbon. Sequential
+    // removal preserved earlier roads' stair steps at overlap cells.
+    const oldTiles=[...county.tiles];
+    county.tiles=oldTiles.map((tile,i)=>{
+      if(tile!=='road'&&tile!=='bridge')return tile;
+      const col=i%county.cols,row=Math.floor(i/county.cols);
+      const water=(direction:number)=>[1,2,3,4,5].some(d=>oldTiles[(row+direction*d)*county.cols+col]==='water');
+      return tile==='bridge'||water(-1)&&water(1)?'water':'grass';
+    });
+    county.collision=county.tiles.map((tile,i)=>tile==='water'?1:oldTiles[i]==='road'||oldTiles[i]==='bridge'?0:county.collision[i]);
+    for(const r of county.roads)ribbon(county,roadPoints(r),roadWidth(r),'road');
+    county.props=county.props.filter(p=>!['tree','pine','rock','bush','fence','reeds','crate','bench'].includes(p.kind)||!(p.footprints??[]).some(r=>onRoad(county,r.x+r.w/2,r.y+r.h/2,Math.hypot(r.w,r.h)/2+12)||county.organic!.trails.some(t=>t.points.slice(1).some((b,i)=>distance({x:r.x+r.w/2,y:r.y+r.h/2},t.points[i],b)<t.width/2+12))));
+    // Keep the two lookout approaches dressed after clearing the shifted lanes.
+    for(const x of [768,1760])for(const side of [-1,1]) {
+      const px=x+side*88,py=x===768?1340:1224;
+      if(!onRoad(county,px+12,py+12,24))prop(county,'flower',px,py,24,16);
+    }
   }
 }

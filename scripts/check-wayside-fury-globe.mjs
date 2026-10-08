@@ -1,3 +1,4 @@
+import {roadPoints} from '../src/pages/WaysideFury/game/roadNetwork.ts';
 import assert from 'node:assert/strict';
 import { GLOBE_DESTINATIONS, globeAvailable, globeDistance, globeProject, newGlobe, stepGlobe, startLanding, wrapLongitude, spherePoint } from '../src/pages/WaysideFury/game/globe.ts';
 import { newGame, enterCampaignMap, idleInput, step, enterScene } from '../src/pages/WaysideFury/game/sim.ts';
@@ -28,7 +29,17 @@ const old=progressReport(state);enterCampaignMap(state,target.mapId);state.check
 const saved=makeSave(state);assert.equal(restoreSave(saved).mapId,'hub');assert.equal(progressReport(state).score,old.score,'travel cannot create ticket credit');
 assert.equal(OVERWORLD.width,2304);assert.equal(OVERWORLD.height,1536);
 for(const stop of COUNTY_STOPS)assert.equal(isBlocked(OVERWORLD,stop.x,stop.y,10),false);
-for(const road of OVERWORLD.roads.filter(r=>['county','garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'].includes(r.id)))for(let y=road.y+16;y<road.y+road.h-12;y+=16)for(let x=road.x+16;x<road.x+road.w-12;x+=16){if(road.start==='barrier'&&x<64||road.end==='barrier'&&x>OVERWORLD.width-64)continue;assert.equal(isBlocked(OVERWORLD,x,y,10),false,`${road.id} clear at ${x},${y}`);}
+for(const road of OVERWORLD.roads.filter(r=>['county','garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'].includes(r.id))) {
+ const points=roadPoints(road);
+ for(let i=1;i<points.length;i++) {
+  const a=points[i-1],b=points[i],length=Math.hypot(b.x-a.x,b.y-a.y);
+  for(let d=24;d<length-24;d+=16) {
+   const x=a.x+(b.x-a.x)*d/length,y=a.y+(b.y-a.y)*d/length;
+   if(road.start==='barrier'&&x<64||road.end==='barrier'&&x>OVERWORLD.width-64)continue;
+   assert.equal(isBlocked(OVERWORLD,x,y,10),false,`${road.id} clear at ${x},${y}`);
+  }
+ }
+}
 const scene=newGame();enterScene(scene,'overworld');const drive=idleInput();drive.x=1;drive.dash=true;for(let i=0;i<60;i++)step(scene,drive,1/60);assert.ok(scene.x>400,'taxi boost is playable');
 const host=newGame();enterScene(host,'overworld');host.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:3};host.x=1870;
 for(let i=0;i<60;i++)step(host,{...idleInput(),x:1},1/60);assert.ok(host.x<=1878,'old parties cannot cross into new county districts');

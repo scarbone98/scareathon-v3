@@ -1,3 +1,4 @@
+import { drawRoadNetwork, roadGround } from './roadNetwork.ts';
 import { roadMarks } from './roadMarkings';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
 
@@ -14,7 +15,7 @@ export const MATERIALS: Record<TileKind, readonly [string, string, string]> = {
 const hash = (x: number, y: number) => Math.abs(Math.imul(x + 11, 374761393) ^ Math.imul(y + 23, 668265263)) >>> 0;
 const inside = (world: WorldMap, col: number, row: number) => col >= 0 && row >= 0 && col < world.cols && row < world.rows;
 const terrainAt = (world: WorldMap, col: number, row: number): TileKind => inside(world, col, row)
-  ? tileAt(world, col, row)
+  ? roadGround(world, tileAt(world, col, row))
   : world.id.startsWith('realm') ? 'void' : world.id.startsWith('blast') ? 'ash' : 'grass';
 
 // Native-resolution chunks are keyed by their render scale. Out-of-bounds chunks
@@ -146,6 +147,8 @@ export class TerrainCache {
         fill(k * 4, (k * 3 + n) % 16, 2, .5, '#d68cb7');
       }
     }
+    c.save(); c.translate(-cx * TILE * chunkTiles, -cy * TILE * chunkTiles);
+    if(!world.organic) drawRoadNetwork(c, world); c.restore();
     return canvas;
   }
   private animate(c: CanvasRenderingContext2D, world: WorldMap, camera: { x: number; y: number }, width: number, height: number, time: number) {

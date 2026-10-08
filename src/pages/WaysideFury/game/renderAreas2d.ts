@@ -1,3 +1,4 @@
+import { drawRoadNetwork } from './roadNetwork.ts';
 import { INTERIORS, interiorDefinition } from './interiors.ts';
 import type { WorldMap } from './worldBuilder.ts';
 import type { GameState } from './sim.ts';
@@ -10,13 +11,14 @@ export function drawAreaGround(c:CanvasRenderingContext2D, world:WorldMap) {
   if(!passable){passable=new Path2D();for(let i=0;i<world.tiles.length;i++)if(!world.collision[i])passable.rect(i%world.cols*16,Math.floor(i/world.cols)*16,16,16);walkablePaths.set(world,passable);}
   c.save();c.clip(passable);
   for(const trail of world.organic.trails) {
+    if(trail.tile==='road')continue;
     // Native vector borders soften tile contours without changing collision.
     c.beginPath();trail.points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));
-    c.strokeStyle=trail.tile==='road'?'#263c43':trail.tile==='stone'?'#646b6b':'#857153';c.lineWidth=trail.width-12;c.stroke();
-    c.strokeStyle=trail.tile==='road'?'#3b4f55':trail.tile==='stone'?'#777c75':'#9c8662';c.lineWidth=trail.width-20;c.stroke();
-    if(trail.tile==='road') {c.setLineDash([14,22]);c.strokeStyle='#c6b991';c.lineWidth=1.2;c.stroke();c.setLineDash([]);}
+    c.strokeStyle=trail.tile==='stone'?'#646b6b':'#857153';c.lineWidth=trail.width-12;c.stroke();
+    c.strokeStyle=trail.tile==='stone'?'#777c75':'#9c8662';c.lineWidth=trail.width-20;c.stroke();
   }
   c.restore();
+  drawRoadNetwork(c,world);
   for(const form of world.organic.landforms) {
     const path=()=>{c.beginPath();form.points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();};
     if(form.kind==='cliff') {

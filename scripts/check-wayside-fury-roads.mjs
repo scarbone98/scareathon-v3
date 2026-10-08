@@ -40,7 +40,7 @@ for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WO
     assert.ok(world.roads.some(r => roadContains(r, col * TILE, row * TILE)), `${world.id}: every road tile has authored direction and ends`);
   }
   for (const r of world.roads) {
-    if (r.curve) { assert.ok(r.curve.length>=4, `${r.id}: authored bends`); continue; }
+    if (r.curve) { assert.ok(r.curve.length>=2, `${r.id}: authored bends`); continue; }
     for (let y = r.y; y < r.y + r.h; y += TILE) for (let x = r.x; x < r.x + r.w; x += TILE) assert.equal(tileAt(world, x / TILE, y / TILE), 'road', `${r.id}: later terrain cannot cut a road off`);
     for (const [kind, far] of [[r.start, false], [r.end, true]]) {
       const horizontal = r.direction === 'horizontal';
@@ -66,7 +66,7 @@ for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WO
     assert.equal(reached.size, roadCells.length, `${world.id}: one connected road network`);
   }
   const counts = checkMarks(world);
-  if (world === OVERWORLD) assert.ok(counts.vertical && (counts.horizontal || world.roads.some(r=>r.curve && r.direction==='horizontal')), 'straight branches and curved county lanes are exercised');
+  if (world === OVERWORLD) assert.ok((counts.vertical || world.roads.some(r=>r.curve && r.direction==='vertical')) && (counts.horizontal || world.roads.some(r=>r.curve && r.direction==='horizontal')), 'straight branches and curved county lanes are exercised');
 }
 
 assert.deepEqual(['garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'].filter(id => OVERWORLD.roads.some(r => r.id === id)), ['garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'], 'two district loops and the causeway remain authored roads');

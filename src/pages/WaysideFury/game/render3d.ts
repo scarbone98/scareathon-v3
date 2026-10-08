@@ -341,13 +341,6 @@ export class OverworldRenderer {
       const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:10,bevelEnabled:false}),this.material(form.color));
       mesh.rotation.x=-Math.PI/2; mesh.position.y=this.terrain.heightAt(form.points[0].x,form.points[0].y);mesh.castShadow=mesh.receiveShadow=true;this.scene.add(mesh);
     }
-    for (const road of this.world.roads) if (road.curve) for(let i=1;i<road.curve.length;i++) {
-      const a=road.curve[i-1],b=road.curve[i],dx=b.x-a.x,dz=b.y-a.y,length=Math.hypot(dx,dz),rotation=-Math.atan2(dz,dx);
-      for(let d=16;d<length-8;d+=36) {
-        const x=a.x+dx*d/length,z=a.y+dz*d/length;
-        part('box','#c7b68c',x,this.terrain.heightAt(x,z)+.25,z,14,.2,1.4,rotation);
-      }
-    }
     const shadows: THREE.Matrix4[] = [];
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
     for (const prop of this.world.props) {

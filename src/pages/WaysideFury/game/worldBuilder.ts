@@ -1,3 +1,4 @@
+import { onRoad } from './roadNetwork.ts';
 // Terrain uses tile collision; props use precise base rectangles. Positions are world pixels.
 export const TILE = 16;
 export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | "ash" | "void" | "bridge" | "corrupt";
@@ -219,9 +220,12 @@ export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolea
   if (x - radius < 0 || y - radius < 0 || x + radius > m.width || y + radius > m.height) return true;
   for (let row = Math.floor((y - radius) / TILE); row <= Math.floor((y + radius) / TILE); row++) {
     for (let col = Math.floor((x - radius) / TILE); col <= Math.floor((x + radius) / TILE); col++) {
-      if (m.collision[row * m.cols + col] && hitsRect({ x: col * TILE, y: row * TILE, w: TILE, h: TILE }, x, y, radius)) return true;
+      const ribbonWater = m.id === 'overworld' && m.roads.some(r=>r.curve) && tileAt(m,col,row)==='water' && onRoad(m,x,y,-radius);
+      if (!ribbonWater && m.collision[row * m.cols + col] && hitsRect({ x: col * TILE, y: row * TILE, w: TILE, h: TILE }, x, y, radius)) return true;
     }
   }
+  // A coarse bridge tile cannot make water outside the exact ribbon walkable.
+  if (m.id === 'overworld' && m.roads.some(r=>r.curve) && tileAt(m, Math.floor(x / TILE), Math.floor(y / TILE)) === 'bridge' && !onRoad(m,x,y,-radius)) return true;
   for (const p of m.props) for (const rect of p.footprints ?? []) {
     if (hitsRect(rect, x, y, radius)) return true;
   }
