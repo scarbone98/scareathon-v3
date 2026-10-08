@@ -4,6 +4,8 @@ import { LOCATIONS } from './content';
 import { OVERWORLD, type WorldProp } from './world';
 import { getRenderViewport } from './viewport';
 import { buildOverworldTerrain } from './terrain3d';
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition, trafficForState } from './dressing';
+import { availablePickups } from './collectibles';
 import type { AvatarStrip, HeroAvatar } from './avatar';
 import type { GameEvent, GameState, HeroId } from './sim';
 import type { RenderLabel, RenderPresentation } from './render';
@@ -92,6 +94,12 @@ export class OverworldRenderer {
   private lights = Array.from({ length: 4 }, () => new THREE.PointLight(0xffd695, 0, 100, 1.5));
   private lightSources: LightSource[] = [];
   private taxi = new THREE.Group();
+  private ambientCab = new THREE.Group();
+  private wreckCab = new THREE.Group();
+  private trafficCars: THREE.Group[] = [];
+  private strayRock: THREE.Mesh | null = null;
+  private strayRockShadow: THREE.Mesh | null = null;
+  private crashShake = 0;
   private wheels: THREE.Mesh[] = [];
   private taxiShadow: THREE.Mesh;
   private headlights: THREE.PointLight;
@@ -195,6 +203,7 @@ export class OverworldRenderer {
     this.taxi.add(this.headlights);
     this.makeTaxi();
     this.scene.add(this.taxi);
+    this.makeRoadsideVehicles();
     this.makeProps();
     this.makeMarkers();
     this.loadSheets();
@@ -330,8 +339,15 @@ export class OverworldRenderer {
           box('#aa9670', offset, 7, 0, 3.3, 14, 3.3); box('#e1c997', offset, 14.5, 0, 4, 1.2, 4);
         }
         box('#ad9a76', 0, 5, 0, prop.w, 2, 2); box('#c0aa7e', 0, 10, 0, prop.w, 2, 2);
-      } else if (prop.kind === 'station' || prop.kind === 'home' || prop.kind === 'shop' || prop.kind === 'shed') {
+      } else if (prop.kind === 'station' || prop.kind === 'home' || prop.kind === 'shop' || prop.kind === 'shed' || prop.kind === 'diner') {
         this.buildStation(prop, part);
+        if (prop.kind === 'diner') {
+          box('#d0b48f', 0, 27, prop.h * .3, prop.w - 8, 4, 13);
+          for (let k = 0; k < 10; k++) box('#a95d54', -prop.w / 2 + 10 + k * 10, 29.4, prop.h * .3, 5, .8, 13);
+        }
+      } else if (prop.kind === 'bush') {
+        part('rock', '#49694c', x, y + 4, z, 9, 6, 6, x);
+        part('rock', '#6c8555', x - 3, y + 7, z - 1, 5, 4, 4, z);
       } else if (prop.kind === 'flower') {
         box('#678359', 0, 1, 0, 7, 2, 5);
         for (let k = 0; k < 3; k++) { box('#7e9659', k * 3 - 3, 3.5, k % 2 * 3, .6, 5, .6); box(k % 2 ? '#e2bf83' : '#d8c3a1', k * 3 - 3, 6, k % 2 * 3, 2.3, 1.5, 2.3); }
@@ -342,6 +358,18 @@ export class OverworldRenderer {
         box('#314c59', -2, 12, 6.1, 14, 3, .3); box('#ead19a', 16, 8, -4, .5, 2, 3);
       } else if (prop.kind === 'sign') {
         box('#816a50', 0, 9, 0, 2.5, 18, 2.5); box('#466057', 0, 17, 0, 17, 9, 2); box('#c8bb8e', 0, 19, 1.1, 11, .6, .3);
+      } else if (prop.kind === 'mailbox') {
+        box('#715e46', 0, 8, 0, 2, 16, 2); box('#6d8b8c', 0, 17, 0, 12, 7, 6); box('#344e58', -5.8, 17, 0, .5, 5, 5); box('#d48567', 5.5, 22, 0, 5, 2, .8);
+      } else if (prop.kind === 'vending') {
+        box('#a9645b', 0, 16, 0, 20, 32, 11); box('#273d47', -2, 18, 5.6, 11, 18, .3); box('#e6cfaf', 0, 29, 5.7, 18, 2, .4);
+        box('#27383f', 0, 4, 5.7, 13, 3, .4); box('#e1bd87', 6, 15, 5.8, 2, 6, .3);
+        for (let k = 0; k < 6; k++) box(k % 2 ? '#d8a681' : '#d3d287', -5 + k % 2 * 5, 22 - Math.floor(k / 2) * 5, 5.9, 2, 3, .5);
+      } else if (prop.kind === 'puddle') {
+        box('#557b84', 0, .2, 0, prop.w, .25, 5); box('#b6cdcb', -3, .4, -1, prop.w * .55, .2, .5);
+      } else if (prop.kind === 'debris') {
+        part('rock', '#8b7561', x, y + 1, z, 3, 1.8, 2, x);
+      } else if (prop.kind === 'crater') {
+        for (let k = 0; k < 20; k++) { const angle = k * Math.PI / 10; part('rock', '#8f7366', x + Math.cos(angle) * prop.w * .46, y + 2, z + Math.sin(angle) * prop.h * .35, 4, 2, 3, angle); }
       }
     }
     for (const batch of batches.values()) {
@@ -351,6 +379,59 @@ export class OverworldRenderer {
     }
     const blobs = new THREE.InstancedMesh(this.shadowGeometry, this.shadowMaterial, shadows.length);
     shadows.forEach((matrix, index) => blobs.setMatrixAt(index, matrix)); blobs.computeBoundingSphere(); this.scene.add(blobs);
+  }
+  private makeRoadsideVehicles() {
+    this.ambientCab = this.taxi.clone(true);
+    this.ambientCab.traverse(object => { if (object instanceof THREE.PointLight) object.intensity = 0; });
+    this.scene.add(this.ambientCab, this.wreckCab);
+    const part = (group: THREE.Group, color: string, x: number, y: number, z: number, w: number, h: number, d: number) => {
+      const mesh = new THREE.Mesh(this.geometries.box, this.material(color)); mesh.position.set(x, y, z); mesh.scale.set(w, h, d); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+    };
+    part(this.wreckCab, '#514f42', 0, 3, 0, 32, 5, 16); part(this.wreckCab, '#a58349', 0, 6, 0, 30, 4, 14);
+    part(this.wreckCab, '#696655', -2, 10, 0, 17, 5, 11); part(this.wreckCab, '#2d434c', -2, 10, 5.6, 13, 3, .4);
+    part(this.wreckCab, '#c7a364', 11, 7, 0, 6, 2, 12);
+    for (const x of [-11, 10]) for (const z of [-7, 7]) part(this.wreckCab, '#192b32', x, 2, z, 5, 4, 2);
+    const roofRock = new THREE.Mesh(this.geometries.rock, this.material('#79786b')); roofRock.position.set(1, 14, 0); roofRock.scale.set(8, 6, 7); this.wreckCab.add(roofRock);
+    this.strayRock = new THREE.Mesh(this.geometries.rock, this.material('#898476')); this.strayRock.scale.set(9, 8, 8); this.strayRock.castShadow = true;
+    this.strayRockShadow = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial); this.strayRockShadow.scale.set(22, 1, 16);
+    this.scene.add(this.strayRock, this.strayRockShadow);
+    for (const color of ['#77999c', '#bd7661']) {
+      const group = new THREE.Group(); part(group, '#26373e', 0, 3, 0, 30, 5, 15); part(group, color, 0, 7, 0, 32, 6, 14);
+      part(group, color, -2, 12, 0, 17, 6, 11); part(group, '#314b58', -2, 12, 5.7, 14, 4, .4);
+      for (const x of [-10, 10]) for (const z of [-7, 7]) part(group, '#182a31', x, 3, z, 5, 5, 2);
+      part(group, '#ead9ad', 16.2, 8, 4, .5, 2, 3); this.scene.add(group); this.trafficCars.push(group);
+    }
+    for (const group of [this.wreckCab, ...this.trafficCars]) {
+      const batches = new Map<string, { source: THREE.Mesh; matrices: THREE.Matrix4[] }>();
+      for (const child of [...group.children]) {
+        if (!(child instanceof THREE.Mesh) || Array.isArray(child.material)) continue;
+        const key = `${child.geometry.uuid}:${child.material.uuid}`;
+        let batch = batches.get(key); if (!batch) { batch = { source: child, matrices: [] }; batches.set(key, batch); }
+        child.updateMatrix(); batch.matrices.push(child.matrix.clone()); group.remove(child);
+      }
+      for (const { source, matrices } of batches.values()) {
+        const mesh = new THREE.InstancedMesh(source.geometry, source.material, matrices.length);
+        matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix)); mesh.castShadow = mesh.receiveShadow = true; mesh.computeBoundingSphere(); group.add(mesh);
+      }
+    }
+  }
+  private updateDressing(s: GameState) {
+    const { x, y } = AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
+    this.ambientCab.visible = !s.ambientTaxiWrecked && this.nearView(x, y, 80);
+    this.wreckCab.visible = s.ambientTaxiWrecked && this.nearView(x, y, 80);
+    this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
+    const rock = taxiRockPosition(s);
+    if (this.strayRock && this.strayRockShadow) {
+      this.strayRock.visible = this.strayRockShadow.visible = !!rock && this.nearView(rock.x, rock.y, 190);
+      if (rock) {
+        const ground = this.terrain.heightAt(rock.x, rock.y); this.strayRock.position.set(rock.x, ground + rock.height + 8, rock.y); this.strayRock.rotation.set(rock.rotation, 0, rock.rotation * .6);
+        this.strayRockShadow.position.set(rock.x, ground + .5, rock.y);
+      }
+    }
+    trafficForState(s).forEach((traffic, index) => {
+      const group = this.trafficCars[index]; group.position.set(traffic.x, this.terrain.heightAt(traffic.x, traffic.y), traffic.y);
+      group.rotation.y = traffic.direction < 0 ? Math.PI : 0; group.visible = this.nearView(traffic.x, traffic.y, 55);
+    });
   }
   private buildStation(prop: WorldProp, part: (shape: keyof OverworldRenderer['geometries'], color: string, x: number, y: number, z: number, w: number, h: number, d: number, rotation?: number, emissive?: boolean) => void) {
     const x = prop.x + prop.w / 2, z = prop.y + prop.h / 2;
@@ -561,6 +642,7 @@ export class OverworldRenderer {
     const fixZ = maxZ - minZ > OVERWORLD.height ? OVERWORLD.height / 2 - (minZ + maxZ) / 2 : minZ < 0 ? -minZ : maxZ > OVERWORLD.height ? OVERWORLD.height - maxZ : 0;
     this.target.x += fixX; this.target.z += fixZ; this.camera.position.x += fixX; this.camera.position.z += fixZ;
     this.camera.lookAt(this.target); this.camera.updateMatrixWorld(); this.cameraReady = true;
+    if (!this.reducedMotion && this.crashShake > 0) { this.camera.position.x += Math.sin(this.visualTime * 113) * this.crashShake; this.camera.position.z += Math.cos(this.visualTime * 97) * this.crashShake * .4; }
     // Controller already interpolates actors. Only the camera gets follow ease;
     // the taxi stays on the supplied collision/interaction position and surface.
     const actorElevation = this.terrain.heightAt(s.x, s.y);
@@ -664,6 +746,31 @@ export class OverworldRenderer {
       const angle = k * Math.PI / 4, spread = burst.age * 50;
       particle(burst.x + Math.cos(angle) * spread, this.terrain.heightAt(burst.x, burst.y) + 8 + Math.sin(burst.age * 6) * 12, burst.y + Math.sin(angle) * spread, (1 - burst.age / .48) * 1.5, burst.color);
     }
+    if (s.ambientTaxiWrecked && this.nearView(AMBIENT_TAXI.x, AMBIENT_TAXI.y, 80)) {
+      for (let k = 0; k < 6; k++) {
+        const life = ((this.reducedMotion ? 0 : s.time) * .42 + k / 6) % 1;
+        particle(AMBIENT_TAXI.x + Math.sin(s.time + k) * life * 7, this.terrain.heightAt(AMBIENT_TAXI.x, AMBIENT_TAXI.y) + 19 + life * 30, AMBIENT_TAXI.y + life * 3, 2 + life * 3, 0x78817d);
+      }
+    }
+    const crashAge = s.ambientTaxiGag - TAXI_ROCK_IMPACT;
+    if (!this.reducedMotion && crashAge >= 0 && crashAge < .7) for (let k = 0; k < 12; k++) {
+      const angle = k * 2.4, spread = crashAge * (25 + k % 5 * 9);
+      particle(AMBIENT_TAXI.x + Math.cos(angle) * spread, this.terrain.heightAt(AMBIENT_TAXI.x, AMBIENT_TAXI.y) + 12 + Math.sin(crashAge * 4) * 13, AMBIENT_TAXI.y + Math.sin(angle) * spread, (1 - crashAge / .7) * (k % 3 ? 3 : 1), k % 3 ? 0xb4a482 : 0xffdda0);
+    }
+    for (const pickup of availablePickups(s)) {
+      if (Math.hypot(pickup.x - s.x, pickup.y - s.y) > 80 || !this.nearView(pickup.x, pickup.y, 20)) continue;
+      particle(pickup.x, this.terrain.heightAt(pickup.x, pickup.y) + 6 + (this.reducedMotion ? 0 : Math.sin(s.time * 3 + pickup.x) * 1.5), pickup.y, 1.3, pickup.kind === 'trinket' ? 0xedc3fa : pickup.kind === 'lore' ? 0xb9dfff : 0xffe3a3);
+    }
+    if (!this.reducedMotion) {
+      for (const bird of roadsideBirds(s)) if (this.nearView(bird.x, bird.y, 20)) {
+        const ground = this.terrain.heightAt(bird.x, bird.y) + 2 + bird.height;
+        particle(bird.x, ground, bird.y, 1.2, 0x36434b); particle(bird.x - 2, ground + bird.wing, bird.y, .9, 0x36434b); particle(bird.x + 2, ground + bird.wing, bird.y, .9, 0x36434b);
+      }
+      for (let k = 0; k < 14; k++) {
+        const x = (k * 83 + s.time * 7) % OVERWORLD.width, y = 390 + (k * 23 + s.time * 2) % 200;
+        if (this.nearView(x, y, 20)) particle(x, this.terrain.heightAt(x, y) + 4 + Math.sin(s.time + k) * 2, y, .6, k % 2 ? 0xbbaa71 : 0xcf9866);
+      }
+    }
     for (const shot of s.projectiles) particle(shot.x, this.terrain.heightAt(shot.x, shot.y) + 10, shot.y, shot.radius, shot.owner === 'enemy' ? 0xec9aaf : 0xa3eddd);
     this.effectMesh.count = index; this.effectMesh.instanceMatrix.needsUpdate = true;
     if (this.effectMesh.instanceColor) this.effectMesh.instanceColor.needsUpdate = true;
@@ -673,7 +780,8 @@ export class OverworldRenderer {
     if (this.disposed || this.contextLost || this.renderer.getContext().isContextLost()) throw new Error('The 3D graphics context is unavailable');
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
-    this.follow(s, dt); this.atmosphere(); this.updateActors(s); this.updateEffects(s, dt);
+    this.crashShake = Math.max(0, this.crashShake - dt * 14);
+    this.follow(s, dt); this.atmosphere(); this.updateActors(s); this.updateDressing(s); this.updateEffects(s, dt);
     this.renderer.info.reset();
     if (this.postTarget) {
       this.renderer.setRenderTarget(this.postTarget); this.renderer.render(this.scene, this.camera);
@@ -694,11 +802,14 @@ export class OverworldRenderer {
     };
     for (const location of LOCATIONS) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
     for (const prop of OVERWORLD.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
+    for (const prop of OVERWORLD.props) if (prop.label && ['diner', 'sign', 'vending'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
+    if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
     return { camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(_s: GameState, event: GameEvent) {
+    if (event.type === 'ambient-taxi-crash') { this.crashShake = 3; this.bursts.push({ x: event.x, y: event.y, age: 0, color: 0xffdfa4 }); }
     if (event.type === 'hit' || event.type === 'kill') {
       this.bursts.push({ x: event.x, y: event.y, age: 0, color: event.type === 'hit' ? 0xffd9aa : 0xc5a1e2 });
       if (this.bursts.length > 8) this.bursts.shift();

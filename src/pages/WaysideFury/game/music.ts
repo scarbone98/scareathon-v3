@@ -2,7 +2,7 @@
 export type Mood = 'off' | 'title' | 'bbq' | 'hub' | 'taxi' | 'cozy' | 'dungeon' | 'boss' | 'haywire';
 export type MusicMood = Mood;
 export type Jingle = 'victory' | 'level' | 'item' | 'gameOver' | 'taxiHorn' | 'darkSky';
-export type SfxName = 'attack' | 'hit' | 'hurt' | 'block' | 'dash' | 'ki' | 'beam' | 'swap' | 'select';
+export type SfxName = 'attack' | 'hit' | 'hurt' | 'block' | 'dash' | 'ki' | 'beam' | 'swap' | 'select' | 'crunch';
 export interface AudioSettings { musicVolume: number; sfxVolume: number }
 type TrackMood = Exclude<Mood, 'off'>;
 type Instrument = 'pulse' | 'triangle' | 'sine' | 'noise' | 'power';
@@ -551,6 +551,7 @@ export class MusicDirector {
       case 'beam': tone(45, 0.3, 29, 0.105); noise(0.25, 2200, 0.11); break;
       case 'swap': tone(79, 0.1, 7, 0.07); break;
       case 'select': tone(81, 0.055, 0, 0.065); break;
+      case 'crunch': tone(35, 0.32, -23, 0.16); noise(0.28, 1700, 0.22); noise(0.1, 6400, 0.12); break;
     }
   }
   jingle(name: Jingle): void {

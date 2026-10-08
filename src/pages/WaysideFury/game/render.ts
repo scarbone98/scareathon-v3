@@ -6,6 +6,8 @@ import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
+import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition, trafficForState } from './dressing';
+import { availablePickups } from './collectibles';
 
 interface Sheet { url: string; w: number; h: number; frames: number }
 const SHEETS = {
@@ -152,9 +154,14 @@ export class Renderer {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
+    if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y - 38, 'caption');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels };
   }
   onEvent(s: GameState, event: GameEvent) {
+    if (event.type === 'ambient-taxi-crash') {
+      this.shake = Math.max(this.shake, 5);
+      this.bursts.push({ x: event.x, y: event.y - 10, color: '#ffe0a1', life: .48, maxLife: .48, seed: 79, strength: 32 });
+    }
     if (event.type === 'hit') {
       this.shake = Math.max(this.shake, Math.min(4, 1 + event.damage / 14));
       this.bursts.push({ x: event.x, y: event.y - 9, color: event.target === 'hero' ? '#ffab94' : ACCENT[s.active], life: .22, maxLife: .22, seed: Math.round(event.x + event.y), strength: Math.min(22, 10 + event.damage / 3) });
@@ -214,6 +221,7 @@ export class Renderer {
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
+    if (s.scene === 'overworld') for (const traffic of trafficForState(s)) if (this.visible(traffic.x, traffic.y, 50)) actors.push({ y: traffic.y, draw: () => this.parkedCar(traffic.x, traffic.y, traffic.color, traffic.direction) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
@@ -227,6 +235,8 @@ export class Renderer {
       this.avatar = ownAvatar;
     } });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
+    this.pickupGlints(s, motionTime);
+    if (s.scene === 'overworld') this.rockGag(s, motionTime);
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
@@ -235,6 +245,48 @@ export class Renderer {
     if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }
   }
   private visible(x: number, y: number, margin = 40) { return x >= this.camera.x - margin && x <= this.camera.x + this.viewport.width + margin && y >= this.camera.y - margin && y <= this.camera.y + this.viewport.height + margin; }
+  private pickupGlints(s: GameState, time: number) {
+    for (const pickup of availablePickups(s)) {
+      if (Math.hypot(pickup.x - s.x, pickup.y - s.y) > 80 || !this.visible(pickup.x, pickup.y)) continue;
+      const bob = this.reducedMotion ? 0 : Math.sin(time * 3 + pickup.x) * 1.5;
+      const color = pickup.kind === 'lore' ? '#b9dfff' : pickup.kind === 'trinket' ? '#edc3fa' : '#ffe3a3';
+      this.ctx.globalAlpha = .28; this.glow(pickup.x, pickup.y - 4 + bob, 5, color); this.ctx.globalAlpha = 1;
+      this.rect(pickup.x - .6, pickup.y - 8 + bob, 1.2, 6, color); this.rect(pickup.x - 2.6, pickup.y - 5.6 + bob, 5.2, 1.2, color);
+    }
+  }
+  private parkedCar(x: number, y: number, color: string, direction = 1) {
+    const c = this.ctx; c.save(); c.translate(x, y); c.scale(direction, 1);
+    this.shadow(0, 1, 34); this.rect(-15, -11, 30, 10, '#25353c');
+    this.rect(-16, -13, 32, 9, color); this.rect(-8, -20, 18, 9, color);
+    this.rect(-6, -18, 13, 6, '#314b58'); this.rect(-5, -17, 6, 1, '#7caaaa');
+    this.rect(-13, -3, 5, 4, '#17282e'); this.rect(8, -3, 5, 4, '#17282e');
+    this.rect(14, -10, 2, 3, '#f0deb1'); this.rect(-16, -9, 2, 2, '#c86661'); this.rect(-14, -4, 27, 1, '#9ba9a1');
+    c.restore();
+  }
+  private rockGag(s: GameState, time: number) {
+    const rock = taxiRockPosition(s), c = this.ctx;
+    if (rock && this.visible(rock.x, rock.y - rock.height, 160)) {
+      c.globalAlpha = .2 + (1 - rock.height / 190) * .25;
+      c.save(); c.translate(rock.x, rock.y); c.scale(1, .35); this.disc(0, 0, 8, '#1b252d'); c.restore(); c.globalAlpha = 1;
+      c.save(); c.translate(rock.x, rock.y - rock.height); c.rotate(rock.rotation);
+      this.disc(0, 0, 9, '#625d59'); this.rect(-5, -6, 8, 4, '#aaa18d'); this.rect(3, -2, 5, 7, '#464952'); c.restore();
+    }
+    const impact = s.ambientTaxiGag - TAXI_ROCK_IMPACT;
+    if (impact >= 0 && impact < .75 && !this.reducedMotion) {
+      for (let k = 0; k < 15; k++) {
+        const a = k * 2.4, spread = impact * (25 + k % 5 * 8);
+        c.globalAlpha = (1 - impact / .75) * .5;
+        this.disc(AMBIENT_TAXI.x + Math.cos(a) * spread, AMBIENT_TAXI.y - 12 + Math.sin(a) * spread * .5 - impact * 8, 3 + impact * 7, k % 4 ? '#b8a786' : '#ffe2a4');
+      } c.globalAlpha = 1;
+    }
+    if (s.ambientTaxiWrecked && this.visible(AMBIENT_TAXI.x, AMBIENT_TAXI.y, 90)) {
+      for (let k = 0; k < 6; k++) {
+        const life = (time * .42 + k / 6) % 1;
+        c.globalAlpha = (1 - life) * .4;
+        this.disc(AMBIENT_TAXI.x + Math.sin(time + k) * (2 + life * 8), AMBIENT_TAXI.y - 21 - life * 35, 3 + life * 7, '#727776');
+      } c.globalAlpha = 1;
+    }
+  }
   private drawCinematic(s: GameState) {
     const c = this.ctx, { width, height } = this.viewport;
     const sky = c.createLinearGradient(0, 0, width, height);
@@ -323,6 +375,14 @@ export class Renderer {
         const wing = Math.floor(time * 6) % 2 ? 1 : -1;
         this.rect(x - 3, y + wing, 3, 1, '#eee3bd'); this.rect(x, y, 2, 1, '#eee3bd'); this.rect(x + 2, y + wing, 3, 1, '#eee3bd');
       }
+      for (const bird of roadsideBirds(s)) if (this.visible(bird.x, bird.y, 20)) {
+        this.rect(bird.x - 4, bird.y - bird.height + bird.wing, 4, 1, '#353e46'); this.rect(bird.x, bird.y - bird.height, 2, 2, '#353e46'); this.rect(bird.x + 2, bird.y - bird.height + bird.wing, 4, 1, '#353e46');
+      }
+      for (let k = 0; k < 16; k++) {
+        const x = (k * 83 + time * 7) % world.width, y = 390 + (k * 23 + time * 2) % 200;
+        if (!this.visible(x, y, 5)) continue;
+        this.ctx.globalAlpha = .3; this.rect(x, y + Math.sin(time + k) * 5, 2, 1, k % 2 ? '#bbaa71' : '#cf9866');
+      } this.ctx.globalAlpha = 1;
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
@@ -330,20 +390,52 @@ export class Renderer {
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {
       const sway = this.reducedMotion ? 0 : Math.sin(time * 1.6 + x * .04) * .8;
-      c.save(); c.translate(sway, 0); this.tree(x, y);
-      if (prop.kind === 'pine') { this.rect(x - 5, y - 21, 10, 2, '#40534c'); this.rect(x - 3, y - 28, 6, 1, '#647064'); }
+      c.save(); c.translate(x + sway, y); const variation = .86 + (Math.floor(x) % 5) * .06; c.scale(variation, variation); this.tree(0, 0);
+      if (prop.kind === 'pine') { this.rect(-5, -21, 10, 2, '#40534c'); this.rect(-3, -28, 6, 1, '#647064'); }
       c.restore(); return;
     }
     if (prop.kind === 'lamp') { this.lamp(x, y, time, s.palette === 'eightbit' ? '#db9cdb' : '#efce8f'); return; }
     if (prop.kind === 'portal') { if (s.scene !== 'overworld') this.portal(x, y, time); return; }
-    if (prop.kind === 'car') { this.taxi(x, y, 1, 0, time, false); return; }
+    if (prop.kind === 'car') { this.parkedCar(x, y, prop.color ?? '#799ba1'); return; }
+    if (prop.kind === 'ambient-taxi') {
+      if (!s.ambientTaxiWrecked) this.taxi(x, y, 1, 0, time, false);
+      else {
+        this.shadow(x, y, 37); this.rect(x - 16, y - 10, 32, 9, '#716343'); this.rect(x - 15, y - 12, 29, 5, '#ad874b');
+        this.rect(x - 10, y - 17, 19, 8, '#5d5c55'); this.rect(x - 7, y - 16, 11, 5, '#293e45');
+        this.rect(x - 14, y - 3, 5, 4, '#17282e'); this.rect(x + 8, y - 3, 5, 4, '#17282e');
+        this.disc(x + 2, y - 18, 8, '#6c6b65'); this.rect(x - 3, y - 23, 7, 3, '#989180'); this.rect(x + 10, y - 10, 6, 2, '#e8ba70');
+        this.rect(x - 6, y - 10, 1, 5, '#252c35'); this.rect(x - 10, y - 7, 4, 1, '#252c35');
+      } return;
+    }
+    if (prop.kind === 'bush') {
+      this.shadow(x, y, prop.w); this.disc(x - 5, y - 5, 6, '#3d6249'); this.disc(x + 4, y - 6, 7, '#527551'); this.disc(x, y - 10, 5, '#6d8a57');
+      this.rect(x - 6, y - 8, 2, 1, '#a0a665'); return;
+    }
+    if (prop.kind === 'puddle') {
+      c.save(); c.translate(x, y - 2); c.scale(1, .25); c.globalAlpha = .65; this.disc(0, 0, prop.w / 2, '#557b84'); c.restore();
+      this.rect(x - prop.w / 3, y - 3, prop.w / 2, .6, '#c5d5ce'); return;
+    }
+    if (prop.kind === 'debris') { this.rect(x - 4, y - 3, 7, 3, '#796962'); this.rect(x + 2, y - 5, 3, 4, '#b29271'); return; }
+    if (prop.kind === 'mailbox') {
+      this.rect(x - 1, y - 14, 2, 15, '#715e46'); this.rect(x - 6, y - 19, 12, 7, '#758f90'); this.rect(x - 5, y - 18, 4, 5, '#496269'); this.rect(x + 5, y - 20, 1, 7, '#b4a486'); this.rect(x + 5, y - 20, 5, 2, '#db8a69'); return;
+    }
+    if (prop.kind === 'vending') {
+      this.shadow(x, y, 24); this.rect(x - 10, y - 32, 20, 31, '#ac655a'); this.rect(x - 9, y - 31, 18, 3, '#e8cbb1');
+      this.rect(x - 7, y - 25, 10, 17, '#273c45'); for (let k = 0; k < 6; k++) this.rect(x - 5 + k % 2 * 4, y - 23 + Math.floor(k / 2) * 5, 2, 3, k % 2 ? '#d6a98e' : '#d9d28a');
+      this.rect(x + 5, y - 18, 2, 6, '#deb787'); this.rect(x - 6, y - 5, 13, 3, '#323b40'); return;
+    }
     if (prop.kind === 'npc') {
       this.shadow(x, y);
       const id = prop.label === 'Jon' ? 'jon' : 'alex';
       this.sprite(id, x, y - (this.reducedMotion ? 0 : Math.sin(time * 2 + x) * .5), time); return;
     }
-    if (prop.kind === 'station' || prop.kind === 'shop' || prop.kind === 'home' || prop.kind === 'shed') {
-      this.worldBuilding(prop, time); return;
+    if (prop.kind === 'station' || prop.kind === 'shop' || prop.kind === 'home' || prop.kind === 'shed' || prop.kind === 'diner') {
+      this.worldBuilding(prop, time);
+      if (prop.kind === 'diner') {
+        this.rect(prop.x + 3, prop.y + 37, prop.w - 6, 5, '#dfb791');
+        for (let k = 0; k < 11; k++) this.rect(prop.x + 3 + k * 9.7, prop.y + 37, 5, 5, '#a65e55');
+        this.rect(x - 25, prop.y + 14, 50, 11, '#35474b'); this.rect(x - 20, prop.y + 17, 40, 2, '#f2d2a0'); this.rect(x - 15, prop.y + 21, 30, 1, '#c68e72');
+      } return;
     }
     if (prop.kind === 'crater') {
       c.save(); c.translate(x, prop.y + prop.h / 2); c.scale(1, .6);

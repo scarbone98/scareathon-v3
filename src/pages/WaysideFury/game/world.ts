@@ -4,7 +4,7 @@ export type TileKind = "grass" | "dirt" | "road" | "water" | "sand" | "stone" | 
 export interface CollisionRect { x: number; y: number; w: number; h: number }
 export interface WorldProp {
   id: string;
-  kind: "tree" | "pine" | "rock" | "flower" | "lamp" | "fence" | "station" | "shop" | "home" | "shed" | "bbq" | "sign" | "car" | "chest" | "npc" | "crater" | "portal";
+  kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal";
   // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
   footprints?: CollisionRect[];
@@ -44,14 +44,16 @@ function baseFootprints(kind: WorldProp["kind"], x: number, y: number, w: number
   const base = (width: number, height: number, offset = 0): CollisionRect[] =>
     [{ x: cx - width / 2, y: bottom - height + offset, w: width, h: height }];
   switch (kind) {
-    case "flower": return [];
+    case "flower": case "puddle": case "debris": return [];
+    case "bush": return base(Math.max(8, w * .6), 5);
     case "tree": case "pine": return base(4, 11, 1);
     case "lamp": return base(6, 6, 1);
-    case "sign": return base(4, 6, 1);
+    case "sign": case "mailbox": return base(4, 6, 1);
+    case "vending": return base(w - 4, 10);
     case "rock": return base(14, 6);
     case "npc": return base(10, 6, 1);
     case "chest": return base(22, 12);
-    case "car": return base(26, 19, 5);
+    case "car": case "ambient-taxi": return base(30, 17, 1);
     case "bbq": return base(24, 12, 4);
     case "fence": return base(w, 4, 1);
     case "portal":
@@ -140,7 +142,30 @@ export const OVERWORLD = (() => {
   // Overworld portals are rendered at their location markers, at these base positions.
   prop(m, "portal", 632, 120, 48, 56); prop(m, "portal", 1008, 504, 48, 56);
   for (let x = 336; x < 1040; x += 144) { prop(m, "lamp", x, 422, 12, 30); prop(m, "fence", x + 32, 526, 64, 12); }
-  prop(m, "car", 352, 464, 32, 18); prop(m, "sign", 1000, 414, 24, 24);
+  // A separate pullout keeps this NPC cab off the player's starting position
+  // and leaves both traffic lanes open after the crash.
+  const cab = prop(m, "ambient-taxi", 384, 512, 32, 18); cab.id = "ambient-roadside-taxi";
+  const lore = prop(m, "sign", 456, 420, 24, 24, "Old County Road"); lore.id = "roadside-lore-sign";
+  const machine = prop(m, "vending", 550, 398, 22, 34, "Candy machine"); machine.id = "roadside-vending";
+  prop(m, "diner", 464, 330, 112, 64, "Last Light Diner");
+  paint(m, 500, 394, 40, 54, "dirt");
+  prop(m, "car", 606, 402, 36, 22); prop(m, "car", 844, 516, 36, 22);
+  prop(m, "rock", 292, 526, 24, 16);
+  prop(m, "tree", 748, 274, 24, 32);
+  prop(m, "sign", 1000, 414, 24, 24, "Blast Site · East");
+  for (const [x, y] of [[314, 528], [716, 412], [926, 527]]) prop(m, "mailbox", x, y, 14, 22);
+  for (let n = 0; n < 22; n++) {
+    const x = 282 + n * 39, y = n % 2 ? 556 + n % 3 * 11 : 393 - n % 3 * 14;
+    if (x > 472 && x < 580 && y < 448 || x > 1000 && y < 440) continue;
+    prop(m, n % 4 ? "bush" : "pine", x, y, n % 4 ? 22 : 24, n % 4 ? 14 : 36);
+    prop(m, "flower", x + 19, y + 16, 18, 12);
+  }
+  for (const [x, y, w] of [[766, 473, 26], [307, 483, 18], [990, 450, 22]]) prop(m, "puddle", x, y, w, 7);
+  for (let n = 0; n < 16; n++) {
+    const x = 950 + (n * 29) % 235, y = 244 + (n * 41) % 184;
+    if (x < 1008 || y > 415) prop(m, n % 3 ? "debris" : "rock", x, y, n % 3 ? 11 : 22, n % 3 ? 7 : 17);
+  }
+  prop(m, "crater", 916, 368, 38, 25); prop(m, "crater", 1187, 400, 30, 20);
   m.spawn = { x: 208, y: 480 }; scatter(m, "grass", 9); return m;
 })();
 export const HUB_WORLD = (() => {

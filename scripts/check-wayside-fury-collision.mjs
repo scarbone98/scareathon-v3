@@ -159,8 +159,8 @@ for (const world of maps) {
     assert.ok(navigation(destination).reachable({ x: exit.entryX, y: exit.entryY }), `${world.id}: ${exit.id} arrives safely in ${destination.id}`);
   }
   for (const prop of world.props) {
-    if (prop.kind === 'flower') {
-      assert.equal(prop.footprints?.length ?? 0, 0, `${prop.id}: flowers remain walk-through`);
+    if (['flower', 'puddle', 'debris'].includes(prop.kind)) {
+      assert.equal(prop.footprints?.length ?? 0, 0, `${prop.id}: ground dressing remains walk-through`);
       continue;
     }
     assert.ok(prop.footprints?.length, `${prop.id}: physical props have a collision footprint`);
