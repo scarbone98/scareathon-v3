@@ -17,3 +17,6 @@ for(const file of ['render.ts','render3d.ts','renderSpace2d.ts','renderSpace3d.t
  assert.match(source,/applyEnemyWindup|enemyWindupTell|drawLunarBody/,file);
 }
 console.log('Enemy tells: final 250ms only, feet anchored, no state writes or directional ground overlays.');
+
+const hud=await readFile(new URL('../src/pages/WaysideFury/page.tsx',import.meta.url),'utf8');
+assert.doesNotMatch(hud,/boss\.windup|RUSH — DASH ASIDE|RADIAL BLAST — GUARD OR DASH/,'HUD must not announce the attack before its body tell');

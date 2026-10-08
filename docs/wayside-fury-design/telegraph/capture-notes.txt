@@ -6,7 +6,8 @@ with default Canvas and optional 3D. Blast, Woods and City share Canvas in
 sustained FPS or thermal measurements. All browser launches use --mute-audio.
 
 Directional rays, lanes, cones, target circles, boss ground rings and long
-warning glyphs are removed. The final 250 ms of each existing enemy wind-up
+warning glyphs are removed. Live boss HUD pattern announcements are replaced
+with static recovery hints. The final 250 ms of each existing enemy wind-up
 shows a subtle body tint and squash. Countdown, attack timing, damage, AI,
 existing audio cues, saves, receipts and co-op state are unchanged. Shields,
 traversal pads and released projectiles remain visible. The lantern's active
