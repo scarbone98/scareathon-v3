@@ -1,4 +1,4 @@
-import { campaignLocations } from "./campaign.ts";
+import { campaignLocations, sameCampaignMap } from "./campaign.ts";
 import { ZONE_PREVIEWS } from './zonePreviews';
 import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
@@ -600,7 +600,7 @@ export class OverworldRenderer {
   syncRemotePeers(s: GameState) {
     // The bridge can release departed actors even while this renderer is dormant
     // behind a 2D scene. Raw avatar canvases stay available for a later reunion.
-    const seats = new Set((s.coop?.remoteHeroes ?? []).filter(peer => peer.scene === s.scene && peer.room === s.room).map(peer => peer.seat));
+    const seats = new Set((s.coop?.remoteHeroes ?? []).filter(peer => sameCampaignMap(s, peer)).map(peer => peer.seat));
     for (const seat of this.remoteTaxis.keys()) if (!seats.has(seat)) this.removeRemoteTaxi(seat);
     for (const seat of this.remoteAvatarSheets.keys()) if (!seats.has(seat)) this.releaseRemoteAvatarSheets(seat);
   }
@@ -723,7 +723,7 @@ export class OverworldRenderer {
     ];
     for (const hero of greeters) this.billboard(`crew-${hero.id}`, hero.id, hero.x, hero.y, hero.id === 'you' ? .65 : 1);
     // Occupants sit behind the opaque cabin glass; no cutout through the roof.
-    const peers = (s.coop?.remoteHeroes ?? []).filter(peer => peer.scene === s.scene && peer.room === s.room);
+    const peers = (s.coop?.remoteHeroes ?? []).filter(peer => sameCampaignMap(s, peer));
     this.syncRemotePeers(s);
     for (const peer of peers) {
       const taxi = this.remoteTaxi(peer.seat), elevation = this.terrain.heightAt(peer.x, peer.y);
@@ -830,7 +830,7 @@ export class OverworldRenderer {
     for (const prop of OVERWORLD.props) if (prop.label && ['diner', 'sign', 'vending'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', AMBIENT_TAXI.x, AMBIENT_TAXI.y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
-    for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
+    for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
     const focus = this.scratch.set(s.x, this.terrain.heightAt(s.x, s.y), s.y).project(this.camera);
     return { focus: { x: (focus.x + 1) / 2, y: (1 - focus.y) / 2 }, camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };
   }

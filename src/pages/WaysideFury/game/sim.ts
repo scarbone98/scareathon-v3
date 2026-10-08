@@ -1,4 +1,4 @@
-import { campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF } from "./campaign.ts";
+import { sameCampaignMap, campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF } from "./campaign.ts";
 import { HUB_POINTS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -35,6 +35,7 @@ export interface CoopRuntime {
   reviveHoldTarget?: string;
   worldClearedRooms?: string[];
   worldChapter?: number; protocolVersion?: number;
+  worldBosses?: string[]; worldCampaignMilestones?: string[]; worldSolvedInteractions?: string[]; worldCompletedCinematics?: string[];
 }
 export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
@@ -186,6 +187,9 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string): void {
   const resolved = resolveCampaignMap(mapId ?? legacyMapId(scene, room) ?? "unknown");
   if (resolved.fallback) { scene = "hub"; room = 0; }
+  else if (mapId && !["prologue", "shift", "results", "dead"].includes(scene)) {
+    scene = resolved.definition.scene as Scene; room = resolved.definition.room;
+  }
   const world = resolved.map;
   s.mapId = world.id;
   s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
@@ -229,8 +233,9 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   if (s.clearedRooms.includes("realm-0")) {
     s.chapter = Math.max(2, s.chapter);
     if (!s.campaignMilestones.includes("realm-0")) s.campaignMilestones.push("realm-0");
-    if (scene === "hub" || scene === "overworld") s.notice = WOODS_HANDOFF;
+
   }
+  if ((scene === "hub" || scene === "overworld") && canEnter(s, "forest")) s.notice = WOODS_HANDOFF;
   if (resolved.fallback) s.notice = "Unknown area. Returned safely to Wayside.";
   extraCoopSpawns(s); syncCoopLevel(s);
 }
@@ -456,7 +461,7 @@ interface CombatTarget { x: number; y: number; hero: HeroState; guard: boolean; 
 function combatTargets(s: GameState): CombatTarget[] {
   const targets: CombatTarget[] = activeHero(s).hp > 0 ? [{ x: s.x, y: s.y, hero: activeHero(s), guard: s.guard, dashTimer: s.dashTimer, seat: s.coop?.seat ?? 0 }] : [];
   if (s.coop?.role === "host") for (const remote of s.coop.remoteHeroes) {
-    if (remote.hero.hp <= 0 || remote.downed || remote.scene !== s.scene || remote.room !== s.room) continue;
+    if (remote.hero.hp <= 0 || remote.downed || !sameCampaignMap(s, remote)) continue;
     targets.push({ x: remote.x, y: remote.y, hero: remote.hero, guard: remote.guard, dashTimer: remote.dashTimer, seat: remote.seat, remote });
   }
   return targets;
@@ -476,7 +481,7 @@ function updateCoopRevives(s: GameState, input: Input, dt: number) {
   if (!coop) return;
   coop.downed = activeHero(s).hp <= 0;
   if (coop.role !== "host") return;
-  const teammates = coop.remoteHeroes.filter(peer => peer.scene === s.scene && peer.room === s.room);
+  const teammates = coop.remoteHeroes.filter(peer => sameCampaignMap(s, peer));
   const players = [{ seat: coop.seat, x: s.x, y: s.y, hp: activeHero(s).hp, interact: input.interact },
     ...teammates.map(peer => ({ seat: peer.seat, x: peer.x, y: peer.y, hp: peer.hero.hp, interact: peer.interact === true }))];
   const timers = coop.reviveTimers ??= {}, recentlyRevived = coop.revivedUntil ??= {};
@@ -691,7 +696,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   const candidates: InteractionCandidate[] = [];
   const add = (target: InteractTarget, radius = 28, distance = Math.hypot(s.x - target.x, s.y - target.y)) => candidates.push({ ...target, radius, distance });
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
-    if (peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
+    if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
   for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
   if (s.scene === "dungeon" || s.scene === "realm") {
@@ -741,7 +746,9 @@ function openDialogue(s: GameState, speaker: string, lines: string[]): void {
 }
 function travel(s: GameState, door: WorldExit) {
   if (door.target === "realm") beginRealmShift(s);
-  else {
+  else if (door.targetMapId) {
+    if (enterCampaignMap(s, door.targetMapId)) { s.x = door.entryX; s.y = door.entryY; }
+  } else {
     enterScene(s, typeof door.target === "number" ? "dungeon" : door.target,
       typeof door.target === "number" ? door.target : 0, door.targetMapId);
     if (s.scene !== "results" && (!door.targetMapId || s.mapId === door.targetMapId)) { s.x = door.entryX; s.y = door.entryY; }

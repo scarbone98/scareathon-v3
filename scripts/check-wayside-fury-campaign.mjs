@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { AREAS, CHAPTERS, canEnter, campaignLocations, getMap } from '../src/pages/WaysideFury/game/campaign.ts';
+import { AREAS, CHAPTERS, canEnter, campaignLocations, getMap, sameCampaignMap } from '../src/pages/WaysideFury/game/campaign.ts';
 import { newGame, enterScene, enterCampaignMap, interact, interactTarget, idleInput, step, HERO_IDS } from '../src/pages/WaysideFury/game/sim.ts';
 import { ALL_WORLDS, BLAST_WORLDS, HUB_WORLD, REALM_WORLD, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 import { makeSave, restoreSave } from '../src/pages/WaysideFury/game/save.ts';
@@ -45,9 +45,16 @@ assert.equal(AREAS.find(area => area.id === 'space').renderer, 'space');
 for (const id of ['woods', 'city', 'finale']) assert.equal(AREAS.find(area => area.id === id).renderer, 'shared-2d');
 const state = newGame();
 assert.equal(canEnter(state, 'forest'), false); assert.equal(canEnter(state, 'unknown'), false);
+const visitor = newGame();
+visitor.coop = { role: 'guest', seat: 1, remoteHeroes: [], appliedHits: [], worldClearedRooms: ['realm-0'] };
+assert.equal(canEnter(visitor, 'forest'), true, 'late join uses shared gate permissions');
+assert.deepEqual(visitor.clearedRooms, [], 'host gates never grant personal story receipts');
+assert.deepEqual(makeSave(visitor, null).campaignMilestones, [], 'shared permissions stay transient');
 state.bosses.push('blast-watcher'); state.clearedRooms.push('realm-0');
 assert.equal(canEnter(state, 'forest'), true); assert.equal(canEnter(state, 'city'), false);
 assert.equal(campaignLocations(state).find(location => location.id === 'forest').locked, false);
+assert.equal(sameCampaignMap({ scene: 'dungeon', room: 0, mapId: 'woods-pump-house' }, { scene: 'dungeon', room: 0 }), false, 'legacy room zero cannot alias a new map');
+assert.equal(sameCampaignMap({ scene: 'dungeon', room: 0, mapId: 'blast-0' }, { scene: 'dungeon', room: 0 }), true);
 assert.equal(enterCampaignMap(state, 'unknown-map'), false); assert.equal(state.scene, 'hub');
 assert.match(state.notice, /Unknown area/); assert.equal(state.mapId, 'hub');
 for (const id of HERO_IDS) {
@@ -57,6 +64,14 @@ for (const id of HERO_IDS) {
   assert.equal(state.scene, 'hub'); assert.equal(state.chapter, 2); assert.match(state.notice, /Hollow Woods/);
   assert.equal(state.x, HUB_WORLD.spawn.x); assert.equal(state.y, HUB_WORLD.spawn.y);
 }
+// Named exits go through the same guarded router as overworld travel.
+enterScene(state, 'dungeon');
+const unknownExit = { ...BLAST_WORLDS[0].exits[0], id: 'unknown-exit', targetMapId: 'unregistered-area' };
+BLAST_WORLDS[0].exits.push(unknownExit);
+try {
+  interact(state, { id: unknownExit.id, name: unknownExit.name, kind: 'use', x: state.x, y: state.y });
+  assert.equal(state.mapId, 'hub'); assert.match(state.notice, /Unknown area/);
+} finally { BLAST_WORLDS[0].exits.pop(); }
 enterScene(state, 'overworld'); state.x = 656; state.y = 176;
 interact(state); assert.equal(state.scene, 'overworld'); assert.match(state.dialogue.lines[0], /coming next/);
 assert.ok(!state.areas.includes('woods'), 'stub never grants an area receipt');
@@ -103,6 +118,7 @@ const world = { scene: 'dungeon', room: 0, mapId: 'blast-0', protocolVersion: CO
 assert.ok(cleanWorld(world));
 assert.equal(cleanWorld({ ...world, mapId: 'moon-m01' }), null);
 assert.equal(cleanWorld({ ...world, mapId: 'hub' }), null);
+assert.equal(cleanWorld({ ...world, mapId: null }), null);
 assert.equal(cleanWorld({ ...world, room: 999, mapId: undefined }), null);
 assert.equal(cleanWorld({ ...world, protocolVersion: 999 }), null);
 assert.equal(cleanWorld({ ...world, solvedInteractions: Array(129).fill('a') }), null);

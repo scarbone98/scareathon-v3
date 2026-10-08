@@ -1,6 +1,9 @@
 import type { HeroId } from "./sim.ts";
 import type { WorldMap } from "./worldBuilder.ts";
-export interface CampaignProgress { clearedRooms: readonly string[]; bosses: readonly string[]; campaignMilestones: readonly string[] }
+export interface CampaignProgress {
+  clearedRooms: readonly string[]; bosses: readonly string[]; campaignMilestones: readonly string[];
+  coop?: { worldClearedRooms?: readonly string[]; worldBosses?: readonly string[]; worldCampaignMilestones?: readonly string[] };
+}
 export interface EnvironmentProfile {
   id: string; movement: "earth" | "lunar"; suitRequired: boolean;
   oxygen: "off" | "exploration" | "safe"; lighting: string;

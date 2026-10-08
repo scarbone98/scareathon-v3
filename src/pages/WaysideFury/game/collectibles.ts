@@ -1,9 +1,10 @@
+import { sameCampaignMap } from "./campaign.ts";
 import { HIDDEN_PICKUPS, type HiddenPickup } from "../../../../server/shared/waysideFury/collectibles.js";
 import type { GameEvent } from "./sim.ts";
 export { HIDDEN_PICKUPS };
 export type { HiddenPickup };
 interface PickupWorld {
-  scene: string; room: number; chapter: number; foundItems: string[]; ambientTaxiWrecked: boolean;
+  scene: string; room: number; mapId?: string; chapter: number; foundItems: string[]; ambientTaxiWrecked: boolean;
   insideDiner?: boolean;
   coop?: { role: "host" | "guest"; downed?: boolean; worldChapter?: number };
 }
@@ -15,14 +16,14 @@ interface PickupState extends PickupWorld {
 }
 export function availablePickups(s: PickupWorld): HiddenPickup[] {
   const chapter = s.coop?.worldChapter ?? s.chapter;
-  return HIDDEN_PICKUPS.filter(item => item.scene === s.scene && item.room === s.room && item.chapter <= chapter &&
+  return HIDDEN_PICKUPS.filter(item => sameCampaignMap(s, item) && item.chapter <= chapter &&
     (!item.requiresWreck || s.ambientTaxiWrecked) && (!item.requiresDiner || s.insideDiner) && !s.foundItems.includes(item.id));
 }
 export function pickupInReach(s: PickupWorld & { x: number; y: number }, id: string, radius = 28): HiddenPickup | undefined {
   return availablePickups(s).find(item => item.id === id && Math.hypot(s.x - item.x, s.y - item.y) <= radius);
 }
-export function authoritativePickupTarget(world: PickupWorld, peer: { scene: string; room: number; x: number; y: number; hero: { hp: number }; downed?: boolean }, id: string) {
-  if (peer.scene !== world.scene || peer.room !== world.room || peer.hero.hp <= 0 || peer.downed) return undefined;
+export function authoritativePickupTarget(world: PickupWorld, peer: { scene: string; room: number; mapId?: string; x: number; y: number; hero: { hp: number }; downed?: boolean }, id: string) {
+  if (!sameCampaignMap(world, peer) || peer.hero.hp <= 0 || peer.downed) return undefined;
   // The host's personal finds do not remove another player's instance. A diner
   // request still has to come from its fixed doorway on the host's map.
   return pickupInReach({ ...world, x: peer.x, y: peer.y, foundItems: [], insideDiner: true }, id);

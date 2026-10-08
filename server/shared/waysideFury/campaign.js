@@ -11,10 +11,12 @@ export const CAMPAIGN_MAPS = Object.freeze([
 ].map(Object.freeze));
 export function mapDefinition(id) { return CAMPAIGN_MAPS.find(map => map.id === id); }
 export function legacyMapId(scene, room = 0) {
-    return CAMPAIGN_MAPS.find(map => map.scene === scene && map.room === room)?.id ??
+    if (!Number.isInteger(room) || room < 0) return undefined;
+    return CAMPAIGN_MAPS.find(map => map.minProtocol === 1 && map.scene === scene && map.room === room)?.id ??
         (['prologue', 'shift', 'results', 'dead'].includes(scene) && room <= 9 ? (room ? `blast-${room}` : 'training') : undefined);
 }
 export function compatibleMap(scene, room, mapId, protocol = 1) {
+    if (mapId !== undefined && typeof mapId !== 'string') return false;
     const canonical = legacyMapId(scene, room);
     const id = mapId ?? canonical;
     const map = mapDefinition(id);

@@ -23,7 +23,7 @@ function chapter(id: string, number: number, name: string, prerequisites: string
   };
 }
 export const CHAPTERS: readonly ChapterDefinition[] = [
-  chapter("blast", 1, "The Blast Site", [], ["blast", "eightbit-realm"], "realm-0"),
+  chapter("blast", 1, "The Blast Site", [], ["wayside", "blast", "eightbit-realm"], "realm-0"),
   chapter("woods", 2, "The Woods Have Receipts", ["realm-0"], ["woods"], "woods-complete"),
   chapter("space", 3, "One Small Step, Four Big Mouths", ["woods-complete"], ["space"], "space-complete"),
   chapter("city", 4, "The Architect's Last Order", ["space-complete"], ["city"], "city-complete"),
@@ -33,7 +33,8 @@ export function getArea(id: string) { return AREAS.find(area => area.id === id |
 export function getMap(id: string) { return ALL_WORLDS.find(map => map.id === id); }
 export function canEnter(progress: CampaignProgress, locationId: string): boolean {
   const area = getArea(locationId);
-  return !!area && area.prerequisites.every(id => progress.clearedRooms.includes(id) || progress.bosses.includes(id) || progress.campaignMilestones.includes(id));
+  return !!area && area.prerequisites.every(id => progress.clearedRooms.includes(id) || progress.bosses.includes(id) || progress.campaignMilestones.includes(id) ||
+    progress.coop?.worldClearedRooms?.includes(id) || progress.coop?.worldBosses?.includes(id) || progress.coop?.worldCampaignMilestones?.includes(id));
 }
 export function campaignLocations(progress: CampaignProgress) { return LOCATIONS.map(location => ({ ...location, locked: !canEnter(progress, location.id) })); }
 export function resolveCampaignMap(id: string) {
@@ -42,3 +43,9 @@ export function resolveCampaignMap(id: string) {
 }
 export { legacyMapId };
 export const WOODS_HANDOFF = "Chapter 2 · Hollow Woods: Alex traced the egg's signal to the forestry radio. The crew is ready; the Woods route is coming next.";
+
+// Numeric rooms remain a legacy adapter, never an identity for new areas.
+export function sameCampaignMap(a: { scene: string; room: number; mapId?: string }, b: { scene: string; room: number; mapId?: string }): boolean {
+  const id = a.mapId ?? legacyMapId(a.scene, a.room);
+  return a.scene === b.scene && !!id && id === (b.mapId ?? legacyMapId(b.scene, b.room));
+}
