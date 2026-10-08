@@ -118,6 +118,8 @@ export function cleanWorld(state) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
         if (!['zombie', 'pumpkin', 'ghost', 'imp', 'shadowbeast'].includes(enemy.sprite) || typeof enemy.miniBoss !== 'boolean' || ![1, 2].includes(enemy.phase)) return null;
         for (const key of ['radius', 'speed', 'cooldown', 'hitTimer', 'kx', 'ky', 'pattern', 'windup', 'actionTimer', 'aimX', 'aimY']) if (!number(enemy[key], 1e6)) return null;
+        if (enemy.woodsBehavior !== undefined && !['rooted','lantern','wisp','bailiff','foreman'].includes(enemy.woodsBehavior)) return null;
+        for (const key of ['tellX','tellY']) if (enemy[key] !== undefined && !number(enemy[key], 1e6)) return null;
         if (enemy.behavior !== undefined && !['rat','walker','scout','echo','satellite','inspector','warden'].includes(enemy.behavior)) return null;
         for (const key of ['poise','burst','exposed']) if (enemy[key] !== undefined && (!number(enemy[key], 100) || enemy[key] < 0)) return null;
         if (enemy.shieldBroken !== undefined && typeof enemy.shieldBroken !== 'boolean') return null;

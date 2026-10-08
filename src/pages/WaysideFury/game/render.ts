@@ -1,3 +1,5 @@
+import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
+import { fieldWorld } from "./fieldAbilities";
 import { drawCountyProp } from "./countyArt";
 import { resolveHeroVisual, drawHeroVisual, type SuitPose } from './heroVisuals';
 import { drawSpaceProp, drawMoonGround, drawLunarTelegraph, drawLunarBody, drawLaunchEstablishing, drawSpaceFilm } from "./renderSpace2d";
@@ -212,7 +214,7 @@ export class Renderer {
     if(s.mapId === 'space-launch' && s.sceneTimer < 3 && !s.moving) {
       drawLaunchEstablishing(c,s,width,height,getWorld(s.scene,s.room,s.mapId),()=>this.hero(s));return;
     }
-    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : getWorld(s.scene, s.room, s.mapId, !!s.coop);
+    const world = (s.scene === 'dead' || s.scene === 'results') && this.world ? this.world : fieldWorld(s);
     const key = `${world.id}:${s.scene === 'dead' || s.scene === 'results' ? '' : s.scene}`;
     const target = cameraTarget(world, s.x, s.y, width, height, s.moving ? s.faceX : 0, s.moving ? s.faceY : 0);
     if (this.sceneKey !== key) { this.camera = target; this.sceneKey = key; this.transition = this.reducedMotion ? 0 : .18; }
@@ -229,6 +231,7 @@ export class Renderer {
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawMoonGround(c,world,s);
+    drawWoodsMachinery(c,s);
     this.ambient(s, world, motionTime);
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
@@ -619,6 +622,7 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
+    if(drawWoodsBody(this.ctx,enemy,s)) return;
     if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
     const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
@@ -864,6 +868,7 @@ export class Renderer {
   }
 
   private bossTelegraph(s: GameState, enemy: Enemy) {
+    if(drawWoodsTell(this.ctx,enemy)) return;
     if(drawLunarTelegraph(this.ctx,enemy)) return;
     if (enemy.kind !== "boss" || (enemy.windup <= 0 && enemy.actionTimer <= 0)) return;
     const c = this.ctx;

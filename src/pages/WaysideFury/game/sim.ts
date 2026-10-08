@@ -1,10 +1,14 @@
 import { COUNTY_STOPS } from "./county.ts";
 import { tickSpaceFilm, type FilmState } from "./cinematics.ts";
+import { enterWoods, woodsTargets, woodsInteract, tickWoodsField, clearWoods, inWoods } from "./chapters/ch2.ts";
+import { configureWoodsEnemy, woodsDamage, updateWoodsEnemy, woodsMovementScale } from "./enemies/woods.ts";
+import type { WoodsBehavior } from "./chapters/ch2Worlds.ts";
+import { knowsField } from "./fieldAbilities.ts";
 import { enterSpaceRoom, spaceTargets, spaceInteract, completeSpaceFilm, record, refillCrew, spaceCheckpoint } from "./chapters/ch3.ts";
 import { onMoon, hasSpaceFlag, tickLunar, tryBoundLink, advanceBoundLink, lunarWorld, brakeBound } from "./lunar.ts";
 import { configureLunarEnemy, lunarDamage, updateLunarEnemy } from "./enemies/lunar.ts";
 import type { LunarBehavior } from "./chapters/ch3Worlds.ts";
-import { sameCampaignMap, campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF } from "./campaign.ts";
+import { sameCampaignMap, campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF, campaignHandoff } from "./campaign.ts";
 import { HUB_POINTS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -48,6 +52,7 @@ export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
 }
 export interface Enemy {
+  woodsBehavior?: WoodsBehavior; tellX?: number; tellY?: number;
   behavior?: LunarBehavior; poise?: number; burst?: number; exposed?: number; shieldBroken?: boolean;
   id: number; kind: "grunt" | "shooter" | "boss";
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
@@ -134,6 +139,7 @@ function extraCoopSpawns(s: GameState) {
     const enemy = addEnemy(s, "grunt", x, y);
     if (anchor.sprite && anchor.kind !== "boss") enemy.sprite = anchor.sprite;
     if (onMoon(s)) configureLunarEnemy(s,enemy, "rat");
+    if (inWoods(s)) { enemy.sprite="zombie"; configureWoodsEnemy(s,enemy,"rooted"); }
   }
   s.coop.spawnedExtras = Math.max(previous, extras);
 }
@@ -146,7 +152,7 @@ export function setCoopPlayerCount(s: GameState, players: number): void {
   extraCoopSpawns(s);
 }
 export function coopLevelBand(scene: Scene, room: number, mapId?: string): readonly [number, number] {
-  if (mapId?.startsWith("moon-") || mapId === "space-launch") return [1,MAX_LEVEL];
+  if (mapId?.startsWith("woods-") || mapId?.startsWith("moon-") || mapId === "space-launch") return [1,MAX_LEVEL];
   if (scene === "realm") return [6, 9];
   if (scene === "dungeon") {
     if (room >= 8) return [2, 5];
@@ -229,6 +235,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
           enemy.miniBoss = true; enemy.hp = enemy.maxHp = 235; enemy.radius = 12; enemy.speed = 18;
           if (s.coop?.role === "host") scaleEnemy(s, enemy, 235);
         }
+        if (spawn.woodsBehavior) configureWoodsEnemy(s, enemy, spawn.woodsBehavior);
         if (spawn.behavior) configureLunarEnemy(s, enemy, spawn.behavior);
       }
     }
@@ -250,9 +257,9 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
     if (!s.campaignMilestones.includes("realm-0")) s.campaignMilestones.push("realm-0");
 
   }
-  if ((scene === "hub" || scene === "overworld") && canEnter(s, "forest")) s.notice = WOODS_HANDOFF;
+  if ((scene === "hub" || scene === "overworld") && canEnter(s, "forest")) s.notice = campaignHandoff(s);
   if (resolved.fallback) s.notice = "Unknown area. Returned safely to Wayside.";
-  extraCoopSpawns(s); syncCoopLevel(s); enterSpaceRoom(s);
+  extraCoopSpawns(s); syncCoopLevel(s); enterSpaceRoom(s); enterWoods(s);
 }
 export function enterCampaignMap(s: GameState, mapId: string): boolean {
   const resolved = resolveCampaignMap(mapId);
@@ -351,12 +358,12 @@ export function grantGear(s: GameState, power: number, ward: number) {
   s.gear.power = clamp(s.gear.power + power, 0, 10000); s.gear.ward = clamp(s.gear.ward + ward, 0, 10000);
   syncCoopLevel(s);
 }
-function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number) {
+function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, ki = false) {
   if (e.hp <= 0) return;
-  const allowed = lunarDamage(s,e,damage,force);
+  const allowed = e.woodsBehavior ? woodsDamage(s,e,damage,force,ki) : lunarDamage(s,e,damage,force);
   if(allowed <= 0) return;
   const dealt = Math.max(1, Math.round(allowed));
-  if(e.behavior && e.kind === "boss") force *= .04;
+  if((e.behavior || e.woodsBehavior) && e.kind === "boss") force *= .04;
   e.hp -= dealt; e.hitTimer = 0.18; s.hitStop = Math.max(s.hitStop, force >= 80 ? 0.07 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
@@ -386,7 +393,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
   if (s.coop.appliedHits.includes(key)) return false;
   s.coop.appliedHits.push(key);
   if (s.coop.appliedHits.length > 2048) s.coop.appliedHits.splice(0, s.coop.appliedHits.length - 2048);
-  hurtEnemy(s, enemy, hit.damage, hit.dx, hit.dy, hit.force);
+  hurtEnemy(s, enemy, hit.damage, hit.dx, hit.dy, hit.force, /(^|:)projectile:/.test(hit.attackId));
   return true;
 }
 function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
@@ -394,7 +401,7 @@ function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: num
   if (s.coop?.role === "guest") {
     s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
     effect(s, "hit", e.x, e.y, 9, 0.12);
-  } else hurtEnemy(s, e, damage, dx, dy, force);
+  } else hurtEnemy(s, e, damage, dx, dy, force, attackId.startsWith("projectile:"));
 }
 export function nextPartyHero(s: GameState): HeroId | null {
   const at = s.party.indexOf(s.active);
@@ -537,6 +544,7 @@ function melee(s: GameState) {
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
+    if(s.active === "joe" && s.combo === 3 && knowsField(s,"breaker-knuckle") && e.kind !== "boss") {e.cooldown=Math.max(e.cooldown,1.1);e.windup=0;}
     attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.6][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
     hit = true;
   }
@@ -626,6 +634,10 @@ function updateEnemies(s: GameState, dt: number) {
     if (!target) continue;
     const dx = target.x - e.x, dy = target.y - e.y, length = Math.max(1, Math.hypot(dx, dy));
     const contact = e.radius + 9;
+    if (e.woodsBehavior) {
+      updateWoodsEnemy(s,e,dt,target,{ move:(body,dx,dy)=>moveBody(s,body,dx,dy,body.radius), shot:(body,dx,dy,speed,damage,radius=5)=>projectile(s,"enemy",body.x,body.y,dx,dy,speed,damage,radius), hurt:(t,d,x,y)=>hurtTarget(s,t as CombatTarget,d,x,y), targets:()=>combatTargets(s) });
+      continue;
+    }
     if (e.behavior) {
       updateLunarEnemy(s,e,dt,target,{ move: (body,dx,dy)=>moveBody(s,body,dx,dy,body.radius), shot: (body,dx,dy,speed,damage,radius=5)=>projectile(s,"enemy",body.x,body.y,dx,dy,speed,damage,radius), hurt:(t,d,x,y)=>hurtTarget(s,t as CombatTarget,d,x,y), targets:()=>combatTargets(s) });
       continue;
@@ -721,6 +733,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
+  for (const target of woodsTargets(s)) add(target, 34);
   for (const target of spaceTargets(s)) add(target, 34);
   for (const pickup of availablePickups(s)) add({ id: pickup.id, name: `Pick up ${pickup.name}`, kind: "use", x: pickup.x, y: pickup.y });
   if (s.scene === "dungeon" || s.scene === "realm") {
@@ -796,6 +809,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
   if (target.id === "space-air-option") {spaceInteract(s,target.id);return;}
   if (s.coop?.role === "guest" && target.kind !== "talk") return;
+  if (woodsInteract(s,target.id)) return;
   if (spaceInteract(s,target.id)) return;
   if (s.scene === "realm" || s.scene === "dungeon") {
     if (target.id.startsWith("loot-")) {
@@ -828,7 +842,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id === "taxi") { enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true; return; }
   if (target.id === "shop" || target.id === "home") { s.overlay = target.id; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return; }
   const dialogue: Record<string, string> = {
-    station: s.clearedRooms.includes("realm-0") ? WOODS_HANDOFF : "Wayside Station is safe. Alex and Jon are holding the town while Joe and Matt investigate the Blast Site.",
+    station: s.clearedRooms.includes("realm-0") ? campaignHandoff(s) : "Wayside Station is safe. Alex and Jon are holding the town while Joe and Matt investigate the Blast Site.",
     bbq: "The grill is still warm. The crew will finish dinner when Wayside is safe.",
     alex: "Alex: The station is secure. I can tag in when you need help. There are supplies hidden off the main route.",
     jon: "Jon: HOME restores the whole crew. Stock up before you go, and don't forget to tag your partner in.",
@@ -990,7 +1004,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : !combat && input.dash ? 112 : 70) * pickupBuffs(s).speed;
+    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : !combat && input.dash ? 112 : 70) * pickupBuffs(s).speed * woodsMovementScale(s);
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);
@@ -1016,6 +1030,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32 * pickupBuffs(s).charge);
   }
   if (!dialogueControlsSuppressed && !input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
+  tickWoodsField(s, input.ki);
   const hadEnemies = s.enemies.length > 0;
   if (s.coop?.role !== "guest") { updateEnemies(s, dt); separateBodies(s, dt); }
   updateProjectiles(s, dt);
@@ -1034,6 +1049,7 @@ export function step(s: GameState, input: Input, delta: number): void {
         if (!s.areas.includes("blast")) s.areas.push("blast");
       }
     }
+    if(inWoods(s)) { clearWoods(s); return; }
     if(onMoon(s)) {
       if(s.room===5) {record(s.bosses,"moon-cheese-inspector");spaceCheckpoint(s);refillCrew(s);}
       if(s.room===7) record(s.bosses,"moon-apogee-warden");

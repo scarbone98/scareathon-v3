@@ -77,9 +77,10 @@ try {
   assert.equal(state.mapId, 'hub'); assert.match(state.notice, /Unknown area/);
 } finally { BLAST_WORLDS[0].exits.pop(); }
 enterScene(state, 'overworld'); state.x = 656; state.y = 176;
-interact(state); assert.equal(state.scene, 'overworld'); assert.match(state.dialogue.lines[0], /coming next/);
+interact(state); assert.equal(state.mapId, 'woods-layby'); assert.equal(state.dialogue, null);
 assert.ok(!state.areas.includes('woods'), 'stub never grants an area receipt');
 
+enterScene(state, "hub"); state.checkpointMapId = "hub";
 const current = makeSave(state, null, true);
 for (const version of [1, 2, 3, 4]) {
   const fixture = structuredClone(current); fixture.version = version;
