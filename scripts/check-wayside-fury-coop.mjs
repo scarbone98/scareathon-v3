@@ -35,6 +35,18 @@ async function resume(page) {
   if (await button.isVisible()) await button.click();
 }
 const game = async (page, fn, arg) => page.evaluate(fn, arg);
+const snapshot = page => game(page, () => {
+  const c = window.__waysideFury, s = c.state, canvas = document.querySelector('.wf-stage canvas');
+  return { scene: s.scene, room: s.room, x: s.x, y: s.y, active: s.active, hp: s.heroes[s.active].hp,
+    invulnerable: s.heroes[s.active].invulnerable, paused: c.paused, hidden: document.hidden, role: s.coop?.role,
+    downed: s.coop?.downed, peers: s.coop?.remoteHeroes.map(peer => ({ seat: peer.seat, name: peer.name, scene: peer.scene,
+      room: peer.room, x: peer.x, y: peer.y, hp: peer.hero.hp, downed: peer.downed })),
+    enemies: s.enemies.slice(0, 8).map(enemy => ({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y,
+      hp: enemy.hp, speed: enemy.speed, cooldown: enemy.cooldown })),
+    presentation: c.renderer.presentation(s), flatCamera: c.renderer.flat.camera,
+    canvas: { width: canvas.clientWidth, height: canvas.clientHeight, data: { ...canvas.dataset } },
+    labels: [...document.querySelectorAll('.wf-scene-label')].slice(0, 20).map(element => element.textContent) };
+});
 try {
   const host = await player('dev-host'), guest = await player('dev-guest');
   await host.page.getByRole('button', { name: 'Co-op', exact: true }).click();
@@ -42,13 +54,26 @@ try {
   const code = await host.page.getByTestId('coop-code').textContent();
   assert.match(code, /^[A-Z0-9]{4}$/);
   await host.page.getByRole('button', { name: 'Return to adventure' }).click();
-  await game(host.page, async () => { const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts'); window.__waysideFury.mutate(s => enterScene(s, 'test')); window.__waysideFury.setPaused(false); });
+  await game(host.page, async () => {
+    const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
+    window.__waysideFury.mutate(s => {
+      enterScene(s, 'test');
+      // Joining and composing appearances can be slow; reserve this encounter
+      // for the explicit combat checks rather than attacking during setup.
+      s.enemies.forEach(enemy => { enemy.speed = 0; enemy.cooldown = 100; });
+      s.heroes[s.active].invulnerable = 60;
+    });
+    window.__waysideFury.setPaused(false);
+  });
   await guest.page.getByRole('button', { name: 'Co-op', exact: true }).click();
   await guest.page.getByLabel('Room code', { exact: true }).fill(code);
   await guest.page.getByRole('button', { name: 'Join', exact: true }).click();
   await guest.page.getByRole('button', { name: 'Return to adventure' }).click();
   await host.page.waitForFunction(() => window.__waysideFury.state.coop?.remoteHeroes.length === 1);
   await guest.page.waitForFunction(() => window.__waysideFury.state.coop?.remoteHeroes.length === 1 && window.__waysideFury.state.scene === 'test');
+  // The second participant also adds an authored extra enemy to the host wave.
+  await game(host.page, () => window.__waysideFury.mutate(s => { s.enemies.forEach(enemy => { enemy.speed = 0; enemy.cooldown = 100; }); }));
+  await game(guest.page, () => window.__waysideFury.mutate(s => { s.heroes[s.active].invulnerable = 60; }));
   for (const [page, hair] of [[host.page, 'ink'], [guest.page, 'sandy']]) await page.waitForFunction(hair => {
     const c = window.__waysideFury, peer = c.state.coop.remoteHeroes[0];
     const avatar = c.renderer.remoteAvatars.get(peer.seat);
@@ -73,7 +98,13 @@ try {
   await move(host.page, guest.page); await move(guest.page, host.page);
   console.log("Two-player movement and scaled HP passed.");
   await resume(host.page);
-  await host.page.waitForFunction(() => document.querySelector('.wf-scene-label')?.textContent?.includes('Guest') || [...document.querySelectorAll('.wf-scene-label')].some(el => el.textContent.includes('Guest')));
+  const beforeLabels = await Promise.all([host.page, guest.page].map(snapshot));
+  try { await host.page.waitForFunction(() => document.querySelector('.wf-scene-label')?.textContent?.includes('Guest') || [...document.querySelectorAll('.wf-scene-label')].some(el => el.textContent.includes('Guest')), null, { timeout: 15000 }); }
+  catch (error) {
+    const afterLabels = await Promise.all([host.page, guest.page].map(snapshot));
+    for (const [index, name] of ['host', 'guest'].entries()) console.error('PEER LABEL', name, JSON.stringify({ before: beforeLabels[index], after: afterLabels[index] }));
+    throw error;
+  }
   assert.ok(await game(host.page, () => window.__waysideFury.state.coop.remoteHeroes[0].hero.hp > 0));
   // A real guest attack reaches the host and reduces authoritative enemy HP.
   await game(host.page, () => window.__waysideFury.mutate(s => { s.projectiles = []; s.heroes[s.active].hp = s.heroes[s.active].maxHp; s.heroes[s.active].invulnerable = 60; s.enemies.forEach(e => { e.speed = 0; e.cooldown = 100; }); s.enemies[0].x = 145; s.enemies[0].y = 110; s.x = 75; s.y = 110; }));
@@ -130,6 +161,83 @@ try {
   await guest.page.getByRole('button', { name: 'Leave party', exact: true }).click();
   await host.page.waitForFunction(() => window.__waysideFury.state.enemies[0].maxHp === 32);
   assert.ok(Math.abs(await game(host.page, () => window.__waysideFury.state.enemies[0].hp / 32) - ratio) < .0001, 'leave preserves enemy HP percentage');
+
+  // Rejoin through the real menu, then exercise both renderers with live peers.
+  await resume(guest.page);
+  await guest.page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await guest.page.getByRole('button', { name: 'Co-op', exact: true }).click();
+  await guest.page.getByLabel('Room code', { exact: true }).fill(code);
+  await guest.page.getByRole('button', { name: 'Join', exact: true }).click();
+  await guest.page.getByRole('button', { name: 'Return to adventure' }).click();
+  await host.page.waitForFunction(() => window.__waysideFury.state.coop?.remoteHeroes.length === 1);
+  await game(host.page, async () => {
+    const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
+    const c = window.__waysideFury;
+    c.setTouch({}); c.mutate(s => { enterScene(s, 'overworld'); s.active = 'you'; s.notice = ''; }); c.setPaused(false);
+  });
+  await guest.page.waitForFunction(() => window.__waysideFury.state.scene === 'overworld'
+    && window.__waysideFury.state.coop?.remoteHeroes.some(peer => peer.scene === 'overworld'));
+  await game(guest.page, () => { const c = window.__waysideFury; c.setTouch({}); c.mutate(s => { s.active = 'you'; }); c.setPaused(false); });
+  for (const page of [host.page, guest.page]) await game(page, () => window.__waysideFury.setGraphicsMode('3d'));
+
+  const checkDepthPeer = async (page, label, expectedBody) => {
+    await page.waitForFunction(() => {
+      const c = window.__waysideFury, original = document.querySelector('.wf-stage canvas:not(.wf-canvas-3d)');
+      if (original?.dataset.gfxStatus === 'fallback') throw new Error(`Co-op 3D failed: ${original.dataset.gfxError}`);
+      const canvas = document.querySelector('.wf-canvas-3d'), depth = c.renderer.depth;
+      const peer = c.state.coop?.remoteHeroes.find(peer => peer.scene === c.state.scene && peer.room === c.state.room);
+      if (!peer || peer.hero.id !== 'you' || original?.dataset.gfx !== '3d' || !depth || !(Number(canvas?.dataset.triangles) > 0)) return false;
+      const taxi = depth.remoteTaxis.get(peer.seat), driver = depth.billboards.get(`peer-driver-${peer.seat}`);
+      return taxi?.group.visible && driver?.group.visible && depth.remoteAvatarSheets.has(peer.seat)
+        && depth.presentation(c.state).labels.some(entry => entry.id === `peer-${peer.seat}` && entry.text === peer.name)
+        && [...document.querySelectorAll('.wf-scene-label')].some(element => element.textContent === peer.name);
+    }, null, { timeout: 120000 });
+    const result = await game(page, () => {
+      const c = window.__waysideFury, depth = c.renderer.depth, peer = c.state.coop.remoteHeroes[0];
+      const canvas = document.querySelector('.wf-canvas-3d'), taxi = depth.remoteTaxis.get(peer.seat);
+      const driver = depth.billboards.get(`peer-driver-${peer.seat}`), sheets = depth.remoteAvatarSheets.get(peer.seat);
+      const remoteBody = c.renderer.remoteAvatars.get(peer.seat).body.canvas, ownBody = c.renderer.avatar.body.canvas;
+      return { seat: peer.seat, renderer: canvas.dataset.renderer, triangles: Number(canvas.dataset.triangles),
+        width: canvas.width, height: canvas.height, cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight, dpr: Number(canvas.dataset.renderDpr),
+        taxiDistance: Math.hypot(taxi.group.position.x - peer.x, taxi.group.position.z - peer.y),
+        source: driver.source, remoteSheet: driver.sheets === sheets,
+        sheetBody: sheets.some(sheet => sheet.texture.image === remoteBody),
+        driverBody: driver.sprites.some(sprite => sprite.material.map.image === remoteBody),
+        ownBody: driver.sprites.some(sprite => sprite.material.map.image === ownBody),
+        body: remoteBody.toDataURL(), sceneId: depth.scene.uuid };
+    });
+    assert.equal(result.renderer, '3d', `${label}: native depth canvas`);
+    assert.ok(result.triangles > 0, `${label}: rendered geometry`);
+    assert.ok(Math.abs(result.width - result.cssWidth * result.dpr) <= 2 && Math.abs(result.height - result.cssHeight * result.dpr) <= 2, `${label}: native backing follows DPR`);
+    assert.ok(result.taxiDistance < 2, `${label}: peer taxi follows its network position`);
+    assert.equal(result.source, `you:${result.seat}`, `${label}: peer driver belongs to its seat`);
+    assert.ok(result.remoteSheet && result.sheetBody && result.driverBody && !result.ownBody, `${label}: peer driver uses remote composed sheets`);
+    assert.equal(result.body, expectedBody, `${label}: peer wears the other account's appearance`);
+    return result;
+  };
+  const depthPlayers = [[host.page, 'host', appearances[1].own], [guest.page, 'guest', appearances[0].own]];
+  const firstDepth = [];
+  for (const [page, label, body] of depthPlayers) firstDepth.push(await checkDepthPeer(page, label, body));
+  // Real movement must reach the peer's rendered taxi, beyond the join snapshot.
+  await move(host.page, guest.page);
+  await move(guest.page, host.page);
+  for (const [page, label, body] of depthPlayers) await checkDepthPeer(page, `${label}-moving`, body);
+  for (const [index, [page, label, body]] of depthPlayers.entries()) {
+    await game(page, () => window.__waysideFury.setGraphicsMode('2d'));
+    await page.waitForFunction(() => !document.querySelector('.wf-canvas-3d') && document.querySelector('.wf-stage canvas')?.dataset.gfx === '2d');
+    await game(page, () => window.__waysideFury.setGraphicsMode('3d'));
+    const rebuilt = await checkDepthPeer(page, `${label}-rebuilt`, body);
+    assert.notEqual(rebuilt.sceneId, firstDepth[index].sceneId, `${label}: 3D rebuild retains cached remote appearance`);
+    await page.screenshot({ path: `/tmp/fury-coop-3d-${label}.png` });
+  }
+  await game(guest.page, () => window.__waysideFury.coop.leave());
+  await host.page.waitForFunction(() => {
+    const c = window.__waysideFury, depth = c.renderer.depth;
+    return c.state.coop?.remoteHeroes.length === 0 && depth?.remoteTaxis.size === 0 && depth.remoteAvatarSheets.size === 0
+      && ![...depth.billboards.keys()].some(key => key.startsWith('peer-driver-'))
+      && !depth.presentation(c.state).labels.some(label => String(label.id).startsWith('peer-'));
+  });
+  console.log('Co-op 3D: live peer taxis, named drivers, distinct remote appearance, native canvas, renderer rebuild and leave cleanup pass.');
   assert.deepEqual(errors, []);
   console.log('Wayside Fury co-op browsers: authenticated host/join, distinct heroes, bidirectional movement, guest hits, scaled HP, live leave rescale, personal cloud rewards, menu back, party HUD and native portrait/landscape controls pass.');
 } finally { await browser.close(); await fixture.app.close(); }

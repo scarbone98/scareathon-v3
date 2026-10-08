@@ -1,7 +1,8 @@
 import { FuryCoop } from "./coop";
 import { MusicDirector, type AudioSettings } from "./music";
 import { FuryAudio } from "./audio";
-import { Renderer, type RenderPresentation } from "./render";
+import type { RenderPresentation } from "./render";
+import { GraphicsRenderer, readGraphicsMode, type GraphicsMode, type GraphicsStatus } from "./graphics";
 import type { HeroAvatar } from "./avatar";
 import { GameInput, type InputMode } from "./input";
 import { captureMotion, interpolateMotion, type MotionSnapshot } from "./motion";
@@ -10,6 +11,7 @@ export interface Callbacks {
   onState: (state: GameState) => void;
   onInputMode: (mode: InputMode) => void;
   onPresentation?: (presentation: RenderPresentation) => void;
+  onGraphics?: (status: GraphicsStatus) => void;
   onSoundBlocked?: (blocked: boolean) => void;
   onPause: () => void;
   onConfirm: () => boolean;
@@ -18,7 +20,7 @@ export interface Callbacks {
 }
 export class GameController {
   state: GameState = newGame();
-  private renderer: Renderer;
+  private renderer: GraphicsRenderer;
   coop: FuryCoop | null = null;
   private input: GameInput;
   private raf = 0;
@@ -39,8 +41,8 @@ export class GameController {
     if (button && !button.classList.contains("wf-touch-btn")) void this.sound.unlock().then(() => this.sound.playSfx("select"));
   };
   private previousMotion: MotionSnapshot | null = null;
-  constructor(canvas: HTMLCanvasElement, private cb: Callbacks) {
-    this.renderer = new Renderer(canvas);
+  constructor(canvas: HTMLCanvasElement, private cb: Callbacks, graphicsMode = readGraphicsMode()) {
+    this.renderer = new GraphicsRenderer(canvas, graphicsMode, cb.onGraphics);
     this.input = new GameInput(cb.onInputMode, cb.onPause, cb.onConfirm, cb.onNavigate, this.unlockAudio);
     this.audio.menu(); this.visibleAudio();
     // Capture runs before React/game handlers can stop propagation, including
@@ -55,6 +57,8 @@ export class GameController {
   start(state = newGame()) { this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [] }; this.paused = false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
   setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) this.state.charge = 0; }
   showTitle() { this.started = false; this.setPaused(true); this.audio.menu(); }
+  get graphicsMode() { return this.renderer.graphicsMode; }
+  setGraphicsMode(mode: GraphicsMode) { this.renderer.setGraphicsMode(mode); }
   setAudioSettings(settings: AudioSettings) { this.sound.setSettings(settings); }
   itemGet() { this.sound.jingle("item"); }
   setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); this.coop?.setAvatar(assets); }

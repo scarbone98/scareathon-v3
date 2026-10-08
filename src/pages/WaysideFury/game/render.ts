@@ -168,7 +168,8 @@ export class Renderer {
   }
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     const c = this.ctx;
-    this.checkQuality(frameDelta);
+    // Paused menus and snapshots do not establish a gameplay frame budget.
+    this.checkQuality(dt > 0 ? frameDelta : 0);
     const { width, height, pixelScale } = this.viewport;
     dt = Math.min(.05, Math.max(0, dt));
     this.visualTime += dt;
