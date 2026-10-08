@@ -1,3 +1,5 @@
+import { cleanFusionWorld } from '../shared/waysideFury/u1Fusion.js';
+
 export const MAX_MESSAGE_BYTES = 65_536;
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
@@ -29,6 +31,10 @@ export function cleanInput(input) {
         if (typeof input[key] !== 'boolean') return null;
         cleaned[key] = input[key];
     }
+    if (input.fusion !== undefined) {
+        if (typeof input.fusion !== 'boolean') return null;
+        cleaned.fusion = input.fusion;
+    }
     return cleaned;
 }
 
@@ -56,6 +62,14 @@ export function cleanHero(remote) {
     if (remote.reviveProgress !== undefined) {
         if (!number(remote.reviveProgress, 1) || remote.reviveProgress < 0) return null;
         cleaned.reviveProgress = remote.reviveProgress;
+    }
+    if (remote.fusionIntent !== undefined) {
+        if (!number(remote.fusionIntent, 1.5) || remote.fusionIntent < 0) return null;
+        cleaned.fusionIntent = remote.fusionIntent;
+    }
+    if (remote.fusionSpecial !== undefined) {
+        if (!integer(remote.fusionSpecial, 100_000_000)) return null;
+        cleaned.fusionSpecial = remote.fusionSpecial;
     }
     return cleaned;
 }
@@ -106,6 +120,11 @@ export function cleanWorld(state) {
         if (projectile.hero !== undefined && !HERO_IDS.has(projectile.hero)) return null;
         for (const key of ['radius', 'damage', 'ttl']) if (!number(projectile[key], 1e6)) return null;
         if (projectile.radius <= 0 || projectile.damage < 0) return null;
+    }
+    if (state.fusions !== undefined) {
+        const fusions = cleanFusionWorld(state.fusions);
+        if (!fusions || fusions.forms.some(form => form.scene !== state.scene || form.room !== state.room)) return null;
+        state = { ...state, fusions };
     }
     return state;
 }

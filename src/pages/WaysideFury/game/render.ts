@@ -1,4 +1,5 @@
 // The renderer only reads simulation state. World units are independent of pixels.
+import { drawFusionForm } from "./u1/combat/fusionRender";
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
@@ -222,7 +223,7 @@ export class Renderer {
     for (const peer of s.coop?.remoteHeroes ?? []) if (peer.scene === s.scene && peer.room === s.room && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote, peer.seat);
       for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
@@ -446,10 +447,11 @@ export class Renderer {
       c.globalAlpha = 1;
     }
   }
-  private hero(s: GameState) {
+  private hero(s: GameState, seat = s.coop?.seat ?? 0) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
     if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
+    drawFusionForm(c, s, seat, false, this.reducedMotion);
     if (s.charge > .12) {
       c.globalAlpha = .55 + Math.sin(time * 18) * .07; this.glow(s.x, s.y - 12, 19 + Math.min(9, s.charge * 5), color); c.globalAlpha = 1;
       c.strokeStyle = color; c.lineWidth = .65; c.globalAlpha = .45;
@@ -484,6 +486,7 @@ export class Renderer {
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
     c.restore(); c.globalAlpha = 1;
+    drawFusionForm(c, s, seat, true, this.reducedMotion);
     if (s.guard) {
       const x = s.x + s.faceX * 9, y = s.y - 12 + s.faceY * 7;
       c.globalAlpha = .6; this.rect(x - 5, y - 7, 10, 13, color); this.rect(x - 3, y + 6, 6, 3, color); c.globalAlpha = 1;

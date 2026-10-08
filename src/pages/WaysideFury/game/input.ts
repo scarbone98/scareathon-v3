@@ -1,6 +1,6 @@
 import { idleInput, type Input } from "./sim";
 export type InputMode = "keyboard" | "touch" | "gamepad";
-const KEY_MAP: Record<string, keyof Input> = { j: "attack", k: "ki", l: "dash", shift: "guard", q: "swap", e: "swap", enter: "interact" };
+const KEY_MAP: Record<string, keyof Input> = { j: "attack", k: "ki", l: "dash", shift: "guard", q: "swap", e: "swap", enter: "interact", f: "fusion" };
 export class GameInput {
   private keys = new Set<string>();
   private touch = idleInput();
@@ -66,6 +66,7 @@ export class GameInput {
       input.x += x; input.y += y;
       input.attack ||= !!pressed[0] && !this.consumedA; input.interact ||= !!pressed[0] && !this.consumedA;
       input.ki ||= !!pressed[2]; input.dash ||= !!pressed[1];
+      input.fusion ||= !!pressed[8];
       input.guard ||= !!pressed[7] || !!pressed[5]; input.swap ||= !!pressed[4] || !!pressed[3];
       this.padButtons = pressed;
     } else if (this.connected) this.disconnect();

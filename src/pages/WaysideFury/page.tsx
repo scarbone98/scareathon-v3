@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { CombatHud } from "./u1/combat/CombatHud";
+import { requestFusion } from "./game/u1/combat/fusion";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
 import { HeroPortrait } from "./HeroPortrait";
@@ -26,6 +28,7 @@ function Controls({ mode }: { mode: InputMode }) {
       <dt>Ki</dt><dd>K · X / Square · tap: blast, hold: charge</dd>
       <dt>Signature</dt><dd>Release Ki at a full bar for your hero's beam</dd>
       <dt>Dash / Guard</dt><dd>L / Shift · B / Circle / RT or RB</dd>
+      <dt>Fusion</dt><dd>F · left stick click · two full Ki bars; both partners consent in co-op</dd>
       <dt>Swap</dt><dd>Q / E · LB / Y · Tag partner</dd>
       <dt>Interact / Pause</dt><dd>Enter / Esc · A / Cross / Start</dd></dl>
     <p>{mode === "touch" ? "Use the stick and buttons below. Hold Ki or Guard while moving." : "Controllers connect automatically. Charge somewhere safe."}</p>
@@ -390,6 +393,7 @@ export default function WaysideFury() {
       {!cinematic && <div className="wf-play-band">
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}
+        {!paused && <CombatHud state={state} trigger={() => controller.current?.mutate(requestFusion)} />}
         {boss && <div className="wf-boss-hud"><strong>{boss.miniBoss ? "THE SENTINEL" : "THE WATCHER"} {boss.phase === 2 ? "· ENRAGED" : ""}</strong><Meter value={boss.hp} max={boss.maxHp} kind="boss" /><small>{boss.windup > 0 ? boss.pattern % 2 === 0 ? "RUSH — DASH ASIDE" : "RADIAL BLAST — GUARD OR DASH" : "Chapter 1 guardian"}</small></div>}
         {reward > 0 && <div className="wf-reward" role="status">Checkpoint · +{reward} progress reported</div>}
         {target && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !target.id.startsWith("coop-revive-") && !state.overlay && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><PromptGlyph mode={mode} />{target.locked ? `${target.name} · Taken over` : target.name}</button>}

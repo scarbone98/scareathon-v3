@@ -1,3 +1,4 @@
+import { createFusionRuntime, requestFusion, tickFusion, localFusion, consumeFusionSpecial, resetFusion, type FusionRuntime } from "./u1/combat/fusion.ts";
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
@@ -8,9 +9,9 @@ export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt
 export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
-  guard: boolean; swap: boolean; interact: boolean;
+  guard: boolean; swap: boolean; interact: boolean; fusion?: boolean;
 }
-export const idleInput = (): Input => ({ x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false });
+export const idleInput = (): Input => ({ x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false, fusion: false });
 export interface HeroState {
   id: HeroId; hp: number; maxHp: number; ki: number; maxKi: number;
   stamina: number; maxStamina: number; level: number; xp: number;
@@ -20,7 +21,7 @@ export interface RemoteHero {
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
-  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean; fusionIntent?: number; fusionSpecial?: number;
 }
 export interface CoopRuntime {
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
@@ -52,6 +53,9 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | { type: "fusion-start"; id: number; heroes: [HeroId, HeroId]; seats: [number, number] }
+  | { type: "fusion-end"; id: number }
+  | { type: "fusion-special"; id: number }
   | CoopHit
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
@@ -74,6 +78,7 @@ export interface GameState {
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   candy: number; deaths: number; kills: number; events: GameEvent[];
   previousInput: Input; rngSeed: number; nextId: number;
+  fusion: FusionRuntime;
   coop?: CoopRuntime;
   coopRewards?: string[];
 }
@@ -151,7 +156,7 @@ export function newGame(seed = 8591): GameState {
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
-    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [] };
+    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, fusion: createFusionRuntime(), coopRewards: [] };
   enterScene(s, "test");
   return s;
 }
@@ -167,6 +172,7 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 }
 export function enterScene(s: GameState, scene: Scene, room = 0): void {
   const world = getWorld(scene, room);
+  resetFusion(s);
   s.scene = scene; s.overlay = null; s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
@@ -350,11 +356,12 @@ function swapHero(s: GameState): boolean {
   s.events.push({ type: "swap", hero: next }); return true;
 }
 export function requestSwap(s: GameState): boolean {
-  if (s.coop && activeHero(s).hp <= 0) return false;
+  if (localFusion(s) || s.coop && activeHero(s).hp <= 0) return false;
   return s.swapCooldown === 0 && s.dashTimer === 0 && !s.overlay ? swapHero(s) : false;
 }
 export function exitCoop(s: GameState): void {
   if (!s.coop) return;
+  resetFusion(s);
   const players = coopCount(s); s.coop.playerCount = 1;
   for (const enemy of s.enemies) scaleEnemy(s, enemy, enemy.baseMaxHp ?? enemy.maxHp / enemyHpScale(enemy.kind, players));
   delete s.coop; syncCoopLevel(s);
@@ -464,14 +471,14 @@ function melee(s: GameState) {
   s.combo = s.comboWindow > 0 ? s.combo % 3 + 1 : 1;
   s.attackTimer = s.combo === 3 ? 0.28 : 0.2;
   s.comboWindow = 0.8;
-  const reach = s.combo === 3 ? 34 : 28;
+  const reach = (s.combo === 3 ? 34 : 28) + (localFusion(s) ? 8 : 0);
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
   const attackId = `melee:${s.nextId++}`;
   let hit = false;
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
-    attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1], s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
+    attackEnemy(s, e, activeHero(s).power * [1, 1.15, 1.9][s.combo - 1] * (localFusion(s) ? 1.6 : 1), s.faceX, s.faceY, s.combo === 3 ? 125 : 55, attackId);
     hit = true;
   }
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
@@ -483,6 +490,15 @@ function projectile(s: GameState, owner: Projectile["owner"], x: number, y: numb
 }
 function fireKi(s: GameState) {
   const h = activeHero(s);
+  if (localFusion(s) && consumeFusionSpecial(s)) {
+    for (const angle of [-0.12, 0, 0.12]) {
+      const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
+      const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 285, h.power * 5, 14, true);
+    }
+    effect(s, "beam", s.x, s.y, 170, 0.55, s.faceX, s.faceY);
+    s.notice = "FUSION: Wayside Supernova!"; s.charge = 0; return;
+  }
   if (h.ki >= h.maxKi - 0.01) {
     h.ki = 0;
     const signature = {
@@ -736,6 +752,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   s.events.length = 0; s.time += dt; s.sceneTimer += dt;
   s.transitionCooldown = Math.max(0, s.transitionCooldown - dt);
   updateVisuals(s, dt);
+  tickFusion(s, dt);
   if (s.scene === "prologue") {
     const pressed = input.interact && !s.previousInput.interact;
     s.previousInput = { ...input };
@@ -761,7 +778,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = s.previousInput;
   s.previousInput = { ...input };
-  const combat = s.scene === "test" || s.scene === "dungeon" || s.scene === "realm";
+  const combat = ["test", "dungeon", "realm", "arena"].includes(s.scene);
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
@@ -771,6 +788,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     h.stamina = Math.min(h.maxStamina, h.stamina + dt * 20);
     if (!(h.id === s.active && input.ki)) h.ki = Math.min(h.maxKi, h.ki + dt * 2.5);
   }
+  if (input.fusion && !previous.fusion) requestFusion(s);
   if (input.swap && !previous.swap) requestSwap(s);
   const h = activeHero(s);
   s.guard = combat && input.guard && s.dashTimer === 0 && !input.ki;
@@ -796,7 +814,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : 70;
+    const speed = s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : localFusion(s) ? 84 : 70;
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);
