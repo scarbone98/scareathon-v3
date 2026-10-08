@@ -3,7 +3,7 @@ import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
 import * as THREE from 'three';
 import { LOCATIONS } from './content';
-import { OVERWORLD, type WorldProp } from './world';
+import { parkedCarPose, OVERWORLD, type WorldProp } from './world';
 import { getRenderViewport } from './viewport';
 import { buildOverworldTerrain } from './terrain3d';
 import { AMBIENT_TAXI, TAXI_ROCK_IMPACT, roadsideBirds, taxiRockPosition } from './dressing';
@@ -321,7 +321,8 @@ export class OverworldRenderer {
     }
     const shadows: THREE.Matrix4[] = [];
     for (const prop of OVERWORLD.props) {
-      const x = prop.x + prop.w / 2, z = prop.y + prop.h * .8;
+      const parking = prop.kind === 'car' ? parkedCarPose(prop) : null;
+      const x = parking?.x ?? prop.x + prop.w / 2, z = parking?.y ?? prop.y + prop.h * .8;
       const y = this.terrain.heightAt(x, z);
       const box = (color: string, ox: number, oy: number, oz: number, w: number, h: number, d: number, emissive = false) => part('box', color, x + ox, y + oy, z + oz, w, h, d, 0, emissive);
       if (prop.kind === 'tree' || prop.kind === 'pine') {
@@ -364,7 +365,7 @@ export class OverworldRenderer {
       } else if (prop.kind === 'rock') {
         part('rock', '#7c8272', x, y + 4, z, 6, 6, 5, x); part('rock', '#a0a38a', x - 2, y + 7, z - 1, 3, 3, 3, z);
       } else if (prop.kind === 'car') {
-        box('#27363f', 0, 3, 0, 30, 4, 17); box('#799ba1', 0, 7, 0, 32, 7, 15); box('#a1b5a9', -2, 12, 0, 17, 5, 12);
+        box('#27363f', 0, 3, 0, 30, 4, 17); box(prop.color ?? '#799ba1', 0, 7, 0, 32, 7, 15); box('#a1b5a9', -2, 12, 0, 17, 5, 12);
         box('#314c59', -2, 12, 6.1, 14, 3, .3); box('#ead19a', 16, 8, -4, .5, 2, 3);
       } else if (prop.kind === 'sign') {
         box('#816a50', 0, 9, 0, 2.5, 18, 2.5); box('#466057', 0, 17, 0, 17, 9, 2); box('#c8bb8e', 0, 19, 1.1, 11, .6, .3);
@@ -393,6 +394,10 @@ export class OverworldRenderer {
   private makeRoadsideVehicles() {
     this.ambientCab = this.taxi.clone(true);
     this.ambientCab.traverse(object => { if (object instanceof THREE.PointLight) object.intensity = 0; });
+    // Place the parked cab once. Proximity only triggers its one-shot wreck gag;
+    // it never changes this pose or recycles a vehicle slot.
+    const { x, y } = AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
+    this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
     this.scene.add(this.ambientCab, this.wreckCab);
     const part = (group: THREE.Group, color: string, x: number, y: number, z: number, w: number, h: number, d: number) => {
       const mesh = new THREE.Mesh(this.geometries.box, this.material(color)); mesh.position.set(x, y, z); mesh.scale.set(w, h, d); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
@@ -421,10 +426,8 @@ export class OverworldRenderer {
     }
   }
   private updateDressing(s: GameState) {
-    const { x, y } = AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
-    this.ambientCab.visible = !s.ambientTaxiWrecked && this.nearView(x, y, 80);
-    this.wreckCab.visible = s.ambientTaxiWrecked && this.nearView(x, y, 80);
-    this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
+    this.ambientCab.visible = !s.ambientTaxiWrecked;
+    this.wreckCab.visible = s.ambientTaxiWrecked;
     const rock = taxiRockPosition(s);
     if (this.strayRock && this.strayRockShadow) {
       this.strayRock.visible = this.strayRockShadow.visible = !!rock && this.nearView(rock.x, rock.y, 190);

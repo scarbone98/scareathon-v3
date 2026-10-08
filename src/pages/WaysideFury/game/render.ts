@@ -3,7 +3,7 @@ import { ZONE_PREVIEWS, drawPreviewPart } from './zonePreviews';
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
-import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { parkedCarPose, cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { drawCanopy, drawTaxiBody, drawTaxiWreck } from "./scenery";
 import { QualityRecovery } from './qualityRecovery';
 import { TerrainCache } from "./terrain";
@@ -405,7 +405,10 @@ export class Renderer {
     }
     if (prop.kind === 'lamp') { this.lamp(x, y, time, s.palette === 'eightbit' ? '#db9cdb' : '#efce8f'); return; }
     if (prop.kind === 'portal') { if (s.scene !== 'overworld') this.portal(x, y, time); return; }
-    if (prop.kind === 'car') { this.parkedCar(x, y, prop.color ?? '#799ba1'); return; }
+    if (prop.kind === 'car') {
+      const pose = parkedCarPose(prop);
+      this.parkedCar(pose.x, pose.y + 7.5, prop.color ?? '#799ba1', pose.heading); return;
+    }
     if (prop.kind === 'ambient-taxi') {
       if (!s.ambientTaxiWrecked) this.taxi(x, y, 1, 0, time, false);
       else {
@@ -809,10 +812,9 @@ export class Renderer {
     c.fillStyle = headlights; c.beginPath(); c.moveTo(12, -4); c.lineTo(37, -12); c.lineTo(37, 12); c.lineTo(12, 4); c.fill();
     c.restore();
     c.save(); c.translate(x, y);
-    // Keep the side-view cabin upright when driving west. N/S use the same
-    // car's front/rear elevations, never a rotated or upside-down side sprite.
+    // All headings retain the upright side-on cabin and the wreck's artwork.
     if (dx < 0) c.scale(-1, 1);
-    drawTaxiBody(c, Math.abs(dy) > Math.abs(dx) ? dy > 0 ? 'front' : 'rear' : 'side');
+    drawTaxiBody(c, 'side');
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;

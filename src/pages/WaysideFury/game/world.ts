@@ -7,6 +7,8 @@ export interface WorldProp {
   kind: "tree" | "pine" | "bush" | "rock" | "flower" | "lamp" | "barrier" | "fence" | "station" | "shop" | "home" | "shed" | "diner" | "bbq" | "sign" | "mailbox" | "vending" | "car" | "ambient-taxi" | "puddle" | "debris" | "chest" | "npc" | "crater" | "portal";
   // Sprite bounds; solid rectangles sit at the physical base, below the canopy.
   x: number; y: number; w: number; h: number; label?: string; color?: string;
+  // Fixed parked-car heading; never inferred from the player or camera.
+  parkingHeading?: 1 | -1;
   footprints?: CollisionRect[];
 }
 export interface WorldExit {
@@ -91,6 +93,21 @@ function prop(m: WorldMap, kind: WorldProp["kind"], x: number, y: number, w = 24
     footprints: baseFootprints(kind, x, y, w, h) };
   m.props.push(p);
   return p;
+}
+// Park in an authored paved bay, with a fixed ground pose shared by both renderers.
+export function parkedCarPose(car: WorldProp) {
+  return { x: car.x + car.w / 2, y: car.y + car.h - 7.5, heading: car.parkingHeading ?? 1 };
+}
+function parkedCar(m: WorldMap, x: number, y: number, w: number, h: number) {
+  const car = prop(m, "car", x, y, w, h);
+  car.parkingHeading = 1;
+  const pose = parkedCarPose(car);
+  const body = { x: pose.x - 17, y: pose.y - 9, w: 34, h: 18 };
+  if (m.roads.some(segment => overlaps(body, segment))) throw new Error(`${car.id}: parking overlaps a driving lane`);
+  for (const px of [body.x, body.x + body.w - .01]) for (const py of [body.y, body.y + body.h - .01]) {
+    if (tileAt(m, Math.floor(px / TILE), Math.floor(py / TILE)) !== 'stone') throw new Error(`${car.id}: parking must stay in its paved bay`);
+  }
+  return car;
 }
 function boundary(m: WorldMap, tile: TileKind, tree: "pine" | "tree" = "tree") {
   paint(m, 0, 0, m.width, 32, tile, true); paint(m, 0, m.height - 32, m.width, 32, tile, true);
@@ -185,7 +202,7 @@ export const OVERWORLD = (() => {
   const machine = prop(m, "vending", 550, 398, 22, 34, "Candy machine"); machine.id = "roadside-vending";
   prop(m, "diner", 464, 330, 112, 64, "Last Light Diner");
   paint(m, 500, 394, 40, 54, "dirt");
-  prop(m, "car", 584, 422, 36, 22); prop(m, "car", 866, 514, 36, 22);
+  parkedCar(m, 584, 418, 36, 22); parkedCar(m, 866, 514, 36, 22);
   prop(m, "rock", 292, 526, 24, 16);
   prop(m, "tree", 748, 274, 24, 32);
   prop(m, "sign", 1000, 414, 24, 24, "Blast Site · East");
@@ -220,7 +237,7 @@ export const HUB_WORLD = (() => {
   prop(m, "shed", 672, 384, 80, 64);
   prop(m, "bbq", 768, 400, 32, 32); prop(m, "fence", 672, 480, 192, 12);
   prop(m, "npc", 816, 384, 16, 24, "Jon"); prop(m, "npc", 336, 224, 16, 24, "Alex");
-  prop(m, "car", 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
+  parkedCar(m, 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
   m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
@@ -265,7 +282,7 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
     prop(m, "shed", m.width - 208, 64, 112, 72);
     prop(m, "fence", 96, m.height - 80, 144, 12);
     paint(m, 368, 96, 64, Math.max(48, cy - 144), 'stone'); // Parking drive meets each room's main path.
-    prop(m, "car", 384, 104, 40, 24);
+    parkedCar(m, 384, 104, 40, 24);
   }
   if (room === 3) {
     paint(m, 640, cy, 96, m.height - cy, "dirt");
