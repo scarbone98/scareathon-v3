@@ -712,10 +712,8 @@ export function createArcadeGames(): MachineData[] {
       name: "Wayside Fury",
       // Kept local until the owner can move the preview to Supabase Storage.
       videoUrl: "/game-recordings/WaysideFury.mp4",
-      earlyAccess: true,
-      newShelf: true,
       availableOnMobile: true,
-      added: "Wed 2026-10-07 9:41 PM PDT (UTC-07:00)",
+      added: "Thu 2026-10-08 7:59 AM PDT (UTC-07:00)",
       cartridge: {
         color: "#b34836",
         tagline: "Five years later, the real evil arrives.",
