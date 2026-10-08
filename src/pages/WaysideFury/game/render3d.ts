@@ -1,3 +1,4 @@
+import { ZONE_PREVIEWS } from './zonePreviews';
 import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
 import * as THREE from 'three';
@@ -24,7 +25,7 @@ const SHEETS = {
 };
 type SpriteId = keyof typeof SHEETS;
 interface SpriteSheet { texture: THREE.Texture; frames: number; w: number; h: number; fps: number }
-interface Billboard { group: THREE.Group; sprites: THREE.Sprite[]; sheets: SpriteSheet[]; shadow: THREE.Mesh; source: string; x: number; y: number }
+interface Billboard { group: THREE.Group; sprites: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[]; sheets: SpriteSheet[]; shadow: THREE.Mesh; source: string; x: number; y: number }
 interface RemoteTaxi { group: THREE.Group; wheels: THREE.Mesh[]; shadow: THREE.Mesh }
 interface Portal { group: THREE.Group; ring: THREE.Mesh; core: THREE.Mesh<THREE.CircleGeometry, THREE.MeshBasicMaterial>; x: number; y: number }
 interface LightSource { x: number; y: number; height: number; color: number; strength: number }
@@ -315,6 +316,10 @@ export class OverworldRenderer {
       this.dummy.position.set(x, y, z); this.dummy.rotation.set(0, rotation, 0); this.dummy.scale.set(w, h, d); this.dummy.updateMatrix();
       batch.matrices.push(this.dummy.matrix.clone());
     };
+    for (const preview of ZONE_PREVIEWS) {
+      const { shape, color, x, y, z, w, h, d } = preview;
+      part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
+    }
     const shadows: THREE.Matrix4[] = [];
     for (const prop of OVERWORLD.props) {
       const x = prop.x + prop.w / 2, z = prop.y + prop.h * .8;
@@ -533,24 +538,36 @@ export class OverworldRenderer {
     let actor = this.billboards.get(key);
     if (actor && actor.source !== source) { this.removeBillboard(key); actor = undefined; }
     if (!actor) {
-      const group = new THREE.Group(); const sprites: THREE.Sprite[] = [];
+      const group = new THREE.Group(); const sprites: Billboard["sprites"] = [];
       for (const sheet of sheets) {
         const texture = sheet.texture.clone(); texture.needsUpdate = true; texture.repeat.set(1 / sheet.frames, 1);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: .08, depthWrite: true, toneMapped: false }));
-        sprite.center.set(.5, 0); sprite.scale.set(sheet.w * scale, sheet.h * scale, 1); group.add(sprite); sprites.push(sprite);
+        // Upright cutout planes cannot pitch into the terrain like THREE.Sprite.
+        // Alpha-tested opaque pixels write real depth, including avatar layers.
+        const geometry = new THREE.PlaneGeometry(1, 1); geometry.translate(0, .5, 0);
+        const sprite = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: texture, alphaTest: .5, depthTest: true, depthWrite: true, toneMapped: false, side: THREE.DoubleSide }));
+        sprite.rotation.y = Math.atan2(FORWARD.x, FORWARD.z);
+        sprite.scale.set(sheet.w * scale, sheet.h * scale, 1); group.add(sprite); sprites.push(sprite);
       }
       const shadow = new THREE.Mesh(this.shadowGeometry, this.shadowMaterial); shadow.scale.set(20 * scale, 1, 13 * scale);
       group.add(shadow); this.scene.add(group); actor = { group, sprites, sheets, shadow, source, x, y }; this.billboards.set(key, actor);
     }
     actor.x = x; actor.y = y;
-    actor.group.position.set(x, this.terrain.heightAt(x, y) + .4, y);
+    const ground = this.terrain.heightAt(x, y);
+    // Support both corners of the feet on sloped triangles, without lifting
+    // their contact shadow or moving the simulation's collision position.
+    const halfWidth = Math.max(...actor.sprites.map(sprite => sprite.scale.x)) / 2;
+    const yaw = Math.atan2(FORWARD.x, FORWARD.z);
+    const dx = Math.cos(yaw) * halfWidth, dz = -Math.sin(yaw) * halfWidth;
+    const footing = Math.max(ground, this.terrain.heightAt(x - dx, y - dz), this.terrain.heightAt(x + dx, y + dz));
+    actor.group.position.set(x, footing + .35, y);
+    actor.shadow.position.y = ground - footing;
     const time = this.reducedMotion ? 0 : this.visualTime;
     actor.sprites.forEach((sprite, index) => {
-      const sheet = actor!.sheets[index]; const map = (sprite.material as THREE.SpriteMaterial).map!;
+      const sheet = actor!.sheets[index]; const map = sprite.material.map!;
       map.offset.x = Math.floor(time * sheet.fps) % sheet.frames / sheet.frames;
       // Layer depth offsets follow the camera, preserving wardrobe order.
-      const bob = this.reducedMotion ? 0 : Math.sin(time * 3 + x) * .5;
-      sprite.position.set(FORWARD.x * index * .08, bob + FORWARD.y * index * .08, FORWARD.z * index * .08);
+      const bob = this.reducedMotion ? 0 : (1 + Math.sin(time * 3 + x)) * .25;
+      sprite.position.set(FORWARD.x * index * .08, bob + index * .02, FORWARD.z * index * .08);
     });
     actor.group.visible = this.nearView(x, y, 80);
     return actor;
@@ -558,7 +575,7 @@ export class OverworldRenderer {
   private removeBillboard(key: string) {
     const actor = this.billboards.get(key); if (!actor) return;
     this.scene.remove(actor.group);
-    for (const sprite of actor.sprites) { sprite.material.map?.dispose(); sprite.material.dispose(); }
+    for (const sprite of actor.sprites) { sprite.geometry.dispose(); sprite.material.map?.dispose(); sprite.material.dispose(); }
     this.billboards.delete(key);
   }
   private remoteTaxi(seat: number) {
@@ -635,6 +652,12 @@ export class OverworldRenderer {
     if (!this.cameraReady) this.target.set(targetX, elevation + 7, targetZ);
     else this.target.lerp(this.scratch.set(targetX, elevation + 7, targetZ), ease);
     const distance = this.viewport.height / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
+    const far = Math.ceil(distance + Math.hypot(OVERWORLD.width, OVERWORLD.height) + 256);
+    if (this.camera.far !== far) {
+      this.camera.near = 1; this.camera.far = far; this.camera.updateProjectionMatrix();
+      this.postMaterial.uniforms.nearPlane.value = this.camera.near;
+      this.postMaterial.uniforms.farPlane.value = far;
+    }
     this.camera.position.copy(this.target).addScaledVector(FORWARD, distance);
     this.camera.lookAt(this.target); this.camera.updateMatrixWorld();
     // Clamp the perspective ground footprint, including its wider far edge.
@@ -700,12 +723,7 @@ export class OverworldRenderer {
       { id: 'you', x: 256, y: 435 }, { id: 'joe', x: 277, y: 441 }, { id: 'matt', x: 296, y: 446 },
     ];
     for (const hero of greeters) this.billboard(`crew-${hero.id}`, hero.id, hero.x, hero.y, hero.id === 'you' ? .65 : 1);
-    const driver = this.billboard('driver', s.active, s.x, s.y, s.active === 'you' ? .2 : .35);
-    if (driver) {
-      driver.shadow.visible = false;
-      driver.group.position.copy(this.taxi.position); driver.group.position.y += 12;
-      driver.group.position.addScaledVector(FORWARD, 4.7);
-    }
+    // Occupants sit behind the opaque cabin glass; no cutout through the roof.
     const peers = (s.coop?.remoteHeroes ?? []).filter(peer => peer.scene === s.scene && peer.room === s.room);
     this.syncRemotePeers(s);
     for (const peer of peers) {
@@ -715,12 +733,6 @@ export class OverworldRenderer {
       taxi.group.visible = this.nearView(peer.x, peer.y, 80);
       for (const wheel of taxi.wheels) wheel.rotation.y = this.reducedMotion || !peer.moving ? 0 : this.visualTime * 16;
       taxi.shadow.position.set(peer.x + 3, elevation + .3, peer.y + 2); taxi.shadow.visible = taxi.group.visible;
-      const passenger = this.billboard(`peer-driver-${peer.seat}`, peer.hero.id, peer.x, peer.y, peer.hero.id === 'you' ? .2 : .35, peer.seat);
-      if (passenger) {
-        passenger.shadow.visible = false;
-        passenger.group.position.copy(taxi.group.position); passenger.group.position.y += 12;
-        passenger.group.position.addScaledVector(FORWARD, 4.7);
-      }
     }
     const liveEnemies = new Set(s.enemies.filter(enemy => enemy.hp > 0).map(enemy => `enemy-${enemy.id}`));
     for (const key of [...this.billboards.keys()]) if (key.startsWith('enemy-') && !liveEnemies.has(key)) this.removeBillboard(key);

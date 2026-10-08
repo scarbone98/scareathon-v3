@@ -1,4 +1,5 @@
 // Presentation-only height data. The simulation keeps its original flat map.
+import { roadMarks } from './roadMarkings';
 import * as THREE from 'three';
 import { MATERIALS } from './terrain';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
@@ -208,11 +209,10 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
       if (tileAt(world, col - 1, row) !== 'water') quad(shoreline, point(x, y, .12), point(x + .7, y, .12), point(x, y + TILE, .12), point(x + .7, y + TILE, .12), shade);
       if (tileAt(world, col + 1, row) !== 'water') quad(shoreline, point(x + TILE - .7, y, .12), point(x + TILE, y, .12), point(x + TILE - .7, y + TILE, .12), point(x + TILE, y + TILE, .12), shade);
     }
-    if (kind === 'road' && col % 2 === 0 && row % 2 === 0) {
-      const vertical = tileAt(world, col - 1, row) !== 'road' || tileAt(world, col + 1, row) !== 'road';
-      const rx = x + (vertical ? 7.5 : 4), ry = y + (vertical ? 4 : 7.5), rw = vertical ? .75 : 7, rh = vertical ? 7 : .75;
-      shade.set('#c7b68c');
-      quad(markings, point(rx, ry, .08), point(rx + rw, ry, .08), point(rx, ry + rh, .08), point(rx + rw, ry + rh, .08), shade);
+    if (kind === 'road') for (const mark of roadMarks(world, col, row)) {
+      const { x: rx, y: ry, w: rw, h: rh } = mark;
+      shade.set(mark.color);
+      quad(markings, point(rx, ry, .15), point(rx + rw, ry, .15), point(rx, ry + rh, .15), point(rx + rw, ry + rh, .15), shade);
     }
   }
   const geometries: THREE.BufferGeometry[] = [], materials: THREE.Material[] = [], textures: THREE.Texture[] = [];

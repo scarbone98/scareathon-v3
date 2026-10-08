@@ -36,32 +36,20 @@ export function drawCanopy(c: CanvasRenderingContext2D, x: number, y: number) {
 }
 
 export function drawTaxiBody(c: CanvasRenderingContext2D) {
-  const panel = (x: number, y: number, w: number, h: number, r: number, fill: string | CanvasGradient) => {
-    c.fillStyle = fill; c.beginPath(); c.roundRect(x, y, w, h, r); c.fill();
+  const panel = (x: number, y: number, w: number, h: number, color: string) => {
+    c.fillStyle = color; c.fillRect(x, y, w, h);
   };
-  // Same 26 × 18 silhouette and orientation as the original taxi.
-  panel(-13.8, -7.5, 27.6, 16, 4, '#172d32');
-  for (const x of [-10, 6]) for (const y of [-9, 6]) {
-    panel(x, y, 5, 3.4, .9, '#111e27'); panel(x + .4, y + .6, 4.2, .4, .2, '#718183');
+  // Match the crew sprites: one-unit ink contour, broad three-tone panels.
+  // Keep native-DPR edges and smooth world motion; only the art is simplified.
+  for (const x of [-10, 6]) for (const y of [-9, 6]) panel(x, y, 5, 3, '#17282e');
+  panel(-14, -6, 28, 12, '#17282e'); panel(-12, -8, 24, 16, '#17282e');
+  panel(-13, -5, 26, 10, '#d8a354'); panel(-11, -7, 22, 14, '#d8a354');
+  panel(-11, -7, 22, 2, '#efd08b'); panel(-11, 5, 22, 2, '#a97540');
+  panel(-8, -5, 15, 10, '#17282e'); panel(-7, -4, 13, 8, '#365965');
+  panel(-7, -4, 3, 2, '#799ba1'); panel(-2, -5, 4, 10, '#d8a354');
+  panel(-3, -2, 6, 4, '#17282e'); panel(-2, -1, 4, 2, '#efd08b');
+  for (const y of [-4, 2]) {
+    panel(11, y, 2, 2, '#efd08b'); panel(-13, y, 1, 2, '#b96e60');
   }
-  const paint = c.createLinearGradient(0, -7, 0, 7);
-  paint.addColorStop(0, '#ffdf8b'); paint.addColorStop(.25, '#edba59'); paint.addColorStop(.7, '#cf9340'); paint.addColorStop(1, '#996537');
-  panel(-13, -7, 26, 14, 3.8, paint);
-  panel(-8, -5.9, 15, 11.8, 2.8, '#775d39');
-  const glass = c.createLinearGradient(-7, -5, 7, 5);
-  glass.addColorStop(0, '#99c7c9'); glass.addColorStop(.3, '#3d6976'); glass.addColorStop(1, '#1b3749');
-  panel(-7.5, -5.3, 14, 10.6, 2.2, glass);
-  panel(-3.4, -5.5, 5.8, 11, 1.5, '#f4c76c');
-  panel(-2.5, -2, 4, 3, .7, '#fff0b9');
-  panel(-1.6, -1.3, 2.2, .5, .1, '#554b39');
-  c.strokeStyle = '#fff2c780'; c.lineWidth = .35;
-  c.beginPath(); c.moveTo(-6.8, -4.4); c.lineTo(-4.5, 3.4); c.moveTo(3.1, -4.5); c.lineTo(5.6, 3); c.stroke();
-  c.strokeStyle = '#94662f'; c.lineWidth = .3;
-  c.beginPath(); c.moveTo(8.1, -4.5); c.lineTo(9.3, -3.8); c.lineTo(9.3, 3.8); c.lineTo(8.1, 4.5); c.stroke();
-  for (let k = -10; k < 11; k += 2) panel(k, 5.3, 1, .7, .1, '#374746');
-  for (const y of [-4.8, 2.4]) {
-    panel(11.8, y, 1.7, 2.6, .6, '#fff8d9'); panel(-13.2, y, 1.3, 2.4, .4, '#d66e64');
-  }
-  panel(13, -3.5, .5, 7, .2, '#c4d0bf'); panel(-13.4, -3, .5, 6, .2, '#b5bdb0');
-  for (const y of [-7.8, 6.5]) panel(1, y, 2.5, 1.3, .6, '#eec270');
+  for (const x of [-9, -5, 3, 7]) panel(x, 5, 2, 1, '#17282e');
 }

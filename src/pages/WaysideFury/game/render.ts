@@ -1,4 +1,5 @@
 // The renderer only reads simulation state. World units are independent of pixels.
+import { ZONE_PREVIEWS, drawPreviewPart } from './zonePreviews';
 import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, type HeroId, type Projectile } from "./sim";
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
@@ -229,6 +230,7 @@ export class Renderer {
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.x, enemy.y, 130)) this.bossTelegraph(s, enemy);
     const actors = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
+    if (s.scene === 'overworld') for (const part of ZONE_PREVIEWS) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') for (const traffic of trafficForState(s)) if (this.visible(traffic.x, traffic.y, 50)) actors.push({ y: traffic.y, draw: () => this.parkedCar(traffic.x, traffic.y, traffic.color, traffic.direction) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });

@@ -1,3 +1,4 @@
+import { roadMarks } from './roadMarkings';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
 
 const MAX_CHUNK_TILES = 4;
@@ -119,19 +120,16 @@ export class TerrainCache {
         }
         for (const px of [2, 13]) { fill(px, 1, .5, .5, '#514e46'); fill(px, 13, .5, .5, '#514e46'); }
       }
-      if (kind === 'road') {
-        const vertical = terrainAt(world, col - 1, row) !== 'road' || terrainAt(world, col + 1, row) !== 'road';
-        if (vertical && col % 2 === 0 && row % 2 === 0) fill(7, 4, 1, 7, '#c7b68c');
-        else if (!vertical && row % 2 === 0 && col % 2 === 0) fill(4, 7, 7, 1, '#c7b68c');
+      if (kind === 'road') for (const mark of roadMarks(world, col, row)) {
+        fill(mark.x - col * TILE, mark.y - row * TILE, mark.w, mark.h, mark.color);
       }
       const edges = [[0, -1, 0, 0, TILE, 2], [0, 1, 0, TILE - 2, TILE, 2], [-1, 0, 0, 0, 2, TILE], [1, 0, TILE - 2, 0, 2, TILE]];
       for (const [dx, dy, ex, ey, ew, eh] of edges) {
         const neighbor = terrainAt(world, col + dx, row + dy);
-        if (neighbor === kind) continue;
+        if (neighbor === kind || kind === 'road') continue;
         if (kind === 'water') {
           fill(ex, ey, ew, eh, '#9d9a71'); fill(ex + (dx === -1 ? 1.5 : 0), ey + (dy === -1 ? 1.5 : 0), dx ? .5 : ew, dy ? .5 : eh, '#cad0a2');
-        } else if (kind === 'road') { fill(ex, ey, ew, eh, '#929587'); if (dy === 1) fill(ex, ey, ew, .5, '#d4caae'); }
-        else if (kind === 'dirt' || kind === 'sand') {
+        } else if (kind === 'dirt' || kind === 'sand') {
           fill(ex, ey, ew, eh, dark);
           for (let k = 0; k < 8; k++) fill(dx ? ex : k * 2, dy ? ey : k * 2, .5, .5, light);
         } else if (kind === 'grass') {
