@@ -1,6 +1,9 @@
 import { HUB_POINTS, LOCATIONS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
 import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
+import { createItemsSave, type ItemsSaveState } from "../../../../server/shared/waysideFury/u1Items.js";
+import { chipEffects, itemsState, grantChip, trySecondWind } from "./u1/items/chips.ts";
+import { chipTargets, collectChip, grantCheckpointChip, itemWithinReach } from "./u1/items/pickups.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
@@ -21,6 +24,7 @@ export interface RemoteHero {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
   scene: Scene; room: number; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  chipDamageMultiplier?: number; secondWindReady?: boolean; chipSnapshotAt?: number;
 }
 export interface CoopRuntime {
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
@@ -28,6 +32,7 @@ export interface CoopRuntime {
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
   revivedUntil?: Record<number, number>;
   worldClearedRooms?: string[];
+  remoteSecondWindSpent?: Record<number, { userId: string; at: number }>;
 }
 export interface CoopHit {
   type: "coop-hit"; enemyId: number; damage: number; dx: number; dy: number; force: number; attackId: string;
@@ -52,6 +57,7 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | { type: "item"; id: string; kind: "chip" | "relic" | "radar" | "wish" }
   | CoopHit
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
@@ -76,9 +82,15 @@ export interface GameState {
   previousInput: Input; rngSeed: number; nextId: number;
   coop?: CoopRuntime;
   coopRewards?: string[];
+  u1?: { items: ItemsSaveState; [key: string]: unknown };
 }
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
+// Wish bonuses stay distinct from candy-bought gear and survive HOME retries.
+export function itemsGear(s: GameState): Gear {
+  const bonus = itemsState(s).relics.statBonus;
+  return { power: s.gear.power + bonus.power, ward: s.gear.ward + bonus.ward };
+}
 export function xpForLevel(level: number) { return 75 + (level - 1) * 45; }
 export function createHero(id: HeroId, character: CharacterProgress = { level: 1, xp: 0 }, gear: Gear = { power: 0, ward: 0 }): HeroState {
   const stats = heroStats(id, character, gear);
@@ -131,7 +143,7 @@ export function syncCoopLevel(s: GameState): void {
   const level = s.coop?.role === "guest" ? clamp(s.character.level, band[0], band[1]) : s.character.level;
   if (s.coop) s.coop.syncedLevel = s.coop.role === "guest" ? level : undefined;
   for (const h of Object.values(s.heroes)) {
-    const stats = heroStats(h.id, { ...s.character, level }, s.gear);
+    const stats = heroStats(h.id, { ...s.character, level }, itemsGear(s));
     const hp = h.hp / Math.max(1, h.maxHp), ki = h.ki / Math.max(1, h.maxKi);
     Object.assign(h, stats, { level, xp: s.character.xp });
     h.hp = stats.maxHp * hp; h.ki = stats.maxKi * ki;
@@ -151,7 +163,7 @@ export function newGame(seed = 8591): GameState {
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1,
-    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [] };
+    candy: 0, deaths: 0, kills: 0, events: [], previousInput: idleInput(), rngSeed: seed | 0, nextId: 1, coopRewards: [], u1: { items: createItemsSave() } };
   enterScene(s, "test");
   return s;
 }
@@ -273,7 +285,7 @@ export function gainXp(s: GameState, amount: number) {
   if (s.coop?.role === "guest") s.coop.syncedLevel = level;
   for (const h of Object.values(s.heroes)) {
     const growth = s.character.level - (s.coop ? before : h.level), downed = !!s.coop && h.hp <= 0;
-    const stats = heroStats(h.id, { ...s.character, level }, s.gear);
+    const stats = heroStats(h.id, { ...s.character, level }, itemsGear(s));
     Object.assign(h, s.character, stats, { level });
     if (growth > 0) {
       if (!downed) h.hp = Math.min(h.maxHp, h.hp + growth * 30);
@@ -302,10 +314,13 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     const xp = e.kind === "boss" ? e.miniBoss ? 95 : 130 : e.kind === "shooter" ? 35 : 28;
     if (!s.coop) {
       const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
-      s.candy += candy; s.kills++;
-      floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
+      const effects = chipEffects(s);
+      const reward = Math.floor(candy * effects.candyMultiplier) + effects.candyBonusPerKill;
+      s.candy += reward; s.kills++;
+      floater(s, e.x, e.y + 13, `+${reward} candy`, "#eea2fc");
       gainXp(s, xp);
     }
+    if (!s.coop && e.kind === "boss") grantChip(s, e.miniBoss ? "iron-guard" : "focus-lens", "guardian");
     s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp });
   }
 }
@@ -328,6 +343,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
 }
 function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
   if (e.hp <= 0) return;
+  if (chipEffects(s).scanner && e.windup > 0) damage *= 1.15;
   if (s.coop?.role === "guest") {
     s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
     effect(s, "hit", e.x, e.y, 9, 0.12);
@@ -370,6 +386,7 @@ export function exitCoop(s: GameState): void {
 function damageHero(s: GameState, damage: number, sourceX: number, sourceY: number) {
   const h = activeHero(s);
   if (h.invulnerable > 0 || s.dashTimer > 0 || h.hp <= 0) return;
+  damage = Math.max(1, Math.round(damage * chipEffects(s).incomingDamageMultiplier));
   h.hp = Math.max(0, h.hp - damage); h.invulnerable = s.guard ? 0.12 : 0.5;
   s.hitStop = Math.max(s.hitStop, s.guard ? 0.04 : 0.065);
   if (!s.guard) {
@@ -379,11 +396,15 @@ function damageHero(s: GameState, damage: number, sourceX: number, sourceY: numb
   floater(s, s.x, s.y, s.guard ? `BLOCK ${damage}` : String(damage), s.guard ? "#a4d5ed" : "#ff897f");
   effect(s, "hit", s.x, s.y, 10, 0.13);
   s.events.push({ type: "hit", x: s.x, y: s.y, damage, target: "hero" });
+  if (h.hp === 0 && trySecondWind(s)) {
+    effect(s, "level", s.x, s.y, 24, 0.7);
+    s.knockX = s.knockY = 0; return;
+  }
   if (h.hp === 0) {
     if (s.coop) {
       s.coop.downed = true; s.moving = false; s.guard = false; s.vx = s.vy = 0;
       s.charge = s.dashTimer = s.attackTimer = 0;
-      s.notice = "Downed! A teammate can hold Interact nearby to revive you."; return;
+      s.notice = "Downed! A teammate can hold their use control nearby to revive you."; return;
     }
     const next = nextPartyHero(s);
     if (next) { swapHero(s); s.notice = `${HERO_NAMES[h.id]} is down! ${HERO_NAMES[next]} takes over.`; }
@@ -422,10 +443,20 @@ function hurtTarget(s: GameState, target: CombatTarget, damage: number, sourceX:
   if (!target.remote) { hurtHero(s, damage, sourceX, sourceY); return; }
   const coop = s.coop!, until = coop.damageUntil ??= {};
   if (target.hero.hp <= 0 || target.dashTimer > 0 || target.hero.invulnerable > 0 || (until[target.seat] ?? 0) > s.time) return;
-  const dealt = enemyDamage(s, damage, target.hero.defense, target.guard);
+  const rawDamage = enemyDamage(s, damage, target.hero.defense, target.guard);
+  const dealt = Math.max(1, Math.round(rawDamage * (target.remote.chipDamageMultiplier === 0.88 ? 0.88 : 1)));
   until[target.seat] = s.time + (target.guard ? 0.12 : 0.5);
   target.hero.hp = Math.max(0, target.hero.hp - dealt); target.remote.downed = target.hero.hp === 0;
-  s.events.push({ type: "coop-damage", seat: target.seat, damage: dealt, sourceX, sourceY });
+  if (target.hero.hp === 0 && target.remote.secondWindReady && coop.remoteSecondWindSpent?.[target.seat]?.userId !== target.remote.userId) {
+    (coop.remoteSecondWindSpent ??= {})[target.seat] = { userId: target.remote.userId, at: target.remote.chipSnapshotAt ?? 0 };
+    target.remote.secondWindReady = false; target.remote.downed = false; target.remote.reviveProgress = 0;
+    target.hero.hp = Math.max(1, target.hero.maxHp * 0.35); target.hero.invulnerable = Math.max(target.hero.invulnerable, 1.4);
+    until[target.seat] = s.time + 1.4;
+    effect(s, "level", target.x, target.y, 24, 0.7);
+  }
+  // Guests apply their own chip mitigation and consume their personal revive.
+  // The host predicts both before deciding whether the shared world has wiped.
+  s.events.push({ type: "coop-damage", seat: target.seat, damage: rawDamage, sourceX, sourceY });
   effect(s, "hit", target.x, target.y, 10, 0.13);
 }
 function updateCoopRevives(s: GameState, input: Input, dt: number) {
@@ -463,7 +494,7 @@ function checkCoopWipe(s: GameState) {
 function melee(s: GameState) {
   s.combo = s.comboWindow > 0 ? s.combo % 3 + 1 : 1;
   s.attackTimer = s.combo === 3 ? 0.28 : 0.2;
-  s.comboWindow = 0.8;
+  s.comboWindow = 0.8 + chipEffects(s).comboWindowBonus;
   const reach = s.combo === 3 ? 34 : 28;
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
   const attackId = `melee:${s.nextId++}`;
@@ -496,14 +527,14 @@ function fireKi(s: GameState) {
       const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
       const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
       projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 245,
-        h.power * signature.damage, signature.radius, true);
+        h.power * signature.damage * chipEffects(s).kiDamageMultiplier, signature.radius, true);
     }
     effect(s, "beam", s.x, s.y, signature.size, 0.36, s.faceX, s.faceY);
     s.notice = signature.name;
-  } else if (h.ki >= 8) {
-    h.ki -= 8;
+  } else if (h.ki >= 8 * chipEffects(s).kiCostMultiplier) {
+    h.ki -= 8 * chipEffects(s).kiCostMultiplier;
     projectile(s, "hero", s.x + s.faceX * 12, s.y + s.faceY * 12,
-      s.faceX, s.faceY, 155, h.power * 1.5, 4);
+      s.faceX, s.faceY, 155, h.power * 1.5 * chipEffects(s).kiDamageMultiplier, 4);
   } else s.notice = "Hold Ki to recharge.";
   s.charge = 0;
 }
@@ -634,6 +665,8 @@ function availableExit(s: GameState): WorldExit | undefined {
   return getWorld(s.scene, s.room).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
 }
 export function interactTarget(s: GameState): { id: string; name: string; locked?: boolean } | null {
+  const item = chipTargets(s).find(target => itemWithinReach(s, target));
+  if (item && activeHero(s).hp > 0) return { id: item.id, name: `Collect ${item.name}` };
   if (s.coop && activeHero(s).hp > 0) {
     const downed = s.coop.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === s.scene && peer.room === s.room && Math.hypot(s.x - peer.x, s.y - peer.y) <= 32);
     if (downed) return { id: `coop-revive-${downed.seat}`, name: `Hold to revive ${downed.name}` };
@@ -660,6 +693,8 @@ function travel(s: GameState, door: WorldExit) {
   s.previousInput.interact = true;
 }
 export function interact(s: GameState): void {
+  const personalTarget = interactTarget(s);
+  if (personalTarget?.id.startsWith("chip-find-") && collectChip(s, personalTarget.id)) return;
   if (s.coop?.role === "guest" || (s.coop && (s.coop.downed || activeHero(s).hp <= 0))) return;
   const target = interactTarget(s);
   if (!target) return;
@@ -668,6 +703,7 @@ export function interact(s: GameState): void {
     if (target.id.startsWith("loot-")) {
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
       s.clearedRooms.push(target.id);
+      if (!s.coop) grantCheckpointChip(s, target.id);
       if (!s.coop) {
         s.candy += s.room === 8 ? 18 : 25;
         for (const h of Object.values(s.heroes)) {
@@ -717,6 +753,7 @@ export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): bo
 }
 export function restAtHome(s: GameState): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
+  itemsState(s).chips.secondWindUsed = false;
   for (const h of Object.values(s.heroes)) { h.hp = h.maxHp; h.ki = h.maxKi; h.stamina = h.maxStamina; }
   if (!s.areas.includes("wayside")) s.areas.push("wayside");
   s.events.push({ type: "checkpoint", id: "home" }); s.notice = "Rested. HOME is your retry checkpoint.";
@@ -766,7 +803,10 @@ export function step(s: GameState, input: Input, delta: number): void {
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
   s.swapCooldown = Math.max(0, s.swapCooldown - dt);
+  const passives = chipEffects(s);
   for (const h of Object.values(s.heroes)) {
+    if (h.id === s.active && h.hp > 0 && !s.enemies.some(e => e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 100))
+      h.hp = Math.min(h.maxHp, h.hp + passives.passiveHealPerSecond * dt);
     h.invulnerable = Math.max(0, h.invulnerable - dt);
     h.stamina = Math.min(h.maxStamina, h.stamina + dt * 20);
     if (!(h.id === s.active && input.ki)) h.ki = Math.min(h.maxKi, h.ki + dt * 2.5);
@@ -780,8 +820,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     const angle = Math.round(Math.atan2(input.y, input.x) / (Math.PI / 4)) * Math.PI / 4;
     s.faceX = Math.cos(angle); s.faceY = Math.sin(angle);
   }
-  if (combat && input.dash && !previous.dash && s.dashTimer === 0 && h.stamina >= 25) {
-    h.stamina -= 25; s.dashTimer = 0.18; h.invulnerable = Math.max(h.invulnerable, 0.23);
+  if (combat && input.dash && !previous.dash && s.dashTimer === 0 && h.stamina >= 25 * passives.dashStaminaMultiplier) {
+    h.stamina -= 25 * passives.dashStaminaMultiplier; s.dashTimer = 0.18; h.invulnerable = Math.max(h.invulnerable, 0.23);
     s.guard = false; s.charge = 0;
     effect(s, "dash", s.x, s.y, 14, 0.23, s.faceX, s.faceY);
   }
@@ -796,7 +836,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : 70;
+    const speed = s.dashTimer > 0 ? 240 : s.guard ? 29 : input.ki && combat ? 37 : 70 * passives.moveSpeedMultiplier;
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);
@@ -807,7 +847,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (!combat) { s.charge = 0; if (input.interact && !previous.interact) interact(s); return; }
   if (input.attack && !previous.attack && s.attackTimer === 0 && s.dashTimer === 0 && !s.guard && !input.ki) melee(s);
   if (input.ki && s.dashTimer === 0 && !s.guard) {
-    s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32);
+    s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32 * passives.kiChargeMultiplier);
   }
   if (!input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
   const hadEnemies = s.enemies.length > 0;

@@ -3,6 +3,9 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
+import { chipEffects, CHIP_REGISTRY } from "./u1/items/chips";
+import { chipTargets } from "./u1/items/pickups";
+import { drawItemMarker } from "./u1/items/draw";
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -226,6 +229,8 @@ export class Renderer {
       for (const strip of this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
+    for (const item of chipTargets(s)) if (this.visible(item.x, item.y) && Math.hypot(item.x - s.x, item.y - s.y) < 120)
+      actors.push({ y: item.y, draw: () => drawItemMarker(c, { ...item, color: CHIP_REGISTRY[item.chip].color }, motionTime, this.reducedMotion) });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -509,7 +514,12 @@ export class Renderer {
       if (enemy.windup > 0) c.scale(1.08, .93);
     }
     this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
-    if (enemy.hp < enemy.maxHp || boss) {
+    if (chipEffects(s).scanner && enemy.windup > 0) {
+      c.save(); c.strokeStyle = "#9fffe3"; c.lineWidth = .8;
+      c.beginPath(); c.arc(enemy.x, enemy.y - (boss ? 20 : 12), boss ? 8 : 5, 0, Math.PI * 2); c.stroke();
+      c.beginPath(); c.moveTo(enemy.x - 11, enemy.y - 20); c.lineTo(enemy.x - 7, enemy.y - 20); c.moveTo(enemy.x + 7, enemy.y - 20); c.lineTo(enemy.x + 11, enemy.y - 20); c.stroke(); c.restore();
+    }
+    if (enemy.hp < enemy.maxHp || boss || chipEffects(s).scanner) {
       const width = boss ? 48 : 18, top = enemy.y - SHEETS[id].h * scale - 6;
       this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);
       this.rect(enemy.x - width / 2, top, width, 2, '#613448');

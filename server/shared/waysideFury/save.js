@@ -1,5 +1,6 @@
 // The browser and server share one bounded, versioned character sheet.
 // This is shape validation, not authoritative combat or economy simulation.
+import { sanitizeItemsSave } from "./u1Items.js";
 export const SAVE_VERSION = 3;
 export const MAX_SAVE_BYTES = 65_536;
 export const MAX_MILESTONES = 128;
@@ -81,9 +82,9 @@ function legacyCharacter(heroes) {
     const best = Object.values(heroes).reduce((a, b) => earnedXp(a) >= earnedXp(b) ? a : b);
     return { level: best.level, xp: best.xp };
 }
-function syncHeroes(heroes, character, gear) {
+function syncHeroes(heroes, character, gear, bonus = { power: 0, ward: 0 }) {
     return Object.fromEntries(HERO_IDS.map(id => {
-        const stats = heroStats(id, character, gear), old = heroes[id];
+        const stats = heroStats(id, character, { power: gear.power + bonus.power, ward: gear.ward + bonus.ward }), old = heroes[id];
         return [id, { id, ...stats, ...character, hp: old ? bound(old.hp, 0, stats.maxHp) : stats.maxHp,
             ki: old ? bound(old.ki, 0, stats.maxKi) : stats.maxKi / 2,
             stamina: old ? bound(old.stamina, 0, stats.maxStamina) : stats.maxStamina, invulnerable: 0 }];
@@ -91,7 +92,7 @@ function syncHeroes(heroes, character, gear) {
 }
 // Main progress and HOME are migrated independently. A HOME retry retains its
 // earlier level and gear while keeping the run's milestone/ticket receipt.
-function cleanSheet(raw, legacy) {
+function cleanSheet(raw, legacy, bonus) {
     const ids = legacy ? LEGACY_HERO_IDS : HERO_IDS;
     if (!isRecord(raw) || !ids.includes(raw.active)) return null;
     const oldHeroes = cleanHeroes(raw.heroes, ids);
@@ -105,7 +106,7 @@ function cleanSheet(raw, legacy) {
         const inferred = inferGear(oldHeroes);
         gear.power = Math.max(gear.power, inferred.power); gear.ward = Math.max(gear.ward, inferred.ward);
     }
-    const heroes = syncHeroes(oldHeroes, character, gear);
+    const heroes = syncHeroes(oldHeroes, character, gear, bonus);
     const members = legacy ? ['you', raw.active] : party(raw.party);
     return { heroes, character, gear, party: members, active: legacy ? 'you' : members.includes(raw.active) ? raw.active : members[0] };
 }
@@ -130,9 +131,9 @@ function cleanSettings(raw) {
         controls: { tutorialDismissed: raw?.controls?.tutorialDismissed === true,
             stickSensitivity: bound(raw?.controls?.stickSensitivity, 0.5, 2, 1) } };
 }
-function cleanHome(raw, legacy) {
+function cleanHome(raw, legacy, bonus) {
     if (!isRecord(raw) || !finite(raw.candy) || !finite(raw.chapter)) return null;
-    const sheet = cleanSheet(raw, legacy);
+    const sheet = cleanSheet(raw, legacy, bonus);
     return sheet ? { ...sheet, candy: integer(raw.candy, 0, 1_000_000), chapter: integer(raw.chapter, 1, 99) } : null;
 }
 export function sanitizeSave(raw) {
@@ -149,7 +150,8 @@ export function sanitizeSave(raw) {
     if (!Array.isArray(raw.areas) || !Array.isArray(raw.bosses) || !Array.isArray(raw.clearedRooms)) return { error: 'Bad milestones' };
     if (!Array.isArray(raw.unlockedHeroes) || !ids.every(id => raw.unlockedHeroes.includes(id))) return { error: 'Bad unlocked heroes' };
     if (!Object.hasOwn(raw, 'home')) return { error: 'Missing HOME snapshot' };
-    const sheet = cleanSheet(raw, legacy), receipt = raw.lastReported;
+    const u1 = { ...(isRecord(raw.u1) ? raw.u1 : {}), items: sanitizeItemsSave(raw.u1?.items) };
+    const sheet = cleanSheet(raw, legacy, u1.items.relics.statBonus), receipt = raw.lastReported;
     if (!sheet) return { error: 'Bad heroes' };
     if (!isRecord(receipt) || !Array.isArray(receipt.areas) || !Array.isArray(receipt.bosses) || !Array.isArray(receipt.rooms) || !finite(receipt.level)) return { error: 'Bad progress receipt' };
     return { save: { version: SAVE_VERSION, chapter: integer(raw.chapter, 1, 99), ...sheet,
@@ -157,7 +159,7 @@ export function sanitizeSave(raw) {
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
         coopRewards: coopRewards(raw.coopRewards),
-        lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
+        lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy, u1.items.relics.statBonus), u1,
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };
 }
 // PR1 local and PR2 version-two cloud sheets migrate to the You-led party.
