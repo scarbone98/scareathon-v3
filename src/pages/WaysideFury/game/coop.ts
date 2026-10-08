@@ -18,7 +18,7 @@ export interface CoopCallbacks {
   onReward?(state: GameState, reward: CoopReward): void;
 }
 export interface CoopReward {
-  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; candy?: number; pickupId?: string;
+  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; xpLevel?: number; candy?: number; pickupId?: string;
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
@@ -160,7 +160,7 @@ export class FuryCoop {
     if (this.isHost && event.type === "kill") {
       const id = `${this.clientId}:kill:${event.enemyId}`;
       for (const player of this.room.players.filter(p => p.connected)) {
-        const reward: CoopReward = { id, kind: "kill", xp: event.xp, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
+        const reward: CoopReward = { id, kind: "kill", xp: event.xp, xpLevel: event.xpLevel, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
         if (player.seat === this.room.seat) { if (applyCoopReward(s, reward)) s.events.push({ type: "checkpoint", id: `coop-reward-${id}` }); }
         else this.sendReward(reward, player.seat);
       }

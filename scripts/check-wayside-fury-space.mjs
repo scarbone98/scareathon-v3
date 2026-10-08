@@ -73,9 +73,10 @@ for(const world of MOON_WORLDS.filter(w=>w.spawns.length)) {
   for(let n=0;n<240;n++) {e.cooldown=Math.max(0,e.cooldown-dt);updateLunarEnemy(s,e,dt,api.targets()[0],api);}
   assert.ok(trace.length,`${e.behavior} acts`);traces.push(e.behavior);
   if(e.kind==='boss') {
-    for(let n=0;n<5;n++)lunarDamage(s,e,10,80);assert.ok(e.burst>0,'poise causes break-out burst');
+    s.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[]};
+    for(let n=0;n<6;n++)applyCoopHit(s,{type:'coop-hit',enemyId:e.id,damage:10,dx:0,dy:0,force:80,attackId:`poise-${e.id}-${n}`},1);assert.ok(e.burst>0,'poise causes break-out burst');
     e.hp=e.maxHp*.49;updateLunarEnemy(s,e,dt,api.targets()[0],api);assert.equal(e.phase,2);
-    if(e.behavior==='warden') {e.burst=0;assert.ok(lunarDamage(s,e,100,0)<10);for(let n=0;n<3;n++)s.solvedInteractions.push(`moon-m08-pylon-${n}`);e.burst=0;updateLunarEnemy(s,e,dt,api.targets()[0],api);assert.ok(e.exposed>5.9 && e.exposed<=6);assert.ok(e.shieldBroken);assert.equal(lunarDamage(s,e,100,0),100);}
+    if(e.behavior==='warden') {e.burst=0;e.escapeIframes=0;assert.ok(lunarDamage(s,e,100,0)<10);for(let n=0;n<3;n++)s.solvedInteractions.push(`moon-m08-pylon-${n}`);e.burst=0;e.escapeIframes=0;updateLunarEnemy(s,e,dt,api.targets()[0],api);assert.ok(e.exposed>5.9 && e.exposed<=6);assert.ok(e.shieldBroken);assert.equal(lunarDamage(s,e,100,0),100);}
   }
  }
 }

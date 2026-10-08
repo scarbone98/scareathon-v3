@@ -92,7 +92,7 @@ const hostileBullet = (s, x = s.x, y = s.y, damage = 20) => s.projectiles.push({
 const conversingHost = cooperative('host', 0); enterScene(conversingHost, 'dungeon', 8);
 conversingHost.enemies = []; conversingHost.x = 152; conversingHost.y = 174; conversingHost.faceX = 0; conversingHost.faceY = -1;
 const talkingPeer = peer(conversingHost, 1, 320, 192); conversingHost.coop.remoteHeroes = [talkingPeer];
-const dialogueHunter = addEnemy(conversingHost, 'grunt', 360, 192); dialogueHunter.cooldown = 100;
+const dialogueHunter = addEnemy(conversingHost, 'grunt', 360, 192); dialogueHunter.cooldown = 100; dialogueHunter.archetype = "swarm";
 interact(conversingHost); assert.ok(conversingHost.dialogue);
 const talkingPosition = { x: conversingHost.x, y: conversingHost.y, active: conversingHost.active, ki: activeHero(conversingHost).ki };
 const movingShot = { id: conversingHost.nextId++, x: 320, y: 260, vx: 0, vy: 20, radius: 4, damage: 20, ttl: 1, owner: 'enemy', beam: false, hits: [] };
@@ -147,7 +147,7 @@ assert.equal(scaled.enemies.length, originalCount + 4, 'leave/rejoin cannot farm
 setCoopPlayerCount(scaled, 1); near(grunt.maxHp, 30); near(boss.maxHp, 520);
 near(grunt.hp / grunt.maxHp, 0.37); near(boss.hp / boss.maxHp, 0.62);
 setCoopPlayerCount(scaled, 4); enterScene(scaled, 'dungeon', 4);
-near(scaled.enemies.find(e => e.miniBoss).maxHp, 235 * 3.25);
+near(scaled.enemies.find(e => e.miniBoss).maxHp, 235 * 1.6 * 3.25);
 assert.equal(scaled.enemies.length, getWorld('dungeon', 4).spawns.length + 3);
 scaled.enemies = []; setCoopPlayerCount(scaled, 1); setCoopPlayerCount(scaled, 4);
 assert.equal(scaled.enemies.length, 0, 'joining an already cleared wave cannot respawn it');
@@ -168,12 +168,12 @@ for (const guard of [false, true]) {
 const targeting = cooperative('host', 0); targeting.enemies = [];
 const remote = peer(targeting, 1, 210, targeting.y); targeting.coop.remoteHeroes = [remote];
 setCoopPlayerCount(targeting, 2); targeting.enemies = [];
-const contact = addEnemy(targeting, 'grunt', 200, targeting.y); contact.cooldown = 0;
+const contact = addEnemy(targeting, 'grunt', 200, targeting.y); contact.cooldown = 0; contact.archetype = "charger"; contact.actionTimer = .1;
 const hostPosition = [targeting.x, targeting.y], hostHero = structuredClone(activeHero(targeting));
 const contactEvents = tick(targeting).filter(e => e.type === 'coop-damage');
-assert.equal(contactEvents.length, 1); assert.equal(contactEvents[0].seat, 1); assert.equal(contactEvents[0].damage, 8);
+assert.equal(contactEvents.length, 1); assert.equal(contactEvents[0].seat, 1); assert.equal(contactEvents[0].damage, 9);
 assert.deepEqual([targeting.x, targeting.y], hostPosition); assert.equal(activeHero(targeting).hp, hostHero.hp);
-near(remote.hero.hp, 92);
+near(remote.hero.hp, 91);
 hostileBullet(targeting, remote.x, remote.y, 20);
 assert.equal(tick(targeting).filter(e => e.type === 'coop-damage').length, 0, 'host cooldown covers stale guest invulnerability samples');
 targeting.enemies = []; const shooter = addEnemy(targeting, 'shooter', 200, targeting.y); shooter.cooldown = 0;

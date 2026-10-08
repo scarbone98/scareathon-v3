@@ -622,7 +622,7 @@ export class Renderer {
   private enemy(s: GameState, enemy: Enemy) {
     if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
-    const id = enemy.kind === 'shooter' ? 'imp' : enemy.sprite;
+    const id = enemy.sprite;
     const time = this.reducedMotion ? 0 : s.time + enemy.id * .17;
     if (boss && enemy.phase === 2) { c.globalAlpha = .55 + Math.sin(time * 9) * .07; this.glow(enemy.x, enemy.y - 23, 35, '#db82cb'); c.globalAlpha = 1; }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
@@ -639,6 +639,11 @@ export class Renderer {
       if (enemy.windup > 0) c.scale(1.08, .93);
     }
     this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
+    if (enemy.archetype === 'shield' && enemy.windup === 0 && enemy.actionTimer === 0) {
+      const facing = Math.atan2(enemy.aimY, enemy.aimX);
+      c.save(); c.strokeStyle = '#90daed'; c.lineWidth = 2.5; c.beginPath();
+      c.arc(enemy.x, enemy.y - 8, 15, facing - .9, facing + .9); c.stroke(); c.restore();
+    }
     if (enemy.hp < enemy.maxHp || boss) {
       const width = boss ? 48 : 18, top = enemy.y - SHEETS[id].h * scale - 6;
       this.rect(enemy.x - width / 2 - 1, top - 1, width + 2, 4, INK);

@@ -182,6 +182,7 @@ export function cleanRelay(message) {
             const raw = message.reward;
             if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint', 'pickup'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
             const reward = { id: raw.id, kind: raw.kind, xp: raw.xp, candy: raw.candy };
+            if (raw.xpLevel !== undefined) { if (!integer(raw.xpLevel, 1000) || raw.xpLevel < 1) return null; reward.xpLevel = raw.xpLevel; }
             if (raw.kind === 'pickup') {
                 if (!PICKUP_IDS.has(raw.pickupId) || raw.xp !== 0 || raw.candy !== 0) return null;
                 reward.pickupId = raw.pickupId;

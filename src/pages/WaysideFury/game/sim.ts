@@ -77,7 +77,7 @@ export type GameEvent =
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
   | { type: "hit"; x: number; y: number; damage: number; target: "hero" | "enemy" }
-  | { type: "kill"; enemyId: number; kind: Enemy["kind"]; x: number; y: number; sprite: Enemy["sprite"]; radius: number; xp: number }
+  | { type: "kill"; enemyId: number; kind: Enemy["kind"]; x: number; y: number; sprite: Enemy["sprite"]; radius: number; xp: number; xpLevel?: number }
   | { type: "level"; hero: HeroId; level: number }
   | { type: "swap"; hero: HeroId }
   | { type: "checkpoint"; id: string }
@@ -335,6 +335,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
       : room >= 8 ? `${world.name}: an optional supply cache lies beyond the monsters.`
       : `${world.name}: clear the eastern route. Explore side trails for supplies.`;
   }
+  if (s.enemies.some(e => e.archetype === "shield")) s.notice += " Pumpkins brace: use a combo finisher or hold Attack, then release.";
   if (scene === "test") {
     if (s.coop?.role !== "guest") {
       addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
@@ -466,14 +467,15 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
-    const xp = combatXp(s, e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12, authoredLevel(s));
+    const baseXp = e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12;
+    const xp = s.coop ? baseXp : combatXp(s, baseXp, authoredLevel(s));
     if (!s.coop) {
       const candy = e.kind === "boss" ? 35 : 2 + Math.floor(random(s) * 3);
       s.candy += candy; s.kills++;
       floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
       gainXp(s, xp);
     }
-    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp });
+    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp, xpLevel: authoredLevel(s) });
   }
 }
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
