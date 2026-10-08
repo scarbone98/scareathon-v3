@@ -10,7 +10,7 @@ const output=new URL('../docs/wayside-fury-design/bridge/',import.meta.url);awai
 try {
  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,reducedMotion:'reduce'});
  const base=process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5221';
- await page.route(`${base}/`,route=>route.fulfill({contentType:'text/html',body:'<!doctype html><body></body>'}));await page.goto(`${base}/`);
+ await page.route(url => new URL(url).pathname === '/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><body></body>'}));await page.goto(`${base}/`);
  const metrics=await page.evaluate(async()=>{
   const [THREE,{SpaceRenderer},world,sim,{surfaceRects,isGroundProp},{Renderer}]=await Promise.all([import('/node_modules/three/src/Three.js'),import('/src/pages/WaysideFury/game/renderSpace3d.ts'),import('/src/pages/WaysideFury/game/world.ts'),import('/src/pages/WaysideFury/game/sim.ts'),import('/src/pages/WaysideFury/game/walkableSurfaces.ts'),import('/src/pages/WaysideFury/game/render.ts')]);
   document.body.style.cssText='margin:0';const canvas=document.createElement('canvas');canvas.style.cssText='width:390px;height:844px';document.body.append(canvas);

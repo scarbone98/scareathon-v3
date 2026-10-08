@@ -1,0 +1,53 @@
+{
+  "actors": [
+    {
+      "id": "local",
+      "y": 5.000000000000002
+    },
+    {
+      "id": "peer-2",
+      "y": 5.000000000000002
+    },
+    {
+      "id": "enemy-5",
+      "y": 5
+    }
+  ],
+  "bounds": [
+    {
+      "x": 208,
+      "y": 260,
+      "w": 57.6,
+      "h": 48
+    },
+    {
+      "x": 291.2,
+      "y": 260,
+      "w": 44.8,
+      "h": 48
+    }
+  ],
+  "canvasDrawOrder": [
+    "ground",
+    "prop",
+    "prop",
+    "prop",
+    "prop",
+    "prop",
+    "prop",
+    "prop",
+    "hero",
+    "hero",
+    "enemy",
+    "prop",
+    "prop",
+    "prop",
+    "prop",
+    "prop",
+    "prop"
+  ],
+  "dpr": 3,
+  "width": 1170,
+  "height": 2532,
+  "immutable": true
+}

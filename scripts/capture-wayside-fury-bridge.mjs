@@ -14,7 +14,7 @@ try {
   for (const mode of ['2d', '3d']) {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, reducedMotion: 'reduce' });
     const base = process.env.FURY_BASE_URL ?? 'http://127.0.0.1:5221';
-    await page.route(`${base}/`, route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
+    await page.route(url => new URL(url).pathname === '/', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
     await page.goto(`${base}/?gfx=${mode}`);
     await page.evaluate(async mode => {
       const [{ GraphicsRenderer }, world, sim] = await Promise.all([import('/src/pages/WaysideFury/game/graphics.ts'), import('/src/pages/WaysideFury/game/world.ts'), import('/src/pages/WaysideFury/game/sim.ts')]);
