@@ -175,10 +175,12 @@ export class CloudSaveStore {
     const difference = remote.save && this.save ? progressScore(remote.save) - progressScore(this.save) : 0;
     const remoteWins = remote.save && (!this.save || difference > 0 || difference === 0 && remote.save.savedAt >= this.save.savedAt);
     const itemsChanged = JSON.stringify(next?.u1?.items) !== JSON.stringify(this.save?.u1?.items);
+    const discoveriesChanged = JSON.stringify(next?.foundItems) !== JSON.stringify(this.save?.foundItems)
+      || next?.ambientTaxiWrecked !== this.save?.ambientTaxiWrecked;
     this.save = next;
     if (next && this.unconfirmed && receiptScore(next.lastReported, this.confirmed) === 0) this.unconfirmed = null;
     if (next) this.write(next);
-    if ((remoteWins || itemsChanged || worldChanged || combatChanged || hubChanged) && this.ready) this.cb.onReplaced(next, "load");
+    if ((remoteWins || itemsChanged || worldChanged || combatChanged || hubChanged || discoveriesChanged) && this.ready) this.cb.onReplaced(next, "load");
     if (next && this.pending) this.pending = { save: next, credit: this.unconfirmed !== null };
     return !!next && JSON.stringify(next) !== JSON.stringify(remote.save);
   }

@@ -61,6 +61,26 @@ test('all Update 1 personal progress survives cloud recovery and the next active
       check(next); store.persist(next, false); await store.flush(); check(remote);
       assert.equal(credits, 0);
     } finally { store.dispose(); }
+    // Hidden finds also feed the radar and quest discovery adapter. Recover
+    // them even when no Update 1 namespace changes and local campaign wins.
+    remote = structuredClone(campaign); remote.chapter = 1; remote.savedAt = 1;
+    remote.foundItems = ['pickup-c1-wreck']; remote.ambientTaxiWrecked = true;
+    memory.clear(); memory.set('wayside-fury-save', JSON.stringify(campaign));
+    replacements.length = 0; failGet = true;
+    const finds = new CloudSaveStore({ getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value) }, transport, {
+      onChange: () => {}, onReplaced: save => replacements.push(save), onCredit: score => { credits += score; },
+    });
+    try {
+      await finds.load('finds-account');
+      const before = replacements.length;
+      finds.retryNow(); await finds.flush();
+      assert.ok(replacements.length > before, 'hidden discovery recovery notifies the running game');
+      const next = makeSave(restoreSave(replacements.at(-1)), finds.save);
+      assert.deepEqual(next.foundItems, ['pickup-c1-wreck']);
+      assert.equal(next.ambientTaxiWrecked, true); assert.equal(next.chapter, 2);
+      finds.persist(next, false); await finds.flush();
+      assert.deepEqual(remote.foundItems, next.foundItems); assert.equal(credits, 0);
+    } finally { finds.dispose(); }
     console.log('integrated personal progress survives');
   `], { cwd: root, encoding: 'utf8', timeout: 120000 });
   expect(output).toContain('integrated personal progress survives');
