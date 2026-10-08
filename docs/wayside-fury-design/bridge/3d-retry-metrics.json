@@ -1,0 +1,67 @@
+{
+  "browser": "chromium",
+  "browserVersion": "154.0.8037.98",
+  "launch": {
+    "headless": true,
+    "channel": "chrome",
+    "executablePath": null,
+    "webglBackend": "metal"
+  },
+  "generatedAt": "2026-10-08T21:54:53.735Z",
+  "caveat": "Desktop Playwright with phone viewport/DPR emulation. rAF measures frame cadence; renderMs measures CPU submission, not GPU duration. Physical mid-iPhone performance requires a device run.",
+  "measurements": [],
+  "checks": [
+    {
+      "label": "3d-932x430",
+      "viewport": {
+        "width": 932,
+        "height": 430
+      },
+      "effectiveGraphics": "3d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "touch-mode-recovery",
+      "checks": "keyboard input followed by a scene tap restores touch controls in 3D"
+    },
+    {
+      "label": "paused-switch",
+      "checks": "travel in 3D, pause, switch to 2D, taxi stays onscreen without resuming",
+      "graphicsBefore": "3d",
+      "graphicsAfter": "2d",
+      "unchanged": true,
+      "x": 603.3605469750117,
+      "y": 504,
+      "cameraX": 547.7891184035832,
+      "cameraY": 366,
+      "width": 167.14285714285714,
+      "height": 276
+    },
+    {
+      "label": "lifecycle",
+      "checks": "Settings preference independent of save, other scenes remain 2D, switching races, movement/collision, unmount"
+    },
+    {
+      "label": "fallback",
+      "checks": "unavailable WebGL, context loss, explicit retry"
+    },
+    {
+      "label": "quality",
+      "before": "high",
+      "after": "minimum",
+      "checks": "real slow-frame pressure automatically reduces quality"
+    },
+    {
+      "label": "3d-390x844-iframe",
+      "checks": "actual arcade iframe sizing and toolbar, Settings, controls"
+    },
+    {
+      "label": "3d-844x390-iframe",
+      "checks": "actual arcade iframe sizing and toolbar, Settings, controls"
+    },
+    {
+      "label": "3d-1440x900-iframe",
+      "checks": "actual arcade iframe sizing and toolbar, Settings, controls"
+    }
+  ]
+}

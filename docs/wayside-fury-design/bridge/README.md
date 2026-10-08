@@ -52,6 +52,14 @@ restored after the check.
   progression checks also pass.
 - `check-wayside-fury-bridge-browser.mjs` passes real Metal WebGL deck geometry,
   standing-height and local/remote/enemy Canvas ordering checks.
+- The existing `check-wayside-fury-3d.mjs` passed its four phone/desktop
+  comparison captures and two responsive cases, then timed out waiting for 3D
+  at 932 × 430. An isolated retry used the same harness functions/assertions for
+  that case and all remaining lifecycle, switching, fallback/context-loss,
+  quality-reduction and three arcade iframe checks: all nine recorded checks
+  passed with no uncaught browser errors. [Retry report](3d-retry-metrics.json).
+  The original full invocation has no aggregate green result; completed cases
+  were retained and the timed-out/remaining cases were rerun.
 - `capture-wayside-fury-bridge.mjs after` passes the eight native phone captures,
   state immutability, ground-before-hero checks and exact graphics-mode parity.
 
