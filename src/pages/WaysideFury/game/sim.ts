@@ -651,6 +651,9 @@ function updateVisuals(s: GameState, dt: number) {
 function availableExit(s: GameState): WorldExit | undefined {
   return getWorld(s.scene, s.room).exits.find(e => distanceToExit(e, s.x, s.y) < 25 && (!e.requiresClear || s.enemies.length === 0));
 }
+// Driving the taxi is less precise than walking, so overworld stops get a wider
+// trigger zone than on-foot interactions (28).
+const OVERWORLD_STOP_RADIUS = 72, OVERWORLD_PROP_RADIUS = 46;
 export function interactTarget(s: GameState): InteractTarget | null {
   if (s.overlay === "diner") {
     const item = availablePickups(s).find(pickup => pickup.requiresDiner);
@@ -679,11 +682,11 @@ export function interactTarget(s: GameState): InteractTarget | null {
     const npc = point.id === "alex" || point.id === "jon";
     const taxi = point.id === "taxi" || s.scene === "overworld";
     add({ ...point, name: npc ? `Talk to ${point.name}` : point.id === "taxi" ? "Enter taxi" : s.scene === "overworld" ? `Leave taxi · ${point.name}` : point.name,
-      kind: npc ? "talk" : taxi ? "taxi" : "use" });
+      kind: npc ? "talk" : taxi ? "taxi" : "use" }, s.scene === "overworld" ? OVERWORLD_STOP_RADIUS : undefined);
   }
   if (s.scene === "overworld") {
-    add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444 });
-    add({ id: "diner-entry", name: "Enter diner", kind: "use", x: 520, y: 405 });
+    add({ id: "roadside-lore-sign", name: "Read roadside sign", kind: "use", x: 468, y: 444  }, OVERWORLD_PROP_RADIUS);
+    add({ id: "diner-entry", name: "Enter diner", kind: "use", x: 520, y: 405  }, OVERWORLD_PROP_RADIUS);
   }
   return selectInteractionTarget(candidates, s.x, s.y, s.faceX, s.faceY);
 }
