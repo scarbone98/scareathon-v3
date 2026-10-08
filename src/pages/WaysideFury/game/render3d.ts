@@ -1,5 +1,6 @@
 import { scorchedGroundMesh } from './grounding3d.ts';
 import { footprintGrounding } from './grounding.ts';
+import { enemyWindupTell } from './enemyWindup';
 import { COUNTY_ART, countyArtwork } from "./countyArt";
 import { SpaceRenderer, isSpaceScene } from './renderSpace3d';
 import { campaignLocations, sameCampaignMap } from "./campaign.ts";
@@ -332,6 +333,20 @@ export class OverworldRenderer {
       const { shape, color, x, y, z, w, h, d } = preview;
       if(shape==='rock' && y===0) buriedRock(color,x,z,w*.5,h*.5,d*.5,x*.017);
       else part(shape, color, x, this.terrain.heightAt(preview.groundX, preview.groundZ) + y + h / 2, z, w, h, d);
+    }
+    // Original raised landforms use the same authored polygon as 2D/collision.
+    for (const form of this.world.organic?.landforms ?? []) if (form.kind === 'cliff') {
+      const shape = new THREE.Shape();
+      form.points.forEach((p,i)=>i ? shape.lineTo(p.x,-p.y) : shape.moveTo(p.x,-p.y)); shape.closePath();
+      const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:10,bevelEnabled:false}),this.material(form.color));
+      mesh.rotation.x=-Math.PI/2; mesh.position.y=this.terrain.heightAt(form.points[0].x,form.points[0].y);mesh.castShadow=mesh.receiveShadow=true;this.scene.add(mesh);
+    }
+    for (const road of this.world.roads) if (road.curve) for(let i=1;i<road.curve.length;i++) {
+      const a=road.curve[i-1],b=road.curve[i],dx=b.x-a.x,dz=b.y-a.y,length=Math.hypot(dx,dz),rotation=-Math.atan2(dz,dx);
+      for(let d=16;d<length-8;d+=36) {
+        const x=a.x+dx*d/length,z=a.y+dz*d/length;
+        part('box','#c7b68c',x,this.terrain.heightAt(x,z)+.25,z,14,.2,1.4,rotation);
+      }
     }
     const shadows: THREE.Matrix4[] = [];
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
@@ -870,7 +885,12 @@ export class OverworldRenderer {
     for (const key of [...this.billboards.keys()]) if (key.startsWith('enemy-') && !liveEnemies.has(key)) this.removeBillboard(key);
     for (const enemy of s.enemies) if (enemy.hp > 0) {
       const actor = this.billboard(`enemy-${enemy.id}`, enemy.sprite, enemy.x, enemy.y, enemy.radius > 10 ? 1.5 : 1);
-      if (actor) for (const sprite of actor.sprites) sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : 0xffffff);
+      if (actor) actor.sprites.forEach((sprite, index) => {
+        const tell = enemyWindupTell(enemy), scale = enemy.radius > 10 ? 1.5 : 1;
+        const sheet = actor.sheets[index];
+        sprite.scale.set(sheet.w * scale * (tell ? 1.045 : 1), sheet.h * scale * (tell ? .94 : 1), 1);
+        sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : tell ? 0xffe5bd : 0xffffff);
+      });
     }
     for (const prop of this.world.props) if (prop.kind === 'npc') this.billboard(prop.id, prop.label === 'Jon' ? 'jon' : 'alex', prop.x + prop.w / 2, prop.y + prop.h);
   }

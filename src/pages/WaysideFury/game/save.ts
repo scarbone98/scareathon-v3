@@ -69,7 +69,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
   if (saved) {
     s.difficulty = saved.settings.difficulty ?? "normal";
-    const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("city-") && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
+    const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("interior-") && !saved.checkpointMapId.startsWith("city-") && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
     s.heroes = Object.fromEntries(HERO_IDS.map(id => [id, { ...snapshot.heroes[id] }])) as Record<HeroId, HeroState>;
     s.character = { ...snapshot.character }; s.gear = { ...snapshot.gear }; s.unlockedHeroes = [...saved.unlockedHeroes];
     s.party = [...snapshot.party]; s.active = s.party.includes(snapshot.active) ? snapshot.active : s.party[0];
@@ -89,7 +89,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   }
   if (saved?.prologuePending) { enterScene(s, "prologue"); return s; }
   enterScene(s, "hub"); s.x = HUB_WORLD.spawn.x; s.y = HUB_WORLD.spawn.y;
-  if (saved && saved.checkpointMapId !== "hub" && (!retry || saved.checkpointMapId.startsWith("city-") || saved.checkpointMapId.startsWith("woods-") || saved.checkpointMapId.startsWith("moon-") || saved.checkpointMapId === "space-launch")) {
+  if (saved && saved.checkpointMapId !== "hub" && (!retry || saved.checkpointMapId.startsWith("interior-") || saved.checkpointMapId.startsWith("city-") || saved.checkpointMapId.startsWith("woods-") || saved.checkpointMapId.startsWith("moon-") || saved.checkpointMapId === "space-launch")) {
     const anchor=retry && saved.checkpointMapId === "moon-m09" ? "moon-m06" : saved.checkpointMapId;
     if(anchor.startsWith("woods-")) refillCrew(s);
     enterCampaignMap(s, anchor);

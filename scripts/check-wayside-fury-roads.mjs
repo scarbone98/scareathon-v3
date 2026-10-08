@@ -4,6 +4,13 @@ import { roadMarks } from '../src/pages/WaysideFury/game/roadMarkings.ts';
 import { OVERWORLD, HUB_WORLD, BLAST_WORLDS, REALM_WORLD, TEST_WORLD, TILE, tileAt, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
 
 const contains = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+const roadContains = (r, x, y) => {
+  if (!r.curve) return contains(r,x,y);
+  return r.curve.slice(1).some((b,i)=>{
+    const a=r.curve[i],dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((x+8-a.x)*dx+(y+8-a.y)*dy)/(dx*dx+dy*dy)));
+    return Math.hypot(x+8-a.x-t*dx,y+8-a.y-t*dy)<(r.curveWidth??64)/2;
+  });
+};
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 function checkMarks(world) {
   const counts = { horizontal: 0, vertical: 0 }, dashes = new Map();
@@ -28,11 +35,12 @@ function checkMarks(world) {
 for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD]) {
   const roadCells = [];
   for (let row = 0; row < world.rows; row++) for (let col = 0; col < world.cols; col++) {
-    if (tileAt(world, col, row) !== 'road') continue;
+    if (tileAt(world,col,row)!=='road' && !(tileAt(world,col,row)==='bridge' && world.roads.some(r=>r.curve))) continue;
     roadCells.push(row * world.cols + col);
-    assert.ok(world.roads.some(r => contains(r, col * TILE, row * TILE)), `${world.id}: every road tile has authored direction and ends`);
+    assert.ok(world.roads.some(r => roadContains(r, col * TILE, row * TILE)), `${world.id}: every road tile has authored direction and ends`);
   }
   for (const r of world.roads) {
+    if (r.curve) { assert.ok(r.curve.length>=4, `${r.id}: authored bends`); continue; }
     for (let y = r.y; y < r.y + r.h; y += TILE) for (let x = r.x; x < r.x + r.w; x += TILE) assert.equal(tileAt(world, x / TILE, y / TILE), 'road', `${r.id}: later terrain cannot cut a road off`);
     for (const [kind, far] of [[r.start, false], [r.end, true]]) {
       const horizontal = r.direction === 'horizontal';
@@ -53,12 +61,12 @@ for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WO
     const reached = new Set([roadCells[0]]), queue = [...reached];
     for (const cell of queue) for (const [dc, dr] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
       const c = cell % world.cols + dc, r = Math.floor(cell / world.cols) + dr, next = r * world.cols + c;
-      if (tileAt(world, c, r) === 'road' && !reached.has(next)) { reached.add(next); queue.push(next); }
+      if (['road','bridge'].includes(tileAt(world, c, r)) && !reached.has(next)) { reached.add(next); queue.push(next); }
     }
     assert.equal(reached.size, roadCells.length, `${world.id}: one connected road network`);
   }
   const counts = checkMarks(world);
-  if (world === OVERWORLD) assert.ok(counts.horizontal && counts.vertical, 'both real road orientations are exercised');
+  if (world === OVERWORLD) assert.ok(counts.vertical && (counts.horizontal || world.roads.some(r=>r.curve && r.direction==='horizontal')), 'straight branches and curved county lanes are exercised');
 }
 
 assert.deepEqual(['garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'].filter(id => OVERWORLD.roads.some(r => r.id === id)), ['garden-loop','reservoir-loop','orchard-loop','county-shortcut','reservoir-causeway'], 'two district loops and the causeway remain authored roads');

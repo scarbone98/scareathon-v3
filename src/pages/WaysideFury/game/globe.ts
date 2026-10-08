@@ -6,7 +6,7 @@ export const GLOBE_DESTINATIONS: readonly GlobeDestination[] = [
   {id:'county',name:'County roads',mapId:'overworld',lat:.25,lon:0,landmark:'road',requirement:'',radarAnchorId:'globe-county'},
   {id:'wayside',name:'Wayside Station',areaId:'wayside',mapId:'hub',lat:.42,lon:-.42,landmark:'station',requirement:'',radarAnchorId:'globe-wayside'},
   {id:'blast',name:'Blast Site',areaId:'blast',mapId:'blast-0',lat:.1,lon:.62,landmark:'crater',requirement:'',radarAnchorId:'globe-blast'},
-  {id:'launch',name:'Launch compound',areaId:'space',mapId:'space-launch',lat:-.22,lon:1.18,landmark:'rocket',requirement:'Disable the Blast Site relay to authorize launch access.',radarAnchorId:'globe-launch'},
+  {id:'launch',name:'Launch compound',areaId:'space',mapId:'space-launch',lat:-.22,lon:1.18,landmark:'rocket',requirement:'Recover the launch key from Hollow Woods to authorize launch access.',radarAnchorId:'globe-launch'},
   {id:'woods',name:'Hollow Woods',areaId:'woods',mapId:'',lat:.75,lon:-1.05,landmark:'woods',requirement:'Return through the realm. The Woods maps are coming next.',radarAnchorId:'globe-woods'},
   {id:'city',name:'Old City',areaId:'city',mapId:'',lat:-.45,lon:2.5,landmark:'city',requirement:'Recover the Prism Lens. City maps are coming in Chapter 4.',radarAnchorId:'globe-city'},
   {id:'finale',name:'Last Stop',areaId:'finale',mapId:'',lat:.18,lon:-2.6,landmark:'rift',requirement:'Restore Old City. The final rift is a future chapter.',radarAnchorId:'globe-finale'},

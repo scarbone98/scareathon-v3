@@ -111,9 +111,13 @@ tick(smoothTaxi, { x: 1 }, 60);
 const cruise = smoothTaxi.vx, beforeCoast = smoothTaxi.x; tick(smoothTaxi);
 assert.ok(smoothTaxi.x > beforeCoast && smoothTaxi.vx < cruise && smoothTaxi.vx > 0, 'taxi coasts and slows when released');
 const edgeTravel = newGame(); enterScene(edgeTravel, 'dungeon'); edgeTravel.enemies = [];
-edgeTravel.x = getWorld('dungeon').width - 64; tick(edgeTravel, { x: 1 }, 60);
-assert.equal(edgeTravel.scene, 'dungeon'); assert.equal(edgeTravel.room, 1, 'open zone boundaries transition by walking');
-assert.ok(edgeTravel.x > 56 && edgeTravel.x < 120, 'arrival starts safely inside the neighboring map');
+const naturalExit = getWorld('dungeon').exits.find(exit => exit.target === 1);
+assert.ok(naturalExit, 'the existing next-room route remains available');
+edgeTravel.x = naturalExit.x + naturalExit.w / 2; edgeTravel.y = naturalExit.y + naturalExit.h / 2;
+interact(edgeTravel);
+assert.equal(edgeTravel.scene, 'dungeon'); assert.equal(edgeTravel.room, 1, 'natural-feature exits transition through Use');
+assert.equal(edgeTravel.x, naturalExit.entryX, 'arrival retains the authored safe anchor');
+assert.equal(edgeTravel.y, naturalExit.entryY);
 
 // You is the default lead, and every crew partner can tag in with an
 // independent health pool, shared progression and a distinct signature.
@@ -497,10 +501,11 @@ for (let room = 0; room <= WATCHER_ROOM; room++) {
     const approach = findInteractionApproach(getWorld('dungeon', side), chest.id, { x: chest.x + chest.w / 2, y: chest.y + chest.h / 2 });
     walkTo(quest, approach.x, approach.y);
     const beforeLoot = quest.candy;
-    assert.equal(interactTarget(quest).id, chest.id); tick(quest); tick(quest, { interact: true });
+    const cacheTarget = interactTarget(quest);
+    assert.equal(cacheTarget.id, chest.id); tick(quest); tick(quest, { interact: true });
     assert.equal(quest.candy - beforeLoot, side === 8 ? 18 : 25);
     assert.ok(quest.clearedRooms.includes(chest.id)); completedZones.push(chest.id);
-    const afterLoot = quest.candy; tick(quest); tick(quest, { interact: true });
+    const afterLoot = quest.candy; interact(quest, cacheTarget);
     assert.equal(quest.candy, afterLoot, 'a supply cache pays only once');
     openDoor(quest, room === 1 ? 'south' : 'north'); assert.equal(quest.room, room);
     assert.equal(quest.enemies.length, 0, 'cleared routes stay open when returning from a side trail');

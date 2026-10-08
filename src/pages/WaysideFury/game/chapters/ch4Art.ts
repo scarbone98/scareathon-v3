@@ -1,8 +1,8 @@
+import { applyEnemyWindup } from '../enemyWindup';
 import type { WorldProp } from '../worldBuilder.ts';
 import type { Enemy, GameState } from '../sim.ts';
 import { CITY_RAT_OUTLETS } from './ch4Worlds.ts';
-import { isCityBehavior, cityRatOutlet } from '../enemies/city.ts';
-import { cityLanes } from '../bosses/architect.ts';
+import { isCityBehavior } from '../enemies/city.ts';
 import { hasSpaceFlag } from '../lunar.ts';
 import { hasMilestone } from './ch3.ts';
 import { inCity } from './ch4.ts';
@@ -38,25 +38,10 @@ export function drawCityGround(c:CanvasRenderingContext2D,s:GameState) {
   }
   c.restore();
 }
-export function drawCityTelegraph(c:CanvasRenderingContext2D,e:Enemy):boolean {
-  if(!isCityBehavior(e.behavior)) return false;
-  if(e.windup<=0&&e.actionTimer<=0) return true;
-  c.save();c.strokeStyle=amber;c.fillStyle='#EDB86F28';c.lineWidth=2;
-  if((e.burst??0)>0) {c.beginPath();c.arc(e.x,e.y,64,0,Math.PI*2);c.fill();c.stroke();}
-  else if(e.behavior==='switchmaster') {
-    for(const n of cityLanes(e)) {c.fillRect(32,32+n*88,576,88);c.strokeRect(32,32+n*88,576,88);for(let x=48;x<608;x+=32) line(c,x,40+n*88,x+12,52+n*88,amber);}
-  } else if(e.behavior==='clockwolf') {c.beginPath();c.arc(e.x+e.aimX*(e.actionTimer>0?e.actionTimer*100/.6:100),e.y+e.aimY*(e.actionTimer>0?e.actionTimer*100/.6:100),34,0,Math.PI*2);c.fill();c.stroke();line(c,e.x,e.y,e.x+e.aimX*100,e.y+e.aimY*100,amber);}
-  else if(e.behavior==='neon-imp') {const x=e.x+e.aimX*55,y=e.y+e.aimY*55;line(c,e.x,e.y,x,y,amber,2);c.strokeRect(x-8,y-8,16,16);}
-  else if(e.behavior==='architect') {
-    if(e.pattern%2===0) {for(const [x,y] of [[420,250],[440,170]]) {c.beginPath();c.arc(x,y,18,0,Math.PI*2);c.stroke();}}
-    else {c.beginPath();c.moveTo(e.x,e.y);const a=Math.atan2(e.aimY,e.aimX);c.arc(e.x,e.y,200,a-.45,a+.45);c.closePath();c.fill();c.stroke();}
-  } else if(e.behavior==='cable-rat') {const pad=cityRatOutlet(e);line(c,e.x,e.y,pad.x,pad.y,amber,14);}
-  else {line(c,e.x,e.y,e.x+e.aimX*30,e.y+e.aimY*30,amber,14);}
-  c.restore();return true;
-}
 export function drawCityEnemy(c:CanvasRenderingContext2D,e:Enemy):boolean {
   if(!isCityBehavior(e.behavior)) return false;
   c.save();c.translate(e.x,e.y);oval(c,0,0,e.radius+5,4,'#101f3050');
+  c.save();applyEnemyWindup(c,{...e,x:0,y:0});
   if(e.behavior==='clockwolf'&&e.actionTimer>0) c.translate(0,-Math.sin(Math.PI*(1-e.actionTimer/.6))*18);
   const g=c.createLinearGradient(-15,-30,15,0);g.addColorStop(0,e.hitTimer>0?'#fff3cf':'#537680');g.addColorStop(1,ink);
   if(e.behavior==='cable-rat') {
@@ -79,6 +64,7 @@ export function drawCityEnemy(c:CanvasRenderingContext2D,e:Enemy):boolean {
     line(c,25,-5,25,-49,amber,3);oval(c,25,-51,5,6,violet);
     if((e.exposed??0)<=0) {c.strokeStyle=violet;c.lineWidth=2;c.beginPath();c.ellipse(0,-25,28,38,0,0,Math.PI*2);c.stroke();}
   }
+  c.restore();
   const width=e.kind==='boss'?54:24;c.fillStyle=ink;c.fillRect(-width/2,-72,width,5);c.fillStyle=amber;c.fillRect(-width/2,-72,width*Math.max(0,e.hp/e.maxHp),3);
   c.restore();return true;
 }

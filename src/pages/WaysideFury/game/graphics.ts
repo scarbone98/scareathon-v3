@@ -72,9 +72,10 @@ export class GraphicsRenderer {
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed) return;
     this.depth?.syncRemotePeers(s);
-    if (this.partyWorld !== !!s.coop) { this.partyWorld = !!s.coop; this.generation++; this.loading=false; this.releaseDepth(); }
+    const legacyCounty = !!s.coop && (s.coop.protocolVersion ?? 1) < 6;
+    if (this.partyWorld !== legacyCounty) { this.partyWorld = legacyCounty; this.generation++; this.loading=false; this.releaseDepth(); }
     const wantsDepth = this.selected === '3d' && (s.scene === 'overworld' || s.mapId==='space-launch' || s.mapId.startsWith('moon-'));
-    if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth(s.coop ? COOP_OVERWORLD : OVERWORLD);
+    if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth(legacyCounty ? COOP_OVERWORLD : OVERWORLD);
     if (wantsDepth && this.depth && !this.failed) {
       try {
         this.depth.draw(s, dt, frameDelta);

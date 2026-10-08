@@ -9,6 +9,7 @@ export interface WorldProp {
   x: number; y: number; w: number; h: number; label?: string; color?: string;
   // Fixed parked-car heading; never inferred from the player or camera.
   parkingHeading?: 1 | -1;
+  interiorId?: string;
   footprints?: CollisionRect[];
 }
 export interface WorldExit {
@@ -25,12 +26,14 @@ export interface WorldSpawn {
 }
 export interface RoadSegment extends CollisionRect {
   id: string;
+  curve?: { x: number; y: number }[]; curveWidth?: number;
   direction: 'horizontal' | 'vertical';
   start: 'junction' | 'entrance' | 'barrier';
   end: 'junction' | 'entrance' | 'barrier';
 }
 export interface WorldMap {
   id: string; name: string; width: number; height: number; cols: number; rows: number;
+  organic?: import("./organicAreas.ts").OrganicLayout;
   roads: RoadSegment[]; tiles: TileKind[]; collision: number[]; props: WorldProp[]; exits: WorldExit[];
   boundLinks?: { id: string; from: { x: number; y: number }; to: { x: number; y: number }; radius: number }[];
   radarAnchors?: { id: string; x: number; y: number }[];

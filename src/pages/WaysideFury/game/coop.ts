@@ -165,7 +165,7 @@ export class FuryCoop {
         else this.sendReward(reward, player.seat);
       }
     }
-    if (this.isHost && event.type === "checkpoint" && !event.id.startsWith("coop-reward-") && !event.id.startsWith("personal-")) {
+    if (this.isHost && event.type === "checkpoint" && !event.id.startsWith("coop-reward-") && !event.id.startsWith("personal-") && !event.id.startsWith("interior-")) {
       const id = `${this.clientId}:checkpoint:${event.id}`;
       const areas = event.id === "home" ? ["wayside"] : event.id === `blast-${WATCHER_ROOM}` ? ["blast"] : event.id === "realm-0" ? ["eightbit-realm"] : [];
       const spaceBosses = event.id === "moon-m06" ? ["moon-cheese-inspector"] : event.id === "moon-m08" || event.id === "moon-m09-rest" ? ["moon-apogee-warden"] : [];

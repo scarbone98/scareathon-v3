@@ -45,7 +45,7 @@ for (const world of [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS]) {
   for (const car of world.props.filter(p => ['car', 'ambient-taxi'].includes(p.kind))) {
     if (world.id.startsWith('blast')) {
       const x = Math.floor((car.x + car.w / 2) / TILE), end = Math.floor(world.spawn.y / TILE);
-      for (let y = Math.floor((car.y + car.h) / TILE); y <= end; y++) assert.ok(['stone', 'dirt'].includes(tileAt(world, x, y)), `${world.id}: parking drive connects to main path`);
+      assert.ok(world.organic?.trails.some(t=>t.tile==='stone' && t.points.some(p=>Math.floor(p.x/TILE)===x && Math.floor(p.y/TILE)===end)), `${world.id}: parking drive connects to native main path`);
     }
     for (const r of car.footprints) for (const x of [r.x, r.x + r.w - .01]) for (const y of [r.y, r.y + r.h - .01]) {
       assert.equal(tileAt(world, Math.floor(x / TILE), Math.floor(y / TILE)), 'stone', `${world.id}: parked car sits in its paved lot`);

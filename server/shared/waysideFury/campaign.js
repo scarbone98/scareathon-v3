@@ -1,7 +1,8 @@
+import { INTERIORS } from './interiors.js';
 // Shared identity/protocol and economy policy. New content must be registered here
 // before the server accepts it; unknown IDs never inherit legacy room rewards.
 export const CAMPAIGN_CONTENT_VERSION = 4;
-export const COOP_PROTOCOL_VERSION = 5;
+export const COOP_PROTOCOL_VERSION = 6;
 export const CAMPAIGN_MAPS = Object.freeze([
     { id: 'overworld', scene: 'overworld', room: 0, areaId: 'county', minProtocol: 1 },
     { id: 'hub', scene: 'hub', room: 0, areaId: 'wayside', minProtocol: 1 },
@@ -12,6 +13,7 @@ export const CAMPAIGN_MAPS = Object.freeze([
     ...Array.from({ length: 9 }, (_, room) => ({ id: `moon-m${String(room + 1).padStart(2, '0')}`, scene: 'dungeon', room, areaId: 'moon', minProtocol: 3 })),
     ...['city-boulevard','city-market','city-clockroof','city-ticket-hall','city-cable-run','city-transformer','city-switchmaster','city-backstage','city-doorway','city-delivery','city-shell-press','city-gallery','city-balcony','city-hatching','city-refuge'].map((id,room)=>({id,scene:'dungeon',room,areaId:'city',minProtocol:5})),
     ...['layby','ranger-gate','lantern-walk','pump-house','conveyor-yard','mirror-sawmill','heartwood-engine','lunch-shed'].map((name, room) => ({ id: `woods-${name}`, scene: 'dungeon', room, areaId: 'woods', minProtocol: 5 })),
+    ...INTERIORS.map((room, index) => ({ id: room.id, scene: 'dungeon', room: 100 + index, areaId: 'interiors', minProtocol: 6 })),
 ].map(Object.freeze));
 export function mapDefinition(id) { return CAMPAIGN_MAPS.find(map => map.id === id); }
 export function legacyMapId(scene, room = 0) {

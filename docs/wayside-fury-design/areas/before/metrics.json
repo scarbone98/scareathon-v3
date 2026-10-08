@@ -1,0 +1,46 @@
+[
+  {
+    "width": 2880,
+    "height": 1800,
+    "gfx": "3d",
+    "mapId": "overworld",
+    "unchanged": true,
+    "cssWidth": 1440,
+    "cssHeight": 900,
+    "dpr": 2,
+    "status": "loading"
+  },
+  {
+    "width": 2880,
+    "height": 1800,
+    "gfx": "3d",
+    "mapId": "blast-2",
+    "unchanged": true,
+    "cssWidth": 1440,
+    "cssHeight": 900,
+    "dpr": 2,
+    "status": "ready"
+  },
+  {
+    "width": 2880,
+    "height": 1800,
+    "gfx": "3d",
+    "mapId": "woods-layby",
+    "unchanged": true,
+    "cssWidth": 1440,
+    "cssHeight": 900,
+    "dpr": 2,
+    "status": "ready"
+  },
+  {
+    "width": 2880,
+    "height": 1800,
+    "gfx": "3d",
+    "mapId": "city-boulevard",
+    "unchanged": true,
+    "cssWidth": 1440,
+    "cssHeight": 900,
+    "dpr": 2,
+    "status": "ready"
+  }
+]

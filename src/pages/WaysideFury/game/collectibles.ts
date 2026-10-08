@@ -16,7 +16,8 @@ interface PickupState extends PickupWorld {
 }
 export function availablePickups(s: PickupWorld): HiddenPickup[] {
   const chapter = s.coop?.worldChapter ?? s.chapter;
-  return HIDDEN_PICKUPS.filter(item => sameCampaignMap(s, item) && item.chapter <= chapter &&
+  const items: readonly HiddenPickup[] = s.mapId === "interior-diner" ? HIDDEN_PICKUPS.filter(item=>item.requiresDiner).map(item=>({...item, scene:"dungeon", room:101, mapId:"interior-diner", x:216, y:152})) : HIDDEN_PICKUPS;
+  return items.filter(item => sameCampaignMap(s, item) && item.chapter <= chapter &&
     (!item.requiresWreck || s.ambientTaxiWrecked) && (!item.requiresDiner || s.insideDiner) && !s.foundItems.includes(item.id));
 }
 export function pickupInReach(s: PickupWorld & { x: number; y: number }, id: string, radius = 28): HiddenPickup | undefined {

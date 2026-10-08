@@ -11,7 +11,12 @@ import { cleanWorld, cleanHero } from '../server/wayside-fury/protocol.js';
 import { createRoomManager } from '../server/wayside-fury/rooms.js';
 
 const blastBaseline=JSON.parse(readFileSync(new URL('./fixtures/wayside-fury-blast-progression.json',import.meta.url),'utf8'));
-assert.deepEqual(BLAST_WORLDS.map(m=>({id:m.id,name:m.name,width:m.width,height:m.height,spawn:m.spawn,exits:m.exits,bosses:m.spawns.filter(s=>s.kind==='boss'),budget:m.spawns.length,caches:m.props.filter(p=>p.kind==='chest').map(({id,label,x,y,w,h})=>({id,label,x,y,w,h}))})),blastBaseline,'BLAST rebuild retains original travel, bosses, encounter budgets and caches');
+// Organic stairs move edge aprons inward by 32 units without changing travel.
+const stairExits = m => m.exits.map(e => ({ ...e,
+  x: e.x === 0 ? 32 : e.x + e.w >= m.width ? m.width - e.w - 32 : e.x,
+  y: e.y === 0 ? 32 : e.y + e.h >= m.height ? m.height - e.h - 32 : e.y,
+}));
+assert.deepEqual(BLAST_WORLDS.map(m=>({id:m.id,name:m.name,width:m.width,height:m.height,spawn:m.spawn,exits:m.exits,bosses:m.spawns.filter(s=>s.kind==='boss'),budget:m.spawns.length,caches:m.props.filter(p=>p.kind==='chest').map(({id,label,x,y,w,h})=>({id,label,x,y,w,h}))})),blastBaseline.map(m => ({ ...m, exits: stairExits(m) })),'BLAST rebuild retains original travel, bosses, encounter budgets and caches with organic stair aprons');
 assert.equal(BLAST_WORLDS.length, 10);
 assert.deepEqual(CHAPTERS.map(chapter => chapter.id), ['blast', 'woods', 'space', 'city', 'finale']);
 for (const registry of [AREAS, CHAPTERS, CAMPAIGN_MAPS]) assert.equal(new Set(registry.map(entry => entry.id)).size, registry.length);
@@ -39,8 +44,9 @@ assert.equal(createHash('sha256').update(JSON.stringify(legacyCounty)).digest('h
 assert.ok(legacyExits);
 for (const [index, world] of ALL_WORLDS.slice(0,14).entries()) {
   const { exits, ...geometry } = world;
-  if (index !== 0) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
-  else { assert.equal(world.width,2304); assert.equal(world.height,1536); }
+  if (index >= 12) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
+  else if (index === 0) { assert.equal(world.width,2304); assert.equal(world.height,1536); }
+  // Organic area geometry intentionally changes; areas.mjs checks its frozen routing/encounters.
   assert.ok(!isBlocked(world, world.spawn.x, world.spawn.y));
   for (const exit of exits) {
     const destination = getMap(exit.targetMapId);
@@ -151,4 +157,4 @@ try {
   rooms.leave(legacy);
   assert.equal(modern.sent.filter(message => message.type === 'room').at(-1).protocolVersion, 2);
 } finally { rooms.close(); }
-console.log('Campaign foundation: preserved Chapter 1 progression and authored BLAST geometry, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');
+console.log('Campaign foundation: preserved Chapter 1 routing, encounters and authored BLAST geometry, expanded county, gates/handoff, five solo heroes, v1-v4/HOME migration, checkpoint safety, bounded saves, ticket allowlist/replay and mixed-version co-op pass.');

@@ -4,7 +4,7 @@ export const hasFieldFlag=(s:GameState,id:string)=>s.solvedInteractions.includes
 export const knowsField=(s:GameState,id:string)=>s.campaignMilestones.includes(id)||s.coop?.worldCampaignMilestones?.includes(id)===true;
 const cache = new WeakMap<object,{key:string;world:ReturnType<typeof getWorld>}>();
 export function fieldWorld(s:GameState) {
-  const world=getWorld(s.scene,s.room,s.mapId,!!s.coop);
+  const world=getWorld(s.scene,s.room,s.mapId,!!s.coop && (s.coop.protocolVersion ?? 1) < 6);
   if(!world.id.startsWith('woods-')) return world;
   const key=world.props.filter(p=>p.kind==='seal'&&hasFieldFlag(s,p.id)).map(p=>p.id).join(',');
   const previous=cache.get(world);if(previous?.key===key) return previous.world;

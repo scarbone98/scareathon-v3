@@ -10,7 +10,7 @@ import { hasSpaceFlag, lunarLift } from './lunar';
 import { sameCampaignMap } from './campaign';
 import { resolveHeroVisual } from './heroVisuals';
 import { sampleSpaceFilm } from './chapters/ch3Films';
-import { drawLunarBody, drawLunarTelegraph } from './renderSpace2d';
+import { drawLunarBody } from './renderSpace2d';
 
 export function isSpaceScene(s:GameState) {return s.mapId==='space-launch'||s.mapId.startsWith('moon-');}
 interface Actor {mesh:THREE.Sprite;texture:THREE.CanvasTexture;canvas:HTMLCanvasElement;key:string}
@@ -30,18 +30,18 @@ export class SpaceRenderer {
   private street=new Map<string,HTMLImageElement>();
   private remotes=new Map<number,HeroAvatar>();
   private viewport=getRenderViewport(1,1,1);
-  private telegraph:THREE.Mesh;
-  private telegraphCanvas=document.createElement('canvas');
-  private telegraphTexture:THREE.CanvasTexture;
+  private groundEffects:THREE.Mesh;
+  private groundEffectsCanvas=document.createElement('canvas');
+  private groundEffectsTexture:THREE.CanvasTexture;
   constructor(private renderer:THREE.WebGLRenderer,private canvas:HTMLCanvasElement) {
     for(const [id,url]of Object.entries({joe:'/royale/joe_idle.png',matt:'/royale/matt_idle.png',alex:'/royale/ui/alex_idle.png',jon:'/royale/ui/jon_idle.png'})){const image=new Image();image.src=url;this.street.set(id,image);}
     this.scene.background=new THREE.Color('#0c1527');
     this.scene.add(new THREE.HemisphereLight(0xcce8ff,0x4b506c,2.2));
     const sun=new THREE.DirectionalLight(0xffedcb,3);sun.position.set(-150,350,-120);this.scene.add(sun);
     this.scene.add(this.staticGroup,this.filmSet);
-    this.telegraphTexture=new THREE.CanvasTexture(this.telegraphCanvas);
-    this.telegraph=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:this.telegraphTexture,transparent:true,depthWrite:false,toneMapped:false}));
-    this.telegraph.rotation.x=-Math.PI/2;this.scene.add(this.telegraph);
+    this.groundEffectsTexture=new THREE.CanvasTexture(this.groundEffectsCanvas);
+    this.groundEffects=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:this.groundEffectsTexture,transparent:true,depthWrite:false,toneMapped:false}));
+    this.groundEffects.rotation.x=-Math.PI/2;this.scene.add(this.groundEffects);
   }
   setAvatar(a:HeroAvatar){this.avatar=a;}
   setRemoteAvatar(seat:number,a:HeroAvatar){this.remotes.set(seat,a);}
@@ -124,9 +124,9 @@ export class SpaceRenderer {
     for(let row=0;row<world.rows;row++)for(let col=0;col<world.cols;col++)if(world.collision[row*world.cols+col])this.box(this.staticGroup,16,12,16,'#566880',col*16+8,6,row*16+8);
     for(const p of world.props)this.buildProp(p);
     for(const e of world.exits)this.box(this.staticGroup,e.w,.1,e.h,'#c39d69',e.x+e.w/2,.15,e.y+e.h/2);
-    this.telegraphCanvas.width=world.width*2;this.telegraphCanvas.height=world.height*2;
-    this.telegraphTexture.dispose();this.telegraphTexture=new THREE.CanvasTexture(this.telegraphCanvas);(this.telegraph.material as THREE.MeshBasicMaterial).map=this.telegraphTexture;
-    this.telegraph.scale.set(world.width,world.height,1);this.telegraph.position.set(world.width/2,.5,world.height/2);
+    this.groundEffectsCanvas.width=world.width*2;this.groundEffectsCanvas.height=world.height*2;
+    this.groundEffectsTexture.dispose();this.groundEffectsTexture=new THREE.CanvasTexture(this.groundEffectsCanvas);(this.groundEffects.material as THREE.MeshBasicMaterial).map=this.groundEffectsTexture;
+    this.groundEffects.scale.set(world.width,world.height,1);this.groundEffects.position.set(world.width/2,.5,world.height/2);
   }
   private actor(id:string,x:number,y:number,lift:number,key:string,draw:(c:CanvasRenderingContext2D)=>void,w=32,h=48) {
     let a=this.actors.get(id);if(!a){const canvas=document.createElement('canvas');canvas.width=Math.max(128,Math.ceil(w*this.viewport.zoom*this.viewport.dpr));canvas.height=Math.max(192,Math.ceil(h*this.viewport.zoom*this.viewport.dpr));const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
@@ -155,7 +155,7 @@ export class SpaceRenderer {
       if(shot.composition==='earth'){this.globe(this.filmSet,0,48,-40);}
       if(shot.composition==='burger'){this.mesh(this.filmSet,new THREE.SphereGeometry(6,24,12),'#e7b16b',0,73,12).name='burger';}
     }
-    this.staticGroup.visible=false;this.telegraph.visible=false;this.filmSet.visible=true;
+    this.staticGroup.visible=false;this.groundEffects.visible=false;this.filmSet.visible=true;
     const earth=this.filmSet.getObjectByName('earth');if(earth){const r=shot.composition==='earth'?(s.film.id==='space-return'?10+t*48:58-t*48):9;earth.scale.setScalar(r);earth.rotation.y=t*.2;}
     const stage=this.filmSet.getObjectByName('stage');if(stage)stage.position.y=-45-t*65;
     const burger=this.filmSet.getObjectByName('burger');if(burger){burger.position.x=-75+t*150;burger.position.y=75+Math.sin(t*Math.PI)*12;burger.rotation.z=t;}
@@ -180,7 +180,7 @@ export class SpaceRenderer {
     const dpr=window.devicePixelRatio||1;if(this.renderer.getPixelRatio()!==dpr||this.canvas.width!==Math.round(width*dpr)||this.canvas.height!==Math.round(height*dpr)){this.renderer.setPixelRatio(dpr);this.renderer.setSize(width,height,false);}
     this.canvas.dataset.renderDpr=`${window.devicePixelRatio||1}`;this.canvas.dataset.worldWidth=`${this.viewport.width}`;this.canvas.dataset.worldHeight=`${this.viewport.height}`;
     if(s.film){this.drawFilm(s);return;}
-    this.staticGroup.visible=true;this.telegraph.visible=true;this.filmSet.visible=false;this.filmKey='';
+    this.staticGroup.visible=true;this.groundEffects.visible=true;this.filmSet.visible=false;this.filmKey='';
     const world=getWorld(s.scene,s.room,s.mapId),establish=s.mapId==='space-launch'&&s.sceneTimer<3&&!s.moving;
     const boss=s.enemies.find(e=>e.kind==='boss'&&e.hp>0&&Math.hypot(e.x-s.x,e.y-s.y)<180);
     const vw=establish?Math.max(560,430*width/height):boss?Math.max(200,this.viewport.width):this.viewport.width,vh=vw*height/width;
@@ -204,15 +204,14 @@ export class SpaceRenderer {
     suited('local',visualState,this.avatar);
     for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
     for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,0,`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
-    const c=this.telegraphCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
-    for(const e of s.enemies)if(e.hp>0)drawLunarTelegraph(c,e);
+    const c=this.groundEffectsCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
     // Ground shadows retain the collision position while bound billboards lift.
     for(const a of this.actors.values())if(a.mesh.visible){c.fillStyle='#15233e60';c.beginPath();c.ellipse(a.mesh.position.x,a.mesh.position.z,14,5,0,0,Math.PI*2);c.fill();}
     for(const link of world.boundLinks??[])for(const p of [link.from,link.to]){c.strokeStyle='#f5c776';c.lineWidth=2;c.beginPath();c.ellipse(p.x,p.y,24,14,0,0,Math.PI*2);c.stroke();}
     for(const p of s.projectiles){c.fillStyle=p.owner==='enemy'?'#f1a0c5':'#b9ffdf';c.beginPath();c.arc(p.x,p.y,p.radius,0,Math.PI*2);c.fill();}
     for(const e of s.effects){c.strokeStyle='#d0fff0';c.lineWidth=2;c.beginPath();c.arc(e.x,e.y,e.size,0,Math.PI*2);c.stroke();}
     for(const [id,a]of this.actors)if(!a.mesh.visible){this.scene.remove(a.mesh);a.texture.dispose();a.mesh.material.dispose();this.actors.delete(id);}
-    c.restore();this.telegraphTexture.needsUpdate=true;
+    c.restore();this.groundEffectsTexture.needsUpdate=true;
     this.renderer.setRenderTarget(null);this.renderer.render(this.scene,this.camera);
   }
   presentation(s:GameState):RenderPresentation {
@@ -224,5 +223,5 @@ export class SpaceRenderer {
     for(const p of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,p))labels.push({id:`peer-${p.seat}`,text:p.name,...project(p.x,p.y,52),kind:'hub'});
     return{focus:project(s.x,s.y),camera:{x:this.focus.x-this.viewport.width/2,y:this.focus.y-this.viewport.height/2,width:this.viewport.width,height:this.viewport.height},labels:labels.filter(p=>p.x>0&&p.x<1&&p.y>0&&p.y<1)};
   }
-  dispose(){this.releaseGroup(this.staticGroup);this.releaseGroup(this.filmSet);for(const a of this.actors.values()){a.texture.dispose();a.mesh.material.dispose();}this.actors.clear();this.telegraphTexture.dispose();this.telegraph.geometry.dispose();(this.telegraph.material as THREE.Material).dispose();this.scene.clear();this.remotes.clear();}
+  dispose(){this.releaseGroup(this.staticGroup);this.releaseGroup(this.filmSet);for(const a of this.actors.values()){a.texture.dispose();a.mesh.material.dispose();}this.actors.clear();this.groundEffectsTexture.dispose();this.groundEffects.geometry.dispose();(this.groundEffects.material as THREE.Material).dispose();this.scene.clear();this.remotes.clear();}
 }
