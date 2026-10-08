@@ -715,7 +715,7 @@ export function createArcadeGames(): MachineData[] {
       earlyAccess: true,
       newShelf: true,
       availableOnMobile: true,
-      added: "Thu 2026-10-08 9:00 AM PDT (UTC-07:00)",
+      added: "Wed 2026-10-07 9:41 PM PDT (UTC-07:00)",
       cartridge: {
         color: "#b34836",
         tagline: "Five years later, the real evil arrives.",
