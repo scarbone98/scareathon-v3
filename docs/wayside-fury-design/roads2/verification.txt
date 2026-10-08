@@ -1,0 +1,36 @@
+ROADS2 final verification — 2026-10-08
+
+PASS npx tsc -b
+PASS npx eslint on all changed TypeScript and check/capture scripts
+PASS npm run check:wayside-fury (simulation, collision, bridge checks)
+PASS check-wayside-fury-road-clearance.mjs: 56 current maps, 1358 solid footprints,
+     662 scatter props, 21 relocations; legacy destination miniatures also audited
+PASS check-wayside-fury-road-network.mjs: T/X/Y junctions, ribbons, centerlines,
+     water coverage and short entrance thresholds without stop bars
+PASS check-wayside-fury-roads.mjs: 14 maps audited, connected networks and termini
+PASS check-wayside-fury-areas.mjs: 81 swept-reachable exits, 9 doors, finds,
+     return/save/retry loops and legacy exclusion
+PASS check-wayside-fury-campaign.mjs: frozen legacy co-op geometry hash,
+     Chapter 1 routing, migrations, checkpoint safety and allowlisted receipts
+PASS check-wayside-fury-coop-sim.mjs
+PASS check-wayside-fury-dressing.mjs: shared solid cab/wreck, clear lanes/parking
+PASS check-wayside-fury-city.mjs: Chapter 4 graph, ability gates, combat and saves
+PASS check-wayside-fury-grounding.mjs
+PASS capture-wayside-fury-roads2.mjs before: 24 native-DPR views, actual 2D/3D
+PASS capture-wayside-fury-roads2.mjs after: 24 native-DPR views, actual 2D/3D;
+     context loss -> Canvas with unchanged simulation -> explicit 3D retry,
+     on phone and desktop; unavailable WebGL -> playable Canvas, preference kept
+PASS final correctness review: no remaining findings
+
+NOT GREEN check-wayside-fury-3d.mjs full suite:
+  First run: comparison began in actual 3D, then sustained sampling switched
+  to 2D fallback; assertion expected 3D. A screenshot run was concurrent.
+  Isolated rerun with the supported 30-frame sampling option: 2D comparison
+  passed, but waiting for 3D at boot timed out after 180000 ms. Later full-suite
+  lifecycle/iframe/quality cases did not execute in this rerun.
+  Focused real-Metal road matrix, context-loss/retry and unavailable-WebGL
+  checks are green; the aggregate full 3D suite is not claimed as passing.
+
+Browser launches: --mute-audio, Metal WebGL, one Vite server on port 5223.
+Capture sizes: 390x844 DPR 3 and 1440x900 DPR 2. Paused visual fixtures;
+no sustained real-phone performance claim. No server changes or pushes.

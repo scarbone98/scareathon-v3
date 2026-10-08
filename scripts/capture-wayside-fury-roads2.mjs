@@ -14,10 +14,10 @@ try {
     await context.addInitScript(() => localStorage.setItem('wayside-fury-controls-dismissed','1'));
     const page = await context.newPage(); page.setDefaultTimeout(120000);
     const errors=[]; page.on('pageerror',error=>errors.push(error.message));
-    await page.goto(`${process.env.FURY_BASE_URL ?? "http://localhost:5223"}/wayside-fury?gfx=${gfx}`);
+    await page.goto(`${process.env.FURY_BASE_URL ?? "http://localhost:5223"}/wayside-fury${gfx==='3d'?'?gfx=3d':''}`);
     await page.waitForFunction(()=>window.__waysideFury && !document.querySelector('.wf-primary').disabled);
     await page.locator('.wf-primary').click();
-    await page.evaluate(async()=>{const {skipPrologue}=await import('/src/pages/WaysideFury/game/sim.ts');window.__waysideFury.mutate(skipPrologue);});
+    await page.evaluate(async()=>{const {skipPrologue}=await import('/src/pages/WaysideFury/game/sim.ts');window.__waysideFury.mutate(skipPrologue);window.__waysideFury.setPaused(true);});
     await page.waitForFunction(()=>window.__waysideFury.state.scene==='overworld');
     if(gfx==='3d') await page.waitForFunction(()=>document.querySelector('canvas').dataset.gfx==='3d');
     await page.evaluate(()=>window.__waysideFury.setPaused(true));
@@ -31,6 +31,28 @@ try {
       report.push({gfx,size,name,mapId,active:mapId==='overworld'?gfx:'2d',canvases});
       console.log(`${phase}: ${gfx} ${size.width} ${name}`);
     }
+    if(phase==='after' && gfx==='3d') {
+      const state=await page.evaluate(()=>JSON.stringify(window.__waysideFury.state));
+      await page.evaluate(()=>{const canvas=document.querySelector('.wf-canvas-3d');const gl=canvas.getContext('webgl2')??canvas.getContext('webgl');if(!gl.getExtension('WEBGL_lose_context'))throw new Error('Missing context-loss fixture');gl.getExtension('WEBGL_lose_context').loseContext();});
+      await page.waitForFunction(()=>document.querySelector('canvas').dataset.gfx==='2d');
+      assert.equal(await page.evaluate(()=>JSON.stringify(window.__waysideFury.state)),state,'fallback preserves simulation');
+      await page.evaluate(()=>window.__waysideFury.setGraphicsMode('3d'));
+      await page.waitForFunction(()=>document.querySelector('canvas').dataset.gfx==='3d');
+      report.push({gfx,size,check:'context-loss fallback, immutable state, explicit 3D retry'});
+    }
     assert.deepEqual(errors,[]); await context.close();
+  }
+  if(phase==='after') {
+    const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3});
+    await context.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(kind,...args){return /webgl/i.test(kind)?null:original.call(this,kind,...args);};localStorage.setItem('wayside-fury-controls-dismissed','1');});
+    const page=await context.newPage();page.setDefaultTimeout(120000);
+    await page.goto(`${process.env.FURY_BASE_URL ?? 'http://localhost:5223'}/wayside-fury?gfx=3d`);
+    await page.waitForFunction(()=>window.__waysideFury && !document.querySelector('.wf-primary').disabled);
+    await page.locator('.wf-primary').click();
+    await page.evaluate(async()=>{const {skipPrologue}=await import('/src/pages/WaysideFury/game/sim.ts');window.__waysideFury.mutate(skipPrologue);window.__waysideFury.setPaused(true);});
+    await page.waitForFunction(()=>document.querySelector('canvas').dataset.gfx==='2d' && document.querySelector('canvas').dataset.gfxStatus==='fallback');
+    assert.equal(await page.evaluate(()=>window.__waysideFury.graphicsMode),'3d','unavailable WebGL preserves optional preference');
+    report.push({check:'unavailable WebGL falls back to playable Canvas',dpr:3});
+    await context.close();
   }
 } finally {await writeFile(`${output}/metrics${process.env.FURY_CAPTURE_SIZE ? "-"+process.env.FURY_CAPTURE_SIZE : ""}${process.env.FURY_CAPTURE_GFX ? "-"+process.env.FURY_CAPTURE_GFX : ""}.json`,JSON.stringify(report,null,2));await browser.close();}
