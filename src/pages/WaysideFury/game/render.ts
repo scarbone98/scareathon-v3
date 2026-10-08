@@ -4,6 +4,7 @@ import { activeHero, type Effect, type Enemy, type GameState, type GameEvent, ty
 import { HUB_POINTS, LOCATIONS, PROLOGUE } from "./content";
 import { cameraTarget, getWorld, type WorldMap, type WorldProp } from "./world";
 import { drawCanopy, drawTaxiBody } from "./scenery";
+import { QualityRecovery } from './qualityRecovery';
 import { TerrainCache } from "./terrain";
 import type { AvatarStrip, HeroAvatar } from "./avatar";
 import { getRenderViewport } from "./viewport";
@@ -56,6 +57,7 @@ export class Renderer {
   private viewport = getRenderViewport(1, 1, window.devicePixelRatio);
   private qualityCap = 3;
   private slowFrameTime = 0;
+  private qualityRecovery = new QualityRecovery();
   private resizeObserver: ResizeObserver;
   private disposed = false;
   private resize = () => {
@@ -96,7 +98,7 @@ export class Renderer {
   setRemoteAvatar(seat: number, assets: HeroAvatar) { this.remoteAvatars.set(seat, assets); }
   reset() {
     this.sceneKey = ''; this.world = null; this.bursts = []; this.tumbles = []; this.shake = 0;
-    this.transition = 0; this.slowFrameTime = 0;
+    this.transition = 0; this.slowFrameTime = 0; this.qualityRecovery.reset();
     this.kiPose = 0; this.previousKi = null; this.previousHero = null;
   }
   dispose() {
@@ -123,11 +125,15 @@ export class Renderer {
     if (Math.min(window.devicePixelRatio || 1, this.qualityCap) !== this.viewport.dpr) this.resize();
     // Hidden tabs reset the sample. Bound individual gaps so a resumed frame
     // cannot lower quality alone, while sustained very slow rendering still can.
-    if (document.hidden || frameDelta <= 0) { this.slowFrameTime = 0; return; }
+    if (document.hidden || frameDelta <= 0) { this.slowFrameTime = 0; this.qualityRecovery.reset(); return; }
     this.slowFrameTime = frameDelta > .02 ? this.slowFrameTime + Math.min(frameDelta, .25) : 0;
     const dpr = Math.min(window.devicePixelRatio || 1, this.qualityCap);
     if (this.slowFrameTime >= 2 && dpr > 1) {
       this.qualityCap = dpr > 2 ? 2 : dpr > 1.5 ? 1.5 : 1;
+      this.slowFrameTime = 0; this.qualityRecovery.reset(); this.resize();
+    }
+    if (this.qualityRecovery.sample(frameDelta) && this.qualityCap < 3) {
+      this.qualityCap = this.qualityCap >= 2 ? 3 : this.qualityCap >= 1.5 ? 2 : 1.5;
       this.slowFrameTime = 0; this.resize();
     }
   }

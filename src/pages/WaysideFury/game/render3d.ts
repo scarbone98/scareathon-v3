@@ -1,3 +1,4 @@
+import { QualityRecovery } from './qualityRecovery';
 // Optional overworld presentation. Simulation positions are x/z; elevation is visual only.
 import * as THREE from 'three';
 import { LOCATIONS } from './content';
@@ -132,6 +133,7 @@ export class OverworldRenderer {
   private visualTime = 0;
   private tier = 0;
   private slowTime = 0;
+  private qualityRecovery = new QualityRecovery();
   private frameEma = 16.67;
   private renderEma = 0;
   private disposed = false;
@@ -609,14 +611,17 @@ export class OverworldRenderer {
     this.canvas.dataset.postFx = quality.fx === 2 ? 'depth-dof,bloom,vignette' : quality.fx === 1 ? 'bloom,vignette' : 'off';
   }
   private checkQuality(frameDelta: number) {
-    if (document.hidden || frameDelta <= 0) { this.slowTime = 0; return; }
+    if (document.hidden || frameDelta <= 0) { this.slowTime = 0; this.qualityRecovery.reset(); return; }
     const ms = frameDelta * 1000;
     this.frameEma += (ms - this.frameEma) * .035;
     // Bound isolated resume gaps while still adapting to sustained severe stalls.
     const sample = Math.min(frameDelta, .25);
     this.slowTime = ms > 20 ? this.slowTime + sample : Math.max(0, this.slowTime - sample * 2);
     if (this.slowTime >= 2 && this.tier < QUALITY.length - 1) {
-      this.tier++; this.slowTime = 0; this.configureQuality(); this.resize();
+      this.tier++; this.slowTime = 0; this.qualityRecovery.reset(); this.configureQuality(); this.resize();
+    }
+    if (this.qualityRecovery.sample(frameDelta) && this.tier > 0) {
+      this.tier--; this.slowTime = 0; this.configureQuality(); this.resize();
     }
     if (Math.abs(this.renderer.getPixelRatio() - Math.min(window.devicePixelRatio || 1, QUALITY[this.tier].cap)) > .01) this.resize();
   }
@@ -816,7 +821,7 @@ export class OverworldRenderer {
       if (this.bursts.length > 8) this.bursts.shift();
     }
   }
-  reset() { this.cameraReady = false; this.slowTime = 0; this.bursts = []; }
+  reset() { this.cameraReady = false; this.slowTime = 0; this.qualityRecovery.reset(); this.bursts = []; }
   dispose() {
     if (this.disposed) return; this.disposed = true;
     this.resizeObserver?.disconnect(); window.removeEventListener('resize', this.resize);

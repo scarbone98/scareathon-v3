@@ -58,17 +58,21 @@ function SceneSurface({ canvas, presentation, onTouch, soundBlocked, onSound }: 
   useLayoutEffect(() => {
     const element = stage.current;
     if (!element) return;
+    let band: Element | null = null;
     const measure = () => {
       // Read the resolved custom property through a probe: it may contain calc()/env().
       const probe = document.createElement('span');
       probe.style.cssText = 'position:absolute;top:var(--wf-label-top,40px);visibility:hidden';
       element.append(probe);
-      const top = parseFloat(getComputedStyle(probe).top) || 40; probe.remove();
+      let top = parseFloat(getComputedStyle(probe).top) || 40; probe.remove();
+      const nextBand = element.parentElement?.querySelector('.wf-play-band') ?? null;
+      if (nextBand !== band) { if (band) observer.unobserve(band); band = nextBand; if (band) observer.observe(band); }
+      if (band?.getClientRects().length) top = Math.max(top, band.getBoundingClientRect().bottom - element.getBoundingClientRect().top + 8);
       setBounds({ width: element.clientWidth, height: element.clientHeight, top });
     };
     const observer = new ResizeObserver(measure); observer.observe(element); measure();
     const shellObserver = new MutationObserver(measure);
-    if (element.parentElement) shellObserver.observe(element.parentElement, { attributes: true, attributeFilter: ['class'] });
+    if (element.parentElement) shellObserver.observe(element.parentElement, { attributes: true, attributeFilter: ['class'], childList: true });
     return () => { observer.disconnect(); shellObserver.disconnect(); };
   }, []);
   const labels = layoutLabels(presentation?.labels ?? [], bounds.width, bounds.height, bounds.top, presentation?.focus);
@@ -404,8 +408,9 @@ export default function WaysideFury() {
     const timer = window.setTimeout(() => { if (epoch === accountEpochRef.current) dismissTutorialRef.current(); }, 7000);
     return () => window.clearTimeout(timer);
   }, [showTutorial, accountEpoch]);
+  const inlineSave = playing && !cinematic && !paused && !state.overlay && !coopOpen && state.scene !== "dead";
   return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
-    <span className={`wf-save-status wf-save-${syncStatus} ${playing && !cinematic && !paused && !state.overlay ? "wf-save-in-game" : ""}`} role="status">{SAVE_LABELS[syncStatus]}</span>
+    {!inlineSave && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
@@ -432,6 +437,7 @@ export default function WaysideFury() {
         return <div key={player.seat}><strong>{player.name}{!player.connected ? " · Offline" : h?.hp === 0 ? " · Down" : ""}</strong><Meter value={h?.hp ?? 0} max={h?.maxHp ?? 1} kind="hp" /></div>;
       })}</div>}
       {!cinematic && <div className="wf-play-band">
+        {inlineSave && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
         {mode !== "touch" && !paused && !state.overlay && !actionPrompt.target && <span className="wf-action-hint" aria-label={actionPrompt.label}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.label}</span>}
         {state.coop?.downed && <p className="wf-notice">You are down. A teammate can hold their interact control nearby to revive you.</p>}
         {reviveTarget && !state.coop?.downed && !paused && <button className="wf-revive-prompt" onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); send({ interact: true }); }} onPointerUp={() => send({ interact: false })} onPointerCancel={() => send({ interact: false })} onLostPointerCapture={() => send({ interact: false })} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send({ interact: true }); } }} onKeyUp={() => send({ interact: false })}>Hold to revive {reviveTarget.name}</button>}

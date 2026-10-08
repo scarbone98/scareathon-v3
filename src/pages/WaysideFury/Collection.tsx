@@ -10,8 +10,8 @@ export function Collection({ state, onBack }: { state: GameState; onBack: () => 
   const shown = HIDDEN_PICKUPS.filter(item => chapters.includes(item.chapter));
   const count = shown.filter(item => found.has(item.id)).length;
   return <div className="wf-overlay wf-character wf-collection" role="dialog" aria-label="Collection">
-    <div className="wf-character-content"><header><div className="wf-collection-heading"><div><p className="wf-eyebrow">SIDE FINDS & STORIES</p><h2>Collection</h2></div><button className="wf-secondary" onClick={onBack}>Back</button></div>
-      <p>{count} / {shown.length} found</p><progress aria-label="Collection progress" value={count} max={shown.length || 1} /><p className="wf-small">Explore corners and watch for a quiet glint. Trinkets equip themselves; matching buffs do not stack.</p></header>
+    <div className="wf-character-content"><header className="wf-collection-heading"><div><p className="wf-eyebrow">SIDE FINDS & STORIES</p><h2>Collection</h2></div><button className="wf-secondary" onClick={onBack}>Back</button></header>
+      <div className="wf-collection-summary"><p>{count} / {shown.length} found</p><progress aria-label="Collection progress" value={count} max={shown.length || 1} /><p className="wf-small">Explore corners and watch for a quiet glint. Trinkets equip themselves; matching buffs do not stack.</p></div>
       {chapters.map(chapter => <section key={chapter} aria-label={`Chapter ${chapter} collection`}><h3>Chapter {chapter}</h3>
         {AREAS.map(area => { const items = HIDDEN_PICKUPS.filter(item => item.chapter === chapter && item.area === area.id);
           if (!items.length) return null;

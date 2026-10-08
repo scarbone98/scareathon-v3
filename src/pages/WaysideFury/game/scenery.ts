@@ -14,7 +14,7 @@ export function drawCanopy(c: CanvasRenderingContext2D, x: number, y: number) {
     for (let n = 0; n < 4; n++) { p.beginPath(); p.moveTo(15 + n * .7, 28); p.lineTo(14.7 + n, 37); p.stroke(); }
     // Overlapping boughs: warm upper rim, cool self-shadow, fine needle clusters.
     for (let tier = 0; tier < 4; tier++) {
-      const cy = 27 - tier * 6, radius = 13 - tier * 2.7;
+      const cy = 28 - tier * 5, radius = 13 - tier * 2.7;
       const shade = p.createLinearGradient(0, cy - 7, 0, cy + 5);
       shade.addColorStop(0, '#76946b'); shade.addColorStop(.25, '#476f57'); shade.addColorStop(1, '#173e37');
       p.fillStyle = shade; p.beginPath(); p.moveTo(16, cy - 12);

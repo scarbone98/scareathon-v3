@@ -153,7 +153,12 @@ function tileTexture(kind: TileKind | 'cliff') {
   context.globalAlpha = .65;
   if (kind === 'grass') for (let n = 0; n < 12; n++) {
     const seed = hash(n + 9, 8), x = 3 + seed % 55, y = 5 + (seed >>> 6) % 53;
-    fill(x, y, 1, 4, light); fill(x - 2, y + 3, 5, 1, light); fill(x + 2, y + 2, 1, 3, '#82945f');
+    context.lineWidth = .55; context.lineCap = 'round';
+    context.strokeStyle = n % 3 ? '#80977790' : '#192f3580';
+    context.beginPath(); context.moveTo(x, y + 3);
+    context.quadraticCurveTo(x + 1.2, y, x - 1, y - 2); context.stroke();
+    context.beginPath(); context.moveTo(x, y + 3);
+    context.quadraticCurveTo(x + 2.5, y + .5, x + 3, y); context.stroke();
   }
   if (kind === 'water') for (let y = 10; y < 64; y += 19) {
     fill(y % 11 + 5, y, 30, 1, light); fill(y % 11 + 16, y + 2, 23, 1, '#427f92');

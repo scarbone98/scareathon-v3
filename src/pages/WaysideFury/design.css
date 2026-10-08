@@ -88,3 +88,17 @@
 .wf-collection progress::-webkit-progress-bar { background: #28424c; }
 .wf-collection progress::-webkit-progress-value { background: #94c9ae; border-radius: 999px; }
 .wf-collection progress::-moz-progress-bar { background: #94c9ae; border-radius: 999px; }
+
+/* Keep the return action available throughout long collections. */
+.wf-collection-heading { position: sticky; top: 0; z-index: 2; padding: 10px 0; background: #0e202b; border-bottom: 1px solid #6c918b55; }
+.wf-collection .wf-unfound { align-items: center; padding: 10px 12px; }
+.wf-collection .wf-unfound p { font-size: 12px; line-height: 1.4; margin: 2px 0 0; }
+@media (max-height: 500px) and (orientation: landscape) {
+  .wf-collection-heading { align-items: center; padding: 6px 0; }
+  .wf-collection-heading .wf-eyebrow { display: none; }
+  .wf-collection-heading h2 { font-size: 26px; }
+}
+
+.wf-play-band > .wf-save-status { position: static; align-self: flex-end; max-width: 100%; }
+.wf-collection-heading::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 16px; background: #0e202b; }
+.wf-play-band > .wf-action-hint { position: static; align-self: flex-end; }

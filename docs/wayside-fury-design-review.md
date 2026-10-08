@@ -49,3 +49,16 @@ Title art: built-in imagegen, saved as [title-landscape.webp](../public/wayside-
 - The 3D immutability check now renders twelve passes synchronously, avoiding an unrelated async save/avatar readiness callback resuming simulation between frames. Complete authoritative state/world equality assertions remain intact.
 
 Reproduce captures with `scripts/capture-wayside-fury-design.mjs before|after`, `FURY_BASE_URL` pointing at Vite and `PLAYWRIGHT_MODULE` pointing at the installed Playwright module. Optional `FURY_WEBGL_BACKEND=metal`. Use `scripts/wayside-fury-muted-playwright.mjs` as `PLAYWRIGHT_MODULE` for the existing browser checks; `FURY_PLAYWRIGHT_MODULE` selects an external installation. It mutes Chromium output and WebKit's hardware sink while preserving the upstream audio signal for its tests. Default browser waits are extended for host contention; assertions and explicit timing checks are unchanged.
+
+
+## Round 2
+
+Fixed the portrait save badge covering chapter notices and the desktop keyboard hint: feedback now stacks with messages, and world labels reserve their measured height. Collection keeps its Back button visible while scrolling, with more compact unknown-item cards. Also corrected clipped pine tips and replaced coarse 3D grass marks with finer curved blades. The merged wider taxi interaction zones are unchanged.
+
+Both renderers now recover one quality tier after ten uninterrupted seconds of healthy frame cadence. Slow frames, scene changes, pauses and hidden tabs reset recovery; existing degradation thresholds remain intact.
+
+Final verification targets **390 × 844 DPR 3 and 1440 × 900 DPR 2**, default 2D and `?gfx=3d`, per the narrowed request. The muted capture harness checks canvas backing dimensions, HUD/control bounds, label boxes, save-message separation, scrolled Collection navigation, and simulated quality degradation/recovery without changing game state. TypeScript (`npx tsc -b`), ESLint (`npx eslint .`) and the quality-recovery unit check pass; all four size/renderer combinations pass with no uncaught browser errors. The single Vite server was stopped after capture. Code review found no correctness issues.
+
+Artifacts: [34 final screenshots and metrics](wayside-fury-design/round2-after/) include six paused native-detail fixtures. Compare the portrait [before](wayside-fury-design/round2-before/390x844-2d-overworld.png) / [after](wayside-fury-design/round2-after/390x844-2d-overworld.png), [3D detail](wayside-fury-design/round2-after/390x844-3d-overworld.png), and [scrolled Collection](wayside-fury-design/round2-after/390x844-2d-collection-scrolled.png). Reproduce with `FURY_CAPTURE_SIZE=390x844,1440x900` and capture phase `round2-after`.
+
+Remaining: sustained FPS/thermal testing on real phones, richer character source art compatible with wardrobe layers, and further 3D architecture/material detail. Paused native-detail fixtures establish visual fidelity, not sustained device performance.
