@@ -136,6 +136,7 @@ export class OverworldRenderer {
   private heading = 0;
   private cameraReady = false;
   private visualTime = 0;
+  private puddleTime = { value: 0 };
   private tier = 0;
   private slowTime = 0;
   private qualityRecovery = new QualityRecovery();
@@ -409,7 +410,7 @@ export class OverworldRenderer {
         box('#27383f', 0, 4, 5.7, 13, 3, .4); box('#e1bd87', 6, 15, 5.8, 2, 6, .3);
         for (let k = 0; k < 6; k++) box(k % 2 ? '#d8a681' : '#d3d287', -5 + k % 2 * 5, 22 - Math.floor(k / 2) * 5, 5.9, 2, 3, .5);
       } else if (prop.kind === 'puddle') {
-        box('#557b84', 0, .2, 0, prop.w, .25, 5); box('#b6cdcb', -3, .4, -1, prop.w * .55, .2, .5);
+        // Ground decals are merged separately, never part of the shadow casters.
       } else if (prop.kind === 'debris') {
         part('rock', '#8b7561', x, y + 1, z, 3, 1.8, 2, x);
       } else if (prop.kind === 'crater') {
@@ -423,6 +424,77 @@ export class OverworldRenderer {
     }
     const blobs = new THREE.InstancedMesh(this.shadowGeometry, this.shadowMaterial, shadows.length);
     shadows.forEach((matrix, index) => blobs.setMatrixAt(index, matrix)); blobs.computeBoundingSphere(); this.scene.add(blobs);
+    this.makePuddles();
+  }
+
+  private makePuddles() {
+    const puddles = this.world.props.filter(prop => prop.kind === 'puddle');
+    if (!puddles.length) return;
+    // Two draws for every puddle. Concentric subdivisions follow local slopes;
+    // baked world positions keep terrain sampling and geometry out of the frame loop.
+    for (const water of [false, true]) {
+      const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
+      const segments = 32, rings = 6;
+      for (const prop of puddles) {
+        const base = positions.length / 3;
+        const x = prop.x + prop.w / 2, z = prop.y + prop.h - 2;
+        const rx = prop.w / 2 + (water ? 0 : .8), rz = prop.w / 8 + (water ? 0 : .55);
+        const vertex = (u: number, v: number) => {
+          const px = x + u * rx, pz = z + v * rz;
+          positions.push(px, this.terrain.heightAt(px, pz) + (water ? .12 : .06), pz);
+          uvs.push(u * .5 + .5, v * .5 + .5);
+        };
+        vertex(0, 0);
+        for (let ring = 1; ring <= rings; ring++) for (let segment = 0; segment < segments; segment++) {
+          const angle = segment * Math.PI * 2 / segments;
+          vertex(Math.cos(angle) * ring / rings, Math.sin(angle) * ring / rings);
+        }
+        for (let segment = 0; segment < segments; segment++) {
+          const next = (segment + 1) % segments;
+          indices.push(base, base + 1 + next, base + 1 + segment);
+          for (let ring = 1; ring < rings; ring++) {
+            const a = base + 1 + (ring - 1) * segments + segment, b = base + 1 + (ring - 1) * segments + next;
+            const c = a + segments, d = b + segments;
+            indices.push(a, b, c, b, d, c);
+          }
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+      const material = new THREE.MeshStandardMaterial({
+        color: water ? '#557b84' : '#293c36', roughness: water ? .18 : .95, metalness: water ? .12 : 0,
+        transparent: true, opacity: water ? .65 : .32, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      });
+      material.onBeforeCompile = shader => {
+        shader.uniforms.puddleTime = this.puddleTime;
+        shader.uniforms.puddleSky = { value: this.sky };
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vPuddleUv;')
+          .replace('#include <uv_vertex>', '#include <uv_vertex>\nvPuddleUv = uv * 2.0 - 1.0;');
+        shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vPuddleUv;\nuniform float puddleTime;\nuniform vec3 puddleSky;')
+          .replace('#include <color_fragment>', `#include <color_fragment>
+            float puddleRadius = length(vPuddleUv);
+            diffuseColor.a *= 1.0 - smoothstep(${water ? '0.72' : '0.65'}, 1.0, puddleRadius);`);
+        if (water) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+          // Sky-colour reflection and broad, quiet wave glints; no scene copy,
+          // reflection render target, texture upload or CPU vertex animation.
+          float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), 3.0);
+          float ripple = sin(puddleRadius * 23.0 - puddleTime * 1.6 + vPuddleUv.x * 2.0);
+          float glint = pow(max(ripple, 0.0), 12.0) * 0.045;
+          float highlight = exp(-pow((vPuddleUv.y + 0.28 + sin(puddleTime * 0.7 + vPuddleUv.x * 3.0) * 0.045) * 22.0, 2.0));
+          highlight *= 1.0 - smoothstep(0.35, 0.85, abs(vPuddleUv.x));
+          outgoingLight = mix(outgoingLight, puddleSky, 0.18 + fresnel * 0.35);
+          outgoingLight += puddleSky * (glint + highlight * 0.16);
+          #include <opaque_fragment>`);
+      };
+      material.customProgramCacheKey = () => water ? 'puddle-water-v1' : 'puddle-rim-v1';
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = water ? 'puddle-water' : 'puddle-rim';
+      mesh.castShadow = false; mesh.receiveShadow = true; mesh.renderOrder = water ? 3 : 2;
+      this.scene.add(mesh);
+    }
   }
   private makeRoadsideVehicles() {
     this.ambientCab = this.taxi.clone(true);
@@ -719,6 +791,7 @@ export class OverworldRenderer {
   }
   private atmosphere() {
     const time = this.reducedMotion ? 0 : this.visualTime;
+    this.puddleTime.value = time;
     // A slow dusk-to-night cycle with a bright initial golden hour.
     const daylight = .58 + Math.cos(time * Math.PI * 2 / 180) * .42;
     this.sky.setRGB(.16 + daylight * .30, .21 + daylight * .37, .30 + daylight * .34);

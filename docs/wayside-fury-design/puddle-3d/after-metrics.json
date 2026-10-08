@@ -1,0 +1,82 @@
+[
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "phase": "after",
+    "sameState": true,
+    "width": 1170,
+    "height": 1932,
+    "cssWidth": 390,
+    "cssHeight": 644,
+    "dpr": 3,
+    "calls": 201,
+    "triangles": 210772,
+    "decals": [
+      {
+        "name": "puddle-water",
+        "maxHeightError": 6.012659287124578e-7,
+        "vertices": 579,
+        "castShadow": false,
+        "receiveShadow": true,
+        "depthWrite": false,
+        "transparent": true,
+        "polygonOffset": true,
+        "renderOrder": 3
+      },
+      {
+        "name": "puddle-rim",
+        "maxHeightError": 5.749511183261724e-7,
+        "vertices": 579,
+        "castShadow": false,
+        "receiveShadow": true,
+        "depthWrite": false,
+        "transparent": true,
+        "polygonOffset": true,
+        "renderOrder": 2
+      }
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "phase": "after",
+    "sameState": true,
+    "width": 2880,
+    "height": 1800,
+    "cssWidth": 1440,
+    "cssHeight": 900,
+    "dpr": 2,
+    "calls": 212,
+    "triangles": 213268,
+    "decals": [
+      {
+        "name": "puddle-water",
+        "maxHeightError": 6.012659287124578e-7,
+        "vertices": 579,
+        "castShadow": false,
+        "receiveShadow": true,
+        "depthWrite": false,
+        "transparent": true,
+        "polygonOffset": true,
+        "renderOrder": 3
+      },
+      {
+        "name": "puddle-rim",
+        "maxHeightError": 5.749511183261724e-7,
+        "vertices": 579,
+        "castShadow": false,
+        "receiveShadow": true,
+        "depthWrite": false,
+        "transparent": true,
+        "polygonOffset": true,
+        "renderOrder": 2
+      }
+    ]
+  }
+]

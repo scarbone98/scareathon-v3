@@ -1,0 +1,42 @@
+[
+  {
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "phase": "before",
+    "sameState": true,
+    "width": 1170,
+    "height": 1932,
+    "cssWidth": 390,
+    "cssHeight": 644,
+    "dpr": 3,
+    "calls": 203,
+    "triangles": 208804,
+    "decals": [
+      null,
+      null
+    ]
+  },
+  {
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "phase": "before",
+    "sameState": true,
+    "width": 2880,
+    "height": 1800,
+    "cssWidth": 1440,
+    "cssHeight": 900,
+    "dpr": 2,
+    "calls": 214,
+    "triangles": 211300,
+    "decals": [
+      null,
+      null
+    ]
+  }
+]
