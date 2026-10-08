@@ -1,19 +1,11 @@
 import { enterScene, newGame, createHero, HERO_IDS, type HeroId, type HeroState, type GameState } from "./sim.ts";
 import { HUB_WORLD } from "./world.ts";
-import { SAVE_VERSION, sanitizeSave, mergeReceipts } from "../../../../server/shared/waysideFury/save.js";
+import { SAVE_VERSION, sanitizeSave, mergeReceipts, ticketDelta } from "../../../../server/shared/waysideFury/save.js";
 import type { SaveData, ProgressReceipt } from "../../../../server/shared/waysideFury/save.js";
-export { mergeReceipts };
+export { mergeReceipts, ticketDelta };
 export type { SaveData, HomeSnapshot, ProgressReceipt, SaveSettings, Gear, CharacterProgress } from "../../../../server/shared/waysideFury/save.js";
 export const SAVE_KEY = "wayside-fury-save";
 
-// One policy for local reports and account-save acknowledgements.
-export function ticketDelta(now: ProgressReceipt, before: ProgressReceipt): number {
-  const current = mergeReceipts(now), reported = mergeReceipts(before);
-  const additions = (a: string[], b: string[]) => a.filter(id => !b.includes(id)).length;
-  const rooms = current.rooms.filter(id => /^(blast-\d+|realm-\d+)$/.test(id));
-  return Math.min(100000, additions(current.areas, reported.areas) * 1000 +
-    Math.max(0, current.level - reported.level) * 100 + additions(rooms, reported.rooms) * 50);
-}
 export function progressReport(s: GameState, previous?: ProgressReceipt | null): { score: number; receipt: ProgressReceipt } {
   const reported = mergeReceipts(previous);
   const current: ProgressReceipt = {
@@ -44,6 +36,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: previous?.settings, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
+    resetAt: previous?.resetAt, prologuePending: s.scene === "prologue",
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     foundItems: s.foundItems, ambientTaxiWrecked: s.ambientTaxiWrecked || s.personalTaxiWrecked || previous?.ambientTaxiWrecked === true,
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
@@ -56,6 +49,17 @@ export function writeSave(s: GameState, previous: SaveData | null, home = false,
     localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
     return saved;
   } catch { return null; }
+}
+// Collection/lore and reward receipts belong to the account, not the story run.
+export function makeNewGameSave(previous: SaveData | null): SaveData {
+  const state = newGame();
+  state.foundItems = [...(previous?.foundItems ?? [])];
+  state.coopRewards = [...(previous?.coopRewards ?? [])];
+  enterScene(state, "prologue");
+  const save = makeSave(state, null)!;
+  return { ...save, settings: previous?.settings ?? save.settings,
+    lastReported: mergeReceipts(previous?.lastReported),
+    resetAt: Math.max(Date.now(), (previous?.resetAt ?? 0) + 1) };
 }
 export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
@@ -76,6 +80,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
       else for (const id of s.party) s.heroes[id].hp = s.heroes[id].maxHp;
     }
   }
+  if (saved?.prologuePending) { enterScene(s, "prologue"); return s; }
   enterScene(s, "hub"); s.x = HUB_WORLD.spawn.x; s.y = HUB_WORLD.spawn.y;
   s.notice = retry ? "Rested at HOME. The crew is ready." : "Welcome back to Wayside.";
   return s;

@@ -159,6 +159,8 @@ export function sanitizeSave(raw) {
         candy: integer(raw.candy, 0, 1_000_000), unlockedHeroes: [...HERO_IDS],
         areas: milestones(raw.areas), bosses: milestones(raw.bosses), clearedRooms: milestones(raw.clearedRooms),
         kills: integer(raw.kills, 0, 1_000_000), deaths: integer(raw.deaths, 0, 1_000_000),
+        ...(raw.resetAt ? { resetAt: integer(raw.resetAt, 0, Number.MAX_SAFE_INTEGER) } : {}),
+        ...(raw.prologuePending === true ? { prologuePending: true } : {}),
         coopRewards: coopRewards(raw.coopRewards),
         foundItems: cleanFoundItems(raw.foundItems), ambientTaxiWrecked: raw.ambientTaxiWrecked === true,
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
@@ -174,4 +176,20 @@ export function progressScore(save) {
     const bestXp = earnedXp(save.character);
     return save.chapter * 1_000_000_000_000 + save.areas.length * 1_000_000_000 +
         save.bosses.length * 10_000_000 + save.clearedRooms.length * 100_000 + bestXp;
+}
+
+// One policy for local reports and account-save acknowledgements.
+export function ticketDelta(now, before) {
+  const current = mergeReceipts(now), reported = mergeReceipts(before);
+  const additions = (a, b) => a.filter(id => !b.includes(id)).length;
+  const rooms = current.rooms.filter(id => /^(blast-\d+|realm-\d+)$/.test(id));
+  return Math.min(100000, additions(current.areas, reported.areas) * 1000 +
+    Math.max(0, current.level - reported.level) * 100 + additions(rooms, reported.rooms) * 50);
+}
+
+// Lifetime total is unbounded by the per-checkpoint submission cap.
+export function receiptTotalScore(receipt) {
+    const current = mergeReceipts(receipt);
+    return current.areas.length * 1000 + (current.level - 1) * 100 +
+        current.rooms.filter(id => /^(blast-\d+|realm-\d+)$/.test(id)).length * 50;
 }

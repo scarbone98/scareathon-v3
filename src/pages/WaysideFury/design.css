@@ -75,7 +75,7 @@
   .wf-menu > h1 { grid-column: 1; grid-row: 2 / 4; }
   .wf-menu > .wf-tagline { grid-column: 1; grid-row: 4; }
   .wf-menu > .wf-crew { grid-column: 1; grid-row: 5 / 7; justify-content: center; }
-  .wf-menu > .wf-primary { grid-column: 2; grid-row: 2; }
+  .wf-menu > .wf-title-actions { grid-column: 2; grid-row: 2; }
   .wf-menu > .wf-secondary { grid-column: 2; grid-row: 3; }
   .wf-menu > .wf-menu-options { grid-column: 2; grid-row: 4; width: 100%; }
   .wf-menu > .wf-small { grid-column: 2; grid-row: 5; font-size: 11px; }
@@ -109,3 +109,8 @@
 @media (orientation: portrait) {
   .wf-hud { width: 100%; }
 }
+
+.wf-title-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: min(500px, 100%); }
+.wf-title-actions > button { flex: 1; min-width: 140px; }
+.wf-new-game-confirm { z-index: 30; }
+.wf-new-game-confirm p { max-width: 440px; }

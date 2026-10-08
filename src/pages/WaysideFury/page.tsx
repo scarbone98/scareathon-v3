@@ -35,7 +35,7 @@ function Controls({ mode }: { mode: InputMode }) {
     <p>{mode === "touch" ? "Use the stick and buttons below. Hold Ki or Guard while moving." : "Controllers connect automatically. Charge somewhere safe."}</p>
   </section>;
 }
-function GraphicsSettings({ mode, status, onChange }: { mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void }) {
+function GraphicsSettings({ mode, status, onChange, onNewGame, resetDisabled }: { mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void; onNewGame: () => void; resetDisabled: boolean }) {
   return <section className="wf-graphics-settings" aria-label="Graphics settings">
     <h2>Settings</h2><p>Overworld graphics</p>
     <div role="radiogroup" aria-label="Overworld graphics">
@@ -44,6 +44,8 @@ function GraphicsSettings({ mode, status, onChange }: { mode: GraphicsMode; stat
     </div>
     <p className="wf-small">Applies to the taxi overworld. Remembered on this device.</p>
     <p className="wf-small" role="status">{status.status === "fallback" ? "3D is unavailable. Using 2D. Select 3D to retry." : status.status === "loading" ? "Loading the 3D overworld…" : mode === "3d" ? "3D overworld selected. Other scenes use 2D." : "2D overworld selected."}</p>
+    <button className="wf-secondary" disabled={resetDisabled} onClick={onNewGame}>New Game</button>
+    <p className="wf-small">Restart the story. Your Collection and lore cards stay with you. Leave co-op first to restart.</p>
   </section>;
 }
 function PromptGlyph({ mode, action = "interact" }: { mode: InputMode; action?: "attack" | "interact" }) {
@@ -187,6 +189,16 @@ export default function WaysideFury() {
   const [collectionOpen, setCollectionOpen] = useState(false);
   const [controls, setControls] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newGameConfirm, setNewGameConfirm] = useState(false);
+  const [newGameBusy, setNewGameBusy] = useState(false);
+  const newGameBusyRef = useRef(false);
+  const [newGameError, setNewGameError] = useState("");
+  const resetDialog = useRef<HTMLDivElement | null>(null);
+  const resetDisabled = loadingSave || loadingAvatar || !!coopRoom || newGameBusy;
+  const requestNewGame = () => {
+    if (resetDisabled) return;
+    setNewGameError(""); setNewGameConfirm(true);
+  };
   const [graphicsMode, setGraphicsMode] = useState<GraphicsMode>(readGraphicsMode);
   const graphicsModeRef = useRef(graphicsMode);
   const [graphicsStatus, setGraphicsStatus] = useState<GraphicsStatus>({ requested: graphicsMode, active: "2d", status: "ready" });
@@ -204,9 +216,37 @@ export default function WaysideFury() {
   const dismissTutorialRef = useRef(() => {});
   const handlers = useRef({ pause: () => {}, confirm: (): boolean => false, navigate: (direction: number, axis?: "horizontal" | "vertical") => { void direction; void axis; } });
   const begin = (retry = false) => { if (loadingSave || loadingAvatar) return; playingRef.current = true; pausedRef.current = false; const next = saveRef.current ? restoreSave(saveRef.current, retry || saveRef.current.party.every(id => saveRef.current!.heroes[id].hp <= 0)) : newGame(); if (!saveRef.current) enterScene(next, "prologue"); controller.current?.start(next); setPlaying(true); setPaused(false); setCharacterOpen(false); setCollectionOpen(false); setControls(false); setSettingsOpen(false); };
+  const confirmNewGame = async () => {
+    const store = storeRef.current;
+    if (!store || resetDisabled || newGameBusyRef.current) return;
+    newGameBusyRef.current = true; setNewGameBusy(true); setNewGameError("");
+    const epoch = accountEpochRef.current;
+    try {
+      const fresh = await store.newGame();
+      if (epoch !== accountEpochRef.current) return;
+      saveRef.current = fresh; setSaved(fresh); setNewGameConfirm(false); setReward(0);
+      begin();
+    } catch {
+      if (epoch === accountEpochRef.current) setNewGameError("Could not start a new game. Check your connection and try again. The restart could not be confirmed.");
+    } finally { newGameBusyRef.current = false; setNewGameBusy(false); }
+  };
+  useEffect(() => {
+    if (!newGameConfirm) return;
+    const previous = document.activeElement;
+    resetDialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const buttons = Array.from(resetDialog.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
+      if (!buttons.length) { event.preventDefault(); return; }
+      const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      event.preventDefault(); buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+    };
+    window.addEventListener("keydown", trap);
+    return () => { window.removeEventListener("keydown", trap); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
+  }, [newGameConfirm]);
   const persist = (s: GameState, home = false, credit = false) => {
     const store = storeRef.current;
-    if (!store?.ready) return;
+    if (!store?.ready || newGameBusyRef.current) return;
     const report = credit ? progressReport(s, store.save?.lastReported) : null;
     const next = makeSave(s, store.save, home, report?.receipt);
     if (next && !store.persist({ ...next, settings: settingsRef.current }, !!report?.score)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
@@ -214,7 +254,7 @@ export default function WaysideFury() {
   const updateSettings = (next: SaveSettings) => {
     settingsRef.current = next; setSettings(next); controller.current?.setAudioSettings(next); setTutorial(!next.controls.tutorialDismissed);
     const store = storeRef.current, game = controller.current;
-    if (!store?.ready || !game) return;
+    if (!store?.ready || !game || newGameBusyRef.current) return;
     const snapshot = makeSave(game.state, store.save);
     if (snapshot) store.persist({ ...snapshot, settings: next });
   };
@@ -228,7 +268,7 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const togglePause = () => { if (newGameConfirm) { if (!newGameBusyRef.current) setNewGameConfirm(false); return; } if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
   const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
@@ -258,7 +298,7 @@ export default function WaysideFury() {
       onEvent: (s, event) => {
         if (event.type !== "checkpoint" && event.type !== "death" && event.type !== "ambient-taxi-crash") return;
         const store = storeRef.current;
-        if (!store?.ready) return;
+        if (!store?.ready || newGameBusyRef.current) return;
         const report = progressReport(s, store.save?.lastReported);
         const next = makeSave(s, store.save, event.type === "checkpoint" && event.id === "home", report.receipt);
         if (next && !store.persist({ ...next, settings: settingsRef.current }, report.score > 0)) s.notice = "Saving is unavailable in this browser. Keep this tab open.";
@@ -312,7 +352,7 @@ export default function WaysideFury() {
         if (mounted) setReward(score);
       },
     }, () => {
-      coop.leave(); setCoopOpen(false); setSignedIn(false); exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
+      coop.leave(); setCoopOpen(false); setNewGameConfirm(false); setSignedIn(false); exitRef.current(); accountEpochRef.current++; setAccountEpoch(accountEpochRef.current); avatarAbort?.abort(); avatarAccount = undefined;
       avatarReady = false; saveReady = false; setCharacterOpen(false); setCollectionOpen(false); setLoadingAvatar(true); game.setPaused(true);
     });
     storeRef.current = connected.store;
@@ -418,10 +458,10 @@ export default function WaysideFury() {
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
       <p className="wf-tagline">Five years later, the real evil arrives.</p>
       <div className="wf-crew">{HERO_IDS.map(id => <div key={id}><HeroPortrait id={id} avatar={avatar} /><small>{HERO_NAMES[id]}</small></div>)}</div>
-      <button className="wf-primary" disabled={loadingSave || loadingAvatar} onClick={() => begin()}>{loadingSave ? "Loading your save…" : loadingAvatar ? "Loading your look…" : saved ? "Continue adventure" : "Begin adventure"}</button>
+      <div className="wf-title-actions"><button className="wf-primary" disabled={loadingSave || loadingAvatar} onClick={() => begin()}>{loadingSave ? "Loading your save…" : loadingAvatar ? "Loading your look…" : saved ? "Continue adventure" : "Begin adventure"}</button><button className="wf-secondary" disabled={resetDisabled} onClick={requestNewGame}>New Game</button></div>
       <button className="wf-secondary" disabled={loadingSave || loadingAvatar} onClick={() => setCoopOpen(true)}>Co-op</button>
       <div className="wf-menu-options"><button className="wf-secondary" onClick={() => { setControls(!controls); setSettingsOpen(false); }}>Controls</button><button className="wf-secondary" onClick={() => { setSettingsOpen(!settingsOpen); setControls(false); }}>Settings</button></div>
-      {controls && <Controls mode={mode} />}{settingsOpen && <GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} />}<p className="wf-small">Chapter 1 · The Blast Site · Early access</p>
+      {controls && <Controls mode={mode} />}{settingsOpen && <GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} />}<p className="wf-small">Chapter 1 · The Blast Site · Early access</p>
     </div> : <>
       {!cinematic && <header className="wf-hud" aria-label="Hero status"><div className="wf-hero-hud">
         {partner ? <button className="wf-tag-partner wf-hud-faces" aria-label={`Swap to ${HERO_NAMES[partner]}`} disabled={state.heroes[partner].hp <= 0} onClick={() => controller.current?.mutate(requestSwap)}><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /><HeroPortrait id={partner} avatar={avatar} className="wf-tag-face" /></button> : <span className="wf-hud-faces"><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /></span>}
@@ -479,9 +519,17 @@ export default function WaysideFury() {
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <div className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></div>}
       {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
       {paused && collectionOpen && state.scene !== "dead" && <Collection state={state} onBack={() => setCollectionOpen(false)} />}
-      {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
+      {paused && settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><GraphicsSettings mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></div>}
       {paused && !characterOpen && !collectionOpen && !settingsOpen && state.scene !== "dead" && <div className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2><p className="wf-pause-summary">LV {state.character.level} · ◈ {state.candy} candy · {SAVE_LABELS[syncStatus]}</p><div className="wf-pause-actions"><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><button className="wf-secondary" onClick={quit}>Quit to menu</button></div><Controls mode={mode} /><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></div>}
     </>}
     {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}
+    {newGameConfirm && <div ref={resetDialog} className="wf-overlay wf-new-game-confirm" role="alertdialog" aria-modal="true" aria-labelledby="wf-new-game-title" aria-describedby="wf-new-game-warning" aria-busy={newGameBusy}>
+      <h2 id="wf-new-game-title">Start a new game?</h2>
+      <p id="wf-new-game-warning">Start a new game? Your current progress will be erased.</p>
+      <p>Your Collection and lore cards will be kept.</p>
+      <button className="wf-secondary" disabled={newGameBusy} onClick={() => setNewGameConfirm(false)}>Cancel</button>
+      <button disabled={newGameBusy} onClick={() => { void confirmNewGame(); }}>{newGameBusy ? "Starting new game…" : "Start New Game"}</button>
+      {newGameError && <p role="alert">{newGameError}</p>}
+    </div>}
   </main>;
 }

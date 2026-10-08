@@ -15,8 +15,8 @@ const PREFERENCE_KEY = 'wayside-fury-graphics';
 export function readGraphicsMode(): GraphicsMode {
   const query = new URLSearchParams(window.location.search).get('gfx');
   if (query === '2d' || query === '3d') return query;
-  try { return localStorage.getItem(PREFERENCE_KEY) === '3d' ? '3d' : '2d'; }
-  catch { return '2d'; }
+  try { return localStorage.getItem(PREFERENCE_KEY) === '2d' ? '2d' : '3d'; }
+  catch { return '3d'; }
 }
 export function rememberGraphicsMode(mode: GraphicsMode) {
   try { localStorage.setItem(PREFERENCE_KEY, mode); } catch { /* Session selection still works. */ }
