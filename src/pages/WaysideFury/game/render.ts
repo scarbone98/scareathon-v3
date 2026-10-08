@@ -242,7 +242,7 @@ export class Renderer {
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
-      const remote = { ...s, ...peer, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
+      const remote = { ...s, ...peer, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
       if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
@@ -566,6 +566,7 @@ export class Renderer {
   }
   private hero(s: GameState, pose?:SuitPose) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
+    if (s.meleeCharge > .25) { c.save(); c.strokeStyle = color; c.lineWidth = 2; c.beginPath(); c.arc(s.x, s.y - 10, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.meleeCharge / .6)); c.stroke(); c.restore(); }
     const suited = resolveHeroVisual(this.reducedMotion ? {...s,time:0} : s, this.avatar,pose);
     if (suited) {
       this.shadow(s.x,s.y,14);

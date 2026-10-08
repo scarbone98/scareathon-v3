@@ -87,7 +87,7 @@ export function drawMoonGround(c:CanvasRenderingContext2D,world:WorldMap,s:GameS
   c.restore();
 }
 export function drawLunarTelegraph(c:CanvasRenderingContext2D,e:Enemy) {
-  if(!e.behavior||e.windup<=0)return false;
+  if((!e.behavior && (e.kind==='boss' || !e.archetype) && !(e.burst??0))||e.windup<=0)return false;
   c.save();c.strokeStyle=amber;c.fillStyle='#f5c77628';c.lineWidth=2;
   if((e.burst??0)>0 || e.behavior==='warden'&&e.pattern===2 || e.behavior==='inspector'&&e.pattern===1) {c.beginPath();c.ellipse(e.x+((e.burst??0)>0?0:e.aimX*64),e.y+((e.burst??0)>0?0:e.aimY*64),64,64,0,0,Math.PI*2);c.fill();c.stroke();}
   else {const length=e.behavior==='walker'?68:150;c.beginPath();c.moveTo(e.x-e.aimY*10,e.y+e.aimX*10);c.lineTo(e.x+e.aimX*length-e.aimY*10,e.y+e.aimY*length+e.aimX*10);c.lineTo(e.x+e.aimX*length+e.aimY*10,e.y+e.aimY*length-e.aimX*10);c.lineTo(e.x+e.aimY*10,e.y-e.aimX*10);c.closePath();c.fill();c.stroke();}

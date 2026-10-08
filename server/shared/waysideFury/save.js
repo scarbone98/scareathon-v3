@@ -130,7 +130,8 @@ function cleanGear(raw, heroes) {
     return { power: integer(raw?.power, 0, 10_000, inferred.power), ward: integer(raw?.ward, 0, 10_000, inferred.ward) };
 }
 function cleanSettings(raw) {
-    return { musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
+    // All v1-v4 saves without the additive combat preference migrate to Normal.
+    return { difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
         controls: { tutorialDismissed: raw?.controls?.tutorialDismissed === true,
             stickSensitivity: bound(raw?.controls?.stickSensitivity, 0.5, 2, 1) } };
 }

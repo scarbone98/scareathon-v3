@@ -5,6 +5,17 @@ import { hero, legacySave, currentSave, makeServer, memoryDatabase, PLAYER, OTHE
 
 const checked = extra => sanitizeSave(legacySave(extra)).save;
 describe('Wayside Fury save sheets', () => {
+    test('all supported save versions migrate combat preference to Normal and preserve explicit Hard', () => {
+        for (const raw of [legacySave(), legacySave({ version: 2 }), currentSave({ version: 3 }), currentSave({ version: 4 })]) {
+            expect(sanitizeSave(raw).save.settings.difficulty).toBe('normal');
+            raw.settings = { ...raw.settings, difficulty: 'hard' };
+            const save = sanitizeSave(raw).save;
+            expect(save.settings.difficulty).toBe('hard');
+            expect(sanitizeSave(save).save).toEqual(save);
+            raw.settings.difficulty = 'unknown';
+            expect(sanitizeSave(raw).save.settings.difficulty).toBe('normal');
+        }
+    });
     test('version-three sheets and legacy migration default missing co-op receipts to an empty list', () => {
         for (const raw of [legacySave(), legacySave({ version: 2 }), currentSave()]) {
             delete raw.coopRewards;
@@ -31,7 +42,7 @@ describe('Wayside Fury save sheets', () => {
         const save = migrateSave(old);
         expect(save.version).toBe(4); expect(save.candy).toBe(19); expect(save.heroes.joe.unknown).toBeUndefined();
         expect(save.lastReported).toEqual(old.lastReported); expect(save.extra).toBeUndefined();
-        expect(save.settings).toEqual({ musicVolume: 0.6, sfxVolume: 0.8, controls: { tutorialDismissed: false, stickSensitivity: 1 } });
+        expect(save.settings).toEqual({ difficulty: 'normal', musicVolume: 0.6, sfxVolume: 0.8, controls: { tutorialDismissed: false, stickSensitivity: 1 } });
         expect(save.gear).toEqual({ power: 0, ward: 0 }); expect(save.savedAt).toBe(1234);
         expect(sanitizeSave(save).save).toEqual(save);
     });
@@ -62,7 +73,7 @@ describe('Wayside Fury save sheets', () => {
         expect(save.active).toBe('you'); expect(save.party).toEqual(['you', 'matt']);
         expect(save.unlockedHeroes).toEqual(['you', 'joe', 'matt', 'alex', 'jon']);
         expect(save.home.character).toEqual({ level: 1, xp: 5 }); expect(save.home.gear).toEqual({ power: 2, ward: 1 });
-        expect(save.lastReported).toEqual(raw.lastReported); expect(save.settings).toEqual(raw.settings); expect(save.savedAt).toBe(3456);
+        expect(save.lastReported).toEqual(raw.lastReported); expect(save.settings).toEqual({ ...raw.settings, difficulty: 'normal' }); expect(save.savedAt).toBe(3456);
         expect(sanitizeSave(save).save).toEqual(save);
     });
     test('equal legacy levels choose higher XP without adding duplicated party XP', () => {
@@ -99,7 +110,7 @@ describe('Wayside Fury save sheets', () => {
         const save = sanitizeSave(currentSave({ party: ['matt', 'matt', 'alien'], active: 'joe', settings: { musicVolume: 9, sfxVolume: -2,
             controls: { tutorialDismissed: true, stickSensitivity: 40 }, extra: true } })).save;
         expect(save.active).toBe('matt'); expect(save.party).toEqual(['matt']);
-        expect(save.settings).toEqual({ musicVolume: 1, sfxVolume: 0, controls: { tutorialDismissed: true, stickSensitivity: 2 } });
+        expect(save.settings).toEqual({ difficulty: 'normal', musicVolume: 1, sfxVolume: 0, controls: { tutorialDismissed: true, stickSensitivity: 2 } });
         expect(sanitizeSave(currentSave({ party: [] })).save.party).toEqual(['you']);
         const legacy = legacySave(); delete legacy.party; expect(migrateSave(legacy).party).toEqual(['you', 'joe']);
     });

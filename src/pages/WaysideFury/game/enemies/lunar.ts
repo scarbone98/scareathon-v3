@@ -1,4 +1,4 @@
-import type { Enemy, GameState, HeroState } from '../sim.ts';
+import { encounterLevel, startBossBurst, type Enemy, type GameState, type HeroState } from '../sim.ts';
 import type { LunarBehavior } from '../chapters/ch3Worlds.ts';
 import { hasSpaceFlag } from '../lunar.ts';
 export interface LunarTarget { x:number;y:number;hero:HeroState;seat:number;guard:boolean;dashTimer:number }
@@ -10,7 +10,8 @@ export interface LunarCombat {
 }
 export function configureLunarEnemy(s:GameState,e:Enemy,behavior:LunarBehavior) {
   e.behavior=behavior;e.miniBoss=behavior==='inspector'; e.poise=0;e.burst=0;e.exposed=0;
-  const power=Math.max(8,...s.party.map(id=>s.heroes[id].power),...(s.coop?.remoteHeroes.map(p=>p.hero.power)??[]));
+  e.combatLevel=encounterLevel(s);
+  const power=10+(e.combatLevel-1)*3;
   const factor=behavior==='warden'?180:behavior==='inspector'?62:behavior==='satellite'?6:behavior==='walker'?10:8;
   const hp=power*factor; e.baseMaxHp=hp;e.maxHp=e.hp=hp*(1+(e.kind==='boss'?.75:.6)*((s.coop?.playerCount??1)-1));
   e.speed=behavior==='rat'?42:behavior==='walker'?18:behavior==='echo'?22:24;
@@ -19,31 +20,25 @@ export function configureLunarEnemy(s:GameState,e:Enemy,behavior:LunarBehavior) 
 }
 export function lunarDamage(s:GameState,e:Enemy,damage:number,force:number) {
   if(!e.behavior) return damage;
-  if(e.burst&&e.burst>0) return damage*.15;
+  if((e.burst??0)>0 || (e.escapeIframes??0)>0) return 0;
   if(e.behavior==='echo'&&s.enemies.some(a=>a.behavior==='satellite'&&a.hp>0&&Math.hypot(a.x-e.x,a.y-e.y)<180)) return damage*.2;
   if(e.behavior==='warden'&&e.phase===2&&[0,1,2].some(n=>!hasSpaceFlag(s,`moon-m08-pylon-${n}`))) return 0;
-  if(e.kind==='boss') {e.poise=(e.poise??0)+Math.min(1,force/50);if(e.poise>=5) {e.poise=0;e.burst=.65;e.windup=.65;e.actionTimer=0;}}
+  void force;
   return damage;
 }
 export function updateLunarEnemy(s:GameState,e:Enemy,dt:number,target:LunarTarget,api:LunarCombat) {
   const dx=target.x-e.x,dy=target.y-e.y,len=Math.max(1,Math.hypot(dx,dy));
-  const level=Math.max(s.character.level,...(s.coop?.remoteHeroes.map(p=>p.hero.level)??[]));
+  const level=e.combatLevel??encounterLevel(s);
   const damage=9+level*1.5;
   const hitNear=(radius:number,amount=damage)=> {for(const t of api.targets()) if(Math.hypot(t.x-e.x,t.y-e.y)<radius) api.hurt(t,amount,e.x,e.y);};
-  const aim=()=>{e.aimX=dx/len;e.aimY=dy/len;};
+  const aim=()=>{
+    const lead=s.difficulty==='hard'?.22:0;
+    const ax=dx+(target.seat===(s.coop?.seat??0)?s.vx:0)*lead,ay=dy+(target.seat===(s.coop?.seat??0)?s.vy:0)*lead,l=Math.max(1,Math.hypot(ax,ay));
+    e.aimX=ax/l;e.aimY=ay/l;
+  };
   if(e.kind==='boss'&&e.phase===1&&e.hp<=e.maxHp*.5) {
-    e.phase=2;e.poise=0;e.burst=.9;e.windup=.9;e.actionTimer=0;
+    e.phase=2;startBossBurst(s,e);
     s.notice=e.behavior==='warden'?'Warden phase 2: ground all three marked pylons. Matt assists any active hero.':'Cheese Inspector phase 2: stamps alternate circles, then rolls down the marked lane.';
-  }
-  if((e.burst??0)>0) {
-    e.burst=Math.max(0,e.burst!-dt);e.windup=e.burst!;
-    if(e.burst===0) {
-      for(let n=0;n<8;n++) {const a=n*Math.PI/4;api.shot(e,Math.cos(a),Math.sin(a),76,damage*.75);}
-      // A generous, clear central arena apron breaks wall pressure without tunneling.
-      const center=e.behavior==='warden'?{x:400,y:288}:{x:320,y:240};
-      api.move(e,center.x-e.x,center.y-e.y);e.cooldown=1.4;
-    }
-    return;
   }
   if(e.behavior==='warden'&&e.phase===2&&[0,1,2].every(n=>hasSpaceFlag(s,`moon-m08-pylon-${n}`))&&!e.shieldBroken) {
     e.shieldBroken=true;e.exposed=6;e.windup=e.actionTimer=0;s.notice='All pylons grounded! Warden exposed for six seconds. Shield permanently down.';

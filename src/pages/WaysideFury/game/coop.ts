@@ -7,7 +7,7 @@ import { authoritativePickupTarget } from "./collectibles.ts";
 import { AMBIENT_TAXI } from "./dressing.ts";
 import { fetchWithAuth } from "../../../fetchWithAuth";
 import type { AvatarAppearance, HeroAvatar } from "./avatar";
-import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, enforceCountyPartyBounds, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
+import { activeHero, applyCoopHit, applyCoopDamage, reviveCoopHero, enforceCountyPartyBounds, setCoopPlayerCount, syncCoopLevel, exitCoop, enterScene, encounterLevel, type GameEvent, type GameState, type Input, type RemoteHero } from "./sim";
 
 export interface CoopPlayer { seat: number; userId: string; name: string; connected: boolean }
 export interface CoopRoom { type: "room"; code: string; seat: number; hostSeat: number; token: string; protocolVersion?: number; contentVersion?: number; players: CoopPlayer[] }
@@ -23,11 +23,11 @@ export interface CoopReward {
   campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit">> & { spawnedExtras?: number; protocolVersion?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const campaignIds = (...lists: (string[] | undefined)[]) => [...new Set(lists.flatMap(ids => ids ?? []))].slice(0, MAX_MILESTONES);
-const worldState = (s: GameState): WorldState => ({ protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
+const worldState = (s: GameState): WorldState => ({ difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
@@ -202,11 +202,11 @@ export class FuryCoop {
       if (s.scene !== w.scene || s.room !== w.room || s.mapId !== w.mapId) { enterScene(s, w.scene, w.room, w.mapId); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer, film: w.film ? {...w.film} : null, spaceOutfit: w.spaceOutfit ?? s.spaceOutfit,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
-      s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
+      s.difficulty = w.difficulty ?? "normal"; s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);
     }
-    s.coop ??= { role, seat: room.seat, remoteHeroes: [], appliedHits: [] };
+    s.coop ??= { role, seat: room.seat, remoteHeroes: [], appliedHits: [], personalDifficulty: s.difficulty };
     s.coop.role = role; s.coop.seat = room.seat; s.coop.protocolVersion = room.protocolVersion ?? 1;
     setCoopPlayerCount(s, room.players.filter(p => p.connected).length);
     s.coop.remoteHeroes = [...this.peers].filter(([seat]) => room.players.some(p => p.seat === seat && p.connected)).flatMap(([, samples]) => {
@@ -219,7 +219,7 @@ export class FuryCoop {
       const blend = buffered(this.worlds, now);
       if (blend) {
         const { a, b, alpha } = blend;
-        s.coop.worldChapter = b.chapter; s.coop.worldClearedRooms = [...b.clearedRooms]; s.coop.worldBosses = [...b.bosses];
+        s.coop.hostLevel = b.combatLevel; s.difficulty = b.difficulty ?? "normal"; s.coop.worldChapter = b.chapter; s.coop.worldClearedRooms = [...b.clearedRooms]; s.coop.worldBosses = [...b.bosses];
         s.coop.worldCampaignMilestones = [...(b.campaignMilestones ?? [])];
         s.coop.worldSolvedInteractions = [...(b.solvedInteractions ?? [])];
         s.coop.worldCompletedCinematics = [...(b.completedCinematics ?? [])];
@@ -250,7 +250,7 @@ export class FuryCoop {
     const player = room.players.find(p => p.seat === room.seat)!;
     enforceCountyPartyBounds(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });
