@@ -1,0 +1,162 @@
+[
+  {
+    "room": 0,
+    "name": "Scorched Road",
+    "props": 45,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 1,
+    "name": "Split Creek",
+    "props": 63,
+    "encounters": 9,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 2,
+    "name": "Ruined Yard",
+    "props": 47,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 3,
+    "name": "Furnace Pass",
+    "props": 76,
+    "encounters": 12,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 4,
+    "name": "Sentinel Gate",
+    "props": 39,
+    "encounters": 1,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 5,
+    "name": "Shattered Courtyard",
+    "props": 61,
+    "encounters": 9,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 6,
+    "name": "Rift Approach",
+    "props": 45,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 7,
+    "name": "The Watcher's Hollow",
+    "props": 36,
+    "encounters": 1,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 8,
+    "name": "Ash Orchard",
+    "props": 54,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  },
+  {
+    "room": 9,
+    "name": "Old Supply Depot",
+    "props": 44,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800,
+    "parity": {
+      "equal": true,
+      "renderer": "2d",
+      "immutable": true,
+      "width": 2880,
+      "height": 1800
+    }
+  }
+]

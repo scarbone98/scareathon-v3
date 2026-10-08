@@ -1,0 +1,92 @@
+[
+  {
+    "room": 0,
+    "name": "Scorched Road",
+    "props": 56,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 1,
+    "name": "Split Creek",
+    "props": 97,
+    "encounters": 9,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 2,
+    "name": "Ruined Yard",
+    "props": 57,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 3,
+    "name": "Furnace Pass",
+    "props": 133,
+    "encounters": 12,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 4,
+    "name": "Sentinel Gate",
+    "props": 59,
+    "encounters": 1,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 5,
+    "name": "Shattered Courtyard",
+    "props": 107,
+    "encounters": 9,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 6,
+    "name": "Rift Approach",
+    "props": 55,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 7,
+    "name": "The Watcher's Hollow",
+    "props": 56,
+    "encounters": 1,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 8,
+    "name": "Ash Orchard",
+    "props": 64,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  },
+  {
+    "room": 9,
+    "name": "Old Supply Depot",
+    "props": 64,
+    "encounters": 6,
+    "dpr": 2,
+    "width": 2880,
+    "height": 1800
+  }
+]

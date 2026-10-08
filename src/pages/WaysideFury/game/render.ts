@@ -1,3 +1,4 @@
+import { drawBlastProp } from "./blastArt";
 import { drawCityGround, drawCityEnemy, drawCityTelegraph, drawCityProp, drawCityStory } from "./chapters/ch4Art";
 import { drawWoodsBody, drawWoodsTell, drawWoodsMachinery } from "./renderWoods2d";
 import { fieldWorld } from "./fieldAbilities";
@@ -413,7 +414,7 @@ export class Renderer {
     }
   }
   private prop(prop: WorldProp, time: number, s: GameState) {
-    if(drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
+    if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
     if (prop.kind === 'tree' || prop.kind === 'pine') {

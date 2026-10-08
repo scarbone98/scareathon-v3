@@ -1,3 +1,4 @@
+import { dressBlast, BLAST_ENCOUNTER_ANCHORS } from "./blastLayouts.ts";
 import { CITY_WORLDS } from "./chapters/ch4Worlds.ts";
 import { WOODS_WORLDS } from "./chapters/ch2Worlds.ts";
 import { dressCounty } from "./county.ts";
@@ -98,32 +99,10 @@ const ZONES = [
 ] as const;
 export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => {
   const m = map(`blast-${room}`, name, cols, rows, "ash"); boundary(m, "stone", "pine");
+  // Retain solid perimeter terrain; each room supplies its own silhouettes.
+  m.props = [];
   const cy = m.spawn.y;
-  paint(m, 32, cy - 64, m.width - 64, 128, "dirt");
-  paint(m, 112, cy - 80, 64, 16, "sand"); paint(m, m.width - 192, cy + 64, 112, 16, "sand");
-  if (room === 1) {
-    paint(m, 432, 32, 96, m.height - 64, "sand"); paint(m, 448, 32, 64, m.height - 64, "water", true);
-    paint(m, 416, cy - 48, 128, 96, "bridge"); paint(m, 288, 0, 80, cy + 32, "dirt");
-  }
-  if (room === 2 || room === 5 || room === 9) {
-    prop(m, "shed", m.width - 208, 64, 112, 72);
-    prop(m, "fence", 96, m.height - 80, 144, 12);
-    paint(m, 368, 96, 64, Math.max(48, cy - 144), 'stone'); // Parking drive meets each room's main path.
-    parkedCar(m, 384, 104, 40, 24);
-  }
-  if (room === 3) {
-    paint(m, 640, cy, 96, m.height - cy, "dirt");
-    paint(m, 144, 32, 192, 112, "stone", true); paint(m, 656, 64, 208, 96, "stone", true);
-  }
-  if (room === 4) {
-    paint(m, 160, cy - 80, 320, 160, "stone");
-    prop(m, "lamp", 184, cy - 100, 16, 40); prop(m, "lamp", 456, cy - 100, 16, 40);
-  }
-  if (room === 6 || room === 7) {
-    paint(m, 176, cy - 96, 352, 192, "corrupt");
-    prop(m, "crater", 232, cy - 64, 176, 112);
-    prop(m, "portal", m.width - 104, cy - 80, 48, 64);
-  }
+  dressBlast(m, room);
   if (room < 8) {
     exit(m, { id: "west", name: room === 0 ? "Return to taxi" : ZONES[room - 1][0],
       x: 0, y: cy - 48, w: 48, h: 96, target: room === 0 ? "overworld" : room - 1,
@@ -145,17 +124,12 @@ export const BLAST_WORLDS: WorldMap[] = ZONES.map(([name, cols, rows], room) => 
     exit(m, { id: orchard ? "south" : "north", name: orchard ? "Split Creek" : "Furnace Pass",
       x: 288, y: orchard ? m.height - 48 : 0, w: 80, h: 48, target: orchard ? 1 : 3,
       entryX: orchard ? 328 : 688, entryY: orchard ? 64 : 480 });
-    const chest = prop(m, "chest", 480, cy - 16, 24, 24, orchard ? "Orchard cache" : "Supply cache");
-    chest.id = `loot-blast-${room}`;
-    if (orchard) prop(m, "npc", 144, 128, 16, 24, "Stranded scout");
   }
   if (room === WATCHER_ROOM || room === GATEKEEPER_ROOM) {
     m.spawns = [{ kind: "boss", x: room === WATCHER_ROOM ? 464 : 368, y: cy, miniBoss: room === GATEKEEPER_ROOM }];
   } else {
-    const anchors = m.width > 1000 ? [240, 500, 760, 1020] : m.width > 800 ? [240, 480, 720] : [240, 448];
-    for (const x of anchors) encounter(m, x, cy + (room === 6 && x < 400 ? 80 : 0));
+    for (const [x, y] of BLAST_ENCOUNTER_ANCHORS[room]) encounter(m, x, y);
   }
-  scatter(m, "ash", room + 5);
   return m;
 });
 export const REALM_WORLD = (() => {
