@@ -37,3 +37,24 @@ node scripts/capture-wayside-fury-puddles.mjs after
 
 Chromium launches with `--mute-audio`. The `before` phase requires the pre-fix
 renderer. 2D rendering, collision, saves, rewards, and co-op data are unchanged.
+
+## Verification
+
+- `npx tsc -b` passed.
+- ESLint on `render3d.ts` and the capture script passed.
+- `npm run check:wayside-fury` passed, including collision and save/replay checks.
+- Before/after captures and their terrain/material/native-DPR assertions passed.
+- The existing `scripts/check-wayside-fury-3d.mjs` ran with the muted wrapper,
+  Metal, port 5217, and `FURY_FRAME_SAMPLES=30`. All comparison and responsive
+  layout cases passed, then the run failed the paused-switch state-equality
+  assertion. It has no aggregate green result. An isolated rerun of the original
+  lifecycle cases passed that assertion and disposal. Unavailable-WebGL fallback,
+  actual context loss/retry, quality reduction, and phone/landscape/desktop arcade
+  iframe checks also passed on that rerun (eight cases total). The rerun used a
+  temporary copy of the original script with only the already-passed capture
+  loops omitted; the assertions were unchanged. See the
+  [isolated 3D results](3d-lifecycle-results.json).
+
+Host contention produced noisy frame times in the broad suite. The matched
+puddle fixtures establish appearance, batching, terrain conformance, and native
+DPR; sustained thermal/FPS performance on physical phones remains unmeasured.
