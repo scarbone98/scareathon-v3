@@ -121,7 +121,7 @@ const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
-const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=12ecac6";
+const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=5c331f0";
 const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
@@ -1436,7 +1436,7 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     // --- Secret: in testing, only on the shelf once you've typed OUTSIDE into WaysideOS.
-    // Nothing to score: a boy, a foggy wood and a test course.
+    // Nothing to score: a boy, a torch-lit pyramid, its puzzles and its mummy.
     {
       name: "Outside",
       added: "2026-10-07T15:00:00-06:00",
@@ -1444,7 +1444,7 @@ export function createArcadeGames(): MachineData[] {
       earlyAccess: true,
       cartridge: {
         color: "#9c2a22",
-        tagline: "A boy in a red shirt. Fog. Keep running.",
+        tagline: "A boy in a red shirt. A pyramid. Something wakes.",
         font: { family: "Cormorant Garamond", weight: 600 },
         about: { released: "2026", players: "Single player", genre: "Platformer", developer: "sclondon" },
         backNote: "test area",
