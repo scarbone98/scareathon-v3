@@ -115,3 +115,17 @@
 .wf-new-game-confirm { z-index: 30; }
 .wf-new-game-confirm p { max-width: 440px; }
 .wf-world-clock { display: block; margin: 3px 0; font: 600 13px/1.4 system-ui; color: #dfd6be; letter-spacing: .03em; white-space: nowrap; }
+
+/* One flowing left HUD column, with space reserved for the right minimap. */
+.wf-shell .wf-play-band {
+  top: calc(var(--wf-top-hud-bottom, var(--wf-hud-height)) + 10px);
+  left: max(12px, env(safe-area-inset-left)); right: auto; transform: none;
+  width: min(620px, calc(100% - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)) - min(calc(var(--wf-viewport-width) * .24), calc(var(--wf-viewport-height) * .24)) - 18px));
+  align-items: flex-start; padding: 0;
+}
+.wf-play-band > * { max-width: 100%; min-width: 0; }
+.wf-play-band .wf-notice {
+  width: 100%; background: #102334; backdrop-filter: blur(8px);
+  text-align: left; overflow-wrap: anywhere; animation: none;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden;
+}
