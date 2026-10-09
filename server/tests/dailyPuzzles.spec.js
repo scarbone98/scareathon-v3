@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 
 // A small in-memory stand-in for the tables the daily puzzle routes use
 const db = { content: [], plays: new Map(), grants: [], scores: [] };
+const apps = new Set();
 const key = (u, g, n) => `${u}|${g}|${n}`;
 async function query(sql, params = []) {
     if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql)) return { rows: [] };
@@ -61,6 +62,7 @@ const THEME = {
 
 async function app() {
     const fastify = Fastify();
+    apps.add(fastify);
     fastify.decorateRequest('user', null);
     fastify.addHook('preValidation', async (request) => {
         request.user = { sub: request.headers['x-test-user'] };
@@ -80,7 +82,14 @@ beforeEach(() => {
     db.scores = [];
     clearContentCache();
 });
-afterEach(() => jest.useRealTimers());
+afterEach(async () => {
+    try {
+        await Promise.all([...apps].map((server) => server.close()));
+    } finally {
+        apps.clear();
+        jest.useRealTimers();
+    }
+});
 
 describe('rules', () => {
     test('a puzzle day turns over at midnight US Eastern', () => {
@@ -149,7 +158,8 @@ describe('Scaredle', () => {
         const again = await server.inject({ method: 'POST', url: '/daily-puzzles/scaredle/1/guess', headers, payload: { guess: 'ghost' } });
         expect(again.statusCode).toBe(409);
         expect(db.grants).toHaveLength(1);
-    });
+        // Route startup and multiple requests need headroom on shared runners.
+    }, 15_000);
 
     test('an old puzzle from the archive pays 10 and skips the leaderboard; tomorrow is locked', async () => {
         setNow('2026-10-09T16:00:00Z');
@@ -200,7 +210,7 @@ describe('Cross Bones', () => {
         // 120 seconds is 60 points, the check 25
         expect(solved).toMatchObject({ done: true, won: true, score: 915, tickets: 100 });
         expect(db.scores).toEqual([[51, ALICE, 915]]);
-    });
+    }, 15_000);
 
     test('revealing squares fills them in and costs 40 each', async () => {
         setNow('2026-10-07T16:00:00Z');
