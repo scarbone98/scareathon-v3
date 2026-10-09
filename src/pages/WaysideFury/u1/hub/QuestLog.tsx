@@ -1,3 +1,4 @@
+import { Modal } from "../../Modal";
 import { useState } from 'react';
 import { HeroPortrait } from '../../HeroPortrait';
 import { QUESTS, questProgress, questRewardsSummary, questStatus, type HubQuestSave, type QuestContext, type QuestDefinition, type QuestStatus } from './quests';
@@ -29,7 +30,8 @@ function QuestDialogueContent({ questId, save, context, onAccept, onClaim, onBac
   const currentPage = Math.min(page, lines.length - 1), lastPage = currentPage === lines.length - 1;
   const permitted = canAct?.(quest.id) ?? true;
   const fetch = quest.objective.type === 'fetch' ? quest.objective : null;
-  return <section className={embedded ? 'wf-quest-conversation' : 'wf-overlay wf-quest-dialogue'} aria-label={`Talk to ${quest.npc.name}`}>
+  const Frame = embedded ? 'section' : Modal;
+  return <Frame className={embedded ? 'wf-quest-conversation' : 'wf-overlay wf-quest-dialogue'} aria-label={`Talk to ${quest.npc.name}`}>
     <div className="wf-quest-conversation-content">
       <header className="wf-quest-speaker"><NpcPortrait quest={quest} /><div><p className="wf-eyebrow">{quest.npc.role}</p><h2>{quest.npc.name}</h2></div><span className={`wf-quest-status wf-quest-${status}`}>{statusLabel[status]}</span></header>
       <p className="wf-quest-speech" aria-live="polite">“{lines[currentPage]}”</p>
@@ -48,7 +50,7 @@ function QuestDialogueContent({ questId, save, context, onAccept, onClaim, onBac
         {lines.length > 1 && <span className="wf-quest-page" aria-label={`Dialogue ${currentPage + 1} of ${lines.length}`}>{lines.map((_, i) => <span key={i} className={i === currentPage ? 'wf-quest-page-current' : ''} />)}</span>}
       </footer>
     </div>
-  </section>;
+  </Frame>;
 }
 /** Shared NPC dialogue for the canvas hub and quest-log detail pane. */
 export function QuestDialogue(props: QuestDialogueProps) {
@@ -60,7 +62,7 @@ export function QuestLog({ save, context, onAccept, onClaim, onBack, canAct, cos
   const active = QUESTS.filter(q => ['active', 'ready'].includes(questStatus(save, q.id, context))).length;
   const completed = QUESTS.filter(q => questStatus(save, q.id, context) === 'claimed').length;
   const visible = QUESTS.filter(q => filter === 'all' || (filter === 'active' ? ['active', 'ready'].includes(questStatus(save, q.id, context)) : questStatus(save, q.id, context) === 'claimed'));
-  return <div className="wf-overlay wf-quest-log" aria-label="Quest log">
+  return <Modal className="wf-overlay wf-quest-log" aria-label="Quest log">
     <div className="wf-quest-log-content">
       <header className="wf-quest-log-header"><div className="wf-quest-book"><JournalIcon /></div><div><p className="wf-eyebrow">WAYSIDE REQUESTS</p><h2>Quest log</h2><p>{active} in progress <span aria-hidden="true">·</span> {completed} / {QUESTS.length} completed</p></div><button className="wf-secondary" onClick={onBack}>Back to pause</button></header>
       <div className="wf-quest-tabs" role="group" aria-label="Filter quests">{(['all', 'active', 'claimed'] as const).map(value => <button key={value} className="wf-secondary" aria-pressed={value === filter} onClick={() => { setFilter(value); setSelectedId(null); }}>{value === 'all' ? 'All requests' : value === 'active' ? 'In progress' : 'Completed'}</button>)}</div>
@@ -80,5 +82,5 @@ export function QuestLog({ save, context, onAccept, onClaim, onBack, canAct, cos
           : <aside className="wf-quest-log-note"><JournalIcon /><h3>A little help goes a long way.</h3><p>Talk to the people around Wayside. Track their requests here, then return with good news.</p><p>Quest progress and rewards belong to your character, including in co-op.</p><small>Cosmetic rewards change your look. Chips can be equipped in the character sheet.</small></aside>}
       </div>
     </div>
-  </div>;
+  </Modal>;
 }

@@ -1,3 +1,4 @@
+import { Modal } from "./Modal";
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GameState } from './game/sim';
 import { getWorld } from './game/world';
@@ -5,11 +6,14 @@ import { minimapAvailable, minimapLayout, resolveMapObjective } from './game/min
 import { drawMinimap } from './game/minimapArt';
 import './Minimap.css';
 const KEY='wayside-fury-minimap';
-function readPreferences() { try { return { enabled:true, rotate:false, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } as {enabled:boolean;rotate:boolean}; } catch {return {enabled:true,rotate:false};} }
+function readPreferences() {
+  try { const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}'); return { enabled: saved.enabled !== false, rotate: false }; }
+  catch { return { enabled: true, rotate: false }; }
+}
 export function MinimapSettings() {
   const [prefs,setPrefs]=useState(readPreferences);
   const update=(next:typeof prefs)=>{setPrefs(next);try{localStorage.setItem(KEY,JSON.stringify(next));}catch{/* Device storage can be unavailable. */}window.dispatchEvent(new Event('wf-minimap-settings'));};
-  return <div className="wf-map-settings"><p>County minimap</p><button className="wf-secondary" aria-pressed={prefs.enabled} onClick={()=>update({...prefs,enabled:!prefs.enabled})}>Minimap: {prefs.enabled?'On':'Off'}</button><button className="wf-secondary" aria-pressed={prefs.rotate} onClick={()=>update({...prefs,rotate:!prefs.rotate})}>{prefs.rotate?'Rotate with player':'North up'}</button></div>;
+  return <div className="wf-map-settings"><p>County minimap</p><button className="wf-secondary" aria-pressed={prefs.enabled} onClick={()=>update({...prefs,enabled:!prefs.enabled})}>Minimap: {prefs.enabled?'On':'Off'}</button><span className="wf-small">North up · 2D and 3D</span></div>;
 }
 export function Minimap({state,getState,onPause,blocked}:{state:GameState;getState:()=>GameState;onPause:(paused:boolean)=>void;blocked:boolean}) {
   const [prefs,setPrefs]=useState(readPreferences),[full,setFull]=useState(false);
@@ -22,7 +26,7 @@ export function Minimap({state,getState,onPause,blocked}:{state:GameState;getSta
     if(!available||blocked)return;
     const shell=root.current?.closest('.wf-shell');if(!shell)return;
     const measure=()=>{const bounds=shell.getBoundingClientRect();const obstacles=Array.from(shell.querySelectorAll('.wf-hud,.wf-play-band,.wf-party-hud,.wf-stick-zone,.wf-action-buttons,.wf-save-status,.wf-sound-chip')).filter(e=>e.getClientRects().length).map(e=>{const r=e.getBoundingClientRect();return{x:r.left-bounds.left,y:r.top-bounds.top,w:r.width,h:r.height};});
-      const probe=document.createElement('span');probe.style.cssText='position:absolute;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';shell.append(probe);const style=getComputedStyle(probe);const inset=Math.max(12,...[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(v=>parseFloat(v)||0));probe.remove();const hud=shell.querySelector('.wf-hud')?.getBoundingClientRect();const top=bounds.width>=1024&&hud?Math.max(inset,hud.bottom-bounds.top+8):inset;setBox(minimapLayout(bounds.width,bounds.height,obstacles,inset,top));};
+      const probe=document.createElement('span');probe.style.cssText='position:absolute;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';shell.append(probe);const style=getComputedStyle(probe);const inset=Math.max(12,...[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(v=>parseFloat(v)||0));probe.remove();const hud=shell.querySelector('.wf-hud')?.getBoundingClientRect();const top=hud?Math.max(inset,hud.bottom-bounds.top+8):inset;setBox(minimapLayout(bounds.width,bounds.height,obstacles,inset,top));};
     const observer=new ResizeObserver(measure);observer.observe(shell);shell.querySelectorAll('.wf-hud,.wf-play-band,.wf-touch-dock').forEach(e=>observer.observe(e));measure();return()=>observer.disconnect();
   },[available,blocked,state.notice,inCoop,state.mapId,state.chapter]);
   useEffect(()=>{
@@ -39,7 +43,8 @@ export function Minimap({state,getState,onPause,blocked}:{state:GameState;getSta
   if(!available&&!full||blocked&&!full)return null;
   const map=getWorld(state.scene,state.room,state.mapId),objective=resolveMapObjective(state,map);
   const hide=()=>{live.current.full=false;onPause(false);setFull(false);};
-  return <div ref={root} role={full?'dialog':undefined} aria-modal={full?true:undefined} aria-label={full?'County map':undefined} onKeyDown={e=>{if(full&&e.key==='Tab'){e.preventDefault();close.current?.focus();}}} className={full?'wf-full-map wf-overlay':'wf-minimap-wrap'} style={full?undefined:{left:box.x,top:box.y,width:box.w,height:box.h}}>
+  const Frame = full ? Modal : 'div';
+  return <Frame ref={root} role={full?'dialog':undefined} aria-modal={full?true:undefined} aria-label={full?'County map':undefined} onKeyDown={e=>{if(full&&e.key==='Tab'){e.preventDefault();close.current?.focus();}}} className={full?'wf-full-map wf-overlay':'wf-minimap-wrap'} style={full?undefined:{left:box.x,top:box.y,width:box.w,height:box.h}}>
     {full?<><header><div><h2>{map.name}</h2><p>◆ {objective.name}</p></div><button ref={close} onClick={hide}>Close map · M</button></header><canvas ref={canvas} aria-label={`Map of ${map.name}. Objective: ${objective.name}`} /><p className="wf-map-legend">▲ You · ◆ Current objective · Mint exits</p></>:prefs.enabled&&box.w>0&&<button className="wf-minimap" aria-label={`Open map. Objective: ${objective.name}`} title="Map · M / Select" onClick={()=>{if(!blocked && minimapAvailable(getState())) {live.current.full=true;onPause(true);setFull(true);}}}><canvas ref={canvas} aria-hidden="true" /></button>}
-  </div>;
+  </Frame>;
 }
