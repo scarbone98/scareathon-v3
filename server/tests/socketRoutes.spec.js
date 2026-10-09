@@ -13,13 +13,13 @@ describe('socket routes share one websocket server', () => {
         // The database is offline: Monster Bash keeps serving spectators.
         const offlineRepo = new Proxy({}, { get: () => async () => { throw new Error('offline'); } });
         const app = Fastify();
-        await app.register(websocket);
-        await app.register(monsterBashRoutes, { prefix: '/monster-bash', repo: offlineRepo });
-        await app.register(cryptClashRoutes, { prefix: '/crypt-clash' });
-        await app.register(frogBallRoutes, { prefix: '/frog-ball' });
-        await app.ready();
         const sockets = [];
         try {
+            await app.register(websocket);
+            await app.register(monsterBashRoutes, { prefix: '/monster-bash', repo: offlineRepo });
+            await app.register(cryptClashRoutes, { prefix: '/crypt-clash' });
+            await app.register(frogBallRoutes, { prefix: '/frog-ball' });
+            await app.ready();
             const firstMessage = async (path, send) => {
                 const socket = await app.injectWS(path);
                 sockets.push(socket);
@@ -36,5 +36,7 @@ describe('socket routes share one websocket server', () => {
             sockets.forEach((socket) => socket.terminate());
             await app.close();
         }
-    });
+        // Monster Bash deliberately debounces its viewer broadcast for two real
+        // seconds. Leave headroom for route startup and teardown under load.
+    }, 15_000);
 });
