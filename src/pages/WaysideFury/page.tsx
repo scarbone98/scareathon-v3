@@ -1,6 +1,6 @@
 import { AccessibilitySettings } from "./AccessibilitySettings";
 import { actionState, DEFAULT_UX, DEFAULT_KEYS, keyboardBinding } from "./game/ux";
-import { finishOpening, openingInstruction, OPENING_ACTIONS } from "./game/opening";
+import { startOpening, finishOpening, openingInstruction, OPENING_ACTIONS } from "./game/opening";
 import { revealCount, storyRevealed, PROLOGUE_FADE } from './game/prologue';
 import { Modal } from "./Modal";
 import { ArenaPanel, ArenaHud } from "./u1/hub/ArenaPanel";
@@ -65,9 +65,9 @@ function Controls({ mode, settings }: { mode: InputMode; settings: SaveSettings 
     <p>{mode === "touch" ? "Use the stick and buttons below. Hold Ki or Guard while moving." : "Controllers connect automatically. Charge somewhere safe."}</p>
   </section>;
 }
-function GraphicsSettings({ mode, status, onChange, onNewGame, resetDisabled, difficulty, onDifficulty, inCoop, hardUnlocked, settings, onSettings }: { settings: SaveSettings; onSettings: (settings: SaveSettings) => void; difficulty: "normal" | "hard"; onDifficulty: (value: "normal" | "hard") => void; inCoop: boolean; hardUnlocked: boolean; mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void; onNewGame: () => void; resetDisabled: boolean }) {
+function GraphicsSettings({ mode, status, onChange, onNewGame, onReplayTutorial, resetDisabled, difficulty, onDifficulty, inCoop, hardUnlocked, settings, onSettings }: { settings: SaveSettings; onSettings: (settings: SaveSettings) => void; difficulty: "normal" | "hard"; onDifficulty: (value: "normal" | "hard") => void; inCoop: boolean; hardUnlocked: boolean; mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void; onNewGame: () => void; onReplayTutorial: () => void; resetDisabled: boolean }) {
   return <section className="wf-graphics-settings" aria-label="Graphics settings">
-    <h2>Settings</h2><AccessibilitySettings settings={settings} onChange={onSettings} inCoop={inCoop} /><MinimapSettings /><p>Combat difficulty</p>
+    <h2>Settings</h2><button className="wf-secondary" disabled={inCoop} onClick={onReplayTutorial}>Replay tutorial</button><AccessibilitySettings settings={settings} onChange={onSettings} inCoop={inCoop} /><MinimapSettings /><p>Combat difficulty</p>
     <div role="radiogroup" aria-label="Combat difficulty">
       {(["normal", "hard"] as const).map(value => <button key={value} role="radio" aria-checked={difficulty === value} disabled={inCoop} className="wf-secondary" onClick={() => onDifficulty(value)}>{value === "hard" ? "Hard" : "Normal"}</button>)}
     </div>
@@ -309,7 +309,7 @@ export default function WaysideFury() {
     }
     storeRef.current?.flushOnExit();
   };
-  const togglePause = () => { if (worldRoute || minimapOpenRef.current) return;  if (newGameConfirm) { if (!newGameBusyRef.current) setNewGameConfirm(false); return; } if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setQuestLogOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
+  const togglePause = () => { if (controller.current?.state.openingChoice) return; if (worldRoute || minimapOpenRef.current) return;  if (newGameConfirm) { if (!newGameBusyRef.current) setNewGameConfirm(false); return; } if (coopOpen) { closeCoop(); return; } if (!playing || loadingSave || loadingAvatar) return; const next = !paused; if (!next) { setCharacterOpen(false); setCollectionOpen(false); setQuestLogOpen(false); setSettingsOpen(false); } pausedRef.current = next; controller.current?.setPaused(next); setPaused(next); };
   const overlayControls = () => {
     const overlays = document.querySelectorAll<HTMLElement>(".wf-overlay");
     const overlay = overlays[overlays.length - 1];
@@ -481,6 +481,24 @@ export default function WaysideFury() {
   }, [signedIn, loadingSave, loadingAvatar]);
   const closeCoop = () => { setCoopOpen(false); if (playingRef.current) { pausedRef.current = false; setPaused(false); controller.current?.setPaused(false); } };
   const reviveTarget = state.coop?.remoteHeroes.find(peer => peer.hero.hp <= 0 && peer.scene === state.scene && peer.room === state.room && Math.hypot(peer.x - state.x, peer.y - state.y) < 32);
+  const replayTutorial = () => {
+    setSettingsOpen(false); setPaused(false); pausedRef.current = false;
+    if (!playingRef.current) {
+      const next = saveRef.current ? restoreSave(saveRef.current) : newGame();
+      if (next.scene === 'prologue') enterScene(next, 'overworld');
+      playingRef.current = true; setPlaying(true); controller.current?.start(next);
+    }
+    controller.current?.mutate(s => startOpening(s, true)); controller.current?.setPaused(false);
+  };
+  const chooseTutorial = (play: boolean) => {
+    try { localStorage.setItem('wayside-fury-opening-choice', play ? 'play' : 'skip'); } catch { /* Persist through the save too. */ }
+    controller.current?.mutate(s => {
+      s.openingChoice = false;
+      if (play) startOpening(s);
+      else { if (!s.campaignMilestones.includes('guided-opening-skipped')) s.campaignMilestones.push('guided-opening-skipped'); }
+      persist(s);
+    });
+  };
   const showTutorial = !state.opening && tutorial && playing && !loadingSave && !loadingAvatar && !cinematic && !paused && !state.overlay && !state.dialogue && !target;
   const dismissTutorial = () => updateSettings({ ...settingsRef.current, controls: { ...settingsRef.current.controls, tutorialDismissed: true } });
   dismissTutorialRef.current = dismissTutorial;
@@ -535,6 +553,7 @@ export default function WaysideFury() {
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
+    {playing && state.openingChoice && <Modal className="wf-tutorial-choice" aria-label="Tutorial choice"><h2>Practice the basics?</h2><div><button onClick={() => chooseTutorial(true)}>Play tutorial</button><button className="wf-secondary" onClick={() => chooseTutorial(false)}>Skip</button></div></Modal>}
     {playing && state.opening && !paused && <section className="wf-opening" aria-label="Guided opening">
       <strong>Practice · {state.opening.stage + 1}/6</strong>
       <p aria-live="polite">{openingInstruction(state.opening)}</p>
@@ -549,7 +568,7 @@ export default function WaysideFury() {
       <div className="wf-title-actions"><button className="wf-primary" disabled={loadingSave || loadingAvatar} onClick={() => begin()}>{loadingSave ? "Loading your save…" : loadingAvatar ? "Loading your look…" : saved ? "Continue adventure" : "Begin adventure"}</button><button className="wf-secondary" disabled={resetDisabled} onClick={requestNewGame}>New Game</button></div>
       <button className="wf-secondary" disabled={loadingSave || loadingAvatar} onClick={() => setCoopOpen(true)}>Co-op</button>
       <div className="wf-menu-options"><button className="wf-secondary" onClick={() => { setControls(!controls); setSettingsOpen(false); }}>Controls</button><button className="wf-secondary" onClick={() => { setSettingsOpen(!settingsOpen); setControls(false); }}>Settings</button></div>
-      {controls && <Controls mode={mode} settings={settings} />}{settingsOpen && <GraphicsSettings settings={settings} onSettings={updateSettings} mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} difficulty={settings.difficulty ?? "normal"} onDifficulty={difficulty => updateSettings({ ...settingsRef.current, difficulty })} inCoop={!!state.coop} hardUnlocked={state.clearedRooms.includes("realm-0") || state.bosses.includes("blast-watcher")} />}<p className="wf-small">Chapter 1 · The Blast Site</p>
+      {controls && <Controls mode={mode} settings={settings} />}{settingsOpen && <GraphicsSettings settings={settings} onSettings={updateSettings} mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} onReplayTutorial={replayTutorial} resetDisabled={resetDisabled} difficulty={settings.difficulty ?? "normal"} onDifficulty={difficulty => updateSettings({ ...settingsRef.current, difficulty })} inCoop={!!state.coop} hardUnlocked={state.clearedRooms.includes("realm-0") || state.bosses.includes("blast-watcher")} />}<p className="wf-small">Chapter 1 · The Blast Site</p>
     </Modal> : <>
       {!cinematic && <header className="wf-hud" aria-label="Hero status"><div className="wf-hero-hud">
         {partner ? <button className="wf-tag-partner wf-hud-faces" aria-label={`Swap to ${HERO_NAMES[partner]}`} disabled={state.heroes[partner].hp <= 0} onClick={() => controller.current?.mutate(requestSwap)}><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /><HeroPortrait id={partner} avatar={avatar} className="wf-tag-face" /></button> : <span className="wf-hud-faces"><HeroPortrait id={state.active} avatar={avatar} className="wf-hud-portrait" /></span>}
@@ -617,7 +636,7 @@ export default function WaysideFury() {
       {state.scene === "dead" && (state.sceneTimer >= 0.65 || paused) && <Modal className="wf-overlay"><p className="wf-eyebrow">THE CREW FELL</p><h2>GAME OVER</h2><p>Your next attempt starts at your last HOME save.</p><button onClick={() => begin(true)}>Retry from HOME</button><button className="wf-secondary" onClick={quit}>Quit</button></Modal>}
       {paused && characterOpen && state.scene !== "dead" && <CharacterSheet state={state} avatar={avatar} settings={settings} mode={mode} onEquipChip={(id, slot) => controller.current?.mutate(s => { if (equipChip(s, id, slot)) persist(s); })} onWish={id => controller.current?.mutate(s => { chooseWish(s, id); })} onSettings={updateSettings} onParty={id => controller.current?.mutate(s => { if (toggleParty(s, id, true)) persist(s); })} onBack={() => setCharacterOpen(false)} />}
       {paused && collectionOpen && state.scene !== "dead" && <Collection state={state} onBack={() => setCollectionOpen(false)} />}
-      {paused && settingsOpen && state.scene !== "dead" && <Modal className="wf-overlay wf-pause-panel"><GraphicsSettings settings={settings} onSettings={updateSettings} mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} resetDisabled={resetDisabled} difficulty={settings.difficulty ?? "normal"} onDifficulty={difficulty => updateSettings({ ...settingsRef.current, difficulty })} inCoop={!!state.coop} hardUnlocked={state.clearedRooms.includes("realm-0") || state.bosses.includes("blast-watcher")} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></Modal>}
+      {paused && settingsOpen && state.scene !== "dead" && <Modal className="wf-overlay wf-pause-panel"><GraphicsSettings settings={settings} onSettings={updateSettings} mode={graphicsMode} status={graphicsStatus} onChange={updateGraphics} onNewGame={requestNewGame} onReplayTutorial={replayTutorial} resetDisabled={resetDisabled} difficulty={settings.difficulty ?? "normal"} onDifficulty={difficulty => updateSettings({ ...settingsRef.current, difficulty })} inCoop={!!state.coop} hardUnlocked={state.clearedRooms.includes("realm-0") || state.bosses.includes("blast-watcher")} /><button className="wf-secondary" onClick={() => setSettingsOpen(false)}>Back</button></Modal>}
       {paused && !characterOpen && !collectionOpen && !questLogOpen && !settingsOpen && state.scene !== "dead" && <Modal className="wf-overlay wf-pause-panel"><p className="wf-eyebrow">TAKE A BREATHER</p><h2>Paused</h2>{!state.opening && settings.showWorldClock !== false && <WorldClock state={state} />}<label className="wf-small"><input type="checkbox" checked={settings.showWorldClock !== false} onChange={e => updateSettings({ ...settingsRef.current, showWorldClock: e.target.checked })} /> Show county clock</label><p className="wf-pause-summary">LV {state.character.level} · ◈ {state.candy} candy · {SAVE_LABELS[syncStatus]}</p><div className="wf-pause-actions"><button onClick={togglePause}>Resume</button><button className="wf-secondary" onClick={() => setCharacterOpen(true)}>Character</button><button className="wf-secondary" onClick={() => setCollectionOpen(true)}>Collection</button><button className="wf-secondary" onClick={() => setQuestLogOpen(true)}>Quest log</button><button className="wf-secondary" onClick={() => setSettingsOpen(true)}>Settings</button><button className="wf-secondary" onClick={() => setCoopOpen(true)}>Co-op</button><button className="wf-secondary" onClick={quit}>Quit to menu</button></div><Controls mode={mode} settings={settings} /><p className="wf-small"><PromptGlyph mode={mode} /> Resume · Esc / Start pause</p></Modal>}
     </>}
     {coopOpen && <CoopMenu signedIn={signedIn} room={coopRoom} busy={coopBusy} initialCode={joinCode.current} onHost={() => { void connectCoop("create"); }} onJoin={code => { void connectCoop("join", code); }} onLeave={() => { persist(controller.current!.state); coopRef.current?.leave(); closeCoop(); }} onBack={closeCoop} />}

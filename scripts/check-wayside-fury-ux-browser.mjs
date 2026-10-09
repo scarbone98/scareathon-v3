@@ -24,6 +24,7 @@ try {
   assert.equal(await page.getByLabel('Haptics',{exact:true}).isChecked(),false);
   await page.getByRole('button',{name:/Begin adventure|Continue adventure/}).click();
   await page.getByRole('button',{name:'Skip prologue',exact:true}).click();
+  await page.getByRole('button',{name:'Play tutorial',exact:true}).click();
   await page.getByRole('region',{name:'Guided opening'}).waitFor();
   assert.equal(await page.evaluate(()=>window.__waysideFury.state.opening.stage),0);
   const hidden=['.wf-minimap','.wf-items-hud','.wf-world-clock','.wf-notice','.wf-hint'];

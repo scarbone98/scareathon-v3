@@ -13,7 +13,7 @@ try {
   await page.waitForFunction(()=>window.__waysideFury&&!document.querySelector('.wf-primary')?.disabled,{},{timeout:90000});
   await page.locator('.wf-primary').click();
   await page.getByRole('button',{name:'Skip prologue',exact:true}).click();
-  await page.getByRole('button',{name:'Skip practice',exact:true}).click();
+  await page.getByRole('button',{name:'Skip',exact:true}).click();
   await page.evaluate(async()=>{const {enterScene}=await import('/src/pages/WaysideFury/game/sim.ts');const game=window.__waysideFury;game.mutate(s=>{delete s.opening;enterScene(s,'overworld');s.x=500;s.y=480;s.enemies=[];});});
   if(gfx==='3d')await page.waitForFunction(()=>document.querySelector('canvas[data-gfx="3d"]'),{},{timeout:120000});
   await page.locator('.wf-chapter-goal').waitFor({state:'visible'});assert.match(await page.locator('.wf-chapter-goal').innerText(),/Next unlock:.*Woods/);

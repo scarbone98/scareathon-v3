@@ -1,19 +1,23 @@
-import { activeHero, damageHero, enterScene, type GameState, type HeroId } from './sim.ts';
+import { activeHero, addEnemy, enterScene, type GameState, type HeroId } from './sim.ts';
 export const OPENING_DONE = 'guided-opening-complete';
 export const OPENING_SKIPPED = 'guided-opening-skipped';
-export const OPENING_STEPS = ['Walk right to the crate.', 'Strike the crate to clear the path.', 'Dash right across the gap.', 'Stand in the ring and block the flashing post.', 'Fire Ki right at the switch beyond the fence.', 'Swap to your partner to open the gate.'];
+export const OPENING_STEPS = ['Walk right to the zombie.', 'Defeat the zombie to clear the path.', 'Dash right across the gap.', 'Stand in the ring and block the zombie’s slow swing.', 'Fire Ki right at the imp beyond the fence.', 'Swap to your partner to open the gate.'];
 export const OPENING_ACTIONS = ['right', 'attack', 'dash', 'guard', 'ki', 'swap'] as const;
-export interface Opening { stage: number; elapsed: number; beat: number; lead: HeroId; original: HeroId; hits: number; lastSwing: number; vitals: Record<HeroId, { hp: number; ki: number; stamina: number }>; }
-export function startOpening(s: GameState) {
-  if (s.coop || s.campaignMilestones.includes(OPENING_DONE) || s.campaignMilestones.includes(OPENING_SKIPPED)) return;
+export interface Opening { stage: number; elapsed: number; beat: number; lead: HeroId; original: HeroId; hits: number; lastSwing: number; targetId?: number; returnState?: GameState; vitals: Record<HeroId, { hp: number; ki: number; stamina: number }>; }
+export function startOpening(s: GameState, replay = false) {
+  if (s.opening || s.coop || !replay && (s.campaignMilestones.includes(OPENING_DONE) || s.campaignMilestones.includes(OPENING_SKIPPED))) return;
+  const returnState = replay ? structuredClone({ ...s, opening: undefined, openingChoice: false }) : undefined;
+  s.openingChoice = false;
   const vitals = Object.fromEntries(Object.entries(s.heroes).map(([id,h]) => [id,{ hp:h.hp, ki:h.ki, stamina:h.stamina }])) as Opening['vitals'];
   if (!s.campaignMilestones.includes('guided-opening-started')) s.campaignMilestones.push('guided-opening-started');
-  enterScene(s, 'test'); s.enemies = []; s.opening = { stage: 0, elapsed: 0, beat: 0, lead: s.active, original: s.active, hits: 0, lastSwing: -1, vitals };
+  enterScene(s, 'test'); s.enemies = []; s.opening = { stage: 0, elapsed: 0, beat: 0, lead: s.active, original: s.active, hits: 0, lastSwing: -1, vitals, returnState };
   s.x = 55; s.y = 110; activeHero(s).ki = activeHero(s).maxKi; s.notice = '';
+  spawnTarget(s, 100, 'grunt');
   s.events.push({ type: 'checkpoint', id: 'guided-opening-started' });
 }
 export function finishOpening(s: GameState, skipped = false) {
   const opening = s.opening; if (!opening) return;
+  if (opening.returnState) { Object.assign(s, opening.returnState); s.events = []; return; }
   for (const [id,h] of Object.entries(s.heroes)) Object.assign(h, opening.vitals[id as HeroId]);
   s.active = opening.original; s.opening = undefined;
   const milestone = skipped ? OPENING_SKIPPED : OPENING_DONE;
@@ -36,24 +40,20 @@ export function tickOpening(s: GameState, dt: number) {
   if (o.stage === 0) done = Math.hypot(s.x - 90, s.y - 110) < 16;
   if (o.stage === 1) {
     s.x = Math.min(s.x, 98);
-    const swing = s.effects.find(e => e.kind === 'slash' && e.id !== o.lastSwing);
-    if (swing && Math.hypot(s.x - 100, s.y - 110) < 24 && s.faceX > .5) {
-      o.lastSwing = swing.id;
-      done = true;
-    }
+    done = !s.enemies.some(e => e.id === o.targetId && e.hp > 0);
   }
   if (o.stage === 2) done = s.x >= 143;
   if (o.stage === 3) {
-    const onMark = Math.hypot(s.x - 168, s.y - 110) < 20;
-    if (o.beat >= 2) { if (onMark && s.guard) o.hits++; done = o.hits >= 1; if (onMark && activeHero(s).hp > 1) damageHero(s, Math.min(activeHero(s).hp - 1, s.guard ? 1 : 8), 189, 110); o.beat = 0; if (!onMark || !s.guard) s.notice = ''; }
+    done = o.hits >= 1;
+    if (!s.enemies.some(e => e.id === o.targetId && e.hp > 0) && !done) spawnTarget(s, 189, 'grunt');
   }
   if (o.stage === 4) {
     s.x = Math.min(s.x, 205);
-    done = s.projectiles.some(p => p.owner === 'hero' && p.x >= 267 && p.x <= 289 && Math.abs(p.y - 110) < 15);
+    done = !s.enemies.some(e => e.id === o.targetId && e.hp > 0);
     if (activeHero(s).ki < 8) activeHero(s).ki = 8;
   }
   if (o.stage === 5) done = s.active !== o.lead;
-  if (done) { o.stage++; o.beat = 0; o.hits = 0; if (o.stage === 5) o.lead = s.active; s.notice = ''; if (o.stage === 6) finishOpening(s); }
+  if (done) { o.stage++; o.beat = 0; o.hits = 0; if (o.stage === 3) spawnTarget(s, 189, 'grunt'); if (o.stage === 4) { s.enemies = []; spawnTarget(s, 278, 'shooter'); } if (o.stage === 5) o.lead = s.active; s.notice = ''; if (o.stage === 6) finishOpening(s); }
 }
 export function openingInstruction(o: Opening) { return OPENING_STEPS[o.stage]; }
 export function drawOpening(c: CanvasRenderingContext2D, s: GameState) {
@@ -68,18 +68,15 @@ export function drawOpening(c: CanvasRenderingContext2D, s: GameState) {
   }
   const anchors = [90,100,126,168,278,284];
   c.strokeStyle = '#fff2cb'; c.strokeRect(anchors[o.stage]-14,76,28,52);
-  if (o.stage <= 1) {
-    c.fillStyle = '#b78045'; c.fillRect(94,101,12,18); c.strokeStyle = '#fff2cb'; c.strokeRect(94,101,12,18);
-    c.beginPath(); c.moveTo(94,101); c.lineTo(106,119); c.moveTo(106,101); c.lineTo(94,119); c.stroke();
-  }
   c.fillStyle = '#071522'; c.fillRect(112,72,28,62);
   c.strokeStyle = '#dce7ce'; c.setLineDash([4,3]); c.strokeRect(112,72,28,62); c.setLineDash([]);
   c.beginPath(); c.arc(168,110,12,0,Math.PI*2); c.stroke();
-  const flashing = o.stage === 3 && o.beat > 1.2;
-  c.fillStyle = flashing ? '#fff2cb' : '#78889a'; c.fillRect(185,86,8,18);
-  if (flashing) { c.font = 'bold 12px sans-serif'; c.textAlign = 'center'; c.fillText('!',189,81); }
   c.strokeStyle = '#b7c7b5'; c.beginPath(); c.moveTo(213,72); c.lineTo(213,134); c.stroke();
-  c.fillStyle = o.stage >= 5 ? '#afd990' : '#78889a'; c.fillRect(271,101,14,18);
   if (o.stage === 5) { c.strokeStyle = '#fff2cb'; c.strokeRect(280,88,8,40); }
   c.restore();
+}
+
+function spawnTarget(s: GameState, x: number, kind: 'grunt' | 'shooter') {
+  const e = addEnemy(s, kind, x, 110); e.hp = e.maxHp = kind === 'shooter' ? 3 : 6; e.speed = 0; e.cooldown = 1.2;
+  s.opening!.targetId = e.id;
 }

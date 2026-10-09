@@ -124,7 +124,11 @@ export class GameController {
       const previousScene = this.state.scene;
       this.state.assistHp = this.ux.extraHp;
       step(this.state, appliedInput, (this.state.coop ? 1 : this.ux.gameSpeed) / 60);
-      if (previousScene === 'prologue' && this.state.scene === 'overworld') startOpening(this.state);
+      if (previousScene === 'prologue' && this.state.scene === 'overworld' && !this.state.coop) {
+        let chosen = this.state.campaignMilestones.some(id => id === 'guided-opening-complete' || id === 'guided-opening-skipped' || id === 'guided-opening-started');
+        try { chosen ||= localStorage.getItem('wayside-fury-opening-choice') !== null; } catch { /* Save milestones remain available. */ }
+        this.state.openingChoice = !chosen;
+      }
       this.coop?.update(this.state, dialogue || this.state.dialogue ? idleInput() : appliedInput, now);
       this.audio.sync(this.state);
       if (!overlay && this.state.overlay) this.input.clearTouch();

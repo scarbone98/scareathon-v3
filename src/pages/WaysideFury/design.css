@@ -169,3 +169,8 @@
 .wf-guided-opening .wf-opening small { grid-column: 1; }
 .wf-guided-opening .wf-opening button { grid-column: 2; grid-row: 1 / 4; align-self: center; padding: 8px; }
 @media (max-width: 480px) { .wf-guided-opening .wf-opening { top: calc(var(--wf-top-hud-bottom, 64px) + 8px); } }
+
+.wf-tutorial-choice { width: min(340px, calc(100vw - 32px)); padding: 20px; }
+.wf-tutorial-choice h2 { font-size: 18px; margin: 0 0 16px; }
+.wf-tutorial-choice > div { display: flex; gap: 12px; }
+.wf-tutorial-choice button { min-height: 48px; flex: 1; padding: 12px; }
