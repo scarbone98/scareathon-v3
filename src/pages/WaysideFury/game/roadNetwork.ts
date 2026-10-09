@@ -4,9 +4,29 @@ import { countyRoadPaint } from './countyRoadPaint.ts';
 // Crossings in current content are at grade; a water causeway is not an overpass.
 import type { RoadSegment, WorldMap } from './worldBuilder.ts';
 export interface RoadPoint { x: number; y: number }
-export const roadPoints = (r: RoadSegment): RoadPoint[] => r.curve ?? (r.direction === 'horizontal'
+const authoredPoints = (r: RoadSegment): RoadPoint[] => r.curve ?? (r.direction === 'horizontal'
   ? [{x:r.x,y:r.y+r.h/2},{x:r.x+r.w,y:r.y+r.h/2}]
   : [{x:r.x+r.w/2,y:r.y},{x:r.x+r.w/2,y:r.y+r.h}]);
+// Small tangent fillets preserve authored road routes while rounding bends.
+// All paint, collision queries and the terrain decal use this cached centerline.
+const centerlines = new WeakMap<RoadSegment, RoadPoint[]>();
+export function roadPoints(r: RoadSegment): RoadPoint[] {
+  const saved = centerlines.get(r); if (saved) return saved;
+  const source = authoredPoints(r), result = [source[0]];
+  for (let i = 1; i < source.length - 1; i++) {
+    const a = source[i-1], b = source[i], c = source[i+1];
+    const incoming = Math.hypot(b.x-a.x,b.y-a.y), outgoing = Math.hypot(c.x-b.x,c.y-b.y);
+    if (!incoming || !outgoing) continue;
+    const cut = Math.min(18, incoming/4, outgoing/4);
+    const start = {x:b.x+(a.x-b.x)*cut/incoming,y:b.y+(a.y-b.y)*cut/incoming};
+    const end = {x:b.x+(c.x-b.x)*cut/outgoing,y:b.y+(c.y-b.y)*cut/outgoing};
+    result.push(start);
+    for (let n=1;n<=8;n++) { const t=n/8,u=1-t;
+      result.push({x:u*u*start.x+2*u*t*b.x+t*t*end.x,y:u*u*start.y+2*u*t*b.y+t*t*end.y});
+    }
+  }
+  result.push(source[source.length-1]); centerlines.set(r,result); return result;
+}
 export const roadWidth = (r: RoadSegment) => r.curveWidth ?? (r.direction==='horizontal'?r.h:r.w);
 export function projectRoad(p: RoadPoint, a: RoadPoint, b: RoadPoint) {
   const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));
@@ -38,11 +58,14 @@ export function networkPaint(world:WorldMap):RoadPaint[] {
           result.push({a:{x:p.x-dy*half,y:p.y+dx*half},b:{x:p.x+dy*half,y:p.y-dx*half},width:1.8,kind:'stop'});
         }
       }
-      for(let d=(10-run%36+36)%36;d+14<length;d+=36) {
-        const p=at(d),q=at(d+14);
-        if(i===1&&d<44||i===points.length-1&&d+14>length-44)continue;
-        if([p,q,at(d+7)].some(p=>junctionAt(world,r,p.x,p.y)))continue;
-        result.push({a:p,b:q,width:1.2,kind:'lane'});
+      for(let d=0;d<length;) {
+        const phase=(run+d)%36, step=Math.min(length-d, phase<14?14-phase:36-phase);
+        if(step<.00001){d+=.00001;continue;}
+        const p=at(d),q=at(d+step);
+        if(phase<14 && run+d>=44 && !(i===points.length-1 && d+step>length-44)
+          && ![p,q,at(d+step/2)].some(p=>junctionAt(world,r,p.x,p.y)))
+          result.push({a:p,b:q,width:1.2,kind:'lane'});
+        d+=step;
       }
       run+=length;
     }
@@ -127,7 +150,7 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
   }
   drawRoadEndings(c,world);
   let marks=paintCache.get(world);if(!marks){marks=networkPaint(world);paintCache.set(world,marks);}
-  c.lineCap='butt';
+  c.lineCap='round';
   for(const mark of marks) {c.strokeStyle=mark.kind==='lane'?'#c6b991':'#e0ded0';c.lineWidth=mark.width;c.beginPath();c.moveTo(mark.a.x,mark.a.y);for(const p of mark.points?.slice(1)??[mark.b])c.lineTo(p.x,p.y);c.stroke();}
   c.restore();
 }

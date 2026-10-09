@@ -7,7 +7,7 @@ import { isWalkableSurface, surfaceHeightAt } from './walkableSurfaces';
 import { scorchedGroundMesh, contactGroundMesh } from './grounding3d.ts';
 import { footprintGrounding } from './grounding.ts';
 import * as THREE from 'three';
-import type { GameState } from './sim';
+import type { GameEvent, GameState } from './sim';
 import type { HeroAvatar } from './avatar';
 import type { RenderPresentation, RenderLabel } from './render';
 import { getWorld, type WorldProp } from './world';
@@ -33,6 +33,8 @@ export class SpaceRenderer {
   private filmSet=new THREE.Group();
   private focus=new THREE.Vector2();
   private ready=false;
+  private shake=0;
+  private reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   private avatar:HeroAvatar|null=null;
   private street=new Map<string,HTMLImageElement>();
   private remotes=new Map<number,HeroAvatar>();
@@ -52,7 +54,9 @@ export class SpaceRenderer {
   }
   setAvatar(a:HeroAvatar){this.avatar=a;}
   setRemoteAvatar(seat:number,a:HeroAvatar){this.remotes.set(seat,a);}
-  reset(){this.ready=false;}
+  reset(){this.ready=false;this.shake=0;}
+  onEvent(event:GameEvent){if(event.type==='hit')this.shake=Math.max(this.shake,Math.min(4,1+event.damage/14));}
+
   private mesh(group:THREE.Group,geometry:THREE.BufferGeometry,color:string,x:number,y:number,z:number) {
     const m=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness:.68,metalness:.22}));m.position.set(x,y,z);group.add(m);return m;
   }
@@ -204,7 +208,10 @@ export class SpaceRenderer {
     const target=new THREE.Vector2(establish?world.width/2:s.x,establish?world.height/2:s.y);
     if(!this.ready||dt===0)this.focus.copy(target);else this.focus.lerp(target,1-Math.exp(-dt*8.5));this.ready=true;
     this.camera.left=-vw/2;this.camera.right=vw/2;this.camera.top=vh/2;this.camera.bottom=-vh/2;this.camera.updateProjectionMatrix();
-    this.camera.position.set(this.focus.x,650,this.focus.y+400);this.camera.lookAt(this.focus.x,0,this.focus.y);this.camera.updateMatrixWorld();
+    this.shake=Math.max(0,this.shake-dt*23);
+    const shakeX=this.reducedMotion?0:Math.sin(s.time*113)*this.shake;
+    const shakeY=this.reducedMotion?0:Math.cos(s.time*97)*this.shake*.5;
+    this.camera.position.set(this.focus.x+shakeX,650,this.focus.y+400+shakeY);this.camera.lookAt(this.focus.x,0,this.focus.y);this.camera.updateMatrixWorld();
     for(const p of world.props){const g=this.props.get(p.id);if(!g)continue;g.visible=p.kind!=='seal'||!hasSpaceFlag(s,p.id);if(p.kind==='gantry'||p.kind==='rocket'){const occluded=Math.abs(s.x-g.position.x)<p.w/2+14&&s.y<g.position.z+12;g.traverse(o=>{if(o instanceof THREE.Mesh){const m=o.material as THREE.MeshStandardMaterial;m.transparent=occluded;m.opacity=occluded?.35:1;m.depthWrite=!occluded;}});}}
     for(const a of this.actors.values())a.mesh.visible=false;
     const suited=(id:string,state:GameState,avatar:HeroAvatar|null)=>{
@@ -243,7 +250,7 @@ export class SpaceRenderer {
     for(const door of INTERIORS)if(door.parent===s.mapId&&Math.hypot(s.x-door.x,s.y-door.y)<=48)labels.push({id:door.id,text:door.name,...project(door.x,door.y,32),kind:'exit',opacity:Math.min(1,(48-Math.hypot(s.x-door.x,s.y-door.y))/16)});
     for(const p of world.props)if(p.label&&!p.interiorId&&Math.hypot(s.x-p.x-p.w/2,s.y-p.y-p.h)<110)labels.push({id:p.id,text:p.label,...project(p.x+p.w/2,p.y+p.h,p.h+8),kind:'hub'});
     for(const e of world.exits)if(nearExit(e,s.x,s.y))labels.push({id:e.id,text:exitCaption(world,e),opacity:exitOpacity(e,s.x,s.y),...project(e.x+e.w/2,e.y,15),kind:'exit'});
-    for(const f of s.floaters)labels.push({id:f.id,text:f.text,...project(f.x,f.y,28),kind:'floater',color:f.color,opacity:Math.min(1,f.ttl*4)});
+    for(const f of s.floaters)labels.push({id:f.id,text:f.text,...project(f.x,f.y,28),kind:'floater',color:f.color,opacity:Math.min(1,f.ttl*4),scale:1+Math.max(0,f.ttl-.65)*1.5});
     for(const p of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,p))labels.push({id:`peer-${p.seat}`,text:p.name,...project(p.x,p.y,52),kind:'hub'});
     return{focus:project(s.x,s.y),camera:{x:this.focus.x-this.viewport.width/2,y:this.focus.y-this.viewport.height/2,width:this.viewport.width,height:this.viewport.height},labels:labels.filter(p=>p.x>0&&p.x<1&&p.y>0&&p.y<1)};
   }

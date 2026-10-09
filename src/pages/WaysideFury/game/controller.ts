@@ -78,8 +78,16 @@ export class GameController {
     const overlay = this.state.overlay;
     this.state.events.length = 0; action(this.state);
     if (!overlay && this.state.overlay) this.input.clearTouch();
-    for (const event of this.state.events) { if (this.ux.haptics && this.input.mode === 'touch' && ['hit', 'swap', 'pickup'].includes(event.type)) navigator.vibrate?.(event.type === 'hit' ? 20 : 10); this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+    for (const event of this.state.events) { this.haptic(event); this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
     this.state.events.length = 0; if (this.started) this.audio.sync(this.state); this.publish();
+  }
+  private haptic(event: GameEvent) {
+    if (!this.ux.haptics || document.hidden || typeof navigator.vibrate !== 'function') return;
+    const duration = event.type === 'hit' ? Math.min(35, 12 + event.damage / 2)
+      : event.type === 'pickup' || event.type === 'swap' ? 10
+      : event.type === 'curb-bump' ? 8 + event.strength * 12 : 0;
+    // Unsupported/denied vibration must never interrupt the frame/event queue.
+    if(duration) try { navigator.vibrate(Math.round(duration)); } catch { /* optional hardware */ }
   }
   private publish() {
     const blocked = this.sound.needsGesture();
@@ -121,7 +129,7 @@ export class GameController {
       this.audio.sync(this.state);
       if (!overlay && this.state.overlay) this.input.clearTouch();
       if (ready) this.input.consume();
-      for (const event of this.state.events) { if (this.ux.haptics && this.input.mode === 'touch' && ['hit', 'swap', 'pickup'].includes(event.type)) navigator.vibrate?.(event.type === 'hit' ? 20 : 10); this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+      for (const event of this.state.events) { this.haptic(event); this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
       this.acc -= 1 / 60;
     }
     if(this.presentationSuspended) { if(now-this.hudAt>80){this.hudAt=now;this.publish();} return; }
