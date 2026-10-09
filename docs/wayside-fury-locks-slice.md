@@ -41,3 +41,13 @@ Merge verification (2026-10-08): `npx tsc -b`, changed-file ESLint, `npm run che
 ## Integration with U1WORLD
 
 The design merge preserves this branch’s existing day/night runtime and lighting alongside obstacle discovery and presentation. The former level-8 county barricade now requires Circuit Spark; its stable clear/cache IDs, geometry, supplies and shortcut remain intact. Historical level-gate screenshots above show the incoming design revision. No new Update 1 system is implemented by this merge.
+
+## AUDIT design merge verification · 2026-10-08
+
+Merged `origin/wayside-fury-design` at `10cee896` into `wayside-fury-AUDIT` in merge commit `39f67785`. Retained both branches’ terrain, chapter routing, gates, discovery/presentation and existing incoming day/night features. Resolved gate wording and test conflicts using Circuit Spark and the stronger level-only rejection regression; retained both sets of integration notes and regenerated TypeScript build metadata. No additional Update 1 system or chapter reward was implemented. The chapter plan, including section 11, is unchanged.
+
+Final `npx tsc -b` and ESLint on all merged JavaScript/TypeScript files passed. `npm run check:wayside-fury` and 32 focused non-browser checks passed: day-night, day-night-coop-runtime, minimap, campaign, obstacles, lock-shortcuts, paths, collision, exits, areas, bridge, coop-sim, coop-rewards, interiors-coop, woods, woods-combat, city, space, space-combat, combat, quality, labels, dressing, collectibles, balance, roads, road-network, road-clearance, audit-paint, overworld-audit, music and audio. Cloud verification passed 19 tests; server `cd server && npx jest --forceExit` passed 43 suites / 481 tests.
+
+The audio check exposed extensionless incoming day/night imports and an outdated audio test double. Added explicit `.ts` imports and updated the double with assertions for daytime, nighttime and interior music; audio, TypeScript and changed-file ESLint passed afterward.
+
+The initial live day/night co-op attempt could not bind its fixture server in the sandbox. Its permitted local rerun passed with muted Chromium, two browser clients, shared clock/phase/ambient synchronization, and host migration without duplicate spawns. Screenshots are in `/tmp/fury-u1world-shots`. The isolated preview on port 5247 was stopped. Node 26.4.0 was available; Node 24, a full new renderer capture matrix, and real-phone thermal/FPS acceptance were not exercised in this merge. No push was performed.

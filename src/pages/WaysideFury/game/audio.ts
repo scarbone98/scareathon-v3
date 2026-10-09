@@ -1,5 +1,5 @@
-import { sampleDayNight } from "./u1/world/dayNight";
-import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
+import { sampleDayNight } from "./u1/world/dayNight.ts";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime.ts";
 import { spaceAudio } from "./spaceAudio.ts";
 import { PROLOGUE } from "./content.ts";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world.ts";
