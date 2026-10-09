@@ -55,3 +55,16 @@ Completed verification: changed-file ESLint; npm run check:wayside-fury (full
 starter-stat ten-zone Blast/realm run); collision/reachability; areas (81 exits,
 nine doors, protocol guards); campaign/save/ticket/co-op; dressing; grounding;
 road clearance; quality recovery; exits (103); paths (35 routed trails).
+Full npx tsc -b also passed. Real Metal WebGL phone/desktop comparisons passed
+at native DPR 3/2; broader responsive/lifecycle/fallback verification is recorded
+separately by scripts/check-wayside-fury-3d.mjs.
+
+3D result: real Metal phone/desktop comparisons, all responsive sizes, touch-mode
+recovery, paused switching, preference/save independence, disposal, unavailable
+WebGL fallback, context loss/retry, quality reduction and both phone iframe
+cases passed. The final desktop iframe detached during startup in the full run.
+The focused desktop-iframe rerun passed all toolbar/Settings/control assertions.
+All assertion groups passed across those two runs; there is no single aggregate
+full-suite green result. The harness now recreates a detached startup fixture
+once, never retries assertions or a frame lost after boot, and supports
+FURY_3D_CASE=desktop-iframe with its scope explicitly recorded in the report.
