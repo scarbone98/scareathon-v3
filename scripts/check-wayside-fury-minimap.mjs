@@ -16,8 +16,11 @@ fixture(s,'city-boulevard');assert.equal(objective().id,'city-anchor-0');s.solve
 fixture(s,'city-market');assert.equal(objective().name,'Clockroof Walk');s.campaignMilestones.push('city-complete');assert.equal(objective().name,'Blackout Boulevard');s.campaignMilestones=[];
 s.coop={role:'guest',worldCampaignMilestones:['woods-complete'],worldSolvedInteractions:['space-fuel']};enterScene(s,'overworld');assert.equal(objective().id,'space');
 for(const mapId of ['hub','woods-layby','space-launch','city-boulevard','city-market']) {fixture(s,mapId);assert.ok(minimapAvailable(s),mapId);s.dialogue={speaker:'Test',index:0,lines:['Test']};assert.ok(!minimapAvailable(s));s.dialogue=null;}
+fixture(s,'city-boulevard');for(const scene of ['dead','prologue','shift','results','realm']) {s.scene=scene;assert.ok(!minimapAvailable(s),scene);}
 for(const id of ['blast-1','moon-m01','city-ticket-hall','woods-pump-house']) {fixture(s,id);assert.ok(!minimapAvailable(s),id);}
 for(const [w,h,obstacles] of [[390,844,[{x:0,y:0,w:390,h:64},{x:8,y:74,w:374,h:70},{x:0,y:650,w:390,h:194}]], [844,390,[{x:12,y:12,w:480,h:56},{x:508,y:12,w:324,h:64},{x:0,y:226,w:250,h:164},{x:610,y:210,w:234,h:180}]], [1440,900,[{x:12,y:12,w:480,h:60},{x:1084,y:12,w:340,h:72}]]]) {
   const box=minimapLayout(w,h,obstacles);assert.equal(box.w,Math.round(Math.min(w,h)*.24));assert.ok(box.x>=12&&box.y>=12&&box.x+box.w<=w-12&&box.y+box.h<=h-12);assert.ok(obstacles.every(o=>!overlaps(box,o)),`${w}x${h}`);
 }
+assert.equal(minimapLayout(390,844,[{x:0,y:0,w:390,h:844}]).w,0,'hide the corner map when HUD fills every safe slot');
+assert.ok(minimapLayout(1440,900,[],12,78).y>=78,'desktop stays below the HUD row');
 console.log('Minimap: chapters 1–5, crew tools, launch checklist, city anchors, co-op receipts, visibility and responsive clearance pass.');
