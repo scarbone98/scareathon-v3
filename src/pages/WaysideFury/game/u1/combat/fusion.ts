@@ -13,7 +13,7 @@ export interface FusionStatus { label: string; ready: boolean; reason: string; c
 type Participant = { seat: number; hero: HeroState; x: number; y: number; scene: GameState['scene']; room: number; mapId?: string; intent: number; downed?: boolean };
 const heroNames: Record<HeroId, string> = { you: 'You', joe: 'Joe', matt: 'Matt', alex: 'Alex', jon: 'Jon' };
 const seatOf = (s: GameState) => s.coop?.seat ?? 0;
-const fusionScenes = new Set<string>(['test', 'dungeon', 'realm']);
+const fusionScenes = new Set<string>(['test', 'dungeon', 'realm', 'arena']);
 const combatScene = (scene: GameState['scene']): scene is Extract<GameState['scene'], FusionForm['scene']> => fusionScenes.has(scene);
 const alive = (hero: HeroState, downed?: boolean) => !downed && Number.isFinite(hero.hp) && hero.hp > 0;
 const fullKi = (hero: HeroState) => Number.isFinite(hero.ki) && Number.isFinite(hero.maxKi) && hero.maxKi > 0 && hero.ki >= hero.maxKi - 0.000001;

@@ -1,5 +1,5 @@
 import { cleanFusionWorld, FUSION_INTENT } from "../shared/waysideFury/u1Fusion.js";
-import { COOP_PROTOCOL_VERSION, compatibleMap } from '../shared/waysideFury/campaign.js';
+import { COOP_PROTOCOL_VERSION, compatibleMap, legacyMapId } from '../shared/waysideFury/campaign.js';
 import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
 const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
 export const MAX_MESSAGE_BYTES = 65_536;
@@ -33,6 +33,7 @@ export function cleanInput(input) {
         if (typeof input[key] !== 'boolean') return null;
         cleaned[key] = input[key];
     }
+    if (input.fusion !== undefined) { if (typeof input.fusion !== 'boolean') return null; cleaned.fusion = input.fusion; }
     return cleaned;
 }
 
@@ -121,7 +122,11 @@ export function cleanWorld(state) {
     if (state.film !== undefined && state.film !== null && (!object(state.film) ||
         !['space-suitup','space-outbound','space-return','space-revisit'].includes(state.film.id) ||
         !number(state.film.elapsed, 62) || state.film.elapsed < 0)) return null;
-    if (state.fusions !== undefined && !cleanFusionWorld(state.fusions)) return null;
+    if (state.fusions !== undefined) {
+        const fusions = cleanFusionWorld(state.fusions);
+        if (!fusions || fusions.forms.some(form => form.scene !== state.scene || form.room !== state.room ||
+            form.mapId !== undefined && form.mapId !== (state.mapId ?? legacyMapId(state.scene, state.room)))) return null;
+    }
     for (const enemy of state.enemies) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
         if (!['zombie', 'pumpkin', 'ghost', 'imp', 'shadowbeast'].includes(enemy.sprite) || typeof enemy.miniBoss !== 'boolean' || ![1, 2].includes(enemy.phase)) return null;

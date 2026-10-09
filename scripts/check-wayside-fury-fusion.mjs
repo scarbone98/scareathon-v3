@@ -42,7 +42,7 @@ assert.equal(requestFusion(changedLead), true); assert.deepEqual(localFusion(cha
 const livingTag = fresh(); livingTag.party = ['you', 'joe', 'matt']; livingTag.heroes.joe.hp = 0;
 assert.equal(nextPartyHero(livingTag), 'matt'); assert.equal(requestFusion(livingTag), true);
 assert.deepEqual(localFusion(livingTag).heroes, ['you', 'matt'], 'fusion matches the tag HUD and skips a downed partner');
-const futureArena = fresh(); futureArena.scene = 'hub'; assert.equal(requestFusion(futureArena), false);
+const futureArena = fresh(); futureArena.scene = 'arena'; assert.equal(requestFusion(futureArena), true);
 
 // Exercise the production Input/step path, including simultaneous swap, held
 // fusion throughout recovery, and Ki press/release using the special only once.

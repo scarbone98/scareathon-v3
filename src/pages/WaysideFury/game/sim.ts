@@ -584,7 +584,7 @@ export function exitCoop(s: GameState): void {
   const fallen = s.active, next = nextPartyHero(s);
   if (next) { swapHero(s); s.notice = `${HERO_NAMES[fallen]} is down! ${HERO_NAMES[next]} takes over.`; }
   else {
-    s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
+    resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
     s.events.push({ type: "death" });
   }
 }
@@ -609,7 +609,7 @@ function damageHero(s: GameState, damage: number, sourceX: number, sourceY: numb
     const next = nextPartyHero(s);
     if (next) { swapHero(s); s.notice = `${HERO_NAMES[h.id]} is down! ${HERO_NAMES[next]} takes over.`; }
     else {
-      s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
+      resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
       s.events.push({ type: "death" });
     }
   }
@@ -677,7 +677,7 @@ function checkCoopWipe(s: GameState) {
   const coop = s.coop;
   if (coop?.role !== "host" || s.scene === "dead" || activeHero(s).hp > 0 || coop.remoteHeroes.length < coopCount(s) - 1) return false;
   if (coop.remoteHeroes.some(peer => peer.hero.hp > 0 && !peer.downed)) return false;
-  s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
+  resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
   s.events.push({ type: "death" });
   return true;
 }
@@ -813,6 +813,7 @@ function updateEnemies(s: GameState, dt: number) {
 function updateProjectiles(s: GameState, dt: number) {
   const world = getWorld(s.scene, s.room, s.mapId);
   for (const p of s.projectiles) {
+    if (s.training && s.localPaused && p.owner === "hero") continue;
     if(p.bounceDistance !== undefined) {
       p.bounceDistance -= Math.hypot(p.vx,p.vy)*dt;
       if(p.bounceDistance<=0) {p.vx=p.bounceVx!;p.vy=p.bounceVy!;delete p.bounceDistance;}

@@ -3,7 +3,7 @@ export const FUSION_COOLDOWN = 30;
 export const FUSION_INTENT = 1.25;
 export const FUSION_RANGE = 32;
 const heroes = new Set(['you', 'joe', 'matt', 'alex', 'jon']);
-const scenes = new Set(['test', 'dungeon', 'realm']);
+const scenes = new Set(['test', 'dungeon', 'realm', 'arena']);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const bounded = (value, max) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max;
 const integer = (value, max) => bounded(value, max) && Number.isInteger(value);

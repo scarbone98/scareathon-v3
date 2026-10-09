@@ -46,7 +46,7 @@ function challenge(hero: HeroId, tier: ChallengeTier, x: number, y: number): Tra
   };
 }
 export function startTraining(s: GameState): boolean {
-  if (s.scene !== "hub" || s.training || s.heroes[s.active].hp <= 0 || s.coop?.downed ||
+  if (s.localPaused || s.scene !== "hub" || s.training || s.heroes[s.active].hp <= 0 || s.coop?.downed ||
     Math.hypot(s.x - TRAINING_BOARD.x, s.y - TRAINING_BOARD.y) > TRAINING_BOARD.range) return false;
   const nextTier = s.u1.combat.training[s.active] + 1;
   if (nextTier > 3) { s.notice = "Signature mastered. Switch heroes to train another move."; return false; }
@@ -89,7 +89,7 @@ function complete(s: GameState): void {
 }
 export function tickTraining(s: GameState, dt: number): void {
   const t = s.training;
-  if (!t) return;
+  if (!t || s.localPaused) return;
   if (s.active !== t.hero) { fail(s, "hero-changed"); return; }
   if (s.scene !== "hub" || s.heroes[t.hero].hp <= 0 || s.coop?.downed) { fail(s, "interrupted"); return; }
   const margin = 32;

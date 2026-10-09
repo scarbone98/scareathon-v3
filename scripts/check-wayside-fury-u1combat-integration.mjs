@@ -45,4 +45,22 @@ for(const level of [1,15,50]) for(const trained of [false,true]) {
  full(s);requestFusion(s);frame(s,{ki:true});frame(s);for(let n=0;n<12;n++)frame(s);
  assert.ok(boss.hp>0);assert.ok(boss.poise>0,'fusion damage enters existing boss poise rules');
 }
+{
+ const {startTraining,TRAINING_BOARD}=await import('../src/pages/WaysideFury/game/u1/combat/training.ts');
+ const s=newGame();enterScene(s,'hub');s.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[]};
+ s.x=TRAINING_BOARD.x;s.y=TRAINING_BOARD.y;assert.ok(startTraining(s));
+ s.projectiles.push({id:99,x:320,y:400,vx:100,vy:0,owner:'hero',hero:'you',damage:10,radius:4,ttl:3,beam:false,hits:[]});
+ const before=s.training.elapsed;s.localPaused=true;for(let n=0;n<120;n++)frame(s);
+ assert.equal(s.training.elapsed,before,'local co-op pause freezes the personal course');
+ assert.equal(s.projectiles[0].x,320,'personal practice shots freeze with the course');
+ assert.ok(s.time>0,'shared simulation clock continues');
+}
+
+{
+ const s=newGame();s.enemies=[];full(s);s.coop={role:'host',seat:0,remoteHeroes:[peer(s)],appliedHits:[],playerCount:2};
+ assert.ok(requestFusion(s));s.heroes.you.hp=1;s.coop.remoteHeroes[0].hero.hp=1;
+ for(const target of [s,s.coop.remoteHeroes[0]])s.projectiles.push({id:s.nextId++,x:target.x,y:target.y,vx:0,vy:0,owner:'enemy',damage:9999,radius:4,ttl:1,beam:false,hits:[]});
+ frame(s);assert.equal(s.scene,'dead');assert.equal(s.fusion.world.forms.length,0,'same-tick co-op wipe ends fusion before publishing the dead world');
+ assert.ok(cleanWorld({...s,protocolVersion:6,projectiles:[],fusions:s.fusion.world}),'terminal snapshot remains relayable');
+}
 console.log('U1 combat integration: map identity, bounded packets, additive saves, no reward inflation, scaled HP and boss poise pass.');

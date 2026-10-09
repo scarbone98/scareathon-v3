@@ -25,7 +25,7 @@ try {
   assert.equal(await page.evaluate(()=>window.__waysideFury.state.training),null);
   await page.evaluate(async()=>{
    const {enterScene}=await import('/src/pages/WaysideFury/game/sim.ts');const game=window.__waysideFury;
-   game.mutate(s=>{enterScene(s,'test');s.enemies=[];for(const h of Object.values(s.heroes))h.ki=h.maxKi;s.notice='';});
+   game.mutate(s=>{enterScene(s,'dungeon',0,'moon-m01');s.enemies=[];for(const h of Object.values(s.heroes))h.ki=h.maxKi;s.notice='';});
   });
   await page.locator('.wf-fusion-control button').click();
   await page.waitForFunction(()=>window.__waysideFury.state.fusion.world.forms.length===1);
