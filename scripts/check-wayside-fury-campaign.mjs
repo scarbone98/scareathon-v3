@@ -123,7 +123,8 @@ assert.ok(new TextEncoder().encode(JSON.stringify(full)).length < MAX_SAVE_BYTES
 assert.equal(sanitizeSave(full).save.solvedInteractions.length, MAX_MILESTONES);
 const receipt = { areas: ['wayside', 'blast', 'eightbit-realm'], rooms: BLAST_WORLDS.map(map => map.id).concat('realm-0'), bosses: [], level: 1 };
 assert.equal(receiptTotalScore(receipt), 3550); assert.equal(ticketDelta(receipt), 3550);
-assert.equal(CHAPTER_REWARDS.reduce((sum, reward) => sum + reward.tickets, 0), 3550);
+assert.equal(CHAPTER_REWARDS.filter(r=>!r.id.startsWith('locks-cache-')).reduce((sum, reward) => sum + reward.tickets, 0), 3550,'legacy campaign budget preserved');
+assert.equal(CHAPTER_REWARDS.filter(r=>r.id.startsWith('locks-cache-')).reduce((sum,r)=>sum+r.tickets,0),1000,'ten optional first-clear caches have their own explicit budget');
 assert.equal(ticketDelta(receipt, receipt), 0);
 assert.equal(ticketDelta({ ...receipt, areas: [...receipt.areas, 'moon', 'forged-area'], rooms: [...receipt.rooms, 'blast-999', 'realm-999', 'moon-m01'] }, receipt), 0);
 const before = makeSave(state, current); step(state, idleInput(), 1 / 60);

@@ -133,7 +133,7 @@ function cleanGear(raw, heroes) {
 }
 function cleanSettings(raw) {
     // All v1-v4 saves without the additive combat preference migrate to Normal.
-    return { difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
+    return { ...(typeof raw?.showWorldClock === "boolean" ? { showWorldClock: raw.showWorldClock } : {}), difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
         controls: { tutorialDismissed: raw?.controls?.tutorialDismissed === true,
             stickSensitivity: bound(raw?.controls?.stickSensitivity, 0.5, 2, 1) } };
 }
@@ -170,6 +170,9 @@ export function sanitizeSave(raw) {
             ...(raw.clearedRooms.includes('realm-0') ? ['realm-0'] : []),
             // Pre-Woods Space saves retain their legitimate onward access.
             ...(raw.version === 4 && raw.campaignMilestones?.some(id => ['moon-departed','moon-arrived','space-complete'].includes(id)) ? ['woods-complete','breaker-knuckle','circuit-spark'] : [])]),
+        // Additive U3 gate migration: v1–3 saves start with no gate clears;
+        // existing v4 receipts (machinery, gates, seen anchors and caches) survive.
+        // No new ticket receipt is inferred from a migrated gate or story beat.
         solvedInteractions: raw.version === 4 ? milestones(raw.solvedInteractions) : [],
         completedCinematics: raw.version === 4 ? milestones(raw.completedCinematics) : [],
         checkpointMapId: raw.version === 4 && mapDefinition(raw.checkpointMapId) &&
@@ -186,6 +189,7 @@ export function sanitizeSave(raw) {
         ...(raw.prologuePending === true ? { prologuePending: true } : {}),
         coopRewards: coopRewards(raw.coopRewards),
         u1: { hub: sanitizeHubState(raw.u1?.hub) },
+        worldCycleSeconds: finite(raw.worldCycleSeconds) && raw.worldCycleSeconds >= 0 ? raw.worldCycleSeconds % 480 : 0,
         foundItems: cleanFoundItems(raw.foundItems), ambientTaxiWrecked: raw.ambientTaxiWrecked === true,
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };

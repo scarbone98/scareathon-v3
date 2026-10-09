@@ -1,8 +1,13 @@
 import { radarPickupTarget } from "../u1/minimap/relicRadar";
 import { drawArenaFloor } from "../u1/hub/arenaArt";
 import { drawQuestNpc, drawQuestCosmetic } from "../u1/hub/questArt";
+import { drawDayNightLighting } from "./u1/world/dayNightRender";
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
+import { obstaclesForState, isObstacleCleared } from './locks/obstacles';
+import { drawHeroObstacle } from './locks/obstacleRender';
 import { INTERIORS } from './interiors';
-import { drawExitOpening, nearExit, exitCaption } from './exitArt';
+import { drawExitOpening, nearExit, exitCaption, exitOpacity } from './exitArt';
 import { groundScatter, roadMask } from './roadClearance.ts';
 import { drawWalkableSurface, isGroundProp } from "./walkableSurfaces";
 import { drawScorchedDepression, GROUND_DECALS } from './grounding.ts';
@@ -157,15 +162,15 @@ export class Renderer {
     };
     if (s.scene === 'overworld') for (const location of campaignLocations(s)) {
       const distance = Math.hypot(s.x - location.x, s.y - location.y);
-      if (distance <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : `› ${location.name}`, location.x, location.y + 24, location.locked ? 'locked' : 'location');
+      if (distance <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y + 24, location.locked ? 'locked' : 'location', undefined, Math.min(1,(48-distance)/16));
     }
     if (s.scene === 'hub') for (const point of HUB_POINTS) {
       if (Math.hypot(s.x - point.x, s.y - point.y) < 140) add(point.id, point.name, point.x, point.y - (point.id === 'taxi' ? 25 : 61), 'hub');
     }
     if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const exit of this.world.exits) {
-      if (nearExit(exit,s.x,s.y)) add(`exit-${exit.id}`, exitCaption(this.world,exit), exit.x + exit.w / 2, exit.y - (this.world.id.startsWith('interior-') ? 40 : 15), 'exit');
+      if (nearExit(exit,s.x,s.y)) add(`exit-${exit.id}`, exitCaption(this.world,exit), exit.x + exit.w / 2, exit.y - (this.world.id.startsWith('interior-') ? 40 : 15), 'exit', undefined, exitOpacity(exit,s.x,s.y));
     }
-    for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,`› ${door.name}`,door.x,door.y-35,'exit');
+    for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,door.name,door.x,door.y-35,'exit',undefined,Math.min(1,(48-Math.hypot(s.x-door.x,s.y-door.y))/16));
     if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const prop of this.world.props) {
       if (prop.label && !prop.interiorId && !['shop', 'home', 'portal'].includes(prop.kind) && !(s.scene === 'hub' && HUB_POINTS.some(point => point.name === prop.label)) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(`prop-${prop.id}`, prop.label, prop.x + prop.w / 2, prop.y - 8, 'hub');
     }
@@ -270,8 +275,12 @@ export class Renderer {
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
-    for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
+    for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);if(s.spaceOutfit)this.hero({...s,active:assist.hero!,x:assist.x,y:assist.y,moving:false,guard:false,attackTimer:0,charge:0});else this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
     for (const door of world.radarAnchors?.filter(anchor=>anchor.id.endsWith("-door")) ?? []) actors.push({y:door.y,draw:()=>drawBuildingDoors(c,s)});
+    for (const gate of obstaclesForState(s)) if (this.visible(gate.x,gate.y,110)) {
+      actors.push({y:gate.y+gate.h,draw:()=>drawHeroObstacle(c,gate,isObstacleCleared(s,gate.id),motionTime,this.reducedMotion?1:1-(s.effects.find(e=>Math.abs(e.x-gate.x-gate.w/2)<1&&Math.abs(e.y-gate.y-gate.h/2)<1)?.ttl??0)/.8)});
+      actors.push({y:gate.rewardAnchor.y,draw:()=>{c.save();c.fillStyle='#9b7252';c.fillRect(gate.rewardAnchor.x-10,gate.rewardAnchor.y-10,20,12);c.strokeStyle='#e3bc78';c.lineWidth=1;c.strokeRect(gate.rewardAnchor.x-10,gate.rewardAnchor.y-10,20,12);c.restore();}});
+    }
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
     const radar = radarPickupTarget(s);
@@ -280,6 +289,9 @@ export class Renderer {
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
+    const daylight = sampleDayNight(worldCycleSeconds(s));
+    c.canvas.dataset.worldPhase = s.scene === "overworld" ? daylight.phase : "interior";
+    if (s.scene === "overworld") drawDayNightLighting(c, world, { ...this.camera, width, height }, daylight, s, s.enemies);
     c.restore();
     if(s.mapId==='city-hatching'&&s.dialogue?.speaker==='Jon') {
       // A screen-space foreground keeps all five identities visible on phones.
@@ -380,12 +392,6 @@ export class Renderer {
           const x = location.x - 44 + (k * 23) % 88, y = location.y - 28 + (k * 17) % 56;
           this.rect(x + Math.floor(time * 2 + k) % 2, y, k % 2 ? 4 : 2, 2, k % 3 ? '#815181' : '#ab699d');
         }
-      } else if (Math.hypot(s.x-location.x,s.y-location.y)<=48) {
-        const bob = this.reducedMotion ? 0 : Math.sin(time * 4) * 2;
-        const y = location.y - 18 + bob;
-        this.rect(location.x - 3, y - 7, 6, 4, '#f8e2a5');
-        this.rect(location.x - 2, y - 3, 4, 2, '#f8e2a5');
-        this.rect(location.x - 1, y - 1, 2, 2, '#fff4ca');
       }
     }
   }

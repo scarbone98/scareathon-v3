@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { advanceDayNightSeconds, sanitizeDayNightSeconds, sampleDayNight, planNightEncounter } from '../src/pages/WaysideFury/game/u1/world/dayNight.ts';
+import { advanceWorldClock, updateNightOverworld, worldCycleSeconds } from '../src/pages/WaysideFury/game/u1/world/dayNightRuntime.ts';
+import { newGame, enterScene, step, idleInput, setCoopPlayerCount, applyCoopHit } from '../src/pages/WaysideFury/game/sim.ts';
+import { makeSave, restoreSave, parseSave, progressReport } from '../src/pages/WaysideFury/game/save.ts';
+import { getWorld, isBlocked } from '../src/pages/WaysideFury/game/world.ts';
+import { mixNightScore } from '../src/pages/WaysideFury/game/u1/world/nightMusic.ts';
+import { cleanWorld } from '../server/wayside-fury/protocol.js';
+
+for (const raw of [undefined, null, -1, Infinity, NaN, '300']) assert.equal(sanitizeDayNightSeconds(raw), 0);
+assert.equal(advanceDayNightSeconds(470, 970), 0);
+assert.equal(advanceDayNightSeconds(60, -1), 60);
+for (const [seconds, phase] of [[0,'day'],[180,'dusk'],[240,'night'],[419,'night'],[420,'dawn'],[480,'day']]) assert.equal(sampleDayNight(seconds).phase, phase);
+for (const edge of [180,240,420,480]) assert.ok(Math.abs(sampleDayNight(edge-.001).nightFactor-sampleDayNight(edge).nightFactor)<.0001);
+assert.equal(planNightEncounter(300, 'night:1').spawns.length, 0);
+assert.equal(planNightEncounter(300, null, getWorld('overworld',0), {authority:'guest'}).spawns.length, 0);
+const s = newGame(); enterScene(s,'overworld'); s.x=490; s.y=480; s.worldCycleSeconds=300;
+const before = progressReport(s), seed=s.rngSeed;
+updateNightOverworld(s,1/60);
+assert.ok(s.enemies.length>0 && s.enemies.length<=2);
+assert.equal(s.rngSeed,seed);
+const ids=s.enemies.map(e=>e.id);
+updateNightOverworld(s,1/60); assert.deepEqual(s.enemies.map(e=>e.id),ids);
+s.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[]};
+setCoopPlayerCount(s,4); assert.deepEqual(s.enemies.map(e=>e.id),ids,'ambient population cannot create co-op combat extras');
+const target=s.enemies[0],hp=target.hp;
+applyCoopHit(s,{type:'coop-hit',enemyId:target.id,damage:999,dx:1,dy:0,force:50,attackId:'night-test'},1);
+assert.equal(target.hp,hp);
+for(let i=0;i<300;i++) { advanceWorldClock(s,1/60); step(s,idleInput(),1/60); }
+assert.equal(s.projectiles.length,0);assert.equal(s.kills,0);assert.equal(s.candy,0);assert.equal(s.rngSeed,seed);
+for(const e of s.enemies) assert.equal(isBlocked(getWorld('overworld',0),e.x,e.y,e.radius),false);
+assert.deepEqual(progressReport(s),before,'night events have no ticket rewards');
+const saved=makeSave(s,null);assert.ok(saved);assert.equal(restoreSave(saved).worldCycleSeconds,s.worldCycleSeconds);
+const legacy={...saved}; delete legacy.worldCycleSeconds; delete legacy.settings.showWorldClock;
+assert.equal(parseSave(legacy).worldCycleSeconds,0); assert.notEqual(parseSave(legacy).settings.showWorldClock,false);
+assert.equal(parseSave({...saved,worldCycleSeconds:Infinity}).worldCycleSeconds,0);
+assert.equal(parseSave({...saved,settings:{...saved.settings,showWorldClock:false}}).settings.showWorldClock,false);
+s.worldCycleSeconds=420;updateNightOverworld(s,1/60);assert.equal(s.enemies.length,0);
+// The public co-op update consumes the same snapshots used by the WebSocket relay.
+const host=newGame();enterScene(host,'overworld');host.worldCycleSeconds=300;updateNightOverworld(host,1/60);
+const guest=newGame();guest.worldCycleSeconds=72;guest.coop={role:'guest',seat:1,remoteHeroes:[],appliedHits:[]};
+const snapshot={...host,worldCycleSeconds:300,nightEncounterWindow:host.nightWorld.window,protocolVersion:6};
+assert.ok(cleanWorld(snapshot));assert.equal(cleanWorld({...snapshot,worldCycleSeconds:480}),null);
+assert.equal(cleanWorld({...snapshot,nightEncounterWindow:'night:99'}),null);
+guest.coop.worldCycleSeconds=300;
+assert.equal(worldCycleSeconds(guest),300);advanceWorldClock(guest,60);assert.equal(guest.worldCycleSeconds,72);
+guest.coop.role='host';guest.worldCycleSeconds=snapshot.worldCycleSeconds;guest.nightWorld={window:snapshot.nightEncounterWindow};guest.enemies=structuredClone(snapshot.enemies);
+const count=guest.enemies.length;updateNightOverworld(guest,1/60);assert.equal(guest.enemies.length,count,'promotion cannot replay night batch');
+for(const seconds of [336,372,408]) {guest.worldCycleSeconds=seconds;updateNightOverworld(guest,1/60);assert.ok(guest.enemies.length<=6);}
+assert.ok(mixNightScore([],0,0,1).length>0);assert.deepEqual(mixNightScore([],0,0,0),[]);
+console.log('Day/night: cycle, safe bounded ambience, saves, rewards, co-op clock isolation and host migration pass.');

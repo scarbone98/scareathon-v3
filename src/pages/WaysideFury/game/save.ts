@@ -38,7 +38,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
   })) : personalHeroes;
   return parseSave({
     u1: { hub: { arena: s.hubArena, quests: s.hubQuests, cosmetic: s.hubCosmetic, questSerial: s.hubQuestSerial, radar: s.relicRadar } },
-    version: SAVE_VERSION, campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
+    worldCycleSeconds: s.worldCycleSeconds, version: SAVE_VERSION, campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
     completedCinematics: s.completedCinematics, checkpointMapId: s.coop?.role === "guest" ? previous?.checkpointMapId ?? "hub" : s.checkpointMapId, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: { ...previous?.settings, difficulty: s.difficulty }, savedAt: Date.now(),
@@ -75,6 +75,7 @@ export function restoreSave(data: SaveData, retry = false): GameState {
   if (saved) {
     const hub = sanitizeHubState(saved.u1?.hub);
     s.hubArena = hub.arena; s.hubQuests = hub.quests; s.hubCosmetic = hub.cosmetic; s.hubQuestSerial = hub.questSerial; s.relicRadar = hub.radar;
+    s.worldCycleSeconds = saved.worldCycleSeconds ?? 0;
     s.difficulty = saved.settings.difficulty ?? "normal";
     const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("interior-") && !saved.checkpointMapId.startsWith("city-") && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
     s.heroes = Object.fromEntries(HERO_IDS.map(id => [id, { ...snapshot.heroes[id] }])) as Record<HeroId, HeroState>;

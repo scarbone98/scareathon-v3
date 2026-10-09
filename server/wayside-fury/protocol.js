@@ -98,11 +98,13 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (!compatibleMap(state.scene, state.room, state.mapId, state.protocolVersion ?? 1)) return null;
-    if (state.protocolVersion !== undefined && ![1,2,3,4,5,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
+    if (state.protocolVersion !== undefined && ![1,2,3,4,5,6,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
+    if (state.worldCycleSeconds !== undefined && (!number(state.worldCycleSeconds, 480) || state.worldCycleSeconds < 0 || state.worldCycleSeconds >= 480)) return null;
+    if (state.nightEncounterWindow !== undefined && state.nightEncounterWindow !== null && (typeof state.nightEncounterWindow !== 'string' || !/^night:[0-4]$/.test(state.nightEncounterWindow))) return null;
     if (state.ambientTaxiWrecked !== undefined && typeof state.ambientTaxiWrecked !== 'boolean') return null;
     if (state.ambientTaxiGag !== undefined && (!number(state.ambientTaxiGag, 4) || state.ambientTaxiGag < -1)) return null;
     if (state.arena !== undefined) {
@@ -127,6 +129,8 @@ export function cleanWorld(state) {
         !number(state.film.elapsed, 62) || state.film.elapsed < 0)) return null;
     for (const enemy of state.enemies) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
+        if (enemy.nightAmbient !== undefined && typeof enemy.nightAmbient !== 'boolean') return null;
+        if (enemy.nightAmbient && (state.scene !== 'overworld' || !['ghost', 'pumpkin'].includes(enemy.sprite))) return null;
         if (!['zombie', 'pumpkin', 'ghost', 'imp', 'shadowbeast'].includes(enemy.sprite) || typeof enemy.miniBoss !== 'boolean' || ![1, 2].includes(enemy.phase)) return null;
         for (const key of ['radius', 'speed', 'cooldown', 'hitTimer', 'kx', 'ky', 'pattern', 'windup', 'actionTimer', 'aimX', 'aimY']) if (!number(enemy[key], 1e6)) return null;
         if (enemy.archetype !== undefined && !['charger','kiter','shield','swarm','ambusher'].includes(enemy.archetype)) return null;

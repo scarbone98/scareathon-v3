@@ -1,4 +1,5 @@
 import { prepareArenaPlayer, recordArenaResult } from "../u1/hub/arena";
+import { sanitizeDayNightSeconds } from "./u1/world/dayNight";
 import { MAX_MILESTONES } from "../../../../server/shared/waysideFury/save.js";
 import { sameCampaignMap } from "./campaign.ts";
 import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION, compatibleMap, legacyMapId } from "../../../../server/shared/waysideFury/campaign.js";
@@ -24,11 +25,11 @@ export interface CoopReward {
   campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { arena?: GameState["arena"]; combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { arena?: GameState["arena"]; worldCycleSeconds?: number; nightEncounterWindow?: string | null; combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const campaignIds = (...lists: (string[] | undefined)[]) => [...new Set(lists.flatMap(ids => ids ?? []))].slice(0, MAX_MILESTONES);
-const worldState = (s: GameState): WorldState => ({ ...(s.arena ? { arena: { ...s.arena } } : {}), difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
+const worldState = (s: GameState): WorldState => ({ worldCycleSeconds: s.worldCycleSeconds, nightEncounterWindow: s.nightWorld?.window ?? null, ...(s.arena ? { arena: { ...s.arena } } : {}), difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
@@ -174,13 +175,14 @@ export class FuryCoop {
       const cityBosses = event.id === "city-switchmaster" ? ["city-switchmaster"] : event.id === "city-hatching" ? ["city-architect"] : [];
       const bosses = cityBosses.length ? cityBosses : woodsBosses.length ? woodsBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
       const cityEvent=event.id.startsWith("city-");
-      const rooms = event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
+      const locksEvent=event.id.startsWith("locks-");
+      const rooms = locksEvent && !event.id.startsWith("locks-cache-") ? [] : event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
       const campaignMilestones = event.id.startsWith("woods-") || event.id.startsWith("city-") || event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones).filter(id=>!cityEvent||id.startsWith("city-")||id==="night-anchor") : [];
-      const solvedInteractions = campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
+      const solvedInteractions = locksEvent ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id===event.id) : campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
       const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics).filter(id=>!cityEvent||id.startsWith("city-")) : [];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
-        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
+        const candy = event.id.startsWith("locks-cache-") ? 12 : cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
         const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, campaignMilestones, solvedInteractions, completedCinematics, chapter: s.chapter,
           ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : /^(blast-\d+|realm-\d+)$/.test(event.id) ? { healHp: 12, healKi: 8 } : {}) };
         if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);
@@ -198,6 +200,8 @@ export class FuryCoop {
     const role = this.isHost ? "host" : "guest";
     if (s.coop?.role === "guest" && role === "host" && this.latestWorld) {
       const w = this.latestWorld;
+      s.worldCycleSeconds = sanitizeDayNightSeconds(w.worldCycleSeconds);
+      s.nightWorld = { window: w.nightEncounterWindow ?? null };
       s.personalTaxiWrecked ||= s.ambientTaxiWrecked || w.ambientTaxiWrecked === true;
       if (s.coop) { s.coop.worldClearedRooms = [...w.clearedRooms]; s.coop.worldChapter = w.chapter; s.coop.worldBosses = [...w.bosses];
         s.coop.worldCampaignMilestones = [...(w.campaignMilestones ?? [])];
@@ -225,6 +229,8 @@ export class FuryCoop {
       const blend = buffered(this.worlds, now);
       if (blend) {
         const { a, b, alpha } = blend;
+        s.coop.worldCycleSeconds = sanitizeDayNightSeconds(b.worldCycleSeconds);
+        s.nightWorld = { window: b.nightEncounterWindow ?? null };
         s.coop.hostLevel = b.combatLevel; s.difficulty = b.difficulty ?? "normal"; s.coop.worldChapter = b.chapter; s.coop.worldClearedRooms = [...b.clearedRooms]; s.coop.worldBosses = [...b.bosses];
         s.coop.worldCampaignMilestones = [...(b.campaignMilestones ?? [])];
         s.coop.worldSolvedInteractions = [...(b.solvedInteractions ?? [])];

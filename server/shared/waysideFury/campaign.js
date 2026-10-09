@@ -2,7 +2,7 @@ import { INTERIORS } from './interiors.js';
 // Shared identity/protocol and economy policy. New content must be registered here
 // before the server accepts it; unknown IDs never inherit legacy room rewards.
 export const CAMPAIGN_CONTENT_VERSION = 4;
-export const COOP_PROTOCOL_VERSION = 6;
+export const COOP_PROTOCOL_VERSION = 7;
 export const CAMPAIGN_MAPS = Object.freeze([
     { id: 'overworld', scene: 'overworld', room: 0, areaId: 'county', minProtocol: 1 },
     { id: 'hub', scene: 'hub', room: 0, areaId: 'wayside', minProtocol: 1 },
@@ -33,6 +33,7 @@ export function compatibleMap(scene, room, mapId, protocol = 1) {
 // These are existing Chapter 1 awards only. New chapter budgets are explicit
 // additions, never a prefix match or a payment for entering an arbitrary area.
 export const CHAPTER_REWARDS = Object.freeze([
+    ...['county-danger','county-debris','blast-stone','blast-return','woods-lift','woods-signal','moon-nav','moon-reserve','city-supply','city-night'].map(id=>({id:`locks-cache-${id}`,receipt:'rooms',tickets:100})),
     ...['wayside', 'blast', 'eightbit-realm'].map(id => ({ id, receipt: 'areas', tickets: 1000 })),
     ...CAMPAIGN_MAPS.filter(map => map.minProtocol === 1 && (map.scene === 'dungeon' || map.scene === 'realm'))
         .map(map => ({ id: map.id, receipt: 'rooms', tickets: 50 })),

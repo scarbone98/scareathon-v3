@@ -1,3 +1,6 @@
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
+import { HeroObstacleMeshes } from './locks/obstacleRender3d';
 import { INTERIORS } from './interiors';
 import { roadMask, groundScatter } from './roadClearance.ts';
 import { buildWalkableSurfaces } from './walkableSurfaces3d';
@@ -116,6 +119,7 @@ export class OverworldRenderer {
   private taxiShadow: THREE.Mesh;
   private headlights: THREE.PointLight;
   private portals: Portal[] = [];
+  private lockMeshes: HeroObstacleMeshes | null = null;
   private markers: THREE.Group[] = [];
   private billboards = new Map<string, Billboard>();
   private sheets = new Map<SpriteId, SpriteSheet>();
@@ -348,6 +352,7 @@ export class OverworldRenderer {
     }
     const shadows: THREE.Matrix4[] = [];
     const countyMaterials=new Map<string,THREE.MeshBasicMaterial>();
+    this.lockMeshes = new HeroObstacleMeshes(this.scene,'overworld',(x,y)=>this.terrain.heightAt(x,y));
     buildWalkableSurfaces(this.scene, this.world, (x,y) => this.terrain.heightAt(x,y));
     for (const prop of this.world.props) {
       if (isWalkableSurface(prop) || groundScatter(prop) && roadMask(this.world).intersects(prop,true)) continue;
@@ -627,11 +632,7 @@ export class OverworldRenderer {
         group.add(core, ring); this.scene.add(group); this.portals.push({ group, ring, core, x: location.x, y: location.y });
         this.lightSources.push({ x: location.x, y: location.y, height: height + 24, color: location.locked ? 0xd096ff : 0xffb58a, strength: 75 });
       }
-      if (location.id !== 'blast') {
-        const group = new THREE.Group(); group.position.set(location.x, height + 26, location.y);
-        const arrow = new THREE.Mesh(new THREE.ConeGeometry(3.6, 6.5, 4), new THREE.MeshBasicMaterial({ color: 0xffe4a0, toneMapped: false })); arrow.rotation.z = Math.PI;
-        group.add(arrow); this.markers.push(group); this.scene.add(group);
-      }
+
     }
   }
   private loadSheets() {
@@ -831,15 +832,18 @@ export class OverworldRenderer {
     this.postMaterial.uniforms.focus.value = this.camera.position.distanceTo(this.taxi.position) - 9;
     this.canvas.dataset.cameraX = this.target.x.toFixed(2); this.canvas.dataset.cameraY = this.target.z.toFixed(2);
   }
-  private atmosphere() {
+  private atmosphere(s: GameState) {
     const time = this.reducedMotion ? 0 : this.visualTime;
     this.puddleTime.value = time;
     // A slow dusk-to-night cycle with a bright initial golden hour.
-    const daylight = .58 + Math.cos(time * Math.PI * 2 / 180) * .42;
+    const sample = sampleDayNight(worldCycleSeconds(s));
+    this.canvas.dataset.worldPhase = s.scene === "overworld" ? sample.phase : "interior";
+    const daylight = s.scene === "overworld" ? 1 - sample.nightFactor : 1;
     this.sky.setRGB(.16 + daylight * .30, .21 + daylight * .37, .30 + daylight * .34);
     const fog = this.scene.fog as THREE.Fog; fog.color.copy(this.sky);
     this.ambient.intensity = 1.25 + daylight * 1.25; this.sun.intensity = .65 + daylight * 1.9;
-    this.sun.color.setRGB(1, .72 + daylight * .20, .57 + daylight * .23);
+    const warm = s.scene === "overworld" ? sample.warmTint : 0;
+    this.sun.color.setRGB(.55 + daylight * .45, .70 + daylight * .22 - warm * .12, 1 - daylight * .20 - warm * .22);
     this.headlights.intensity = 22 + (1 - daylight) * 40;
     const nearest = this.lightSources.map(light => ({ light, distance: (light.x - this.target.x) ** 2 + (light.y - this.target.z) ** 2 })).sort((a, b) => a.distance - b.distance);
     this.lights.forEach((light, index) => {
@@ -953,7 +957,8 @@ export class OverworldRenderer {
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
-    this.follow(s, dt); this.atmosphere();
+    this.follow(s, dt); this.atmosphere(s);
+    this.lockMeshes?.update(s,s.time);
     const gates = campaignLocations(s);
     for (const portal of this.portals) {
       const gate = gates.find(location => location.x === portal.x && location.y === portal.y);
@@ -982,8 +987,8 @@ export class OverworldRenderer {
       if (point.z < -1 || point.z > 1 || screenX < .02 || screenX > .98 || screenY < .05 || screenY > .95) return;
       labels.push({ id, text, x: screenX, y: screenY, kind, color, opacity });
     };
-    for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,`› ${door.name}`,door.x,door.y,32,'exit');
-    for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : `› ${location.name}`, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
+    for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,door.name,door.x,door.y,32,'exit',undefined,Math.min(1,(48-Math.hypot(s.x-door.x,s.y-door.y))/16));
+    for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location',undefined,Math.min(1,(48-Math.hypot(s.x-location.x,s.y-location.y))/16));
     for (const prop of this.world.props) if (prop.label && !prop.interiorId && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
     for (const prop of this.world.props) if (prop.label && !prop.interiorId && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y, 42, 'caption');
@@ -1002,6 +1007,7 @@ export class OverworldRenderer {
   reset() { this.space?.reset(); this.cameraReady = false; this.slowTime = 0; this.qualityRecovery.reset(); this.bursts = []; }
   dispose() {
     if (this.disposed) return; this.disposed = true;
+    this.lockMeshes?.dispose(); this.lockMeshes=null;
     this.space?.dispose(); this.space=null;
     this.resizeObserver?.disconnect(); window.removeEventListener('resize', this.resize);
     window.visualViewport?.removeEventListener('resize', this.resize); this.motionQuery.removeEventListener('change', this.motionChanged);

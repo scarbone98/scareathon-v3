@@ -1,5 +1,6 @@
+import { HeroObstacleMeshes } from './locks/obstacleRender3d';
 import { INTERIORS } from './interiors';
-import { drawExitOpening, nearExit, exitCaption } from './exitArt';
+import { drawExitOpening, nearExit, exitCaption, exitOpacity } from './exitArt';
 import { buildWalkableSurfaces } from './walkableSurfaces3d';
 import { isWalkableSurface, surfaceHeightAt } from './walkableSurfaces';
 import { scorchedGroundMesh, contactGroundMesh } from './grounding3d.ts';
@@ -20,6 +21,7 @@ export function isSpaceScene(s:GameState) {return s.mapId==='space-launch'||s.ma
 interface Actor {mesh:THREE.Sprite;texture:THREE.CanvasTexture;canvas:HTMLCanvasElement;key:string}
 // Shares the optional WebGL context, but owns/disposes every Space resource.
 export class SpaceRenderer {
+  private locks:HeroObstacleMeshes|null=null;
   private scene=new THREE.Scene();
   private camera=new THREE.OrthographicCamera(-1,1,1,-1,1,4000);
   private staticGroup=new THREE.Group();
@@ -120,6 +122,7 @@ export class SpaceRenderer {
   }
   private releaseGroup(g:THREE.Group) {g.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){if('map'in m&&m.map instanceof THREE.Texture)m.map.dispose();m.dispose();}}});g.clear();}
   private build(s:GameState) {
+    this.locks?.dispose();this.locks=new HeroObstacleMeshes(this.scene,s.mapId,()=>0);
     this.releaseGroup(this.staticGroup);for(const a of this.actors.values()){a.texture.dispose();a.mesh.material.dispose();this.scene.remove(a.mesh);}this.actors.clear();this.props.clear();this.key=s.mapId;this.ready=false;
     const world=getWorld(s.scene,s.room,s.mapId),moon=s.mapId.startsWith('moon-');
     const floor=this.box(this.staticGroup,world.width,2,world.height,moon?'#7d8ba4':'#536778',world.width/2,-1,world.height/2);floor.material.roughness=1;
@@ -191,6 +194,7 @@ export class SpaceRenderer {
     const {width,height}=this.canvas.getBoundingClientRect();this.viewport=getRenderViewport(width,height,window.devicePixelRatio);
     const dpr=window.devicePixelRatio||1;if(this.renderer.getPixelRatio()!==dpr||this.canvas.width!==Math.round(width*dpr)||this.canvas.height!==Math.round(height*dpr)){this.renderer.setPixelRatio(dpr);this.renderer.setSize(width,height,false);}
     this.canvas.dataset.renderDpr=`${window.devicePixelRatio||1}`;this.canvas.dataset.worldWidth=`${this.viewport.width}`;this.canvas.dataset.worldHeight=`${this.viewport.height}`;
+    this.locks?.update(s,s.time);
     if(s.film){this.drawFilm(s);return;}
     this.staticGroup.visible=true;this.groundEffects.visible=true;this.filmSet.visible=false;this.filmKey='';
     const world=getWorld(s.scene,s.room,s.mapId),establish=s.mapId==='space-launch'&&s.sceneTimer<3&&!s.moving;
@@ -214,6 +218,11 @@ export class SpaceRenderer {
     };
     const visualState=window.matchMedia('(prefers-reduced-motion: reduce)').matches?{...s,time:0}:s;
     suited('local',visualState,this.avatar);
+    for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) {
+      const id=`assist-${assist.id}`;
+      suited(id,{...visualState,active:assist.hero!,x:assist.x,y:assist.y,moving:false,guard:false,attackTimer:0,charge:0},assist.hero==='you'?this.avatar:null);
+      this.actors.get(id)!.mesh.material.opacity=Math.min(1,assist.ttl*4);
+    }
     for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
     for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,surfaceHeightAt(world,e.x,e.y),`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
     const c=this.groundEffectsCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
@@ -230,12 +239,12 @@ export class SpaceRenderer {
   presentation(s:GameState):RenderPresentation {
     const project=(x:number,y:number,h=0)=>{const v=new THREE.Vector3(x,h,y).project(this.camera);return{x:(v.x+1)/2,y:(1-v.y)/2};};
     const labels:RenderLabel[]=[];if(s.film)return{focus:{x:.5,y:.5},camera:{x:0,y:0,width:this.viewport.width,height:this.viewport.height},labels};const world=getWorld(s.scene,s.room,s.mapId);
-    for(const door of INTERIORS)if(door.parent===s.mapId&&Math.hypot(s.x-door.x,s.y-door.y)<=48)labels.push({id:door.id,text:`› ${door.name}`,...project(door.x,door.y,32),kind:'exit'});
+    for(const door of INTERIORS)if(door.parent===s.mapId&&Math.hypot(s.x-door.x,s.y-door.y)<=48)labels.push({id:door.id,text:door.name,...project(door.x,door.y,32),kind:'exit',opacity:Math.min(1,(48-Math.hypot(s.x-door.x,s.y-door.y))/16)});
     for(const p of world.props)if(p.label&&!p.interiorId&&Math.hypot(s.x-p.x-p.w/2,s.y-p.y-p.h)<110)labels.push({id:p.id,text:p.label,...project(p.x+p.w/2,p.y+p.h,p.h+8),kind:'hub'});
-    for(const e of world.exits)if(nearExit(e,s.x,s.y))labels.push({id:e.id,text:exitCaption(world,e),...project(e.x+e.w/2,e.y,15),kind:'exit'});
+    for(const e of world.exits)if(nearExit(e,s.x,s.y))labels.push({id:e.id,text:exitCaption(world,e),opacity:exitOpacity(e,s.x,s.y),...project(e.x+e.w/2,e.y,15),kind:'exit'});
     for(const f of s.floaters)labels.push({id:f.id,text:f.text,...project(f.x,f.y,28),kind:'floater',color:f.color,opacity:Math.min(1,f.ttl*4)});
     for(const p of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,p))labels.push({id:`peer-${p.seat}`,text:p.name,...project(p.x,p.y,52),kind:'hub'});
     return{focus:project(s.x,s.y),camera:{x:this.focus.x-this.viewport.width/2,y:this.focus.y-this.viewport.height/2,width:this.viewport.width,height:this.viewport.height},labels:labels.filter(p=>p.x>0&&p.x<1&&p.y>0&&p.y<1)};
   }
-  dispose(){this.releaseGroup(this.staticGroup);this.releaseGroup(this.filmSet);for(const a of this.actors.values()){a.texture.dispose();a.mesh.material.dispose();}this.actors.clear();this.groundEffectsTexture.dispose();this.groundEffects.geometry.dispose();(this.groundEffects.material as THREE.Material).dispose();this.scene.clear();this.remotes.clear();}
+  dispose(){this.locks?.dispose();this.locks=null;this.releaseGroup(this.staticGroup);this.releaseGroup(this.filmSet);for(const a of this.actors.values()){a.texture.dispose();a.mesh.material.dispose();}this.actors.clear();this.groundEffectsTexture.dispose();this.groundEffects.geometry.dispose();(this.groundEffects.material as THREE.Material).dispose();this.scene.clear();this.remotes.clear();}
 }
