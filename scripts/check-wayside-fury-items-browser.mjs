@@ -18,7 +18,8 @@ assert.ok(playwright[browserName], `Unknown Playwright browser: ${browserName}`)
 const extraArgs = JSON.parse(process.env.PLAYWRIGHT_ARGS ?? '[]');
 assert.ok(Array.isArray(extraArgs) && extraArgs.every(value => typeof value === 'string'), 'PLAYWRIGHT_ARGS must be a JSON array of browser flags');
 const browser = await playwright[browserName].launch({ headless: browserName === 'webkit' || process.env.PLAYWRIGHT_HEADLESS !== 'false', timeout,
-  ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
+  // Full Chromium's headless mode supports native-DPR WebGL capture on macOS.
+  ...(browserName === 'chromium' || process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL ?? 'chromium' } : {}),
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
   args: [...(browserName === 'chromium' ? ['--mute-audio'] : []), ...extraArgs] });
 const sizes = [{ name: 'portrait', width: 390, height: 844, dpr: 3 }, { name: 'desktop', width: 1440, height: 900, dpr: 2 }];
@@ -271,10 +272,15 @@ try {
     page.on('pageerror', error => { const message = `${size.name}/${mode}: ${error.message}`; errors.push(message); console.error(`Items runtime error: ${message}`); });
     try { await check(page, size, mode); }
     catch (error) {
-      await page.screenshot({ path: join(output, `items-${size.name}-${mode}-failure.png`) }).catch(() => {});
-      console.error(`Items browser check failed (${size.name}, ${mode}):`, await page.evaluate(() => ({
+      console.error(`Items browser check failed (${size.name}, ${mode}):`, error);
+      let diagnosticTimer;
+      const diagnostics = await Promise.race([page.evaluate(() => ({
         text: document.body.innerText, scene: window.__waysideFury?.state.scene, items: window.__waysideFury?.state.u1?.items,
-        canvas: [...document.querySelectorAll('canvas')].map(canvas => ({ ...canvas.dataset })) })).catch(() => null));
+        canvas: [...document.querySelectorAll('canvas')].map(canvas => ({ ...canvas.dataset })) })).catch(() => null),
+        new Promise(resolve => { diagnosticTimer = setTimeout(() => resolve('Page diagnostics timed out'), 5000); })]);
+      clearTimeout(diagnosticTimer);
+      console.error('Items failure diagnostics:', diagnostics);
+      await page.screenshot({ path: join(output, `items-${size.name}-${mode}-failure.png`), timeout: 5000 }).catch(() => {});
       throw error;
     } finally { await context.close(); }
   }
