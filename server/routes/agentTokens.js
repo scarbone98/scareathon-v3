@@ -76,7 +76,7 @@ export default async function routes(fastify) {
     fastify.get('/agent/whoami', async (request, reply) => {
         if (!request.user?.agent) return reply.code(400).send({ error: 'Send an agent key' });
         try {
-            const result = await pool.query('SELECT username FROM users WHERE id = $1', [request.user.sub]);
+            const result = await pool.query("SELECT CASE WHEN deleted_at IS NOT NULL THEN 'Deleted rider' ELSE username END AS username FROM users WHERE id = $1", [request.user.sub]);
             return { data: { username: result.rows[0]?.username ?? null, key: request.user.agentName } };
         } catch (error) {
             fastify.log.error(error);

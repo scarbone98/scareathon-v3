@@ -1,3 +1,4 @@
+import { onAccountClosed } from '../utils/accountSessions.js';
 import websocket from '@fastify/websocket';
 import pool from '../db/mockDB.js';
 import { isAdminUser } from './inbox.js';
@@ -37,6 +38,9 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
         await fastify.register(websocket, { options: { maxPayload: 8192 } });
     }
 
+    const stopClosures = onAccountClosed(userId => {
+        lounge.forgetUser?.(userId);
+    });
     const sockets = new Set();
     const heartbeat = setInterval(() => {
         for (const socket of sockets) {
@@ -51,6 +55,7 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
     heartbeat.unref();
 
     fastify.addHook('onClose', async () => {
+        stopClosures();
         clearInterval(heartbeat);
         stopHosting();
         lounge.close();
@@ -58,7 +63,7 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
 
     fastify.post('/ticket', async (request, reply) => {
         try {
-            const result = await pool.query('SELECT username FROM users WHERE id = $1', [request.user.sub]);
+            const result = await pool.query("SELECT CASE WHEN deleted_at IS NOT NULL THEN 'Deleted rider' ELSE username END AS username FROM users WHERE id = $1", [request.user.sub]);
             const ticket = lounge.ticket({
                 userId: request.user.sub,
                 name: result.rows[0]?.username || 'Someone',

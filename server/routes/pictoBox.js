@@ -108,7 +108,7 @@ export default async function pictoBoxRoutes(fastify) {
             if (latest && Date.now() - new Date(latest).getTime() < POST_COOLDOWN_SECONDS * 1000) {
                 return reply.code(429).send({ error: 'Give the Picto Box a moment to wind on.' });
             }
-            const user = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+            const user = await pool.query("SELECT CASE WHEN deleted_at IS NOT NULL THEN 'Deleted rider' ELSE username END AS username FROM users WHERE id = $1", [userId]);
             const inserted = await pool.query(`
                 INSERT INTO picto_box_photos (user_id, username, style, image)
                 VALUES ($1, $2, $3, $4)

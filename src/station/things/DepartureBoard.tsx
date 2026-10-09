@@ -140,7 +140,7 @@ function Key({ active, onClick, children }: { active: boolean; onClick: () => vo
     <button
       type="button"
       onClick={onClick}
-      className={`${flap} py-0.5 text-[12px] transition ${active ? "text-[#0a0c10]" : "opacity-60 hover:opacity-100"}`}
+      className={`${flap} py-0.5 text-[12px] transition ${active ? "text-[#0a0c10]" : "opacity-85 hover:opacity-100"}`}
       style={{ background: active ? AMBER : undefined }}
     >
       {children}

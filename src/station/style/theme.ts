@@ -24,8 +24,8 @@ export const stub =
   "relative bg-[#efe3c8] text-[#1d2a3a] shadow-[3px_3px_0_rgba(0,0,0,0.6)] before:absolute before:inset-y-1 before:left-1 before:border-l-2 before:border-dotted before:border-[#1d2a3a]/40";
 
 // Primary action: a stub you can press
-export const stubButton = `${stub} inline-flex items-center gap-2 py-2 pl-5 pr-4 font-['Pixelify_Sans'] text-[15px] uppercase tracking-[0.08em] transition hover:-translate-y-px hover:bg-[#fff4d8] active:translate-y-0 disabled:opacity-60`;
+export const stubButton = `${stub} inline-flex items-center gap-2 py-2 pl-5 pr-4 font-['Pixelify_Sans'] text-[15px] uppercase tracking-[0.08em] transition hover:-translate-y-px hover:bg-[#fff4d8] active:translate-y-0 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4`;
 
 // Secondary action: cream rule on navy
 export const plateButton =
-  "inline-flex items-center gap-2 px-3 py-1.5 font-['Pixelify_Sans'] text-[15px] text-[#f2ead2] border-2 border-[#f2ead2]/40 transition hover:bg-[#f2ead2]/10";
+  "inline-flex items-center gap-2 px-3 py-1.5 font-['Pixelify_Sans'] text-[15px] text-[#f2ead2] border-2 border-[#f2ead2]/40 transition hover:bg-[#f2ead2]/10 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";

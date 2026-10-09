@@ -43,6 +43,8 @@ export function cleanSpot(message) {
 // What someone said, on one line and trimmed, or null if there's nothing to say
 export function cleanSay(text, mask = (line) => line) {
     if (typeof text !== 'string') return null;
+    // Deliberately strip control characters from user chat.
+    // eslint-disable-next-line no-control-regex
     const line = text.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_SAY);
     return line ? mask(line) : null;
 }
@@ -187,6 +189,14 @@ export function createLounge({ now = Date.now, mask, hosting = () => [] } = {}) 
             watchers.delete(socket);
             const userId = bySocket.get(socket);
             if (userId) remove(userId);
+        },
+
+        forgetUser(userId) {
+            tickets.forEach((pass, key) => pass.userId === userId && tickets.delete(key));
+            const socket = players.get(userId)?.socket;
+            remove(userId, 'account-closed');
+            if (socket) { watchers.delete(socket); socket.close?.(4001, 'Account closed'); }
+            kicked.delete(userId);
         },
 
         close() {

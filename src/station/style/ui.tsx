@@ -29,7 +29,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
 
 export function Loading({ label = "Loading" }: { label?: string }) {
   return (
-    <p role="status" className="py-8 text-center text-sm italic text-[#f2ead2]/50" style={serif}>
+    <p role="status" className="py-8 text-center text-sm italic text-[#f2ead2]/85" style={serif}>
       {label}…
     </p>
   );

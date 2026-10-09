@@ -18,9 +18,9 @@ export type HeldItem = {
 type Props = { items: HeldItem[]; index: number; onIndex: (index: number) => void };
 
 const TONES = {
-  paper: { text: "text-[#2a1d14]", rule: "border-[#2a1d14]/15", quiet: "text-[#2a1d14]/55", dot: "bg-[#2a1d14]" },
-  ledger: { text: "text-stone-200", rule: "border-[#f2ead2]/15", quiet: "text-[#f2ead2]/55", dot: "bg-[#f2ead2]" },
-  board: { text: "text-[#ffb03a]", rule: "border-[#ffb03a]/20", quiet: "text-[#ffb03a]/60", dot: "bg-[#ffb03a]" },
+  paper: { text: "text-[#2a1d14]", rule: "border-[#2a1d14]/15", quiet: "text-[#2a1d14]/85", dot: "bg-[#2a1d14]" },
+  ledger: { text: "text-stone-200", rule: "border-[#f2ead2]/15", quiet: "text-[#f2ead2]/85", dot: "bg-[#f2ead2]" },
+  board: { text: "text-[#ffb03a]", rule: "border-[#ffb03a]/20", quiet: "text-[#ffb03a]/85", dot: "bg-[#ffb03a]" },
 };
 
 export default function HeldCard({ items, index, onIndex }: Props) {

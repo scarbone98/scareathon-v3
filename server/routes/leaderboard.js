@@ -69,9 +69,10 @@ async function getHistorySeasons(db) {
 async function getHistoryStandings(db, season) {
     return getOrRefreshCache(`leaderboard_history_${season}`, async () => {
         const result = await db.query(`
-            SELECT name, movies, weekly, bonus, total
-            FROM scareathon_history
-            WHERE season = $1
+            SELECT CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE h.name END AS name,
+                h.movies, h.weekly, h.bonus, h.total
+            FROM scareathon_history h LEFT JOIN users u ON u.id = h.user_id
+            WHERE h.season = $1
         `, [season]);
         return rankStandings(result.rows.map(row => ({
             name: row.name,
@@ -100,7 +101,7 @@ export async function getAccountStandings(db, season) {
                 WHERE season = $1
                 GROUP BY user_id
             )
-            SELECT u.id AS user_id, u.username,
+            SELECT u.id AS user_id, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE u.username END AS username,
                 sum(t.movies)::int AS movies,
                 sum(t.weekly)::int AS weekly,
                 sum(t.bonus)::int AS bonus
@@ -159,10 +160,10 @@ export async function getPastWinners({ date = new Date(), db = pool } = {}) {
     const cutoffYear = getWinnerCutoffYear(date);
     return getOrRefreshCache(`pastWinners_${cutoffYear}_${date.getMonth()}`, async () => {
         const result = await db.query(`
-            SELECT season, name
-            FROM scareathon_winners
-            WHERE season <= $1
-            ORDER BY season DESC
+            SELECT w.season, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE w.name END AS name
+            FROM scareathon_winners w LEFT JOIN users u ON u.id = w.user_id
+            WHERE w.season <= $1
+            ORDER BY w.season DESC
         `, [Math.min(cutoffYear, FIRST_ACCOUNT_SEASON - 1)]);
         const winners = result.rows.map(row => ({ year: String(row.season), name: row.name }));
 

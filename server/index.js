@@ -22,6 +22,9 @@ import octoberValleyRoutes from './routes/octoberValley.js';
 import gamesRoutes from './routes/games.js';
 import dailyPuzzleRoutes from './routes/dailyPuzzles.js';
 import userRoutes from './routes/user.js';
+import accountPrivacyRoutes from './routes/accountPrivacy.js';
+import { listenForAccountClosures } from './utils/accountSessions.js';
+import { retryAccountDeletions } from './utils/accountPrivacy.js';
 import marketplaceRoutes from './routes/marketplace.js';
 import inboxRoutes from './routes/inbox.js';
 import adminStrapiRoutes from './routes/adminStrapi.js';
@@ -130,6 +133,17 @@ async function main() {
     try {
         const authConfig = getAuthConfig();
         const jwks = createRemoteJWKSet(new URL(authConfig.jwksUrl));
+
+        await ensureScareathonTables(pool);
+        // Account tombstones must exist before accepting requests (fail closed on migration errors).
+        await runStartupSql(pool, await readFile(new URL('./db/migrations/20261013_account_privacy.sql', import.meta.url), 'utf8'));
+        const stopClosureListener = await listenForAccountClosures(pool, fastify.log);
+        fastify.addHook('onClose', stopClosureListener);
+        const cleanup = () => retryAccountDeletions(pool, fastify.log).catch(() => fastify.log.error('Account cleanup unavailable'));
+        void cleanup();
+        const cleanupTimer = setInterval(cleanup, 60_000);
+        cleanupTimer.unref();
+        fastify.addHook('onClose', async () => clearInterval(cleanupTimer));
 
         // The Scareboard's tables and the rune tablet's index, made if missing. In the
         // background: a slow one (waiting on a lock while the old server's still up) must
@@ -249,7 +263,7 @@ async function main() {
 
             try {
                 const userResult = await pool.query(
-                    'SELECT 1 FROM users WHERE id = $1',
+                    'SELECT 1 FROM users WHERE id = $1 AND deleted_at IS NULL',
                     [payload.sub]
                 );
                 if (userResult.rowCount === 0) {
@@ -274,6 +288,7 @@ async function main() {
         fastify.register(eightBitEvilV2Routes, { prefix: '/8bitevilreturns/v2' });
         fastify.register(octoberValleyRoutes, { prefix: '/october-valley' });
         fastify.register(userRoutes, { prefix: '/user' });
+        fastify.register(accountPrivacyRoutes, { prefix: '/user' });
         fastify.register(marketplaceRoutes, { prefix: '/marketplace' });
         fastify.register(inboxRoutes, { prefix: '/inbox' });
         fastify.register(adminStrapiRoutes, { prefix: '/admin/strapi' });

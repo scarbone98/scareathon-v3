@@ -204,8 +204,8 @@ export default async function routes(fastify) {
             if (!season) return reply.code(400).send({ error: 'Unknown season' });
             try {
                 const result = await pool.query(`
-                    SELECT p.id, u.username, p.category, p.points, p.reason, p.source_key,
-                        giver.username AS awarded_by, p.created_at
+                    SELECT p.id, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE u.username END AS username, p.category, p.points, p.reason, p.source_key,
+                        CASE WHEN giver.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE giver.username END AS awarded_by, p.created_at
                     FROM scareathon_points p
                     JOIN users u ON u.id = p.user_id
                     LEFT JOIN users giver ON giver.id = p.awarded_by

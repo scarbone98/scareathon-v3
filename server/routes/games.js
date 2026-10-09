@@ -151,7 +151,7 @@ export async function getGameLeaderboardPayload({
     const cacheKey = getGameLeaderboardCacheKey(game, metric, boundedLimit);
     const rows = await getOrRefreshCache(cacheKey, async () => {
         const leaderboard = await pool.query(`
-            SELECT u.username, u.id, l.metric_value, l.achieved_at
+            SELECT CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE u.username END AS username, u.id, l.metric_value, l.achieved_at
             FROM leaderboards l
             JOIN games g ON l.game_id = g.id
             JOIN users u ON l.user_id = u.id

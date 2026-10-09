@@ -1,3 +1,4 @@
+import { onAccountClosed } from '../utils/accountSessions.js';
 import websocket from '@fastify/websocket';
 import { TICK_RATE } from '../shared/monster-bash/index.js';
 import { ChatRefusedError, createChatRoom } from '../monsterBash/chatRoom.js';
@@ -49,6 +50,7 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
     const log = fastify.log.child({ feature: 'monster-bash' });
     const hub = createViewerHub({ log });
     const chat = createChatRoom({ lookupUsername: (userId) => repo.getUsername(userId) });
+    const stopClosures = onAccountClosed(userId => chat.forgetUser(userId));
     const maxBet = readPositiveInt(process.env.MONSTER_BASH_MAX_BET, 500);
     const odds = createOddsService({ rollouts: ODDS_ROLLOUTS, checkpointEvery: TICK_RATE, log });
     const loop = new MonsterBashLoop({
@@ -152,6 +154,7 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
         start();
     });
     fastify.addHook('onClose', async () => {
+        stopClosures();
         clearTimeout(startTimer);
         loop.stop();
         hub.close();

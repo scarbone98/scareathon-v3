@@ -27,7 +27,7 @@ const RULES = [
   "Have fun, and don't get scared.",
 ];
 
-const small = "text-[12px] uppercase tracking-[0.2em] opacity-70";
+const small = "text-[12px] uppercase tracking-[0.2em] opacity-85";
 // The rules' bullet: a printer's ornament, a lozenge between two dots
 function Ornament() {
   return (
@@ -102,7 +102,7 @@ function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const toggle = useToggleWatched();
   const watched = me?.season === calendarYear ? me.watchedDays.includes(day) : null;
   const heading = (
-    <p className="text-xs uppercase tracking-[0.3em] text-[#f2ead2]/60">Tonight's film</p>
+    <p className="text-xs uppercase tracking-[0.3em] text-[#f2ead2]/85">Tonight's film</p>
   );
   if (!isLive)
     return (
