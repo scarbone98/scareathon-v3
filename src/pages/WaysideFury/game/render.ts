@@ -194,6 +194,7 @@ export class Renderer {
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels, focus: this.project(s.x, s.y) };
   }
   onEvent(s: GameState, event: GameEvent) {
+    if (event.type === 'curb-bump') this.shake = Math.max(this.shake, .6 + event.strength * 1.4);
     if (event.type === 'ambient-taxi-crash') {
       this.shake = Math.max(this.shake, 5);
       this.bursts.push({ x: event.x, y: event.y - 10, color: '#ffe0a1', life: .48, maxLife: .48, seed: 79, strength: 32 });

@@ -1,3 +1,4 @@
+import { onRoad, roadPoints, roadWidth, projectRoad } from "./roadNetwork.ts";
 import { tickOpening, type Opening } from "./opening.ts";
 import { storyRevealed, PROLOGUE_FADE } from './prologue.ts';
 import type { ActorMotion } from './animation.ts';
@@ -116,6 +117,7 @@ export type GameEvent =
   | { type: "item"; id: string; kind: "chip" | "relic" | "wish" | "radar" }
   | { type: "pickup"; id: string }
   | { type: "coop-pickup"; id: string }
+  | { type: "curb-bump"; x: number; y: number; strength: number }
   | { type: "ambient-taxi-crash"; x: number; y: number }
   | { type: "coop-damage"; seat: number; damage: number; sourceX: number; sourceY: number }
   | { type: "coop-revive"; seat: number }
@@ -159,6 +161,7 @@ export interface GameState {
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   difficulty: "normal" | "hard"; meleeCharge: number; meleeHolding: boolean;
   guardTimer?: number; attackTimer: number; combo: number; comboWindow: number; charge: number;
+  lastCurbBump?: number;
   dashTimer: number; swapCooldown: number; hitStop: number;
   clearedRooms: string[]; areas: string[]; bosses: string[]; chapter: number;
   campaignMilestones: string[]; solvedInteractions: string[]; completedCinematics: string[]; checkpointMapId: string;
@@ -347,7 +350,7 @@ export function newGame(seed = 8591): GameState {
 }
 export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number): Enemy {
   const tier = s.scene === "realm" ? 3 : s.scene === "dungeon" ? s.room >= 8 ? 1 : Math.floor(s.room / 2) : 0;
-  const maxHp = kind === "boss" ? 520 : (kind === "shooter" ? 24 : 30) + tier * 6;
+  const maxHp = kind === "boss" ? 520 : (kind === "shooter" ? 24 : 28) + tier * 6;
   const e: Enemy = { id: s.nextId++, kind, sprite: kind === "boss" ? "shadowbeast" : kind === "shooter" ? "imp" : "zombie",
     x, y, hp: maxHp, maxHp, radius: kind === "boss" ? 16 : 7,
     speed: kind === "boss" ? 20 : kind === "shooter" ? 19 : 23, cooldown: 0.7 + random(s) * 0.5,
@@ -401,6 +404,15 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
           else configureLunarEnemy(s, enemy, spawn.behavior);
         }
         else enemy.archetype = enemy.kind === "boss" ? undefined : archetypeFor(enemy);
+      }
+    }
+    if (!s.clearedRooms.includes(world.id) && s.coop?.role !== "guest" && !s.coop?.worldClearedRooms?.includes(world.id)
+      && world.id.startsWith("blast-") && world.spawns.length > 0 && world.spawns.length <= 6 && world.id !== "blast-0" && !world.spawns.some(e=>e.kind==="boss")) {
+      const anchor=world.spawns[0];
+      for(const [dx,dy] of [[32,24],[-32,-24]]) {
+        if(s.enemies.length>=8) break;
+        const x=anchor.x+dx,y=anchor.y+dy;
+        if(!isBlocked(world,x,y,8) && Math.hypot(x-s.x,y-s.y)>70) addEnemy(s,"grunt",x,y);
       }
     }
     s.notice = scene === "realm" ? "The 8-Bit Realm! Clear the creatures and find the eastern rift."
@@ -549,6 +561,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   if(allowed <= 0) return;
   const braced = !e.behavior && !e.woodsBehavior && e.archetype === "shield" && e.windup === 0 && e.actionTimer === 0 && dx * e.aimX + dy * e.aimY < -.3;
   const dealt = Math.max(1, Math.round(allowed * (braced && force < 100 ? .25 : 1)));
+  const impactForce = force;
   if (e.kind === "boss") {
     if (!e.woodsBehavior && !isCityBehavior(e.behavior)) {
       e.poise = (e.poise ?? 0) + 1;
@@ -557,7 +570,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     }
     force *= .04;
   }
-  e.hp -= dealt; e.hitTimer = 0.18; s.hitStop = Math.max(s.hitStop, force >= 80 ? 0.07 : 0.045); e.kx += dx * force; e.ky += dy * force;
+  e.hp -= dealt; e.hitTimer = force >= 80 ? 0.22 : 0.16; s.hitStop = Math.max(s.hitStop, impactForce >= 80 ? 0.065 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
@@ -568,7 +581,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     const baseXp = e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12;
     const xp = s.coop ? baseXp : combatXp(s, baseXp, authoredLevel(s));
     if (!s.coop && s.scene !== "arena") {
-      const candy = e.kind === "boss" ? 35 : 2 + Math.floor(random(s) * 3);
+      const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
       const rewardCandy = Math.floor(candy * chipEffects(s).candyMultiplier) + chipEffects(s).candyBonusPerKill;
       s.candy = Math.min(1_000_000, s.candy + rewardCandy); s.kills++;
       floater(s, e.x, e.y + 13, `+${rewardCandy} candy`, "#eea2fc");
@@ -678,7 +691,7 @@ export function damageHero(s: GameState, damage: number, sourceX: number, source
   }
 }
 const enemyDamage = (s: GameState, baseDamage: number, defense: number, guard: boolean) =>
-  Math.max(1, Math.round((baseDamage * (s.difficulty === "hard" ? 1.45 : 1) * (1 + 0.1 * (coopCount(s) - 1)) - defense * 0.5) * (guard ? 0.25 : 1)));
+  Math.max(1, Math.round((baseDamage * (s.difficulty === "hard" ? 1.45 : .95) * (1 + 0.1 * (coopCount(s) - 1)) - defense * 0.5) * (guard ? 0.25 : 1)));
 function hurtHero(s: GameState, baseDamage: number, sourceX = s.x - s.faceX, sourceY = s.y - s.faceY) {
   damageHero(s, enemyDamage(s, baseDamage, activeHero(s).defense, s.guard), sourceX, sourceY);
 }
@@ -770,7 +783,7 @@ function melee(s: GameState, charged = false) {
     hit = true;
   }
   if (charged) { activeHero(s).stamina -= 18; s.notice = "Charged strike! Shields broken."; }
-  if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
+  if (hit) s.hitStop = s.combo === 3 ? 0.065 : 0.045;
 }
 function projectile(s: GameState, owner: Projectile["owner"], x: number, y: number, dx: number, dy: number,
   speed: number, damage: number, radius: number, beam = false, ttl = beam ? 0.8 : 3.5, damageCap?: number) {
@@ -1322,7 +1335,39 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.vx += (driveX - s.vx) * ease; s.vy += (driveY - s.vy) * ease;
     const oldX = s.x, oldY = s.y;
     if(s.coop && (s.coop.protocolVersion ?? 1) < 6 && (s.x > 1850 && s.vx > 0 || s.y > 890 && s.vy > 0)) s.notice = "New county districts and world routes are solo-only in this release. The original county roads stay open to your party.";
-    moveBody(s, s, s.vx * dt, s.vy * dt, 10);
+    // A conservative circumscribed footprint contains the original 3D cab at
+    // every steering angle, plus the 1.5-unit curb. Slide along road edges.
+    const world = getWorld(s.scene, s.room, s.mapId), clearance = 19;
+    const safe = (x: number, y: number) => onRoad(world,x,y,-clearance) && !isBlocked(world,x,y,clearance);
+    // Older saves allowed the cab center near/on the curb. Recover onto the
+    // nearest valid road instead of leaving that cab unable to move.
+    if(!safe(s.x,s.y)) {
+      let nearest: {x:number;y:number;distance:number} | undefined;
+      for(const road of world.roads) {
+        const points=roadPoints(road),radius=roadWidth(road)/2-clearance;
+        if(radius<0) continue;
+        for(let i=1;i<points.length;i++) {
+          const center=projectRoad(s,points[i-1],points[i]);
+          const inset=Math.min(radius,center.distance),scale=center.distance?inset/center.distance:0;
+          let x=center.x+(s.x-center.x)*scale,y=center.y+(s.y-center.y)*scale;
+          if(!safe(x,y)) {x=center.x;y=center.y;}
+          const distance=Math.hypot(x-s.x,y-s.y);
+          if(safe(x,y)&&(!nearest||distance<nearest.distance)) nearest={x,y,distance};
+        }
+      }
+      if(nearest){s.x=nearest.x;s.y=nearest.y;}
+    }
+    const speed = Math.hypot(s.vx,s.vy);
+    let bumped = false;
+    const pieces = Math.max(1,Math.ceil(speed*dt/3));
+    for(let n=0;n<pieces;n++) {
+      const dx=s.vx*dt/pieces,dy=s.vy*dt/pieces;
+      if(safe(s.x+dx,s.y)) s.x+=dx; else if(Math.abs(dx)>.01) bumped=true;
+      if(safe(s.x,s.y+dy)) s.y+=dy; else if(Math.abs(dy)>.01) bumped=true;
+    }
+    if(bumped && speed>25 && s.time-(s.lastCurbBump ?? -1)>.2) {
+      s.lastCurbBump=s.time; s.events.push({type:"curb-bump",x:s.x,y:s.y,strength:Math.min(1,speed/240)});
+    }
     if (s.x === oldX) s.vx *= 0.5;
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
