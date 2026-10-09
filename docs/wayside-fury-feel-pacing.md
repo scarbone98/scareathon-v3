@@ -14,7 +14,7 @@ Sparse non-boss Blast encounters with up to six authored spawns (excluding the f
 
 ## Roads and goals
 
-Cached 18-unit tangent fillets feed the shared 2D/3D road ribbon and collision queries. Lane dashes follow continuous arc length across bends. Taxi movement uses a 19-unit conservative footprint (body diagonal plus curb clearance), slides along the road and emits speed-scaled curb feedback at most five times per second. No vehicle drawing changes.
+Cached 18-unit tangent fillets feed the shared 2D/3D road ribbon and collision queries. Lane dashes follow continuous arc length across bends. Taxi movement uses a 19-unit conservative footprint (body diagonal plus curb clearance), slides along the road and emits speed-scaled curb feedback at most five times per second. Older curb-position saves recover to the nearest valid asphalt position. No vehicle drawing changes.
 
 A renderer-owned chapter goal strip displays a progress bar and next unlock in both graphics modes. Combat-room clears fill segments; the chapter completion milestone owns the final segment. Optional room clears cannot prematurely claim the unlock. Shared co-op completion counts. The unreleased finale is labeled coming soon. The strip is suppressed during practice, dialogue, overlays and cinematics.
 

@@ -29,3 +29,6 @@ for(const id of ['blast-2','blast-6','blast-8','blast-9']) {
  assert.ok(zone.enemies.length>baseline&&zone.enemies.length<=8,`${id}: bounded density increase`);
  zone.clearedRooms.push(id);enterScene(zone,'dungeon',0,id);assert.equal(zone.enemies.length,0,'cleared rooms stay cleared');
 }
+
+const oldSave=newGame();enterScene(oldSave,'overworld');oldSave.x=500;oldSave.y=450;
+step(oldSave,idleInput(),1/60);assert.ok(onRoad(getWorld(oldSave.scene,oldSave.room,oldSave.mapId),oldSave.x,oldSave.y,-19),'old curb-position save recovers');

@@ -1,4 +1,4 @@
-import { onRoad } from "./roadNetwork.ts";
+import { onRoad, roadPoints, roadWidth, projectRoad } from "./roadNetwork.ts";
 import { tickOpening, type Opening } from "./opening.ts";
 import { storyRevealed, PROLOGUE_FADE } from './prologue.ts';
 import type { ActorMotion } from './animation.ts';
@@ -1339,6 +1339,24 @@ export function step(s: GameState, input: Input, delta: number): void {
     // every steering angle, plus the 1.5-unit curb. Slide along road edges.
     const world = getWorld(s.scene, s.room, s.mapId), clearance = 19;
     const safe = (x: number, y: number) => onRoad(world,x,y,-clearance) && !isBlocked(world,x,y,clearance);
+    // Older saves allowed the cab center near/on the curb. Recover onto the
+    // nearest valid road instead of leaving that cab unable to move.
+    if(!safe(s.x,s.y)) {
+      let nearest: {x:number;y:number;distance:number} | undefined;
+      for(const road of world.roads) {
+        const points=roadPoints(road),radius=roadWidth(road)/2-clearance;
+        if(radius<0) continue;
+        for(let i=1;i<points.length;i++) {
+          const center=projectRoad(s,points[i-1],points[i]);
+          const inset=Math.min(radius,center.distance),scale=center.distance?inset/center.distance:0;
+          let x=center.x+(s.x-center.x)*scale,y=center.y+(s.y-center.y)*scale;
+          if(!safe(x,y)) {x=center.x;y=center.y;}
+          const distance=Math.hypot(x-s.x,y-s.y);
+          if(safe(x,y)&&(!nearest||distance<nearest.distance)) nearest={x,y,distance};
+        }
+      }
+      if(nearest){s.x=nearest.x;s.y=nearest.y;}
+    }
     const speed = Math.hypot(s.vx,s.vy);
     let bumped = false;
     const pieces = Math.max(1,Math.ceil(speed*dt/3));
