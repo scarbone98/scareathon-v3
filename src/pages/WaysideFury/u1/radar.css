@@ -21,3 +21,5 @@
 @media (max-height: 440px) and (orientation: landscape) { .wf-radar-text { display: none; } .wf-shell .wf-radar-toggle { padding: 4px; min-height: 44px; } .wf-radar-led { display: none; } }
 @media (max-width: 720px) { .wf-shell:has(.wf-items-hud) .wf-play-band { padding-right: 114px; } }
 @media (prefers-reduced-motion: reduce) { .has-signal .wf-radar-led { animation: none; } }
+/* The parallel minimap occupies the right HUD corner. */
+.wf-shell:has(.wf-minimap) .wf-items-hud { left: max(12px, env(safe-area-inset-left)); right: auto; }
