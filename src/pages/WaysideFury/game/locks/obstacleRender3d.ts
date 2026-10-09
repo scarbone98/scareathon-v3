@@ -13,6 +13,7 @@ export class HeroObstacleMeshes {
   private materials = new Map<string, THREE.MeshStandardMaterial>();
   private boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   private rockGeometry = new THREE.DodecahedronGeometry(1, 1);
+  private signMaterials:THREE.MeshBasicMaterial[]=[];
   private disposed = false;
   private worldId: string;
   private heightAt: (x: number, y: number) => number;
@@ -112,7 +113,16 @@ export class HeroObstacleMeshes {
         }
       }
     }
-    const marker = this.box(door, HERO_COLOR[obstacle.hero], cx, 29, cz, 3.5, 3.5, 1.2, true); marker.rotation.z = Math.PI / 4;
+    if (obstacle.requirement.kind === 'level') {
+      const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;
+      const c=canvas.getContext('2d')!;c.fillStyle='#302c25';c.fillRect(0,0,256,96);c.strokeStyle='#e5bd72';c.lineWidth=5;c.strokeRect(3,3,250,90);
+      c.fillStyle='#ffe1a0';c.font='bold 54px sans-serif';c.textAlign='center';c.fillText(`Lv ${obstacle.requirement.level}+`,128,68);
+      const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+      const geometry=new THREE.PlaneGeometry(38,14);this.geometries.add(geometry);
+      const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,toneMapped:false});this.signMaterials.push(material);
+      const sign=new THREE.Mesh(geometry,material);sign.position.set(cx,this.heightAt(cx,cz)+25,y+h+1);door.add(sign);
+    }
+    const marker = this.box(door, HERO_COLOR[obstacle.hero], cx, obstacle.requirement.kind === "level" ? 36 : 29, cz, 3.5, 3.5, 1.2, true); marker.rotation.z = Math.PI / 4;
     this.gates.push({ obstacle, door, pulse });
   }
 
@@ -132,6 +142,7 @@ export class HeroObstacleMeshes {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true; this.group.removeFromParent();
+    for (const material of this.signMaterials) {material.map?.dispose();material.dispose();}this.signMaterials=[];
     for (const geometry of this.geometries) geometry.dispose();
     for (const material of this.materials.values()) material.dispose();
     this.group.clear(); this.geometries.clear(); this.materials.clear(); this.gates.length = 0;

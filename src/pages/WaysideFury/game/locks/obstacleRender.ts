@@ -142,8 +142,14 @@ export function drawHeroObstacle(ctx: CanvasRenderingContext2D, obstacle: HeroOb
   else if (obstacle.kind === "vent") vent(ctx, obstacle, time);
   else if (obstacle.kind === "terminal") terminal(ctx, obstacle, time);
   else vines(ctx, obstacle, time);
+  if (obstacle.requirement.kind === 'level') {
+    // A diegetic warning plate remains readable at native canvas resolution.
+    ctx.fillStyle='#302c25';ctx.fillRect(x+11,y-24,w-22,12);
+    ctx.strokeStyle='#e5bd72';ctx.lineWidth=.7;ctx.strokeRect(x+11,y-24,w-22,12);
+    ctx.fillStyle='#ffe1a0';ctx.font='bold 7px sans-serif';ctx.textAlign='center';ctx.fillText(`Lv ${obstacle.requirement.level}+`,x+w/2,y-15);
+  }
   // A small hero-colored inset marks the gate without another text prompt.
-  const badgeY = y - (obstacle.kind === "terminal" ? 28 : 23), color = HERO_COLOR[obstacle.hero];
+  const badgeY = y - (obstacle.requirement.kind === "level" ? 33 : obstacle.kind === "terminal" ? 28 : 23), color = HERO_COLOR[obstacle.hero];
   ctx.fillStyle = "#10222d"; ctx.beginPath(); ctx.arc(x + w / 2, badgeY, 3.2, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = color; ctx.lineWidth = .9; ctx.stroke();
   ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x + w / 2, badgeY - 1.8); ctx.lineTo(x + w / 2 + 1.7, badgeY);
