@@ -1,5 +1,6 @@
 // Fixture-only live U9 check. No production endpoint or account is contacted.
-// FURY_BASE_URL=http://127.0.0.1:5230 node scripts/check-wayside-fury-world-coop.mjs
+// Preview fixture env: VITE_SUPABASE_URL=http://wayside-fury-local.invalid VITE_SUPABASE_ANON_KEY=local-fixture
+// FURY_BASE_URL=http://127.0.0.1:5230 node scripts/check-wayside-fury-day-night-coop.mjs
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
@@ -116,7 +117,7 @@ async function player(id) {
     console.error(id, 'BOOT', await page.evaluate(() => ({ text: document.body.innerText, controller: !!window.__waysideFury })));
     throw error;
   } finally { clearInterval(heartbeat); }
-  page.setDefaultTimeout(60000);
+  page.setDefaultTimeout(timeout);
   console.log(`${id}: ready`);
   return { context, page };
 }
@@ -128,6 +129,7 @@ async function clickVisible(page, name) {
   // Party frames can rerender during the menu transition; still dispatch a
   // physical UI click, without waiting for two identical animation frames.
   await button.click({ force: true });
+  console.log(`Co-op UI: ${name}`);
 }
 
 const waitState = (page, predicate, argument) => page.waitForFunction(predicate, argument, { polling: 100 });
@@ -156,12 +158,19 @@ try {
   await clickVisible(guest.page, 'Join');
   await clickVisible(guest.page, 'Return to adventure');
   await waitState(guest.page, () => window.__waysideFury.state.coop?.role === 'guest');
+  for (const page of [host.page, guest.page]) await page.waitForFunction(() => {
+    const badge = document.querySelector('.wf-save-status');
+    // The shipped HUD hides the badge once its account save is idle.
+    return !badge || badge.classList.contains('wf-save-saved');
+  });
+  console.log('Party joined; initial account saves settled.');
   const guestClockBefore = (await facts(guest.page)).ownSeconds;
   await host.page.evaluate(async () => {
     const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
     const c = window.__waysideFury;
     c.mutate(s => { enterScene(s, 'overworld'); s.x = 490; s.y = 480; s.notice = ''; s.worldCycleSeconds = 300;
       s.nightWorld = { window: null }; s.enemies = []; }); c.setPaused(false);
+    window.__nightFreeze = setInterval(() => { c.state.worldCycleSeconds = 300; }, 250);
   });
   await waitState(guest.page, () => window.__waysideFury.state.scene === 'overworld'
     && window.__waysideFury.state.coop?.worldCycleSeconds >= 300
@@ -177,7 +186,7 @@ try {
   console.log('Host night clock, phase and ambient monsters synchronize to the guest.');
   // Real leave triggers server authority migration from its cached latest world.
   const before = await facts(guest.page);
-  await host.page.evaluate(() => window.__waysideFury.coop.leave());
+  await host.page.evaluate(() => { clearInterval(window.__nightFreeze); window.__waysideFury.coop.leave(); });
   await waitState(guest.page, () => window.__waysideFury.state.coop?.role === 'host');
   const promoted = await facts(guest.page);
   assert.ok(promoted.seconds >= before.latest.worldCycleSeconds, 'promoted host adopts the newest shared clock');
@@ -204,7 +213,7 @@ try {
           scene: s?.scene, x: s?.x, y: s?.y, active: s?.active, input: s?.previousInput, room: c?.coop?.room,
           clock: s?.worldCycleSeconds, sharedClock: s?.coop?.worldCycleSeconds };
       }));
-      await page.screenshot({ path: `${output}/coop-failure-${id}.png`, timeout: 15000 });
+      await page.screenshot({ path: `${output}/coop-failure-${id}.png`, timeout: 120000 });
     } catch (debugError) { console.error(id, 'FAILURE DIAGNOSTIC', debugError.message); }
   }
   throw error;
