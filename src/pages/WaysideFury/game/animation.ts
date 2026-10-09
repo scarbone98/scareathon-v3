@@ -51,8 +51,7 @@ export function creatureMotion(c: CanvasRenderingContext2D, motion: ActorMotion 
   const p = motion ?? idleMotion();
   const moving = p.speed > 1, wave = Math.sin(moving ? p.phase : time * 2.4);
   c.translate(x, y);
-  c.translate(0, floating ? -2 - wave * 1.6 : moving ? -Math.abs(wave) * 1.5 : -wave * .3);
-  c.scale(p.facing === 'left' ? -1 : 1, 1);
-  c.scale((p.facing === 'up' || p.facing === 'down' ? .94 : 1) * (1 + wave * .025), 1 - wave * .025);
+  c.translate(0, floating ? -wave * 1.6 : moving ? -Math.abs(wave) * 1.5 : -wave * .3);
+  c.scale(1 + wave * .025, 1 - wave * .025);
   c.translate(-x, -y);
 }

@@ -10,6 +10,8 @@ try {
   await page.goto(`${process.env.FURY_BASE_URL??'http://127.0.0.1:5225'}/wayside-fury${gfx}`);
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByLabel('HUD size',{exact:true}).fill('1.3');await page.getByLabel('Text size',{exact:true}).fill('1.5');
+  assert.equal(await page.getByLabel('Shape markers',{exact:true}).isChecked(),false);
+  await page.getByLabel('Shape markers',{exact:true}).check();
   await page.getByLabel('Haptics',{exact:true}).uncheck();
   await page.getByText('Keyboard bindings',{exact:true}).click();await page.getByLabel('Key for right',{exact:true}).focus();await page.keyboard.press('r');
   await page.getByLabel('Key for right',{exact:true}).blur();
@@ -17,11 +19,24 @@ try {
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   assert.equal(await page.getByLabel('HUD size',{exact:true}).inputValue(),'1.3');
   assert.equal(await page.getByLabel('Text size',{exact:true}).inputValue(),'1.5');
+  assert.equal(await page.getByLabel('Shape markers',{exact:true}).isChecked(),true);
+  await page.getByLabel('Shape markers',{exact:true}).uncheck();
   assert.equal(await page.getByLabel('Haptics',{exact:true}).isChecked(),false);
   await page.getByRole('button',{name:/Begin adventure|Continue adventure/}).click();
   await page.getByRole('button',{name:'Skip prologue',exact:true}).click();
   await page.getByRole('region',{name:'Guided opening'}).waitFor();
   assert.equal(await page.evaluate(()=>window.__waysideFury.state.opening.stage),0);
+  const hidden=['.wf-minimap','.wf-items-hud','.wf-world-clock','.wf-notice','.wf-hint'];
+  for(const selector of hidden)assert.equal(await page.locator(selector).count(),0,`${selector} hidden in opening`);
+  for(let stage=0;stage<6;stage++){
+   await page.evaluate(stage=>window.__waysideFury.mutate(s=>{s.opening.stage=stage;s.opening.beat=0;s.opening.lead=s.active;s.x=[55,90,105,168,195,195][stage];s.y=110;}),stage);
+   await page.waitForTimeout(120);
+   assert.equal(await page.locator('.wf-opening').count(),1,'exactly one lesson card');
+   const rects=await page.evaluate(()=>['.wf-hud','.wf-opening','.wf-touch-dock'].map(selector=>{const el=document.querySelector(selector);if(!el)return null;const r=el.getBoundingClientRect();return {selector,x:r.x,y:r.y,w:r.width,h:r.height};}).filter(Boolean));
+   for(const a of rects){assert.ok(a.x>=0&&a.y>=0&&a.x+a.w<=width+1&&a.y+a.h<=height+1,`${a.selector} in viewport`);for(const b of rects.filter(b=>b!==a))assert.ok(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y,`${a.selector} overlaps ${b.selector}`);}
+   const instruction=await page.locator('.wf-opening p').innerText();assert.equal((instruction.match(/[.!?]/g)??[]).length,1,'one sentence');
+  }
+  await page.evaluate(()=>window.__waysideFury.mutate(s=>{s.opening.stage=0;s.x=55;s.y=110;}));
   const before=await page.evaluate(()=>window.__waysideFury.state.x);await page.keyboard.down('r');await page.waitForFunction(x=>window.__waysideFury.state.x>x+5,before);await page.keyboard.up('r');
   if(width<500){await page.evaluate(()=>window.__waysideFury.setTouch({}));await page.locator('.wf-touch-dock').waitFor();
    const rects=await page.locator('.wf-touch-btn').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,label:el.textContent};}));

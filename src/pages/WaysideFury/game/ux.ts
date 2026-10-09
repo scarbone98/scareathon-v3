@@ -5,7 +5,7 @@ export const DEFAULT_KEYS: Record<string, string> = { attack: 'j', ki: 'k', dash
 let keyboardKeys = { ...DEFAULT_KEYS };
 export function setKeyboardBindings(keys: Record<string,string>) { keyboardKeys = { ...DEFAULT_KEYS, ...keys }; }
 export function keyboardBinding(action: string) { return keyboardKeys[action]; }
-export const DEFAULT_UX: NonNullable<SaveSettings['ux']> = { hudSize: 1, minimalHud: false, textSize: 1, highContrast: true, haptics: true, gameSpeed: 1, extraHp: 0, keys: {} };
+export const DEFAULT_UX: NonNullable<SaveSettings['ux']> = { hudSize: 1, minimalHud: false, textSize: 1, highContrast: true, shapeMarkers: false, haptics: true, gameSpeed: 1, extraHp: 0, keys: {} };
 export function actionState(s: GameState, action: keyof Input) {
   const h = activeHero(s), driving = s.scene === 'overworld';
   const combat = !!s.training || ['test', 'arena', 'dungeon', 'realm'].includes(s.scene) && !s.mapId.startsWith('interior-');

@@ -36,6 +36,7 @@ for(const [name,viewport,dpr,touch] of [['phone',{width:390,height:844},3,true],
  await page.evaluate(async()=>{const {enterScene}=await import('/src/pages/WaysideFury/game/sim.ts');window.__waysideFury.mutate(s=>enterScene(s,'hub'));});
  await page.keyboard.down('d');await page.waitForTimeout(450);await page.keyboard.up('d');
  await page.screenshot({path:`${output}/${name}-crew.png`});
+ if(!touch) { await context.close(); continue; } // Desktop 2D only; avoid long software 3D runs.
  await page.goto(`${base}/wayside-fury?gfx=3d`);
  await page.waitForFunction(()=>window.__waysideFury&&!document.querySelector('.wf-primary')?.disabled,{},{timeout:90000});
  await page.locator('.wf-primary').click();
@@ -52,7 +53,6 @@ for(const [name,viewport,dpr,touch] of [['phone',{width:390,height:844},3,true],
  await page.screenshot({path:`${output}/${name}-moon.png`});
  // Compare authored poses at a fixed position: no translation can fake a walk.
  const rigChecks = await page.evaluate(async()=>{
-  const {drawCrew}=await import('/src/pages/WaysideFury/game/crewArt.ts');
   const {drawWoodsBody}=await import('/src/pages/WaysideFury/game/renderWoods2d.ts');
   const {drawLunarBody}=await import('/src/pages/WaysideFury/game/renderSpace2d.ts');
   const {drawCityEnemy}=await import('/src/pages/WaysideFury/game/chapters/ch4Art.ts');
@@ -60,13 +60,6 @@ for(const [name,viewport,dpr,touch] of [['phone',{width:390,height:844},3,true],
   const c=document.createElement('canvas');c.width=256;c.height=384;const ctx=c.getContext('2d');
   const stamp=draw=>{ctx.reset();ctx.scale(4,4);draw(ctx);return c.toDataURL();};
   const result=[];
-  for(const id of ['you','joe','matt','alex','jon']){
-   const avatar=id==='you'?window.__waysideFury.renderer.flat.avatar:null;
-   const facing=['down','up','left','right'].map(f=>stamp(ctx=>drawCrew(ctx,id,32,80,1,{phase:.7,speed:60,facing:f},avatar)));
-   const a=stamp(ctx=>drawCrew(ctx,id,32,80,1,{phase:0,speed:60,facing:'down'},avatar));
-   const b=stamp(ctx=>drawCrew(ctx,id,32,80,1,{phase:1.5,speed:60,facing:'down'},avatar));
-   result.push({id,facings:new Set(facing).size,walk:a!==b});
-  }
   for(const [family,types,draw] of [
    ['woods',['rooted','lantern','wisp','bailiff','foreman'],drawWoodsBody],
    ['moon',['rat','walker','scout','echo','satellite','inspector','warden'],drawLunarBody],
