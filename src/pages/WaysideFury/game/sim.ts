@@ -25,6 +25,7 @@ import { createFusionRuntime, tickFusion, requestFusion, localFusion, consumeFus
 import { startTraining, cancelTraining, tickTraining, trainingMelee, trainingProjectile, TRAINING_BOARD, type TrainingRuntime } from "./u1/combat/training.ts";
 import { signatureDefinition } from "./u1/combat/signature.ts";
 import { defaultCombatProgress, type CombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
+import { updateNightOverworld } from "./u1/world/dayNightRuntime.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
@@ -50,6 +51,7 @@ export interface RemoteHero {
   scene: Scene; room: number; mapId?: string; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
+  worldCycleSeconds?: number;
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
   playerCount?: number; syncedLevel?: number; hostLevel?: number; downed?: boolean; reviveProgress?: number;
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
@@ -64,6 +66,7 @@ export interface CoopHit {
 }
 export type Archetype = "charger" | "kiter" | "shield" | "swarm" | "ambusher";
 export interface Enemy {
+  nightAmbient?: boolean;
   archetype?: Archetype; combatLevel?: number; escapeIframes?: number;
   woodsBehavior?: WoodsBehavior; tellX?: number; tellY?: number;
   behavior?: LunarBehavior | CityBehavior; poise?: number; burst?: number; exposed?: number; shieldBroken?: boolean;
@@ -107,6 +110,8 @@ export type GameEvent =
   | { type: "death" };
 export interface GameState {
   u1: { combat: CombatProgress }; fusion: FusionRuntime; training: TrainingRuntime | null;
+  worldCycleSeconds: number;
+  nightWorld?: { window: string | null };
   localPaused: boolean; spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
   boundTravel: { from: {x:number;y:number}; to:{x:number;y:number}; elapsed:number } | null;
   film: FilmState | null; filmCaptionHold: boolean; filmSkipHeld: number; filmHold: boolean; fuelGag: number;
@@ -148,7 +153,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 // Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
 // continually create fresh enemies and their rewards.
 function extraCoopSpawns(s: GameState) {
-  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
+  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0 && !e.nightAmbient)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
   const world = getWorld(s.scene, s.room, s.mapId), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
@@ -291,7 +296,7 @@ function random(s: GameState) {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
 export function newGame(seed = 8591): GameState {
-  const s: GameState = { u1: { combat: defaultCombatProgress() }, fusion: createFusionRuntime(), training: null, difficulty: "normal", meleeCharge: 0, meleeHolding: false, localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
+  const s: GameState = { worldCycleSeconds: 0, u1: { combat: defaultCombatProgress() }, fusion: createFusionRuntime(), training: null, difficulty: "normal", meleeCharge: 0, meleeHolding: false, localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
     x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
     active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0, mapId: "training",
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
@@ -417,7 +422,7 @@ function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: 
 // smoothly, and the same sliding collision keeps crowds out of scenery.
 function separateBodies(s: GameState, dt: number) {
   const bodies = [{ body: s as { x: number; y: number }, radius: 7, id: 0 },
-    ...s.enemies.filter(e => e.hp > 0).sort((a, b) => a.id - b.id)
+    ...s.enemies.filter(e => e.hp > 0 && !e.nightAmbient).sort((a, b) => a.id - b.id)
       .map(e => ({ body: e, radius: e.radius, id: e.id }))];
   const remaining = bodies.map(() => dt * 30), relaxation = 1 - Math.exp(-dt * 12);
   for (let i = 0; i < bodies.length; i++) {
@@ -491,6 +496,7 @@ export function grantGear(s: GameState, power: number, ward: number) {
   syncCoopLevel(s);
 }
 function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, ki = false) {
+  if (e.nightAmbient) return;
   if (e.hp <= 0 || (e.escapeIframes ?? 0) > 0 || (!e.woodsBehavior && (e.burst ?? 0) > 0)) return;
   const allowed = isCityBehavior(e.behavior) ? cityDamage(e,damage,dx,dy,force) : e.woodsBehavior ? woodsDamage(s,e,damage,force,ki) : lunarDamage(s,e,damage,force);
   if(allowed <= 0) return;
@@ -534,7 +540,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
     s.coop.appliedHits.push(relayKey);if(s.coop.appliedHits.length>2048)s.coop.appliedHits.splice(0,s.coop.appliedHits.length-2048);return true;
   }
   const enemy = s.enemies.find(e => e.id === hit.enemyId && e.hp > 0);
-  if (!enemy) return false;
+  if (!enemy || enemy.nightAmbient) return false;
   const key = `${seat}:${hit.attackId}:${hit.enemyId}`;
   if (s.coop.appliedHits.includes(key)) return false;
   s.coop.appliedHits.push(key);
@@ -543,6 +549,7 @@ export function applyCoopHit(s: GameState, hit: CoopHit, seat: number): boolean 
   return true;
 }
 function attackEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: number, force: number, attackId: string) {
+  if (e.nightAmbient) return;
   if (e.hp <= 0) return;
   if (s.coop?.role === "guest") {
     s.events.push({ type: "coop-hit", enemyId: e.id, damage, dx, dy, force, attackId });
@@ -787,7 +794,7 @@ function updateBoss(s: GameState, e: Enemy, dt: number, target: CombatTarget) {
 }
 function updateEnemies(s: GameState, dt: number) {
   for (const e of s.enemies) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || e.nightAmbient) continue;
     e.hitTimer = Math.max(0, e.hitTimer - dt);
     e.cooldown = Math.max(0, e.cooldown - dt * (s.difficulty === "hard" ? 1.3 : 1));
     e.escapeIframes = Math.max(0, (e.escapeIframes ?? 0) - dt);
@@ -1111,6 +1118,7 @@ export function enforceCountyPartyBounds(s: GameState) {
 }
 export function step(s: GameState, input: Input, delta: number): void {
   enforceCountyPartyBounds(s);
+  updateNightOverworld(s, delta);
   markSeenGates(s);
   const dt = clamp(delta, 0, 0.05);
   // Keep physical button edges separate from the command forwarded to co-op.

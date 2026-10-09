@@ -133,7 +133,7 @@ function cleanGear(raw, heroes) {
 }
 function cleanSettings(raw) {
     // All v1-v4 saves without the additive combat preference migrate to Normal.
-    return { difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
+    return { ...(typeof raw?.showWorldClock === "boolean" ? { showWorldClock: raw.showWorldClock } : {}), difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
         controls: { tutorialDismissed: raw?.controls?.tutorialDismissed === true,
             stickSensitivity: bound(raw?.controls?.stickSensitivity, 0.5, 2, 1) } };
 }
@@ -189,6 +189,7 @@ export function sanitizeSave(raw) {
         ...(raw.prologuePending === true ? { prologuePending: true } : {}),
         coopRewards: coopRewards(raw.coopRewards),
         u1: { combat: sanitizeCombatSave(raw.u1?.combat) },
+        worldCycleSeconds: finite(raw.worldCycleSeconds) && raw.worldCycleSeconds >= 0 ? raw.worldCycleSeconds % 480 : 0,
         foundItems: cleanFoundItems(raw.foundItems), ambientTaxiWrecked: raw.ambientTaxiWrecked === true,
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };

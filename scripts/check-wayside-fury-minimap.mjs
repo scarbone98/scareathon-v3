@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
-import { newGame, enterScene } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, enterScene, addEnemy } from '../src/pages/WaysideFury/game/sim.ts';
 import { getWorld } from '../src/pages/WaysideFury/game/world.ts';
 import { minimapAvailable, minimapLayout, resolveMapObjective } from '../src/pages/WaysideFury/game/minimap.ts';
 import { overlaps } from '../src/pages/WaysideFury/game/worldBuilder.ts';
 const fixture=(s,id)=>{enterScene(s,id==='hub'?'hub':'dungeon',0,id);s.enemies=[];s.dialogue=null;};
 const s=newGame();enterScene(s,'overworld');
+const nightVisitor=addEnemy(s,'grunt',512,410);nightVisitor.nightAmbient=true;
+assert.ok(minimapAvailable(s),'harmless night visitors keep the county map available');
+addEnemy(s,'grunt',560,410);assert.ok(!minimapAvailable(s),'hostile encounters still lock the county map');s.enemies=[];
 const objective=()=>resolveMapObjective(s,getWorld(s.scene,s.room,s.mapId));
 for(const [chapter,receipt,id] of [[1,null,'blast'],[2,'realm-0','forest'],[3,'woods-complete','space'],[4,'space-complete','city'],[5,'city-complete','wayside']]) {
   s.chapter=chapter;if(receipt)s.campaignMilestones.push(receipt);assert.equal(objective().id,id);assert.ok(minimapAvailable(s));

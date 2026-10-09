@@ -19,6 +19,7 @@ function reach(s, pocket) {
   seen[k]=1;queue.push([nx,ny]);
  }}return predicate=>queue.some(([x,y])=>predicate(x*grid,y*grid));
 }
+assert.ok(HERO_OBSTACLES.every(g=>g.requirement.kind!=='level'),'authored gates teach abilities rather than checking level numbers');
 assert.equal(new Set(HERO_OBSTACLES.map(g=>g.id)).size,HERO_OBSTACLES.length);
 for(const g of HERO_OBSTACLES){
  const s=atGate(g);s.campaignMilestones=[];s.unlockedHeroes=['you'];s.character.level=1;
@@ -49,7 +50,7 @@ for(const worldId of new Set(HERO_OBSTACLES.map(g=>g.worldId))){
  for(const spawn of world.spawns)assert.ok(reachable((x,y)=>Math.hypot(x-spawn.x,y-spawn.y)<24),`${worldId}: encounter reachable`);
 }
 const g=HERO_OBSTACLES[0],movement=atGate(g);for(let n=0;n<60;n++)step(movement,{...idleInput(),y:-1},1/60);assert.ok(movement.y>=g.y+g.h+10-.1,'live movement collides with gate');
-movement.character.level=8;assert.ok(clearHeroObstacle(movement,g.id));for(let n=0;n<30;n++)step(movement,{...idleInput(),y:-1},1/60);assert.ok(movement.y<g.y,'live movement crosses cleared gate');
+movement.campaignMilestones.push('circuit-spark');assert.ok(clearHeroObstacle(movement,g.id));for(let n=0;n<30;n++)step(movement,{...idleInput(),y:-1},1/60);assert.ok(movement.y<g.y,'live movement crosses cleared gate');
 const guest=atGate(g);guest.character.level=8;guest.coop={role:'guest',seat:1,protocolVersion:7,remoteHeroes:[],appliedHits:[],worldSolvedInteractions:[g.id]};guest.x=g.rewardAnchor.x;guest.y=g.rewardAnchor.y;
 assert.equal(clearHeroObstacle(guest,g.id),false,'guest cannot mutate geometry');exitCoop(guest);assert.equal(isObstacleCleared(guest,g.id),false);assert.equal(obstacleBlocks(guest,guest.x,guest.y,10),false,'borrowed pocket exit remains safe');assert.ok(guest.y>g.y+g.h);
 const legacy=atGate(g);legacy.coop={role:'host',seat:0,protocolVersion:6,remoteHeroes:[],appliedHits:[]};assert.deepEqual(obstaclesForState(legacy),[],'older clients retain matching geometry');

@@ -14,7 +14,7 @@ const make = (id:string,worldId:string,kind:HeroObstacle['kind'],hero:HeroId,lef
   rewardAnchor:{x:left+36,y:top+40},rewardId:`locks-cache-${id}`,
 });
 export const HERO_OBSTACLES:readonly HeroObstacle[] = [
-  make('county-danger','overworld','vent','you',384,48,{kind:'level',level:8},'Danger: Lv 8+ · inspect barricade','Old survey ledger: the relay was listening long before the egg arrived.'),
+  make('county-danger','overworld','vent','matt',384,48,{kind:'ability',milestone:'circuit-spark'},'Survey barricade · Circuit Spark needed','Old survey ledger: the relay was listening long before the egg arrived.'),
   make('county-debris','overworld','boulder','joe',720,48,{kind:'ability',milestone:'breaker-knuckle'},'Heavy debris · Breaker Knuckle needed','Joe finds a lunch tin beneath the fallen stone. The crew kept a place for you.'),
   make('blast-stone','blast-0','boulder','joe',344,56,{kind:'ability',milestone:'breaker-knuckle'},'Cracked wall · Breaker Knuckle needed','An incident note points toward roots wrapped around the relay: come back with Joe’s new technique.'),
   make('blast-return','blast-8','terminal','alex',312,56,{kind:'story',milestone:'woods-complete'},'Relay seal · finish Hollow Woods','The orchard dispatch log confirms that every relay used the same return address: Wayside.'),

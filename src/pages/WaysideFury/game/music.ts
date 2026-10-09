@@ -1,3 +1,5 @@
+import { mixNightScore } from "./u1/world/nightMusic.ts";
+
 /** Procedural Wayside Fury soundtrack. No recorded audio is loaded by this module. */
 export type Mood = 'off' | 'title' | 'bbq' | 'hub' | 'taxi' | 'cozy' | 'dungeon' | 'boss' | 'haywire';
 export type MusicMood = Mood;
@@ -206,6 +208,8 @@ export class MusicDirector {
   private budget = new VoiceBudget(8);
   private mood: Mood = 'off';
   private realm = 0;
+  private nightMix = 0;
+  setNightMix(amount: number): void { this.nightMix = Number.isFinite(amount) ? clamp(amount) : 0; }
   private realmApplied = false;
   private paused = false;
   private visible = true;
@@ -434,7 +438,8 @@ export class MusicDirector {
     while (run.next < now + 0.13 && guard++ < 32) {
       if (run.fadeEnd !== null && run.next >= run.fadeEnd) break;
       const stepDuration = 15 / meta.bpm;
-      for (const note of scoreStep(run.mood, run.bar, run.step, this.realm > 0.01)) {
+      const notes = scoreStep(run.mood, run.bar, run.step, this.realm > 0.01);
+      for (const note of run.mood === "taxi" ? mixNightScore(notes, run.bar, run.step, this.nightMix) : notes) {
         // Crossfade stems remain clear, rather than doubling dense percussion/arps.
         if (this.outgoingRun && note.lane !== 'lead' && note.lane !== 'bass' &&
             (run === this.outgoingRun || note.lane === 'stab' || note.lane === 'arp')) continue;

@@ -19,12 +19,14 @@ const peer = (s, mapId = s.mapId) => ({seat:1, userId:'peer', name:'Peer', hero:
 {
  const s=newGame();full(s);requestFusion(s);const world=structuredClone(s.fusion.world);
  assert.deepEqual(cleanFusionWorld(world),world);world.forms[0].mapId='../bad';assert.equal(cleanFusionWorld(world),null);
- const packet={...s,protocolVersion:6,projectiles:[],fusions:s.fusion.world};assert.ok(cleanWorld(packet));packet.fusions={nextId:0};assert.equal(cleanWorld(packet),null);
+ const packet={...s,protocolVersion:6,projectiles:[],fusions:s.fusion.world,worldCycleSeconds:300,nightEncounterWindow:'night:2'};assert.ok(cleanWorld(packet),'co-op accepts fusion and world-clock state together');packet.fusions={nextId:0};assert.equal(cleanWorld(packet),null);
 }
 {
  const s=newGame();enterScene(s,'hub');const old=makeSave(s);delete old.u1;
  assert.equal(restoreSave(old).u1.combat.training.you,0,'old saves start untrained');
- s.u1.combat.training.you=3;const trained=makeSave(s);const stale={...old,savedAt:trained.savedAt+100};
+ s.worldCycleSeconds=300;s.u1.combat.training.you=3;const trained=makeSave(s);
+ assert.equal(trained.worldCycleSeconds,300);assert.equal(restoreSave(trained).worldCycleSeconds,300);
+ assert.equal(restoreSave(trained,true).worldCycleSeconds,300,'HOME retry preserves clock alongside combat progress');const stale={...old,savedAt:trained.savedAt+100};
  assert.equal(mergeSaves(trained,stale).u1.combat.training.you,3,'stale cloud save cannot erase tiers');
  assert.equal(restoreSave(trained,true).u1.combat.training.you,3,'HOME retry retains earned tiers');
  const reset=makeNewGameSave(trained);assert.equal(mergeSaves(trained,reset).u1.combat.training.you,0,'new story clears training');

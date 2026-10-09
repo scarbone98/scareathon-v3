@@ -1,3 +1,5 @@
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
 import { spaceAudio } from "./spaceAudio.ts";
 import { PROLOGUE } from "./content.ts";
 import { GATEKEEPER_ROOM, WATCHER_ROOM } from "./world.ts";
@@ -35,6 +37,7 @@ export class FuryAudio {
   menu() { this.previous = null; this.mood = "title"; this.sound.setCharge(null); this.sound.setRealm(0); this.sound.setMood("title"); this.sound.setPaused(false); }
   start(s: GameState) { this.previous = null; this.sound.setPaused(false); this.sync(s); }
   sync(s: GameState) {
+    this.sound.setNightMix(s.scene === "overworld" ? sampleDayNight(worldCycleSeconds(s)).nightFactor : 0);
     this.mood = moodForState(s, this.mood); this.sound.setMood(this.mood); this.sound.setRealm(realmForState(s));
     const space=spaceAudio(s);
     if(space?.cue && space.key!==this.previous?.spaceShot) this.sound.playSfx(space.cue,.7);

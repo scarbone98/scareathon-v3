@@ -13,7 +13,7 @@ for(const gfx of ['2d','3d'])for(const size of (assists?[{width:390,height:844,d
  await page.goto(`${process.env.FURY_BASE_URL??'http://localhost:5226'}/wayside-fury${gfx==='3d'?'?gfx=3d':''}`,{waitUntil:'commit'});
  await page.waitForFunction(()=>window.__waysideFury&&!document.querySelector('.wf-primary').disabled);await page.locator('.wf-primary').click();
  await page.evaluate(async()=>{const{skipPrologue}=await import('/src/pages/WaysideFury/game/sim.ts');window.__waysideFury.mutate(skipPrologue);window.__waysideFury.setPaused(true);});
- for(const [type,id]of (assists?[['assist','locks-moon-reserve']]:[['level','locks-county-danger'],['ability','locks-county-debris'],['story','locks-moon-reserve']]))for(const cleared of (assists?[true]:[false,true])){
+ for(const [type,id]of (assists?[['assist','locks-moon-reserve']]:[['circuit','locks-county-danger'],['ability','locks-county-debris'],['story','locks-moon-reserve']]))for(const cleared of (assists?[true]:[false,true])){
   await page.evaluate(async({id,cleared,assists})=>{
    const {enterCampaignMap,interact,interactTarget}=await import('/src/pages/WaysideFury/game/sim.ts');
    const {HERO_OBSTACLES,isObstacleCleared}=await import('/src/pages/WaysideFury/game/locks/obstacles.ts');
