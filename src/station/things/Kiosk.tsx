@@ -105,7 +105,13 @@ function SignInCard() {
           const response = await fetchWithAuth('/user/age-confirmation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmed: true }) });
           if (!response.ok) throw new Error('Your account was created. Confirm your age at the ticket counter before sharing content.');
         }
-        if (!data.session && data.user) {
+        // An email that already has a confirmed account comes back looking like a success,
+        // but with no identities and no email sent. Turn them around to sign in instead.
+        if (data.user && data.user.identities?.length === 0) {
+          setIsLogin(true);
+          setPassword("");
+          setError("You already have an account with that email. Sign in, or use Forgot password? to set a new password.");
+        } else if (!data.session && data.user) {
           setSentConfirmation(true);
           setPassword("");
         } else if (!data.user) {
