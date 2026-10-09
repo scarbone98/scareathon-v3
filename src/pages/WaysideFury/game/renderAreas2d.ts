@@ -30,10 +30,6 @@ export function drawAreaGround(c:CanvasRenderingContext2D, world:WorldMap) {
       c.save();path();c.clip();for(let n=0;n<12;n++){const p=form.points[n%form.points.length];c.strokeStyle='#74a3a7';c.globalAlpha=.35;c.beginPath();c.ellipse(p.x+20,p.y+12,24+n%3*8,3,0,0,Math.PI);c.stroke();}c.restore();
     }
   }
-  for(const p of world.organic.stairs) {
-    c.fillStyle='#515b5d';c.fillRect(p.x-24,p.y-24,48,40);
-    for(let i=0;i<5;i++){c.fillStyle=i%2?'#8f9487':'#a6a798';c.fillRect(p.x-24,p.y-24+i*8,48,2);}
-  }
   c.restore();
 }
 export function drawInteriorGround(c:CanvasRenderingContext2D, world:WorldMap) {
@@ -54,8 +50,6 @@ export function drawInteriorGround(c:CanvasRenderingContext2D, world:WorldMap) {
   c.globalAlpha=.12;c.fillStyle=light;c.beginPath();c.moveTo(60,48);c.lineTo(128,48);c.lineTo(200,256);c.lineTo(92,256);c.fill();c.globalAlpha=1;
   c.fillStyle=accent;c.beginPath();c.roundRect(152,180,144,76,12);c.fill();c.strokeStyle=light;c.lineWidth=1;c.stroke();
   c.globalAlpha=.3;for(let n=0;n<4;n++){c.strokeRect(160+n*4,188+n*4,128-n*8,60-n*8);}c.globalAlpha=1;
-  // An obvious exit mat, distant from every furniture footprint.
-  c.fillStyle='#bdad87';c.fillRect(200,288,48,32);c.strokeStyle='#5c6158';c.strokeRect(203,291,42,26);
   if(room.theme==='archive'||room.theme==='cabin'||room.theme==='station') {
     for(let x=144;x<288;x+=12){c.fillStyle=x%24?'#ba8464':'#849a8c';c.fillRect(x,26,8,16);}
   }

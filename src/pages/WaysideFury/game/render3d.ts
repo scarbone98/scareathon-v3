@@ -1,3 +1,4 @@
+import { INTERIORS } from './interiors';
 import { roadMask, groundScatter } from './roadClearance.ts';
 import { buildWalkableSurfaces } from './walkableSurfaces3d';
 import { isWalkableSurface, surfaceElevationAt } from './walkableSurfaces';
@@ -960,7 +961,7 @@ export class OverworldRenderer {
     }
     for (const marker of this.markers) {
       const gate = gates.find(location => location.x === marker.position.x && location.y === marker.position.z);
-      marker.visible = !gate?.locked;
+      marker.visible = !gate?.locked && Math.hypot(s.x-marker.position.x,s.y-marker.position.z)<=48;
     } this.updateActors(s); this.updateDressing(s); this.updateEffects(s, dt);
     this.renderer.info.reset();
     if (this.postTarget) {
@@ -981,9 +982,10 @@ export class OverworldRenderer {
       if (point.z < -1 || point.z > 1 || screenX < .02 || screenX > .98 || screenY < .05 || screenY > .95) return;
       labels.push({ id, text, x: screenX, y: screenY, kind, color, opacity });
     };
-    for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
-    for (const prop of this.world.props) if (prop.label && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
-    for (const prop of this.world.props) if (prop.label && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
+    for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,`› ${door.name}`,door.x,door.y,32,'exit');
+    for (const location of campaignLocations(s)) if (Math.hypot(s.x - location.x, s.y - location.y) <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : `› ${location.name}`, location.x, location.y, location.locked ? 54 : 28, location.locked ? 'locked' : 'location');
+    for (const prop of this.world.props) if (prop.label && !prop.interiorId && prop.kind === 'station' && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 165) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h / 2, 77, 'hub');
+    for (const prop of this.world.props) if (prop.label && !prop.interiorId && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub');
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');

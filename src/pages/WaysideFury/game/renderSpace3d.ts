@@ -1,3 +1,5 @@
+import { INTERIORS } from './interiors';
+import { drawExitOpening, nearExit, exitCaption } from './exitArt';
 import { buildWalkableSurfaces } from './walkableSurfaces3d';
 import { isWalkableSurface, surfaceHeightAt } from './walkableSurfaces';
 import { scorchedGroundMesh, contactGroundMesh } from './grounding3d.ts';
@@ -126,8 +128,14 @@ export class SpaceRenderer {
     else for(let x=0;x<world.width;x+=32)this.box(this.staticGroup,.4,.05,world.height,'#718294',x,.1,world.height/2);
     for(let row=0;row<world.rows;row++)for(let col=0;col<world.cols;col++)if(world.collision[row*world.cols+col])this.box(this.staticGroup,16,12,16,'#566880',col*16+8,6,row*16+8);
     for(const p of world.props)this.buildProp(p);
+    for(const door of INTERIORS.filter(door=>door.parent===world.id)) {
+      this.box(this.staticGroup,22,27,1,'#26363d',door.x,13.5,door.y);
+      for(const x of [door.x-12,door.x+12])this.box(this.staticGroup,2,29,2,'#dfc08d',x,14.5,door.y);
+      this.box(this.staticGroup,26,2,2,'#dfc08d',door.x,29,door.y);
+      this.box(this.staticGroup,2,2,2,'#efce89',door.x+6,13,door.y+1);
+    }
     buildWalkableSurfaces(this.staticGroup,world);
-    for(const e of world.exits)this.box(this.staticGroup,e.w,.1,e.h,'#c39d69',e.x+e.w/2,.15,e.y+e.h/2);
+
     this.groundEffectsCanvas.width=world.width*2;this.groundEffectsCanvas.height=world.height*2;
     this.groundEffectsTexture.dispose();this.groundEffectsTexture=new THREE.CanvasTexture(this.groundEffectsCanvas);(this.groundEffects.material as THREE.MeshBasicMaterial).map=this.groundEffectsTexture;
     this.groundEffects.scale.set(world.width,world.height,1);this.groundEffects.position.set(world.width/2,.5,world.height/2);
@@ -209,6 +217,7 @@ export class SpaceRenderer {
     for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
     for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,surfaceHeightAt(world,e.x,e.y),`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
     const c=this.groundEffectsCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
+    for(const e of world.exits)drawExitOpening(c,world,e,(!e.requiresClear||s.enemies.every(enemy=>enemy.hp<=0))&&(!e.requiresInteraction||hasSpaceFlag(s,e.requiresInteraction)));
     // Ground shadows retain the collision position while bound billboards lift.
     for(const a of this.actors.values())if(a.mesh.visible){c.fillStyle='#15233e60';c.beginPath();c.ellipse(a.mesh.position.x,a.mesh.position.z,14,5,0,0,Math.PI*2);c.fill();}
     for(const link of world.boundLinks??[])for(const p of [link.from,link.to]){c.strokeStyle='#f5c776';c.lineWidth=2;c.beginPath();c.ellipse(p.x,p.y,24,14,0,0,Math.PI*2);c.stroke();}
@@ -221,8 +230,9 @@ export class SpaceRenderer {
   presentation(s:GameState):RenderPresentation {
     const project=(x:number,y:number,h=0)=>{const v=new THREE.Vector3(x,h,y).project(this.camera);return{x:(v.x+1)/2,y:(1-v.y)/2};};
     const labels:RenderLabel[]=[];if(s.film)return{focus:{x:.5,y:.5},camera:{x:0,y:0,width:this.viewport.width,height:this.viewport.height},labels};const world=getWorld(s.scene,s.room,s.mapId);
-    for(const p of world.props)if(p.label&&Math.hypot(s.x-p.x-p.w/2,s.y-p.y-p.h)<110)labels.push({id:p.id,text:p.label,...project(p.x+p.w/2,p.y+p.h,p.h+8),kind:'hub'});
-    for(const e of world.exits)if(Math.hypot(s.x-e.x,s.y-e.y)<110)labels.push({id:e.id,text:e.name,...project(e.x+e.w/2,e.y,15),kind:'exit'});
+    for(const door of INTERIORS)if(door.parent===s.mapId&&Math.hypot(s.x-door.x,s.y-door.y)<=48)labels.push({id:door.id,text:`› ${door.name}`,...project(door.x,door.y,32),kind:'exit'});
+    for(const p of world.props)if(p.label&&!p.interiorId&&Math.hypot(s.x-p.x-p.w/2,s.y-p.y-p.h)<110)labels.push({id:p.id,text:p.label,...project(p.x+p.w/2,p.y+p.h,p.h+8),kind:'hub'});
+    for(const e of world.exits)if(nearExit(e,s.x,s.y))labels.push({id:e.id,text:exitCaption(world,e),...project(e.x+e.w/2,e.y,15),kind:'exit'});
     for(const f of s.floaters)labels.push({id:f.id,text:f.text,...project(f.x,f.y,28),kind:'floater',color:f.color,opacity:Math.min(1,f.ttl*4)});
     for(const p of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,p))labels.push({id:`peer-${p.seat}`,text:p.name,...project(p.x,p.y,52),kind:'hub'});
     return{focus:project(s.x,s.y),camera:{x:this.focus.x-this.viewport.width/2,y:this.focus.y-this.viewport.height/2,width:this.viewport.width,height:this.viewport.height},labels:labels.filter(p=>p.x>0&&p.x<1&&p.y>0&&p.y<1)};

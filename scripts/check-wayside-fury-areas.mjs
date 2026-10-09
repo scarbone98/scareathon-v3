@@ -61,7 +61,7 @@ for(const room of INTERIORS) {
  const resumed=restoreSave(saved);assert.equal(resumed.mapId,room.id);assert.ok(!isBlocked(ALL_WORLDS.find(m=>m.id===room.id),resumed.x,resumed.y));
  assert.equal(progressReport(s,receipt).score,0,'interiors award no tickets');
  assert.equal(restoreSave(saved,true).mapId,room.id);
- const mat=ALL_WORLDS.find(m=>m.id===room.id).exits[0];s.x=224;s.y=304;interact(s,{id:mat.id,name:'Return',kind:'use',x:224,y:304});assert.equal(s.mapId,room.parent);assert.equal(s.x,room.x);assert.equal(s.y,room.y+16);
+ const door=ALL_WORLDS.find(m=>m.id===room.id).exits[0];s.x=224;s.y=304;interact(s,{id:door.id,name:'Return',kind:'use',x:224,y:304});assert.equal(s.mapId,room.parent);assert.equal(s.x,room.x);assert.equal(s.y,room.y+16);
  for(const version of [1,2,3,4,5]) {const old=ready();old.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:version};assert.equal(enterCampaignMap(old,room.id),false);assert.equal(compatibleMap('dungeon',100+INTERIORS.indexOf(room),room.id,version),false);}
  const host=ready();host.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:COOP_PROTOCOL_VERSION,playerCount:4};assert.ok(enterCampaignMap(host,room.id));assert.ok(compatibleMap(host.scene,host.room,host.mapId,COOP_PROTOCOL_VERSION));
 }

@@ -1,3 +1,5 @@
+import { INTERIORS } from './interiors';
+import { drawExitOpening, nearExit, exitCaption } from './exitArt';
 import { groundScatter, roadMask } from './roadClearance.ts';
 import { drawWalkableSurface, isGroundProp } from "./walkableSurfaces";
 import { drawScorchedDepression, GROUND_DECALS } from './grounding.ts';
@@ -152,16 +154,17 @@ export class Renderer {
     };
     if (s.scene === 'overworld') for (const location of campaignLocations(s)) {
       const distance = Math.hypot(s.x - location.x, s.y - location.y);
-      if (distance < 140) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y + 24, location.locked ? 'locked' : 'location');
+      if (distance <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : `› ${location.name}`, location.x, location.y + 24, location.locked ? 'locked' : 'location');
     }
     if (s.scene === 'hub') for (const point of HUB_POINTS) {
       if (Math.hypot(s.x - point.x, s.y - point.y) < 140) add(point.id, point.name, point.x, point.y - (point.id === 'taxi' ? 25 : 61), 'hub');
     }
-    if (this.world && (s.scene === 'dungeon' || s.scene === 'realm')) for (const exit of this.world.exits) {
-      if (Math.hypot(s.x - exit.x, s.y - exit.y) < 110) add(`exit-${exit.id}`, exit.name, exit.x + exit.w / 2, exit.y - 15, 'exit');
+    if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const exit of this.world.exits) {
+      if (nearExit(exit,s.x,s.y)) add(`exit-${exit.id}`, exitCaption(this.world,exit), exit.x + exit.w / 2, exit.y - (this.world.id.startsWith('interior-') ? 40 : 15), 'exit');
     }
+    for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,`› ${door.name}`,door.x,door.y-35,'exit');
     if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const prop of this.world.props) {
-      if (prop.label && !['shop', 'home', 'portal'].includes(prop.kind) && !(s.scene === 'hub' && HUB_POINTS.some(point => point.name === prop.label)) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(`prop-${prop.id}`, prop.label, prop.x + prop.w / 2, prop.y - 8, 'hub');
+      if (prop.label && !prop.interiorId && !['shop', 'home', 'portal'].includes(prop.kind) && !(s.scene === 'hub' && HUB_POINTS.some(point => point.name === prop.label)) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(`prop-${prop.id}`, prop.label, prop.x + prop.w / 2, prop.y - 8, 'hub');
     }
     if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
@@ -371,7 +374,7 @@ export class Renderer {
           const x = location.x - 44 + (k * 23) % 88, y = location.y - 28 + (k * 17) % 56;
           this.rect(x + Math.floor(time * 2 + k) % 2, y, k % 2 ? 4 : 2, 2, k % 3 ? '#815181' : '#ab699d');
         }
-      } else {
+      } else if (Math.hypot(s.x-location.x,s.y-location.y)<=48) {
         const bob = this.reducedMotion ? 0 : Math.sin(time * 4) * 2;
         const y = location.y - 18 + bob;
         this.rect(location.x - 3, y - 7, 6, 4, '#f8e2a5');
@@ -393,19 +396,7 @@ export class Renderer {
     for (const exit of world.exits) {
       if (!this.visible(exit.x + exit.w / 2, exit.y + exit.h / 2, 100)) continue;
       const open = (!exit.requiresClear || s.enemies.every(enemy => enemy.hp <= 0)) && (!exit.requiresInteraction || hasSpaceFlag(s,exit.requiresInteraction));
-      const x = exit.x + exit.w / 2, y = exit.y + exit.h / 2;
-      this.ctx.globalAlpha = .17;
-      this.disc(x, y, 17, open ? '#b9dfaf' : '#c57f99'); this.ctx.globalAlpha = 1;
-      if (open) {
-        const bob = this.reducedMotion ? 0 : Math.sin(time * 3) * 2;
-        const angle = exit.id === 'west' ? Math.PI : exit.id === 'north' ? -Math.PI / 2 : exit.id === 'south' ? Math.PI / 2 : 0;
-        this.ctx.save(); this.ctx.translate(x, y + bob); this.ctx.rotate(angle);
-        this.rect(-5, -2, 6, 4, '#bfdca9'); this.rect(1, -4, 2, 8, '#e1edbe'); this.rect(3, -2, 2, 4, '#e1edbe'); this.ctx.restore();
-      } else {
-        this.rect(x - 10, y - 16, 20, 25, '#483e50');
-        for (let k = -6; k <= 6; k += 4) this.rect(x + k, y - 14, 2, 23, '#ae7894');
-        this.rect(x - 10, y - 5, 20, 3, '#d294ab');
-      }
+      drawExitOpening(this.ctx,world,exit,open);
     }
     if (world.id === 'overworld' && !this.reducedMotion) {
       const x = (time * 18 + 200) % world.width, y = 130 + Math.sin(time * .5) * 25;
