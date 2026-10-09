@@ -1,0 +1,60 @@
+{
+  "chapterOverworlds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "viewports": [
+    [
+      390,
+      844,
+      3
+    ],
+    [
+      844,
+      390,
+      3
+    ],
+    [
+      1440,
+      900,
+      2
+    ]
+  ],
+  "graphics": [
+    "2d",
+    "3d"
+  ],
+  "screenshots": 66,
+  "port": 5224,
+  "browserArgs": [
+    "--mute-audio",
+    "--use-angle=metal",
+    "--enable-gpu"
+  ],
+  "checks": {
+    "layout": "all 30 chapter fixtures: HUD, pause and touch clearance",
+    "minimapDpr": "all 30 chapter fixtures: native backing dimensions",
+    "mapInput": "all six viewport/renderer cases: M, Escape and Select edge-triggering",
+    "threeHarness": "15 cases passed: responsive, lifecycle, switching, unavailable WebGL, real context loss/retry, quality and arcade iframe"
+  },
+  "limits": [
+    "Paused browser fixtures are visual evidence; sustained 60fps and thermal behavior on physical phones remain unmeasured.",
+    "Chapter 5 has the existing Wayside rally handoff; no new Finale content is implemented by this minimap change."
+  ],
+  "existingFailure": {
+    "script": "scripts/check-wayside-fury-globe.mjs",
+    "assertion": "route dressing target",
+    "counts": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      5
+    ],
+    "note": "The globe script and its imported simulation/world/dressing modules are unchanged by this slice."
+  }
+}
