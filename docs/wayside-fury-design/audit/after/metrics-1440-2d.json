@@ -1,0 +1,462 @@
+[
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "station-junction",
+    "x": 208,
+    "y": 480,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "diner-crossing",
+    "x": 528,
+    "y": 480,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "woods-junction",
+    "x": 656,
+    "y": 444,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "woods-edge",
+    "x": 656,
+    "y": 240,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-approach",
+    "x": 1088,
+    "y": 416,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "city-junction",
+    "x": 1040,
+    "y": 512,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "launch-junction",
+    "x": 1584,
+    "y": 456,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "launch-gate",
+    "x": 1584,
+    "y": 416,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "west-lake",
+    "x": 336,
+    "y": 352,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "east-lake",
+    "x": 976,
+    "y": 240,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "reservoir-north",
+    "x": 656,
+    "y": 752,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "causeway",
+    "x": 768,
+    "y": 960,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "reservoir-south",
+    "x": 768,
+    "y": 1248,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "orchard-edge",
+    "x": 2170,
+    "y": 1040,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "garden-transition",
+    "x": 160,
+    "y": 720,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "cliff-transition",
+    "x": 976,
+    "y": 576,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "station-junction",
+    "x": 208,
+    "y": 480,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "diner-crossing",
+    "x": 528,
+    "y": 480,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "causeway",
+    "x": 768,
+    "y": 960,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "reservoir-south",
+    "x": 768,
+    "y": 1248,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "orchard-edge",
+    "x": 2170,
+    "y": 1040,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "garden-transition",
+    "x": 160,
+    "y": 720,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "name": "cliff-transition",
+    "x": 976,
+    "y": 576,
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  }
+]
