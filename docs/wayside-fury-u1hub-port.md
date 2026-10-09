@@ -19,6 +19,7 @@ Run `npx tsc -b`, ESLint on changed files, `npm run check:wayside-fury`, and the
 
 ### Port validation record
 
+- `npx tsc -b` passed, followed by a successful `npx tsc -b --force` against the final production tree.
 - ESLint on changed files, the full campaign simulation and all listed U1/co-op/cloud checks passed. The cloud suite passed all 19 cases.
 - The full server Jest run passed 39 suites; four suites hit the default five-second timeout under concurrent machine load. All four passed when rerun serially with a 60-second timeout. Arena receipt, quest and HTTP payout tests passed, including forged receipts, run caps, daily taper/backstop and ordinary Arcade reward compatibility.
 - Muted Playwright passed the NPC quest flow, seven-request board, arena spawning, native DPR backing resolution, retirement and personal run persistence on phone DPR3 and desktop DPR2. Desktop `?gfx=3d` used the arena's shared 2D fallback. No page errors occurred; screenshots were visually inspected.
