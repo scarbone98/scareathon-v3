@@ -712,7 +712,7 @@ function fireKi(s: GameState) {
     for (const angle of [-0.12, 0, 0.12]) {
       const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
       const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
-      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 285, h.power * 2.2, 10, true, .8, .22);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 285, h.power * 2.8, 10, true, .8, .26);
     }
     effect(s, "beam", s.x, s.y, 170, 0.55, s.faceX, s.faceY);
     s.notice = "FUSION: Wayside Supernova!"; s.charge = 0; return;

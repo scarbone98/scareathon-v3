@@ -55,7 +55,7 @@ assert.equal(inputSolo.active, 'you', 'held swap cannot change the fused lead');
 frame(inputSolo, { fusion: true, ki: true });
 const release = frame(inputSolo, { fusion: true });
 assert.equal(release.filter(event => event.type === 'fusion-special').length, 1);
-assert.equal(inputSolo.projectiles.length, 3); assert.ok(inputSolo.projectiles.every(projectile => projectile.beam && projectile.damage === inputSolo.heroes.you.power * 2.2));
+assert.equal(inputSolo.projectiles.length, 3); assert.ok(inputSolo.projectiles.every(projectile => projectile.beam && projectile.damage === inputSolo.heroes.you.power * 2.8));
 inputSolo.projectiles = []; frame(inputSolo, { fusion: true, ki: true });
 assert.equal(frame(inputSolo, { fusion: true }).filter(event => event.type === 'fusion-special').length, 0);
 assert.equal(inputSolo.projectiles.length, 0, 'releasing Ki again cannot recreate the fusion special');
