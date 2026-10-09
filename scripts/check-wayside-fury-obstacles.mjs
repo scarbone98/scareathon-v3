@@ -19,7 +19,6 @@ function reach(s, pocket) {
   seen[k]=1;queue.push([nx,ny]);
  }}return predicate=>queue.some(([x,y])=>predicate(x*grid,y*grid));
 }
-assert.ok(HERO_OBSTACLES.every(g=>g.requirement.kind!=='level'),'authored gates use crew abilities or story permissions, never level thresholds');
 assert.equal(new Set(HERO_OBSTACLES.map(g=>g.id)).size,HERO_OBSTACLES.length);
 assert.ok(HERO_OBSTACLES.every(g=>g.requirement.kind!=='level'),'authored gates never require a level number');
 for(const g of HERO_OBSTACLES){
