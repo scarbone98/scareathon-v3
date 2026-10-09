@@ -220,12 +220,14 @@ async function check(page, size, mode) {
     const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
     window.__waysideFury.mutate(state => { enterScene(state, 'overworld'); state.x = 752; state.y = 480; state.notice = ''; });
   });
+  console.log(`Items ${size.name}/${mode}: taxi entered; waiting for renderer`);
   await page.waitForFunction(mode => {
     const canvas = document.querySelector('.wf-stage canvas:not(.wf-canvas-3d)');
     if (mode === '3d' && canvas?.dataset.gfxStatus === 'fallback') throw new Error(`3D failed: ${canvas.dataset.gfxError || 'unknown renderer error'}`);
     return canvas?.dataset.gfx === mode;
-  }, mode);
-  if (mode === '3d') await page.waitForFunction(() => Number(document.querySelector('.wf-canvas-3d')?.dataset.triangles) > 0);
+  }, mode, { timeout, polling: 100 });
+  console.log(`Items ${size.name}/${mode}: renderer ready; checking frame and radar`);
+  if (mode === '3d') await page.waitForFunction(() => Number(document.querySelector('.wf-canvas-3d')?.dataset.triangles) > 0, null, { timeout, polling: 100 });
   assert.equal(await page.locator('.wf-items-hud').count(), 1, 'only one shared DOM radar accompanies the taxi');
   const taxiSignal = await page.evaluate(async () => {
     const { radarReading, radarTargets } = await import('/src/pages/WaysideFury/game/u1/items/radar.ts');
@@ -238,7 +240,9 @@ async function check(page, size, mode) {
   const taxiText = await page.locator('.wf-radar-text').innerText();
   if (taxiSignal.reading) assert.ok(taxiText.includes(taxiSignal.reading.direction), 'the taxi HUD displays its current hidden-item bearing');
   else assert.match(taxiText, /No signal/);
+  console.log(`Items ${size.name}/${mode}: taxi assertions passed; capturing screenshot`);
   await snapshot(page, size, mode, 'taxi');
+  console.log(`Items ${size.name}/${mode}: taxi screenshot saved`);
   results.push({ viewport: size.name, graphics: mode, layout, saved: { chips: saved.chips.equipped, cycle: saved.relics.cycle, statBonus: saved.relics.statBonus, radar: saved.radar } });
 }
 
