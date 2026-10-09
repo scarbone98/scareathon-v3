@@ -6,6 +6,7 @@ export function buildOverworldBanks(world: WorldMap, heightAt: (x:number,y:numbe
   const group=new THREE.Group();group.name='county-material-banks';
   const resources:{geometry:THREE.BufferGeometry;material:THREE.Material;texture:THREE.Texture}[]=[];
   const size=256,scale=3;
+  const craters=world.props.filter(p=>['crater','impact','ember-vent'].includes(p.kind));
   for(let y=0;y<world.height;y+=size)for(let x=0;x<world.width;x+=size) {
     let boundary=false;
     for(let row=y/TILE;row<Math.min(world.rows,(y+size)/TILE)&&!boundary;row++)for(let col=x/TILE;col<Math.min(world.cols,(x+size)/TILE)&&!boundary;col++) {
@@ -21,7 +22,9 @@ export function buildOverworldBanks(world: WorldMap, heightAt: (x:number,y:numbe
     const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;
     const material=new THREE.MeshStandardMaterial({map:texture,transparent:true,depthWrite:false,alphaTest:.01,roughness:1,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
     const positions:number[]=[],uvs:number[]=[],normals:number[]=[],normal=new THREE.Vector3();
-    for(let dy=0;dy<size&&y+dy<world.height;dy+=TILE)for(let dx=0;dx<size&&x+dx<world.width;dx+=TILE)for(const [ox,oy] of [[0,0],[0,TILE],[TILE,0],[TILE,0],[0,TILE],[TILE,TILE]]) {
+    // Crater terrain uses a four-unit mesh; use its exact subdivision here too.
+    const step=craters.some(p=>p.x-p.w*.1<x+size&&p.x+p.w*1.1>x&&p.y-p.h*.1<y+size&&p.y+p.h*1.1>y)?4:TILE;
+    for(let dy=0;dy<size&&y+dy<world.height;dy+=step)for(let dx=0;dx<size&&x+dx<world.width;dx+=step)for(const [ox,oy] of [[0,0],[0,step],[step,0],[step,0],[0,step],[step,step]]) {
       const px=x+dx+ox,py=y+dy+oy;positions.push(px,heightAt(px,py)+.025,py);uvs.push((px-x)/size,1-(py-y)/size);
       normal.set(heightAt(px-.5,py)-heightAt(px+.5,py),1,heightAt(px,py-.5)-heightAt(px,py+.5)).normalize();normals.push(normal.x,normal.y,normal.z);
     }
