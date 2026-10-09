@@ -16,3 +16,12 @@ Seven NPC requests offer personal hunt, boss, clear and candy-delivery objective
 ## Verification
 
 Run `npx tsc -b`, ESLint on changed files, `npm run check:wayside-fury`, and the arena, hub-quests, relic-radar, u1hub-integration, co-op-sim, co-op-rewards, interiors-coop, context-attack-unit and cloud checks. Run `cd server && npx jest --forceExit` for the server changes. `check-wayside-fury-u1hub-browser.mjs` uses `--mute-audio`, port 5229, portrait DPR3 and desktop DPR2; screenshots go to `/tmp/fury-u1hub-shots`. Set `PLAYWRIGHT_MODULE` and optionally `PLAYWRIGHT_CHANNEL` for an external browser installation.
+
+### Port validation record
+
+- ESLint on changed files, the full campaign simulation and all listed U1/co-op/cloud checks passed. The cloud suite passed all 19 cases.
+- The full server Jest run passed 39 suites; four suites hit the default five-second timeout under concurrent machine load. All four passed when rerun serially with a 60-second timeout. Arena receipt, quest and HTTP payout tests passed, including forged receipts, run caps, daily taper/backstop and ordinary Arcade reward compatibility.
+- Muted Playwright passed the NPC quest flow, seven-request board, arena spawning, native DPR backing resolution, retirement and personal run persistence on phone DPR3 and desktop DPR2. Desktop `?gfx=3d` used the arena's shared 2D fallback. No page errors occurred; screenshots were visually inspected.
+- Independent code review returned no correctness findings.
+
+The browser harness accepts `FURY_BROWSER_TIMEOUT` in milliseconds for slow verification machines. The local preview used an isolated Vite cache on port 5229 and was stopped after verification.
