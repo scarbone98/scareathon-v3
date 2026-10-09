@@ -962,10 +962,11 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
     if (!isObstacleCleared(s,gate.id) || Math.hypot(s.x-gate.rewardAnchor.x,s.y-gate.rewardAnchor.y)>=34) return;
     if (s.coop?.role === 'guest') { s.notice='The party host opens shared caches and leads shortcuts.'; return; }
     if (s.solvedInteractions.includes(gate.rewardId) || s.coop?.worldSolvedInteractions?.includes(gate.rewardId)) {
+      if (s.mapId.startsWith('moon-')) { spaceInteract(s,'space-home'); return; }
       enterScene(s,'hub'); s.checkpointMapId='hub'; s.events.push({type:'checkpoint',id:'personal-locks-shortcut'}); return;
     }
     s.solvedInteractions.push(gate.rewardId); s.clearedRooms.push(gate.rewardId); if (!s.coop) s.candy += 12;
-    openDialogue(s,'Hidden ledger',[gate.lore,'Twelve candy packed for the road. Inspect the cache again for a shortcut to Wayside.']);
+    openDialogue(s,'Hidden ledger',[gate.lore,'Twelve candy packed for the road. Inspect the cache again for a return route. Lunar caches use the crew’s return flight.']);
     s.events.push({type:'checkpoint',id:gate.rewardId}); return;
   }
   const countyStop = COUNTY_STOPS.find(stop => stop.id === target.id);

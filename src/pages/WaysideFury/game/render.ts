@@ -268,7 +268,7 @@ export class Renderer {
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
-    for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
+    for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);if(s.spaceOutfit)this.hero({...s,active:assist.hero!,x:assist.x,y:assist.y,moving:false,guard:false,attackTimer:0,charge:0});else this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
     for (const door of world.radarAnchors?.filter(anchor=>anchor.id.endsWith("-door")) ?? []) actors.push({y:door.y,draw:()=>drawBuildingDoors(c,s)});
     for (const gate of obstaclesForState(s)) if (this.visible(gate.x,gate.y,110)) {
       actors.push({y:gate.y+gate.h,draw:()=>drawHeroObstacle(c,gate,isObstacleCleared(s,gate.id),motionTime,this.reducedMotion?1:1-(s.effects.find(e=>Math.abs(e.x-gate.x-gate.w/2)<1&&Math.abs(e.y-gate.y-gate.h/2)<1)?.ttl??0)/.8)});

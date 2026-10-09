@@ -45,7 +45,7 @@ export function requirementMet(s:GameState,g:HeroObstacle):boolean {
     milestones:[...s.campaignMilestones,...s.coop?.worldCampaignMilestones??[]]});
 }
 export function gateTargets(s:GameState) {
-  return obstaclesForState(s).flatMap(g=>isObstacleCleared(s,g.id)?[{id:g.rewardId,name:(s.solvedInteractions.includes(g.rewardId)||s.coop?.worldSolvedInteractions?.includes(g.rewardId))?'Shortcut to Wayside':'Read hidden ledger · collect supplies',kind:'use' as const,x:g.rewardAnchor.x,y:g.rewardAnchor.y}]:[
+  return obstaclesForState(s).flatMap(g=>isObstacleCleared(s,g.id)?[{id:g.rewardId,name:(s.solvedInteractions.includes(g.rewardId)||s.coop?.worldSolvedInteractions?.includes(g.rewardId))?(s.mapId.startsWith('moon-')?'Return via rocket':'Shortcut to Wayside'):'Read hidden ledger · collect supplies',kind:'use' as const,x:g.rewardAnchor.x,y:g.rewardAnchor.y}]:[
     {id:g.id,name:requirementMet(s,g)?`Clear ${g.kind==='boulder'?'stone':g.kind==='vines'?'cables':'barrier'}`:g.name,kind:'use' as const,x:g.x+g.w/2,y:g.y+g.h/2}]);
 }
 export function clearHeroObstacle(s:GameState,id:string):boolean {

@@ -36,7 +36,7 @@ for(const g of HERO_OBSTACLES){
  const saved=makeSave(s,null,true);assert.ok(saved);assert.ok(isObstacleCleared(restoreSave(saved),g.id));assert.ok(isObstacleCleared(restoreSave(saved,true),g.id));
  s.effects=[];s.x=g.rewardAnchor.x;s.y=g.rewardAnchor.y;const candy=s.candy;interact(s);
  assert.equal(s.candy,candy+12);assert.equal(progressReport(s,receipt).score,100,'allowlisted first-clear cache');
- s.dialogue=null;interact(s);assert.equal(s.mapId,'hub','cache provides return shortcut');assert.equal(s.candy,candy+12);
+ s.dialogue=null;interact(s);if(g.worldId.startsWith('moon-'))assert.equal(s.film?.id,'space-return','Moon shortcut preserves return film');else assert.equal(s.mapId,'hub','cache provides return shortcut');assert.equal(s.candy,candy+12);
  assert.equal(progressReport(s,progressReport(s).receipt).score,0,'no replay ticket inflation');
  const old={...saved,version:3};assert.deepEqual(parseSave(old).solvedInteractions,[],'explicit v3 migration starts with closed gates');
  const noField={...saved};delete noField.solvedInteractions;assert.deepEqual(parseSave(noField).solvedInteractions,[],'older v4 without receipts is additive');
