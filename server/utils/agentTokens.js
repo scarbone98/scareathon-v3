@@ -81,6 +81,7 @@ export async function authenticateAgent(db, request, reply, token) {
         const result = await db.query(`
             UPDATE agent_tokens SET last_used_at = now()
             WHERE token_hash = $1 AND revoked_at IS NULL
+              AND EXISTS (SELECT 1 FROM users WHERE users.id = agent_tokens.user_id AND users.deleted_at IS NULL)
             RETURNING id, user_id, name
         `, [hashAgentToken(token)]);
         row = result.rows[0];

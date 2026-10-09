@@ -1,3 +1,4 @@
+import { onAccountClosed } from '../utils/accountSessions.js';
 import websocket from '@fastify/websocket';
 import pool from '../db/mockDB.js';
 import { createRoomManager, RoomError, MAX_MESSAGE_BYTES } from '../wayside-fury/rooms.js';
@@ -25,6 +26,10 @@ export default async function waysideFuryCoopRoutes(fastify, { rooms: injectedRo
     if (!fastify.hasDecorator('websocketServer')) {
         await fastify.register(websocket, { options: { maxPayload: MAX_MESSAGE_BYTES } });
     }
+    const stopClosures = onAccountClosed(userId => {
+        rooms.forgetUser?.(userId);
+        for (const socket of sockets) if (socket.waysideFuryUser?.userId === userId) { socket.waysideFuryUser = null; socket.close(4001, 'Account closed'); }
+    });
     const sockets = new Set();
     const loop = injectedRooms ? null : setInterval(() => rooms.tick(), LOOP_MS);
     loop?.unref();
@@ -37,6 +42,7 @@ export default async function waysideFuryCoopRoutes(fastify, { rooms: injectedRo
     }, HEARTBEAT_MS);
     heartbeat.unref();
     fastify.addHook('onClose', async () => {
+        stopClosures();
         clearInterval(loop);
         clearInterval(heartbeat);
         for (const socket of sockets) socket.close(1001, 'Server shutdown');
@@ -46,7 +52,7 @@ export default async function waysideFuryCoopRoutes(fastify, { rooms: injectedRo
     fastify.post('/ticket', async (request, reply) => {
         if (typeof request.user?.sub !== 'string' || !request.user.sub.trim()) return reply.code(401).send({ error: ERRORS.auth });
         try {
-            const result = await db.query('SELECT username FROM users WHERE id = $1', [request.user.sub]);
+            const result = await db.query("SELECT CASE WHEN deleted_at IS NOT NULL THEN 'Deleted rider' ELSE username END AS username FROM users WHERE id = $1", [request.user.sub]);
             if (!result.rows[0]) return reply.code(401).send({ error: ERRORS.auth });
             return { ticket: rooms.issueTicket({ userId: request.user.sub, name: result.rows[0].username }) };
         } catch (error) {

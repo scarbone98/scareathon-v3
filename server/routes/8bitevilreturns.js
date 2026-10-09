@@ -92,7 +92,13 @@ export async function getGameId(client = pool) {
 }
 
 async function getUserName(userId, client = pool) {
-    const result = await client.query('SELECT username FROM users WHERE id = $1 LIMIT 1', [userId]);
+    const result = await client.query("SELECT CASE WHEN deleted_at IS NOT NULL THEN 'Deleted rider' ELSE username END AS username, deleted_at FROM users WHERE id = $1 LIMIT 1", [userId]);
+    // These legacy endpoints accept a UUID without a session: never recreate a closed rider's save.
+    if (result.rows[0]?.deleted_at) {
+        const error = new Error('Account closed');
+        error.code = 'ACCOUNT_CLOSED';
+        throw error;
+    }
     return result.rows[0]?.username || DEFAULT_PLAYER_DATA.userName;
 }
 
@@ -142,6 +148,7 @@ export default async function (fastify, options) {
 
             return normalizePlayerData(storedData, userName);
         } catch (err) {
+            if (err.code === 'ACCOUNT_CLOSED') return reply.code(401).send({ error: 'Account closed' });
             fastify.log.error(err);
             return reply.code(500).send({ error: 'An error has occurred with our database' });
         }
@@ -167,6 +174,7 @@ export default async function (fastify, options) {
 
             return { data: 'success' };
         } catch (err) {
+            if (err.code === 'ACCOUNT_CLOSED') return reply.code(401).send({ error: 'Account closed' });
             fastify.log.error(err);
             return reply.code(500).send({ error: 'An error has occurred with our database' });
         }
@@ -213,6 +221,7 @@ export default async function (fastify, options) {
             return { data: 'success', playerData: updatedData };
         } catch (err) {
             await client.query('ROLLBACK').catch(() => {});
+            if (err.code === 'ACCOUNT_CLOSED') return reply.code(401).send({ error: 'Account closed' });
             fastify.log.error(err);
             return reply.code(500).send({ error: 'An error has occurred with our database' });
         } finally {
@@ -256,6 +265,7 @@ export default async function (fastify, options) {
             return { data: 'success' };
         } catch (err) {
             await client.query('ROLLBACK').catch(() => {});
+            if (err.code === 'ACCOUNT_CLOSED') return reply.code(401).send({ error: 'Account closed' });
             fastify.log.error(err);
             return reply.code(500).send({ error: 'An error has occurred with our database' });
         } finally {
@@ -275,7 +285,7 @@ export default async function (fastify, options) {
             const gameId = await getGameId();
             const metricNames = field === 'runTimeSeconds' ? ['runTimeSeconds', 'score'] : [field];
             const leaderBoardResult = await pool.query(`
-                SELECT u.username, l.metric_value
+                SELECT CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE u.username END AS username, l.metric_value
                 FROM leaderboards l
                 JOIN users u ON u.id = l.user_id
                 WHERE l.game_id = $1 AND l.metric_name = ANY($2)
@@ -292,6 +302,7 @@ export default async function (fastify, options) {
                 })),
             };
         } catch (err) {
+            if (err.code === 'ACCOUNT_CLOSED') return reply.code(401).send({ error: 'Account closed' });
             fastify.log.error(err);
             return reply.code(500).send({ error: 'An error occurred with our database' });
         }

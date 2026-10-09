@@ -42,6 +42,7 @@ export function createChatRoom({ lookupUsername, limits = CHAT_LIMITS }) {
     const lastPostAt = new Map();
     const names = new Map();
     let nextId = 1;
+    const authors = new Map();
 
     async function nameFor(userId) {
         const cached = names.get(userId);
@@ -76,7 +77,12 @@ export function createChatRoom({ lookupUsername, limits = CHAT_LIMITS }) {
             }
 
             const clean = censor.applyTo(text, profanityMatcher.getAllMatches(text));
-            return remember({ id: nextId++, name: await nameFor(userId), text: clean, at: now });
+            const message = { id: nextId++, name: await nameFor(userId), text: clean, at: now };
+            authors.set(message.id, userId);
+            const kept = remember(message);
+            const ids = new Set(messages.map(each => each.id));
+            for (const id of authors.keys()) if (!ids.has(id)) authors.delete(id);
+            return kept;
         },
 
         // Announcements from the arena itself (payouts, refunds).
@@ -84,6 +90,13 @@ export function createChatRoom({ lookupUsername, limits = CHAT_LIMITS }) {
             return remember({ id: nextId++, system: true, text, at: Date.now() });
         },
 
+        forgetUser(userId) {
+            for (let index = messages.length - 1; index >= 0; index--) {
+                if (authors.get(messages[index].id) === userId) { authors.delete(messages[index].id); messages.splice(index, 1); }
+            }
+            names.delete(userId);
+            lastPostAt.delete(userId);
+        },
         recent() {
             return [...messages];
         },

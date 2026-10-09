@@ -159,7 +159,7 @@ export function createMatchRepository(db = pool) {
         },
 
         async getUsername(userId) {
-            const { rows } = await db.query('SELECT username FROM users WHERE id = $1', [userId]);
+            const { rows } = await db.query("SELECT CASE WHEN deleted_at IS NOT NULL THEN 'Deleted rider' ELSE username END AS username FROM users WHERE id = $1", [userId]);
             return rows[0]?.username ?? null;
         },
 

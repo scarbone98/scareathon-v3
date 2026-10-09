@@ -260,6 +260,18 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
                 for (const player of expired) remove(room, player.seat, 'dropped');
             }
         },
+        forgetUser(userId) {
+            for (const [key, pass] of tickets) if (pass.userId === userId) tickets.delete(key);
+            for (const room of [...rooms.values()]) {
+                for (const player of players(room)) {
+                    if (player.userId !== userId) continue;
+                    const socket = player.socket;
+                    if (socket) { socket.waysideFuryUser = null; socket.close?.(4001, 'Account closed'); }
+                    remove(room, player.seat, 'account-closed');
+                    room.latestState = null;
+                }
+            }
+        },
         close() {
             for (const room of rooms.values()) {
                 updateHosting(room.code, null);
