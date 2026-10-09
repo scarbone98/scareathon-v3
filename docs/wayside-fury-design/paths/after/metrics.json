@@ -1,0 +1,74 @@
+[
+  {
+    "room": 0,
+    "name": "Scorched Road",
+    "requested": "2d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 1,
+    "name": "Split Creek",
+    "requested": "2d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 2,
+    "name": "Ruined Yard",
+    "requested": "2d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 5,
+    "name": "Shattered Courtyard",
+    "requested": "2d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 0,
+    "name": "Scorched Road",
+    "requested": "3d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 1,
+    "name": "Split Creek",
+    "requested": "3d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 2,
+    "name": "Ruined Yard",
+    "requested": "3d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  },
+  {
+    "room": 5,
+    "name": "Shattered Courtyard",
+    "requested": "3d",
+    "active": "2d",
+    "width": 1170,
+    "height": 2148,
+    "dpr": 3
+  }
+]
