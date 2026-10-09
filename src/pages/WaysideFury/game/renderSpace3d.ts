@@ -1,4 +1,3 @@
-import { drawCrew } from './crewArt';
 import { idleMotion } from './animation';
 import { HeroObstacleMeshes } from './locks/obstacleRender3d';
 import { INTERIORS } from './interiors';
@@ -35,12 +34,14 @@ export class SpaceRenderer {
   private focus=new THREE.Vector2();
   private ready=false;
   private avatar:HeroAvatar|null=null;
+  private street=new Map<string,HTMLImageElement>();
   private remotes=new Map<number,HeroAvatar>();
   private viewport=getRenderViewport(1,1,1);
   private groundEffects:THREE.Mesh;
   private groundEffectsCanvas=document.createElement('canvas');
   private groundEffectsTexture:THREE.CanvasTexture;
   constructor(private renderer:THREE.WebGLRenderer,private canvas:HTMLCanvasElement) {
+    for(const [id,url]of Object.entries({joe:'/royale/joe_idle.png',matt:'/royale/matt_idle.png',alex:'/royale/ui/alex_idle.png',jon:'/royale/ui/jon_idle.png'})){const image=new Image();image.src=url;this.street.set(id,image);}
     this.scene.background=new THREE.Color('#0c1527');
     this.scene.add(new THREE.HemisphereLight(0xcce8ff,0x4b506c,2.2));
     const sun=new THREE.DirectionalLight(0xffedcb,3);sun.position.set(-150,350,-120);this.scene.add(sun);
@@ -208,9 +209,10 @@ export class SpaceRenderer {
     for(const a of this.actors.values())a.mesh.visible=false;
     const suited=(id:string,state:GameState,avatar:HeroAvatar|null)=>{
       const v=resolveHeroVisual(state,avatar);if(!v){
-        const phase = Math.floor((state.motion?.phase ?? 0) * 12), facing = state.motion?.facing ?? 'down';
-        this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y),`street:${state.active}:${phase}:${facing}:${Math.floor(state.time*12)}:${avatar?.portraitUrl??''}`,c=>{
-          c.scale(4,4); drawCrew(c,state.active,16,46,state.time,state.motion,avatar);
+        const frame=Math.floor(state.time*8),image=this.street.get(state.active);
+        this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y),`street:${state.active}:${frame}:${avatar?.portraitUrl??''}:${image?.complete}`,c=>{c.imageSmoothingEnabled=false;
+          if(state.active==='you'&&avatar){for(const strip of [...avatar.back,avatar.body,...avatar.front])c.drawImage(strip.canvas,(frame%strip.frames)*32,0,32,48,0,0,128,192);}
+          else if(image?.complete&&image.naturalWidth)c.drawImage(image,(frame%(state.active==='jon'?5:6))*16,0,16,24,0,0,128,192);
         });return;
       }
       this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y)+lunarLift(state),`${state.active}:${v.pose}:${v.facing}:${v.frame}:${v.appearanceReady}:${avatar?.portraitUrl??''}`,c=>{c.drawImage(v.canvas,0,0);c.drawImage(v.visor,0,0);});

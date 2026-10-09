@@ -1,5 +1,4 @@
 import { drawOpening } from "./opening";
-import { drawCrew } from './crewArt';
 import { creatureMotion, idleMotion, type ActorMotion } from './animation';
 import { prologueCamera } from './prologue';
 import { radarPickupTarget as hubRadarPickupTarget } from "../u1/minimap/relicRadar";
@@ -188,9 +187,8 @@ export class Renderer {
     if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
-    for (const enemy of s.enemies) if (enemy.hp > 0) add(`enemy-symbol-${enemy.id}`, enemy.kind === 'boss' ? '♛' : enemy.kind === 'shooter' ? '⊙' : '▲', enemy.x, enemy.y - enemy.radius - 14, 'caption');
-    for (const pickup of availablePickups(s)) if (Math.hypot(s.x - pickup.x, s.y - pickup.y) < 80) add(`pickup-symbol-${pickup.id}`, { snack: '♡', candy: '◈', lore: '▤', trinket: '✦' }[pickup.kind], pickup.x, pickup.y - 16, 'caption');
-    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s,gate.id) && Math.hypot(s.x - gate.x - gate.w/2, s.y - gate.y) < 100) add(`gate-symbol-${gate.id}`, `${{ you: '◎', joe: '≋', matt: '◆', alex: '✚', jon: '✦' }[gate.hero]} ${gate.hero === 'you' ? 'You' : gate.hero} · locked`, gate.x + gate.w/2, gate.y - 38, 'locked');
+    if (s.shapeMarkers) for (const pickup of availablePickups(s)) if (Math.hypot(s.x - pickup.x, s.y - pickup.y) < 80) add(`pickup-symbol-${pickup.id}`, { snack: '♡', candy: '◈', lore: '▤', trinket: '✦' }[pickup.kind], pickup.x, pickup.y - 16, 'caption');
+    if (s.shapeMarkers) for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s,gate.id) && Math.hypot(s.x - gate.x - gate.w/2, s.y - gate.y) < 100) add(`gate-symbol-${gate.id}`, `${{ you: '◎', joe: '≋', matt: '◆', alex: '✚', jon: '✦' }[gate.hero]} ${gate.hero === 'you' ? 'You' : gate.hero} · locked`, gate.x + gate.w/2, gate.y - 38, 'locked');
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
     if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y - 38, 'caption');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels, focus: this.project(s.x, s.y) };
@@ -503,7 +501,7 @@ export class Renderer {
     if (prop.kind === 'npc') {
       this.shadow(x, y);
       const id = prop.label === 'Jon' ? 'jon' : 'alex';
-      drawCrew(c, id, x, y, time + x * .01); return;
+      this.sprite(id, x, y - (this.reducedMotion ? 0 : Math.sin(time * 2 + x) * .5), time); return;
     }
     if (prop.kind === 'station' || prop.kind === 'shop' || prop.kind === 'home' || prop.kind === 'shed' || prop.kind === 'diner') {
       this.worldBuilding(prop, time);
@@ -669,8 +667,11 @@ export class Renderer {
       else if (s.charge > .12) c.scale(1.035, .96);
       else c.scale(1 - cycle * .008, 1 + cycle * .009);
     }
-    drawCrew(c, s.active, 0, 0, time, this.reducedMotion ? idleMotion(s.motion?.facing) : s.motion, this.avatar);
-    drawQuestCosmetic(c, s);
+    if (s.active === 'you' && this.avatar) for (const strip of this.avatar.back) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
+    const sprite = (walking || s.dashTimer > 0) && (s.active === 'joe' || s.active === 'matt') ? `run_${s.active}` as const : s.active;
+    this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
+    if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
+    drawQuestCosmetic(c,s);
     c.restore(); c.globalAlpha = 1;
 
     if (s.guard) {
@@ -696,14 +697,14 @@ export class Renderer {
     if (boss && enemy.phase === 2) { c.globalAlpha = .55 + Math.sin(time * 9) * .07; this.glow(enemy.x, enemy.y - 23, 35, '#db82cb'); c.globalAlpha = 1; }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
     c.save(); c.translate(enemy.x, enemy.y);
-    creatureMotion(c, enemy.motion, time, 0, 0, enemy.sprite === 'ghost');
+    if (!this.reducedMotion) creatureMotion(c, enemy.motion, time, 0, 0, enemy.sprite === 'ghost');
     applyEnemyWindup(c, { ...enemy, x: 0, y: 0 });
     if (!this.reducedMotion) {
       const stagger = enemy.hitTimer / .15;
       c.rotate(enemy.hitTimer > 0 ? -Math.sign(enemy.kx || 1) * stagger * .18 : Math.sin(time * 5) * .015);
       c.translate(0, -Math.abs(Math.sin(time * 7)) * .7);
     }
-    this.sprite(id, 0, 0, (enemy.motion?.speed ?? 0) > 1 ? enemy.motion!.phase / (Math.PI * 2) * SHEETS[id].frames / 12 : time * .35, false, scale, enemy.hitTimer > 0); c.restore();
+    this.sprite(id, 0, 0, (enemy.motion?.speed ?? 0) > 1 ? enemy.motion!.phase / (Math.PI * 2) * SHEETS[id].frames / 12 : time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
     if (enemy.archetype === 'shield' && enemy.windup === 0 && enemy.actionTimer === 0) {
       const facing = Math.atan2(enemy.aimY, enemy.aimX);
       c.save(); c.strokeStyle = '#90daed'; c.lineWidth = 2.5; c.beginPath();
@@ -718,74 +719,82 @@ export class Renderer {
   }
 
   private drawPrologue(s: GameState) {
-    const beat = PROLOGUE[s.cutscene] ?? PROLOGUE[0], phase = beat.phase;
-    const time = this.reducedMotion ? 4 : s.sceneTimer;
-    const crew = ['joe', 'matt', 'alex', 'jon'] as const;
-    const dark = phase === 'dark' || phase === 'portal';
-    const actor = (id: HeroId, x: number, y: number, moving = false, facing: ActorMotion['facing'] = 'down', emote: 'calm' | 'talk' | 'shock' | 'ready' = 'calm', distance = 0) => {
-      this.shadow(x, y, 15);
-      drawCrew(this.ctx, id, x, y, this.reducedMotion ? 0 : s.time, { phase: distance / 24 * Math.PI * 2, speed: moving && !this.reducedMotion ? 30 : 0, facing }, null, emote);
-      if (beat.hero === id && phase !== 'taxi') {
-        this.ctx.strokeStyle = ACCENT[id]; this.ctx.lineWidth = 1;
-        this.ctx.beginPath(); this.ctx.ellipse(x, y + 2, 9, 2, 0, 0, Math.PI * 2); this.ctx.stroke();
+    const phase = PROLOGUE[s.cutscene]?.phase ?? "backstory";
+    const time = s.sceneTimer;
+    if (phase === "backstory") {
+      this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#1e1d36");
+      for (let k = 0; k < 32; k++) this.rect((k * 83) % STAGE_WIDTH, 12 + (k * 29) % 68, 1, 1, k % 2 ? "#8d759f" : "#eaccc1");
+      this.rect(0, 85, STAGE_WIDTH, 95, "#34384a");
+      this.rect(0, 85, STAGE_WIDTH, 4, "#605c6c");
+      this.portal(255, 99, time);
+      for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
+        const x = 75 + index * 39;
+        const y = 106 + Math.sin(time * 4 + index) * 2;
+        this.shadow(x, y);
+        this.sprite(id, x, y, s.time, true);
       }
-    };
-    if (phase === 'backstory') {
-      this.rect(0, 0, 320, 180, '#1e1d36');
-      for (let k = 0; k < 32; k++) this.disc((k * 83) % 320, 12 + (k * 29) % 68, .5, '#eaccc1');
-      this.rect(0, 110, 320, 70, '#34384a'); this.portal(265, 107, time);
-      crew.forEach((id, i) => {
-        const travel = Math.min(1, Math.max(0, (time - i * .22) / 1.6));
-        actor(id, 245 + (85 + i * 37 - 245) * travel, 116 + i % 2 * 6, travel < 1, travel < 1 ? 'left' : 'down', 'calm', Math.abs(85 + i * 37 - 245) * travel);
-      });
+      for (let k = 0; k < 22; k++) {
+        const y = 38 + ((k * 17 + Math.floor(time * 15)) % 75);
+        this.rect(56 + k * 8, y, 2, 2, ["#e9bc73", "#87c0b7", "#c586ad"][k % 3]);
+      }
       return;
     }
+    if (phase === "suitup") {
+      const heroes = ["joe", "matt", "alex", "jon"] as const;
+      const id = heroes[Math.floor(time / 0.65) % heroes.length];
+      const color = { joe: "#79ebff", matt: "#ffd06f", alex: "#afd990", jon: "#bc9ce7" }[id];
+      this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#152733");
+      for (let k = 0; k < 8; k++) this.rect(k * 46 - 48 + Math.floor(time * 30) % 46, 25 + k * 6, 28, 90, "#233943");
+      this.ctx.globalAlpha = 0.16;
+      this.disc(160, 72, 54, color);
+      this.ctx.globalAlpha = 1;
+      this.sprite(id, 160, 110, s.time, false, 3);
+      // Gloves, a belt and shoulder guards sell the gearing-up cuts without new sheets.
+      this.rect(138, 74, 7, 8, color);
+      this.rect(177, 74, 7, 8, color);
+      this.rect(144, 93, 32, 4, "#d5b981");
+      this.rect(158, 93, 5, 4, "#fff0b3");
+      return;
+    }
+    const dark = phase === "dark" || phase === "portal";
     this.drawBackyard(time, dark);
-    if (phase === 'years') {
-      // Begin on an empty yard, then let the reunion enter the frame.
-      crew.forEach((id, i) => {
-        const travel = Math.min(1, Math.max(0, (time - .6 - i * .2) / 1.5));
-        actor(id, 60 + (119 + i * 32 - 60) * travel, 99 + i % 2 * 6, travel < 1, 'right', 'calm', (119 + i * 32 - 60) * travel);
-      });
+    if (phase === "years") {
       return;
     }
-    if (phase === 'suitup') {
-      this.rect(0, 0, 320, 180, '#152733');
-      crew.forEach((id, i) => {
-        const t = Math.min(1, Math.max(0, (time - i * .38) / .55));
-        this.ctx.globalAlpha = .12; this.disc(82 + i * 52, 80, 26, ACCENT[id]); this.ctx.globalAlpha = 1;
-        actor(id, 82 + i * 52, 137 - t * 25, t < 1, 'down', t === 1 ? 'ready' : 'calm', t * 25);
-      });
-      return;
-    }
-    if (phase === 'taxi') {
-      this.road(0, 111, 320, 25, true);
-      crew.forEach((id, i) => {
-        const p = Math.min(1, Math.max(0, (time - .5 - i * .3) / 1.4));
-        const start = 100 + i * 35;
-        if (p < 1) actor(id, start + (167 - start) * p, 103 + i % 2 * 4, true, start > 167 ? 'left' : 'right', 'calm', Math.abs(167 - start) * p);
-      });
-      // Park until the player finishes reading; departure belongs to the fade.
-      const depart = (s.prologueExit ?? 0) * 150;
-      this.taxi(167 + depart, 127, 1, 0, time, depart > 0, { phase: depart / 4, speed: depart > 0 ? 150 : 0, facing: 'right' });
-      return;
-    }
-    crew.forEach((id, i) => {
-      const x = [119, 143, 188, 216][i], y = [99, 104, 103, 98][i];
-      actor(id, x, y, false, dark ? 'right' : i > 1 ? 'left' : 'right', dark ? 'shock' : beat.hero === id ? 'talk' : 'calm');
-      if (dark && time < 2.4) {
-        this.ctx.font = 'bold 12px sans-serif'; this.ctx.fillStyle = '#f5d299'; this.ctx.fillText('!', x - 2, y - 41);
+    if (phase === "taxi") {
+      this.road(0, 111, STAGE_WIDTH, 25, true);
+      const progress = Math.min(1, time / 1.8);
+      for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
+        if (time > 1.25 + index * 0.24) continue;
+        const start = 75 + index * 48;
+        this.sprite(id, start + (160 - start) * progress, 104 + index % 2 * 5, s.time, start > 160);
       }
-    });
-    if (dark) {
-      this.ctx.globalAlpha = .2; this.disc(268, 50, 26, '#ffac87'); this.ctx.globalAlpha = 1;
-      this.rect(264, 35, 8, 19, '#df9078'); this.rect(257, 41, 22, 6, '#e8b286');
+      this.taxi(160 + Math.max(0, time - 2.1) * 62, 123, 1, 0, s.time, time > 2.1);
+      return;
     }
-    if (phase === 'portal') {
+    const spots = [[119, 99], [143, 104], [188, 103], [216, 98]];
+    for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
+      const [x, y] = spots[index];
+      this.shadow(x, y);
+      this.sprite(id, x, y, s.time, index > 1 && !dark);
+    }
+    if (dark) {
+      const pulse = Math.sin(time * 7) * 0.08 + 0.17;
+      this.ctx.globalAlpha = pulse;
+      this.disc(268, 50, 26, "#ffac87");
+      this.ctx.globalAlpha = 1;
+      this.rect(264, 35, 8, 19, "#df9078");
+      this.rect(257, 41, 22, 6, "#e8b286");
+      this.rect(262, 46, 12, 3, "#ffddaa");
+      if (phase === "dark" && time < 0.3) {
+        this.ctx.globalAlpha = Math.max(0, 0.9 - time * 3);
+        this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#fff0cf");
+        this.ctx.globalAlpha = 1;
+      }
+    }
+    if (phase === "portal") {
       this.portal(264, 99, time);
-      const entrance = this.reducedMotion ? 1 : Math.min(1, time / 1.2);
-      this.ctx.save(); this.ctx.globalAlpha = entrance;
-      this.architect(264 - entrance * 23, 101, time); this.ctx.restore();
+      this.architect(241, 101, time);
     }
   }
 
@@ -893,7 +902,7 @@ export class Renderer {
     const wheelPhase = this.reducedMotion ? 0 : motion?.phase ?? 0;
     c.translate(0, this.reducedMotion ? 0 : moving ? -Math.abs(Math.sin(wheelPhase * 2)) * .45 : Math.sin(time * 9) * .12);
     drawTaxiBody(c, 'side');
-    if (moving) for (const wx of [-10, 10]) { c.strokeStyle = '#91a0a4'; c.lineWidth = .7; c.beginPath(); c.moveTo(wx - Math.cos(wheelPhase) * 2, -2 - Math.sin(wheelPhase) * 2); c.lineTo(wx + Math.cos(wheelPhase) * 2, -2 + Math.sin(wheelPhase) * 2); c.stroke(); }
+    // Suspension moves the original body; no new wheel strokes.
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;

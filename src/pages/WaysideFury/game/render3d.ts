@@ -1,5 +1,4 @@
 import { obstaclesForState, isObstacleCleared } from "./locks/obstacles";
-import { drawCrew } from './crewArt';
 import { idleMotion, type ActorMotion } from './animation';
 import { sampleDayNight } from "./u1/world/dayNight";
 import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
@@ -643,13 +642,6 @@ export class OverworldRenderer {
   }
   private loadSheets() {
     for (const [id, sheet] of Object.entries(SHEETS)) {
-      if (['joe','matt','alex','jon'].includes(id)) {
-        const canvas = document.createElement('canvas'); canvas.width = 128 * 24; canvas.height = 192;
-        const c = canvas.getContext('2d')!;
-        for (let frame = 0; frame < 24; frame++) { c.save(); c.translate(frame * 128, 0); c.scale(4,4); drawCrew(c,id as HeroId,16,46,frame/6); c.restore(); }
-        const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-        this.sheets.set(id as SpriteId, { texture, frames: 24, w: 32, h: 48, fps: 6 }); continue;
-      }
       const image = new Image();
       image.onload = () => {
         if (this.disposed) return;
@@ -730,7 +722,7 @@ export class OverworldRenderer {
       // Layer depth offsets follow the camera, preserving wardrobe order.
       const bob = this.reducedMotion ? 0 : walk ? Math.abs(Math.sin(motion.phase)) * 1.5 : (1 + Math.sin(time * 3 + x)) * .25;
       const wave = this.reducedMotion ? 0 : Math.sin(walk ? motion.phase : time * 2.4);
-      sprite.scale.set(sheet.w * scale * (motion?.facing === 'left' ? -1 : 1) * (1 + wave * .025), sheet.h * scale * (1 - wave * .025), 1);
+      sprite.scale.set(sheet.w * scale * (1 + wave * .025), sheet.h * scale * (1 - wave * .025), 1);
       sprite.position.set(FORWARD.x * index * .08, bob + index * .02, FORWARD.z * index * .08);
     });
     actor.group.visible = this.nearView(x, y, 80);
@@ -917,7 +909,7 @@ export class OverworldRenderer {
         const sheet = actor.sheets[index];
         const motion = this.reducedMotion ? idleMotion(enemy.motion?.facing) : enemy.motion;
         const wave = this.reducedMotion ? 0 : Math.sin((motion?.speed ?? 0) > 1 ? motion!.phase : this.visualTime * 2.4);
-        sprite.scale.set(sheet.w * scale * (motion?.facing === 'left' ? -1 : 1) * (motion?.facing === 'up' || motion?.facing === 'down' ? .94 : 1) * (1 + wave * .025) * (tell ? 1.045 : 1), sheet.h * scale * (1 - wave * .025) * (tell ? .94 : 1), 1);
+        sprite.scale.set(sheet.w * scale * (1 + wave * .025) * (tell ? 1.045 : 1), sheet.h * scale * (1 - wave * .025) * (tell ? .94 : 1), 1);
         sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : tell ? 0xffe5bd : 0xffffff);
       });
     }
@@ -1017,8 +1009,8 @@ export class OverworldRenderer {
     for (const prop of this.world.props) if (prop.label && !prop.interiorId && ['diner', 'sign', 'vending', 'bench', 'water-tower', 'windmill', 'shed', 'npc', 'keeper'].includes(prop.kind) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(prop.id, prop.label, prop.x + prop.w / 2, prop.y + prop.h, prop.kind === 'diner' ? 67 : 38, 'hub', undefined, Math.max(0,Math.min(1,(110-Math.hypot(s.x-prop.x-prop.w/2,s.y-prop.y-prop.h))/30)));
     if (s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y, 42, 'caption');
     for (const floater of s.floaters) add(floater.id, floater.text, floater.x, floater.y, 28, 'floater', floater.color, Math.min(1, floater.ttl * 4));
-    for (const pickup of availablePickups(s)) if (Math.hypot(s.x - pickup.x, s.y - pickup.y) < 80) add(`pickup-symbol-${pickup.id}`, { snack: '♡', candy: '◈', lore: '▤', trinket: '✦' }[pickup.kind], pickup.x, pickup.y, 16, 'caption');
-    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s,gate.id) && Math.hypot(s.x - gate.x - gate.w/2, s.y - gate.y) < 100) add(`gate-symbol-${gate.id}`, `${{ you: '◎', joe: '≋', matt: '◆', alex: '✚', jon: '✦' }[gate.hero]} ${gate.hero === 'you' ? 'You' : gate.hero} · locked`, gate.x + gate.w/2, gate.y, 38, 'locked');
+    if (s.shapeMarkers) for (const pickup of availablePickups(s)) if (Math.hypot(s.x - pickup.x, s.y - pickup.y) < 80) add(`pickup-symbol-${pickup.id}`, { snack: '♡', candy: '◈', lore: '▤', trinket: '✦' }[pickup.kind], pickup.x, pickup.y, 16, 'caption');
+    if (s.shapeMarkers) for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s,gate.id) && Math.hypot(s.x - gate.x - gate.w/2, s.y - gate.y) < 100) add(`gate-symbol-${gate.id}`, `${{ you: '◎', joe: '≋', matt: '◆', alex: '✚', jon: '✦' }[gate.hero]} ${gate.hero === 'you' ? 'You' : gate.hero} · locked`, gate.x + gate.w/2, gate.y, 38, 'locked');
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y, 34, 'hub', '#b0f3d1');
     const focus = this.scratch.set(s.x, this.terrain.heightAt(s.x, s.y), s.y).project(this.camera);
     return { focus: { x: (focus.x + 1) / 2, y: (1 - focus.y) / 2 }, camera: { x: this.target.x - this.viewport.width / 2, y: this.target.z - this.viewport.height / 2, width: this.viewport.width, height: this.viewport.height }, labels };

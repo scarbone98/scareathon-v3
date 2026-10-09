@@ -125,6 +125,7 @@ export class GameController {
       this.acc -= 1 / 60;
     }
     if(this.presentationSuspended) { if(now-this.hudAt>80){this.hudAt=now;this.publish();} return; }
+    this.state.shapeMarkers = this.ux.shapeMarkers;
     const rendered = this.paused ? this.state : interpolateMotion(this.previousMotion, this.state, this.acc * 60);
     this.renderer.draw(rendered, this.paused ? 0 : delta, frameDelta);
     if (now - this.presentationAt > 30) { this.presentationAt = now; this.cb.onPresentation?.(this.renderer.presentation(rendered)); }

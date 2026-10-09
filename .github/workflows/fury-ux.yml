@@ -5,6 +5,7 @@ on:
       - 'src/pages/WaysideFury/**'
       - 'server/shared/waysideFury/**'
       - 'scripts/check-wayside-fury-*'
+      - 'scripts/fixtures/fury-pre400-art.json'
       - '.github/workflows/fury-ux.yml'
   push:
     branches: ['codex/fury-ux-onboarding']
@@ -42,10 +43,12 @@ jobs:
           curl --retry 20 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:5224/wayside-fury > /dev/null
           node scripts/check-wayside-fury-hud-browser.mjs
           node scripts/check-wayside-fury-ux-browser.mjs
+          node scripts/check-wayside-fury-art-browser.mjs
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: fury-ux-diagnostics
           path: |
             work/*.log
             work/*.png
+            work/fury-art/pixel-comparison.json

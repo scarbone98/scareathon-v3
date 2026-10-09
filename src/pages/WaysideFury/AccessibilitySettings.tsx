@@ -9,6 +9,7 @@ export function AccessibilitySettings({ settings, onChange, inCoop }: { settings
     <label><input type="checkbox" checked={ux.minimalHud} onChange={e => update({ minimalHud: e.target.checked, ...(e.target.checked ? { hudSize: .8 } : {}) })} /> Minimal HUD</label>
     <label>Text size <output>{Math.round(ux.textSize * 100)}%</output><input data-ux="textSize" aria-label="Text size" type="range" min="1" max="1.5" step="0.1" value={ux.textSize} onChange={e => update({ textSize: +e.target.value })} /></label>
     <label><input type="checkbox" checked={ux.highContrast} onChange={e => update({ highContrast: e.target.checked })} /> High contrast dialogs</label>
+    <label><input type="checkbox" checked={ux.shapeMarkers} onChange={e => update({ shapeMarkers: e.target.checked })} /> Shape markers</label>
     <label><input type="checkbox" checked={ux.haptics} onChange={e => update({ haptics: e.target.checked })} /> Haptics</label>
     <h3>Assist mode</h3><p>Extra HP adds a damage buffer without changing your crew’s saved combat stats.</p>
     <label>Game speed <output>{Math.round(ux.gameSpeed * 100)}%</output><input data-ux="gameSpeed" aria-label="Game speed" disabled={inCoop} type="range" min="0.5" max="1" step="0.1" value={ux.gameSpeed} onChange={e => update({ gameSpeed: +e.target.value })} /></label>

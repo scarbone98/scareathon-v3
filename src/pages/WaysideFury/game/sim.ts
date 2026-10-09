@@ -133,6 +133,7 @@ export type GameEvent =
 export interface GameState {
   opening?: Opening;
   assistHp?: number;
+  shapeMarkers?: boolean;
   ambientBirds?: ReturnType<typeof import("./dressing.ts").roadsideBirds>;
   /** Disposable renderer state; never persisted or sent over the wire. */
   motion?: ActorMotion;

@@ -161,3 +161,11 @@
 @media (max-width: 760px) { .wf-shell .wf-hud { width: 100%; } }
 .wf-shell .wf-accessibility label, .wf-shell .wf-controls-panel dd, .wf-shell .wf-controls-panel dt, .wf-shell .wf-small { font-size: calc(12px * var(--wf-text-scale)); }
 .wf-shell .wf-notice { font-size: calc(13px * var(--wf-text-scale)); }
+
+/* One compact lesson above the course; controls stay in the bottom dock. */
+.wf-guided-opening .wf-opening { left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); max-width: 380px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+.wf-guided-opening .wf-opening strong { font-size: 11px; }
+.wf-guided-opening .wf-opening p { grid-column: 1; margin: 0; font-size: calc(13px * var(--wf-text-scale)); }
+.wf-guided-opening .wf-opening small { grid-column: 1; }
+.wf-guided-opening .wf-opening button { grid-column: 2; grid-row: 1 / 4; align-self: center; padding: 8px; }
+@media (max-width: 480px) { .wf-guided-opening .wf-opening { top: calc(var(--wf-top-hud-bottom, 64px) + 8px); } }
