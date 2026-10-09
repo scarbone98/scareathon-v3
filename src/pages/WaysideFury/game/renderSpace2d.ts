@@ -1,3 +1,4 @@
+import { creatureMotion } from './animation';
 import { applyEnemyWindup } from './enemyWindup';
 // Native-resolution Space scenery and shared film compositions.
 // Draw functions sample simulation only; no timeline, collision or rewards live here.
@@ -126,7 +127,7 @@ export function drawLunarBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
   if(!e.behavior)return false;
   c.save();const x=e.x,y=e.y;
   ellipse(c,x,y,e.radius*1.25,4,'#11182950');
-  c.save();applyEnemyWindup(c,e);
+  c.save();creatureMotion(c,e.motion,s.time,e.x,e.y,['echo','satellite','scout','warden'].includes(e.behavior));applyEnemyWindup(c,e);
   if(e.behavior==='rat') {
     c.strokeStyle='#bbc9d3';c.lineWidth=2;c.beginPath();c.moveTo(x-7,y-4);c.quadraticCurveTo(x-18,y-13,x-21,y-5);c.stroke();
     ellipse(c,x,y-6,10,6,'#c4ccd1');ellipse(c,x+7,y-8,5,5,'#a3afb9');ellipse(c,x+5,y-13,3,4,'#e5ddd1');ellipse(c,x+10,y-9,1,1,ink);

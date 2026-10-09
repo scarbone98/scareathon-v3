@@ -1,3 +1,5 @@
+import { drawCrew } from './crewArt';
+import { idleMotion } from './animation';
 import { HeroObstacleMeshes } from './locks/obstacleRender3d';
 import { INTERIORS } from './interiors';
 import { drawExitOpening, nearExit, exitCaption, exitOpacity } from './exitArt';
@@ -33,14 +35,12 @@ export class SpaceRenderer {
   private focus=new THREE.Vector2();
   private ready=false;
   private avatar:HeroAvatar|null=null;
-  private street=new Map<string,HTMLImageElement>();
   private remotes=new Map<number,HeroAvatar>();
   private viewport=getRenderViewport(1,1,1);
   private groundEffects:THREE.Mesh;
   private groundEffectsCanvas=document.createElement('canvas');
   private groundEffectsTexture:THREE.CanvasTexture;
   constructor(private renderer:THREE.WebGLRenderer,private canvas:HTMLCanvasElement) {
-    for(const [id,url]of Object.entries({joe:'/royale/joe_idle.png',matt:'/royale/matt_idle.png',alex:'/royale/ui/alex_idle.png',jon:'/royale/ui/jon_idle.png'})){const image=new Image();image.src=url;this.street.set(id,image);}
     this.scene.background=new THREE.Color('#0c1527');
     this.scene.add(new THREE.HemisphereLight(0xcce8ff,0x4b506c,2.2));
     const sun=new THREE.DirectionalLight(0xffedcb,3);sun.position.set(-150,350,-120);this.scene.add(sun);
@@ -208,23 +208,22 @@ export class SpaceRenderer {
     for(const a of this.actors.values())a.mesh.visible=false;
     const suited=(id:string,state:GameState,avatar:HeroAvatar|null)=>{
       const v=resolveHeroVisual(state,avatar);if(!v){
-        const frame=Math.floor(state.time*8),image=this.street.get(state.active);
-        this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y),`street:${state.active}:${frame}:${avatar?.portraitUrl??''}:${image?.complete}`,c=>{c.imageSmoothingEnabled=false;
-          if(state.active==='you'&&avatar){for(const strip of [...avatar.back,avatar.body,...avatar.front])c.drawImage(strip.canvas,(frame%strip.frames)*32,0,32,48,0,0,128,192);}
-          else if(image?.complete&&image.naturalWidth)c.drawImage(image,(frame%(state.active==='jon'?5:6))*16,0,16,24,0,0,128,192);
+        const phase = Math.floor((state.motion?.phase ?? 0) * 12), facing = state.motion?.facing ?? 'down';
+        this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y),`street:${state.active}:${phase}:${facing}:${Math.floor(state.time*12)}:${avatar?.portraitUrl??''}`,c=>{
+          c.scale(4,4); drawCrew(c,state.active,16,46,state.time,state.motion,avatar);
         });return;
       }
       this.actor(id,state.x,state.y,surfaceHeightAt(world,state.x,state.y)+lunarLift(state),`${state.active}:${v.pose}:${v.facing}:${v.frame}:${v.appearanceReady}:${avatar?.portraitUrl??''}`,c=>{c.drawImage(v.canvas,0,0);c.drawImage(v.visor,0,0);});
     };
-    const visualState=window.matchMedia('(prefers-reduced-motion: reduce)').matches?{...s,time:0}:s;
+    const visualState=window.matchMedia('(prefers-reduced-motion: reduce)').matches?{...s,time:0,motion:idleMotion(s.motion?.facing)}:s;
     suited('local',visualState,this.avatar);
     for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) {
       const id=`assist-${assist.id}`;
-      suited(id,{...visualState,active:assist.hero!,x:assist.x,y:assist.y,moving:false,guard:false,attackTimer:0,charge:0},assist.hero==='you'?this.avatar:null);
+      suited(id,{...visualState,active:assist.hero!,x:assist.x,y:assist.y,motion:idleMotion(),moving:false,guard:false,attackTimer:0,charge:0},assist.hero==='you'?this.avatar:null);
       this.actors.get(id)!.mesh.material.opacity=Math.min(1,assist.ttl*4);
     }
-    for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...s,...peer,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
-    for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,surfaceHeightAt(world,e.x,e.y),`${Math.floor(s.time*12)}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0},s);c.restore();},w,96);}
+    for(const peer of s.coop?.remoteHeroes??[])if(sameCampaignMap(s,peer))suited(`peer-${peer.seat}`,{...visualState,...peer,time:visualState.time,motion:visualState.time===0?idleMotion(peer.motion?.facing):peer.motion,meleeCharge:peer.meleeCharge??0,spaceOutfit:peer.spaceOutfit??s.spaceOutfit,active:peer.hero.id,heroes:{...s.heroes,[peer.hero.id]:peer.hero}},this.remotes.get(peer.seat)??null);
+    for(const e of s.enemies)if(e.hp>0){const w=e.behavior==='warden'?128:64;this.actor(`enemy-${e.id}`,e.x,e.y,surfaceHeightAt(world,e.x,e.y),`${Math.floor(visualState.time*12)}:${Math.floor((e.motion?.phase??0)*12)}:${e.motion?.facing}:${e.hp}:${e.phase}:${e.windup}`,c=>{c.save();c.scale(128/w,2);c.translate(w/2,92);drawLunarBody(c,{...e,x:0,y:0,motion:visualState.time===0?idleMotion(e.motion?.facing):e.motion},visualState);c.restore();},w,96);}
     const c=this.groundEffectsCanvas.getContext('2d')!;c.clearRect(0,0,c.canvas.width,c.canvas.height);c.save();c.scale(2,2);
     for(const e of world.exits)drawExitOpening(c,world,e,(!e.requiresClear||s.enemies.every(enemy=>enemy.hp<=0))&&(!e.requiresInteraction||hasSpaceFlag(s,e.requiresInteraction)));
     // Ground shadows retain the collision position while bound billboards lift.

@@ -22,7 +22,7 @@ export function suitPose(s:GameState):SuitPose {
   if(s.charge>.12 || s.meleeCharge>.25) return 'charge';
   if(s.heroes[s.active].invulnerable>.3) return 'hurt';
   if(s.previousInput.interact) return 'interact';
-  return s.moving?'walk':'idle';
+  return (s.motion?s.motion.speed>1:s.moving)?'walk':'idle';
 }
 export interface HeroVisual { canvas:HTMLCanvasElement; visor:HTMLCanvasElement; width:32; height:48; feet:readonly [16,46]; pose:SuitPose; facing:number; frame:number; appearanceReady:boolean }
 function oval(c:CanvasRenderingContext2D,x:number,y:number,rx:number,ry:number,fill:string|CanvasGradient,stroke?:string) {
@@ -83,7 +83,7 @@ function author(id:HeroId,pose:SuitPose,facing:number,frame:number,visor=false) 
 export function resolveHeroVisual(s:GameState,avatar?:HeroAvatar|null,pose=suitPose(s)):HeroVisual|null {
   if(!s.spaceOutfit)return null;
   const facing=(Math.round(Math.atan2(s.faceX,s.faceY)/ (Math.PI/4))+8)%8;
-  const frame=s.attackTimer>0?Math.min(11,Math.max(0,Math.floor((1-s.attackTimer/(s.combo===3?.28:.2))*12))):Math.floor(s.time*12)%12,key=`${s.active}:${pose}:${facing}:${frame}`;
+  const frame=s.attackTimer>0?Math.min(11,Math.max(0,Math.floor((1-s.attackTimer/(s.combo===3?.28:.2))*12))):(pose==='walk'&&s.motion?Math.floor(s.motion.phase/(Math.PI*2)*12):Math.floor(s.time*12))%12,key=`${s.active}:${pose}:${facing}:${frame}`;
   // Bounded cache rather than retaining the entire 5 × 18 × 8 atlas in memory.
   if(cache.size>192)cache.clear();
   if(!cache.has(key))cache.set(key,author(s.active,pose,facing,frame));

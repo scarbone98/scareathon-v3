@@ -1,3 +1,6 @@
+import { drawCrew } from './crewArt';
+import { creatureMotion, idleMotion, type ActorMotion } from './animation';
+import { prologueCamera } from './prologue';
 import { radarPickupTarget as hubRadarPickupTarget } from "../u1/minimap/relicRadar";
 import { drawArenaFloor } from "../u1/hub/arenaArt";
 import { drawQuestNpc, drawQuestCosmetic } from "../u1/hub/questArt";
@@ -271,7 +274,7 @@ export class Renderer {
     for (const prop of visibleProps.filter(prop => isGroundProp(prop) || GROUND_DECALS.has(prop.kind))) this.prop(prop, motionTime, s);
     const actors = visibleProps.filter(prop => !isGroundProp(prop) && !GROUND_DECALS.has(prop.kind)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of zonePreviews(world)) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
-    if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
+    if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving, s.motion) });
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => {
       const outfit = OUTFITS.find(outfit => outfit.id === itemsState(s).relics.outfits.at(-1));
       if (outfit) drawWishOutfit(c, s.x, s.y, outfit.color, outfit.glow, motionTime);
@@ -279,12 +282,12 @@ export class Renderer {
     } });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
-    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
+    if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0, 1, false, s.motion); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, hubCosmetic: peer.questCosmetic, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else { drawFusionForm(c,remote,peer.seat,false,this.reducedMotion); this.hero(remote); drawFusionForm(c,remote,peer.seat,true,this.reducedMotion); }
-      for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving, peer.motion); else { drawFusionForm(c,remote,peer.seat,false,this.reducedMotion); this.hero(remote); drawFusionForm(c,remote,peer.seat,true,this.reducedMotion); }
+      for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.reducedMotion ? 0 : this.visualTime, peer.faceX < 0, 1, false, peer.motion);
       this.avatar = ownAvatar;
     } });
     for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);if(s.spaceOutfit)this.hero({...s,active:assist.hero!,x:assist.x,y:assist.y,moving:false,guard:false,attackTimer:0,charge:0});else this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
@@ -371,10 +374,19 @@ export class Renderer {
       c.globalAlpha = .12 + Math.sin(k + s.time) * .05; this.disc(x, y, .35 + k % 3 * .15, '#d5c6d6');
     }
     c.globalAlpha = 1;
-    const scale = Math.min(width / STAGE_WIDTH, height / STAGE_HEIGHT);
-    c.save(); c.translate((width - STAGE_WIDTH * scale) / 2, (height - STAGE_HEIGHT * scale) * .45); c.scale(scale, scale);
+    const portrait = height > width * 1.25;
+    const scale = Math.min(width / STAGE_WIDTH, height * .58 / STAGE_HEIGHT);
+    const shot = prologueCamera(s.cutscene, s.sceneTimer, this.reducedMotion);
+    c.save();
+    const stageY = portrait ? height * .39 : height * .45;
+    c.beginPath(); c.rect(0, stageY - STAGE_HEIGHT * scale / 2, width, STAGE_HEIGHT * scale); c.clip();
+    c.translate(width / 2, stageY); c.scale(scale * (s.scene === 'prologue' ? shot.zoom : 1), scale * (s.scene === 'prologue' ? shot.zoom : 1));
+    c.translate(s.scene === 'prologue' ? -shot.x : -160, s.scene === 'prologue' ? -shot.y : -90);
     if (s.scene === 'prologue') this.drawPrologue(s); else this.drawShift(s);
     c.restore();
+    if (s.scene === 'prologue' && s.sceneTimer < .35) {
+      c.globalAlpha = 1 - s.sceneTimer / .35; this.rect(0, 0, width, height, '#15212e'); c.globalAlpha = 1;
+    }
   }
   private drawShift(s: GameState) {
     const progress = Math.min(1, s.sceneTimer / 2.4);
@@ -431,7 +443,7 @@ export class Renderer {
         const wing = Math.floor(time * 6) % 2 ? 1 : -1;
         this.rect(x - 3, y + wing, 3, 1, '#eee3bd'); this.rect(x, y, 2, 1, '#eee3bd'); this.rect(x + 2, y + wing, 3, 1, '#eee3bd');
       }
-      for (const bird of roadsideBirds(s)) if (this.visible(bird.x, bird.y, 20)) {
+      for (const bird of s.ambientBirds ?? roadsideBirds(s)) if (this.visible(bird.x, bird.y, 20)) {
         this.rect(bird.x - 4, bird.y - bird.height + bird.wing, 4, 1, '#353e46'); this.rect(bird.x, bird.y - bird.height, 2, 2, '#353e46'); this.rect(bird.x + 2, bird.y - bird.height + bird.wing, 4, 1, '#353e46');
       }
       for (let k = 0; k < 16; k++) {
@@ -444,7 +456,7 @@ export class Renderer {
   private prop(prop: WorldProp, time: number, s: GameState) {
     if(this.world && groundScatter(prop) && roadMask(this.world).intersects(prop))return;
     if(drawWalkableSurface(this.ctx,prop)) return;
-    if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
+    if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop,time)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
     if (prop.id.startsWith('u8-quest-')) { drawQuestNpc(c, prop.id, x, y, time); return; }
@@ -486,7 +498,7 @@ export class Renderer {
     if (prop.kind === 'npc') {
       this.shadow(x, y);
       const id = prop.label === 'Jon' ? 'jon' : 'alex';
-      this.sprite(id, x, y - (this.reducedMotion ? 0 : Math.sin(time * 2 + x) * .5), time); return;
+      drawCrew(c, id, x, y, time + x * .01); return;
     }
     if (prop.kind === 'station' || prop.kind === 'shop' || prop.kind === 'home' || prop.kind === 'shed' || prop.kind === 'diner') {
       this.worldBuilding(prop, time);
@@ -611,7 +623,7 @@ export class Renderer {
   private hero(s: GameState, pose?:SuitPose) {
     const c = this.ctx, hero = activeHero(s), color = ACCENT[s.active];
     if (s.meleeCharge > .25) { c.save(); c.strokeStyle = color; c.lineWidth = 2; c.beginPath(); c.arc(s.x, s.y - 10, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.meleeCharge / .6)); c.stroke(); c.restore(); }
-    const suited = resolveHeroVisual(this.reducedMotion ? {...s,time:0} : s, this.avatar,pose);
+    const suited = resolveHeroVisual(this.reducedMotion ? {...s,time:0,motion:idleMotion(s.motion?.facing)} : s, this.avatar,pose);
     if (suited) {
       this.shadow(s.x,s.y,14);
       drawHeroVisual(c,suited,s.x,s.y-lunarLift(s));
@@ -619,6 +631,7 @@ export class Renderer {
     }
     if (s.coop && hero.hp <= 0) { this.shadow(s.x, s.y, 17); c.save(); c.translate(s.x, s.y - 7); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, s.time, s.faceX < 0); c.restore(); return; }
     const time = this.reducedMotion ? 0 : s.time;
+    const walking = (s.motion?.speed ?? 0) > 1;
     if (s.charge > .12) {
       c.globalAlpha = .55 + Math.sin(time * 18) * .07; this.glow(s.x, s.y - 12, 19 + Math.min(9, s.charge * 5), color); c.globalAlpha = 1;
       c.strokeStyle = color; c.lineWidth = .65; c.globalAlpha = .45;
@@ -633,29 +646,26 @@ export class Renderer {
     }
     this.shadow(s.x, s.y, s.dashTimer > 0 ? 19 : 14);
     this.rect(s.x - 5, s.y + 1, 10, 1, color);
-    if (s.moving && !this.reducedMotion) for (let k = 0; k < 3; k++) {
+    if (walking && !this.reducedMotion) for (let k = 0; k < 3; k++) {
       const life = (time * 3 + k / 3) % 1;
       c.globalAlpha = (1 - life) * .3;
       this.disc(s.x - s.faceX * life * 14 + (k % 2 ? 3 : -3), s.y - s.faceY * life * 14, .7 + life * 1.2, '#b7b395');
     }
     c.globalAlpha = hero.invulnerable > 0 && Math.floor(time * 16) % 2 === 0 ? .6 : 1;
-    const cycle = Math.sin(time * (s.moving ? 15 : 2.8)), bob = this.reducedMotion ? 0 : s.moving ? Math.abs(cycle) * 1.2 : cycle * .5;
+    const cycle = Math.sin((s.motion?.speed ?? 0) > 1 ? s.motion!.phase : time * 2.8), bob = this.reducedMotion ? 0 : walking ? Math.abs(cycle) * 1.2 : cycle * .5;
     const attackDuration = s.combo === 3 ? .28 : .2, attackProgress = s.attackTimer > 0 ? 1 - s.attackTimer / attackDuration : 0;
     const strike = s.attackTimer > 0 ? (attackProgress < .18 ? -.8 : Math.sin((attackProgress - .18) / .82 * Math.PI)) : 0;
     c.save(); c.translate(s.x, s.y - bob - (s.spaceOutfit ? lunarLift(s) : 0));
     if (!this.reducedMotion) {
-      const lean = s.dashTimer > 0 ? .12 * s.faceX : s.moving ? .035 * s.faceX + cycle * .015 : 0;
+      const lean = s.dashTimer > 0 ? .12 * s.faceX : walking ? .035 * s.faceX + cycle * .015 : 0;
       c.rotate(lean + strike * .12 * s.faceX - this.kiPose / .24 * .1 * s.faceX + (hero.invulnerable > .3 ? -.09 * s.faceX : 0));
       if (s.dashTimer > 0) c.scale(1.16, .87); else if (s.attackTimer > 0) { c.translate(strike * s.faceX * 3, strike * s.faceY * 2); c.scale(1 + strike * .04, 1 - strike * .025); }
       else if (this.kiPose > 0) { const recoil = this.kiPose / .24; c.translate(-s.faceX * recoil * 2, -s.faceY * recoil); c.scale(1 + recoil * .035, 1 - recoil * .03); }
       else if (s.charge > .12) c.scale(1.035, .96);
       else c.scale(1 - cycle * .008, 1 + cycle * .009);
     }
-    if (s.active === 'you' && this.avatar) for (const strip of this.avatar.back) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
-    const sprite = (s.moving || s.dashTimer > 0) && (s.active === 'joe' || s.active === 'matt') ? `run_${s.active}` as const : s.active;
-    this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
-    if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
-    drawQuestCosmetic(c,s);
+    drawCrew(c, s.active, 0, 0, time, this.reducedMotion ? idleMotion(s.motion?.facing) : s.motion, this.avatar);
+    drawQuestCosmetic(c, s);
     c.restore(); c.globalAlpha = 1;
 
     if (s.guard) {
@@ -665,6 +675,7 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
+    if (this.reducedMotion) { s = { ...s, time: 0 }; enemy = { ...enemy, motion: idleMotion(enemy.motion?.facing) }; }
     if (chipEffects(s).scanner) {
       const top = enemy.y - (enemy.kind === "boss" ? 48 : 38), width = enemy.kind === "boss" ? 48 : 24;
       this.rect(enemy.x - width / 2, top, width, 3, INK);
@@ -672,7 +683,7 @@ export class Renderer {
       if (enemy.windup > 0) { this.ctx.save(); this.ctx.strokeStyle = "#7de5ff"; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.arc(enemy.x, enemy.y - 12, enemy.radius + 4, 0, Math.PI * 2); this.ctx.stroke(); this.ctx.restore(); }
     }
     if(drawWoodsBody(this.ctx,enemy,s)) return;
-    if(drawCityEnemy(this.ctx,enemy)) return;
+    if(drawCityEnemy(this.ctx,enemy,s)) return;
     if(drawLunarBody(this.ctx,enemy,s)) return;
     const c = this.ctx, boss = enemy.kind === 'boss', scale = boss ? 1.6 : 1;
     const id = enemy.sprite;
@@ -680,13 +691,14 @@ export class Renderer {
     if (boss && enemy.phase === 2) { c.globalAlpha = .55 + Math.sin(time * 9) * .07; this.glow(enemy.x, enemy.y - 23, 35, '#db82cb'); c.globalAlpha = 1; }
     this.shadow(enemy.x, enemy.y, boss ? 34 : 13);
     c.save(); c.translate(enemy.x, enemy.y);
+    creatureMotion(c, enemy.motion, time, 0, 0, enemy.sprite === 'ghost');
     applyEnemyWindup(c, { ...enemy, x: 0, y: 0 });
     if (!this.reducedMotion) {
       const stagger = enemy.hitTimer / .15;
       c.rotate(enemy.hitTimer > 0 ? -Math.sign(enemy.kx || 1) * stagger * .18 : Math.sin(time * 5) * .015);
       c.translate(0, -Math.abs(Math.sin(time * 7)) * .7);
     }
-    this.sprite(id, 0, 0, time, enemy.x > s.x, scale, enemy.hitTimer > 0); c.restore();
+    this.sprite(id, 0, 0, (enemy.motion?.speed ?? 0) > 1 ? enemy.motion!.phase / (Math.PI * 2) * SHEETS[id].frames / 12 : time * .35, false, scale, enemy.hitTimer > 0); c.restore();
     if (enemy.archetype === 'shield' && enemy.windup === 0 && enemy.actionTimer === 0) {
       const facing = Math.atan2(enemy.aimY, enemy.aimX);
       c.save(); c.strokeStyle = '#90daed'; c.lineWidth = 2.5; c.beginPath();
@@ -701,82 +713,74 @@ export class Renderer {
   }
 
   private drawPrologue(s: GameState) {
-    const phase = PROLOGUE[s.cutscene]?.phase ?? "backstory";
-    const time = s.sceneTimer;
-    if (phase === "backstory") {
-      this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#1e1d36");
-      for (let k = 0; k < 32; k++) this.rect((k * 83) % STAGE_WIDTH, 12 + (k * 29) % 68, 1, 1, k % 2 ? "#8d759f" : "#eaccc1");
-      this.rect(0, 85, STAGE_WIDTH, 95, "#34384a");
-      this.rect(0, 85, STAGE_WIDTH, 4, "#605c6c");
-      this.portal(255, 99, time);
-      for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
-        const x = 75 + index * 39;
-        const y = 106 + Math.sin(time * 4 + index) * 2;
-        this.shadow(x, y);
-        this.sprite(id, x, y, s.time, true);
+    const beat = PROLOGUE[s.cutscene] ?? PROLOGUE[0], phase = beat.phase;
+    const time = this.reducedMotion ? 4 : s.sceneTimer;
+    const crew = ['joe', 'matt', 'alex', 'jon'] as const;
+    const dark = phase === 'dark' || phase === 'portal';
+    const actor = (id: HeroId, x: number, y: number, moving = false, facing: ActorMotion['facing'] = 'down', emote: 'calm' | 'talk' | 'shock' | 'ready' = 'calm', distance = 0) => {
+      this.shadow(x, y, 15);
+      drawCrew(this.ctx, id, x, y, this.reducedMotion ? 0 : s.time, { phase: distance / 24 * Math.PI * 2, speed: moving && !this.reducedMotion ? 30 : 0, facing }, null, emote);
+      if (beat.hero === id && phase !== 'taxi') {
+        this.ctx.strokeStyle = ACCENT[id]; this.ctx.lineWidth = 1;
+        this.ctx.beginPath(); this.ctx.ellipse(x, y + 2, 9, 2, 0, 0, Math.PI * 2); this.ctx.stroke();
       }
-      for (let k = 0; k < 22; k++) {
-        const y = 38 + ((k * 17 + Math.floor(time * 15)) % 75);
-        this.rect(56 + k * 8, y, 2, 2, ["#e9bc73", "#87c0b7", "#c586ad"][k % 3]);
-      }
+    };
+    if (phase === 'backstory') {
+      this.rect(0, 0, 320, 180, '#1e1d36');
+      for (let k = 0; k < 32; k++) this.disc((k * 83) % 320, 12 + (k * 29) % 68, .5, '#eaccc1');
+      this.rect(0, 110, 320, 70, '#34384a'); this.portal(265, 107, time);
+      crew.forEach((id, i) => {
+        const travel = Math.min(1, Math.max(0, (time - i * .22) / 1.6));
+        actor(id, 245 + (85 + i * 37 - 245) * travel, 116 + i % 2 * 6, travel < 1, travel < 1 ? 'left' : 'down', 'calm', Math.abs(85 + i * 37 - 245) * travel);
+      });
       return;
     }
-    if (phase === "suitup") {
-      const heroes = ["joe", "matt", "alex", "jon"] as const;
-      const id = heroes[Math.floor(time / 0.65) % heroes.length];
-      const color = { joe: "#79ebff", matt: "#ffd06f", alex: "#afd990", jon: "#bc9ce7" }[id];
-      this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#152733");
-      for (let k = 0; k < 8; k++) this.rect(k * 46 - 48 + Math.floor(time * 30) % 46, 25 + k * 6, 28, 90, "#233943");
-      this.ctx.globalAlpha = 0.16;
-      this.disc(160, 72, 54, color);
-      this.ctx.globalAlpha = 1;
-      this.sprite(id, 160, 110, s.time, false, 3);
-      // Gloves, a belt and shoulder guards sell the gearing-up cuts without new sheets.
-      this.rect(138, 74, 7, 8, color);
-      this.rect(177, 74, 7, 8, color);
-      this.rect(144, 93, 32, 4, "#d5b981");
-      this.rect(158, 93, 5, 4, "#fff0b3");
-      return;
-    }
-    const dark = phase === "dark" || phase === "portal";
     this.drawBackyard(time, dark);
-    if (phase === "years") {
+    if (phase === 'years') {
+      // Begin on an empty yard, then let the reunion enter the frame.
+      crew.forEach((id, i) => {
+        const travel = Math.min(1, Math.max(0, (time - .6 - i * .2) / 1.5));
+        actor(id, 60 + (119 + i * 32 - 60) * travel, 99 + i % 2 * 6, travel < 1, 'right', 'calm', (119 + i * 32 - 60) * travel);
+      });
       return;
     }
-    if (phase === "taxi") {
-      this.road(0, 111, STAGE_WIDTH, 25, true);
-      const progress = Math.min(1, time / 1.8);
-      for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
-        if (time > 1.25 + index * 0.24) continue;
-        const start = 75 + index * 48;
-        this.sprite(id, start + (160 - start) * progress, 104 + index % 2 * 5, s.time, start > 160);
+    if (phase === 'suitup') {
+      this.rect(0, 0, 320, 180, '#152733');
+      crew.forEach((id, i) => {
+        const t = Math.min(1, Math.max(0, (time - i * .38) / .55));
+        this.ctx.globalAlpha = .12; this.disc(82 + i * 52, 80, 26, ACCENT[id]); this.ctx.globalAlpha = 1;
+        actor(id, 82 + i * 52, 137 - t * 25, t < 1, 'down', t === 1 ? 'ready' : 'calm', t * 25);
+      });
+      return;
+    }
+    if (phase === 'taxi') {
+      this.road(0, 111, 320, 25, true);
+      crew.forEach((id, i) => {
+        const p = Math.min(1, Math.max(0, (time - .5 - i * .3) / 1.4));
+        const start = 100 + i * 35;
+        if (p < 1) actor(id, start + (167 - start) * p, 103 + i % 2 * 4, true, start > 167 ? 'left' : 'right', 'calm', Math.abs(167 - start) * p);
+      });
+      // Park until the player finishes reading; departure belongs to the fade.
+      const depart = (s.prologueExit ?? 0) * 150;
+      this.taxi(167 + depart, 127, 1, 0, time, depart > 0, { phase: depart / 4, speed: depart > 0 ? 150 : 0, facing: 'right' });
+      return;
+    }
+    crew.forEach((id, i) => {
+      const x = [119, 143, 188, 216][i], y = [99, 104, 103, 98][i];
+      actor(id, x, y, false, dark ? 'right' : i > 1 ? 'left' : 'right', dark ? 'shock' : beat.hero === id ? 'talk' : 'calm');
+      if (dark && time < 2.4) {
+        this.ctx.font = 'bold 12px sans-serif'; this.ctx.fillStyle = '#f5d299'; this.ctx.fillText('!', x - 2, y - 41);
       }
-      this.taxi(160 + Math.max(0, time - 2.1) * 62, 123, 1, 0, s.time, time > 2.1);
-      return;
-    }
-    const spots = [[119, 99], [143, 104], [188, 103], [216, 98]];
-    for (const [index, id] of (["joe", "matt", "alex", "jon"] as const).entries()) {
-      const [x, y] = spots[index];
-      this.shadow(x, y);
-      this.sprite(id, x, y, s.time, index > 1 && !dark);
-    }
+    });
     if (dark) {
-      const pulse = Math.sin(time * 7) * 0.08 + 0.17;
-      this.ctx.globalAlpha = pulse;
-      this.disc(268, 50, 26, "#ffac87");
-      this.ctx.globalAlpha = 1;
-      this.rect(264, 35, 8, 19, "#df9078");
-      this.rect(257, 41, 22, 6, "#e8b286");
-      this.rect(262, 46, 12, 3, "#ffddaa");
-      if (phase === "dark" && time < 0.3) {
-        this.ctx.globalAlpha = Math.max(0, 0.9 - time * 3);
-        this.rect(0, 0, STAGE_WIDTH, STAGE_HEIGHT, "#fff0cf");
-        this.ctx.globalAlpha = 1;
-      }
+      this.ctx.globalAlpha = .2; this.disc(268, 50, 26, '#ffac87'); this.ctx.globalAlpha = 1;
+      this.rect(264, 35, 8, 19, '#df9078'); this.rect(257, 41, 22, 6, '#e8b286');
     }
-    if (phase === "portal") {
+    if (phase === 'portal') {
       this.portal(264, 99, time);
-      this.architect(241, 101, time);
+      const entrance = this.reducedMotion ? 1 : Math.min(1, time / 1.2);
+      this.ctx.save(); this.ctx.globalAlpha = entrance;
+      this.architect(264 - entrance * 23, 101, time); this.ctx.restore();
     }
   }
 
@@ -870,7 +874,7 @@ export class Renderer {
     drawCanopy(this.ctx, x, y);
   }
 
-  private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean) {
+  private taxi(x: number, y: number, dx: number, dy: number, time: number, moving: boolean, motion?: ActorMotion) {
     const c = this.ctx;
     this.shadow(x, y, 37);
     c.save(); c.translate(x, y - 8); c.rotate(Math.atan2(dy, dx));
@@ -881,7 +885,10 @@ export class Renderer {
     c.save(); c.translate(x, y);
     // All headings retain the upright side-on cabin and the wreck's artwork.
     if (dx < 0) c.scale(-1, 1);
+    const wheelPhase = this.reducedMotion ? 0 : motion?.phase ?? 0;
+    c.translate(0, this.reducedMotion ? 0 : moving ? -Math.abs(Math.sin(wheelPhase * 2)) * .45 : Math.sin(time * 9) * .12);
     drawTaxiBody(c, 'side');
+    if (moving) for (const wx of [-10, 10]) { c.strokeStyle = '#91a0a4'; c.lineWidth = .7; c.beginPath(); c.moveTo(wx - Math.cos(wheelPhase) * 2, -2 - Math.sin(wheelPhase) * 2); c.lineTo(wx + Math.cos(wheelPhase) * 2, -2 + Math.sin(wheelPhase) * 2); c.stroke(); }
     if (moving && !this.reducedMotion) for (let k = 0; k < 6; k++) {
       const life = ((time * 3 + k / 6) % 1);
       c.globalAlpha = (1 - life) * .45;
@@ -978,8 +985,9 @@ export class Renderer {
     this.detailedSheets.set(id, { canvas, frames });
   }
 
-  private avatarStrip(strip: AvatarStrip, x: number, y: number, time: number, flip = false, scale = 1, hit = false) {
-    const c = this.ctx, frame = Math.floor(time * strip.fps) % strip.frames;
+  private avatarStrip(strip: AvatarStrip, x: number, y: number, time: number, flip = false, scale = 1, hit = false, motion?: ActorMotion) {
+    const c = this.ctx, phase = !this.reducedMotion && motion && motion.speed > 1 ? motion.phase / (Math.PI * 2) * strip.frames : time * strip.fps;
+    const frame = Math.floor(phase) % strip.frames;
     c.save(); c.translate(x, y);
     if (flip) c.scale(-1, 1);
     c.drawImage(strip.canvas, frame * 32, 0, 32, 48, -16 * scale, -48 * scale, 32 * scale, 48 * scale);

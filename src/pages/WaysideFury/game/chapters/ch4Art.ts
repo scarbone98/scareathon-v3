@@ -1,3 +1,4 @@
+import { creatureMotion } from '../animation';
 import { getWorld } from '../world.ts';
 import { applyEnemyWindup } from '../enemyWindup';
 import type { WorldProp } from '../worldBuilder.ts';
@@ -41,10 +42,10 @@ export function drawCityGround(c:CanvasRenderingContext2D,s:GameState) {
   }
   c.restore();
 }
-export function drawCityEnemy(c:CanvasRenderingContext2D,e:Enemy):boolean {
+export function drawCityEnemy(c:CanvasRenderingContext2D,e:Enemy,s:GameState):boolean {
   if(!isCityBehavior(e.behavior)) return false;
   c.save();c.translate(e.x,e.y);oval(c,0,0,e.radius+5,4,'#101f3050');
-  c.save();applyEnemyWindup(c,{...e,x:0,y:0});
+  c.save();creatureMotion(c,e.motion,s.time,0,0,e.woodsBehavior==='wisp'||e.behavior==='neon-imp');applyEnemyWindup(c,{...e,x:0,y:0});
   if(e.behavior==='clockwolf'&&e.actionTimer>0) c.translate(0,-Math.sin(Math.PI*(1-e.actionTimer/.6))*18);
   const g=c.createLinearGradient(-15,-30,15,0);g.addColorStop(0,e.hitTimer>0?'#fff3cf':'#537680');g.addColorStop(1,ink);
   if(e.behavior==='cable-rat') {

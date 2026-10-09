@@ -1,3 +1,4 @@
+import { revealCount, storyRevealed, PROLOGUE_FADE } from './game/prologue';
 import { Modal } from "./Modal";
 import { ArenaPanel, ArenaHud } from "./u1/hub/ArenaPanel";
 import { startArena, finishArena } from "./u1/hub/arena";
@@ -35,7 +36,7 @@ import { showAttackPresentation, type InputMode } from "./game/input";
 import type { ActionPrompt } from "./game/contextAttack";
 import { type RenderPresentation } from "./game/render";
 import { sampleSpaceFilm } from "./game/chapters/ch3Films";
-import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterCampaignMap, enterScene, interact, newGame, restAtHome, skipPrologue, toggleParty, type GameState, type Input } from "./game/sim";
+import { HERO_IDS, HERO_NAMES, nextPartyHero, requestSwap, activeHero, advanceDialogue, advanceStory, buyItem, enterCampaignMap, enterScene, interact, newGame, restAtHome, requestPrologueSkip, toggleParty, type GameState, type Input } from "./game/sim";
 import { PROLOGUE, SHOP_ITEMS } from "./game/content";
 import { progressReport, readSave, restoreSave, makeSave, type SaveSettings } from "./game/save";
 import { connectSaveStore } from "./store";
@@ -436,6 +437,10 @@ export default function WaysideFury() {
   const partner = nextPartyHero(state);
   const cinematic = !!state.film || state.scene === "prologue" || state.scene === "shift" || state.scene === "results";
   const beat = PROLOGUE[state.cutscene] ?? PROLOGUE[0];
+  const revealed = storyRevealed(state) || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  useEffect(() => {
+    if (revealed && state.scene === 'prologue' && !state.prologueRevealed) controller.current?.mutate(s => { s.prologueRevealed = true; });
+  }, [revealed, state.scene, state.prologueRevealed, state.cutscene]);
   const progressScore = (state.areas.length + state.bosses.length) * 1000 + (state.character.level - 1) * 100 + state.clearedRooms.length * 50;
   const boss = state.enemies.find(e => e.kind === "boss");
   const target = state.contextAttack.target;
@@ -556,13 +561,14 @@ export default function WaysideFury() {
         <div><strong>{state.dialogue.speaker}</strong><p>{state.dialogue.lines[state.dialogue.index]}</p><button onClick={() => controller.current?.mutate(advanceDialogue)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.dialogue.index < state.dialogue.lines.length - 1 ? "Next" : "Continue"}</button>{state.mapId === "hub" && ["Alex", "Jon"].includes(state.dialogue.speaker) && <button className="wf-secondary" onClick={() => controller.current?.mutate(s => { openHubQuest(s, `u8-quest-${s.dialogue!.speaker.toLowerCase()}`); })}>Quest request</button>}</div>
       </section>}
       {state.scene === "prologue" && !paused && <>
-        <button className="wf-skip wf-secondary" onClick={() => controller.current?.mutate(skipPrologue)}>Skip prologue</button>
+        <button className="wf-skip wf-secondary" disabled={state.prologueExit !== undefined} onClick={() => controller.current?.mutate(requestPrologueSkip)}>Skip prologue</button>
         <div className="wf-story-title" key={beat.phase}><p className="wf-eyebrow">{storyEyebrows[beat.phase]}</p><h2>{storyTitles[beat.phase]}</h2></div>
-        <section className="wf-dialogue" aria-label="Story dialogue">
+        <section className="wf-dialogue wf-intro-dialogue" aria-label="Story dialogue">
           {beat.hero && <span className="wf-portrait" style={{ backgroundImage:`url(/mystery-crypt/portraits/${beat.hero}.png)`, backgroundPosition:`-${beat.frame * 72}px 0` }} />}
-          <div><strong>{beat.speaker}</strong><p>{beat.text}</p><button onClick={() => controller.current?.mutate(advanceStory)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.cutscene === PROLOGUE.length - 1 ? "Drive out" : "Next"}</button></div>
+          <div><strong>{beat.speaker}<small>{state.cutscene + 1} / {PROLOGUE.length}</small></strong><p><span className="sr-only" aria-live="polite" aria-atomic="true">{beat.speaker}: {beat.text}</span><span aria-hidden="true">{revealed ? beat.text : beat.text.slice(0, revealCount(beat.text, state.sceneTimer))}<span className="wf-type-caret">{revealed ? "" : "▍"}</span></span></p><button disabled={state.prologueExit !== undefined} onClick={() => controller.current?.mutate(s => { if (revealed) s.prologueRevealed = true; advanceStory(s); })}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{!revealed ? "Reveal line" : state.cutscene === PROLOGUE.length - 1 ? "Drive out" : "Continue"}</button></div>
         </section>
       </>}
+      {(state.prologueExit !== undefined || state.scene === "overworld" && state.sceneTimer < PROLOGUE_FADE) && <div className="wf-intro-fade" aria-hidden="true" style={{ opacity: state.prologueExit !== undefined ? state.prologueExit / PROLOGUE_FADE : 1 - state.sceneTimer / PROLOGUE_FADE }} />}
       {state.scene === "shift" && <div className="wf-shift-caption"><p className="wf-eyebrow">A FLICKER THROUGH THE CRACK</p><h2>THE WORLD IS BREAKING.</h2><p>"That egg... wait! The portal's pulling us in!"</p><strong>ENTERING THE 8-BIT REALM</strong></div>}
       {state.scene === "results" && <Modal className="wf-overlay wf-results"><p className="wf-eyebrow">CHAPTER 1 COMPLETE</p>{state.sceneTimer < 2.2 ? <h2 className="wf-tbc">TO BE<br /><span>CONTINUED</span></h2> : <><h2>Beyond the flicker.</h2><p>The Architect's Creation is still sleeping.</p><p className="wf-result-score">{progressScore.toLocaleString()} <small>progress score</small></p><div className="wf-result-stats"><span>{state.kills}<small>Enemies defeated</small></span><span>LV {state.character.level}<small>Crew level</small></span><span>{state.deaths}<small>Deaths</small></span><span>◈ {state.candy}<small>Candy</small></span></div><p className="wf-small">The taken-over areas open in later chapters.</p><button onClick={quit}>Back to menu</button></>}</Modal>}
       {!paused && <ArenaHud state={state} onRetire={() => controller.current?.mutate(s => { finishArena(s); })} />}

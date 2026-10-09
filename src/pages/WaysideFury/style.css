@@ -299,3 +299,24 @@
 .wf-fusion-control button,.wf-training-progress button { min-height:40px; border:1px solid #79ebff88; border-radius:8px; background:#243e50; color:inherit; padding:6px 12px; }
 .wf-fusion-control button:disabled { opacity:.6; }
 @media(max-width:600px) { .wf-fusion-control,.wf-training-progress { top:108px; max-width:180px; font-size:11px; } }
+
+/* Native-resolution intro: generous touch targets and reserved reading space. */
+.wf-intro-dialogue { border-color: #bfa57580; background: linear-gradient(130deg, #132c3af5, #0b1524fa); box-shadow: 0 16px 60px #030912b0, inset 0 1px #e9ce9320; padding: 20px; }
+.wf-intro-dialogue p { min-height: 4.5em; font-size: 16px; line-height: 1.5; }
+.wf-intro-dialogue strong { display: flex; justify-content: space-between; gap: 12px; }
+.wf-intro-dialogue strong small { color: #94a6af; font-size: 10px; white-space: nowrap; }
+.wf-intro-dialogue button, .wf-skip { min-height: 44px; touch-action: manipulation; }
+.wf-type-caret { color: #efc98a; }
+.wf-intro-fade { position: absolute; inset: 0; z-index: 20; background: #0b1520; pointer-events: none; }
+@media (max-width: 600px) {
+  .wf-intro-dialogue { padding: 16px; gap: 12px; max-height: 42%; }
+  .wf-intro-dialogue .wf-portrait { width: 54px; height: 72px; flex: 0 0 54px; }
+  .wf-intro-dialogue p { font-size: 15px; min-height: 6em; }
+  .wf-story-title h2 { font-size: clamp(22px, 6vw, 32px); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .wf-intro-dialogue { padding: 10px 14px; max-height: 44%; }
+  .wf-intro-dialogue > div { grid-template-columns: 1fr auto; }
+  .wf-intro-dialogue p { min-height: 3em; font-size: 14px; }
+  .wf-intro-dialogue button { grid-column: 2; grid-row: 1 / 3; }
+}

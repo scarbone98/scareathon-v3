@@ -51,7 +51,8 @@ export function countyArtwork(kind: string) {
   }
   artwork.set(kind,canvas);return canvas;
 }
-export function drawCountyProp(c:CanvasRenderingContext2D,p:WorldProp) {
+export function drawCountyProp(c:CanvasRenderingContext2D,p:WorldProp,time=0) {
   if(!COUNTY_ART.has(p.kind))return false;
-  c.drawImage(countyArtwork(p.kind),p.x,p.y,p.w,p.h);return true;
+  const breath=p.kind==='keeper'&&time>0?Math.sin(time*2.4+p.x)*.007:0;
+  c.drawImage(countyArtwork(p.kind),p.x,p.y-p.h*breath,p.w,p.h*(1+breath));return true;
 }
