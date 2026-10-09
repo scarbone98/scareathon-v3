@@ -1,3 +1,5 @@
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
 import { INTERIORS } from './interiors';
 import { roadMask, groundScatter } from './roadClearance.ts';
 import { buildWalkableSurfaces } from './walkableSurfaces3d';
@@ -831,15 +833,18 @@ export class OverworldRenderer {
     this.postMaterial.uniforms.focus.value = this.camera.position.distanceTo(this.taxi.position) - 9;
     this.canvas.dataset.cameraX = this.target.x.toFixed(2); this.canvas.dataset.cameraY = this.target.z.toFixed(2);
   }
-  private atmosphere() {
+  private atmosphere(s: GameState) {
     const time = this.reducedMotion ? 0 : this.visualTime;
     this.puddleTime.value = time;
     // A slow dusk-to-night cycle with a bright initial golden hour.
-    const daylight = .58 + Math.cos(time * Math.PI * 2 / 180) * .42;
+    const sample = sampleDayNight(worldCycleSeconds(s));
+    this.canvas.dataset.worldPhase = s.scene === "overworld" ? sample.phase : "interior";
+    const daylight = s.scene === "overworld" ? 1 - sample.nightFactor : 1;
     this.sky.setRGB(.16 + daylight * .30, .21 + daylight * .37, .30 + daylight * .34);
     const fog = this.scene.fog as THREE.Fog; fog.color.copy(this.sky);
     this.ambient.intensity = 1.25 + daylight * 1.25; this.sun.intensity = .65 + daylight * 1.9;
-    this.sun.color.setRGB(1, .72 + daylight * .20, .57 + daylight * .23);
+    const warm = s.scene === "overworld" ? sample.warmTint : 0;
+    this.sun.color.setRGB(.55 + daylight * .45, .70 + daylight * .22 - warm * .12, 1 - daylight * .20 - warm * .22);
     this.headlights.intensity = 22 + (1 - daylight) * 40;
     const nearest = this.lightSources.map(light => ({ light, distance: (light.x - this.target.x) ** 2 + (light.y - this.target.z) ** 2 })).sort((a, b) => a.distance - b.distance);
     this.lights.forEach((light, index) => {
@@ -953,7 +958,7 @@ export class OverworldRenderer {
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
-    this.follow(s, dt); this.atmosphere();
+    this.follow(s, dt); this.atmosphere(s);
     const gates = campaignLocations(s);
     for (const portal of this.portals) {
       const gate = gates.find(location => location.x === portal.x && location.y === portal.y);

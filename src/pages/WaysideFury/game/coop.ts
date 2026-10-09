@@ -1,3 +1,4 @@
+import { sanitizeDayNightSeconds } from "./u1/world/dayNight";
 import { MAX_MILESTONES } from "../../../../server/shared/waysideFury/save.js";
 import { sameCampaignMap } from "./campaign.ts";
 import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION, compatibleMap, legacyMapId } from "../../../../server/shared/waysideFury/campaign.js";
@@ -23,11 +24,11 @@ export interface CoopReward {
   campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { worldCycleSeconds?: number; nightEncounterWindow?: string | null; combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const campaignIds = (...lists: (string[] | undefined)[]) => [...new Set(lists.flatMap(ids => ids ?? []))].slice(0, MAX_MILESTONES);
-const worldState = (s: GameState): WorldState => ({ difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
+const worldState = (s: GameState): WorldState => ({ worldCycleSeconds: s.worldCycleSeconds, nightEncounterWindow: s.nightWorld?.window ?? null, difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
@@ -197,6 +198,8 @@ export class FuryCoop {
     const role = this.isHost ? "host" : "guest";
     if (s.coop?.role === "guest" && role === "host" && this.latestWorld) {
       const w = this.latestWorld;
+      s.worldCycleSeconds = sanitizeDayNightSeconds(w.worldCycleSeconds);
+      s.nightWorld = { window: w.nightEncounterWindow ?? null };
       s.personalTaxiWrecked ||= s.ambientTaxiWrecked || w.ambientTaxiWrecked === true;
       if (s.coop) { s.coop.worldClearedRooms = [...w.clearedRooms]; s.coop.worldChapter = w.chapter; s.coop.worldBosses = [...w.bosses];
         s.coop.worldCampaignMilestones = [...(w.campaignMilestones ?? [])];
@@ -222,6 +225,8 @@ export class FuryCoop {
       const blend = buffered(this.worlds, now);
       if (blend) {
         const { a, b, alpha } = blend;
+        s.coop.worldCycleSeconds = sanitizeDayNightSeconds(b.worldCycleSeconds);
+        s.nightWorld = { window: b.nightEncounterWindow ?? null };
         s.coop.hostLevel = b.combatLevel; s.difficulty = b.difficulty ?? "normal"; s.coop.worldChapter = b.chapter; s.coop.worldClearedRooms = [...b.clearedRooms]; s.coop.worldBosses = [...b.bosses];
         s.coop.worldCampaignMilestones = [...(b.campaignMilestones ?? [])];
         s.coop.worldSolvedInteractions = [...(b.solvedInteractions ?? [])];
