@@ -1,3 +1,6 @@
+import { drawDayNightLighting } from "./u1/world/dayNightRender";
+import { sampleDayNight } from "./u1/world/dayNight";
+import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
 import { obstaclesForState, isObstacleCleared } from './locks/obstacles';
 import { drawHeroObstacle } from './locks/obstacleRender';
 import { INTERIORS } from './interiors';
@@ -280,6 +283,9 @@ export class Renderer {
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
     this.drawImpacts();
+    const daylight = sampleDayNight(worldCycleSeconds(s));
+    c.canvas.dataset.worldPhase = s.scene === "overworld" ? daylight.phase : "interior";
+    if (s.scene === "overworld") drawDayNightLighting(c, world, { ...this.camera, width, height }, daylight, s, s.enemies);
     c.restore();
     if(s.mapId==='city-hatching'&&s.dialogue?.speaker==='Jon') {
       // A screen-space foreground keeps all five identities visible on phones.

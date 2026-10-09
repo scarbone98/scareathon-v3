@@ -5,6 +5,7 @@ export interface ProgressReceipt { areas: string[]; bosses: string[]; rooms: str
 export interface Gear { power: number; ward: number }
 export interface SaveSettings {
   difficulty?: "normal" | "hard";
+  showWorldClock?: boolean;
   musicVolume: number; sfxVolume: number;
   controls: { tutorialDismissed: boolean; stickSensitivity: number };
 }
@@ -13,6 +14,7 @@ export interface HomeSnapshot {
   candy: number; chapter: number; gear: Gear; character: CharacterProgress;
 }
 export interface SaveData {
+  worldCycleSeconds?: number;
   version: 4; chapter: number; heroes: Record<HeroId, HeroState>; active: HeroId; party: HeroId[];
   candy: number; unlockedHeroes: HeroId[]; areas: string[]; bosses: string[]; clearedRooms: string[];
   kills: number; deaths: number; lastReported: ProgressReceipt; home: HomeSnapshot | null;

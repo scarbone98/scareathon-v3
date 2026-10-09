@@ -7,7 +7,7 @@ import type { WorldMap, CollisionRect } from './worldBuilder.ts';
 import { overlaps } from './worldBuilder.ts';
 export interface MapObjective { id: string; name: string; x: number; y: number }
 export function minimapAvailable(s: GameState) {
-  return !s.film && !s.dialogue && !s.overlay && !s.insideDiner && !s.transitionTarget && !s.enemies.length &&
+  return !s.film && !s.dialogue && !s.overlay && !s.insideDiner && !s.transitionTarget && !s.enemies.some(enemy => !enemy.nightAmbient) &&
     (s.scene === 'overworld' || s.scene === 'hub' || s.scene === 'dungeon' && ['woods-layby', 'space-launch', 'city-boulevard', 'city-market', 'city-clockroof', 'city-refuge'].includes(s.mapId));
 }
 export function resolveMapObjective(s: GameState, map: WorldMap): MapObjective {
