@@ -25,6 +25,11 @@ const sizes = [{ name: 'portrait', width: 390, height: 844, dpr: 3 }, { name: 'd
 const errors = [], results = [], radarMarkup = new Map();
 await mkdir(output, { recursive: true });
 
+async function collectItem(page, size, name) {
+  // Touch uses the contextual Attack button; desktop has a labeled prompt.
+  const target = size.name === 'portrait' ? page.locator(`.wf-touch-btn.wf-attack[aria-label="${name}"]`) : page.locator('.wf-interact-prompt').filter({ hasText: name });
+  await activate(target, size);
+}
 async function activate(locator, size) { if (size.name === 'portrait') await locator.tap(); else await locator.click(); }
 async function boot(page, size, mode, reload = false) {
   let rejectStartup;
@@ -122,7 +127,7 @@ async function check(page, size, mode) {
   assert.deepEqual(registryFixture.targets, [{ id: 'current-find', name: 'A side find', scene: 'dungeon', room: 2, x: 200, y: 160, kind: 'hidden' }], 'JOB E adapter accepts only available unfound pickups in this room with finite coordinates');
   await atHub(page, { x: 546, y: 208, faceX: 1, faceY: 0 });
   await snapshot(page, size, mode, 'hub');
-  await activate(page.locator('.wf-interact-prompt').filter({ hasText: 'Collect Scanner' }), size);
+  await collectItem(page, size, 'Collect Scanner');
   await page.waitForFunction(() => window.__waysideFury.state.u1.items.chips.owned.includes('scanner'));
   console.log(`Items ${size.name}/${mode}: Scanner collected; opening character sheet`);
   await character(page, size);
@@ -157,7 +162,7 @@ async function check(page, size, mode) {
     window.__waysideFury.mutate(state => { state.x = target.x - 14; state.y = target.y; state.faceX = 1; state.faceY = 0; state.notice = ''; });
     return target.id;
   });
-  await activate(page.locator('.wf-interact-prompt').filter({ hasText: 'Collect Station Crest' }), size);
+  await collectItem(page, size, 'Collect Station Crest');
   assert.ok((await stateItems(page)).relics.collected.includes(crest));
   console.log(`Items ${size.name}/${mode}: Station Crest collected; checking altar choices`);
   await character(page, size);
@@ -183,7 +188,7 @@ async function check(page, size, mode) {
   console.log(`Items ${size.name}/${mode}: single wish and scatter passed; checking radar and persistence`);
 
   await atHub(page, { x: 448, y: 370, faceX: 0, faceY: 1 });
-  await activate(page.locator('.wf-interact-prompt').filter({ hasText: 'Collect Relic Radar' }), size);
+  await collectItem(page, size, 'Collect Relic Radar');
   await page.locator('.wf-radar-toggle').waitFor({ state: 'visible' });
   assert.equal(await page.locator('.wf-radar-toggle').getAttribute('aria-pressed'), 'true');
   assert.match(await page.locator('.wf-radar-text').innerText(), /E · \d+ steps/);
@@ -232,7 +237,20 @@ try {
     console.log(`Checking Wayside Fury items: ${size.name} ${size.width}x${size.height} DPR${size.dpr}, ${mode}`);
     const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr,
       hasTouch: size.name === 'portrait', isMobile: size.name === 'portrait' });
-    if (browserName === 'webkit') 
+    // These UI checks run as an isolated guest. Account transport/conflicts are
+    // covered by the real CloudSaveStore tests, without requiring external auth.
+    await context.route('**/src/supabaseClient.ts', async route => {
+      const response = await route.fetch();
+      const source = await response.text();
+      await route.fulfill({ response, body: source + `
+        supabase.auth.getSession = async () => ({ data: { session: null }, error: null });
+        supabase.auth.onAuthStateChange = callback => {
+          let active = true;
+          queueMicrotask(() => { if (active) callback('INITIAL_SESSION', null); });
+          return { data: { subscription: { unsubscribe() { active = false; } } } };
+        };
+      ` });
+    });
     context.setDefaultTimeout(180000); context.setDefaultNavigationTimeout(timeout);
     const page = await context.newPage();
     page.on('pageerror', error => { const message = `${size.name}/${mode}: ${error.message}`; errors.push(message); console.error(`Items runtime error: ${message}`); });
