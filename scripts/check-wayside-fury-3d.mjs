@@ -15,6 +15,8 @@ const output = process.env.FURY_3D_SHOTS ?? '/tmp/fury-3d-shots';
 const browserName = process.env.PLAYWRIGHT_BROWSER ?? 'chromium';
 const moduleName = process.env.PLAYWRIGHT_MODULE;
 const samples = Number(process.env.FURY_FRAME_SAMPLES ?? 180);
+const scope = process.env.FURY_3D_CASE ?? 'full';
+assert.ok(['full', 'desktop-iframe'].includes(scope), 'FURY_3D_CASE must be full or desktop-iframe');
 const startupTimeout = Number(process.env.FURY_READY_TIMEOUT ?? 180000);
 assert.ok(Number.isInteger(samples) && samples >= 30, 'FURY_FRAME_SAMPLES must be at least 30');
 assert.ok(Number.isFinite(startupTimeout) && startupTimeout > 0, 'FURY_READY_TIMEOUT must be positive');
@@ -36,7 +38,7 @@ assert.ok(Array.isArray(extraArgs) && extraArgs.every(value => typeof value === 
 const launchOptions = { headless: headless === 'true' || headless === '1',
   ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
-  ...([...backendArgs[backend], ...extraArgs].length ? { args: [...backendArgs[backend], ...extraArgs] } : {}) };
+  args: ['--mute-audio', ...backendArgs[backend], ...extraArgs] };
 const browser = await playwright[browserName].launch(launchOptions);
 const errors = [];
 const measurements = [];
@@ -435,9 +437,10 @@ async function qualityDrop() {
   } finally { await context.close(); }
 }
 
-async function iframeCase(size) {
+async function iframeCase(size, attempt = 0) {
   console.log(`Starting actual arcade iframe: 3d-${sizeName(size)}`);
   const { context, page } = await contextFor(size);
+  let detached = false, booted = false;
   try {
     await navigate(page, '/wayside-fury');
     await page.evaluate(async () => {
@@ -453,25 +456,37 @@ async function iframeCase(size) {
     });
     const locator = page.locator('iframe[title="Wayside Fury"]'); await locator.waitFor();
     const frame = await (await locator.elementHandle()).contentFrame(); assert.ok(frame);
-    await boot(page, '2d', frame);
+    await boot(page, '2d', frame); booted = true;
     await settingsMode(frame, '3d');
     await layout(frame, `3d-${sizeName(size)}-iframe`);
     checks.push({ label: `3d-${sizeName(size)}-iframe`, checks: 'actual arcade iframe sizing and toolbar, Settings, controls' });
     console.log(`3d-${sizeName(size)}-iframe: toolbar sizing, Settings and controls passed`);
+  } catch (error) {
+    // The arcade fixture can replace its initial frame during cold startup.
+    // Recreate that fixture once; assertion failures are never retried.
+    if (!booted && attempt === 0 && error.code !== 'ERR_ASSERTION' && error.message?.includes('Frame was detached')) detached = true;
+    else throw error;
   } finally { await context.close(); }
+  if (detached) {
+    console.log(`3d-${sizeName(size)}-iframe: startup frame replaced; recreating fixture once`);
+    await iframeCase(size, attempt + 1);
+  }
 }
 
 try {
   await mkdir(output, { recursive: true });
-  for (const size of [phones[0], desktop]) for (const mode of ['2d', '3d']) await capture(size, mode);
-  for (const size of phones.slice(1)) await capture(size, '3d', false);
-  await lifecycle();
-  await fallback();
-  await qualityDrop();
-  for (const size of [phones[0], phones[2], desktop]) await iframeCase(size);
+  if (scope === 'desktop-iframe') await iframeCase(desktop);
+  else {
+    for (const size of [phones[0], desktop]) for (const mode of ['2d', '3d']) await capture(size, mode);
+    for (const size of phones.slice(1)) await capture(size, '3d', false);
+    await lifecycle();
+    await fallback();
+    await qualityDrop();
+    for (const size of [phones[0], phones[2], desktop]) await iframeCase(size);
+  }
   assert.deepEqual(errors, [], 'no uncaught browser errors');
-  const report = { browser: browserName, browserVersion: browser.version(), launch: { headless: launchOptions.headless, channel: launchOptions.channel ?? null, executablePath: launchOptions.executablePath ?? null, webglBackend: backend }, generatedAt: new Date().toISOString(),
+  const report = { scope, browser: browserName, browserVersion: browser.version(), launch: { headless: launchOptions.headless, channel: launchOptions.channel ?? null, executablePath: launchOptions.executablePath ?? null, webglBackend: backend }, generatedAt: new Date().toISOString(),
     caveat: 'Desktop Playwright with phone viewport/DPR emulation. rAF measures frame cadence; renderMs measures CPU submission, not GPU duration. Physical mid-iPhone performance requires a device run.', measurements, checks };
   await writeFile(join(output, 'frame-times.json'), `${JSON.stringify(report, null, 2)}\n`);
-  console.log(`Wayside Fury 3D checks pass (${checks.length} cases). Captures and frame times: ${output}`);
+  console.log(`Wayside Fury 3D checks pass (${scope}: ${checks.length} cases). Captures and frame times: ${output}`);
 } finally { await browser.close(); }

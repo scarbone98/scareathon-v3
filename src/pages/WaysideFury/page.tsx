@@ -4,6 +4,7 @@ import { equipChip } from "./game/u1/items/chips";
 import { chooseWish } from "./game/u1/items/relics";
 import { toggleRadar } from "./game/u1/items/radar";
 import { hiddenRadarTargets } from "./game/u1/items/hiddenRadar";
+import { Minimap, MinimapSettings } from "./Minimap";
 import { GlobeTravel } from "./GlobeTravel";
 import { globeAvailable, type GlobeDestination } from "./game/globe";
 import { COUNTY_STOPS } from "./game/county";
@@ -43,13 +44,13 @@ function Controls({ mode }: { mode: InputMode }) {
       <dt>Signature</dt><dd>Release Ki at a full bar for your hero's beam</dd>
       <dt>Dash / Guard</dt><dd>L / Shift · B / Circle / RT or RB</dd>
       <dt>Swap</dt><dd>Q / E · LB / Y · Tag partner</dd>
-      <dt>Interact / Pause</dt><dd>Enter / Esc · A / Cross / Start</dd></dl>
+      <dt>Map</dt><dd>M · Back / Select · tap minimap</dd><dt>Interact / Pause</dt><dd>Enter / Esc · A / Cross / Start</dd></dl>
     <p>{mode === "touch" ? "Use the stick and buttons below. Hold Ki or Guard while moving." : "Controllers connect automatically. Charge somewhere safe."}</p>
   </section>;
 }
 function GraphicsSettings({ mode, status, onChange, onNewGame, resetDisabled, difficulty, onDifficulty, inCoop, hardUnlocked }: { difficulty: "normal" | "hard"; onDifficulty: (value: "normal" | "hard") => void; inCoop: boolean; hardUnlocked: boolean; mode: GraphicsMode; status: GraphicsStatus; onChange: (mode: GraphicsMode) => void; onNewGame: () => void; resetDisabled: boolean }) {
   return <section className="wf-graphics-settings" aria-label="Graphics settings">
-    <h2>Settings</h2><p>Combat difficulty</p>
+    <h2>Settings</h2><MinimapSettings /><p>Combat difficulty</p>
     <div role="radiogroup" aria-label="Combat difficulty">
       {(["normal", "hard"] as const).map(value => <button key={value} role="radio" aria-checked={difficulty === value} disabled={inCoop} className="wf-secondary" onClick={() => onDifficulty(value)}>{value === "hard" ? "Hard" : "Normal"}</button>)}
     </div>
@@ -201,6 +202,7 @@ export default function WaysideFury() {
   const [state, setState] = useState<GameState>(newGame);
   const [worldRoute, setWorldRoute] = useState(false);
   const worldRouteRef=useRef(false);
+  const minimapOpenRef=useRef(false);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const [characterOpen, setCharacterOpen] = useState(false);
@@ -330,7 +332,7 @@ export default function WaysideFury() {
     let avatarAccount: string | null | undefined;
     let avatarAbort: AbortController | null = null;
     let saveReady = false, avatarReady = false;
-    const resumeWhenReady = () => game.setPaused(pausedRef.current || worldRouteRef.current || !playingRef.current || !saveReady || !avatarReady);
+    const resumeWhenReady = () => game.setPaused(pausedRef.current || worldRouteRef.current || minimapOpenRef.current || !playingRef.current || !saveReady || !avatarReady);
     const refreshAvatar = (id: string | null) => {
       if (avatarAccount === id) return;
       avatarAccount = id; avatarAbort?.abort(); avatarAbort = new AbortController();
@@ -481,6 +483,7 @@ export default function WaysideFury() {
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
+    {playing && <Minimap state={state} getState={() => controller.current?.state ?? state} blocked={paused || worldRoute || coopOpen || cinematic || !!state.overlay} onPause={value => { minimapOpenRef.current=value; controller.current?.setPaused(value || pausedRef.current || worldRouteRef.current); }} />}
     {!playing ? <div className="wf-overlay wf-menu">
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
       <p className="wf-tagline">Five years later, the real evil arrives.</p>

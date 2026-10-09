@@ -90,14 +90,14 @@ async function radarLayout(page, size) {
     const canvas = document.querySelector('.wf-stage canvas:not(.wf-canvas-3d)');
     return { radar: box(radar), reachable: radar.contains(hit), dpr: devicePixelRatio,
       canvas: { width: canvas.width, height: canvas.height, cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight, dpr: Number(canvas.dataset.renderDpr) },
-      prompts: [...document.querySelectorAll('.wf-interact-prompt, .wf-notice, .wf-party-hud, .wf-save-in-game')].filter(visible).map(box) };
+      prompts: [...document.querySelectorAll('.wf-interact-prompt, .wf-notice, .wf-party-hud, .wf-save-in-game, .wf-minimap')].filter(visible).map(box) };
   });
   assert.equal(layout.dpr, size.dpr);
   assert.ok(layout.radar.x >= 0 && layout.radar.y >= 0 && layout.radar.x + layout.radar.width <= size.width + 1 && layout.radar.y + layout.radar.height <= size.height + 1, 'radar remains inside the viewport');
   assert.ok(layout.radar.height >= 44 && layout.reachable, 'radar is a reachable touch target');
   for (const prompt of layout.prompts) {
     const a = layout.radar, b = prompt;
-    assert.equal(a.x < b.x + b.width - 1 && a.x + a.width > b.x + 1 && a.y < b.y + b.height - 1 && a.y + a.height > b.y + 1, false, 'radar does not cover prompts or party status');
+    assert.equal(a.x < b.x + b.width - 1 && a.x + a.width > b.x + 1 && a.y < b.y + b.height - 1 && a.y + a.height > b.y + 1, false, 'radar does not cover prompts, party status or minimap');
   }
   assert.ok(Math.abs(layout.canvas.width - layout.canvas.cssWidth * layout.canvas.dpr) <= 2, 'canvas width follows native render DPR');
   assert.ok(Math.abs(layout.canvas.height - layout.canvas.cssHeight * layout.canvas.dpr) <= 2, 'canvas height follows native render DPR');
