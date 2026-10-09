@@ -1,0 +1,482 @@
+[
+  {
+    "name": "390x844-2d-level-locked",
+    "id": "locks-county-danger",
+    "gfx": "2d",
+    "cleared": false,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-2d-level-cleared",
+    "id": "locks-county-danger",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-2d-ability-locked",
+    "id": "locks-county-debris",
+    "gfx": "2d",
+    "cleared": false,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-2d-ability-cleared",
+    "id": "locks-county-debris",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-2d-story-locked",
+    "id": "locks-moon-reserve",
+    "gfx": "2d",
+    "cleared": false,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-2d-story-cleared",
+    "id": "locks-moon-reserve",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "1440x900-2d-level-locked",
+    "id": "locks-county-danger",
+    "gfx": "2d",
+    "cleared": false,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-2d-level-cleared",
+    "id": "locks-county-danger",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-2d-ability-locked",
+    "id": "locks-county-debris",
+    "gfx": "2d",
+    "cleared": false,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-2d-ability-cleared",
+    "id": "locks-county-debris",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-2d-story-locked",
+    "id": "locks-moon-reserve",
+    "gfx": "2d",
+    "cleared": false,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-2d-story-cleared",
+    "id": "locks-moon-reserve",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-level-locked",
+    "id": "locks-county-danger",
+    "gfx": "3d",
+    "cleared": false,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-level-cleared",
+    "id": "locks-county-danger",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-ability-locked",
+    "id": "locks-county-debris",
+    "gfx": "3d",
+    "cleared": false,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-ability-cleared",
+    "id": "locks-county-debris",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-story-locked",
+    "id": "locks-moon-reserve",
+    "gfx": "3d",
+    "cleared": false,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-story-cleared",
+    "id": "locks-moon-reserve",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "1440x900-3d-level-locked",
+    "id": "locks-county-danger",
+    "gfx": "3d",
+    "cleared": false,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-3d-level-cleared",
+    "id": "locks-county-danger",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-3d-ability-locked",
+    "id": "locks-county-debris",
+    "gfx": "3d",
+    "cleared": false,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-3d-ability-cleared",
+    "id": "locks-county-debris",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-3d-story-locked",
+    "id": "locks-moon-reserve",
+    "gfx": "3d",
+    "cleared": false,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  },
+  {
+    "name": "1440x900-3d-story-cleared",
+    "id": "locks-moon-reserve",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 2
+    },
+    "canvases": [
+      {
+        "width": 2880,
+        "height": 1800,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "dpr": 2
+      }
+    ]
+  }
+]

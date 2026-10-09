@@ -1,5 +1,6 @@
 import { drawOverworldBanks } from './overworldBanks.ts';
 import { drawCountyWater } from './overworldWater.ts';
+import { continuousBlastGround, drawBlastGround, drawWornTrails } from './roomGround.ts';
 import { roadMask } from './roadClearance.ts';
 import { drawRoadNetwork, roadGround } from './roadNetwork.ts';
 import { roadMarks } from './roadMarkings';
@@ -17,9 +18,14 @@ export const MATERIALS: Record<TileKind, readonly [string, string, string]> = {
 };
 const hash = (x: number, y: number) => Math.abs(Math.imul(x + 11, 374761393) ^ Math.imul(y + 23, 668265263)) >>> 0;
 const inside = (world: WorldMap, col: number, row: number) => col >= 0 && row >= 0 && col < world.cols && row < world.rows;
-const terrainAt = (world: WorldMap, col: number, row: number): TileKind => inside(world, col, row)
-  ? roadGround(world, tileAt(world, col, row))
-  : world.id.startsWith('realm') ? 'void' : world.id.startsWith('blast') ? 'ash' : 'grass';
+const terrainAt = (world: WorldMap, col: number, row: number): TileKind => {
+  if (!inside(world,col,row)) return world.id.startsWith('realm') ? 'void' : world.id.startsWith('blast') ? 'ash' : 'grass';
+  const kind=roadGround(world,tileAt(world,col,row));
+  if (world.organic && /^(woods-|city-)/.test(world.id) && !world.collision[row*world.cols+col] && !['water','bridge'].includes(kind)) {
+    return world.id.startsWith('woods-') ? world.id==='woods-mirror-sawmill'?'corrupt':'grass' : 'stone';
+  }
+  return kind;
+};
 
 // Native-resolution chunks are keyed by their render scale. Out-of-bounds chunks
 // use the room's surroundings, so a centered small room never reveals black bars.
@@ -76,6 +82,11 @@ export class TerrainCache {
     canvas.width = canvas.height = TILE * chunkTiles * pixelScale;
     const c = canvas.getContext('2d')!;
     c.scale(pixelScale, pixelScale); c.imageSmoothingEnabled = false;
+    if (continuousBlastGround(world)) {
+      c.translate(-cx * TILE * chunkTiles, -cy * TILE * chunkTiles);
+      drawBlastGround(c, world, {x:cx*TILE*chunkTiles,y:cy*TILE*chunkTiles,w:TILE*chunkTiles,h:TILE*chunkTiles}); drawWornTrails(c, world);
+      return canvas;
+    }
     for (let ty = 0; ty < chunkTiles; ty++) for (let tx = 0; tx < chunkTiles; tx++) {
       const col = cx * chunkTiles + tx, row = cy * chunkTiles + ty;
       const kind = terrainAt(world, col, row), [base, light, dark] = MATERIALS[kind];
@@ -106,7 +117,7 @@ export class TerrainCache {
         c.restore();
         if (n % 19 === 0 && !roadMask(world).contains(col*TILE+7,row*TILE+8)) { fill(7, 8, .15, 1.5, '#b5b88b'); fill(7, 7.8, .4, .4, '#e4d7a0'); }
       }
-      if (world.id !== 'overworld' && (kind === 'stone' || kind === 'ash' || kind === 'void' || kind === 'corrupt')) {
+      if (world.id !== 'overworld' && !world.organic && (kind === 'stone' || kind === 'ash' || kind === 'void' || kind === 'corrupt')) {
         c.save(); c.globalAlpha = .45;
         fill(0, 0, TILE, .18, dark); fill(0, 0, .18, TILE, dark); fill(1, .3, 13, .15, light);
         c.restore();

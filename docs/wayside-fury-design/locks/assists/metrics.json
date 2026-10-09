@@ -1,0 +1,42 @@
+[
+  {
+    "name": "390x844-2d-assist-cleared",
+    "id": "locks-moon-reserve",
+    "gfx": "2d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "name": "390x844-3d-assist-cleared",
+    "id": "locks-moon-reserve",
+    "gfx": "3d",
+    "cleared": true,
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  }
+]
