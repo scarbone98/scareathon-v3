@@ -22,6 +22,8 @@ const browser = await playwright[browserName].launch({ headless: browserName ===
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
   args: [...(browserName === 'chromium' ? ['--mute-audio'] : []), ...extraArgs] });
 const sizes = [{ name: 'portrait', width: 390, height: 844, dpr: 3 }, { name: 'desktop', width: 1440, height: 900, dpr: 2 }];
+const selectedCases = process.env.FURY_ITEMS_CASES?.split(',');
+if (selectedCases) assert.ok(selectedCases.every(value => /^(portrait|desktop)\/(2d|3d)$/.test(value)), 'FURY_ITEMS_CASES must list viewport/graphics cases');
 const errors = [], results = [], radarMarkup = new Map();
 await mkdir(output, { recursive: true });
 
@@ -53,7 +55,6 @@ async function boot(page, size, mode, reload = false) {
 async function atHub(page, position) {
   await page.evaluate(async position => {
     const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
-    window.__waysideFury.setTouch({});
     window.__waysideFury.mutate(state => { enterScene(state, 'hub'); Object.assign(state, position); state.notice = ''; });
   }, position);
 }
@@ -217,7 +218,6 @@ async function check(page, size, mode) {
   assert.equal(await page.locator('.wf-radar-toggle').getAttribute('aria-pressed'), 'true', 'the saved off state remains toggleable');
   await page.evaluate(async () => {
     const { enterScene } = await import('/src/pages/WaysideFury/game/sim.ts');
-    window.__waysideFury.setTouch({});
     window.__waysideFury.mutate(state => { enterScene(state, 'overworld'); state.x = 752; state.y = 480; state.notice = ''; });
   });
   await page.waitForFunction(mode => {
@@ -244,6 +244,7 @@ async function check(page, size, mode) {
 
 try {
   for (const mode of ['2d', '3d']) for (const size of sizes) {
+    if (selectedCases && !selectedCases.includes(`${size.name}/${mode}`)) continue;
     console.log(`Checking Wayside Fury items: ${size.name} ${size.width}x${size.height} DPR${size.dpr}, ${mode}`);
     const context = await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr,
       hasTouch: size.name === 'portrait', isMobile: size.name === 'portrait' });
@@ -275,5 +276,5 @@ try {
   }
   assert.deepEqual(errors, [], 'item flows emitted no browser runtime errors');
   await writeFile(join(output, 'items-measurements.json'), `${JSON.stringify(results, null, 2)}\n`);
-  console.log(`Wayside Fury item browser checks passed in 2D and 3D on native-DPR phone and desktop. Screenshots: ${output}`);
+  console.log(`Wayside Fury item browser checks passed: ${results.map(result => `${result.viewport}/${result.graphics}`).join(', ')}. Screenshots: ${output}`);
 } finally { await browser.close(); }
