@@ -173,7 +173,8 @@ describe('Wayside Fury revisioned routes', () => {
             expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json()).toEqual({ save: null, revision: null });
             const create = await app.inject({ method: 'PUT', url: '/wayside-fury/save', payload: { save: legacySave(), revision: null } });
             expect(create.statusCode).toBe(200); expect(create.json()).toEqual({ revision: 1 });
-            const latest = legacySave({ candy: 91, areas: ['wayside', 'blast'] });
+            const latest = legacySave({ candy: 91, areas: ['wayside', 'blast'],
+                u1: { items: { chips: { owned: ['scanner'], equipped: ['scanner', null, null] } }, combat: { training: { joe: 2 } } } });
             const update = await app.inject({ method: 'PUT', url: '/wayside-fury/save', payload: { save: latest, revision: 1 } });
             expect(update.json()).toEqual({ revision: 2 });
             for (const revision of [null, 1]) {
@@ -182,6 +183,8 @@ describe('Wayside Fury revisioned routes', () => {
                 expect(stale.json().save).toEqual(sanitizeSave(latest).save);
             }
             expect(db.rows.get(PLAYER).save.candy).toBe(91);
+            expect(db.rows.get(PLAYER).save.u1.items.chips.owned).toEqual(['scanner']);
+            expect(db.rows.get(PLAYER).save.u1.combat.training.joe).toBe(2);
             expect((await app.inject({ method: 'GET', url: '/wayside-fury/save' })).json().save.version).toBe(4);
         } finally { await app.close(); }
     });

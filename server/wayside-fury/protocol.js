@@ -1,4 +1,5 @@
-import { COOP_PROTOCOL_VERSION, compatibleMap } from '../shared/waysideFury/campaign.js';
+import { cleanFusionWorld, FUSION_INTENT } from "../shared/waysideFury/u1Fusion.js";
+import { COOP_PROTOCOL_VERSION, compatibleMap, legacyMapId } from '../shared/waysideFury/campaign.js';
 import { HIDDEN_PICKUPS } from '../shared/waysideFury/collectibles.js';
 const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
 export const MAX_MESSAGE_BYTES = 65_536;
@@ -32,6 +33,7 @@ export function cleanInput(input) {
         if (typeof input[key] !== 'boolean') return null;
         cleaned[key] = input[key];
     }
+    if (input.fusion !== undefined) { if (typeof input.fusion !== 'boolean') return null; cleaned.fusion = input.fusion; }
     return cleaned;
 }
 
@@ -53,6 +55,8 @@ export function cleanHero(remote) {
         if (remote[key] !== undefined) {if (typeof remote[key] !== 'boolean') return null;cleaned[key] = remote[key];}
     }
     if(remote.guardTimer !== undefined) {if(!number(remote.guardTimer,1e6)||remote.guardTimer<0) return null;cleaned.guardTimer=remote.guardTimer;}
+    if (remote.fusionIntent !== undefined) { if (!number(remote.fusionIntent, FUSION_INTENT) || remote.fusionIntent < 0) return null; cleaned.fusionIntent = remote.fusionIntent; }
+    if (remote.fusionSpecial !== undefined) { if (!integer(remote.fusionSpecial, 100_000_000)) return null; cleaned.fusionSpecial = remote.fusionSpecial; }
     if (remote.meleeCharge !== undefined) { if (!number(remote.meleeCharge, 1.2) || remote.meleeCharge < 0) return null; cleaned.meleeCharge = remote.meleeCharge; }
     if (remote.boundTimer !== undefined) { if (!number(remote.boundTimer, .4) || remote.boundTimer < 0) return null; cleaned.boundTimer=remote.boundTimer; }
     for (const key of ['moving', 'guard']) {
@@ -128,6 +132,11 @@ export function cleanWorld(state) {
     if (state.film !== undefined && state.film !== null && (!object(state.film) ||
         !['space-suitup','space-outbound','space-return','space-revisit'].includes(state.film.id) ||
         !number(state.film.elapsed, 62) || state.film.elapsed < 0)) return null;
+    if (state.fusions !== undefined) {
+        const fusions = cleanFusionWorld(state.fusions);
+        if (!fusions || fusions.forms.some(form => form.scene !== state.scene || form.room !== state.room ||
+            form.mapId !== undefined && form.mapId !== (state.mapId ?? legacyMapId(state.scene, state.room)))) return null;
+    }
     for (const enemy of state.enemies) {
         if (!object(enemy) || !integer(enemy.id) || !['grunt', 'shooter', 'boss'].includes(enemy.kind) || !number(enemy.x) || !number(enemy.y) || !number(enemy.hp) || !number(enemy.maxHp) || enemy.hp < 0 || enemy.maxHp <= 0 || enemy.hp > enemy.maxHp) return null;
         if (enemy.nightAmbient !== undefined && typeof enemy.nightAmbient !== 'boolean') return null;
@@ -147,6 +156,7 @@ export function cleanWorld(state) {
     for (const projectile of state.projectiles) {
         if (!object(projectile) || !integer(projectile.id) || !number(projectile.x) || !number(projectile.y) || !number(projectile.vx) || !number(projectile.vy)) return null;
         if (!['hero', 'enemy'].includes(projectile.owner) || typeof projectile.beam !== 'boolean' || !Array.isArray(projectile.hits) || projectile.hits.length > 200 || !projectile.hits.every((id) => integer(id))) return null;
+        if (projectile.damageCap !== undefined && (!number(projectile.damageCap, 1) || projectile.damageCap <= 0)) return null;
         if (projectile.hero !== undefined && !HERO_IDS.has(projectile.hero)) return null;
         if(projectile.signal !== undefined && typeof projectile.signal !== 'boolean') return null;
         for(const key of ['bounceDistance','bounceVx','bounceVy']) if(projectile[key] !== undefined && !number(projectile[key],1e6)) return null;

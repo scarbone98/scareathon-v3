@@ -1,6 +1,7 @@
 import { grantCheckpointChip } from "./u1/items/pickups.ts";
 import { sanitizeItemsNamespace } from "../../../../server/shared/waysideFury/u1Items.js";
 import { itemsGear } from "./sim.ts";
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { record, refillCrew } from "./chapters/ch3.ts";
 import { onMoon } from "./lunar.ts";
 import { campaignHandoff } from "./campaign.ts";
@@ -38,7 +39,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
   })) : s.heroes;
   return parseSave({
-    worldCycleSeconds: s.worldCycleSeconds, version: SAVE_VERSION, u1: sanitizeItemsNamespace(s.u1), campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
+    worldCycleSeconds: s.worldCycleSeconds, version: SAVE_VERSION, u1: { ...sanitizeItemsNamespace(s.u1), combat: mergeCombatProgress(s.u1.combat, previous?.u1?.combat) }, campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
     completedCinematics: s.completedCinematics, checkpointMapId: s.coop?.role === "guest" ? previous?.checkpointMapId ?? "hub" : s.checkpointMapId, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: { ...previous?.settings, difficulty: s.difficulty }, savedAt: Date.now(),
@@ -71,7 +72,7 @@ export function makeNewGameSave(previous: SaveData | null): SaveData {
 export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
   if (saved) {
-    s.u1 = sanitizeItemsNamespace(saved.u1);
+    s.u1 = { ...sanitizeItemsNamespace(saved.u1), combat: mergeCombatProgress(saved.u1?.combat) };
     s.worldCycleSeconds = saved.worldCycleSeconds ?? 0;
     s.difficulty = saved.settings.difficulty ?? "normal";
     const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("interior-") && !saved.checkpointMapId.startsWith("city-") && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;

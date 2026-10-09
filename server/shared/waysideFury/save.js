@@ -1,4 +1,5 @@
 import { sanitizeItemsNamespace } from './u1Items.js';
+import { sanitizeCombatSave } from "./u1Combat.js";
 import { canResumeInterior } from './interiors.js';
 import { chapterRewardScore, mapDefinition } from './campaign.js';
 import { cleanFoundItems } from './collectibles.js';
@@ -162,7 +163,7 @@ export function sanitizeSave(raw) {
     if (!Array.isArray(raw.areas) || !Array.isArray(raw.bosses) || !Array.isArray(raw.clearedRooms)) return { error: 'Bad milestones' };
     if (!Array.isArray(raw.unlockedHeroes) || !ids.every(id => raw.unlockedHeroes.includes(id))) return { error: 'Bad unlocked heroes' };
     if (!Object.hasOwn(raw, 'home')) return { error: 'Missing HOME snapshot' };
-    const u1 = sanitizeItemsNamespace(raw.u1);
+    const u1 = { ...sanitizeItemsNamespace(raw.u1), combat: sanitizeCombatSave(raw.u1?.combat) };
     const sheet = cleanSheet(raw, legacy, u1.items.relics.statBonus), receipt = raw.lastReported;
     if (!sheet) return { error: 'Bad heroes' };
     if (!isRecord(receipt) || !Array.isArray(receipt.areas) || !Array.isArray(receipt.bosses) || !Array.isArray(receipt.rooms) || !finite(receipt.level)) return { error: 'Bad progress receipt' };

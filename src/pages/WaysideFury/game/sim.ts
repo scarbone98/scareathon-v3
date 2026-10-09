@@ -25,6 +25,10 @@ import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, ty
 import { availablePickups, collectPickup, pickupBuffs, walkingPickup } from "./collectibles.ts";
 import { updateOverworldDressing } from "./dressing.ts";
 import { interactionPrompt, newContextAttack, resolveContextPress, selectInteractionTarget, updateContextPrompt, type AttackPresentation, type ContextAttackState, type InteractTarget, type InteractionCandidate } from "./contextAttack.ts";
+import { createFusionRuntime, tickFusion, requestFusion, localFusion, consumeFusionSpecial, resetFusion, type FusionRuntime } from "./u1/combat/fusion.ts";
+import { startTraining, cancelTraining, tickTraining, trainingMelee, trainingProjectile, TRAINING_BOARD, type TrainingRuntime } from "./u1/combat/training.ts";
+import { signatureDefinition } from "./u1/combat/signature.ts";
+import { defaultCombatProgress, type CombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { updateNightOverworld } from "./u1/world/dayNightRuntime.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
@@ -33,7 +37,7 @@ export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt
 export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
-  guard: boolean; swap: boolean; interact: boolean;
+  guard: boolean; swap: boolean; interact: boolean; fusion?: boolean;
   attackPresentation?: AttackPresentation;
 }
 export const idleInput = (): Input => ({ x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false });
@@ -48,6 +52,7 @@ export interface RemoteHero {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
   guardTimer?: number; filmSkip?: boolean; filmHold?: boolean; spaceOutfit?: boolean; boundTimer?: number; meleeCharge?: number;
+  fusionIntent?: number; fusionSpecial?: number;
   scene: Scene; room: number; mapId?: string; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
@@ -79,6 +84,7 @@ export interface Enemy {
   miniBoss: boolean; phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
 export interface Projectile {
+  damageCap?: number;
   originX?: number; originY?: number; relayHit?: boolean; signal?: boolean; bounceDistance?: number; bounceVx?: number; bounceVy?: number;
   id: number; x: number; y: number; vx: number; vy: number; radius: number;
   damage: number; ttl: number; owner: "hero" | "enemy"; hero?: HeroId;
@@ -103,9 +109,14 @@ export type GameEvent =
   | { type: "level"; hero: HeroId; level: number }
   | { type: "swap"; hero: HeroId }
   | { type: "checkpoint"; id: string }
+  | { type: "fusion-start"; id: number; heroes: HeroId[]; seats: number[] }
+  | { type: "fusion-end"; id: number }
+  | { type: "fusion-special"; id: number }
+  | { type: "training-complete"; hero: HeroId; tier: number }
+  | { type: "training-failed"; hero: HeroId; tier: number; reason: string }
   | { type: "death" };
 export interface GameState {
-  u1?: { items: ItemsSaveState; [key: string]: unknown };
+  u1: { items: ItemsSaveState; combat: CombatProgress; [key: string]: unknown }; fusion: FusionRuntime; training: TrainingRuntime | null;
   worldCycleSeconds: number;
   nightWorld?: { window: string | null };
   localPaused: boolean; spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
@@ -296,11 +307,11 @@ function random(s: GameState) {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
 export function newGame(seed = 8591): GameState {
-  const s: GameState = { worldCycleSeconds: 0, difficulty: "normal", meleeCharge: 0, meleeHolding: false, localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
+  const s: GameState = { worldCycleSeconds: 0, u1: { items: createItemsSave(), combat: defaultCombatProgress() }, fusion: createFusionRuntime(), training: null, difficulty: "normal", meleeCharge: 0, meleeHolding: false, localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
     x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
     active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0, mapId: "training",
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
-    u1: { items: createItemsSave() }, overlay: null, heroes: Object.fromEntries(HERO_IDS.map(id => [id, createHero(id)])) as Record<HeroId, HeroState>, enemies: [], projectiles: [],
+    overlay: null, heroes: Object.fromEntries(HERO_IDS.map(id => [id, createHero(id)])) as Record<HeroId, HeroState>, enemies: [], projectiles: [],
     effects: [], floaters: [], notice: "Training yard: try your combat kit.", guard: false,
     attackTimer: 0, combo: 0, comboWindow: 0, charge: 0, dashTimer: 0,
     swapCooldown: 0, hitStop: 0, clearedRooms: [], areas: [], bosses: [], chapter: 1, campaignMilestones: [], solvedInteractions: [], completedCinematics: [], checkpointMapId: "hub",
@@ -334,6 +345,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   const world = resolved.map;
   if (previousInterior && world.id === previousInterior.parent) s.checkpointMapId = world.id;
   s.mapId = world.id;
+  resetFusion(s); cancelTraining(s);
   s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
@@ -580,11 +592,13 @@ function swapHero(s: GameState): boolean {
   s.events.push({ type: "swap", hero: next }); return true;
 }
 export function requestSwap(s: GameState): boolean {
+  if (localFusion(s)) return false;
   if (s.coop && activeHero(s).hp <= 0) return false;
   return s.swapCooldown === 0 && s.dashTimer === 0 && !s.overlay ? swapHero(s) : false;
 }
 export function exitCoop(s: GameState): void {
   if (!s.coop) return;
+  resetFusion(s);
   s.ambientTaxiWrecked ||= s.personalTaxiWrecked;
   s.personalTaxiWrecked = s.ambientTaxiWrecked;
   s.ambientTaxiGag = -1;
@@ -597,7 +611,7 @@ export function exitCoop(s: GameState): void {
   const fallen = s.active, next = nextPartyHero(s);
   if (next) { swapHero(s); s.notice = `${HERO_NAMES[fallen]} is down! ${HERO_NAMES[next]} takes over.`; }
   else {
-    s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
+    resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
     s.events.push({ type: "death" });
   }
 }
@@ -624,7 +638,7 @@ function damageHero(s: GameState, damage: number, sourceX: number, sourceY: numb
     const next = nextPartyHero(s);
     if (next) { swapHero(s); s.notice = `${HERO_NAMES[h.id]} is down! ${HERO_NAMES[next]} takes over.`; }
     else {
-      s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
+      resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
       s.events.push({ type: "death" });
     }
   }
@@ -702,7 +716,7 @@ function checkCoopWipe(s: GameState) {
   const coop = s.coop;
   if (coop?.role !== "host" || s.scene === "dead" || activeHero(s).hp > 0 || coop.remoteHeroes.length < coopCount(s) - 1) return false;
   if (coop.remoteHeroes.some(peer => peer.hero.hp > 0 && !peer.downed)) return false;
-  s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
+  resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
   s.events.push({ type: "death" });
   return true;
 }
@@ -713,7 +727,7 @@ function melee(s: GameState, charged = false) {
   const reach = charged ? 48 : s.combo === 3 ? 34 : 28;
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
   const attackId = `melee:${s.nextId++}`;
-  let hit = false;
+  let hit = trainingMelee(s, reach, s.faceX, s.faceY);
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
@@ -725,26 +739,33 @@ function melee(s: GameState, charged = false) {
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
 }
 function projectile(s: GameState, owner: Projectile["owner"], x: number, y: number, dx: number, dy: number,
-  speed: number, damage: number, radius: number, beam = false) {
-  s.projectiles.push({ id: s.nextId++, owner, originX:x, originY:y, x, y, vx: dx * speed, vy: dy * speed, damage,
-    radius, beam, hero: owner === "hero" ? s.active : undefined, ttl: beam ? 0.8 : 3.5, hits: [] });
+  speed: number, damage: number, radius: number, beam = false, ttl = beam ? 0.8 : 3.5, damageCap?: number) {
+  s.projectiles.push({ id: s.nextId++, owner, damageCap, originX:x, originY:y, x, y, vx: dx * speed, vy: dy * speed, damage,
+    radius, beam, hero: owner === "hero" ? s.active : undefined, ttl, hits: [] });
 }
 function fireKi(s: GameState) {
+  if (s.scene === "hub" && !s.training) { s.charge = 0; return; }
   const h = activeHero(s);
+  if (consumeFusionSpecial(s)) {
+    // A shared energy budget keeps overlapping beams below one-hit damage.
+    for (const angle of [-0.12, 0, 0.12]) {
+      const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
+      const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 285, h.power * 2.8, 10, true, .8, .26);
+    }
+    effect(s, "beam", s.x, s.y, 170, 0.55, s.faceX, s.faceY);
+    s.notice = "FUSION: Wayside Supernova!"; s.charge = 0; return;
+  }
+  if (localFusion(s)) { s.charge = 0; return; }
   if (h.ki >= h.maxKi - 0.01) {
-    h.ki = 0;
-    const signature = {
-      you: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "YOU: Fury Wave!" },
-      joe: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "JOE: Wayside Wave!" },
-      matt: { angles: [-0.16, 0, 0.16], damage: 1.8, radius: 6, size: 105, name: "MATT: Golden Fury!" },
-      alex: { angles: [-0.1, 0.1], damage: 2.4, radius: 7, size: 115, name: "ALEX: Twin Comet!" },
-      jon: { angles: [0], damage: 4.8, radius: 12, size: 140, name: "JON: Night Breaker!" },
-    }[s.active];
+    const signature = signatureDefinition(s);
+    h.ki = signature.kiRefund;
+    h.stamina = Math.min(h.maxStamina, h.stamina + signature.staminaRestore);
     for (const angle of signature.angles) {
       const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
       const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
-      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 245,
-        h.power * signature.damage * chipEffects(s).kiDamageMultiplier, signature.radius, true);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, signature.speed,
+        h.power * signature.damage * chipEffects(s).kiDamageMultiplier, signature.radius, true, signature.ttl, .7 / signature.angles.length);
     }
     if (s.active === "jon") for (const id of s.party) { const ally = s.heroes[id]; if (ally.hp > 0) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * .12); }
     if (s.active === "alex") h.invulnerable = Math.max(h.invulnerable, .45);
@@ -831,6 +852,7 @@ function updateEnemies(s: GameState, dt: number) {
 function updateProjectiles(s: GameState, dt: number) {
   const world = getWorld(s.scene, s.room, s.mapId);
   for (const p of s.projectiles) {
+    if (s.training && s.localPaused && p.owner === "hero") continue;
     if(p.bounceDistance !== undefined) {
       p.bounceDistance -= Math.hypot(p.vx,p.vy)*dt;
       if(p.bounceDistance<=0) {p.vx=p.bounceVx!;p.vy=p.bounceVy!;delete p.bounceDistance;}
@@ -856,6 +878,7 @@ function updateProjectiles(s: GameState, dt: number) {
       p.x = x0 + dx * t; p.y = y0 + dy * t;
       if (blocked) break;
     }
+    trainingProjectile(s, p, x0, y0);
     // A segment collision prevents fast beams slipping between fixed-step targets.
     const collides = (x: number, y: number, radius: number) => {
       const dx = p.x - x0, dy = p.y - y0;
@@ -876,7 +899,7 @@ function updateProjectiles(s: GameState, dt: number) {
         if (e.hp <= 0 || p.hits.includes(e.id) || !collides(e.x, e.y, e.radius)) continue;
         p.hits.push(e.id);
         const length = Math.max(1, Math.hypot(p.vx, p.vy));
-        attackEnemy(s, e, p.damage, p.vx / length, p.vy / length, p.beam ? 85 : 40, `projectile:${p.id}`);
+        attackEnemy(s, e, Math.min(p.damage, p.damageCap === undefined ? Infinity : e.maxHp * p.damageCap), p.vx / length, p.vy / length, p.beam ? 85 : 40, `projectile:${p.id}`);
         if (!p.beam) { p.ttl = 0; break; }
       }
     } else if (s.coop?.role !== "guest") {
@@ -917,6 +940,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.dialogue) return { id: "dialog-next", name: s.dialogue.index < s.dialogue.lines.length - 1 ? "Next" : "Continue", kind: "next", x: s.x, y: s.y };
   if (s.scene === "dead" || s.scene === "results" || s.scene === "shift" || s.overlay || s.coop?.downed) return null;
   const candidates: InteractionCandidate[] = [...itemInteractionCandidates(s)];
+  if (s.scene === "hub" && !s.training) candidates.push({ ...TRAINING_BOARD, kind: "use", radius: TRAINING_BOARD.range, distance: Math.hypot(s.x - TRAINING_BOARD.x, s.y - TRAINING_BOARD.y) });
   const add = (target: InteractTarget, radius = 28, distance = Math.hypot(s.x - target.x, s.y - target.y)) => candidates.push({ ...target, radius, distance });
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
@@ -960,7 +984,7 @@ export function hostileWithinMeleeReach(s: GameState): boolean {
     return enemy.hp > 0 && distance <= reach + enemy.radius && (dx * s.faceX + dy * s.faceY) / Math.max(1, distance) >= -.1;
   });
 }
-export const nonCombatContext = (s: GameState) => !!s.dialogue || s.scene === "prologue" || s.scene === "overworld" || s.scene === "hub" || !!s.overlay;
+export const nonCombatContext = (s: GameState) => !!s.dialogue || s.scene === "prologue" || s.scene === "overworld" || s.scene === "hub" && !s.training || !!s.overlay;
 function refreshContextAttack(s: GameState): void {
   s.contextAttack.target = interactTarget(s);
   updateContextPrompt(s.contextAttack, interactionPrompt(s.contextAttack.target, hostileWithinMeleeReach(s), nonCombatContext(s)), s.time);
@@ -994,6 +1018,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = selected === undefined ? interactTarget(s) : selected;
   if (!target) return;
+  if (target.id === TRAINING_BOARD.id) { startTraining(s); return; }
   if (target.id.startsWith('locks-')) {
     const gate = obstaclesForState(s).find(g => g.id === target.id || g.rewardId === target.id);
     if (!gate) return;
@@ -1188,6 +1213,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
     s.guard = false;
   }
+  tickFusion(s, dt);
+  if (input.fusion && !s.previousInput.fusion && !s.localPaused && !s.dialogue && !s.overlay && !s.film) requestFusion(s);
   tickLunar(s,dt);
   updateCoopRevives(s, input, dt);
   if (checkCoopWipe(s)) return;
@@ -1203,7 +1230,8 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = dialogueInput ? idleInput() : s.previousInput;
   s.previousInput = { ...physicalInput };
-  const combat = !interiorDefinition(s.mapId) && (s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
+  const practicing = !!s.training;
+  const combat = practicing || !interiorDefinition(s.mapId) && (s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
@@ -1252,6 +1280,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     if(!advanceBoundLink(s,dt)) moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
+  tickTraining(s, dt);
+  if (practicing && !s.training) { s.charge = 0; return; }
   walkingPickup(s);
   if (!combat) {
     s.charge = 0;
@@ -1282,6 +1312,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32 * pickupBuffs(s).charge * passives.kiChargeMultiplier);
   }
   if (!dialogueControlsSuppressed && !input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
+  if (practicing) { updateProjectiles(s, dt); return; }
   tickWoodsField(s, input.ki);
   const hadEnemies = s.enemies.length > 0;
   if (s.coop?.role !== "guest") { updateEnemies(s, dt); separateBodies(s, dt); }

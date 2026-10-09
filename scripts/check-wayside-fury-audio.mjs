@@ -17,7 +17,7 @@ s.worldCycleSeconds = 300; audio.sync(s);
 assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 1, 'county night uses the shared clock');
 s.worldCycleSeconds = 0; audio.sync(s);
 assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 0, 'county daylight clears the night stem');
-enterScene(s, 'hub'); assert.equal(moodForState(s), 'hub');
+enterScene(s, 'hub'); audio.sync(s); assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 0); assert.equal(moodForState(s), 'hub');
 for (const overlay of ['home', 'shop']) { s.overlay = overlay; assert.equal(moodForState(s), 'cozy'); } s.overlay = null;
 enterScene(s, 'dungeon'); assert.equal(moodForState(s), 'dungeon'); addEnemy(s, 'boss', 200, 100); audio.sync(s);
 assert.equal(moodForState(s), 'boss'); beginRealmShift(s); audio.sync(s); s.sceneTimer = 1.55; audio.sync(s);

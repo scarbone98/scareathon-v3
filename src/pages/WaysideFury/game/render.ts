@@ -3,6 +3,8 @@ import { chipTargets } from "./u1/items/pickups";
 import { relicTargets, RELIC_SUMMON, hasAllRelics, OUTFITS } from "./u1/items/relics";
 import { radarPickupTarget } from "./u1/items/radar";
 import { drawItemMarker, drawWishOutfit } from "./u1/items/draw";
+import { renderTrainingGrounds } from "./u1/combat/trainingRender";
+import { drawFusionForm } from "./u1/combat/fusionRender";
 import { drawDayNightLighting } from "./u1/world/dayNightRender";
 import { sampleDayNight } from "./u1/world/dayNight";
 import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
@@ -252,6 +254,7 @@ export class Renderer {
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawAreaGround(c,world);
+    renderTrainingGrounds(c,s,motionTime);
     drawInteriorGround(c,world);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
@@ -268,7 +271,7 @@ export class Renderer {
     else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => {
       const outfit = OUTFITS.find(outfit => outfit.id === itemsState(s).relics.outfits.at(-1));
       if (outfit) drawWishOutfit(c, s.x, s.y, outfit.color, outfit.glow, motionTime);
-      this.hero(s);
+      drawFusionForm(c,s,s.coop?.seat ?? 0,false,this.reducedMotion); this.hero(s); drawFusionForm(c,s,s.coop?.seat ?? 0,true,this.reducedMotion);
     } });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
@@ -276,7 +279,7 @@ export class Renderer {
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else { drawFusionForm(c,remote,peer.seat,false,this.reducedMotion); this.hero(remote); drawFusionForm(c,remote,peer.seat,true,this.reducedMotion); }
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
