@@ -27,3 +27,7 @@ Moon assist fixtures can be reproduced with `FURY_CAPTURE_ASSISTS=1` using the s
 Completed simulation checks: Chapter 1, obstacle requirements/persistence/closed-gate reachability, exit cues, areas, Blast bridge, campaign, co-op simulation/rewards, Woods, City, Space and all three county road checks. The lunar shortcut regression also covers lens/no-lens return flights, mid-flight save reconciliation and ticket deduplication. Server verification passed **42 suites / 478 tests** with `npx jest --forceExit --runInBand --testTimeout=30000`.
 
 The committed visual evidence includes 24 locked/cleared gate captures plus two lunar crew-assist captures, with native-DPR and immutable-render assertions. The loaded desktop host produced poor frame timings; these captures do not establish smooth performance on target phones. Real-device performance remains unverified.
+
+The broad `check-wayside-fury-3d.mjs` run passed all **15 cases**: native-DPR layouts, renderer lifecycle/immutability, unavailable WebGL fallback, context loss and explicit retry, automatic quality reduction, and actual arcade iframe controls/toolbar sizing on portrait phone, landscape phone and desktop viewports. Changed-file ESLint passed.
+
+`npx tsc -b` passed, including the final rerun after the lunar shortcut changes. All required checks for this slice are green. The local preview was stopped and its temporary configuration removed.
