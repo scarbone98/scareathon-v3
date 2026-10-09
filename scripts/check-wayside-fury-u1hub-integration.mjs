@@ -29,7 +29,10 @@ assert.equal(makeSave(s, null).heroes[s.active].hp, hp);
 finishArena(s); assert.equal(progressReport(s).score, campaignScore);
 const fetch = QUESTS.find(q => q.id === 'joe-bbq'); s.x = fetch.npc.x; s.y = fetch.npc.y; s.candy = 40;
 assert.equal(claimHubQuest(s, fetch.id), true); assert.equal(s.candy, 22); assert.equal(claimHubQuest(s, fetch.id), false);
+s.worldCycleSeconds = 305; s.relicRadar = { owned: true, enabled: true };
 const saved = restoreSave(makeSave(s, null)); assert.equal(saved.hubQuests.entries.find(e => e.id === fetch.id).status, 'claimed');
+assert.equal(saved.worldCycleSeconds, 305, 'clock and hub progress survive the same save round trip');
+assert.deepEqual(saved.relicRadar, s.relicRadar);
 const guest = newGame(); enterScene(guest, 'hub'); guest.coop = { role: 'guest', seat: 1, remoteHeroes: [], appliedHits: [], playerCount: 2 };
 guest.x = 344; guest.y = 248; acceptHubQuest(guest, 'alex-patrol');
 for (let i = 0; i < 8; i++) { const reward = { id: `arena-kill:${i}`, kind: 'kill', enemyKind: 'boss', xp: 0, candy: 0 }; assert.ok(applyCoopReward(guest, reward)); assert.equal(applyCoopReward(guest, reward), false); }
