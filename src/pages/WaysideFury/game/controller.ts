@@ -1,3 +1,6 @@
+import { startOpening } from "./opening";
+import { DEFAULT_UX } from "./ux";
+import type { SaveSettings } from "./save";
 import { beginFusionSession } from "./u1/combat/fusion";
 import { advanceWorldClock } from "./u1/world/dayNightRuntime";
 import { FuryCoop } from "./coop";
@@ -27,6 +30,7 @@ export class GameController {
   private input: GameInput;
   private raf = 0;
   private last = 0;
+  private ux = { ...DEFAULT_UX };
   private acc = 0;
   private hudAt = 0;
   private presentationAt = 0;
@@ -57,13 +61,13 @@ export class GameController {
     cb.onInputMode(this.input.mode);
     this.raf = requestAnimationFrame(this.frame);
   }
-  start(state = newGame()) { this.presentationSuspended=false; this.coop?.beginRun(); this.started = true; this.state = state; if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [], personalDifficulty: state.difficulty }; this.paused = false; this.state.localPaused=false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
+  start(state = newGame()) { this.presentationSuspended=false; this.coop?.beginRun(); this.started = true; this.state = state; if (!this.coop?.room && state.scene !== 'prologue' && state.campaignMilestones.includes('guided-opening-started')) startOpening(state); if (this.coop?.room) this.state.coop = { role: this.coop.isHost ? "host" : "guest", seat: this.coop.room.seat, remoteHeroes: [], appliedHits: [], personalDifficulty: state.difficulty }; this.paused = false; this.state.localPaused=false; this.acc = 0; this.previousMotion = null; this.input.clear(); this.renderer.reset(); this.audio.start(state); this.publish(); }
   setPresentationSuspended(suspended: boolean) { this.presentationSuspended=suspended; if(!suspended)this.renderer.reset(); }
   setPaused(paused: boolean) { if (this.paused === paused) return; this.paused = paused; this.state.localPaused=paused; this.sound.setPaused(paused); this.acc = 0; this.previousMotion = null; this.input.clear(); this.state.previousInput.ki = false; if (paused) { this.state.charge = 0; this.state.meleeCharge = 0; this.state.meleeHolding = false; } }
   showTitle() { this.presentationSuspended=false; this.started = false; this.setPaused(true); this.audio.menu(); }
   get graphicsMode() { return this.renderer.graphicsMode; }
   setGraphicsMode(mode: GraphicsMode) { this.renderer.setGraphicsMode(mode); }
-  setAudioSettings(settings: AudioSettings) { this.sound.setSettings(settings); }
+  setAudioSettings(settings: AudioSettings & Partial<SaveSettings>) { this.sound.setSettings(settings); this.ux = { ...DEFAULT_UX, ...settings.ux }; this.input.setBindings(this.ux.keys); this.state.assistHp = this.ux.extraHp; }
   itemGet() { this.sound.jingle("item"); }
   setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); this.coop?.setAvatar(assets); }
   setRemoteAvatar(seat: number, assets: HeroAvatar) { this.renderer.setRemoteAvatar(seat, assets); }
@@ -74,7 +78,7 @@ export class GameController {
     const overlay = this.state.overlay;
     this.state.events.length = 0; action(this.state);
     if (!overlay && this.state.overlay) this.input.clearTouch();
-    for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+    for (const event of this.state.events) { if (this.ux.haptics && this.input.mode === 'touch' && ['hit', 'swap', 'pickup'].includes(event.type)) navigator.vibrate?.(event.type === 'hit' ? 20 : 10); this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
     this.state.events.length = 0; if (this.started) this.audio.sync(this.state); this.publish();
   }
   private publish() {
@@ -109,12 +113,15 @@ export class GameController {
       this.previousMotion = captureMotion(this.state);
       const ready = this.state.hitStop <= 0, overlay = this.state.overlay, dialogue = !!this.state.dialogue;
       const appliedInput = this.paused ? { ...input, x: 0, y: 0, fusion: false, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : { ...input };
-      step(this.state, appliedInput, 1 / 60);
+      const previousScene = this.state.scene;
+      this.state.assistHp = this.ux.extraHp;
+      step(this.state, appliedInput, (this.state.coop ? 1 : this.ux.gameSpeed) / 60);
+      if (previousScene === 'prologue' && this.state.scene === 'overworld') startOpening(this.state);
       this.coop?.update(this.state, dialogue || this.state.dialogue ? idleInput() : appliedInput, now);
       this.audio.sync(this.state);
       if (!overlay && this.state.overlay) this.input.clearTouch();
       if (ready) this.input.consume();
-      for (const event of this.state.events) { this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
+      for (const event of this.state.events) { if (this.ux.haptics && this.input.mode === 'touch' && ['hit', 'swap', 'pickup'].includes(event.type)) navigator.vibrate?.(event.type === 'hit' ? 20 : 10); this.renderer.onEvent(this.state, event); this.audio.event(this.state, event); this.coop?.event(this.state, event); this.cb.onEvent?.(this.state, event); }
       this.acc -= 1 / 60;
     }
     if(this.presentationSuspended) { if(now-this.hudAt>80){this.hudAt=now;this.publish();} return; }

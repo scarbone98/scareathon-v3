@@ -1,0 +1,48 @@
+name: Wayside Fury UX
+on:
+  pull_request:
+    paths:
+      - 'src/pages/WaysideFury/**'
+      - 'server/shared/waysideFury/**'
+      - 'scripts/check-wayside-fury-*'
+      - '.github/workflows/fury-ux.yml'
+  push:
+    branches: ['codex/fury-ux-onboarding']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci && npm ci --prefix server
+      - run: npm run lint
+      - run: npx tsc -b
+      - run: npm test
+      - run: node scripts/check-wayside-fury-onboarding.mjs
+      - run: npm install --no-save --package-lock=false playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - name: Phone 2D/3D and desktop 2D HUD checks
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:59999
+          VITE_SUPABASE_ANON_KEY: local-test-key
+          FURY_BASE_URL: http://127.0.0.1:5224
+        run: |
+          mkdir -p work
+          npm run dev -- --port 5224 > work/vite.log 2>&1 &
+          curl --retry 20 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:5224/wayside-fury > /dev/null
+          node scripts/check-wayside-fury-hud-browser.mjs
+          node scripts/check-wayside-fury-ux-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fury-ux-diagnostics
+          path: work/

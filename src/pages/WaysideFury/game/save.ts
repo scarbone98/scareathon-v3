@@ -35,7 +35,7 @@ export function readSave(key = SAVE_KEY): SaveData | null {
 // Building a snapshot is separate from device storage: a full or blocked device
 // can still save to the account. The legacy writer keeps its failure contract.
 export function makeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
-  const personalHeroes = s.arenaVitals ?? s.heroes;
+  const personalHeroes = s.opening ? Object.fromEntries(HERO_IDS.map(id => [id, { ...s.heroes[id], ...s.opening!.vitals[id] }])) as typeof s.heroes : s.arenaVitals ?? s.heroes;
   const heroes = s.coop?.syncedLevel !== undefined ? Object.fromEntries(HERO_IDS.map(id => {
     const current = personalHeroes[id], personal = createHero(id, s.character, itemsGear(s));
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];

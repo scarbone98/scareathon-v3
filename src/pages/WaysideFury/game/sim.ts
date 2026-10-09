@@ -1,3 +1,4 @@
+import { tickOpening, type Opening } from "./opening.ts";
 import { storyRevealed, PROLOGUE_FADE } from './prologue.ts';
 import type { ActorMotion } from './animation.ts';
 import { collectRadar, radarPickupTarget } from "../u1/minimap/relicRadar.ts";
@@ -130,6 +131,8 @@ export type GameEvent =
   | { type: "training-failed"; hero: HeroId; tier: number; reason: string }
   | { type: "death" };
 export interface GameState {
+  opening?: Opening;
+  assistHp?: number;
   ambientBirds?: ReturnType<typeof import("./dressing.ts").roadsideBirds>;
   /** Disposable renderer state; never persisted or sent over the wire. */
   motion?: ActorMotion;
@@ -645,10 +648,10 @@ export function exitCoop(s: GameState): void {
     s.events.push({ type: "death" });
   }
 }
-function damageHero(s: GameState, damage: number, sourceX: number, sourceY: number) {
+export function damageHero(s: GameState, damage: number, sourceX: number, sourceY: number) {
   const h = activeHero(s);
   if (h.invulnerable > 0 || s.dashTimer > 0 || h.hp <= 0) return;
-  damage = Math.max(1, Math.round(damage * chipEffects(s).incomingDamageMultiplier));
+  damage = Math.max(1, Math.round(damage * chipEffects(s).incomingDamageMultiplier / (s.coop ? 1 : 1 + (s.assistHp ?? 0) / 100)));
   h.hp = Math.max(0, h.hp - damage); h.invulnerable = s.guard ? 0.12 : 0.5;
   s.hitStop = Math.max(s.hitStop, s.guard ? 0.04 : 0.065);
   if (!s.guard) {
@@ -1331,6 +1334,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     if(!advanceBoundLink(s,dt)) moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
+  tickOpening(s, dt);
   tickTraining(s, dt);
   if (practicing && !s.training) { s.charge = 0; return; }
   walkingPickup(s);

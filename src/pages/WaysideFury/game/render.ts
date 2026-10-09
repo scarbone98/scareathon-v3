@@ -1,3 +1,4 @@
+import { drawOpening } from "./opening";
 import { drawCrew } from './crewArt';
 import { creatureMotion, idleMotion, type ActorMotion } from './animation';
 import { prologueCamera } from './prologue';
@@ -175,18 +176,21 @@ export class Renderer {
       if (distance <= 48) add(location.id, location.locked ? `${location.name} · Taken over` : location.name, location.x, location.y + 24, location.locked ? 'locked' : 'location', undefined, Math.min(1,(48-distance)/16));
     }
     if (s.scene === 'hub') for (const point of HUB_POINTS) {
-      if (Math.hypot(s.x - point.x, s.y - point.y) < 140) add(point.id, point.name, point.x, point.y - (point.id === 'taxi' ? 25 : 61), 'hub');
+      if (Math.hypot(s.x - point.x, s.y - point.y) < 140) add(point.id, point.name, point.x, point.y - (point.id === 'taxi' ? 25 : 61), 'hub', undefined, Math.max(0, Math.min(1, (140 - Math.hypot(s.x - point.x, s.y - point.y)) / 40)));
     }
     if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const exit of this.world.exits) {
       if (nearExit(exit,s.x,s.y)) add(`exit-${exit.id}`, exitCaption(this.world,exit), exit.x + exit.w / 2, exit.y - (this.world.id.startsWith('interior-') ? 40 : 15), 'exit', undefined, exitOpacity(exit,s.x,s.y));
     }
     for (const door of INTERIORS) if (door.parent===s.mapId && Math.hypot(s.x-door.x,s.y-door.y)<=48) add(`door-${door.id}`,door.name,door.x,door.y-35,'exit',undefined,Math.min(1,(48-Math.hypot(s.x-door.x,s.y-door.y))/16));
     if (this.world && s.scene !== 'prologue' && s.scene !== 'shift') for (const prop of this.world.props) {
-      if (prop.label && !prop.interiorId && !['shop', 'home', 'portal'].includes(prop.kind) && !(s.scene === 'hub' && HUB_POINTS.some(point => point.name === prop.label)) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(`prop-${prop.id}`, prop.label, prop.x + prop.w / 2, prop.y - 8, 'hub');
+      if (prop.label && !prop.interiorId && !['shop', 'home', 'portal'].includes(prop.kind) && !(s.scene === 'hub' && HUB_POINTS.some(point => point.name === prop.label)) && Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h) < 110) add(`prop-${prop.id}`, prop.label, prop.x + prop.w / 2, prop.y - 8, 'hub', undefined, Math.max(0, Math.min(1, (110 - Math.hypot(s.x - prop.x - prop.w / 2, s.y - prop.y - prop.h)) / 30)));
     }
     if (s.scene !== 'prologue' && s.scene !== 'shift') for (const floater of s.floaters) {
       add(floater.id, floater.text, floater.x, floater.y, 'floater', floater.color, Math.min(1, floater.ttl * 4), 1 + Math.max(0, floater.ttl - .65) * 1.5);
     }
+    for (const enemy of s.enemies) if (enemy.hp > 0) add(`enemy-symbol-${enemy.id}`, enemy.kind === 'boss' ? '♛' : enemy.kind === 'shooter' ? '⊙' : '▲', enemy.x, enemy.y - enemy.radius - 14, 'caption');
+    for (const pickup of availablePickups(s)) if (Math.hypot(s.x - pickup.x, s.y - pickup.y) < 80) add(`pickup-symbol-${pickup.id}`, { snack: '♡', candy: '◈', lore: '▤', trinket: '✦' }[pickup.kind], pickup.x, pickup.y - 16, 'caption');
+    for (const gate of obstaclesForState(s)) if (!isObstacleCleared(s,gate.id) && Math.hypot(s.x - gate.x - gate.w/2, s.y - gate.y) < 100) add(`gate-symbol-${gate.id}`, `${{ you: '◎', joe: '≋', matt: '◆', alex: '✚', jon: '✦' }[gate.hero]} ${gate.hero === 'you' ? 'You' : gate.hero} · locked`, gate.x + gate.w/2, gate.y - 38, 'locked');
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer)) add(`peer-${peer.seat}`, peer.name, peer.x, peer.y - 34, 'hub', '#b0f3d1');
     if (s.scene === 'overworld' && s.ambientTaxiGag >= TAXI_ROCK_IMPACT && s.ambientTaxiGag < 3.5) add('cab-driver', 'My cab!', ambientTaxi(s).x, ambientTaxi(s).y - 38, 'caption');
     return { camera: { ...this.camera, width: this.viewport.width, height: this.viewport.height }, labels, focus: this.project(s.x, s.y) };
@@ -262,6 +266,7 @@ export class Renderer {
     drawAreaGround(c,world);
     drawArenaFloor(c,s);
     renderTrainingGrounds(c,s,motionTime);
+    drawOpening(c,s);
     drawInteriorGround(c,world);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
