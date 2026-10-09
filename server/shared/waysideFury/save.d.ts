@@ -13,6 +13,7 @@ export interface HomeSnapshot {
   candy: number; chapter: number; gear: Gear; character: CharacterProgress;
 }
 export interface SaveData {
+  u1?: { combat: import("./u1Combat.js").CombatProgress };
   version: 4; chapter: number; heroes: Record<HeroId, HeroState>; active: HeroId; party: HeroId[];
   candy: number; unlockedHeroes: HeroId[]; areas: string[]; bosses: string[]; clearedRooms: string[];
   kills: number; deaths: number; lastReported: ProgressReceipt; home: HomeSnapshot | null;

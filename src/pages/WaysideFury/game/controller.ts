@@ -1,3 +1,4 @@
+import { beginFusionSession } from "./u1/combat/fusion";
 import { FuryCoop } from "./coop";
 import { MusicDirector, type AudioSettings } from "./music";
 import { FuryAudio } from "./audio";
@@ -65,7 +66,7 @@ export class GameController {
   itemGet() { this.sound.jingle("item"); }
   setAvatar(assets: HeroAvatar) { this.renderer.setAvatar(assets); this.coop?.setAvatar(assets); }
   setRemoteAvatar(seat: number, assets: HeroAvatar) { this.renderer.setRemoteAvatar(seat, assets); }
-  setCoop(coop: FuryCoop | null) { this.coop = coop; if (!coop) exitCoop(this.state); else if (coop.room) this.state.coop = { role: coop.isHost ? "host" : "guest", seat: coop.room.seat, remoteHeroes: [], appliedHits: [] }; }
+  setCoop(coop: FuryCoop | null) { this.coop = coop; if (!coop) exitCoop(this.state); else if (coop.room) { beginFusionSession(this.state); this.state.coop = { role: coop.isHost ? "host" : "guest", seat: coop.room.seat, remoteHeroes: [], appliedHits: [] }; } }
   setTouch(input: Partial<Input>) { this.input.setTouch(input); }
   mutate(action: (state: GameState) => void) {
     this.previousMotion = null;
@@ -105,7 +106,7 @@ export class GameController {
     while (this.acc >= 1 / 60) {
       this.previousMotion = captureMotion(this.state);
       const ready = this.state.hitStop <= 0, overlay = this.state.overlay, dialogue = !!this.state.dialogue;
-      const appliedInput = this.paused ? { ...input, x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : { ...input };
+      const appliedInput = this.paused ? { ...input, x: 0, y: 0, fusion: false, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false } : { ...input };
       step(this.state, appliedInput, 1 / 60);
       this.coop?.update(this.state, dialogue || this.state.dialogue ? idleInput() : appliedInput, now);
       this.audio.sync(this.state);

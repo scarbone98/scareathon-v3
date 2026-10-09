@@ -1,3 +1,4 @@
+import { sanitizeCombatSave } from "./u1Combat.js";
 import { canResumeInterior } from './interiors.js';
 import { chapterRewardScore, mapDefinition } from './campaign.js';
 import { cleanFoundItems } from './collectibles.js';
@@ -184,6 +185,7 @@ export function sanitizeSave(raw) {
         ...(raw.resetAt ? { resetAt: integer(raw.resetAt, 0, Number.MAX_SAFE_INTEGER) } : {}),
         ...(raw.prologuePending === true ? { prologuePending: true } : {}),
         coopRewards: coopRewards(raw.coopRewards),
+        u1: { combat: sanitizeCombatSave(raw.u1?.combat) },
         foundItems: cleanFoundItems(raw.foundItems), ambientTaxiWrecked: raw.ambientTaxiWrecked === true,
         lastReported: mergeReceipts(receipt), home: cleanHome(raw.home, legacy),
         settings: cleanSettings(raw.settings), savedAt: integer(raw.savedAt, 0, Number.MAX_SAFE_INTEGER) } };

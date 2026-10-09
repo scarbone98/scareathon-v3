@@ -1,3 +1,4 @@
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { SAVE_KEY, makeNewGameSave, parseSave, ticketDelta, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
@@ -28,6 +29,7 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   return { ...winner, coopRewards: winner.coopRewards ?? [],
     foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]),
     ambientTaxiWrecked: resetDifference ? winner.ambientTaxiWrecked : local.ambientTaxiWrecked || remote.ambientTaxiWrecked,
+    u1: { combat: resetDifference ? mergeCombatProgress(winner.u1?.combat) : mergeCombatProgress(local.u1?.combat, remote.u1?.combat) },
     lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
 }
 

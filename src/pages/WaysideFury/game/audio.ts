@@ -54,6 +54,10 @@ export class FuryAudio {
   }
   event(s: GameState, event: GameEvent) {
     if (event.type === "ambient-taxi-crash") this.sound.playSfx("crunch");
+    if (event.type === "fusion-start") { this.sound.playSfx("fusion"); }
+    if (event.type === "fusion-special") { this.sound.playSfx("fusion-special"); }
+    if (event.type === "fusion-end") this.sound.playSfx("fusion-end");
+    if (event.type === "training-complete") this.sound.jingle("level");
     if (event.type === "pickup") this.sound.jingle("item");
     if (event.type === "hit") this.sound.playSfx(event.target === "hero" ? s.guard ? "block" : "hurt" : "hit", Math.min(1.5, .5 + event.damage / 30));
     if (event.type === "swap") this.sound.playSfx("swap");

@@ -1,3 +1,4 @@
+import { beginFusionSession, syncFusionWorld, elapsedFusionWorld, type FusionWorld } from "./u1/combat/fusion";
 import { MAX_MILESTONES } from "../../../../server/shared/waysideFury/save.js";
 import { sameCampaignMap } from "./campaign.ts";
 import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION, compatibleMap, legacyMapId } from "../../../../server/shared/waysideFury/campaign.js";
@@ -23,11 +24,11 @@ export interface CoopReward {
   campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { fusions?: FusionWorld; combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const campaignIds = (...lists: (string[] | undefined)[]) => [...new Set(lists.flatMap(ids => ids ?? []))].slice(0, MAX_MILESTONES);
-const worldState = (s: GameState): WorldState => ({ difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
+const worldState = (s: GameState): WorldState => ({ fusions: structuredClone(s.fusion.world), difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
@@ -206,9 +207,11 @@ export class FuryCoop {
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer, film: w.film ? {...w.film} : null, spaceOutfit: w.spaceOutfit ?? s.spaceOutfit,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
       s.difficulty = w.difficulty ?? "normal"; s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
+      syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds.at(-1)?.at ?? now)) / 1000)));
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);
     }
+    if (!s.coop) beginFusionSession(s);
     s.coop ??= { role, seat: room.seat, remoteHeroes: [], appliedHits: [], personalDifficulty: s.difficulty };
     s.coop.role = role; s.coop.seat = room.seat; s.coop.protocolVersion = room.protocolVersion ?? 1;
     setCoopPlayerCount(s, room.players.filter(p => p.connected).length);
@@ -216,7 +219,8 @@ export class FuryCoop {
       const blend = buffered(samples, now); if (!blend) return [];
       const { a, b, alpha } = blend;
       const same = sameCampaignMap(a, b);
-      return [{ ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y }];
+      const latest = samples[samples.length - 1];
+      return [{ ...b, fusionIntent: Math.max(0, (latest.value.fusionIntent ?? 0) - (now - latest.at) / 1000), fusionSpecial: latest.value.fusionSpecial, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y }];
     });
     if (role === "guest") {
       const blend = buffered(this.worlds, now);
@@ -233,6 +237,7 @@ export class FuryCoop {
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer, film: b.film ? {...b.film} : null, spaceOutfit: b.spaceOutfit ?? s.spaceOutfit,
           ambientTaxiWrecked: wrecked, ambientTaxiGag: a.ambientTaxiGag >= 0 && b.ambientTaxiGag >= 0 ? a.ambientTaxiGag + (b.ambientTaxiGag - a.ambientTaxiGag) * alpha : b.ambientTaxiGag ?? -1 });
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && sameCampaignMap(a, b) ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
+        syncFusionWorld(s, elapsedFusionWorld(b.fusions, Math.max(0, (now - (this.worlds.find(sample => sample.value === b)?.at ?? now)) / 1000)));
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];
       }
@@ -253,7 +258,7 @@ export class FuryCoop {
     const player = room.players.find(p => p.seat === room.seat)!;
     enforceCountyPartyBounds(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      fusionIntent: s.fusion.intent, fusionSpecial: s.fusion.specialRequest, filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });

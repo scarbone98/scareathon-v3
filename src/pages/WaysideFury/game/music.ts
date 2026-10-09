@@ -2,7 +2,7 @@
 export type Mood = 'off' | 'title' | 'bbq' | 'hub' | 'taxi' | 'cozy' | 'dungeon' | 'boss' | 'haywire';
 export type MusicMood = Mood;
 export type Jingle = 'victory' | 'level' | 'item' | 'gameOver' | 'taxiHorn' | 'darkSky';
-export type SfxName = 'attack' | 'hit' | 'hurt' | 'block' | 'dash' | 'ki' | 'beam' | 'swap' | 'select' | 'crunch';
+export type SfxName = 'fusion' | 'fusion-special' | 'fusion-end' | 'attack' | 'hit' | 'hurt' | 'block' | 'dash' | 'ki' | 'beam' | 'swap' | 'select' | 'crunch';
 export interface AudioSettings { musicVolume: number; sfxVolume: number }
 type TrackMood = Exclude<Mood, 'off'>;
 type Instrument = 'pulse' | 'triangle' | 'sine' | 'noise' | 'power';
@@ -548,6 +548,9 @@ export class MusicDirector {
       case 'block': tone(83, 0.07, -5, 0.09); noise(0.055, 5400, 0.085); break;
       case 'dash': noise(0.14, 3300, 0.1); break;
       case 'ki': tone(67, 0.13, 16, 0.12); break;
+      case 'fusion': tone(55, .3, 19, .1); tone(62, .3, 12, .1); noise(.22, 4200, .07); break;
+      case 'fusion-special': tone(33, .5, 34, .12); tone(57, .35, 12, .09); noise(.4, 2800, .13); break;
+      case 'fusion-end': tone(74, .18, -19, .07); break;
       case 'beam': tone(45, 0.3, 29, 0.105); noise(0.25, 2200, 0.11); break;
       case 'swap': tone(79, 0.1, 7, 0.07); break;
       case 'select': tone(81, 0.055, 0, 0.065); break;

@@ -1,3 +1,4 @@
+import { mergeCombatProgress } from "../shared/waysideFury/u1Combat.js";
 import pool from '../db/mockDB.js';
 import { cleanFoundItems } from '../shared/waysideFury/collectibles.js';
 import { MAX_SAVE_BYTES, sanitizeSave, mergeReceipts } from '../shared/waysideFury/save.js';
@@ -46,6 +47,7 @@ export default async function waysideFuryRoutes(fastify, options = {}) {
                 return reply.code(409).send({ error: 'Your story was restarted elsewhere', save: row.save, revision: row.revision });
             }
             // Never erase the account's earned-ticket max or Collection on reset.
+            parsed.save.u1 = { combat: mergeCombatProgress(parsed.save.u1?.combat, (row?.save.resetAt ?? 0) === (parsed.save.resetAt ?? 0) ? row?.save.u1?.combat : undefined) };
             parsed.save.lastReported = mergeReceipts(row?.save.lastReported, parsed.save.lastReported);
             parsed.save.foundItems = cleanFoundItems([...(row?.save.foundItems ?? []), ...parsed.save.foundItems]);
             const result = parsed.revision === null

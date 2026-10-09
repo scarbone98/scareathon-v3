@@ -1,3 +1,5 @@
+import { renderTrainingGrounds } from "./u1/combat/trainingRender";
+import { drawFusionForm } from "./u1/combat/fusionRender";
 import { INTERIORS } from './interiors';
 import { drawExitOpening, nearExit, exitCaption } from './exitArt';
 import { groundScatter, roadMask } from './roadClearance.ts';
@@ -242,6 +244,7 @@ export class Renderer {
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawAreaGround(c,world);
+    renderTrainingGrounds(c,s,motionTime);
     drawInteriorGround(c,world);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
@@ -255,14 +258,14 @@ export class Renderer {
     const actors = visibleProps.filter(prop => !isGroundProp(prop) && !GROUND_DECALS.has(prop.kind)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of zonePreviews(world)) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
-    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
+    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => { drawFusionForm(c,s,s.coop?.seat ?? 0,false,this.reducedMotion); this.hero(s); drawFusionForm(c,s,s.coop?.seat ?? 0,true,this.reducedMotion); } });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else { drawFusionForm(c,remote,peer.seat,false,this.reducedMotion); this.hero(remote); drawFusionForm(c,remote,peer.seat,true,this.reducedMotion); }
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });

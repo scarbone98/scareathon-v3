@@ -1,3 +1,4 @@
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { record, refillCrew } from "./chapters/ch3.ts";
 import { onMoon } from "./lunar.ts";
 import { campaignHandoff } from "./campaign.ts";
@@ -41,6 +42,7 @@ export function makeSave(s: GameState, previous: SaveData | null, home = false, 
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: { ...previous?.settings, difficulty: s.difficulty }, savedAt: Date.now(),
     lastReported: mergeReceipts(previous?.lastReported, receipt),
     resetAt: previous?.resetAt, prologuePending: s.scene === "prologue",
+    u1: { combat: mergeCombatProgress(s.u1.combat, previous?.u1?.combat) },
     coopRewards: [...(s.coopRewards ?? previous?.coopRewards ?? [])].slice(-256),
     foundItems: s.foundItems, ambientTaxiWrecked: s.ambientTaxiWrecked || s.personalTaxiWrecked || previous?.ambientTaxiWrecked === true,
     home: home ? { heroes, active: s.active, party: s.party, candy: s.candy, chapter: s.chapter, character: s.character, gear: s.gear } : previous?.home ?? null,
@@ -68,6 +70,7 @@ export function makeNewGameSave(previous: SaveData | null): SaveData {
 export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
   if (saved) {
+    s.u1.combat = mergeCombatProgress(saved.u1?.combat);
     s.difficulty = saved.settings.difficulty ?? "normal";
     const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("interior-") && !saved.checkpointMapId.startsWith("city-") && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
     s.heroes = Object.fromEntries(HERO_IDS.map(id => [id, { ...snapshot.heroes[id] }])) as Record<HeroId, HeroState>;
