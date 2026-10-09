@@ -145,7 +145,7 @@ export function createRoomManager({ now = () => Date.now(), log } = {}) {
             return ticket;
         },
         auth(socket, { ticket, protocolVersion = 1, contentVersion = CAMPAIGN_CONTENT_VERSION }) {
-            if (![1, 2, 3, 4, 5, COOP_PROTOCOL_VERSION].includes(protocolVersion) || ![1,2,3,CAMPAIGN_CONTENT_VERSION].includes(contentVersion) || (protocolVersion === COOP_PROTOCOL_VERSION && contentVersion !== CAMPAIGN_CONTENT_VERSION)) throw new RoomError('version');
+            if (![1, 2, 3, 4, 5, 6, COOP_PROTOCOL_VERSION].includes(protocolVersion) || ![1,2,3,CAMPAIGN_CONTENT_VERSION].includes(contentVersion) || (protocolVersion === COOP_PROTOCOL_VERSION && contentVersion !== CAMPAIGN_CONTENT_VERSION)) throw new RoomError('version');
             if (playerFor(socket)) throw new RoomError('already');
             const user = typeof ticket === 'string' ? tickets.get(ticket) : null;
             if (!user || user.expires <= now()) throw new RoomError('ticket');

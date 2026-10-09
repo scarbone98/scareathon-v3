@@ -2,6 +2,10 @@ export default {
     transform: {},
     // Avoid spawning a large worker pool for these small, module-heavy suites.
     maxWorkers: 2,
+    // Integration cases boot Fastify and make sequential HTTP/WebSocket calls.
+    // The shared build host can exceed Jest's five-second default under load;
+    // retain a bounded budget without changing application timers or assertions.
+    testTimeout: 30_000,
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
     },
