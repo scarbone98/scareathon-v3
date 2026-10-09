@@ -133,8 +133,17 @@ export class TerrainCache {
         if (kind === 'water') {
           fill(ex, ey, ew, eh, '#9d9a71'); fill(ex + (dx === -1 ? 1.5 : 0), ey + (dy === -1 ? 1.5 : 0), dx ? .5 : ew, dy ? .5 : eh, '#cad0a2');
         } else if (kind === 'dirt' || kind === 'sand') {
-          fill(ex, ey, ew, eh, dark);
-          for (let k = 0; k < 8; k++) fill(dx ? ex : k * 2, dy ? ey : k * 2, .5, .5, light);
+          // Irregular fine gravel scallops replace ruler-straight tile borders.
+          c.fillStyle=dark;c.globalAlpha=.32;
+          c.beginPath();
+          for(let k=0;k<=8;k++) {
+            const along=k*2,inset=.5+(hash(col*17+k,row*19+k)%23)/10;
+            const px=dx===-1?inset:dx===1?TILE-inset:along;
+            const py=dy===-1?inset:dy===1?TILE-inset:along;
+            if(k===0)c.moveTo(x+px,y+py);else c.lineTo(x+px,y+py);
+          }
+          c.lineWidth=2.4;c.lineJoin='round';c.strokeStyle=dark;c.stroke();c.globalAlpha=1;
+          for (let k = 0; k < 8; k++) fill(dx ? ex+(n+k)%3*.4 : k * 2, dy ? ey+(n+k)%3*.4 : k * 2, .4, .4, light);
         } else if (kind === 'grass') {
           for (let k = 0; k < 8; k++) {
             const px=dx ? ex+k%2 : k*2, py=dy ? ey+k%2 : k*2;

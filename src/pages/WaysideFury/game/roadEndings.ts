@@ -9,6 +9,7 @@ export function roadEndingKind(world:WorldMap,r:RoadSegment,index:number):'apron
 }
 
 export function clipRoadEnds(c:CanvasRenderingContext2D,r:RoadSegment,world:WorldMap) {
+  if(world.id!=='overworld')return;
   const points=roadPoints(r);
   for(const [i,j,kind] of [[0,1,r.start],[points.length-1,points.length-2,r.end]] as const) {
     if(kind==='junction')continue;
@@ -19,9 +20,10 @@ export function clipRoadEnds(c:CanvasRenderingContext2D,r:RoadSegment,world:Worl
     c.rotate(-angle);c.translate(-p.x,-p.y);
   }
 }
-// A flared paved threshold replaces a rounded asphalt nose at every entrance.
+// Overworld road termini alone receive a flared threshold. Room openings are terrain.
 // Shared by native Canvas and terrain-draped 3D decals; no collision changes.
 export function drawRoadEndings(c:CanvasRenderingContext2D,world:WorldMap) {
+  if(world.id!=='overworld')return;
   for(const r of world.roads) {
     const points=roadPoints(r),half=roadWidth(r)/2;
     for(const [i,j,kind] of [[0,1,r.start],[points.length-1,points.length-2,r.end]] as const) {

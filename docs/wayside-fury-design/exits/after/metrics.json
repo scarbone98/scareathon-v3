@@ -1,0 +1,206 @@
+[
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-entry",
+    "mapId": "blast-0",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-creek",
+    "mapId": "blast-1",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "county-woods",
+    "mapId": "overworld",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "interior-door",
+    "mapId": "interior-station",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "2d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "woods-seam",
+    "mapId": "woods-layby",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-entry",
+    "mapId": "blast-0",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-creek",
+    "mapId": "blast-1",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "county-woods",
+    "mapId": "overworld",
+    "active": "3d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "interior-door",
+    "mapId": "interior-station",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "woods-seam",
+    "mapId": "woods-layby",
+    "active": "2d",
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "check": "unavailable WebGL falls back to playable Canvas",
+    "dpr": 3
+  }
+]

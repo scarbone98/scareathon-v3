@@ -94,9 +94,10 @@ function curbCorners(world:WorldMap,inset:number):CurbCorner[] {
   }
   cached[inset]=result;return result;
 }
+export const isRoadScene = (world: WorldMap) => ['overworld','hub','city-boulevard','city-market','city-clockroof'].includes(world.id);
 const paintCache=new WeakMap<WorldMap,RoadPaint[]>();
 export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
-  if(!world.roads.length)return;
+  if(!world.roads.length || world.id && !isRoadScene(world))return;
   c.save();c.lineJoin='round';c.lineCap='round';
   for(const p of world.props??[]) if(['barrier','bridge-rail','gate-wall','portal'].includes(p.kind)) for(const r of p.footprints??[]) {
     c.beginPath();c.rect(-20000,-20000,40000,40000);c.rect(r.x,r.y,r.w,r.h);c.clip('evenodd');
@@ -107,7 +108,13 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
     c.strokeStyle=color;
     for(const r of world.roads) {
       c.save();clipRoadEnds(c,r,world);
-      c.lineWidth=roadWidth(r)-inset;c.beginPath();roadPoints(r).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke();c.restore();
+      c.lineWidth=roadWidth(r)-inset;c.beginPath();const points=roadPoints(r).map(p=>({...p}));
+      if(world.id!=='overworld') {
+        if(r.direction==='horizontal'){points[0].x=0;points[points.length-1].x=world.width;}
+        else {points[0].y=0;points[points.length-1].y=world.height;}
+        c.lineCap='butt';
+      }
+      points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.stroke();c.restore();
     }
     c.fillStyle=color;
     for(const {corner,a,b} of curbCorners(world,inset)) {
@@ -123,5 +130,6 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
 }
 // Road tiles remain a coarse material/navigation index, never visible asphalt.
 export function roadGround(world:WorldMap,kind:import('./worldBuilder.ts').TileKind) {
+  if(!isRoadScene(world) && kind==='road')return world.id.startsWith('woods-')?'dirt':'stone';
   return world.roads.length&&(kind==='road'||kind==='bridge'&&world.id==='overworld') ? kind==='bridge'?'water':world.id.startsWith('city-')?'stone':world.id.startsWith('blast-')?'ash':'grass' : kind;
 }
