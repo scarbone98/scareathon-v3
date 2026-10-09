@@ -17,7 +17,7 @@ export function bakeMinimap(map: WorldMap) {
     // Curved road ribbons supersede their legacy rectangular tile paint.
     c.fillStyle=tile==='road'&&map.roads.length ? colors.grass : colors[tile] ?? '#a9b19a';
     c.fillRect(col*TILE,row*TILE,TILE,TILE);
-    if(map.collision[i] && tile!=='water') { c.fillStyle='#142f3860'; c.fillRect(col*TILE,row*TILE,TILE,TILE); }
+    if(map.collision[i] && tile!=='water' && tile!=='grass') { c.fillStyle='#142f3860'; c.fillRect(col*TILE,row*TILE,TILE,TILE); }
   }
   c.lineJoin='round'; c.lineCap='round';
   if(map.id==='overworld')drawCountyWater(c,map,{x:0,y:0,w:map.width,h:map.height});
@@ -27,7 +27,7 @@ export function bakeMinimap(map: WorldMap) {
   for(const p of map.props) {
     if(['tree','pine','flower','bush','reeds','npc','keeper','lamp','sign'].includes(p.kind)) continue;
     if(['station','home','shop','diner','shed','control','rocket','gantry','tank','ruin-house'].includes(p.kind)) { c.fillStyle='#adc6b6';c.fillRect(p.x,p.y,p.w,p.h);c.strokeStyle='#182f3c';c.lineWidth=3;c.strokeRect(p.x,p.y,p.w,p.h); }
-    else for(const f of p.footprints ?? []) {c.fillStyle='#172f38';c.fillRect(f.x,f.y,f.w,f.h);}
+
   }
   c.fillStyle='#8bdec7'; for(const e of map.exits)c.fillRect(e.x,e.y,e.w,e.h);
   if(map.id==='overworld') for(const l of LOCATIONS) {c.beginPath();c.arc(l.x,l.y,14,0,Math.PI*2);c.fill();}
@@ -52,5 +52,5 @@ export function drawMinimap(canvas: HTMLCanvasElement, map: WorldMap, s: GameSta
   else {const pulse=matchMedia('(prefers-reduced-motion: reduce)').matches?7:7+Math.sin(time/240)*1.5;c.beginPath();c.moveTo(0,-pulse);c.lineTo(pulse,0);c.lineTo(0,pulse);c.lineTo(-pulse,0);c.closePath();}
   c.fill();c.stroke();c.restore();
   c.font='bold 11px system-ui';c.fillStyle='#effffc';c.fillText(rotate&&!full?'↑ Heading':'N ↑',8,16);
-  if(ratio<1) {c.fillStyle='#142f38e8';c.fillRect(0,height-21,width,21);c.fillStyle='#ffda7b';c.fillText(`${Math.round(Math.hypot(objective.x-s.x,objective.y-s.y))} away`,7,height-7);}
+  if(ratio<1) {c.fillStyle='#142f38e8';c.fillRect(0,height-21,width,21);c.fillStyle='#ffda7b';c.fillText(`${Math.round(Math.hypot(objective.x-s.x,objective.y-s.y)/10)} m`,7,height-7);}
 }

@@ -1,3 +1,4 @@
+import { Modal } from "./Modal";
 import { useState } from "react";
 import type { CoopRoom } from "./game/coop";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -13,7 +14,7 @@ export function CoopMenu({ signedIn, room, busy, initialCode, onHost, onJoin, on
     letters[at] = ALPHABET[(Math.max(0, ALPHABET.indexOf(letters[at])) + direction + ALPHABET.length) % ALPHABET.length];
     return letters.join("");
   });
-  return <section className="wf-overlay wf-coop-menu" aria-label="Co-op">
+  return <Modal className="wf-overlay wf-coop-menu" aria-label="Co-op">
     <p className="wf-eyebrow">DROP IN · FOUR PLAYERS</p><h2>Co-op</h2>
     {!signedIn ? <p>Sign in to play co-op</p> : room ? <>
       <p>{room.seat === room.hostSeat ? "Hosting" : "Party"} · Room code</p>
@@ -33,5 +34,5 @@ export function CoopMenu({ signedIn, room, busy, initialCode, onHost, onJoin, on
       <p className="wf-small">{busy ? "Connecting…" : "The host leads the adventure. Every player keeps their own character and rewards."}</p>
     </>}
     <button className="wf-secondary" onClick={onBack}>{room ? "Return to adventure" : "Back"}</button>
-  </section>;
+  </Modal>;
 }

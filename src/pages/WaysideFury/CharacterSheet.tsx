@@ -1,3 +1,4 @@
+import { Modal } from "./Modal";
 import { ChipsPanel } from "./u1/ChipsPanel";
 import { RelicsPanel } from "./u1/RelicsPanel";
 import type { ChipId } from "./game/u1/items/chips";
@@ -16,7 +17,7 @@ export function CharacterSheet({ state, avatar, settings, mode, onEquipChip, onW
   const { level, xp } = state.character;
   const areas = [{ id: "wayside", name: "Wayside Station" }, { id: "blast", name: "Blast Site" }, { id: "eightbit-realm", name: "8-Bit Realm" }];
   const volume = (kind: "musicVolume" | "sfxVolume", value: number) => onSettings({ ...settings, [kind]: value });
-  return <div className="wf-overlay wf-character" aria-label="Character sheet">
+  return <Modal className="wf-overlay wf-character" aria-label="Character sheet">
     <div className="wf-character-content">
       <header className="wf-character-heading"><HeroPortrait id="you" avatar={avatar} /><div><p className="wf-eyebrow">YOUR CHARACTER</p><h2>You <small>LV {level}</small></h2><p>{xp} / {xpForLevel(level)} XP · ◈ {state.candy} candy</p>
         <progress aria-label="Experience toward next level" max={xpForLevel(level)} value={xp} /></div></header>
@@ -38,5 +39,5 @@ export function CharacterSheet({ state, avatar, settings, mode, onEquipChip, onW
       </div>
       <button className="wf-character-back" onClick={onBack}>Back to pause</button>
     </div>
-  </div>;
+  </Modal>;
 }

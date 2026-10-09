@@ -32,7 +32,7 @@ export function resolveMapObjective(s: GameState, map: WorldMap): MapObjective {
 }
 // Shared with browser assertions; measured HUD, safe-area and touch bounds are inputs.
 export function minimapLayout(width: number, height: number, obstacles: CollisionRect[], inset = 12, top = inset): CollisionRect {
-  const size = Math.round(Math.min(width, height) * .24);
+  const size = Math.round(Math.min(112, Math.max(72, Math.min(width, height) * .20)));
   for (let y = Math.max(inset, top); y + size <= height - inset; y += 4) {
     for (const x of [width - inset - size, inset]) {
       const box = { x, y, w: size, h: size };

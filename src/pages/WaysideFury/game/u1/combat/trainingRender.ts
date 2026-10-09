@@ -1,18 +1,10 @@
 import type { GameState } from "../../sim.ts";
-import { TRAINING_BOARD, TRAINING_YARD } from "./training.ts";
+import { TRAINING_BOARD } from "./training.ts";
 
 // World-space vector art inherits the renderer's native-DPR transform.
 export function renderTrainingGrounds(c: CanvasRenderingContext2D, s: GameState, motionTime = s.time): void {
   if (s.scene !== "hub") return;
-  const { x, y, width, height } = TRAINING_YARD;
   c.save();
-  c.fillStyle = "rgba(31,54,58,.22)"; c.strokeStyle = "rgba(195,232,220,.32)"; c.lineWidth = 1;
-  c.beginPath(); c.roundRect(x, y, width, height, 8); c.fill(); c.stroke();
-  c.strokeStyle = "rgba(208,235,221,.12)";
-  for (let n = 1; n < 4; n++) {
-    c.beginPath(); c.moveTo(x + width * n / 4, y + 4); c.lineTo(x + width * n / 4, y + height - 4); c.stroke();
-    c.beginPath(); c.moveTo(x + 4, y + height * n / 4); c.lineTo(x + width - 4, y + height * n / 4); c.stroke();
-  }
   const bx = TRAINING_BOARD.x, by = TRAINING_BOARD.y;
   c.shadowColor = "rgba(111,236,226,.55)"; c.shadowBlur = 9;
   const board = c.createLinearGradient(bx - 14, by - 26, bx + 14, by - 6);
