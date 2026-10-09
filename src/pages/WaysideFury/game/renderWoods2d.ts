@@ -1,3 +1,4 @@
+import { creatureMotion } from './animation';
 import { applyEnemyWindup } from './enemyWindup';
 import type { Enemy, GameState } from './sim.ts';
 import { hasFieldFlag } from './fieldAbilities.ts';
@@ -7,7 +8,7 @@ export function drawWoodsBody(c:CanvasRenderingContext2D,e:Enemy,s:GameState) {
   if(!e.woodsBehavior) return false;
   c.save();c.translate(e.x,e.y);
   ellipse(c,0,1,e.radius*1.15,5,'#101e2366');
-  c.save();applyEnemyWindup(c,{...e,x:0,y:0});
+  c.save();creatureMotion(c,e.motion,s.time,0,0,e.woodsBehavior==='wisp'||e.behavior==='neon-imp');applyEnemyWindup(c,{...e,x:0,y:0});
   const large=e.kind==='boss',h=large?48:27,w=large?25:12;
   const material=c.createLinearGradient(-w,-h,w,0);material.addColorStop(0,moss);material.addColorStop(.45,pine);material.addColorStop(1,'#152e2b');
   if(e.woodsBehavior==='wisp') {

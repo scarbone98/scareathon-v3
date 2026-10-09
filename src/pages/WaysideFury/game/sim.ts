@@ -1,3 +1,5 @@
+import { storyRevealed, PROLOGUE_FADE } from './prologue.ts';
+import type { ActorMotion } from './animation.ts';
 import { collectRadar, radarPickupTarget } from "../u1/minimap/relicRadar.ts";
 import { tickArena, type ArenaRuntime, type ArenaPersonal } from "../u1/hub/arena.ts";
 import { ARENA_HUB_POINT } from "../u1/hub/arenaWorld.ts";
@@ -53,6 +55,8 @@ export interface HeroState {
   power: number; defense: number; invulnerable: number;
 }
 export interface RemoteHero {
+  /** Disposable renderer state; never persisted or sent over the wire. */
+  motion?: ActorMotion;
   chipDamageMultiplier?: number; secondWindReady?: boolean; chipSnapshotAt?: number;
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
@@ -78,6 +82,8 @@ export interface CoopHit {
 }
 export type Archetype = "charger" | "kiter" | "shield" | "swarm" | "ambusher";
 export interface Enemy {
+  /** Disposable renderer state; never persisted or sent over the wire. */
+  motion?: ActorMotion;
   nightAmbient?: boolean;
   archetype?: Archetype; combatLevel?: number; escapeIframes?: number;
   woodsBehavior?: WoodsBehavior; tellX?: number; tellY?: number;
@@ -124,6 +130,9 @@ export type GameEvent =
   | { type: "training-failed"; hero: HeroId; tier: number; reason: string }
   | { type: "death" };
 export interface GameState {
+  ambientBirds?: ReturnType<typeof import("./dressing.ts").roadsideBirds>;
+  /** Disposable renderer state; never persisted or sent over the wire. */
+  motion?: ActorMotion;
   arena?: ArenaRuntime; hubArena?: ArenaPersonal; arenaVitals?: Record<HeroId, HeroState>; arenaLead?: HeroId; arenaRecorded?: string;
   hubQuests?: HubQuestSave; hubQuestId?: string; hubCosmetic?: string | null; hubQuestSerial?: number;
   relicRadar?: { owned: boolean; enabled: boolean };
@@ -139,6 +148,7 @@ export interface GameState {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   vx: number; vy: number; knockX: number; knockY: number; transitionCooldown: number;
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number; mapId: string;
+  prologueRevealed?: boolean; prologueExit?: number;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
   overlay: "shop" | "home" | "diner" | "wish" | "arena" | "quest" | "quest-board" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
@@ -362,7 +372,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   s.sceneTimer = 0; s.transitionTarget = null;
   if (scene === "realm") { s.palette = "eightbit"; if (s.clearedRooms.includes("realm-0")) s.chapter = Math.max(2, s.chapter); }
   else if (scene !== "shift" && scene !== "results" && scene !== "dead") s.palette = "real";
-  if (scene === "prologue") s.cutscene = 0;
+  if (scene === "prologue") { s.cutscene = 0; s.prologueRevealed = false; s.prologueExit = undefined; }
   s.faceX = 1; s.faceY = 0; s.moving = false;
   s.enemies = []; s.projectiles = []; s.effects = []; s.floaters = [];
   s.meleeCharge = 0; s.meleeHolding = false;
@@ -468,14 +478,21 @@ function separateBodies(s: GameState, dt: number) {
   }
 }
 export function advanceStory(s: GameState): void {
-  if (s.scene !== "prologue" || s.coop?.role === "guest") return;
-  s.cutscene++; s.sceneTimer = 0;
-  if (s.cutscene >= PROLOGUE.length) {
-    enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true;
-  }
+  if (s.scene !== "prologue" || s.coop?.role === "guest" || s.prologueExit !== undefined) return;
+  if (!storyRevealed(s)) { s.prologueRevealed = true; return; }
+  if (s.cutscene === PROLOGUE.length - 1) { requestPrologueSkip(s); return; }
+  s.cutscene++; s.sceneTimer = 0; s.prologueRevealed = false;
 }
+export function requestPrologueSkip(s: GameState): void {
+  if (s.scene !== "prologue" || s.coop?.role === "guest" || s.prologueExit !== undefined) return;
+  s.prologueExit = 0;
+}
+// Immediate entry remains available to save/debug tools. Player controls use
+// requestPrologueSkip so the same fade completes for touch, keyboard and pad.
 export function skipPrologue(s: GameState): void {
-  enterScene(s, "overworld"); s.previousInput.attack = s.previousInput.interact = true;
+  if (s.scene !== "prologue" || s.coop?.role === "guest") return;
+  enterScene(s, "overworld"); s.prologueExit = undefined;
+  s.previousInput.attack = s.previousInput.interact = true;
 }
 export function beginRealmShift(s: GameState, target: Scene = "realm", palette: "real" | "eightbit" = "eightbit"): void {
   enterScene(s, "shift");
@@ -1213,6 +1230,14 @@ export function step(s: GameState, input: Input, delta: number): void {
   updateVisuals(s, dt);
   updateOverworldDressing(s, dt);
   if (s.scene === "prologue") {
+    if (physicalInput.guard && !s.previousInput.guard) requestPrologueSkip(s);
+    if (s.prologueExit !== undefined) {
+      s.prologueExit += dt;
+      if (s.prologueExit >= PROLOGUE_FADE) {
+        enterScene(s, "overworld"); s.prologueExit = undefined;
+        s.previousInput = { ...physicalInput }; return;
+      }
+    }
     s.previousInput = { ...physicalInput };
     if (usePressed) interact(s, s.contextAttack.target);
     return;

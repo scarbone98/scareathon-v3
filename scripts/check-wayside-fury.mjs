@@ -156,6 +156,8 @@ assert.equal(intro.cutscene, 0); assert.equal(intro.sceneTimer, 0);
 for (let beat = 0; beat < PROLOGUE.length; beat++) {
   assert.equal(intro.cutscene, beat);
   tick(intro, { interact: true });
+  assert.equal(intro.cutscene, beat, 'first press reveals the line');
+  tick(intro); tick(intro, { interact: true });
   if (beat < PROLOGUE.length - 1) {
     assert.equal(intro.scene, 'prologue'); assert.equal(intro.cutscene, beat + 1);
     assert.equal(intro.sceneTimer, 0);
@@ -164,10 +166,12 @@ for (let beat = 0; beat < PROLOGUE.length; beat++) {
     tick(intro);
   }
 }
+tick(intro, { interact: true }, 35);
 assert.equal(intro.scene, 'overworld');
 tick(intro, { interact: true }, 8);
 assert.equal(intro.scene, 'overworld', 'held Interact cannot leave the taxi after the last story beat');
 const skipped = newGame(); enterScene(skipped, 'prologue'); tick(skipped, {}, 20);
+advanceStory(skipped); assert.equal(skipped.cutscene, 0); assert.equal(skipped.prologueRevealed, true);
 advanceStory(skipped); assert.equal(skipped.cutscene, 1); assert.equal(skipped.sceneTimer, 0);
 skipPrologue(skipped); assert.equal(skipped.scene, 'overworld'); assert.equal(skipped.palette, 'real');
 // Realm transitions accept any target scene and palette so future chapters can return.

@@ -1,3 +1,5 @@
+import { drawCrew } from './crewArt';
+import { idleMotion, type ActorMotion } from './animation';
 import { sampleDayNight } from "./u1/world/dayNight";
 import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
 import { HeroObstacleMeshes } from './locks/obstacleRender3d';
@@ -123,6 +125,7 @@ export class OverworldRenderer {
   private markers: THREE.Group[] = [];
   private billboards = new Map<string, Billboard>();
   private sheets = new Map<SpriteId, SpriteSheet>();
+  private keepers: { mesh: THREE.Mesh; height: number; seed: number }[] = [];
   private avatar: HeroAvatar | null = null;
   private avatarSheets: SpriteSheet[] = [];
   private remoteAvatars = new Map<number, HeroAvatar>();
@@ -371,6 +374,7 @@ export class OverworldRenderer {
         mesh.position.set(x, y + prop.h / 2, prop.y + prop.h);
         mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), FORWARD);
         this.scene.add(mesh);
+        if (prop.kind === 'keeper') this.keepers.push({ mesh, height: mesh.position.y, seed: x });
       } else if (prop.kind === 'rocket') {
         part('cylinder', '#e8edf1', x, y+52, z, 24, 104, 24);
         part('cone', '#dae4f2', x, y+114, z, 24, 30, 24);
@@ -546,7 +550,7 @@ export class OverworldRenderer {
     this.ambientCab = this.taxi.clone(true);
     this.ambientCab.traverse(object => { if (object instanceof THREE.PointLight) object.intensity = 0; });
     // Place the parked cab once. Proximity only triggers its one-shot wreck gag;
-    // it never changes this pose or recycles a vehicle slot.
+    // its wheels stay parked; only a small engine tremor animates the body.
     const cab=this.world.props.find(p=>p.id===AMBIENT_TAXI.id);
     const {x,y}=cab ? {x:cab.x+cab.w/2,y:cab.y+cab.h} : AMBIENT_TAXI, base = this.terrain.heightAt(x, y);
     this.ambientCab.position.set(x, base, y); this.wreckCab.position.set(x, base, y);
@@ -579,6 +583,7 @@ export class OverworldRenderer {
   }
   private updateDressing(s: GameState) {
     this.ambientCab.visible = !s.ambientTaxiWrecked;
+    this.ambientCab.position.y = this.wreckCab.position.y + (this.reducedMotion ? 0 : Math.sin(this.visualTime * 9) * .05);
     this.wreckCab.visible = s.ambientTaxiWrecked;
     const rock = taxiRockPosition(s);
     if (this.strayRock && this.strayRockShadow) {
@@ -637,6 +642,13 @@ export class OverworldRenderer {
   }
   private loadSheets() {
     for (const [id, sheet] of Object.entries(SHEETS)) {
+      if (['joe','matt','alex','jon'].includes(id)) {
+        const canvas = document.createElement('canvas'); canvas.width = 128 * 24; canvas.height = 192;
+        const c = canvas.getContext('2d')!;
+        for (let frame = 0; frame < 24; frame++) { c.save(); c.translate(frame * 128, 0); c.scale(4,4); drawCrew(c,id as HeroId,16,46,frame/6); c.restore(); }
+        const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+        this.sheets.set(id as SpriteId, { texture, frames: 24, w: 32, h: 48, fps: 6 }); continue;
+      }
       const image = new Image();
       image.onload = () => {
         if (this.disposed) return;
@@ -674,7 +686,7 @@ export class OverworldRenderer {
     this.remoteAvatarSheets.get(seat)?.forEach(sheet => sheet.texture.dispose());
     this.remoteAvatarSheets.delete(seat);
   }
-  private billboard(key: string, spriteId: SpriteId | 'you', x: number, y: number, scale = 1, remoteSeat?: number) {
+  private billboard(key: string, spriteId: SpriteId | 'you', x: number, y: number, scale = 1, remoteSeat?: number, motion?: ActorMotion) {
     let sheets: SpriteSheet[];
     if (spriteId === 'you' && remoteSeat !== undefined && this.remoteAvatars.has(remoteSeat)) {
       sheets = this.remoteAvatarSheets.get(remoteSeat) ?? this.composeAvatarSheets(this.remoteAvatars.get(remoteSeat)!);
@@ -712,9 +724,12 @@ export class OverworldRenderer {
     const time = this.reducedMotion ? 0 : this.visualTime;
     actor.sprites.forEach((sprite, index) => {
       const sheet = actor!.sheets[index]; const map = sprite.material.map!;
-      map.offset.x = Math.floor(time * sheet.fps) % sheet.frames / sheet.frames;
+      const walk = !this.reducedMotion && motion && motion.speed > 1;
+      map.offset.x = Math.floor(walk ? motion.phase / (Math.PI * 2) * sheet.frames : time * sheet.fps) % sheet.frames / sheet.frames;
       // Layer depth offsets follow the camera, preserving wardrobe order.
-      const bob = this.reducedMotion ? 0 : (1 + Math.sin(time * 3 + x)) * .25;
+      const bob = this.reducedMotion ? 0 : walk ? Math.abs(Math.sin(motion.phase)) * 1.5 : (1 + Math.sin(time * 3 + x)) * .25;
+      const wave = this.reducedMotion ? 0 : Math.sin(walk ? motion.phase : time * 2.4);
+      sprite.scale.set(sheet.w * scale * (motion?.facing === 'left' ? -1 : 1) * (1 + wave * .025), sheet.h * scale * (1 - wave * .025), 1);
       sprite.position.set(FORWARD.x * index * .08, bob + index * .02, FORWARD.z * index * .08);
     });
     actor.group.visible = this.nearView(x, y, 80);
@@ -822,11 +837,11 @@ export class OverworldRenderer {
     // Controller already interpolates actors. Only the camera gets follow ease;
     // the taxi stays on the supplied collision/interaction position and surface.
     const actorElevation = surfaceElevationAt(this.world, s.x, s.y, (x,y) => this.terrain.heightAt(x,y));
-    this.taxi.position.set(s.x, actorElevation + (s.moving && !this.reducedMotion ? Math.sin(this.visualTime * 26) * .16 : 0), s.y);
+    this.taxi.position.set(s.x, actorElevation + (this.reducedMotion ? 0 : s.moving ? Math.sin((s.motion?.phase ?? 0) * 2) * .16 : Math.sin(this.visualTime * 9) * .05), s.y);
     const heading = -Math.atan2(s.faceY, s.faceX);
     const turn = Math.atan2(Math.sin(heading - this.heading), Math.cos(heading - this.heading));
     this.heading += turn * (this.reducedMotion ? 1 : 1 - Math.exp(-dt * 15)); this.taxi.rotation.y = this.heading;
-    for (const wheel of this.wheels) wheel.rotation.y = this.reducedMotion || !s.moving ? 0 : this.visualTime * 16;
+    for (const wheel of this.wheels) wheel.rotation.y = this.reducedMotion ? 0 : (s.motion?.phase ?? 0) * 2;
     this.taxiShadow.position.set(s.x + 3, actorElevation + .3, s.y + 2);
     this.sun.position.set(this.target.x - 220, 340, this.target.z - 180); this.sun.target.position.copy(this.target);
     this.postMaterial.uniforms.focus.value = this.camera.position.distanceTo(this.taxi.position) - 9;
@@ -834,6 +849,11 @@ export class OverworldRenderer {
   }
   private atmosphere(s: GameState) {
     const time = this.reducedMotion ? 0 : this.visualTime;
+    for (const keeper of this.keepers) {
+      const breath = this.reducedMotion ? 0 : Math.sin(time * 2.4 + keeper.seed) * .007;
+      keeper.mesh.scale.y = 1 + breath;
+      keeper.mesh.position.y = keeper.height + breath * 12;
+    }
     this.puddleTime.value = time;
     // A slow dusk-to-night cycle with a bright initial golden hour.
     const sample = sampleDayNight(worldCycleSeconds(s));
@@ -881,20 +901,22 @@ export class OverworldRenderer {
     this.syncRemotePeers(s);
     for (const peer of peers) {
       const taxi = this.remoteTaxi(peer.seat), elevation = surfaceElevationAt(this.world, peer.x, peer.y, (x,y) => this.terrain.heightAt(x,y));
-      taxi.group.position.set(peer.x, elevation + (peer.moving && !this.reducedMotion ? Math.sin(this.visualTime * 26) * .16 : 0), peer.y);
+      taxi.group.position.set(peer.x, elevation + (this.reducedMotion ? 0 : peer.moving ? Math.sin((peer.motion?.phase ?? 0) * 2) * .16 : Math.sin(this.visualTime * 9 + peer.seat) * .05), peer.y);
       taxi.group.rotation.y = -Math.atan2(peer.faceY, peer.faceX);
       taxi.group.visible = this.nearView(peer.x, peer.y, 80);
-      for (const wheel of taxi.wheels) wheel.rotation.y = this.reducedMotion || !peer.moving ? 0 : this.visualTime * 16;
+      for (const wheel of taxi.wheels) wheel.rotation.y = this.reducedMotion ? 0 : (peer.motion?.phase ?? 0) * 2;
       taxi.shadow.position.set(peer.x + 3, elevation + .3, peer.y + 2); taxi.shadow.visible = taxi.group.visible;
     }
     const liveEnemies = new Set(s.enemies.filter(enemy => enemy.hp > 0).map(enemy => `enemy-${enemy.id}`));
     for (const key of [...this.billboards.keys()]) if (key.startsWith('enemy-') && !liveEnemies.has(key)) this.removeBillboard(key);
     for (const enemy of s.enemies) if (enemy.hp > 0) {
-      const actor = this.billboard(`enemy-${enemy.id}`, enemy.sprite, enemy.x, enemy.y, enemy.radius > 10 ? 1.5 : 1);
+      const actor = this.billboard(`enemy-${enemy.id}`, enemy.sprite, enemy.x, enemy.y, enemy.radius > 10 ? 1.5 : 1, undefined, enemy.motion);
       if (actor) actor.sprites.forEach((sprite, index) => {
         const tell = enemyWindupTell(enemy), scale = enemy.radius > 10 ? 1.5 : 1;
         const sheet = actor.sheets[index];
-        sprite.scale.set(sheet.w * scale * (tell ? 1.045 : 1), sheet.h * scale * (tell ? .94 : 1), 1);
+        const motion = this.reducedMotion ? idleMotion(enemy.motion?.facing) : enemy.motion;
+        const wave = this.reducedMotion ? 0 : Math.sin((motion?.speed ?? 0) > 1 ? motion!.phase : this.visualTime * 2.4);
+        sprite.scale.set(sheet.w * scale * (motion?.facing === 'left' ? -1 : 1) * (motion?.facing === 'up' || motion?.facing === 'down' ? .94 : 1) * (1 + wave * .025) * (tell ? 1.045 : 1), sheet.h * scale * (1 - wave * .025) * (tell ? .94 : 1), 1);
         sprite.material.color.setHex(enemy.hitTimer > 0 ? 0xffc5aa : tell ? 0xffe5bd : 0xffffff);
       });
     }
@@ -937,7 +959,7 @@ export class OverworldRenderer {
       particle(pickup.x, this.terrain.heightAt(pickup.x, pickup.y) + 6 + (this.reducedMotion ? 0 : Math.sin(s.time * 3 + pickup.x) * 1.5), pickup.y, 1.3, pickup.kind === 'trinket' ? 0xedc3fa : pickup.kind === 'lore' ? 0xb9dfff : 0xffe3a3);
     }
     if (!this.reducedMotion) {
-      for (const bird of roadsideBirds(s)) if (this.nearView(bird.x, bird.y, 20)) {
+      for (const bird of s.ambientBirds ?? roadsideBirds(s)) if (this.nearView(bird.x, bird.y, 20)) {
         const ground = this.terrain.heightAt(bird.x, bird.y) + 2 + bird.height;
         particle(bird.x, ground, bird.y, 1.2, 0x36434b); particle(bird.x - 2, ground + bird.wing, bird.y, .9, 0x36434b); particle(bird.x + 2, ground + bird.wing, bird.y, .9, 0x36434b);
       }

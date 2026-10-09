@@ -1,3 +1,4 @@
+import { ActorAnimator } from './animation';
 import { relicTargets } from "./u1/items/relics";
 import { chipEffects, itemsState } from "./u1/items/chips";
 import { OVERWORLD, COOP_OVERWORLD, type WorldMap } from "./world";
@@ -34,6 +35,7 @@ export function rememberGraphicsMode(mode: GraphicsMode) {
 // A generation guards asynchronous imports against switches and React unmounts.
 export class GraphicsRenderer {
   private flat: Renderer;
+  private animator = new ActorAnimator();
   private depth: OverworldRenderer | null = null;
   private overlay: HTMLCanvasElement | null = null;
   private avatar: HeroAvatar | null = null;
@@ -66,13 +68,14 @@ export class GraphicsRenderer {
     this.remoteAvatars.set(seat, avatar);
     this.flat.setRemoteAvatar(seat, avatar); this.depth?.setRemoteAvatar(seat, avatar);
   }
-  reset() { this.flat.reset(); this.depth?.reset(); }
+  reset() { this.animator.reset(); this.flat.reset(); this.depth?.reset(); }
   onEvent(s: GameState, event: GameEvent) { this.flat.onEvent(s, event); this.depth?.onEvent(s, event); }
   presentation(s: GameState): RenderPresentation {
     return this.current?.active === '3d' && this.depth ? this.depth.presentation(s) : this.flat.presentation(s);
   }
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed) return;
+    s = this.animator.present(s, dt);
     this.depth?.syncRemotePeers(s);
     const legacyCounty = !!s.coop && (s.coop.protocolVersion ?? 1) < 6;
     if (this.partyWorld !== legacyCounty) { this.partyWorld = legacyCounty; this.generation++; this.loading=false; this.releaseDepth(); }
