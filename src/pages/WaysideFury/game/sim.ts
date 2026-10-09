@@ -41,6 +41,7 @@ export interface HeroState {
   power: number; defense: number; invulnerable: number;
 }
 export interface RemoteHero {
+  chipDamageMultiplier?: number; secondWindReady?: boolean; chipSnapshotAt?: number;
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
@@ -52,6 +53,7 @@ export interface CoopRuntime {
   playerCount?: number; syncedLevel?: number; hostLevel?: number; downed?: boolean; reviveProgress?: number;
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
   revivedUntil?: Record<number, number>;
+  remoteSecondWindSpent?: Record<number, { userId: string; at: number }>;
   reviveHoldTarget?: string;
   worldClearedRooms?: string[];
   worldChapter?: number; protocolVersion?: number; personalDifficulty?: "normal" | "hard";
@@ -516,8 +518,9 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     const xp = s.coop ? baseXp : combatXp(s, baseXp, authoredLevel(s));
     if (!s.coop) {
       const candy = e.kind === "boss" ? 35 : 2 + Math.floor(random(s) * 3);
-      s.candy += Math.floor(candy * chipEffects(s).candyMultiplier) + chipEffects(s).candyBonusPerKill; s.kills++;
-      floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
+      const rewardCandy = Math.floor(candy * chipEffects(s).candyMultiplier) + chipEffects(s).candyBonusPerKill;
+      s.candy = Math.min(1_000_000, s.candy + rewardCandy); s.kills++;
+      floater(s, e.x, e.y + 13, `+${rewardCandy} candy`, "#eea2fc");
       gainXp(s, xp);
     }
     s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp, xpLevel: authoredLevel(s) });
@@ -647,10 +650,20 @@ function hurtTarget(s: GameState, target: CombatTarget, damage: number, sourceX:
   if (!target.remote) { hurtHero(s, damage, sourceX, sourceY); return; }
   const coop = s.coop!, until = coop.damageUntil ??= {};
   if (target.hero.hp <= 0 || target.dashTimer > 0 || target.hero.invulnerable > 0 || (until[target.seat] ?? 0) > s.time) return;
-  const dealt = enemyDamage(s, damage, target.hero.defense, target.guard);
+  const rawDamage = enemyDamage(s, damage, target.hero.defense, target.guard);
+  const dealt = Math.max(1, Math.round(rawDamage * (target.remote.chipDamageMultiplier === 0.88 ? 0.88 : 1)));
   until[target.seat] = s.time + (target.guard ? 0.12 : 0.5);
   target.hero.hp = Math.max(0, target.hero.hp - dealt); target.remote.downed = target.hero.hp === 0;
-  s.events.push({ type: "coop-damage", seat: target.seat, damage: dealt, sourceX, sourceY });
+  if (target.hero.hp === 0 && target.remote.secondWindReady && coop.remoteSecondWindSpent?.[target.seat]?.userId !== target.remote.userId) {
+    (coop.remoteSecondWindSpent ??= {})[target.seat] = { userId: target.remote.userId, at: target.remote.chipSnapshotAt ?? 0 };
+    target.remote.secondWindReady = false; target.remote.downed = false; target.remote.reviveProgress = 0;
+    target.hero.hp = Math.max(1, target.hero.maxHp * 0.35); target.hero.invulnerable = Math.max(target.hero.invulnerable, 1.4);
+    until[target.seat] = s.time + 1.4;
+    effect(s, "level", target.x, target.y, 24, 0.7);
+  }
+  // Guests apply their own chip mitigation and consume their personal revive.
+  // The host predicts both before deciding whether the shared world has wiped.
+  s.events.push({ type: "coop-damage", seat: target.seat, damage: rawDamage, sourceX, sourceY });
   effect(s, "hit", target.x, target.y, 10, 0.13);
 }
 function updateCoopRevives(s: GameState, input: Input, dt: number) {
@@ -976,6 +989,9 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (countyStop) { openDialogue(s, countyStop.name, [countyStop.text]); return; }
   if (target.id === "story-next") { advanceStory(s); return; }
   if (target.id === "dialog-next") { advanceDialogue(s); return; }
+  if (s.coop?.role === "guest" && s.mapId === "hub" && (target.id === "home" || target.id === "interior-home-door")) {
+    s.overlay = "home"; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return;
+  }
   if (target.id.endsWith("-door") || target.id === "diner-entry") {
     const room = INTERIORS.find(room => `${room.id}-door` === target.id || target.id === "diner-entry" && room.theme === "diner");
     if (room) {
@@ -989,7 +1005,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   }
   const interior = interiorDefinition(s.mapId);
   if (interior && (target.id.endsWith("-ledger") || target.id.endsWith("-keeper"))) {
-    if (target.id.endsWith("-keeper")) refillCrew(s);
+    if (target.id.endsWith("-keeper")) { if (interior.id === "interior-home") restAtHome(s); else refillCrew(s); }
     openDialogue(s, target.id.endsWith("-keeper") ? "Caretaker" : "Local ledger", [interior.lore, ...(interior.theme === "station" ? [s.clearedRooms.includes("realm-0") ? campaignHandoff(s) : "Wayside Station is safe. Alex and Jon are holding the town."] : [])]); return;
   }
   if (target.id === "diner-leave") { s.overlay = null; s.insideDiner = false; return; }

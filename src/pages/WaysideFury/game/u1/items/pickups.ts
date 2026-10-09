@@ -14,9 +14,9 @@ export interface ChipPickup {
 export const CHIP_FINDS: readonly ChipPickup[] = [
   ["scanner", "hub", 0, 560, 208],
   ["sprinter", "hub", 0, 640, 352],
-  ["ki-coil", "dungeon", 0, 176, 112],
+  ["ki-coil", "dungeon", 0, 144, 112],
   ["combo-extender", "dungeon", 2, 416, 304],
-  ["quickstep", "dungeon", 3, 592, 432],
+  ["quickstep", "dungeon", 3, 592, 400],
   ["second-wind", "dungeon", 8, 368, 272],
   ["vital-spark", "dungeon", 9, 416, 304],
   ["lucky-star", "realm", 0, 144, 288],

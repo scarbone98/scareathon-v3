@@ -23,7 +23,7 @@ export const RELICS: readonly RelicDefinition[] = [
   { id: "forest-sigil", name: "Forest Sigil", area: "woods", chapter: 2, locked: false, scene: "dungeon", room: 7, mapId: "woods-lunch-shed", anchors: [{ x: 400, y: 224 }, { x: 544, y: 280 }, { x: 176, y: 224 }] },
   { id: "city-medallion", name: "City Medallion", area: "city", chapter: 4, locked: false, scene: "dungeon", room: 11, mapId: "city-gallery", anchors: [{ x: 480, y: 320 }, { x: 208, y: 320 }, { x: 560, y: 208 }] },
   { id: "frost-bell", name: "Frost Bell", area: "moon", chapter: 3, locked: false, scene: "dungeon", room: 8, mapId: "moon-m09", anchors: [{ x: 352, y: 160 }, { x: 176, y: 160 }, { x: 400, y: 224 }] },
-  { id: "final-star", name: "Final Star", area: "finale", chapter: 5, locked: false, scene: "hub", room: 0, requires: "city-complete", anchors: [{ x: 688, y: 416 }, { x: 336, y: 256 }, { x: 624, y: 432 }] },
+  { id: "final-star", name: "Final Star", area: "finale", chapter: 5, locked: false, scene: "hub", room: 0, requires: "city-complete", anchors: [{ x: 640, y: 430 }, { x: 336, y: 256 }, { x: 624, y: 432 }] },
 ];
 export const RELIC_REGISTRY = RELICS;
 export const RELIC_SUMMON = { x: 480, y: 208, radius: 28 } as const;

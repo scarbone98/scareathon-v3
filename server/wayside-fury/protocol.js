@@ -67,6 +67,14 @@ export function cleanHero(remote) {
         if (!number(remote.reviveProgress, 1) || remote.reviveProgress < 0) return null;
         cleaned.reviveProgress = remote.reviveProgress;
     }
+    if (remote.chipDamageMultiplier !== undefined) {
+        if (![1, 0.88].includes(remote.chipDamageMultiplier)) return null;
+        cleaned.chipDamageMultiplier = remote.chipDamageMultiplier;
+    }
+    if (remote.secondWindReady !== undefined) {
+        if (typeof remote.secondWindReady !== 'boolean') return null;
+        cleaned.secondWindReady = remote.secondWindReady;
+    }
     return cleaned;
 }
 

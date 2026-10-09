@@ -38,6 +38,6 @@ export function applyCoopReward(s: GameState, reward: CoopReward): boolean {
   s.chapter = Math.max(s.chapter, reward.chapter ?? s.chapter);
   for (const id of [...(reward.bosses ?? []), ...(reward.rooms ?? [])]) grantCheckpointChip(s, id);
   syncCoopLevel(s);
-  s.notice = reward.kind === "kill" ? `+${xp} XP · +${reward.candy ?? 0} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
+  s.notice = reward.kind === "kill" ? `+${xp} XP · +${candy} candy` : repeatedArea ? "Area already cleared · +75 bonus XP" : "Party checkpoint saved to your character.";
   return true;
 }

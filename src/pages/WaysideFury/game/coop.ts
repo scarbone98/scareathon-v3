@@ -1,3 +1,4 @@
+import { chipEffects } from "./u1/items/chips";
 import { MAX_MILESTONES } from "../../../../server/shared/waysideFury/save.js";
 import { sameCampaignMap } from "./campaign.ts";
 import { CAMPAIGN_CONTENT_VERSION, COOP_PROTOCOL_VERSION, compatibleMap, legacyMapId } from "../../../../server/shared/waysideFury/campaign.js";
@@ -216,7 +217,15 @@ export class FuryCoop {
       const blend = buffered(samples, now); if (!blend) return [];
       const { a, b, alpha } = blend;
       const same = sameCampaignMap(a, b);
-      return [{ ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y }];
+      const latest = samples[samples.length - 1];
+      const peer = { ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y,
+        chipDamageMultiplier: latest.value.chipDamageMultiplier, secondWindReady: latest.value.secondWindReady, chipSnapshotAt: latest.at };
+      const spent = s.coop?.remoteSecondWindSpent;
+      if (spent?.[peer.seat]?.userId === peer.userId) {
+        if (latest.at > spent[peer.seat].at && peer.secondWindReady === false) delete spent[peer.seat];
+        else peer.secondWindReady = false;
+      } else if (spent?.[peer.seat]) delete spent[peer.seat];
+      return [peer];
     });
     if (role === "guest") {
       const blend = buffered(this.worlds, now);
@@ -252,8 +261,9 @@ export class FuryCoop {
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
     enforceCountyPartyBounds(s);
+    const chips = chipEffects(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0, chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });
