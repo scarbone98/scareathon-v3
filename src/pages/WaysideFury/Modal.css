@@ -1,0 +1,7 @@
+.wf-shell .wf-modal-layer { position: absolute; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: #030d19b8; isolation: isolate; touch-action: pan-y; }
+.wf-shell .wf-modal-layer > .wf-overlay { position: relative; inset: auto; width: min(900px, calc(100% - 48px)); height: auto; max-height: calc(100% - 48px); margin: 0; border: 1px solid #78988c70; border-radius: 20px; background: #112731 !important; box-shadow: 0 24px 80px #0008; overflow: auto; overscroll-behavior: contain; animation: none; }
+.wf-shell .wf-modal-layer > .wf-full-map { width: calc(100% - 48px); height: calc(100% - 48px); max-width: 1200px; }
+.wf-shell .wf-modal-layer:has(.wf-new-game-confirm) { z-index: 110; }
+@media (max-width: 767px), (max-height: 500px) {
+  .wf-shell .wf-modal-layer > .wf-overlay { width: 100%; max-width: none; height: 100%; max-height: none; border: 0 !important; border-radius: 0; box-shadow: none; padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+}

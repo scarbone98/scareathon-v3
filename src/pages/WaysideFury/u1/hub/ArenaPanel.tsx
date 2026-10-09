@@ -1,3 +1,4 @@
+import { Modal } from "../../Modal";
 import { useState } from "react";
 import { useLeaderboard } from "../../../Arcade/leaderboard";
 import { arenaGame, arenaScore } from "../../../../../server/shared/waysideFury/u1Arena.js";
@@ -8,7 +9,7 @@ export function ArenaPanel({ state, onStart, onBack }: { state: GameState; onSta
   const [board, setBoard] = useState<"solo" | "coop">(state.coop ? "coop" : "solo");
   const leaderboard = useLeaderboard(arenaGame(board));
   const run = state.arena, finished = run?.status === "finished", personal = state.hubArena;
-  return <section className="wf-overlay wf-arena-panel" aria-label="Tournament Arena">
+  return <Modal className="wf-overlay wf-arena-panel" aria-label="Tournament Arena">
     <p className="wf-eyebrow">WAYSIDE TOURNAMENT · ENDLESS WAVES</p>
     <h2>{finished ? "A run to remember." : "Step into the ring."}</h2>
     {finished && <div className="wf-arena-result"><strong>{arenaScore(run.wavesCleared, run.kills).toLocaleString()}</strong><span>{run.wavesCleared} waves cleared · {run.kills} monsters defeated</span><small>{run.mode === "coop" ? "Co-op board" : "Solo board"} · {run.reason === "defeated" ? "Crew defeated" : "Retired from the ring"}</small></div>}
@@ -24,7 +25,7 @@ export function ArenaPanel({ state, onStart, onBack }: { state: GameState; onSta
     {leaderboard.isError && <p className="wf-small">The board is offline. Your personal best stays saved.</p>}
     {!leaderboard.isLoading && !leaderboard.isError && !leaderboard.data?.length && <p className="wf-small">Be the first to hold the ring.</p>}
     <button className="wf-secondary" onClick={onBack}>Continue to Wayside</button>
-  </section>;
+  </Modal>;
 }
 export function ArenaHud({ state, onRetire }: { state: GameState; onRetire: () => void }) {
   const run = state.arena;

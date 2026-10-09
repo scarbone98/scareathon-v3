@@ -23,10 +23,10 @@ export function drawItemMarker(c: CanvasRenderingContext2D, item: ItemMarker, ti
   const t = still ? 0 : time, bob = Math.sin(t * 2.7 + item.x) * 1.4;
   c.save(); c.translate(item.x, item.y);
   c.fillStyle = "#101c2a55"; c.beginPath(); c.ellipse(0, 1, 8, 2.5, 0, 0, Math.PI * 2); c.fill();
-  const glow = c.createRadialGradient(0, -9, 1, 0, -9, 19);
-  glow.addColorStop(0, `${color}80`); glow.addColorStop(1, `${color}00`);
-  c.fillStyle = glow; c.fillRect(-19, -28, 38, 38); c.translate(0, -9 + bob);
-  c.lineWidth = .8; c.strokeStyle = color;
+  const glow = c.createRadialGradient(0, -9, 1, 0, -9, 12);
+  glow.addColorStop(0, `${color}28`); glow.addColorStop(1, `${color}00`);
+  c.fillStyle = glow; c.fillRect(-12, -21, 24, 24); c.translate(0, -9 + bob);
+  c.lineWidth = .55; c.strokeStyle = `${color}a0`;
   if (item.kind === "chip") {
     c.fillStyle = "#173e4b"; c.fillRect(-6, -6, 12, 12); c.strokeRect(-6, -6, 12, 12);
     c.fillStyle = "#051d2a"; c.fillRect(-3, -3, 6, 6); c.strokeRect(-3, -3, 6, 6);
@@ -37,7 +37,7 @@ export function drawItemMarker(c: CanvasRenderingContext2D, item: ItemMarker, ti
     c.fillStyle = "#eaffff"; c.fillRect(-1, -1, 2, 2);
   } else if (item.kind === "radar") {
     c.fillStyle = "#153d42"; c.beginPath(); c.arc(0, 0, 8, 0, Math.PI * 2); c.fill(); c.stroke();
-    c.beginPath(); c.arc(0, 0, 4.5, 0, Math.PI * 2); c.stroke();
+    c.beginPath(); c.arc(0, 0, 4.5, -.8, .8); c.stroke();
     const angle = t * 1.6 - 1.2;
     c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(angle) * 7, Math.sin(angle) * 7); c.stroke();
     c.fillStyle = "#e5fff3"; c.beginPath(); c.arc(3, -3, 1, 0, Math.PI * 2); c.fill();
