@@ -490,8 +490,22 @@ export default function WaysideFury() {
     game.mutate(s=>{if(!globeAvailable(s,destination))return;if(enterCampaignMap(s,destination.mapId)){s.checkpointMapId=destination.mapId;s.notice=`County Cruiser arrived at ${destination.name}.`;persist(s);}});
     closeWorldRoute();
   };
+  const hudShell = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const shell = hudShell.current;
+    if (!shell) return;
+    const measure = () => {
+      const top = shell.getBoundingClientRect().top;
+      const bottom = Math.max(0, ...Array.from(shell.querySelectorAll('.wf-hud,.wf-party-hud')).filter(el => el.getClientRects().length).map(el => el.getBoundingClientRect().bottom - top));
+      shell.style.setProperty('--wf-top-hud-bottom', `${bottom}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    shell.querySelectorAll('.wf-hud,.wf-party-hud').forEach(el => observer.observe(el));
+    observer.observe(shell); measure();
+    return () => observer.disconnect();
+  }, [playing, cinematic, coopRoom]);
   const inlineSave = playing && !cinematic && !paused && !state.overlay && !coopOpen && state.scene !== "dead";
-  return <main onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
+  return <main ref={hudShell} onPointerDown={event => { if (event.pointerType === "touch") controller.current?.setTouch({}); }} className={`wf-shell ${(coopOpen || playing && (paused || state.overlay || state.scene === "dead")) ? "wf-has-modal" : ""} ${coopRoom ? "wf-in-coop" : ""} ${touchControls && !coopOpen ? "wf-has-touch" : ""} ${cinematic && playing ? "wf-cinematic" : "wf-gameplay"} ${state.scene === "prologue" && playing ? "wf-prologue" : ""}`} style={{ "--wf-viewport-height": `${viewport.height}px`, "--wf-viewport-width": `${viewport.width}px`, top: viewport.top, left: viewport.left } as CSSProperties}>
     {worldRoute && playing && <GlobeTravel state={state} avatar={avatar} mode={graphicsMode} onMode={updateGraphics} onLand={landWorldRoute} onClose={closeWorldRoute} />}
     {!inlineSave && !state.film && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
@@ -532,9 +546,9 @@ export default function WaysideFury() {
         {actionPrompt.target && !(noticeVisible && state.notice) && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}
         {target && !(noticeVisible && state.notice) && actionPrompt.action !== "interact" && !target.id.startsWith("coop-revive-") && !state.coop?.downed && !state.overlay && !state.dialogue && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={target.kind} /><PromptGlyph mode={mode} />{target.name}</button>}
         {noticeVisible && state.notice && !showTutorial && !state.overlay && !state.dialogue && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
+        {!paused && !state.overlay && state.scene !== "dead" && <ItemsHud state={state} hiddenTargets={hiddenRadarTargets(state)} onToggleRadar={() => controller.current?.mutate(s => { if (toggleRadar(s)) persist(s); })} />}
         {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A tap/hold attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag to move. Hold Attack, then release for a charged strike. Hold Ki for your signature." : "WASD move · tap/hold J attack · hold K signature · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}
-      {!cinematic && !paused && !state.overlay && state.scene !== "dead" && <ItemsHud state={state} hiddenTargets={hiddenRadarTargets(state)} onToggleRadar={() => controller.current?.mutate(s => { if (toggleRadar(s)) persist(s); })} />}
       {state.overlay === "wish" && <Modal className="wf-overlay wf-place-panel"><RelicsPanel state={state} onWish={id => controller.current?.mutate(s => { if (chooseWish(s, id)) s.overlay = null; })} /><button className="wf-secondary" onClick={() => controller.current?.mutate(s => { s.overlay = null; })}>Leave altar</button></Modal>}
       {state.overlay === "shop" && <Modal className="wf-overlay wf-place-panel"><p className="wf-eyebrow">WAYSIDE GENERAL STORE</p><h2>Spend a little sweetness.</h2><p>◈ {state.candy} candy · Power {hero.power} · Defense {hero.defense}</p>
         {SHOP_ITEMS.map(item => <button key={item.id} disabled={state.candy < item.cost || item.id === "heal" && hero.hp === hero.maxHp} onClick={() => controller.current?.mutate(s => { if (buyItem(s, item.id)) { controller.current?.itemGet(); persist(s); } })}><strong>{item.name} · {item.cost} candy</strong><small>{item.description}</small></button>)}
