@@ -1,3 +1,5 @@
+import { isArenaGame } from '../shared/waysideFury/u1Arena.js';
+import { validateArenaScoreSubmission } from '../wayside-fury/arenaScore.js';
 import pool from '../db/mockDB.js';
 import { mergeReceipts, receiptTotalScore } from '../shared/waysideFury/save.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
@@ -78,7 +80,7 @@ export function calculateRuleAward(rule, metricValue) {
     return Math.max(0, award);
 }
 
-export function validateScoreSubmission({ game, metricName, metricValue }) {
+export function validateScoreSubmission({ game, metricName, metricValue, arenaRun }) {
     if (!game || !metricName || !Number.isFinite(metricValue)) {
         return {
             ok: false,
@@ -114,7 +116,7 @@ export function validateScoreSubmission({ game, metricName, metricValue }) {
         };
     }
 
-    return { ok: true };
+    return isArenaGame(game) ? validateArenaScoreSubmission({ game, metricValue, arenaRun }) : { ok: true };
 }
 
 function getGameLeaderboardCacheKey(game, metric, limit) {
@@ -236,12 +238,12 @@ async function routes(fastify, options = {}) {
         const client = await db.connect();
         try {
             const userId = request.user.sub;
-            const { game, metricName, metricValue } = request.body;
+            const { game, metricName, metricValue, arenaRun } = request.body;
             const numericMetricValue = Number(metricValue);
             const validation = validateScoreSubmission({
                 game,
                 metricName,
-                metricValue: numericMetricValue,
+                metricValue: numericMetricValue, arenaRun,
             });
 
             if (!validation.ok) {
@@ -286,7 +288,7 @@ async function routes(fastify, options = {}) {
                 const progress = await furyRewardProgress(client, userId, numericMetricValue);
                 rewardMetricValue = progress.metricValue; furyProgressMax = progress.max;
             }
-            const rewardRulesResult = await client.query(`
+            const rewardRulesResult = isArenaGame(game) ? { rows: [] } : await client.query(`
                 SELECT id, reward_type, fixed_amount, multiplier, min_metric_value, max_reward
                 FROM arcade_reward_rules
                 WHERE game_id = $1

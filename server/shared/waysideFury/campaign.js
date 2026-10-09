@@ -6,6 +6,7 @@ export const COOP_PROTOCOL_VERSION = 6;
 export const CAMPAIGN_MAPS = Object.freeze([
     { id: 'overworld', scene: 'overworld', room: 0, areaId: 'county', minProtocol: 1 },
     { id: 'hub', scene: 'hub', room: 0, areaId: 'wayside', minProtocol: 1 },
+    { id: 'u5-arena', scene: 'arena', room: 0, areaId: 'arena', minProtocol: 6 },
     ...Array.from({ length: 10 }, (_, room) => ({ id: `blast-${room}`, scene: 'dungeon', room, areaId: 'blast', minProtocol: 1 })),
     { id: 'realm-0', scene: 'realm', room: 0, areaId: 'eightbit-realm', minProtocol: 1 },
     { id: 'training', scene: 'test', room: 0, areaId: 'training', minProtocol: 1 },

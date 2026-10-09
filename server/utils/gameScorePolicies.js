@@ -1,3 +1,4 @@
+import { ARENA_SOLO_GAME, ARENA_COOP_GAME, ARENA_MAX_SCORE } from '../shared/waysideFury/u1Arena.js';
 // What a saved score may look like for each arcade game: /games/submitScore
 // rejects anything else, and generated weekly challenges only set targets
 // inside these limits.
@@ -7,6 +8,7 @@
 // PLAY_TICKETS at `full`, about a strong run (roughly the 75th percentile of saved
 // scores), and keeps climbing past it up to the per-run cap.
 export const GAME_SCORE_POLICIES = new Map([
+    ...[ARENA_SOLO_GAME, ARENA_COOP_GAME].map(game => [game, { score: { min: 0, max: ARENA_MAX_SCORE, integer: true }, tickets: { from: 1500, full: 15000 } }]),
     ['8 Bit Evil Returns', {
         score: { min: 0, max: 86400, integer: true },
         tickets: { from: 30, full: 2000 },

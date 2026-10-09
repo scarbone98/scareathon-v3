@@ -1,3 +1,6 @@
+import { radarPickupTarget } from "../u1/minimap/relicRadar";
+import { drawArenaFloor } from "../u1/hub/arenaArt";
+import { drawQuestNpc, drawQuestCosmetic } from "../u1/hub/questArt";
 import { INTERIORS } from './interiors';
 import { drawExitOpening, nearExit, exitCaption } from './exitArt';
 import { groundScatter, roadMask } from './roadClearance.ts';
@@ -242,6 +245,7 @@ export class Renderer {
     const motionTime = this.reducedMotion ? 0 : s.time;
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawAreaGround(c,world);
+    drawArenaFloor(c,s);
     drawInteriorGround(c,world);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
@@ -261,7 +265,7 @@ export class Renderer {
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
-      const remote = { ...s, ...peer, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
+      const remote = { ...s, ...peer, hubCosmetic: peer.questCosmetic, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
       if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
@@ -270,6 +274,8 @@ export class Renderer {
     for (const door of world.radarAnchors?.filter(anchor=>anchor.id.endsWith("-door")) ?? []) actors.push({y:door.y,draw:()=>drawBuildingDoors(c,s)});
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
+    const radar = radarPickupTarget(s);
+    if (radar) { c.save(); c.strokeStyle = "#e8cd83"; c.lineWidth = 1.5; c.beginPath(); c.arc(radar.x, radar.y - 6, 7, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(radar.x, radar.y - 6); c.lineTo(radar.x + 5, radar.y - 11); c.stroke(); c.restore(); }
     if (s.scene === 'overworld') this.rockGag(s, motionTime);
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -420,6 +426,7 @@ export class Renderer {
     if(drawBlastProp(this.ctx,prop) || drawCityProp(this.ctx,prop,s) || drawSpaceProp(this.ctx,prop,s) || drawCountyProp(this.ctx,prop)) return;
     const x = prop.x + prop.w / 2, y = prop.y + prop.h;
     const c = this.ctx;
+    if (prop.id.startsWith('u8-quest-')) { drawQuestNpc(c, prop.id, x, y, time); return; }
     if (prop.kind === 'tree' || prop.kind === 'pine') {
       const sway = this.reducedMotion ? 0 : Math.sin(time * 1.6 + x * .04) * .8;
       c.save(); if (prop.w > 32 && s.x > prop.x - 8 && s.x < prop.x + prop.w + 8 && s.y > prop.y && s.y < prop.y + prop.h - 10) c.globalAlpha = .38; c.translate(x + sway, y); const variation = .86 + (Math.floor(x) % 5) * .06; c.scale(variation * prop.w / 24, variation * prop.h / 32); this.tree(0, 0);
@@ -627,6 +634,7 @@ export class Renderer {
     const sprite = (s.moving || s.dashTimer > 0) && (s.active === 'joe' || s.active === 'matt') ? `run_${s.active}` as const : s.active;
     this.sprite(sprite, 0, 0, time, s.faceX < 0, 1, hero.invulnerable > .3 || s.hitStop > 0);
     if (s.active === 'you' && this.avatar) for (const strip of this.avatar.front) this.avatarStrip(strip, 0, 0, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0);
+    drawQuestCosmetic(c,s);
     c.restore(); c.globalAlpha = 1;
 
     if (s.guard) {

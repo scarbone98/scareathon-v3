@@ -199,7 +199,7 @@ function isArcadeMessage(value: unknown): value is ArcadeMessage {
 export const GUEST_SCORE_EVENT = "arcade:guest-score";
 export type GuestScore = { game: string; score: number };
 
-export async function submitArcadeScore(game: string, score: unknown) {
+export async function submitArcadeScore(game: string, score: unknown, details?: { arenaRun: import("../../../server/shared/waysideFury/u1Arena.js").ArenaRunReceipt }) {
   const metricValue = Number(score);
   if (!Number.isFinite(metricValue) || metricValue < 0) return;
 
@@ -222,6 +222,7 @@ export async function submitArcadeScore(game: string, score: unknown) {
       game,
       metricName: "score",
       metricValue,
+      ...(details ?? {}),
     }),
   });
 

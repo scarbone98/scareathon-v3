@@ -1,3 +1,9 @@
+import { collectRadar, radarPickupTarget } from "../u1/minimap/relicRadar.ts";
+import { tickArena, type ArenaRuntime, type ArenaPersonal } from "../u1/hub/arena.ts";
+import { ARENA_HUB_POINT } from "../u1/hub/arenaWorld.ts";
+import { hubQuestTarget, openHubQuest, tickHubQuests, trackHubQuestEvent } from "../u1/hub/hubRules.ts";
+import type { HubQuestSave } from "../u1/hub/quests.ts";
+import type { ArenaRunReceipt } from "../../../../server/shared/waysideFury/u1Arena.js";
 import { INTERIORS, interiorDefinition } from './interiors.ts';
 import { inCity, cityTargets, cityInteract, enterCityRoom, cityClear, applyCityRequest } from "./chapters/ch4.ts";
 import { configureCityEnemy, isCityBehavior, cityDamage, updateCityEnemy } from "./enemies/city.ts";
@@ -24,7 +30,7 @@ export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
 export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt: "Matt", alex: "Alex", jon: "Jon" };
 // Pure deterministic game rules. Maps use world coordinates; presentation owns the viewport.
-export type Scene = "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
+export type Scene = "arena" | "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
   guard: boolean; swap: boolean; interact: boolean;
@@ -41,7 +47,7 @@ export interface RemoteHero {
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
   guardTimer?: number; filmSkip?: boolean; filmHold?: boolean; spaceOutfit?: boolean; boundTimer?: number; meleeCharge?: number;
-  scene: Scene; room: number; mapId?: string; downed?: boolean; reviveProgress?: number; interact?: boolean;
+  scene: Scene; room: number; mapId?: string; questCosmetic?: string | null; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
   role: "host" | "guest"; seat: number; remoteHeroes: RemoteHero[]; appliedHits: string[];
@@ -81,6 +87,8 @@ export interface Effect {
 }
 export interface Floater { id: number; x: number; y: number; text: string; color: string; ttl: number }
 export type GameEvent =
+  | { type: "arena-finish"; receipt: ArenaRunReceipt; score: number }
+  | { type: "quest-save"; id: string; kind: "accepted" | "claimed" | "cosmetic" }
   | CoopHit
   | { type: "pickup"; id: string }
   | { type: "coop-pickup"; id: string }
@@ -94,6 +102,9 @@ export type GameEvent =
   | { type: "checkpoint"; id: string }
   | { type: "death" };
 export interface GameState {
+  arena?: ArenaRuntime; hubArena?: ArenaPersonal; arenaVitals?: Record<HeroId, HeroState>; arenaLead?: HeroId; arenaRecorded?: string;
+  hubQuests?: HubQuestSave; hubQuestId?: string; hubCosmetic?: string | null; hubQuestSerial?: number;
+  relicRadar?: { owned: boolean; enabled: boolean };
   localPaused: boolean; spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
   boundTravel: { from: {x:number;y:number}; to:{x:number;y:number}; elapsed:number } | null;
   film: FilmState | null; filmCaptionHold: boolean; filmSkipHeld: number; filmHold: boolean; fuelGag: number;
@@ -105,7 +116,7 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number; mapId: string;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | "diner" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "diner" | "arena" | "quest" | "quest-board" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   difficulty: "normal" | "hard"; meleeCharge: number; meleeHolding: boolean;
   guardTimer?: number; attackTimer: number; combo: number; comboWindow: number; charge: number;
@@ -135,7 +146,7 @@ function scaleEnemy(s: GameState, e: Enemy, baseline = e.baseMaxHp ?? e.maxHp) {
 // Extra slots belong to the encounter, so leaving/rejoining the same wave cannot
 // continually create fresh enemies and their rewards.
 function extraCoopSpawns(s: GameState) {
-  if (s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
+  if (s.scene === "arena" || s.coop?.role !== "host" || !s.enemies.some(e => e.hp > 0)) return;
   const extras = Math.max(0, coopCount(s) - 1), previous = s.coop.spawnedExtras ?? 0;
   const world = getWorld(s.scene, s.room, s.mapId), anchor = world.spawns.find(spawn => spawn.kind !== "boss") ?? s.enemies[0];
   for (let n = previous; n < extras; n++) {
@@ -308,7 +319,7 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 }
 export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string): void {
   const previousInterior = interiorDefinition(s.mapId);
-  const resolved = resolveCampaignMap(mapId ?? legacyMapId(scene, room) ?? "unknown");
+  const resolved = resolveCampaignMap(mapId ?? (scene === "arena" ? "u5-arena" : legacyMapId(scene, room)) ?? "unknown");
   if (resolved.fallback) { scene = "hub"; room = 0; }
   else if (mapId && !["prologue", "shift", "results", "dead"].includes(scene)) {
     scene = resolved.definition.scene as Scene; room = resolved.definition.room;
@@ -497,13 +508,15 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   if (e.hp <= 0) {
     const baseXp = e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12;
     const xp = s.coop ? baseXp : combatXp(s, baseXp, authoredLevel(s));
-    if (!s.coop) {
+    if (!s.coop && s.scene !== "arena") {
       const candy = e.kind === "boss" ? 35 : 2 + Math.floor(random(s) * 3);
       s.candy += candy; s.kills++;
       floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
       gainXp(s, xp);
     }
-    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp, xpLevel: authoredLevel(s) });
+    if (!s.coop && s.scene === "arena") s.kills++;
+    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp: s.scene === "arena" ? 0 : xp, xpLevel: authoredLevel(s) });
+    trackHubQuestEvent(s, s.events[s.events.length - 1]);
   }
 }
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
@@ -881,6 +894,14 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
   }
+  const radar = radarPickupTarget(s);
+  if (radar) add({ ...radar, name: "Pick up Relic Radar", kind: "use" });
+  const quest = hubQuestTarget(s);
+  if (quest) add({ ...quest, kind: "talk", x: s.x, y: s.y });
+  if (s.mapId === "hub") {
+    add({ ...ARENA_HUB_POINT, kind: "use" }, 32);
+    add({ id: "u8-board", name: "Read quest board", kind: "talk", x: 448, y: 248 }, 32);
+  }
   for (const room of INTERIORS) if (s.mapId === room.parent) add({ id: `${room.id}-door`, name: `Enter ${room.name}`, kind: "use", x: room.x, y: room.y }, s.scene === "overworld" ? 46 : 32);
   const interior = interiorDefinition(s.mapId);
   if (interior) for (const p of getWorld(s.scene, s.room, s.mapId).props) if (p.id.endsWith("-ledger") || p.id.endsWith("-keeper")) add({id:p.id,name:p.kind === "npc" ? `Talk to ${p.label}` : "Read local ledger",kind:"talk",x:p.x+p.w/2,y:p.y+p.h+12},36);
@@ -953,6 +974,10 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = selected === undefined ? interactTarget(s) : selected;
   if (!target) return;
+  if (target.id === "u1-relic-radar") { collectRadar(s); return; }
+  if (target.id.startsWith("u8-quest-")) { openHubQuest(s, target.id); return; }
+  if (target.id === "u8-board") { tickHubQuests(s); s.overlay = "quest-board"; return; }
+  if (target.id === "u5-arena") { s.overlay = "arena"; s.moving = false; s.vx = s.vy = 0; return; }
   const countyStop = COUNTY_STOPS.find(stop => stop.id === target.id);
   if (countyStop) { openDialogue(s, countyStop.name, [countyStop.text]); return; }
   if (target.id === "story-next") { advanceStory(s); return; }
@@ -1112,6 +1137,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     }
     return;
   }
+  tickArena(s, dt); tickHubQuests(s);
   if (s.scene === "dead" || s.scene === "results") return;
   const dialogueInput = s.dialogue ? physicalInput : null;
   let dialogueControlsSuppressed = !!dialogueInput;
@@ -1140,7 +1166,7 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = dialogueInput ? idleInput() : s.previousInput;
   s.previousInput = { ...physicalInput };
-  const combat = !interiorDefinition(s.mapId) && (s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
+  const combat = !interiorDefinition(s.mapId) && (s.scene === "arena" || s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);

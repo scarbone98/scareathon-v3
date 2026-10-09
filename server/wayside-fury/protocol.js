@@ -4,7 +4,7 @@ const PICKUP_IDS = new Set(HIDDEN_PICKUPS.map(item => item.id));
 export const MAX_MESSAGE_BYTES = 65_536;
 export const MAX_MESSAGES_PER_SECOND = 90;
 export const MAX_SEATS = 4;
-export const SCENES = new Set(['test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
+export const SCENES = new Set(['arena', 'test', 'overworld', 'hub', 'dungeon', 'realm', 'prologue', 'shift', 'results', 'dead']);
 const HERO_IDS = new Set(['you', 'joe', 'matt', 'alex', 'jon']);
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const number = (value, limit = 1e8) => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= limit;
@@ -44,7 +44,7 @@ export function cleanHero(remote) {
         hero[key] = remote.hero[key];
     }
     if (hero.maxHp < 1 || hero.hp > hero.maxHp || hero.ki > hero.maxKi || hero.stamina > hero.maxStamina) return null;
-    const cleaned = { hero, scene: remote.scene, room: remote.room, ...(remote.mapId !== undefined ? { mapId: remote.mapId } : {}) };
+    const cleaned = { hero, ...( ["bbq-apron", "station-scarf"].includes(remote.questCosmetic) ? { questCosmetic: remote.questCosmetic } : {}), scene: remote.scene, room: remote.room, ...(remote.mapId !== undefined ? { mapId: remote.mapId } : {}) };
     for (const key of ['x', 'y', 'faceX', 'faceY', 'attackTimer', 'combo', 'charge', 'dashTimer']) {
         if (!number(remote[key], key === 'faceX' || key === 'faceY' ? 1 : 1e6)) return null;
         cleaned[key] = remote[key];
@@ -105,6 +105,13 @@ export function cleanWorld(state) {
     if (!number(state.sceneTimer) || state.sceneTimer < 0 || !number(state.x) || !number(state.y) || state.time < 0) return null;
     if (state.ambientTaxiWrecked !== undefined && typeof state.ambientTaxiWrecked !== 'boolean') return null;
     if (state.ambientTaxiGag !== undefined && (!number(state.ambientTaxiGag, 4) || state.ambientTaxiGag < -1)) return null;
+    if (state.arena !== undefined) {
+        const run = state.arena;
+        if (!object(run) || !text(run.id, 128) || !['running','finished'].includes(run.status) || !['solo','coop'].includes(run.mode) ||
+            !integer(run.players,4) || run.players < 1 || !integer(run.wave,10001) || run.wave < 1 || !integer(run.wavesCleared,10000) ||
+            !integer(run.kills,180100) || !number(run.elapsedMs,604800000) || run.elapsedMs < 0 || !number(run.intermission,3) || run.intermission < 0 ||
+            typeof run.spawned !== 'boolean' || !text(run.modifier,32) || ![null,'retired','defeated'].includes(run.reason)) return null;
+    }
     for (const key of ['clearedRooms', 'areas', 'bosses']) {
         if (!Array.isArray(state[key]) || state[key].length > 256 || !state[key].every((value) => text(value, 96))) return null;
     }
@@ -189,6 +196,7 @@ export function cleanRelay(message) {
             const raw = message.reward;
             if (!object(raw) || typeof raw.id !== 'string' || !/^[A-Za-z0-9:_-]{1,128}$/.test(raw.id) || !['kill', 'checkpoint', 'pickup'].includes(raw.kind) || !integer(raw.xp, 100_000) || !integer(raw.candy, 10_000)) return null;
             const reward = { id: raw.id, kind: raw.kind, xp: raw.xp, candy: raw.candy };
+            if (raw.enemyKind !== undefined) { if (!["grunt", "shooter", "boss"].includes(raw.enemyKind)) return null; reward.enemyKind = raw.enemyKind; }
             if (raw.xpLevel !== undefined) { if (!integer(raw.xpLevel, 1000) || raw.xpLevel < 1) return null; reward.xpLevel = raw.xpLevel; }
             if (raw.kind === 'pickup') {
                 if (!PICKUP_IDS.has(raw.pickupId) || raw.xp !== 0 || raw.candy !== 0) return null;
