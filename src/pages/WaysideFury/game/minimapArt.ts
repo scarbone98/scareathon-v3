@@ -49,5 +49,5 @@ export function drawMinimap(canvas: HTMLCanvasElement, map: WorldMap, s: GameSta
   else {const pulse=matchMedia('(prefers-reduced-motion: reduce)').matches?7:7+Math.sin(time/240)*1.5;c.beginPath();c.moveTo(0,-pulse);c.lineTo(pulse,0);c.lineTo(0,pulse);c.lineTo(-pulse,0);c.closePath();}
   c.fill();c.stroke();c.restore();
   c.font='bold 11px system-ui';c.fillStyle='#effffc';c.fillText(rotate&&!full?'↑ Heading':'N ↑',8,16);
-  if(ratio<1) {c.fillStyle='#142f38e8';c.fillRect(0,height-21,width,21);c.fillStyle='#ffda7b';c.fillText(`${Math.round(Math.hypot(objective.x-s.x,objective.y-s.y))} away · objective`,7,height-7);}
+  if(ratio<1) {c.fillStyle='#142f38e8';c.fillRect(0,height-21,width,21);c.fillStyle='#ffda7b';c.fillText(`${Math.round(Math.hypot(objective.x-s.x,objective.y-s.y))} away`,7,height-7);}
 }

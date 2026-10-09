@@ -13,6 +13,7 @@ enterScene(s,'hub');assert.equal(objective().id,'station');
 s.campaignMilestones=[];fixture(s,'woods-layby');assert.equal(objective().id,'woods-ghost');s.campaignMilestones.push('breaker-knuckle');assert.notEqual(objective().id,'woods-ghost');
 fixture(s,'space-launch');assert.equal(objective().id,'space-fuel');s.solvedInteractions.push('space-fuel');assert.equal(objective().id,'space-lockers');s.spaceOutfit=true;assert.equal(objective().id,'space-board');
 fixture(s,'city-boulevard');assert.equal(objective().id,'city-anchor-0');s.solvedInteractions.push('city-anchor-0');assert.ok(!objective().id.includes('anchor'));
+fixture(s,'city-market');assert.equal(objective().name,'Clockroof Walk');s.campaignMilestones.push('city-complete');assert.equal(objective().name,'Blackout Boulevard');s.campaignMilestones=[];
 s.coop={role:'guest',worldCampaignMilestones:['woods-complete'],worldSolvedInteractions:['space-fuel']};enterScene(s,'overworld');assert.equal(objective().id,'space');
 for(const mapId of ['hub','woods-layby','space-launch','city-boulevard','city-market']) {fixture(s,mapId);assert.ok(minimapAvailable(s),mapId);s.dialogue={speaker:'Test',index:0,lines:['Test']};assert.ok(!minimapAvailable(s));s.dialogue=null;}
 for(const id of ['blast-1','moon-m01','city-ticket-hall','woods-pump-house']) {fixture(s,id);assert.ok(!minimapAvailable(s),id);}

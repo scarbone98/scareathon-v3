@@ -24,7 +24,9 @@ export function resolveMapObjective(s: GameState, map: WorldMap): MapObjective {
   if (s.mapId === 'woods-layby' && !has('breaker-knuckle')) return woodsTargets(s).find(t => t.id === 'woods-ghost')!;
   const city = cityTargets(s).find(t => !has(t.id) && (t.id.startsWith('city-anchor-') || ['city-evacuate', 'city-next-chapter'].includes(t.id)));
   if (s.mapId.startsWith('city-') && city && !has('city-complete')) return city;
-  const forward = map.exits.find(e => !['hub', 'overworld'].includes(String(e.target)) && !has(e.targetMapId ?? '')) ?? map.exits[0];
+  const complete = s.mapId.startsWith('woods-') && has('woods-complete') || s.mapId.startsWith('city-') && has('city-complete');
+  const homeward = map.exits.find(e => ['hub', 'overworld'].includes(String(e.target))) ?? map.exits.find(e => typeof e.target === 'number' && e.target < s.room);
+  const forward = (complete ? homeward : map.exits.find(e => typeof e.target === 'number' && e.target > s.room && !has(e.targetMapId ?? ''))) ?? map.exits[0];
   if (forward) return { id: forward.id, name: forward.name, x: forward.x + forward.w / 2, y: forward.y + forward.h / 2 };
   return { id: 'return', name: `Continue to ${location.name}`, ...map.spawn };
 }

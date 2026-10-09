@@ -196,6 +196,7 @@ export default function WaysideFury() {
   const [state, setState] = useState<GameState>(newGame);
   const [worldRoute, setWorldRoute] = useState(false);
   const worldRouteRef=useRef(false);
+  const minimapOpenRef=useRef(false);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const [characterOpen, setCharacterOpen] = useState(false);
@@ -325,7 +326,7 @@ export default function WaysideFury() {
     let avatarAccount: string | null | undefined;
     let avatarAbort: AbortController | null = null;
     let saveReady = false, avatarReady = false;
-    const resumeWhenReady = () => game.setPaused(pausedRef.current || worldRouteRef.current || !playingRef.current || !saveReady || !avatarReady);
+    const resumeWhenReady = () => game.setPaused(pausedRef.current || worldRouteRef.current || minimapOpenRef.current || !playingRef.current || !saveReady || !avatarReady);
     const refreshAvatar = (id: string | null) => {
       if (avatarAccount === id) return;
       avatarAccount = id; avatarAbort?.abort(); avatarAbort = new AbortController();
@@ -476,7 +477,7 @@ export default function WaysideFury() {
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
     <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
-    {playing && <Minimap state={state} getState={() => controller.current?.state ?? state} blocked={paused || worldRoute || coopOpen || cinematic || !!state.overlay} onPause={value => controller.current?.setPaused(value || pausedRef.current)} />}
+    {playing && <Minimap state={state} getState={() => controller.current?.state ?? state} blocked={paused || worldRoute || coopOpen || cinematic || !!state.overlay} onPause={value => { minimapOpenRef.current=value; controller.current?.setPaused(value || pausedRef.current || worldRouteRef.current); }} />}
     {!playing ? <div className="wf-overlay wf-menu">
       <p className="wf-eyebrow">8 BIT EVIL RETURNS PRESENTS</p><h1>WAYSIDE<br /><span>FURY</span></h1>
       <p className="wf-tagline">Five years later, the real evil arrives.</p>

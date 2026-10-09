@@ -16,7 +16,7 @@ export function Minimap({state,getState,onPause,blocked}:{state:GameState;getSta
   const [box,setBox]=useState({x:12,y:120,w:94,h:94});
   const canvas=useRef<HTMLCanvasElement>(null),root=useRef<HTMLDivElement>(null),close=useRef<HTMLButtonElement>(null);
   const live=useRef({state,getState,onPause,blocked,full,prefs});live.current={state,getState,onPause,blocked,full,prefs};
-  const available=minimapAvailable(state);
+  const available=minimapAvailable(state), inCoop=!!state.coop;
   useEffect(()=>{const update=()=>setPrefs(readPreferences());window.addEventListener('wf-minimap-settings',update);return()=>window.removeEventListener('wf-minimap-settings',update);},[]);
   useLayoutEffect(()=>{
     if(!available||blocked)return;
@@ -24,7 +24,7 @@ export function Minimap({state,getState,onPause,blocked}:{state:GameState;getSta
     const measure=()=>{const bounds=shell.getBoundingClientRect();const obstacles=Array.from(shell.querySelectorAll('.wf-hud,.wf-play-band,.wf-party-hud,.wf-stick-zone,.wf-action-buttons,.wf-save-status,.wf-sound-chip')).filter(e=>e.getClientRects().length).map(e=>{const r=e.getBoundingClientRect();return{x:r.left-bounds.left,y:r.top-bounds.top,w:r.width,h:r.height};});
       const probe=document.createElement('span');probe.style.cssText='position:absolute;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';shell.append(probe);const style=getComputedStyle(probe);const inset=Math.max(12,...[style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft].map(v=>parseFloat(v)||0));probe.remove();setBox(minimapLayout(bounds.width,bounds.height,obstacles,inset));};
     const observer=new ResizeObserver(measure);observer.observe(shell);shell.querySelectorAll('.wf-hud,.wf-play-band,.wf-touch-dock').forEach(e=>observer.observe(e));measure();return()=>observer.disconnect();
-  },[available,blocked,state.notice]);
+  },[available,blocked,state.notice,inCoop,state.mapId,state.chapter]);
   useEffect(()=>{
     let raf=0,frame=0,previousSelect=false;
     const toggle=()=>{const v=live.current;if(v.full){v.onPause(false);setFull(false);}else if(!v.blocked&&minimapAvailable(v.getState())){v.onPause(true);setFull(true);}};
