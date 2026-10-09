@@ -121,9 +121,9 @@ const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
-const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7ecafeb";
+const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e529";
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
-const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=6221638";
+const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=232bb6c";
 const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
