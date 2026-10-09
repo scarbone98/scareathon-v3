@@ -1226,26 +1226,6 @@
       "height": 844,
       "dpr": 3
     },
-    "name": "blast-approach",
-    "x": 1088,
-    "y": 416,
-    "canvases": [
-      {
-        "width": 1170,
-        "height": 1932,
-        "cssWidth": 390,
-        "cssHeight": 644,
-        "dpr": 3
-      }
-    ]
-  },
-  {
-    "gfx": "3d",
-    "size": {
-      "width": 390,
-      "height": 844,
-      "dpr": 3
-    },
     "name": "east-lake",
     "x": 976,
     "y": 240,
@@ -1269,6 +1249,26 @@
     "name": "cliff-transition",
     "x": 976,
     "y": 576,
+    "canvases": [
+      {
+        "width": 1170,
+        "height": 1932,
+        "cssWidth": 390,
+        "cssHeight": 644,
+        "dpr": 3
+      }
+    ]
+  },
+  {
+    "gfx": "3d",
+    "size": {
+      "width": 390,
+      "height": 844,
+      "dpr": 3
+    },
+    "name": "blast-approach",
+    "x": 1088,
+    "y": 416,
     "canvases": [
       {
         "width": 1170,
