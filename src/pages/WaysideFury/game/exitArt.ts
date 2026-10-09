@@ -2,6 +2,10 @@ import { isRoadScene, onRoad } from './roadNetwork.ts';
 import { TILE, type WorldExit, type WorldMap } from './worldBuilder.ts';
 
 // Presentation only: triggers, collision, arrivals and gates stay authored data.
+export function exitOpacity(e: WorldExit, x: number, y: number) {
+  const distance = Math.hypot(Math.max(e.x-x,0,x-e.x-e.w),Math.max(e.y-y,0,y-e.y-e.h));
+  return Math.max(0, Math.min(1, (TILE*3-distance)/TILE));
+}
 export function nearExit(e: WorldExit, x: number, y: number) {
   return Math.hypot(Math.max(e.x-x,0,x-e.x-e.w),Math.max(e.y-y,0,y-e.y-e.h)) <= TILE*3;
 }
@@ -10,8 +14,8 @@ export function exitDirection(world: WorldMap, e: WorldExit) {
   const distances = [e.x, world.width-e.x-e.w, e.y, world.height-e.y-e.h];
   return (['west','east','north','south'] as const)[distances.indexOf(Math.min(...distances))];
 }
-export function exitCaption(world: WorldMap, e: WorldExit) {
-  return `${({west:'‹',east:'›',north:'⌃',south:'⌄'})[exitDirection(world,e)]} ${e.name}`;
+export function exitCaption(_world: WorldMap, e: WorldExit) {
+  return e.name;
 }
 export function drawExitOpening(c: CanvasRenderingContext2D, world: WorldMap, e: WorldExit, open = true) {
   const direction=exitDirection(world,e),vertical=direction==='north'||direction==='south';

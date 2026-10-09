@@ -1,3 +1,4 @@
+import { gateTargets, clearHeroObstacle, obstaclesForState, isObstacleCleared, obstacleBlocks, markSeenGates, releaseBorrowedObstacles } from './locks/obstacles.ts';
 import { INTERIORS, interiorDefinition } from './interiors.ts';
 import { inCity, cityTargets, cityInteract, enterCityRoom, cityClear, applyCityRequest } from "./chapters/ch4.ts";
 import { configureCityEnemy, isCityBehavior, cityDamage, updateCityEnemy } from "./enemies/city.ts";
@@ -395,8 +396,8 @@ export function enterCampaignMap(s: GameState, mapId: string): boolean {
 function moveBody(s: GameState, body: { x: number; y: number }, dx: number, dy: number, radius: number) {
   const world = lunarWorld(s), pieces = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 4));
   for (let n = 0; n < pieces; n++) {
-    if (!(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (body.x + dx / pieces < 42 || body.x + dx / pieces > 1878)) && !isBlocked(world, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
-    if (!(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (body.y + dy / pieces < 42 || body.y + dy / pieces > 918)) && !isBlocked(world, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
+    if (!(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (body.x + dx / pieces < 42 || body.x + dx / pieces > 1878)) && !isBlocked(world, body.x + dx / pieces, body.y, radius) && !obstacleBlocks(s, body.x + dx / pieces, body.y, radius)) body.x += dx / pieces;
+    if (!(s.coop && (s.coop.protocolVersion ?? 1) < 6 && s.scene === "overworld" && (body.y + dy / pieces < 42 || body.y + dy / pieces > 918)) && !isBlocked(world, body.x, body.y + dy / pieces, radius) && !obstacleBlocks(s, body.x, body.y + dy / pieces, radius)) body.y += dy / pieces;
   }
 }
 // Relax overlaps without adding velocity: a bounded, time-scaled push settles
@@ -563,7 +564,7 @@ export function exitCoop(s: GameState): void {
   const players = coopCount(s); s.coop.playerCount = 1;
   for (const enemy of s.enemies) scaleEnemy(s, enemy, enemy.baseMaxHp ?? enemy.maxHp / enemyHpScale(enemy.kind, players));
   s.difficulty = s.coop.personalDifficulty ?? s.difficulty;
-  delete s.coop; syncCoopLevel(s);
+  delete s.coop; syncCoopLevel(s); releaseBorrowedObstacles(s);
   s.hitStop = 0; s.previousInput = idleInput();
   if (activeHero(s).hp > 0 || s.scene === "dead" || s.scene === "results") return;
   const fallen = s.active, next = nextPartyHero(s);
@@ -884,6 +885,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   for (const room of INTERIORS) if (s.mapId === room.parent) add({ id: `${room.id}-door`, name: `Enter ${room.name}`, kind: "use", x: room.x, y: room.y }, s.scene === "overworld" ? 46 : 32);
   const interior = interiorDefinition(s.mapId);
   if (interior) for (const p of getWorld(s.scene, s.room, s.mapId).props) if (p.id.endsWith("-ledger") || p.id.endsWith("-keeper")) add({id:p.id,name:p.kind === "npc" ? `Talk to ${p.label}` : "Read local ledger",kind:"talk",x:p.x+p.w/2,y:p.y+p.h+12},36);
+  for (const target of gateTargets(s)) add(target, 34);
   for (const target of cityTargets(s)) add(target, 36);
   for (const target of woodsTargets(s)) add(target, 34);
   for (const target of spaceTargets(s)) add(target, 34);
@@ -953,6 +955,19 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = selected === undefined ? interactTarget(s) : selected;
   if (!target) return;
+  if (target.id.startsWith('locks-')) {
+    const gate = obstaclesForState(s).find(g => g.id === target.id || g.rewardId === target.id);
+    if (!gate) return;
+    if (target.id === gate.id) { clearHeroObstacle(s,target.id); return; }
+    if (!isObstacleCleared(s,gate.id) || Math.hypot(s.x-gate.rewardAnchor.x,s.y-gate.rewardAnchor.y)>=34) return;
+    if (s.coop?.role === 'guest') { s.notice='The party host opens shared caches and leads shortcuts.'; return; }
+    if (s.solvedInteractions.includes(gate.rewardId) || s.coop?.worldSolvedInteractions?.includes(gate.rewardId)) {
+      enterScene(s,'hub'); s.checkpointMapId='hub'; s.events.push({type:'checkpoint',id:'personal-locks-shortcut'}); return;
+    }
+    s.solvedInteractions.push(gate.rewardId); s.clearedRooms.push(gate.rewardId); if (!s.coop) s.candy += 12;
+    openDialogue(s,'Hidden ledger',[gate.lore,'Twelve candy packed for the road. Inspect the cache again for a shortcut to Wayside.']);
+    s.events.push({type:'checkpoint',id:gate.rewardId}); return;
+  }
   const countyStop = COUNTY_STOPS.find(stop => stop.id === target.id);
   if (countyStop) { openDialogue(s, countyStop.name, [countyStop.text]); return; }
   if (target.id === "story-next") { advanceStory(s); return; }
@@ -1069,6 +1084,7 @@ export function enforceCountyPartyBounds(s: GameState) {
 }
 export function step(s: GameState, input: Input, delta: number): void {
   enforceCountyPartyBounds(s);
+  markSeenGates(s);
   const dt = clamp(delta, 0, 0.05);
   // Keep physical button edges separate from the command forwarded to co-op.
   // Pad A sets both flags, while touch/J must synthesize a held revive command.

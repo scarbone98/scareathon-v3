@@ -173,13 +173,14 @@ export class FuryCoop {
       const cityBosses = event.id === "city-switchmaster" ? ["city-switchmaster"] : event.id === "city-hatching" ? ["city-architect"] : [];
       const bosses = cityBosses.length ? cityBosses : woodsBosses.length ? woodsBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
       const cityEvent=event.id.startsWith("city-");
-      const rooms = event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
+      const locksEvent=event.id.startsWith("locks-");
+      const rooms = locksEvent && !event.id.startsWith("locks-cache-") ? [] : event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
       const campaignMilestones = event.id.startsWith("woods-") || event.id.startsWith("city-") || event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones).filter(id=>!cityEvent||id.startsWith("city-")||id==="night-anchor") : [];
-      const solvedInteractions = campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
+      const solvedInteractions = locksEvent ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id===event.id) : campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
       const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics).filter(id=>!cityEvent||id.startsWith("city-")) : [];
       for (const player of this.room.players.filter(p => p.connected)) {
         const cache = event.id.startsWith("loot-");
-        const candy = cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
+        const candy = event.id.startsWith("locks-cache-") ? 12 : cache ? (s.room === 8 ? 18 : 25) + rollCoopCandy(id, player.userId, false) - 2 : 0;
         const reward: CoopReward = { id, kind: "checkpoint", xp: 0, candy, areas, bosses, rooms, campaignMilestones, solvedInteractions, completedCinematics, chapter: s.chapter,
           ...(cache ? { healHp: 35, healKi: 20, power: s.room === 9 ? 1 : 0 } : /^(blast-\d+|realm-\d+)$/.test(event.id) ? { healHp: 12, healKi: 8 } : {}) };
         if (player.seat === this.room.seat) applyCoopReward(s, reward); else this.sendReward(reward, player.seat);

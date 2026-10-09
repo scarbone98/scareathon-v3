@@ -11,7 +11,7 @@ for(const world of ALL_WORLDS) {
  for(const e of world.exits) {
   const x=e.x+e.w/2,y=e.y+e.h/2;
   assert.ok(nearExit(e,x,y));assert.ok(nearExit(e,e.x-48,y));assert.equal(nearExit(e,e.x-48.1,y),false,'cue range is three tiles from trigger edge');
-  assert.match(exitCaption(world,e),/^[‹›⌃⌄] /);
+  assert.equal(exitCaption(world,e),e.name,'destination names contain no arrow');
   calls.length=0;drawExitOpening(context,world,e,true);assert.ok(calls.some(c=>c[0]==='fill'),'opening is authored artwork');
   assert.equal(calls.filter(c=>c[0]==='arc').length,world.id.startsWith('interior-')?1:0,'only a door handle uses a circle; no green pad');
   if(world.id.startsWith('interior-'))assert.equal(exitDirection(world,e),'south');
