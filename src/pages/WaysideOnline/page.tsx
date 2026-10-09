@@ -1,3 +1,4 @@
+import ContentControls, { useBlocks } from "../../station/things/ContentControls";
 import { useState, type FormEvent } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAvatarCompositePublicUrl } from "../../components/avatar/avatarComposite";
@@ -143,6 +144,8 @@ function TakeDown({ post, onDone }: { post: Post; onDone: () => void }) {
 }
 
 function PostView({ post, choices, signedIn, onChange, full = false, onOpen }: { post: Post; choices: string[]; signedIn: boolean; onChange: () => void; full?: boolean; onOpen?: () => void }) {
+  const blocks = useBlocks();
+  if (post.userId && blocks.has(post.userId)) return null;
   if (post.removed)
     return (
       <article className="wo-post flex gap-3 px-3 py-2.5 italic text-[#7c7972]">
@@ -162,6 +165,7 @@ function PostView({ post, choices, signedIn, onChange, full = false, onOpen }: {
           </span>
         </p>
         <p className={`whitespace-pre-wrap break-words ${full ? "" : "line-clamp-5"}`}>{post.body}</p>
+        <ContentControls targetType="post" targetId={post.id} userId={post.userId} onChange={onChange} />
         <Reactions post={post} choices={choices} signedIn={signedIn} onChange={onChange} />
         {onOpen && (
           <button type="button" className="mt-1 text-[18px] text-[#1a2a6c] underline underline-offset-2" onClick={onOpen}>

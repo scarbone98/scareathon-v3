@@ -46,9 +46,14 @@ import songsRoutes, { SONGS_SQL } from './routes/songs.js';
 import cartsRoutes, { CARTS_SQL } from './routes/carts.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
+import complianceRoutes from './routes/compliance.js';
+import { createGeoHook, startGeoDatabase } from './utils/geo.js';
+import { createContentGate } from './utils/contentSafety.js';
+import { registerComplianceRateLimits } from './utils/complianceRateLimits.js';
 
 const fastify = Fastify({
-    logger: true
+    logger: true,
+    trustProxy: 1 // Railway appends the client address; trust only the immediate proxy
 });
 
 // Leave a trail when the process goes down, so restarts (which end any live
@@ -137,6 +142,7 @@ async function main() {
         await ensureScareathonTables(pool);
         // Account tombstones must exist before accepting requests (fail closed on migration errors).
         await runStartupSql(pool, await readFile(new URL('./db/migrations/20261013_account_privacy.sql', import.meta.url), 'utf8'));
+        await runStartupSql(pool, await readFile(new URL('./db/migrations/20261014_compliance.sql', import.meta.url), 'utf8'));
         const stopClosureListener = await listenForAccountClosures(pool, fastify.log);
         fastify.addHook('onClose', stopClosureListener);
         const cleanup = () => retryAccountDeletions(pool, fastify.log).catch(() => fastify.log.error('Account cleanup unavailable'));
@@ -214,6 +220,10 @@ async function main() {
             credentials: true
         });
         fastify.decorateRequest('user', null);
+        const geo = await startGeoDatabase(fastify.log);
+        fastify.addHook('onRequest', createGeoHook({ lookup: geo.lookup, ready: geo.ready }));
+        fastify.addHook('onClose', async () => geo.close());
+        await registerComplianceRateLimits(fastify);
         // Registered once for every socket route: each registration adds its own
         // raw 'upgrade' listener, so two would handle every connection twice.
         await fastify.register(websocket, { options: { maxPayload: 65_536 } });
@@ -275,7 +285,11 @@ async function main() {
             }
         });
 
+        fastify.addHook('preHandler', createContentGate(pool));
+
         // Register route handlers
+        fastify.register(complianceRoutes, { geoReady: geo.ready });
+        fastify.get('/health', async () => ({ ok: true }));
         fastify.register(calendarRoutes);
         fastify.register(postsRoutes);
         fastify.register(weeklyChallengeRoutes, { getPostsPayload, getRecentPostsPayload });

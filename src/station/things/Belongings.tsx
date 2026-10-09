@@ -1,3 +1,6 @@
+import MarketListings from "./MarketListings";
+import { useFeatures } from "../features";
+import { BlockedRiders } from "./ContentControls";
 // The belongings' pieces share the avatar hook; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
 import "../../styles/profile.css";
@@ -283,6 +286,7 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" {...swipe}>
       <Classic>
         <AvatarShop onPreviewLookChange={setPreview} focusName={focus} extraItems={wares} filters={filters} onTryOn={setTried} newSince={newSince} />
+        <MarketListings signedIn={signedIn} />
       </Classic>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#f2ead2]/15 pt-4">
         <button type="button" className={plateButton} onClick={() => goTo("lockers")}>
@@ -365,6 +369,7 @@ export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
 
 // Account controls live in the Settings register. Names are changed at the locker.
 export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
+  const features = useFeatures();
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -399,6 +404,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
     return "Password changed.";
   });
   const changeEmail = () => act(async () => {
+    if (!features.emailChange) throw new Error("Email changes are coming soon.");
     await reauthenticate();
     const { error } = await supabase.auth.updateUser({ email: email.trim() }, { emailRedirectTo: new URL("/station?at=mail&open=register", window.location.origin).toString() });
     if (error) throw error;
@@ -423,6 +429,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
     return "Your data download is ready.";
   });
   const closeAccount = () => act(async () => {
+    if (!features.accountDeletion) throw new Error("Account closure is coming soon.");
     await reauthenticate();
     const response = await fetchWithAuth("/user/account", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
@@ -457,19 +464,20 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
             </label>
             <button type="submit" className={plateButton} disabled={password.length < 8 || !currentPassword || busy}>Change password</button>
           </form>
-          <form className="mt-4 max-w-sm space-y-2" onSubmit={(e) => { e.preventDefault(); void changeEmail(); }}>
+          {features.emailChange ? <form className="mt-4 max-w-sm space-y-2" onSubmit={(e) => { e.preventDefault(); void changeEmail(); }}>
             <label className="block">New email
               <input className={`${darkField} mt-1`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" disabled={busy} />
             </label>
             <p>Check both inboxes for the confirmation links. Your email changes after confirmation.</p>
             <button type="submit" className={plateButton} disabled={!email.trim() || !currentPassword || busy}>Change email</button>
-          </form>
+          </form> : <p className="mt-4">Change email · Coming soon</p>}
           <button type="button" className={`${plateButton} mt-4`} disabled={busy} onClick={() => void download()}>Download my data</button>
         </> : <TicketHoldersOnly what="Account controls" goTo={goTo} />}
         <LegalPapers />
       </section>
       {signedIn && <>
         <AgentKeys />
+        <BlockedRiders />
         <section>
           <h3 className="text-base text-[#f2ead2]" style={serif}>Heading out?</h3>
           <p className="mt-1">Your locker and inbox will be here when you get back.</p>
@@ -481,7 +489,7 @@ export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) 
         <section>
           <h3 className="text-base text-[#f2ead2]" style={serif}>Close your account</h3>
           <p className="mt-1">Erase your private data, photos, posts, items and coins, and free your email. Public scores, standings and past match results stay as “Deleted rider.” This cannot be undone.</p>
-          {!closing ? <button type="button" className={`${plateButton} mt-3`} disabled={busy} onClick={() => { setClosing(true); setConfirmation(""); setCurrentPassword(""); }}>Close your account</button> : (
+          {!features.accountDeletion ? <p className="mt-3">Coming soon</p> : !closing ? <button type="button" className={`${plateButton} mt-3`} disabled={busy} onClick={() => { setClosing(true); setConfirmation(""); setCurrentPassword(""); }}>Close your account</button> : (
             <form className="mt-3 max-w-sm space-y-2" onSubmit={(e) => { e.preventDefault(); if (confirmation === "DELETE") void closeAccount(); }}>
               <label className="block">Type DELETE to confirm
                 <input className={`${darkField} mt-1`} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="off" spellCheck={false} autoFocus required disabled={busy} />

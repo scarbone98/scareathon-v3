@@ -1,3 +1,4 @@
+import ContentControls, { useBlocks } from "../../station/things/ContentControls";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -19,7 +20,7 @@ const WALK_SPEED = 0.22;
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 15000;
 
-type Person = { userId: string; name: string; x: number; y: number; say: string | null; heard: number; live: boolean; hosting: FuryHosting | null };
+type Person = { sayId?: string | null; userId: string; name: string; x: number; y: number; say: string | null; heard: number; live: boolean; hosting: FuryHosting | null };
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -227,6 +228,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
   const [connected, setConnected] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const blocks = useBlocks();
   const [say, setSay] = useState("");
   const [, setNow] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
@@ -303,7 +305,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
         case "say":
           setLive((current) => {
             const person = current.get(message.userId);
-            return person ? new Map(current).set(message.userId, { ...person, say: message.say, heard }) : current;
+            return person ? new Map(current).set(message.userId, { ...person, say: message.say, sayId: message.sayId, heard }) : current;
           });
           break;
         case "in":
@@ -435,6 +437,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
           <span className="flex items-center gap-2">
             <span className="text-[#1c1b18]">{chosen.name}</span>
             <span className="text-[#7c7972]">{chosen.hosting ? `Hosting Wayside Fury · ${chosen.hosting.count}/${chosen.hosting.max}` : chosen.live ? (chosen.userId === me ? "(you)" : "here now") : "not in right now"}</span>
+            {chosen.userId !== me && <ContentControls targetType="lounge_chat" targetId={chosen.sayId} userId={chosen.userId} onChange={() => setSelected(null)} />}
             {chosen.hosting && chosen.userId !== me && (
               <button
                 type="button"
@@ -467,7 +470,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
           onPointerDown={walkTo}
         >
           <Backdrop height={scene.art} />
-          {people.map((person) => (
+          {people.filter(person => !blocks.has(person.userId)).map((person) => (
             <Avatar
               key={person.userId}
               person={person}

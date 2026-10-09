@@ -1,3 +1,4 @@
+import ReportsQueue from "../station/things/ReportsQueue";
 import { useState } from "react";
 import {
   type PointCategory,
@@ -51,6 +52,7 @@ export default function ScareathonAdminPanel({ className = "" }: { className?: s
       </button>
       {open && (
         <div className="mt-3 space-y-4">
+          <ReportsQueue />
           <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[1fr_auto_5rem]">
             <input className={field} placeholder="Player's username" value={username} onChange={(e) => setUsername(e.target.value)} required />
             <select className={field} value={category} onChange={(e) => setCategory(e.target.value as PointCategory)}>

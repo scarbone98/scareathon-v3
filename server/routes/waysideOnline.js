@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { blockedUsers } from '../utils/contentSafety.js';
 import { isAdminUser } from './inbox.js';
 import {
     RegExpMatcher,
@@ -125,7 +126,8 @@ export default async function waysideOnlineRoutes(fastify) {
                 ORDER BY p.id DESC
                 LIMIT $3
             `, [board, before, PAGE_SIZE + 1]);
-            const rows = result.rows.slice(0, PAGE_SIZE);
+            const blocked = await blockedUsers(pool, viewer);
+            const rows = result.rows.slice(0, PAGE_SIZE).filter(row => !blocked.has(row.user_id));
             const reactions = await reactionsFor(rows.map((row) => row.id), viewer);
             return {
                 admin,
@@ -154,7 +156,8 @@ export default async function waysideOnlineRoutes(fastify) {
                 WHERE p.id = $1 OR p.parent_id = $1
                 ORDER BY (p.parent_id IS NOT NULL), p.id
             `, [id]);
-            const [head, ...replies] = result.rows;
+            const blocked = await blockedUsers(pool, viewer);
+            const [head, ...replies] = result.rows.filter(row => !blocked.has(row.user_id));
             if (!head || head.parent_id || head.removed_at) return reply.code(404).send({ error: 'That post has been taken down' });
             const reactions = await reactionsFor(result.rows.map((row) => row.id), viewer);
             return {

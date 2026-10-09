@@ -21,7 +21,19 @@ async function fetchWithAccessToken(
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  return fetch(buildApiUrl(input), { ...init, headers });
+  const response = await fetch(buildApiUrl(input), { ...init, headers });
+  if (response.status === 451) {
+    window.dispatchEvent(new Event("ws-region-unavailable"));
+    // The arcade's rooms are same-origin frames; their notices belong to the station.
+    if (window.parent !== window) {
+      try { window.parent.dispatchEvent(new Event("ws-region-unavailable")); } catch { /* standalone room */ }
+    }
+  }
+  if (response.status === 403) {
+    const body = await response.clone().json().catch(() => ({}));
+    if (body.code === "age_confirmation_required") window.dispatchEvent(new Event("ws-age-required"));
+  }
+  return response;
 }
 
 function refreshSessionOnce(refreshToken: string) {

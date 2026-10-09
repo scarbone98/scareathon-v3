@@ -34,6 +34,8 @@ export type BetPools = {
 };
 
 export type ChatMessage = {
+  userId?: string;
+  reportId?: string;
   id: number;
   text: string;
   at: number;
@@ -70,7 +72,8 @@ export type FeedMessage =
   | { type: "pool"; matchId: string; pools: BetPools }
   | { type: "settled"; matchId: string; summary: SettlementSummary }
   | { type: "chat"; message: ChatMessage }
-  | { type: "chatHistory"; messages: ChatMessage[] };
+  | { type: "chatHistory"; messages: ChatMessage[] }
+  | { type: "chatRemoved"; reportId: string };
 
 export type LiveMatch = MatchInfo & {
   frames: FightFrame[];
@@ -151,6 +154,10 @@ export class MatchStore {
       return;
     }
 
+    if (message.type === "chatRemoved") {
+      this.commit({ chat: this.snapshot.chat.filter(item => item.reportId !== message.reportId) });
+      return;
+    }
     if (message.type === "chatHistory") {
       this.commit({ chat: message.messages.slice(-CHAT_LIMIT) });
       return;

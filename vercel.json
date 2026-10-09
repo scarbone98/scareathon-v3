@@ -36,6 +36,14 @@
     ],
     "rewrites": [
         {
+            "source": "/privacy",
+            "destination": "/station?at=tickets&open=window&legal=privacy"
+        },
+        {
+            "source": "/terms",
+            "destination": "/station?at=tickets&open=window&legal=terms"
+        },
+        {
             "source": "/((?!assets/).*)",
             "destination": "/index.html"
         }

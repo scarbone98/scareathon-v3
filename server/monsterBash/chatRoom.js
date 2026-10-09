@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { rememberChat } from '../utils/contentSafety.js';
 import {
     RegExpMatcher,
     TextCensor,
@@ -78,6 +80,11 @@ export function createChatRoom({ lookupUsername, limits = CHAT_LIMITS }) {
 
             const clean = censor.applyTo(text, profanityMatcher.getAllMatches(text));
             const message = { id: nextId++, name: await nameFor(userId), text: clean, at: now };
+            if (process.env.REPORTS_ENABLED === 'true') {
+                message.userId = userId;
+                message.reportId = randomUUID();
+                rememberChat('monster_chat', message.reportId, userId, clean);
+            }
             authors.set(message.id, userId);
             const kept = remember(message);
             const ids = new Set(messages.map(each => each.id));
@@ -96,6 +103,10 @@ export function createChatRoom({ lookupUsername, limits = CHAT_LIMITS }) {
             }
             names.delete(userId);
             lastPostAt.delete(userId);
+        },
+        removeReport(reportId) {
+            const index = messages.findIndex(message => message.reportId === reportId);
+            if (index >= 0) { authors.delete(messages[index].id); messages.splice(index, 1); }
         },
         recent() {
             return [...messages];

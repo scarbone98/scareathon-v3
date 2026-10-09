@@ -1,3 +1,4 @@
+import ContentControls, { useBlocks } from "../../station/things/ContentControls";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ago, hoursLeft, loadWall, photoUrl, postPhoto, removePhoto, useSession, type Photo } from "./api";
 import { develop, enlarge, exposeFrame, SENSOR_H, SENSOR_W, type PictoStyle } from "./filter";
@@ -78,6 +79,7 @@ export default function PictoBoxPage() {
   const [flash, setFlash] = useState(0);
   const [posting, setPosting] = useState(false);
   const [notice, setNotice] = useState("");
+  const blocks = useBlocks();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [wallState, setWallState] = useState<"loading" | "ready" | "error">("loading");
   const [open, setOpen] = useState<Photo | null>(null);
@@ -353,7 +355,7 @@ export default function PictoBoxPage() {
             )}
             {wallState === "ready" && photos.length > 0 && (
               <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-                {photos.map((photo, i) => (
+                {photos.filter(photo => !photo.userId || !blocks.has(photo.userId)).map((photo, i) => (
                   <Print
                     key={photo.id}
                     src={photoUrl(photo.id)}
@@ -376,6 +378,7 @@ export default function PictoBoxPage() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0b2a4a]/80 p-4" onClick={() => setOpen(null)}>
           <div className="w-full max-w-[560px]" onClick={(event) => event.stopPropagation()}>
             <Print src={photoUrl(open.id)} caption={open.mine ? "You" : open.username} sub={`${ago(open.createdAt)} · ${hoursLeft(open.createdAt)}h left`} />
+            <ContentControls targetType="photo" targetId={open.id} userId={open.userId} onChange={() => setOpen(null)} />
             <div className="mt-5 flex justify-center gap-3">
               {open.canDelete &&
                 (confirmDelete ? (

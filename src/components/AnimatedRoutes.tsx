@@ -32,6 +32,8 @@ const CrossBones = lazy(() => import("../pages/DailyPuzzles/CrossBones/page"));
 
 const PAGES: [string, React.ComponentType][] = [
   ["/station", Station],
+  ["/privacy", Station],
+  ["/terms", Station],
   ["/reset-password", ResetPassword],
   ["/casino", Casino],
   ["/crypt-clash", CryptClash],

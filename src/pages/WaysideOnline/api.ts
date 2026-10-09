@@ -98,7 +98,7 @@ export function ago(iso: string) {
 
 export type FuryHosting = { game: "Wayside Fury"; code: string; count: number; max: number };
 export type HostingMember = { userId: string; name: string; hosting: FuryHosting };
-export type LoungePlayer = { userId: string; name: string; x: number; y: number; say: string | null; saidAt: number | null; hosting: FuryHosting | null };
+export type LoungePlayer = { sayId?: string | null; userId: string; name: string; x: number; y: number; say: string | null; saidAt: number | null; hosting: FuryHosting | null };
 export type CrowdMember = { userId: string; name: string; hosting?: FuryHosting | null };
 
 export type LoungeMessage =
@@ -109,7 +109,7 @@ export type LoungeMessage =
   | { type: "enter"; player: LoungePlayer }
   | { type: "leave"; userId: string }
   | { type: "move"; userId: string; x: number; y: number }
-  | { type: "say"; userId: string; say: string; saidAt: number }
+  | { type: "say"; userId: string; say: string | null; saidAt: number; sayId?: string | null }
   | { type: "error"; code: string; message: string };
 
 export function loungeSocketUrl() {

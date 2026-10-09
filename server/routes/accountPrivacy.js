@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { deletionEnabled } from '../utils/features.js';
 import { accountAuth, clearAccountCaches, erasePrivateAccount, existingTables, finishAccountDeletion, requireActiveAccount } from '../utils/accountPrivacy.js';
 
 export default async function accountPrivacyRoutes(fastify, options) {
@@ -21,6 +22,8 @@ export default async function accountPrivacyRoutes(fastify, options) {
             const photos = await own('picto_box_photos', 'id, style, created_at');
             const payload = {
                 exportedAt: new Date().toISOString(),
+                blocks: await own('user_blocks', '*', 'blocker_id'),
+                reports: await own('content_reports', 'id, target_type, target_id, reason, created_at, status', 'reporter_id'),
                 profile: { ...profile, email: data.user.email }, email: data.user.email,
                 wallet: (await own('user_wallets'))[0] || null,
                 transactions: await own('currency_transactions'),
@@ -56,6 +59,7 @@ export default async function accountPrivacyRoutes(fastify, options) {
     });
 
     fastify.delete('/account', async (request, reply) => {
+        if (!options.accountAuth && !deletionEnabled()) return reply.code(503).send({ error: 'Account closure is coming soon.' });
         if (!await requireActiveAccount(db, request, reply)) return;
         const { confirmation, currentPassword } = request.body || {};
         if (confirmation !== 'DELETE' || typeof currentPassword !== 'string' || !currentPassword || currentPassword.length > 1024) {
