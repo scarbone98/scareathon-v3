@@ -1,2 +1,0 @@
-import config from './vite.config';
-export default (env: Parameters<typeof config>[0]) => ({...(config as Function)(env),cacheDir:'/tmp/fury-audit-stable-vite-cache',optimizeDeps:{noDiscovery:true,include:['react','react-dom/client','react/jsx-runtime','react-router-dom','@tanstack/react-query','@supabase/supabase-js','react-icons','gsap','phaser','@use-gesture/react','@strapi/blocks-react-renderer']}});

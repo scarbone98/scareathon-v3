@@ -1,0 +1,322 @@
+{
+  "browser": "chromium",
+  "browserVersion": "153.0.8010.12",
+  "launch": {
+    "headless": true,
+    "channel": null,
+    "executablePath": null,
+    "webglBackend": "metal"
+  },
+  "generatedAt": "2026-10-09T05:07:09.116Z",
+  "caveat": "Desktop Playwright with phone viewport/DPR emulation. rAF measures frame cadence; renderMs measures CPU submission, not GPU duration. Physical mid-iPhone performance requires a device run.",
+  "measurements": [
+    {
+      "label": "2d-390x844",
+      "samples": 30,
+      "captureQuality": {
+        "tier": "2d",
+        "renderDpr": 3,
+        "postFx": "none",
+        "pixelWidth": 1170,
+        "pixelHeight": 1932
+      },
+      "cadenceMs": {
+        "median": 416.6,
+        "p95": 800,
+        "max": 800.1,
+        "mean": 441.1
+      },
+      "renderCpuMs": {
+        "median": 72.8,
+        "p95": 252.7,
+        "max": 503.3,
+        "mean": 103.4
+      },
+      "reportedFrameMs": {
+        "median": 416.6,
+        "p95": 800,
+        "max": 800.1,
+        "mean": 441.1
+      },
+      "quality": {
+        "pixelScale": "7",
+        "zoom": "2.3333333333333335",
+        "renderDpr": "3",
+        "qualityCap": "Infinity",
+        "worldWidth": "167.14285714285714",
+        "worldHeight": "276",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "124.42857142857143",
+        "cameraY": "341.99999999999994",
+        "renderMs": "171.300",
+        "frameMs": "483.300"
+      },
+      "gpu": null,
+      "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
+      "effectiveGraphics": "2d"
+    },
+    {
+      "label": "3d-390x844",
+      "samples": 30,
+      "captureQuality": {
+        "tier": "high",
+        "renderDpr": 3,
+        "postFx": "depth-dof,bloom,vignette",
+        "pixelWidth": 1170,
+        "pixelHeight": 1932
+      },
+      "cadenceMs": {
+        "median": 883.3,
+        "p95": 5249.8,
+        "max": 63830.8,
+        "mean": 3105.99
+      },
+      "renderCpuMs": {
+        "median": 334.9,
+        "p95": 5182.9,
+        "max": 63888.3,
+        "mean": 2616.44
+      },
+      "reportedFrameMs": {
+        "median": 883.3,
+        "p95": 5249.8,
+        "max": 63830.8,
+        "mean": 3105.99
+      },
+      "quality": {
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "minimum",
+        "postFx": "off",
+        "renderDpr": "3",
+        "zoom": "2.3333333333333335",
+        "worldWidth": "167.14285714285714",
+        "worldHeight": "276",
+        "cameraX": "208.00",
+        "cameraY": "480.00",
+        "frameMs": "366.700",
+        "renderMs": "385.700",
+        "frameEmaMs": "2360.968",
+        "renderEmaMs": "2984.817",
+        "drawCalls": "93",
+        "triangles": "107846"
+      },
+      "gpu": {
+        "vendor": "Google Inc. (Apple)",
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Max, Unspecified Version)"
+      },
+      "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
+      "effectiveGraphics": "3d"
+    },
+    {
+      "label": "2d-1440x900",
+      "samples": 30,
+      "captureQuality": {
+        "tier": "2d",
+        "renderDpr": 2,
+        "postFx": "none",
+        "pixelWidth": 2880,
+        "pixelHeight": 1800
+      },
+      "cadenceMs": {
+        "median": 649.9,
+        "p95": 1899.9,
+        "max": 2116.7,
+        "mean": 736.08
+      },
+      "renderCpuMs": {
+        "median": 138.7,
+        "p95": 534.9,
+        "max": 1203.7,
+        "mean": 187.35
+      },
+      "reportedFrameMs": {
+        "median": 649.9,
+        "p95": 1899.9,
+        "max": 2116.7,
+        "mean": 736.08
+      },
+      "quality": {
+        "pixelScale": "8",
+        "zoom": "4",
+        "renderDpr": "2",
+        "qualityCap": "Infinity",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "renderer": "2d",
+        "gfx": "2d",
+        "gfxStatus": "ready",
+        "cameraX": "28",
+        "cameraY": "367.5",
+        "renderMs": "141.300",
+        "frameMs": "616.600"
+      },
+      "gpu": null,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "effectiveGraphics": "2d"
+    },
+    {
+      "label": "3d-1440x900",
+      "samples": 30,
+      "captureQuality": {
+        "tier": "high",
+        "renderDpr": 2,
+        "postFx": "depth-dof,bloom,vignette",
+        "pixelWidth": 2880,
+        "pixelHeight": 1800
+      },
+      "cadenceMs": {
+        "median": 150.1,
+        "p95": 1449.9,
+        "max": 2016.6,
+        "mean": 314.43
+      },
+      "renderCpuMs": {
+        "median": 40.7,
+        "p95": 337.8,
+        "max": 1399,
+        "mean": 126.98
+      },
+      "reportedFrameMs": {
+        "median": 150.1,
+        "p95": 1449.9,
+        "max": 2016.6,
+        "mean": 314.43
+      },
+      "quality": {
+        "engine": "three.js r168",
+        "renderer": "3d",
+        "qualityTier": "balanced",
+        "postFx": "bloom,vignette",
+        "renderDpr": "2",
+        "zoom": "4",
+        "worldWidth": "360",
+        "worldHeight": "225",
+        "cameraX": "311.16",
+        "cameraY": "480.00",
+        "frameMs": "266.500",
+        "renderMs": "26.600",
+        "frameEmaMs": "185.508",
+        "renderEmaMs": "82.117",
+        "drawCalls": "133",
+        "triangles": "116300"
+      },
+      "gpu": {
+        "vendor": "Google Inc. (Apple)",
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Max, Unspecified Version)"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "effectiveGraphics": "3d"
+    }
+  ],
+  "checks": [
+    {
+      "label": "2d-390x844",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "effectiveGraphics": "2d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "3d-390x844",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "effectiveGraphics": "3d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "2d-1440x900",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "effectiveGraphics": "2d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "3d-1440x900",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "effectiveGraphics": "3d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "3d-430x932",
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "effectiveGraphics": "3d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "3d-844x390",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "effectiveGraphics": "3d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "3d-932x430",
+      "viewport": {
+        "width": 932,
+        "height": 430
+      },
+      "effectiveGraphics": "3d",
+      "checks": "native canvas, controls, HUD, immutable simulation"
+    },
+    {
+      "label": "touch-mode-recovery",
+      "checks": "keyboard input followed by a scene tap restores touch controls in 3D"
+    },
+    {
+      "label": "paused-switch",
+      "checks": "travel in 3D, pause, switch to 2D, taxi stays onscreen without resuming",
+      "graphicsBefore": "3d",
+      "graphicsAfter": "2d",
+      "unchanged": true,
+      "x": 603.3605469750117,
+      "y": 504,
+      "cameraX": 547.7891184035832,
+      "cameraY": 366,
+      "width": 167.14285714285714,
+      "height": 276
+    },
+    {
+      "label": "lifecycle",
+      "checks": "Settings preference independent of save, other scenes remain 2D, switching races, movement/collision, unmount"
+    },
+    {
+      "label": "fallback",
+      "checks": "unavailable WebGL, context loss, explicit retry"
+    },
+    {
+      "label": "quality",
+      "before": "high",
+      "after": "minimum",
+      "checks": "real slow-frame pressure automatically reduces quality"
+    },
+    {
+      "label": "3d-390x844-iframe",
+      "checks": "actual arcade iframe sizing and toolbar, Settings, controls"
+    },
+    {
+      "label": "3d-844x390-iframe",
+      "checks": "actual arcade iframe sizing and toolbar, Settings, controls"
+    },
+    {
+      "label": "3d-1440x900-iframe",
+      "checks": "actual arcade iframe sizing and toolbar, Settings, controls"
+    }
+  ]
+}
