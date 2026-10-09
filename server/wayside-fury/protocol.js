@@ -98,7 +98,7 @@ export function cleanAppearance(appearance) {
 export function cleanWorld(state) {
     if (!object(state) || !scene(state.scene) || !integer(state.room, 999) || !number(state.time) || !Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return null;
     if (!compatibleMap(state.scene, state.room, state.mapId, state.protocolVersion ?? 1)) return null;
-    if (state.protocolVersion !== undefined && ![1,2,3,4,5,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
+    if (state.protocolVersion !== undefined && ![1,2,3,4,5,6,COOP_PROTOCOL_VERSION].includes(state.protocolVersion)) return null;
     if (state.enemies.length > 200 || state.projectiles.length > 300) return null;
     if (!['real', 'eightbit'].includes(state.palette) || !['real', 'eightbit'].includes(state.transitionPalette) || (state.transitionTarget !== null && !scene(state.transitionTarget))) return null;
     if (!integer(state.cutscene, 1000) || !integer(state.chapter, 99) || !integer(state.nextId) || !Number.isInteger(state.rngSeed) || state.rngSeed < -2_147_483_648 || state.rngSeed > 4_294_967_295) return null;

@@ -1,7 +1,10 @@
-import { isRoadScene, onRoad } from './roadNetwork.ts';
 import { TILE, type WorldExit, type WorldMap } from './worldBuilder.ts';
 
 // Presentation only: triggers, collision, arrivals and gates stay authored data.
+export function exitOpacity(e: WorldExit, x: number, y: number) {
+  const distance = Math.hypot(Math.max(e.x-x,0,x-e.x-e.w),Math.max(e.y-y,0,y-e.y-e.h));
+  return Math.max(0, Math.min(1, (TILE*3-distance)/TILE));
+}
 export function nearExit(e: WorldExit, x: number, y: number) {
   return Math.hypot(Math.max(e.x-x,0,x-e.x-e.w),Math.max(e.y-y,0,y-e.y-e.h)) <= TILE*3;
 }
@@ -10,8 +13,8 @@ export function exitDirection(world: WorldMap, e: WorldExit) {
   const distances = [e.x, world.width-e.x-e.w, e.y, world.height-e.y-e.h];
   return (['west','east','north','south'] as const)[distances.indexOf(Math.min(...distances))];
 }
-export function exitCaption(world: WorldMap, e: WorldExit) {
-  return `${({west:'‹',east:'›',north:'⌃',south:'⌄'})[exitDirection(world,e)]} ${e.name}`;
+export function exitCaption(_world: WorldMap, e: WorldExit) {
+  return e.name;
 }
 export function drawExitOpening(c: CanvasRenderingContext2D, world: WorldMap, e: WorldExit, open = true) {
   const direction=exitDirection(world,e),vertical=direction==='north'||direction==='south';
@@ -30,12 +33,10 @@ export function drawExitOpening(c: CanvasRenderingContext2D, world: WorldMap, e:
   const half=(vertical?e.w:e.h)/2;
   const length=direction==='west'?x:direction==='east'?world.width-x:direction==='north'?y:world.height-y;
   c.save();c.translate(x,y);c.rotate(angle);
-  // A continuous path through the boundary replaces a floor-mounted device.
-  c.fillStyle=woods?'#8c795a':moon?'#7d8ba4':world.id.startsWith('blast-')?'#8c795a':'#636b70';
-  c.beginPath();c.moveTo(-18,-half+3);c.quadraticCurveTo(length*.4,-half-2,length+12,-half+2);
-  c.lineTo(length+12,half-2);c.quadraticCurveTo(length*.4,half+2,-18,half-3);c.closePath();if(!isRoadScene(world)||!onRoad(world,x,y))c.fill();
-  const shade=c.createLinearGradient(-12,0,length+12,0);shade.addColorStop(0,'#10192300');shade.addColorStop(.55,'#10192318');shade.addColorStop(1,'#101923b0');
-  c.fillStyle=shade;c.fill();
+  // A short boundary shadow frames the opening; no painted approach apron.
+  const shade=c.createLinearGradient(0,0,length+12,0);
+  shade.addColorStop(0,'#10192300');shade.addColorStop(1,'#10192390');
+  c.fillStyle=shade;c.fillRect(0,-half,length+12,half*2);
   // Broken masonry / trail posts frame either side without narrowing the lane.
   for(const side of [-1,1]) {
     const py=side*(half+7);
