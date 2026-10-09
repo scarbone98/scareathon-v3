@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { FuryAudio, moodForState, realmForState } from '../src/pages/WaysideFury/game/audio.ts';
 import { newGame, enterScene, beginRealmShift, addEnemy } from '../src/pages/WaysideFury/game/sim.ts';
 import { PROLOGUE } from '../src/pages/WaysideFury/game/content.ts';
-const calls = [], sound = Object.fromEntries(['setCharge', 'setRealm', 'setMood', 'setPaused', 'playSfx', 'jingle'].map(name => [name, (...args) => calls.push([name, ...args])]));
+const calls = [], sound = Object.fromEntries(['setCharge', 'setRealm', 'setMood', 'setPaused', 'setNightMix', 'playSfx', 'jingle'].map(name => [name, (...args) => calls.push([name, ...args])]));
 const audio = new FuryAudio(sound), s = newGame();
 audio.menu(); assert.equal(calls.findLast(c => c[0] === 'setMood')[1], 'title');
 enterScene(s, 'prologue'); audio.start(s);
@@ -13,7 +13,8 @@ for (const phase of ['years', 'bbq', 'dark', 'portal', 'suitup', 'taxi']) {
 assert.equal(calls.filter(c => c[0] === 'jingle' && c[1] === 'darkSky').length, 1);
 enterScene(s, 'overworld'); audio.sync(s);
 assert.equal(calls.filter(c => c[0] === 'jingle' && c[1] === 'taxiHorn').length, 1, 'story taxi and real taxi share one horn edge');
-enterScene(s, 'hub'); assert.equal(moodForState(s), 'hub');
+s.worldCycleSeconds = 300; audio.sync(s); assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 1);
+enterScene(s, 'hub'); audio.sync(s); assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 0); assert.equal(moodForState(s), 'hub');
 for (const overlay of ['home', 'shop']) { s.overlay = overlay; assert.equal(moodForState(s), 'cozy'); } s.overlay = null;
 enterScene(s, 'dungeon'); assert.equal(moodForState(s), 'dungeon'); addEnemy(s, 'boss', 200, 100); audio.sync(s);
 assert.equal(moodForState(s), 'boss'); beginRealmShift(s); audio.sync(s); s.sceneTimer = 1.55; audio.sync(s);
