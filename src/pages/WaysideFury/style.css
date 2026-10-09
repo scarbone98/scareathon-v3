@@ -294,3 +294,8 @@
 .wf-space-film div { display:flex; gap:12px; flex-wrap:wrap; }
 .wf-space-film button { min-height:48px; padding:10px 16px; border-radius:10px; color:#111829; background:#f5c776; }
 .wf-oxygen { position:absolute; left:16px; bottom:calc(var(--wf-touch-reserve, 180px) + 20px); background:#111829e8; padding:8px 12px; border-radius:12px; color:#dae4f2; pointer-events:none; }
+
+.wf-fusion-control,.wf-training-progress { position:absolute; top:130px; left:12px; display:flex; flex-direction:column; gap:4px; max-width:230px; padding:9px; border:1px solid #79ebff66; border-radius:12px; background:#102132ed; color:#e4f7f1; font-size:12px; pointer-events:auto; }
+.wf-fusion-control button,.wf-training-progress button { min-height:40px; border:1px solid #79ebff88; border-radius:8px; background:#243e50; color:inherit; padding:6px 12px; }
+.wf-fusion-control button:disabled { opacity:.6; }
+@media(max-width:600px) { .wf-fusion-control,.wf-training-progress { top:108px; max-width:180px; font-size:11px; } }

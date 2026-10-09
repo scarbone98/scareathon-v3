@@ -35,3 +35,13 @@ The broad `check-wayside-fury-3d.mjs` run passed all **15 cases**: native-DPR la
 ## Integration with U1WORLD
 
 The design merge preserves this branch’s existing day/night runtime and lighting alongside obstacle discovery and presentation. The former level-8 county barricade now requires Circuit Spark; its stable clear/cache IDs, geometry, supplies and shortcut remain intact. Historical level-gate screenshots above show the incoming design revision. No new Update 1 system is implemented by this merge.
+
+## Integration with U1ITEMS
+
+Merging `origin/wayside-fury-design` preserves this branch’s existing chips, relics, radar, item UI and personal co-op combat effects alongside the incoming gates and county clock. Save creation, restoration and shared types retain both `u1.items` and `worldCycleSeconds`; missing clock values default to zero without resetting items. Canvas keeps item markers and obstacle actors in the same Y-sorted pass. Co-op checkpoint handling keeps relic-echo receipts out of room rewards while forwarding gate/cache discoveries through their existing host-owned path. Both branches’ features are retained; this merge adds no new Update 1 subsystem and leaves the chapter plan unchanged.
+
+`scripts/check-wayside-fury-design-merge.mjs` checks the combined item/clock/gate save round trip, missing-clock migration, unchanged ticket progress, protocol-6 gate suppression and protocol-7 gate interactions.
+
+U1ITEMS merge verification: `npx tsc -b`, changed-file ESLint, the base Wayside Fury simulation, the focused merge regression, campaign/Space/Woods/City rules and combat, collision/exits/shortcuts/obstacles, minimap, clock/runtime/co-op, chips/relics/radar, quality/labels/dressing/collectibles/road-clearance and music/audio checks passed. Cloud checks passed 23 tests; `cd server && npx jest --forceExit` passed 44 suites / 490 tests. The audio import paths now include `.ts` for direct Node checks, and its test double includes `setNightMix` with shared-clock day/night assertions.
+
+The live day/night co-op fixture passed against an inert local preview with Chromium `--mute-audio`, including host-owned clock/phase/actors and host migration without duplicate spawns. Its initial sandbox port denial and a preview-not-ready retry were resolved before the passing run. Browser artifacts are in `/tmp/fury-u1world-shots`; this targeted co-op run is not a full renderer/viewport matrix or real-phone performance validation. Checks used installed Node 26.4.0; Node 24 was unavailable on this host.

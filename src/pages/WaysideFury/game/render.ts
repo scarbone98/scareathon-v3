@@ -1,6 +1,13 @@
-import { radarPickupTarget } from "../u1/minimap/relicRadar";
+import { radarPickupTarget as hubRadarPickupTarget } from "../u1/minimap/relicRadar";
 import { drawArenaFloor } from "../u1/hub/arenaArt";
 import { drawQuestNpc, drawQuestCosmetic } from "../u1/hub/questArt";
+import { chipEffects, CHIP_REGISTRY, itemsState } from "./u1/items/chips";
+import { chipTargets } from "./u1/items/pickups";
+import { relicTargets, RELIC_SUMMON, hasAllRelics, OUTFITS } from "./u1/items/relics";
+import { radarPickupTarget } from "./u1/items/radar";
+import { drawItemMarker, drawWishOutfit } from "./u1/items/draw";
+import { renderTrainingGrounds } from "./u1/combat/trainingRender";
+import { drawFusionForm } from "./u1/combat/fusionRender";
 import { drawDayNightLighting } from "./u1/world/dayNightRender";
 import { sampleDayNight } from "./u1/world/dayNight";
 import { worldCycleSeconds } from "./u1/world/dayNightRuntime";
@@ -251,6 +258,7 @@ export class Renderer {
     this.terrain.draw(c, world, this.camera, width, height, motionTime, pixelScale, this.viewport.dpr);
     drawAreaGround(c,world);
     drawArenaFloor(c,s);
+    renderTrainingGrounds(c,s,motionTime);
     drawInteriorGround(c,world);
     drawMoonGround(c,world,s);
     drawCityGround(c,s);
@@ -264,27 +272,34 @@ export class Renderer {
     const actors = visibleProps.filter(prop => !isGroundProp(prop) && !GROUND_DECALS.has(prop.kind)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of zonePreviews(world)) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
-    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
+    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => {
+      const outfit = OUTFITS.find(outfit => outfit.id === itemsState(s).relics.outfits.at(-1));
+      if (outfit) drawWishOutfit(c, s.x, s.y, outfit.color, outfit.glow, motionTime);
+      drawFusionForm(c,s,s.coop?.seat ?? 0,false,this.reducedMotion); this.hero(s); drawFusionForm(c,s,s.coop?.seat ?? 0,true,this.reducedMotion);
+    } });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
     for (const peer of s.coop?.remoteHeroes ?? []) if (sameCampaignMap(s, peer) && this.visible(peer.x, peer.y, 60)) actors.push({ y: peer.y, draw: () => {
       const ownAvatar = this.avatar; this.avatar = this.remoteAvatars.get(peer.seat) ?? null;
       const remote = { ...s, ...peer, hubCosmetic: peer.questCosmetic, meleeCharge: peer.meleeCharge ?? 0, active: peer.hero.id, heroes: { ...s.heroes, [peer.hero.id]: peer.hero } };
-      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else this.hero(remote);
+      if (s.scene === 'overworld') this.taxi(peer.x, peer.y, peer.faceX, peer.faceY, motionTime, peer.moving); else { drawFusionForm(c,remote,peer.seat,false,this.reducedMotion); this.hero(remote); drawFusionForm(c,remote,peer.seat,true,this.reducedMotion); }
       for (const strip of peer.spaceOutfit ? [] : this.avatar?.companions ?? []) this.avatarStrip(strip, peer.x, peer.y, this.visualTime, peer.faceX < 0);
       this.avatar = ownAvatar;
     } });
     for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);if(s.spaceOutfit)this.hero({...s,active:assist.hero!,x:assist.x,y:assist.y,moving:false,guard:false,attackTimer:0,charge:0});else this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
     for (const door of world.radarAnchors?.filter(anchor=>anchor.id.endsWith("-door")) ?? []) actors.push({y:door.y,draw:()=>drawBuildingDoors(c,s)});
+    const radar = radarPickupTarget(s);
+    for (const item of [...chipTargets(s), ...relicTargets(s), ...(radar ? [radar] : [])]) actors.push({ y: item.y, draw: () => drawItemMarker(c, { ...item, color: item.kind === "chip" ? CHIP_REGISTRY[item.chip].color : undefined }, motionTime, this.reducedMotion) });
+    if (s.mapId === "hub" && hasAllRelics(s)) actors.push({ y: RELIC_SUMMON.y, draw: () => drawItemMarker(c, { ...RELIC_SUMMON, kind: "summon" }, motionTime, this.reducedMotion) });
     for (const gate of obstaclesForState(s)) if (this.visible(gate.x,gate.y,110)) {
       actors.push({y:gate.y+gate.h,draw:()=>drawHeroObstacle(c,gate,isObstacleCleared(s,gate.id),motionTime,this.reducedMotion?1:1-(s.effects.find(e=>Math.abs(e.x-gate.x-gate.w/2)<1&&Math.abs(e.y-gate.y-gate.h/2)<1)?.ttl??0)/.8)});
       actors.push({y:gate.rewardAnchor.y,draw:()=>{c.save();c.fillStyle='#9b7252';c.fillRect(gate.rewardAnchor.x-10,gate.rewardAnchor.y-10,20,12);c.strokeStyle='#e3bc78';c.lineWidth=1;c.strokeRect(gate.rewardAnchor.x-10,gate.rewardAnchor.y-10,20,12);c.restore();}});
     }
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
-    const radar = radarPickupTarget(s);
-    if (radar) { c.save(); c.strokeStyle = "#e8cd83"; c.lineWidth = 1.5; c.beginPath(); c.arc(radar.x, radar.y - 6, 7, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(radar.x, radar.y - 6); c.lineTo(radar.x + 5, radar.y - 11); c.stroke(); c.restore(); }
+    const hubRadar = hubRadarPickupTarget(s);
+    if (hubRadar) { c.save(); c.strokeStyle = "#e8cd83"; c.lineWidth = 1.5; c.beginPath(); c.arc(hubRadar.x, hubRadar.y - 6, 7, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(hubRadar.x, hubRadar.y - 6); c.lineTo(hubRadar.x + 5, hubRadar.y - 11); c.stroke(); c.restore(); }
     if (s.scene === 'overworld') this.rockGag(s, motionTime);
     for (const shot of s.projectiles) if (this.visible(shot.x, shot.y, 60)) this.projectile(shot, motionTime);
     for (const effect of s.effects) if (effect.kind !== 'dash' && effect.kind !== 'charge' && this.visible(effect.x, effect.y, 70)) this.effect(effect);
@@ -650,6 +665,12 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
+    if (chipEffects(s).scanner) {
+      const top = enemy.y - (enemy.kind === "boss" ? 48 : 38), width = enemy.kind === "boss" ? 48 : 24;
+      this.rect(enemy.x - width / 2, top, width, 3, INK);
+      this.rect(enemy.x - width / 2, top, width * Math.max(0, enemy.hp) / enemy.maxHp, 3, "#7de5ff");
+      if (enemy.windup > 0) { this.ctx.save(); this.ctx.strokeStyle = "#7de5ff"; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.arc(enemy.x, enemy.y - 12, enemy.radius + 4, 0, Math.PI * 2); this.ctx.stroke(); this.ctx.restore(); }
+    }
     if(drawWoodsBody(this.ctx,enemy,s)) return;
     if(drawCityEnemy(this.ctx,enemy)) return;
     if(drawLunarBody(this.ctx,enemy,s)) return;

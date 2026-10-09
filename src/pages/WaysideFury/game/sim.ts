@@ -4,6 +4,10 @@ import { ARENA_HUB_POINT } from "../u1/hub/arenaWorld.ts";
 import { hubQuestTarget, openHubQuest, tickHubQuests, trackHubQuestEvent } from "../u1/hub/hubRules.ts";
 import type { HubQuestSave } from "../u1/hub/quests.ts";
 import type { ArenaRunReceipt } from "../../../../server/shared/waysideFury/u1Arena.js";
+import { createItemsSave, type ItemsSaveState } from "../../../../server/shared/waysideFury/u1Items.js";
+import { chipEffects, itemsState, trySecondWind } from "./u1/items/chips.ts";
+import { itemInteractionCandidates, interactItem } from "./u1/items/interactions.ts";
+import { grantCheckpointChip } from "./u1/items/pickups.ts";
 import { gateTargets, clearHeroObstacle, obstaclesForState, isObstacleCleared, obstacleBlocks, markSeenGates, releaseBorrowedObstacles } from './locks/obstacles.ts';
 import { INTERIORS, interiorDefinition } from './interiors.ts';
 import { inCity, cityTargets, cityInteract, enterCityRoom, cityClear, applyCityRequest } from "./chapters/ch4.ts";
@@ -27,6 +31,10 @@ import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, ty
 import { availablePickups, collectPickup, pickupBuffs, walkingPickup } from "./collectibles.ts";
 import { updateOverworldDressing } from "./dressing.ts";
 import { interactionPrompt, newContextAttack, resolveContextPress, selectInteractionTarget, updateContextPrompt, type AttackPresentation, type ContextAttackState, type InteractTarget, type InteractionCandidate } from "./contextAttack.ts";
+import { createFusionRuntime, tickFusion, requestFusion, localFusion, consumeFusionSpecial, resetFusion, type FusionRuntime } from "./u1/combat/fusion.ts";
+import { startTraining, cancelTraining, tickTraining, trainingMelee, trainingProjectile, TRAINING_BOARD, type TrainingRuntime } from "./u1/combat/training.ts";
+import { signatureDefinition } from "./u1/combat/signature.ts";
+import { defaultCombatProgress, type CombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { updateNightOverworld } from "./u1/world/dayNightRuntime.ts";
 export { HERO_IDS };
 export type { HeroId, CharacterProgress, Gear };
@@ -35,7 +43,7 @@ export const HERO_NAMES: Record<HeroId, string> = { you: "You", joe: "Joe", matt
 export type Scene = "arena" | "test" | "overworld" | "hub" | "dungeon" | "realm" | "prologue" | "shift" | "results" | "dead";
 export interface Input {
   x: number; y: number; attack: boolean; ki: boolean; dash: boolean;
-  guard: boolean; swap: boolean; interact: boolean;
+  guard: boolean; swap: boolean; interact: boolean; fusion?: boolean;
   attackPresentation?: AttackPresentation;
 }
 export const idleInput = (): Input => ({ x: 0, y: 0, attack: false, ki: false, dash: false, guard: false, swap: false, interact: false });
@@ -45,10 +53,12 @@ export interface HeroState {
   power: number; defense: number; invulnerable: number;
 }
 export interface RemoteHero {
+  chipDamageMultiplier?: number; secondWindReady?: boolean; chipSnapshotAt?: number;
   seat: number; userId: string; name: string; hero: HeroState;
   x: number; y: number; faceX: number; faceY: number; moving: boolean;
   guard: boolean; attackTimer: number; combo: number; charge: number; dashTimer: number;
   guardTimer?: number; filmSkip?: boolean; filmHold?: boolean; spaceOutfit?: boolean; boundTimer?: number; meleeCharge?: number;
+  fusionIntent?: number; fusionSpecial?: number;
   scene: Scene; room: number; mapId?: string; questCosmetic?: string | null; downed?: boolean; reviveProgress?: number; interact?: boolean;
 }
 export interface CoopRuntime {
@@ -57,6 +67,7 @@ export interface CoopRuntime {
   playerCount?: number; syncedLevel?: number; hostLevel?: number; downed?: boolean; reviveProgress?: number;
   spawnedExtras?: number; damageUntil?: Record<number, number>; reviveTimers?: Record<number, number>;
   revivedUntil?: Record<number, number>;
+  remoteSecondWindSpent?: Record<number, { userId: string; at: number }>;
   reviveHoldTarget?: string;
   worldClearedRooms?: string[];
   worldChapter?: number; protocolVersion?: number; personalDifficulty?: "normal" | "hard";
@@ -71,7 +82,7 @@ export interface Enemy {
   archetype?: Archetype; combatLevel?: number; escapeIframes?: number;
   woodsBehavior?: WoodsBehavior; tellX?: number; tellY?: number;
   behavior?: LunarBehavior | CityBehavior; poise?: number; burst?: number; exposed?: number; shieldBroken?: boolean;
-  id: number; kind: "grunt" | "shooter" | "boss";
+  relicEcho?: boolean; id: number; kind: "grunt" | "shooter" | "boss";
   sprite: "zombie" | "pumpkin" | "ghost" | "imp" | "shadowbeast";
   x: number; y: number; hp: number; maxHp: number; radius: number;
   baseMaxHp?: number;
@@ -79,6 +90,7 @@ export interface Enemy {
   miniBoss: boolean; phase: 1 | 2; pattern: number; windup: number; actionTimer: number; aimX: number; aimY: number;
 }
 export interface Projectile {
+  damageCap?: number;
   originX?: number; originY?: number; relayHit?: boolean; signal?: boolean; bounceDistance?: number; bounceVx?: number; bounceVy?: number;
   id: number; x: number; y: number; vx: number; vy: number; radius: number;
   damage: number; ttl: number; owner: "hero" | "enemy"; hero?: HeroId;
@@ -94,6 +106,7 @@ export type GameEvent =
   | { type: "arena-finish"; receipt: ArenaRunReceipt; score: number }
   | { type: "quest-save"; id: string; kind: "accepted" | "claimed" | "cosmetic" }
   | CoopHit
+  | { type: "item"; id: string; kind: "chip" | "relic" | "wish" | "radar" }
   | { type: "pickup"; id: string }
   | { type: "coop-pickup"; id: string }
   | { type: "ambient-taxi-crash"; x: number; y: number }
@@ -104,11 +117,17 @@ export type GameEvent =
   | { type: "level"; hero: HeroId; level: number }
   | { type: "swap"; hero: HeroId }
   | { type: "checkpoint"; id: string }
+  | { type: "fusion-start"; id: number; heroes: HeroId[]; seats: number[] }
+  | { type: "fusion-end"; id: number }
+  | { type: "fusion-special"; id: number }
+  | { type: "training-complete"; hero: HeroId; tier: number }
+  | { type: "training-failed"; hero: HeroId; tier: number; reason: string }
   | { type: "death" };
 export interface GameState {
   arena?: ArenaRuntime; hubArena?: ArenaPersonal; arenaVitals?: Record<HeroId, HeroState>; arenaLead?: HeroId; arenaRecorded?: string;
   hubQuests?: HubQuestSave; hubQuestId?: string; hubCosmetic?: string | null; hubQuestSerial?: number;
   relicRadar?: { owned: boolean; enabled: boolean };
+  u1: { items: ItemsSaveState; combat: CombatProgress; [key: string]: unknown }; fusion: FusionRuntime; training: TrainingRuntime | null;
   worldCycleSeconds: number;
   nightWorld?: { window: string | null };
   localPaused: boolean; spaceOutfit: boolean; oxygen: number; oxygenWarned: boolean; boundTimer: number;
@@ -122,7 +141,7 @@ export interface GameState {
   active: HeroId; party: HeroId[]; unlockedHeroes: HeroId[]; character: CharacterProgress; gear: Gear; time: number; scene: Scene; room: number; mapId: string;
   cutscene: number; sceneTimer: number; palette: "real" | "eightbit";
   transitionTarget: Scene | null; transitionPalette: "real" | "eightbit";
-  overlay: "shop" | "home" | "diner" | "arena" | "quest" | "quest-board" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
+  overlay: "shop" | "home" | "diner" | "wish" | "arena" | "quest" | "quest-board" | null; heroes: Record<HeroId, HeroState>; enemies: Enemy[]; projectiles: Projectile[];
   effects: Effect[]; floaters: Floater[]; notice: string; guard: boolean;
   difficulty: "normal" | "hard"; meleeCharge: number; meleeHolding: boolean;
   guardTimer?: number; attackTimer: number; combo: number; comboWindow: number; charge: number;
@@ -139,6 +158,10 @@ export interface GameState {
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
 export function activeHero(s: GameState) { return s.heroes[s.active]; }
 export function xpForLevel(level: number) { return 75 + (level - 1) * 45; }
+export function itemsGear(s: GameState): Gear {
+  const bonus = itemsState(s).relics.statBonus;
+  return { power: s.gear.power + bonus.power, ward: s.gear.ward + bonus.ward };
+}
 export function createHero(id: HeroId, character: CharacterProgress = { level: 1, xp: 0 }, gear: Gear = { power: 0, ward: 0 }): HeroState {
   const stats = heroStats(id, character, gear);
   return { id, ...stats, ...character, hp: stats.maxHp, ki: stats.maxKi / 2, stamina: stats.maxStamina, invulnerable: 0 };
@@ -199,7 +222,7 @@ export function syncCoopLevel(s: GameState): void {
     if (next !== old) { scaleEnemy(s, e, (e.baseMaxHp ?? e.maxHp) * (10 + (next - 1) * 3) / (10 + (old - 1) * 3)); e.combatLevel = next; }
   }
   for (const h of Object.values(s.heroes)) {
-    const stats = heroStats(h.id, { ...s.character, level }, s.gear);
+    const stats = heroStats(h.id, { ...s.character, level }, itemsGear(s));
     const hp = h.hp / Math.max(1, h.maxHp), ki = h.ki / Math.max(1, h.maxKi);
     Object.assign(h, stats, { level, xp: s.character.xp });
     h.hp = stats.maxHp * hp; h.ki = stats.maxKi * ki;
@@ -295,7 +318,7 @@ function random(s: GameState) {
   return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
 export function newGame(seed = 8591): GameState {
-  const s: GameState = { worldCycleSeconds: 0, difficulty: "normal", meleeCharge: 0, meleeHolding: false, localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
+  const s: GameState = { worldCycleSeconds: 0, u1: { items: createItemsSave(), combat: defaultCombatProgress() }, fusion: createFusionRuntime(), training: null, difficulty: "normal", meleeCharge: 0, meleeHolding: false, localPaused: false, spaceOutfit: false, oxygen: 100, oxygenWarned: false, boundTimer: 0, boundTravel: null, film: null, filmCaptionHold: false, filmSkipHeld: 0, filmHold: false, fuelGag: -1, foundItems: [], ambientTaxiWrecked: false, personalTaxiWrecked: false, ambientTaxiGag: -1, insideDiner: false,
     x: 75, y: 110, faceX: 1, faceY: 0, moving: false, vx: 0, vy: 0, knockX: 0, knockY: 0, transitionCooldown: 0,
     active: "you", party: ["you", "joe"], unlockedHeroes: [...HERO_IDS], character: { level: 1, xp: 0 }, gear: { power: 0, ward: 0 }, time: 0, scene: "test", room: 0, mapId: "training",
     cutscene: 0, sceneTimer: 0, palette: "real", transitionTarget: null, transitionPalette: "eightbit",
@@ -333,6 +356,7 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   const world = resolved.map;
   if (previousInterior && world.id === previousInterior.parent) s.checkpointMapId = world.id;
   s.mapId = world.id;
+  resetFusion(s); cancelTraining(s);
   s.scene = scene; s.overlay = null; s.insideDiner = false; s.dialogue = null; s.contextAttack = newContextAttack(); s.room = room; s.x = world.spawn.x; s.y = world.spawn.y;
   s.vx = 0; s.vy = 0; s.knockX = 0; s.knockY = 0; s.transitionCooldown = 0.5;
   s.sceneTimer = 0; s.transitionTarget = null;
@@ -378,6 +402,10 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
       addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
     }
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
+  }
+  if (s.mapId === "blast-9" && s.coop?.role !== "guest" && itemsState(s).relics.secretBossUnlocked && !s.bosses.includes("relic-echo")) {
+    const echo = addEnemy(s, "boss", 416, 224); echo.sprite = "ghost"; echo.relicEcho = true;
+    s.notice = "Relic Echo: the wish has awakened a hidden challenger.";
   }
   if (s.clearedRooms.includes("realm-0")) {
     s.chapter = Math.max(2, s.chapter);
@@ -475,7 +503,7 @@ export function gainXp(s: GameState, amount: number, contentLevel?: number, boos
   if (s.coop?.role === "guest") s.coop.syncedLevel = level;
   for (const h of Object.values(s.heroes)) {
     const growth = s.character.level - (s.coop ? before : h.level), downed = !!s.coop && h.hp <= 0;
-    const stats = heroStats(h.id, { ...s.character, level }, s.gear);
+    const stats = heroStats(h.id, { ...s.character, level }, itemsGear(s));
     Object.assign(h, s.character, stats, { level });
     if (growth > 0) {
       if (!downed && h.hp > 0) h.hp = Math.min(h.maxHp, h.hp + growth * 18);
@@ -513,12 +541,16 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
   if (e.hp <= 0) {
+    if (e.relicEcho && !s.bosses.includes("relic-echo")) {
+      s.bosses.push("relic-echo"); s.events.push({ type: "checkpoint", id: "relic-echo" });
+    }
     const baseXp = e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12;
     const xp = s.coop ? baseXp : combatXp(s, baseXp, authoredLevel(s));
     if (!s.coop && s.scene !== "arena") {
       const candy = e.kind === "boss" ? 35 : 2 + Math.floor(random(s) * 3);
-      s.candy += candy; s.kills++;
-      floater(s, e.x, e.y + 13, `+${candy} candy`, "#eea2fc");
+      const rewardCandy = Math.floor(candy * chipEffects(s).candyMultiplier) + chipEffects(s).candyBonusPerKill;
+      s.candy = Math.min(1_000_000, s.candy + rewardCandy); s.kills++;
+      floater(s, e.x, e.y + 13, `+${rewardCandy} candy`, "#eea2fc");
       gainXp(s, xp);
     }
     if (!s.coop && s.scene === "arena") s.kills++;
@@ -573,11 +605,13 @@ function swapHero(s: GameState): boolean {
   s.events.push({ type: "swap", hero: next }); return true;
 }
 export function requestSwap(s: GameState): boolean {
+  if (localFusion(s)) return false;
   if (s.coop && activeHero(s).hp <= 0) return false;
   return s.swapCooldown === 0 && s.dashTimer === 0 && !s.overlay ? swapHero(s) : false;
 }
 export function exitCoop(s: GameState): void {
   if (!s.coop) return;
+  resetFusion(s);
   s.ambientTaxiWrecked ||= s.personalTaxiWrecked;
   s.personalTaxiWrecked = s.ambientTaxiWrecked;
   s.ambientTaxiGag = -1;
@@ -590,13 +624,14 @@ export function exitCoop(s: GameState): void {
   const fallen = s.active, next = nextPartyHero(s);
   if (next) { swapHero(s); s.notice = `${HERO_NAMES[fallen]} is down! ${HERO_NAMES[next]} takes over.`; }
   else {
-    s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
+    resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false; s.overlay = null;
     s.events.push({ type: "death" });
   }
 }
 function damageHero(s: GameState, damage: number, sourceX: number, sourceY: number) {
   const h = activeHero(s);
   if (h.invulnerable > 0 || s.dashTimer > 0 || h.hp <= 0) return;
+  damage = Math.max(1, Math.round(damage * chipEffects(s).incomingDamageMultiplier));
   h.hp = Math.max(0, h.hp - damage); h.invulnerable = s.guard ? 0.12 : 0.5;
   s.hitStop = Math.max(s.hitStop, s.guard ? 0.04 : 0.065);
   if (!s.guard) {
@@ -606,6 +641,7 @@ function damageHero(s: GameState, damage: number, sourceX: number, sourceY: numb
   floater(s, s.x, s.y, s.guard ? `BLOCK ${damage}` : String(damage), s.guard ? "#a4d5ed" : "#ff897f");
   effect(s, "hit", s.x, s.y, 10, 0.13);
   s.events.push({ type: "hit", x: s.x, y: s.y, damage, target: "hero" });
+  if (h.hp === 0 && trySecondWind(s)) { effect(s, "level", s.x, s.y, 24, .7); return; }
   if (h.hp === 0) {
     if (s.coop) {
       s.coop.downed = true; s.moving = false; s.guard = false; s.vx = s.vy = 0;
@@ -615,7 +651,7 @@ function damageHero(s: GameState, damage: number, sourceX: number, sourceY: numb
     const next = nextPartyHero(s);
     if (next) { swapHero(s); s.notice = `${HERO_NAMES[h.id]} is down! ${HERO_NAMES[next]} takes over.`; }
     else {
-      s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
+      resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = false; s.guard = false;
       s.events.push({ type: "death" });
     }
   }
@@ -649,10 +685,20 @@ function hurtTarget(s: GameState, target: CombatTarget, damage: number, sourceX:
   if (!target.remote) { hurtHero(s, damage, sourceX, sourceY); return; }
   const coop = s.coop!, until = coop.damageUntil ??= {};
   if (target.hero.hp <= 0 || target.dashTimer > 0 || target.hero.invulnerable > 0 || (until[target.seat] ?? 0) > s.time) return;
-  const dealt = enemyDamage(s, damage, target.hero.defense, target.guard);
+  const rawDamage = enemyDamage(s, damage, target.hero.defense, target.guard);
+  const dealt = Math.max(1, Math.round(rawDamage * (target.remote.chipDamageMultiplier === 0.88 ? 0.88 : 1)));
   until[target.seat] = s.time + (target.guard ? 0.12 : 0.5);
   target.hero.hp = Math.max(0, target.hero.hp - dealt); target.remote.downed = target.hero.hp === 0;
-  s.events.push({ type: "coop-damage", seat: target.seat, damage: dealt, sourceX, sourceY });
+  if (target.hero.hp === 0 && target.remote.secondWindReady && coop.remoteSecondWindSpent?.[target.seat]?.userId !== target.remote.userId) {
+    (coop.remoteSecondWindSpent ??= {})[target.seat] = { userId: target.remote.userId, at: target.remote.chipSnapshotAt ?? 0 };
+    target.remote.secondWindReady = false; target.remote.downed = false; target.remote.reviveProgress = 0;
+    target.hero.hp = Math.max(1, target.hero.maxHp * 0.35); target.hero.invulnerable = Math.max(target.hero.invulnerable, 1.4);
+    until[target.seat] = s.time + 1.4;
+    effect(s, "level", target.x, target.y, 24, 0.7);
+  }
+  // Guests apply their own chip mitigation and consume their personal revive.
+  // The host predicts both before deciding whether the shared world has wiped.
+  s.events.push({ type: "coop-damage", seat: target.seat, damage: rawDamage, sourceX, sourceY });
   effect(s, "hit", target.x, target.y, 10, 0.13);
 }
 function updateCoopRevives(s: GameState, input: Input, dt: number) {
@@ -683,18 +729,18 @@ function checkCoopWipe(s: GameState) {
   const coop = s.coop;
   if (coop?.role !== "host" || s.scene === "dead" || activeHero(s).hp > 0 || coop.remoteHeroes.length < coopCount(s) - 1) return false;
   if (coop.remoteHeroes.some(peer => peer.hero.hp > 0 && !peer.downed)) return false;
-  s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
+  resetFusion(s); s.scene = "dead"; s.sceneTimer = 0; s.deaths++; s.moving = s.guard = false;
   s.events.push({ type: "death" });
   return true;
 }
 function melee(s: GameState, charged = false) {
   s.combo = charged ? 3 : s.comboWindow > 0 ? s.combo % 3 + 1 : 1;
   s.attackTimer = s.combo === 3 ? 0.28 : 0.2;
-  s.comboWindow = 0.8;
+  s.comboWindow = 0.8 + chipEffects(s).comboWindowBonus;
   const reach = charged ? 48 : s.combo === 3 ? 34 : 28;
   effect(s, "slash", s.x, s.y, reach, s.attackTimer, s.faceX, s.faceY);
   const attackId = `melee:${s.nextId++}`;
-  let hit = false;
+  let hit = trainingMelee(s, reach, s.faceX, s.faceY);
   for (const e of s.enemies) {
     const dx = e.x - s.x, dy = e.y - s.y, length = Math.hypot(dx, dy);
     if (length > reach + e.radius || (dx * s.faceX + dy * s.faceY) / Math.max(1, length) < -0.1) continue;
@@ -706,36 +752,43 @@ function melee(s: GameState, charged = false) {
   if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
 }
 function projectile(s: GameState, owner: Projectile["owner"], x: number, y: number, dx: number, dy: number,
-  speed: number, damage: number, radius: number, beam = false) {
-  s.projectiles.push({ id: s.nextId++, owner, originX:x, originY:y, x, y, vx: dx * speed, vy: dy * speed, damage,
-    radius, beam, hero: owner === "hero" ? s.active : undefined, ttl: beam ? 0.8 : 3.5, hits: [] });
+  speed: number, damage: number, radius: number, beam = false, ttl = beam ? 0.8 : 3.5, damageCap?: number) {
+  s.projectiles.push({ id: s.nextId++, owner, damageCap, originX:x, originY:y, x, y, vx: dx * speed, vy: dy * speed, damage,
+    radius, beam, hero: owner === "hero" ? s.active : undefined, ttl, hits: [] });
 }
 function fireKi(s: GameState) {
+  if (s.scene === "hub" && !s.training) { s.charge = 0; return; }
   const h = activeHero(s);
+  if (consumeFusionSpecial(s)) {
+    // A shared energy budget keeps overlapping beams below one-hit damage.
+    for (const angle of [-0.12, 0, 0.12]) {
+      const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
+      const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 285, h.power * 2.8, 10, true, .8, .26);
+    }
+    effect(s, "beam", s.x, s.y, 170, 0.55, s.faceX, s.faceY);
+    s.notice = "FUSION: Wayside Supernova!"; s.charge = 0; return;
+  }
+  if (localFusion(s)) { s.charge = 0; return; }
   if (h.ki >= h.maxKi - 0.01) {
-    h.ki = 0;
-    const signature = {
-      you: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "YOU: Fury Wave!" },
-      joe: { angles: [0], damage: 4.4, radius: 10, size: 130, name: "JOE: Wayside Wave!" },
-      matt: { angles: [-0.16, 0, 0.16], damage: 1.8, radius: 6, size: 105, name: "MATT: Golden Fury!" },
-      alex: { angles: [-0.1, 0.1], damage: 2.4, radius: 7, size: 115, name: "ALEX: Twin Comet!" },
-      jon: { angles: [0], damage: 4.8, radius: 12, size: 140, name: "JON: Night Breaker!" },
-    }[s.active];
+    const signature = signatureDefinition(s);
+    h.ki = signature.kiRefund;
+    h.stamina = Math.min(h.maxStamina, h.stamina + signature.staminaRestore);
     for (const angle of signature.angles) {
       const dx = s.faceX * Math.cos(angle) - s.faceY * Math.sin(angle);
       const dy = s.faceX * Math.sin(angle) + s.faceY * Math.cos(angle);
-      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, 245,
-        h.power * signature.damage, signature.radius, true);
+      projectile(s, "hero", s.x + dx * 10, s.y + dy * 10, dx, dy, signature.speed,
+        h.power * signature.damage * chipEffects(s).kiDamageMultiplier, signature.radius, true, signature.ttl, .7 / signature.angles.length);
     }
     if (s.active === "jon") for (const id of s.party) { const ally = s.heroes[id]; if (ally.hp > 0) ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * .12); }
     if (s.active === "alex") h.invulnerable = Math.max(h.invulnerable, .45);
     if (s.active === "matt") h.stamina = Math.min(h.maxStamina, h.stamina + 25);
     effect(s, "beam", s.x, s.y, signature.size, 0.36, s.faceX, s.faceY);
     s.notice = signature.name;
-  } else if (h.ki >= 8) {
-    h.ki -= 8;
+  } else if (h.ki >= 8 * chipEffects(s).kiCostMultiplier) {
+    h.ki -= 8 * chipEffects(s).kiCostMultiplier;
     projectile(s, "hero", s.x + s.faceX * 12, s.y + s.faceY * 12,
-      s.faceX, s.faceY, 155, h.power * 1.5, 4);
+      s.faceX, s.faceY, 155, h.power * 1.5 * chipEffects(s).kiDamageMultiplier, 4);
   } else s.notice = "Hold Ki to recharge.";
   s.charge = 0;
 }
@@ -812,6 +865,7 @@ function updateEnemies(s: GameState, dt: number) {
 function updateProjectiles(s: GameState, dt: number) {
   const world = getWorld(s.scene, s.room, s.mapId);
   for (const p of s.projectiles) {
+    if (s.training && s.localPaused && p.owner === "hero") continue;
     if(p.bounceDistance !== undefined) {
       p.bounceDistance -= Math.hypot(p.vx,p.vy)*dt;
       if(p.bounceDistance<=0) {p.vx=p.bounceVx!;p.vy=p.bounceVy!;delete p.bounceDistance;}
@@ -837,6 +891,7 @@ function updateProjectiles(s: GameState, dt: number) {
       p.x = x0 + dx * t; p.y = y0 + dy * t;
       if (blocked) break;
     }
+    trainingProjectile(s, p, x0, y0);
     // A segment collision prevents fast beams slipping between fixed-step targets.
     const collides = (x: number, y: number, radius: number) => {
       const dx = p.x - x0, dy = p.y - y0;
@@ -857,7 +912,7 @@ function updateProjectiles(s: GameState, dt: number) {
         if (e.hp <= 0 || p.hits.includes(e.id) || !collides(e.x, e.y, e.radius)) continue;
         p.hits.push(e.id);
         const length = Math.max(1, Math.hypot(p.vx, p.vy));
-        attackEnemy(s, e, p.damage, p.vx / length, p.vy / length, p.beam ? 85 : 40, `projectile:${p.id}`);
+        attackEnemy(s, e, Math.min(p.damage, p.damageCap === undefined ? Infinity : e.maxHp * p.damageCap), p.vx / length, p.vy / length, p.beam ? 85 : 40, `projectile:${p.id}`);
         if (!p.beam) { p.ttl = 0; break; }
       }
     } else if (s.coop?.role !== "guest") {
@@ -897,7 +952,8 @@ export function interactTarget(s: GameState): InteractTarget | null {
   if (s.scene === "prologue") return { id: "story-next", name: s.cutscene === PROLOGUE.length - 1 ? "Continue to the taxi" : "Next", kind: "next", x: s.x, y: s.y };
   if (s.dialogue) return { id: "dialog-next", name: s.dialogue.index < s.dialogue.lines.length - 1 ? "Next" : "Continue", kind: "next", x: s.x, y: s.y };
   if (s.scene === "dead" || s.scene === "results" || s.scene === "shift" || s.overlay || s.coop?.downed) return null;
-  const candidates: InteractionCandidate[] = [];
+  const candidates: InteractionCandidate[] = [...itemInteractionCandidates(s)];
+  if (s.scene === "hub" && !s.training) candidates.push({ ...TRAINING_BOARD, kind: "use", radius: TRAINING_BOARD.range, distance: Math.hypot(s.x - TRAINING_BOARD.x, s.y - TRAINING_BOARD.y) });
   const add = (target: InteractTarget, radius = 28, distance = Math.hypot(s.x - target.x, s.y - target.y)) => candidates.push({ ...target, radius, distance });
   if (s.coop && activeHero(s).hp > 0) for (const peer of s.coop.remoteHeroes) {
     if (peer.hero.hp <= 0 && sameCampaignMap(s, peer)) add({ id: `coop-revive-${peer.seat}`, name: `Hold to revive ${peer.name}`, kind: "use", x: peer.x, y: peer.y }, 32.001);
@@ -949,7 +1005,7 @@ export function hostileWithinMeleeReach(s: GameState): boolean {
     return enemy.hp > 0 && distance <= reach + enemy.radius && (dx * s.faceX + dy * s.faceY) / Math.max(1, distance) >= -.1;
   });
 }
-export const nonCombatContext = (s: GameState) => !!s.dialogue || s.scene === "prologue" || s.scene === "overworld" || s.scene === "hub" || !!s.overlay;
+export const nonCombatContext = (s: GameState) => !!s.dialogue || s.scene === "prologue" || s.scene === "overworld" || s.scene === "hub" && !s.training || !!s.overlay;
 function refreshContextAttack(s: GameState): void {
   s.contextAttack.target = interactTarget(s);
   updateContextPrompt(s.contextAttack, interactionPrompt(s.contextAttack.target, hostileWithinMeleeReach(s), nonCombatContext(s)), s.time);
@@ -987,6 +1043,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (target.id.startsWith("u8-quest-")) { openHubQuest(s, target.id); return; }
   if (target.id === "u8-board") { tickHubQuests(s); s.overlay = "quest-board"; return; }
   if (target.id === "u5-arena") { s.overlay = "arena"; s.moving = false; s.vx = s.vy = 0; return; }
+  if (target.id === TRAINING_BOARD.id) { startTraining(s); return; }
   if (target.id.startsWith('locks-')) {
     const gate = obstaclesForState(s).find(g => g.id === target.id || g.rewardId === target.id);
     if (!gate) return;
@@ -1005,6 +1062,9 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (countyStop) { openDialogue(s, countyStop.name, [countyStop.text]); return; }
   if (target.id === "story-next") { advanceStory(s); return; }
   if (target.id === "dialog-next") { advanceDialogue(s); return; }
+  if (s.coop?.role === "guest" && s.mapId === "hub" && (target.id === "home" || target.id === "interior-home-door")) {
+    s.overlay = "home"; s.vx = s.vy = 0; s.moving = false; s.notice = ""; return;
+  }
   if (target.id.endsWith("-door") || target.id === "diner-entry") {
     const room = INTERIORS.find(room => `${room.id}-door` === target.id || target.id === "diner-entry" && room.theme === "diner");
     if (room) {
@@ -1018,10 +1078,11 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   }
   const interior = interiorDefinition(s.mapId);
   if (interior && (target.id.endsWith("-ledger") || target.id.endsWith("-keeper"))) {
-    if (target.id.endsWith("-keeper")) refillCrew(s);
+    if (target.id.endsWith("-keeper")) { if (interior.id === "interior-home") restAtHome(s); else refillCrew(s); }
     openDialogue(s, target.id.endsWith("-keeper") ? "Caretaker" : "Local ledger", [interior.lore, ...(interior.theme === "station" ? [s.clearedRooms.includes("realm-0") ? campaignHandoff(s) : "Wayside Station is safe. Alex and Jon are holding the town."] : [])]); return;
   }
   if (target.id === "diner-leave") { s.overlay = null; s.insideDiner = false; return; }
+  if (interactItem(s, target.id)) return;
   if (target.id.startsWith("pickup-")) { collectPickup(s, target.id); return; }
   if (target.id.startsWith("coop-revive-")) return;
   if (target.id === "roadside-lore-sign") { openDialogue(s, "Wayside road sign", ["Blast Site: east. Wayside: west. If the sky starts flickering, get the crew home.", "The old road remembers every late-night drive. Keep a little sweetness for the trip."]); return; }
@@ -1037,6 +1098,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
       if (s.clearedRooms.includes(target.id)) return;
       if (target.locked) { s.notice = "Clear the nearby monsters before opening the cache."; return; }
       s.clearedRooms.push(target.id);
+      if (!s.coop) grantCheckpointChip(s, target.id);
       if (!s.coop) {
         s.candy += s.room === 8 ? 18 : 25;
         for (const h of Object.values(s.heroes)) {
@@ -1089,6 +1151,7 @@ export function toggleParty(s: GameState, id: HeroId, fromCharacter = false): bo
 }
 export function restAtHome(s: GameState): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
+  itemsState(s).chips.secondWindUsed = false;
   for (const h of Object.values(s.heroes)) { h.hp = h.maxHp; h.ki = h.maxKi; h.stamina = h.maxStamina; }
   if (!s.areas.includes("wayside")) s.areas.push("wayside");
   s.events.push({ type: "checkpoint", id: "home" }); s.notice = "Rested. HOME is your retry checkpoint.";
@@ -1176,6 +1239,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     s.vx = s.vy = s.knockX = s.knockY = s.charge = s.attackTimer = s.dashTimer = 0;
     s.guard = false;
   }
+  tickFusion(s, dt);
+  if (input.fusion && !s.previousInput.fusion && !s.localPaused && !s.dialogue && !s.overlay && !s.film) requestFusion(s);
   tickLunar(s,dt);
   updateCoopRevives(s, input, dt);
   if (checkCoopWipe(s)) return;
@@ -1191,12 +1256,15 @@ export function step(s: GameState, input: Input, delta: number): void {
   if (s.hitStop > 0) { s.hitStop = Math.max(0, s.hitStop - dt); return; }
   const previous = dialogueInput ? idleInput() : s.previousInput;
   s.previousInput = { ...physicalInput };
-  const combat = !interiorDefinition(s.mapId) && (s.scene === "arena" || s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
+  const practicing = !!s.training;
+  const combat = practicing || !interiorDefinition(s.mapId) && (s.scene === "arena" || s.scene === "test" || s.scene === "dungeon" || s.scene === "realm");
   s.attackTimer = Math.max(0, s.attackTimer - dt);
   s.comboWindow = Math.max(0, s.comboWindow - dt);
   s.dashTimer = Math.max(0, s.dashTimer - dt);
   s.swapCooldown = Math.max(0, s.swapCooldown - dt);
+  const passives = chipEffects(s);
   for (const h of Object.values(s.heroes)) {
+    if (h.id === s.active && h.hp > 0 && !s.enemies.some(e => e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 100)) h.hp = Math.min(h.maxHp, h.hp + passives.passiveHealPerSecond * dt);
     h.invulnerable = Math.max(0, h.invulnerable - dt);
     h.stamina = Math.min(h.maxStamina, h.stamina + dt * 20);
     if (!(h.id === s.active && input.ki)) h.ki = Math.min(h.maxKi, h.ki + dt * 2.5);
@@ -1212,8 +1280,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     const angle = Math.round(Math.atan2(input.y, input.x) / (Math.PI / 4)) * Math.PI / 4;
     s.faceX = Math.cos(angle); s.faceY = Math.sin(angle);
   }
-  if (combat && input.dash && !previous.dash && s.dashTimer === 0 && h.stamina >= 25) {
-    h.stamina -= 25; s.dashTimer = 0.18; h.invulnerable = Math.max(h.invulnerable, 0.23);
+  if (combat && input.dash && !previous.dash && s.dashTimer === 0 && h.stamina >= 25 * passives.dashStaminaMultiplier) {
+    h.stamina -= 25 * passives.dashStaminaMultiplier; s.dashTimer = 0.18; h.invulnerable = Math.max(h.invulnerable, 0.23);
     s.guard = false; s.charge = 0; s.meleeCharge = 0; s.meleeHolding = false;
     if(onMoon(s)) {s.boundTimer=.4;tryBoundLink(s);}
     effect(s, "dash", s.x, s.y, 14, 0.23, s.faceX, s.faceY);
@@ -1230,7 +1298,7 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.y === oldY) s.vy *= 0.5;
     s.moving = Math.hypot(s.vx, s.vy) > 3;
   } else {
-    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : !combat && input.dash ? 112 : 70) * pickupBuffs(s).speed * woodsMovementScale(s);
+    const speed = (s.dashTimer > 0 ? (onMoon(s) ? 324 : 240) : s.guard ? 29 : input.ki && combat ? 37 : !combat && input.dash ? 112 : 70) * pickupBuffs(s).speed * passives.moveSpeedMultiplier * woodsMovementScale(s);
     const strength = s.dashTimer > 0 ? 1 : s.moving ? Math.min(1, length) : 0;
     const moveX = s.dashTimer > 0 ? s.faceX : input.x / Math.max(0.001, length);
     const moveY = s.dashTimer > 0 ? s.faceY : input.y / Math.max(0.001, length);
@@ -1238,6 +1306,8 @@ export function step(s: GameState, input: Input, delta: number): void {
     if(!advanceBoundLink(s,dt)) moveBody(s, s, (s.vx + s.knockX) * dt, (s.vy + s.knockY) * dt, 7);
     s.knockX *= Math.max(0, 1 - dt * 10); s.knockY *= Math.max(0, 1 - dt * 10);
   }
+  tickTraining(s, dt);
+  if (practicing && !s.training) { s.charge = 0; return; }
   walkingPickup(s);
   if (!combat) {
     s.charge = 0;
@@ -1265,9 +1335,10 @@ export function step(s: GameState, input: Input, delta: number): void {
     if (s.dialogue) { dialogueControlsSuppressed = true; input = idleInput(); }
   }
   if (!dialogueControlsSuppressed && input.ki && s.dashTimer === 0 && !s.guard) {
-    s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32 * pickupBuffs(s).charge);
+    s.charge += dt; h.ki = Math.min(h.maxKi, h.ki + dt * 32 * pickupBuffs(s).charge * passives.kiChargeMultiplier);
   }
   if (!dialogueControlsSuppressed && !input.ki && previous.ki && s.dashTimer === 0) fireKi(s);
+  if (practicing) { updateProjectiles(s, dt); return; }
   tickWoodsField(s, input.ki);
   const hadEnemies = s.enemies.length > 0;
   if (s.coop?.role !== "guest") { updateEnemies(s, dt); separateBodies(s, dt); }
@@ -1295,6 +1366,7 @@ export function step(s: GameState, input: Input, delta: number): void {
       s.events.push({type:"checkpoint",id});s.notice="Lunar encounter clear. The next relay route is open.";
       return;
     }
+    if (!s.coop) grantCheckpointChip(s, id);
     s.events.push({ type: "checkpoint", id });
     s.notice = s.room === WATCHER_ROOM ? "The Watcher falls! Chapter 1 is clear. Head through the eastern rift."
       : s.room === GATEKEEPER_ROOM ? "The Sentinel falls. The gate to the crater is open!"
