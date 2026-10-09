@@ -160,6 +160,7 @@ for (const world of [...BLAST_WORLDS, REALM_WORLD]) for (const door of world.exi
 
 export function getWorld(scene: string, room = 0, mapId?: string, coop = false): WorldMap {
   if (coop && (mapId === "overworld" || !mapId && scene === "overworld")) return COOP_OVERWORLD;
+  if (scene === "test") return TEST_WORLD;
   if (mapId) return ALL_WORLDS.find(world => world.id === mapId) ?? HUB_WORLD;
   return scene === "arena" ? ARENA_WORLD : scene === "overworld" ? OVERWORLD : scene === "hub" ? HUB_WORLD : scene === "dungeon" ? BLAST_WORLDS[room] ?? BLAST_WORLDS[0] : scene === "realm" ? REALM_WORLD : TEST_WORLD;
 }

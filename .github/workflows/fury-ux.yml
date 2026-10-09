@@ -42,6 +42,7 @@ jobs:
           npm run dev -- --port 5224 > work/vite.log 2>&1 &
           curl --retry 20 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:5224/wayside-fury > /dev/null
           node scripts/check-wayside-fury-hud-browser.mjs
+          node scripts/check-wayside-fury-tutorial-browser.mjs
           node scripts/check-wayside-fury-ux-browser.mjs
           node scripts/check-wayside-fury-art-browser.mjs
       - uses: actions/upload-artifact@v4
@@ -51,4 +52,5 @@ jobs:
           path: |
             work/*.log
             work/*.png
+            work/tutorial/*.png
             work/fury-art/pixel-comparison.json

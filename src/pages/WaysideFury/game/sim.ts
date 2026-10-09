@@ -30,7 +30,7 @@ import { configureLunarEnemy, lunarDamage, updateLunarEnemy } from "./enemies/lu
 import type { LunarBehavior } from "./chapters/ch3Worlds.ts";
 import { sameCampaignMap, campaignLocations, canEnter, getArea, resolveCampaignMap, legacyMapId, WOODS_HANDOFF, campaignHandoff } from "./campaign.ts";
 import { HUB_POINTS, PROLOGUE, SHOP_ITEMS, type ShopItemId } from "./content.ts";
-import { getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
+import { TEST_WORLD, getWorld, isBlocked, distanceToExit, WATCHER_ROOM, GATEKEEPER_ROOM, type WorldExit } from "./world.ts";
 import { HERO_IDS, heroStats, MAX_LEVEL, type HeroId, type CharacterProgress, type Gear } from "../../../../server/shared/waysideFury/save.js";
 import { availablePickups, collectPickup, pickupBuffs, walkingPickup } from "./collectibles.ts";
 import { updateOverworldDressing } from "./dressing.ts";
@@ -134,6 +134,7 @@ export type GameEvent =
   | { type: "death" };
 export interface GameState {
   opening?: Opening;
+  openingChoice?: boolean;
   assistHp?: number;
   shapeMarkers?: boolean;
   ambientBirds?: ReturnType<typeof import("./dressing.ts").roadsideBirds>;
@@ -366,11 +367,11 @@ export function addEnemy(s: GameState, kind: Enemy["kind"], x: number, y: number
 export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string): void {
   const previousInterior = interiorDefinition(s.mapId);
   const resolved = resolveCampaignMap(mapId ?? (scene === "arena" ? "u5-arena" : legacyMapId(scene, room)) ?? "unknown");
-  if (resolved.fallback) { scene = "hub"; room = 0; }
+  if (resolved.fallback && scene !== "test") { scene = "hub"; room = 0; }
   else if (mapId && !["prologue", "shift", "results", "dead"].includes(scene)) {
     scene = resolved.definition.scene as Scene; room = resolved.definition.room;
   }
-  const world = resolved.map;
+  const world = scene === "test" ? TEST_WORLD : resolved.map;
   if (previousInterior && world.id === previousInterior.parent) s.checkpointMapId = world.id;
   s.mapId = world.id;
   resetFusion(s); cancelTraining(s);
@@ -580,7 +581,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     }
     const baseXp = e.kind === "boss" ? e.miniBoss ? 90 : 160 : e.kind === "shooter" ? 16 : 12;
     const xp = s.coop ? baseXp : combatXp(s, baseXp, authoredLevel(s));
-    if (!s.coop && s.scene !== "arena") {
+    if (!s.opening && !s.coop && s.scene !== "arena") {
       const candy = e.kind === "boss" ? 35 : 3 + Math.floor(random(s) * 3);
       const rewardCandy = Math.floor(candy * chipEffects(s).candyMultiplier) + chipEffects(s).candyBonusPerKill;
       s.candy = Math.min(1_000_000, s.candy + rewardCandy); s.kills++;
@@ -588,8 +589,8 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
       gainXp(s, xp);
     }
     if (!s.coop && s.scene === "arena") s.kills++;
-    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp: s.scene === "arena" ? 0 : xp, xpLevel: authoredLevel(s) });
-    trackHubQuestEvent(s, s.events[s.events.length - 1]);
+    s.events.push({ type: "kill", enemyId: e.id, kind: e.kind, x: e.x, y: e.y, sprite: e.sprite, radius: e.radius, xp: s.opening || s.scene === "arena" ? 0 : xp, xpLevel: authoredLevel(s) });
+    if (!s.opening) trackHubQuestEvent(s, s.events[s.events.length - 1]);
   }
 }
 // Hosts are the only authority for enemy HP and kill rewards. A beam may hit
@@ -666,6 +667,7 @@ export function damageHero(s: GameState, damage: number, sourceX: number, source
   const h = activeHero(s);
   if (h.invulnerable > 0 || s.dashTimer > 0 || h.hp <= 0) return;
   damage = Math.max(1, Math.round(damage * chipEffects(s).incomingDamageMultiplier / (s.coop ? 1 : 1 + (s.assistHp ?? 0) / 100)));
+  if (s.opening) { damage = Math.min(damage, Math.max(0, h.hp - 1)); if (damage === 0) return; }
   h.hp = Math.max(0, h.hp - damage); h.invulnerable = s.guard ? 0.12 : 0.5;
   s.hitStop = Math.max(s.hitStop, s.guard ? 0.04 : 0.065);
   if (!s.guard) {
@@ -878,6 +880,23 @@ function updateEnemies(s: GameState, dt: number) {
     e.escapeIframes = Math.max(0, (e.escapeIframes ?? 0) - dt);
     moveBody(s, e, e.kx * dt, e.ky * dt, e.radius);
     e.kx *= Math.max(0, 1 - dt * 9); e.ky *= Math.max(0, 1 - dt * 9);
+    if (s.opening) {
+      const o = s.opening;
+      if (o.stage === 3 && e.id === o.targetId && e.hitTimer <= 0) {
+        if (e.windup > 0) {
+          e.windup = Math.max(0, e.windup - dt);
+          if (e.windup === 0) {
+            const onMark = Math.hypot(s.x - 168, s.y - 110) < 20;
+            if (onMark) {
+              if (s.guard) o.hits++;
+              damageHero(s, Math.min(Math.max(0, activeHero(s).hp - 1), s.guard ? 1 : 4), e.x, e.y);
+            }
+            e.cooldown = 1.2;
+          }
+        } else if (e.cooldown === 0) { e.windup = .8; e.aimX = -1; e.aimY = 0; }
+      }
+      continue;
+    }
     const players = combatTargets(s);
     const target = players.reduce<CombatTarget | null>((best, candidate) => !best || Math.hypot(candidate.x - e.x, candidate.y - e.y) < Math.hypot(best.x - e.x, best.y - e.y) ? candidate : best, null);
     if (!target) continue;
@@ -1213,6 +1232,7 @@ export function enforceCountyPartyBounds(s: GameState) {
   }
 }
 export function step(s: GameState, input: Input, delta: number): void {
+  if (s.openingChoice) { s.events = []; return; }
   enforceCountyPartyBounds(s);
   updateNightOverworld(s, delta);
   markSeenGates(s);

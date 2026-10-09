@@ -8,14 +8,15 @@ const s=newGame(), originalKi=activeHero(s).ki;
 startOpening(s); assert.equal(s.opening.stage,0);
 assert.equal(makeSave(s,null).heroes.you.ki,originalKi,'practice resources do not enter a save');
 tick(s,{x:1},20); assert.equal(s.opening.stage,1);
-tick(s,{x:1},40); assert.ok(s.x<=98,'crate blocks the route before attack');
-tick(s,{attack:true}); tick(s,{},18);
-assert.equal(s.opening.stage,2,'one real melee strike opens crate');
+tick(s,{x:1},40); assert.ok(s.x<=98,'zombie blocks the route before attack');
+const target=s.enemies[0];assert.equal(target.sprite,'zombie');assert.ok(target.hp<=6);const rewards=[s.candy,s.character.xp,s.kills];
+tick(s,{attack:true});assert.ok(s.events.some(e=>e.type==='hit'),'real hit feedback');assert.ok(s.events.some(e=>e.type==='kill'),'real death feedback');assert.deepEqual([s.candy,s.character.xp,s.kills],rewards,'practice does not grant rewards'); tick(s,{},18);
+assert.equal(s.opening.stage,2,'one real melee strike defeats zombie');
 tick(s,{x:1},60); assert.ok(s.x<112,'walking cannot cross the gap');
 tick(s,{x:1,dash:true}); tick(s,{x:1},12); assert.equal(s.opening.stage,3,'dash carries player over gap');
 s.x=168;s.y=110;tick(s,{},190);assert.equal(s.opening.stage,3,'waiting does not complete block');
 tick(s,{guard:true},130); assert.equal(s.opening.stage,4,'guard the telegraphed swing');
-s.faceX=1;s.faceY=0;tick(s,{ki:true});tick(s,{},90);assert.equal(s.opening.stage,5,'real projectile hits distant switch');
+s.faceX=1;s.faceY=0;tick(s,{ki:true});tick(s,{},90);assert.ok(s.enemies[0].hp<s.enemies[0].maxHp,'Ki staggers and damages imp');tick(s,{ki:true});tick(s,{},90);assert.equal(s.opening.stage,5,'real projectile defeats distant imp');
 tick(s,{swap:true});assert.equal(s.opening,undefined);assert.ok(s.campaignMilestones.includes(OPENING_DONE));
 const completed=makeSave(s,null);startOpening(restoreSave(completed));const resumed=restoreSave(completed);startOpening(resumed);assert.equal(resumed.opening,undefined,'completion survives save/restore');
 const skipped=newGame();startOpening(skipped);finishOpening(skipped,true);assert.ok(makeSave(skipped,null).campaignMilestones.includes(OPENING_SKIPPED));assert.ok(!skipped.campaignMilestones.includes(OPENING_DONE),'skip is distinct from completion');
@@ -29,3 +30,8 @@ assert.equal(parseSave({...completed,settings:{...completed.settings,ux:{}}}).se
 assert.equal(save.settings.ux.hudSize,1.3);assert.equal(save.settings.ux.textSize,1.5);assert.equal(save.settings.ux.gameSpeed,.5);assert.equal(save.settings.ux.extraHp,100);assert.equal(save.settings.ux.haptics,false);assert.equal(save.settings.ux.keys.attack,'z');assert.equal(save.settings.ux.keys.ki,undefined);
 assert.deepEqual(restoreSave(save).campaignMilestones,save.campaignMilestones);
 console.log('Guided opening, real move gates, skip/completion persistence, practice resources, assist buffer, action cooldowns and preference sanitization pass.');
+
+const replay=restoreSave(completed);replay.candy=123;const before=makeSave(replay,null);startOpening(replay,true);assert.ok(replay.opening);assert.equal(makeSave(replay,null).candy,123);finishOpening(replay);assert.equal(replay.candy,before.candy);assert.equal(replay.mapId,'overworld');
+const choice=newGame();choice.openingChoice=true;const x=choice.x;tick(choice,{x:1,attack:true},60);assert.equal(choice.x,x,'choice suspends gameplay');
+
+const safe=newGame();startOpening(safe);activeHero(safe).hp=1;activeHero(safe).invulnerable=0;damageHero(safe,99,189,110);assert.equal(activeHero(safe).hp,1,'practice cannot kill player');assert.equal(safe.scene,'test');assert.equal(safe.mapId,'training');

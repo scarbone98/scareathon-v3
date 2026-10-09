@@ -1,3 +1,4 @@
+import { drawOpening } from './opening';
 import { obstaclesForState, isObstacleCleared } from "./locks/obstacles";
 import { idleMotion, type ActorMotion } from './animation';
 import { sampleDayNight } from "./u1/world/dayNight";
@@ -169,6 +170,10 @@ export class OverworldRenderer {
   private ray = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -5);
   private scratch = new THREE.Vector3();
+  private openingCanvas = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
+  private openingTexture = new THREE.CanvasTexture(this.openingCanvas);
+  private openingStage = -1;
+  private openingGround = new THREE.Mesh(new THREE.PlaneGeometry(320, 180, 40, 24), new THREE.MeshBasicMaterial({ map: this.openingTexture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   private dummy = new THREE.Object3D();
   private resize = () => {
     if (this.disposed) return;
@@ -883,6 +888,11 @@ export class OverworldRenderer {
     }
   }
   private updateActors(s: GameState) {
+    this.taxi.visible = !s.opening; this.taxiShadow.visible = !s.opening;
+    if (s.opening) {
+      const hero = this.billboard('tutorial-hero', s.active, s.x, s.y, 1, undefined, s.motion);
+      hero?.sprites.forEach(sprite => sprite.material.color.setHex(s.heroes[s.active].invulnerable > 0 ? 0xffc5aa : 0xffffff));
+    } else this.removeBillboard('tutorial-hero');
     // The taxi owns movement; crew portraits are small billboard passengers and
     // stationary station greeters. They never participate in collision or saves.
     const greeters: { id: HeroId; x: number; y: number }[] = [
@@ -973,6 +983,16 @@ export class OverworldRenderer {
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
+    if (!this.openingGround.parent) {
+      const geometry = this.openingGround.geometry; geometry.rotateX(-Math.PI / 2);
+      const vertices = geometry.attributes.position;
+      for (let i = 0; i < vertices.count; i++) vertices.setY(i, this.terrain.heightAt(vertices.getX(i) + 160, vertices.getZ(i) + 90) + .5);
+      vertices.needsUpdate = true; geometry.computeVertexNormals();
+      this.openingGround.position.set(160, 0, 90); this.scene.add(this.openingGround);
+    }
+    this.openingGround.visible = !!s.opening;
+    if (s.opening && this.openingStage !== s.opening.stage) { const c = this.openingCanvas.getContext('2d')!; c.clearRect(0, 0, 320, 180); drawOpening(c, s); this.openingTexture.needsUpdate = true; this.openingStage = s.opening.stage; }
+    if (!s.opening) this.openingStage = -1;
     this.follow(s, dt); this.atmosphere(s);
     this.lockMeshes?.update(s,s.time);
     const gates = campaignLocations(s);
