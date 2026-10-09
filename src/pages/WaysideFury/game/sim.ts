@@ -570,7 +570,7 @@ function hurtEnemy(s: GameState, e: Enemy, damage: number, dx: number, dy: numbe
     }
     force *= .04;
   }
-  e.hp -= dealt; e.hitTimer = force >= 80 ? 0.22 : 0.16; s.hitStop = Math.max(s.hitStop, impactForce >= 80 ? 0.075 : 0.05); e.kx += dx * force; e.ky += dy * force;
+  e.hp -= dealt; e.hitTimer = force >= 80 ? 0.22 : 0.16; s.hitStop = Math.max(s.hitStop, impactForce >= 80 ? 0.065 : 0.045); e.kx += dx * force; e.ky += dy * force;
   effect(s, "hit", e.x, e.y, 9, 0.12);
   floater(s, e.x, e.y, String(dealt), ({ you: "#9cefff", joe: "#9cefff", matt: "#ffe393", alex: "#b4f49c", jon: "#d6b0ff" })[s.active]);
   s.events.push({ type: "hit", x: e.x, y: e.y, damage: dealt, target: "enemy" });
@@ -783,7 +783,7 @@ function melee(s: GameState, charged = false) {
     hit = true;
   }
   if (charged) { activeHero(s).stamina -= 18; s.notice = "Charged strike! Shields broken."; }
-  if (hit) s.hitStop = s.combo === 3 ? 0.07 : 0.045;
+  if (hit) s.hitStop = s.combo === 3 ? 0.065 : 0.045;
 }
 function projectile(s: GameState, owner: Projectile["owner"], x: number, y: number, dx: number, dy: number,
   speed: number, damage: number, radius: number, beam = false, ttl = beam ? 0.8 : 3.5, damageCap?: number) {

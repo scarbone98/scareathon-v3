@@ -18,6 +18,8 @@ for(const force of [55,120]) {
  const c=newGame();c.enemies=[];c.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[]};const e=addEnemy(c,'grunt',140,100);
  applyCoopHit(c,{enemyId:e.id,attackId:'feel',damage:4,dx:1,dy:0,force},1);
  assert.ok(c.hitStop>=.04&&c.hitStop<=.08);assert.ok(e.hitTimer>=.16);
+ let frozen=0;while(c.hitStop>0&&frozen<10){step(c,idleInput(),1/60);frozen++;}
+ assert.ok(frozen/60>=.04&&frozen/60<=.08,'actual fixed-tick freeze stays within 40–80ms');
 }
 const goal=chapterGoal(newGame());assert.equal(goal.chapter,1);assert.equal(goal.value,0);assert.ok(goal.next.includes('Woods'));
 const cleared=newGame();cleared.clearedRooms.push('realm-0');assert.equal(chapterGoal(cleared).chapter,2);

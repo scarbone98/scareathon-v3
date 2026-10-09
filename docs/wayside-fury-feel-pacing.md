@@ -4,7 +4,7 @@ Base: upstream main 90b6d4c (includes #35 and #38). Original sprites, vehicle ge
 
 ## Combat
 
-Light enemy impacts pause simulation for 50 ms; heavy impacts for 75 ms, within the requested 40–80 ms range. Heavy boss impacts retain their strength before boss knockback attenuation. Hero impacts retain 40 ms guarded / 65 ms unguarded feedback. Non-boss stagger is 160 ms light / 220 ms heavy. Existing bounded hit/death particles and death tumbles are preserved. Damage-number pop is shared across 2D, county 3D and Space 3D. Shake scales from damage and honors reduced motion. Vibration uses the existing haptics preference, supports any input on capable devices, and catches unsupported hardware errors.
+Light enemy impacts request 45 ms; heavy impacts request 65 ms. At 60 Hz these freeze for three/four ticks (50/67 ms), within the requested 40–80 ms range. This avoids rounding a nominal 75 ms freeze up to five ticks (83 ms). Heavy boss impacts retain their strength before boss knockback attenuation. Hero impacts retain 40 ms guarded / 65 ms unguarded feedback. Non-boss stagger is 160 ms light / 220 ms heavy. Existing bounded hit/death particles and death tumbles are preserved. Damage-number pop is shared across 2D, county 3D and Space 3D. Shake scales from damage and honors reduced motion. Vibration uses the existing haptics preference, supports any input on capable devices, and catches unsupported hardware errors.
 
 ## Balance
 
