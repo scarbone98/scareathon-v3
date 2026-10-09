@@ -896,7 +896,7 @@ export function interactTarget(s: GameState): InteractTarget | null {
   }
   const radar = radarPickupTarget(s);
   if (radar) add({ ...radar, name: "Pick up Relic Radar", kind: "use" });
-  const quest = hubQuestTarget(s);
+  const quest = hubQuestTarget(s, false);
   if (quest) add({ ...quest, kind: "talk", x: s.x, y: s.y });
   if (s.mapId === "hub") {
     add({ ...ARENA_HUB_POINT, kind: "use" }, 32);

@@ -3,7 +3,7 @@ import { TILE, getWorld, isBlocked } from "../../game/world.ts";
 import { availablePickups } from "../../game/collectibles.ts";
 import { mapDefinition } from "../../../../../server/shared/waysideFury/campaign.js";
 
-const radarState = (s: GameState) => s.relicRadar ??= { owned: false, enabled: false };
+const radarState = (s: GameState) => s.relicRadar ?? { owned: false, enabled: false };
 const itemWithinReach = (s: GameState, target: { x: number; y: number }) => Math.hypot(s.x - target.x, s.y - target.y) < 28;
 type TargetProvider = (s: GameState) => readonly HiddenRadarTarget[];
 let relicProvider: TargetProvider = () => [];
@@ -77,7 +77,7 @@ export function radarPickupTarget(s: GameState): typeof RADAR_PICKUP | null {
 export function collectRadar(s: GameState): boolean {
   const target = radarPickupTarget(s);
   if (!target || !itemWithinReach(s, target)) return false;
-  const radar = radarState(s);
+  const radar = s.relicRadar ??= { owned: false, enabled: false };
   radar.owned = true; radar.enabled = true;
   s.notice = "Relic Radar found! Toggle relic mode on the minimap to track nearby relics and hidden finds.";
   s.events.push({ type: "quest-save", id: RADAR_PICKUP.id, kind: "claimed" });
@@ -86,8 +86,8 @@ export function collectRadar(s: GameState): boolean {
 export function toggleRadar(s: GameState): boolean {
   const radar = radarState(s);
   if (!radar.owned) return false;
-  radar.enabled = !radar.enabled;
-  s.notice = `Relic Radar ${radar.enabled ? "on" : "off"}.`;
+  s.relicRadar = { owned: true, enabled: !radar.enabled };
+  s.notice = `Relic Radar ${s.relicRadar.enabled ? "on" : "off"}.`;
   return true;
 }
 

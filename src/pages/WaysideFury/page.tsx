@@ -2,7 +2,7 @@ import { ArenaPanel, ArenaHud } from "./u1/hub/ArenaPanel";
 import { startArena, finishArena } from "./u1/hub/arena";
 import { QuestLog, QuestDialogue } from "./u1/hub/QuestLog";
 import { createQuestSave } from "./u1/hub/quests";
-import { acceptHubQuest, claimHubQuest, canUseHubQuest, hubQuestContext, selectHubCosmetic } from "./u1/hub/hubRules";
+import { acceptHubQuest, claimHubQuest, openHubQuest, canUseHubQuest, hubQuestContext, selectHubCosmetic } from "./u1/hub/hubRules";
 import { arenaGame } from "../../../server/shared/waysideFury/u1Arena.js";
 import { submitArcadeScore } from "../Arcade/games";
 import { GlobeTravel } from "./GlobeTravel";
@@ -535,7 +535,7 @@ export default function WaysideFury() {
         <button onClick={()=>controller.current?.mutate(s=>{s.filmCaptionHold=!s.filmCaptionHold;s.filmHold=s.filmCaptionHold;})}>Hold captions: {state.filmHold ? "on" : "off"}</button></div>
       </section>}
       {state.dialogue && !paused && <section className="wf-dialogue wf-world-dialogue" aria-label={`${state.dialogue.speaker} dialogue`} role="dialog">
-        <div><strong>{state.dialogue.speaker}</strong><p>{state.dialogue.lines[state.dialogue.index]}</p><button onClick={() => controller.current?.mutate(advanceDialogue)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.dialogue.index < state.dialogue.lines.length - 1 ? "Next" : "Continue"}</button></div>
+        <div><strong>{state.dialogue.speaker}</strong><p>{state.dialogue.lines[state.dialogue.index]}</p><button onClick={() => controller.current?.mutate(advanceDialogue)}><ActionIcon action="attack" glyph="next" /><PromptGlyph mode={mode} action="attack" />{state.dialogue.index < state.dialogue.lines.length - 1 ? "Next" : "Continue"}</button>{state.mapId === "hub" && ["Alex", "Jon"].includes(state.dialogue.speaker) && <button className="wf-secondary" onClick={() => controller.current?.mutate(s => { openHubQuest(s, `u8-quest-${s.dialogue!.speaker.toLowerCase()}`); })}>Quest request</button>}</div>
       </section>}
       {state.scene === "prologue" && !paused && <>
         <button className="wf-skip wf-secondary" onClick={() => controller.current?.mutate(skipPrologue)}>Skip prologue</button>

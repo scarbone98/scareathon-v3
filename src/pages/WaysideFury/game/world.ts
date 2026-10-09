@@ -91,8 +91,8 @@ export const HUB_WORLD = (() => {
   prop(m, "npc", 816, 384, 16, 24, "Jon"); prop(m, "npc", 336, 224, 16, 24, "Alex");
   parkedCar(m, 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
-  m.props.push(ARENA_HUB_BUILDING, { id: "u8-board", kind: "sign", x: 436, y: 220, w: 24, h: 24, label: "Quest board", footprints: [] });
-  for (const npc of HUB_QUEST_NPCS.filter(n => !n.hero)) m.props.push({ id: npc.id, kind: "npc", x: npc.x - 8, y: npc.y - 24, w: 16, h: 24, label: npc.name, footprints: [] });
+  m.props.push(ARENA_HUB_BUILDING, { id: "u8-board", kind: "sign", x: 436, y: 220, w: 24, h: 24, label: "Quest board", footprints: [{ x: 447, y: 238, w: 3, h: 6 }] });
+  for (const npc of HUB_QUEST_NPCS.filter(n => !n.hero)) m.props.push({ id: npc.id, kind: "npc", x: npc.x - 8, y: npc.y - 24, w: 16, h: 24, label: npc.name, footprints: [{ x: npc.x - 4, y: npc.y - 5, w: 8, h: 5 }] });
   m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
 

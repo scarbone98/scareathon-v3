@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { newGame, enterScene, interact, idleInput, step, activeHero, createHero, HERO_IDS, syncCoopLevel } from '../src/pages/WaysideFury/game/sim.ts';
-import { acceptHubQuest, claimHubQuest, trackHubCoopReward } from '../src/pages/WaysideFury/u1/hub/hubRules.ts';
+import { acceptHubQuest, claimHubQuest, openHubQuest, trackHubCoopReward } from '../src/pages/WaysideFury/u1/hub/hubRules.ts';
+import { HUB_WORLD, isBlocked } from "../src/pages/WaysideFury/game/world.ts";
 import { QUESTS } from '../src/pages/WaysideFury/u1/hub/quests.ts';
 import { startArena, finishArena, tickArena } from '../src/pages/WaysideFury/u1/hub/arena.ts';
 import { makeSave, restoreSave, progressReport } from '../src/pages/WaysideFury/game/save.ts';
@@ -9,7 +10,10 @@ import { cleanWorld, cleanRelay } from '../server/wayside-fury/protocol.js';
 import { compatibleMap } from '../server/shared/waysideFury/campaign.js';
 const s = newGame(); enterScene(s, 'hub');
 for (const q of QUESTS) {
+  if (!q.npc.hero) { const prop = HUB_WORLD.props.find(p => p.id === q.npcId); assert.equal(prop.x + prop.w/2, q.npc.x); assert.equal(prop.y + prop.h, q.npc.y, 'road clearance keeps NPC art and quest anchors together'); }
+  assert.ok([[0,16],[16,0],[-16,0],[0,-16]].some(([dx,dy]) => !isBlocked(HUB_WORLD,q.npc.x+dx,q.npc.y+dy,7)), `${q.npc.name} has a walkable approach`);
   s.x = q.npc.x; s.y = q.npc.y; interact(s);
+  if (q.npc.hero) { assert.equal(s.dialogue.speaker, q.npc.name); assert.equal(openHubQuest(s, q.npcId), true); }
   assert.equal(s.overlay, 'quest', `${q.npc.name} interaction reachable`);
   assert.equal(acceptHubQuest(s, q.id), true); s.overlay = null;
 }

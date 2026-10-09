@@ -10,9 +10,9 @@ export function tickHubQuests(s: GameState): void {
   const before = s.hubQuests ?? createQuestSave();
   s.hubQuests = applyPendingHubChips(s, progressQuestSnapshot(before, hubQuestContext(s)));
 }
-export function hubQuestTarget(s: GameState): { id: string; name: string } | null {
+export function hubQuestTarget(s: GameState, includeCrew = true): { id: string; name: string } | null {
   if (s.mapId !== "hub" || s.heroes[s.active].hp <= 0 || s.coop?.downed) return null;
-  const npc = [...HUB_QUEST_NPCS].filter(n => Math.hypot(s.x - n.x, s.y - n.y) < 28)
+  const npc = [...HUB_QUEST_NPCS].filter(n => (includeCrew || !n.hero) && Math.hypot(s.x - n.x, s.y - n.y) < 28)
     .sort((a, b) => Math.hypot(s.x - a.x, s.y - a.y) - Math.hypot(s.x - b.x, s.y - b.y))[0];
   return npc ? { id: npc.id, name: `Talk to ${npc.name}` } : null;
 }
@@ -20,7 +20,7 @@ export function openHubQuest(s: GameState, npcId: string): boolean {
   if (hubQuestTarget(s)?.id !== npcId) return false;
   const quest = QUESTS.find(q => q.npcId === npcId);
   if (!quest) return false;
-  tickHubQuests(s); s.hubQuestId = quest.id; s.overlay = "quest"; s.moving = false; s.vx = s.vy = 0;
+  tickHubQuests(s); s.dialogue = null; s.hubQuestId = quest.id; s.overlay = "quest"; s.moving = false; s.vx = s.vy = 0;
   return true;
 }
 export function canUseHubQuest(s: GameState, id: string): boolean {

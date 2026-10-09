@@ -28,8 +28,8 @@ export const HUB_QUEST_NPCS: readonly QuestNpc[] = [
   { id: 'u8-quest-bea', name: 'Bea', role: 'BBQ pitmaster', x: 624, y: 432 },
   { id: 'u8-quest-marnie', name: 'Marnie', role: 'Festival stylist', x: 280, y: 248 },
   { id: 'u8-quest-tessa', name: 'Tessa', role: 'Station steward', x: 560, y: 240 },
-  { id: 'u8-quest-ravi', name: 'Ravi', role: 'Supply runner', x: 280, y: 352 },
-  { id: 'u8-quest-nia', name: 'Nia', role: 'Night watch', x: 880, y: 320 },
+  { id: 'u8-quest-ravi', name: 'Ravi', role: 'Supply runner', x: 304, y: 392 },
+  { id: 'u8-quest-nia', name: 'Nia', role: 'Night watch', x: 880, y: 384 },
 ];
 const [alex, jon, bea, marnie, tessa, ravi, nia] = HUB_QUEST_NPCS;
 export const QUESTS: readonly QuestDefinition[] = [
