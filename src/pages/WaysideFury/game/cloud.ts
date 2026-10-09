@@ -1,3 +1,4 @@
+import { mergeItemsSaves, sanitizeItemsNamespace } from "../../../../server/shared/waysideFury/u1Items.js";
 import { SAVE_KEY, makeNewGameSave, parseSave, ticketDelta, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
@@ -25,10 +26,14 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   const resetDifference = (local.resetAt ?? 0) - (remote.resetAt ?? 0);
   const difference = resetDifference || progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [],
+  const recent = local.savedAt > remote.savedAt ? local : remote;
+  const alternate = recent === local ? remote : local;
+  const u1 = sanitizeItemsNamespace(winner.u1);
+  u1.items = resetDifference ? u1.items : mergeItemsSaves(recent.u1?.items, alternate.u1?.items);
+  return parseSave({ ...winner, u1, coopRewards: winner.coopRewards ?? [],
     foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]),
     ambientTaxiWrecked: resetDifference ? winner.ambientTaxiWrecked : local.ambientTaxiWrecked || remote.ambientTaxiWrecked,
-    lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+    lastReported: mergeReceipts(local.lastReported, remote.lastReported) });
 }
 
 // The transport and storage are replaceable so races and disconnected devices

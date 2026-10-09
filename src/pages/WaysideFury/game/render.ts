@@ -1,3 +1,8 @@
+import { chipEffects, CHIP_REGISTRY, itemsState } from "./u1/items/chips";
+import { chipTargets } from "./u1/items/pickups";
+import { relicTargets, RELIC_SUMMON, hasAllRelics, OUTFITS } from "./u1/items/relics";
+import { radarPickupTarget } from "./u1/items/radar";
+import { drawItemMarker, drawWishOutfit } from "./u1/items/draw";
 import { INTERIORS } from './interiors';
 import { drawExitOpening, nearExit, exitCaption } from './exitArt';
 import { groundScatter, roadMask } from './roadClearance.ts';
@@ -255,7 +260,11 @@ export class Renderer {
     const actors = visibleProps.filter(prop => !isGroundProp(prop) && !GROUND_DECALS.has(prop.kind)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of zonePreviews(world)) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
     if (s.scene === 'overworld') actors.push({ y: s.y, draw: () => this.taxi(s.x, s.y, s.faceX, s.faceY, motionTime, s.moving) });
-    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => this.hero(s) });
+    else if (s.scene !== 'dead') actors.push({ y: s.y, draw: () => {
+      const outfit = OUTFITS.find(outfit => outfit.id === itemsState(s).relics.outfits.at(-1));
+      if (outfit) drawWishOutfit(c, s.x, s.y, outfit.color, outfit.glow, motionTime);
+      this.hero(s);
+    } });
     else if (this.tumbles.length === 0) actors.push({ y: s.y, draw: () => { c.save(); c.translate(s.x, s.y); c.rotate(Math.PI / 2); this.sprite(s.active, 0, 0, 0, s.faceX < 0); c.restore(); } });
     actors.push(...s.enemies.filter(enemy => enemy.hp > 0 && this.visible(enemy.x, enemy.y, 60)).map(enemy => ({ y: enemy.y, draw: () => this.enemy(s, enemy) })));
     if (s.scene !== 'overworld' && s.active === 'you' && this.avatar && !s.spaceOutfit) actors.push({ y: s.y + 1, draw: () => { for (const strip of this.avatar!.companions) this.avatarStrip(strip, s.x, s.y, this.reducedMotion ? 0 : this.visualTime, s.faceX < 0); } });
@@ -268,6 +277,9 @@ export class Renderer {
     } });
     for(const assist of s.effects.filter(e=>e.fieldAssist&&e.hero)) actors.push({y:assist.y,draw:()=>{c.save();c.globalAlpha=Math.min(1,assist.ttl*4);this.sprite(assist.hero!,assist.x,assist.y,motionTime,s.faceX<0);c.restore();}});
     for (const door of world.radarAnchors?.filter(anchor=>anchor.id.endsWith("-door")) ?? []) actors.push({y:door.y,draw:()=>drawBuildingDoors(c,s)});
+    const radar = radarPickupTarget(s);
+    for (const item of [...chipTargets(s), ...relicTargets(s), ...(radar ? [radar] : [])]) actors.push({ y: item.y, draw: () => drawItemMarker(c, { ...item, color: item.kind === "chip" ? CHIP_REGISTRY[item.chip].color : undefined }, motionTime, this.reducedMotion) });
+    if (s.mapId === "hub" && hasAllRelics(s)) actors.push({ y: RELIC_SUMMON.y, draw: () => drawItemMarker(c, { ...RELIC_SUMMON, kind: "summon" }, motionTime, this.reducedMotion) });
     actors.sort((a, b) => a.y - b.y); for (const actor of actors) actor.draw();
     this.pickupGlints(s, motionTime);
     if (s.scene === 'overworld') this.rockGag(s, motionTime);
@@ -636,6 +648,12 @@ export class Renderer {
     }
   }
   private enemy(s: GameState, enemy: Enemy) {
+    if (chipEffects(s).scanner) {
+      const top = enemy.y - (enemy.kind === "boss" ? 48 : 38), width = enemy.kind === "boss" ? 48 : 24;
+      this.rect(enemy.x - width / 2, top, width, 3, INK);
+      this.rect(enemy.x - width / 2, top, width * Math.max(0, enemy.hp) / enemy.maxHp, 3, "#7de5ff");
+      if (enemy.windup > 0) { this.ctx.save(); this.ctx.strokeStyle = "#7de5ff"; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.arc(enemy.x, enemy.y - 12, enemy.radius + 4, 0, Math.PI * 2); this.ctx.stroke(); this.ctx.restore(); }
+    }
     if(drawWoodsBody(this.ctx,enemy,s)) return;
     if(drawCityEnemy(this.ctx,enemy)) return;
     if(drawLunarBody(this.ctx,enemy,s)) return;

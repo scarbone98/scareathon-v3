@@ -171,9 +171,9 @@ export class FuryCoop {
       const spaceBosses = event.id === "moon-m06" ? ["moon-cheese-inspector"] : event.id === "moon-m08" || event.id === "moon-m09-rest" ? ["moon-apogee-warden"] : [];
       const woodsBosses = event.id === "woods-heartwood-engine" ? ["woods-foreman"] : event.id === "woods-conveyor-yard" ? ["woods-briar-bailiff"] : [];
       const cityBosses = event.id === "city-switchmaster" ? ["city-switchmaster"] : event.id === "city-hatching" ? ["city-architect"] : [];
-      const bosses = cityBosses.length ? cityBosses : woodsBosses.length ? woodsBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
+      const bosses = event.id === "relic-echo" ? ["relic-echo"] : cityBosses.length ? cityBosses : woodsBosses.length ? woodsBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
       const cityEvent=event.id.startsWith("city-");
-      const rooms = event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
+      const rooms = event.id === "relic-echo" || event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
       const campaignMilestones = event.id.startsWith("woods-") || event.id.startsWith("city-") || event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones).filter(id=>!cityEvent||id.startsWith("city-")||id==="night-anchor") : [];
       const solvedInteractions = campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
       const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics).filter(id=>!cityEvent||id.startsWith("city-")) : [];
