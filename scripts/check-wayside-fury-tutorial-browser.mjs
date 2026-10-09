@@ -5,7 +5,7 @@ const {chromium}=await import(process.env.FURY_PLAYWRIGHT_MODULE?pathToFileURL(p
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--mute-audio','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
 await mkdir('work/tutorial',{recursive:true});
 try {
- for(const [name,width,height,dpr,gfx] of [['phone-2d',390,844,3,'2d'],['phone-3d',390,844,3,'3d'],['desktop-2d',1440,900,2,'2d']]) {
+ for(const [name,width,height,dpr,gfx] of [['phone-2d',390,844,3,'2d'],['phone-3d',390,844,3,'3d'],['desktop-2d',1440,900,2,'2d']].filter(c=>!process.env.FURY_TUTORIAL_CASE||c[0]===process.env.FURY_TUTORIAL_CASE)) {
   const context=await browser.newContext({viewport:{width,height},deviceScaleFactor:dpr,hasTouch:width<500,isMobile:width<500});
   const page=await context.newPage(),errors=[];page.setDefaultTimeout(60000);page.on('pageerror',e=>errors.push(e.message));
   await page.goto(`${process.env.FURY_BASE_URL??'http://127.0.0.1:5224'}/wayside-fury?gfx=${gfx}`);
@@ -18,7 +18,11 @@ try {
   if(width>500) {
    await page.keyboard.press('ArrowRight');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Skip');
    // Exercise the game's normal gamepad navigation and A confirmation.
-   await page.evaluate(()=>{window.__pad={index:0,connected:true,axes:[0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__pad]});window.dispatchEvent(new Event('gamepadconnected'));window.__pad.buttons[0]={pressed:true,value:1};});
+   await page.evaluate(()=>{window.__pad={index:0,connected:true,mapping:'standard',axes:[0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__pad]});window.dispatchEvent(new Event('gamepadconnected'));window.__pad.buttons[14]={pressed:true,value:1};});
+   await page.waitForFunction(()=>document.activeElement.textContent==='Play tutorial');
+   await page.evaluate(()=>{window.__pad.buttons[14]={pressed:false,value:0};window.__pad.buttons[15]={pressed:true,value:1};});
+   await page.waitForFunction(()=>document.activeElement.textContent==='Skip');
+   await page.evaluate(()=>{window.__pad.buttons[15]={pressed:false,value:0};window.__pad.buttons[0]={pressed:true,value:1};});
   } else await choice.getByRole('button',{name:'Skip',exact:true}).click();
   await choice.waitFor({state:'detached'});
   await page.evaluate(()=>{if(window.__pad)window.__pad.buttons[0]={pressed:false,value:0};});
