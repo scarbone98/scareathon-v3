@@ -28,13 +28,14 @@ jobs:
       - run: npx tsc -b
       - run: npm test
       - run: node scripts/check-wayside-fury-onboarding.mjs
-      - run: npm install --no-save --package-lock=false playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
+      - run: mkdir -p work/playwright && npm install --prefix work/playwright --no-save --package-lock=false --ignore-scripts playwright@1.56.1
+      - run: work/playwright/node_modules/.bin/playwright install --with-deps chromium
       - name: Phone 2D/3D and desktop 2D HUD checks
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:59999
           VITE_SUPABASE_ANON_KEY: local-test-key
           FURY_BASE_URL: http://127.0.0.1:5224
+          FURY_PLAYWRIGHT_MODULE: ${{ github.workspace }}/work/playwright/node_modules/playwright/index.mjs
         run: |
           mkdir -p work
           npm run dev -- --port 5224 > work/vite.log 2>&1 &
@@ -45,4 +46,6 @@ jobs:
         if: failure()
         with:
           name: fury-ux-diagnostics
-          path: work/
+          path: |
+            work/*.log
+            work/*.png
