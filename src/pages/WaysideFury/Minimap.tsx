@@ -1,3 +1,4 @@
+import { keyboardBinding } from "./game/ux";
 import { Modal } from "./Modal";
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { GameState } from './game/sim';
@@ -32,7 +33,7 @@ export function Minimap({state,getState,onPause,blocked}:{state:GameState;getSta
   useEffect(()=>{
     let raf=0,frame=0,previousSelect=false;
     const toggle=()=>{const v=live.current;if(v.full){v.full=false;v.onPause(false);setFull(false);}else if(!v.blocked&&minimapAvailable(v.getState())){v.full=true;v.onPause(true);setFull(true);}};
-    const key=(e:KeyboardEvent)=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.target instanceof HTMLInputElement)return;if(e.key.toLowerCase()==='m'||e.key==='Escape'&&live.current.full){e.preventDefault();e.stopImmediatePropagation();toggle();}};
+    const key=(e:KeyboardEvent)=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.target instanceof HTMLInputElement)return;if(e.key.toLowerCase()===keyboardBinding('map')||e.key==='Escape'&&live.current.full){e.preventDefault();e.stopImmediatePropagation();toggle();}};
     window.addEventListener('keydown',key,true);
     const tick=(time:number)=>{raf=requestAnimationFrame(tick);const v=live.current;const select=Array.from(navigator.getGamepads?.()??[]).some(p=>p?.connected&&p.buttons[8]?.pressed);if(select&&!previousSelect)toggle();previousSelect=select;
       if(++frame%2||document.hidden||!canvas.current)return;const s=v.getState();if(!v.full&&(v.blocked||!v.prefs.enabled||!minimapAvailable(s)))return;const map=getWorld(s.scene,s.room,s.mapId);drawMinimap(canvas.current,map,s,resolveMapObjective(s,map),v.full,v.prefs.rotate,time);};
@@ -45,6 +46,6 @@ export function Minimap({state,getState,onPause,blocked}:{state:GameState;getSta
   const hide=()=>{live.current.full=false;onPause(false);setFull(false);};
   const Frame = full ? Modal : 'div';
   return <Frame ref={root} role={full?'dialog':undefined} aria-modal={full?true:undefined} aria-label={full?'County map':undefined} onKeyDown={e=>{if(full&&e.key==='Tab'){e.preventDefault();close.current?.focus();}}} className={full?'wf-full-map wf-overlay':'wf-minimap-wrap'} style={full?undefined:{left:box.x,top:box.y,width:box.w,height:box.h}}>
-    {full?<><header><div><h2>{map.name}</h2><p>◆ {objective.name}</p></div><button ref={close} onClick={hide}>Close map · M</button></header><canvas ref={canvas} aria-label={`Map of ${map.name}. Objective: ${objective.name}`} /><p className="wf-map-legend">▲ You · ◆ Current objective · Mint exits</p></>:prefs.enabled&&box.w>0&&<button className="wf-minimap" aria-label={`Open map. Objective: ${objective.name}`} title="Map · M / Select" onClick={()=>{if(!blocked && minimapAvailable(getState())) {live.current.full=true;onPause(true);setFull(true);}}}><canvas ref={canvas} aria-hidden="true" /></button>}
+    {full?<><header><div><h2>{map.name}</h2><p>◆ {objective.name}</p></div><button ref={close} onClick={hide}>Close map · {keyboardBinding('map').toUpperCase()}</button></header><canvas ref={canvas} aria-label={`Map of ${map.name}. Objective: ${objective.name}`} /><p className="wf-map-legend">▲ You · ◆ Current objective · Mint exits</p></>:prefs.enabled&&box.w>0&&<button className="wf-minimap" aria-label={`Open map. Objective: ${objective.name}`} title={`Map · ${keyboardBinding('map').toUpperCase()} / Select`} onClick={()=>{if(!blocked && minimapAvailable(getState())) {live.current.full=true;onPause(true);setFull(true);}}}><canvas ref={canvas} aria-hidden="true" /></button>}
   </Frame>;
 }

@@ -8,6 +8,7 @@ export interface Gear { power: number; ward: number }
 export interface SaveSettings {
   difficulty?: "normal" | "hard";
   showWorldClock?: boolean;
+  ux?: { hudSize: number; minimalHud: boolean; textSize: number; highContrast: boolean; haptics: boolean; gameSpeed: number; extraHp: number; keys: Record<string, string> };
   musicVolume: number; sfxVolume: number;
   controls: { tutorialDismissed: boolean; stickSensitivity: number };
 }

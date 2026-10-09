@@ -1,3 +1,4 @@
+import { DEFAULT_KEYS, setKeyboardBindings } from "./ux";
 import { idleInput, type Input } from "./sim";
 import type { AttackPresentation } from "./contextAttack";
 export type InputMode = "keyboard" | "touch" | "gamepad";
@@ -5,8 +6,14 @@ let screenAttack: AttackPresentation | undefined;
 // React publishes the meaning actually painted on screen. Capture it on the
 // physical down event so a late HUD render cannot reinterpret that press.
 export function showAttackPresentation(presentation: AttackPresentation) { screenAttack = { action: presentation.action, targetId: presentation.targetId }; }
-const KEY_MAP: Record<string, keyof Input> = { j: "attack", k: "ki", l: "dash", shift: "guard", q: "swap", e: "swap", f: "fusion", enter: "interact" };
 export class GameInput {
+  private bindings = { ...DEFAULT_KEYS };
+  setBindings(keys: Record<string, string>) { this.bindings = { ...DEFAULT_KEYS, ...keys }; setKeyboardBindings(keys); this.clear(); }
+  private keyMap() {
+    const map = Object.fromEntries(Object.entries(this.bindings).filter(([action]) => !['up','down','left','right','pause','map'].includes(action)).map(([action,key]) => [key, action as keyof Input]));
+    if (this.bindings.swap === 'q' && !Object.values(this.bindings).includes('e')) map.e = 'swap';
+    return map;
+  }
   private keys = new Set<string>();
   private touch = idleInput();
   private taps = new Set<keyof Input>();
@@ -32,25 +39,26 @@ export class GameInput {
   private down = (e: KeyboardEvent) => {
     if (!e.repeat) this.activity();
     const key = e.key.toLowerCase();
+    const KEY_MAP = this.keyMap();
     this.setMode("keyboard");
-    const isMove = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key);
-    if (key !== "escape" && !isMove && !KEY_MAP[key]) return;
+    const isMove = [this.bindings.up, this.bindings.down, this.bindings.left, this.bindings.right, "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key);
+    if (key !== this.bindings.pause && key !== "escape" && !isMove && !KEY_MAP[key]) return;
     if (key !== "escape" && (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
     if (key === "enter" && e.target instanceof HTMLButtonElement) return;
     if (!e.repeat && ["arrowup", "arrowleft", "arrowdown", "arrowright"].includes(key)) this.navigate(key === "arrowup" || key === "arrowleft" ? -1 : 1, key === "arrowleft" || key === "arrowright" ? "horizontal" : "vertical");
     e.preventDefault(); this.keys.add(key); if (!e.repeat && KEY_MAP[key]) this.taps.add(KEY_MAP[key]);
     if (!e.repeat && KEY_MAP[key] === "attack") this.attackPresentation = screenAttack;
-    if (!e.repeat && key === "escape") this.pause();
-    if (!e.repeat && key === "enter" && this.confirm()) { this.keys.delete(key); this.taps.delete("interact"); }
+    if (!e.repeat && (key === "escape" || key === this.bindings.pause)) this.pause();
+    if (!e.repeat && KEY_MAP[key] === "interact" && this.confirm()) { this.keys.delete(key); this.taps.delete("interact"); }
     if (!e.repeat && KEY_MAP[key] === "attack" && this.confirm()) { this.keys.delete(key); this.taps.delete("attack"); }
   };
   private up = (e: KeyboardEvent) => { this.keys.delete(e.key.toLowerCase()); };
   read(): Input {
-    const has = (...keys: string[]) => keys.some(k => this.keys.has(k));
+    const has = (key: string, alias: string) => this.keys.has(key) || !Object.values(this.bindings).includes(alias) && this.keys.has(alias);
     const input = { ...this.touch };
-    input.x += Number(has("d", "arrowright")) - Number(has("a", "arrowleft"));
-    input.y += Number(has("s", "arrowdown")) - Number(has("w", "arrowup"));
-    for (const [key, action] of Object.entries(KEY_MAP)) {
+    input.x += Number(has(this.bindings.right, "arrowright")) - Number(has(this.bindings.left, "arrowleft"));
+    input.y += Number(has(this.bindings.down, "arrowdown")) - Number(has(this.bindings.up, "arrowup"));
+    for (const [key, action] of Object.entries(this.keyMap())) {
       if (this.keys.has(key)) (input[action] as boolean) = true;
     }
     for (const action of this.taps) (input[action] as boolean) = true;

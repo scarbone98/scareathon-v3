@@ -135,7 +135,18 @@ function cleanGear(raw, heroes) {
 }
 function cleanSettings(raw) {
     // All v1-v4 saves without the additive combat preference migrate to Normal.
-    return { ...(typeof raw?.showWorldClock === "boolean" ? { showWorldClock: raw.showWorldClock } : {}), difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
+    const ux = raw?.ux;
+    const keys = {};
+    const used = new Set();
+    for (const action of ['attack', 'ki', 'dash', 'guard', 'swap', 'fusion', 'interact', 'up', 'down', 'left', 'right', 'pause', 'map']) {
+        const key = ux?.keys?.[action];
+        if (typeof key === 'string' && /^(?:[a-z0-9]|arrow(?:up|down|left|right)|shift|enter| )$/.test(key) && !used.has(key)) { keys[action] = key; used.add(key); }
+    }
+    const effectiveKeys = { attack: 'j', ki: 'k', dash: 'l', guard: 'shift', swap: 'q', fusion: 'f', interact: 'enter', up: 'w', down: 's', left: 'a', right: 'd', pause: 'escape', map: 'm', ...keys };
+    if (new Set(Object.values(effectiveKeys)).size !== Object.keys(effectiveKeys).length) for (const action of Object.keys(keys)) delete keys[action];
+    return { ...(isRecord(ux) ? { ux: { hudSize: bound(ux?.hudSize, .8, 1.3, 1), minimalHud: ux?.minimalHud === true,
+        textSize: bound(ux?.textSize, 1, 1.5, 1), highContrast: ux?.highContrast !== false, haptics: ux?.haptics !== false,
+        gameSpeed: bound(ux?.gameSpeed, .5, 1, 1), extraHp: bound(ux?.extraHp, 0, 100, 0), keys } } : {}), ...(typeof raw?.showWorldClock === "boolean" ? { showWorldClock: raw.showWorldClock } : {}), difficulty: raw?.difficulty === 'hard' ? 'hard' : 'normal', musicVolume: bound(raw?.musicVolume, 0, 1, 0.6), sfxVolume: bound(raw?.sfxVolume, 0, 1, 0.8),
         controls: { tutorialDismissed: raw?.controls?.tutorialDismissed === true,
             stickSensitivity: bound(raw?.controls?.stickSensitivity, 0.5, 2, 1) } };
 }
