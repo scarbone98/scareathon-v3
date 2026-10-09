@@ -21,7 +21,7 @@ try {
   assert.equal(haptics.enabled,2);assert.equal(haptics.total,2);
   await page.keyboard.down('w');await page.waitForTimeout(1200);await page.keyboard.up('w');
   const road=await page.evaluate(async()=>{const {onRoad}=await import('/src/pages/WaysideFury/game/roadNetwork.ts');const {getWorld}=await import('/src/pages/WaysideFury/game/world.ts');const s=window.__waysideFury.state;return onRoad(getWorld(s.scene,s.room,s.mapId),s.x,s.y,-19);});assert.ok(road);
-  const timing=await page.evaluate(async()=>{const samples=[];let last=performance.now();for(let n=0;n<60;n++) {const now=await new Promise(requestAnimationFrame);samples.push(now-last);last=now;}samples.sort((a,b)=>a-b);return {medianMs:samples[30],p95Ms:samples[57]};});
+  const timing=await page.evaluate(async()=>{const samples=[];let last=performance.now();for(let n=0;n<20;n++) {const now=await new Promise(requestAnimationFrame);samples.push(now-last);last=now;}samples.sort((a,b)=>a-b);return {medianMs:samples[10],p95Ms:samples[19]};});
   await page.screenshot({path:`${output}/${name}.png`});
   assert.deepEqual(errors,[]);report.push({name,haptics,road,timing});console.log(name,JSON.stringify(report.at(-1)));
   await context.close();
