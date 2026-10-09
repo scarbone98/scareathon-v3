@@ -29,7 +29,7 @@ export function buildRoadSurface(world:WorldMap,heightAt:(x:number,y:number)=>nu
       normal.set(heightAt(px-.5,py)-heightAt(px+.5,py),1,heightAt(px,py-.5)-heightAt(px,py+.5)).normalize();
       normals.setXYZ(i,normal.x,normal.y,normal.z);
     }
-    const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.name=`road-ribbon-${x}-${y}`;group.add(mesh);resources.push({geometry,material,texture});
+    const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.name=`road-ribbon-${x}-${y}`;if(world.id==='overworld')mesh.renderOrder=2;group.add(mesh);resources.push({geometry,material,texture});
   }
   return {group,dispose:()=>{for(const r of resources){r.geometry.dispose();r.material.dispose();r.texture.dispose();}group.clear();}};
 }

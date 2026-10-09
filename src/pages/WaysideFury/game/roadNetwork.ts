@@ -1,4 +1,5 @@
 import { clipRoadEnds, drawRoadEndings } from './roadEndings.ts';
+import { countyRoadPaint } from './countyRoadPaint.ts';
 // One polyline network supplies pavement, junction paint and exact ribbon queries.
 // Crossings in current content are at grade; a water causeway is not an overpass.
 import type { RoadSegment, WorldMap } from './worldBuilder.ts';
@@ -18,8 +19,9 @@ export function roadDistance(r: RoadSegment, x: number, y: number) {
 }
 export const onRoad = (world: WorldMap,x:number,y:number,margin=0) => world.roads.some(r=>roadDistance(r,x,y)<=roadWidth(r)/2+margin);
 export const junctionAt = (world:WorldMap,r:RoadSegment,x:number,y:number,margin=12) => world.roads.some(other=>other!==r&&roadDistance(other,x,y)<roadWidth(other)/2+margin);
-export interface RoadPaint { a: RoadPoint; b: RoadPoint; width: number; kind: 'lane' | 'stop' }
+export interface RoadPaint { a: RoadPoint; b: RoadPoint; points?: RoadPoint[]; width: number; kind: 'lane' | 'stop' }
 export function networkPaint(world:WorldMap):RoadPaint[] {
+  if(world.id==='overworld')return countyRoadPaint(world);
   const result:RoadPaint[]=[];
   for(const r of world.roads) {
     const points=roadPoints(r);let run=0;
@@ -104,7 +106,8 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
   }
   // Union in two passes: every curb first, then every asphalt ribbon. No road
   // can leave its curb inside another road, including T/X/Y joins and bends.
-  for(const [color,inset] of [['#a1a392',0],['#3b4f55',3]] as const) {
+  const layers: readonly (readonly [string,number])[] = world.id==='overworld' ? [['#63735d',-6],['#a1a392',0],['#3b4f55',3]] : [['#a1a392',0],['#3b4f55',3]];
+  for(const [color,inset] of layers) {
     c.strokeStyle=color;
     for(const r of world.roads) {
       c.save();clipRoadEnds(c,r,world);
@@ -125,7 +128,7 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
   drawRoadEndings(c,world);
   let marks=paintCache.get(world);if(!marks){marks=networkPaint(world);paintCache.set(world,marks);}
   c.lineCap='butt';
-  for(const mark of marks) {c.strokeStyle=mark.kind==='lane'?'#c6b991':'#e0ded0';c.lineWidth=mark.width;c.beginPath();c.moveTo(mark.a.x,mark.a.y);c.lineTo(mark.b.x,mark.b.y);c.stroke();}
+  for(const mark of marks) {c.strokeStyle=mark.kind==='lane'?'#c6b991':'#e0ded0';c.lineWidth=mark.width;c.beginPath();c.moveTo(mark.a.x,mark.a.y);for(const p of mark.points?.slice(1)??[mark.b])c.lineTo(p.x,p.y);c.stroke();}
   c.restore();
 }
 // Road tiles remain a coarse material/navigation index, never visible asphalt.

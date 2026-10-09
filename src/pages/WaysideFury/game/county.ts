@@ -16,6 +16,10 @@ export const COUNTY_DISTRICTS = [
 export function dressCounty(m: WorldMap) {
   for (let n = 0; n < 8; n++) {
     paint(m, 384 + n * 16, 688 + n * 48, 720 - n * 32, 64, 'sand');
+  }
+  // Paint the complete outer bank first. Interleaving bank/water passes carved
+  // repeating dry stripes through the preceding row of the same reservoir.
+  for (let n = 0; n < 8; n++) {
     paint(m, 416 + n * 16, 704 + n * 48, 656 - n * 32, 48, 'water', true);
   }
   const link = (id: string, x: number, y: number, w: number, h: number, direction: 'horizontal' | 'vertical') => road(m, { id, x, y, w, h, direction, start: 'junction', end: 'junction' });
@@ -73,5 +77,8 @@ export function dressCounty(m: WorldMap) {
   prop(m,'crate',1824,1320,24,20); prop(m,'reeds',1668,1336,24,20);
   prop(m,'flower',1800,1220,24,12); prop(m,'crate',1648,1320,24,20);
   m.props=m.props.filter(p=>!['tree','pine','rock'].includes(p.kind) || (p.footprints??[]).every(rect=>[rect.x,rect.x+rect.w-.01].every(x=>[rect.y,rect.y+rect.h-.01].every(y=>tileAt(m,Math.floor(x/TILE),Math.floor(y/TILE))==='grass'))));
+  // Dry-land scatter predates the reservoir paint. Flowers and ordinary yard
+  // fences cannot float in the lake; reeds remain as intentional bank plants.
+  m.props=m.props.filter(p=>!['flower','bush','fence'].includes(p.kind) || tileAt(m,Math.floor((p.x+p.w/2)/TILE),Math.floor((p.y+p.h)/TILE))!=='water');
   m.radarAnchors = COUNTY_DISTRICTS.map(d=>({id:d.radarAnchorId,x:d.bounds.x+d.bounds.w/2,y:d.bounds.y+d.bounds.h/2}));
 }

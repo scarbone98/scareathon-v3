@@ -1,10 +1,12 @@
 import type { GameState } from './sim.ts';
 import { TILE, type WorldMap } from './worldBuilder.ts';
 import { roadPoints, roadWidth } from './roadNetwork.ts';
+import { drawCountyWater } from './overworldWater.ts';
+import { MATERIALS } from './terrain.ts';
 import { LOCATIONS } from './content.ts';
 import type { MapObjective } from './minimap.ts';
 const cache = new WeakMap<WorldMap, HTMLCanvasElement>();
-const colors: Record<string, string> = { grass:'#294b46', water:'#427b91', sand:'#a79d75', stone:'#657b7c', dirt:'#80765f', ash:'#766b74', void:'#1d2937', corrupt:'#705478', bridge:'#c5b687' };
+const colors: Record<string, string> = Object.fromEntries(Object.entries(MATERIALS).map(([kind,palette])=>[kind,palette[0]]));
 export function bakeMinimap(map: WorldMap) {
   const existing = cache.get(map); if (existing) return existing;
   const canvas = document.createElement('canvas'); canvas.width = map.width; canvas.height = map.height;
@@ -18,6 +20,7 @@ export function bakeMinimap(map: WorldMap) {
     if(map.collision[i] && tile!=='water') { c.fillStyle='#142f3860'; c.fillRect(col*TILE,row*TILE,TILE,TILE); }
   }
   c.lineJoin='round'; c.lineCap='round';
+  if(map.id==='overworld')drawCountyWater(c,map,{x:0,y:0,w:map.width,h:map.height});
   for(const land of map.organic?.landforms ?? []) {c.beginPath();land.points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();c.fillStyle=land.kind==='water'?colors.water:'#52636b';c.fill();c.strokeStyle='#172f38';c.lineWidth=4;c.stroke();}
   for(const trail of map.organic?.trails ?? []) {c.beginPath();trail.points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.strokeStyle=colors[trail.tile] ?? colors.dirt;c.lineWidth=trail.width;c.stroke();}
   for(const r of map.roads) {const points=roadPoints(r); c.beginPath();points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.strokeStyle='#c1bba2';c.lineWidth=roadWidth(r);c.stroke();c.strokeStyle='#8e9485';c.lineWidth=Math.max(2,roadWidth(r)-8);c.stroke();}

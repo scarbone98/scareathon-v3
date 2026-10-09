@@ -860,7 +860,8 @@ export class OverworldRenderer {
       if (material instanceof THREE.MeshStandardMaterial) {
         material.emissive.setHex(0x2b7890);
         material.emissiveIntensity = .045 + (this.reducedMotion ? 0 : Math.sin(time * 1.5) * .02);
-        material.map?.offset.set(this.reducedMotion ? 0 : time * .027, this.reducedMotion ? 0 : Math.sin(time * .45) * .015);
+        if(material.userData.waterTime)material.userData.waterTime.value=this.reducedMotion?0:time;
+        else material.map?.offset.set(this.reducedMotion ? 0 : time * .027, this.reducedMotion ? 0 : Math.sin(time * .45) * .015);
       }
     }
   }

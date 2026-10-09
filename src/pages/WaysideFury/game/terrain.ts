@@ -1,3 +1,5 @@
+import { drawOverworldBanks } from './overworldBanks.ts';
+import { drawCountyWater } from './overworldWater.ts';
 import { roadMask } from './roadClearance.ts';
 import { drawRoadNetwork, roadGround } from './roadNetwork.ts';
 import { roadMarks } from './roadMarkings';
@@ -58,6 +60,7 @@ export class TerrainCache {
     }
     c.restore();
     this.animate(c, world, camera, width, height, time);
+    if(world.id==='overworld' && !world.organic)drawRoadNetwork(c,world);
   }
   private trim(budget: number, visible: Set<string>) {
     if (this.cachePixels <= budget) return;
@@ -78,10 +81,10 @@ export class TerrainCache {
       const kind = terrainAt(world, col, row), [base, light, dark] = MATERIALS[kind];
       const x = tx * TILE, y = ty * TILE, n = hash(col, row);
       const fill = (dx: number, dy: number, w: number, h: number, color: string) => { c.fillStyle = color; c.fillRect(x + dx, y + dy, w, h); };
-      fill(0, 0, TILE, TILE, base);
+      fill(0, 0, TILE, TILE, world.id==='overworld' && kind==='water' ? MATERIALS.sand[0] : base);
       // Low-contrast fine grain replaces the alternating tile-sized bevels.
       // Seed in world space so chunks meet without lighting seams.
-      c.save(); c.globalAlpha = .22;
+      c.save(); c.globalAlpha = world.id==='overworld' && kind==='water' ? 0 : .22;
       for (let k = 0; k < 56; k++) {
         const grain = hash(col * 61 + k, row * 73 + k * 7);
         const px = (grain % 157) / 10, py = ((grain >>> 9) % 157) / 10;
@@ -103,7 +106,7 @@ export class TerrainCache {
         c.restore();
         if (n % 19 === 0 && !roadMask(world).contains(col*TILE+7,row*TILE+8)) { fill(7, 8, .15, 1.5, '#b5b88b'); fill(7, 7.8, .4, .4, '#e4d7a0'); }
       }
-      if (kind === 'stone' || kind === 'ash' || kind === 'void' || kind === 'corrupt') {
+      if (world.id !== 'overworld' && (kind === 'stone' || kind === 'ash' || kind === 'void' || kind === 'corrupt')) {
         c.save(); c.globalAlpha = .45;
         fill(0, 0, TILE, .18, dark); fill(0, 0, .18, TILE, dark); fill(1, .3, 13, .15, light);
         c.restore();
@@ -130,6 +133,7 @@ export class TerrainCache {
       for (const [dx, dy, ex, ey, ew, eh] of edges) {
         const neighbor = terrainAt(world, col + dx, row + dy);
         if (neighbor === kind || kind === 'road') continue;
+        if (kind === 'water' && world.id==='overworld') continue;
         if (kind === 'water') {
           fill(ex, ey, ew, eh, '#9d9a71'); fill(ex + (dx === -1 ? 1.5 : 0), ey + (dy === -1 ? 1.5 : 0), dx ? .5 : ew, dy ? .5 : eh, '#cad0a2');
         } else if (kind === 'dirt' || kind === 'sand') {
@@ -162,16 +166,22 @@ export class TerrainCache {
       }
     }
     c.save(); c.translate(-cx * TILE * chunkTiles, -cy * TILE * chunkTiles);
-    if(!world.organic) drawRoadNetwork(c, world); c.restore();
+    drawOverworldBanks(c, world, {x:cx*TILE*chunkTiles,y:cy*TILE*chunkTiles,w:TILE*chunkTiles,h:TILE*chunkTiles});
+    if(world.id==='overworld')drawCountyWater(c,world,{x:cx*TILE*chunkTiles,y:cy*TILE*chunkTiles,w:TILE*chunkTiles,h:TILE*chunkTiles});
+    if(!world.organic && world.id!=='overworld') drawRoadNetwork(c, world); c.restore();
     return canvas;
   }
   private animate(c: CanvasRenderingContext2D, world: WorldMap, camera: { x: number; y: number }, width: number, height: number, time: number) {
+    if(world.id==='overworld') {
+      drawCountyWater(c,world,{x:camera.x,y:camera.y,w:width,h:height},time);
+      // Road artwork is drawn later in the area's ground pass, above ripples.
+    }
     const minCol = Math.max(0, Math.floor(camera.x / TILE)), minRow = Math.max(0, Math.floor(camera.y / TILE));
     const maxCol = Math.min(world.cols, Math.ceil((camera.x + width) / TILE)), maxRow = Math.min(world.rows, Math.ceil((camera.y + height) / TILE));
     c.save(); c.lineWidth = .35; c.lineCap = 'round';
     for (let row = minRow; row < maxRow; row++) for (let col = minCol; col < maxCol; col++) {
       const kind = tileAt(world, col, row), n = hash(col, row), x = col * TILE, y = row * TILE;
-      if (kind === 'water') {
+      if (kind === 'water' && world.id!=='overworld') {
         const phase = time * 1.5 + col * .7 + row * .4;
         c.strokeStyle = '#96c4c7'; c.globalAlpha = .25 + Math.sin(phase) * .12;
         c.beginPath(); c.moveTo(x + 2, y + 6 + n % 5);

@@ -1,3 +1,5 @@
+import { buildOverworldBanks } from './overworldBanks3d.ts';
+import { buildCountyWater } from './overworldWater3d.ts';
 import { roadMask } from './roadClearance.ts';
 import { roadGround } from './roadNetwork.ts';
 import { buildRoadSurface } from './roadSurface3d.ts';
@@ -171,11 +173,19 @@ function tileTexture(kind: TileKind | 'cliff', detail = true) {
   if (kind === 'bridge') for (let y = 0; y < 64; y += 16) {
     fill(0, y, 64, 2, dark); fill(0, y + 2, 64, 1, light);
   }
-  if (kind === 'stone' || kind === 'ash' || kind === 'corrupt' || kind === 'cliff') {
-    for (let y = 0; y < 64; y += kind === 'cliff' ? 8 : 32) {
-      fill(0, y, 64, 2, dark); fill(2, y + 2, 54, 1, light);
-      if (kind === 'cliff') fill((y * 7) % 48, y + 3, 2, 5, dark);
+  if (kind === 'cliff') {
+    context.save(); context.globalAlpha = .22; context.lineWidth = .65;
+    context.lineCap = 'round'; context.strokeStyle = dark;
+    for (let n = 0; n < 5; n++) {
+      const y = 6 + n * 12;
+      context.beginPath(); context.moveTo(-2, y);
+      context.bezierCurveTo(14, y - 2, 38, y + 2, 66, y); context.stroke();
+      context.strokeStyle = light; context.globalAlpha = .13;
+      context.beginPath(); context.moveTo(-2, y + 1);
+      context.bezierCurveTo(14, y - 1, 38, y + 3, 66, y + 1); context.stroke();
+      context.strokeStyle = dark; context.globalAlpha = .22;
     }
+    context.restore();
   }
   if (kind === 'corrupt') for (let n = 0; n < 6; n++) {
     fill((n * 19) % 60, (n * 29) % 60, 8, 2, '#a36b9b');
@@ -217,13 +227,13 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
     const nw = point(x, y), ne = point(x + TILE, y), sw = point(x, y + TILE), se = point(x + TILE, y + TILE);
     const heights = [nw[1], ne[1], sw[1], se[1]], slope = Math.max(...heights) - Math.min(...heights);
     const atWater = [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dc, dr]) => tileAt(world, col + dc, row + dr) === 'water');
-    const material = slope >= 9 && kind !== 'road' && kind !== 'water' && kind !== 'bridge' ? atWater ? 'sand' : 'cliff' : kind==='grass' && roadMask(world).intersects({x,y,w:TILE,h:TILE},true) ? 'grass-clear' : kind;
+    const material = slope >= 9 && kind !== 'road' && kind !== 'water' && kind !== 'bridge' ? atWater ? 'sand' : 'cliff' : kind==='grass' && roadMask(world).intersects({x,y,w:TILE,h:TILE},true) ? 'grass-clear' : kind==='water' && world.id==='overworld' ? 'sand' : kind;
     let target = batches.get(material);
     if (!target) { target = batch(); batches.set(material, target); }
     shade.setRGB(1, 1, 1).multiplyScalar(.995 + hash(col, row) % 11 / 1000);
     const nearCrater=nearCraterTile(x,y);
     const step=4;
-    if(!nearCrater)quad(target,nw,ne,sw,se,shade,kind!=='road'&&kind!=='water'?hash(col,row)%2:0);
+    if(!nearCrater)quad(target,nw,ne,sw,se,shade,material!=='cliff'&&kind!=='road'&&kind!=='water'?hash(col,row)%2:0);
     else for(let dz=0;dz<TILE;dz+=step)for(let dx=0;dx<TILE;dx+=step){
       const px=x+dx,pz=y+dz;
       shade.setRGB(1,1,1).multiplyScalar(.995+hash(col,row)%11/1000);
@@ -231,9 +241,9 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
         const r=radiusAt(p,px+step/2,pz+step/2);
         if(r<1.08)shade.lerp(new THREE.Color(r<.72?'#403435':'#9b8265'),(1-smooth(.9,1.08,r))*.8);
       }
-      quad(target,point(px,pz),point(px+step,pz),point(px,pz+step),point(px+step,pz+step),shade,kind!=='road'&&kind!=='water'?hash(col,row)%2:0,[dx/TILE,dz/TILE,step/TILE]);
+      quad(target,point(px,pz),point(px+step,pz),point(px,pz+step),point(px+step,pz+step),shade,material!=='cliff'&&kind!=='road'&&kind!=='water'?hash(col,row)%2:0,[dx/TILE,dz/TILE,step/TILE]);
     }
-    if (kind === 'water') {
+    if (kind === 'water' && world.id!=='overworld') {
       shade.set('#d6d4ae');
       // Thin pale edges sit on the lake surface beside the sloping shore bank.
       if (tileAt(world, col, row - 1) !== 'water') quad(shoreline, point(x, y, .12), point(x + TILE, y, .12), point(x, y + .7, .12), point(x + TILE, y + .7, .12), shade);
@@ -282,9 +292,12 @@ export function buildOverworldTerrain(world: WorldMap): { group: THREE.Group; he
   const skirtShape = geometry(skirts), skirtMaterial = new THREE.MeshStandardMaterial({ color: '#45515c', vertexColors: true, roughness: 1, side: THREE.DoubleSide });
   const skirtMesh = new THREE.Mesh(skirtShape, skirtMaterial); skirtMesh.name = 'terrain-cutaway'; skirtMesh.receiveShadow = true;
   geometries.push(skirtShape); materials.push(skirtMaterial); group.add(skirtMesh);
+  const banks = buildOverworldBanks(world, elevation.heightAt); group.add(banks.group);
+  const lakes = world.id==='overworld' ? buildCountyWater(world,elevation.heightAt) : null;
+  if(lakes){group.add(lakes.group);water.push(...lakes.water);}
   const roads = buildRoadSurface(world, elevation.heightAt); group.add(roads.group);
   return { group, heightAt: elevation.heightAt, water, dispose: () => {
-    roads.dispose();
+    lakes?.dispose(); banks.dispose(); roads.dispose();
     for (const shape of geometries) shape.dispose();
     for (const material of materials) material.dispose();
     for (const texture of textures) texture.dispose();
