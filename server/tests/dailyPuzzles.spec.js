@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
 
+const servers = new Set();
+
 // A small in-memory stand-in for the tables the daily puzzle routes use
 const db = { content: [], plays: new Map(), grants: [], scores: [] };
 const key = (u, g, n) => `${u}|${g}|${n}`;
@@ -61,6 +63,7 @@ const THEME = {
 
 async function app() {
     const fastify = Fastify();
+    servers.add(fastify);
     fastify.decorateRequest('user', null);
     fastify.addHook('preValidation', async (request) => {
         request.user = { sub: request.headers['x-test-user'] };
@@ -80,7 +83,14 @@ beforeEach(() => {
     db.scores = [];
     clearContentCache();
 });
-afterEach(() => jest.useRealTimers());
+afterEach(async () => {
+    try {
+        await Promise.all([...servers].map((server) => server.close()));
+    } finally {
+        servers.clear();
+        jest.useRealTimers();
+    }
+});
 
 describe('rules', () => {
     test('a puzzle day turns over at midnight US Eastern', () => {
@@ -170,9 +180,21 @@ describe('Scaredle', () => {
         const server = await app();
         const headers = { 'x-test-user': ALICE };
         let last;
-        for (let i = 0; i < 6; i++) last = (await server.inject({ method: 'POST', url: '/daily-puzzles/scaredle/1/guess', headers, payload: { guess: 'crane' } })).json();
-        expect(last).toMatchObject({ done: true, won: false, tickets: 0, answer: 'GHOST' });
+        for (let i = 0; i < rules.SCAREDLE_TRIES; i++) {
+            const response = await server.inject({ method: 'POST', url: '/daily-puzzles/scaredle/1/guess', headers, payload: { guess: 'crane' } });
+            expect(response.statusCode).toBe(200);
+            last = response.json();
+            expect(last.guesses).toHaveLength(i + 1);
+            if (i < rules.SCAREDLE_TRIES - 1) expect(last).toMatchObject({ done: false, answer: null, reward: null });
+        }
+        expect(last).toMatchObject({ done: true, won: false, score: 0, tickets: 0, answer: 'GHOST', reward: { tickets: 0 } });
+        const again = await server.inject({ method: 'POST', url: '/daily-puzzles/scaredle/1/guess', headers, payload: { guess: 'ghost' } });
+        expect(again.statusCode).toBe(409);
+        const saved = (await server.inject({ method: 'GET', url: '/daily-puzzles/scaredle/1', headers })).json();
+        expect(saved).toMatchObject({ done: true, won: false, tickets: 0, answer: 'GHOST' });
+        expect(saved.guesses).toHaveLength(rules.SCAREDLE_TRIES);
         expect(db.grants).toEqual([]);
+        expect(db.scores).toEqual([]);
     });
 });
 

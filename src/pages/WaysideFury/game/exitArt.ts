@@ -1,6 +1,10 @@
 import { TILE, type WorldExit, type WorldMap } from './worldBuilder.ts';
 
 // Presentation only: triggers, collision, arrivals and gates stay authored data.
+export function exitOpacity(e: WorldExit, x: number, y: number) {
+  const distance = Math.hypot(Math.max(e.x-x,0,x-e.x-e.w),Math.max(e.y-y,0,y-e.y-e.h));
+  return Math.max(0, Math.min(1, (TILE*3-distance)/TILE));
+}
 export function nearExit(e: WorldExit, x: number, y: number) {
   return Math.hypot(Math.max(e.x-x,0,x-e.x-e.w),Math.max(e.y-y,0,y-e.y-e.h)) <= TILE*3;
 }

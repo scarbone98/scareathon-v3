@@ -114,3 +114,4 @@
 .wf-title-actions > button { flex: 1; min-width: 140px; }
 .wf-new-game-confirm { z-index: 30; }
 .wf-new-game-confirm p { max-width: 440px; }
+.wf-world-clock { display: block; margin: 3px 0; font: 600 13px/1.4 system-ui; color: #dfd6be; letter-spacing: .03em; white-space: nowrap; }

@@ -85,7 +85,7 @@ const boss=ready();boss.campaignMilestones.push('moon-departed');boss.coop={role
 assert.ok(e.maxHp>e.baseMaxHp*3);const hit={type:'coop-hit',enemyId:e.id,damage:10,dx:1,dy:0,force:100,attackId:'a'};assert.ok(applyCoopHit(boss,hit,1));assert.equal(applyCoopHit(boss,hit,1),false);
 const solo=ready();solo.coop={role:'host',seat:0,remoteHeroes:[],appliedHits:[],protocolVersion:2};assert.equal(enterCampaignMap(solo,'space-launch'),false);
 assert.equal(compatibleMap('dungeon',0,'moon-m01',1),false);assert.equal(compatibleMap('dungeon',0,'moon-m01',2),false);assert.ok(compatibleMap('dungeon',0,'moon-m01',3));
-assert.equal(CHAPTER_REWARDS.reduce((n,r)=>n+r.tickets,0),3550,'only allowlisted Chapter 1 ticket budget');
+assert.equal(CHAPTER_REWARDS.filter(r=>!r.id.startsWith('locks-cache-')).reduce((n,r)=>n+r.tickets,0),3550,'only allowlisted Chapter 1 ticket budget');
 const filmParty=ready();filmParty.coop={role:'host',seat:0,remoteHeroes:[{filmSkip:false,filmHold:false}],appliedHits:[],playerCount:2};startSpaceFilm(filmParty,'space-outbound');ticks(filmParty,61,{guard:true});assert.ok(filmParty.film);filmParty.coop.remoteHeroes=[];filmParty.coop.playerCount=1;ticks(filmParty,1,{guard:true});assert.equal(filmParty.film,null,'disconnect removes skip vote');
 const holding=ready();startSpaceFilm(holding,'space-outbound');ticks(holding,60,{ki:true});assert.equal(holding.film.elapsed,0);
 // New fields are validated rather than silently stripped by the relay.

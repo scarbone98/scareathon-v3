@@ -1,3 +1,4 @@
+import { advanceWorldClock } from "./u1/world/dayNightRuntime";
 import { FuryCoop } from "./coop";
 import { MusicDirector, type AudioSettings } from "./music";
 import { FuryAudio } from "./audio";
@@ -100,6 +101,7 @@ export class GameController {
     const input = this.input.read();
     const frameDelta = (now - (this.last || now)) / 1000;
     const delta = Math.min(0.1, frameDelta);
+    if (this.started && (!this.paused || this.coop?.room)) advanceWorldClock(this.state, frameDelta);
     this.acc += this.paused && !this.coop?.room ? 0 : delta;
     this.last = now;
     while (this.acc >= 1 / 60) {
