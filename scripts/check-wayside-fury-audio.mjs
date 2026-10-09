@@ -16,6 +16,11 @@ assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 0, 'daytime uses th
 s.worldCycleSeconds = 300; audio.sync(s);
 assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 1, 'nighttime mixes the shared clock score');
 assert.equal(calls.filter(c => c[0] === 'jingle' && c[1] === 'taxiHorn').length, 1, 'story taxi and real taxi share one horn edge');
+s.worldCycleSeconds = 300; audio.sync(s);
+assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 1, 'county night uses the shared clock');
+s.worldCycleSeconds = 0; audio.sync(s);
+assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 0, 'county daylight clears the night stem');
+s.worldCycleSeconds = 300; audio.sync(s);
 enterScene(s, 'hub'); audio.sync(s); assert.equal(moodForState(s), 'hub');
 assert.equal(calls.findLast(c => c[0] === 'setNightMix')[1], 0, 'interior music clears the night mix');
 for (const overlay of ['home', 'shop']) { s.overlay = overlay; assert.equal(moodForState(s), 'cozy'); } s.overlay = null;

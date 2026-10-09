@@ -20,7 +20,7 @@ assert.deepEqual(BLAST_WORLDS.map(m=>({id:m.id,name:m.name,width:m.width,height:
 assert.equal(BLAST_WORLDS.length, 10);
 assert.deepEqual(CHAPTERS.map(chapter => chapter.id), ['blast', 'woods', 'space', 'city', 'finale']);
 for (const registry of [AREAS, CHAPTERS, CAMPAIGN_MAPS]) assert.equal(new Set(registry.map(entry => entry.id)).size, registry.length);
-assert.deepEqual(ALL_WORLDS.map(map => map.id), CAMPAIGN_MAPS.map(map => map.id));
+assert.deepEqual(ALL_WORLDS.map(map => map.id).sort(), CAMPAIGN_MAPS.map(map => map.id).sort());
 // Geometry snapshots include every tile, footprint, prop, road and encounter.
 // BLAST snapshots reflect the authored rebuild; legacy progression is independently frozen.
 const hashes = [
@@ -42,7 +42,10 @@ const hashes = [
 const {exits: legacyExits,...legacyCounty}=COOP_OVERWORLD;
 assert.equal(createHash('sha256').update(JSON.stringify(legacyCounty)).digest('hex'),'c59ebfaa1b214b9c710027f167cc0c239a57be57d6affd3f79624c67d0166818', 'party county retains exact original geometry');
 assert.ok(legacyExits);
-for (const [index, world] of ALL_WORLDS.slice(0,14).entries()) {
+// Additive maps such as the tournament can register before the legacy maps.
+// Keep geometry baselines attached to their map IDs rather than array offsets.
+const legacyWorlds = ['overworld', 'hub', ...BLAST_WORLDS.map(map => map.id), 'realm-0', 'training'].map(id => getMap(id));
+for (const [index, world] of legacyWorlds.entries()) {
   const { exits, ...geometry } = world;
   if (index >= 12) assert.equal(createHash('sha256').update(JSON.stringify(geometry)).digest('hex'), hashes[index], world.id);
   else if (index === 0) { assert.equal(world.width,2304); assert.equal(world.height,1536); }

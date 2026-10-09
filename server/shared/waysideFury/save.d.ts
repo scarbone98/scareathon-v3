@@ -1,3 +1,5 @@
+import type { HubStateSave } from "./u1HubSave.js";
+import type { ItemsSaveState } from "./u1Items.js";
 import type { HeroState } from "../../../src/pages/WaysideFury/game/sim";
 export type HeroId = "you" | "joe" | "matt" | "alex" | "jon";
 export interface CharacterProgress { level: number; xp: number }
@@ -14,6 +16,7 @@ export interface HomeSnapshot {
   candy: number; chapter: number; gear: Gear; character: CharacterProgress;
 }
 export interface SaveData {
+  u1?: { hub?: HubStateSave; items: ItemsSaveState; combat: import("./u1Combat.js").CombatProgress; [key: string]: unknown };
   worldCycleSeconds?: number;
   version: 4; chapter: number; heroes: Record<HeroId, HeroState>; active: HeroId; party: HeroId[];
   candy: number; unlockedHeroes: HeroId[]; areas: string[]; bosses: string[]; clearedRooms: string[];

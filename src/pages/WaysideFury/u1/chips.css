@@ -1,0 +1,38 @@
+.wf-character .wf-chip-panel { grid-column: 1 / -1; padding: 16px; background: radial-gradient(ellipse at 0 0, #203e42a8, transparent 65%), #0c192be8; }
+.wf-items-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wf-items-heading .wf-eyebrow { margin: 0 0 3px; color: #91c9b8; font-size: 10px; letter-spacing: .12em; }
+.wf-items-heading h3 { margin: 0 0 4px; font-size: 18px; }
+.wf-items-count { flex: none; padding: 6px 9px; border: 1px solid #688c8180; border-radius: 8px; color: #eacb92; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wf-chip-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 15px 0; }
+.wf-chip-slot { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 8px; padding: 10px; border: 1px solid #74a59499; border-radius: 10px; background: #1c393b88; }
+.wf-chip-slot.is-locked { border-color: #536577; background: #182431; }
+.wf-chip-slot-glyph { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #92c8b94d; border-radius: 8px; background: #061c28; color: var(--wf-chip-color, #8fab9b); font-size: 22px; }
+.wf-chip-slot label { font-size: 12px; font-weight: 700; min-width: 0; }
+.wf-chip-slot label small { display: block; margin-top: 3px; color: #b3c8c2; font-size: 10px; font-weight: 400; }
+.wf-chip-slot select { grid-column: 1 / -1; width: 100%; min-width: 0; min-height: 44px; padding: 8px 6px; border: 1px solid #7ca999; border-radius: 6px; background: #101f2f; color: #eff8e9; font: inherit; font-size: 12px; touch-action: manipulation; }
+.wf-chip-slot select:disabled { color: #94a5b4; border-color: #4f6274; opacity: 1; }
+.wf-character .wf-chip-remove { grid-column: 1 / -1; min-height: 34px; width: 100%; padding: 5px; font-size: 11px; border-color: #648978; }
+.wf-character .wf-chip-remove:disabled { opacity: .35; }
+.wf-chip-slot select:focus-visible, .wf-chip-card summary:focus-visible { outline: 3px solid #b5ffeb; outline-offset: 3px; }
+.wf-chip-library { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.wf-chip-card { min-width: 0; border: 1px solid #4b647080; border-radius: 9px; background: #102131; }
+.wf-chip-card.is-owned { border-color: #668d7b; background: #153136; }
+.wf-chip-card.is-equipped { border-color: var(--wf-chip-color); box-shadow: inset 0 0 12px #8dbf9e0d; }
+.wf-chip-card summary { display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 8px; border-radius: 8px; cursor: pointer; list-style: none; touch-action: pan-y; }
+.wf-chip-card summary::-webkit-details-marker { display: none; }
+.wf-chip-glyph { display: grid; place-items: center; width: 32px; height: 36px; flex: none; color: var(--wf-chip-color); font-size: 24px; text-shadow: 0 0 12px #c7e8ba35; }
+.wf-chip-card:not(.is-owned) .wf-chip-glyph { opacity: .45; }
+.wf-chip-card summary > span:nth-child(2) { flex: 1; min-width: 0; }
+.wf-chip-card strong { display: block; font-size: 12px; line-height: 1.35; }
+.wf-chip-card small { display: block; margin-top: 3px; font-size: 10px; color: #a5bab5; }
+.wf-chip-card.is-equipped small { color: #f2dbab; }
+.wf-chip-expand { color: #9db9ab; transition: transform .16s ease; }
+.wf-chip-card details[open] .wf-chip-expand { transform: rotate(180deg); }
+.wf-character .wf-chip-card p { margin: 0; padding: 0 10px 10px; font-size: 12px; }
+.wf-chip-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 5px; padding: 0 8px 8px; }
+.wf-chip-actions > span { grid-column: 1 / -1; font-size: 10px; color: #bfd2c5; }
+.wf-character .wf-chip-actions button { display: grid; place-items: center; min-width: 0; min-height: 44px; padding: 5px; border-color: #85b49a; border-radius: 6px; font-size: 12px; }
+.wf-character .wf-chip-actions button:disabled { opacity: .35; }
+.wf-character .wf-chip-actions button[aria-pressed=true] { opacity: 1; color: #ffe59e; border-color: var(--wf-chip-color); }
+@media (max-width: 600px) { .wf-chip-library { grid-template-columns: repeat(2, minmax(0, 1fr)); } .wf-chip-slots { gap: 6px; } .wf-chip-slot { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 8px 5px; gap: 6px; } .wf-chip-slot select { font-size: 11px; padding-inline: 3px; } .wf-chip-slot label small { min-height: 25px; } .wf-character .wf-chip-panel { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .wf-chip-expand { transition: none; } }

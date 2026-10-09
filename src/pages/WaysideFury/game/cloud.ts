@@ -1,3 +1,5 @@
+import { mergeItemsSaves, sanitizeItemsNamespace } from "../../../../server/shared/waysideFury/u1Items.js";
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { SAVE_KEY, makeNewGameSave, parseSave, ticketDelta, type SaveData, type ProgressReceipt } from "./save.ts";
 import { mergeReceipts, progressScore } from "../../../../server/shared/waysideFury/save.js";
 import { cleanFoundItems } from "../../../../server/shared/waysideFury/collectibles.js";
@@ -25,10 +27,15 @@ export function mergeSaves(local: SaveData | null, remote: SaveData | null): Sav
   const resetDifference = (local.resetAt ?? 0) - (remote.resetAt ?? 0);
   const difference = resetDifference || progressScore(local) - progressScore(remote);
   const winner = difference > 0 || difference === 0 && local.savedAt > remote.savedAt ? local : remote;
-  return { ...winner, coopRewards: winner.coopRewards ?? [],
+  const recent = local.savedAt > remote.savedAt ? local : remote;
+  const alternate = recent === local ? remote : local;
+  const u1 = sanitizeItemsNamespace(winner.u1);
+  u1.items = resetDifference ? u1.items : mergeItemsSaves(recent.u1?.items, alternate.u1?.items);
+  u1.combat = resetDifference ? mergeCombatProgress(winner.u1?.combat) : mergeCombatProgress(local.u1?.combat, remote.u1?.combat);
+  return parseSave({ ...winner, u1, coopRewards: winner.coopRewards ?? [],
     foundItems: cleanFoundItems([...local.foundItems, ...remote.foundItems]),
     ambientTaxiWrecked: resetDifference ? winner.ambientTaxiWrecked : local.ambientTaxiWrecked || remote.ambientTaxiWrecked,
-    lastReported: mergeReceipts(local.lastReported, remote.lastReported) };
+    lastReported: mergeReceipts(local.lastReported, remote.lastReported) });
 }
 
 // The transport and storage are replaceable so races and disconnected devices
@@ -233,9 +240,11 @@ export class CloudSaveStore {
     this.running = running;
     return running;
   }
+  private queuedSnapshot(): SaveData | null { return this.pending?.save ?? null; }
   private async runFlush() {
     if (this.resetting || this.flushing || !this.userId || !this.ready || this.disposed) return;
     this.flushing = true; const epoch = this.epoch;
+    let personalConflicts = 0;
     let writing: { save: SaveData; credit: boolean } | null = null;
     try {
       if (!this.revisionKnown) {
@@ -251,10 +260,24 @@ export class CloudSaveStore {
           const remote = this.decode(response.body);
           // Discard all queued snapshots from before the conflict, including
           // a checkpoint queued while this request was in flight.
-          this.pending = null; this.save = remote.save; this.revision = remote.revision;
+          let merged = remote.save;
+          // Keep only personal tiers from this story. The server owns campaign
+          // state and reward receipts, including an in-flight New Game reset.
+          for (const personal of [writing.save, this.save, this.queuedSnapshot()]) {
+            if (merged && personal && (merged.resetAt ?? 0) === (personal.resetAt ?? 0)) {
+              merged = { ...merged, u1: { ...sanitizeItemsNamespace(merged.u1), combat: mergeCombatProgress(merged.u1?.combat, personal.u1?.combat) } };
+            }
+          }
+          this.pending = null; this.save = merged; this.revision = remote.revision;
           this.confirmed = mergeReceipts(remote.save?.lastReported); this.unconfirmed = null;
-          if (remote.save) this.write(remote.save);
-          this.cb.onReplaced(remote.save, "conflict"); this.notify("saved"); return;
+          if (merged) this.write(merged);
+          this.cb.onReplaced(merged, "conflict");
+          if (merged && JSON.stringify(merged) !== JSON.stringify(remote.save)) {
+            this.pending = { save: merged, credit: false }; writing = null;
+            if (++personalConflicts >= 3) { this.notify("offline"); this.retry(); return; }
+            continue;
+          }
+          this.notify("saved"); return;
         }
         const revision = (response.body as { revision?: number })?.revision;
         if (response.status !== 200 || !Number.isInteger(revision) || revision! < 1) throw new Error("Could not save progress");

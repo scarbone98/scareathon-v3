@@ -38,7 +38,7 @@ assert.ok(Array.isArray(extraArgs) && extraArgs.every(value => typeof value === 
 const launchOptions = { headless: headless === 'true' || headless === '1',
   ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
-  ...([...backendArgs[backend], ...extraArgs].length ? { args: [...backendArgs[backend], ...extraArgs] } : {}) };
+  args: ['--mute-audio', ...backendArgs[backend], ...extraArgs] };
 const browser = await playwright[browserName].launch(launchOptions);
 const errors = [];
 const measurements = [];

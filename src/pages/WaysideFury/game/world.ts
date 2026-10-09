@@ -1,3 +1,5 @@
+import { ARENA_WORLD, ARENA_HUB_BUILDING } from "../u1/hub/arenaWorld.ts";
+import { HUB_QUEST_NPCS } from "../u1/hub/quests.ts";
 import { clearRoads } from './roadClearance.ts';
 import { shapeOrganicAreas } from './organicAreas.ts';
 import { INTERIOR_WORLDS, attachInteriorDoors } from './interiors.ts';
@@ -89,6 +91,8 @@ export const HUB_WORLD = (() => {
   prop(m, "npc", 816, 384, 16, 24, "Jon"); prop(m, "npc", 336, 224, 16, 24, "Alex");
   parkedCar(m, 520, 424, 40, 24); prop(m, "sign", 412, 408, 24, 24, "Taxi");
   for (let x = 256; x < 704; x += 112) { prop(m, "lamp", x, 260, 12, 32); prop(m, "flower", x + 32, 360, 24, 12); }
+  m.props.push(ARENA_HUB_BUILDING, { id: "u8-board", kind: "sign", x: 436, y: 220, w: 24, h: 24, label: "Quest board", footprints: [{ x: 447, y: 238, w: 3, h: 6 }] });
+  for (const npc of HUB_QUEST_NPCS.filter(n => !n.hero)) m.props.push({ id: npc.id, kind: "npc", x: npc.x - 8, y: npc.y - 24, w: 16, h: 24, label: npc.name, footprints: [{ x: npc.x - 4, y: npc.y - 5, w: 8, h: 5 }] });
   m.spawn = { x: 480, y: 416 }; scatter(m, "grass", 2); return m;
 })();
 
@@ -157,10 +161,10 @@ for (const world of [...BLAST_WORLDS, REALM_WORLD]) for (const door of world.exi
 export function getWorld(scene: string, room = 0, mapId?: string, coop = false): WorldMap {
   if (coop && (mapId === "overworld" || !mapId && scene === "overworld")) return COOP_OVERWORLD;
   if (mapId) return ALL_WORLDS.find(world => world.id === mapId) ?? HUB_WORLD;
-  return scene === "overworld" ? OVERWORLD : scene === "hub" ? HUB_WORLD : scene === "dungeon" ? BLAST_WORLDS[room] ?? BLAST_WORLDS[0] : scene === "realm" ? REALM_WORLD : TEST_WORLD;
+  return scene === "arena" ? ARENA_WORLD : scene === "overworld" ? OVERWORLD : scene === "hub" ? HUB_WORLD : scene === "dungeon" ? BLAST_WORLDS[room] ?? BLAST_WORLDS[0] : scene === "realm" ? REALM_WORLD : TEST_WORLD;
 }
 
-export const ALL_WORLDS = [OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, LAUNCH_WORLD, ...MOON_WORLDS, ...CITY_WORLDS, ...WOODS_WORLDS, ...INTERIOR_WORLDS];
+export const ALL_WORLDS = [ARENA_WORLD, OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, LAUNCH_WORLD, ...MOON_WORLDS, ...CITY_WORLDS, ...WOODS_WORLDS, ...INTERIOR_WORLDS];
 shapeOrganicAreas(ALL_WORLDS);
 attachInteriorDoors(ALL_WORLDS);
 

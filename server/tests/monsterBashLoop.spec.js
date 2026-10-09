@@ -7,6 +7,7 @@ import { createChatRoom } from '../monsterBash/chatRoom.js';
 const BETTING_MS = 5_000;
 const RESULT_MS = 3_000;
 const RETRY_MS = 2_000;
+const activeLoops = new Set();
 
 function createFakeRepo(openMatches = []) {
     let nextId = 1;
@@ -77,6 +78,7 @@ function createLoop(repo, overrides = {}) {
         createSeed: () => `test-seed-${seedCount++}`,
         ...overrides,
     });
+    activeLoops.add(loop);
     return { loop, messages };
 }
 
@@ -95,6 +97,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    for (const loop of activeLoops) loop.stop();
+    activeLoops.clear();
     jest.useRealTimers();
 });
 
@@ -181,9 +185,8 @@ describe('MonsterBashLoop', () => {
                 if (message.type !== 'chunk') continue;
                 chunks.push(message.chunk);
                 // Nothing is ever released ahead of the fight clock.
-                for (const item of [...message.chunk.frames, ...message.chunk.events, ...message.chunk.odds]) {
-                    expect(item.t).toBeLessThanOrEqual(liveTick);
-                }
+                const ticks = [...message.chunk.frames, ...message.chunk.events, ...message.chunk.odds].map((item) => item.t);
+                expect(Math.max(...ticks)).toBeLessThanOrEqual(liveTick);
             }
             if (second > 600) throw new Error('bout never finished');
         }
@@ -200,7 +203,9 @@ describe('MonsterBashLoop', () => {
         expect(repo.inserted).toHaveLength(2);
         expect(new Set([...repo.inserted[1].fighters, ...row.fighters]).size).toBeGreaterThan(2);
         loop.stop();
-    });
+        // A full simulated bout yields between chunks; concurrent check runs can
+        // consume the default five-second wall-clock budget despite fake time.
+    }, 30_000);
 
     test('recovery replays bouts whose fight is already over and cancels the rest', async () => {
         const longAgo = Date.now() - 10 * 60_000;

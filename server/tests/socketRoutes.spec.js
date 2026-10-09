@@ -36,5 +36,7 @@ describe('socket routes share one websocket server', () => {
             sockets.forEach((socket) => socket.terminate());
             await app.close();
         }
-    });
+        // Monster Bash deliberately debounces its viewer broadcast for two real
+        // seconds. Leave headroom for route startup and teardown under load.
+    }, 15_000);
 });

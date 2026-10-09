@@ -1,3 +1,8 @@
+import { sanitizeHubState } from "../../../../server/shared/waysideFury/u1HubSave.js";
+import { grantCheckpointChip } from "./u1/items/pickups.ts";
+import { sanitizeItemsNamespace } from "../../../../server/shared/waysideFury/u1Items.js";
+import { itemsGear } from "./sim.ts";
+import { mergeCombatProgress } from "../../../../server/shared/waysideFury/u1Combat.js";
 import { record, refillCrew } from "./chapters/ch3.ts";
 import { onMoon } from "./lunar.ts";
 import { campaignHandoff } from "./campaign.ts";
@@ -30,12 +35,13 @@ export function readSave(key = SAVE_KEY): SaveData | null {
 // Building a snapshot is separate from device storage: a full or blocked device
 // can still save to the account. The legacy writer keeps its failure contract.
 export function makeSave(s: GameState, previous: SaveData | null, home = false, receipt?: ProgressReceipt): SaveData | null {
+  const personalHeroes = s.arenaVitals ?? s.heroes;
   const heroes = s.coop?.syncedLevel !== undefined ? Object.fromEntries(HERO_IDS.map(id => {
-    const current = s.heroes[id], personal = createHero(id, s.character, s.gear);
+    const current = personalHeroes[id], personal = createHero(id, s.character, itemsGear(s));
     return [id, { ...personal, hp: personal.maxHp * current.hp / current.maxHp, ki: personal.maxKi * current.ki / current.maxKi, stamina: current.stamina }];
-  })) : s.heroes;
+  })) : personalHeroes;
   return parseSave({
-    worldCycleSeconds: s.worldCycleSeconds, version: SAVE_VERSION, campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
+    worldCycleSeconds: s.worldCycleSeconds, version: SAVE_VERSION, u1: { ...sanitizeItemsNamespace(s.u1), hub: { arena: s.hubArena, quests: s.hubQuests, cosmetic: s.hubCosmetic, questSerial: s.hubQuestSerial, radar: s.relicRadar }, combat: mergeCombatProgress(s.u1.combat, previous?.u1?.combat) }, campaignMilestones: s.campaignMilestones, solvedInteractions: s.solvedInteractions,
     completedCinematics: s.completedCinematics, checkpointMapId: s.coop?.role === "guest" ? previous?.checkpointMapId ?? "hub" : s.checkpointMapId, chapter: s.chapter, heroes, active: s.active, party: s.party, candy: s.candy,
     unlockedHeroes: s.unlockedHeroes, areas: s.areas, bosses: s.bosses, clearedRooms: s.clearedRooms,
     kills: s.kills, deaths: s.deaths, character: s.character, gear: s.gear, settings: { ...previous?.settings, difficulty: s.difficulty }, savedAt: Date.now(),
@@ -57,6 +63,8 @@ export function writeSave(s: GameState, previous: SaveData | null, home = false,
 // Collection/lore and reward receipts belong to the account, not the story run.
 export function makeNewGameSave(previous: SaveData | null): SaveData {
   const state = newGame();
+  const hub = sanitizeHubState(previous?.u1?.hub);
+  state.hubArena = hub.arena; state.hubQuests = hub.quests; state.hubCosmetic = hub.cosmetic; state.hubQuestSerial = hub.questSerial; state.relicRadar = hub.radar;
   state.foundItems = [...(previous?.foundItems ?? [])];
   state.coopRewards = [...(previous?.coopRewards ?? [])];
   enterScene(state, "prologue");
@@ -68,6 +76,9 @@ export function makeNewGameSave(previous: SaveData | null): SaveData {
 export function restoreSave(data: SaveData, retry = false): GameState {
   const saved = parseSave(data), s = newGame();
   if (saved) {
+    const hub = sanitizeHubState(saved.u1?.hub);
+    s.hubArena = hub.arena; s.hubQuests = hub.quests; s.hubCosmetic = hub.cosmetic; s.hubQuestSerial = hub.questSerial; s.relicRadar = hub.radar;
+    s.u1 = { ...sanitizeItemsNamespace(saved.u1), combat: mergeCombatProgress(saved.u1?.combat) };
     s.worldCycleSeconds = saved.worldCycleSeconds ?? 0;
     s.difficulty = saved.settings.difficulty ?? "normal";
     const snapshot = retry && saved.home && !saved.checkpointMapId.startsWith("interior-") && !saved.checkpointMapId.startsWith("city-") && !saved.checkpointMapId.startsWith("woods-") && !saved.checkpointMapId.startsWith("moon-") && saved.checkpointMapId !== "space-launch" ? saved.home : saved;
@@ -79,6 +90,8 @@ export function restoreSave(data: SaveData, retry = false): GameState {
     s.completedCinematics = [...saved.completedCinematics]; s.checkpointMapId = saved.checkpointMapId;
     s.areas = [...saved.areas]; s.bosses = [...saved.bosses]; s.clearedRooms = [...saved.clearedRooms];
     s.coopRewards = [...(saved.coopRewards ?? [])];
+    for (const id of [...saved.bosses, ...saved.clearedRooms]) grantCheckpointChip(s, id);
+    s.events.length = 0;
     s.foundItems = [...saved.foundItems]; s.ambientTaxiWrecked = s.personalTaxiWrecked = saved.ambientTaxiWrecked;
     s.kills = saved.kills; s.deaths = saved.deaths;
     if (retry) for (const hero of Object.values(s.heroes)) { hero.hp = hero.maxHp; hero.ki = hero.maxKi; hero.stamina = hero.maxStamina; }

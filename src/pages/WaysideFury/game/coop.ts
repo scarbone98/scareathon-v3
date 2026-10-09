@@ -1,3 +1,6 @@
+import { prepareArenaPlayer, recordArenaResult } from "../u1/hub/arena";
+import { chipEffects } from "./u1/items/chips";
+import { beginFusionSession, syncFusionWorld, elapsedFusionWorld, type FusionWorld } from "./u1/combat/fusion";
 import { sanitizeDayNightSeconds } from "./u1/world/dayNight";
 import { MAX_MILESTONES } from "../../../../server/shared/waysideFury/save.js";
 import { sameCampaignMap } from "./campaign.ts";
@@ -19,16 +22,16 @@ export interface CoopCallbacks {
   onReward?(state: GameState, reward: CoopReward): void;
 }
 export interface CoopReward {
-  id: string; kind: "kill" | "checkpoint" | "pickup"; xp?: number; xpLevel?: number; candy?: number; pickupId?: string;
+  id: string; kind: "kill" | "checkpoint" | "pickup"; enemyKind?: "grunt" | "shooter" | "boss"; xp?: number; xpLevel?: number; candy?: number; pickupId?: string;
   areas?: string[]; bosses?: string[]; rooms?: string[]; chapter?: number;
   campaignMilestones?: string[]; solvedInteractions?: string[]; completedCinematics?: string[];
   healHp?: number; healKi?: number; power?: number; ward?: number;
 }
-type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { worldCycleSeconds?: number; nightEncounterWindow?: string | null; combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
+type WorldState = Pick<GameState, "scene" | "room" | "mapId" | "time" | "palette" | "transitionTarget" | "transitionPalette" | "cutscene" | "sceneTimer" | "enemies" | "projectiles" | "clearedRooms" | "areas" | "bosses" | "chapter" | "rngSeed" | "nextId" | "x" | "y" | "ambientTaxiWrecked" | "ambientTaxiGag"> & Partial<Pick<GameState, "campaignMilestones" | "solvedInteractions" | "completedCinematics" | "film" | "spaceOutfit" | "difficulty">> & { arena?: GameState["arena"]; worldCycleSeconds?: number; nightEncounterWindow?: string | null; fusions?: FusionWorld; combatLevel?: number; spawnedExtras?: number; protocolVersion?: number };
 interface Sample<T> { at: number; value: T }
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const campaignIds = (...lists: (string[] | undefined)[]) => [...new Set(lists.flatMap(ids => ids ?? []))].slice(0, MAX_MILESTONES);
-const worldState = (s: GameState): WorldState => ({ worldCycleSeconds: s.worldCycleSeconds, nightEncounterWindow: s.nightWorld?.window ?? null, difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
+const worldState = (s: GameState): WorldState => ({ worldCycleSeconds: s.worldCycleSeconds, nightEncounterWindow: s.nightWorld?.window ?? null, fusions: structuredClone(s.fusion.world), ...(s.arena ? { arena: { ...s.arena } } : {}), difficulty: s.difficulty, combatLevel: encounterLevel(s), protocolVersion: s.coop?.protocolVersion ?? COOP_PROTOCOL_VERSION, scene: s.scene, room: s.room, mapId: s.mapId, time: s.time, palette: s.palette, film: s.film ? {...s.film} : null, spaceOutfit: s.spaceOutfit,
   transitionTarget: s.transitionTarget, transitionPalette: s.transitionPalette, cutscene: s.cutscene, sceneTimer: s.sceneTimer,
   // A guest finishing hit arrives after step. Retain its zero-HP entries until
   // the next step awards the clear, including if authority migrates that frame.
@@ -155,13 +158,13 @@ export class FuryCoop {
     if (this.isHost && event.type === "checkpoint" && event.id === "realm-0" && s.coop) s.coop.worldChapter = Math.max(2, s.coop.worldChapter ?? s.chapter);
     // Websocket ordering caches the post-kill/clear world before distributing
     // rewards. A promoted host therefore cannot resurrect an already-paid kill.
-    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "ambient-taxi-crash") && this.rewardSnapshotAt !== s.time) {
+    if (this.isHost && (event.type === "kill" || event.type === "checkpoint" || event.type === "ambient-taxi-crash" || event.type === "arena-finish") && this.rewardSnapshotAt !== s.time) {
       this.send({ type: "state", state: worldState(s) }); this.rewardSnapshotAt = s.time;
     }
     if (this.isHost && event.type === "kill") {
       const id = `${this.clientId}:kill:${event.enemyId}`;
       for (const player of this.room.players.filter(p => p.connected)) {
-        const reward: CoopReward = { id, kind: "kill", xp: event.xp, xpLevel: event.xpLevel, candy: rollCoopCandy(id, player.userId, event.kind === "boss") };
+        const reward: CoopReward = { id, kind: "kill", enemyKind: event.kind, xp: s.scene === "arena" ? 0 : event.xp, xpLevel: event.xpLevel, candy: s.scene === "arena" ? 0 : rollCoopCandy(id, player.userId, event.kind === "boss") };
         if (player.seat === this.room.seat) { if (applyCoopReward(s, reward)) s.events.push({ type: "checkpoint", id: `coop-reward-${id}` }); }
         else this.sendReward(reward, player.seat);
       }
@@ -172,10 +175,10 @@ export class FuryCoop {
       const spaceBosses = event.id === "moon-m06" ? ["moon-cheese-inspector"] : event.id === "moon-m08" || event.id === "moon-m09-rest" ? ["moon-apogee-warden"] : [];
       const woodsBosses = event.id === "woods-heartwood-engine" ? ["woods-foreman"] : event.id === "woods-conveyor-yard" ? ["woods-briar-bailiff"] : [];
       const cityBosses = event.id === "city-switchmaster" ? ["city-switchmaster"] : event.id === "city-hatching" ? ["city-architect"] : [];
-      const bosses = cityBosses.length ? cityBosses : woodsBosses.length ? woodsBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
+      const bosses = event.id === "relic-echo" ? ["relic-echo"] : cityBosses.length ? cityBosses : woodsBosses.length ? woodsBosses : spaceBosses.length ? spaceBosses : event.id === `blast-${WATCHER_ROOM}` ? ["blast-watcher"] : event.id === `blast-${GATEKEEPER_ROOM}` ? ["blast-gatekeeper"] : [];
       const cityEvent=event.id.startsWith("city-");
       const locksEvent=event.id.startsWith("locks-");
-      const rooms = locksEvent && !event.id.startsWith("locks-cache-") ? [] : event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
+      const rooms = event.id === "relic-echo" || locksEvent && !event.id.startsWith("locks-cache-") || event.id === "home" || cityEvent && event.id!==s.mapId ? [] : [event.id];
       const campaignMilestones = event.id.startsWith("woods-") || event.id.startsWith("city-") || event.id.startsWith("moon-") || event.id.startsWith("space-") ? campaignIds(s.coop?.worldCampaignMilestones,s.campaignMilestones).filter(id=>!cityEvent||id.startsWith("city-")||id==="night-anchor") : [];
       const solvedInteractions = locksEvent ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id===event.id) : campaignMilestones.length ? campaignIds(s.coop?.worldSolvedInteractions,s.solvedInteractions).filter(id=>id!=="moon-unlimited-air"&&(!cityEvent||id.startsWith("city-"))) : [];
       const completedCinematics = campaignMilestones.length ? campaignIds(s.coop?.worldCompletedCinematics,s.completedCinematics).filter(id=>!cityEvent||id.startsWith("city-")) : [];
@@ -206,13 +209,17 @@ export class FuryCoop {
         s.coop.worldCampaignMilestones = [...(w.campaignMilestones ?? [])];
         s.coop.worldSolvedInteractions = [...(w.solvedInteractions ?? [])];
         s.coop.worldCompletedCinematics = [...(w.completedCinematics ?? [])]; }
-      if (s.scene !== w.scene || s.room !== w.room || s.mapId !== w.mapId) { enterScene(s, w.scene, w.room, w.mapId); s.x = w.x; s.y = w.y; }
+      if (s.scene !== w.scene || s.room !== w.room || s.mapId !== w.mapId) { if (w.scene === "arena") prepareArenaPlayer(s); enterScene(s, w.scene, w.room, w.mapId); s.x = w.x; s.y = w.y; }
       Object.assign(s, { palette: w.palette, transitionTarget: w.transitionTarget, transitionPalette: w.transitionPalette, cutscene: w.cutscene, sceneTimer: w.sceneTimer, film: w.film ? {...w.film} : null, spaceOutfit: w.spaceOutfit ?? s.spaceOutfit,
         ambientTaxiWrecked: w.ambientTaxiWrecked ?? false, ambientTaxiGag: w.ambientTaxiGag ?? -1 });
       s.difficulty = w.difficulty ?? "normal"; s.enemies = structuredClone(w.enemies); s.projectiles = structuredClone(w.projectiles);
+      s.arena = w.arena ? { ...w.arena } : undefined;
+      if (s.arena?.status === "finished" && s.arenaVitals) { this.damages.length = 0; this.revived = false; recordArenaResult(s); s.overlay = "arena"; }
+      syncFusionWorld(s, elapsedFusionWorld(w.fusions, Math.max(0, (now - (this.worlds.at(-1)?.at ?? now)) / 1000)));
       s.rngSeed = w.rngSeed; s.nextId = Math.max(s.nextId, w.nextId);
       if (s.coop) s.coop.spawnedExtras = w.spawnedExtras ?? Math.max(0, room.players.filter(p => p.connected).length - 1);
     }
+    if (!s.coop) beginFusionSession(s);
     s.coop ??= { role, seat: room.seat, remoteHeroes: [], appliedHits: [], personalDifficulty: s.difficulty };
     s.coop.role = role; s.coop.seat = room.seat; s.coop.protocolVersion = room.protocolVersion ?? 1;
     setCoopPlayerCount(s, room.players.filter(p => p.connected).length);
@@ -220,7 +227,15 @@ export class FuryCoop {
       const blend = buffered(samples, now); if (!blend) return [];
       const { a, b, alpha } = blend;
       const same = sameCampaignMap(a, b);
-      return [{ ...b, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y }];
+      const latest = samples[samples.length - 1];
+      const peer = { ...b, fusionIntent: Math.max(0, (latest.value.fusionIntent ?? 0) - (now - latest.at) / 1000), fusionSpecial: latest.value.fusionSpecial, x: same ? a.x + (b.x - a.x) * alpha : b.x, y: same ? a.y + (b.y - a.y) * alpha : b.y,
+        chipDamageMultiplier: latest.value.chipDamageMultiplier, secondWindReady: latest.value.secondWindReady, chipSnapshotAt: latest.at };
+      const spent = s.coop?.remoteSecondWindSpent;
+      if (spent?.[peer.seat]?.userId === peer.userId) {
+        if (latest.at > spent[peer.seat].at && peer.secondWindReady === false) delete spent[peer.seat];
+        else peer.secondWindReady = false;
+      } else if (spent?.[peer.seat]) delete spent[peer.seat];
+      return [peer];
     });
     if (role === "guest") {
       const blend = buffered(this.worlds, now);
@@ -232,13 +247,16 @@ export class FuryCoop {
         s.coop.worldCampaignMilestones = [...(b.campaignMilestones ?? [])];
         s.coop.worldSolvedInteractions = [...(b.solvedInteractions ?? [])];
         s.coop.worldCompletedCinematics = [...(b.completedCinematics ?? [])];
-        if (s.scene !== b.scene || s.room !== b.room || s.mapId !== b.mapId) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } enterScene(s, b.scene, b.room, b.mapId); s.x = b.x + 18; s.y = b.y + 10; }
+        if (s.scene !== b.scene || s.room !== b.room || s.mapId !== b.mapId) { if (b.scene === "dead") { s.deaths++; s.events.push({ type: "death" }); } if (b.scene === "arena") prepareArenaPlayer(s); enterScene(s, b.scene, b.room, b.mapId); s.x = b.x + 18; s.y = b.y + 10; }
         const wrecked = b.ambientTaxiWrecked ?? false;
         s.personalTaxiWrecked ||= s.ambientTaxiWrecked || wrecked;
         if (wrecked && !s.ambientTaxiWrecked) s.events.push({ type: "ambient-taxi-crash", x: ambientTaxi(s).x, y: ambientTaxi(s).y });
         Object.assign(s, { palette: b.palette, transitionTarget: b.transitionTarget, transitionPalette: b.transitionPalette, cutscene: b.cutscene, sceneTimer: b.sceneTimer, film: b.film ? {...b.film} : null, spaceOutfit: b.spaceOutfit ?? s.spaceOutfit,
           ambientTaxiWrecked: wrecked, ambientTaxiGag: a.ambientTaxiGag >= 0 && b.ambientTaxiGag >= 0 ? a.ambientTaxiGag + (b.ambientTaxiGag - a.ambientTaxiGag) * alpha : b.ambientTaxiGag ?? -1 });
         s.enemies = b.enemies.map(e => { const old = a.enemies.find(p => p.id === e.id); return old && sameCampaignMap(a, b) ? { ...e, x: old.x + (e.x - old.x) * alpha, y: old.y + (e.y - old.y) * alpha } : { ...e }; });
+        s.arena = b.arena ? { ...b.arena } : undefined;
+      if (s.arena?.status === "finished" && s.arenaVitals) { this.damages.length = 0; this.revived = false; recordArenaResult(s); s.overlay = "arena"; }
+        syncFusionWorld(s, elapsedFusionWorld(b.fusions, Math.max(0, (now - (this.worlds.find(sample => sample.value === b)?.at ?? now)) / 1000)));
         // Guests predict their own Ki; host enemy projectiles remain authoritative.
         s.projectiles = [...s.projectiles.filter(p => p.owner === "hero"), ...b.projectiles.map(p => ({ ...p, hits: [...p.hits] }))];
       }
@@ -258,8 +276,9 @@ export class FuryCoop {
     this.sentAt = now;
     const player = room.players.find(p => p.seat === room.seat)!;
     enforceCountyPartyBounds(s);
+    const chips = chipEffects(s);
     const hero: RemoteHero = { ...player, hero: { ...activeHero(s) }, x: round(s.x), y: round(s.y), faceX: s.faceX, faceY: s.faceY,
-      filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0 };
+      fusionIntent: s.fusion.intent, fusionSpecial: s.fusion.specialRequest, filmSkip: s.filmSkipHeld >= 1, filmHold: s.filmHold, spaceOutfit: s.spaceOutfit, boundTimer: s.boundTimer, moving: s.moving, guard: s.guard, guardTimer: s.guardTimer, meleeCharge: s.meleeCharge, attackTimer: s.attackTimer, combo: s.combo, charge: s.charge, dashTimer: s.dashTimer, scene: s.scene, room: s.room, mapId: s.mapId, questCosmetic: s.hubCosmetic ?? null, downed: !!s.coop.downed, reviveProgress: s.coop.reviveProgress ?? 0, chipDamageMultiplier: chips.incomingDamageMultiplier, secondWindReady: chips.secondWind };
     this.send({ type: "hero", hero, input, ...(!this.appearanceSent && this.appearance ? { appearance: this.appearance } : {}) });
     this.appearanceSent = true;
     if (role === "host") this.send({ type: "state", state: worldState(s) });
