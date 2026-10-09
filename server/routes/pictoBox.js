@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { blockedUsers } from '../utils/contentSafety.js';
 import { isAdminUser } from './inbox.js';
 
 // Picto Box: the arcade's community camera. Players take toy-camera photos in
@@ -51,10 +52,12 @@ export default async function pictoBoxRoutes(fastify) {
             `, [PHOTO_LIFETIME, WALL_SIZE]);
             const viewer = request.user?.sub ?? null;
             const admin = request.user ? isAdminUser(request.user) : false;
+            const blocked = await blockedUsers(pool, viewer);
             return {
                 admin,
-                photos: result.rows.map((row) => ({
+                photos: result.rows.filter(row => !blocked.has(row.user_id)).map((row) => ({
                     id: row.id,
+                    userId: row.user_id,
                     username: row.username || 'Someone',
                     style: row.style,
                     createdAt: row.created_at,

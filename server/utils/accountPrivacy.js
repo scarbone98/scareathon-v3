@@ -93,6 +93,14 @@ export async function erasePrivateAccount(client, userId) {
         const quote = value => '"' + value.replaceAll('"', '""') + '"';
         await client.query(`DELETE FROM public.${quote(table)} WHERE ${quote(column)} = $1`, [userId]);
     }
+    if (tables.has('user_blocks')) await client.query('DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1', [userId]);
+    if (tables.has('content_reports')) {
+        await client.query('DELETE FROM content_reports WHERE reporter_id = $1', [userId]);
+        await client.query("UPDATE content_reports SET target_user_id = NULL, snapshot = NULL WHERE target_user_id = $1", [userId]);
+    }
+    if (Object.hasOwn(user.rows[0], 'age_confirmed_at')) {
+        await client.query('UPDATE users SET age_confirmed_at = NULL, content_restricted_at = NULL WHERE id = $1', [userId]);
+    }
     // Blank any legacy avatar fields as well as the dedicated avatar/outfit tables.
     const legacy = Object.keys(user.rows[0]).filter(key => /^(avatar|outfit)(_|$)/.test(key));
     for (const column of legacy) {

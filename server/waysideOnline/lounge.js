@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { rememberChat } from '../utils/contentSafety.js';
 // The Wayside Online lounge: a club room where signed-in players walk about and talk.
 //
 // Anyone can watch (the socket is open to guests); to come in, a player swaps their
@@ -63,6 +65,7 @@ export function createLounge({ now = Date.now, mask, hosting = () => [] } = {}) 
     // Hosting belongs to the game rooms, so it survives a player leaving this lounge.
     const view = ({ userId, name, x, y, say, saidAt }) => ({
         userId, name, x, y, say: say ?? null, saidAt: saidAt ?? null,
+        ...(process.env.REPORTS_ENABLED === 'true' ? { sayId: players.get(userId)?.sayId ?? null } : {}),
         hosting: hosting().find((member) => member.userId === userId)?.hosting ?? null,
     });
     const broadcast = (message) => watchers.forEach((socket) => send(socket, message));
@@ -166,7 +169,11 @@ export function createLounge({ now = Date.now, mask, hosting = () => [] } = {}) 
             const say = cleanSay(message?.text, mask);
             if (!say) return;
             Object.assign(player, { say, saidAt: time });
-            broadcast({ type: 'say', userId: player.userId, say, saidAt: time });
+            if (process.env.REPORTS_ENABLED === 'true') {
+                player.sayId = randomUUID();
+                rememberChat('lounge_chat', player.sayId, player.userId, say);
+            }
+            broadcast({ type: 'say', userId: player.userId, say, saidAt: time, ...(player.sayId ? { sayId: player.sayId } : {}) });
         },
 
         // An admin shows someone out, and they can't come back for a while
@@ -180,6 +187,13 @@ export function createLounge({ now = Date.now, mask, hosting = () => [] } = {}) 
             remove(target, 'kicked');
         },
 
+        userFor(socket) { return bySocket.get(socket); },
+        removeReport(id) {
+            for (const player of players.values()) if (player.sayId === id) {
+                player.say = null; player.sayId = null;
+                broadcast({ type: 'say', userId: player.userId, say: null, saidAt: now(), sayId: null });
+            }
+        },
         leave(socket) {
             const userId = bySocket.get(socket);
             if (userId) remove(userId);

@@ -56,6 +56,7 @@ beforeAll(async () => {
     await database.exec(await readFile(new URL('../db/migrations/20261013_account_privacy.sql', import.meta.url), 'utf8'));
     // A second startup run must be safe.
     await database.exec(await readFile(new URL('../db/migrations/20261013_account_privacy.sql', import.meta.url), 'utf8'));
+    await database.exec(await readFile(new URL('../db/migrations/20261014_compliance.sql', import.meta.url), 'utf8'));
     await database.query('INSERT INTO auth.users (id, email) VALUES ($1, $3), ($2, $4)', [ID, OTHER, 'rider@example.com', 'other@example.com']);
     await database.query('INSERT INTO users (id, username, email, avatar_url) VALUES ($1, $3, $5, $7), ($2, $4, $6, NULL)', [ID, OTHER, 'Rider', 'Other', 'rider@example.com', 'other@example.com', 'private-avatar.png']);
     await database.exec("INSERT INTO games VALUES (1, 'test'), (2, '8 Bit Evil Returns')");
@@ -112,11 +113,18 @@ test('real PostgreSQL export and deletion preserve anonymous results through the
     expect(data.agentKeys[0].name).toBe('CLI');
     expect(exported.body).not.toContain(hashAgentToken('wsa_old'));
     expect((await getAccountStandings(db, 2026))[0].total).toBe(4);
+    await database.query('UPDATE users SET age_confirmed_at = now(), content_restricted_at = now() WHERE id = $1', [ID]);
+    await database.query('INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2), ($2, $1)', [ID, OTHER]);
+    await database.query("INSERT INTO content_reports (reporter_id, target_type, target_id, target_user_id, reason, snapshot) VALUES ($1, 'post', '1', $2, 'Review', '{\"text\":\"Private words\"}'), ($2, 'post', '2', $1, 'Review', '{\"text\":\"Rider words\"}')", [ID, OTHER]);
     const response = await app.inject({ method: 'DELETE', url: '/user/account', headers: { 'x-user': ID }, payload: { confirmation: 'DELETE', currentPassword: 'secret' } });
     expect(response.statusCode).toBe(200);
     const user = (await database.query('SELECT * FROM users WHERE id = $1', [ID])).rows[0];
     expect(user.deleted_at).toBeTruthy(); expect(user.username).toMatch(/^Deleted rider_/);
     expect(user.email).not.toBe('rider@example.com'); expect(user.avatar_url).toBeNull();
+    expect(user.age_confirmed_at).toBeNull(); expect(user.content_restricted_at).toBeNull();
+    expect((await database.query('SELECT * FROM user_blocks')).rows).toEqual([]);
+    const report = (await database.query('SELECT * FROM content_reports')).rows[0];
+    expect(report.reporter_id).toBe(OTHER); expect(report.target_user_id).toBeNull(); expect(report.snapshot).toBeNull();
     expect((await database.query('SELECT * FROM auth.users WHERE id = $1', [ID])).rows).toEqual([]);
     expect((await getGameLeaderboardPayload({ game: 'test' })).data[0].username).toBe('Deleted rider');
     expect((await getAccountStandings(db, 2026))[0]).toMatchObject({ name: 'Deleted rider', total: 4 });

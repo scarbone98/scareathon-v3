@@ -1,3 +1,4 @@
+import ContentControls, { useBlocks } from "../../station/things/ContentControls";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { goSignIn } from "../Casino/wallet";
 import { sendChat } from "./account";
@@ -8,6 +9,7 @@ const MAX_LENGTH = 200;
 const STICKY_PX = 48;
 
 export default function Chat({ messages, signedIn, className = "" }: { messages: ChatMessage[]; signedIn: boolean; className?: string }) {
+  const blocks = useBlocks();
   const listRef = useRef<HTMLOListElement>(null);
   const stickToBottom = useRef(true);
   const [text, setText] = useState("");
@@ -56,7 +58,7 @@ export default function Chat({ messages, signedIn, className = "" }: { messages:
         aria-label="Chat messages"
       >
         {messages.length === 0 && <li className="text-purple-200/60">No messages yet. Say something spooky.</li>}
-        {messages.map((message) =>
+        {messages.filter(message => !message.userId || !blocks.has(message.userId)).map((message) =>
           message.system ? (
             <li key={message.id} className="text-amber-200/90">
               {message.text}
@@ -65,6 +67,7 @@ export default function Chat({ messages, signedIn, className = "" }: { messages:
             <li key={message.id} className="break-words text-orange-100/90">
               <strong className="mr-1.5 text-purple-200">{message.name}</strong>
               {message.text}
+              <ContentControls targetType="monster_chat" targetId={message.reportId} userId={message.userId} />
             </li>
           )
         )}

@@ -16,6 +16,7 @@ export function isPublicRoute(method, url) {
     // and for V2's account save.
     return (
         isLegacyEightBitEvilRoute ||
+        (method === 'GET' && ['/config/features', '/health', '/healthz'].includes(url.split('?')[0])) ||
         url.startsWith('/admin/strapi') ||
         (method === 'GET' && url.startsWith('/weekly-challenges/current')) ||
         (method === 'GET' && url.startsWith('/content-loop')) ||

@@ -1,3 +1,4 @@
+import ComplianceNotices from "./things/ComplianceNotices";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -793,6 +794,7 @@ export default function StationPage() {
         <ClerkSays arrived={!directoryVisible && at === "tickets" && atArrived && !held} />
 
         <Sheet sheet={directoryPaper || sheet} onClose={() => { if (directoryPaper) setDirectoryPaper(null); else closeSheet(); }} above={Boolean(playing)} />
+        <ComplianceNotices userId={session?.user.id} goTo={goTo} />
 
         {directory}
 

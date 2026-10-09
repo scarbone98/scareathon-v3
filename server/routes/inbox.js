@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { canMessage } from '../utils/contentSafety.js';
 import { serializeAvatarItemV2 } from '../utils/avatarV2.js';
 
 const MAX_BODY_LENGTH = 4000;
@@ -512,6 +513,11 @@ async function routes(fastify, options) {
                 return reply.code(400).send({ error: 'You cannot message yourself' });
             }
 
+            if (!await canMessage(client, userId, recipient.id)) {
+                await client.query('ROLLBACK');
+                return reply.code(403).send({ error: 'This rider cannot receive your message.' });
+            }
+
             const created = await createConversationWithMessage(client, {
                 conversationType: 'user_dm',
                 createdByUserId: userId,
@@ -564,6 +570,15 @@ async function routes(fastify, options) {
                 return reply.code(403).send({ error: 'Replies are disabled for this conversation' });
             }
 
+            if (process.env.REPORTS_ENABLED === 'true') {
+                const peers = await client.query('SELECT user_id FROM inbox_participants WHERE conversation_id = $1 AND user_id <> $2', [conversationId, userId]);
+                for (const peer of peers.rows) {
+                    if (!await canMessage(client, userId, peer.user_id)) {
+                        await client.query('ROLLBACK');
+                        return reply.code(403).send({ error: 'This rider cannot receive your message.' });
+                    }
+                }
+            }
             const messageResult = await client.query(`
                 INSERT INTO inbox_messages (
                     conversation_id,

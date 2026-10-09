@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "../../fetchWithAuth";
+import { useFeatures } from "../features";
 import LegalPapers from "./LegalPapers.tsx";
 import { useState } from "react";
 import type { FormEvent } from "react";
@@ -46,6 +48,8 @@ export const linkFailed = (() => {
 
 // A card held up behind the glass: the sign-in form
 function SignInCard() {
+  const features = useFeatures();
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -83,6 +87,7 @@ function SignInCard() {
     setBusy(true);
     setError(null);
     try {
+      if (!isLogin && features.ageGate && !ageConfirmed) throw new Error(`Confirm that you are ${features.ageGateMinAge} or older.`);
       const credentials = { email: email.trim(), password };
       if (isLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword(credentials);
@@ -96,6 +101,10 @@ function SignInCard() {
           options: { emailRedirectTo: confirmRedirect() },
         });
         if (signUpError) throw signUpError;
+        if (data.session && features.ageGate && ageConfirmed) {
+          const response = await fetchWithAuth('/user/age-confirmation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmed: true }) });
+          if (!response.ok) throw new Error('Your account was created. Confirm your age at the ticket counter before sharing content.');
+        }
         if (!data.session && data.user) {
           setSentConfirmation(true);
           setPassword("");
@@ -154,6 +163,7 @@ function SignInCard() {
           disabled={busy}
           onChange={(e) => { setPassword(e.target.value); setError(null); }}
         />
+        {!isLogin && features.ageGate && <label className="flex items-center gap-2 text-sm py-2"><input type="checkbox" required checked={ageConfirmed} disabled={busy} onChange={event => setAgeConfirmed(event.target.checked)} />I&apos;m {features.ageGateMinAge} or older</label>}
         {error && <p role="alert" className="text-[13px] font-semibold text-red-800">{error}</p>}
         {resent && <p className="text-[13px] font-semibold">A fresh confirmation link is on its way to {email.trim()}.</p>}
         {canResend && (

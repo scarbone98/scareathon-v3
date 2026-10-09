@@ -1,3 +1,4 @@
+import { onContentRemoved } from '../utils/contentSafety.js';
 import { onAccountClosed } from '../utils/accountSessions.js';
 import websocket from '@fastify/websocket';
 import { TICK_RATE } from '../shared/monster-bash/index.js';
@@ -51,6 +52,10 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
     const hub = createViewerHub({ log });
     const chat = createChatRoom({ lookupUsername: (userId) => repo.getUsername(userId) });
     const stopClosures = onAccountClosed(userId => chat.forgetUser(userId));
+    const stopModeration = onContentRemoved(({ type, id, userId }) => {
+        if (type === 'monster_chat') { chat.removeReport(id); hub.broadcast({ type: 'chatRemoved', reportId: id }); }
+        if (userId) chat.forgetUser(userId);
+    });
     const maxBet = readPositiveInt(process.env.MONSTER_BASH_MAX_BET, 500);
     const odds = createOddsService({ rollouts: ODDS_ROLLOUTS, checkpointEvery: TICK_RATE, log });
     const loop = new MonsterBashLoop({
@@ -155,6 +160,7 @@ export default async function monsterBashRoutes(fastify, { repo = createMatchRep
     });
     fastify.addHook('onClose', async () => {
         stopClosures();
+        stopModeration();
         clearTimeout(startTimer);
         loop.stop();
         hub.close();

@@ -5,6 +5,7 @@ import { supabase } from "../../supabaseClient";
 import type { PictoStyle } from "./filter";
 
 export type Photo = {
+  userId?: string;
   id: string;
   username: string;
   style: PictoStyle;

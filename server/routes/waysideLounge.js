@@ -1,3 +1,4 @@
+import { createContentGate, onContentRemoved } from '../utils/contentSafety.js';
 import { onAccountClosed } from '../utils/accountSessions.js';
 import websocket from '@fastify/websocket';
 import pool from '../db/mockDB.js';
@@ -41,6 +42,11 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
     const stopClosures = onAccountClosed(userId => {
         lounge.forgetUser?.(userId);
     });
+    const stopModeration = onContentRemoved(({ type, id, userId }) => {
+        if (type === 'lounge_chat') lounge.removeReport?.(id);
+        if (userId) lounge.forgetUser?.(userId);
+    });
+    const gate = createContentGate(pool);
     const sockets = new Set();
     const heartbeat = setInterval(() => {
         for (const socket of sockets) {
@@ -56,6 +62,7 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
 
     fastify.addHook('onClose', async () => {
         stopClosures();
+        stopModeration();
         clearInterval(heartbeat);
         stopHosting();
         lounge.close();
@@ -111,7 +118,7 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
             lounge.disconnect(socket);
         });
         lounge.watch(socket);
-        socket.on('message', (raw) => {
+        socket.on('message', async (raw) => {
             let message;
             try {
                 message = JSON.parse(raw.toString());
@@ -126,9 +133,15 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
                     case 'move':
                         lounge.move(socket, message);
                         break;
-                    case 'say':
-                        lounge.say(socket, message);
+                    case 'say': {
+                        let denied = false;
+                        await gate({ method: 'POST', url: '/wayside-online/lounge/ticket', user: { sub: lounge.userFor?.(socket) } }, {
+                            code() { return this; },
+                            send(error) { denied = true; socket.send(JSON.stringify({ type: 'error', message: error.error })); },
+                        });
+                        if (!denied) lounge.say(socket, message);
                         break;
+                    }
                     case 'kick':
                         lounge.kick(socket, message);
                         break;
