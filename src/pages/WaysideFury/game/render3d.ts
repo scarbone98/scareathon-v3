@@ -173,7 +173,7 @@ export class OverworldRenderer {
   private openingCanvas = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
   private openingTexture = new THREE.CanvasTexture(this.openingCanvas);
   private openingStage = -1;
-  private openingGround = new THREE.Mesh(new THREE.PlaneGeometry(320, 180), new THREE.MeshBasicMaterial({ map: this.openingTexture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  private openingGround = new THREE.Mesh(new THREE.PlaneGeometry(320, 180, 40, 24), new THREE.MeshBasicMaterial({ map: this.openingTexture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   private dummy = new THREE.Object3D();
   private resize = () => {
     if (this.disposed) return;
@@ -983,7 +983,13 @@ export class OverworldRenderer {
     const started = performance.now();
     this.checkQuality(dt > 0 ? frameDelta : 0); dt = clamp(dt, 0, .05); this.visualTime += dt;
     this.crashShake = Math.max(0, this.crashShake - dt * 14);
-    if (!this.openingGround.parent) { this.openingGround.rotation.x = -Math.PI / 2; this.openingGround.position.set(160, .3, 90); this.scene.add(this.openingGround); }
+    if (!this.openingGround.parent) {
+      const geometry = this.openingGround.geometry; geometry.rotateX(-Math.PI / 2);
+      const vertices = geometry.attributes.position;
+      for (let i = 0; i < vertices.count; i++) vertices.setY(i, this.terrain.heightAt(vertices.getX(i) + 160, vertices.getZ(i) + 90) + .5);
+      vertices.needsUpdate = true; geometry.computeVertexNormals();
+      this.openingGround.position.set(160, 0, 90); this.scene.add(this.openingGround);
+    }
     this.openingGround.visible = !!s.opening;
     if (s.opening && this.openingStage !== s.opening.stage) { const c = this.openingCanvas.getContext('2d')!; c.clearRect(0, 0, 320, 180); drawOpening(c, s); this.openingTexture.needsUpdate = true; this.openingStage = s.opening.stage; }
     if (!s.opening) this.openingStage = -1;
