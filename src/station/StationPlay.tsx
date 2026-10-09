@@ -40,7 +40,7 @@ export default function StationPlay({ machine, onClose, onLeaderboard, onSignIn 
           <button type="button" onClick={onSignIn} className={stubButton}>
             Kiosk
           </button>
-          <button type="button" onClick={() => setGuestScore(null)} aria-label="Dismiss" className="shrink-0 px-1 text-lg leading-none text-[#f2ead2]/70 hover:text-[#f2ead2]">
+          <button type="button" onClick={() => setGuestScore(null)} aria-label="Dismiss" className="shrink-0 px-1 text-lg leading-none text-[#f2ead2]/85 hover:text-[#f2ead2]">
             ×
           </button>
         </div>

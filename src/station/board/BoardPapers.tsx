@@ -97,7 +97,7 @@ function useGame(name?: string | null): GameCard | null {
 }
 
 const ink = "text-[#2a1d14]";
-const quiet = "text-[#2a1d14]/70";
+const quiet = "text-[#2a1d14]/85";
 const action =
   "rounded-[2px] bg-[#1d2a3a] px-3 py-1.5 text-[15px] text-[#f2ead2] shadow-[1px_1px_0_rgba(0,0,0,0.4)] transition hover:bg-[#2a3b50]";
 // (a big one, for a challenge's Play)
@@ -260,7 +260,7 @@ function SpotlightHandbill({ spotlight, goTo, full }: { spotlight: GameCard; goT
       <Photo picture={spotlight.picture} moving={full} className={full ? "aspect-video w-full" : "h-[52%] w-full shrink-0"} />
       <div className="h-2.5 shrink-0" style={{ background: spotlight.color }} />
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-2">
-        <p className="text-[12px] uppercase tracking-[0.25em] opacity-70">Tonight in the arcade</p>
+        <p className="text-[12px] uppercase tracking-[0.25em] opacity-85">Tonight in the arcade</p>
         <p className="mt-1 text-[22px] uppercase leading-none" style={pixel}>
           {spotlight.name.replace(/’/g, "'")}
         </p>
@@ -281,7 +281,7 @@ function ArcadePost({ challenge, game, spotlight, signedIn, goTo, full }: { chal
       <Challenge item={challenge} game={game} signedIn={signedIn} goTo={goTo} full={full} />
       {full && spotlight && (
         <div className="mx-4 mb-4 border-t border-[#2a1d14]/25 pt-3">
-          <p className="text-[12px] uppercase tracking-[0.25em] opacity-60">Tonight in the arcade</p>
+          <p className="text-[12px] uppercase tracking-[0.25em] opacity-85">Tonight in the arcade</p>
           <Photo picture={spotlight.picture} moving className="mt-2 aspect-video w-full" />
           <p className="mt-2 text-[16px]">
             {spotlight.name.replace(/’/g, "'")}.{" "}
@@ -452,7 +452,7 @@ function DailyChallenges({ items, signedIn, goTo }: { items: ContentLoopItem[]; 
           Daily challenges
         </p>
         {signedIn ? (
-          <p className="text-[13px] uppercase tracking-[0.15em] opacity-70">Today</p>
+          <p className="text-[13px] uppercase tracking-[0.15em] opacity-85">Today</p>
         ) : (
           <button type="button" className="text-[13px] uppercase tracking-[0.1em] underline underline-offset-2" onClick={act(() => goTo("tickets"))}>
             Sign in to earn
@@ -475,7 +475,7 @@ function Clipping({ item, full, picture }: { item: ContentLoopItem; full: boolea
   const date = formatShortDate(item.publishedAt);
   return (
     <div className={`${full ? "min-h-full" : "h-full"} px-4 pb-3 pt-5 ${ink}`} style={serif}>
-      <p className="border-b border-[#2a1d14]/40 pb-0.5 text-[11px] uppercase tracking-[0.3em] opacity-70">Station notices</p>
+      <p className="border-b border-[#2a1d14]/40 pb-0.5 text-[11px] uppercase tracking-[0.3em] opacity-85">Station notices</p>
       <p className="mt-1.5 text-[23px] font-bold leading-[1.02]">{item.title}</p>
       <div className="mt-2 text-[15px] leading-snug" style={{ ...typewriter, textAlign: "justify", hyphens: "auto" }}>
         <Photo picture={picture} className="float-right mb-1 ml-2 h-[4.5rem] w-24" />
@@ -494,7 +494,7 @@ function Post({ signedIn, goTo, full, picture }: { signedIn: boolean; goTo: GoTo
   const posts = data?.data ?? [];
   const masthead = (
     <div className="border-b-[3px] border-double border-[#2a1d14]/70 pb-1 text-center">
-      <p className="text-[10px] uppercase tracking-[0.3em] opacity-60">Est. 2023 · One penny</p>
+      <p className="text-[10px] uppercase tracking-[0.3em] opacity-85">Est. 2023 · One penny</p>
       <p className={`${ink} text-[27px] leading-none`} style={{ ...serif, fontVariant: "small-caps" }}>
         The Scareathon Post
       </p>

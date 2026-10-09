@@ -81,6 +81,7 @@ import { mergeFixedParts } from "../pages/ArcadeV2/mergeParts.ts";
 // Rendered at a low resolution and scaled up with hard pixels, under a vignette and grain.
 
 type Props = {
+  onFailure?: () => void;
   at: StopId | null;
   heading: Heading;
   onSelect: (id: StopId | null) => void;
@@ -2577,7 +2578,7 @@ const ASKED_HOUR = (() => {
   }
 })();
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar, onFailure }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -2586,8 +2587,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
   const cabinetSeenRef = useRef(false); // the cabinet's on screen (its preview plays)
-  const latest = useRef({ at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
-  latest.current = { at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
+  const latest = useRef({ onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
+  latest.current = { onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -4204,7 +4205,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const raycaster = new Raycaster();
     const pointer = new Vector2();
     const canvas = renderer.domElement;
-    canvas.style.touchAction = "none";
+    // Native two-finger zoom, custom one-finger taps/swipes/crank gestures.
+    canvas.style.touchAction = "pinch-zoom";
+    canvas.setAttribute("aria-hidden", "true");
+    const lostContext = () => latest.current.onFailure?.();
+    canvas.addEventListener("webglcontextlost", lostContext);
     let down: { x: number; y: number; t: number } | null = null;
     // Where the last swipe sent the view: quick swipes count on from here, not from the
     // heading the page last settled on
@@ -4258,7 +4263,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       return raycaster.intersectObject(capsule.userData.crank as Object3D, true).length > 0;
     };
     const onPointerDown = (event: PointerEvent) => {
-      if (arrival.active) return;
+      if (arrival.active || !event.isPrimary) { down = null; cranking = null; return; }
       sweptFrom = null;
       brushedFrom = null;
       down = { x: event.clientX, y: event.clientY, t: performance.now() };
@@ -4381,9 +4386,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     canvas.addEventListener("pointerup", onPointerUp);
     const onPointerCancel = () => {
       down = null;
+      cranking = null;
     };
     canvas.addEventListener("pointercancel", onPointerCancel);
-    canvas.addEventListener("pointercancel", onPointerUp);
+
     canvas.addEventListener("pointerleave", onPointerLeave);
 
     // Render loop; paused while the tab is hidden
@@ -4400,7 +4406,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const viewMatrix = new Matrix4();
     const start = performance.now();
     const animate = () => {
-      frame = requestAnimationFrame(animate);
+      frame = requestAnimationFrame(safeAnimate);
       if (document.hidden || !warm) return;
       // The cartridges' clock runs on real time, not frames (so a slow phone doesn't leave
       // the train half out when the arcade takes over), and keeps time while covered
@@ -4869,16 +4875,21 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         warm = true;
         if (arrival.phase === "riding") arrival.since = performance.now() / 1000;
       });
-    animate();
+    const safeAnimate = () => {
+      try { animate(); }
+      catch { cancelAnimationFrame(frame); latest.current.onFailure?.(); }
+    };
+    safeAnimate();
 
     return () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      canvas.removeEventListener("webglcontextlost", lostContext);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerCancel);
-      canvas.removeEventListener("pointercancel", onPointerUp);
+
       canvas.removeEventListener("pointerleave", onPointerLeave);
       gsap.killTweensOf(cam);
       goRef.current = null;

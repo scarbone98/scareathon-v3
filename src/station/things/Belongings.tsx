@@ -25,6 +25,7 @@ import { SheetActions } from "../Sheet.tsx";
 import ShopKeeper, { type TriedOn } from "./ShopKeeper.tsx";
 import { useSongShopItems } from "./Songs.tsx";
 import { useCartShopItems } from "./Carts.tsx";
+import LegalPapers from "./LegalPapers.tsx";
 import { radio } from "../radio.ts";
 
 // A ticket holder's own things, each kept where it belongs in the station: the item shop
@@ -37,7 +38,7 @@ const AvatarEditor = lazy(() => import("../../components/avatar/AvatarEditor").t
 const InboxContent = lazy(() => import("../../pages/Inbox/page").then((m) => ({ default: m.InboxContent })));
 
 const darkField =
-  "w-full rounded-[3px] border border-[#f2ead2]/25 bg-[#0b1017]/70 px-3 py-2 text-sm text-[#f2ead2] focus:border-[#f2ead2]/70 focus:outline-none";
+  "w-full rounded-[3px] border border-[#f2ead2]/25 bg-[#0b1017]/70 px-3 py-2 text-sm text-[#f2ead2] focus:border-[#f2ead2]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f2ead2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d131b]";
 
 export function useAvatarLook(enabled = true) {
   const { data: avatar } = useQuery<AvatarResponse>({
@@ -120,7 +121,7 @@ function YourName({ renamable }: { renamable: boolean }) {
         {summary?.username ?? "…"}
       </p>
       {renamable && (
-        <button type="button" className="shrink-0 text-[13px] text-[#f2ead2]/70 underline underline-offset-4 hover:text-[#f2ead2]" onClick={() => { setName(summary?.username || ""); setEditing(true); }}>
+        <button type="button" className="shrink-0 text-[13px] text-[#f2ead2]/85 underline underline-offset-4 hover:text-[#f2ead2]" onClick={() => { setName(summary?.username || ""); setEditing(true); }}>
           Rename
         </button>
       )}
@@ -146,7 +147,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
         </div>
         {strip}
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/85">{eyebrow}</p>
           <YourName renamable={renamable} />
           <TicketCount count={summary?.coinBalance} note={note} />
           {below}
@@ -160,7 +161,7 @@ function Mirror({ look, eyebrow, note, large = false, roomy = false, renamable =
         <AvatarView look={look} height={roomy ? 144 : 96} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/50">{eyebrow}</p>
+        <p className="text-[11px] uppercase tracking-[0.25em] text-[#f2ead2]/85">{eyebrow}</p>
         <YourName renamable={renamable} />
         <TicketCount count={summary?.coinBalance} note={note} />
         {below}
@@ -194,7 +195,7 @@ function ShopSearch({ value, onChange }: { value: string; onChange: (value: stri
   const [open, setOpen] = useState(Boolean(value));
   if (!open && !value)
     return (
-      <button type="button" aria-label="Search the shop" onClick={() => setOpen(true)} className="flex h-11 w-11 items-center justify-center text-[#f2ead2]/70 hover:text-[#f2ead2]">
+      <button type="button" aria-label="Search the shop" onClick={() => setOpen(true)} className="flex h-11 w-11 items-center justify-center text-[#f2ead2]/85 hover:text-[#f2ead2]">
         <FaSearch className="h-[18px] w-[18px]" />
       </button>
     );
@@ -209,7 +210,7 @@ function ShopSearch({ value, onChange }: { value: string; onChange: (value: stri
         onBlur={() => !value.trim() && setOpen(false)}
         placeholder="Search items"
         aria-label="Search the shop"
-        className="min-w-0 flex-1 bg-transparent text-base text-[#eee5f8] placeholder:text-[#92859f] focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent text-base text-[#eee5f8] placeholder:text-[#92859f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f2ead2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d131b]"
       />
     </label>
   );
@@ -354,7 +355,7 @@ export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   if (!signedIn) return <TicketHoldersOnly what="Inboxes" goTo={goTo} />;
   return (
     <>
-      <p className="mb-3 text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Inbox</p>
+      <p className="mb-3 text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/85">Inbox</p>
       <Classic>
         <InboxContent />
       </Classic>
@@ -362,50 +363,140 @@ export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   );
 }
 
-// Settings, kept in the station register by the pigeonholes: your account (your password;
-// the email can't be changed) and signing out. (Your name is changed at your locker.)
+// Account controls live in the Settings register. Names are changed at the locker.
 export function Register({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
   const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [closing, setClosing] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const queryClient = useQueryClient();
   const { data: current } = useQuery({ queryKey: ["auth-email"], queryFn: async () => (await supabase.auth.getUser()).data.user?.email ?? null, enabled: signedIn });
 
-  if (!signedIn) return <TicketHoldersOnly what="Settings" goTo={goTo} />;
-  const changePassword = async () => {
+  const act = async (action: () => Promise<string>) => {
+    if (busy) return;
     setBusy(true);
     setMessage(null);
-    const { error } = await supabase.auth.updateUser({ password });
-    setBusy(false);
-    if (error) return setMessage({ ok: false, text: error.message });
-    setPassword("");
-    setMessage({ ok: true, text: "Password changed." });
+    try { setMessage({ ok: true, text: await action() }); }
+    catch (error) { setMessage({ ok: false, text: error instanceof Error ? error.message : "Something went wrong. Please try again." }); }
+    finally { setBusy(false); setCurrentPassword(""); }
   };
+  const reauthenticate = async () => {
+    // Read the confirmed email immediately before acting; never use a proposed new email.
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user?.email) throw new Error("Please sign in again first.");
+    if (!currentPassword) throw new Error("Enter your current password first.");
+    const result = await supabase.auth.signInWithPassword({ email: data.user.email, password: currentPassword });
+    if (result.error || result.data.user?.id !== data.user.id) throw new Error("Your current password did not match.");
+  };
+  const changePassword = () => act(async () => {
+    await reauthenticate();
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    setPassword("");
+    return "Password changed.";
+  });
+  const changeEmail = () => act(async () => {
+    await reauthenticate();
+    const { error } = await supabase.auth.updateUser({ email: email.trim() }, { emailRedirectTo: new URL("/station?at=mail&open=register", window.location.origin).toString() });
+    if (error) throw error;
+    setEmail("");
+    return "Check both inboxes: confirm the change using the links sent to your current and new email addresses.";
+  });
+  const signOut = (global: boolean) => act(async () => {
+    const { error } = await supabase.auth.signOut({ scope: global ? "global" : "local" });
+    if (error) throw error;
+    queryClient.clear();
+    goTo("bulletin");
+    return "Signed out.";
+  });
+  const download = () => act(async () => {
+    const response = await fetchWithAuth("/user/export", { cache: "no-store" });
+    if (!response.ok) throw new Error((await response.json()).error || "Could not download your data.");
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url; link.download = "wayside-station-data.json";
+    document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return "Your data download is ready.";
+  });
+  const closeAccount = () => act(async () => {
+    await reauthenticate();
+    const response = await fetchWithAuth("/user/account", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation, currentPassword }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Could not close your account.");
+    // Closure already revoked the account server-side; always clear the local session.
+    await supabase.auth.signOut({ scope: "local" });
+    queryClient.clear();
+    goTo("bulletin");
+    return result.cleanupPending ? "Your account is closed. File and login cleanup will finish automatically." : "Your account is closed.";
+  });
+
   return (
-    <div className="space-y-6 text-sm text-stone-300">
+    <div className="space-y-6 text-sm text-stone-300" aria-busy={busy}>
       <section>
-        <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Settings</p>
-        <h3 className="mt-1 text-xl text-[#f2ead2]" style={serif}>
-          Your account
-        </h3>
-        <p className="mt-1 text-stone-400">Signed in as {current ?? "…"}. (Change your name at your locker.)</p>
-        <form className="mt-3 flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); if (password.length >= 6) void changePassword(); }}>
-          <input className={darkField} type="password" placeholder="New password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} aria-label="New password" autoComplete="new-password" />
-          <button type="submit" className={`${plateButton} shrink-0`} disabled={password.length < 6 || busy}>
-            {busy ? "…" : "Change"}
-          </button>
-        </form>
-        {message && <p className={`mt-2 ${message.ok ? "text-emerald-300" : "text-red-300"}`}>{message.text}</p>}
+        <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/85">Settings</p>
+        <h3 className="mt-1 text-xl text-[#f2ead2]" style={serif}>Your account</h3>
+        <div role="status" aria-live="polite" aria-atomic="true">
+          {message && <p className={`mt-2 ${message.ok ? "text-emerald-300" : "text-red-300"}`}>{message.text}</p>}
+        </div>
+        {signedIn ? <>
+          <p className="mt-1">Signed in as {current ?? "…"}. (Change your name at your locker.)</p>
+          {!closing && <label className="mt-3 block max-w-sm">Current password
+            <input className={`${darkField} mt-1`} type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" disabled={busy} />
+          </label>}
+          <p className="mt-1">Required to change your password or email, or close your account.</p>
+          <form className="mt-4 max-w-sm space-y-2" onSubmit={(e) => { e.preventDefault(); void changePassword(); }}>
+            <label className="block">New password
+              <input className={`${darkField} mt-1`} type="password" placeholder="8 or more characters" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required autoComplete="new-password" disabled={busy} />
+            </label>
+            <button type="submit" className={plateButton} disabled={password.length < 8 || !currentPassword || busy}>Change password</button>
+          </form>
+          <form className="mt-4 max-w-sm space-y-2" onSubmit={(e) => { e.preventDefault(); void changeEmail(); }}>
+            <label className="block">New email
+              <input className={`${darkField} mt-1`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" disabled={busy} />
+            </label>
+            <p>Check both inboxes for the confirmation links. Your email changes after confirmation.</p>
+            <button type="submit" className={plateButton} disabled={!email.trim() || !currentPassword || busy}>Change email</button>
+          </form>
+          <button type="button" className={`${plateButton} mt-4`} disabled={busy} onClick={() => void download()}>Download my data</button>
+        </> : <TicketHoldersOnly what="Account controls" goTo={goTo} />}
+        <LegalPapers />
       </section>
-      <AgentKeys />
-      <section>
-        <h3 className="text-base text-[#f2ead2]" style={serif}>
-          Heading out?
-        </h3>
-        <p className="mt-1 text-stone-400">Your locker and inbox will be here when you get back.</p>
-        <button type="button" className={`${plateButton} mt-3`} onClick={() => void supabase.auth.signOut()}>
-          Sign out
-        </button>
-      </section>
+      {signedIn && <>
+        <AgentKeys />
+        <section>
+          <h3 className="text-base text-[#f2ead2]" style={serif}>Heading out?</h3>
+          <p className="mt-1">Your locker and inbox will be here when you get back.</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button type="button" className={plateButton} disabled={busy} onClick={() => void signOut(false)}>Sign out</button>
+            <button type="button" className={plateButton} disabled={busy} onClick={() => void signOut(true)}>Sign out everywhere</button>
+          </div>
+        </section>
+        <section>
+          <h3 className="text-base text-[#f2ead2]" style={serif}>Close your account</h3>
+          <p className="mt-1">Erase your private data, photos, posts, items and coins, and free your email. Public scores, standings and past match results stay as “Deleted rider.” This cannot be undone.</p>
+          {!closing ? <button type="button" className={`${plateButton} mt-3`} disabled={busy} onClick={() => { setClosing(true); setConfirmation(""); setCurrentPassword(""); }}>Close your account</button> : (
+            <form className="mt-3 max-w-sm space-y-2" onSubmit={(e) => { e.preventDefault(); if (confirmation === "DELETE") void closeAccount(); }}>
+              <label className="block">Type DELETE to confirm
+                <input className={`${darkField} mt-1`} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="off" spellCheck={false} autoFocus required disabled={busy} />
+              </label>
+              <label className="block">Current password
+                <input className={`${darkField} mt-1`} type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" required disabled={busy} />
+              </label>
+              <div className="flex flex-wrap gap-3">
+                <button type="submit" className={plateButton} disabled={confirmation !== "DELETE" || !currentPassword || busy}>Permanently close account</button>
+                <button type="button" className={plateButton} disabled={busy} onClick={() => { setClosing(false); setConfirmation(""); }}>Cancel</button>
+              </div>
+            </form>
+          )}
+        </section>
+      </>}
     </div>
   );
 }

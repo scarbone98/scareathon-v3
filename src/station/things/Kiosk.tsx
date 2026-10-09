@@ -1,3 +1,4 @@
+import LegalPapers from "./LegalPapers.tsx";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "../../supabaseClient";
@@ -16,7 +17,7 @@ import { serif, stubButton, typewriter } from "../style/theme.ts";
 // once you have a ticket it shows yours, with the way to the item shop.
 
 const field =
-  "w-full rounded-[2px] border border-[#2a1d14]/30 bg-[#fffaf0]/90 px-2.5 py-1.5 text-[15px] text-[#2a1d14] placeholder:text-[#2a1d14]/40 focus:border-[#2a1d14]/70 focus:outline-none";
+  "w-full rounded-[2px] border border-[#2a1d14]/30 bg-[#fffaf0]/90 px-2.5 py-1.5 text-[15px] text-[#2a1d14] placeholder:text-[#2a1d14]/85 focus:border-[#2a1d14]/70 focus:outline-none";
 
 function authErrorMessage(error: unknown) {
   if (isRetryableAuthError(error) || error instanceof TypeError) return "The line to headquarters is down. Try again in a moment.";
@@ -120,7 +121,7 @@ function SignInCard() {
         </p>
         <p className="mt-1 text-[13px] opacity-75">Nothing after a few minutes? Look in spam, or send it again.</p>
         {resent && <p className="mt-1 text-[13px] font-semibold">Sent again.</p>}
-        {error && <p className="mt-1 text-[13px] font-semibold text-red-800">{error}</p>}
+        {error && <p role="alert" className="mt-1 text-[13px] font-semibold text-red-800">{error}</p>}
         <div className="mt-3 flex items-center gap-3">
           <button type="button" className={stubButton} onClick={() => { setSentConfirmation(false); setIsLogin(true); setResent(false); }}>
             Back
@@ -138,7 +139,7 @@ function SignInCard() {
       <p className="text-[22px] leading-tight" style={serif}>
         {isLogin ? "Show your ticket" : "Create an account (it's free)"}
       </p>
-      <p className="text-[13px] opacity-70">Save scores, earn tickets, dress your avatar.</p>
+      <p className="text-[13px] opacity-85">Save scores, earn tickets, dress your avatar.</p>
       <form onSubmit={submit} className="mt-2 space-y-1.5" aria-busy={busy}>
         <input className={field} type="email" autoComplete="email" placeholder="Email" aria-label="Email" required value={email} disabled={busy} onChange={(e) => { setEmail(e.target.value); setError(null); }} />
         <input
@@ -153,7 +154,7 @@ function SignInCard() {
           disabled={busy}
           onChange={(e) => { setPassword(e.target.value); setError(null); }}
         />
-        {error && <p className="text-[13px] font-semibold text-red-800">{error}</p>}
+        {error && <p role="alert" className="text-[13px] font-semibold text-red-800">{error}</p>}
         {resent && <p className="text-[13px] font-semibold">A fresh confirmation link is on its way to {email.trim()}.</p>}
         {canResend && (
           <button type="button" className="text-[13px] font-semibold underline underline-offset-4" disabled={busy} onClick={() => void resend()}>
@@ -171,6 +172,7 @@ function SignInCard() {
           )}
         </div>
       </form>
+      {!isLogin && <LegalPapers signup />}
       <p className="mt-2 text-[13px]">
         {isLogin ? "New here? " : "Have a ticket? "}
         <button type="button" className="font-semibold underline underline-offset-4" onClick={() => { setIsLogin(!isLogin); setError(null); }}>
@@ -196,7 +198,7 @@ function TicketCard({ onShop, goTo }: { onShop: () => void; goTo: GoTo }) {
         <AvatarView look={look} height={144} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="text-[11px] uppercase tracking-[0.25em] opacity-60">Passenger</p>
+        <p className="text-[11px] uppercase tracking-[0.25em] opacity-85">Passenger</p>
         <p className="truncate text-[26px] leading-tight" style={serif}>
           {summary?.username ?? "…"}
         </p>

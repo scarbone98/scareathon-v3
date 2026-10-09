@@ -18,10 +18,10 @@ import DepartureBoard from "./things/DepartureBoard.tsx";
 import { KioskWindow, linkFailed } from "./things/Kiosk.tsx";
 import { Letters, Register, Shop, Wardrobe } from "./things/Belongings.tsx";
 import Capsule from "./things/Capsule.tsx";
-import { capsuleMachine } from "./capsuleSignal.ts";
 import Sheet, { type SheetContent } from "./Sheet.tsx";
 import HeldCard, { type HeldItem } from "./HeldCard.tsx";
-import { STATION_FONTS, sans } from "./style/theme.ts";
+import { STATION_FONTS, sans, plateButton, serif } from "./style/theme.ts";
+import SceneBoundary from "./SceneBoundary.tsx";
 import StationPlay from "./StationPlay.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
@@ -127,6 +127,24 @@ export default function StationPage() {
   const signedIn = Boolean(session);
   // Phones and tablets (and anything touch-first)
   const compact = useIsMobileArcade();
+  const [webglChecked, setWebglChecked] = useState(false);
+  const [sceneFailed, setSceneFailed] = useState(false);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [directoryPaper, setDirectoryPaper] = useState<SheetContent | null>(null);
+  const skipRef = useRef<HTMLAnchorElement | null>(null);
+  const directoryRef = useRef<HTMLElement | null>(null);
+  const sceneFailure = useCallback(() => { setSceneFailed(true); setDirectoryOpen(true); }, []);
+  useEffect(() => {
+    // Test before mounting either 3D scene; a normal browser may disable WebGL entirely.
+    try {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("webgl2") || canvas.getContext("webgl");
+      if (!context) sceneFailure();
+      else context.getExtension("WEBGL_lose_context")?.loseContext();
+    } catch { sceneFailure(); }
+    setWebglChecked(true);
+  }, [sceneFailure]);
+  useEffect(() => { if (directoryOpen) directoryRef.current?.focus(); }, [directoryOpen]);
   // The arcade's games (on phones, those that play on one); the scoreboard shows the hi-scores
   // of the ones that keep scores
   // A secret cart unlocked at WaysideOS: once its reply has been on screen a moment, the
@@ -150,8 +168,14 @@ export default function StationPage() {
   // already has it, as near as makes no difference. Going to it is turning to face it; only
   // reading one of its papers brings you closer: see zoomTo)
   const select = (id: StopId | null, openThere?: string) =>
-    setParams(id === "bulletin" && !compact ? faceParams("front") : id ? { at: id, ...(openThere ? { open: openThere } : {}) } : faceParams(heading));
-  const goTo: GoTo = (id, openThere) => select(id, openThere);
+    setParams(id === "bulletin" && !compact && !sceneFailed && !directoryOpen ? faceParams("front") : id ? { at: id, ...(openThere ? { open: openThere } : {}) } : faceParams(heading));
+  const goTo: GoTo = (id, openThere) => {
+    const accessible = sceneFailed || directoryOpen;
+    const contents = openThere ?? (accessible ? id === "mail" ? "letters" : id === "tickets" ? "window" : id === "lockers" ? "wardrobe" : undefined : undefined);
+    setDirectoryPaper(null);
+    select(id, contents);
+    if (accessible && !sceneFailed && (id === "arcade" || id === "capsule" || id === "bench")) { setDirectoryOpen(false); skipRef.current?.focus(); }
+  };
   // Counting on from the last turn asked for, so quick presses aren't lost
   const aimed = useRef(heading);
   const settled = useRef(heading);
@@ -259,7 +283,7 @@ export default function StationPage() {
     toChampion.current = false;
     toPaper.current = null;
     // A big screen is never just stood at the board (a link straight to it, say): back to the platform
-    if (at === "bulletin" && !compact && paper === null) setParams(faceParams("front"), { replace: true });
+    if (at === "bulletin" && !compact && paper === null && !sceneFailed && !directoryOpen) setParams(faceParams("front"), { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [at]);
   // The radio plays your songs (the ones everyone has, signed out)
@@ -291,7 +315,6 @@ export default function StationPage() {
   // Arriving with ?open= takes the named thing up (e.g. the shop, or tonight's film), once
   // the walk there has been seen
   useEffect(() => {
-    setHeld(null);
     const flyerIndex = flyers.findIndex((flyer) => flyer.id === open || (open === "event" && flyer.id === "event"));
     setCardIndex(at === "mail" && open === "register" ? 1 : 0);
     if (at === "events" && flyerIndex >= 0) setZoom(flyerSpot(flyerIndex));
@@ -300,18 +323,22 @@ export default function StationPage() {
         ? { kind: "shop" }
         : at === "tickets" && (open === "window" || linkFailed) // (back from an email link: the sign-in window, up)
           ? { kind: "window" }
-        : at === "mail" && !compact && (open === "letters" || open === "register")
+        : at === "mail" && (!compact || sceneFailed || directoryOpen) && (open === "letters" || open === "register")
           ? { kind: open }
           : at === "lockers" && open
             ? { kind: "wardrobe" }
-            : null;
-    if (!next) return;
+            : at === "departures" && (sceneFailed || directoryOpen)
+              ? { kind: "departures" }
+              : null;
+    if (!next) { setHeld(null); return; }
+    if (sceneFailed || directoryOpen) { setHeld(next); return; }
+    setHeld(null);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const take = window.setTimeout(() => setHeld(next), reduced ? 0 : 1000);
+    const take = window.setTimeout(() => setHeld(next), reduced || sceneFailed || directoryOpen ? 0 : 1000);
     return () => window.clearTimeout(take);
     // The flyers are rebuilt every render; only arriving (or ?open= changing) should do this
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [at, open, signedIn, compact]);
+  }, [at, open, signedIn, compact, sceneFailed, directoryOpen]);
 
   const openShop = () => setHeld({ kind: "shop" });
   const sheet: SheetContent | null = (() => {
@@ -553,12 +580,12 @@ export default function StationPage() {
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
   // paper, the arrows move across and down the board
   const keys = useRef({ at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: false });
-  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: Boolean(playing || held) };
+  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: Boolean(playing || held || directoryOpen || sceneFailed || directoryPaper) };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const { at: current, heading: facing, select: go, turn: face, stepBack: back, zoom: reading, setZoom: read, busy } = keys.current;
-      if (busy) return;
+      if (busy || target?.closest("#station-directory")) return;
       if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "")) return;
       // A focused button or link keeps Enter for itself
       if (event.key === "Enter" && ["BUTTON", "A"].includes(target?.tagName ?? "")) return;
@@ -613,20 +640,66 @@ export default function StationPage() {
     event.preventDefault();
     const url = new URL(href, window.location.origin);
     const [id, openThere] = stationPlaceFor(url.pathname, url.search);
-    select(id, openThere);
+    goTo(id, openThere);
   };
+
+  const directoryStop = (id: StopId, part?: string) => {
+    const contents = part ?? (id === "mail" ? "letters" : id === "tickets" ? "window" : id === "lockers" ? "wardrobe" : undefined);
+    goTo(id, contents);
+    const calendar = part === "calendar" ? flyers.find(flyer => flyer.id === "calendar") : null;
+    setDirectoryPaper(calendar ? { id: calendar.id, title: calendar.title, tint: calendar.tint, body: calendar.content(true) } : null);
+    if (part === "register") setHeld({ kind: "register" });
+    else if (id === "mail") setHeld({ kind: "letters" });
+    else if (id === "departures") setHeld({ kind: "departures" });
+    else if (id === "lockers") setHeld({ kind: "wardrobe" });
+    else if (id === "tickets") setHeld({ kind: "window" });
+    else setHeld(null);
+  };
+  const directoryVisible = sceneFailed || directoryOpen;
+  const directory = (
+    <nav id="station-directory" ref={directoryRef} onFocusCapture={() => { if (!directoryOpen && !sceneFailed) setDirectoryOpen(true); }} tabIndex={-1} aria-label="Station directory"
+      className={directoryVisible ? "absolute inset-0 z-20 overflow-y-auto bg-[#0d131b] p-5 pb-20 text-[#f2ead2]" : "sr-only"}>
+      <h1 className="text-3xl" style={serif}>Station directory</h1>
+      {sceneFailed && <p className="mt-3" role="status">The 3D station is unavailable. Read and use the station’s objects here.</p>}
+      <div className="my-4 flex flex-wrap gap-3">
+        {STOP_IDS.map(id => <button type="button" key={id} className={plateButton} onClick={() => directoryStop(id)}>{id === "mail" ? "Inbox (pigeonholes)" : id === "lockers" ? "Lockers (left luggage)" : id === "events" ? "Flyers" : STOPS[id].label}</button>)}
+        <button type="button" className={plateButton} onClick={() => directoryStop("mail", "register")}>Settings</button>
+        <button type="button" className={plateButton} onClick={() => directoryStop("events", "calendar")}>Calendar</button>
+      </div>
+      {!sceneFailed && <button type="button" className={plateButton} onClick={() => { setDirectoryOpen(false); skipRef.current?.focus(); }}>Return to the scene</button>}
+      <section className="mt-5 space-y-3" aria-label="Object contents">
+        {(!at || at === "bulletin") && papers.map(paper => <button key={paper.id} type="button" className={`${plateButton} mr-3`} onClick={() => setDirectoryPaper({ id: paper.id, title: paper.title, tint: paper.tint, body: paper.full })}>Read: {paper.title}</button>)}
+        {at === "events" && flyers.map(flyer => <button key={flyer.id} type="button" className={`${plateButton} mr-3`} onClick={() => setDirectoryPaper({ id: flyer.id, title: flyer.title, tint: flyer.tint, body: flyer.content(true) })}>Read: {flyer.title}</button>)}
+        {at === "arcade" && <>
+          <h2 className="text-xl" style={serif}>Arcade cartridges</h2>
+          <p>Choose a cartridge. Games that need 3D graphics require WebGL.</p>
+          <div className="space-y-3">{games.filter(game => !game.special).map(game => <div key={game.name} className="flex flex-wrap items-center gap-3">
+            <button type="button" className={plateButton} onClick={() => play(game)}>{game.name}</button>
+            {game.hasLeaderboard !== false && <button type="button" className={plateButton} onClick={() => setHeld({ kind: "departures", game: game.name })}>Scores for {game.name}</button>}
+          </div>)}</div>
+        </>}
+        {at === "bench" && <p>The bench looks out over the tracks. Take a moment’s rest.</p>}
+        {at === "capsule" && <p>The capsule machine needs the 3D scene. Your items are available at your locker.</p>}
+      </section>
+    </nav>
+  );
 
   return (
     <AnimatedPage style={{ overflow: "hidden", paddingTop: 0 }}>
-      <div className="fixed inset-0 bg-black" onClickCapture={keepInStation} style={sans}>
+      <div className="station-ui fixed inset-0 bg-black" onClickCapture={keepInStation} style={sans}>
+        <a ref={skipRef} href="#station-directory" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:bg-[#efe3c8] focus:p-3 focus:text-[#1d2a3a]"
+          onClick={() => setDirectoryOpen(true)}>Station directory</a>
+        {webglChecked && !sceneFailed && <div className="absolute inset-0" aria-hidden={directoryVisible ? true : undefined} ref={node => { if (node) node.inert = directoryVisible; }}>
+        <SceneBoundary onFailure={sceneFailure}>
         <Suspense fallback={<LoadingSpinner />}>
           <StationScene
+            onFailure={sceneFailure}
             at={at}
             heading={heading}
             onSelect={select}
             onTurn={turn}
             boards={boards}
-            paused={Boolean(playing) || atCabinet}
+            paused={Boolean(playing) || atCabinet || directoryVisible}
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
             preview={preview}
@@ -649,10 +722,11 @@ export default function StationPage() {
             usedFromAfar={compact ? undefined : papers.flatMap((paper, i) => (paper.noZoom ? [`paper-${i}`] : []))}
           />
         </Suspense>
-        {cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
+        </SceneBoundary></div>}
+        {!directoryVisible && cardItems && atArrived && <HeldCard items={cardItems} index={cardIndex} onIndex={setCardIndex} />}
 
         {/* The arcade, as it is at /arcade, without its room */}
-        {arcadeBuilt && (
+        {!directoryVisible && arcadeBuilt && (
           <div
             className="absolute inset-0 z-10 transition-[opacity,background-color] duration-500 ease-out"
             style={{
@@ -713,63 +787,14 @@ export default function StationPage() {
 
         {/* Tickets coming in: a counter drops down from the top left and counts up */}
         {/* The capsule machine has no card: it's worked by hand, with its counter and prize over the scene */}
-        {at === "capsule" && <Capsule signedIn={signedIn} goTo={goTo} />}
-        <TicketDrop />
+        {!directoryVisible && at === "capsule" && <Capsule signedIn={signedIn} goTo={goTo} />}
+        {!directoryVisible && <TicketDrop />}
         {/* The ticketmaster has a word for you as you walk up */}
-        <ClerkSays arrived={at === "tickets" && atArrived && !held} />
+        <ClerkSays arrived={!directoryVisible && at === "tickets" && atArrived && !held} />
 
-        <Sheet sheet={sheet} onClose={closeSheet} above={Boolean(playing)} />
+        <Sheet sheet={directoryPaper || sheet} onClose={() => { if (directoryPaper) setDirectoryPaper(null); else closeSheet(); }} above={Boolean(playing)} />
 
-        {/* Real controls for keyboard and screen-reader users: the canvas is only a picture */}
-        <nav className="sr-only" aria-label="Station objects">
-          {STOP_IDS.map((id) => (
-            <button key={id} type="button" onClick={() => select(id)}>
-              {STOPS[id].label}
-            </button>
-          ))}
-          {at === "bulletin" &&
-            papers.map((paper) => (
-              <button key={paper.id} type="button" onClick={() => zoomTo(papers.indexOf(paper))}>
-                Read: {paper.title}
-              </button>
-            ))}
-          {at === "events" &&
-            flyers.map((flyer, i) => (
-              <button key={flyer.id} type="button" onClick={() => setZoom(flyerSpot(i))}>
-                Read: {flyer.title}
-              </button>
-            ))}
-          {at === "departures" && (
-            <button type="button" onClick={() => setHeld({ kind: "departures" })}>
-              Read the departure board
-            </button>
-          )}
-          {at === "tickets" && (
-            <button type="button" onClick={() => setHeld(signedIn ? { kind: "shop" } : { kind: "window" })}>
-              {signedIn ? "The item shop" : "Sign in"}
-            </button>
-          )}
-          {at === "lockers" && (
-            <button type="button" onClick={() => setHeld({ kind: "wardrobe" })}>
-              Open your locker
-            </button>
-          )}
-          {at === "capsule" && (
-            <button type="button" onClick={() => capsuleMachine.onCranked?.()}>
-              Turn the capsule machine's crank
-            </button>
-          )}
-          {at === "mail" && (
-            <>
-              <button type="button" onClick={() => setHeld({ kind: "letters" })}>
-                Open your inbox
-              </button>
-              <button type="button" onClick={() => setHeld({ kind: "register" })}>
-                Settings
-              </button>
-            </>
-          )}
-        </nav>
+        {directory}
 
         <StationPlay machine={playing} onClose={stopPlaying} onLeaderboard={() => playing && setHeld({ kind: "departures", game: playing.name })} onSignIn={() => { stopPlaying(); select("tickets"); }} />
         {transition && (
@@ -781,6 +806,8 @@ export default function StationPage() {
         )}
         <style>{`
           @import url('${STATION_FONTS}');
+          .station-ui :is(button, a, input, select, textarea):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+          .station-ui #station-directory:focus { outline: none; }
           @keyframes station-arrive { from { opacity: 0 } to { opacity: 1 } }
           .station-arrive { animation: station-arrive 0.45s ease-out both }
           @keyframes station-card-up { from { transform: translateY(100%) } to { transform: none } }

@@ -29,6 +29,7 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
   // The tap that picked something up is followed by its own click, which would land on
   // the backdrop that just appeared under the finger; ignore the backdrop briefly
   const openedAt = useRef(0);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const [actions, setActions] = useState<HTMLDivElement | null>(null);
   const isOpen = Boolean(sheet);
   useEffect(() => {
@@ -36,16 +37,37 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
   }, [isOpen]);
   const closeFromBackdrop = () => performance.now() - openedAt.current > 400 && onClose();
 
+  const sheetId = sheet?.id;
   useEffect(() => {
-    if (!sheet) return;
+    if (!sheetId) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const controls = () => [...(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') ?? [])].filter(node => node.getClientRects().length > 0);
+    const frame = requestAnimationFrame(() => (controls()[0] || dialog)?.focus());
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      onClose();
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (dialogs[dialogs.length - 1] !== dialog) return;
+      if (event.key === "Escape") {
+        event.stopImmediatePropagation();
+        onClose();
+      } else if (event.key === "Tab") {
+        const list = controls();
+        const first = list[0], last = list[list.length - 1];
+        if (!first) { event.preventDefault(); dialog?.focus(); }
+        else if (!dialog?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+        else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [sheet, onClose]);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKey, true);
+      if (previous?.isConnected) previous.focus();
+    };
+    // Changing the contents does not reset focus; each paper has a stable id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetId]);
   if (!sheet) return null;
   const tone = sheet.tone ?? "paper";
   const full = Boolean(sheet.full);
@@ -61,6 +83,8 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
     <div
       className={`fixed inset-0 ${above ? "z-50" : "z-30"} flex items-end justify-center bg-black/60 backdrop-blur-[2px] md:items-center ${full ? "" : "md:p-6"}`}
       onClick={closeFromBackdrop}
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal
       aria-label={sheet.title}
@@ -90,7 +114,7 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
           onClick={onClose}
           aria-label="Put it back"
           style={pixel}
-          className={`absolute right-2 top-1 z-10 flex h-11 w-11 items-center justify-center text-3xl leading-none ${light ? "text-[#2a1d14]/60 hover:text-[#2a1d14]" : "text-[#f2ead2]/70 hover:text-[#f2ead2]"}`}
+          className={`absolute right-2 top-1 z-10 flex h-11 w-11 items-center justify-center text-3xl leading-none ${light ? "text-[#2a1d14]/85 hover:text-[#2a1d14]" : "text-[#f2ead2]/85 hover:text-[#f2ead2]"}`}
         >
           ×
         </button>

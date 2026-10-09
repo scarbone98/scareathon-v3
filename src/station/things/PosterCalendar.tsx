@@ -35,14 +35,14 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
         <p className="text-[34px] font-bold leading-none tracking-wide" style={serif}>
           OCTOBER
         </p>
-        <p className="text-[13px] uppercase tracking-[0.25em] opacity-70">{calendarYear}</p>
+        <p className="text-[13px] uppercase tracking-[0.25em] opacity-85">{calendarYear}</p>
       </div>
-      <p className="mt-1 px-1 text-[12px] uppercase tracking-[0.18em] opacity-60">
+      <p className="mt-1 px-1 text-[12px] uppercase tracking-[0.18em] opacity-85">
         {!signedIn || needsSignIn(error)
           ? "Sign in to see the films"
           : "Tap a film to tick it off"}
       </p>
-      <div className="mt-2 grid grid-cols-7 gap-[5px] px-px text-center text-[11px] opacity-60">
+      <div className="mt-2 grid grid-cols-7 gap-[5px] px-px text-center text-[11px] opacity-85">
         {WEEKDAYS.map((letter, i) => (
           <span key={i}>{letter}</span>
         ))}
@@ -73,7 +73,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
               )}
             </>
           );
-          const frame = `relative overflow-hidden rounded-[2px] shadow-[1px_2px_0_rgba(0,0,0,0.5)] ${faded ? "opacity-45" : ""} ${
+          const frame = `relative overflow-hidden rounded-[2px] shadow-[1px_2px_0_rgba(0,0,0,0.5)] ${faded ? "[&_img]:opacity-45" : ""} ${
             isTonight ? "outline outline-2 outline-offset-1 outline-[#ffcf7a]" : ""
           } ${selected === date ? "ring-2 ring-[#f2ead2]" : ""}`;
           return zoomed && films ? (
@@ -108,7 +108,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
           ) : (
             <>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] uppercase tracking-[0.18em] opacity-60">
+                <p className="text-[11px] uppercase tracking-[0.18em] opacity-85">
                   {WEEKDAY_NAMES[(firstWeekday + selected - 1) % 7]} {String(selected).padStart(2, "0")}
                   {film?.theme ? ` · ${film.theme}` : ""}
                   {isLive && selected === today ? " · Tonight" : ""}

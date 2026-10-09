@@ -101,7 +101,7 @@ export function BannerShelf() {
   const problem = (buy.error ?? equip.error) as Error | null;
   return (
     <section>
-      <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/55">Scoreboard banners</p>
+      <p className="text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/85">Scoreboard banners</p>
       {shown.length === 0 && <p className="mt-2 text-sm text-stone-400">Just the empty one so far: more are sold at the ticket counter.</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {/* Everyone's: the empty banner, up until another is (choosing it clears the choice) */}

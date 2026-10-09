@@ -173,7 +173,7 @@ export default function Capsule({ signedIn, goTo }: { signedIn: boolean; goTo: G
         )}
         {price !== null && (
           <span className="flex items-center gap-1.5 text-[#f2ead2]/80">
-            {signedIn && <span className="text-[#f2ead2]/40">·</span>}
+            {signedIn && <span className="text-[#f2ead2]/85">·</span>}
             {price}
             <TicketIcon className="h-4 w-6" perforation="#1d2a3a" />a turn
           </span>
