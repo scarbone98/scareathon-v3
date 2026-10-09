@@ -13,7 +13,7 @@ export function chapterGoal(s: GameState) {
   const total = rooms.length + 1, value = complete ? total : cleared;
   const next = CHAPTERS.find(c => c.number === chapter.number+1);
   return { chapter: chapter.number, name: chapter.name, value, total,
-    next: complete ? 'All available chapters cleared' : next?.number === 5 ? 'Finale route · coming soon' : next?.name ?? 'Campaign complete' };
+    next: complete ? 'All available chapters cleared' : chapter.number === 5 || next?.number === 5 ? 'Finale route · coming soon' : next?.name ?? 'Campaign complete' };
 }
 
 // Renderer-owned goal strip; no changes to HUD, settings or onboarding files.

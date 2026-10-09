@@ -34,3 +34,6 @@ for(const id of ['blast-2','blast-6','blast-8','blast-9']) {
 
 const oldSave=newGame();enterScene(oldSave,'overworld');oldSave.x=500;oldSave.y=450;
 step(oldSave,idleInput(),1/60);assert.ok(onRoad(getWorld(oldSave.scene,oldSave.room,oldSave.mapId),oldSave.x,oldSave.y,-19),'old curb-position save recovers');
+
+const endgame=newGame();endgame.campaignMilestones.push('realm-0','woods-complete','space-complete','city-complete');
+assert.match(chapterGoal(endgame).next,/coming soon/,'unreleased finale remains explicitly labeled');
