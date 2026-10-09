@@ -227,7 +227,17 @@ async function check(page, size, mode) {
   }, mode);
   if (mode === '3d') await page.waitForFunction(() => Number(document.querySelector('.wf-canvas-3d')?.dataset.triangles) > 0);
   assert.equal(await page.locator('.wf-items-hud').count(), 1, 'only one shared DOM radar accompanies the taxi');
-  assert.match(await page.locator('.wf-radar-text').innerText(), /No signal/, 'the taxi radar reveals no relic from a different area');
+  const taxiSignal = await page.evaluate(async () => {
+    const { radarReading, radarTargets } = await import('/src/pages/WaysideFury/game/u1/items/radar.ts');
+    const { hiddenRadarTargets } = await import('/src/pages/WaysideFury/game/u1/items/hiddenRadar.ts');
+    const state = window.__waysideFury.state;
+    const hidden = hiddenRadarTargets(state);
+    return { reading: radarReading(state, hidden), targets: radarTargets(state, hidden) };
+  });
+  assert.ok(taxiSignal.targets.every(target => target.kind === 'hidden' && target.scene === 'overworld'), 'the taxi tracks only its own hidden finds, never relics from other areas');
+  const taxiText = await page.locator('.wf-radar-text').innerText();
+  if (taxiSignal.reading) assert.ok(taxiText.includes(taxiSignal.reading.direction), 'the taxi HUD displays its current hidden-item bearing');
+  else assert.match(taxiText, /No signal/);
   await snapshot(page, size, mode, 'taxi');
   results.push({ viewport: size.name, graphics: mode, layout, saved: { chips: saved.chips.equipped, cycle: saved.relics.cycle, statBonus: saved.relics.statBonus, radar: saved.radar } });
 }
