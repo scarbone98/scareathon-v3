@@ -22,6 +22,8 @@ try {
   await page.keyboard.down('w');await page.waitForTimeout(1200);await page.keyboard.up('w');
   const road=await page.evaluate(async()=>{const {onRoad}=await import('/src/pages/WaysideFury/game/roadNetwork.ts');const {getWorld}=await import('/src/pages/WaysideFury/game/world.ts');const s=window.__waysideFury.state;return onRoad(getWorld(s.scene,s.room,s.mapId),s.x,s.y,-19);});assert.ok(road);
   const timing=await page.evaluate(async()=>{const samples=[];let last=performance.now();for(let n=0;n<20;n++) {const now=await new Promise(requestAnimationFrame);samples.push(now-last);last=now;}samples.sort((a,b)=>a-b);return {medianMs:samples[10],p95Ms:samples[19]};});
+  const finalState=await page.evaluate(()=>({scene:window.__waysideFury.state.scene,gfx:document.querySelector('canvas[data-renderer="2d"]').dataset.gfx}));
+  assert.equal(finalState.scene,'overworld');assert.equal(finalState.gfx,gfx);await page.locator('.wf-chapter-goal').waitFor({state:'visible'});
   await page.screenshot({path:`${output}/${name}.png`});
   assert.deepEqual(errors,[]);report.push({name,haptics,road,timing});console.log(name,JSON.stringify(report.at(-1)));
   await context.close();

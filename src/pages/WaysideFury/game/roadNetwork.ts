@@ -34,8 +34,16 @@ export function projectRoad(p: RoadPoint, a: RoadPoint, b: RoadPoint) {
   return {x,y,distance:Math.hypot(p.x-x,p.y-y)};
 }
 export function roadDistance(r: RoadSegment, x: number, y: number) {
-  const points=roadPoints(r);
-  return Math.min(...points.slice(1).map((b,i)=>projectRoad({x,y},points[i],b).distance));
+  const points=roadPoints(r);let nearest=Infinity;
+  // Taxi collision runs several times per fixed tick. Avoid transient arrays
+  // and projection objects on this hot path, particularly on phones.
+  for(let i=1;i<points.length;i++) {
+    const a=points[i-1],b=points[i],dx=b.x-a.x,dy=b.y-a.y;
+    const t=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy||1)));
+    const px=x-a.x-t*dx,py=y-a.y-t*dy;
+    nearest=Math.min(nearest,px*px+py*py);
+  }
+  return Math.sqrt(nearest);
 }
 export const onRoad = (world: WorldMap,x:number,y:number,margin=0) => world.roads.some(r=>roadDistance(r,x,y)<=roadWidth(r)/2+margin);
 export const junctionAt = (world:WorldMap,r:RoadSegment,x:number,y:number,margin=12) => world.roads.some(other=>other!==r&&roadDistance(other,x,y)<roadWidth(other)/2+margin);
