@@ -32,10 +32,10 @@ function segmentHit(x0: number, y0: number, x1: number, y1: number, x: number, y
   return Math.hypot(x - x0 - dx * t, y - y0 - dy * t) <= radius ? t : null;
 }
 function challenge(hero: HeroId, tier: ChallengeTier, x: number, y: number): TrainingRuntime {
-  const rings: TrainingRing[] = [{ x: 312, y: 384, radius: 12 }, { x: 384, y: 384, radius: 12 },
+  const rings: TrainingRing[] = [{ x: 328, y: 384, radius: 12 }, { x: 384, y: 384, radius: 12 },
     { x: 384, y: 464, radius: 12 }, { x: 312, y: 464, radius: 12 }, { x: 352, y: 424, radius: 12 }];
   const positions = tier === 3 ? [{ x: 352, y: 424 }] :
-    [{ x: 312, y: 392 }, { x: 384, y: 392 }, { x: 312, y: 464 }, { x: 384, y: 464 }];
+    [{ x: 328, y: 392 }, { x: 384, y: 392 }, { x: 312, y: 464 }, { x: 384, y: 464 }];
   return {
     hero, tier, kind: tier === 1 ? "time-trial" : tier === 2 ? "target-break" : "combo",
     elapsed: 0, timeLimit: tier === 1 ? HERO_LIMITS[hero] : tier === 2 ? 18 : 14,

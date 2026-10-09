@@ -1039,7 +1039,7 @@ export function interact(s: GameState, selected?: InteractTarget | null): void {
   if (s.coop && (s.coop.downed || activeHero(s).hp <= 0)) return;
   const target = selected === undefined ? interactTarget(s) : selected;
   if (!target) return;
-  if (target.id === "u1-relic-radar") { collectRadar(s); return; }
+  if (target.id === "u1-relic-radar") { collectRadar(s); interactItem(s, target.id); return; }
   if (target.id.startsWith("u8-quest-")) { openHubQuest(s, target.id); return; }
   if (target.id === "u8-board") { tickHubQuests(s); s.overlay = "quest-board"; return; }
   if (target.id === "u5-arena") { s.overlay = "arena"; s.moving = false; s.vx = s.vy = 0; return; }

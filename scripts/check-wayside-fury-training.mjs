@@ -87,12 +87,12 @@ for (const hero of HERO_IDS) {
 {
   const s = state(); s.u1.combat.training.you = 1; startTraining(s);
   const ordinary = shot(392, 392);
-  assert.equal(trainingProjectile(s, ordinary, 296, 392), true);
+  assert.equal(trainingProjectile(s, ordinary, 320, 392), true);
   assert.equal(ordinary.ttl, 0); assert.equal(s.training.targets.filter(t => t.broken).length, 1, 'a bolt breaks only its first target');
   const beam = shot(392, 464, true);
   assert.equal(trainingProjectile(s, beam, 296, 464), true);
   assert.equal(s.training.targets.filter(t => t.broken).length, 3, 'a beam follows its actual segment');
-  assert.equal(trainingProjectile(s, shot(392, 392, true, 'joe'), 296, 392), false, 'other heroes cannot train this player');
+  assert.equal(trainingProjectile(s, shot(392, 392, true, 'joe'), 320, 392), false, 'other heroes cannot train this player');
   assert.equal(trainingProjectile(s, beam, 296, 464), false, 'a beam cannot count a target twice');
 }
 {
@@ -167,8 +167,8 @@ for (const terminal of ['complete', 'cancel', 'timeout', 'hero-changed']) {
   const s = state(); s.u1.combat.training.you = terminal === 'complete' ? 1 : 0;
   assert.equal(startTraining(s), true);
   if (terminal === 'complete') {
-    s.training.targets = [{ id: -1001, x: 312, y: 392, radius: 9, broken: false, hitFlash: 0 }];
-    s.x = 312; s.y = 416; s.faceX = 0; s.faceY = -1;
+    s.training.targets = [{ id: -1001, x: 328, y: 392, radius: 9, broken: false, hitFlash: 0 }];
+    s.x = 328; s.y = 416; s.faceX = 0; s.faceY = -1;
   }
   s.heroes.you.ki = s.heroes.you.maxKi;
   step(s, { ...idleInput(), ki: true }, DT); step(s, idleInput(), DT);

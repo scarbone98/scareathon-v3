@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { newGame, enterScene, interactTarget } from '../src/pages/WaysideFury/game/sim.ts';
+import { newGame, enterScene, interact, interactTarget } from '../src/pages/WaysideFury/game/sim.ts';
 import { mergeSaves } from '../src/pages/WaysideFury/game/cloud.ts';
 import { makeSave, restoreSave, progressReport } from '../src/pages/WaysideFury/game/save.ts';
 import { grantChip, equipChip, itemsState } from '../src/pages/WaysideFury/game/u1/items/chips.ts';
@@ -51,3 +51,13 @@ restored.x = gate.x + gate.w / 2;
 restored.y = gate.y + gate.h + 12;
 assert.equal(interactTarget(restored).id, gate.id);
 console.log('Design merge: item/clock/gate save parity, default clock migration, ticket dedupe and negotiated gate interactions pass.');
+
+// Both shipped radar views use one world pickup identity.
+const radarPlayer = newGame();
+enterScene(radarPlayer, "hub");
+radarPlayer.x = 448; radarPlayer.y = 384;
+interact(radarPlayer);
+assert.deepEqual(radarPlayer.relicRadar, { owned: true, enabled: true });
+assert.deepEqual(itemsState(radarPlayer).radar, { owned: true, enabled: true });
+interact(radarPlayer);
+assert.equal(radarPlayer.events.filter(event => event.type === "item" && event.kind === "radar").length, 1);
