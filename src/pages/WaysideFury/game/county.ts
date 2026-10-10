@@ -33,7 +33,7 @@ export function dressCounty(m: WorldMap) {
   paint(m, 704, 1312, 128, 64, 'stone');
   paint(m, 1696, 1312, 128, 64, 'stone');
   const landmark = (kind: WorldProp['kind'], x: number, y: number, w: number, h: number, label: string) => prop(m, kind, x, y, w, h, label);
-  landmark('water-tower', 880, 1160, 64, 72, 'County water tower');
+  landmark('water-tower', 304, 584, 64, 96, 'County water tower');
   landmark('windmill', 1936, 1120, 64, 88, 'The spare-parts windmill');
   landmark('shed', 40, 816, 80, 64, 'Luggage yard');
   landmark('shed', 1344, 720, 96, 64, 'Orchard workshop');

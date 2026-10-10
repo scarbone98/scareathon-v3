@@ -11,6 +11,8 @@ export interface WorldProp {
   // Fixed parked-car heading; never inferred from the player or camera.
   parkingHeading?: 1 | -1;
   interiorId?: string;
+  house?: { biome: import("./houseVariants.ts").HouseBiome; variant: number; mirrored: boolean };
+  mailboxFacing?: number;
   footprints?: CollisionRect[];
   surface?: { direction?: "horizontal" | "vertical"; deckHeight?: number; gap?: readonly [number, number] };
 }
@@ -220,10 +222,10 @@ function hitsRect(rect: CollisionRect, x: number, y: number, radius: number): bo
 }
 export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolean {
   if (x - radius < 0 || y - radius < 0 || x + radius > m.width || y + radius > m.height) return true;
+  const drivableRibbon = m.id === 'overworld' && m.roads.some(r=>r.curve) && onRoad(m,x,y,-radius);
   for (let row = Math.floor((y - radius) / TILE); row <= Math.floor((y + radius) / TILE); row++) {
     for (let col = Math.floor((x - radius) / TILE); col <= Math.floor((x + radius) / TILE); col++) {
-      const ribbonWater = m.id === 'overworld' && m.roads.some(r=>r.curve) && tileAt(m,col,row)==='water' && onRoad(m,x,y,-radius);
-      if (!ribbonWater && m.collision[row * m.cols + col] && hitsRect({ x: col * TILE, y: row * TILE, w: TILE, h: TILE }, x, y, radius)) return true;
+      if (!drivableRibbon && m.collision[row * m.cols + col] && hitsRect({ x: col * TILE, y: row * TILE, w: TILE, h: TILE }, x, y, radius)) return true;
     }
   }
   // A coarse bridge tile cannot make water outside the exact ribbon walkable.

@@ -1,3 +1,5 @@
+import { assignHouseVariants } from "./houseVariants.ts";
+import { settleOverworldProps } from "./propPlacement.ts";
 import { ARENA_WORLD, ARENA_HUB_BUILDING } from "../u1/hub/arenaWorld.ts";
 import { HUB_QUEST_NPCS } from "../u1/hub/quests.ts";
 import { clearRoads } from './roadClearance.ts';
@@ -52,7 +54,7 @@ const makeOverworld = (expanded: boolean) => {
   prop(m, "rock", 292, 526, 24, 16);
   prop(m, "tree", 748, 274, 24, 32);
   prop(m, "sign", 1000, 414, 24, 24, "Blast Site · East");
-  for (const [x, y] of [[314, 528], [716, 412], [926, 527]]) prop(m, "mailbox", x, y, 14, 22);
+  for (const [x, y] of [[542, 415]]) prop(m, "mailbox", x, y, 14, 22);
   for (let n = 0; n < 22; n++) {
     const x = 282 + n * 39, y = n % 2 ? 556 + n % 3 * 11 : 393 - n % 3 * 14;
     if (x > 472 && x < 580 && y < 448 || x > 1000 && y < 440) continue;
@@ -148,11 +150,11 @@ export const REALM_WORLD = (() => {
   encounter(m, 240, 192, "pumpkin"); encounter(m, 448, 192, "ghost"); return m;
 })();
 export const TEST_WORLD = (() => {
-  const m = map("training", "Training Yard", 20, 12, "grass");
-  m.height = 180; // Authored training-yard boundary, independent of the camera.
-  paint(m, 0, 0, 320, 48, "stone", true); paint(m, 0, 168, 320, 24, "stone", true);
-  paint(m, 0, 0, 16, 192, "stone", true); paint(m, 304, 0, 16, 192, "stone", true);
-  m.spawn = { x: 75, y: 110 }; return m;
+  const m = map("training", "Training Yard", 64, 48, "grass");
+  boundary(m, "stone");
+  // The course uses the same viewport and camera follow as gameplay. Its ample
+  // terrain padding prevents portrait perspective frustum clamps on the lane.
+  m.spawn = { x: 331, y: 350 }; return m;
 })();
 for (const world of [...BLAST_WORLDS, REALM_WORLD]) for (const door of world.exits) {
   door.targetMapId ??= typeof door.target === "number" ? `blast-${door.target}` : door.target === "realm" ? "realm-0" : door.target;
@@ -169,4 +171,13 @@ export const ALL_WORLDS = [ARENA_WORLD, OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, R
 shapeOrganicAreas(ALL_WORLDS);
 attachInteriorDoors(ALL_WORLDS);
 
+for (const world of [...ALL_WORLDS, COOP_OVERWORLD]) assignHouseVariants(world);
+
 export const ROAD_RELOCATIONS = ALL_WORLDS.flatMap(clearRoads);
+
+for (const world of [OVERWORLD, COOP_OVERWORLD]) {
+  // County portals are location markers, not the unused prop silhouettes.
+  // Their legacy feet were invisible blockers on the city approach.
+  world.props = world.props.filter(p => p.kind !== 'portal');
+  settleOverworldProps(world);
+}

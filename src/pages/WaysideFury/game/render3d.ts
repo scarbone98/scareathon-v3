@@ -1,4 +1,5 @@
-import { drawOpening } from './opening';
+import { houseStyle } from "./houseVariants.ts";
+import { COURSE, drawOpening } from './opening';
 import { obstaclesForState, isObstacleCleared } from "./locks/obstacles";
 import { idleMotion, type ActorMotion } from './animation';
 import { sampleDayNight } from "./u1/world/dayNight";
@@ -376,8 +377,13 @@ export class OverworldRenderer {
           countyMaterials.set(prop.kind,material);
         }
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(prop.w, prop.h), material);
-        mesh.position.set(x, y + prop.h / 2, prop.y + prop.h);
         mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), FORWARD);
+        const baseY = this.terrain.heightAt(x, prop.y + prop.h);
+        const up = new THREE.Vector3(0,1,0).applyQuaternion(mesh.quaternion);
+        mesh.position.set(x,baseY,prop.y+prop.h).addScaledVector(up,prop.h/2);
+        if (prop.kind === 'water-tower') {
+          this.dummy.position.set(x,baseY+.24,prop.y+prop.h); this.dummy.rotation.set(0,0,0); this.dummy.scale.set(prop.w*.8,1,14); this.dummy.updateMatrix(); shadows.push(this.dummy.matrix.clone());
+        }
         this.scene.add(mesh);
         if (prop.kind === 'keeper') this.keepers.push({ mesh, height: mesh.position.y, seed: x });
       } else if (prop.kind === 'rocket') {
@@ -441,7 +447,9 @@ export class OverworldRenderer {
       } else if (prop.kind === 'sign') {
         box('#816a50', 0, 9, 0, 2.5, 18, 2.5); box('#466057', 0, 17, 0, 17, 9, 2); box('#c8bb8e', 0, 19, 1.1, 11, .6, .3);
       } else if (prop.kind === 'mailbox') {
-        box('#715e46', 0, 8, 0, 2, 16, 2); box('#6d8b8c', 0, 17, 0, 12, 7, 6); box('#344e58', -5.8, 17, 0, .5, 5, 5); box('#d48567', 5.5, 22, 0, 5, 2, .8);
+        const angle = (prop.mailboxFacing ?? Math.PI) - Math.PI;
+        const mailboxBox = (color:string,ox:number,oy:number,oz:number,w:number,h:number,d:number) => part('box',color,x+ox*Math.cos(angle)-oz*Math.sin(angle),y+oy,z+ox*Math.sin(angle)+oz*Math.cos(angle),w,h,d,-angle);
+        mailboxBox('#715e46',0,8,0,2,16,2); mailboxBox('#6d8b8c',0,17,0,12,7,6); mailboxBox('#344e58',-5.8,17,0,.5,5,5); mailboxBox('#d48567',5.5,22,0,5,2,.8);
       } else if (prop.kind === 'vending') {
         box('#a9645b', 0, 16, 0, 20, 32, 11); box('#273d47', -2, 18, 5.6, 11, 18, .3); box('#e6cfaf', 0, 29, 5.7, 18, 2, .4);
         box('#27383f', 0, 4, 5.7, 13, 3, .4); box('#e1bd87', 6, 15, 5.8, 2, 6, .3);
@@ -602,27 +610,36 @@ export class OverworldRenderer {
   private buildStation(prop: WorldProp, part: (shape: keyof OverworldRenderer['geometries'], color: string, x: number, y: number, z: number, w: number, h: number, d: number, rotation?: number, emissive?: boolean) => void) {
     const x = prop.x + prop.w / 2, z = prop.y + prop.h / 2;
     const ground = this.terrain.heightAt(x, prop.y + prop.h);
-    const w = prop.w, d = prop.h * .65;
-    const box = (color: string, ox: number, oy: number, oz: number, bw: number, bh: number, bd: number, emissive = false) => part('box', color, x + ox, ground + oy, z + oz, bw, bh, bd, 0, emissive);
+    const w = prop.w, d = prop.h * .65, style = houseStyle(prop), mirror = prop.house?.mirrored ? -1 : 1;
+    const box = (color: string, ox: number, oy: number, oz: number, bw: number, bh: number, bd: number, emissive = false) => part('box', color, x + ox * mirror, ground + oy, z + (style ? Math.min(oz,prop.h/2-bd/2) : oz), bw, bh, bd, 0, emissive);
     box('#5a6660', 0, 2, 5, w + 7, 4, d + 14);
-    box('#baae87', 0, 27, 0, w, 49, d);
+    box(style?.wall ?? '#baae87', 0, 27, 0, w, 49, d);
+    if (style) for(let row=8;row<48;row+=style.material==='masonry'?6:9) box('#8e7e61',0,row,d/2+.1,w,1,.3);
+    if (style?.material==='masonry') for(let row=8;row<44;row+=6) for(let ox=-w/2+8+(row%12?9:0);ox<w/2-8;ox+=18) box('#8e7e61',ox,row+3,d/2+.1,1,6,.3);
     box('#ded0a6', 0, 49, 0, w + 2, 6, d + 2);
-    box('#2c4650', 0, 54, 0, w + 12, 8, d + 10);
+    box(style?.roof ?? '#2c4650', 0, 54, 0, w + 12, 8, d + 10);
+    if (style) for(let k=1;k<style.roofRows;k++) box(style.roof,0,58+k*2,0,w+10-k*style.roofInset*2,3,d+8-k*2);
     box('#3f6167', 0, 59, -d * .2, w + 8, 3, d * .66);
     box('#75928a', 0, 61, -d * .3, w + 5, .8, 2);
-    for (let offset = -w / 2 + 16; offset < w / 2 - 8; offset += 25) {
+    const windows = style ? style.windows.map(u=>(u-.5)*w) : Array.from({length:Math.ceil((w-24)/25)},(_,i)=>-w/2+16+i*25);
+    for (const offset of windows) {
       box('#57656a', offset, 29, d / 2 + .5, 16, 23, 1.5);
       box('#eac584', offset, 29, d / 2 + 1.5, 13, 20, .6, true);
       box('#9b997f', offset, 29, d / 2 + 2, 1.5, 22, 1);
       box('#9b997f', offset, 29, d / 2 + 2, 15, 1.5, 1);
       box('#e6d6ac', offset, 16, d / 2 + 2, 19, 2, 4);
     }
-    box('#27474b', 0, 17, d / 2 + 2, 22, 32, 2);
-    box('#759790', 0, 27, d / 2 + 3.2, 17, 9, .3);
-    box('#decfa7', 9, 17, d / 2 + 3.5, 1.2, 2, 1);
-    box('#466461', 0, 40, d / 2 + 10, 43, 3, 23);
-    for (const offset of [-20, 20]) box('#d6c696', offset, 20, d / 2 + 19, 3, 37, 3);
-    for (let k = 0; k < 4; k++) box('#9ba18a', 0, 3.5 - k * .7, d / 2 + 18 + k * 4, 42 + k * 3, 3 - k * .7, 8);
+    const door = style ? (style.door-.5)*w : 0;
+    box('#27474b', door, 17, d / 2 + 2, 22, 32, 2);
+    box('#759790', door, 27, d / 2 + 3.2, 17, 9, .3);
+    box('#decfa7', door+9, 17, d / 2 + 3.5, 1.2, 2, 1);
+    if (!style || style.porch) {
+    box('#466461', door, 40, d / 2 + 10, 43, 3, 23);
+    for (const offset of [door-20, door+20]) box('#d6c696', offset, 20, d / 2 + 19, 3, 37, 3);
+    for (let k = 0; k < 4; k++) box('#9ba18a', door, 3.5 - k * .7, d / 2 + 18 + k * 4, 42 + k * 3, 3 - k * .7, 8);
+    }
+    if (style?.chimney) { box('#6b6356',w*.28,69,-d*.2,9,25,9); box('#ad946e',w*.28,82,-d*.2,13,3,13); }
+    if (style?.yard) for(const ox of [-w*.42,w*.42]) { box('#aa9670',ox,7,d*.45,3,14,3); box('#ad9a76',ox,5,d*.45,12,2,2); }
     // Station name remains a DOM label; the facade gets a geometric badge only.
     box('#e1c784', 0, 44, d / 2 + 1, 38, 5, 1.5);
     this.lightSources.push({ x, y: z + d / 2 + 11, height: ground + 34, color: 0xffcc91, strength: 110 });
@@ -986,12 +1003,12 @@ export class OverworldRenderer {
     if (!this.openingGround.parent) {
       const geometry = this.openingGround.geometry; geometry.rotateX(-Math.PI / 2);
       const vertices = geometry.attributes.position;
-      for (let i = 0; i < vertices.count; i++) vertices.setY(i, this.terrain.heightAt(vertices.getX(i) + 160, vertices.getZ(i) + 90) + .5);
+      for (let i = 0; i < vertices.count; i++) vertices.setY(i, this.terrain.heightAt(vertices.getX(i) + COURSE.x + 160, vertices.getZ(i) + COURSE.y + 90) + .5);
       vertices.needsUpdate = true; geometry.computeVertexNormals();
-      this.openingGround.position.set(160, 0, 90); this.scene.add(this.openingGround);
+      this.openingGround.position.set(COURSE.x + 160, 0, COURSE.y + 90); this.scene.add(this.openingGround);
     }
     this.openingGround.visible = !!s.opening;
-    if (s.opening && this.openingStage !== s.opening.stage) { const c = this.openingCanvas.getContext('2d')!; c.clearRect(0, 0, 320, 180); drawOpening(c, s); this.openingTexture.needsUpdate = true; this.openingStage = s.opening.stage; }
+    if (s.opening && this.openingStage !== s.opening.stage) { const c = this.openingCanvas.getContext('2d')!; c.clearRect(0, 0, 320, 180); c.save(); c.translate(-COURSE.x, -COURSE.y); drawOpening(c, s); c.restore(); this.openingTexture.needsUpdate = true; this.openingStage = s.opening.stage; }
     if (!s.opening) this.openingStage = -1;
     this.follow(s, dt); this.atmosphere(s);
     this.lockMeshes?.update(s,s.time);

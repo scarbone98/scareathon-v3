@@ -29,6 +29,7 @@ jobs:
       - run: npx tsc -b
       - run: npm test
       - run: node scripts/check-wayside-fury-onboarding.mjs
+      - run: node scripts/check-wayside-fury-playtest-layout.mjs
       - run: mkdir -p work/playwright && npm install --prefix work/playwright --no-save --package-lock=false --ignore-scripts playwright@1.56.1
       - run: work/playwright/node_modules/.bin/playwright install --with-deps chromium
       - name: Phone 2D/3D and desktop 2D HUD checks
@@ -43,6 +44,7 @@ jobs:
           curl --retry 20 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:5224/wayside-fury > /dev/null
           node scripts/check-wayside-fury-hud-browser.mjs
           node scripts/check-wayside-fury-tutorial-browser.mjs
+          node scripts/check-wayside-fury-playtest-browser.mjs
           node scripts/check-wayside-fury-ux-browser.mjs
           node scripts/check-wayside-fury-art-browser.mjs
       - uses: actions/upload-artifact@v4
@@ -53,4 +55,5 @@ jobs:
             work/*.log
             work/*.png
             work/tutorial/*.png
+            work/playtest-layout/*
             work/fury-art/pixel-comparison.json

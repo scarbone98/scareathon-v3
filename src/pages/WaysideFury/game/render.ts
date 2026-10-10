@@ -1,3 +1,4 @@
+import { houseStyle } from "./houseVariants.ts";
 import { drawOpening } from "./opening";
 import { creatureMotion, idleMotion, type ActorMotion } from './animation';
 import { prologueCamera } from './prologue';
@@ -563,7 +564,11 @@ export class Renderer {
   private worldBuilding(prop: WorldProp, time: number) {
     const { x, y, w, h } = prop, c = this.ctx;
     const station = prop.kind === 'station', home = prop.kind === 'home', shed = prop.kind === 'shed';
-    const roof = home ? '#526d66' : shed ? '#5e5960' : '#906957', wall = home ? '#999a7c' : '#ad946e';
+    const style = houseStyle(prop);
+    const roof = style?.roof ?? (home ? '#526d66' : shed ? '#5e5960' : '#906957'), wall = style?.wall ?? (home ? '#999a7c' : '#ad946e');
+    const rows = style?.roofRows ?? 7, inset = style?.roofInset ?? 4;
+    c.save();
+    if (prop.house?.mirrored) { c.translate(2*x+w,0); c.scale(-1,1); }
     c.save(); c.translate(x + w / 2 + 7, y + h - 1); c.scale(1, .12);
     this.glow(0, 0, w * .62, '#101c26'); c.restore();
     this.rect(x + 5, y + h - 4, w + 9, 8, '#243531');
@@ -573,31 +578,44 @@ export class Renderer {
     wallShade.addColorStop(0, '#ffe5b012'); wallShade.addColorStop(.65, '#1f263300'); wallShade.addColorStop(1, '#1f263336');
     c.fillStyle = wallShade; c.fillRect(x + 3, y + h * .4, w - 6, h * .6);
     this.rect(x + 5, y + h * .42, w - 23, 3, '#d6bf92');
-    for (let py = y + h * .5; py < y + h - 7; py += 9) this.rect(x + 4, py, w - 21, 1, '#8e7e61');
-    for (let k = 0; k < 7; k++) this.rect(x - 5 + k * 4, y + h * .4 - k * 5, w + 10 - k * 8, 5, roof);
-    for (let k = 1; k < 7; k++) {
+    for (let py = y + h * .5; py < y + h - 7; py += style?.material === 'masonry' ? 6 : 9) this.rect(x + 4, py, w - 21, 1, '#8e7e61');
+    if (style?.material === 'masonry') for(let py=y+h*.5;py<y+h-12;py+=6) {
+      for(let px=x+8+(Math.round((py-y)/6)%2)*9;px<x+w-21;px+=18) this.rect(px,py,1,6,'#8e7e61');
+    }
+    for (let k = 0; k < rows; k++) this.rect(x - 5 + k * inset, y + h * .4 - k * 5, w + 10 - k * inset * 2, 5, roof);
+    for (let k = 1; k < rows; k++) {
       const top = y + h * .4 - k * 5;
-      this.rect(x - 4 + k * 4, top, w + 8 - k * 8, .5, home ? '#90a995' : '#c0906b');
+      this.rect(x - 4 + k * inset, top, w + 8 - k * inset * 2, .5, home ? '#90a995' : '#c0906b');
       for (let px = x + k * 4 + 4; px < x + w - k * 4; px += 11) this.rect(px, top + 1.5, .5, 2, home ? '#38564f' : '#725142');
     }
     this.rect(x - 5, y + h * .4 + 4, w + 10, 1.5, '#222b343d');
-    this.rect(x + 20, y + h * .4 - 32, w - 40, 2, home ? '#88a093' : '#c0966b');
-    for (let px = x + 16; px < x + w - 18; px += 18) this.rect(px, y + h * .4 - 20, 9, 1, home ? '#6c837a' : '#ad8261');
-    const doorX = x + w / 2;
+    this.rect(x + 20, y + h * .4 - (rows-1)*5 - 2, w - 40, 2, home ? '#88a093' : '#c0966b');
+    for (let px = x + 16; px < x + w - 18; px += 18) this.rect(px, y + h * .4 - Math.min(20,(rows-1)*5), 9, 1, home ? '#6c837a' : '#ad8261');
+    const doorX = x + w * (style?.door ?? .5);
     this.rect(doorX - 10, y + h - 31, 20, 31, '#324346'); this.rect(doorX - 7, y + h - 28, 14, 26, '#526159');
     this.rect(doorX + 4, y + h - 15, 2, 3, '#ead79f'); this.rect(doorX - 13, y + h - 1, 26, 4, '#c2b28b');
-    const windows = station ? [x + 18, x + 44, x + w - 66, x + w - 40] : [x + 18, x + w - 40];
+    const windows = style ? style.windows.map(u=>x+w*u) : station ? [x + 18, x + 44, x + w - 66, x + w - 40] : [x + 18, x + w - 40];
     for (const wx of windows) {
       this.rect(wx - 2, y + h * .55 - 2, 23, 22, '#596252'); this.rect(wx, y + h * .55, 19, 17, '#ead198');
       c.globalAlpha = .3 + Math.sin(time * 2 + wx) * .03; this.glow(wx + 9, y + h * .55 + 7, 18, '#ffe1a0'); c.globalAlpha = 1;
       this.rect(wx + 1, y + h * .55 + 1, 5, 2, '#fff2c3');
       this.rect(wx + 8, y + h * .55, 2, 17, '#8d7e61'); this.rect(wx, y + h * .55 + 8, 19, 2, '#8d7e61');
     }
+    if (style?.chimney) { this.rect(x+w*.76,y+h*.4-rows*5-9,9,22,'#6b6356'); this.rect(x+w*.76-2,y+h*.4-rows*5-10,13,3,'#ad946e'); }
+    if (style?.porch) {
+      this.rect(doorX-20,y+h-3,40,4,'#c2b28b'); this.rect(doorX-20,y+h-34,40,4,roof);
+      for (const px of [doorX-18,doorX+16]) this.rect(px,y+h-30,2,27,'#d6bf92');
+    }
+    if (style?.yard) {
+      for (const px of [x+5,x+w-8]) { this.rect(px,y+h-12,3,12,'#aa9670'); this.rect(px,y+h-9,12,2,'#ad9a76'); }
+      this.rect(x+8,y+h-4,9,3,'#678359');
+    }
     if (station) { this.rect(doorX - 24, y + h * .45, 48, 12, '#2e4544'); this.rect(doorX - 20, y + h * .45 + 2, 40, 2, '#d2bd8a'); }
     if (prop.kind === 'shop') {
       for (let k = 0; k < 8; k++) this.rect(x + 8 + k * (w - 16) / 8, y + h * .7, (w - 16) / 8, 8, k % 2 ? '#e0c48d' : '#a96f5b');
       this.rect(x - 7, y + h - 13, 12, 12, '#785943'); this.rect(x - 4, y + h - 18, 4, 7, '#c7a87a');
     }
+    c.restore();
   }
   private drawImpacts() {
     const c = this.ctx;
