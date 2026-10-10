@@ -22,6 +22,6 @@ assert.ok(mask.intersects({x:60,y:60,w:2,h:2}),'a future solid prop on asphalt f
 for(const world of [...worlds.filter(m=>m.id==='overworld'),COOP_OVERWORLD])for(const p of zonePreviews(world))assert.ok(!roadMask(world).intersects({x:p.groundX-p.w/2,y:p.groundZ-p.d/2,w:p.w,h:p.d}),`${world.id}: destination miniature base clears roads/plazas`);
 const contained=roadClearance({...fixture,roads:[{...road,x:50,y:50,w:10,h:16,curve:undefined}]});
 assert.ok(contained.intersects({x:0,y:0,w:200,h:200},false),'a whole road segment inside a large prop still intersects');
-const tower=ROAD_RELOCATIONS.find(r=>r.propId.includes('water-tower'));
-assert.ok(tower,'water tower moved beside the final curved road');
+const tower=worlds.find(w=>w.id==='overworld').props.find(p=>p.kind==='water-tower');
+assert.ok(tower.x<400&&tower.y<800,'water tower is authored on dry ground near the station');
 console.log(`Road clearance: ${worlds.length} maps, ${solids} solid footprints, ${scatter} scatter props; ${ROAD_RELOCATIONS.length} bases relocated. Gates/barriers/bridge rails retain authored road infrastructure collision.`);

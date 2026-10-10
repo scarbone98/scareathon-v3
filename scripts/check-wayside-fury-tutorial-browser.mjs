@@ -39,7 +39,7 @@ try {
   if(gfx==='3d')await page.waitForFunction(()=>document.querySelector('canvas[data-gfx="3d"]')?.dataset.gfxStatus==='ready' && document.querySelector('.wf-canvas-3d')?.style.visibility==='visible');
   assert.equal(await page.evaluate(()=>window.__waysideFury.state.enemies[0].sprite),'zombie');
   for(const stage of [0,1,3,4]) {
-   await page.evaluate(async stage=>{const {tickOpening}=await import('/src/pages/WaysideFury/game/opening.ts');window.__waysideFury.mutate(s=>{if(stage===3||stage===4){s.opening.stage=stage-1;s.x=stage===3?150:168;if(stage===4)s.opening.hits=1;tickOpening(s,0);}else s.opening.stage=stage;s.x=stage===1?90:stage===3?168:stage===4?195:55;s.y=110;});},stage);
+   await page.evaluate(async stage=>{const {tickOpening,COURSE}=await import('/src/pages/WaysideFury/game/opening.ts');window.__waysideFury.mutate(s=>{if(stage===3||stage===4){s.opening.stage=stage-1;s.x=COURSE.x+(stage===3?150:168);if(stage===4)s.opening.hits=1;tickOpening(s,0);}else s.opening.stage=stage;s.x=COURSE.x+(stage===1?90:stage===3?168:stage===4?195:55);s.y=COURSE.y+110;});},stage);
    await page.waitForTimeout(150);await page.screenshot({path:`work/tutorial/${name}-stage-${stage}.png`});
   }
   await page.getByRole('button',{name:'Skip practice',exact:true}).click();

@@ -1,3 +1,4 @@
+import { houseStyle } from "./houseVariants.ts";
 import { drawWalkableSurface } from './walkableSurfaces.ts';
 import { drawScorchedDepression, EMBEDDED_BLAST, GROUND_DECALS } from './grounding.ts';
 import type { WorldProp } from './worldBuilder';
@@ -8,7 +9,8 @@ const cache=new Map<string,HTMLCanvasElement>();
 export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
   if(drawWalkableSurface(ctx,p))return true;
   if(!BLAST_ART.has(p.kind))return false;
-  const key=`${p.kind}:${p.w}:${p.h}`;
+  const style=houseStyle(p);
+  const key=`${p.kind}:${p.w}:${p.h}:${p.house?.biome}:${p.house?.variant}`;
   let image=cache.get(key);
   if(!image) {
     image=document.createElement('canvas');image.width=p.w*4;image.height=p.h*4;
@@ -63,10 +65,13 @@ export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
       for(let n=0;n<8;n++){const y=h*(.25+n*.085);line(w*.1,y,w*.9,y+(n%2?3:-2),'#756663',.7);}
       line(w*.6,h*.16,w*.46,h*.48,'#302f3d',2);line(w*.46,h*.48,w*.58,h*.72,'#b29177',.8);
     } else if(k==='pillar'||k==='gate-wall'||k==='ruin-house') {
-      rect(2,h*.15,w-4,h*.75,'#5e666c');poly([[2,h*.15],[w*.15,2],[w-4,2],[w-2,h*.15]],'#a5a69a');
+      rect(2,h*.15,w-4,h*.75,style?.wall??'#5e666c');poly([[2,h*.15],[w*.15,2],[w-4,2],[w-2,h*.15]],'#a5a69a');
       for(let y=h*.24;y<h*.9;y+=9){line(2,y,w-2,y,'#373f48',.7);for(let x=4+(Math.floor(y/9)%2)*9;x<w-4;x+=18)line(x,y,x,y+8,'#858880',.6);}
       line(3,h*.18,3,h*.86,'#b9b5a2',1);rect(0,h*.87,w,h*.1,'#929084');
-      if(k==='ruin-house'){poly([[0,h*.15],[w*.15,0],[w*.4,h*.09],[w*.65,0],[w,h*.22],[w*.8,h*.32],[w*.55,h*.13]],'#7e5b4b');rect(w*.42,h*.44,w*.18,h*.44,'#252c35');for(const x of [.16,.73]){rect(w*x,h*.38,w*.15,h*.22,'#2e3940');line(w*x,h*.38,w*(x+.15),h*.6,'#b09a79',2);}}
+      if(k==='ruin-house'){poly([[0,h*.15],[w*.15,0],[w*.4,h*.09],[w*.65,0],[w,h*.22],[w*.8,h*.32],[w*.55,h*.13]],style?.roof??'#7e5b4b');rect(w*((style?.door??.51)-.09),h*.44,w*.18,h*.44,'#252c35');for(const x of style?.windows??[.16,.73]){rect(w*x,h*.38,w*.15,h*.22,'#2e3940');line(w*x,h*.38,w*(x+.15),h*.6,'#b09a79',2);}}
+      if(style?.chimney){rect(w*.76,h*.04,9,h*.24,'#6b6356');rect(w*.76-2,h*.04,13,3,'#ad946e');}
+      if(style?.porch){rect(w*.3,h*.82,w*.4,4,'#929084');rect(w*.3,h*.48,3,h*.34,'#b9b5a2');rect(w*.68,h*.48,3,h*.34,'#b9b5a2');}
+      if(style?.yard){for(const x of [.06,.9]){rect(w*x,h*.8,3,h*.1,'#aa9670');rect(w*x,h*.82,12,2,'#ad9a76');}}
       if(k==='pillar') {rect(w*.25,h*.18,w*.08,h*.66,'#b5b2a2');line(w*.45,h*.4,w*.8,h*.49,'#2f3943',1.5);}
     } else if(k==='shelf') {
       for(const x of [2,w-5])rect(x,0,3,h,'#56636a');
@@ -88,5 +93,5 @@ export function drawBlastProp(ctx:CanvasRenderingContext2D,p:WorldProp) {
     }
     cache.set(key,image);
   }
-  ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(image,p.x,p.y,p.w,p.h);ctx.restore();return true;
+  ctx.save();if(p.house?.mirrored){ctx.translate(2*p.x+p.w,0);ctx.scale(-1,1);}ctx.imageSmoothingEnabled=true;ctx.drawImage(image,p.x,p.y,p.w,p.h);ctx.restore();return true;
 }

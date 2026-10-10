@@ -495,13 +495,15 @@ function openDoor(s, id) {
   walkTo(s, x, y); tick(s);
   assert.equal(interactTarget(s).id, id); tick(s, { interact: true });
 }
+// Count the actual encounters, including the existing level-scaled additions.
+let dungeonKills = 0;
 for (let room = 0; room <= WATCHER_ROOM; room++) {
-  assert.equal(quest.room, room); roomFrames.push(playRoom(quest));
+  assert.equal(quest.room, room); dungeonKills += quest.enemies.length; roomFrames.push(playRoom(quest));
   completedZones.push(`blast-${room}`); clearedCheckpoints.push(`blast-${room}`);
   if (room === 1 || room === 3) {
     const side = room === 1 ? 8 : 9;
     openDoor(quest, room === 1 ? 'north' : 'south'); assert.equal(quest.room, side);
-    roomFrames.push(playRoom(quest)); completedZones.push(`blast-${side}`); clearedCheckpoints.push(`blast-${side}`);
+    dungeonKills += quest.enemies.length; roomFrames.push(playRoom(quest)); completedZones.push(`blast-${side}`); clearedCheckpoints.push(`blast-${side}`);
     const chest = getWorld('dungeon', side).props.find(p => p.kind === 'chest');
     const approach = findInteractionApproach(getWorld('dungeon', side), chest.id, { x: chest.x + chest.w / 2, y: chest.y + chest.h / 2 });
     walkTo(quest, approach.x, approach.y);
@@ -527,7 +529,6 @@ assert.deepEqual(quest.clearedRooms, completedZones);
 assert.deepEqual(quest.bosses, ['blast-gatekeeper', 'blast-watcher']); assert.deepEqual(quest.areas, ['blast']);
 assert.deepEqual(checkpoints.filter(id => !id.startsWith('personal-')), clearedCheckpoints);
 for (const id of checkpoints.filter(id => id.startsWith('personal-'))) assert.ok(quest.foundItems.includes(id.slice('personal-'.length)), 'personal checkpoint belongs to an actual find');
-const dungeonKills = BLAST_WORLDS.reduce((n, m) => n + m.spawns.length, 0);
 assert.equal(quest.kills, dungeonKills); assert.equal(quest.deaths, 0);
 assert.deepEqual([...usedControls].sort(), ['attack', 'dash', 'guard', 'ki', 'swap']);
 tick(quest, { interact: true }, 143); assert.equal(quest.scene, 'shift');
@@ -555,7 +556,9 @@ const beforeReplay = progressReport(quest);
 enterScene(quest, 'overworld');
 // Taxi follows the authored road around the creek rather than cutting across water.
 walkTo(quest, LOCATIONS[1].x, OVERWORLD.spawn.y);
-const blastApproach = findInteractionApproach(OVERWORLD, LOCATIONS[1].id, LOCATIONS[1]);
+// The taxi parks at the drivable entrance; the walking-only approach finder
+// can pick a closer point beyond the road's curb.
+const blastApproach = { x: LOCATIONS[1].x, y: 416 };
 walkTo(quest, blastApproach.x, blastApproach.y); tick(quest); tick(quest, { interact: true });
 assert.equal(quest.scene, 'dungeon'); assert.equal(quest.room, 0); assert.equal(quest.enemies.length, 0);
 assert.equal(progressReport(quest, beforeReplay.receipt).score, 0);

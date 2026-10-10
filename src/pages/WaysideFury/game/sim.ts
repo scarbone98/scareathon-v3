@@ -1,5 +1,5 @@
 import { onRoad, roadPoints, roadWidth, projectRoad } from "./roadNetwork.ts";
-import { tickOpening, type Opening } from "./opening.ts";
+import { COURSE, tickOpening, type Opening } from "./opening.ts";
 import { storyRevealed, PROLOGUE_FADE } from './prologue.ts';
 import type { ActorMotion } from './animation.ts';
 import { collectRadar, radarPickupTarget } from "../u1/minimap/relicRadar.ts";
@@ -425,8 +425,8 @@ export function enterScene(s: GameState, scene: Scene, room = 0, mapId?: string)
   if (s.enemies.some(e => e.archetype === "shield")) s.notice += " Pumpkins brace: use a combo finisher or hold Attack, then release.";
   if (scene === "test") {
     if (s.coop?.role !== "guest") {
-      addEnemy(s, "grunt", 183, 73); addEnemy(s, "grunt", 220, 113);
-      addEnemy(s, "grunt", 174, 145); addEnemy(s, "shooter", 260, 76);
+      addEnemy(s, "grunt", COURSE.x + 183, COURSE.y + 73); addEnemy(s, "grunt", COURSE.x + 220, COURSE.y + 113);
+      addEnemy(s, "grunt", COURSE.x + 174, COURSE.y + 145); addEnemy(s, "shooter", COURSE.x + 260, COURSE.y + 76);
     }
     s.notice = "J Attack • K Ki • L Dash • Shift Guard • Q Swap";
   }
@@ -886,7 +886,7 @@ function updateEnemies(s: GameState, dt: number) {
         if (e.windup > 0) {
           e.windup = Math.max(0, e.windup - dt);
           if (e.windup === 0) {
-            const onMark = Math.hypot(s.x - 168, s.y - 110) < 20;
+            const onMark = Math.hypot(s.x - COURSE.x - 168, s.y - COURSE.y - 110) < 20;
             if (onMark) {
               if (s.guard) o.hits++;
               damageHero(s, Math.min(Math.max(0, activeHero(s).hp - 1), s.guard ? 1 : 4), e.x, e.y);
