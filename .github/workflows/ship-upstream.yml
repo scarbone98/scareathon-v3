@@ -1,0 +1,95 @@
+name: Ship to upstream
+
+# Runs on Siraj's fork. When a finished claude/fury-* or codex/fury-* branch is pushed,
+# run the checks, then open a PR into scarbone98/scareathon-v3:main and squash-merge it.
+on:
+  push:
+    branches:
+      - 'claude/fury-**'
+      - 'codex/fury-**'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Fork branch to ship'
+        required: true
+
+concurrency:
+  group: ship-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: scarbone98/scareathon-v3
+  FORK_OWNER: szaneer
+
+jobs:
+  ship:
+    if: github.repository == 'szaneer/scareathon-v3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Pick branch
+        id: br
+        run: |
+          B="${{ github.event.inputs.branch }}"
+          if [ -z "$B" ]; then B="${GITHUB_REF#refs/heads/}"; fi
+          echo "name=$B" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.br.outputs.name }}
+          lfs: false
+
+      - name: Skip unfinished work
+        id: gate
+        run: |
+          MSG="$(git log -1 --pretty=%s)"
+          if echo "$MSG" | grep -qiE '^(wip|draft)\b'; then
+            echo "Latest commit is WIP: $MSG"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ -d .claude ] && ls .claude | grep -qi handoff; then
+            echo "Handoff files present"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.skip == 'false'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Checks
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc -b
+          npm run lint
+          if grep -q '"check:wayside-fury-reachability"' package.json; then npm run check:wayside-fury-reachability; fi
+          if [ -f scripts/check-wayside-fury-interactables.mjs ]; then node scripts/check-wayside-fury-interactables.mjs; fi
+
+      - name: Open PR and squash-merge
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_PAT }}
+          BRANCH: ${{ steps.br.outputs.name }}
+        run: |
+          set -euo pipefail
+          api() { curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$@"; }
+          HEAD="$FORK_OWNER:$BRANCH"
+          N=$(api "https://api.github.com/repos/$UPSTREAM/pulls?state=open&head=$HEAD" | jq -r '.[0].number // empty')
+          if [ -z "$N" ]; then
+            TITLE="$(git log -1 --pretty=%s | sed 's/^CLEANUP: //')"
+            BODY="Automated ship of $HEAD after tsc, lint and Fury checks passed."
+            N=$(jq -n --arg t "$TITLE" --arg h "$HEAD" --arg b "$BODY" '{title:$t, head:$h, base:"main", body:$b}' \
+              | api -X POST "https://api.github.com/repos/$UPSTREAM/pulls" -d @- | tee /tmp/pr.json | jq -r '.number // empty')
+            [ -z "$N" ] && { cat /tmp/pr.json; exit 1; }
+          fi
+          echo "PR #$N"
+          for i in $(seq 1 12); do
+            M=$(api "https://api.github.com/repos/$UPSTREAM/pulls/$N" | jq -r '.mergeable')
+            [ "$M" = "true" ] && break
+            [ "$M" = "false" ] && { echo "PR #$N has conflicts with main"; exit 1; }
+            sleep 10
+          done
+          api -X PUT "https://api.github.com/repos/$UPSTREAM/pulls/$N/merge" -d '{"merge_method":"squash"}' | tee /tmp/merge.json
+          jq -e '.merged == true' /tmp/merge.json > /dev/null
+          echo "Merged PR #$N into $UPSTREAM:main"
