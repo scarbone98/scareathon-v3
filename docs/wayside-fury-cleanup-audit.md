@@ -72,7 +72,7 @@ Where frame time went (dev build, profiled while driving):
 ### P1 — looks wrong or confusing
 - **P1-1 Phone 2D camera is very tight.** At zoom 2.33 the view is 167×362 world
   units, and the taxi plus junction fill most of the screen. You see too little
-  county to steer by.
+  county to steer by. *Fixed in batch 5.*
 - **P1-2 Chapter progress card covers the world.** It sits over the station
   front and the road ahead on phone portrait. *Fixed in batch 3.*
 - **P1-3 Odd shaded trapezoid behind the cab at the start junction.** It's the
@@ -90,7 +90,8 @@ Where frame time went (dev build, profiled while driving):
   56 px left and 24 px up. That left the drive's entrance flare as the stray
   grey slab of P1-3. *Fixed in batch 2.*
 - **P1-4 Only one house and one mailbox in the overworld.** 657 props, of which
-  289 are trees and 244 flowers. The "town" reads as trees and roads.
+  289 are trees and 244 flowers. The "town" reads as trees and roads. *Fixed in
+  batch 5.*
 
 ### P2 — polish
 - (to be filled as the pass continues)
@@ -202,3 +203,105 @@ sparkle, which removes the second blit for most of the map.
 - Full CI set on the top branch: `npm run lint`, `tsc -b`, 595 server tests,
   onboarding, playtest-layout, interactables, and the HUD, tutorial, playtest,
   UX and art browser checks (383 original-art pixel comparisons) all pass.
+
+### Batch 5 — phone camera and the Wayside town (`claude/fury-town-camera`)
+
+Phone camera (P1-1):
+- The tight phone view was not the 2.3 zoom target. `getRenderViewport` also
+  caps the view at 640×400 world units, and on a 390×844 phone at 3× that
+  height cap forced the integer device-pixel scale up to 7 (zoom 2.33,
+  37 CSS-pixel tiles, 167×362 units). Phones (shorter side under 600 CSS px)
+  now target 29-pixel tiles (zoom 1.8) and may show up to 520 units tall;
+  desktops and tablets keep the 4× zoom and the 400 cap. Every scale is still
+  a whole number of device pixels per world unit, so the art stays crisp.
+- Portrait 390×844 @3×: 167×362 → 234×506 world units (zoom 2.33 → 1.67, 37 →
+  27 CSS px per tile; the gameplay canvas under the HUD band shows 234×389
+  instead of 167×278). Landscape 844×390 @3×: 362×167 → 506×234. 2× phones:
+  156×338 → 195×422. Desktop 1440×900: 360×225 both before and after.
+- The 2D and 3D renderers share the viewport, so phone 3D frames the same
+  wider area. Small rooms (interiors 448×352, blast rooms 640×384) draw their
+  ground tile past the walls as before; on the real 389-unit-tall gameplay
+  canvas the overrun is at most 37 units.
+- `check-wayside-fury.mjs` now asserts the new phone band (24–32 CSS px per
+  tile, portrait view at least 220×400, landscape at least 480 across,
+  desktop zoom unchanged at 4).
+
+Wayside town (P1-4), `src/pages/WaysideFury/game/town.ts`:
+- Eight houses from the existing house kit (`home` props, so the six-variant
+  colouring, mirroring and door positions apply): a station cottage behind the
+  station with a lane down its west side, the Hollow Lane house east of the
+  woods turn-off, two shore houses south of the county road facing the
+  reservoir, two lake cottages on the reservoir loop and two garden cottages
+  along the rain-garden loop. Each has a dirt yard, a mailbox at its road
+  (the existing mailbox art and road-facing rule), flanking fence runs, and
+  foliage; plus a pond bench between the station and the diner, lamps by the
+  lake and garden cottages and a crate in the shore yard. All props are
+  existing kinds that both renderers and the minimap already draw.
+- The town is laid out after `shapeOrganicAreas`, against the final curved
+  roads. Every placement is checked at build time against the real road
+  ribbon, water, solid terrain and every other prop's sprite and base, and a
+  bad placement throws, so a future road or terrain change cannot silently
+  sink a house. Scatter foliage under a yard or a new prop is removed; nothing
+  authored moves. `settleOverworldProps` and `clearRoads` leave every town
+  prop exactly where it was authored (shift 0,0 for all eight houses).
+- The party county (`COOP_OVERWORLD`) is untouched, as in batch 2.
+- `check-wayside-fury-interactables.mjs` now also floods to the drawn front
+  door of every house, shed and farmhouse in the county (the facade door at
+  the variant's door fraction, mirrored for mirrored variants), so 31 solo
+  targets are checked instead of 20. Mailbox rules (beside a building, within
+  72 units of a road, facing it) are already covered by `playtest-layout`.
+- Overworld props: 665 → 659 (eight houses, nine mailboxes, eight fences,
+  three lamps, a bench and a crate added; 55 pieces of scatter under yards
+  removed). Reachability audit: 0 errors, same single pre-existing warning.
+
+Checks on this branch: `npx tsc -b`, `npm run lint`, 595 server tests,
+`playtest-layout`, `interactables`, the reachability test runner and strict
+audit, the 44 passing node Fury checks (same 14 failures as `main`: 7 need a
+Playwright install, 7 are the known pre-existing failures), and the HUD,
+tutorial, playtest, UX, art and viewport browser checks for phone 2D, phone
+3D and desktop 2D all pass.
+
+Performance, same harness as batch 1 (916 frames along the county road, down
+the shortcut and back along the reservoir loop, `renderer.draw` called
+directly; 2D on a CPU canvas so call counts are exact, 3D on SwiftShader).
+`main` and this branch were served side by side from clean checkouts.
+
+| Batch 5 before → after | main (bd3883b) | Batch 5 |
+| --- | --- | --- |
+| World build, Node (this machine, 3 runs) | 413–468 ms | 431–450 ms |
+| Overworld props | 665 | 681 |
+| Phone 2D canvas calls/frame, mean (median / p95) | 1,391 (488 / 5,804) | 1,627 (826 / 9,062) |
+| Phone landscape 2D canvas calls/frame, mean (median / p95) | 1,470 (622 / 4,959) | 1,742 (869 / 7,592) |
+| Desktop 2D canvas calls/frame, mean (median / p95) | 1,654 (730 / 6,254) | 1,634 (827 / 6,428) |
+| Phone 2D draw ms, CPU canvas: mean / median / p95 | 2.1 / 0.8 / 12.9 | 1.9 / 0.8 / 9.9 |
+| Phone landscape 2D draw ms, CPU canvas: mean / median / p95 | 3.3 / 1.1 / 12.5 | 4.6 / 4.0 / 13.1 |
+| Desktop 2D draw ms, CPU canvas: mean / median / p95 | 6.6 / 4.9 / 17.7 | 6.1 / 4.5 / 17.1 |
+| Phone 3D WebGL draw calls / triangles per frame, mean (116 frames) | 165 / 190k | 207 / 209k |
+
+Where the phone calls go (steady-state frames, below the median): trees 37 →
+142, terrain blits 87 → 123, flowers 39 → 75, houses 31 → 73, rocks 37 → 54.
+That is the wider view: it holds about twice the county, so twice the
+foliage, and the town adds houses along the route. Three exact-output
+savings offset part of it and are why desktop (same view as before) ends
+below its baseline despite the extra town props:
+- Prop culling tests each prop's bounds (plus a 64-unit overhang margin)
+  instead of its top-left corner with a width-sized margin. The 512-unit
+  launch-compound fence runs, the craters and other wide props were being
+  drawn from hundreds of units off-screen (fences alone averaged 185
+  calls/frame on `main`; 51 now).
+- The tree canopy blit no longer wraps its single `drawImage` in a
+  `save`/`restore` pair; the smoothing flags are set and restored directly.
+- Shadow gradients are cached per width instead of rebuilt for every tree,
+  bush and actor each frame.
+The draw time per frame on a CPU canvas is unchanged in phone portrait and
+desktop and up in phone landscape (the 506-unit-wide view); every one of these
+calls is a `fillRect` or a cached-image blit, which a GPU canvas batches.
+**Open:** phone 2D canvas calls per frame are still about 17% above the
+`main` mean and 70% above its median because of the larger view. The next
+exact saving is caching each building's static layers (walls, roof, siding,
+windows) as offscreen images: a house is ~100 `fillRect`s a frame and only
+its window glow animates. It needs per-window layers to keep the exact draw
+order under the glow, so it was left for a follow-up.
+Phone 3D draws 25% more calls for the same reason (more chunks and props in
+the frustum); the 3D scene is instanced and stays well under a thousand draw
+calls.

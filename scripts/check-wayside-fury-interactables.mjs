@@ -7,6 +7,8 @@ import { LOCATIONS } from '../src/pages/WaysideFury/game/content.ts';
 import { COUNTY_STOPS } from '../src/pages/WaysideFury/game/county.ts';
 import { INTERIORS } from '../server/shared/waysideFury/interiors.js';
 import { HIDDEN_PICKUPS } from '../server/shared/waysideFury/collectibles.js';
+import { HOUSE_KINDS, houseStyle } from '../src/pages/WaysideFury/game/houseVariants.ts';
+import { houseDoor } from '../src/pages/WaysideFury/game/town.ts';
 
 // Radii mirror interactTarget in sim.ts; the taxi moves with radius 7.
 const MOVE_RADIUS = 7, STOP_RADIUS = 72, PROP_RADIUS = 46, DOOR_RADIUS = 46, PICKUP_RADIUS = 28, SPACING = 4;
@@ -44,6 +46,9 @@ for (const world of [OVERWORLD, COOP_OVERWORLD]) {
     for (const stop of COUNTY_STOPS) targets.push([stop, PROP_RADIUS]);
     for (const room of INTERIORS.filter(room => room.parent === 'overworld')) targets.push([{ id: `${room.id}-door`, x: room.x, y: room.y }, DOOR_RADIUS]);
   }
+  // Every drawn house door (the facade's door, mirrored for mirrored variants),
+  // whether or not the house has an interior yet.
+  for (const house of world.props.filter(p => HOUSE_KINDS.has(p.kind) && p.house)) targets.push([{ id: `${house.id}-front-door`, ...houseDoor(house, houseStyle(house).door) }, DOOR_RADIUS]);
   const sign = world.props.find(p => p.id === 'roadside-lore-sign');
   if (sign) targets.push([{ id: sign.id, x: sign.x + sign.w / 2, y: sign.y + sign.h }, PROP_RADIUS]);
   for (const pickup of HIDDEN_PICKUPS.filter(p => p.scene === 'overworld' && (solo || p.x < world.width && p.y < world.height))) targets.push([pickup, PICKUP_RADIUS]);

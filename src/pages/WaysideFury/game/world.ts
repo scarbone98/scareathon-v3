@@ -9,6 +9,7 @@ import { dressBlast, BLAST_ENCOUNTER_ANCHORS } from "./blastLayouts.ts";
 import { CITY_WORLDS } from "./chapters/ch4Worlds.ts";
 import { WOODS_WORLDS } from "./chapters/ch2Worlds.ts";
 import { dressCounty } from "./county.ts";
+import { dressTown } from "./town.ts";
 import { compound, LAUNCH_WORLD, MOON_WORLDS } from "./chapters/ch3Worlds.ts";
 import { TILE, tileAt, map, paint, prop, parkedCar, boundary, exit, road, scatter, encounter, sealWorld, type WorldMap } from "./worldBuilder.ts";
 export * from "./worldBuilder.ts";
@@ -175,6 +176,8 @@ export function getWorld(scene: string, room = 0, mapId?: string, coop = false):
 
 export const ALL_WORLDS = [ARENA_WORLD, OVERWORLD, HUB_WORLD, ...BLAST_WORLDS, REALM_WORLD, TEST_WORLD, LAUNCH_WORLD, ...MOON_WORLDS, ...CITY_WORLDS, ...WOODS_WORLDS, ...INTERIOR_WORLDS];
 shapeOrganicAreas(ALL_WORLDS);
+// The town is laid out against the shaped roads; the party county stays frozen.
+dressTown(OVERWORLD);
 attachInteriorDoors(ALL_WORLDS);
 
 for (const world of [...ALL_WORLDS, COOP_OVERWORLD]) assignHouseVariants(world);

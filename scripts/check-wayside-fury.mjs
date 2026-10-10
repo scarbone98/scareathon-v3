@@ -73,11 +73,17 @@ for (const [cssWidth, cssHeight] of [[390, 700], [430, 780], [844, 390], [932, 4
     assert.ok(Math.abs(viewport.zoom * effectiveDpr - viewport.pixelScale) < 1e-8);
     assert.ok(Math.abs(viewport.width * viewport.zoom - cssWidth) <= 1, 'logical width follows CSS box');
     assert.ok(Math.abs(viewport.height * viewport.zoom - cssHeight) <= 1, 'logical height follows CSS box');
-    assert.ok(viewport.width <= 640 && viewport.height <= 400, 'view stays inside the sensible world range');
+    assert.ok(viewport.width <= 640 && viewport.height <= (Math.min(cssWidth, cssHeight) < 600 ? 520 : 400), 'view stays inside the sensible world range');
   }
 }
 const nativePhone = getRenderViewport(390, 700, 3);
-assert.ok(nativePhone.zoom * 16 >= 32 && nativePhone.zoom * 16 <= 40, 'phone tiles retain detail with seven hero heights of horizontal awareness');
+assert.ok(nativePhone.zoom * 16 >= 24 && nativePhone.zoom * 16 <= 32, 'phone tiles stay readable while the portrait view shows a wide stretch of county');
+assert.ok(nativePhone.width >= 220 && nativePhone.height >= 400, 'phone portrait sees over 220×400 world units of road ahead');
+const landscapePhone = getRenderViewport(844, 390, 3);
+assert.equal(landscapePhone.zoom, nativePhone.zoom, 'portrait and landscape share the same phone zoom');
+assert.ok(landscapePhone.width >= 480, 'phone landscape sees over 480 world units across');
+const desktop = getRenderViewport(1440, 900, 2);
+assert.equal(desktop.zoom, 4, 'desktop framing is unchanged');
 const lowerQuality = getRenderViewport(390, 700, 3, 2);
 assert.equal(lowerQuality.dpr, 2, 'quality fallback changes the backing DPR cap');
 assert.equal(lowerQuality.pixelWidth, 780);
