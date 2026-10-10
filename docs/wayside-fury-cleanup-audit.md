@@ -186,3 +186,19 @@ sparkle, which removes the second blit for most of the map.
 - Checks: tsc, eslint, `feel` and `feel-browser` (asserts the panel), and the
   UX, HUD and playtest browser checks for phone 2D, phone 3D and desktop 2D
   pass. Node Fury checks are unchanged from batch 2.
+
+### Batch 4 — interactable reachability check (`claude/fury-placement-tests`)
+- New `scripts/check-wayside-fury-interactables.mjs`, also added to the Fury UX
+  CI workflow. It flood-fills drivable space from spawn at the taxi's movement
+  radius (7) on a 4 px grid, ignoring progression locks. It then asserts that
+  every overworld interactable has a reachable point inside its interaction
+  radius (minus 4 px of slack): chapter stops (72), county stops, interior
+  doors and the roadside sign (46), and hidden pickups (28).
+- Solo county: 20 interactables; party county: 15. Both pass on baseline and on
+  this branch, and an injected target in the reservoir fails as expected.
+  Together with `playtest-layout` (grounded props, no road or prop overlaps,
+  every road sample reachable with taxi clearance), this covers the brief's
+  placement-validation list.
+- Full CI set on the top branch: `npm run lint`, `tsc -b`, 595 server tests,
+  onboarding, playtest-layout, interactables, and the HUD, tutorial, playtest,
+  UX and art browser checks (383 original-art pixel comparisons) all pass.
