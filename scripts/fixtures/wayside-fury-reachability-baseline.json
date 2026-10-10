@@ -1,9 +1,6 @@
 {
   "note": "Known error-severity reachability issues (keys from scripts/check-wayside-fury-reachability.mjs). The test fails on any error not listed here; delete a key once its issue is fixed.",
   "known": [
-    "overworld:sealed-area-open:launch-compound",
-    "overworld:prop-in-water:station@8,20",
-    "coop:overworld:unreachable-arrival:arrival-interior-farmhouse-interior-farmhouse-exit",
-    "coop:overworld:prop-in-water:station@8,20"
+    "coop:overworld:unreachable-arrival:arrival-interior-farmhouse-interior-farmhouse-exit"
   ]
 }

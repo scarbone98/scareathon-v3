@@ -148,7 +148,7 @@ export function shapeOrganicAreas(worlds: WorldMap[]) {
     });
     county.collision=county.tiles.map((tile,i)=>tile==='water'?1:oldTiles[i]==='road'||oldTiles[i]==='bridge'?0:county.collision[i]);
     for(const r of county.roads)ribbon(county,roadPoints(r),roadWidth(r),'road');
-    county.props=county.props.filter(p=>!['tree','pine','rock','bush','fence','reeds','crate','bench'].includes(p.kind)||!(p.footprints??[]).some(r=>onRoad(county,r.x+r.w/2,r.y+r.h/2,Math.hypot(r.w,r.h)/2+12)||county.organic!.trails.some(t=>t.points.slice(1).some((b,i)=>distance({x:r.x+r.w/2,y:r.y+r.h/2},t.points[i],b)<t.width/2+12))));
+    county.props=county.props.filter(p=>p.anchored||!['tree','pine','rock','bush','fence','reeds','crate','bench'].includes(p.kind)||!(p.footprints??[]).some(r=>onRoad(county,r.x+r.w/2,r.y+r.h/2,Math.hypot(r.w,r.h)/2+12)||county.organic!.trails.some(t=>t.points.slice(1).some((b,i)=>distance({x:r.x+r.w/2,y:r.y+r.h/2},t.points[i],b)<t.width/2+12))));
     // Keep the two lookout approaches dressed after clearing the shifted lanes.
     for(const x of [768,1760])for(const side of [-1,1]) {
       const px=x+side*88,py=x===768?1340:1224;

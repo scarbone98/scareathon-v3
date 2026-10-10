@@ -13,6 +13,8 @@ export interface WorldProp {
   interiorId?: string;
   house?: { biome: import("./houseVariants.ts").HouseBiome; variant: number; mirrored: boolean };
   mailboxFacing?: number;
+  // Authored enclosure piece (e.g. a compound fence run): placement passes keep it exactly where it was built.
+  anchored?: boolean;
   footprints?: CollisionRect[];
   surface?: { direction?: "horizontal" | "vertical"; deckHeight?: number; gap?: readonly [number, number] };
 }
