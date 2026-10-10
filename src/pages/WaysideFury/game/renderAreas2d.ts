@@ -1,15 +1,21 @@
 import { continuousBlastGround, drawWornTrails } from './roomGround.ts';
-import { drawRoadNetwork } from './roadNetwork.ts';
+import { drawRoadNetwork, type DrawBounds } from './roadNetwork.ts';
 import { INTERIORS, interiorDefinition } from './interiors.ts';
 import type { WorldMap } from './worldBuilder.ts';
 import type { GameState } from './sim.ts';
 const THEMES:Record<string,[string,string,string]>={station:['#485b60','#d5ba82','#294449'],diner:['#846857','#efc69b','#853e43'],farm:['#766047','#ddc49a','#567257'],office:['#4a616b','#bee0db','#35545e'],shed:['#685953','#b6a086','#4c5756'],warehouse:['#68656a','#ccb794','#595066'],cabin:['#6b624b','#dfc78c','#3e6659'],archive:['#5b5664','#c9ad91','#635278'],cafe:['#6e585f','#f0c4a6','#547568']};
-export function drawAreaGround(c:CanvasRenderingContext2D, world:WorldMap) {
+// Static ground artwork above the water ripples. TerrainCache bakes it into
+// transparent chunks, so bounds cull geometry that cannot reach a chunk.
+export const areaGroundOverlay = (world:WorldMap) =>
+  world.organic ? (c:CanvasRenderingContext2D, bounds:DrawBounds) => drawAreaGround(c,world,bounds)
+  : world.id==='overworld' ? (c:CanvasRenderingContext2D, bounds:DrawBounds) => drawRoadNetwork(c,world,bounds) : null;
+export function drawAreaGround(c:CanvasRenderingContext2D, world:WorldMap, bounds?:DrawBounds) {
   if(!world.organic) return;
   c.save();c.lineCap='round';c.lineJoin='round';
   if(!continuousBlastGround(world)) drawWornTrails(c,world);
-  drawRoadNetwork(c,world);
+  drawRoadNetwork(c,world,bounds);
   for(const form of world.organic.landforms) {
+    if(bounds){const xs=form.points.map(p=>p.x),ys=form.points.map(p=>p.y);if(Math.max(...xs)+48<bounds.x||Math.min(...xs)-48>bounds.x+bounds.w||Math.max(...ys)+48<bounds.y||Math.min(...ys)-48>bounds.y+bounds.h)continue;}
     const path=()=>{c.beginPath();form.points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();};
     if(form.kind==='cliff') {
       c.save();c.translate(0,10);path();c.fillStyle='#3d4547';c.fill();c.strokeStyle='#343e40';c.lineWidth=3;c.stroke();c.restore();

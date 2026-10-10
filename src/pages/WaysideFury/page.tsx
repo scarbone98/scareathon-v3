@@ -25,10 +25,11 @@ import { globeAvailable, type GlobeDestination } from "./game/globe";
 import { COUNTY_STOPS } from "./game/county";
 import { LOCATIONS } from "./game/content";
 import { getMap } from "./game/campaign";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
 import { layoutLabels } from "./game/labelLayout";
+import { chapterGoal } from "./game/pacing";
 import { Collection } from "./Collection";
 import { HeroPortrait } from "./HeroPortrait";
 import { FuryCoop, type CoopRoom } from "./game/coop";
@@ -88,7 +89,31 @@ function PromptGlyph({ mode, action = "interact" }: { mode: InputMode; action?: 
   const glyph = /playstation|dualshock|dualsense|sony/i.test(pad?.id ?? "") ? "✕" : /switch|nintendo/i.test(pad?.id ?? "") ? "B" : "A";
   return mode === "keyboard" ? <kbd aria-hidden="true">{keyboardBinding(action).toUpperCase()}</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
 }
-function SceneSurface({ canvas, presentation, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
+// Labels follow the camera at ~30 Hz. Only the label layer subscribes, so the
+// HUD, touch controls and minimap do not re-render with every camera step.
+function presentationStore() {
+  let value: RenderPresentation | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (next: RenderPresentation | null) => { value = next; for (const listener of listeners) listener(); },
+    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+  };
+}
+type PresentationStore = ReturnType<typeof presentationStore>;
+// One game page is mounted at a time; labels are hidden until it is playing.
+const presentation = presentationStore();
+// Chapter progress lives in the left HUD column, so world labels already keep
+// clear of it and it never covers the road ahead on phone portrait.
+function ChapterProgress({ state }: { state: GameState }) {
+  const goal = chapterGoal(state);
+  return <section className="wf-chapter-goal" aria-label="Chapter progress">
+    <div className="wf-chapter-goal-row" title={goal.name}><strong>Chapter {goal.chapter}</strong><progress max={goal.total} value={goal.value} aria-label="Chapter progress" /><span>{goal.value}/{goal.total}</span></div>
+    <div className="wf-chapter-goal-next">Next unlock: {goal.next}</div>
+  </section>;
+}
+function SceneSurface({ canvas, store, visible, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; store: PresentationStore; visible: boolean; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
+  const live = useSyncExternalStore(store.subscribe, store.get), presentation = visible ? live : null;
   const stage = useRef<HTMLDivElement>(null);
   const [bounds, setBounds] = useState({ width: 1, height: 1, top: 40 });
   useLayoutEffect(() => {
@@ -248,7 +273,6 @@ export default function WaysideFury() {
   };
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
   const [reward, setReward] = useState(0);
-  const [presentation, setPresentation] = useState<RenderPresentation | null>(null);
   const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0, left: window.visualViewport?.offsetLeft ?? 0 });
   const [tutorial, setTutorial] = useState(tutorialVisible);
   const [noticeVisible, setNoticeVisible] = useState(false);
@@ -335,7 +359,7 @@ export default function WaysideFury() {
     buttons[(index < 0 ? direction > 0 ? 0 : buttons.length - 1 : (index + direction + buttons.length) % buttons.length)].focus();
   } };
   useEffect(() => {
-    const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
+    const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: presentation.set, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
         if (event.type === "arena-finish") void submitArcadeScore(arenaGame(event.receipt.mode), event.score, { arenaRun: event.receipt });
@@ -552,7 +576,7 @@ export default function WaysideFury() {
     {!inlineSave && !state.film && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
-    <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
+    <SceneSurface canvas={canvas} store={presentation} visible={playing} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
     {playing && state.openingChoice && <Modal className="wf-tutorial-choice" aria-label="Tutorial choice"><h2>Practice the basics?</h2><div><button onClick={() => chooseTutorial(true)}>Play tutorial</button><button className="wf-secondary" onClick={() => chooseTutorial(false)}>Skip</button></div></Modal>}
     {playing && state.opening && !paused && <section className="wf-opening" aria-label="Guided opening">
       <strong>Practice · {state.opening.stage + 1}/6</strong>
@@ -595,6 +619,7 @@ export default function WaysideFury() {
         {actionPrompt.target && !(noticeVisible && state.notice) && !(state.coop && (state.coop.downed || hero.hp <= 0)) && !actionPrompt.target.id.startsWith("coop-revive-") && !state.overlay && !state.dialogue && !paused && mode !== "touch" && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={actionPrompt.glyph} /><PromptGlyph mode={mode} action="attack" />{actionPrompt.target.locked ? `${actionPrompt.label} · Taken over` : actionPrompt.label}</button>}
         {target && !(noticeVisible && state.notice) && actionPrompt.action !== "interact" && !target.id.startsWith("coop-revive-") && !state.coop?.downed && !state.overlay && !state.dialogue && !paused && <button className="wf-interact-prompt" onClick={() => controller.current?.mutate(s => interact(s))}><ActionIcon action="attack" glyph={target.kind} /><PromptGlyph mode={mode} />{target.name}</button>}
         {noticeVisible && state.notice && !showTutorial && !state.overlay && !state.dialogue && !paused && <p className="wf-notice" key={state.notice} role="status">{state.notice}</p>}
+        {!paused && !state.overlay && !state.dialogue && !state.training && !state.film && !["prologue", "shift", "dead", "test"].includes(state.scene) && <ChapterProgress state={state} />}
         {!paused && !state.overlay && state.scene !== "dead" && <ItemsHud state={state} hiddenTargets={hiddenRadarTargets(state)} onToggleRadar={() => controller.current?.mutate(s => { if (toggleRadar(s)) persist(s); })} />}
         {showTutorial && <div className="wf-hint"><span>{mode === "gamepad" ? "A tap/hold attack · X ki · B dash · RT guard · LB swap" : mode === "touch" ? "Drag to move. Hold Attack, then release for a charged strike. Hold Ki for your signature." : "WASD move · tap/hold J attack · hold K signature · L dash · Shift guard · Q/E swap"}</span><button aria-label="Dismiss tutorial" onClick={dismissTutorial}>×</button></div>}
       </div>}

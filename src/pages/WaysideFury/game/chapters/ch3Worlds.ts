@@ -5,6 +5,8 @@ const sizes = [[640,384],[640,384],[480,320],[800,448],[720,384],[640,480],[480,
 export const moonId = (room: number) => `moon-m${String(room + 1).padStart(2, '0')}`;
 function fence(m: WorldMap, x: number, y: number, w: number, h: number) {
   const p = prop(m, 'fence', x, y, w, h); p.footprints = [{ x, y: y + (h > 20 ? 0 : h - 4), w, h: h > 20 ? h : 4 }];
+  // The runs meet at the corners; settling must not move or drop one and open the compound.
+  p.anchored = true;
 }
 export function compound(m: WorldMap, ox = 0, oy = 0) {
   paint(m, ox, oy, 512, 336, 'stone');

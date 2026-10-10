@@ -22,13 +22,14 @@ export function clipRoadEnds(c:CanvasRenderingContext2D,r:RoadSegment,world:Worl
 }
 // Overworld road termini alone receive a flared threshold. Room openings are terrain.
 // Shared by native Canvas and terrain-draped 3D decals; no collision changes.
-export function drawRoadEndings(c:CanvasRenderingContext2D,world:WorldMap) {
+export function drawRoadEndings(c:CanvasRenderingContext2D,world:WorldMap,bounds?:{x:number;y:number;w:number;h:number}) {
   if(world.id!=='overworld')return;
   for(const r of world.roads) {
     const points=roadPoints(r),half=roadWidth(r)/2;
     for(const [i,j,kind] of [[0,1,r.start],[points.length-1,points.length-2,r.end]] as const) {
       if(kind!=='entrance')continue;
-      const p=points[i],q=points[j];
+      const p=points[i],q=points[j],reach=half+56;
+      if(bounds && (p.x+reach<bounds.x || p.x-reach>bounds.x+bounds.w || p.y+reach<bounds.y || p.y-reach>bounds.y+bounds.h))continue;
       c.save();c.translate(p.x,p.y);c.rotate(r.direction==='horizontal' ? (p.x>q.x?0:Math.PI) : (p.y>q.y?Math.PI/2:-Math.PI/2));
       const trail=roadEndingKind(world,r,i)==='trail';
       if(trail){

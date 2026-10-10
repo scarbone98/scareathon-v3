@@ -1,0 +1,6 @@
+{
+  "note": "Known error-severity reachability issues (keys from scripts/check-wayside-fury-reachability.mjs). The test fails on any error not listed here; delete a key once its issue is fixed.",
+  "known": [
+    "coop:overworld:unreachable-arrival:arrival-interior-farmhouse-interior-farmhouse-exit"
+  ]
+}

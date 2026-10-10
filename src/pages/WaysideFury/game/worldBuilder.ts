@@ -13,6 +13,8 @@ export interface WorldProp {
   interiorId?: string;
   house?: { biome: import("./houseVariants.ts").HouseBiome; variant: number; mirrored: boolean };
   mailboxFacing?: number;
+  // Authored enclosure piece (e.g. a compound fence run): placement passes keep it exactly where it was built.
+  anchored?: boolean;
   footprints?: CollisionRect[];
   surface?: { direction?: "horizontal" | "vertical"; deckHeight?: number; gap?: readonly [number, number] };
 }
@@ -163,6 +165,8 @@ export function overlaps(a: CollisionRect, b: CollisionRect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 export function scatter(m: WorldMap, ground: "grass" | "ash", seed: number) {
+  // Scatter tests thousands of clearance points; index the bases it grows.
+  const index = propIndex(m);
   const reserved = [m.spawn, ...m.spawns].map(p => ({ x: p.x - 32, y: p.y - 32, w: 64, h: 64 }));
   reserved.push(...m.exits.map(e => ({ x: e.x - 32, y: e.y - 32, w: e.w + 64, h: e.h + 64 })));
   for (let n = 0; n < Math.floor(m.cols * m.rows / 22); n++) {
@@ -181,12 +185,12 @@ export function scatter(m: WorldMap, ground: "grass" | "ash", seed: number) {
       if (reserved.some(area => overlaps(clearance, area))) return false;
       for (let py = clearance.y; py <= clearance.y + clearance.h; py += 4) {
         for (let px = clearance.x; px <= clearance.x + clearance.w; px += 4) {
-          if (tileAt(m, Math.floor(px / TILE), Math.floor(py / TILE)) !== ground || isBlocked(m, px, py, 10)) return false;
+          if (tileAt(m, Math.floor(px / TILE), Math.floor(py / TILE)) !== ground || blocked(m, px, py, 10, index)) return false;
         }
       }
       return true;
     });
-    if (safe) prop(m, kind, x, y, w, h);
+    if (safe) indexRects(index, prop(m, kind, x, y, w, h).footprints ?? []);
   }
 }
 
@@ -220,7 +224,34 @@ function hitsRect(rect: CollisionRect, x: number, y: number, radius: number): bo
   const nearY = Math.max(rect.y, Math.min(y, rect.y + rect.h));
   return (x - nearX) ** 2 + (y - nearY) ** 2 < radius ** 2;
 }
+// Footprints bucketed on a coarse grid. A rect is listed in every cell its
+// bounds touch, so a query only reads the cells its own radius touches.
+const INDEX_CELL = 64;
+interface PropIndex { cols: number; rows: number; cells: CollisionRect[][] }
+const indexCell = (value: number, max: number) => Math.max(0, Math.min(max - 1, Math.floor(value / INDEX_CELL)));
+function indexRects(index: PropIndex, rects: CollisionRect[]) {
+  for (const rect of rects) {
+    for (let row = indexCell(rect.y, index.rows); row <= indexCell(rect.y + rect.h, index.rows); row++)
+      for (let col = indexCell(rect.x, index.cols); col <= indexCell(rect.x + rect.w, index.cols); col++) index.cells[row * index.cols + col].push(rect);
+  }
+}
+function propIndex(m: WorldMap): PropIndex {
+  const cols = Math.ceil(m.width / INDEX_CELL) + 1, rows = Math.ceil(m.height / INDEX_CELL) + 1;
+  const index = { cols, rows, cells: Array.from({ length: cols * rows }, () => [] as CollisionRect[]) };
+  for (const p of m.props) indexRects(index, p.footprints ?? []);
+  return index;
+}
+// Authored worlds are immutable once built. Sealing one gives isBlocked an
+// index; unsealed worlds (and worlds still being built) scan every prop.
+// The index belongs to the exact props array and length it was built from; a
+// replaced or grown array (fixtures, tools) falls back to the full scan.
+const sealed = new WeakMap<WorldMap, { props: WorldProp[]; count: number; index: PropIndex }>();
+export function sealWorld(m: WorldMap) { sealed.set(m, { props: m.props, count: m.props.length, index: propIndex(m) }); }
 export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolean {
+  const seal = sealed.get(m);
+  return blocked(m, x, y, radius, seal?.props === m.props && seal.count === m.props.length ? seal.index : undefined);
+}
+function blocked(m: WorldMap, x: number, y: number, radius: number, index?: PropIndex): boolean {
   if (x - radius < 0 || y - radius < 0 || x + radius > m.width || y + radius > m.height) return true;
   const drivableRibbon = m.id === 'overworld' && m.roads.some(r=>r.curve) && onRoad(m,x,y,-radius);
   for (let row = Math.floor((y - radius) / TILE); row <= Math.floor((y + radius) / TILE); row++) {
@@ -230,6 +261,12 @@ export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolea
   }
   // A coarse bridge tile cannot make water outside the exact ribbon walkable.
   if (m.id === 'overworld' && m.roads.some(r=>r.curve) && tileAt(m, Math.floor(x / TILE), Math.floor(y / TILE)) === 'bridge' && !onRoad(m,x,y,-radius)) return true;
+  if (index) {
+    for (let row = indexCell(y - radius, index.rows); row <= indexCell(y + radius, index.rows); row++)
+      for (let col = indexCell(x - radius, index.cols); col <= indexCell(x + radius, index.cols); col++)
+        for (const rect of index.cells[row * index.cols + col]) if (hitsRect(rect, x, y, radius)) return true;
+    return false;
+  }
   for (const p of m.props) for (const rect of p.footprints ?? []) {
     if (hitsRect(rect, x, y, radius)) return true;
   }

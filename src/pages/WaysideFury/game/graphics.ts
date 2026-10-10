@@ -1,4 +1,3 @@
-import { ChapterGoalStrip } from "./pacing";
 import { ActorAnimator } from './animation';
 import { relicTargets } from "./u1/items/relics";
 import { chipEffects, itemsState } from "./u1/items/chips";
@@ -35,7 +34,6 @@ export function rememberGraphicsMode(mode: GraphicsMode) {
 // The 2D renderer stays alive for other scenes and while the optional chunk loads.
 // A generation guards asynchronous imports against switches and React unmounts.
 export class GraphicsRenderer {
-  private goal: ChapterGoalStrip;
   private flat: Renderer;
   private animator = new ActorAnimator();
   private depthWorld: WorldMap | null = null;
@@ -53,7 +51,6 @@ export class GraphicsRenderer {
 
   constructor(private canvas: HTMLCanvasElement, mode: GraphicsMode, private onStatus?: (status: GraphicsStatus) => void) {
     this.flat = new Renderer(canvas);
-    this.goal = new ChapterGoalStrip(canvas);
     this.selected = mode;
     canvas.dataset.renderer = '2d';
     this.status('2d', 'ready');
@@ -79,13 +76,14 @@ export class GraphicsRenderer {
   }
   draw(s: GameState, dt = 1 / 60, frameDelta = dt) {
     if (this.disposed) return;
-    this.goal.update(s);
     s = this.animator.present(s, dt);
     this.depth?.syncRemotePeers(s);
     const legacyCounty = !!s.coop && (s.coop.protocolVersion ?? 1) < 6;
     if (this.partyWorld !== legacyCounty) { this.partyWorld = legacyCounty; this.generation++; this.loading=false; this.releaseDepth(); }
     const itemFallback = (s.mapId === 'space-launch' || s.mapId.startsWith('moon-')) && (relicTargets(s).length > 0 || chipEffects(s).scanner || itemsState(s).relics.outfits.length > 0);
-    const wantsDepth = !itemFallback && !s.fusion.world.forms.length && this.selected === '3d' && (!!s.opening || s.scene === 'overworld' || s.mapId==='space-launch' || s.mapId.startsWith('moon-'));
+    // The tutorial choice decides between the course and the county, so building
+    // either 3D world behind it would be thrown away (and stall the tap) on phones.
+    const wantsDepth = !itemFallback && !s.openingChoice && !s.fusion.world.forms.length && this.selected === '3d' && (!!s.opening || s.scene === 'overworld' || s.mapId==='space-launch' || s.mapId.startsWith('moon-'));
     const depthWorld = s.opening ? TEST_WORLD : legacyCounty ? COOP_OVERWORLD : OVERWORLD;
     if (wantsDepth && this.depthWorld !== depthWorld) { this.depthWorld = depthWorld; this.generation++; this.loading = false; this.releaseDepth(); }
     if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth(depthWorld);
@@ -113,7 +111,7 @@ export class GraphicsRenderer {
   dispose() {
     if (this.disposed) return;
     this.disposed = true; this.generation++; this.loading = false;
-    this.goal.dispose(); this.releaseDepth(); this.flat.dispose(); this.avatar = null; this.remoteAvatars.clear();
+    this.releaseDepth(); this.flat.dispose(); this.avatar = null; this.remoteAvatars.clear();
     this.canvas.style.visibility = '';
   }
   private loadDepth(world: WorldMap) {

@@ -25,6 +25,7 @@
     "check:wayside-fury-ux-browser": "node scripts/check-wayside-fury-ux-browser.mjs",
     "check:wayside-fury-campaign": "node scripts/check-wayside-fury-campaign.mjs",
     "check:wayside-fury-cloud": "node --test scripts/check-wayside-fury-cloud.test.mjs",
+    "check:wayside-fury-reachability": "node --test scripts/check-wayside-fury-reachability.test.mjs",
     "check:wayside-fury-music": "node scripts/check-wayside-fury-music.mjs && node scripts/check-wayside-fury-audio.mjs",
     "check:wayside-fury-webkit-audio": "node scripts/check-wayside-fury-webkit-audio.mjs",
     "balance:mystery-crypt": "node scripts/mystery-crypt-balance.mjs",
