@@ -87,6 +87,7 @@ interface Tumble { x: number; y: number; sprite: SpriteId; life: number; maxLife
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private images = new Map<BuiltinSpriteId, HTMLImageElement>();
+  private shadowGradients = new Map<number, CanvasGradient>();
   private avatar: HeroAvatar | null = null;
   private remoteAvatars = new Map<number, HeroAvatar>();
   private detailedSheets = new Map<BuiltinSpriteId, DetailedSheet>();
@@ -274,7 +275,7 @@ export class Renderer {
     if (s.scene === 'overworld') this.locationMarkers(s, motionTime);
     for (const effect of s.effects) if ((effect.kind === 'dash' || effect.kind === 'charge') && this.visible(effect.x, effect.y, 50)) this.effect(effect);
     for (const enemy of s.enemies) if (this.visible(enemy.tellX ?? enemy.x, enemy.tellY ?? enemy.y, 30)) drawWoodsHazard(this.ctx, enemy);
-    const visibleProps = world.props.filter(prop => this.visible(prop.x, prop.y, Math.max(prop.w, prop.h) + 30));
+    const visibleProps = world.props.filter(prop => this.visibleRect(prop));
     for (const prop of visibleProps.filter(prop => isGroundProp(prop) || GROUND_DECALS.has(prop.kind))) this.prop(prop, motionTime, s);
     const actors = visibleProps.filter(prop => !isGroundProp(prop) && !GROUND_DECALS.has(prop.kind)).map(prop => ({ y: prop.y + prop.h, draw: () => this.prop(prop, motionTime, s) }));
     if (s.scene === 'overworld') for (const part of zonePreviews(world)) if (this.visible(part.x, part.z, part.h + part.y + 40)) actors.push({ y: part.z, draw: () => drawPreviewPart(c, part) });
@@ -326,6 +327,11 @@ export class Renderer {
     if (this.transition > 0) { c.globalAlpha = this.transition / .18 * .65; this.rect(0, 0, width, height, '#151c2a'); c.globalAlpha = 1; }
   }
   private visible(x: number, y: number, margin = 40) { return x >= this.camera.x - margin && x <= this.camera.x + this.viewport.width + margin && y >= this.camera.y - margin && y <= this.camera.y + this.viewport.height + margin; }
+  // Prop art stays within its authored bounds plus roof, canopy and shadow
+  // overhang. Testing the bounds (not just the top-left corner with a
+  // width-sized margin) stops long fence runs and wide decals from being drawn
+  // from hundreds of units off-screen.
+  private visibleRect(p: { x: number; y: number; w: number; h: number }, margin = 64) { return p.x + p.w + margin >= this.camera.x && p.x - margin <= this.camera.x + this.viewport.width && p.y + p.h + margin >= this.camera.y && p.y - margin <= this.camera.y + this.viewport.height; }
   private pickupGlints(s: GameState, time: number) {
     for (const pickup of availablePickups(s)) {
       if (Math.hypot(pickup.x - s.x, pickup.y - s.y) > 80 || !this.visible(pickup.x, pickup.y)) continue;
@@ -982,8 +988,14 @@ export class Renderer {
   private shadow(x: number, y: number, width = 14) {
     const c = this.ctx;
     c.save(); c.translate(x, y); c.scale(1, .3);
-    const shadow = c.createRadialGradient(0, 0, width * .12, 0, 0, width * .65);
-    shadow.addColorStop(0, '#0c172568'); shadow.addColorStop(.55, '#0c17253d'); shadow.addColorStop(1, '#0c172500');
+    // The same width always makes the same gradient around the origin; keep
+    // one per width instead of building it for every tree, bush and actor.
+    let shadow = this.shadowGradients.get(width);
+    if (!shadow) {
+      shadow = c.createRadialGradient(0, 0, width * .12, 0, 0, width * .65);
+      shadow.addColorStop(0, '#0c172568'); shadow.addColorStop(.55, '#0c17253d'); shadow.addColorStop(1, '#0c172500');
+      this.shadowGradients.set(width, shadow);
+    }
     c.fillStyle = shadow; c.fillRect(-width * .7, -width * .7, width * 1.4, width * 1.4); c.restore();
   }
 

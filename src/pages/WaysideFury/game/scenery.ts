@@ -31,8 +31,11 @@ export function drawCanopy(c: CanvasRenderingContext2D, x: number, y: number) {
       }
     }
   }
-  c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-  c.drawImage(canopy, x - 16, y - 38, 32, 40); c.restore();
+  // Same smoothed blit as before, without a save/restore pair per tree.
+  const smoothing = c.imageSmoothingEnabled, quality = c.imageSmoothingQuality;
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.drawImage(canopy, x - 16, y - 38, 32, 40);
+  c.imageSmoothingEnabled = smoothing; c.imageSmoothingQuality = quality;
 }
 
 // The wreck is the reference asset: muted ochre, slate glass, block panels and
