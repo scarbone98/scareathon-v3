@@ -74,7 +74,7 @@ Where frame time went (dev build, profiled while driving):
   units, and the taxi plus junction fill most of the screen. You see too little
   county to steer by.
 - **P1-2 Chapter progress card covers the world.** It sits over the station
-  front and the road ahead on phone portrait.
+  front and the road ahead on phone portrait. *Fixed in batch 3.*
 - **P1-3 Odd shaded trapezoid behind the cab at the start junction.** It's the
   station apron or turnout drawn as a dark gradient slab.
 - **P1-5 Middle water road dead-ends (owner report).** The reservoir causeway
@@ -170,3 +170,19 @@ sparkle, which removes the second blit for most of the map.
 | Road ends that miss their junction | causeway ×2, reservoir loop ×2, garden loop ×1 (5) | 0 |
 | Station offset from authored spot | (−56, −24) | (0, 0) |
 | Node Fury checks failing | 9 | 8 |
+
+### Batch 3 — chapter progress joins the HUD column (`claude/fury-hud-chapter`)
+- The renderer-owned `ChapterGoalStrip` (a DOM panel injected beside the
+  canvas, centred 128 px from the top) is replaced by a compact React panel
+  inside the left `.wf-play-band` column, under the objective. World labels
+  already lay out below that column, so they no longer collide with it. Like
+  the minimap and items HUD, it hides while driving straight. Same text, same
+  `.wf-chapter-goal` / "Chapter progress" hooks, same visibility rules (also
+  hidden while paused).
+- Phone portrait before → after: the 280×58 card at y 185–243 over the road
+  and the "Old County Road" and "Candy machine" labels → a 254×42 row at
+  y 124–166 in the left column; both labels are readable again. Desktop: a
+  254×42 row under the objective, clear of the minimap.
+- Checks: tsc, eslint, `feel` and `feel-browser` (asserts the panel), and the
+  UX, HUD and playtest browser checks for phone 2D, phone 3D and desktop 2D
+  pass. Node Fury checks are unchanged from batch 2.
