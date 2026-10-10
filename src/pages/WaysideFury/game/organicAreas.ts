@@ -23,9 +23,10 @@ function ribbon(m: WorldMap, points: AreaPoint[], width: number, tile: TileKind)
   // Foot trails are native vector artwork over existing passable ground.
   // Only taxi roads need a material grid for the optional depth renderer.
   if (tile !== "road") return;
+  const half=width/2,segments=points.slice(1).map((b,i)=>{const a=points[i];return {a,b,left:Math.min(a.x,b.x)-half,right:Math.max(a.x,b.x)+half,top:Math.min(a.y,b.y)-half,bottom:Math.max(a.y,b.y)+half};});
   for(let row=1;row<m.rows-1;row++) for(let col=1;col<m.cols-1;col++) {
     const p={x:col*TILE+8,y:row*TILE+8};
-    if(points.slice(1).some((b,i)=>distance(p,points[i],b)<width/2)) {
+    if(segments.some(s=>p.x>=s.left&&p.x<=s.right&&p.y>=s.top&&p.y<=s.bottom&&distance(p,s.a,s.b)<half)) {
       const index=row*m.cols+col;
       // A trail never removes authored water, gates, cliffs or collision.
       if(tile==='road' && m.tiles[index]==='water') { m.tiles[index]='bridge'; m.collision[index]=0; }

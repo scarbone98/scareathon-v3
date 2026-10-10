@@ -20,7 +20,8 @@ export const roadInfrastructure = (p: WorldProp) => ['barrier', 'bridge-rail', '
 export function roadClearance(world: WorldMap) {
   const ribbons = world.roads.map(r => {
     const points=roadPoints(r),radius=roadWidth(r)/2+ROAD_SHOULDER;
-    return {r,points,radius,left:Math.min(...points.map(p=>p.x))-radius,right:Math.max(...points.map(p=>p.x))+radius,top:Math.min(...points.map(p=>p.y))-radius,bottom:Math.max(...points.map(p=>p.y))+radius};
+    const segments=points.slice(1).map((b,i)=>{const a=points[i];return {a,b,left:Math.min(a.x,b.x)-radius,right:Math.max(a.x,b.x)+radius,top:Math.min(a.y,b.y)-radius,bottom:Math.max(a.y,b.y)+radius};});
+    return {r,points,segments,radius,left:Math.min(...points.map(p=>p.x))-radius,right:Math.max(...points.map(p=>p.x))+radius,top:Math.min(...points.map(p=>p.y))-radius,bottom:Math.max(...points.map(p=>p.y))+radius};
   });
   const sidewalks=world.organic?.trails.filter(t=>t.tile==='stone')??[];
   const pockets=new Map<number,CollisionRect[]>();
@@ -51,7 +52,7 @@ export function roadClearance(world: WorldMap) {
   };
   const contains = (x: number, y: number) => onRibbon(x,y) || paved(x,y);
   const intersects = (rect: CollisionRect, includePaving = true) => {
-    if(ribbons.some(({r,points,radius,left,right,top,bottom})=>{
+    if(ribbons.some(({r,points,segments,radius,left,right,top,bottom})=>{
       if(right<=rect.x || left>=rect.x+rect.w || bottom<=rect.y || top>=rect.y+rect.h)return false;
       let polygon:RoadPoint[]=[{x:rect.x,y:rect.y},{x:rect.x+rect.w,y:rect.y},{x:rect.x+rect.w,y:rect.y+rect.h},{x:rect.x,y:rect.y+rect.h}];
       for(const [index,next,kind] of [[0,1,r.start],[points.length-1,points.length-2,r.end]] as const) {
@@ -67,7 +68,10 @@ export function roadClearance(world: WorldMap) {
       }
       if(polygon.length<3 || Math.abs(polygon.reduce((sum,p,i)=>sum+p.x*polygon[(i+1)%polygon.length].y-p.y*polygon[(i+1)%polygon.length].x,0))<.001)return false;
       const inside=(p:RoadPoint)=>{const signs=polygon.map((a,j)=>{const b=polygon[(j+1)%polygon.length];return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);});return signs.every(n=>n>=0)||signs.every(n=>n<=0);};
-      return points.some(inside) || points.slice(1).some((b,i)=>polygon.some((p,j)=>segmentDistance(points[i],b,p,polygon[(j+1)%polygon.length])<radius));
+      // The clipped polygon lies within rect, so far points and segments cannot touch it.
+      const rectRight=rect.x+rect.w,rectBottom=rect.y+rect.h;
+      return points.some(p=>p.x>=rect.x&&p.x<=rectRight&&p.y>=rect.y&&p.y<=rectBottom&&inside(p))
+        || segments.some(s=>s.right>=rect.x&&s.left<=rectRight&&s.bottom>=rect.y&&s.top<=rectBottom&&polygon.some((p,j)=>segmentDistance(s.a,s.b,p,polygon[(j+1)%polygon.length])<radius));
     }))return true;
     if(includePaving)for(let y=rect.y;y<=rect.y+rect.h;y+=2)for(let x=rect.x;x<=rect.x+rect.w;x+=2)if(paved(x,y))return true;
     return false;

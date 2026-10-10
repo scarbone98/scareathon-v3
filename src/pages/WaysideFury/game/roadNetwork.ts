@@ -45,8 +45,19 @@ export function roadDistance(r: RoadSegment, x: number, y: number) {
   }
   return Math.sqrt(nearest);
 }
-export const onRoad = (world: WorldMap,x:number,y:number,margin=0) => world.roads.some(r=>roadDistance(r,x,y)<=roadWidth(r)/2+margin);
-export const junctionAt = (world:WorldMap,r:RoadSegment,x:number,y:number,margin=12) => world.roads.some(other=>other!==r&&roadDistance(other,x,y)<roadWidth(other)/2+margin);
+// Centerline bounds let point queries skip roads that are plainly too far away.
+const bounds = new WeakMap<RoadPoint[], {left:number;right:number;top:number;bottom:number}>();
+export function roadBounds(r: RoadSegment) {
+  const points=roadPoints(r);let box=bounds.get(points);
+  if(!box){box={left:Infinity,right:-Infinity,top:Infinity,bottom:-Infinity};for(const p of points){box.left=Math.min(box.left,p.x);box.right=Math.max(box.right,p.x);box.top=Math.min(box.top,p.y);box.bottom=Math.max(box.bottom,p.y);}bounds.set(points,box);}
+  return box;
+}
+const within = (r: RoadSegment, x: number, y: number, reach: number) => {
+  const box=roadBounds(r);
+  return x>=box.left-reach && x<=box.right+reach && y>=box.top-reach && y<=box.bottom+reach;
+};
+export const onRoad = (world: WorldMap,x:number,y:number,margin=0) => world.roads.some(r=>{const reach=roadWidth(r)/2+margin;return within(r,x,y,reach)&&roadDistance(r,x,y)<=reach;});
+export const junctionAt = (world:WorldMap,r:RoadSegment,x:number,y:number,margin=12) => world.roads.some(other=>{const reach=roadWidth(other)/2+margin;return other!==r&&within(other,x,y,reach)&&roadDistance(other,x,y)<reach;});
 export interface RoadPaint { a: RoadPoint; b: RoadPoint; points?: RoadPoint[]; width: number; kind: 'lane' | 'stop' }
 export function networkPaint(world:WorldMap):RoadPaint[] {
   if(world.id==='overworld')return countyRoadPaint(world);
@@ -129,10 +140,15 @@ function curbCorners(world:WorldMap,inset:number):CurbCorner[] {
 }
 export const isRoadScene = (world: WorldMap) => ['overworld','hub','city-boulevard','city-market','city-clockroof'].includes(world.id);
 const paintCache=new WeakMap<WorldMap,RoadPaint[]>();
-export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
+export interface DrawBounds { x: number; y: number; w: number; h: number }
+// Bounds let cached terrain chunks skip geometry that cannot reach their pixels.
+const touches = (bounds: DrawBounds | undefined, left: number, top: number, right: number, bottom: number, pad = 0) =>
+  !bounds || right + pad >= bounds.x && left - pad <= bounds.x + bounds.w && bottom + pad >= bounds.y && top - pad <= bounds.y + bounds.h;
+export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap,bounds?:DrawBounds) {
   if(!world.roads.length || world.id && !isRoadScene(world))return;
   c.save();c.lineJoin='round';c.lineCap='round';
   for(const p of world.props??[]) if(['barrier','bridge-rail','gate-wall','portal'].includes(p.kind)) for(const r of p.footprints??[]) {
+    if(!touches(bounds,r.x,r.y,r.x+r.w,r.y+r.h,2))continue;
     c.beginPath();c.rect(-20000,-20000,40000,40000);c.rect(r.x,r.y,r.w,r.h);c.clip('evenodd');
   }
   // Union in two passes: every curb first, then every asphalt ribbon. No road
@@ -141,6 +157,9 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
   for(const [color,inset] of layers) {
     c.strokeStyle=color;
     for(const r of world.roads) {
+      const box=roadBounds(r);
+      // Non-overworld roads are stretched to the room edge below.
+      if(world.id==='overworld' && !touches(bounds,box.left,box.top,box.right,box.bottom,roadWidth(r)/2+8))continue;
       c.save();clipRoadEnds(c,r,world);
       c.lineWidth=roadWidth(r)-inset;c.beginPath();const points=roadPoints(r).map(p=>({...p}));
       if(world.id!=='overworld') {
@@ -152,14 +171,17 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap) {
     }
     c.fillStyle=color;
     for(const {corner,a,b} of curbCorners(world,inset)) {
+      if(!touches(bounds,Math.min(corner.x,a.x,b.x),Math.min(corner.y,a.y,b.y),Math.max(corner.x,a.x,b.x),Math.max(corner.y,a.y,b.y),2))continue;
       c.beginPath();c.moveTo(corner.x,corner.y);c.lineTo(a.x,a.y);
       c.quadraticCurveTo(corner.x,corner.y,b.x,b.y);c.closePath();c.fill();
     }
   }
-  drawRoadEndings(c,world);
+  drawRoadEndings(c,world,bounds);
   let marks=paintCache.get(world);if(!marks){marks=networkPaint(world);paintCache.set(world,marks);}
   c.lineCap='round';
-  for(const mark of marks) {c.strokeStyle=mark.kind==='lane'?'#c6b991':'#e0ded0';c.lineWidth=mark.width;c.beginPath();c.moveTo(mark.a.x,mark.a.y);for(const p of mark.points?.slice(1)??[mark.b])c.lineTo(p.x,p.y);c.stroke();}
+  for(const mark of marks) {
+    if(bounds){const points=mark.points??[mark.a,mark.b];if(!touches(bounds,Math.min(...points.map(p=>p.x)),Math.min(...points.map(p=>p.y)),Math.max(...points.map(p=>p.x)),Math.max(...points.map(p=>p.y)),mark.width+2))continue;}
+    c.strokeStyle=mark.kind==='lane'?'#c6b991':'#e0ded0';c.lineWidth=mark.width;c.beginPath();c.moveTo(mark.a.x,mark.a.y);for(const p of mark.points?.slice(1)??[mark.b])c.lineTo(p.x,p.y);c.stroke();}
   c.restore();
 }
 // Road tiles remain a coarse material/navigation index, never visible asphalt.

@@ -31,13 +31,19 @@ export function propPlacementViolations(world: WorldMap): string[] {
 // Reconcile after terrain/road shaping. Existing art, sizes and IDs travel
 // unchanged with their bases. Decorative scatter with no valid slot is removed.
 export function settleOverworldProps(world: WorldMap) {
-  const mask = roadMask(world), placed: WorldProp[] = [];
+  const mask = roadMask(world), placed: WorldProp[] = [], grid = new Map<number, CollisionRect[]>();
+  // Placed bases bucketed by 64px cell; candidates only test nearby bases.
+  const cells = (r: CollisionRect, visit: (key: number) => boolean | void) => {
+    for (let row = Math.floor(r.y / 64); row <= Math.floor((r.y + r.h) / 64); row++)
+      for (let col = Math.floor(r.x / 64); col <= Math.floor((r.x + r.w) / 64); col++) if (visit(row * 4096 + col)) return true;
+    return false;
+  };
   const priority = (p: WorldProp) => roadInfrastructure(p) ? 0 : ['station','home','shed','diner','water-tower','car','ambient-taxi','rocket','gantry','tank','control'].includes(p.kind) ? 1 : 2;
   for (const p of [...world.props].sort((a,b) => priority(a)-priority(b))) {
     const valid = (dx: number, dy: number) => placementRects(p).every(base => {
       const r = { ...base, x: base.x + dx, y: base.y + dy };
       return terrainSupports(world, r) && (roadInfrastructure(p) || !mask.intersects(r, false))
-        && !placed.some(q => placementRects(q).some(b => overlaps(r, b)));
+        && !cells(r, key => grid.get(key)?.some(b => overlaps(r, b)));
     });
     let offset: {dx: number; dy: number} | undefined = valid(0,0) ? {dx:0,dy:0} : undefined;
     if (!offset) for (let radius = 8; radius <= 160 && !offset; radius += 8) {
@@ -57,6 +63,7 @@ export function settleOverworldProps(world: WorldMap) {
       if (closest) p.mailboxFacing = Math.atan2(closest.y-center.y,closest.x-center.x);
     }
     placed.push(p);
+    for (const r of placementRects(p)) cells(r, key => { const list = grid.get(key); if (list) list.push(r); else grid.set(key, [r]); });
   }
   world.props = placed;
 }

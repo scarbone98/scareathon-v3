@@ -2,13 +2,19 @@ import { drawOverworldBanks } from './overworldBanks.ts';
 import { drawCountyWater } from './overworldWater.ts';
 import { continuousBlastGround, drawBlastGround, drawWornTrails } from './roomGround.ts';
 import { roadMask } from './roadClearance.ts';
-import { drawRoadNetwork, roadGround } from './roadNetwork.ts';
+import { drawRoadNetwork, roadGround, type DrawBounds } from './roadNetwork.ts';
+import { drawAreaGround } from './renderAreas2d.ts';
 import { roadMarks } from './roadMarkings';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
 
 const MAX_CHUNK_TILES = 4;
 const CHUNK_PIXEL_TARGET = 256;
 const MAX_CACHE_PIXELS = 12_000_000;
+const OVERLAY_SCALE = 2;
+type OverlayPainter = (c: CanvasRenderingContext2D, bounds: DrawBounds) => void;
+const overlayPainter = (world: WorldMap): OverlayPainter | null =>
+  world.organic ? (c, bounds) => drawAreaGround(c, world, bounds)
+  : world.id === 'overworld' ? (c, bounds) => drawRoadNetwork(c, world, bounds) : null;
 export const MATERIALS: Record<TileKind, readonly [string, string, string]> = {
   grass: ['#385943', '#668358', '#274638'], dirt: ['#8c795a', '#c0a578', '#716149'],
   road: ['#37474d', '#627074', '#26373d'], water: ['#2c6379', '#8bb7bb', '#244a65'],
@@ -36,37 +42,57 @@ export class TerrainCache {
   draw(c: CanvasRenderingContext2D, world: WorldMap, camera: { x: number; y: number }, width: number, height: number, time: number, pixelScale = 1, dpr = 1) {
     // Smaller chunks at high DPR limit the memory spent just outside the view.
     const chunkTiles = Math.max(1, Math.min(MAX_CHUNK_TILES, Math.floor(CHUNK_PIXEL_TARGET / (TILE * pixelScale))));
-    const chunkSize = TILE * chunkTiles, chunkPixels = (chunkSize * pixelScale) ** 2;
-    const minX = Math.floor(camera.x / chunkSize), minY = Math.floor(camera.y / chunkSize);
-    const maxX = Math.ceil((camera.x + width) / chunkSize), maxY = Math.ceil((camera.y + height) / chunkSize);
-    const visible = new Set<string>();
-    const keyFor = (cx: number, cy: number) => `${world.id}:${pixelScale}:${dpr}:${chunkTiles}:${cx}:${cy}`;
-    for (let cy = minY; cy < maxY; cy++) for (let cx = minX; cx < maxX; cx++) visible.add(keyFor(cx, cy));
+    const ground = this.layer('ground', world, camera, width, height, pixelScale, dpr, chunkTiles);
+    // Roads, trails and landforms are static vector art above the water ripples.
+    // Larger transparent chunks amortize the network walk across fewer bakes.
+    const paint = overlayPainter(world);
+    const overlay = paint ? this.layer('overlay', world, camera, width, height, pixelScale, dpr, chunkTiles * OVERLAY_SCALE) : null;
+    const visible = new Set([...ground.keys, ...overlay?.keys ?? []]);
     // The budget is bounded by 12M pixels or one complete visible working set,
     // whichever is larger. A large screen must retain its own native surface;
     // evicting visible chunks would rerasterize static terrain every frame.
-    this.cacheBudgetPixels = Math.max(MAX_CACHE_PIXELS, visible.size * chunkPixels);
+    this.cacheBudgetPixels = Math.max(MAX_CACHE_PIXELS, ground.keys.length * ground.chunkPixels + (overlay ? overlay.keys.length * overlay.chunkPixels : 0));
     this.trim(this.cacheBudgetPixels, visible);
+    this.blit(c, ground, visible, (cx, cy) => this.makeChunk(world, cx, cy, pixelScale, chunkTiles));
+    this.animate(c, world, camera, width, height, time);
+    if (overlay && paint) this.blit(c, overlay, visible, (cx, cy) => this.makeOverlay(paint, cx, cy, pixelScale, overlay.chunkSize));
+  }
+  private layer(name: string, world: WorldMap, camera: { x: number; y: number }, width: number, height: number, pixelScale: number, dpr: number, chunkTiles: number) {
+    const chunkSize = TILE * chunkTiles, chunkPixels = (chunkSize * pixelScale) ** 2;
+    const minX = Math.floor(camera.x / chunkSize), minY = Math.floor(camera.y / chunkSize);
+    const maxX = Math.ceil((camera.x + width) / chunkSize), maxY = Math.ceil((camera.y + height) / chunkSize);
+    const keys: string[] = [];
+    for (let cy = minY; cy < maxY; cy++) for (let cx = minX; cx < maxX; cx++) keys.push(`${name}:${world.id}:${pixelScale}:${dpr}:${chunkTiles}:${cx}:${cy}`);
+    return { keys, chunkSize, chunkPixels, minX, minY, maxX };
+  }
+  private blit(c: CanvasRenderingContext2D, layer: ReturnType<TerrainCache['layer']>, visible: Set<string>, make: (cx: number, cy: number) => HTMLCanvasElement) {
     // Adjacent cached images share exact physical-pixel edges even as the
     // camera eases. Actors retain their independent subpixel interpolation.
     c.save();
     const transform = c.getTransform();
     c.setTransform(transform.a, transform.b, transform.c, transform.d, Math.round(transform.e), Math.round(transform.f));
-    for (let cy = minY; cy < maxY; cy++) for (let cx = minX; cx < maxX; cx++) {
-      const key = keyFor(cx, cy);
+    const columns = layer.maxX - layer.minX;
+    for (const [i, key] of layer.keys.entries()) {
+      const cx = layer.minX + i % columns, cy = layer.minY + Math.floor(i / columns);
       let chunk = this.chunks.get(key);
       if (!chunk) {
         // Release old offscreen canvases before allocating their replacements.
-        this.trim(this.cacheBudgetPixels - chunkPixels, visible);
-        chunk = this.makeChunk(world, cx, cy, pixelScale, chunkTiles);
+        this.trim(this.cacheBudgetPixels - layer.chunkPixels, visible);
+        chunk = make(cx, cy);
         this.cachePixels += chunk.width * chunk.height;
       }
       this.chunks.delete(key); this.chunks.set(key, chunk);
-      c.drawImage(chunk, cx * chunkSize, cy * chunkSize, chunkSize, chunkSize);
+      c.drawImage(chunk, cx * layer.chunkSize, cy * layer.chunkSize, layer.chunkSize, layer.chunkSize);
     }
     c.restore();
-    this.animate(c, world, camera, width, height, time);
-    if(world.id==='overworld' && !world.organic)drawRoadNetwork(c,world);
+  }
+  private makeOverlay(paint: OverlayPainter, cx: number, cy: number, pixelScale: number, chunkSize: number) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = chunkSize * pixelScale;
+    const c = canvas.getContext('2d')!;
+    c.scale(pixelScale, pixelScale); c.imageSmoothingEnabled = false; c.translate(-cx * chunkSize, -cy * chunkSize);
+    paint(c, { x: cx * chunkSize, y: cy * chunkSize, w: chunkSize, h: chunkSize });
+    return canvas;
   }
   private trim(budget: number, visible: Set<string>) {
     if (this.cachePixels <= budget) return;

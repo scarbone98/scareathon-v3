@@ -10,7 +10,7 @@ import { CITY_WORLDS } from "./chapters/ch4Worlds.ts";
 import { WOODS_WORLDS } from "./chapters/ch2Worlds.ts";
 import { dressCounty } from "./county.ts";
 import { compound, LAUNCH_WORLD, MOON_WORLDS } from "./chapters/ch3Worlds.ts";
-import { TILE, tileAt, map, paint, prop, parkedCar, boundary, exit, road, scatter, encounter, type WorldMap } from "./worldBuilder.ts";
+import { TILE, tileAt, map, paint, prop, parkedCar, boundary, exit, road, scatter, encounter, sealWorld, type WorldMap } from "./worldBuilder.ts";
 export * from "./worldBuilder.ts";
 
 const makeOverworld = (expanded: boolean) => {
@@ -181,3 +181,5 @@ for (const world of [OVERWORLD, COOP_OVERWORLD]) {
   world.props = world.props.filter(p => p.kind !== 'portal');
   settleOverworldProps(world);
 }
+// Nothing moves a prop after this point; index collision for the frame loop.
+for (const world of [...ALL_WORLDS, COOP_OVERWORLD]) sealWorld(world);

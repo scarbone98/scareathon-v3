@@ -25,7 +25,7 @@ import { globeAvailable, type GlobeDestination } from "./game/globe";
 import { COUNTY_STOPS } from "./game/county";
 import { LOCATIONS } from "./game/content";
 import { getMap } from "./game/campaign";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { CoopMenu } from "./CoopMenu";
 import { CharacterSheet } from "./CharacterSheet";
 import { layoutLabels } from "./game/labelLayout";
@@ -88,7 +88,22 @@ function PromptGlyph({ mode, action = "interact" }: { mode: InputMode; action?: 
   const glyph = /playstation|dualshock|dualsense|sony/i.test(pad?.id ?? "") ? "✕" : /switch|nintendo/i.test(pad?.id ?? "") ? "B" : "A";
   return mode === "keyboard" ? <kbd aria-hidden="true">{keyboardBinding(action).toUpperCase()}</kbd> : <span className="wf-pad-glyph" aria-hidden="true">{glyph}</span>;
 }
-function SceneSurface({ canvas, presentation, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; presentation: RenderPresentation | null; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
+// Labels follow the camera at ~30 Hz. Only the label layer subscribes, so the
+// HUD, touch controls and minimap do not re-render with every camera step.
+function presentationStore() {
+  let value: RenderPresentation | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (next: RenderPresentation | null) => { value = next; for (const listener of listeners) listener(); },
+    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+  };
+}
+type PresentationStore = ReturnType<typeof presentationStore>;
+// One game page is mounted at a time; labels are hidden until it is playing.
+const presentation = presentationStore();
+function SceneSurface({ canvas, store, visible, onTouch, soundBlocked, onSound }: { canvas: RefObject<HTMLCanvasElement>; store: PresentationStore; visible: boolean; onTouch: () => void; soundBlocked: boolean; onSound: () => void }) {
+  const live = useSyncExternalStore(store.subscribe, store.get), presentation = visible ? live : null;
   const stage = useRef<HTMLDivElement>(null);
   const [bounds, setBounds] = useState({ width: 1, height: 1, top: 40 });
   useLayoutEffect(() => {
@@ -248,7 +263,6 @@ export default function WaysideFury() {
   };
   const [mode, setMode] = useState<InputMode>(navigator.maxTouchPoints > 0 ? "touch" : "keyboard");
   const [reward, setReward] = useState(0);
-  const [presentation, setPresentation] = useState<RenderPresentation | null>(null);
   const [viewport, setViewport] = useState({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth, top: window.visualViewport?.offsetTop ?? 0, left: window.visualViewport?.offsetLeft ?? 0 });
   const [tutorial, setTutorial] = useState(tutorialVisible);
   const [noticeVisible, setNoticeVisible] = useState(false);
@@ -335,7 +349,7 @@ export default function WaysideFury() {
     buttons[(index < 0 ? direction > 0 ? 0 : buttons.length - 1 : (index + direction + buttons.length) % buttons.length)].focus();
   } };
   useEffect(() => {
-    const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: setPresentation, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
+    const game = new GameController(canvas.current!, {onState: setState, onInputMode: setMode, onPresentation: presentation.set, onSoundBlocked: setSoundBlocked, onGraphics: setGraphicsStatus,
       onPause: () => handlers.current.pause(), onConfirm: () => handlers.current.confirm(), onNavigate: (direction, axis) => handlers.current.navigate(direction, axis),
       onEvent: (s, event) => {
         if (event.type === "arena-finish") void submitArcadeScore(arenaGame(event.receipt.mode), event.score, { arenaRun: event.receipt });
@@ -552,7 +566,7 @@ export default function WaysideFury() {
     {!inlineSave && !state.film && <span className={`wf-save-status wf-save-${syncStatus}`} role="status">{SAVE_LABELS[syncStatus]}</span>}
     {saveToast && <div className="wf-save-toast" role="status">{saveToast}</div>}
     {(loadingSave || loadingAvatar) && playing && <div className="wf-sync-loading">Loading your character…</div>}
-    <SceneSurface canvas={canvas} presentation={playing ? presentation : null} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
+    <SceneSurface canvas={canvas} store={presentation} visible={playing} onTouch={() => send({})} soundBlocked={soundBlocked} onSound={() => controller.current?.unlockAudio()} />
     {playing && state.openingChoice && <Modal className="wf-tutorial-choice" aria-label="Tutorial choice"><h2>Practice the basics?</h2><div><button onClick={() => chooseTutorial(true)}>Play tutorial</button><button className="wf-secondary" onClick={() => chooseTutorial(false)}>Skip</button></div></Modal>}
     {playing && state.opening && !paused && <section className="wf-opening" aria-label="Guided opening">
       <strong>Practice · {state.opening.stage + 1}/6</strong>

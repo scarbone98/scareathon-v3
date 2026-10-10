@@ -1,0 +1,41 @@
+# Handoff notes from local Opus run (last progress lines)
+- The page load hangs in sprite-sheet preparation, and my dev server timed out. I'm restarting the server detached so it stays up, then I'll look into the hang.
+- I'm profiling why the page hangs on load.
+- The page's main thread stays pinned at load. I'm tracing which code calls the collision checks during startup.
+- No runtime code mutates props, so a spatial index is safe once the worlds are built. Implementing it now, with exact-output checks against the baseline snapshot.
+- Same output hash, and the build dropped from about 11.3s to 3.7s in Node. Profiling the rest.
+- The world build is now about 1.4s in Node, down from about 11s, with identical output. Checking the browser number, then moving on to per-frame performance.
+- [Image: original 1170x2532, displayed at 924x2000. Multiply coordinates by 1.27 to map to original image.]
+- [Image: original 1170x2532, displayed at 924x2000. Multiply coordinates by 1.27 to map to original image.]
+- The baseline run is extremely slow, which is itself a finding. While it runs, I'm reading the 2D overworld render path.
+- Chrome sits idle during these runs, so the stall isn't CPU load. I'm stopping the run and debugging frame delivery directly.
+- Frames take about 2 seconds each in the overworld. Profiling what a frame spends that time on.
+- The main thread is idle; the time goes to GPU rasterization under SwiftShader, so this setup can't measure real frame cost. Trying the Metal GPU backend instead.
+- Metal works: about 27 fps under the profiler at phone DPR 3, and the title screen is ready in 3s instead of 44s. Running the full before/after capture with Metal now.
+- Baseline is about 11 fps in every case, yet the median draw call takes only about 10ms, so most of each frame goes somewhere other than our draw. Profiling with Metal to find where.
+- Dev-mode React overhead skews these numbers, so I'm building production bundles for both baseline and current code to measure real frame cost.
+- The 2D terrain chunk builder is the biggest cost: it spikes when new chunks stream in, mostly in road-clearance checks. Reading `terrain.ts`.
+- Label updates now re-render only the label layer. Next, the static-overlay chunk cache for roads, trails and landforms. Reading the remaining road-drawing helpers so I can cull them per chunk.
+- I'll add bounds culling to the road, trail and landform drawers, then cache their output in a transparent second chunk layer drawn after the animated water.
+- Now restructuring `TerrainCache` to hold the second chunk layer.
+- Typecheck is clean. Next I'll pixel-compare baseline vs current renders at fixed positions with the clock frozen, to confirm the caching changes nothing visually.
+- Both servers are up. Re-running the pixel compare in the background, phone 2D first.
+- Meanwhile, running eslint on the changed files and the existing node-side Fury checks that cover world building, roads and placement.
+- Some checks fail. Checking whether they also fail on the untouched baseline, and reading the pixel-compare results.
+- Four checks already fail on baseline. `collision` and `city` pass on baseline but fail with my changes, so those are regressions to fix.
+- The test fixtures swap a world's `props` array, so the sealed index goes stale. I'll tie the index to the props array it was built from and fall back to a linear scan when the array changes.
+- `collision` and `city` pass now. The pixel diffs are tiny, but desktop shows a constant 0.017% strong difference at every spot, so I'm locating it.
+- On desktop the only strong differences are the HUD portrait and Ki bar, which are DOM overlays rather than world rendering. Checking the phone blast-gate spot.
+- While those run, the server unit tests:
+- Batch 1 is waiting on the browser checks for the current code (the baseline playtest check passed). I'll wait for them to finish before committing.
+- While the checks run, I'm reading code for the next batch without editing, since the dev server would hot-reload mid-check.
+- Still waiting on the current-code browser checks (baseline playtest passed). Meanwhile I'm reading the 3D renderer's per-frame path for the next perf batch.
+- The current-code playtest run has just started (the baseline run took most of the time). The monitor will report when it finishes.
+- While waiting, I'm writing a tool that renders the whole overworld into one image, for a holistic layout review.
+- The baseline HUD check passed. Cropping a loop corner to see how the corner bulbs are formed:
+- The HUD check's third case is phone 3D with a 30s timeout, the same 3D-under-load pattern as the playtest failure. I'll rerun both alone once the minimap check finishes.
+- I'll wait for the minimap results before the next step.
+- The minimap check times out on baseline too, so that's environmental. Rerunning the two 3D failures alone, current code first, then baseline for comparison, with nothing else competing.
+- A real regression: phone 3D times out only on the current code. Checking where.
+- The check waits for the 3D renderer to come up in the tutorial and it never does. Looking for a load error:
+- 3D loads fine now. Rerunning the phone 3D playtest and the HUD check on current code:
