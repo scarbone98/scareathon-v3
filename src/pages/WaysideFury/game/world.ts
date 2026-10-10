@@ -16,13 +16,19 @@ export * from "./worldBuilder.ts";
 const makeOverworld = (expanded: boolean) => {
   const m = map("overworld", "Wayside County", expanded ? 144 : 120, expanded ? 96 : 60, "grass");
   boundary(m, "grass");
-  paint(m, 224, 192, 224, 208, "sand"); paint(m, 240, 208, 192, 176, "water", true);
+  // The solo county pond leaves the station room to sit on its own drive;
+  // the frozen party county keeps its original shoreline.
+  const pond = expanded ? 64 : 0;
+  paint(m, 224 + pond, 192, 224 - pond, 208, "sand"); paint(m, 240 + pond, 208, 192 - pond, 176, "water", true);
   paint(m, 864, 80, 272, 144, "sand"); paint(m, 880, 96, 240, 112, "water", true);
   paint(m, 1008, 256, 176, 160, "ash"); paint(m, 1024, 272, 144, 112, "corrupt");
   paint(m, 576, 80, 160, 160, "corrupt"); paint(m, 944, 544, 176, 96, "corrupt");
   // Paint the roads after regional terrain so corruption cannot cut a branch off.
   road(m, { id: 'county', x: 32, y: 448, w: expanded ? 2240 : 1856, h: 64, direction: 'horizontal', start: 'barrier', end: 'barrier' });
-  road(m, { id: 'station', x: 176, y: 432, w: 64, h: 80, direction: 'vertical', start: 'entrance', end: 'junction' });
+  // In the solo county the station fronts the road directly; a paved apron
+  // joins its door to the curb. The frozen party county keeps its old drive.
+  if (expanded) paint(m, 192, 432, 48, 16, 'stone');
+  else road(m, { id: 'station', x: 176, y: 432, w: 64, h: 80, direction: 'vertical', start: 'entrance', end: 'junction' });
   road(m, { id: 'forest', x: 624, y: 240, w: 64, h: 272, direction: 'vertical', start: 'entrance', end: 'junction' });
   road(m, { id: 'blast', x: 1056, y: 416, w: 64, h: 96, direction: 'vertical', start: 'entrance', end: 'junction' });
   road(m, { id: 'city', x: 1008, y: 448, w: 64, h: 96, direction: 'vertical', start: 'junction', end: 'entrance' });

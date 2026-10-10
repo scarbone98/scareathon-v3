@@ -9,9 +9,11 @@ const authoredPoints = (r: RoadSegment): RoadPoint[] => r.curve ?? (r.direction 
   : [{x:r.x+r.w/2,y:r.y},{x:r.x+r.w/2,y:r.y+r.h}]);
 // Small tangent fillets preserve authored road routes while rounding bends.
 // All paint, collision queries and the terrain decal use this cached centerline.
-const centerlines = new WeakMap<RoadSegment, RoadPoint[]>();
+// Keyed by the authored curve too: shaping replaces r.curve (bends, then
+// junction snaps) after earlier queries, and a stale line undid the snaps.
+const centerlines = new WeakMap<RoadSegment, { curve?: RoadPoint[]; points: RoadPoint[] }>();
 export function roadPoints(r: RoadSegment): RoadPoint[] {
-  const saved = centerlines.get(r); if (saved) return saved;
+  const saved = centerlines.get(r); if (saved && saved.curve === r.curve) return saved.points;
   const source = authoredPoints(r), result = [source[0]];
   for (let i = 1; i < source.length - 1; i++) {
     const a = source[i-1], b = source[i], c = source[i+1];
@@ -25,7 +27,7 @@ export function roadPoints(r: RoadSegment): RoadPoint[] {
       result.push({x:u*u*start.x+2*u*t*b.x+t*t*end.x,y:u*u*start.y+2*u*t*b.y+t*t*end.y});
     }
   }
-  result.push(source[source.length-1]); centerlines.set(r,result); return result;
+  result.push(source[source.length-1]); centerlines.set(r,{curve:r.curve,points:result}); return result;
 }
 export const roadWidth = (r: RoadSegment) => r.curveWidth ?? (r.direction==='horizontal'?r.h:r.w);
 export function projectRoad(p: RoadPoint, a: RoadPoint, b: RoadPoint) {

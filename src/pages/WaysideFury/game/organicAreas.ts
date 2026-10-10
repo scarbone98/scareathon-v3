@@ -114,6 +114,22 @@ export function shapeOrganicAreas(worlds: WorldMap[]) {
       for(const [index,kind] of [[0,r.start],[points.length-1,r.end]] as const) {
         if(kind!=='junction')continue;
         const p=points[index];
+        // Slide the terminal along its own heading onto the nearest crossing
+        // centerline, so spurs stay straight; otherwise project sideways.
+        const inward=index?points.slice(0,index).reverse():points.slice(1);
+        const back=inward.find(q=>Math.hypot(q.x-p.x,q.y-p.y)>=8)??inward[0];
+        const len=Math.hypot(p.x-back.x,p.y-back.y)||1,dx=(p.x-back.x)/len,dy=(p.y-back.y)/len;
+        let slide: {x:number;y:number;along:number}|undefined;
+        for(const other of county.roads) if(other!==r) {
+          const q=roadPoints(other);
+          for(let i=1;i<q.length;i++){
+            const a=q[i-1],b=q[i],ex=b.x-a.x,ey=b.y-a.y,den=dx*ey-dy*ex;
+            if(Math.abs(den)<1e-9)continue;
+            const along=((a.x-p.x)*ey-(a.y-p.y)*ex)/den,t=((a.x-p.x)*dy-(a.y-p.y)*dx)/den;
+            if(t>=0&&t<=1&&Math.abs(along)<144&&(!slide||Math.abs(along)<Math.abs(slide.along)))slide={x:p.x+dx*along,y:p.y+dy*along,along};
+          }
+        }
+        if(slide){points[index]={x:slide.x,y:slide.y};continue;}
         const candidates=county.roads.filter(other=>other!==r).flatMap(other=>{
           const q=roadPoints(other);return q.slice(1).map((b,i)=>projectRoad(p,q[i],b));
         }).sort((a,b)=>a.distance-b.distance);

@@ -77,6 +77,18 @@ Where frame time went (dev build, profiled while driving):
   front and the road ahead on phone portrait.
 - **P1-3 Odd shaded trapezoid behind the cab at the start junction.** It's the
   station apron or turnout drawn as a dark gradient slab.
+- **P1-5 Middle water road dead-ends (owner report).** The reservoir causeway
+  stopped in a rounded cap short of the county shortcut, and its west end
+  stuck out past the garden loop. The reservoir loop left rounded stubs at
+  both bottom corners, and the garden loop poked a semicircle above the county
+  road beside the station. Cause: `roadPoints` cached each road's centerline
+  by road object, so the junction-snap pass in `shapeOrganicAreas` rewrote
+  `r.curve` but every reader kept the pre-snap line. The snap never applied to
+  any road. *Fixed in batch 2.*
+- **P1-6 Station off its drive.** The station is authored on its driveway, but
+  the pond's west shore overlapped that spot, so placement pushed the building
+  56 px left and 24 px up. That left the drive's entrance flare as the stray
+  grey slab of P1-3. *Fixed in batch 2.*
 - **P1-4 Only one house and one mailbox in the overworld.** 657 props, of which
   289 are trees and 244 flowers. The "town" reads as trees and roads.
 
@@ -135,3 +147,26 @@ chunks don't help. With GPU canvas (the normal case) these are texture blits.
 **Open:** confirm on a desktop with GPU canvas disabled. If it matters, bake the
 overlay straight into ground chunks that have no animated water or corruption
 sparkle, which removes the second blit for most of the map.
+
+### Batch 2 — road junctions and the station front (`claude/fury-road-junctions`)
+- `roadPoints` keys its cache on the road's current `curve`, so reshaped and
+  snapped roads are what collision, paint, the 3D decal and placement see.
+- Junction ends slide along their own heading onto the crossing centerline,
+  falling back to the old sideways projection. Spurs stay straight: the forest,
+  blast and launch spurs end exactly on the county road's centerline.
+- Solo county only: the pond's west shore moves 64 px east, and the station
+  sits at its authored spot facing the road through a one-tile paved apron.
+  The stub drive is gone. The party county (`COOP_OVERWORLD`) is byte-identical
+  to before, since older party clients share its layout.
+- Prop IDs are positional (`overworld-<kind>-<index>`), so the landmark IDs
+  shift by two. Nothing references them: interiors attach by position, and
+  saves only store chest IDs, which the overworld has none of.
+- Checks: `check-wayside-fury-roads` now passes (it failed on baseline).
+  `playtest-layout`, `road-network`, `paths` and `collision` pass. The other
+  eight pre-existing failures are unchanged.
+
+| Batch 2 before → after | Batch 1 | Batch 2 |
+| --- | --- | --- |
+| Road ends that miss their junction | causeway ×2, reservoir loop ×2, garden loop ×1 (5) | 0 |
+| Station offset from authored spot | (−56, −24) | (0, 0) |
+| Node Fury checks failing | 9 | 8 |
