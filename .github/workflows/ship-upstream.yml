@@ -90,6 +90,18 @@ jobs:
             [ "$M" = "false" ] && { echo "PR #$N has conflicts with main"; exit 1; }
             sleep 10
           done
-          api -X PUT "https://api.github.com/repos/$UPSTREAM/pulls/$N/merge" -d '{"merge_method":"squash"}' | tee /tmp/merge.json
-          jq -e '.merged == true' /tmp/merge.json > /dev/null
+          MERGED=false
+          for merge_method in squash merge rebase; do
+            api -X PUT "https://api.github.com/repos/$UPSTREAM/pulls/$N/merge" -d "{\"merge_method\":\"$merge_method\"}" > /tmp/merge.json || true
+            if jq -e '.merged == true' /tmp/merge.json > /dev/null; then
+              MERGED=true
+              break
+            fi
+            echo "Merge method $merge_method failed:"
+            cat /tmp/merge.json
+          done
+          if [ "$MERGED" != "true" ]; then
+            echo "All merge methods failed for PR #$N"
+            exit 1
+          fi
           echo "Merged PR #$N into $UPSTREAM:main"
