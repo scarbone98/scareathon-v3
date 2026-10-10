@@ -19,6 +19,11 @@ before/after render at the same frozen state.
   is noisy. Each change is judged by machine-independent work: JS ms per frame
   by subsystem (CPU profile), canvas calls per frame, 3D draw calls and
   triangles, and world-build time.
+- The cloud continuation (Oct 10) has no GPU. 2D timings there use
+  `--disable-gpu` (CPU canvas), which charges full price for every blit and
+  alpha blend. Treat those ms as a pessimistic upper bound. Canvas call counts
+  are exact. Harness: drive 916 frames along the county road, down the shortcut
+  and back along the reservoir loop, calling `renderer.draw` directly.
 
 ## Baseline (origin/main 13d8a0c6)
 
@@ -47,6 +52,19 @@ Where frame time went (dev build, profiled while driving):
 ### P0 — broken or blocking
 - **P0-1 Load-time hitch.** The world modules took 8 s of main-thread time in
   desktop Chrome before the title screen, longer on phones. *Fixed in batch 1.*
+- **P0-3 Phone 3D tutorial load stall.** After "Skip prologue" the game sits in
+  the overworld scene behind the "Practice the basics?" modal. The 3D path
+  started building the full overworld renderer there, which blocked the main
+  thread for seconds and delayed the "Play tutorial" tap. It then tore that
+  renderer down (`forceContextLoss`) and created a second WebGL context for
+  the training course. Traced: one throwaway overworld build plus an 8–10 s
+  stall before the course renderer even started (SwiftShader, 4× CPU throttle).
+  Baseline does the same in this harness, so it is not new code. But a full
+  overworld build plus a second WebGL context, back to back, is the likeliest
+  cause of the reported phone load that never finishes. The hang did not
+  reproduce in Chromium on either tree. *Fixed in batch 1:* no 3D world is
+  built while the tutorial choice is open, so only the course renderer is
+  built. Tutorial reached in ~8 s instead of ~18.6 s (dev server, phone 3D).
 - **P0-2 Collision cost per tick.** `isBlocked` scanned all ~450 overworld
   footprints, and on curved roads walked about 1,000 road segments, for every
   query (taxi, hero, enemies, projectiles, several times a tick). *Fixed in batch 1.*
@@ -80,3 +98,40 @@ Where frame time went (dev build, profiled while driving):
 - Verification: frozen-frame pixel compare at 10 overworld spots on phone 2D
   and desktop 2D. World pixels match baseline; the only strong differences are
   the DOM HUD portrait and the minimap's pulsing marker.
+- Cloud follow-up:
+  - The 3D load stall (P0-3): `GraphicsRenderer` waits for the tutorial
+    choice before building any 3D world.
+  - `terrain.ts` (also imported by the 3D terrain) no longer imports the 2D
+    area art. The 2D renderer passes the overlay painter to `TerrainCache`.
+  - The sealed collision index also checks the props array's length, so
+    fixtures that push a temporary wall into a world fall back to the full
+    scan (`radar` and `relics` checks).
+  - Overlay chunks that paint nothing get a zero-size canvas and are never
+    blitted. Roads are culled per segment, not per whole-road box.
+  - Restored the original mixed CRLF/LF line endings in `render.ts`,
+    `terrain.ts` and `world.ts`, so the diff shows only real changes.
+- Full-map check: the whole overworld rendered at 1× and 2× matches baseline.
+  No pixel differs by 32/255 or more. The largest difference is 17/255, from
+  alpha-compositing anti-aliased edges through the transparent layer.
+- Checks: `tsc -b`, eslint on changed files, 595 server tests, 58 node Fury
+  checks (same 9 pre-existing failures as baseline: audit-paint, campaign,
+  context-attack-unit, coop-sim, dressing, globe, obstacles, road-clearance,
+  roads), and the UX, HUD and playtest browser checks for phone 2D, phone 3D
+  and desktop 2D all pass.
+
+| Batch 1 before → after | Baseline 13d8a0c | Batch 1 |
+| --- | --- | --- |
+| World build, Node (cloud) | 568–621 ms | 209–224 ms, identical SHA-1 |
+| Phone 2D canvas calls/frame, mean (median) | 3,864 (3,300) | 1,059 (463) |
+| Desktop 2D canvas calls/frame, mean (median) | 4,097 (3,561) | 1,304 (727) |
+| Phone 2D draw ms, CPU canvas: mean / median / p95 | 1.6 / 0.7 / 8.9 | 1.4 / 0.4 / 7.9 |
+| Desktop 2D draw ms, CPU canvas: mean / median / p95 | 1.8 / 0.9 / 9.8 | 6.0 / 4.1 / 16.7 |
+| Phone 3D tutorial: 3D renderers built | 2 (overworld, then course) | 1 (course) |
+
+The desktop CPU-canvas median rises because the cached overlay is a second,
+transparent layer. A CPU canvas pays a full alpha blend for each of the ~20
+visible 512² chunks. Dropping the layer brings it back to 0.6 ms; smaller
+chunks don't help. With GPU canvas (the normal case) these are texture blits.
+**Open:** confirm on a desktop with GPU canvas disabled. If it matters, bake the
+overlay straight into ground chunks that have no animated water or corruption
+sparkle, which removes the second blit for most of the map.

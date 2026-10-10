@@ -157,9 +157,13 @@ export function drawRoadNetwork(c:CanvasRenderingContext2D,world:WorldMap,bounds
   for(const [color,inset] of layers) {
     c.strokeStyle=color;
     for(const r of world.roads) {
-      const box=roadBounds(r);
-      // Non-overworld roads are stretched to the room edge below.
-      if(world.id==='overworld' && !touches(bounds,box.left,box.top,box.right,box.bottom,roadWidth(r)/2+8))continue;
+      // Non-overworld roads are stretched to the room edge below. Long county
+      // roads span most chunks' boxes, so cull by segment; a touching road is
+      // still stroked whole so its joins match the uncached network.
+      if(world.id==='overworld' && bounds) {
+        const points=roadPoints(r),pad=roadWidth(r)/2+8;
+        if(!points.slice(1).some((b,i)=>{const a=points[i];return touches(bounds,Math.min(a.x,b.x),Math.min(a.y,b.y),Math.max(a.x,b.x),Math.max(a.y,b.y),pad);}))continue;
+      }
       c.save();clipRoadEnds(c,r,world);
       c.lineWidth=roadWidth(r)-inset;c.beginPath();const points=roadPoints(r).map(p=>({...p}));
       if(world.id!=='overworld') {

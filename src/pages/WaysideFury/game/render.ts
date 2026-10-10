@@ -22,7 +22,7 @@ import { drawExitOpening, nearExit, exitCaption, exitOpacity } from './exitArt';
 import { groundScatter, roadMask } from './roadClearance.ts';
 import { drawWalkableSurface, isGroundProp } from "./walkableSurfaces";
 import { drawScorchedDepression, GROUND_DECALS } from './grounding.ts';
-import { drawInteriorGround, drawBuildingDoors } from './renderAreas2d.ts';
+import { areaGroundOverlay, drawInteriorGround, drawBuildingDoors } from './renderAreas2d.ts';
 import { applyEnemyWindup } from "./enemyWindup";
 import { drawBlastProp } from "./blastArt";
 import { drawCityGround, drawCityEnemy, drawCityProp, drawCityStory } from "./chapters/ch4Art";
@@ -100,7 +100,7 @@ export class Renderer {
     const { width, height } = this.ctx.canvas.getBoundingClientRect();
     this.setViewport(width, height);
   };
-  private terrain = new TerrainCache();
+  private terrain = new TerrainCache(areaGroundOverlay);
   private camera = { x: 0, y: 0 };
   private world: WorldMap | null = null;
   private sceneKey = '';

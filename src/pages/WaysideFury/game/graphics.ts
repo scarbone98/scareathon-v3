@@ -85,7 +85,9 @@ export class GraphicsRenderer {
     const legacyCounty = !!s.coop && (s.coop.protocolVersion ?? 1) < 6;
     if (this.partyWorld !== legacyCounty) { this.partyWorld = legacyCounty; this.generation++; this.loading=false; this.releaseDepth(); }
     const itemFallback = (s.mapId === 'space-launch' || s.mapId.startsWith('moon-')) && (relicTargets(s).length > 0 || chipEffects(s).scanner || itemsState(s).relics.outfits.length > 0);
-    const wantsDepth = !itemFallback && !s.fusion.world.forms.length && this.selected === '3d' && (!!s.opening || s.scene === 'overworld' || s.mapId==='space-launch' || s.mapId.startsWith('moon-'));
+    // The tutorial choice decides between the course and the county, so building
+    // either 3D world behind it would be thrown away (and stall the tap) on phones.
+    const wantsDepth = !itemFallback && !s.openingChoice && !s.fusion.world.forms.length && this.selected === '3d' && (!!s.opening || s.scene === 'overworld' || s.mapId==='space-launch' || s.mapId.startsWith('moon-'));
     const depthWorld = s.opening ? TEST_WORLD : legacyCounty ? COOP_OVERWORLD : OVERWORLD;
     if (wantsDepth && this.depthWorld !== depthWorld) { this.depthWorld = depthWorld; this.generation++; this.loading = false; this.releaseDepth(); }
     if (wantsDepth && !this.depth && !this.failed && !this.loading) this.loadDepth(depthWorld);

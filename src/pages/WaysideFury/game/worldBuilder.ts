@@ -241,13 +241,13 @@ function propIndex(m: WorldMap): PropIndex {
 }
 // Authored worlds are immutable once built. Sealing one gives isBlocked an
 // index; unsealed worlds (and worlds still being built) scan every prop.
-// The index belongs to the exact props array it was built from; a replaced
-// array (fixtures, tools) falls back to the full scan.
-const sealed = new WeakMap<WorldMap, { props: WorldProp[]; index: PropIndex }>();
-export function sealWorld(m: WorldMap) { sealed.set(m, { props: m.props, index: propIndex(m) }); }
+// The index belongs to the exact props array and length it was built from; a
+// replaced or grown array (fixtures, tools) falls back to the full scan.
+const sealed = new WeakMap<WorldMap, { props: WorldProp[]; count: number; index: PropIndex }>();
+export function sealWorld(m: WorldMap) { sealed.set(m, { props: m.props, count: m.props.length, index: propIndex(m) }); }
 export function isBlocked(m: WorldMap, x: number, y: number, radius = 7): boolean {
   const seal = sealed.get(m);
-  return blocked(m, x, y, radius, seal?.props === m.props ? seal.index : undefined);
+  return blocked(m, x, y, radius, seal?.props === m.props && seal.count === m.props.length ? seal.index : undefined);
 }
 function blocked(m: WorldMap, x: number, y: number, radius: number, index?: PropIndex): boolean {
   if (x - radius < 0 || y - radius < 0 || x + radius > m.width || y + radius > m.height) return true;

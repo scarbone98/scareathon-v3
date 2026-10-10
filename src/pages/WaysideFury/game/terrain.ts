@@ -3,7 +3,6 @@ import { drawCountyWater } from './overworldWater.ts';
 import { continuousBlastGround, drawBlastGround, drawWornTrails } from './roomGround.ts';
 import { roadMask } from './roadClearance.ts';
 import { drawRoadNetwork, roadGround, type DrawBounds } from './roadNetwork.ts';
-import { drawAreaGround } from './renderAreas2d.ts';
 import { roadMarks } from './roadMarkings';
 import { TILE, tileAt, type TileKind, type WorldMap } from './world';
 
@@ -11,10 +10,9 @@ const MAX_CHUNK_TILES = 4;
 const CHUNK_PIXEL_TARGET = 256;
 const MAX_CACHE_PIXELS = 12_000_000;
 const OVERLAY_SCALE = 2;
-type OverlayPainter = (c: CanvasRenderingContext2D, bounds: DrawBounds) => void;
-const overlayPainter = (world: WorldMap): OverlayPainter | null =>
-  world.organic ? (c, bounds) => drawAreaGround(c, world, bounds)
-  : world.id === 'overworld' ? (c, bounds) => drawRoadNetwork(c, world, bounds) : null;
+// Static vector art baked above the animated water. The 2D renderer supplies
+// it, so this module (shared with the 3D terrain) stays free of 2D area art.
+export type OverlayPainter = (c: CanvasRenderingContext2D, bounds: DrawBounds) => void;
 export const MATERIALS: Record<TileKind, readonly [string, string, string]> = {
   grass: ['#385943', '#668358', '#274638'], dirt: ['#8c795a', '#c0a578', '#716149'],
   road: ['#37474d', '#627074', '#26373d'], water: ['#2c6379', '#8bb7bb', '#244a65'],
@@ -39,13 +37,14 @@ export class TerrainCache {
   private chunks = new Map<string, HTMLCanvasElement>();
   private cachePixels = 0;
   private cacheBudgetPixels = MAX_CACHE_PIXELS;
+  constructor(private overlayPainter: (world: WorldMap) => OverlayPainter | null = () => null) {}
   draw(c: CanvasRenderingContext2D, world: WorldMap, camera: { x: number; y: number }, width: number, height: number, time: number, pixelScale = 1, dpr = 1) {
     // Smaller chunks at high DPR limit the memory spent just outside the view.
     const chunkTiles = Math.max(1, Math.min(MAX_CHUNK_TILES, Math.floor(CHUNK_PIXEL_TARGET / (TILE * pixelScale))));
     const ground = this.layer('ground', world, camera, width, height, pixelScale, dpr, chunkTiles);
     // Roads, trails and landforms are static vector art above the water ripples.
     // Larger transparent chunks amortize the network walk across fewer bakes.
-    const paint = overlayPainter(world);
+    const paint = this.overlayPainter(world);
     const overlay = paint ? this.layer('overlay', world, camera, width, height, pixelScale, dpr, chunkTiles * OVERLAY_SCALE) : null;
     const visible = new Set([...ground.keys, ...overlay?.keys ?? []]);
     // The budget is bounded by 12M pixels or one complete visible working set,
@@ -82,7 +81,7 @@ export class TerrainCache {
         this.cachePixels += chunk.width * chunk.height;
       }
       this.chunks.delete(key); this.chunks.set(key, chunk);
-      c.drawImage(chunk, cx * layer.chunkSize, cy * layer.chunkSize, layer.chunkSize, layer.chunkSize);
+      if (chunk.width) c.drawImage(chunk, cx * layer.chunkSize, cy * layer.chunkSize, layer.chunkSize, layer.chunkSize);
     }
     c.restore();
   }
@@ -91,7 +90,15 @@ export class TerrainCache {
     canvas.width = canvas.height = chunkSize * pixelScale;
     const c = canvas.getContext('2d')!;
     c.scale(pixelScale, pixelScale); c.imageSmoothingEnabled = false; c.translate(-cx * chunkSize, -cy * chunkSize);
+    // Most overlay chunks are open grass. One that paints nothing keeps a
+    // zero-size canvas: no memory and no per-frame blit.
+    let painted = false;
+    for (const name of ['fill', 'stroke', 'fillRect', 'strokeRect', 'drawImage', 'fillText'] as const) {
+      const draw = c[name] as (...args: unknown[]) => void;
+      Object.defineProperty(c, name, { value: (...args: unknown[]) => { painted = true; return draw.apply(c, args); } });
+    }
     paint(c, { x: cx * chunkSize, y: cy * chunkSize, w: chunkSize, h: chunkSize });
+    if (!painted) canvas.width = canvas.height = 0;
     return canvas;
   }
   private trim(budget: number, visible: Set<string>) {
