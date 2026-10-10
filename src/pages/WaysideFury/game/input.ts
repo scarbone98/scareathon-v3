@@ -8,7 +8,13 @@ let screenAttack: AttackPresentation | undefined;
 export function showAttackPresentation(presentation: AttackPresentation) { screenAttack = { action: presentation.action, targetId: presentation.targetId }; }
 export class GameInput {
   private bindings = { ...DEFAULT_KEYS };
-  setBindings(keys: Record<string, string>) { this.bindings = { ...DEFAULT_KEYS, ...keys }; setKeyboardBindings(keys); this.clear(); }
+  setBindings(keys: Record<string, string>) {
+    const next = { ...DEFAULT_KEYS, ...keys }, changed = Object.keys(next).some(action => next[action] !== this.bindings[action]);
+    this.bindings = next; setKeyboardBindings(keys);
+    // Settings are re-applied on every save sync (e.g. the hint auto-dismiss);
+    // only a real remap may drop held keys, or the taxi stalls mid-drive.
+    if (changed) this.clear();
+  }
   private keyMap() {
     const map = Object.fromEntries(Object.entries(this.bindings).filter(([action]) => !['up','down','left','right','pause','map'].includes(action)).map(([action,key]) => [key, action as keyof Input]));
     if (this.bindings.swap === 'q' && !Object.values(this.bindings).includes('e')) map.e = 'swap';
