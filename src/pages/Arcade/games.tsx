@@ -124,6 +124,7 @@ const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/inde
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e529";
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
+const CRYPTLINS_URL = "https://sclondon.github.io/Cryptlins/build/index.html?v=f8c43c8";
 const POCKET_AQUARIUM_URL ="https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
@@ -1481,6 +1482,31 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Daughter Of The Wind"
           url={DAUGHTER_OF_THE_WIND_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed CRYPTLINS into WaysideOS.
+    // Nothing to score: a virtual pet. A gremlin in a pool of lamplight to feed, play with and pet.
+    {
+      name: "Cryptlins",
+      added: "2026-10-10T11:00:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      availableOnMobile: true,
+      cartridge: {
+        color: "#5c7a4d",
+        tagline: "One lamp. One crypt. One small hungry thing.",
+        font: { family: "Cormorant Garamond", weight: 600 },
+        about: { released: "2026", players: "Single player", genre: "Virtual pet", developer: "sclondon" },
+        backNote: "test area",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Cryptlins"
+          url={CRYPTLINS_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />

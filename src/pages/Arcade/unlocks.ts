@@ -11,6 +11,7 @@ export const SECRET_CARTS: Record<string, string> = {
   DENVS: "Denver Vs The Universe",
   OUTSIDE: "Outside",
   WIND: "Daughter Of The Wind",
+  CRYPTLINS: "Cryptlins",
 };
 
 export const UNLOCK_EVENT = "arcade:unlocked";
