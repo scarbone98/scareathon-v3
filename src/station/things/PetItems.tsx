@@ -53,13 +53,19 @@ export function usePetItems(signedIn: boolean) {
     onSuccess: (next) => queryClient.setQueryData(["pet-items"], next),
     onError: () => void queryClient.invalidateQueries({ queryKey: ["pet-items"] }),
   });
-  return { ...query, buy, used };
+  // One taken back out of its game (an ornament lifted from the tank): in stock again
+  const returned = useMutation({
+    mutationFn: (key: string) => send("/pet-items/return", key),
+    onSuccess: (next) => queryClient.setQueryData(["pet-items"], next),
+    onError: () => void queryClient.invalidateQueries({ queryKey: ["pet-items"] }),
+  });
+  return { ...query, buy, used, returned };
 }
 
 // What one game has: its own ids, and how many of each (-1: kept). Signed out, nothing but
 // what the game gives everyone.
 export function usePetStock(signedIn: boolean, game: PetGame) {
-  const { data, used } = usePetItems(signedIn);
+  const { data, used, returned } = usePetItems(signedIn);
   const owned = signedIn ? data?.owned : undefined;
   const stock = useMemo(() => {
     const mine: Record<string, number> = {};
@@ -70,7 +76,7 @@ export function usePetStock(signedIn: boolean, game: PetGame) {
     return mine;
   }, [owned, game]);
   // (until the account's been read, nobody knows what the game should have)
-  return { stock, known: !signedIn || Boolean(data), use: (id: string) => signedIn && used.mutate(`${game}:${id}`) };
+  return { stock, known: !signedIn || Boolean(data), use: (id: string) => signedIn && used.mutate(`${game}:${id}`), giveBack: (id: string) => signedIn && returned.mutate(`${game}:${id}`) };
 }
 
 // The supplies as the item shop's wares, a shelf for each creature

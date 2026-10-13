@@ -15,7 +15,8 @@ import PixelArrow from "./style/PixelArrow.tsx";
 // black that the cellar comes up out of. At the aquarium, bubbles rise over the station's tank.
 //
 // The game and the page talk in messages named for the game (`prefix`: CRYPTLINS, AQUARIUM):
-//   from the game: <PREFIX>_READY (its room is drawn), <PREFIX>_USED { item } (one used up)
+//   from the game: <PREFIX>_READY (its room is drawn), <PREFIX>_USED { item } (one used up),
+//                  <PREFIX>_RETURNED { item } (one taken back out: it's in stock again)
 //   to the game:   <PREFIX>_STOCK { items: { id: how many, or -1 for kept } }
 //                  <PREFIX>_SHOW and <PREFIX>_HIDE (in front; covered or left: it rests)
 
@@ -29,6 +30,7 @@ type Props = {
   stock: Record<string, number>;
   stockKnown: boolean; // (signed in: once the account's been read)
   onUsed: (item: string) => void;
+  onReturned: (item: string) => void;
   onReady: () => void;
   onBack: () => void;
 };
@@ -58,12 +60,12 @@ function Cover({ kind, up }: { kind: Props["cover"]; up: boolean }) {
   );
 }
 
-export default function PetFrame({ title, url, prefix, cover, built, showing, stock, stockKnown, onUsed, onReady, onBack }: Props) {
+export default function PetFrame({ title, url, prefix, cover, built, showing, stock, stockKnown, onUsed, onReturned, onReady, onBack }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const origin = new URL(url).origin;
-  const latest = useRef({ onUsed, onReady });
-  latest.current = { onUsed, onReady };
+  const latest = useRef({ onUsed, onReturned, onReady });
+  latest.current = { onUsed, onReturned, onReady };
   const tell = (message: Record<string, unknown>) => frame.current?.contentWindow?.postMessage(message, origin);
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export default function PetFrame({ title, url, prefix, cover, built, showing, st
         setReady(true);
         latest.current.onReady();
       } else if (type === `${prefix}_USED` && typeof event.data.item === "string") latest.current.onUsed(event.data.item);
+      else if (type === `${prefix}_RETURNED` && typeof event.data.item === "string") latest.current.onReturned(event.data.item);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);

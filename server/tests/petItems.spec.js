@@ -1,9 +1,9 @@
-import { PET_ITEMS, buyPetItem, petItemState, usePetItem } from '../routes/petItems.js';
+import { PET_ITEMS, buyPetItem, petItemState, returnPetItem, usePetItem } from '../routes/petItems.js';
 
 // A stand-in for the database: one wallet and the pet items table, answering the handful of
 // statements the route makes
 function fakeDb(coins) {
-    const state = { coins, items: new Map(), ledger: [] };
+    const state = { coins, items: new Map(), placed: new Map(), ledger: [] };
     const query = async (sql, params = []) => {
         const text = sql.replace(/\s+/g, ' ').trim();
         if (/^(BEGIN|COMMIT|ROLLBACK)/.test(text) || text.includes('ensure_user_wallet')) return { rows: [] };
@@ -22,11 +22,19 @@ function fakeDb(coins) {
             state.ledger.push({ amount: params[1], source: params[3] });
             return { rows: [] };
         }
-        if (text.startsWith('UPDATE public.user_pet_items')) {
+        if (text.startsWith('UPDATE public.user_pet_items SET quantity = quantity - 1')) {
             const have = state.items.get(params[1]) || 0;
             if (have <= 0) return { rows: [] };
             state.items.set(params[1], have - 1);
+            state.placed.set(params[1], (state.placed.get(params[1]) || 0) + 1);
             return { rows: [{ quantity: have - 1 }] };
+        }
+        if (text.startsWith('UPDATE public.user_pet_items SET quantity = quantity + 1')) {
+            const out = state.placed.get(params[1]) || 0;
+            if (out <= 0) return { rows: [] };
+            state.placed.set(params[1], out - 1);
+            state.items.set(params[1], (state.items.get(params[1]) || 0) + 1);
+            return { rows: [{ quantity: state.items.get(params[1]) }] };
         }
         throw new Error(`unexpected statement: ${text}`);
     };
@@ -72,6 +80,17 @@ describe('pet supplies', () => {
         expect(await buyPetItem(db, 'u', 'cryptlins:nothing')).toEqual({ status: 'missing' });
         expect(db.state.coins).toBe(food.price - 1);
         expect((await petItemState('u', db)).owned).toEqual({});
+    });
+
+    test('what was put in can be taken back out, and nothing else can', async () => {
+        const db = fakeDb(1000);
+        await buyPetItem(db, 'u', food.key);
+        expect(await returnPetItem('u', food.key, db)).toEqual({ status: 'none' });
+        await usePetItem('u', food.key, db);
+        expect(await returnPetItem('u', food.key, db)).toEqual({ status: 'returned' });
+        expect(await returnPetItem('u', food.key, db)).toEqual({ status: 'none' });
+        expect((await petItemState('u', db)).owned[food.key]).toBe(food.pack);
+        expect(await returnPetItem('u', kept.key, db)).toEqual({ status: 'kept' });
     });
 
     test('using what you have none of changes nothing', async () => {

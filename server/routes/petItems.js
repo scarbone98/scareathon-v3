@@ -6,7 +6,9 @@ import { AQUARIUM_ITEMS } from '../shared/pets/aquarium.js';
 // trap door, and the aquarium on top of the lockers. They're bought at the ticket counter and
 // turn up in the games as stock (the page hands each game its own: src/station/PetFrame.tsx).
 // Some are kept for good once bought (a toy, a rock, a different floor); the rest are used up
-// (food, a fish put in a tank), come several to a purchase, and can be bought again.
+// (food, a fish put in a tank), come several to a purchase, and can be bought again. A thing
+// put into the aquarium can be taken out again and comes back into stock; so that nothing
+// comes back that was never put in, the account keeps count of what is in use (`placed`).
 //
 // An item's key is its game and the game's own id for it: "cryptlins:fish", "aquarium:fish:guppy".
 
@@ -22,9 +24,11 @@ export const PET_ITEMS_SQL = `
         user_id UUID NOT NULL REFERENCES public.users (id) ON DELETE CASCADE,
         item_key TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+        placed INTEGER NOT NULL DEFAULT 0 CHECK (placed >= 0),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (user_id, item_key)
     );
+    ALTER TABLE public.user_pet_items ADD COLUMN IF NOT EXISTS placed INTEGER NOT NULL DEFAULT 0 CHECK (placed >= 0);
 `;
 
 // What's for sale, and what you have: how many of each, or -1 for a thing that's kept
@@ -83,10 +87,23 @@ export async function usePetItem(userId, key, db = pool) {
     if (!item) return { status: 'missing' };
     if (item.keeps) return { status: 'kept' };
     const used = await db.query(`
-        UPDATE public.user_pet_items SET quantity = quantity - 1, updated_at = now()
+        UPDATE public.user_pet_items SET quantity = quantity - 1, placed = placed + 1, updated_at = now()
         WHERE user_id = $1 AND item_key = $2 AND quantity > 0 RETURNING quantity
     `, [userId, item.key]);
     return { status: used.rows[0] ? 'used' : 'none' };
+}
+
+// One of a thing has been taken back out of its game (an ornament lifted out of the tank):
+// it's in stock again. Only what was put in can come back.
+export async function returnPetItem(userId, key, db = pool) {
+    const item = BY_KEY.get(String(key));
+    if (!item) return { status: 'missing' };
+    if (item.keeps) return { status: 'kept' };
+    const back = await db.query(`
+        UPDATE public.user_pet_items SET quantity = quantity + 1, placed = placed - 1, updated_at = now()
+        WHERE user_id = $1 AND item_key = $2 AND placed > 0 RETURNING quantity
+    `, [userId, item.key]);
+    return { status: back.rows[0] ? 'returned' : 'none' };
 }
 
 export default async function petItemsRoutes(fastify) {
@@ -113,6 +130,18 @@ export default async function petItemsRoutes(fastify) {
             return reply.code(500).send({ error: 'Could not buy that' });
         } finally {
             client.release();
+        }
+    });
+
+    fastify.post('/return', async (request, reply) => {
+        const userId = request.user.sub;
+        try {
+            const { status } = await returnPetItem(userId, request.body?.key);
+            if (status === 'missing') return reply.code(404).send({ error: 'No such thing' });
+            return { data: await petItemState(userId) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'Could not take that back' });
         }
     });
 

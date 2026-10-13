@@ -813,6 +813,7 @@ export default function StationPage() {
               stock={cellarStock.stock}
               stockKnown={cellarStock.known}
               onUsed={cellarStock.use}
+              onReturned={cellarStock.giveBack}
               onReady={() => setPetReady((ready) => ({ ...ready, cellar: true }))}
               onBack={stepBack}
             />
@@ -826,6 +827,7 @@ export default function StationPage() {
               stock={tankStock.stock}
               stockKnown={tankStock.known}
               onUsed={tankStock.use}
+              onReturned={tankStock.giveBack}
               onReady={() => setPetReady((ready) => ({ ...ready, tank: true }))}
               onBack={stepBack}
             />
