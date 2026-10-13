@@ -131,7 +131,7 @@ const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/b
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // (a build served from this machine can stand in for either while working on it: VITE_CRYPTLINS_URL, VITE_POCKET_AQUARIUM_URL)
-export const CRYPTLINS_URL = (import.meta.env.VITE_CRYPTLINS_URL as string | undefined) || "https://sclondon.github.io/Cryptlins/build/index.html?v=2142c4d";
+export const CRYPTLINS_URL = (import.meta.env.VITE_CRYPTLINS_URL as string | undefined) || "https://sclondon.github.io/Cryptlins/build/index.html?v=d7d99bc";
 export const POCKET_AQUARIUM_URL = (import.meta.env.VITE_POCKET_AQUARIUM_URL as string | undefined) || "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
 // Godot .io game: one page that loads a lighter package on phones (index.mobile.pck) and the
 // full one on desktop; online rooms go through relay.waysidejunction.com. Posts PLAYER_DIED
