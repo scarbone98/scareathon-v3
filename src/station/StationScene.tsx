@@ -3649,8 +3649,25 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     fieldTex.wrapS = fieldTex.wrapT = RepeatWrapping;
     // (out past where the train sets off from, a long way down the line: its headlight is
     // on the land's horizon then, not floating over the land's far edge)
-    fieldTex.repeat.set(200, 62);
-    const fields = plane(1300, 400, standard("#8a8a7a", 1, fieldTex), 0, -0.9, 0);
+    // (the fields run on under the platform, so they're cut where the trap door's shaft goes
+    // down through them: the same ground, as a shape with a hole, its speckle mapped by the metre)
+    fieldTex.repeat.set(200 / 1300, 62 / 400);
+    const fieldShape = new Shape();
+    fieldShape.moveTo(-650, -200);
+    fieldShape.lineTo(650, -200);
+    fieldShape.lineTo(650, 200);
+    fieldShape.lineTo(-650, 200);
+    fieldShape.closePath();
+    const shaftway = new Path();
+    const shaftHalf = HATCH.size / 2 + 0.01;
+    shaftway.moveTo(HATCH.x - shaftHalf, -HATCH.z - shaftHalf);
+    shaftway.lineTo(HATCH.x - shaftHalf, -HATCH.z + shaftHalf);
+    shaftway.lineTo(HATCH.x + shaftHalf, -HATCH.z + shaftHalf);
+    shaftway.lineTo(HATCH.x + shaftHalf, -HATCH.z - shaftHalf);
+    shaftway.closePath();
+    fieldShape.holes.push(shaftway);
+    const fields = new Mesh(new ShapeGeometry(fieldShape), standard("#8a8a7a", 1, fieldTex));
+    fields.position.y = -0.9;
     fields.rotation.x = -Math.PI / 2;
     scene.add(fields);
     // The gravel bed, only under the line
