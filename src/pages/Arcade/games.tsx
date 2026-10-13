@@ -105,7 +105,7 @@ const CROSS_BONES_URL = "/cross-bones";
 const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
-const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=4147811";
+const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=5e3e65b";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
@@ -138,6 +138,7 @@ const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/b
 const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=45c32b9";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
+// Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
 // (a build served from this machine can stand in for either while working on it: VITE_CRYPTLINS_URL, VITE_POCKET_AQUARIUM_URL)
 export const CRYPTLINS_URL = (import.meta.env.VITE_CRYPTLINS_URL as string | undefined) || "https://sclondon.github.io/Cryptlins/build/index.html?v=da91fc4";
 export const POCKET_AQUARIUM_URL = (import.meta.env.VITE_POCKET_AQUARIUM_URL as string | undefined) || "https://sclondon.github.io/PocketAquarium/build/index.html?v=722ef2a";
@@ -632,10 +633,10 @@ export function createArcadeGames(): MachineData[] {
       name: "Salmon Run 2",
       cartridge: {
         color: "#f07a5a",
-        tagline: "Race a salmon down a jungle river.",
+        tagline: "A sockeye's run home, from the deep ocean to the mountain lake. Land your tricks on the beat.",
         font: { family: "Luckiest Guy" },
-        about: { released: "2026", players: "Single player", genre: "Trick racer", developer: "sclondon" },
-        backNote: "Up up down down flip flip. Works on the 3rd river.",
+        about: { released: "2026", players: "Single player", genre: "Rhythm trick racer", developer: "sclondon" },
+        backNote: "Reefside or Aurora. That's the way to Japan.",
       },
       videoUrl: `${RECORDINGS}/SalmonRun2_v3.mp4`,
       game: (
@@ -874,6 +875,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Scary Capitalist",
       added: "2026-10-07T12:00:00-06:00",
+      videoUrl: "/game-recordings/ScaryCapitalist.mp4",
       cartridge: {
         color: "#3fae4c",
         tagline: "Invest in the night. Haunt the market.",
@@ -898,6 +900,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Scaredle",
       added: "2026-10-07T12:00:00-06:00",
+      videoUrl: "/game-recordings/Scaredle.mp4",
       cartridge: {
         color: "#ff8a1f",
         tagline: "One spooky word a day. Six guesses.",
@@ -916,6 +919,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Cross Bones",
       added: "2026-10-07T12:00:00-06:00",
+      videoUrl: "/game-recordings/CrossBones.mp4",
       cartridge: {
         color: "#e9dcc0",
         tagline: "A haunted crossword every midnight.",
@@ -1254,16 +1258,19 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // Out of early access 2026-10-13: toys he plays with each in his own way, balloons that
+    // lift him, head rubs, tricks, a pencil that draws lines into his room.
     {
       name: "BOB",
-      earlyAccess: true,
+      added: "2026-10-13T14:30:00-06:00",
       cartridge: {
         color: "#f4f1e8",
-        tagline: "Look after a stick figure.",
+        tagline: "A stick figure in a white room. Give him toys, balloons and a rub on the head.",
         font: { family: "Patrick Hand" },
         about: { released: "2026", players: "Single player", genre: "Virtual pet sandbox", developer: "sclondon" },
+        backNote: "Three balloons and he flies.",
       },
-      videoUrl: `${RECORDINGS}/BOB.mp4`,
+      videoUrl: "/game-recordings/BOB.mp4",
       hasLeaderboard: false,
       game: (
         <GameRenderer
@@ -1417,34 +1424,12 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // --- Secret: in testing, only on the shelf once you've typed AQUA into WaysideOS.
-    // Its shop runs on practice tickets until this page answers its ticket messages (its README).
-    {
-      name: "Pocket Aquarium",
-      added: "2026-10-06T15:30:00-06:00",
-      secret: true,
-      cartridge: {
-        color: "#3fb6d8",
-        tagline: "A little tank to keep. Feed them once a day.",
-        font: { family: "Fredoka", weight: 600 },
-        about: { released: "2026", players: "Single player", genre: "Virtual aquarium", developer: "sclondon" },
-        backNote: "test area",
-      },
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Pocket Aquarium"
-          url={POCKET_AQUARIUM_URL}
-          desktopAspectRatio={16 / 9}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-        />
-      ),
-    },
     // --- Secret: in testing, only on the shelf once you've typed PENGUIN into WaysideOS.
     // Solo against computer penguins, or online rooms for up to eight. No scores.
     {
       name: "Penguin Slide",
       added: "2026-10-13T00:30:00-06:00",
+      videoUrl: "/game-recordings/PenguinSlide.mp4",
       secret: true,
       earlyAccess: true,
       cartridge: {
@@ -1469,6 +1454,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "October Valley",
       added: "2026-10-07T00:30:00-06:00",
+      videoUrl: "/game-recordings/OctoberValley.mp4",
       secret: true,
       earlyAccess: true,
       cartridge: {
@@ -1493,6 +1479,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Denver Vs The Universe",
       added: "2026-10-07T03:30:00-06:00",
+      videoUrl: "/game-recordings/DenverVsTheUniverse.mp4",
       secret: true,
       earlyAccess: true,
       cartridge: {
@@ -1517,6 +1504,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Outside",
       added: "2026-10-07T15:00:00-06:00",
+      videoUrl: "/game-recordings/Outside.mp4",
       secret: true,
       earlyAccess: true,
       cartridge: {
@@ -1566,6 +1554,7 @@ export function createArcadeGames(): MachineData[] {
     {
       name: "Daughter Of The Wind",
       added: "2026-10-08T11:30:00-06:00",
+      videoUrl: "/game-recordings/DaughterOfTheWind.mp4",
       secret: true,
       earlyAccess: true,
       cartridge: {
