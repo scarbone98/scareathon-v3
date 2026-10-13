@@ -3,7 +3,6 @@
 
 // Code (as cleanCode leaves it) -> the cartridge's name
 export const SECRET_CARTS: Record<string, string> = {
-  LIQUID: "Liquid Metal",
   EVILV2: "8 Bit Evil Returns V2",
   HALLOW: "Hallow Deep",
   AQUA: "Pocket Aquarium",

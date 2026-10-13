@@ -93,6 +93,15 @@ describe('Liquid Metal arena', () => {
         expect(ann.of('took')).toHaveLength(1);
     });
 
+    test('a dash costs mass, down to a floor', () => {
+        const sam = enter('Sam');
+        arena.message(sam, { t: 'dash', e: 1 });
+        expect(sam.of('mass')).toEqual([{ t: 'mass', e: 1, m: START_MASS - 1 }]);
+        for (let i = 0; i < 20; i += 1) arena.message(sam, { t: 'dash', e: 1 });
+        expect(sam.last('mass').m).toBe(5);
+        expect(sam.of('mass')).toHaveLength(START_MASS - 5);
+    });
+
     test('a hit bursts the other runner: mass to the hitter, drops on the floor, then back in', () => {
         const sam = enter('Sam');
         const ann = enter('Ann');
