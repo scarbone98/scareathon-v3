@@ -5,6 +5,7 @@ import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import GameRenderer from "./GameRenderer.tsx";
 import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
+import { BAND_SONG_EVENT } from "../../station/things/BandSongs.tsx";
 import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
 import { isNewGame } from "./news.ts";
@@ -130,7 +131,7 @@ const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e5
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
 // A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
 // station (github.com/Sclondon/OneManBand).
-const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=bb4fbbf";
+const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=28b5f66";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // (a build served from this machine can stand in for either while working on it: VITE_CRYPTLINS_URL, VITE_POCKET_AQUARIUM_URL)
@@ -341,6 +342,37 @@ function listenForPlayerDiedScores(
     if (!isArcadeMessage(event.data) || event.data.type !== "PLAYER_DIED") return;
 
     await submitArcadeScore(game, event.data.score);
+  };
+
+  window.addEventListener("message", handleMessage);
+  return () => window.removeEventListener("message", handleMessage);
+}
+
+// One Man Band asks for the loop it's playing to go on the station's radio: it's kept on the
+// player's account (server/routes/bandSongs.js) and the game is told the name it was given,
+// or that it couldn't be (a guest has no radio of their own to put it on)
+function listenForBandSongs(iframe: HTMLIFrameElement, gameUrl: string) {
+  const expectedOrigin = getUrlOrigin(gameUrl);
+
+  const handleMessage = async (event: MessageEvent) => {
+    if (!isTrustedGameMessage(iframe, event, expectedOrigin)) return;
+    if (!isArcadeMessage(event.data) || event.data.type !== "ONE_MAN_BAND_SONG") return;
+    const answer = (body: object) =>
+      (event.source as WindowProxy | null)?.postMessage({ type: "ONE_MAN_BAND_SAVED", ...body }, event.origin);
+    try {
+      const response = await fetchWithAuth("/band-songs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ song: (event.data as { song?: unknown }).song }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 401) return answer({ ok: false, why: "signin" });
+      if (!response.ok) return answer({ ok: false, why: "error" });
+      window.dispatchEvent(new Event(BAND_SONG_EVENT));
+      answer({ ok: true, name: (body as { data?: { name?: string } }).data?.name ?? "" });
+    } catch {
+      answer({ ok: false, why: "error" });
+    }
   };
 
   window.addEventListener("message", handleMessage);
@@ -1501,7 +1533,7 @@ export function createArcadeGames(): MachineData[] {
       ),
     },
     // On the shelf for everyone. A music toy: play notes, loop them, layer instruments.
-    // Nothing to score.
+    // Nothing to score; a loop can be sent to the radio on the station's bench.
     {
       name: "One Man Band",
       added: "2026-10-13T13:00:00-06:00",
@@ -1521,6 +1553,7 @@ export function createArcadeGames(): MachineData[] {
           url={ONE_MAN_BAND_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) => listenForBandSongs(iframe, ONE_MAN_BAND_URL)}
         />
       ),
     },

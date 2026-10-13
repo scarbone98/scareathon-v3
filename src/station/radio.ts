@@ -18,7 +18,20 @@ type Tune = {
   wave?: OscillatorType;
 };
 
-export type Song = { key: string; name: string; colour: string; file?: string; tune?: Tune };
+// A tune made in One Man Band (the arcade cart): a loop of so many bars, and for each of its
+// seven instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums) the notes on it,
+// each [beat, beats long, button, note]. For the drums the button is which drum.
+export type BandSong = { bpm: number; bars: number; tracks: number[][][] };
+
+export type Song = { key: string; name: string; colour: string; file?: string; tune?: Tune; band?: BandSong };
+
+// The dial. Records are the songs written out below; the other two are One Man Band tunes:
+// your own, and everyone else's newest (server/routes/bandSongs.js)
+export const STATIONS = [
+  { dial: "88.1", name: "Records", empty: "" },
+  { dial: "94.7", name: "Your tunes", empty: "Send one from One Man Band" },
+  { dial: "101.3", name: "Free Radio", empty: "Nobody on the air yet" },
+];
 
 const twice = (bar: string) => `${bar} ${bar}`;
 
@@ -105,7 +118,9 @@ export const SONGS: Song[] = [
   },
 ];
 const BY_KEY = new Map(SONGS.map((song) => [song.key, song]));
-export const songNamed = (key: string | null) => (key ? BY_KEY.get(key) : undefined);
+// (the tunes on the other two frequencies, as they come in)
+const TUNED_IN = new Map<string, Song>();
+export const songNamed = (key: string | null) => (key ? BY_KEY.get(key) ?? TUNED_IN.get(key) : undefined);
 // Everyone's, signed in or not, bought anything or not
 export const FREE_SONGS = ["scareathon_theme", "platform_waltz"];
 
@@ -178,9 +193,12 @@ const ROUNDS = 3;
 // (how much of a song the shop lets you hear before it's yours)
 const SAMPLE_MS = 15000;
 
-type State = { playing: boolean; key: string | null; sampling: boolean };
-let state: State = { playing: false, key: null, sampling: false };
+type State = { playing: boolean; key: string | null; sampling: boolean; station: number };
+let state: State = { playing: false, key: null, sampling: false, station: 0 };
 let playlist: string[] = [...FREE_SONGS];
+// (what's on the two tune frequencies)
+const tunes: [string[], string[]] = [[], []];
+const onNow = (station = state.station) => (station === 0 ? playlist : tunes[station - 1]);
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {
   state = { ...state, ...next };
@@ -220,7 +238,7 @@ function sound(song: Song, after: () => void) {
     return;
   }
   const tune = song.tune;
-  if (!tune) return;
+  if (!tune && !song.band) return;
   type Web = typeof window & { webkitAudioContext?: typeof AudioContext };
   audio ??= new (window.AudioContext ?? (window as Web).webkitAudioContext)();
   void audio.resume();
@@ -228,6 +246,11 @@ function sound(song: Song, after: () => void) {
   out.gain.value = VOLUME;
   out.connect(audio.destination);
   voice = out;
+  if (song.band) {
+    timer = window.setTimeout(after, (playBand(audio, out, song.band, audio.currentTime + 0.08) + 0.6) * 1000);
+    return;
+  }
+  if (!tune) return;
   const step = 60 / tune.bpm / tune.perBeat;
   const length = stepsIn(tune.lead) * step;
   const from = audio.currentTime + 0.08;
@@ -255,17 +278,101 @@ function sound(song: Song, after: () => void) {
   timer = window.setTimeout(after, (length * ROUNDS + 0.4) * 1000);
 }
 
+// --- One Man Band tunes: each instrument as the plainest thing that sounds like it over a
+// small speaker
+
+const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
+let hiss: AudioBuffer | null = null;
+function noise(context: AudioContext) {
+  if (!hiss || hiss.sampleRate !== context.sampleRate) {
+    hiss = context.createBuffer(1, context.sampleRate, context.sampleRate);
+    const data = hiss.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+  }
+  const source = context.createBufferSource();
+  source.buffer = hiss;
+  source.loop = true;
+  return source;
+}
+
+function bandNote(context: AudioContext, out: AudioNode, inst: number, b: number, n: number, at: number, seconds: number) {
+  // A sound that's held for the note's length, or (with `fade`) struck and left to die away
+  const voiced = (source: AudioScheduledSourceNode, level: number, fade?: number, through?: AudioNode) => {
+    const gain = context.createGain();
+    const end = fade === undefined ? at + seconds : at + fade * 6;
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(level, at + 0.012);
+    gain.gain.setTargetAtTime(0, fade === undefined ? end : at + 0.012, fade ?? 0.03);
+    (through ? source.connect(through) : source).connect(gain).connect(out);
+    source.start(at);
+    source.stop(end + 0.3);
+  };
+  const wave = (type: OscillatorType, from: number, to = from) => {
+    const oscillator = context.createOscillator();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(from, at);
+    if (to !== from) oscillator.frequency.exponentialRampToValueAtTime(to, at + 0.12);
+    return oscillator;
+  };
+  const pass = (type: BiquadFilterType, frequency: number) => {
+    const filter = context.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.value = frequency;
+    return filter;
+  };
+  const f = hz(n);
+  if (inst === 0) {
+    voiced(wave("sine", f), 0.15);
+    voiced(wave("sine", f * 2), 0.04);
+  } else if (inst === 1) voiced(wave("sawtooth", f), 0.085, undefined, pass("lowpass", 2400));
+  else if (inst === 2) {
+    voiced(wave("square", f), 0.04, undefined, pass("lowpass", 2600));
+    voiced(wave("square", f * 1.007), 0.04, undefined, pass("lowpass", 2600));
+  } else if (inst === 3) voiced(wave("triangle", f), 0.2, 0.3);
+  else if (inst === 4) {
+    voiced(wave("triangle", f), 0.2);
+    voiced(wave("sine", f), 0.1);
+  } else if (inst === 5) {
+    voiced(wave("sine", f), 0.13, 0.45);
+    voiced(wave("sine", f * 2.76), 0.045, 0.2);
+  } else {
+    // The drums: kick, snare, hat, tom, crash (`n` bends them a little)
+    const bend = 2 ** (n / 12);
+    if (b === 0) voiced(wave("sine", 150 * bend, 45 * bend), 0.5, 0.09);
+    else if (b === 1) {
+      voiced(noise(context), 0.22, 0.06, pass("highpass", 1500 * bend));
+      voiced(wave("triangle", 190 * bend), 0.14, 0.04);
+    } else if (b === 2) voiced(noise(context), 0.1, 0.02, pass("highpass", 7000));
+    else if (b === 3) voiced(wave("sine", 180 * bend, 100 * bend), 0.4, 0.1);
+    else voiced(noise(context), 0.15, 0.28, pass("highpass", 5000));
+  }
+}
+
+// Schedules a tune round and round for about half a minute; returns how long that is, in seconds
+function playBand(context: AudioContext, out: AudioNode, band: BandSong, from: number) {
+  const beat = 60 / band.bpm;
+  const length = band.bars * 4 * beat;
+  const count = band.tracks.reduce((sum, track) => sum + track.length, 0);
+  const rounds = Math.max(1, Math.min(Math.ceil(28 / length), Math.floor(1600 / Math.max(count, 1))));
+  for (let round = 0; round < rounds; round += 1)
+    band.tracks.forEach((track, inst) =>
+      track.forEach(([t, d, b, n]) => bandNote(context, out, inst, b, n, from + round * length + t * beat, d * beat))
+    );
+  return length * rounds;
+}
+
 function start(key: string) {
-  const song = BY_KEY.get(key);
+  const song = songNamed(key);
   if (!song) return;
   set({ playing: true, key, sampling: false });
   sound(song, () => radio.next());
 }
 
 const beside = (by: number) => {
-  if (playlist.length === 0) return null;
-  const index = state.key ? playlist.indexOf(state.key) : -1;
-  return playlist[(Math.max(index, by > 0 ? -1 : 0) + by + playlist.length) % playlist.length];
+  const list = onNow();
+  if (list.length === 0) return null;
+  const index = state.key ? list.indexOf(state.key) : -1;
+  return list[(Math.max(index, by > 0 ? -1 : 0) + by + list.length) % list.length];
 };
 
 export const radio = {
@@ -280,8 +387,29 @@ export const radio = {
   },
   playlist: () => playlist,
   play(key?: string) {
-    const next = key ?? (state.key && playlist.includes(state.key) ? state.key : playlist[0]);
+    const list = onNow();
+    const next = key ?? (state.key && list.includes(state.key) ? state.key : list[0]);
     if (next) start(next);
+  },
+  // Along the dial to the next frequency; what was playing gives way to what's on there
+  tune() {
+    const station = (state.station + 1) % STATIONS.length;
+    const first = onNow(station)[0] ?? null;
+    const was = state.playing;
+    hush();
+    set({ station, key: first, playing: false, sampling: false });
+    if (was && first) start(first);
+  },
+  // What's on a tune frequency (0 yours, 1 everyone else's), newest first
+  setTunes(which: 0 | 1, songs: { id: number; name: string; song: BandSong }[]) {
+    const keys = songs.map((each) => `band:${each.id}`);
+    if (keys.join() === tunes[which].join()) return;
+    tunes[which].forEach((key) => TUNED_IN.delete(key));
+    songs.forEach((each, i) => TUNED_IN.set(keys[i], { key: keys[i], name: each.name, colour: "#7446ad", band: each.song }));
+    tunes[which] = keys;
+    // (tuned to it with nothing chosen yet: its first)
+    if (state.station === which + 1 && !state.playing) set({ key: keys.includes(state.key ?? "") ? state.key : keys[0] ?? null });
+    else listeners.forEach((listener) => listener());
   },
   stop() {
     hush();
