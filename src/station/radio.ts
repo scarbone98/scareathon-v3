@@ -19,7 +19,7 @@ type Tune = {
 };
 
 // A tune made in One Man Band (the arcade cart): a loop of so many bars, and for each of its
-// seven instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums) the notes on it,
+// instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums, keytar, theremin, viola) the notes on it,
 // each [beat, beats long, button, note]. For the drums the button is which drum.
 export type BandSong = { bpm: number; bars: number; tracks: number[][][] };
 
@@ -297,12 +297,12 @@ function noise(context: AudioContext) {
 
 function bandNote(context: AudioContext, out: AudioNode, inst: number, b: number, n: number, at: number, seconds: number) {
   // A sound that's held for the note's length, or (with `fade`) struck and left to die away
-  const voiced = (source: AudioScheduledSourceNode, level: number, fade?: number, through?: AudioNode) => {
+  const voiced = (source: AudioScheduledSourceNode, level: number, fade?: number, through?: AudioNode, attack = 0.012) => {
     const gain = context.createGain();
     const end = fade === undefined ? at + seconds : at + fade * 6;
     gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(level, at + 0.012);
-    gain.gain.setTargetAtTime(0, fade === undefined ? end : at + 0.012, fade ?? 0.03);
+    gain.gain.linearRampToValueAtTime(level, at + attack);
+    gain.gain.setTargetAtTime(0, fade === undefined ? Math.max(end, at + attack) : at + attack, fade ?? 0.03);
     (through ? source.connect(through) : source).connect(gain).connect(out);
     source.start(at);
     source.stop(end + 0.3);
@@ -335,6 +335,24 @@ function bandNote(context: AudioContext, out: AudioNode, inst: number, b: number
   } else if (inst === 5) {
     voiced(wave("sine", f), 0.13, 0.45);
     voiced(wave("sine", f * 2.76), 0.045, 0.2);
+  } else if (inst === 7) {
+    // The keytar: two saws a hair apart, bright
+    voiced(wave("sawtooth", f), 0.05, undefined, pass("lowpass", 3600));
+    voiced(wave("sawtooth", f * 1.008), 0.045, undefined, pass("lowpass", 3600));
+  } else if (inst === 8) {
+    // The theremin: a plain tone that slides up into its note and wobbles
+    const tone = wave("sine", f * 0.87, f);
+    const wobble = context.createOscillator();
+    const depth = context.createGain();
+    wobble.frequency.value = 6;
+    depth.gain.value = f * 0.013;
+    wobble.connect(depth).connect(tone.frequency);
+    wobble.start(at);
+    wobble.stop(at + seconds + 0.6);
+    voiced(tone, 0.16, undefined, undefined, 0.09);
+  } else if (inst === 9) {
+    // The viola: a saw with the top taken off, speaking slowly
+    voiced(wave("sawtooth", f), 0.09, undefined, pass("lowpass", 1700), 0.08);
   } else {
     // The drums: kick, snare, hat, tom, crash (`n` bends them a little)
     const bend = 2 ** (n / 12);
