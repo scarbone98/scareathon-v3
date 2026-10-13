@@ -13,6 +13,9 @@ import PixelArrow from "./style/PixelArrow.tsx";
 // last picture of the shaft itself is what keeps going: the page grows it towards you (see
 // `station-sinking` there) as this darkens over it, so the fall carries on down into the
 // black that the cellar comes up out of. At the aquarium, bubbles rise over the station's tank.
+// The dark alone says nothing if the game is slow to come (a phone, a first visit): once it's
+// down, a lamp swings on its flex in the black with a word under it, and a second word after
+// a long while, so a wait reads as a wait.
 //
 // The game and the page talk in messages named for the game (`prefix`: CRYPTLINS, AQUARIUM):
 //   from the game: <PREFIX>_READY (its room is drawn), <PREFIX>_USED { item } (one used up),
@@ -39,7 +42,24 @@ function Cover({ kind, up }: { kind: Props["cover"]; up: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden transition-opacity duration-300" style={{ opacity: up ? 1 : 0 }} aria-hidden>
       {kind === "shaft" ? (
-        <div className="pet-dark absolute inset-0 bg-black" />
+        <div className="pet-dark absolute inset-0 bg-black">
+          <div className="pet-wait absolute inset-0 flex flex-col items-center justify-center gap-5">
+            <div className="pet-lamp flex flex-col items-center">
+              <span className="h-16 w-px bg-[#6b5a44]" />
+              <span className="h-2 w-5 rounded-t-sm bg-[#3a4a44]" />
+              <span className="h-4 w-4 rounded-full bg-[#ffe2a6] shadow-[0_0_18px_8px_rgba(255,196,110,0.45),0_0_60px_30px_rgba(255,170,80,0.18)]" />
+            </div>
+            <p className="text-sm tracking-[0.18em] text-[#e8dcc0]/80" style={{ fontFamily: "'Special Elite', 'Courier New', monospace" }}>
+              Going down
+              <span className="pet-dot">.</span>
+              <span className="pet-dot" style={{ animationDelay: "0.25s" }}>.</span>
+              <span className="pet-dot" style={{ animationDelay: "0.5s" }}>.</span>
+            </p>
+            <p className="pet-long text-xs tracking-[0.12em] text-[#e8dcc0]/55" style={{ fontFamily: "'Special Elite', 'Courier New', monospace" }}>
+              It is a long way. Nearly there.
+            </p>
+          </div>
+        </div>
       ) : (
         [8, 21, 33, 47, 58, 71, 84, 93].map((left, i) => (
           <span
@@ -52,9 +72,15 @@ function Cover({ kind, up }: { kind: Props["cover"]; up: boolean }) {
       <style>{`
         @keyframes pet-dark-in { from { opacity: 0 } to { opacity: 1 } }
         .pet-dark { animation: pet-dark-in 3.2s ease-in both; will-change: opacity }
+        .pet-wait { animation: pet-dark-in 0.9s ease-out 2.6s both; will-change: opacity }
+        .pet-long { animation: pet-dark-in 1.2s ease-out 14s both; will-change: opacity }
+        @keyframes pet-lamp-swing { from { transform: rotate(-9deg) } to { transform: rotate(9deg) } }
+        .pet-lamp { transform-origin: 50% 0; animation: pet-lamp-swing 1.9s ease-in-out infinite alternate; will-change: transform }
+        @keyframes pet-dot-blink { 0%, 100% { opacity: 0.15 } 40% { opacity: 1 } }
+        .pet-dot { animation: pet-dot-blink 1.2s ease-in-out infinite; will-change: opacity }
         @keyframes pet-bubble-up { from { transform: translateY(20px); opacity: 0 } 12% { opacity: 1 } to { transform: translateY(-105vh); opacity: 0.7 } }
         .pet-bubble { animation: pet-bubble-up linear infinite; will-change: transform, opacity }
-        @media (prefers-reduced-motion: reduce) { .pet-dark, .pet-bubble { animation: none } }
+        @media (prefers-reduced-motion: reduce) { .pet-dark, .pet-bubble, .pet-lamp, .pet-dot { animation: none } }
       `}</style>
     </div>
   );
