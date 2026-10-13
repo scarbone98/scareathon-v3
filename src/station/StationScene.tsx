@@ -55,7 +55,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { isLightweightDevice } from "../pages/Arcade/cabinetParts.ts";
 import { fetchWithAuth } from "../fetchWithAuth";
-import { radio as radio$, songNamed } from "./radio.ts";
+import { radio as radio$, songNamed, STATIONS } from "./radio.ts";
 import { composeLook } from "../components/avatar/compose";
 import type { AvatarLook } from "../components/avatar/types";
 import { MARQUEE_GLOW } from "../pages/Arcade/cabinetParts.ts";
@@ -2891,7 +2891,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     strew(0.16, 0.16, leafMaterial, 9);
     strew(0.16, 0.08, stubMaterial, 5, "stub");
-    strew(0.22, 0.22, scrapMaterial, 6, "scrap");
+    strew(0.22, 0.22, scrapMaterial, 4, "scrap");
     const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
     const floorAt = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -3387,14 +3387,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       )
     );
     // The screen: a little green display, redrawn as the song changes (and scrolled, when
-    // its name is longer than the glass)
+    // its name is longer than the glass). Its top line is the frequency it's tuned to; a tap
+    // on the glass turns the dial to the next
     const radioScreen = paint(256, 96, () => undefined);
     const radioGlass = plane(0.13, 0.05, new MeshBasicMaterial({ map: radioScreen, fog: false }), 0.083, 0.155, 0.0525);
     radio.add(radioGlass);
+    const radioDial = box(0.13, 0.05, 0.03, new MeshBasicMaterial({ visible: false }), 0.083, 0.155, 0.07);
+    radioDial.userData.part = "radio-tune";
+    radio.add(radioDial);
     let radioDrawn = "";
     const drawRadioScreen = (t: number) => {
-      const { playing, key } = radio$.now();
-      const name = (songNamed(key)?.name ?? "").toUpperCase();
+      const { playing, key, station } = radio$.now();
+      const tuned = STATIONS[station];
+      const name = (songNamed(key)?.name ?? tuned.empty).toUpperCase();
       const canvas = radioScreen.image as HTMLCanvasElement;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -3403,7 +3408,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const room = canvas.width - 24;
       // (still, it's drawn once; scrolling, about twelve times a second)
       const slide = wide > room ? Math.floor(t * 12) : 0;
-      const stamp = `${playing}|${key}|${slide}`;
+      const stamp = `${playing}|${key}|${slide}|${station}`;
       if (stamp === radioDrawn) return;
       radioDrawn = stamp;
       ctx.fillStyle = playing ? "#0d2414" : "#0a140d";
@@ -3411,7 +3416,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       ctx.fillStyle = playing ? "#8dffa6" : "#3f7a4f";
       ctx.textBaseline = "middle";
       ctx.font = "bold 22px monospace";
-      ctx.fillText(playing ? "\u25B6 PLAYING" : name ? "\u25A0 STOPPED" : "\u25A0 OFF", 12, 22);
+      ctx.fillText(`${playing ? "\u25B6" : "\u25A0"} ${tuned.dial} ${tuned.name.toUpperCase()}`, 12, 22);
       ctx.font = "bold 40px monospace";
       if (wide <= room) ctx.fillText(name || "- - -", 12, 64);
       else {
@@ -3461,6 +3466,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       return { part, key };
     });
     const pressRadio = (part: string) => {
+      if (part === "radio-tune") return radio$.tune();
       const pressed = radioKeys.find((each) => each.part === part);
       if (!pressed) return;
       pressed.key.userData.pressedAt = performance.now() / 1000;

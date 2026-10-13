@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { MachineData } from "../Arcade/games.tsx";
+import { toggleFavourite, useFavouriteCarts } from "../Arcade/favourites.ts";
 import { useNavigatorContext } from "../../components/navigator/context.tsx";
 import { TERMINAL_FONT, whenFontReady } from "./arcadeFonts.ts";
 import { cleanCode, MAX_CODE } from "./waysideOS.ts";
@@ -12,6 +13,7 @@ import {
   playHint,
   rebootView,
   settled,
+  starKey,
   takeoverView,
   terminalControls,
   typedParts,
@@ -247,6 +249,33 @@ function TerminalButton({
   );
 }
 
+// The star key: makes the picked game a favourite, or takes it off them. The star is filled
+// for a favourite and hollow otherwise. The key looks like the others, but takes a touch
+// from a little way below it too, so it's easy to hit on a phone
+function StarKey({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={on ? "Remove from favourites" : "Add to favourites"}
+      aria-pressed={on}
+      className="group absolute right-0 top-0 z-10 flex h-11 items-start pr-1 pt-0.5 text-xl focus:outline-none"
+    >
+      <span className="whitespace-nowrap px-1.5 leading-6 transition-colors group-focus-visible:bg-[#39ff6a] group-focus-visible:text-[#021407] [@media(hover:hover)]:group-hover:bg-[#39ff6a] [@media(hover:hover)]:group-hover:text-[#021407]">
+        [{" "}
+        <svg viewBox="0 0 16 16" className="inline-block h-[0.8em] w-[0.8em] align-[-0.05em]" aria-hidden="true" style={{ filter: "drop-shadow(0 0 3px rgba(57,255,106,0.65))" }}>
+          <path
+            d="M8 1.5 9.76 6.07 14.66 6.34 10.85 9.43 12.11 14.16 8 11.5 3.89 14.16 5.15 9.43 1.34 6.34 6.24 6.07Z"
+            fill={on ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="1.3"
+          />
+        </svg>{" "}
+        ]
+      </span>
+    </button>
+  );
+}
 
 // Keeps `now` ticking while the screen is still changing (typing, a filling bar, a
 // reboot), and stops once it settles
@@ -317,7 +346,8 @@ function ScreenBody({
   if (screen.kind === "game") {
     return (
       <>
-        <div className="px-2">
+        {/* (clear of the star key in the corner, and as far in on the left to stay centred) */}
+        <div className="px-11">
           <FittedTitle text={gameTitle(screen.game)} shown={shownFirst} cursor={typing.cursorAt === 0} />
         </div>
         <div className={body}>
@@ -444,6 +474,7 @@ export default function GameCard({ screen, details, phone, style, className = ""
     roll.current?.animate(ROLL_FRAMES, { duration: 400, easing: "linear" });
   }, [glitch]);
   const controls = terminalControls(screen, details);
+  const favourites = useFavouriteCarts();
   // The takeover can seem to switch the terminal off, power light and all
   const poweredOff = screen.kind === "takeover" && Boolean(takeoverView(screen, now).off);
 
@@ -507,6 +538,9 @@ export default function GameCard({ screen, details, phone, style, className = ""
               </TerminalButton>
             </div>
           )}
+
+          {/* ...and the star, in the top right corner */}
+          {starKey(screen, details) && <StarKey on={favourites.includes(screen.game.name)} onClick={() => toggleFavourite(screen.game.name)} />}
 
           {/* The bands that roll down the glass when it's knocked (out of sight otherwise) */}
           <div ref={roll} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-full" style={{ transform: "translateY(110%)", opacity: 0 }}>

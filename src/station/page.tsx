@@ -30,6 +30,7 @@ import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
 import TicketDrop from "./things/TicketDrop.tsx";
 import { useSongs } from "./things/Songs.tsx";
+import { useBandSongs } from "./things/BandSongs.tsx";
 import { useCarts } from "./things/Carts.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
@@ -291,6 +292,8 @@ export default function StationPage() {
   }, [at]);
   // The radio plays your songs (the ones everyone has, signed out)
   useSongs(signedIn);
+  // And, on its other frequencies, the tunes made in One Man Band: yours, and everyone else's
+  useBandSongs(signedIn);
   // Cartridges bought at the counter go on the arcade's shelf (wherever you've signed in)
   useCarts(signedIn);
 
@@ -475,10 +478,11 @@ export default function StationPage() {
   const [atCabinet, setAtCabinet] = useState(false);
   const [arcadeFrame, setArcadeFrame] = useState<CabinetFrame | null>(null);
   // The game the cabinet previews from the platform; the arcade opens on the same one, so
-  // it's one of the arcade's own (phones don't get the desktop-only ones)
+  // it's one of the arcade's own (phones don't get the desktop-only ones): the first of this
+  // device's favourites, or any game at all if there are none
   const [preview] = useState(() => {
     const pool = games.filter((game) => game.game && game.videoUrl && !game.special);
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const pick = pool.find((game) => game.favourite) ?? pool[Math.floor(Math.random() * pool.length)];
     return pick?.videoUrl ? { name: pick.name, video: pick.videoUrl, color: pick.cartridge.color } : null;
   });
   // The arcade is built in the background once the station has settled, and kept (paused

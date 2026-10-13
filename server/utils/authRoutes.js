@@ -63,6 +63,8 @@ export function isOptionalAuthRoute(method, url) {
         url === '/picto-box/photos' || url.startsWith('/picto-box/photos?') ||
         // Wayside Online: anyone can read the boards; signed in, you see your own reactions
         url.startsWith('/wayside-online/threads') ||
+        // The radio's other frequency: anyone can hear everyone's One Man Band tunes
+        url.startsWith('/band-songs/air') ||
         // How players look (the lounge draws everyone in it, for guests too)
         url.startsWith('/user/looks')
     );

@@ -264,6 +264,12 @@ export function terminalControls(screen: TerminalScreen, details: boolean): "all
   return details ? "details" : "all";
 }
 
+// Whether the star key shows, top right: with the other keys, on anything but Shuffle
+// (which is a different game every time)
+export function starKey(screen: TerminalScreen, details: boolean): screen is TerminalScreen & { kind: "game" } {
+  return screen.kind === "game" && screen.game.special !== "shuffle" && terminalControls(screen, details) === "all";
+}
+
 // Whether the screen has stopped changing (so there's nothing more to redraw)
 export function settled(screen: TerminalScreen, details: boolean, time: number) {
   if (screen.kind === "reboot" || screen.kind === "takeover") return false;
