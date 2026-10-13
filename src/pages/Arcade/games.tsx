@@ -129,7 +129,7 @@ const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e5
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
 // A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
-// station (github.com/Sclondon/OneManBand), in testing.
+// station (github.com/Sclondon/OneManBand).
 const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=bb4fbbf";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
@@ -1500,14 +1500,13 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // --- Secret: in testing, only on the shelf once you've typed BAND into WaysideOS.
-    // A music toy: play notes, loop them, layer instruments. Nothing to score.
+    // On the shelf for everyone. A music toy: play notes, loop them, layer instruments.
+    // Nothing to score.
     {
       name: "One Man Band",
       added: "2026-10-13T13:00:00-06:00",
-      secret: true,
-      earlyAccess: true,
       availableOnMobile: true,
+      videoUrl: "/game-recordings/OneManBand.mp4",
       cartridge: {
         color: "#7446ad",
         tagline: "Five notes. Seven instruments. One very wide grin.",
