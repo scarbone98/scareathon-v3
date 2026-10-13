@@ -2891,7 +2891,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     strew(0.16, 0.16, leafMaterial, 9);
     strew(0.16, 0.08, stubMaterial, 5, "stub");
-    strew(0.22, 0.22, scrapMaterial, 6, "scrap");
+    strew(0.22, 0.22, scrapMaterial, 4, "scrap");
     const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
     const floorAt = (clientX: number, clientY: number) => {
       const rect = renderer.domElement.getBoundingClientRect();
