@@ -28,6 +28,7 @@ import { SheetActions } from "../Sheet.tsx";
 import ShopKeeper, { type TriedOn } from "./ShopKeeper.tsx";
 import { useSongShopItems } from "./Songs.tsx";
 import { useCartShopItems } from "./Carts.tsx";
+import { usePetShopItems } from "./PetItems.tsx";
 import LegalPapers from "./LegalPapers.tsx";
 import { radio } from "../radio.ts";
 
@@ -251,7 +252,9 @@ export function Shop({ signedIn, goTo, focus }: { signedIn: boolean; goTo: GoTo;
   useEffect(() => () => radio.endSample(), []);
   // (and cartridges for the arcade)
   const cartItems = useCartShopItems();
-  const wares = [...bannerItems, ...songItems, ...cartItems];
+  // (and supplies for the cryptlin in the cellar and the aquarium on the lockers)
+  const petItems = usePetShopItems();
+  const wares = [...bannerItems, ...songItems, ...cartItems, ...petItems];
   // Opened on an item (an advert over the window): searched for straight away
   const [filters, setFilters] = useState<ShopFilters>({ ...NO_FILTERS, search: focus ?? "" });
   const topBar = useContext(SheetActions);

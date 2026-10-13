@@ -10,9 +10,9 @@ import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
 import { markPlayed, watchGameUpdates } from "../pages/Arcade/news";
-import { createArcadeGames, normalizeMachineName, pickShuffleGame, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
+import { createArcadeGames, CRYPTLINS_URL, normalizeMachineName, pickShuffleGame, POCKET_AQUARIUM_URL, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie, useLooks } from "./data.ts";
-import { FOLD, HEADINGS, isHeading, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
+import { FOLD, HEADINGS, isHeading, isPetStop, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
 import DepartureBoard from "./things/DepartureBoard.tsx";
@@ -24,6 +24,8 @@ import HeldCard, { type HeldItem } from "./HeldCard.tsx";
 import { STATION_FONTS, sans, plateButton, serif } from "./style/theme.ts";
 import SceneBoundary from "./SceneBoundary.tsx";
 import StationPlay from "./StationPlay.tsx";
+import PetFrame from "./PetFrame.tsx";
+import { usePetStock } from "./things/PetItems.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
 import TicketDrop from "./things/TicketDrop.tsx";
@@ -565,6 +567,55 @@ export default function StationPage() {
   };
   const stopPlaying = () => setTransition({ mode: "off", game: null });
 
+  // The station's two creatures, each a game of its own brought in over the scene: the
+  // cryptlin down the trap door, and the aquarium on top of the lockers (see PetFrame). A
+  // game is fetched as you set off for it; and once you've been to one, it's fetched ahead
+  // whenever you're stood looking that way, so that going back is at once. Going down the
+  // trap door there's the length of the shaft to load in (the bricks keep going by until
+  // it has); at the aquarium, the station's own tank is what you look at meanwhile.
+  const cellarStock = usePetStock(signedIn, "cryptlins");
+  const tankStock = usePetStock(signedIn, "aquarium");
+  const [petBuilt, setPetBuilt] = useState({ cellar: at === "cellar", tank: at === "tank" });
+  const [petReady, setPetReady] = useState({ cellar: false, tank: false });
+  const [petArrived, setPetArrived] = useState(false);
+  const petStop = isPetStop(at) ? at : null;
+  useEffect(() => {
+    setPetArrived(false);
+    if (!petStop) return;
+    setPetBuilt((built) => (built[petStop] ? built : { ...built, [petStop]: true }));
+    try {
+      window.localStorage.setItem(`wayside.pet.${petStop}`, "1");
+    } catch {
+      // (no storage: it's just not fetched ahead next time)
+    }
+    // (the walk over and the way down the shaft; or the walk up to the glass)
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const arrive = window.setTimeout(() => setPetArrived(true), reduced ? 0 : petStop === "cellar" ? 1850 : 1050);
+    return () => window.clearTimeout(arrive);
+  }, [petStop]);
+  const nearPets = heading === "left" || at === "arcade" || at === "lockers";
+  useEffect(() => {
+    if (!nearPets || !onPlatform) return;
+    const fetchAhead = window.setTimeout(() => {
+      let known = { cellar: false, tank: false };
+      try {
+        known = { cellar: window.localStorage.getItem("wayside.pet.cellar") === "1", tank: window.localStorage.getItem("wayside.pet.tank") === "1" };
+      } catch {
+        // (no storage: nothing's fetched ahead)
+      }
+      setPetBuilt((built) => (known.cellar === built.cellar && known.tank === built.tank ? built : { cellar: built.cellar || known.cellar, tank: built.tank || known.tank }));
+    }, 3000);
+    return () => window.clearTimeout(fetchAhead);
+  }, [nearPets, onPlatform]);
+  // (a game at the arcade wants the phone's memory to itself: the creatures' are let go, and
+  // fetched again when next wanted)
+  useEffect(() => {
+    if (!playing) return;
+    setPetBuilt({ cellar: false, tank: false });
+    setPetReady({ cellar: false, tank: false });
+  }, [playing]);
+  const petVisible = Boolean(petStop && petArrived && petBuilt[petStop] && petReady[petStop]);
+
   // On phones the arcade's terminal has a key for the site menu; here it steps back to the platform
   const { mobileMenuOpen, setMobileMenuOpen } = useNavigatorContext();
   useEffect(() => {
@@ -581,7 +632,7 @@ export default function StationPage() {
   // Keyboard: arrows turn, Up or Enter walks to what's ahead, Down or Esc steps back; at a
   // paper, the arrows move across and down the board
   const keys = useRef({ at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: false });
-  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: Boolean(playing || held || directoryOpen || sceneFailed || directoryPaper) };
+  keys.current = { at, heading, select, turn, stepBack, zoom, setZoom: zoomTo, busy: Boolean(playing || held || directoryOpen || sceneFailed || directoryPaper || petVisible) };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -681,6 +732,8 @@ export default function StationPage() {
         </>}
         {at === "bench" && <p>The bench looks out over the tracks. Take a moment’s rest.</p>}
         {at === "capsule" && <p>The capsule machine needs the 3D scene. Your items are available at your locker.</p>}
+        {at === "cellar" && <p>Down the trap door in front of the arcade is a cellar, and something small that lives in it. It needs the 3D scene.</p>}
+        {at === "tank" && <p>The aquarium on top of the lockers needs the 3D scene.</p>}
       </section>
     </nav>
   );
@@ -700,7 +753,8 @@ export default function StationPage() {
             onSelect={select}
             onTurn={turn}
             boards={boards}
-            paused={Boolean(playing) || atCabinet || directoryVisible}
+            paused={Boolean(playing) || atCabinet || directoryVisible || petVisible}
+            falling={at === "cellar" && !petVisible}
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
             preview={preview}
@@ -759,10 +813,40 @@ export default function StationPage() {
           </div>
         )}
 
+        {/* The cryptlin in the cellar and the aquarium on the lockers: their games, over the scene */}
+        {!directoryVisible && (
+          <>
+            <PetFrame
+              title="The cellar"
+              url={CRYPTLINS_URL}
+              prefix="CRYPTLINS"
+              built={petBuilt.cellar}
+              showing={at === "cellar" && petArrived}
+              stock={cellarStock.stock}
+              stockKnown={cellarStock.known}
+              onUsed={cellarStock.use}
+              onReady={() => setPetReady((ready) => ({ ...ready, cellar: true }))}
+              onBack={stepBack}
+            />
+            <PetFrame
+              title="The aquarium"
+              url={POCKET_AQUARIUM_URL}
+              prefix="AQUARIUM"
+              built={petBuilt.tank}
+              showing={at === "tank" && petArrived}
+              stock={tankStock.stock}
+              stockKnown={tankStock.known}
+              onUsed={tankStock.use}
+              onReady={() => setPetReady((ready) => ({ ...ready, tank: true }))}
+              onBack={stepBack}
+            />
+          </>
+        )}
+
         {/* The way back: always in the same place, bottom left (at the arcade, a key on its terminal;
             on the bench, none: the view is left alone, and a tap anywhere gets up; but up
             close to its radio, there is) */}
-        {at && (at !== "bench" || zoom === "radio") && !(at === "arcade" && atCabinet) && (
+        {at && (at !== "bench" || zoom === "radio") && !(at === "arcade" && atCabinet) && !petVisible && (
           <button
             type="button"
             onClick={stepBack}

@@ -14,6 +14,7 @@ import {
   ExtrudeGeometry,
   Frustum,
   Shape,
+  ShapeGeometry,
   Path,
   SphereGeometry,
   SpotLight,
@@ -68,7 +69,7 @@ import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRo
 import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { hasNews, NEWS_EVENT, playedCarts } from "../pages/Arcade/news.ts";
-import { HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
+import { HATCH, HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { CAPSULE_MS, CAPSULE_TICKETS, capsuleMachine } from "./capsuleSignal.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
@@ -92,6 +93,8 @@ type Props = {
   // with this one exactly there; and whether to hide this one (the arcade's is on top)
   arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number; fov?: number } | null;
   hideArcade?: boolean;
+  // Down the trap door's shaft with the cellar not ready yet: the bricks keep going by
+  falling?: boolean;
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
   arcadeGames?: MachineData[]; // the arcade's cartridges, so this cabinet's row matches its
@@ -1550,6 +1553,101 @@ function drawClock(ctx: CanvasRenderingContext2D, w: number, h: number, now: Dat
   ctx.fill();
 }
 
+// The trap door: one slab of the platform, front left of the arcade, on a hinge. Under it a
+// brick shaft goes down into the dark, to the cellar where the cryptlin lives (the page
+// brings its game in once you're down: PetFrame). The platform's top is laid with a hole
+// under the lid (see the floor).
+function buildHatch() {
+  const group = new Group();
+  group.position.set(HATCH.x, 0, HATCH.z);
+  const s = HATCH.size;
+  const iron = standard("#1c1a17", 0.5);
+  // The lid, hinged along its far edge
+  const lid = new Group();
+  lid.position.set(0, 0.008, -s / 2);
+  lid.add(box(s - 0.02, 0.035, s - 0.02, wooden("#4a3524", 0.9), 0, 0.006, s / 2));
+  [-0.2, 0.2].forEach((x) => lid.add(box(0.05, 0.012, s - 0.06, iron, x, 0.028, s / 2)));
+  const ring = new Mesh(new TorusGeometry(0.05, 0.01, 6, 12), iron);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.set(0, 0.03, s - 0.13);
+  lid.add(ring);
+  group.add(lid);
+  // The shaft: four walls of the station's brick, lit from the top and black by the bottom
+  const depth = 6;
+  const bricks = brickTexture();
+  bricks.repeat.set(1, 7.5);
+  const wall = new MeshBasicMaterial({ map: bricks, vertexColors: true, fog: false });
+  for (let i = 0; i < 4; i += 1) {
+    const geometry = new PlaneGeometry(s, depth, 1, 8);
+    const shades: number[] = [];
+    for (let v = 0; v < geometry.attributes.position.count; v += 1) {
+      const shade = 2.2 * Math.max(0, geometry.attributes.position.getY(v) / depth + 0.5) ** 2.5;
+      shades.push(shade, shade * 0.9, shade * 0.8);
+    }
+    geometry.setAttribute("color", new Float32BufferAttribute(shades, 3));
+    const side = new Mesh(geometry, wall);
+    const angle = (i * Math.PI) / 2;
+    side.position.set((Math.sin(angle) * s) / 2, -depth / 2, (Math.cos(angle) * s) / 2);
+    side.rotation.y = angle + Math.PI; // facing in
+    group.add(side);
+  }
+  const bottom = plane(s, s, new MeshBasicMaterial({ color: "#000000", fog: false }), 0, -depth, 0);
+  bottom.rotation.x = -Math.PI / 2;
+  group.add(bottom);
+  group.add(hitBox(s + 0.1, 0.3, s + 0.1, 0.1));
+  group.userData.lid = lid;
+  group.userData.bricks = bricks;
+  group.userData.stopId = "cellar";
+  return group;
+}
+
+// (how far its lid stands above the lockers' top: the Halloween skull and candles keep watch from up there)
+const AQUARIUM_TOP = 0.59;
+// The aquarium on top of the lockers: a lit tank with a few fish going to and fro. Walk up
+// to it and the camera goes right in to the glass, where the page brings in the real one
+// (the Pocket Aquarium game: PetFrame)
+function buildAquarium() {
+  const group = new Group();
+  group.position.set(-5.3, 0.12 + 2 * LOCKER_H + 0.02, WALL_Z + 0.25);
+  const [w, h, d] = [1.1, 0.5, 0.38];
+  const lit = (color: string, more: Record<string, unknown> = {}) => new MeshBasicMaterial({ color, fog: false, ...more });
+  const frame = standard("#16181c", 0.6);
+  group.add(box(w + 0.04, 0.04, d + 0.04, frame, 0, 0.02, 0));
+  group.add(box(w + 0.04, 0.05, d + 0.04, frame, 0, h + 0.065, 0));
+  [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => group.add(box(0.02, h, 0.02, frame, (sx * w) / 2, 0.04 + h / 2, (sz * d) / 2))));
+  // Lit from its hood: the water at the back, gravel, and a strip of light under the lid
+  group.add(plane(w, h, lit("#103a44"), 0, 0.04 + h / 2, -d / 2 + 0.005));
+  group.add(box(w, 0.05, d, lit("#4a473c"), 0, 0.065, 0));
+  group.add(box(w - 0.1, 0.01, 0.08, lit("#d8f6ff"), 0, h + 0.035, 0));
+  const weeds = [[-0.4, 0.3], [-0.31, 0.2], [0.34, 0.34], [0.43, 0.22], [0.06, 0.15]].map(([x, tall], i) => {
+    const weed = plane(0.045, tall, lit(i % 2 ? "#2f7a3e" : "#46a352", { side: DoubleSide }), x, 0.09 + tall / 2, -0.1 + (i % 3) * 0.06);
+    weed.rotation.y = i * 1.3;
+    group.add(weed);
+    return weed;
+  });
+  const fish = ([["#f0822a", 0.33, 0.06, 0, 0.5], ["#e8dcbc", 0.43, -0.04, 2.1, 0.38], ["#5fb4d8", 0.22, 0.02, 4.0, 0.62]] as [string, number, number, number, number][]).map(([colour, y, z, phase, pace]) => {
+    const body = new Group();
+    const trunk = new Mesh(new SphereGeometry(1, 8, 6), lit(colour));
+    trunk.scale.set(0.05, 0.028, 0.014);
+    const tail = new Mesh(new CylinderGeometry(0, 0.028, 0.045, 3), lit(colour));
+    tail.rotation.z = -Math.PI / 2;
+    tail.scale.z = 0.3;
+    tail.position.x = -0.062;
+    body.add(trunk, tail);
+    body.position.set(0, y, z);
+    group.add(body);
+    return { body, y, phase, pace };
+  });
+  // The front glass, catching a little of the light
+  group.add(plane(w, h, lit("#8fdcec", { transparent: true, opacity: 0.1, depthWrite: false }), 0, 0.04 + h / 2, d / 2));
+  // (its tap box stands out in front of the lockers' own, which reaches up past the tank's foot)
+  group.add(hitBox(w + 0.1, h + 0.14, 1.0, 0.04 + h / 2));
+  group.userData.fish = fish;
+  group.userData.weeds = weeds;
+  group.userData.stopId = "tank";
+  return group;
+}
+
 function buildLockers() {
   const group = new Group();
   group.position.set(-5.3, 0, WALL_Z + 0.25); // left of the arcade
@@ -2578,7 +2676,7 @@ const ASKED_HOUR = (() => {
   }
 })();
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar, onFailure }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, falling = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar, onFailure }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -2587,8 +2685,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
   const cabinetSeenRef = useRef(false); // the cabinet's on screen (its preview plays)
-  const latest = useRef({ onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
-  latest.current = { onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
+  const latest = useRef({ onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, falling, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
+  latest.current = { onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, falling, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -3076,7 +3174,32 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     });
     floorTex.wrapS = floorTex.wrapT = RepeatWrapping;
     floorTex.repeat.set(PLATFORM_W / 2.8, (EDGE_Z - WALL_Z) / 2.8);
-    scene.add(box(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, standard("#bdb5aa", 0.95, floorTex), PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
+    // (its top is laid apart from the block under it, with a hole in it under the trap door:
+    // the same slabs, mapped from where they lie)
+    const floorStone = standard("#bdb5aa", 0.95, floorTex);
+    const noFace = new MeshBasicMaterial({ visible: false });
+    scene.add(faced(PLATFORM_W, 0.85, EDGE_Z - WALL_Z, [floorStone, floorStone, noFace, floorStone, floorStone, floorStone], PLATFORM_MID, -0.425, (EDGE_Z + WALL_Z) / 2));
+    const floorTop = new Shape();
+    floorTop.moveTo(END_X, -EDGE_Z);
+    floorTop.lineTo(END_X + PLATFORM_W, -EDGE_Z);
+    floorTop.lineTo(END_X + PLATFORM_W, -WALL_Z);
+    floorTop.lineTo(END_X, -WALL_Z);
+    floorTop.closePath();
+    const hatchway = new Path();
+    const hatchHalf = HATCH.size / 2;
+    hatchway.moveTo(HATCH.x - hatchHalf, -HATCH.z - hatchHalf);
+    hatchway.lineTo(HATCH.x - hatchHalf, -HATCH.z + hatchHalf);
+    hatchway.lineTo(HATCH.x + hatchHalf, -HATCH.z + hatchHalf);
+    hatchway.lineTo(HATCH.x + hatchHalf, -HATCH.z - hatchHalf);
+    hatchway.closePath();
+    floorTop.holes.push(hatchway);
+    const topTex = floorTex.clone();
+    topTex.repeat.set(1 / 2.8, -1 / 2.8);
+    topTex.offset.set(-END_X / 2.8, -WALL_Z / 2.8);
+    topTex.needsUpdate = true;
+    const floorSlabs = new Mesh(new ShapeGeometry(floorTop), standard("#bdb5aa", 0.95, topTex));
+    floorSlabs.rotation.x = -Math.PI / 2;
+    scene.add(floorSlabs);
     // The back wall, brick, with the transoms' openings cut right through it
     const wallLeft = PLATFORM_MID - PLATFORM_W / 2;
     const wallShape = new Shape();
@@ -3872,6 +3995,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const events = buildEvents();
     const tickets = buildTickets();
     const lockers = buildLockers();
+    const hatch = buildHatch();
+    const aquarium = buildAquarium();
     let lastMinute = 0;
     const mail = buildMail();
     // (in a task of its own, apart from building the cabinet, so neither holds up a frame as long)
@@ -3892,7 +4017,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let crankSelf: number | null = null;
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
-    const objects = [bench, lockers, arcade, cartRack, capsule, bulletin, events, tickets, departures, mail];
+    const objects = [bench, lockers, arcade, cartRack, capsule, bulletin, events, tickets, departures, mail, hatch, aquarium];
     // The arcade's lamp hangs in the scene itself, not in the arcade, which is hidden while
     // the arcade's own cabinet is over it: hiding a light would rebuild every lit shader
     // there and then, a stall just as the arcade comes up
@@ -3911,7 +4036,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     surfaceLayerRef.current?.appendChild(surfaceLayer);
     const surfaceView = new Matrix4();
     const surfaceClip = new Matrix4();
-    const parents: Record<StopId, Group> = { bench, lockers, arcade, capsule, bulletin, events, tickets, departures, mail };
+    const parents: Record<StopId, Group> = { bench, lockers, arcade, capsule, bulletin, events, tickets, departures, mail, cellar: hatch, tank: aquarium };
     const placed = SURFACES.map((spec) => {
       const slot = document.createElement("div");
       slot.style.width = `${spec.px[0]}px`;
@@ -4027,7 +4152,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (child.userData.opens) opening.push(child as Group);
     });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
-    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02, WALL_Z + 0.25] }) : null;
+    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02 + AQUARIUM_TOP, WALL_Z + 0.25] }) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
     halloweenRef.current = halloween;
     // Across the tracks, in some of the quiet between trains: somebody stood by the fence,
@@ -4092,6 +4217,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const look = { yaw: 0, pitch: 0, toYaw: 0, toPitch: 0 };
     let pull = 1;
     const poseFor = (stopId: StopId | null, facing: Heading) => {
+      // Down the trap door: part way down its shaft, looking on down into the dark
+      if (stopId === "cellar") return { x: HATCH.x, y: -HATCH.down, z: HATCH.z + 0.02, yaw: 0, pitch: -1.5 };
       if (!stopId) {
         const { focus, aim } = VIEWS[facing];
         const [x, y, z] = HUB.pos;
@@ -4163,6 +4290,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       goal = pose;
       const yaw = cam.yaw + wrapAngle(pose.yaw - cam.yaw); // turn the short way round
       const walking = stopId !== lastAt;
+      const cameFrom = lastAt;
       const wasFacingTracks = !lastAt && lastFacing === "back";
       lastAt = stopId;
       lastFacing = facing;
@@ -4174,6 +4302,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const fromTracks = wasFacingTracks && !(stopId === null && facing === "back");
       const duration = instant || reduced ? 0 : fromTracks ? (walking ? 1.5 : 1.0) : walking ? 1.0 : toTracks ? 0.65 : 0.38;
       gsap.killTweensOf(cam);
+      // The trap door is gone down in two moves: over to it, looking in as its lid swings up,
+      // then down the shaft. And climbed out of the same way, back to front
+      if (duration > 0 && walking && (stopId === "cellar" || cameFrom === "cellar")) {
+        const [x, y, z] = STOPS.cellar.pos;
+        const over = { x, y, z, yaw: cam.yaw + wrapAngle(-cam.yaw), pitch: -0.95 };
+        const steps = gsap.timeline();
+        if (stopId === "cellar") steps.to(cam, { ...over, duration: 0.9, ease: "power1.inOut" }).to(cam, { ...pose, yaw: over.yaw, duration: 0.9, ease: "power2.in" });
+        else steps.to(cam, { ...over, duration: 0.8, ease: "power2.out" }).to(cam, { ...pose, yaw: over.yaw + wrapAngle(pose.yaw - over.yaw), duration: 0.9, ease: "power1.inOut" });
+        return;
+      }
       gsap.to(cam, { ...pose, yaw, duration, ease: walking || toTracks || fromTracks ? "power1.inOut" : "power3.out" });
     };
     goRef.current = (stopId, facing) => {
@@ -4428,6 +4566,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       // (swung right round to the left, out of the way of looking in)
       const doorTo = latest.current.at === "lockers" ? -2.6 : 0;
       if (Math.abs(myDoor.rotation.y - doorTo) > 0.001) myDoor.rotation.y += (doorTo - myDoor.rotation.y) * (reduced ? 1 : 0.08);
+      // The trap door swings up as you go down it, and drops shut once you're out again
+      const lid = hatch.userData.lid as Group;
+      const lidTo = latest.current.at === "cellar" || cam.y < 1 ? -1.75 : 0;
+      if (Math.abs(lid.rotation.x - lidTo) > 0.001) lid.rotation.x += (lidTo - lid.rotation.x) * (reduced ? 1 : 0.09);
+      if (latest.current.falling) (hatch.userData.bricks as Texture).offset.y -= rowDt * 1.5;
+      // The aquarium's fish go to and fro, turning at the glass, and its weeds sway
+      (aquarium.userData.fish as { body: Group; y: number; phase: number; pace: number }[]).forEach(({ body, y, phase, pace }) => {
+        const swim = rowNow * pace + phase;
+        body.position.x = Math.sin(swim) * 0.43;
+        body.position.y = y + Math.sin(swim * 2.3) * 0.015;
+        body.scale.x = Math.cos(swim) < 0 ? -1 : 1;
+      });
+      (aquarium.userData.weeds as Mesh[]).forEach((weed, i) => (weed.rotation.z = Math.sin(rowNow * 0.9 + i) * 0.08));
       // Ready once the cabinet's in (the last thing to load); this frame draws it
       if (!reported && arcadeObject.userData.cabinet) {
         reported = true;

@@ -38,14 +38,12 @@ const rarities = [
   { value: "legendary", label: "Legendary" },
 ];
 
-// Kinds of ware the shop has a tab for but nothing on the shelf yet: things to use inside
-// the arcade's games (soon: what the empty shelf says). (Games have theirs: the station's
-// cartridges, see things/Carts.tsx)
+// Kinds of ware the shop has a tab for but nothing on the shelf yet (what the empty shelf
+// says: `soon`). None just now: what was to be "in-game items" are the supplies for the
+// cellar's cryptlin and the aquarium, each with a tab of its own (things/PetItems.tsx).
 // Shared with AvatarShop so its empty-state copy matches these tabs.
 // eslint-disable-next-line react-refresh/only-export-components
-export const EMPTY_SHELVES = [
-  { value: "game_items", label: "In-game items", soon: "Nothing here yet: things to use in the arcade's games are on their way." },
-];
+export const EMPTY_SHELVES: { value: string; label: string; soon: string }[] = [];
 
 // The categories as tabs, in the order they run. extraCategories: wares that aren't avatar
 // items (the station's banners), as [value, plural label]

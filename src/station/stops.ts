@@ -5,7 +5,12 @@
 // stand, the pigeonhole wall; then a side wall runs out towards the tracks, with the
 // ticket counter let into its middle and the scoreboard above.
 
-export type StopId = "bench" | "lockers" | "arcade" | "capsule" | "bulletin" | "events" | "tickets" | "departures" | "mail";
+export type StopId = "bench" | "lockers" | "arcade" | "capsule" | "bulletin" | "events" | "tickets" | "departures" | "mail" | "cellar" | "tank";
+
+// The trap door in the platform, front left of the arcade: one of the floor's slabs (they're
+// 0.7 m square, laid from the wall and the end of the platform), and how far down its shaft
+// the visitor is taken before the cellar's game takes over
+export const HATCH = { x: -3.85, z: -0.45, size: 0.7, down: 2.6 };
 // The four views you turn between (left, the board, right, and the tracks behind you);
 // the others are just where a stop steps back to, folded into one of the four
 export type Heading = "front" | "right" | "back" | "left" | "table" | "mail" | "lockers";
@@ -133,6 +138,27 @@ export const STOPS: Record<StopId, Stop> = {
     fitHeight: 1.15,
     snug: true,
   },
+  // Down the trap door, where the cryptlin lives. This is standing over the open hatch,
+  // looking in; from there the camera goes down the shaft (see the scene's poseFor and goTo)
+  cellar: {
+    id: "cellar",
+    label: "The cellar",
+    heading: "left",
+    pos: [HATCH.x, 1.25, HATCH.z + 0.8],
+    target: [HATCH.x, 0, HATCH.z],
+    seat: true,
+  },
+  // The aquarium on top of the lockers: right up to its glass, which more than fills the view
+  tank: {
+    id: "tank",
+    label: "The aquarium",
+    heading: "lockers",
+    pos: [-5.3, 2.33, 0.2],
+    target: [-5.3, 2.33, -1.95],
+    fit: 0.9,
+    fitHeight: 0.42,
+    snug: true,
+  },
   mail: {
     id: "mail",
     label: "Pigeonholes",
@@ -145,6 +171,8 @@ export const STOPS: Record<StopId, Stop> = {
 };
 
 export const STOP_IDS = Object.keys(STOPS) as StopId[];
+// (the two that are games of their own, brought in over the scene: PetFrame)
+export const isPetStop = (id: StopId | null): id is "cellar" | "tank" => id === "cellar" || id === "tank";
 
 export const isStopId = (value: string | null): value is StopId =>
   value !== null && Object.prototype.hasOwnProperty.call(STOPS, value);
