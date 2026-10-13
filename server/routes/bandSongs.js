@@ -7,7 +7,9 @@ import pool from '../db/mockDB.js';
 
 const KEEP = 8; // tunes a player keeps (the oldest goes when a ninth comes)
 const ON_AIR = 30; // how many of everyone's newest the other frequency plays
-const TRACKS = 7;
+// (the game had seven instruments when this began and has grown since; new ones go on the end)
+const MIN_TRACKS = 7;
+const MAX_TRACKS = 10;
 const MAX_NOTES = 800;
 const BARS = [1, 2, 4, 8];
 
@@ -35,7 +37,7 @@ export function cleanSong(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const bpm = Number(raw.bpm);
     const bars = Number(raw.bars);
-    if (!(bpm >= 50 && bpm <= 200) || !BARS.includes(bars) || !Array.isArray(raw.tracks) || raw.tracks.length !== TRACKS) return null;
+    if (!(bpm >= 50 && bpm <= 200) || !BARS.includes(bars) || !Array.isArray(raw.tracks) || raw.tracks.length < MIN_TRACKS || raw.tracks.length > MAX_TRACKS) return null;
     const beats = bars * 4;
     let count = 0;
     const tracks = [];
