@@ -109,7 +109,7 @@ export function ShowPaper({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo })
       )}
       <button
         type="button"
-        className="mt-2 w-full bg-[#2a1d12] px-2 py-1.5 font-['Pixelify_Sans'] text-[15px] uppercase tracking-[0.08em] text-[#f2ead2] shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition hover:bg-[#3d2b1b]"
+        className="mt-auto w-full bg-[#2a1d12] px-2 py-1.5 font-['Pixelify_Sans'] text-[15px] uppercase tracking-[0.08em] text-[#f2ead2] shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition hover:bg-[#3d2b1b]"
         onClick={(event) => {
           event.stopPropagation();
           goTo("cellar");

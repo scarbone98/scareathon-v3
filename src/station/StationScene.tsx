@@ -3690,6 +3690,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(HUB.pos[0], 0.011, 0.45);
     scene.add(rug);
+    // (how far round it's been spun by tapping it: see the pointer's tap)
+    let rugTurn = 0;
     const line = plane(PLATFORM_W, 0.12, new MeshBasicMaterial({ color: "#8f741c" }), PLATFORM_MID, 0.006, EDGE_Z - 0.25);
     line.rotation.x = -Math.PI / 2;
     scene.add(line);
@@ -4603,6 +4605,13 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           return;
         }
         const hit = pickPart(event.clientX, event.clientY);
+        // (the rug in the middle, tapped where nothing stands on it: it turns a little way
+        // round under you and settles, a bit further each time it's caught still turning)
+        raycaster.setFromCamera(pointer, camera);
+        if (!hit && raycaster.intersectObject(rug, false).length > 0) {
+          rugTurn += (0.5 + Math.random() * 0.5) * (rugTurn >= rug.rotation.z ? 1 : -1);
+          gsap.to(rug.rotation, { z: rugTurn, duration: reduced ? 0 : 1.8, ease: "power3.out", overwrite: true });
+        }
         // (the radio on the bench: up close its keys are pressed; from anywhere else, a tap
         // on any of it is a closer look, not a sit down beside it)
         if (hit?.part?.startsWith("radio")) {
