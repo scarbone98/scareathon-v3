@@ -46,7 +46,7 @@ export function showJudgedAt(now = new Date()) {
 }
 export const showWeek = (now = new Date()) => showJudgedAt(now).toISOString().slice(0, 10);
 
-const clean = (value, most) => String(value ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, most);
+const clean = (value, most) => String(value ?? '').replace(/[<>]/g, '').replace(/\p{Cc}/gu, '').trim().slice(0, most);
 
 // A keeper's cryptlin, as its game has it just now: { status: 'entered' | 'bad' }
 export async function enterShow(userId, entry, db = pool, now = new Date()) {
