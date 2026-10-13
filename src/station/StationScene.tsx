@@ -93,8 +93,6 @@ type Props = {
   // with this one exactly there; and whether to hide this one (the arcade's is on top)
   arcadeFrame?: { top: number; bottom: number; centerX: number; width: number; height: number; fov?: number } | null;
   hideArcade?: boolean;
-  // Down the trap door's shaft with the cellar not ready yet: the bricks keep going by
-  falling?: boolean;
   // The game the cabinet shows on its screen and marquee from the platform
   preview?: { name: string; video: string; color: string } | null;
   arcadeGames?: MachineData[]; // the arcade's cartridges, so this cabinet's row matches its
@@ -1605,7 +1603,6 @@ function buildHatch() {
   group.add(bottom);
   group.add(hitBox(s + 0.1, 0.3, s + 0.1, 0.1));
   group.userData.lid = lid;
-  group.userData.bricks = bricks;
   group.userData.stopId = "cellar";
   return group;
 }
@@ -2685,7 +2682,7 @@ const ASKED_HOUR = (() => {
   }
 })();
 
-export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, falling = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar, onFailure }: Props) {
+export default function StationScene({ at, heading, onSelect, onTurn, boards, paused = false, arcadeFrame = null, hideArcade = false, preview = null, arcadeGames = [], onReady, arrive = false, doorsMayOpen = false, onTrainStopped, onArrived, previewPlaying = true, surfaces, surfacesInteractive, cardFraction, zoom, onEmptyTap, onPart, papersFromAfar = false, usedFromAfar, onFailure }: Props) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const surfaceLayerRef = useRef<HTMLDivElement | null>(null);
   const grainRef = useRef<HTMLDivElement | null>(null);
@@ -2694,8 +2691,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
   const paintBoardsRef = useRef<((boards: Boards) => void) | null>(null);
   const sceneArcadeRef = useRef<Group | null>(null);
   const cabinetSeenRef = useRef(false); // the cabinet's on screen (its preview plays)
-  const latest = useRef({ onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, falling, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
-  latest.current = { onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, falling, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
+  const latest = useRef({ onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived });
+  latest.current = { onFailure, at, heading, onSelect, onTurn, onPart, onEmptyTap, boards, paused, cardFraction, zoom, papersFromAfar, arcadeFrame, hideArcade, preview, arcadeGames, onReady, arrive, doorsMayOpen, onTrainStopped, onArrived };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -4606,7 +4603,6 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       const lid = hatch.userData.lid as Group;
       const lidTo = latest.current.at === "cellar" || cam.y < 1 ? -1.75 : 0;
       if (Math.abs(lid.rotation.x - lidTo) > 0.001) lid.rotation.x += (lidTo - lid.rotation.x) * (reduced ? 1 : 0.09);
-      if (latest.current.falling) (hatch.userData.bricks as Texture).offset.y -= rowDt * 1.5;
       // The aquarium's fish go to and fro, turning at the glass, and its weeds sway
       (aquarium.userData.fish as { body: Group; y: number; phase: number; pace: number }[]).forEach(({ body, y, phase, pace }) => {
         const swim = rowNow * pace + phase;

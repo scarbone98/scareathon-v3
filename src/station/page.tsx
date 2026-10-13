@@ -742,7 +742,6 @@ export default function StationPage() {
             boards={boards}
             // (once you're in a creature's place the picture holds still under its cover: see PetFrame)
             paused={Boolean(playing) || atCabinet || directoryVisible || Boolean(petStop && petArrived)}
-            falling={at === "cellar" && !petArrived}
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
             preview={preview}
