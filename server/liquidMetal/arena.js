@@ -13,7 +13,9 @@
 //
 // The arena is a round colosseum, and what's in it changes with every round (the
 // room's "mode"): nothing at all, blocks for cover, blocks that slide back and
-// forth, or a pit in the middle. The server lays each round out and tells the games.
+// forth, or a pit in the middle. The server lays each round out and tells the games,
+// and lays it out again every 45 seconds while the round's on ("layout", with a few
+// seconds' warning before it comes in).
 //
 // Empty seats are filled by bots so the room is never empty. A bot is a runner
 // like any other; one of the players' games (the room's "host", the one that has
@@ -30,6 +32,8 @@ export const RADIUS = 70; // the arena is round: this many metres from the middl
 export const HALF = RADIUS; // (what the first build of the game calls it)
 export const MODES = ['open', 'blocks', 'movers', 'pit'];
 export const PIT_RADIUS = 14;
+export const LAYOUT_MS = 45_000; // between changes of layout while a round's on
+export const WARN_MS = 3_500; // how long the games are told before one comes in
 export const MAX_HUMANS = 8;
 export const FILL_TO = 6; // bots make the room up to this many runners
 export const START_MASS = 10;
@@ -116,7 +120,15 @@ export function createArenaManager({ log, now = () => Date.now(), random = Math.
         }
     }
 
-    const layout = (room) => ({ mode: room.mode, radius: RADIUS, half: HALF, blocks: room.blocks, movers: room.movers, pit: room.pit });
+    // (t0: how far into the round this layout came in; its sliding blocks count from then)
+    const layout = (room) => ({ mode: room.mode, radius: RADIUS, half: HALF, blocks: room.blocks, movers: room.movers, pit: room.pit, t0: room.layoutFrom ?? 0 });
+
+    function ringPitDrops(room) {
+        for (let i = 0; room.pit > 0 && i < 12; i += 1) {
+            const angle = (i / 12) * Math.PI * 2;
+            addDrop(room, Math.cos(angle) * (room.pit + 2.6), Math.sin(angle) * (room.pit + 2.6), 3);
+        }
+    }
     const inBlock = (room, x, z) => Math.hypot(x, z) < room.pit + 2.5
         || room.blocks.some((b) => Math.hypot(b[0] - x, b[1] - z) < Math.max(b[2], b[4]) * 0.75 + 1.2);
 
@@ -141,16 +153,14 @@ export function createArenaManager({ log, now = () => Date.now(), random = Math.
     function layDrops(room) {
         room.drops.clear();
         for (let i = 0; i < DROPS; i += 1) scatterDrop(room);
-        for (let i = 0; room.pit > 0 && i < 12; i += 1) {
-            const angle = (i / 12) * Math.PI * 2;
-            addDrop(room, Math.cos(angle) * (room.pit + 2.6), Math.sin(angle) * (room.pit + 2.6), 3);
-        }
+        ringPitDrops(room);
     }
 
     function newRoom() {
         const room = {
             ents: new Map(), sockets: new Set(), drops: new Map(), nextDrop: 1,
             phase: 'play', until: now() + ROUND_MS, host: null, botNames: 0,
+            nextLayout: now() + LAYOUT_MS, layoutFrom: 0,
         };
         layOut(room, firstMode ?? MODES[Math.floor(random() * MODES.length)]);
         layDrops(room);
@@ -315,6 +325,12 @@ export function createArenaManager({ log, now = () => Date.now(), random = Math.
                 // Ran into a wall (or off into the pit)
                 const ent = owned(at, m.e);
                 if (!ent || !ent.alive || room.phase !== 'play') return;
+                // (into the wall of metal another runner's dash left standing: theirs the credit)
+                const by = m.how === 'trail' ? room.ents.get(Number(m.by)) : null;
+                if (by && by.alive && by !== ent) {
+                    if (t >= ent.safeUntil) kill(room, ent, by, 'trail');
+                    return;
+                }
                 kill(room, ent, null, m.how === 'pit' ? 'pit' : 'wall');
                 break;
             }
@@ -387,6 +403,19 @@ export function createArenaManager({ log, now = () => Date.now(), random = Math.
                     broadcast(room, { t: 'over', top: standings(room), next: OVER_MS });
                     continue;
                 }
+                if (t >= room.nextLayout && room.until - t > 20_000) {
+                    // The arena changes under them: a warning now, the new layout in a moment
+                    room.nextLayout = t + LAYOUT_MS;
+                    const modes = MODES.filter((mode) => mode !== room.mode);
+                    layOut(room, modes[Math.floor(random() * modes.length)]);
+                    room.layoutFrom = ROUND_MS - (room.until - t) + WARN_MS;
+                    for (const [id, drop] of room.drops) {
+                        if (inBlock(room, drop.x, drop.z)) room.drops.delete(id); // (a stone or the pit is coming there)
+                    }
+                    ringPitDrops(room);
+                    broadcast(room, { t: 'layout', ...layout(room), in: WARN_MS, drops: dropList(room) });
+                    continue;
+                }
                 const fresh = [];
                 for (let i = 0; i < 4 && room.drops.size < DROPS; i += 1) {
                     const drop = scatterDrop(room);
@@ -397,6 +426,8 @@ export function createArenaManager({ log, now = () => Date.now(), random = Math.
                 // A new round: everyone back to the start, and the arena laid out another way
                 room.phase = 'play';
                 room.until = t + ROUND_MS;
+                room.nextLayout = t + LAYOUT_MS;
+                room.layoutFrom = 0;
                 const others = MODES.filter((mode) => mode !== room.mode);
                 layOut(room, others[Math.floor(random() * others.length)]);
                 layDrops(room);

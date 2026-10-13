@@ -1,4 +1,4 @@
-import { DROPS, FILL_TO, K_STATE, MAX_HUMANS, MODES, OVER_MS, PIT_RADIUS, RADIUS, ROUND_MS, SAFE_MS, START_MASS, STATE_BYTES, createArenaManager } from '../liquidMetal/arena.js';
+import { DROPS, FILL_TO, K_STATE, LAYOUT_MS, MAX_HUMANS, MODES, WARN_MS, OVER_MS, PIT_RADIUS, RADIUS, ROUND_MS, SAFE_MS, START_MASS, STATE_BYTES, createArenaManager } from '../liquidMetal/arena.js';
 import { isPublicRoute } from '../utils/authRoutes.js';
 
 function fakeSocket() {
@@ -125,6 +125,15 @@ describe('Liquid Metal arena', () => {
         expect(sam.last('kill')).toMatchObject({ a: 0, v: 1, how: 'wall' });
     });
 
+    test('running into the wall a dash left bursts you, to its maker', () => {
+        const sam = enter('Sam');
+        const ann = enter('Ann');
+        const annId = ann.last('welcome').you;
+        clock += SAFE_MS + 1;
+        arena.message(ann, { t: 'died', e: annId, how: 'trail', by: 1 });
+        expect(sam.last('kill')).toMatchObject({ a: 1, v: annId, how: 'trail', am: START_MASS + 5 + 2 });
+    });
+
     test('only the host speaks for the bots, and states for runners you do not own are dropped', () => {
         const sam = enter('Sam');
         const ann = enter('Ann');
@@ -156,6 +165,7 @@ describe('Liquid Metal arena', () => {
         expect(sam.last('drops').list).toHaveLength(1); // topped back up
         clock += ROUND_MS;
         arena.tick();
+        arena.tick();
         expect(sam.last('over').top[0]).toMatchObject({ name: 'Sam', mass: START_MASS + 1 });
         arena.message(sam, { t: 'take', e: 1, d: sam.last('drops').list[0][0] });
         expect(sam.of('took')).toHaveLength(1); // nothing counts between rounds
@@ -166,6 +176,22 @@ describe('Liquid Metal arena', () => {
         expect(round.ents.every((e) => e.mass === START_MASS && e.alive)).toBe(true);
         expect(MODES).toContain(round.mode);
         expect(round.mode).not.toBe('blocks'); // laid out another way each round
+    });
+
+    test('the layout changes while a round is on, with a warning', () => {
+        const sam = enter('Sam');
+        clock += LAYOUT_MS;
+        arena.tick();
+        const change = sam.last('layout');
+        expect(change.mode).not.toBe('blocks');
+        expect(change.in).toBe(WARN_MS);
+        expect(change.t0).toBe(LAYOUT_MS + WARN_MS);
+        // (what's left on the floor is clear of the new stones and the pit)
+        expect(change.drops.every((d) => Math.hypot(d[1], d[2]) > change.pit + 2)).toBe(true);
+        expect(sam.of('round')).toHaveLength(0);
+        // ...and someone dropping in afterwards gets the new one
+        const ann = enter('Ann');
+        expect(ann.last('welcome')).toMatchObject({ mode: change.mode, t0: change.t0 });
     });
 
     test('each mode lays the arena out its own way', () => {
