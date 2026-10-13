@@ -115,10 +115,10 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba
 // Pages repo; ?v= is its build commit, to bust the cache.
 const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bce2a03";
 // Its arena is an online battle room on the server's /liquid-metal/ws.
-const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=89cc13a";
+const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=6fc0f23";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
-const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dca8d65";
+const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dc264d1";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
