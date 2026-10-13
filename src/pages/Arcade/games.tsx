@@ -118,6 +118,9 @@ const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=6fc0f23";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
+// Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
+// the server's /penguins/ws.
+const PENGUIN_SLIDE_URL = "https://sclondon.github.io/PenguinSlide/build/index.html?v=cf636b8";
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dc264d1";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
@@ -1387,6 +1390,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Pocket Aquarium"
           url={POCKET_AQUARIUM_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed PENGUIN into WaysideOS.
+    // Solo against computer penguins, or online rooms for up to eight. No scores.
+    {
+      name: "Penguin Slide",
+      added: "2026-10-13T00:30:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#7fd0f0",
+        tagline: "Belly down, downhill. First penguin to the bottom.",
+        font: { family: "Fredoka" },
+        about: { released: "2026", players: "1-8 players, online", genre: "Racing", developer: "sclondon" },
+        backNote: "Fish buy a boost or a snowball.",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Penguin Slide"
+          url={PENGUIN_SLIDE_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
