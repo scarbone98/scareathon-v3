@@ -128,6 +128,9 @@ const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/inde
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e529";
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
+// A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
+// station (github.com/Sclondon/OneManBand), in testing.
+const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=fdaebc6";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // (a build served from this machine can stand in for either while working on it: VITE_CRYPTLINS_URL, VITE_POCKET_AQUARIUM_URL)
@@ -1492,6 +1495,31 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Outside"
           url={OUTSIDE_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed BAND into WaysideOS.
+    // A music toy: play notes, loop them, layer instruments. Nothing to score.
+    {
+      name: "One Man Band",
+      added: "2026-10-13T13:00:00-06:00",
+      secret: true,
+      earlyAccess: true,
+      availableOnMobile: true,
+      cartridge: {
+        color: "#7446ad",
+        tagline: "Five notes. Seven instruments. One very wide grin.",
+        font: { family: "Rye" },
+        about: { released: "2026", players: "Single player", genre: "Music", developer: "sclondon" },
+        backNote: "He knows three tunes.",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="One Man Band"
+          url={ONE_MAN_BAND_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
