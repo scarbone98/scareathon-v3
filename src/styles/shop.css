@@ -44,6 +44,8 @@
 
 /* Buy is a ticket stub you press; the other key is a plate */
 .shop-item-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; padding: 6px 3px 3px 0; }
+/* (a ware with nothing to try on has the one key: it takes the row) */
+.shop-item-actions > .shop-button:only-child { grid-column: 1 / -1; }
 .shop-button { position: relative; min-height: 34px; padding: 5px 6px 4px 11px; border: 0; background: var(--card); color: var(--navy); box-shadow: 3px 3px 0 rgba(0, 0, 0, .6); font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .12s, transform .12s; }
 .shop-button::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; border-left: 2px dotted rgba(29, 42, 58, .4); }
 .shop-button:hover:not(:disabled) { background: #fff4d8; transform: translateY(-1px); }
