@@ -1,20 +1,30 @@
 // What the ticket counter sells for the cryptlin in the cellar. `id` is the game's own id for
-// the thing (Cryptlins: scripts/items.gd); a bone, the ball, the rag nest, a dirt floor, the
-// notebook and the scanner come free and aren't sold; nor is the first egg, or one for an
+// the thing (Cryptlins: scripts/items.gd); the rag nest, a dirt floor, the
+// notebook and the scanner come free and aren't sold (every keeper is given one ball and three bones, once: more are bought); nor is the first egg, or one for an
 // empty cellar. `keeps`: bought once and kept (a toy isn't: it wears out and breaks, and another is bought). The rest
 // are eaten, and come `pack` to a purchase. `prize`: never for sale, only won at the Friday
 // show (server/routes/petShow.js). A gravestone isn't sold either: a death leaves one.
 
 export const CRYPTLINS_ITEMS = [
     { id: 'egg', name: 'Mysterious egg', group: 'Egg', price: 1500, pack: 1, blurb: 'Nobody knows what is in it until it hatches. The cellar holds four.' },
+    { id: 'bone', name: 'Bones', group: 'Food', price: 10, pack: 5, blurb: 'Picked clean already. They do not mind.' },
     { id: 'toadstool', name: 'Toadstools', group: 'Food', price: 15, pack: 5, blurb: 'Red with white spots. Some swear by them.' },
     { id: 'candy', name: 'Candy corn', group: 'Food', price: 20, pack: 5, blurb: 'Three stripes of sugar.' },
     { id: 'fish', name: 'Fish', group: 'Food', price: 25, pack: 5, blurb: 'Fresh this week.' },
     { id: 'beetle', name: 'Beetles', group: 'Food', price: 20, pack: 5, blurb: 'Crunchy, and still a bit lively.' },
     { id: 'berries', name: 'Berries', group: 'Food', price: 20, pack: 5, blurb: 'A handful, dark and sweet.' },
+    { id: 'worm', name: 'Worms', group: 'Food', price: 15, pack: 5, blurb: 'Fat, pink, and not long out of the ground.' },
+    { id: 'turnip', name: 'Turnips', group: 'Food', price: 15, pack: 5, blurb: 'Pulled this morning. Leaves still on.' },
+    { id: 'cheese', name: 'Cheese', group: 'Food', price: 20, pack: 5, blurb: 'A wedge with the holes already in it.' },
+    { id: 'sausage', name: 'Sausages', group: 'Food', price: 25, pack: 5, blurb: 'Two links. Do not ask what is in them.' },
+    { id: 'ball', name: 'Ball', group: 'Toy', price: 40, pack: 1, blurb: 'Striped. It bounces, until it does not.' },
     { id: 'stone', name: 'Stone', group: 'Toy', price: 60, pack: 1, blurb: 'Heavy. It thuds more than it bounces.' },
     { id: 'bell', name: 'Bell', group: 'Toy', price: 120, pack: 1, blurb: 'A brass ball that rings when it lands.' },
     { id: 'glow', name: 'Glow orb', group: 'Toy', price: 180, pack: 1, blurb: 'Floats down slowly, and shines in the dark.' },
+    { id: 'rope', name: 'Rope knot', group: 'Toy', price: 60, pack: 1, blurb: 'Takes two to play with properly. Hard to wear out.' },
+    { id: 'duck', name: 'Rubber duck', group: 'Toy', price: 120, pack: 1, blurb: 'Squeaks when sat on. Not everybody thanks you for it.' },
+    { id: 'top', name: 'Top', group: 'Toy', price: 120, pack: 1, blurb: 'Spins for as long as it is watched, or a little less.' },
+    { id: 'mouse', name: 'Tin mouse', group: 'Toy', price: 180, pack: 1, blurb: 'Clockwork. Winds itself when dropped, and runs.' },
     { id: 'rock', name: 'Rock', group: 'Decor', price: 320, keeps: true, blurb: 'Something to climb up and sit on.' },
     { id: 'log', name: 'Hollow log', group: 'Decor', price: 480, keeps: true, blurb: 'Bark, moss and a dark middle.' },
     { id: 'fern', name: 'Fern', group: 'Decor', price: 400, keeps: true, blurb: 'It grows without much light.' },
@@ -29,6 +39,12 @@ export const CRYPTLINS_ITEMS = [
     { id: 'tent', name: 'Rag tent', group: 'Decor', price: 560, keeps: true, blurb: 'Rags over sticks. Somewhere to not be looked at.' },
     { id: 'crate', name: 'Crate', group: 'Decor', price: 480, keeps: true, blurb: 'A wooden box with a hole in the front.' },
     { id: 'pot', name: 'Flowerpot', group: 'Decor', price: 400, keeps: true, blurb: 'A big cracked one, lying on its side.' },
+    { id: 'leaves', name: 'Heap of leaves', group: 'Decor', price: 280, keeps: true, blurb: 'Swept off the platform. Deep enough to lose one in.' },
+    { id: 'perch', name: 'Perch', group: 'Decor', price: 360, keeps: true, blurb: 'For those with wings, to keep them off the shelves.' },
+    { id: 'ring', name: 'Toadstool ring', group: 'Decor', price: 560, keeps: true, blurb: 'Came up overnight. Room in the middle for one.' },
+    { id: 'bonepile', name: 'Pile of bones', group: 'Decor', price: 640, keeps: true, blurb: 'Somebody\'s leavings. Good for the teeth.' },
+    { id: 'trunk', name: 'Luggage trunk', group: 'Decor', price: 800, keeps: true, blurb: 'Unclaimed since before my time. Locked, and stays so.' },
+    { id: 'lantern', name: 'Signal lamp', group: 'Decor', price: 1100, keeps: true, blurb: 'Off the up line. Still alight, nobody knows on what.' },
     { id: 'twigs', name: 'Twig nest', group: 'Nest', price: 120, keeps: true, blurb: 'A bird\'s nest, lined with straw.' },
     { id: 'cushion', name: 'Cushion', group: 'Nest', price: 200, keeps: true, blurb: 'Plum velvet with a tassel at each corner.' },
     { id: 'box', name: 'Cardboard box', group: 'Nest', price: 60, keeps: true, blurb: 'The best bed there is, to some.' },
@@ -38,6 +54,10 @@ export const CRYPTLINS_ITEMS = [
     { id: 'checkers', name: 'Checkered tiles', group: 'Floor', price: 200, keeps: true, blurb: 'Black and white, a few chipped.' },
     { id: 'sand', name: 'Sand', group: 'Floor', price: 150, keeps: true, blurb: 'Raked into ripples.' },
     { id: 'gravel', name: 'Gravel', group: 'Floor', price: 150, keeps: true, blurb: 'Small stones, packed down.' },
+    { id: 'mud', name: 'Mud', group: 'Floor', price: 150, keeps: true, blurb: 'Wet through and staying that way.' },
+    { id: 'straw', name: 'Straw', group: 'Floor', price: 150, keeps: true, blurb: 'From the goods van. Dry, mostly.' },
+    { id: 'carpet', name: 'Carpet', group: 'Floor', price: 200, keeps: true, blurb: 'The waiting room\'s old one. Seen better feet.' },
+    { id: 'snow', name: 'Snow', group: 'Floor', price: 250, keeps: true, blurb: 'A tray of it. Keeps longer down here than you would think.' },
     { id: 'rosette1', name: 'First place rosette', group: 'Prize', price: 0, pack: 1, prize: true, blurb: 'Blue, with a gold middle. To pin on the winner.' },
     { id: 'rosette2', name: 'Second place rosette', group: 'Prize', price: 0, pack: 1, prize: true, blurb: 'Red. To pin on.' },
     { id: 'rosette3', name: 'Third place rosette', group: 'Prize', price: 0, pack: 1, prize: true, blurb: 'Yellow. To pin on.' },
