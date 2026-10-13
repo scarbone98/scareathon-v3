@@ -115,7 +115,7 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba
 // Pages repo; ?v= is its build commit, to bust the cache.
 const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bce2a03";
 // Its arena is an online battle room on the server's /liquid-metal/ws.
-const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=e3d5c09";
+const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=8b3e53c";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
@@ -1350,25 +1350,28 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // --- Secret: in testing, only on the shelf once you've typed LIQUID into WaysideOS
+    // Out of testing 2026-10-13: on the shelf for everyone. Posts PLAYER_DIED with an endless
+    // run's score, or ten times the most mass a player had in an arena round.
     {
       name: "Liquid Metal",
-      added: "2026-10-01T23:30:42-06:00",
-      secret: true,
+      added: "2026-10-13T03:00:00-06:00",
       cartridge: {
         color: "#aeb9c8",
-        tagline: "Run as a blob of liquid metal. Swipe, duck, dodge, and fight the room for mass.",
+        tagline: "Mercury, made of liquid metal, on the Crystaliens' black sand moon. Fight the arena for mass or run the ring.",
         font: { family: "Audiowide" },
         about: { released: "2026", players: "1 · online arena", genre: "Runner", developer: "sclondon" },
         backNote: "The arena is online: most mass wins the round.",
       },
-      hasLeaderboard: false,
+      videoUrl: "/game-recordings/LiquidMetal.mp4",
       game: (
         <GameRenderer
           title="Liquid Metal"
           url={LIQUID_METAL_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Liquid Metal", LIQUID_METAL_URL)
+          }
         />
       ),
     },

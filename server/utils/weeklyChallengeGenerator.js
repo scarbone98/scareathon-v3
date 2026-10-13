@@ -53,6 +53,13 @@ export const HARD_ROTATION = [
     'Ooidash',
 ];
 
+// Weeks given to one game out of turn (by the week's Sunday): a launch week. The rotation
+// carries on as it was the week after. (2026-10-11 was changed part-way through, from Horde
+// Rush, when Liquid Metal launched; whoever had finished it by then kept what they'd won.)
+export const WEEK_GAMES = {
+    '2026-10-11': 'Liquid Metal',
+};
+
 export const MIN_PLAYERS_FOR_SCORE_TARGET = 3;
 export const RUNS_TARGET = 3;
 export const HARD_RUNS_TARGET = 6;
@@ -91,6 +98,8 @@ export function weekStartFromDocumentId(documentId) {
 }
 
 export function challengeGameForWeek(start) {
+    const given = WEEK_GAMES[start.toISOString().slice(0, 10)];
+    if (given) return given;
     if (isHarderWeek(start)) {
         const weeksSinceHarder = Math.round((start.getTime() - Date.parse(`${HARDER_RULES_START}T00:00:00.000Z`)) / WEEK_MS);
         return HARD_ROTATION[weeksSinceHarder % HARD_ROTATION.length];

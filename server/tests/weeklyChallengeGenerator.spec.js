@@ -2,6 +2,7 @@ import fs from 'fs';
 import {
     CHALLENGE_ROTATION,
     HARD_ROTATION,
+    WEEK_GAMES,
     HARD_RUNS_TARGET,
     HARD_TARGET_QUANTILE,
     MIN_PLAYERS_FOR_SCORE_TARGET,
@@ -57,7 +58,7 @@ describe('weekly challenge rotation', () => {
     test('gets through every game, no game twice in a row, for a year', () => {
         const games = weekStarts(52).map(challengeGameForWeek);
         // (the first week's game, then the harder weeks' rotation)
-        expect(new Set(games)).toEqual(new Set([CHALLENGE_ROTATION[0], ...HARD_ROTATION]));
+        expect(new Set(games)).toEqual(new Set([CHALLENGE_ROTATION[0], ...HARD_ROTATION, ...Object.values(WEEK_GAMES)]));
         games.forEach((game, i) => {
             if (i > 0) expect(game).not.toBe(games[i - 1]);
         });
@@ -68,14 +69,19 @@ describe('weekly challenge rotation', () => {
         expect(validateScoreSubmission({ game: gameName, metricName: 'score', metricValue: 1 })).toEqual({ ok: true });
     });
 
-    test.each(HARD_ROTATION)('%s (a harder week) is a finished game, in the arcade, that saves scores', (gameName) => {
+    test('a launch week is given to its game', () => {
+        expect(challengeGameForWeek(new Date('2026-10-11T00:00:00.000Z'))).toBe('Liquid Metal');
+        expect(challengeGameForWeek(new Date('2026-10-18T00:00:00.000Z'))).toBe(HARD_ROTATION[2]);
+    });
+
+    test.each([...HARD_ROTATION, ...Object.values(WEEK_GAMES)])('%s (a harder week) is a finished game, in the arcade, that saves scores', (gameName) => {
         const entry = arcadeEntry(gameName);
         expect(entry).not.toBeNull();
         expect(entry).not.toContain('earlyAccess: true');
         expect(entry).not.toContain('hasLeaderboard: false');
         expect(entry).not.toContain('availableOnMobile: false');
         expect(GAME_SCORE_POLICIES.get(gameName)?.score).toBeDefined();
-        expect(CHALLENGE_ROTATION).toContain(gameName);
+        if (!Object.values(WEEK_GAMES).includes(gameName)) expect(CHALLENGE_ROTATION).toContain(gameName);
     });
 
     test.each(CHALLENGE_ROTATION)('%s is in the arcade, saves a score every run, and works on phones', (gameName) => {
