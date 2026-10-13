@@ -1,9 +1,11 @@
 // What the ticket counter sells for the cryptlin in the cellar. `id` is the game's own id for
 // the thing (Cryptlins: scripts/items.gd); a bone, the ball, the rag nest, a dirt floor, the
-// notebook and the scanner come free and aren't sold. `keeps`: bought once and kept. The rest
+// notebook and the scanner come free and aren't sold; nor is the first egg, or one for an
+// empty cellar. `keeps`: bought once and kept. The rest
 // are eaten, and come `pack` to a purchase.
 
 export const CRYPTLINS_ITEMS = [
+    { id: 'egg', name: 'Egg', group: 'Egg', price: 150, pack: 1, blurb: 'Nobody knows what is in it until it hatches. The cellar holds four.' },
     { id: 'toadstool', name: 'Toadstools', group: 'Food', price: 15, pack: 5, blurb: 'Red with white spots. Some swear by them.' },
     { id: 'candy', name: 'Candy corn', group: 'Food', price: 20, pack: 5, blurb: 'Three stripes of sugar.' },
     { id: 'fish', name: 'Fish', group: 'Food', price: 25, pack: 5, blurb: 'Fresh this week.' },
