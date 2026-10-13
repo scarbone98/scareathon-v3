@@ -568,45 +568,32 @@ export default function StationPage() {
   const stopPlaying = () => setTransition({ mode: "off", game: null });
 
   // The station's two creatures, each a game of its own brought in over the scene: the
-  // cryptlin down the trap door, and the aquarium on top of the lockers (see PetFrame). A
-  // game is fetched as you set off for it; and once you've been to one, it's fetched ahead
-  // whenever you're stood looking that way, so that going back is at once. Going down the
-  // trap door there's the length of the shaft to load in (the bricks keep going by until
-  // it has); at the aquarium, the station's own tank is what you look at meanwhile.
+  // cryptlin down the trap door, and the aquarium on top of the lockers (see PetFrame).
+  // Starting a game up takes the browser's whole attention for some seconds, on a phone
+  // most of all (the station's picture can't move meanwhile), so it's never done while
+  // you're walking about: only once you're in its place, with the scene held still under a
+  // cover that keeps moving by itself (bricks going by down the shaft; bubbles in the tank).
+  // A game stays up once started, so going back to it is at once.
   const cellarStock = usePetStock(signedIn, "cryptlins");
   const tankStock = usePetStock(signedIn, "aquarium");
-  const [petBuilt, setPetBuilt] = useState({ cellar: at === "cellar", tank: at === "tank" });
+  const [petBuilt, setPetBuilt] = useState({ cellar: false, tank: false });
   const [petReady, setPetReady] = useState({ cellar: false, tank: false });
   const [petArrived, setPetArrived] = useState(false);
   const petStop = isPetStop(at) ? at : null;
   useEffect(() => {
     setPetArrived(false);
     if (!petStop) return;
-    setPetBuilt((built) => (built[petStop] ? built : { ...built, [petStop]: true }));
-    try {
-      window.localStorage.setItem(`wayside.pet.${petStop}`, "1");
-    } catch {
-      // (no storage: it's just not fetched ahead next time)
-    }
     // (the walk over and the way down the shaft; or the walk up to the glass)
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const arrive = window.setTimeout(() => setPetArrived(true), reduced ? 0 : petStop === "cellar" ? 1850 : 1050);
+    const arrive = window.setTimeout(() => setPetArrived(true), reduced ? 0 : petStop === "cellar" ? 2100 : 1050);
     return () => window.clearTimeout(arrive);
   }, [petStop]);
-  const nearPets = heading === "left" || at === "arcade" || at === "lockers";
   useEffect(() => {
-    if (!nearPets || !onPlatform) return;
-    const fetchAhead = window.setTimeout(() => {
-      let known = { cellar: false, tank: false };
-      try {
-        known = { cellar: window.localStorage.getItem("wayside.pet.cellar") === "1", tank: window.localStorage.getItem("wayside.pet.tank") === "1" };
-      } catch {
-        // (no storage: nothing's fetched ahead)
-      }
-      setPetBuilt((built) => (known.cellar === built.cellar && known.tank === built.tank ? built : { cellar: built.cellar || known.cellar, tank: built.tank || known.tank }));
-    }, 3000);
-    return () => window.clearTimeout(fetchAhead);
-  }, [nearPets, onPlatform]);
+    if (!petStop || !petArrived) return;
+    // (a moment after arriving, so the cover is up and moving before the game takes over)
+    const start = window.setTimeout(() => setPetBuilt((built) => (built[petStop] ? built : { ...built, [petStop]: true })), 400);
+    return () => window.clearTimeout(start);
+  }, [petStop, petArrived]);
   // (a game at the arcade wants the phone's memory to itself: the creatures' are let go, and
   // fetched again when next wanted)
   useEffect(() => {
@@ -753,8 +740,9 @@ export default function StationPage() {
             onSelect={select}
             onTurn={turn}
             boards={boards}
-            paused={Boolean(playing) || atCabinet || directoryVisible || petVisible}
-            falling={at === "cellar" && !petVisible}
+            // (once you're in a creature's place the picture holds still under its cover: see PetFrame)
+            paused={Boolean(playing) || atCabinet || directoryVisible || Boolean(petStop && petArrived)}
+            falling={at === "cellar" && !petArrived}
             arcadeFrame={at === "arcade" ? arcadeFrame : null}
             hideArcade={atCabinet}
             preview={preview}
@@ -820,6 +808,7 @@ export default function StationPage() {
               title="The cellar"
               url={CRYPTLINS_URL}
               prefix="CRYPTLINS"
+              cover="shaft"
               built={petBuilt.cellar}
               showing={at === "cellar" && petArrived}
               stock={cellarStock.stock}
@@ -832,6 +821,7 @@ export default function StationPage() {
               title="The aquarium"
               url={POCKET_AQUARIUM_URL}
               prefix="AQUARIUM"
+              cover="water"
               built={petBuilt.tank}
               showing={at === "tank" && petArrived}
               stock={tankStock.stock}

@@ -1553,7 +1553,7 @@ function drawClock(ctx: CanvasRenderingContext2D, w: number, h: number, now: Dat
   ctx.fill();
 }
 
-// The trap door: one slab of the platform, front left of the arcade, on a hinge. Under it a
+// The trap door: one slab of the platform, between the arcade and the bench, on a hinge. Under it a
 // brick shaft goes down into the dark, to the cellar where the cryptlin lives (the page
 // brings its game in once you're down: PetFrame). The platform's top is laid with a hole
 // under the lid (see the floor).
@@ -1562,14 +1562,23 @@ function buildHatch() {
   group.position.set(HATCH.x, 0, HATCH.z);
   const s = HATCH.size;
   const iron = standard("#1c1a17", 0.5);
-  // The lid, hinged along its far edge
+  // The lid, hinged along its far edge: a slab like the ones round it, lying flush with them,
+  // that gives itself away only by the gap round it and the iron ring let into it
+  const stone = paint(64, 64, (ctx, w, h) => {
+    ctx.fillStyle = "rgb(74, 72, 67)";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 170; i += 1) {
+      const v = 50 + Math.random() * 60;
+      ctx.fillStyle = `rgba(${v}, ${v - 3}, ${v - 8}, 0.5)`;
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+  });
   const lid = new Group();
-  lid.position.set(0, 0.008, -s / 2);
-  lid.add(box(s - 0.02, 0.035, s - 0.02, wooden("#4a3524", 0.9), 0, 0.006, s / 2));
-  [-0.2, 0.2].forEach((x) => lid.add(box(0.05, 0.012, s - 0.06, iron, x, 0.028, s / 2)));
-  const ring = new Mesh(new TorusGeometry(0.05, 0.01, 6, 12), iron);
+  lid.position.set(0, 0, -s / 2);
+  lid.add(box(s - 0.035, 0.03, s - 0.035, standard("#bdb5aa", 0.95, stone), 0, -0.014, s / 2));
+  const ring = new Mesh(new TorusGeometry(0.04, 0.007, 6, 12), iron);
   ring.rotation.x = Math.PI / 2;
-  ring.position.set(0, 0.03, s - 0.13);
+  ring.position.set(0, 0.004, s - 0.12);
   lid.add(ring);
   group.add(lid);
   // The shaft: four walls of the station's brick, lit from the top and black by the bottom
@@ -4307,9 +4316,19 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (duration > 0 && walking && (stopId === "cellar" || cameFrom === "cellar")) {
         const [x, y, z] = STOPS.cellar.pos;
         const over = { x, y, z, yaw: cam.yaw + wrapAngle(-cam.yaw), pitch: -0.95 };
+        // (straight above the hole before going through it, so the floor isn't walked through)
+        const above = { x: HATCH.x, y: 0.75, z: HATCH.z + 0.02, yaw: over.yaw, pitch: -1.5 };
         const steps = gsap.timeline();
-        if (stopId === "cellar") steps.to(cam, { ...over, duration: 0.9, ease: "power1.inOut" }).to(cam, { ...pose, yaw: over.yaw, duration: 0.9, ease: "power2.in" });
-        else steps.to(cam, { ...over, duration: 0.8, ease: "power2.out" }).to(cam, { ...pose, yaw: over.yaw + wrapAngle(pose.yaw - over.yaw), duration: 0.9, ease: "power1.inOut" });
+        if (stopId === "cellar")
+          steps
+            .to(cam, { ...over, duration: 0.9, ease: "power1.inOut" })
+            .to(cam, { ...above, duration: 0.5, ease: "power1.inOut" })
+            .to(cam, { ...pose, yaw: over.yaw, duration: 0.7, ease: "power2.in" });
+        else
+          steps
+            .to(cam, { ...above, duration: 0.6, ease: "power2.out" })
+            .to(cam, { ...over, duration: 0.45, ease: "power1.inOut" })
+            .to(cam, { ...pose, yaw: over.yaw + wrapAngle(pose.yaw - over.yaw), duration: 0.9, ease: "power1.inOut" });
         return;
       }
       gsap.to(cam, { ...pose, yaw, duration, ease: walking || toTracks || fromTracks ? "power1.inOut" : "power3.out" });

@@ -7,10 +7,10 @@
 
 export type StopId = "bench" | "lockers" | "arcade" | "capsule" | "bulletin" | "events" | "tickets" | "departures" | "mail" | "cellar" | "tank";
 
-// The trap door in the platform, front left of the arcade: one of the floor's slabs (they're
-// 0.7 m square, laid from the wall and the end of the platform), and how far down its shaft
-// the visitor is taken before the cellar's game takes over
-export const HATCH = { x: -3.85, z: -0.45, size: 0.7, down: 2.6 };
+// The trap door in the platform, between the arcade and the bench: one of the floor's slabs
+// (they're 0.7 m square, laid from the wall and the end of the platform), and how far down
+// its shaft the visitor is taken before the cellar's game takes over
+export const HATCH = { x: -4.55, z: -0.45, size: 0.7, down: 2.6 };
 // The four views you turn between (left, the board, right, and the tracks behind you);
 // the others are just where a stop steps back to, folded into one of the four
 export type Heading = "front" | "right" | "back" | "left" | "table" | "mail" | "lockers";
