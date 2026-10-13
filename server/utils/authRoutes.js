@@ -45,6 +45,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && url.startsWith('/october-valley/ws')) ||
         // And Liquid Metal's arena.
         (method === 'GET' && url.startsWith('/liquid-metal/ws')) ||
+        // And Penguin Slide's race rooms.
+        (method === 'GET' && url.startsWith('/penguins/ws')) ||
         (method === 'GET' && PICTO_BOX_IMAGE.test(url)) ||
         method === 'OPTIONS'
     );

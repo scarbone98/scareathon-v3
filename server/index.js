@@ -20,6 +20,7 @@ import eightbitevilreturnsRoutes from './routes/8bitevilreturns.js';
 import eightBitEvilV2Routes from './routes/8bitevilreturnsV2.js';
 import octoberValleyRoutes from './routes/octoberValley.js';
 import liquidMetalRoutes from './routes/liquidMetal.js';
+import penguinsRoutes from './routes/penguins.js';
 import gamesRoutes from './routes/games.js';
 import dailyPuzzleRoutes from './routes/dailyPuzzles.js';
 import userRoutes from './routes/user.js';
@@ -303,6 +304,7 @@ async function main() {
         fastify.register(eightBitEvilV2Routes, { prefix: '/8bitevilreturns/v2' });
         fastify.register(octoberValleyRoutes, { prefix: '/october-valley' });
         fastify.register(liquidMetalRoutes, { prefix: '/liquid-metal' });
+        fastify.register(penguinsRoutes, { prefix: '/penguins' });
         fastify.register(userRoutes, { prefix: '/user' });
         fastify.register(accountPrivacyRoutes, { prefix: '/user' });
         fastify.register(marketplaceRoutes, { prefix: '/marketplace' });
