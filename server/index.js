@@ -49,6 +49,7 @@ import bandSongsRoutes, { BAND_SONGS_SQL } from './routes/bandSongs.js';
 import cartsRoutes, { CARTS_SQL } from './routes/carts.js';
 import petItemsRoutes, { PET_ITEMS_SQL } from './routes/petItems.js';
 import petShowRoutes, { PET_SHOW_SQL } from './routes/petShow.js';
+import petSaveRoutes, { PET_SAVE_SQL } from './routes/petSave.js';
 import websocket from '@fastify/websocket';
 import pool from './db/mockDB.js';
 import complianceRoutes from './routes/compliance.js';
@@ -170,6 +171,7 @@ async function main() {
                 await runStartupSql(pool, BAND_SONGS_SQL); // and tunes sent to it from One Man Band
                 await runStartupSql(pool, CARTS_SQL); // cartridges sold at the counter
                 await runStartupSql(pool, PET_ITEMS_SQL); // supplies for the cellar's cryptlin and the aquarium
+                await runStartupSql(pool, PET_SAVE_SQL); // a creature's save, kept on its keeper's account
                 await runStartupSql(pool, PET_SHOW_SQL); // the Friday show for the best kept cryptlin
                 await runStartupSql(pool, BACKGROUND_BANNERS_SQL); // background items become banners
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261003_halloween_items.sql', import.meta.url), 'utf8')); // eight new shop items
@@ -332,6 +334,7 @@ async function main() {
         fastify.register(cartsRoutes, { prefix: '/carts' });
         fastify.register(petItemsRoutes, { prefix: '/pet-items' });
         fastify.register(petShowRoutes, { prefix: '/pet-show' });
+        fastify.register(petSaveRoutes, { prefix: '/pet-save' });
         fastify.register(capsuleRoutes, { prefix: '/capsule' });
         if (isCasinoEnabled()) {
             fastify.register(casinoRoutes, { prefix: '/casino' });
