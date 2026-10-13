@@ -8,6 +8,7 @@ import { fetchWithAuth } from "../../fetchWithAuth.ts";
 import { BAND_SONG_EVENT } from "../../station/things/BandSongs.tsx";
 import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
+import { favouriteCarts } from "./favourites.ts";
 import { isNewGame } from "./news.ts";
 
 // Most attract videos play from Supabase Storage (npm run upload:recordings) so
@@ -39,6 +40,9 @@ export type MachineData = {
   earlyAccess?: boolean;
   // An early-access game that still spends its first day in NEW GAMES, like a finished one
   newShelf?: boolean;
+  // One of this device's favourites when the list was built (Arcade/favourites.ts): shelved
+  // in a group of their own, ahead of everything else
+  favourite?: boolean;
   // When it arrived (an ISO time, like "2026-10-04T16:00:00-06:00"): a "!" badge until it's
   // played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
   added?: string;
@@ -131,7 +135,7 @@ const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e5
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
 // A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
 // station (github.com/Sclondon/OneManBand).
-const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=a728637";
+const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=28c0df3";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // (a build served from this machine can stand in for either while working on it: VITE_CRYPTLINS_URL, VITE_POCKET_AQUARIUM_URL)
@@ -1677,15 +1681,18 @@ export function createArcadeGames(): MachineData[] {
   // Secret carts stay off the shelf until they're unlocked on this device. The shelf runs
   // group by group, each in alphabetical order (Shuffle leads the finished games, "???" ends them)
   const edge = (game: MachineData) => (game.special === "shuffle" ? -1 : game.special === "mystery" ? 1 : 0);
+  const favourites = favouriteCarts();
   return games
     .filter((game) => !game.secret || unlocked.includes(game.name))
+    .map((game) => (favourites.includes(game.name) ? { ...game, favourite: true } : game))
     .sort((a, b) => shelfGroupOf(a) - shelfGroupOf(b) || edge(a) - edge(b) || byName(a, b));
 }
 
-// The shelf's groups, left to right, with a wider gap between one and the next: the cassette
+// The shelf's groups, left to right, with a wider gap between one and the next: the favourites, the cassette
 // carts (things to do), new games (finished ones, or early access with newShelf, for their first day), the finished games
 // ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
+  if (game.favourite) return -1;
   if (game.special === "mystery") return 2;
   if (game.special === "soon") return 4;
   if (game.earlyAccess) return isNewGame(game) ? 1 : 3;

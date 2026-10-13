@@ -1,5 +1,6 @@
 import { BoxGeometry, CanvasTexture, Color, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from "three";
 import { canvasFont, TERMINAL_FONT, whenFontReady } from "./arcadeFonts.ts";
+import { favouriteCarts } from "../Arcade/favourites.ts";
 import {
   gameLines,
   gameTitle,
@@ -8,6 +9,7 @@ import {
   nowSeconds,
   playHint,
   rebootView,
+  starKey,
   takeoverView,
   terminalControls,
   typedParts,
@@ -227,6 +229,23 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     } else text(value, x, y, align);
     return w;
   };
+  // The star key: an empty key with a star in it, filled for a favourite and hollow otherwise
+  const star = (x: number, y: number, filled: boolean) => {
+    const w = key(" ", x, y, "right");
+    context.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+      const r = (i % 2 ? 3 : 7) * S;
+      context.lineTo(x - w / 2 + Math.cos(angle) * r, y + Math.sin(angle) * r);
+    }
+    context.closePath();
+    if (filled) context.fill();
+    else {
+      context.strokeStyle = PHOSPHOR;
+      context.lineWidth = 1.5 * S;
+      context.stroke();
+    }
+  };
 
   // A reaction fills the glass: the picture in big pixels (with a little bounce), or the word
   const paintReaction = (time: number) => {
@@ -296,8 +315,9 @@ export function createSlotTerminal(width: number, height: number, depth: number)
     const loading = screen.kind === "loading" ? loadingView(screen, time) : null;
     const reboot = screen.kind === "reboot" ? rebootView(screen, time) : null;
     const takeover = screen.kind === "takeover" ? takeoverView(screen, time) : null;
+    const favourite = screen.kind === "game" && favouriteCarts().includes(screen.game.name);
     // Only redraw when something visible changed
-    const state = `${screen.at}|${options.details}|${options.phone}|${typing.shown.join("|")}|${cursorOn}|${JSON.stringify(loading)}|${JSON.stringify(reboot)}|${JSON.stringify(takeover)}`;
+    const state = `${screen.at}|${options.details}|${options.phone}|${favourite}|${typing.shown.join("|")}|${cursorOn}|${JSON.stringify(loading)}|${JSON.stringify(reboot)}|${JSON.stringify(takeover)}`;
     if (state === lastKey) return;
     lastKey = state;
 
@@ -408,6 +428,8 @@ export function createSlotTerminal(width: number, height: number, depth: number)
       key("≡", 5 * S, row, "left");
     }
     if (controls !== "none") key("?", WIDTH - 5 * S, row, "right", options.details);
+    // ...and the star, in the top right corner
+    if (starKey(screen, options.details)) star(WIDTH - 5 * S, 13 * S, favourite);
 
     context.shadowBlur = 0;
     // Scanlines
