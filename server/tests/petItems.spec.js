@@ -41,7 +41,7 @@ function fakeDb(coins) {
     return { state, query };
 }
 
-const food = PET_ITEMS.find((item) => item.game === 'cryptlins' && !item.keeps);
+const food = PET_ITEMS.find((item) => item.game === 'cryptlins' && !item.keeps && item.pack > 1);
 const kept = PET_ITEMS.find((item) => item.game === 'cryptlins' && item.keeps);
 
 describe('pet supplies', () => {
