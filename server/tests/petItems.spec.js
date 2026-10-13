@@ -60,7 +60,8 @@ describe('pet supplies', () => {
         for (const item of PET_ITEMS) {
             expect(item.key).toBe(`${item.game}:${item.id}`);
             expect(item.name).toBeTruthy();
-            expect(item.price).toBeGreaterThan(0);
+            // (a prize from the Friday show has no price: it isn't sold)
+            if (!item.prize) expect(item.price).toBeGreaterThan(0);
         }
     });
 
@@ -112,6 +113,14 @@ describe('pet supplies', () => {
         expect(await returnPetItem('u', food.key, db)).toEqual({ status: 'none' });
         expect((await petItemState('u', db)).owned[food.key]).toBe(food.pack);
         expect(await returnPetItem('u', kept.key, db)).toEqual({ status: 'kept' });
+    });
+
+    test('a prize from the Friday show cannot be bought', async () => {
+        const db = fakeDb(100000);
+        const prize = PET_ITEMS.find((item) => item.prize);
+        expect(prize).toBeTruthy();
+        expect(await buyPetItem(db, 'u', prize.key)).toEqual({ status: 'missing' });
+        expect(db.state.coins).toBe(100000);
     });
 
     test('using what you have none of changes nothing', async () => {

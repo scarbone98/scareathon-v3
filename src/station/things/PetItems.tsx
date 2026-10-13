@@ -12,7 +12,7 @@ import type { ExtraShopItem } from "../../components/avatar/AvatarShop";
 // the game, and the game says so each time (`used`).
 
 export type PetGame = "cryptlins" | "aquarium";
-type PetItem = { key: string; id: string; game: PetGame; name: string; group: string; price: number; pack?: number; keeps?: boolean; blurb?: string };
+type PetItem = { key: string; id: string; game: PetGame; name: string; group: string; price: number; pack?: number; keeps?: boolean; prize?: boolean; blurb?: string };
 // (owned: how many of each you have, or -1 for a thing that's kept)
 // (gift: the parcel with the mysterious egg in it is still waiting in your pigeonhole)
 type PetState = { catalog: PetItem[]; owned: Record<string, number>; gift?: boolean };
@@ -120,7 +120,8 @@ export function usePetStock(signedIn: boolean, game: PetGame) {
 export function usePetShopItems(): ExtraShopItem[] {
   const { data, buy } = usePetItems(true);
   if (!data) return [];
-  return data.catalog.map((item) => {
+  // (the Friday show's prizes are in the catalogue, but not for sale)
+  return data.catalog.filter((item) => !item.prize).map((item) => {
     const have = data.owned[item.key] ?? 0;
     const kept = Boolean(item.keeps) && have !== 0;
     const pack = item.keeps ? 1 : item.pack ?? 1;

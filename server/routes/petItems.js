@@ -93,7 +93,8 @@ export async function petItemState(userId, db = pool) {
 // Buys an item: { status: 'bought' | 'missing' | 'owned' | 'short' } (in one transaction on `client`)
 export async function buyPetItem(client, userId, key) {
     const item = BY_KEY.get(String(key));
-    if (!item) return { status: 'missing' };
+    // (a prize isn't on the shelf at any price)
+    if (!item || item.prize) return { status: 'missing' };
     await client.query('BEGIN');
     try {
         await client.query('SELECT public.ensure_user_wallet($1)', [userId]);

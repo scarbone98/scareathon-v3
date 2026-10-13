@@ -51,7 +51,11 @@ export const EMPTY_SHELVES: { value: string; label: string; soon: string }[] = [
 // Tabs and the swipe hook share the same order; callers import this module together.
 // eslint-disable-next-line react-refresh/only-export-components
 export function shopTabs(extraCategories: [string, string][] = []) {
-  return [...classifications, ...extraCategories.map(([value, label]) => ({ value, label })), ...EMPTY_SHELVES];
+  // (the creatures' shelves come straight after All: they are what people come in for)
+  const extras = extraCategories.map(([value, label]) => ({ value, label }));
+  const creatures = extras.filter((tab) => tab.value in TAB_PICTURES);
+  const others = extras.filter((tab) => !(tab.value in TAB_PICTURES));
+  return [...classifications.slice(0, 1), ...creatures, ...classifications.slice(1), ...others, ...EMPTY_SHELVES];
 }
 
 // Two shelves wear a picture in place of their name: a fish for the aquarium's supplies and

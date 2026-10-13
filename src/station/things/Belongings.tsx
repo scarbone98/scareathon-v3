@@ -29,6 +29,7 @@ import ShopKeeper, { type TriedOn } from "./ShopKeeper.tsx";
 import { useSongShopItems } from "./Songs.tsx";
 import { useCartShopItems } from "./Carts.tsx";
 import { EggParcel, usePetShopItems } from "./PetItems.tsx";
+import { ShowSlip } from "./PetShow.tsx";
 import LegalPapers from "./LegalPapers.tsx";
 import { radio } from "../radio.ts";
 
@@ -364,6 +365,7 @@ export function Letters({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
     <>
       <p className="mb-3 text-[11px] uppercase tracking-[0.3em] text-[#f2ead2]/85">Inbox</p>
       <EggParcel onOpened={() => goTo("cellar")} />
+      <ShowSlip goTo={goTo} />
       <Classic>
         <InboxContent />
       </Classic>

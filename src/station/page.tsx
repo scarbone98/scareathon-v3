@@ -25,6 +25,7 @@ import { STATION_FONTS, sans, plateButton, serif } from "./style/theme.ts";
 import SceneBoundary from "./SceneBoundary.tsx";
 import StationPlay from "./StationPlay.tsx";
 import PetFrame from "./PetFrame.tsx";
+import { useShowEntry } from "./things/PetShow.tsx";
 import { usePetStock } from "./things/PetItems.tsx";
 import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
@@ -581,6 +582,8 @@ export default function StationPage() {
   const cellarStock = usePetStock(signedIn, "cryptlins");
   const tankStock = usePetStock(signedIn, "aquarium");
   const [petBuilt, setPetBuilt] = useState({ cellar: false, tank: false });
+  // (the cellar's best kept cryptlin goes in for the Friday show as the game speaks of it)
+  const enterShow = useShowEntry(signedIn);
   const [petReady, setPetReady] = useState({ cellar: false, tank: false });
   const [petArrived, setPetArrived] = useState(false);
   const petStop = isPetStop(at) ? at : null;
@@ -819,6 +822,7 @@ export default function StationPage() {
               onUsed={cellarStock.use}
               onReturned={cellarStock.giveBack}
               onShop={() => goTo("tickets", "shop")}
+              onKept={enterShow}
               onReady={() => setPetReady((ready) => ({ ...ready, cellar: true }))}
               onBack={stepBack}
             />

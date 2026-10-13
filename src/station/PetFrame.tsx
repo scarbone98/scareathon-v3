@@ -20,7 +20,8 @@ import PixelArrow from "./style/PixelArrow.tsx";
 // The game and the page talk in messages named for the game (`prefix`: CRYPTLINS, AQUARIUM):
 //   from the game: <PREFIX>_READY (its room is drawn), <PREFIX>_USED { item } (one used up),
 //                  <PREFIX>_RETURNED { item } (one taken back out: it's in stock again),
-//                  <PREFIX>_SHOP (its keeper wants the ticket counter, where its things are sold)
+//                  <PREFIX>_SHOP (its keeper wants the ticket counter, where its things are sold),
+//                  <PREFIX>_KEPT { name, kind, score } (its best kept one, for the Friday show)
 //   to the game:   <PREFIX>_STOCK { items: { id: how many, or -1 for kept } }
 //                  <PREFIX>_SHOW and <PREFIX>_HIDE (in front; covered or left: it rests)
 
@@ -36,6 +37,7 @@ type Props = {
   onUsed: (item: string) => void;
   onReturned: (item: string) => void;
   onShop: () => void;
+  onKept?: (kept: { name: string; kind: string; score: number }) => void;
   onReady: () => void;
   onBack: () => void;
 };
@@ -88,12 +90,12 @@ function Cover({ kind, up }: { kind: Props["cover"]; up: boolean }) {
   );
 }
 
-export default function PetFrame({ title, url, prefix, cover, built, showing, stock, stockKnown, onUsed, onReturned, onShop, onReady, onBack }: Props) {
+export default function PetFrame({ title, url, prefix, cover, built, showing, stock, stockKnown, onUsed, onReturned, onShop, onKept, onReady, onBack }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const origin = new URL(url).origin;
-  const latest = useRef({ onUsed, onReturned, onShop, onReady });
-  latest.current = { onUsed, onReturned, onShop, onReady };
+  const latest = useRef({ onUsed, onReturned, onShop, onKept, onReady });
+  latest.current = { onUsed, onReturned, onShop, onKept, onReady };
   const tell = (message: Record<string, unknown>) => frame.current?.contentWindow?.postMessage(message, origin);
 
   useEffect(() => {
@@ -110,6 +112,8 @@ export default function PetFrame({ title, url, prefix, cover, built, showing, st
       } else if (type === `${prefix}_USED` && typeof event.data.item === "string") latest.current.onUsed(event.data.item);
       else if (type === `${prefix}_RETURNED` && typeof event.data.item === "string") latest.current.onReturned(event.data.item);
       else if (type === `${prefix}_SHOP`) latest.current.onShop();
+      else if (type === `${prefix}_KEPT` && typeof event.data.name === "string" && typeof event.data.kind === "string" && typeof event.data.score === "number")
+        latest.current.onKept?.({ name: event.data.name, kind: event.data.kind, score: event.data.score });
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);

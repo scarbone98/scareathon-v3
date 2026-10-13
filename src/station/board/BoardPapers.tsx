@@ -1,6 +1,7 @@
 // The papers' content components live beside the hook that picks them; hot reload just reloads this file
 /* eslint-disable react-refresh/only-export-components */
 import Ticket from "../../components/TicketIcon";
+import { ShowPaper } from "../things/PetShow.tsx";
 import { Fragment, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { BlocksRenderer } from "@strapi/blocks-react-renderer";
 import type { BlocksContent } from "@strapi/blocks-react-renderer";
@@ -759,6 +760,15 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       tint: "#241a3a",
       sheet: { backgroundImage: "none" },
     });
+  // The Friday show's handbill, when there's room for it (it's in the pigeonhole as well)
+  papers.push({
+    id: "pet-show",
+    kind: "SHOW",
+    title: "BEST KEPT CRYPTLIN",
+    pinned: <ShowPaper signedIn={signedIn} goTo={goTo} />,
+    full: <ShowPaper signedIn={signedIn} goTo={goTo} />,
+    tint: "#d9c79a",
+  });
   // Then the latest notice (and the Post, when it's up and there's room)
   notices.forEach((item, i) => {
     const picture = { src: strapiUrl(item.image?.url) ?? NOTICE_PICTURES[i] };
