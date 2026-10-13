@@ -14,7 +14,8 @@ import type { ExtraShopItem } from "../../components/avatar/AvatarShop";
 export type PetGame = "cryptlins" | "aquarium";
 type PetItem = { key: string; id: string; game: PetGame; name: string; group: string; price: number; pack?: number; keeps?: boolean; blurb?: string };
 // (owned: how many of each you have, or -1 for a thing that's kept)
-type PetState = { catalog: PetItem[]; owned: Record<string, number> };
+// (gift: the parcel with the mysterious egg in it is still waiting in your pigeonhole)
+type PetState = { catalog: PetItem[]; owned: Record<string, number>; gift?: boolean };
 
 const SHELVES: Record<PetGame, string> = { cryptlins: "Cryptlin", aquarium: "Aquarium" };
 
@@ -59,7 +60,41 @@ export function usePetItems(signedIn: boolean) {
     onSuccess: (next) => queryClient.setQueryData(["pet-items"], next),
     onError: () => void queryClient.invalidateQueries({ queryKey: ["pet-items"] }),
   });
-  return { ...query, buy, used, returned };
+  // The parcel in your pigeonhole, opened: the egg's in your stock
+  const openGift = useMutation({
+    mutationFn: () => fetchWithAuth("/pet-items/gift/open", { method: "POST" }).then(readState),
+    onSuccess: (next) => {
+      queryClient.setQueryData(["pet-items"], next);
+      void queryClient.invalidateQueries({ queryKey: ["home-v2", "summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["inbox"] });
+    },
+  });
+  return { ...query, buy, used, returned, openGift };
+}
+
+// The parcel everyone finds in their pigeonhole: a mysterious egg. Opening it puts the egg in
+// your stock and takes you down the trap door to the cellar, where it's laid.
+export function EggParcel({ onOpened }: { onOpened: () => void }) {
+  const { data, openGift } = usePetItems(true);
+  if (!data?.gift) return null;
+  return (
+    <div className="mb-4 flex items-center gap-3 border-2 border-[#f2ead2]/40 bg-[#1d2a3a] p-3 shadow-[3px_3px_0_#05070c]">
+      <img src="/pets/cryptlins/egg.png" alt="" className="h-16 w-16 shrink-0 [image-rendering:pixelated]" draggable={false} />
+      <div className="min-w-0 flex-1">
+        <p className="text-lg leading-tight text-[#f2ead2]" style={{ fontFamily: "'IM Fell English', Georgia, serif" }}>A parcel, left in your pigeonhole</p>
+        <p className="mt-1 text-xs text-[#f2ead2]/70" style={{ fontFamily: "'Special Elite', 'Courier New', monospace" }}>No stamp and no name. Something in it is warm.</p>
+        {openGift.error && <p className="mt-1 text-xs text-[#f2a27a]" role="alert">{(openGift.error as Error).message}</p>}
+      </div>
+      <button
+        type="button"
+        disabled={openGift.isPending}
+        onClick={() => openGift.mutate(undefined, { onSuccess: onOpened })}
+        className="shrink-0 bg-[#efe3c8] px-4 py-2 font-['Pixelify_Sans'] text-[15px] uppercase tracking-[0.08em] text-[#1d2a3a] shadow-[3px_3px_0_rgba(0,0,0,0.6)] transition hover:-translate-y-px hover:bg-[#fff4d8] disabled:opacity-60"
+      >
+        {openGift.isPending ? "Opening…" : "Open"}
+      </button>
+    </div>
+  );
 }
 
 // What one game has: its own ids, and how many of each (-1: kept). Signed out, nothing but
@@ -75,8 +110,10 @@ export function usePetStock(signedIn: boolean, game: PetGame) {
     });
     return mine;
   }, [owned, game]);
+  // (a visitor with no account has no pigeonhole for a parcel: the cellar lends them an egg)
+  const lent = useMemo(() => ({ egg: 1 }), []);
   // (until the account's been read, nobody knows what the game should have)
-  return { stock, known: !signedIn || Boolean(data), use: (id: string) => signedIn && used.mutate(`${game}:${id}`), giveBack: (id: string) => signedIn && returned.mutate(`${game}:${id}`) };
+  return { stock: signedIn ? stock : lent, known: !signedIn || Boolean(data), use: (id: string) => signedIn && used.mutate(`${game}:${id}`), giveBack: (id: string) => signedIn && returned.mutate(`${game}:${id}`) };
 }
 
 // The supplies as the item shop's wares, a shelf for each creature

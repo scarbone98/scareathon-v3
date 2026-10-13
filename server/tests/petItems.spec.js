@@ -1,15 +1,25 @@
-import { PET_ITEMS, buyPetItem, petItemState, returnPetItem, usePetItem } from '../routes/petItems.js';
+import { PET_ITEMS, buyPetItem, openPetGift, petItemState, returnPetItem, usePetItem } from '../routes/petItems.js';
 
 // A stand-in for the database: one wallet and the pet items table, answering the handful of
 // statements the route makes
 function fakeDb(coins) {
-    const state = { coins, items: new Map(), placed: new Map(), ledger: [] };
+    const state = { coins, items: new Map(), placed: new Map(), gifts: new Set(), ledger: [] };
     const query = async (sql, params = []) => {
         const text = sql.replace(/\s+/g, ' ').trim();
         if (/^(BEGIN|COMMIT|ROLLBACK)/.test(text) || text.includes('ensure_user_wallet')) return { rows: [] };
         if (text.startsWith('SELECT coin_balance')) return { rows: [{ coin_balance: state.coins }] };
         if (text.startsWith('SELECT quantity FROM public.user_pet_items')) return { rows: state.items.has(params[1]) ? [{ quantity: state.items.get(params[1]) }] : [] };
         if (text.startsWith('SELECT item_key, quantity')) return { rows: [...state.items].filter(([, quantity]) => quantity > 0).map(([item_key, quantity]) => ({ item_key, quantity })) };
+        if (text.startsWith('SELECT 1 FROM public.user_pet_gifts')) return { rows: state.gifts.has(params[1]) ? [{}] : [] };
+        if (text.startsWith('INSERT INTO public.user_pet_gifts')) {
+            if (state.gifts.has(params[1])) return { rows: [] };
+            state.gifts.add(params[1]);
+            return { rows: [{ gift_key: params[1] }] };
+        }
+        if (text.startsWith('INSERT INTO public.user_pet_items (user_id, item_key, quantity) VALUES ($1, $2, 1)')) {
+            state.items.set(params[1], (state.items.get(params[1]) || 0) + 1);
+            return { rows: [] };
+        }
         if (text.startsWith('INSERT INTO public.user_pet_items')) {
             state.items.set(params[1], (state.items.get(params[1]) || 0) + params[2]);
             return { rows: [] };
@@ -80,6 +90,17 @@ describe('pet supplies', () => {
         expect(await buyPetItem(db, 'u', 'cryptlins:nothing')).toEqual({ status: 'missing' });
         expect(db.state.coins).toBe(food.price - 1);
         expect((await petItemState('u', db)).owned).toEqual({});
+    });
+
+    test('everyone has a parcel with a mysterious egg in it, to open once', async () => {
+        const db = fakeDb(0);
+        expect((await petItemState('u', db)).gift).toBe(true);
+        expect(await openPetGift(db, 'u')).toEqual({ status: 'opened' });
+        const after = await petItemState('u', db);
+        expect(after.gift).toBe(false);
+        expect(after.owned['cryptlins:egg']).toBe(1);
+        expect(await openPetGift(db, 'u')).toEqual({ status: 'already' });
+        expect((await petItemState('u', db)).owned['cryptlins:egg']).toBe(1);
     });
 
     test('what was put in can be taken back out, and nothing else can', async () => {

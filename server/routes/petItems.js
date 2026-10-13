@@ -10,6 +10,10 @@ import { AQUARIUM_ITEMS } from '../shared/pets/aquarium.js';
 // put into the aquarium can be taken out again and comes back into stock; so that nothing
 // comes back that was never put in, the account keeps count of what is in use (`placed`).
 //
+// Nobody starts with a cryptlin. Everyone has a parcel waiting in their pigeonhole instead: a
+// mysterious egg, theirs once (`user_pet_gifts`); opening it puts the egg in their stock and
+// the page takes them down to the cellar to lay it.
+//
 // An item's key is its game and the game's own id for it: "cryptlins:fish", "aquarium:fish:guppy".
 
 // The aquarium isn't open yet (its tank isn't on the lockers: AQUARIUM_OPEN in
@@ -33,9 +37,49 @@ export const PET_ITEMS_SQL = `
         PRIMARY KEY (user_id, item_key)
     );
     ALTER TABLE public.user_pet_items ADD COLUMN IF NOT EXISTS placed INTEGER NOT NULL DEFAULT 0 CHECK (placed >= 0);
+    CREATE TABLE IF NOT EXISTS public.user_pet_gifts (
+        user_id UUID NOT NULL REFERENCES public.users (id) ON DELETE CASCADE,
+        gift_key TEXT NOT NULL,
+        opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, gift_key)
+    );
 `;
 
-// What's for sale, and what you have: how many of each, or -1 for a thing that's kept
+// The parcel everyone gets, and what is in it
+const EGG_GIFT = { gift: 'mysterious_egg', item: 'cryptlins:egg' };
+
+// Whether the parcel is still waiting to be opened (it counts as a letter unread)
+export async function petGiftWaiting(userId, db = pool) {
+    const opened = await db.query('SELECT 1 FROM public.user_pet_gifts WHERE user_id = $1 AND gift_key = $2', [userId, EGG_GIFT.gift]);
+    return !opened.rows[0];
+}
+
+// Opens the parcel: the egg goes into stock, once. { status: 'opened' | 'already' }
+export async function openPetGift(client, userId) {
+    await client.query('BEGIN');
+    try {
+        const opened = await client.query(`
+            INSERT INTO public.user_pet_gifts (user_id, gift_key) VALUES ($1, $2)
+            ON CONFLICT (user_id, gift_key) DO NOTHING RETURNING gift_key
+        `, [userId, EGG_GIFT.gift]);
+        if (!opened.rows[0]) {
+            await client.query('ROLLBACK');
+            return { status: 'already' };
+        }
+        await client.query(`
+            INSERT INTO public.user_pet_items (user_id, item_key, quantity) VALUES ($1, $2, 1)
+            ON CONFLICT (user_id, item_key) DO UPDATE SET quantity = public.user_pet_items.quantity + 1, updated_at = now()
+        `, [userId, EGG_GIFT.item]);
+        await client.query('COMMIT');
+        return { status: 'opened' };
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw error;
+    }
+}
+
+// What's for sale, what you have (how many of each, or -1 for a thing that's kept), and
+// whether your parcel is still waiting
 export async function petItemState(userId, db = pool) {
     const held = await db.query('SELECT item_key, quantity FROM public.user_pet_items WHERE user_id = $1 AND quantity > 0', [userId]);
     const owned = {};
@@ -43,7 +87,7 @@ export async function petItemState(userId, db = pool) {
         const item = BY_KEY.get(row.item_key);
         if (item) owned[item.key] = item.keeps ? -1 : Number(row.quantity);
     }
-    return { catalog: PET_ITEMS, owned };
+    return { catalog: PET_ITEMS, owned, gift: await petGiftWaiting(userId, db) };
 }
 
 // Buys an item: { status: 'bought' | 'missing' | 'owned' | 'short' } (in one transaction on `client`)
@@ -132,6 +176,20 @@ export default async function petItemsRoutes(fastify) {
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'Could not buy that' });
+        } finally {
+            client.release();
+        }
+    });
+
+    fastify.post('/gift/open', async (request, reply) => {
+        const userId = request.user.sub;
+        const client = await pool.connect();
+        try {
+            await openPetGift(client, userId);
+            return { data: await petItemState(userId) };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.code(500).send({ error: 'Could not open the parcel' });
         } finally {
             client.release();
         }

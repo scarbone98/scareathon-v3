@@ -1,4 +1,5 @@
 import pool from '../db/mockDB.js';
+import { petGiftWaiting } from './petItems.js';
 import { canMessage } from '../utils/contentSafety.js';
 import { serializeAvatarItemV2 } from '../utils/avatarV2.js';
 
@@ -200,7 +201,9 @@ export async function getUnreadInboxCount(userId) {
           AND m.sender_user_id IS DISTINCT FROM $1
     `, [userId]);
 
-    return Number(result.rows[0]?.unread_count || 0);
+    // (and the parcel with the mysterious egg in it, until it's been opened)
+    const parcel = await petGiftWaiting(userId).catch(() => false);
+    return Number(result.rows[0]?.unread_count || 0) + (parcel ? 1 : 0);
 }
 
 function ensureAdmin(request, reply) {
