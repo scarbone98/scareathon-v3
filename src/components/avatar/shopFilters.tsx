@@ -1,5 +1,6 @@
 import { useEffect, useRef, type TouchEvent } from "react";
 import { CATEGORY_LABELS } from "./look";
+import "../../styles/shop.css";
 
 // The item shop's filters. Kept apart from the (lazily loaded) shop itself, so whoever
 // lays the shop out can put them where they like.
@@ -72,7 +73,7 @@ export function ShopCategoryTabs({
     current.current?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }, [filters.classification]);
   return (
-    <div role="tablist" aria-label="Category" className={`flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}>
+    <div role="tablist" aria-label="Category" className={`flex gap-2 overflow-x-auto overscroll-x-contain pb-1.5 pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}>
       {tabs.map((tab) => {
         const on = tab.value === filters.classification;
         return (
@@ -83,9 +84,7 @@ export function ShopCategoryTabs({
             role="tab"
             aria-selected={on}
             onClick={() => onChange({ ...filters, classification: tab.value })}
-            className={`h-8 shrink-0 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition ${
-              on ? "border-[#f2c35b] bg-[#f2c35b] text-[#1a1420]" : "border-[#494054] bg-[#191620] text-[#eee5f8] hover:border-[#bda0de]"
-            }`}
+            className={`shop-tab ${on ? "is-on" : ""}`}
           >
             {tab.label}
           </button>
@@ -132,8 +131,7 @@ export function ShopFilterMenus({
   onChange: (next: ShopFilters) => void;
   className?: string;
 }) {
-  const select =
-    "h-8 min-w-0 flex-1 rounded-md border border-[#494054] bg-[#191620] px-2 text-xs text-[#eee5f8] focus:border-[#bda0de] focus:outline-none";
+  const select = "shop-select";
   return (
     <div className={`flex gap-2 ${className}`}>
       <select className={select} aria-label="Rarity" value={filters.rarity} onChange={(event) => onChange({ ...filters, rarity: event.target.value })}>

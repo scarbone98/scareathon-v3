@@ -204,7 +204,7 @@ function ShopSearch({ value, onChange }: { value: string; onChange: (value: stri
       </button>
     );
   return (
-    <label className="flex h-9 w-full items-center gap-2 rounded-md border border-[#494054] bg-[#191620] px-3 text-[#92859f] focus-within:border-[#bda0de] md:max-w-sm">
+    <label className="flex h-9 w-full items-center gap-2 border-2 border-[#f2ead2]/35 bg-[#1d2a3a] px-3 text-[#f2ead2]/60 focus-within:border-[#f2ead2] md:max-w-sm">
       <FaSearch className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <input
         type="search"

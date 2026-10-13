@@ -88,6 +88,7 @@ export function usePetShopItems(): ExtraShopItem[] {
       categoryLabel: item.group,
       categoryPlural: SHELVES[item.game],
       icon: pictureOf(item),
+      square: true,
       price: item.price,
       owned: kept,
       count: !item.keeps && have > 0 ? have : undefined,

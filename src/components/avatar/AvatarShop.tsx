@@ -77,6 +77,8 @@ export type ExtraShopItem = {
   owned: boolean;
   // (how many you have of a thing that's used up and bought again: pet food, a fish for the tank)
   count?: number;
+  // (its picture is square, not a banner's two-to-one swatch)
+  square?: boolean;
   previewing: boolean;
   // (what its Show button says instead: a song's is Listen)
   previewLabel?: string;
@@ -377,7 +379,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
             return (
               <article key={item.id} className={`shop-item rarity-common ${item.previewing ? "is-previewing" : ""} ${item.owned ? "is-owned" : ""}`}>
                 <div className="shop-item-art">
-                  <img className="shop-item-icon shop-item-swatch" src={item.icon} alt="" draggable={false} />
+                  <img className={`shop-item-icon ${item.square ? "" : "shop-item-swatch"}`} src={item.icon} alt="" draggable={false} />
                   {item.owned && <span className="shop-owned">Owned</span>}
                   {!item.owned && item.count ? <span className="shop-owned">You have {item.count}</span> : null}
                   {item.isNew && !item.owned && <NewsDot className="shop-item-news" label="New in the shop" />}
@@ -413,7 +415,7 @@ export function AvatarShop({ onPreviewLookChange, focusName, extraItems = [], fi
                     onClick={() => {
                       const { onClick } = item.action;
                       // (only a purchase asks first: putting a banner up is free)
-                      if (item.action.buy && onClick) setConfirming({ name: item.name, price: item.price, icon: item.icon, swatch: true, buy: onClick });
+                      if (item.action.buy && onClick) setConfirming({ name: item.name, price: item.price, icon: item.icon, swatch: !item.square, buy: onClick });
                       else onClick?.();
                     }}
                     disabled={item.action.disabled || cannotAfford}

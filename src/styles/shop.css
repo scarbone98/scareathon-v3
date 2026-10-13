@@ -1,90 +1,117 @@
-/* Item shop inside the profile panel: same palette and tile language as the wardrobe. */
-.shop { --rarity: #8f839c; display: flex; flex-direction: column; gap: 12px; color: #e9e2f0; }
-
+/* The item shop at the ticket counter, in the station's own look: navy enamel plates with a
+   cream rule and a hard shadow, cream ticket stubs to press, the printer's face for names and
+   the pixel face for everything the station itself says. Nothing rounded, nothing soft. */
+.shop {
+  --rarity: #8f937f;
+  --navy: #1d2a3a;
+  --cream: #f2ead2;
+  --card: #efe3c8;
+  --ink: #05070c;
+  --amber: #e7bd71;
+  display: flex; flex-direction: column; gap: 14px; color: #e6dfcb;
+}
 
 /* Columns follow the panel's width, not the window's, so cards never get squeezed */
-.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; transition: opacity .15s; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); gap: 12px; padding: 0 3px 3px 0; transition: opacity .15s; }
 .shop-grid.is-refreshing { opacity: .6; }
 
-.shop-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 8px 10px; background: #2d2737; border: 1px solid #4a4056; border-top: 3px solid var(--rarity); border-radius: 12px; transition: border-color .15s, background .15s; }
-.shop-item:hover { background: #332b3e; }
-.shop-item.is-previewing { border-color: #bda0de; border-top-color: var(--rarity); background: #362c43; box-shadow: inset 0 0 0 1px #bc9ddd30; }
-.shop-item.rarity-common { --rarity: #8f839c; }
-.shop-item.rarity-uncommon { --rarity: #6fcf8e; }
-.shop-item.rarity-rare { --rarity: #6fa8f0; }
-.shop-item.rarity-epic { --rarity: #c08af5; }
-.shop-item.rarity-legendary { --rarity: #f2c35b; }
+/* A ware: a plate with its rarity along the top edge */
+.shop-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 8px 10px; background: #141c27; border: 2px solid rgba(242, 234, 210, .26); border-top: 4px solid var(--rarity); box-shadow: 3px 3px 0 var(--ink); transition: border-color .12s, background .12s, transform .12s; }
+.shop-item:hover { background: #18222f; }
+.shop-item.is-previewing { border-color: var(--cream); border-top-color: var(--rarity); background: var(--navy); }
+.shop-item.rarity-common { --rarity: #8f937f; }
+.shop-item.rarity-uncommon { --rarity: #7fb069; }
+.shop-item.rarity-rare { --rarity: #6fa8d8; }
+.shop-item.rarity-epic { --rarity: #b98fd6; }
+.shop-item.rarity-legendary { --rarity: #e7bd71; }
 
-.shop-item-art { position: relative; display: flex; justify-content: center; padding: 6px 0 2px; border-radius: 8px; background: radial-gradient(ellipse at 50% 85%, color-mix(in srgb, var(--rarity) 22%, transparent), transparent 70%); }
+/* It stands in a little lit recess */
+.shop-item-art { position: relative; display: flex; justify-content: center; padding: 6px 0 2px; background: linear-gradient(180deg, #0b1017 0%, color-mix(in srgb, var(--rarity) 16%, #0b1017) 100%); box-shadow: inset 0 0 0 1px rgba(242, 234, 210, .1); }
 .shop-item-art > [aria-label="Avatar preview"] { border: 0; background: transparent !important; }
-.shop-rarity { position: absolute; top: 0; left: 0; padding: 2px 7px; border-radius: 6px; background: #1c1923d9; color: var(--rarity); font-size: 9px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+.shop-rarity { position: absolute; top: 0; left: 0; padding: 1px 6px; background: var(--ink); color: var(--rarity); font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 /* New since you last looked: the "!" dot, in the corner the Owned tag would have */
 .shop-item-news { position: absolute; top: 1px; right: 1px; }
-.shop-owned { position: absolute; top: 0; right: 0; padding: 2px 7px; border-radius: 6px; background: #1c1923d9; color: #9fdcb2; font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+.shop-owned { position: absolute; top: 0; right: 0; padding: 1px 6px; background: var(--card); color: var(--navy); font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 
 /* Names wrap to two lines; the full name is in the title tooltip */
-.shop-item-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; font-weight: 750; line-height: 1.25; color: #faf5ed; overflow-wrap: anywhere; }
-.shop-item-meta { font-size: 11px; color: #9a8ea7; }
+.shop-item-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; font-family: 'IM Fell English', Georgia, 'Times New Roman', serif; font-size: 17px; line-height: 1.15; color: var(--cream); overflow-wrap: anywhere; }
+.shop-item-meta { font-family: 'Special Elite', 'Courier New', monospace; font-size: 11px; color: #9aa3ab; }
 .shop-item-slot { text-transform: capitalize; }
-.shop-item-meta .is-scarce { color: #f2a27a; font-weight: 700; }
-.shop-item-price { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 15px; font-weight: 800; color: #f7e7c4; }
-.shop-item-price svg { color: #e7bd71; }
-.shop-item-short { margin-left: auto; font-size: 10px; font-weight: 700; color: #f2a27a; white-space: nowrap; }
+.shop-item-meta .is-scarce { color: #f2a27a; }
+.shop-item-price { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-family: 'Special Elite', 'Courier New', monospace; font-size: 17px; color: var(--cream); }
+.shop-item-price svg { color: var(--amber); }
+.shop-item-short { margin-left: auto; font-size: 11px; color: #f2a27a; white-space: nowrap; }
 
-.shop-item-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; padding-top: 4px; }
-.shop-button { min-height: 34px; padding: 6px 8px; border-radius: 8px; border: 1px solid #c6ace8; background: #c6ace8; color: #281b35; font-size: 12px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .15s, border-color .15s; }
-.shop-button:hover:not(:disabled) { background: #ddc5fc; }
-.shop-button.is-secondary { background: transparent; border-color: #53465f; color: #cfbfde; }
-.shop-button.is-secondary:hover { background: #ffffff08; }
-.shop-button.is-secondary.is-active { border-color: #f2c35b; color: #281b35; background: #f2c35b; }
-.shop-button:disabled { cursor: not-allowed; background: #2a2433; border-color: #3f3649; color: #8f839c; }
+/* Buy is a ticket stub you press; the other key is a plate */
+.shop-item-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; padding: 6px 3px 3px 0; }
+.shop-button { position: relative; min-height: 34px; padding: 5px 6px 4px 11px; border: 0; background: var(--card); color: var(--navy); box-shadow: 3px 3px 0 rgba(0, 0, 0, .6); font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .12s, transform .12s; }
+.shop-button::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; border-left: 2px dotted rgba(29, 42, 58, .4); }
+.shop-button:hover:not(:disabled) { background: #fff4d8; transform: translateY(-1px); }
+.shop-button:active:not(:disabled) { transform: translateY(1px); }
+.shop-button.is-secondary { padding-left: 6px; background: transparent; color: var(--cream); box-shadow: inset 0 0 0 2px rgba(242, 234, 210, .4); }
+.shop-button.is-secondary::before { content: none; }
+.shop-button.is-secondary:hover:not(:disabled) { background: rgba(242, 234, 210, .1); }
+.shop-button.is-secondary.is-active { background: var(--amber); color: var(--navy); box-shadow: 3px 3px 0 rgba(0, 0, 0, .6); }
+.shop-button:disabled { cursor: not-allowed; background: #232c37; color: #76808a; box-shadow: none; }
+.shop-button:disabled::before { border-left-color: rgba(242, 234, 210, .15); }
 
-.shop-state { display: grid; place-items: center; min-height: 220px; position: relative; padding: 20px; border: 1px dashed #4a4056; border-radius: 12px; color: #aaa1b5; font-size: 13px; text-align: center; }
+.shop-state { display: grid; place-items: center; min-height: 220px; position: relative; padding: 20px; border: 2px dashed rgba(242, 234, 210, .25); color: #a9b0b6; font-family: 'Special Elite', 'Courier New', monospace; font-size: 14px; text-align: center; }
 
-.shop-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; font-size: 12px; color: #aaa1b5; }
+.shop-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; font-family: 'Special Elite', 'Courier New', monospace; font-size: 13px; color: #a9b0b6; }
 .shop-pager > div { display: flex; align-items: center; gap: 10px; }
-.shop-pager button { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; border: 1px solid #4a4056; color: #cfbfde; transition: background .15s; }
-.shop-pager button:hover:not(:disabled) { background: #ffffff08; }
-.shop-pager button:disabled { opacity: .4; cursor: not-allowed; }
+.shop-pager button { display: grid; place-items: center; width: 38px; height: 38px; border: 2px solid rgba(242, 234, 210, .4); color: var(--cream); transition: background .12s; }
+.shop-pager button:hover:not(:disabled) { background: rgba(242, 234, 210, .1); }
+.shop-pager button:disabled { opacity: .35; cursor: not-allowed; }
 
-.shop-error { padding: 10px 12px; border-radius: 8px; background: #3a1a22; border: 1px solid #6b2a36; color: #f3c1ca; font-size: 13px; text-align: center; }
+.shop-error { padding: 10px 12px; background: #3a1a1c; border: 2px solid #a8493f; color: #f3c9c1; font-family: 'Special Elite', 'Courier New', monospace; font-size: 13px; text-align: center; }
 
-/* Today's featured wares: a gold-edged shelf above the rest */
-.shop-featured { padding: 8px; border: 1px solid #f2c35b66; border-radius: 12px; background: linear-gradient(180deg, #f2c35b1f, transparent 70%); }
+/* Today's featured wares: a shelf of their own above the rest, labelled like a platform sign */
+.shop-featured { padding: 10px; border: 2px solid rgba(231, 189, 113, .55); background: rgba(231, 189, 113, .06); }
 /* The new arrivals, above it: the same shelf, edged in the "!" badge's red */
-.shop-new { border-color: #ff6b5b66; background: linear-gradient(180deg, #ff6b5b1f, transparent 70%); }
+.shop-new { border-color: rgba(255, 107, 91, .55); background: rgba(255, 107, 91, .06); }
 .shop-new .shop-featured-title { color: #ff8a7a; }
-.shop-featured-title { margin: 0 2px 6px; color: #f2c35b; font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+.shop-featured-title { margin: 0 2px 8px; color: var(--amber); font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 14px; letter-spacing: .18em; text-transform: uppercase; }
 .shop-item-icon { width: 96px; height: 96px; image-rendering: pixelated; object-fit: contain; }
 /* A banner's icon: half of it, twice as wide as tall, at twice the size it's drawn (as wide as the card has room for) */
-.shop-item-swatch { width: min(96px, 100%); height: auto; aspect-ratio: 2 / 1; margin: 24px 0; border-radius: 2px; box-shadow: 0 2px 0 rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08); }
+.shop-item-swatch { width: min(96px, 100%); height: auto; aspect-ratio: 2 / 1; margin: 24px 0; box-shadow: 2px 2px 0 var(--ink), 0 0 0 1px rgba(242, 234, 210, .15); }
+
+/* The shelves: a row of enamel tabs, the one you're at a cream card */
+.shop-tab { height: 32px; flex-shrink: 0; padding: 0 12px; border: 2px solid rgba(242, 234, 210, .35); background: var(--navy, #1d2a3a); color: #f2ead2; font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 14px; letter-spacing: .06em; white-space: nowrap; transition: background .12s, border-color .12s; }
+.shop-tab:hover { border-color: #f2ead2; }
+.shop-tab.is-on { border-color: #efe3c8; background: #efe3c8; color: #1d2a3a; box-shadow: 2px 2px 0 #05070c; }
+.shop-select { height: 32px; min-width: 0; flex: 1; padding: 0 8px; border: 2px solid rgba(242, 234, 210, .35); border-radius: 0; background: #1d2a3a; color: #f2ead2; font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 14px; }
+.shop-select:focus { border-color: #f2ead2; outline: none; }
+
 /* Phones: three across, the icons at 4x their 16px art, everything a size down */
 @media (max-width: 767px) {
-  .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .shop-item { gap: 3px; padding: 5px 5px 6px; border-radius: 9px; }
+  .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding: 0 2px 2px 0; }
+  .shop-item { gap: 3px; padding: 5px 5px 6px; border-width: 1px; border-top-width: 3px; box-shadow: 2px 2px 0 var(--ink); }
   .shop-item-icon { width: 64px; height: 64px; }
-  .shop-rarity, .shop-owned { padding: 1px 4px; font-size: 7px; letter-spacing: .4px; border-radius: 4px; }
-  .shop-item-name { font-size: 12px; }
+  .shop-rarity, .shop-owned { padding: 0 4px; font-size: 8px; }
+  .shop-item-name { font-size: 14px; }
   .shop-item-meta { font-size: 10px; }
-  .shop-item-price { gap: 4px; font-size: 13px; }
+  .shop-item-price { gap: 4px; font-size: 14px; }
   .shop-item-price svg { width: 18px; height: 12px; }
   .shop-item-short { display: none; } /* (Buy waits until you can afford it) */
-  .shop-item-actions { gap: 4px; padding-top: 2px; }
-  .shop-button { min-height: 28px; padding: 3px 1px; border-radius: 6px; font-size: 11px; letter-spacing: -.1px; }
+  .shop-item-actions { gap: 5px; padding: 3px 2px 2px 0; }
+  .shop-button { min-height: 28px; padding: 3px 1px 2px 6px; box-shadow: 2px 2px 0 rgba(0, 0, 0, .6); font-size: 12px; letter-spacing: .02em; }
+  .shop-button::before { top: 3px; bottom: 3px; left: 2px; }
+  .shop-button.is-secondary { padding-left: 1px; box-shadow: inset 0 0 0 1px rgba(242, 234, 210, .4); }
   .shop-item-swatch { width: min(96px, 100%); height: auto; margin: 8px 0; }
+  .shop-tab, .shop-select { font-size: 13px; }
 }
-.shop-item-fit { font-size: 10px; color: #b4a5c3; }
+.shop-item-fit { font-family: 'Special Elite', 'Courier New', monospace; font-size: 10px; color: #a9b0b6; }
 
-/* Buy asks first: a small card over the dimmed shop */
-.shop-confirm-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(8, 6, 12, .72); }
-.shop-confirm { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 280px); padding: 16px; border: 1px solid #f2c35b66; border-radius: 14px; background: #1c1824; box-shadow: 0 18px 50px rgba(0, 0, 0, .6); color: #e9e2f0; text-align: center; }
-.shop-confirm-title { margin: 0; font-size: 16px; font-weight: 800; }
-.shop-confirm-left { margin-left: 6px; color: #92859f; font-size: 11px; font-weight: 600; }
+/* Buy asks first: a ticket held up over the dimmed shop */
+.shop-confirm-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5, 7, 12, .78); }
+.shop-confirm { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 290px); padding: 18px 16px 16px; border: 2px solid var(--cream); background: var(--navy); box-shadow: 5px 5px 0 var(--ink); color: var(--cream); text-align: center; }
+.shop-confirm-title { margin: 0; font-family: 'IM Fell English', Georgia, 'Times New Roman', serif; font-size: 21px; line-height: 1.15; }
+.shop-confirm-left { margin-left: 6px; color: #9aa3ab; font-family: 'Special Elite', 'Courier New', monospace; font-size: 11px; font-weight: 400; }
 .shop-confirm .shop-item-actions { width: 100%; }
 
 /* Yours already: greyed out (the Owned tag and the buttons stay clear) */
-.shop-item.is-owned { background: #25212c; border-color: #3a3443; border-top-color: #5d5666; }
+.shop-item.is-owned { background: #10161e; border-color: rgba(242, 234, 210, .14); border-top-color: #4f5a63; box-shadow: none; }
 .shop-item.is-owned .shop-item-icon, .shop-item.is-owned .shop-item-name, .shop-item.is-owned .shop-item-meta, .shop-item.is-owned .shop-item-price, .shop-item.is-owned .shop-rarity { opacity: .45; filter: grayscale(1); }
 
 /* An item drawn with a game's own sprites: which game */
-.shop-item-game { margin: 0; font-size: 10px; font-weight: 700; color: #f2c35b; }
+.shop-item-game { margin: 0; font-family: 'Special Elite', 'Courier New', monospace; font-size: 10px; color: var(--amber); }
