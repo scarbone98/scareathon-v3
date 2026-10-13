@@ -5,7 +5,6 @@
 export const SECRET_CARTS: Record<string, string> = {
   EVILV2: "8 Bit Evil Returns V2",
   HALLOW: "Hallow Deep",
-  AQUA: "Pocket Aquarium",
   VALLEY: "October Valley",
   DENVS: "Denver Vs The Universe",
   OUTSIDE: "Outside",
