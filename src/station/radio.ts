@@ -19,7 +19,7 @@ type Tune = {
 };
 
 // A tune made in One Man Band (the arcade cart): a loop of so many bars, and for each of its
-// instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums, organ, theremin, viola, choir) the notes on it,
+// instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums, organ, theremin, viola, choir, bassoon) the notes on it,
 // each [beat, beats long, button, note]. For the drums the button is which drum.
 export type BandSong = { bpm: number; bars: number; tracks: number[][][] };
 
@@ -359,6 +359,10 @@ function bandNote(context: AudioContext, out: AudioNode, inst: number, b: number
     // The choir: a few small voices not quite together, through an open mouth, coming in slowly
     [1, 1.006, 0.995].forEach((off) => voiced(wave("sawtooth", f * off), 0.035, undefined, pass("bandpass", 1000), 0.12));
     voiced(wave("triangle", f), 0.06, undefined, undefined, 0.12);
+  } else if (inst === 11) {
+    // The bassoon: a reed down a long tube, dry and low
+    voiced(wave("sawtooth", f), 0.1, undefined, pass("lowpass", 1100), 0.04);
+    voiced(wave("square", f), 0.035, undefined, pass("bandpass", 480), 0.04);
   } else {
     // The drums: kick, snare, hat, tom, crash (`n` bends them a little, and says which of the
     // game's three kits the drum is from: 40 down for the big low ones, 40 up for the toys.
