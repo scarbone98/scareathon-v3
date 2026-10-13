@@ -46,6 +46,8 @@ export const STATE_BYTES = 11;
 const MAX_ROOMS = 40;
 const HIT_REACH = 14; // metres apart, by their last states, two runners can be for a hit to count
 const KILL_BONUS = 5;
+const DASH_COST = 0.08; // of a runner's mass, gone each time it dashes (at least 1)...
+const DASH_FLOOR = 5; // ...but a dash never takes it below this
 const KILL_SHARE = 0.25; // of the burst runner's mass, to whoever burst it
 const SPILL_SHARE = 0.6; // of it, back on the floor as drops
 const DEAD_MS = 1_500; // the least a burst runner stays down
@@ -310,6 +312,14 @@ export function createArenaManager({ log, now = () => Date.now(), random = Math.
                 room.drops.delete(Number(m.d));
                 ent.mass += drop.v;
                 broadcast(room, { t: 'took', e: ent.id, d: Number(m.d), m: ent.mass });
+                break;
+            }
+            case 'dash': {
+                // A dash is paid for in mass
+                const ent = owned(at, m.e);
+                if (!ent || !ent.alive || room.phase !== 'play' || ent.mass <= DASH_FLOOR) return;
+                ent.mass = Math.max(ent.mass - Math.max(Math.floor(ent.mass * DASH_COST), 1), DASH_FLOOR);
+                broadcast(room, { t: 'mass', e: ent.id, m: ent.mass });
                 break;
             }
             case 'hit': {

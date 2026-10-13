@@ -13,6 +13,11 @@ export const GAME_SCORE_POLICIES = new Map([
         score: { min: 0, max: 86400, integer: true },
         tickets: { from: 30, full: 2000 },
     }],
+    // An endless run's score (a quick splat is a few dozen), or ten times an arena round's peak mass.
+    ['Liquid Metal', {
+        score: { min: 0, max: 10000000, integer: true },
+        tickets: { from: 100, full: 2500 },
+    }],
     ['Hemlock\'s Tower', {
         score: { min: 0, max: 10000000, integer: true },
         tickets: { from: 0, full: 200 },
