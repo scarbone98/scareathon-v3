@@ -30,6 +30,7 @@ import PixelArrow from "./style/PixelArrow.tsx";
 import ClerkSays from "./things/ClerkSays.tsx";
 import TicketDrop from "./things/TicketDrop.tsx";
 import { useSongs } from "./things/Songs.tsx";
+import { useBandSongs } from "./things/BandSongs.tsx";
 import { useCarts } from "./things/Carts.tsx";
 import type { Boards } from "./StationScene.tsx";
 import { ROW_DONE_MS } from "./arcadeRow.ts";
@@ -291,6 +292,8 @@ export default function StationPage() {
   }, [at]);
   // The radio plays your songs (the ones everyone has, signed out)
   useSongs(signedIn);
+  // And, on its other frequencies, the tunes made in One Man Band: yours, and everyone else's
+  useBandSongs(signedIn);
   // Cartridges bought at the counter go on the arcade's shelf (wherever you've signed in)
   useCarts(signedIn);
 

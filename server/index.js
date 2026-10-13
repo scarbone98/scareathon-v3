@@ -45,6 +45,7 @@ import waysideOnlineRoutes, { WAYSIDE_ONLINE_SQL } from './routes/waysideOnline.
 import waysideLoungeRoutes from './routes/waysideLounge.js';
 import bannersRoutes, { BACKGROUND_BANNERS_SQL, BANNERS_SQL } from './routes/banners.js';
 import songsRoutes, { SONGS_SQL } from './routes/songs.js';
+import bandSongsRoutes, { BAND_SONGS_SQL } from './routes/bandSongs.js';
 import cartsRoutes, { CARTS_SQL } from './routes/carts.js';
 import petItemsRoutes, { PET_ITEMS_SQL } from './routes/petItems.js';
 import websocket from '@fastify/websocket';
@@ -165,6 +166,7 @@ async function main() {
                 await runStartupSql(pool, WAYSIDE_ONLINE_SQL); // Wayside Online's posts and reactions
                 await runStartupSql(pool, BANNERS_SQL); // scoreboard banners
                 await runStartupSql(pool, SONGS_SQL); // songs for the bench's radio
+                await runStartupSql(pool, BAND_SONGS_SQL); // and tunes sent to it from One Man Band
                 await runStartupSql(pool, CARTS_SQL); // cartridges sold at the counter
                 await runStartupSql(pool, PET_ITEMS_SQL); // supplies for the cellar's cryptlin and the aquarium
                 await runStartupSql(pool, BACKGROUND_BANNERS_SQL); // background items become banners
@@ -324,6 +326,7 @@ async function main() {
         fastify.register(waysideLoungeRoutes, { prefix: '/wayside-online/lounge' });
         fastify.register(bannersRoutes, { prefix: '/banners' });
         fastify.register(songsRoutes, { prefix: '/songs' });
+        fastify.register(bandSongsRoutes, { prefix: '/band-songs' });
         fastify.register(cartsRoutes, { prefix: '/carts' });
         fastify.register(petItemsRoutes, { prefix: '/pet-items' });
         fastify.register(capsuleRoutes, { prefix: '/capsule' });
