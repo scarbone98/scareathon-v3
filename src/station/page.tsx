@@ -730,7 +730,7 @@ export default function StationPage() {
       <div className="station-ui fixed inset-0 bg-black" onClickCapture={keepInStation} style={sans}>
         <a ref={skipRef} href="#station-directory" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:bg-[#efe3c8] focus:p-3 focus:text-[#1d2a3a]"
           onClick={() => setDirectoryOpen(true)}>Station directory</a>
-        {webglChecked && !sceneFailed && <div className="absolute inset-0" aria-hidden={directoryVisible ? true : undefined} ref={node => { if (node) node.inert = directoryVisible; }}>
+        {webglChecked && !sceneFailed && <div className={`absolute inset-0 ${at === "cellar" && petArrived ? "station-sinking" : ""}`} aria-hidden={directoryVisible ? true : undefined} ref={node => { if (node) node.inert = directoryVisible; }}>
         <SceneBoundary onFailure={sceneFailure}>
         <Suspense fallback={<LoadingSpinner />}>
           <StationScene
@@ -885,6 +885,9 @@ export default function StationPage() {
           .station-ui :is(button, a, input, select, textarea):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
           .station-ui #station-directory:focus { outline: none; }
           @keyframes station-arrive { from { opacity: 0 } to { opacity: 1 } }
+          /* Down the trap door with the scene held still: its last picture of the shaft keeps coming, by itself */
+          @keyframes station-sink { from { transform: none } to { transform: scale(3.2) } }
+          .station-sinking { animation: station-sink 3.4s cubic-bezier(0.3, 0, 0.7, 0.6) both; will-change: transform }
           .station-arrive { animation: station-arrive 0.45s ease-out both }
           @keyframes station-card-up { from { transform: translateY(100%) } to { transform: none } }
           .station-card { animation: station-card-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both }
@@ -896,7 +899,7 @@ export default function StationPage() {
           @media (min-width: 768px) { .station-sheet { animation-name: station-sheet-lift; animation-duration: 0.28s } }
           @keyframes station-sheet-down { from { transform: translateY(-100%) } to { transform: none } }
           .station-sheet.station-sheet-down { animation: station-sheet-down 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both }
-          @media (prefers-reduced-motion: reduce) { .station-arrive, .station-sheet, .station-sheet.station-sheet-down, .station-card, .station-card-body { animation: none } }
+          @media (prefers-reduced-motion: reduce) { .station-sinking, .station-arrive, .station-sheet, .station-sheet.station-sheet-down, .station-card, .station-card-body { animation: none } }
         `}</style>
       </div>
     </AnimatedPage>

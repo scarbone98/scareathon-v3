@@ -9,8 +9,10 @@ import PixelArrow from "./style/PixelArrow.tsx";
 //
 // Starting the game holds the page up for some seconds (the station's own picture can't move
 // while it does), so the wait is covered by something that moves without the page's help:
-// plain CSS animation, which the browser keeps going by itself. Down the trap door, bricks
-// go by in the dark; at the aquarium, bubbles rise over the station's tank.
+// plain CSS animation, which the browser keeps going by itself. Down the trap door, the
+// last picture of the shaft itself is what keeps going: the page grows it towards you (see
+// `station-sinking` there) as this darkens over it, so the fall carries on down into the
+// black that the cellar comes up out of. At the aquarium, bubbles rise over the station's tank.
 //
 // The game and the page talk in messages named for the game (`prefix`: CRYPTLINS, AQUARIUM):
 //   from the game: <PREFIX>_READY (its room is drawn), <PREFIX>_USED { item } (one used up)
@@ -31,22 +33,11 @@ type Props = {
   onBack: () => void;
 };
 
-// Bricks for the shaft's wall, as a tile: the station's own brick, two courses
-const BRICKS = `url("data:image/svg+xml;utf8,${encodeURIComponent(
-  "<svg xmlns='http://www.w3.org/2000/svg' width='240' height='120'><rect width='240' height='120' fill='#0c0908'/>" +
-    "<rect x='3' y='3' width='114' height='54' fill='#3a2419'/><rect x='123' y='3' width='114' height='54' fill='#33201a'/>" +
-    "<rect x='-57' y='63' width='114' height='54' fill='#2f1d16'/><rect x='63' y='63' width='114' height='54' fill='#3d271c'/><rect x='183' y='63' width='114' height='54' fill='#352118'/></svg>"
-)}")`;
-
 function Cover({ kind, up }: { kind: Props["cover"]; up: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden transition-opacity duration-300" style={{ opacity: up ? 1 : 0 }} aria-hidden>
       {kind === "shaft" ? (
-        <>
-          <div className="absolute inset-0 bg-black" />
-          <div className="pet-shaft absolute inset-x-0 top-0 h-[calc(100%+240px)]" style={{ backgroundImage: BRICKS, backgroundSize: "240px 120px" }} />
-          <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.82) 62%, #000 100%)" }} />
-        </>
+        <div className="pet-dark absolute inset-0 bg-black" />
       ) : (
         [8, 21, 33, 47, 58, 71, 84, 93].map((left, i) => (
           <span
@@ -57,11 +48,11 @@ function Cover({ kind, up }: { kind: Props["cover"]; up: boolean }) {
         ))
       )}
       <style>{`
-        @keyframes pet-shaft-by { from { transform: translateY(-240px) } to { transform: none } }
-        .pet-shaft { animation: pet-shaft-by 0.42s linear infinite; will-change: transform }
+        @keyframes pet-dark-in { from { opacity: 0 } to { opacity: 1 } }
+        .pet-dark { animation: pet-dark-in 3.2s ease-in both; will-change: opacity }
         @keyframes pet-bubble-up { from { transform: translateY(20px); opacity: 0 } 12% { opacity: 1 } to { transform: translateY(-105vh); opacity: 0.7 } }
         .pet-bubble { animation: pet-bubble-up linear infinite; will-change: transform, opacity }
-        @media (prefers-reduced-motion: reduce) { .pet-shaft, .pet-bubble { animation: none } }
+        @media (prefers-reduced-motion: reduce) { .pet-dark, .pet-bubble { animation: none } }
       `}</style>
     </div>
   );
