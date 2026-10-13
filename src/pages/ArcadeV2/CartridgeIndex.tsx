@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { byName, type MachineData } from "../Arcade/games.tsx";
 import { stillUrlFor } from "./cartridge.ts";
 import { hasNews, isNewGame, playedCarts } from "../Arcade/news.ts";
+import { useFavouriteCarts } from "../Arcade/favourites.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
 // games' stills and names in alphabetical order, a row of filters behind a FILTER button (genre, developer,
 // single or multiplayer, early access, coming soon), and a search prompt along the bottom that filters
-// by name or genre. Picking one jumps the shelf to it. Games in their first day come first,
+// by name or genre. Picking one jumps the shelf to it. This device's favourites come first,
+// under FAVOURITES (Arcade/favourites.ts), then games in their first day,
 // under NEW GAMES, and anything new or updated wears a "!" badge until it's played (Arcade/news.ts).
 
 const PHOSPHOR = "#39ff6a";
@@ -104,9 +106,15 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       (!players || playersOf(game) === players) &&
       ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
   );
-  // New games first, under a heading of their own
-  const fresh = shown.filter(({ game }) => isNewGame(game));
-  const sections = fresh.length ? [{ title: "NEW GAMES", carts: fresh }, { title: "ALL GAMES", carts: shown.filter(({ game }) => !isNewGame(game)) }] : [{ title: "", carts: shown }];
+  // Favourites first, then new games, each under a heading of their own
+  const favourites = useFavouriteCarts();
+  const starred = shown.filter(({ game }) => favourites.includes(game.name));
+  const others = shown.filter(({ game }) => !favourites.includes(game.name));
+  const fresh = others.filter(({ game }) => isNewGame(game));
+  const sections =
+    starred.length || fresh.length
+      ? [{ title: "FAVOURITES", carts: starred }, { title: "NEW GAMES", carts: fresh }, { title: "ALL GAMES", carts: others.filter(({ game }) => !isNewGame(game)) }]
+      : [{ title: "", carts: shown }];
   const played = useMemo(playedCarts, []);
   const filtersOn = [genre, developer, players, early, soon].filter(Boolean).length;
   return (

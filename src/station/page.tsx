@@ -478,10 +478,11 @@ export default function StationPage() {
   const [atCabinet, setAtCabinet] = useState(false);
   const [arcadeFrame, setArcadeFrame] = useState<CabinetFrame | null>(null);
   // The game the cabinet previews from the platform; the arcade opens on the same one, so
-  // it's one of the arcade's own (phones don't get the desktop-only ones)
+  // it's one of the arcade's own (phones don't get the desktop-only ones): the first of this
+  // device's favourites, or any game at all if there are none
   const [preview] = useState(() => {
     const pool = games.filter((game) => game.game && game.videoUrl && !game.special);
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const pick = pool.find((game) => game.favourite) ?? pool[Math.floor(Math.random() * pool.length)];
     return pick?.videoUrl ? { name: pick.name, video: pick.videoUrl, color: pick.cartridge.color } : null;
   });
   // The arcade is built in the background once the station has settled, and kept (paused

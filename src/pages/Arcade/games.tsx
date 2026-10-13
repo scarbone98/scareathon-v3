@@ -8,6 +8,7 @@ import { fetchWithAuth } from "../../fetchWithAuth.ts";
 import { BAND_SONG_EVENT } from "../../station/things/BandSongs.tsx";
 import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
+import { favouriteCarts } from "./favourites.ts";
 import { isNewGame } from "./news.ts";
 
 // Most attract videos play from Supabase Storage (npm run upload:recordings) so
@@ -39,6 +40,9 @@ export type MachineData = {
   earlyAccess?: boolean;
   // An early-access game that still spends its first day in NEW GAMES, like a finished one
   newShelf?: boolean;
+  // One of this device's favourites when the list was built (Arcade/favourites.ts): shelved
+  // in a group of their own, ahead of everything else
+  favourite?: boolean;
   // When it arrived (an ISO time, like "2026-10-04T16:00:00-06:00"): a "!" badge until it's
   // played, and a finished game's first day is spent in NEW GAMES (Arcade/news.ts)
   added?: string;
@@ -1677,15 +1681,18 @@ export function createArcadeGames(): MachineData[] {
   // Secret carts stay off the shelf until they're unlocked on this device. The shelf runs
   // group by group, each in alphabetical order (Shuffle leads the finished games, "???" ends them)
   const edge = (game: MachineData) => (game.special === "shuffle" ? -1 : game.special === "mystery" ? 1 : 0);
+  const favourites = favouriteCarts();
   return games
     .filter((game) => !game.secret || unlocked.includes(game.name))
+    .map((game) => (favourites.includes(game.name) ? { ...game, favourite: true } : game))
     .sort((a, b) => shelfGroupOf(a) - shelfGroupOf(b) || edge(a) - edge(b) || byName(a, b));
 }
 
-// The shelf's groups, left to right, with a wider gap between one and the next: the cassette
+// The shelf's groups, left to right, with a wider gap between one and the next: the favourites, the cassette
 // carts (things to do), new games (finished ones, or early access with newShelf, for their first day), the finished games
 // ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
+  if (game.favourite) return -1;
   if (game.special === "mystery") return 2;
   if (game.special === "soon") return 4;
   if (game.earlyAccess) return isNewGame(game) ? 1 : 3;
