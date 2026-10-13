@@ -12,9 +12,13 @@ import { AQUARIUM_ITEMS } from '../shared/pets/aquarium.js';
 //
 // An item's key is its game and the game's own id for it: "cryptlins:fish", "aquarium:fish:guppy".
 
+// The aquarium isn't open yet (its tank isn't on the lockers: AQUARIUM_OPEN in
+// src/station/stops.ts), so its things aren't for sale. Both switches go on together.
+const AQUARIUM_OPEN = false;
+
 export const PET_ITEMS = [
     ...CRYPTLINS_ITEMS.map((item) => ({ ...item, game: 'cryptlins', key: `cryptlins:${item.id}` })),
-    ...AQUARIUM_ITEMS.map((item) => ({ ...item, game: 'aquarium', key: `aquarium:${item.id}` })),
+    ...(AQUARIUM_OPEN ? AQUARIUM_ITEMS : []).map((item) => ({ ...item, game: 'aquarium', key: `aquarium:${item.id}` })),
 ];
 const BY_KEY = new Map(PET_ITEMS.map((item) => [item.key, item]));
 

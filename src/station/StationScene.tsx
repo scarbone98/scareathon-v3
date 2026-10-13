@@ -69,7 +69,7 @@ import { ROW_CARTS, ROW_DELAY, ROW_FLY, ROW_PICK, ROW_STAGGER } from "./arcadeRo
 import { linkArcadeFonts, TERMINAL_FONT } from "../pages/ArcadeV2/arcadeFonts.ts";
 import type { MachineData } from "../pages/Arcade/games.tsx";
 import { hasNews, NEWS_EVENT, playedCarts } from "../pages/Arcade/news.ts";
-import { HATCH, HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
+import { AQUARIUM_OPEN, HATCH, HEADINGS, HUB, STOPS, VIEWS, type Heading, type StopId } from "./stops.ts";
 import { CAPSULE_MS, CAPSULE_TICKETS, capsuleMachine } from "./capsuleSignal.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
@@ -4020,6 +4020,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const lockers = buildLockers();
     const hatch = buildHatch();
     const aquarium = buildAquarium();
+    aquarium.visible = AQUARIUM_OPEN;
     let lastMinute = 0;
     const mail = buildMail();
     // (in a task of its own, apart from building the cabinet, so neither holds up a frame as long)
@@ -4040,7 +4041,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     let crankSelf: number | null = null;
     const arcadeObject = arcade;
     sceneArcadeRef.current = arcade;
-    const objects = [bench, lockers, arcade, cartRack, capsule, bulletin, events, tickets, departures, mail, hatch, aquarium];
+    const objects = [bench, lockers, arcade, cartRack, capsule, bulletin, events, tickets, departures, mail, hatch, ...(AQUARIUM_OPEN ? [aquarium] : [])];
     // The arcade's lamp hangs in the scene itself, not in the arcade, which is hidden while
     // the arcade's own cabinet is over it: hiding a light would rebuild every lit shader
     // there and then, a stall just as the arcade comes up
@@ -4175,7 +4176,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (child.userData.opens) opening.push(child as Group);
     });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
-    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02 + AQUARIUM_TOP, WALL_Z + 0.25] }) : null;
+    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02 + (AQUARIUM_OPEN ? AQUARIUM_TOP : 0), WALL_Z + 0.25] }) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
     halloweenRef.current = halloween;
     // Across the tracks, in some of the quiet between trains: somebody stood by the fence,

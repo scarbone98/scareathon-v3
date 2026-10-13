@@ -170,12 +170,17 @@ export const STOPS: Record<StopId, Stop> = {
   },
 };
 
-export const STOP_IDS = Object.keys(STOPS) as StopId[];
+// The aquarium on the lockers isn't open yet: its game is still being fitted out. Until it is,
+// the tank isn't in the scene, can't be walked to, and has no shelf at the counter (the
+// server keeps its own switch for that: server/routes/petItems.js)
+export const AQUARIUM_OPEN = false;
+
+export const STOP_IDS = (Object.keys(STOPS) as StopId[]).filter((id) => AQUARIUM_OPEN || id !== "tank");
 // (the two that are games of their own, brought in over the scene: PetFrame)
 export const isPetStop = (id: StopId | null): id is "cellar" | "tank" => id === "cellar" || id === "tank";
 
 export const isStopId = (value: string | null): value is StopId =>
-  value !== null && Object.prototype.hasOwnProperty.call(STOPS, value);
+  value !== null && Object.prototype.hasOwnProperty.call(STOPS, value) && (AQUARIUM_OPEN || value !== "tank");
 
 export const isHeading = (value: string | null): value is Heading =>
   value !== null && (HEADINGS as string[]).includes(value);
