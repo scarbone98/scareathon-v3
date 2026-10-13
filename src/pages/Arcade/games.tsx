@@ -135,7 +135,7 @@ const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e5
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
 // A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
 // station (github.com/Sclondon/OneManBand).
-const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=45c32b9";
+const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=9846fd5";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1533,7 +1533,7 @@ export function createArcadeGames(): MachineData[] {
       videoUrl: "/game-recordings/OneManBand.mp4",
       cartridge: {
         color: "#7446ad",
-        tagline: "Five notes. Ten instruments. One very wide grin.",
+        tagline: "Five notes. Twelve instruments. One very wide grin.",
         font: { family: "Rye" },
         about: { released: "2026", players: "Single player", genre: "Music", developer: "sclondon" },
         backNote: "He knows three tunes.",

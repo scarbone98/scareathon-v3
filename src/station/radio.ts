@@ -19,7 +19,7 @@ type Tune = {
 };
 
 // A tune made in One Man Band (the arcade cart): a loop of so many bars, and for each of its
-// instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums, keytar, theremin, viola) the notes on it,
+// instruments (piccolo, trumpet, accordion, guitar, tuba, bells, drums, organ, theremin, viola, choir, bassoon) the notes on it,
 // each [beat, beats long, button, note]. For the drums the button is which drum.
 export type BandSong = { bpm: number; bars: number; tracks: number[][][] };
 
@@ -336,9 +336,11 @@ function bandNote(context: AudioContext, out: AudioNode, inst: number, b: number
     voiced(wave("sine", f), 0.13, 0.45);
     voiced(wave("sine", f * 2.76), 0.045, 0.2);
   } else if (inst === 7) {
-    // The keytar: two saws a hair apart, bright
-    voiced(wave("sawtooth", f), 0.05, undefined, pass("lowpass", 3600));
-    voiced(wave("sawtooth", f * 1.008), 0.045, undefined, pass("lowpass", 3600));
+    // The organ: ranks of pipes, the note with its octaves and a fifth over it
+    voiced(wave("sine", f), 0.09);
+    voiced(wave("sine", f * 2), 0.07);
+    voiced(wave("sine", f * 3), 0.035);
+    voiced(wave("sine", f * 4), 0.04);
   } else if (inst === 8) {
     // The theremin: a plain tone that slides up into its note and wobbles
     const tone = wave("sine", f * 0.87, f);
@@ -353,9 +355,20 @@ function bandNote(context: AudioContext, out: AudioNode, inst: number, b: number
   } else if (inst === 9) {
     // The viola: a saw with the top taken off, speaking slowly
     voiced(wave("sawtooth", f), 0.09, undefined, pass("lowpass", 1700), 0.08);
+  } else if (inst === 10) {
+    // The choir: a few small voices not quite together, through an open mouth, coming in slowly
+    [1, 1.006, 0.995].forEach((off) => voiced(wave("sawtooth", f * off), 0.035, undefined, pass("bandpass", 1000), 0.12));
+    voiced(wave("triangle", f), 0.06, undefined, undefined, 0.12);
+  } else if (inst === 11) {
+    // The bassoon: a reed down a long tube, dry and low
+    voiced(wave("sawtooth", f), 0.1, undefined, pass("lowpass", 1100), 0.04);
+    voiced(wave("square", f), 0.035, undefined, pass("bandpass", 480), 0.04);
   } else {
-    // The drums: kick, snare, hat, tom, crash (`n` bends them a little)
-    const bend = 2 ** (n / 12);
+    // The drums: kick, snare, hat, tom, crash (`n` bends them a little, and says which of the
+    // game's three kits the drum is from: 40 down for the big low ones, 40 up for the toys.
+    // Here those are the same five drums, struck lower or higher)
+    const kit = Math.max(-1, Math.min(1, Math.round(n / 40)));
+    const bend = 2 ** ((n - 40 * kit) / 12) * (kit < 0 ? 0.7 : kit > 0 ? 1.5 : 1);
     if (b === 0) voiced(wave("sine", 150 * bend, 45 * bend), 0.5, 0.09);
     else if (b === 1) {
       voiced(noise(context), 0.22, 0.06, pass("highpass", 1500 * bend));

@@ -9,7 +9,7 @@ const KEEP = 8; // tunes a player keeps (the oldest goes when a ninth comes)
 const ON_AIR = 30; // how many of everyone's newest the other frequency plays
 // (the game had seven instruments when this began and has grown since; new ones go on the end)
 const MIN_TRACKS = 7;
-const MAX_TRACKS = 10;
+const MAX_TRACKS = 12;
 const MAX_NOTES = 800;
 const BARS = [1, 2, 4, 8];
 
@@ -52,7 +52,8 @@ export function cleanSong(raw) {
             count += 1;
             if (count > MAX_NOTES) return null;
             notes.push([Math.round(t * 1000) / 1000, Math.round(Math.min(Math.max(d, 0.05), beats) * 1000) / 1000,
-                Math.max(-1, Math.min(4, Math.round(b))), Math.max(-24, Math.min(127, Math.round(n)))]);
+                Math.max(-1, Math.min(4, Math.round(b))), // (a drum's note runs from -46 to 46: its kit and how far it is bent)
+                Math.max(-64, Math.min(127, Math.round(n)))]);
         }
         tracks.push(notes);
     }
