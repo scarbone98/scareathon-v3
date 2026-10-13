@@ -1938,6 +1938,62 @@ function eyeTexture() {
 // The full moon: a real one, NASA's (Scientific Visualization Studio, from Lunar
 // Reconnaissance Orbiter data, public domain), cut out round
 // Moonlight round the moon: a cool haze, brightest at its rim, fading out over a few widths
+// A mountain range's outline, to stand on the horizon all the way round: white under the
+// ridge and clear over it (the range's colour is the material's). The ridge is the land's
+// own kind of line: massifs and the gaps between them, long shoulders, and broken crests
+// on top of those (noise that folds at its peaks, each finer layer smaller), and the same at
+// both ends, so it joins up behind you. `tall` is how much of the picture the highest peak fills.
+function rangeTexture(seed: number, tall: number, massifs: number) {
+  let state = seed;
+  const random = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  // (smooth noise along the ridge, coming round to where it began after `cells` of them)
+  const noise = (cells: number) => {
+    const values = Array.from({ length: cells }, random);
+    return (u: number) => {
+      const x = u * cells;
+      const i = Math.floor(x);
+      const k = x - i;
+      const a = values[i % cells];
+      const b = values[(i + 1) % cells];
+      return a + (b - a) * k * k * (3 - 2 * k);
+    };
+  };
+  const lie = noise(massifs);
+  const shoulders = noise(massifs * 3);
+  const crests = [0, 1, 2, 3, 4, 5].map((octave) => noise(massifs * 4 * 2 ** octave));
+  const ridge = (u: number) => {
+    // Where the range stands high and where it falls away to passes and low hills
+    const massif = 0.42 + 0.58 * Math.min(1, Math.max(0, (lie(u) - 0.2) / 0.6));
+    let broken = 0;
+    let weight = 0;
+    crests.forEach((crest, octave) => {
+      const amp = 0.55 ** octave;
+      broken += (1 - Math.abs(crest(u) * 2 - 1)) ** 1.3 * amp;
+      weight += amp;
+    });
+    return massif * (0.25 * shoulders(u) + 0.75 * (broken / weight));
+  };
+  const texture = paint(2048, 256, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 1) ctx.lineTo(x, h - h * (RANGE_FOOT + tall * ridge((x % w) / w)));
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fill();
+  });
+  texture.wrapS = RepeatWrapping;
+  return texture;
+}
+// (how far up the picture the horizon is: the rest under it is the range's foot, out of sight)
+const RANGE_FOOT = 0.2;
+
 function moonGlowTexture() {
   return paint(128, 128, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
@@ -3711,6 +3767,22 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     moonGlow.renderOrder = -1; // behind the moon
     scene.add(moonGlow);
 
+    // Mountains on the horizon, all the way round: a far range, tall and faint, and nearer
+    // hills in front of it, darker. Each is a cutout standing on a ring far past the fields
+    // (its foot is under the horizon), taking its colour from the hour (see the time of day).
+    const RANGE_HIGH = 130;
+    const ranges = [
+      { seed: 7, tall: 0.78, massifs: 6, radius: 440, turn: 0 },
+      { seed: 23, tall: 0.34, massifs: 10, radius: 400, turn: 1.9 },
+    ].map(({ seed, tall, massifs, radius, turn }) => {
+      const cutout = new MeshBasicMaterial({ map: rangeTexture(seed, tall, massifs), alphaTest: 0.5, side: DoubleSide, fog: false });
+      const ring = new Mesh(new CylinderGeometry(radius, radius, RANGE_HIGH, 96, 1, true), cutout);
+      ring.position.y = -0.9 + RANGE_HIGH * (0.5 - RANGE_FOOT);
+      ring.rotation.y = turn;
+      scene.add(ring);
+      return cutout;
+    });
+
     // The scenic view: bare trees in the fields, and a signal by the line, its lamp red
     // (each clear of the line by more than half its width: a tree is a picture that turns to
     // face you, so looked at down the line it reaches across it, and the train went through two)
@@ -3818,7 +3890,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     // (by day the haze is the horizon's own colour, and so is everything under the horizon:
     // the far fields, the fence and the line fade into the sky's edge, not into a band of
     // grey laid across it)
-    const DAY_HAZE = overcast ? "#b3bcc4" : "#c9dbe8";
+    const DAY_HAZE = overcast ? "#a9b5c1" : "#a6cbea";
     const DAY_SKY = overcast ? ["#5d6b7c", "#8b98a6", DAY_HAZE, DAY_HAZE] : ["#3f74b4", "#8ab6dd", DAY_HAZE, DAY_HAZE];
     // (the land's own colour at sunrise and sunset: already dark, under a sky still lit)
     const TWILIGHT_HAZE = "#4a3238";
@@ -3850,13 +3922,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         sky.needsUpdate = true;
       }
+      // The mountains: black against the night's horizon, blue with distance by day (the far
+      // range nearly the sky's own colour), dark under a sky still lit at either end of it
+      const horizon = mix(NIGHT_SKY[2], DAY_SKY[2], daylight).lerp(new Color(TWILIGHT_SKY[2]), twilight);
+      const rock = mix("#03050a", overcast ? "#4d5965" : "#3a5a80", daylight).lerp(new Color("#231a2e"), Math.min(1, twilight * 1.3));
+      ranges.forEach((range, i) => range.color.copy(rock).lerp(horizon, ((i === 0 ? 0.55 : 0.2) + (weather === "fog" ? 0.35 : overcast ? 0.15 : 0)) * (1 - Math.min(1, twilight * 1.3))));
       const fog = scene.fog as FogExp2;
       // The land goes dark well before the sky does: the ground, and the haze things fade
       // into, follow the daylight cubed, so by the middle of dusk they're nearly the night's
       const onTheGround = daylight ** 3;
       fog.color.copy(mix("#0c1019", DAY_HAZE, onTheGround).lerp(new Color(TWILIGHT_HAZE), twilight * 0.7));
       // (thin by day: the platform's clear, and it's only well down the line that things go)
-      fog.density = nightFog + ((weather === "fog" ? 0.06 : 0.02) - nightFog) * onTheGround;
+      fog.density = nightFog + ((weather === "fog" ? 0.06 : overcast ? 0.014 : 0.007) - nightFog) * onTheGround;
       // The fields are painted for the night, near black: by day they're dead grass in the
       // sun (their colour multiplies the paint, well past white), so they don't lie under
       // the bright sky as a dark slab
