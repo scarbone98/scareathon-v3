@@ -54,6 +54,41 @@ export function shopTabs(extraCategories: [string, string][] = []) {
   return [...classifications, ...extraCategories.map(([value, label]) => ({ value, label })), ...EMPTY_SHELVES];
 }
 
+// Two shelves wear a picture in place of their name: a fish for the aquarium's supplies and
+// a little monster for the cryptlin's, drawn in big pixels like the station's signs (one
+// character a pixel; they take the tab's own colour)
+const TAB_PICTURES: Record<string, string[]> = {
+  aquarium: [
+    "...........x..",
+    "x....xxxxx.xx.",
+    "xx.xxxxxxxxxx.",
+    "xxxxxxxxx.xxxx",
+    "xxxxxxxxxxxxxx",
+    "xx.xxxxxxxxxx.",
+    "x....xxxxx.x..",
+    ".......xx.....",
+  ],
+  cryptlins: [
+    "x...........x",
+    "xx.........xx",
+    "xxx.xxxxx.xxx",
+    ".xxxxxxxxxxx.",
+    "..xx.xxx.xx..",
+    "..xx.xxx.xx..",
+    "..xxxxxxxxx..",
+    "..xx.x.x.xx..",
+    "...xxxxxxx...",
+  ],
+};
+
+function TabPicture({ rows }: { rows: string[] }) {
+  return (
+    <svg viewBox={`0 0 ${rows[0].length} ${rows.length}`} shapeRendering="crispEdges" className="h-[18px] w-auto" fill="currentColor" aria-hidden>
+      {rows.map((row, y) => [...row].map((cell, x) => (cell === "x" ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} /> : null)))}
+    </svg>
+  );
+}
+
 // The category tabs: a strip that scrolls sideways under a finger, the one you're on lit
 // (and kept in view)
 export function ShopCategoryTabs({
@@ -85,8 +120,10 @@ export function ShopCategoryTabs({
             aria-selected={on}
             onClick={() => onChange({ ...filters, classification: tab.value })}
             className={`shop-tab ${on ? "is-on" : ""}`}
+            aria-label={TAB_PICTURES[tab.value] ? tab.label : undefined}
+            title={TAB_PICTURES[tab.value] ? tab.label : undefined}
           >
-            {tab.label}
+            {TAB_PICTURES[tab.value] ? <TabPicture rows={TAB_PICTURES[tab.value]} /> : tab.label}
           </button>
         );
       })}
