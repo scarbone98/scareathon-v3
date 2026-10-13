@@ -781,11 +781,93 @@ function buildEvents() {
   group.add(box(0.03, 0.6, 0.4, inside, 0, 0.36, 0.03)); // between the cupboards
   group.add(box(1.5, 0.06, 0.52, wooden("#241a12", 0.9), 0, 0.03, 0.03)); // the plinth
   const paper = standard("#e4d9bd", 0.9);
-  // What's kept in the cupboards. On the left: spare flyers in stacks, and a candle stub
-  group.add(box(0.26, 0.09, 0.2, paper, -0.44, 0.125, 0.02));
-  group.add(box(0.24, 0.05, 0.19, standard("#c96a2a", 0.9), -0.43, 0.195, 0.03));
-  group.add(box(0.2, 0.13, 0.16, paper, -0.17, 0.145, 0.0));
-  group.add(box(0.04, 0.09, 0.04, standard("#e8dcc0", 0.6), -0.26, 0.125, 0.14));
+  // What's kept in the cupboards. On the left: a brain in a jar. It glows a little, enough
+  // to be seen by in the dark in there, and it turns slowly in whatever it's kept in
+  const jar = new Group();
+  jar.position.set(-0.36, 0.08, 0.02);
+  const jarIron = standard("#2b2a28", 0.5);
+  jar.add(new Mesh(new CylinderGeometry(0.135, 0.145, 0.03, 20), jarIron).translateY(0.015)); // its foot
+  jar.add(new Mesh(new CylinderGeometry(0.12, 0.125, 0.035, 20), jarIron).translateY(0.395)); // its lid
+  jar.add(new Mesh(new CylinderGeometry(0.03, 0.04, 0.03, 12), jarIron).translateY(0.425));
+  const pickle = new Mesh(
+    new CylinderGeometry(0.118, 0.118, 0.33, 24),
+    new MeshBasicMaterial({ color: "#7fd66a", transparent: true, opacity: 0.22, depthWrite: false, fog: false })
+  );
+  pickle.position.y = 0.2;
+  pickle.renderOrder = 1;
+  const brainSkin = standard(
+    "#ffffff",
+    0.6,
+    paint(128, 128, (ctx, w, h) => {
+      ctx.fillStyle = "#e7a1a9";
+      ctx.fillRect(0, 0, w, h);
+      // (its folds: rows of little loops, each row a shade darker in its furrows)
+      ctx.strokeStyle = "#a85a6b";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      for (let row = 0; row < 9; row += 1) {
+        ctx.beginPath();
+        for (let x = -8; x <= w + 8; x += 4) {
+          const y = 8 + row * 14 + Math.sin(x * 0.33 + row * 1.9) * 5 + Math.sin(x * 0.11 + row) * 3;
+          if (x === -8) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    })
+  );
+  brainSkin.emissive = new Color("#6e2f3c");
+  brainSkin.emissiveIntensity = 0.9;
+  const brain = new Group();
+  brain.position.y = 0.21;
+  [-1, 1].forEach((side) => {
+    const half = new Mesh(new SphereGeometry(0.058, 16, 12), brainSkin);
+    half.scale.set(0.78, 0.86, 1.2);
+    half.position.x = side * 0.036;
+    brain.add(half);
+  });
+  const hind = new Mesh(new SphereGeometry(0.034, 12, 10), brainSkin); // the little one at the back
+  hind.scale.set(1.5, 0.8, 1);
+  hind.position.set(0, -0.04, -0.045);
+  brain.add(hind);
+  const stem = new Mesh(new CylinderGeometry(0.014, 0.01, 0.07, 8), brainSkin);
+  stem.position.set(0, -0.075, -0.03);
+  stem.rotation.x = -0.3;
+  brain.add(stem);
+  jar.add(brain);
+  jar.add(pickle);
+  // The glass, and a strip of a label gone brown
+  const glass = new Mesh(
+    new CylinderGeometry(0.125, 0.125, 0.35, 24, 1, true),
+    new MeshStandardMaterial({ color: "#cfe8d8", roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.2, depthWrite: false })
+  );
+  glass.position.y = 0.205;
+  glass.renderOrder = 2;
+  jar.add(glass);
+  const label = plane(
+    0.11,
+    0.05,
+    standard(
+      "#ffffff",
+      0.9,
+      paint(110, 50, (ctx, w, h) => {
+        ctx.fillStyle = "#d8c9a0";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#5a4630";
+        ctx.strokeRect(3, 3, w - 6, h - 6);
+        ctx.fillStyle = "#3a2a1c";
+        ctx.font = "italic 700 20px Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.fillText("SPARE", w / 2, 32);
+      })
+    ),
+    0,
+    0.075,
+    0.127
+  );
+  jar.add(label);
+  group.add(jar);
+  group.userData.brain = brain;
   // On the right: nothing. Only something at the back, looking out
   const lurker = new MeshBasicMaterial({ color: "#ff3a24", fog: false });
   [-0.05, 0.05].forEach((dx) => {
@@ -3341,12 +3423,18 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     [-0.6, 0.6].forEach((x) => bench.add(box(0.06, 0.45, 0.4, iron, x, 0.22, 0)));
     // Somebody's left a radio on the right-hand seat: an old portable, its face to the
     // platform. It works: a tap on it brings you up close (page.tsx), where its four keys
-    // are back, stop, play and next, and its little screen says what's on (radio.ts)
+    // are back, stop, play and next, its little screen says what's on, and the knob beside
+    // the screen turns to the next frequency (radio.ts)
     const radio = new Group();
     radio.position.set(0.4, 0.48, 0.02);
     radio.rotation.y = -0.18;
     const radioCase = standard("#6b2f26", 0.55);
     const radioTrim = standard("#c9b98f", 0.5);
+    // Where the tuning knob sits on the face (and on the face's picture), and how far it's
+    // turned for each frequency: a sweep over the top, left to right
+    const KNOB = [0.142, 0.158] as const;
+    const KNOB_PX = [(KNOB[0] + 0.17) * 400, (0.21 - KNOB[1]) * 400] as const;
+    const dialAngle = (station: number) => (STATIONS.length > 1 ? (station / (STATIONS.length - 1)) * 2 - 1 : 0) * 1.05;
     radio.add(box(0.36, 0.22, 0.1, radioCase, 0, 0.11, 0));
     // Its face: a round cloth grille on the left; the screen and keys go on the right
     radio.add(
@@ -3355,7 +3443,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         0.2,
         new MeshStandardMaterial({
           roughness: 0.7,
-          map: paint(136, 80, (ctx, w, h) => {
+          map: paint(272, 160, (ctx, fullW, fullH) => {
+            // (drawn in half-size units, so the dial's small marks come out sharp)
+            const w = fullW / 2;
+            const h = fullH / 2;
+            ctx.scale(2, 2);
             ctx.fillStyle = "#c9b98f";
             ctx.fillRect(0, 0, w, h);
             ctx.fillStyle = "#2a1c14";
@@ -3376,9 +3468,23 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
             ctx.beginPath();
             ctx.arc(36, h / 2, 32, 0, Math.PI * 2);
             ctx.stroke();
-            // The screen's and the keys' surround
+            // The screen's surround
             ctx.fillStyle = "#3a2a1c";
-            ctx.fillRect(72, 8, 58, 28);
+            ctx.fillRect(68.5, 10, 45.5, 20);
+            // The tuning dial, round the knob: a mark for each frequency, and what it's for
+            ctx.strokeStyle = "#2a1c14";
+            ctx.lineWidth = 1;
+            STATIONS.forEach((_, i) => {
+              const angle = dialAngle(i);
+              ctx.beginPath();
+              ctx.moveTo(KNOB_PX[0] + Math.sin(angle) * 9, KNOB_PX[1] - Math.cos(angle) * 9);
+              ctx.lineTo(KNOB_PX[0] + Math.sin(angle) * 11.5, KNOB_PX[1] - Math.cos(angle) * 11.5);
+              ctx.stroke();
+            });
+            ctx.fillStyle = "#2a1c14";
+            ctx.font = "bold 5px Georgia, serif";
+            ctx.textAlign = "center";
+            ctx.fillText("TUNE", KNOB_PX[0], KNOB_PX[1] + 15);
           }),
         }),
         0,
@@ -3388,13 +3494,27 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     );
     // The screen: a little green display, redrawn as the song changes (and scrolled, when
     // its name is longer than the glass). Its top line is the frequency it's tuned to; a tap
-    // on the glass turns the dial to the next
+    // on the glass turns the dial to the next, as one on the knob does
     const radioScreen = paint(256, 96, () => undefined);
-    const radioGlass = plane(0.13, 0.05, new MeshBasicMaterial({ map: radioScreen, fog: false }), 0.083, 0.155, 0.0525);
+    const radioGlass = plane(0.104, 0.04, new MeshBasicMaterial({ map: radioScreen, fog: false }), 0.058, 0.16, 0.0525);
     radio.add(radioGlass);
-    const radioDial = box(0.13, 0.05, 0.03, new MeshBasicMaterial({ visible: false }), 0.083, 0.155, 0.07);
+    const radioDial = box(0.104, 0.04, 0.03, new MeshBasicMaterial({ visible: false }), 0.058, 0.16, 0.07);
     radioDial.userData.part = "radio-tune";
     radio.add(radioDial);
+    // The tuning knob, to the right of the screen: its pointer stands at the mark of the
+    // frequency it's on, and it turns to the next when it's tapped
+    const knob = new Group();
+    knob.position.set(KNOB[0], KNOB[1], 0.05);
+    const knobCap = new Mesh(new CylinderGeometry(0.019, 0.021, 0.018, 20), radioTrim);
+    knobCap.rotation.x = Math.PI / 2;
+    knobCap.position.z = 0.009;
+    knob.add(knobCap);
+    knob.add(box(0.005, 0.016, 0.003, standard("#2a1c14", 0.6), 0, 0.01, 0.019));
+    knob.rotation.z = -dialAngle(radio$.now().station);
+    radio.add(knob);
+    const knobCatcher = box(0.07, 0.075, 0.05, new MeshBasicMaterial({ visible: false }), KNOB[0] + 0.008, KNOB[1], 0.09);
+    knobCatcher.userData.part = "radio-tune";
+    radio.add(knobCatcher);
     let radioDrawn = "";
     const drawRadioScreen = (t: number) => {
       const { playing, key, station } = radio$.now();
@@ -3427,14 +3547,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       radioScreen.needsUpdate = true;
     };
-    // The keys: four that stick out under the screen, each with its sign on it, and a
-    // roomier box in front of each to catch a fingertip
+    // The keys: four big ones in a row under the screen, each with its sign on it, and a
+    // far roomier box in front of each to catch a fingertip (the set dances while it plays,
+    // and its keys with it; back and next, on the ends, catch well out past the row)
     const keyGlyph = (draw: (ctx: CanvasRenderingContext2D) => void) =>
       new MeshBasicMaterial({
-        map: paint(48, 40, (ctx, w, h) => {
+        map: paint(48, 64, (ctx, w, h) => {
           ctx.fillStyle = "#e6dcc0";
           ctx.fillRect(0, 0, w, h);
           ctx.fillStyle = "#2a1c14";
+          ctx.translate(0, 12);
           draw(ctx);
         }),
         fog: false,
@@ -3448,17 +3570,17 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     };
     const radioKeys = (
       [
-        ["radio-back", 0.03, keyGlyph((ctx) => (arrow(ctx, 17, -1), arrow(ctx, 31, -1)))],
-        ["radio-stop", 0.0653, keyGlyph((ctx) => ctx.fillRect(14, 10, 20, 20))],
-        ["radio-play", 0.1007, keyGlyph((ctx) => arrow(ctx, 25, 1))],
-        ["radio-next", 0.136, keyGlyph((ctx) => (arrow(ctx, 17, 1), arrow(ctx, 31, 1)))],
+        ["radio-back", 0.028, -1, keyGlyph((ctx) => (arrow(ctx, 17, -1), arrow(ctx, 31, -1)))],
+        ["radio-stop", 0.068, 0, keyGlyph((ctx) => ctx.fillRect(14, 10, 20, 20))],
+        ["radio-play", 0.108, 0, keyGlyph((ctx) => arrow(ctx, 25, 1))],
+        ["radio-next", 0.148, 1, keyGlyph((ctx) => (arrow(ctx, 17, 1), arrow(ctx, 31, 1)))],
       ] as const
-    ).map(([part, x, sign]) => {
+    ).map(([part, x, end, sign]) => {
       const key = new Group();
-      key.position.set(x, 0.075, 0.05);
-      key.add(box(0.031, 0.034, 0.016, radioTrim, 0, 0, 0.008));
-      key.add(plane(0.028, 0.03, sign, 0, 0, 0.0165));
-      const catcher = box(0.035, 0.06, 0.05, new MeshBasicMaterial({ visible: false }), 0, 0, 0.04);
+      key.position.set(x, 0.058, 0.05);
+      key.add(box(0.036, 0.048, 0.016, radioTrim, 0, 0, 0.008));
+      key.add(plane(0.033, 0.044, sign, 0, 0, 0.0165));
+      const catcher = box(end ? 0.075 : 0.04, 0.11, 0.05, new MeshBasicMaterial({ visible: false }), end * 0.0175, -0.012, 0.04);
       catcher.userData.part = part;
       key.add(catcher);
       key.userData.pressedAt = -10;
@@ -3493,6 +3615,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const tickRadio = (t: number) => {
       drawRadioScreen(t);
       const dancing = radio$.now().playing;
+      const turned = -dialAngle(radio$.now().station);
+      knob.rotation.z = reduced ? turned : knob.rotation.z + (turned - knob.rotation.z) * 0.2;
       const beat = t * 7;
       // (still, with reduced motion: the rings stand, faint, to say it's playing)
       radio.rotation.z = dancing && !reduced ? Math.sin(beat) * 0.07 : 0;
@@ -4618,7 +4742,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
           if (current === "bench" && latest.current.zoom === "radio") pressRadio(hit.part);
           else partTapped("radio");
         }
-        // (up close to the radio, a tap on the bench round it steps back, as one on nothing does)
+        // (up close to the radio, a tap that misses it steps back, whatever is behind the finger:
+        // the trap door lies in view past the bench, and a near miss of a key used to go down it)
+        else if (current === "bench" && latest.current.zoom === "radio") (emptyTapped ?? (() => select(null)))();
         // (the champion's plaque beside the scoreboard: a tap on it, from anywhere, is a closer
         // look; up close to it, a tap anywhere else steps back)
         else if (hit?.part === "champion") {
@@ -4801,6 +4927,11 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
       overhead.intensity = reduced ? 11 : 11 * (0.8 + 0.2 * Math.sin(t * 5.1) * Math.sin(t * 1.7 + 1));
       tickRadio(t);
+      const brain = events.userData.brain as Group;
+      if (!reduced) {
+        brain.rotation.y = Math.sin(t * 0.35) * 0.9;
+        brain.position.y = 0.21 + Math.sin(t * 1.1) * 0.012;
+      }
       // (the time of day, looked at again every twenty seconds)
       if (t - skyLookedAt > 20) {
         skyLookedAt = t;
