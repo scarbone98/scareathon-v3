@@ -26,6 +26,22 @@ export const PET_ITEMS = [
 ];
 const BY_KEY = new Map(PET_ITEMS.map((item) => [item.key, item]));
 
+// Keepers who lost a cryptlin through no fault of theirs (a save emptied, before saves were
+// kept on the account) and are owed another egg: by username, any case, spaces or none. Each
+// is given the one egg, once (it's marked as a gift had), straight into their stock.
+const EGGS_OWED = ['ghosthound'];
+const EGGS_OWED_SQL = EGGS_OWED.length === 0 ? '' : `
+    WITH owed AS (
+        INSERT INTO public.user_pet_gifts (user_id, gift_key)
+        SELECT id, 'egg_owed_1' FROM public.users
+        WHERE lower(replace(username, ' ', '')) IN (${EGGS_OWED.map((name) => `'${name.toLowerCase().replace(/[^a-z0-9_.-]/g, '')}'`).join(', ')})
+        ON CONFLICT (user_id, gift_key) DO NOTHING RETURNING user_id
+    )
+    INSERT INTO public.user_pet_items (user_id, item_key, quantity)
+    SELECT user_id, 'cryptlins:egg', 1 FROM owed
+    ON CONFLICT (user_id, item_key) DO UPDATE SET quantity = public.user_pet_items.quantity + 1, updated_at = now();
+`;
+
 // The table, made if missing (run at start-up, see index.js)
 export const PET_ITEMS_SQL = `
     CREATE TABLE IF NOT EXISTS public.user_pet_items (
@@ -43,7 +59,7 @@ export const PET_ITEMS_SQL = `
         opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (user_id, gift_key)
     );
-`;
+${EGGS_OWED_SQL}`;
 
 // The parcel everyone gets, and what is in it
 const EGG_GIFT = { gift: 'mysterious_egg', item: 'cryptlins:egg' };
