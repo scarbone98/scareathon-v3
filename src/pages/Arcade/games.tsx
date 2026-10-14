@@ -121,6 +121,8 @@ const THIRTY_ONE_NIGHTS_URL = "https://perhapsjohn.github.io/31Nights/?v=a24eeba
 const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/?v=bce2a03";
 // Its arena is an online battle room on the server's /liquid-metal/ws.
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=8b3e53c";
+// A saucer beaming things up over farm country (github.com/Sclondon/CloseEncounters).
+const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=62bcf35";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
@@ -1399,7 +1401,31 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // Out of testing 2026-10-13: on the shelf for everyone. Posts PLAYER_DIED with an endless
+    // On the shelf for everyone 2026-10-14. Posts PLAYER_DIED with the score when the saucer is shot down.
+    {
+      name: "Close Encounters",
+      added: "2026-10-14T03:00:00-06:00",
+      availableOnMobile: true,
+      cartridge: {
+        color: "#7fd38a",
+        tagline: "Beam up the cows, the farmers and the police cars. The more you take, the hotter it gets.",
+        font: { family: "Special Elite" },
+        about: { released: "2026", players: "Single player", genre: "Arcade", developer: "sclondon" },
+        backNote: "Lie low and the heat cools off. Swipe to dodge.",
+      },
+      videoUrl: "/game-recordings/CloseEncounters.mp4",
+      game: (
+        <GameRenderer
+          title="Close Encounters"
+          url={CLOSE_ENCOUNTERS_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Close Encounters", CLOSE_ENCOUNTERS_URL)
+          }
+        />
+      ),
+    },    // Out of testing 2026-10-13: on the shelf for everyone. Posts PLAYER_DIED with an endless
     // run's score, or ten times the most mass a player had in an arena round.
     {
       name: "Liquid Metal",
