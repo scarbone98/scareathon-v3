@@ -18,6 +18,11 @@ export const GAME_SCORE_POLICIES = new Map([
         score: { min: 0, max: 10000000, integer: true },
         tickets: { from: 100, full: 2500 },
     }],
+    // Points for everything beamed up, times the heat (x1 to x6); a good game is some thousands.
+    ['Close Encounters', {
+        score: { min: 0, max: 10000000, integer: true },
+        tickets: { from: 200, full: 20000 },
+    }],
     ['Hemlock\'s Tower', {
         score: { min: 0, max: 10000000, integer: true },
         tickets: { from: 0, full: 200 },
