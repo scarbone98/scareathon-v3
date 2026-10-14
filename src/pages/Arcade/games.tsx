@@ -122,7 +122,7 @@ const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/
 // Its arena is an online battle room on the server's /liquid-metal/ws.
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=8b3e53c";
 // A saucer beaming things up over farm country (github.com/Sclondon/CloseEncounters).
-const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=187147d";
+const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=e845cda";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
@@ -1413,7 +1413,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Arcade", developer: "sclondon" },
         backNote: "Three ships. Keep out of the searchlights.",
       },
-      videoUrl: "/game-recordings/CloseEncounters.mp4",
+      videoUrl: `${RECORDINGS}/CloseEncounters.mp4`,
       game: (
         <GameRenderer
           title="Close Encounters"
