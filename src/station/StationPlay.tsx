@@ -20,6 +20,20 @@ export default function StationPlay({ machine, onClose, onLeaderboard, onSignIn 
   useEffect(() => {
     if (!machine) setGuestScore(null);
   }, [machine]);
+  // A game can ask from its own menu to be closed (QUIT_GAME) or to show its scoreboard
+  // (OPEN_LEADERBOARD), as the bar's buttons do. Only frames on this page are listened to.
+  useEffect(() => {
+    const handleGameMessage = (event: MessageEvent) => {
+      const type = (event.data as { type?: unknown } | null)?.type;
+      if (type !== "QUIT_GAME" && type !== "OPEN_LEADERBOARD") return;
+      const fromGame = Array.from(document.querySelectorAll("iframe")).some((frame) => frame.contentWindow === event.source);
+      if (!fromGame) return;
+      if (type === "QUIT_GAME") onClose();
+      else if (machine?.hasLeaderboard !== false) onLeaderboard();
+    };
+    window.addEventListener("message", handleGameMessage);
+    return () => window.removeEventListener("message", handleGameMessage);
+  }, [machine, onClose, onLeaderboard]);
 
   if (!machine?.game) return null;
 
