@@ -4056,9 +4056,10 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       }
       // The mountains: black against the night's horizon, blue with distance by day (the far
       // range nearly the sky's own colour), dark under a sky still lit at either end of it
-      const horizon = mix(NIGHT_SKY[2], DAY_SKY[2], daylight).lerp(new Color(TWILIGHT_SKY[2]), twilight);
+      // (the sky they stand against is the band over the horizon's glow, not the glow itself)
+      const skyAt = (i: number) => mix(NIGHT_SKY[i], DAY_SKY[i], daylight).lerp(new Color(TWILIGHT_SKY[i]), twilight);
+      const behind = skyAt(1).lerp(skyAt(2), overcast ? 0 : 0.25);
       const rock = mix("#03050a", overcast ? "#4d5965" : "#3a5a80", daylight).lerp(new Color("#231a2e"), Math.min(1, twilight * 1.3));
-      ranges.forEach((range, i) => range.color.copy(rock).lerp(horizon, ((i === 0 ? 0.55 : 0.2) + (weather === "fog" ? 0.35 : overcast ? 0.15 : 0)) * (1 - Math.min(1, twilight * 1.3))));
       const fog = scene.fog as FogExp2;
       // The land goes dark well before the sky does: the ground, and the haze things fade
       // into, follow the daylight cubed, so by the middle of dusk they're nearly the night's
@@ -4066,6 +4067,16 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       fog.color.copy(mix("#0c1019", DAY_HAZE, onTheGround).lerp(new Color(TWILIGHT_HAZE), twilight * 0.7));
       // (thin by day: the platform's clear, and it's only well down the line that things go)
       fog.density = nightFog + ((weather === "fog" ? 0.06 : overcast ? 0.014 : 0.007) - nightFog) * onTheGround;
+      // (the haze the land fades into lies over the mountains too, the far range most: they're
+      // too far off for the fog itself, which would have them gone altogether)
+      const dusk = Math.min(1, twilight * 1.3);
+      ranges.forEach((range, i) =>
+        range.color
+          .copy(rock)
+          .lerp(fog.color, overcast ? 0 : (i === 0 ? 0.7 : 0.45) * dusk)
+          // (in fog they're all but lost in the sky behind them, at any hour)
+          .lerp(behind, weather === "fog" ? (i === 0 ? 0.92 : 0.8) : (i === 0 ? 0.55 : 0.2) * (1 - dusk) + (overcast ? 0.25 : 0))
+      );
       // The fields are painted for the night, near black: by day they're dead grass in the
       // sun (their colour multiplies the paint, well past white), so they don't lie under
       // the bright sky as a dark slab
