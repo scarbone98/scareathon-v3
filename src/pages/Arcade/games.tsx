@@ -122,7 +122,7 @@ const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/
 // Its arena is an online battle room on the server's /liquid-metal/ws.
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=8b3e53c";
 // A saucer beaming things up over farm country (github.com/Sclondon/CloseEncounters).
-const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=62bcf35";
+const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=865d066";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
@@ -1408,10 +1408,10 @@ export function createArcadeGames(): MachineData[] {
       availableOnMobile: true,
       cartridge: {
         color: "#7fd38a",
-        tagline: "Beam up the cows, the farmers and the police cars. The more you take, the hotter it gets.",
+        tagline: "Beam up the West, from cows to Devils Tower. The more you take, the hotter it gets.",
         font: { family: "Special Elite" },
         about: { released: "2026", players: "Single player", genre: "Arcade", developer: "sclondon" },
-        backNote: "Lie low and the heat cools off. Swipe to dodge.",
+        backNote: "Three ships. Keep out of the searchlights.",
       },
       videoUrl: "/game-recordings/CloseEncounters.mp4",
       game: (
