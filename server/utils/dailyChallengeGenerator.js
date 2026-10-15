@@ -37,8 +37,16 @@ export function dayStartFromDocumentId(documentId) {
     return dailyFromDocumentId(documentId)?.start ?? null;
 }
 
+// Days whose game was picked by hand instead of the rotation: date -> [first, second]
+// (null keeps that slot's rotation game)
+export const DAILY_GAME_OVERRIDES = {
+    '2026-10-15': ['Close Encounters', null],
+};
+
 // (the second is half the rotation on from the first, so the two are different games)
 export function dailyGameFor(start, slot = 0) {
+    const picked = DAILY_GAME_OVERRIDES[start.toISOString().slice(0, 10)]?.[slot];
+    if (picked) return picked;
     const dayIndex = Math.floor(start.getTime() / DAY_MS);
     const games = CHALLENGE_ROTATION.length;
     const step = slot ? Math.max(1, Math.floor(games / 2)) : 0;
