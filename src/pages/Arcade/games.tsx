@@ -87,7 +87,7 @@ const TLALOCS_CURSE_URL = "https://scarbone98.github.io/tlalocs-curse-pinball/?v
 const OOIDASH_URL =
   "https://scarbone98.github.io/Ooidash-web-remake/build/Ooidash.html?v=d653abc";
 const SALMON_RUN_2_URL = "https://sclondon.github.io/SalmonRun2/build/index.html?v=37b2825";
-const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=b4274c9";
+const WIRTWARE_URL = "https://sclondon.github.io/WirtWare/build/index.html?v=d7cbf71";
 // Godot auto-battler (Super Autoween), a build-only GitHub Pages repo; ?v= is the build's
 // commit, to bust the cache. One page, two packs: phones get half-size art
 // (index.mobile.pck), desktops the full set.
