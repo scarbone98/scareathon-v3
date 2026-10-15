@@ -662,7 +662,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Microgames", developer: "sclondon" },
         backNote: "If it asks you a question, lie.",
       },
-      videoUrl: `${RECORDINGS}/WirtWare.mp4`,
+      videoUrl: "/game-recordings/WirtWare.mp4",
       game: (
         <GameRenderer
           title="WirtWare"
