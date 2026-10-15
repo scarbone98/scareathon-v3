@@ -1413,7 +1413,7 @@ export function createArcadeGames(): MachineData[] {
         about: { released: "2026", players: "Single player", genre: "Arcade", developer: "sclondon" },
         backNote: "Three ships. Keep out of the searchlights.",
       },
-      videoUrl: "/game-recordings/CloseEncounters.mp4",
+      videoUrl: `${RECORDINGS}/CloseEncounters.mp4`,
       game: (
         <GameRenderer
           title="Close Encounters"
