@@ -9,6 +9,47 @@ import pool from '../db/mockDB.js';
 const GAMES = new Set(['cryptlins']);
 export const MAX_SAVE_BYTES = 256 * 1024;
 
+// Keepers who lost a cryptlin of a particular kind when saves moved onto the account, and are
+// owed one of that kind back: by username (any case, spaces or none) and the kind's title in
+// the game (Cryptlins: scripts/cryptlin.gd). Each is given an egg of that kind, once (marked as
+// a gift had, see petItems.js), laid in their cellar's save: it hatches like any other. One whose
+// cellar is full (four), or holds a save from before there could be more than one, is skipped
+// and given it at a later start, once there's room.
+const KINDS_OWED = [{ name: 'twistedtina', kind: 'yeti' }];
+const sqlText = (text) => `'${String(text).toLowerCase().replace(/[^a-z0-9_.-]/g, '')}'`;
+const KINDS_OWED_SQL = KINDS_OWED.map(({ name, kind }) => `
+    WITH owed AS (
+        SELECT u.id, COALESCE(s.save, '{"v": 3, "residents": []}'::jsonb) AS save
+        FROM public.users u
+        LEFT JOIN public.pet_saves s ON s.user_id = u.id AND s.game = 'cryptlins'
+        WHERE lower(replace(u.username, ' ', '')) = ${sqlText(name)}
+            AND (s.save IS NULL OR (jsonb_typeof(s.save->'residents') = 'array' AND jsonb_array_length(s.save->'residents') < 4))
+    ), given AS (
+        INSERT INTO public.user_pet_gifts (user_id, gift_key)
+        SELECT id, ${sqlText(`${kind}_owed_1`)} FROM owed
+        ON CONFLICT (user_id, gift_key) DO NOTHING RETURNING user_id
+    ), numbered AS (
+        SELECT o.id, o.save, GREATEST(
+            COALESCE((o.save->>'next_id')::int, 1),
+            1 + COALESCE((SELECT max((r->>'id')::int) FROM jsonb_array_elements(o.save->'residents') r), 0),
+            1 + COALESCE((SELECT max((r->>'id')::int) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(o.save->'gone') = 'array' THEN o.save->'gone' ELSE '[]'::jsonb END) r), 0)
+        ) AS egg_id
+        FROM owed o JOIN given g ON g.user_id = o.id
+    )
+    INSERT INTO public.pet_saves (user_id, game, save, saved_at)
+    SELECT id, 'cryptlins', save || jsonb_build_object(
+        'residents', (save->'residents') || jsonb_build_array(jsonb_build_object(
+            'id', egg_id, 'name', '', 'kind', ${sqlText(kind)}, 'seed', 1000001 + floor(random() * 1000000)::int,
+            'hatched', false, 'born', 0, 'warmth', 0, 'tastes', 2, 'at', '[]'::jsonb)),
+        'next_id', egg_id + 1,
+        -- (the save keeps its own time, so the others in the room have lived the time since; a
+        -- new one starts now)
+        'time', COALESCE((save->>'time')::double precision, extract(epoch FROM now()))
+    ), COALESCE((save->>'time')::double precision, extract(epoch FROM now()))
+    FROM numbered
+    ON CONFLICT (user_id, game) DO UPDATE SET save = EXCLUDED.save, updated_at = now();
+`).join('');
+
 export const PET_SAVE_SQL = `
     CREATE TABLE IF NOT EXISTS public.pet_saves (
         user_id UUID NOT NULL REFERENCES public.users (id) ON DELETE CASCADE,
@@ -19,7 +60,7 @@ export const PET_SAVE_SQL = `
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (user_id, game)
     );
-`;
+${KINDS_OWED_SQL}`;
 
 // The keeper's save for a game, or null
 export async function readPetSave(userId, game, db = pool) {
