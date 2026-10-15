@@ -135,6 +135,11 @@ const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/inde
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e529";
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
+// An interactive music video for mewithoutYou's "The Fox, the Crow and the Cookie": a pixel-art wood
+// to pan around and tap while the story plays (github.com/Sclondon/TheFoxTheCrowAndTheCookie). The song
+// plays from Spotify's (or YouTube's) official embed inside the game, so its frame must allow autoplay
+// and encrypted media.
+const FOX_CROW_COOKIE_URL = "https://sclondon.github.io/TheFoxTheCrowAndTheCookie/build/index.html?v=765384f";
 // A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
 // station (github.com/Sclondon/OneManBand).
 const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=b7075e5";
@@ -1595,6 +1600,31 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Daughter Of The Wind"
           url={DAUGHTER_OF_THE_WIND_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // Secret: on the shelf once COOKIE is typed into WaysideOS. No score: it's a music video.
+    {
+      name: "The Fox, The Crow, and The Cookie",
+      added: "2026-10-15T12:25:00-06:00",
+      videoUrl: "/game-recordings/TheFoxTheCrowAndTheCookie.mp4",
+      secret: true,
+      availableOnMobile: true,
+      cartridge: {
+        color: "#d98c3a",
+        tagline: "A crow, a fox, a cookie. Tap the wood while the song plays.",
+        font: { family: "Cormorant Garamond", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Music video", developer: "sclondon" },
+        backNote: "Song by mewithoutYou, played from Spotify.",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="The Fox, The Crow, and The Cookie"
+          url={FOX_CROW_COOKIE_URL}
+          allow="autoplay; encrypted-media; fullscreen"
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
