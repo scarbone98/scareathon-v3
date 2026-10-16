@@ -40,7 +40,7 @@ export default function StationPlay({ machine, onClose, onLeaderboard, onSignIn 
   return (
     <div className="fixed inset-0 z-40 flex touch-manipulation select-none items-center justify-center bg-black" style={{ WebkitTouchCallout: "none" }}>
       <div className="flex h-full w-fit flex-col items-center justify-start">
-        <Toolbar hasLeaderboard={machine.hasLeaderboard !== false} onLeaderboard={onLeaderboard} onClose={onClose} />
+        {!machine.hideToolbar && <Toolbar hasLeaderboard={machine.hasLeaderboard !== false} onLeaderboard={onLeaderboard} onClose={onClose} />}
         {machine.game}
       </div>
       {guestScore && (
