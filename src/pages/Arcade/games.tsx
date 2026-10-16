@@ -1416,8 +1416,6 @@ export function createArcadeGames(): MachineData[] {
       availableOnMobile: true,
       // (its own SCORES and QUIT buttons on its title, and QUIT TO MENU when paused)
       hideToolbar: true,
-      // (its own SCORES and QUIT buttons on its title, and QUIT TO MENU when paused)
-      hideToolbar: true,
       cartridge: {
         color: "#7fd38a",
         tagline: "Beam me up, Scotty.",
