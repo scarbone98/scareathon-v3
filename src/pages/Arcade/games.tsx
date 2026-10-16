@@ -35,6 +35,9 @@ export type MachineData = {
   videoUrl?: string;
   availableOnMobile?: boolean;
   // Games that don't submit scores hide the Leaderboard button.
+  // A game with its own LEADERBOARD and QUIT buttons (posting OPEN_LEADERBOARD and QUIT_GAME)
+  // can drop the bar over it altogether, and have the height back
+  hideToolbar?: boolean;
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
@@ -122,7 +125,7 @@ const TRICK_OR_TREAT_RUSH_URL = "https://perhapsjohn.github.io/TrickOrTreatRush/
 // Its arena is an online battle room on the server's /liquid-metal/ws.
 const LIQUID_METAL_URL = "https://sclondon.github.io/LiquidMetal/build/index.html?v=8b3e53c";
 // A saucer beaming things up over farm country (github.com/Sclondon/CloseEncounters).
-const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=89ddbf2";
+const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/index.html?v=d4e85ed";
 // The 3D 8 Bit Evil (github.com/Sclondon/OctoberValley), in testing. Its co-op rooms are
 // the server's /october-valley/ws.
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
@@ -1411,6 +1414,10 @@ export function createArcadeGames(): MachineData[] {
       name: "Close Encounters",
       added: "2026-10-13T23:30:00-06:00",
       availableOnMobile: true,
+      // (its own SCORES and QUIT buttons on its title, and QUIT TO MENU when paused)
+      hideToolbar: true,
+      // (its own SCORES and QUIT buttons on its title, and QUIT TO MENU when paused)
+      hideToolbar: true,
       cartridge: {
         color: "#7fd38a",
         tagline: "Beam me up, Scotty.",
@@ -1424,7 +1431,7 @@ export function createArcadeGames(): MachineData[] {
           title="Close Encounters"
           url={CLOSE_ENCOUNTERS_URL}
           desktopAspectRatio={16 / 9}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          reservedVerticalSpace={0}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Close Encounters", CLOSE_ENCOUNTERS_URL)
           }
