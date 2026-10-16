@@ -20,6 +20,7 @@ describe('auth route rules', () => {
     test('october valley co-op rooms are open to guests', () => {
         expect(isPublicRoute('GET', '/october-valley/ws')).toBe(true);
         expect(isPublicRoute('POST', '/october-valley/ws')).toBe(false);
+        expect(isPublicRoute('GET', '/close-encounters/ws')).toBe(true);
     });
 
     test('monster bash spectating is open, anything else there is not', () => {
