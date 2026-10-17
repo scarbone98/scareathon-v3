@@ -116,9 +116,9 @@ const buildCourse = () => {
         side = -side;
     }
     // Boulder Bend: boulders on the outside of each turn, so cutting the corner is tempting.
-    rock(124, 1, 0.5, 1.9);
+    rock(134, 1, 0.5, 1.9);
     rock(156, -1, 0.5, 2.1);
-    rock(186, 1, 0.5, 1.7);
+    rock(168, 1, 0.5, 1.7);
     // Buoy Alley: rows of spiked buoys across the river with one opening, which jumps from
     // side to side. Touching a buoy hurts.
     [-4.2, 3.8, -2.6, 5, -5, 2.4].forEach((gc, i) => {
@@ -151,6 +151,15 @@ const buildCourse = () => {
     bumpers.push({ x: centerX(593) - 1, z: 593, r: 1.3 }, { x: centerX(607) + 6, z: 607, r: 1.3 }, { x: centerX(620) - 6, z: 620, r: 1.3 }, { x: centerX(632) + 3, z: 632, r: 1.3 });
     // Gator Marsh: paddle wheels, a rock gate, and gators patrolling across the river.
     spinners.push({ x: centerX(654), z: 654, len: 4.6, speed: 1.5, phase: 0.4 }, { x: centerX(706), z: 706, len: 4.6, speed: -1.6, phase: 2 });
+    // Spinning things earlier on, too: a gentle paddle wheel to learn on, spiked propellers
+    // (hazards) you have to stay out of the middle for, and a big wheel turning in the
+    // whirlpool's eye.
+    spinners.push(
+        { x: centerX(121), z: 121, len: 4.4, speed: 1.2, phase: 1 },
+        { x: centerX(186), z: 186, len: 5.2, speed: 1.35, phase: 0, bars: 1, hazard: true },
+        { x: centerX(375), z: 375, len: 5, speed: -1.5, phase: 2.5, bars: 1, hazard: true },
+        { x: centerX(538), z: 538, len: 7, speed: 0.8, phase: 0, bars: 2 },
+    );
     for (const z of [666, 692]) gators.push({ x: centerX(z), z, half: 1.3, r: 0.75, amp: 6, speed: 1, phase: z * 0.37 });
     for (const side of [-1, 1]) rocks.push({ x: centerX(678) + side * 5.7, z: 678, r: 1.8 });
 
@@ -210,7 +219,8 @@ export const geyserAt = (g, t) => {
 // The two bars of a paddle wheel at sim time t, each as its two ends, and how fast the ends move.
 export const spinnerBars = (s, t) => {
     const a = s.phase + s.speed * t;
-    return [0, Math.PI / 2].map((o) => {
+    const n = s.bars ?? 2;
+    return Array.from({ length: n }, (_, k) => (k * Math.PI) / n).map((o) => {
         const sn = Math.sin(a + o);
         const cs = Math.cos(a + o);
         return { ends: [s.x - sn * s.len, s.z - cs * s.len, s.x + sn * s.len, s.z + cs * s.len], va: [-cs * s.len * s.speed, sn * s.len * s.speed], vb: [cs * s.len * s.speed, -sn * s.len * s.speed] };
@@ -373,7 +383,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
         for (const s of course.spinners) {
             if (Math.abs(s.z - sim.z) > s.len + R + 1) continue;
             bumpPoint(s.x, s.z, 0.8, 0, 0, false);
-            for (const { ends, va, vb } of spinnerBars(s, sim.t)) bumpSegment(ends[0], ends[1], ends[2], ends[3], 0.4, va[0], va[1], vb[0], vb[1], false);
+            for (const { ends, va, vb } of spinnerBars(s, sim.t)) bumpSegment(ends[0], ends[1], ends[2], ends[3], 0.4, va[0], va[1], vb[0], vb[1], !!s.hazard);
         }
     };
 

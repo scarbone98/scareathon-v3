@@ -741,21 +741,30 @@ export class Renderer {
       this.scene.add(grp);
       this.gators.push(grp);
     }
-    // Paddle wheels: a hub and two crossed bars with striped blades.
+    // Spinning things: friendly paddle wheels with striped blades, and spiked propellers that hurt.
     for (const sp of course.spinners) {
+      const bars = sp.bars ?? 2;
       const parts: THREE.BufferGeometry[] = [
-        skin(place(new THREE.CylinderGeometry(0.85, 1, 0.9, 14), 0, 0.4, 0), "#e07a3c", 0.15),
-        skin(place(new THREE.CylinderGeometry(0.5, 0.5, 0.2, 12), 0, 0.92, 0), "#ffd23a", 0.1),
-        skin(place(new THREE.BoxGeometry(0.5, 0.4, sp.len * 2), 0, 0.55, 0), "#8a5a38", 0.15),
-        skin(place(new THREE.BoxGeometry(sp.len * 2, 0.4, 0.5), 0, 0.55, 0), "#8a5a38", 0.15),
+        skin(place(new THREE.CylinderGeometry(0.85, 1, 0.9, 14), 0, 0.4, 0), sp.hazard ? "#5a3a26" : "#e07a3c", 0.15),
+        skin(place(new THREE.CylinderGeometry(0.5, 0.5, 0.2, 12), 0, 0.92, 0), sp.hazard ? "#e0483a" : "#ffd23a", 0.1),
       ];
-      for (const sd of [-1, 1]) {
-        parts.push(skin(place(new THREE.BoxGeometry(1.5, 0.7, 0.35), 0, 0.6, sd * (sp.len - 0.1)), sd > 0 ? "#ffd23a" : "#ff7a3a", 0.15));
-        parts.push(skin(place(new THREE.BoxGeometry(0.35, 0.7, 1.5), sd * (sp.len - 0.1), 0.6, 0), sd > 0 ? "#ff7a3a" : "#ffd23a", 0.15));
+      for (let k = 0; k < bars; k++) {
+        const rot = (k * Math.PI) / bars;
+        const turn = (geo: THREE.BufferGeometry) => geo.rotateY(rot);
+        if (sp.hazard) {
+          parts.push(skin(turn(new THREE.CylinderGeometry(0.42, 0.42, sp.len * 2, 10).rotateX(Math.PI / 2).translate(0, 0.55, 0)), "#8a5a38", 0.15));
+          for (let d = -sp.len + 0.9; d < sp.len - 0.3; d += 1.1) {
+            for (const side of [-1, 1]) parts.push(skin(turn(new THREE.ConeGeometry(0.16, 0.7, 5).rotateZ((side * Math.PI) / 2).translate(side * 0.6, 0.55, d)), "#f4ecd2", 0.1));
+          }
+          for (const sd of [-1, 1]) parts.push(skin(turn(new THREE.ConeGeometry(0.22, 0.8, 6).rotateX((sd * Math.PI) / 2).translate(0, 0.55, sd * (sp.len + 0.2))), "#f4ecd2", 0.1));
+        } else {
+          parts.push(skin(turn(new THREE.BoxGeometry(0.5, 0.4, sp.len * 2).translate(0, 0.55, 0)), "#8a5a38", 0.15));
+          for (const sd of [-1, 1]) parts.push(skin(turn(new THREE.BoxGeometry(1.5, 0.7, 0.35).translate(0, 0.6, sd * (sp.len - 0.1))), (sd > 0) === (k % 2 === 0) ? "#ffd23a" : "#ff7a3a", 0.15));
+        }
       }
       const grp = new THREE.Group();
       const geo = mergeGeometries(parts)!;
-      grp.add(new THREE.Mesh(geo, this.own(lambert())));
+      grp.add(new THREE.Mesh(geo, this.own(lambert({ flatShading: !!sp.hazard }))));
       grp.add(outline(geo, 0.03));
       grp.position.set(sp.x, 0, sp.z);
       this.scene.add(grp);

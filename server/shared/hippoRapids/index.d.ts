@@ -57,6 +57,9 @@ export interface Spinner {
     len: number;
     speed: number;
     phase: number;
+    // How many bars cross at the hub (default 2); hazards hurt on contact.
+    bars?: number;
+    hazard?: boolean;
 }
 
 export interface Course {
