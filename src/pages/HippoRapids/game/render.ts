@@ -351,7 +351,9 @@ export class Renderer {
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Phones have a lot of pixels and not much GPU: render a bit under native.
+    const phone = window.matchMedia("(pointer: coarse)").matches;
+    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, phone ? 1.5 : 2));
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     this.buildWorld();
     this.setSeats(4);

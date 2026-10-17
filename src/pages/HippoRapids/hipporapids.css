@@ -138,3 +138,47 @@
 .hr-input:focus {
   border-color: #ff9a2e;
 }
+
+/* Menu screens: centred when they fit, scrollable from the top when they don't (a phone on
+   its side). Padding keeps clear of notches. */
+.hr-screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overscroll-behavior: contain;
+}
+.hr-screen > :first-child {
+  margin-top: auto;
+}
+.hr-screen > :last-child {
+  margin-bottom: auto;
+}
+.hr-screen.hr-top > :first-child,
+.hr-screen.hr-top > :last-child {
+  margin: 0;
+}
+.hr-title-screen {
+  justify-content: space-between;
+}
+.hr-title-screen > :first-child,
+.hr-title-screen > :last-child {
+  margin: 0;
+}
+
+.hr-root {
+  overscroll-behavior: none;
+}
+
+/* Landscape phones: smaller buttons and type. */
+@media (max-height: 520px) {
+  .hr-btn {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    font-size: 0.95rem !important;
+  }
+}

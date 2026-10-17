@@ -159,7 +159,9 @@ function Stick({ onAim }: { onAim: (a: [number, number] | null) => void }) {
           <div className="absolute rounded-full border-4 border-[#1b1030] bg-[#ffe45e]" style={{ width: 46, height: 46, left: R - 23 + knob.x, top: R - 23 + knob.y }} />
         </div>
       ) : (
-        <div className="hr-o pointer-events-none absolute bottom-10 left-6 max-w-[11rem] text-sm opacity-80">DRAG: WHERE TO GO</div>
+        <div className="hr-o pointer-events-none absolute left-5 text-sm opacity-80" style={{ bottom: "max(7rem, calc(env(safe-area-inset-bottom) + 6rem))" }}>
+          DRAG: WHERE TO GO
+        </div>
       )}
     </div>
   );
@@ -174,8 +176,8 @@ function FartButton({ onHold }: { onHold: (f: boolean) => void }) {
   return (
     <button
       type="button"
-      className={`hr-btn hr-green absolute bottom-8 right-4 flex h-24 w-24 flex-col items-center justify-center rounded-full text-xl ${down ? "hr-down" : ""}`}
-      style={{ touchAction: "none" }}
+      className={`hr-btn hr-green absolute flex h-24 w-24 flex-col items-center justify-center rounded-full text-xl ${down ? "hr-down" : ""}`}
+      style={{ touchAction: "none", right: "max(1rem, env(safe-area-inset-right))", bottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1rem))" }}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         set(true);
@@ -296,7 +298,19 @@ function HowTo({ onClose, touch }: { onClose: () => void; touch: boolean }) {
   );
 }
 
+// A phone on its side is under ~500px tall: tighten things up.
+function useShort() {
+  const [short, setShort] = useState(() => window.innerHeight < 520);
+  useEffect(() => {
+    const on = () => setShort(window.innerHeight < 520);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return short;
+}
+
 export default function HippoRapids() {
+  const short = useShort();
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctrlRef = useRef<GameController | null>(null);
@@ -634,9 +648,9 @@ export default function HippoRapids() {
       )}
 
       {!attract && view === "title" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-between gap-2 p-4 pb-5">
+        <div className="hr-screen hr-title-screen">
           <div className="flex flex-col items-center gap-1 pt-2">
-            <Logo />
+            <Logo small={short} />
             <p className="hr-o max-w-xs text-center text-base text-[#fff0c8]">Everyone farts. One raft. Don't hit the buoys.</p>
           </div>
           <div className="flex flex-col items-center gap-3">
@@ -668,7 +682,7 @@ export default function HippoRapids() {
       )}
 
       {!attract && view === "levels" && (
-        <div className="absolute inset-0 flex flex-col items-center gap-3 overflow-y-auto p-4">
+        <div className="hr-screen hr-top">
           <Logo small />
           <div className="flex flex-wrap items-center justify-center gap-3">
             <SeatPicker seats={seats} onChange={changeSeats} />
@@ -789,7 +803,7 @@ export default function HippoRapids() {
       )}
 
       {!attract && view === "friends" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4">
+        <div className="hr-screen">
           <Logo small />
           <div className="hr-panel flex w-full max-w-xs flex-col items-center gap-3 p-4">
             <div className="hr-o text-lg">HOST A RAFT</div>
@@ -829,7 +843,7 @@ export default function HippoRapids() {
       )}
 
       {!attract && view === "joining" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+        <div className="hr-screen">
           <Logo small />
           <div className="hr-o text-xl">{net === "open" ? "BLOWING UP THE RAFT…" : "CONNECTING…"}</div>
           {error && <div className="text-center text-[#ff9a8a]">{error}</div>}
@@ -840,7 +854,7 @@ export default function HippoRapids() {
       )}
 
       {!attract && view === "lobby" && room && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+        <div className="hr-screen">
           <Logo small />
           <div className="hr-panel flex w-full max-w-sm flex-col items-center gap-3 p-4">
             <div className="hr-o text-sm">ROOM CODE</div>
@@ -963,7 +977,7 @@ export default function HippoRapids() {
         const rec = playing && !online ? records[recordKey(playing.key, result.seats)] : undefined;
         const nextId = LEVELS[LEVELS.findIndex((l) => l.id === playing?.key) + 1]?.id;
         return (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#1b1030]/55 p-4">
+          <div className="hr-screen bg-[#1b1030]/55">
             <div className="hr-pop hr-title text-7xl text-[#ffe45e]" style={{ textShadow: "0 5px 0 #b86a00, 0 10px 0 #1b1030" }}>
               YOU MADE IT!
             </div>

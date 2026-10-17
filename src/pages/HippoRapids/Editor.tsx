@@ -130,7 +130,11 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
   const levelRef = useRef(level);
   levelRef.current = level;
   const view = useRef({ z: -30, scale: 8 });
-  const drag = useRef<{ kind: "pan" | "item" | "node" | "nodew" | "finish" | "vortex" | "cp"; i: number; moved: boolean; dz?: number; dx?: number } | null>(null);
+  const drag = useRef<{ kind: "pan" | "item" | "node" | "nodew" | "finish" | "vortex" | "cp" | "tap"; i: number; moved: boolean; dz?: number; dx?: number; px?: number; py?: number; wx?: number; wz?: number } | null>(null);
+  // Fingers on the map: two make a pinch (zoom and scroll).
+  const pointers = useRef(new Map<number, [number, number]>());
+  const pinch = useRef<{ dist: number; scale: number; mid: number; z: number } | null>(null);
+  const coarse = useRef(typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   const space = useRef(false);
   const cursor = useRef<[number, number]>([0, 0]);
   const course = useMemo(() => courseOf(level), [level]);
@@ -377,7 +381,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
   const hitTest = (x: number, z: number): Selection => {
     const L = levelRef.current;
     const c = courseOf(L);
-    const grab = 14 / view.current.scale;
+    const grab = (coarse.current ? 26 : 14) / view.current.scale;
     const t = animate ? performance.now() / 1000 : 0;
     for (let i = L.items.length - 1; i >= 0; i--) {
       const it = L.items[i];
@@ -410,6 +414,15 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
 
   const onDown = (e: React.PointerEvent) => {
     canvas.current!.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pointers.current.size === 2) {
+      // A second finger: stop whatever the first was doing and start pinching.
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { dist: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, scale: view.current.scale, mid: (a[1] + b[1]) / 2, z: view.current.z };
+      drag.current = null;
+      return;
+    }
+    if (pointers.current.size > 2) return;
     const [x, z] = toWorld(e.clientX, e.clientY);
     const t = toolRef.current;
     if (e.button === 1 || e.button === 2 || space.current) {
@@ -417,7 +430,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
       return;
     }
     if (t === "river") {
-      const grab = 14 / view.current.scale;
+      const grab = (coarse.current ? 26 : 14) / view.current.scale;
       const ns = nodesOf(levelRef.current);
       for (let i = 0; i < ns.length; i++) {
         if (Math.hypot(x - ns[i].x, z - ns[i].z) < grab * 1.2) {
@@ -457,6 +470,11 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
       else drag.current = { kind: "pan", i: 0, moved: false, dz: e.clientY, dx: view.current.z };
       return;
     }
+    // Placing, erasing and flags happen on release, so a pinch or a scroll doesn't drop things.
+    drag.current = { kind: "tap", i: 0, moved: false, px: e.clientX, py: e.clientY, wx: x, wz: z, dz: e.clientY, dx: view.current.z };
+  };
+
+  const doTool = (t: Tool, x: number, z: number) => {
     if (t === "erase") {
       const hit = hitTest(x, z);
       if (hit) {
@@ -483,10 +501,25 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
   };
 
   const onMove = (e: React.PointerEvent) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const p = pinch.current;
+      view.current.scale = Math.max(3, Math.min(24, (p.scale * Math.hypot(a[0] - b[0], a[1] - b[1])) / p.dist));
+      view.current.z = p.z + ((a[1] + b[1]) / 2 - p.mid) / view.current.scale;
+      return;
+    }
     const [x, z] = toWorld(e.clientX, e.clientY);
     cursor.current = [x, z];
     const d = drag.current;
     if (!d) return;
+    if (d.kind === "tap") {
+      if (Math.hypot(e.clientX - (d.px ?? 0), e.clientY - (d.py ?? 0)) > 8) {
+        d.kind = "pan";
+        d.moved = true;
+      }
+      return;
+    }
     d.moved = true;
     if (d.kind === "pan") {
       view.current.z = (d.dx ?? 0) + (e.clientY - (d.dz ?? 0)) / view.current.scale;
@@ -511,10 +544,17 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
     }
   };
 
-  const onUp = () => {
+  const onUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
     const d = drag.current;
     drag.current = null;
-    if (d && d.moved && d.kind !== "pan") commit();
+    if (!d) return;
+    if (d.kind === "tap") {
+      if (!d.moved && d.wx !== undefined && d.wz !== undefined) doTool(toolRef.current, d.wx, d.wz);
+      return;
+    }
+    if (d.moved && d.kind !== "pan") commit();
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -585,7 +625,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
   };
 
   const hint = TOOLS.find((t) => t.id === tool)?.hint ?? "";
-  const btn = "rounded-lg border-2 border-[#1b1030] px-2 py-1 text-xs font-extrabold";
+  const btn = "rounded-lg border-2 border-[#1b1030] px-2 py-1 text-xs font-extrabold [@media(pointer:coarse)]:px-3 [@media(pointer:coarse)]:py-2";
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-[#16213a] text-white">
@@ -644,8 +684,8 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
           </button>
         ))}
       </div>
-      <div className="relative flex min-h-0 flex-1">
-        <div ref={wrap} className="relative min-w-0 flex-1" onContextMenu={(e) => e.preventDefault()}>
+      <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
+        <div ref={wrap} className="relative min-h-0 min-w-0 flex-1" onContextMenu={(e) => e.preventDefault()}>
           <canvas ref={canvas} className="absolute inset-0 h-full w-full touch-none" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} style={{ cursor: tool === "select" ? "default" : "crosshair" }} />
           <div className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-lg bg-[#1b1030]/80 px-2 py-1 text-xs">{msg || hint}</div>
           <div className="absolute right-2 top-2 flex flex-col gap-1">
@@ -663,7 +703,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
             </button>
           </div>
         </div>
-        <div className="w-60 shrink-0 overflow-y-auto border-l-2 border-[#1b1030] bg-[#241a42] p-3 text-sm">
+        <div className="max-h-[36%] w-full shrink-0 overflow-y-auto border-t-2 border-[#1b1030] bg-[#241a42] p-3 text-sm md:max-h-none md:w-60 md:border-l-2 md:border-t-0" style={{ touchAction: "pan-y" }}>
           {selItem ? (
             <div className="flex flex-col gap-2">
               <div className="text-base font-extrabold capitalize text-[#ffe45e]">{TOOLS.find((t) => t.id === selItem.t)?.label}</div>
@@ -736,7 +776,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
               <div className="text-xs leading-snug opacity-80">
                 <p>{level.items.length} things · {level.checkpoints.length} flags · {course.rings.length} rings</p>
                 <p className="mt-2">Rings take a second off your time each. Put them where a skilled raft would fly.</p>
-                <p className="mt-2">Space or right-drag scrolls. Ctrl+scroll zooms. Delete removes. Ctrl+Z undoes.</p>
+                <p className="mt-2">On a phone: drag to scroll, pinch to zoom. On a computer: scroll wheel, Ctrl+scroll to zoom, Delete removes, Ctrl+Z undoes.</p>
               </div>
             </div>
           )}
