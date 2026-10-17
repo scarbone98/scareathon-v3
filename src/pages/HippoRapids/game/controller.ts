@@ -1,17 +1,16 @@
 // Runs a game of Hippo Rapids: the local sim (solo, and the demo behind the menus) or the
 // server's snapshots (online), your input, sound and the renderer.
 import {
-  CHECKPOINTS,
-  COURSE_LENGTH,
   GAS_RESTART,
   HIPPO_NAMES,
   RIM_SPEED,
   STEP,
   createSim,
   getCourse,
-  sectionAt,
   wrapAngle,
+  type Course,
   type HippoState,
+  type Level,
   type Sim,
   type SimEvent,
   type Snapshot,
@@ -39,13 +38,17 @@ export interface Hud {
   names: string[];
   humans: boolean[];
   gases: number[];
+  levelName: string;
+  checkpoints: number[];
+  ringsGot: number;
+  ringsTotal: number;
 }
 
 export type Mode = "demo" | "solo" | "online";
 
 interface Opts {
   onHud: (hud: Hud) => void;
-  onFinish: (result: { run: number; sinks: number; hits: number; seats: number }) => void;
+  onFinish: (result: { run: number; sinks: number; hits: number; seats: number; rings: number; ringsTotal: number }) => void;
   // For the cabinet video: the demo with a stronger crew.
   attract?: boolean;
 }
@@ -76,6 +79,8 @@ export class GameController {
   private mode: Mode = "demo";
   private sim: Sim | null = null;
   private seats = 4;
+  private course: Course = getCourse('lagoon');
+  private level: string | Level = 'lagoon';
   private me = -1;
   private names: string[] = [];
   private paused = false;
@@ -118,7 +123,8 @@ export class GameController {
     window.addEventListener("blur", this.onBlur);
     canvas.addEventListener("pointerdown", this.onPointerDown);
     window.addEventListener("pointerup", this.onPointerUp);
-    this.demo(4);
+    const params = new URLSearchParams(window.location.search);
+    this.demo(4, opts.attract ? (params.get("level") ?? "whole") : "lagoon");
     this.raf = requestAnimationFrame(this.frame);
   }
 
@@ -129,8 +135,14 @@ export class GameController {
 
   // --- modes --------------------------------------------------------------------------------
 
-  private fresh(seats: number, skill: number) {
-    this.sim = createSim({ seats, skill, seed: Math.floor(Math.random() * 1e6) });
+  private fresh(seats: number, skill: number, level: string | Level) {
+    // The same level again keeps its built scene; a different one gets rebuilt.
+    if (level !== this.level || !this.sim) {
+      this.course = getCourse(level);
+      this.level = level;
+      this.gl.setCourse(this.course);
+    }
+    this.sim = createSim({ seats, skill, seed: Math.floor(Math.random() * 1e6), level: this.course });
     this.seats = seats;
     this.acc = 0;
     this.finished = false;
@@ -141,11 +153,11 @@ export class GameController {
   }
 
   // Bots raft the river behind the menus.
-  demo(seats: number) {
+  demo(seats: number, level: string | Level = "lagoon") {
     this.mode = "demo";
     this.send = null;
     this.me = -1;
-    this.fresh(seats, this.opts.attract ? 0.95 : 0.8);
+    this.fresh(seats, this.opts.attract ? 0.95 : 0.8, level);
     this.names = HIPPO_NAMES.slice(0, seats);
     this.demoDoneAt = 0;
     this.sim!.t = 0;
@@ -160,16 +172,16 @@ export class GameController {
     sim.phase = "run";
     sim.countdown = 0;
     sim.z = z;
-    sim.x = getCourse().centerX(z);
+    sim.x = this.course.centerX(z);
     sim.vz = 3;
-    sim.cp = CHECKPOINTS.filter((c) => c <= z).length - 1;
+    sim.cp = this.course.checkpoints.filter((c) => c <= z).length - 1;
   }
 
-  solo(seats: number, name: string) {
+  solo(seats: number, name: string, level: string | Level) {
     this.mode = "solo";
     this.send = null;
     this.me = 0;
-    this.fresh(seats, 0.5);
+    this.fresh(seats, 0.5, level);
     const sim = this.sim!;
     sim.hippos[0].bot = false;
     this.predAng = sim.hippos[0].ang;
@@ -178,9 +190,14 @@ export class GameController {
   }
 
   // The server runs the raft; this just draws it. names are by seat.
-  online(seat: number, seats: number, names: (string | null)[], send: (message: { type: string; [key: string]: unknown }) => void) {
+  online(seat: number, seats: number, names: (string | null)[], send: (message: { type: string; [key: string]: unknown }) => void, level: string | Level) {
     this.mode = "online";
     this.send = send;
+    if (level !== this.level) {
+      this.course = getCourse(level);
+      this.level = level;
+      this.gl.setCourse(this.course);
+    }
     this.me = seat;
     this.seats = seats;
     this.sim = null;
@@ -349,7 +366,7 @@ export class GameController {
     }
     if (this.mode === "solo" && snap.ph === "done" && !this.finished) {
       this.finished = true;
-      this.opts.onFinish({ run: snap.run, sinks: snap.sinks, hits: snap.hits, seats: this.seats });
+      this.opts.onFinish({ run: snap.run, sinks: snap.sinks, hits: snap.hits, seats: this.seats, rings: snap.rg.length, ringsTotal: this.course.rings.length });
     }
     const { ev, ...rest } = snap;
     void ev;
@@ -389,7 +406,7 @@ export class GameController {
     }
     if (s.ph === "done" && !this.finished) {
       this.finished = true;
-      this.opts.onFinish({ run: s.run, sinks: s.sinks, hits: s.hits, seats: this.seats });
+      this.opts.onFinish({ run: s.run, sinks: s.sinks, hits: s.hits, seats: this.seats, rings: s.rg.length, ringsTotal: this.course.rings.length });
     }
     const { ev, ...rest } = s;
     void ev;
@@ -447,6 +464,9 @@ export class GameController {
           sfx.checkpoint();
           this.gl.burst(s.x, s.z, "cp");
           break;
+        case "ring":
+          sfx.ring(s.rg.length);
+          break;
         case "boost":
           if (Math.random() < 0.02) sfx.boost();
           break;
@@ -489,12 +509,12 @@ export class GameController {
       phase: view.ph,
       countdown: view.cd,
       run: view.run,
-      progress: Math.max(0, Math.min(1, view.z / COURSE_LENGTH)),
+      progress: Math.max(0, Math.min(1, view.z / this.course.length)),
       hull: view.hull,
       sinks: view.sinks,
       hits: view.hits,
       cp: view.cp,
-      section: sectionAt(view.z),
+      section: this.course.sectionAt(view.z),
       sunk: view.sunk > 0,
       seat: view.me,
       gas: mine ? mine[2] : 1,
@@ -504,6 +524,10 @@ export class GameController {
       names: view.names,
       humans: view.humans,
       gases: view.h.map((h) => h[2]),
+      levelName: this.course.name,
+      checkpoints: this.course.checkpoints.map((z) => z / this.course.length),
+      ringsGot: view.rg.length,
+      ringsTotal: this.course.rings.length,
     };
   }
 

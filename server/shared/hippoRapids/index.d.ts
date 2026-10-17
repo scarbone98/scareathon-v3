@@ -1,8 +1,7 @@
 // Types for the Hippo Rapids course and raft physics so the React/Three.js client can import them.
 
 export const STEP: number;
-export const COURSE_LENGTH: number;
-export const FINISH_Z: number;
+export const RING_BONUS: number;
 export const MAX_HULL: number;
 export const COUNTDOWN: number;
 export const SINK_TIME: number;
@@ -12,8 +11,6 @@ export const GAS_REGEN: number;
 export const GAS_RESTART: number;
 export const HIPPO_NAMES: string[];
 export const SEAT_COUNTS: number[];
-export const CHECKPOINTS: number[];
-export const SECTIONS: [number, string][];
 
 export type Phase = 'countdown' | 'run' | 'done';
 
@@ -62,7 +59,47 @@ export interface Spinner {
     hazard?: boolean;
 }
 
+export type ItemType = 'rock' | 'mine' | 'bumper' | 'boost' | 'lily' | 'ring' | 'geyser' | 'sweeper' | 'log' | 'gator' | 'spinner';
+
+// One thing on the water. Which of the other fields matter depends on t.
+export interface Item {
+    t: ItemType;
+    x: number;
+    z: number;
+    r?: number;
+    len?: number;
+    speed?: number;
+    phase?: number;
+    half?: number;
+    amp?: number;
+    period?: number;
+    bars?: number;
+    hazard?: number;
+}
+
+export interface Level {
+    v: 1;
+    name: string;
+    finish: number;
+    center: [number, number][];
+    width: [number, number][];
+    flow: [number, number][];
+    checkpoints: number[];
+    sections: [number, string][];
+    vortex: { z: number; r: number; strength: number } | null;
+    items: Item[];
+}
+
 export interface Course {
+    def: Level;
+    name: string;
+    // Where the progress bar ends, and where the finish line is.
+    length: number;
+    finishZ: number;
+    checkpoints: number[];
+    sections: [number, string][];
+    sectionAt(z: number): string;
+    rings: Boost[];
     centerX(z: number): number;
     halfWidth(z: number): number;
     flowAt(x: number, z: number): [number, number];
@@ -76,7 +113,7 @@ export interface Course {
     bumpers: Rock[];
     gators: Log[];
     spinners: Spinner[];
-    vortex: { x: number; z: number; r: number };
+    vortex: { x: number; z: number; r: number; strength: number } | null;
 }
 
 // One hippo in a snapshot: [angle on the rim, farting, gas 0..1, out of gas, walking -1/0/1, bot].
@@ -86,7 +123,8 @@ export type SimEvent =
     | { e: 'go' | 'sink' | 'respawn' | 'finish' | 'boost' }
     | { e: 'bump'; s: number }
     | { e: 'hit'; x: number; z: number }
-    | { e: 'cp'; i: number };
+    | { e: 'cp'; i: number }
+    | { e: 'ring'; i: number };
 
 export interface Snapshot {
     t: number;
@@ -105,6 +143,8 @@ export interface Snapshot {
     cp: number;
     sinks: number;
     hits: number;
+    // Which rings have been flown through.
+    rg: number[];
     h: HippoState[];
     ev: SimEvent[];
 }
@@ -137,15 +177,36 @@ export interface Sim {
     sunk: number;
     cp: number;
     hippos: Hippo[];
+    course: Course;
+    rings: Set<number>;
+    stuck: number;
+    inv: number;
+    run: number;
+    sinks: number;
+    hits: number;
+    R: number;
     step(dt?: number): void;
     setInput(seat: number, mv: number, fart: boolean): void;
     snapshot(): Snapshot;
     reset(): void;
 }
 
-export function getCourse(): Course;
-export function createSim(options?: { seats?: number; skill?: number; seed?: number }): Sim;
-export function sectionAt(z: number): string;
+export interface LevelInfo {
+    id: string;
+    blurb: string;
+    color: string;
+    // Seconds for gold, silver and bronze, counted after the ring bonus.
+    par: [number, number, number];
+    def: Level;
+}
+export const LEVELS: LevelInfo[];
+export const ITEM_TYPES: Record<ItemType, Record<string, [number, number, number]>>;
+export function getLevel(id: string): LevelInfo | null;
+// Makes anything into a valid level, or null.
+export function sanitizeLevel(raw: unknown): Level | null;
+// A level can be a built-in's id, a level as the editor saves it, or an already built course.
+export function getCourse(level?: string | Level | Course): Course;
+export function createSim(options?: { seats?: number; skill?: number; seed?: number; level?: string | Level | Course }): Sim;
 export function raftRadius(seats: number): number;
 export function seatRadius(seats: number): number;
 export function wrapAngle(a: number): number;

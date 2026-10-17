@@ -1,18 +1,23 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { CHECKPOINTS, COURSE_LENGTH, MAX_HULL } from "../../../server/shared/hippoRapids/index.js";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { LEVELS, MAX_HULL, RING_BONUS, getLevel, type Level } from "../../../server/shared/hippoRapids/index.js";
 import { GameController, type Hud } from "./game/controller";
 import { RoomSocket, roomLink, type RoomStatus, type ServerMessage, type SocketStatus } from "./game/net";
 import { HIPPO_LOOKS } from "./game/render";
 import { sfx } from "./game/sfx";
+import { MEDALS, decodeLevel, fmtTime, loadCustom, loadRecords, medalFor, newLevelId, recordKey, saveCustom, saveRecords, type Record, type SavedLevel } from "./levels";
 import "./hipporapids.css";
 
-type View = "title" | "friends" | "joining" | "lobby" | "play" | "result";
+const Editor = lazy(() => import("./Editor"));
+
+type View = "title" | "levels" | "friends" | "joining" | "lobby" | "play" | "result" | "editor";
 
 interface Room {
   code: string;
   seat: number;
   seats: number;
   host: number;
+  level: string;
+  def: Level | null;
   status: RoomStatus;
   names: (string | null)[];
   connected: boolean[];
@@ -23,19 +28,21 @@ interface Result {
   sinks: number;
   hits: number;
   seats: number;
+  rings: number;
+  ringsTotal: number;
+}
+
+// What's being rafted: a built-in or one of the player's own, with its par times if it has any.
+interface Playing {
+  key: string;
+  name: string;
+  value: string | Level;
+  par: [number, number, number] | null;
+  testing: boolean;
 }
 
 const NAME_KEY = "hippo-rapids-name";
-const BEST_KEY = "hippo-rapids-best";
 const CODE_LENGTH = 4;
-
-const fmtTime = (t: number) => {
-  const m = Math.floor(t / 60);
-  const s = t - m * 60;
-  return `${m}:${s.toFixed(1).padStart(4, "0")}`;
-};
-
-const stars = (r: Result) => (r.run < 270 && r.sinks === 0 ? 3 : r.run < 400 ? 2 : 1);
 
 function loadName() {
   try {
@@ -45,14 +52,6 @@ function loadName() {
     // ignore
   }
   return `HIPPO${Math.floor(10 + Math.random() * 90)}`;
-}
-
-function loadBest(): Record<string, number> {
-  try {
-    return JSON.parse(localStorage.getItem(BEST_KEY) ?? "{}") as Record<string, number>;
-  } catch {
-    return {};
-  }
 }
 
 function Btn({ children, color = "orange", className = "", disabled, onClick }: { children: ReactNode; color?: string; className?: string; disabled?: boolean; onClick: () => void }) {
@@ -209,8 +208,8 @@ function Progress({ hud }: { hud: Hud }) {
   return (
     <div className="relative mx-auto h-5 w-full max-w-md rounded-full border-[3px] border-[#1b1030] bg-[#2a1d46]/80">
       <div className="absolute inset-y-0 left-0 rounded-full bg-[#4aa9f0]" style={{ width: `${hud.progress * 100}%` }} />
-      {CHECKPOINTS.map((z, i) => (
-        <div key={z} className="absolute top-[-5px] h-[calc(100%+10px)] w-[3px]" style={{ left: `${(z / COURSE_LENGTH) * 100}%`, background: i <= hud.cp ? "#7cff8a" : "#d9d3ee" }} />
+      {hud.checkpoints.map((f, i) => (
+        <div key={i} className="absolute top-[-5px] h-[calc(100%+10px)] w-[3px]" style={{ left: `${f * 100}%`, background: i <= hud.cp ? "#7cff8a" : "#d9d3ee" }} />
       ))}
       <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl" style={{ left: `${hud.progress * 100}%`, filter: "drop-shadow(0 2px 0 #1b1030)" }}>
         🛟
@@ -219,7 +218,7 @@ function Progress({ hud }: { hud: Hud }) {
   );
 }
 
-function HudBar({ hud, touch }: { hud: Hud; touch: boolean }) {
+function HudBar({ hud, touch, par }: { hud: Hud; touch: boolean; par: [number, number, number] | null }) {
   const racing = hud.phase === "run";
   return (
     <>
@@ -234,6 +233,12 @@ function HudBar({ hud, touch }: { hud: Hud; touch: boolean }) {
           </div>
           <div className="hr-panel px-3 py-1 text-center">
             <div className="text-2xl tabular-nums">{fmtTime(hud.run)}</div>
+            {(par || hud.ringsTotal > 0) && (
+              <div className="text-[10px] opacity-80">
+                {hud.ringsTotal > 0 && <span>⭕ {hud.ringsGot}/{hud.ringsTotal} </span>}
+                {par && <span>🥇 {fmtTime(par[0])}</span>}
+              </div>
+            )}
           </div>
         </div>
         <Progress hud={hud} />
@@ -278,7 +283,8 @@ function HowTo({ onClose, touch }: { onClose: () => void; touch: boolean }) {
           </p>
           <p>🫘 Beans run out. Rest a moment and they come back, so take turns with your crew.</p>
           <p>🎃 Spiked buoys and spiky logs smash your pumpkins. Lose all five and the raft sinks back to the last green flag.</p>
-          <p>🏁 Make it to the finish, together.</p>
+          <p>⭕ Fly through gold rings: each one takes a second off your time. Short taps give small nudges, so you can thread tight lines.</p>
+          <p>🏁 Make it to the finish, together. Beat the par times for 🥉 🥈 🥇, or build your own river in the level editor and share it with a code.</p>
         </div>
         <div className="mt-4">
           <Btn color="green" onClick={onClose}>
@@ -312,7 +318,23 @@ export default function HippoRapids() {
   const [howTo, setHowTo] = useState(false);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(sfx.muted);
-  const [best, setBest] = useState(loadBest);
+  const [custom, setCustomState] = useState<SavedLevel[]>(loadCustom);
+  const [records, setRecords] = useState(loadRecords);
+  const [playing, setPlayingState] = useState<Playing | null>(null);
+  const [draft, setDraft] = useState<SavedLevel | null>(null);
+  const [importing, setImporting] = useState<string | null>(null);
+  const playingRef = useRef<Playing | null>(null);
+  const hudRef = useRef<Hud | null>(null);
+  // The level the room is rafting, kept as one object so the scene isn't rebuilt on every room message.
+  const roomLevel = useRef<{ key: string; value: string | Level }>({ key: "", value: "lagoon" });
+  const setPlaying = (p: Playing | null) => {
+    playingRef.current = p;
+    setPlayingState(p);
+  };
+  const setCustom = (list: SavedLevel[]) => {
+    setCustomState(list);
+    saveCustom(list);
+  };
   const [countKey, setCountKey] = useState(0);
 
   const setView = useCallback((v: View) => {
@@ -344,22 +366,25 @@ export default function HippoRapids() {
   useEffect(() => {
     const ctrl = new GameController(hostRef.current!, canvasRef.current!, {
       attract,
-      onHud: setHud,
+      onHud: (h) => {
+        hudRef.current = h;
+        setHud(h);
+      },
       onFinish: (r) => {
         setResult(r);
         setView("result");
-        if (!roomRef.current) {
-          const key = `${r.seats}`;
-          setBest((b) => {
-            const next = { ...b, [key]: Math.min(b[key] ?? Infinity, r.run) };
-            try {
-              localStorage.setItem(BEST_KEY, JSON.stringify(next));
-            } catch {
-              // ignore
-            }
-            return next;
-          });
-        }
+        const pl = playingRef.current;
+        if (roomRef.current || !pl || pl.testing) return;
+        // Solo: the time that counts is after the ring bonus; keep the best and the best medal.
+        const time = r.run - r.rings * RING_BONUS;
+        const medal = pl.par ? medalFor(pl.par, time) : 0;
+        const key = recordKey(pl.key, r.seats);
+        setRecords((rs) => {
+          const old = rs[key];
+          const next = { ...rs, [key]: { time: old ? Math.min(old.time, time) : time, medal: Math.max(old?.medal ?? 0, medal) as Record["medal"] } };
+          saveRecords(next);
+          return next;
+        });
       },
     });
     ctrlRef.current = ctrl;
@@ -419,12 +444,34 @@ export default function HippoRapids() {
     setNote(null);
   };
 
-  const startSolo = () => {
+  const openEditor = (saved: SavedLevel | null) => {
+    setDraft(saved);
+    setView("editor");
+  };
+
+  const startSolo = (p: Playing) => {
     resetBanners();
     setPaused(false);
-    ctrlRef.current?.solo(seats, myName());
+    setPlaying(p);
+    ctrlRef.current?.solo(seats, myName(), p.value);
     setResult(null);
     setView("play");
+  };
+  const playBuiltIn = (id: string) => {
+    const l = getLevel(id);
+    if (l) startSolo({ key: id, name: l.def.name, value: id, par: l.par, testing: false });
+  };
+  const playCustom = (c: SavedLevel) => startSolo({ key: c.id, name: c.def.name, value: c.def, par: null, testing: false });
+  const nextLevel = () => {
+    const i = LEVELS.findIndex((l) => l.id === playing?.key);
+    if (i >= 0 && i < LEVELS.length - 1) playBuiltIn(LEVELS[i + 1].id);
+  };
+  // Leaving a run goes back to wherever it was started: the editor for a test, the levels otherwise.
+  const leaveRun = () => {
+    const testing = playingRef.current?.testing;
+    ctrlRef.current?.demo(seats, testing && draft ? draft.def : "lagoon");
+    setPaused(false);
+    setView(testing ? "editor" : "levels");
   };
 
   // --- online -----------------------------------------------------------------------------
@@ -434,7 +481,8 @@ export default function HippoRapids() {
     setPaused(false);
     setResult(null);
     const sock = sockRef.current;
-    ctrlRef.current?.online(r.seat, r.seats, r.names, (m) => sock?.send(m));
+    setPlaying(null);
+    ctrlRef.current?.online(r.seat, r.seats, r.names, (m) => sock?.send(m), roomLevel.current.value);
     setView("play");
   };
 
@@ -446,7 +494,10 @@ export default function HippoRapids() {
         break;
       case "room": {
         const prev = roomRef.current;
-        const r: Room = { code: m.code, seat: m.seat, seats: m.seats, host: m.host, status: m.status, names: m.names, connected: m.connected };
+        const r: Room = { code: m.code, seat: m.seat, seats: m.seats, host: m.host, level: m.level, def: m.def, status: m.status, names: m.names, connected: m.connected };
+        const lk = m.level + (m.def ? JSON.stringify(m.def) : "");
+        const levelChanged = lk !== roomLevel.current.key;
+        if (levelChanged) roomLevel.current = { key: lk, value: m.def ?? m.level };
         setRoom(r);
         setError(null);
         ctrl?.setNames(m.names);
@@ -454,7 +505,7 @@ export default function HippoRapids() {
         if (m.status === "playing" && v !== "play" && v !== "result") enterRun(r);
         else if ((m.status === "lobby" && (v === "friends" || v === "joining" || v === "title" || v === "play" || v === "result")) || (m.status === "done" && (v === "friends" || v === "joining" || v === "title"))) {
           // (A raft that already finished is back at the dock for anyone arriving after.)
-          if (!prev || prev.seats !== r.seats || v === "play" || v === "result") ctrl?.demo(r.seats);
+          if (!prev || prev.seats !== r.seats || levelChanged || v === "play" || v === "result") ctrl?.demo(r.seats, roomLevel.current.value);
           setView("lobby");
         }
         break;
@@ -506,7 +557,7 @@ export default function HippoRapids() {
   const host = () => {
     setError(null);
     setView("joining");
-    openSocket().send({ type: "create", name: myName(), seats });
+    openSocket().send({ type: "create", name: myName(), seats, level: "lagoon" });
   };
 
   const join = (c: string) => {
@@ -597,25 +648,144 @@ export default function HippoRapids() {
               <SeatPicker seats={seats} onChange={changeSeats} />
             </div>
             <div className="flex flex-wrap justify-center gap-3">
-              <Btn color="green" className="w-60" onClick={startSolo}>
-                ▶ PLAY WITH BOTS
+              <Btn color="green" className="w-60" onClick={() => setView("levels")}>
+                ▶ PLAY
               </Btn>
               <Btn color="orange" className="w-60" onClick={() => setView("friends")}>
                 PLAY WITH FRIENDS
               </Btn>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Btn color="pink" className="!py-2 !text-base" onClick={() => openEditor(null)}>
+                LEVEL EDITOR
+              </Btn>
               <Btn color="blue" className="!py-2 !text-base" onClick={() => setHowTo(true)}>
                 HOW TO PLAY
               </Btn>
-              {best[`${seats}`] && (
-                <div className="hr-o text-sm text-[#ffe45e]">
-                  BEST ({seats} HIPPOS): {fmtTime(best[`${seats}`])}
-                </div>
-              )}
             </div>
           </div>
         </div>
+      )}
+
+      {!attract && view === "levels" && (
+        <div className="absolute inset-0 flex flex-col items-center gap-3 overflow-y-auto p-4">
+          <Logo small />
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <SeatPicker seats={seats} onChange={changeSeats} />
+          </div>
+          <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+            {LEVELS.map((l, i) => {
+              const rec = records[recordKey(l.id, seats)];
+              return (
+                <button key={l.id} type="button" className="hr-panel flex items-stretch gap-3 p-3 text-left active:translate-y-1" onClick={() => (sfx.unlock(), sfx.blip(), playBuiltIn(l.id))}>
+                  <div className="flex w-12 shrink-0 items-center justify-center rounded-xl border-[3px] border-[#1b1030] text-2xl" style={{ background: l.color }}>
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-lg leading-tight">{l.def.name}</div>
+                    <div className="text-xs opacity-80">{l.blurb}</div>
+                    <div className="mt-1 text-xs opacity-70">
+                      {l.def.finish} m · gold {fmtTime(l.par[0])}
+                    </div>
+                  </div>
+                  <div className="flex w-16 shrink-0 flex-col items-end justify-center text-right">
+                    <div className="text-2xl">{rec ? MEDALS[rec.medal] || "·" : ""}</div>
+                    {rec && <div className="text-xs tabular-nums opacity-80">{fmtTime(rec.time)}</div>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hr-o mt-2 text-lg">MY RIVERS</div>
+          <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+            {custom.map((c) => {
+              const rec = records[recordKey(c.id, seats)];
+              return (
+                <div key={c.id} className="hr-panel flex items-center gap-2 p-3">
+                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => (sfx.unlock(), sfx.blip(), playCustom(c))}>
+                    <div className="truncate text-lg leading-tight">{c.def.name}</div>
+                    <div className="text-xs opacity-70">
+                      {c.def.finish} m · {c.def.items.length} things{rec ? ` · best ${fmtTime(rec.time)}` : ""}
+                    </div>
+                  </button>
+                  <button type="button" className="hr-btn hr-blue px-2 py-1 text-sm" onClick={() => openEditor(c)}>
+                    EDIT
+                  </button>
+                  <button
+                    type="button"
+                    className="hr-btn hr-grey px-2 py-1 text-sm"
+                    onClick={() => window.confirm(`Delete "${c.def.name}"?`) && setCustom(custom.filter((x) => x.id !== c.id))}
+                  >
+                    🗑
+                  </button>
+                </div>
+              );
+            })}
+            <div className="flex flex-wrap items-center gap-2">
+              <Btn color="pink" className="!py-2 !text-base" onClick={() => openEditor(null)}>
+                + NEW RIVER
+              </Btn>
+              <Btn color="blue" className="!py-2 !text-base" onClick={() => setImporting("")}>
+                IMPORT CODE
+              </Btn>
+            </div>
+          </div>
+          <Btn color="grey" className="!py-2 !text-base" onClick={() => setView("title")}>
+            BACK
+          </Btn>
+        </div>
+      )}
+
+      {!attract && importing !== null && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1b1030]/80 p-4">
+          <div className="hr-panel flex w-full max-w-md flex-col gap-2 p-4">
+            <div className="text-lg">PASTE A LEVEL CODE</div>
+            <textarea className="hr-input h-32 p-2 text-left font-mono text-xs" value={importing} onChange={(e) => setImporting(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+            <div className="flex justify-end gap-2">
+              <Btn
+                color="green"
+                className="!py-2 !text-base"
+                onClick={() => {
+                  const def = decodeLevel(importing);
+                  if (!def) {
+                    setError("That doesn't look like a level code.");
+                    return;
+                  }
+                  setCustom([...custom, { id: newLevelId(), def }]);
+                  setImporting(null);
+                  setError(null);
+                }}
+              >
+                ADD IT
+              </Btn>
+              <Btn color="grey" className="!py-2 !text-base" onClick={() => (setImporting(null), setError(null))}>
+                CANCEL
+              </Btn>
+            </div>
+            {error && <div className="text-sm text-[#ff9a8a]">{error}</div>}
+          </div>
+        </div>
+      )}
+
+      {view === "editor" && (
+        <Suspense fallback={<div className="hr-o absolute inset-0 flex items-center justify-center bg-[#16213a] text-xl">LOADING THE MAP…</div>}>
+          <Editor
+            initial={draft}
+            onExit={() => {
+              setDraft(null);
+              ctrlRef.current?.demo(seats, "lagoon");
+              setView("title");
+            }}
+            onTest={(saved) => {
+              setDraft(saved);
+              startSolo({ key: "test", name: saved.def.name, value: saved.def, par: null, testing: true });
+            }}
+            onSave={(saved) => {
+              setDraft(saved);
+              setCustom(custom.some((c) => c.id === saved.id) ? custom.map((c) => (c.id === saved.id ? saved : c)) : [...custom, saved]);
+            }}
+          />
+        </Suspense>
       )}
 
       {!attract && view === "friends" && (
@@ -678,6 +848,36 @@ export default function HippoRapids() {
             <Btn color="blue" className="!py-2 !text-base" onClick={copyLink}>
               {copied ? "COPIED!" : touch ? "SHARE INVITE" : "COPY INVITE LINK"}
             </Btn>
+            <div className="flex w-full items-center justify-between gap-2 text-sm">
+              <span className="opacity-80">RIVER</span>
+              {iAmHost ? (
+                <select
+                  className="hr-input max-w-[12rem] px-2 py-1 text-sm"
+                  value={room.def ? "custom" : room.level}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const mine = custom.find((c) => c.id === v);
+                    sockRef.current?.send({ type: "level", level: mine ? mine.def : v });
+                  }}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  {room.def && <option value="custom">{room.def.name} (custom)</option>}
+                  {LEVELS.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.def.name}
+                    </option>
+                  ))}
+                  {custom.length > 0 && <option disabled>— my rivers —</option>}
+                  {custom.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.def.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-right">{room.def ? `${room.def.name} (custom)` : (getLevel(room.level)?.def.name ?? room.level)}</span>
+              )}
+            </div>
             <div className="grid w-full grid-cols-2 gap-2">
               {Array.from({ length: room.seats }, (_, i) => {
                 const n = room.names[i];
@@ -711,7 +911,7 @@ export default function HippoRapids() {
 
       {!attract && view === "play" && hud && (
         <>
-          <HudBar hud={hud} touch={touch} />
+          <HudBar hud={hud} touch={touch} par={online ? null : (playing?.par ?? null)} />
           {hud.phase === "countdown" && countKey > 0 && (
             <div key={countKey} className="hr-pop hr-title hr-o pointer-events-none absolute inset-x-0 top-1/4 text-center text-9xl text-[#ffe45e]">
               {countKey}
@@ -746,13 +946,10 @@ export default function HippoRapids() {
                 onClick={() => {
                   setPaused(false);
                   if (online) leaveRoom();
-                  else {
-                    ctrlRef.current?.demo(seats);
-                    setView("title");
-                  }
+                  else leaveRun();
                 }}
               >
-                {online ? "LEAVE THE RAFT" : "QUIT"}
+                {online ? "LEAVE THE RAFT" : playing?.testing ? "BACK TO THE EDITOR" : "QUIT"}
               </Btn>
             </div>
           )}
@@ -760,46 +957,65 @@ export default function HippoRapids() {
         </>
       )}
 
-      {!attract && view === "result" && result && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#1b1030]/55 p-4">
-          <div className="hr-pop hr-title text-7xl text-[#ffe45e]" style={{ textShadow: "0 5px 0 #b86a00, 0 10px 0 #1b1030" }}>
-            YOU MADE IT!
-          </div>
-          <div className="hr-o text-5xl">{"⭐".repeat(stars(result))}{"☆".repeat(3 - stars(result))}</div>
-          <div className="hr-panel flex flex-col items-center gap-1 px-8 py-4 text-lg">
-            <div className="text-4xl tabular-nums">{fmtTime(result.run)}</div>
-            <div className="text-sm opacity-80">
-              {result.hits} {result.hits === 1 ? "BUOY HIT" : "BUOYS HIT"} · SUNK {result.sinks}×
+      {!attract && view === "result" && result && (() => {
+        const time = result.run - result.rings * RING_BONUS;
+        const medal = !online && playing?.par ? medalFor(playing.par, time) : 0;
+        const rec = playing && !online ? records[recordKey(playing.key, result.seats)] : undefined;
+        const nextId = LEVELS[LEVELS.findIndex((l) => l.id === playing?.key) + 1]?.id;
+        return (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#1b1030]/55 p-4">
+            <div className="hr-pop hr-title text-7xl text-[#ffe45e]" style={{ textShadow: "0 5px 0 #b86a00, 0 10px 0 #1b1030" }}>
+              YOU MADE IT!
             </div>
-            {!online && best[`${result.seats}`] === result.run && <div className="text-sm text-[#7cf06a]">NEW BEST!</div>}
-          </div>
-          <div className="flex gap-3">
-            {!online && (
-              <Btn color="green" onClick={startSolo}>
-                AGAIN
+            <div className="hr-o text-lg">{hud?.levelName?.toUpperCase()}</div>
+            {medal > 0 && <div className="hr-pop text-6xl">{MEDALS[medal]}</div>}
+            <div className="hr-panel flex flex-col items-center gap-1 px-8 py-4 text-lg">
+              <div className="text-4xl tabular-nums">{fmtTime(time)}</div>
+              {result.ringsTotal > 0 && (
+                <div className="text-sm opacity-90">
+                  {fmtTime(result.run)} − {result.rings}/{result.ringsTotal} rings ({(result.rings * RING_BONUS).toFixed(0)}s)
+                </div>
+              )}
+              <div className="text-sm opacity-80">
+                {result.hits} {result.hits === 1 ? "HIT" : "HITS"} · SUNK {result.sinks}×
+              </div>
+              {!online && playing?.par && (
+                <div className="text-xs opacity-70">
+                  🥇 {fmtTime(playing.par[0])} · 🥈 {fmtTime(playing.par[1])} · 🥉 {fmtTime(playing.par[2])}
+                </div>
+              )}
+              {rec && Math.abs(rec.time - time) < 0.001 && !playing?.testing && <div className="text-sm text-[#7cf06a]">NEW BEST!</div>}
+            </div>
+            <div className="flex flex-wrap justify-center gap-3">
+              {!online && playing && (
+                <Btn color="green" onClick={() => startSolo(playing)}>
+                  AGAIN
+                </Btn>
+              )}
+              {!online && nextId && !playing?.testing && (
+                <Btn color="orange" onClick={nextLevel}>
+                  NEXT RIVER
+                </Btn>
+              )}
+              {online && iAmHost && (
+                <Btn color="green" onClick={() => sockRef.current?.send({ type: "again" })}>
+                  AGAIN
+                </Btn>
+              )}
+              {online && !iAmHost && <div className="hr-o self-center text-sm">WAITING FOR THE HOST…</div>}
+              <Btn
+                color="grey"
+                onClick={() => {
+                  if (online) leaveRoom();
+                  else leaveRun();
+                }}
+              >
+                {online ? "LEAVE" : playing?.testing ? "EDITOR" : "RIVERS"}
               </Btn>
-            )}
-            {online && iAmHost && (
-              <Btn color="green" onClick={() => sockRef.current?.send({ type: "again" })}>
-                AGAIN
-              </Btn>
-            )}
-            {online && !iAmHost && <div className="hr-o self-center text-sm">WAITING FOR THE HOST…</div>}
-            <Btn
-              color="grey"
-              onClick={() => {
-                if (online) leaveRoom();
-                else {
-                  ctrlRef.current?.demo(seats);
-                  setView("title");
-                }
-              }}
-            >
-              {online ? "LEAVE" : "MENU"}
-            </Btn>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {!attract && howTo && <HowTo touch={touch} onClose={() => setHowTo(false)} />}
     </div>

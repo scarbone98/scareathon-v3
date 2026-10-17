@@ -1,4 +1,4 @@
-import { COUNTDOWN, FINISH_Z, STEP, createSim, geyserAt, getCourse, seatRadius, spinnerBars } from '../shared/hippoRapids/index.js';
+import { COUNTDOWN, LEVELS, STEP, createSim, geyserAt, getCourse, sanitizeLevel, seatRadius, spinnerBars } from '../shared/hippoRapids/index.js';
 import { RECONNECT_MS, RoomError, createRoomManager } from '../hippoRapids/rooms.js';
 
 function fakeSocket() {
@@ -170,7 +170,58 @@ describe('hippo rapids sim', () => {
         let steps = 0;
         while (sim.phase !== 'done' && steps++ < 60 * 500) sim.step(STEP);
         expect(sim.phase).toBe('done');
-        expect(sim.z).toBeGreaterThanOrEqual(FINISH_Z);
+        expect(sim.z).toBeGreaterThanOrEqual(sim.course.finishZ);
+    });
+});
+
+describe('hippo rapids levels', () => {
+    it('has a stack of built-in levels, each a valid level that bots can finish', () => {
+        expect(LEVELS.length).toBeGreaterThanOrEqual(7);
+        for (const l of LEVELS) {
+            expect(sanitizeLevel(l.def)).toEqual(l.def);
+            expect(l.par[0]).toBeLessThan(l.par[1]);
+        }
+        const sim = createSim({ seats: 4, skill: 1, seed: 3, level: 'lagoon' });
+        let steps = 0;
+        while (sim.phase !== 'done' && steps++ < 60 * 200) sim.step(STEP);
+        expect(sim.phase).toBe('done');
+        expect(sim.run).toBeLessThan(120);
+    });
+
+    it('takes a second off the time for each ring flown through, once', () => {
+        const sim = createSim({ seats: 4, level: 'lagoon' });
+        sim.hippos.forEach((h) => (h.bot = false));
+        runFor(sim, COUNTDOWN + 0.1);
+        const ring = sim.course.rings[0];
+        sim.x = ring.x;
+        sim.z = ring.z;
+        sim.step(STEP);
+        sim.step(STEP);
+        expect(sim.rings.size).toBe(1);
+        expect(sim.snapshot().rg).toEqual([0]);
+    });
+
+    it('cleans up whatever a player makes in the editor', () => {
+        expect(sanitizeLevel(null)).toBeNull();
+        expect(sanitizeLevel('nope')).toBeNull();
+        const level = sanitizeLevel({
+            name: '<b>Evil</b> Run',
+            finish: 99999,
+            center: [[0, 1e9], ['x', 1]],
+            checkpoints: [-5, 100, 100, 'a', 1e6],
+            items: [{ t: 'rock', x: 5, z: 50, r: 500 }, { t: 'nuke', x: 0, z: 0 }, { t: 'mine', x: NaN, z: 3 }, { t: 'spinner', x: 0, z: 90, bars: 40, hazard: 'yes' }],
+        });
+        expect(level.name).toBe('bEvilb Run');
+        expect(level.finish).toBe(1400);
+        expect(level.center[0][1]).toBe(60);
+        expect(level.checkpoints).toEqual([100, 100]);
+        expect(level.items).toHaveLength(2);
+        expect(level.items[0].r).toBe(3.5);
+        expect(level.items[1]).toMatchObject({ bars: 4, hazard: 0 });
+        // And it builds into a course the sim can run.
+        const sim = createSim({ seats: 2, level });
+        for (let i = 0; i < 600; i++) sim.step(STEP);
+        expect(Number.isFinite(sim.x)).toBe(true);
     });
 });
 
@@ -282,13 +333,31 @@ describe('hippo rapids rooms', () => {
         expect(rooms.size).toBe(0);
     });
 
+    it('runs the level the host picked, built-in or custom', () => {
+        const { rooms } = setup();
+        const host = fakeSocket();
+        const room = rooms.create(host, { name: 'A', seats: 2, level: 'gulch' });
+        expect(host.last('room')).toMatchObject({ level: 'gulch', def: null });
+        expect(room.sim.course.name).toBe('Geyser Gulch');
+        rooms.setLevel(host, { level: { name: 'Mine', finish: 150, items: [{ t: 'rock', x: 0, z: 60 }] } });
+        expect(host.last('room')).toMatchObject({ level: 'custom' });
+        expect(host.last('room').def.name).toBe('Mine');
+        expect(room.sim.course.rocks).toHaveLength(1);
+        rooms.setLevel(host, { level: 'no-such-level' });
+        expect(host.last('room').level).toBe('lagoon');
+        const guest = fakeSocket();
+        rooms.join(guest, { code: room.code, name: 'B' });
+        rooms.setLevel(guest, { level: 'falls' });
+        expect(room.level.id).toBe('lagoon');
+    });
+
     it('goes back to the dock after a finish', () => {
         const { rooms, advance } = setup();
         const host = fakeSocket();
         const room = rooms.create(host, { name: 'A', seats: 2 });
         rooms.start(host);
         room.sim.phase = 'run';
-        room.sim.z = FINISH_Z + 1;
+        room.sim.z = room.sim.course.finishZ + 1;
         advance(100);
         expect(room.status).toBe('done');
         rooms.again(host);

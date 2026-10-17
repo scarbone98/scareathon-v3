@@ -2,8 +2,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
-  CHECKPOINTS,
-  FINISH_Z,
   geyserAt,
   getCourse,
   logAt,
@@ -315,7 +313,7 @@ export class Renderer {
   readonly gl: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(55, 1, 0.5, 400);
-  private course: Course = getCourse();
+  private course: Course = getCourse('lagoon');
   private disposables: { dispose(): void }[] = [];
   private clockT = 0;
   // Where the camera is, smoothed. camHeading is which way "up the screen" points in the world.
@@ -330,7 +328,12 @@ export class Renderer {
   private sweepers: THREE.Mesh[] = [];
   private logs: THREE.Mesh[] = [];
   private boostPads: THREE.Mesh[] = [];
-  private whirl!: THREE.Mesh;
+  private whirl: THREE.Mesh | null = null;
+  private world = new THREE.Group();
+  private levelOwned: { dispose(): void }[] = [];
+  private levelBuild = false;
+  private ringMeshes: THREE.Group[] = [];
+  private ringsGot = new Set<number>();
   private geysers: { ring: THREE.Mesh; column: THREE.Mesh; spit: number }[] = [];
   private gators: THREE.Group[] = [];
   private spinners: THREE.Group[] = [];
@@ -369,8 +372,34 @@ export class Renderer {
   // --- the world ----------------------------------------------------------------------
 
   private own<T extends { dispose(): void }>(d: T): T {
-    this.disposables.push(d);
+    (this.levelBuild ? this.levelOwned : this.disposables).push(d);
     return d;
+  }
+
+  // Swaps in a new river: everything specific to the old one is thrown away and rebuilt.
+  setCourse(course: Course) {
+    for (const d of this.levelOwned) d.dispose();
+    this.levelOwned = [];
+    this.world.clear();
+    this.sweepers = [];
+    this.logs = [];
+    this.boostPads = [];
+    this.flags = [];
+    this.geysers = [];
+    this.gators = [];
+    this.spinners = [];
+    this.bumpers = [];
+    this.ringMeshes = [];
+    this.ringsGot = new Set();
+    this.whirl = null;
+    this.flagsUp = -1;
+    this.course = course;
+    this.levelBuild = true;
+    this.buildBanks();
+    this.buildDecor();
+    this.buildObstacles(course);
+    this.buildLandmarks();
+    this.levelBuild = false;
   }
 
   private buildWorld() {
@@ -401,10 +430,8 @@ export class Renderer {
     scene.add(this.sky);
 
     this.buildWater();
-    this.buildBanks();
-    this.buildDecor();
-    this.buildObstacles(course);
-    this.buildLandmarks();
+    scene.add(this.world);
+    this.setCourse(course);
     this.buildPuffs();
     scene.add(this.raft);
     this.raft.add(this.raftBody);
@@ -453,7 +480,7 @@ export class Renderer {
     const grass = C("#7fc24a");
     const grassFar = C("#4f9a3c");
     const zs: number[] = [];
-    for (let z = -60; z <= 820; z += SEG) zs.push(z);
+    for (let z = -60; z <= course.length + 110; z += SEG) zs.push(z);
     const hedgeParts: THREE.BufferGeometry[] = [];
     for (const side of [-1, 1]) {
       const pos: number[] = [];
@@ -488,13 +515,13 @@ export class Renderer {
       geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
       geo.setIndex(idx);
       geo.computeVertexNormals();
-      this.scene.add(new THREE.Mesh(geo, this.own(lambert({ side: THREE.DoubleSide }))));
+      this.world.add(new THREE.Mesh(geo, this.own(lambert({ side: THREE.DoubleSide }))));
       // The rounded hedge along the water's edge.
       const curve = new THREE.CatmullRomCurve3(zs.map((z) => new THREE.Vector3(course.centerX(z) + side * (course.halfWidth(z) + 0.15), 1.45, z)));
       const tube = new THREE.TubeGeometry(curve, zs.length * 2, 0.5, 8, false);
       hedgeParts.push(tint(tube, "#4fae3e"));
     }
-    this.scene.add(new THREE.Mesh(this.own(mergeGeometries(hedgeParts)!), this.own(lambert())));
+    this.world.add(new THREE.Mesh(this.own(mergeGeometries(hedgeParts)!), this.own(lambert())));
   }
 
   private buildDecor() {
@@ -528,12 +555,12 @@ export class Renderer {
       m.compose(new THREE.Vector3(x, 1.2, z), q, scale);
       mesh.setMatrixAt(i, m);
     };
-    for (let i = 0; i < 400; i++) at(i, trees, -50 + rng() * 850, 3, 38, 1, 6.28);
-    for (let i = 0; i < 110; i++) at(i, pumpkins, -40 + rng() * 820, 1.6, 7, 0.9, 6.28);
-    for (let i = 0; i < 75; i++) at(i, stones, -40 + rng() * 820, 2, 9, 1, 0.6);
+    for (let i = 0; i < 400; i++) at(i, trees, -50 + rng() * (course.length + 130), 3, 38, 1, 6.28);
+    for (let i = 0; i < 110; i++) at(i, pumpkins, -40 + rng() * (course.length + 100), 1.6, 7, 0.9, 6.28);
+    for (let i = 0; i < 75; i++) at(i, stones, -40 + rng() * (course.length + 100), 2, 9, 1, 0.6);
     for (const mesh of [trees, pumpkins, stones]) {
       mesh.instanceMatrix.needsUpdate = true;
-      this.scene.add(mesh);
+      this.world.add(mesh);
     }
   }
 
@@ -553,7 +580,7 @@ export class Renderer {
       body.rotation.y = rng() * 6;
       const moss = new THREE.Mesh(this.own(tint(new THREE.SphereGeometry(r.r * 0.62, 8, 6).scale(1, 0.4, 1), "#6bbf4a")), this.own(lambert({ flatShading: true })));
       moss.position.set(r.x + r.r * 0.1, 0.2 + r.r * 0.62, r.z);
-      this.scene.add(body, moss);
+      this.world.add(body, moss);
     }
     // Spiked buoys.
     const spikes: THREE.BufferGeometry[] = [tint(new THREE.SphereGeometry(0.6, 12, 9).translate(0, 0.35, 0), "#7a2fd0")];
@@ -570,7 +597,8 @@ export class Renderer {
       spikes.push(tint(cone, "#f4ecd2"));
     }
     this.mines = new THREE.InstancedMesh(mergeGeometries(spikes)!, this.own(lambert({ flatShading: true })), Math.max(1, course.mines.length));
-    this.scene.add(this.mines);
+    this.mines.count = course.mines.length;
+    this.world.add(this.mines);
     // Sweepers: a spiked log turning on a post in the bank.
     for (const s of course.sweepers) {
       const parts: THREE.BufferGeometry[] = [
@@ -584,7 +612,7 @@ export class Renderer {
       }
       const mesh = new THREE.Mesh(this.own(mergeGeometries(parts)!), this.own(lambert({ flatShading: true })));
       mesh.position.set(s.x, 0, s.z);
-      this.scene.add(mesh);
+      this.world.add(mesh);
       this.sweepers.push(mesh);
     }
     // Logs.
@@ -599,7 +627,7 @@ export class Renderer {
       ];
       const mesh = new THREE.Mesh(this.own(mergeGeometries(parts)!), this.own(lambert()));
       mesh.position.set(l.x, 0, l.z);
-      this.scene.add(mesh);
+      this.world.add(mesh);
       this.logs.push(mesh);
     }
     // Boost pads.
@@ -630,11 +658,12 @@ export class Renderer {
       const pad = new THREE.Mesh(this.own(new THREE.CircleGeometry(b.r, 28)), this.own(new THREE.MeshBasicMaterial({ map: padTex, transparent: true, depthWrite: false, fog: false })));
       pad.rotation.x = -Math.PI / 2;
       pad.position.set(b.x, 0.06, b.z);
-      this.scene.add(pad);
+      this.world.add(pad);
       this.boostPads.push(pad);
     }
     this.buildHazards(course);
     // The whirlpool.
+    if (!course.vortex) return;
     const swirl = this.own(
       canvasTexture(256, 256, (g) => {
         g.clearRect(0, 0, 256, 256);
@@ -665,7 +694,7 @@ export class Renderer {
     this.whirl = new THREE.Mesh(this.own(new THREE.CircleGeometry(course.vortex.r, 48)), this.own(new THREE.MeshBasicMaterial({ map: swirl, transparent: true, depthWrite: false, fog: false })));
     this.whirl.rotation.x = -Math.PI / 2;
     this.whirl.position.set(course.vortex.x, 0.05, course.vortex.z);
-    this.scene.add(this.whirl);
+    this.world.add(this.whirl);
   }
 
   // Geysers, lily pads, pumpkin bumpers, gators and paddle wheels.
@@ -682,7 +711,7 @@ export class Renderer {
       const column = new THREE.Mesh(this.own(new THREE.CylinderGeometry(1, 1.5, 1, 14, 1, true).translate(0, 0.5, 0)), columnMat);
       column.position.set(g.x, 0, g.z);
       column.visible = false;
-      this.scene.add(vent, ring, column);
+      this.world.add(vent, ring, column);
       this.geysers.push({ ring, column, spit: 0 });
     }
     // Lily pads.
@@ -696,7 +725,7 @@ export class Renderer {
         if (rng() < 0.22) padGeo.push(tint(new THREE.ConeGeometry(0.22, 0.4, 7).translate(l.x + Math.cos(a) * d, 0.3, l.z + Math.sin(a) * d), "#ff7aa8"));
       }
     }
-    if (padGeo.length) this.scene.add(new THREE.Mesh(this.own(mergeGeometries(padGeo)!), this.own(lambert())));
+    if (padGeo.length) this.world.add(new THREE.Mesh(this.own(mergeGeometries(padGeo)!), this.own(lambert())));
     // Pumpkin bumpers: round, ribbed, glowing.
     for (const b of course.bumpers) {
       const parts: THREE.BufferGeometry[] = [];
@@ -712,7 +741,7 @@ export class Renderer {
       base.position.y = 0.1;
       grp.add(base);
       grp.position.set(b.x, 0, b.z);
-      this.scene.add(grp);
+      this.world.add(grp);
       this.bumpers.push(grp);
     }
     // Gators, lying along x with the snout toward +x.
@@ -738,7 +767,7 @@ export class Renderer {
       grp.add(outline(geo, 0.03));
       grp.scale.setScalar(0.85);
       grp.position.set(g.x, 0, g.z);
-      this.scene.add(grp);
+      this.world.add(grp);
       this.gators.push(grp);
     }
     // Spinning things: friendly paddle wheels with striped blades, and spiked propellers that hurt.
@@ -767,8 +796,20 @@ export class Renderer {
       grp.add(new THREE.Mesh(geo, this.own(lambert({ flatShading: !!sp.hazard }))));
       grp.add(outline(geo, 0.03));
       grp.position.set(sp.x, 0, sp.z);
-      this.scene.add(grp);
+      this.world.add(grp);
       this.spinners.push(grp);
+    }
+    // Rings to fly through: each is worth a second off your time.
+    const hoop = this.own(mergeGeometries([skin(new THREE.TorusGeometry(1.8, 0.17, 8, 30), "#ffd23a", 0.2), skin(new THREE.TorusGeometry(1.8, 0.05, 6, 30).translate(0, 0, 0.12), "#fff6b0", 0)])!);
+    const hoopMat = this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x9a7000 }));
+    const glow = this.own(new THREE.CircleGeometry(1.75, 24));
+    const glowMat = this.own(new THREE.MeshBasicMaterial({ color: 0xffe45e, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }));
+    for (const r of course.rings) {
+      const grp = new THREE.Group();
+      grp.add(new THREE.Mesh(hoop, hoopMat), new THREE.Mesh(glow, glowMat));
+      grp.position.set(r.x, 1.9, r.z);
+      this.world.add(grp);
+      this.ringMeshes.push(grp);
     }
   }
 
@@ -802,18 +843,18 @@ export class Renderer {
       for (const side of [-1, 1]) {
         const post = new THREE.Mesh(this.own(tint(new THREE.BoxGeometry(1.4, 13, 1.4).translate(0, 6, 0), "#e07a3c")), brick);
         post.position.set(cx + side * (hw + 0.1), 0, z);
-        this.scene.add(post);
+        this.world.add(post);
       }
       const board = sign(text, bg, fg, hw * 2 + 3);
       board.position.set(cx, 13.2, z);
       // Seen from upriver, so it faces back down the course.
       board.rotation.y = Math.PI;
-      this.scene.add(board);
+      this.world.add(board);
     };
     arch(14, "START", "#3a9bd0", "#ffe45e");
-    arch(FINISH_Z, "FINISH", "#d03a8a", "#fff4a8");
+    arch(course.finishZ, "FINISH", "#d03a8a", "#fff4a8");
     // Checkpoints: a flag on each bank. They turn from grey to green once the crew has passed.
-    CHECKPOINTS.forEach((z) => {
+    course.checkpoints.forEach((z) => {
       const hw = course.halfWidth(z);
       const cx = course.centerX(z);
       for (const side of [-1, 1]) {
@@ -822,7 +863,7 @@ export class Renderer {
         const flag = new THREE.Mesh(this.own(new THREE.PlaneGeometry(2.4, 1.4).translate(1.2 * -side, 0, 0)), this.own(new THREE.MeshBasicMaterial({ color: 0x8a8aa0, side: THREE.DoubleSide })));
         flag.position.set(cx + side * (hw + 1.4), 6.2, z);
         flag.rotation.y = Math.PI / 2;
-        this.scene.add(pole, flag);
+        this.world.add(pole, flag);
         this.flags.push(flag);
       }
     });
@@ -1048,7 +1089,19 @@ export class Renderer {
       const s = 1 + Math.sin(t * 6 + i) * 0.06;
       p.scale.set(s, s, s);
     });
-    this.whirl.rotation.z = -t * 0.9;
+    if (this.whirl) this.whirl.rotation.z = -t * 0.9;
+    // Rings pop when the crew flies through; a new run brings them all back.
+    const gotNow = new Set(view.rg);
+    if (view.rg.length < this.ringsGot.size) this.ringsGot = new Set();
+    this.ringMeshes.forEach((m, i) => {
+      const got = gotNow.has(i);
+      if (got && !this.ringsGot.has(i)) this.burst(m.position.x, m.position.z, "cp");
+      m.scale.setScalar(m.scale.x + ((got ? 0 : 1) - m.scale.x) * Math.min(1, dt * 9));
+      m.visible = m.scale.x > 0.03;
+      m.position.y = 1.9 + Math.sin(t * 2.2 + i) * 0.12;
+      m.rotation.y = Math.sin(t * 1.3 + i) * 0.25;
+    });
+    this.ringsGot = gotNow;
     this.course.geysers.forEach((g, i) => {
       const fx = this.geysers[i];
       const st = geyserAt(g, sim);

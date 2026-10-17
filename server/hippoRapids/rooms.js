@@ -10,7 +10,7 @@
 // Rooms live in memory only.
 
 import { randomBytes, randomInt } from 'node:crypto';
-import { STEP, createSim } from '../shared/hippoRapids/index.js';
+import { STEP, createSim, getLevel, sanitizeLevel } from '../shared/hippoRapids/index.js';
 import { RoomError, cleanCode, cleanName } from '../frogBall/rooms.js';
 
 export { RoomError, cleanCode, cleanName };
@@ -24,6 +24,14 @@ const MAX_ROOMS = 300;
 const MAX_INPUTS_PER_SECOND = 60;
 const MAX_CATCH_UP_S = 0.2;
 export const BOT_SKILL = 0.5;
+const DEFAULT_LEVEL = 'lagoon';
+
+// A built-in's id, or a level someone made in the editor (cleaned up, so it can't hurt the sim).
+function pickLevel(input) {
+    if (typeof input === 'string' && getLevel(input)) return { id: input, def: null };
+    const def = input && typeof input === 'object' ? sanitizeLevel(input) : null;
+    return def ? { id: 'custom', def } : { id: DEFAULT_LEVEL, def: null };
+}
 const OPEN = 1;
 
 export function createRoomManager({ log, now = () => Date.now() } = {}) {
@@ -78,6 +86,8 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             token: room.players[seat].token,
             status: room.status,
             seats: room.seats,
+            level: room.level.id,
+            def: room.level.def,
             host: room.host,
             names: room.players.map((p) => p?.name ?? null),
             connected: connected(room),
@@ -103,7 +113,7 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
     }
 
     function freshSim(room) {
-        room.sim = createSim({ seats: room.seats, skill: BOT_SKILL, seed: randomInt(1, 1e6) });
+        room.sim = createSim({ seats: room.seats, skill: BOT_SKILL, seed: randomInt(1, 1e6), level: room.level.def ?? room.level.id });
         syncBots(room);
     }
 
@@ -160,12 +170,13 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             return rooms.get(code) ?? null;
         },
 
-        create(socket, { name, seats }) {
+        create(socket, { name, seats, level }) {
             if (rooms.size >= MAX_ROOMS) throw new RoomError('busy');
             const count = seats === 2 ? 2 : 4;
             const room = {
                 code: newCode(),
                 seats: count,
+                level: pickLevel(level),
                 players: Array(count).fill(null),
                 host: 0,
                 status: 'lobby',
@@ -225,6 +236,16 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             log?.info({ code: room.code, seats: room.seats, humans: connected(room).filter(Boolean).length }, 'Hippo Rapids raft launched');
             broadcast(room, { type: 'start' });
             sendRoomInfo(room);
+        },
+
+        // The host picks which river to raft, from the dock.
+        setLevel(socket, { level }) {
+            const found = playerFor(socket);
+            if (!found || found.seat !== found.room.host || found.room.status === 'playing') return;
+            found.room.level = pickLevel(level);
+            freshSim(found.room);
+            found.room.status = 'lobby';
+            sendRoomInfo(found.room);
         },
 
         // Back to the dock, same room, same crew.

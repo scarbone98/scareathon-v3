@@ -10,9 +10,13 @@
 // Everything that moves on its own (sweepers, logs) is a pure function of the sim clock
 // `t`, so a snapshot only has to carry the raft and the hippos.
 
+import { GEYSER_BLAST, GEYSER_WARN, SEG, buildCourse, clamp, geyserAt, logAt, sanitizeLevel, smooth, spinnerBars, sweeperEnds } from './course.js';
+import { LEVELS, getLevel } from './levels.js';
+
+export { GEYSER_BLAST, GEYSER_WARN, LEVELS, getLevel, geyserAt, logAt, sanitizeLevel, spinnerBars, sweeperEnds };
+export { ITEM_TYPES } from './course.js';
+
 export const STEP = 1 / 60;
-export const COURSE_LENGTH = 722;
-export const FINISH_Z = 718;
 export const MAX_HULL = 5;
 export const COUNTDOWN = 3.5;
 export const SINK_TIME = 2.6;
@@ -22,6 +26,10 @@ export const GAS_REGEN = 0.3;
 export const GAS_RESTART = 0.15;
 export const HIPPO_NAMES = ['Hyuk', 'Bubbles', 'Gus', 'Petunia'];
 export const SEAT_COUNTS = [2, 4];
+// Each ring the raft passes through takes this many seconds off the time that counts.
+export const RING_BONUS = 1;
+// A toot builds up over this long, so a tap is a nudge and a held toot is a shove.
+const TOOT_RAMP = 0.22;
 
 const DRAG = 1.15;
 const SPIN_DRAG = 1.4;
@@ -29,10 +37,7 @@ const BOUNCE = 0.5;
 const INVULN = 1.4;
 const RAFT_RADIUS = { 2: 1.9, 4: 2.45 };
 const THRUST = { 2: 4.4, 4: 3.7 };
-const SEG = 5;
 
-const smooth = (t) => t * t * (3 - 2 * t);
-const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 export const wrapAngle = (a) => {
     const t = (a + Math.PI) % (Math.PI * 2);
     return (t < 0 ? t + Math.PI * 2 : t) - Math.PI;
@@ -49,191 +54,21 @@ function mulberry32(seed) {
     };
 }
 
-function interp(points, z) {
-    if (z <= points[0][0]) return points[0][1];
-    for (let i = 1; i < points.length; i++) {
-        if (z <= points[i][0]) {
-            const [z0, v0] = points[i - 1];
-            const [z1, v1] = points[i];
-            return v0 + (v1 - v0) * smooth((z - z0) / (z1 - z0));
-        }
-    }
-    return points[points.length - 1][1];
-}
-
-const CENTER = [[-80, 0], [112, 0], [145, -7], [180, 7], [208, 0], [400, 0], [440, 8], [480, -8], [520, 0], [600, 0], [640, 6], [680, -6], [720, 0], [900, 0]];
-const WIDTH = [[-80, 13], [40, 13], [90, 11.5], [290, 11.5], [330, 11], [440, 11], [470, 9.5], [520, 9.5], [545, 12.5], [560, 12], [665, 12], [678, 14.5], [692, 12], [900, 12]];
-const FLOW = [[-80, 1], [440, 1.4], [455, 3], [515, 3.2], [535, 1.2], [900, 1.2]];
-
-// Where the checkpoint flags stand: sinking sends the crew back to the last one reached.
-export const CHECKPOINTS = [110, 200, 295, 385, 455, 525, 575, 650];
-// What the player reads while rafting: the name of each stretch, by where it starts.
-export const SECTIONS = [
-    [-80, 'The Dock'],
-    [40, 'Boulder Bend'],
-    [195, 'Buoy Alley'],
-    [295, 'The Sweepers'],
-    [385, 'Log Jam'],
-    [455, 'Hippo Falls'],
-    [525, 'The Whirlpool'],
-    [560, 'Geyser Gulch'],
-    [640, 'Gator Marsh'],
-];
-const VORTEX = { z: 540, r: 17, strength: 2.4 };
-
-export function sectionAt(z) {
-    let name = SECTIONS[0][1];
-    for (const [from, label] of SECTIONS) if (z >= from) name = label;
-    return name;
-}
-
-const buildCourse = () => {
-    const rng = mulberry32(1031);
-    const centerX = (z) => interp(CENTER, z);
-    const halfWidth = (z) => interp(WIDTH, z);
-    const rocks = [];
-    const mines = [];
-    const sweepers = [];
-    const logs = [];
-    const boosts = [];
-    const geysers = [];
-    const lily = [];
-    const bumpers = [];
-    const gators = [];
-    const spinners = [];
-
-    // Boulders sit near the middle (never in a gap narrower than a raft against a bank),
-    // so each one is a choice of left or right.
-    const rock = (z, side, spread, r) => {
-        const hw = halfWidth(z);
-        rocks.push({ x: centerX(z) + side * Math.max(0.6, Math.min(hw * spread, hw - r - 7.4)), z, r });
-    };
-
-    // The dock and the first boulders: easy weaving.
-    let side = 1;
-    for (let z = 56; z <= 104; z += 12) {
-        rock(z, side, 0.4 + rng() * 0.1, 1.2 + rng() * 0.7);
-        side = -side;
-    }
-    // Boulder Bend: boulders on the outside of each turn, so cutting the corner is tempting.
-    rock(134, 1, 0.5, 1.9);
-    rock(156, -1, 0.5, 2.1);
-    rock(168, 1, 0.5, 1.7);
-    // Buoy Alley: rows of spiked buoys across the river with one opening, which jumps from
-    // side to side. Touching a buoy hurts.
-    [-4.2, 3.8, -2.6, 5, -5, 2.4].forEach((gc, i) => {
-        const z = 214 + i * 17;
-        const hw = halfWidth(z);
-        const cx = centerX(z);
-        for (let x = -hw + 1.4; x <= hw - 1.3; x += 3.1) {
-            if (Math.abs(x - gc) < 5.7) continue;
-            mines.push({ x: cx + x, z, r: 0.85 });
-        }
-    });
-    // The Sweepers: spiked logs turning on pivots in the banks.
-    [[305, 1], [335, -1], [365, 1]].forEach(([z, s], i) => {
-        sweepers.push({ x: centerX(z) + s * (halfWidth(z) - 0.4), z, len: 8.2, speed: (i % 2 ? -1 : 1) * 1.15, phase: rng() * 6.28 });
-    });
-    // Log Jam: logs sliding across the whole river.
-    [396, 411, 426, 441].forEach((z, i) => {
-        logs.push({ x: centerX(z), z, half: 3.2, r: 0.8, amp: 5, speed: 1.25, phase: i * 1.7 });
-    });
-    // Hippo Falls: fast and narrow, boulders and boost pads.
-    for (let z = 464, s = 1; z <= 516; z += 13, s = -s) rock(z, s, 0.38, 1.3);
-    boosts.push({ x: centerX(472), z: 472, r: 2.6 }, { x: centerX(498), z: 498, r: 2.6 });
-
-    // Geyser Gulch: vents that bubble, then blast whatever floats over them; lily pads that
-    // gum up the raft; and pumpkin bumpers that fling it back.
-    [[572, -3.5], [586, 4], [600, -4.5], [614, 3.5], [628, -2]].forEach(([z, dx], i) => {
-        geysers.push({ x: centerX(z) + dx, z, r: 3.4, period: 4.6, phase: i * 1.1 });
-    });
-    lily.push({ x: centerX(580) + 4.5, z: 580, r: 4.2 }, { x: centerX(607) - 4, z: 607, r: 4.6 }, { x: centerX(634), z: 634, r: 4.2 });
-    bumpers.push({ x: centerX(593) - 1, z: 593, r: 1.3 }, { x: centerX(607) + 6, z: 607, r: 1.3 }, { x: centerX(620) - 6, z: 620, r: 1.3 }, { x: centerX(632) + 3, z: 632, r: 1.3 });
-    // Gator Marsh: paddle wheels, a rock gate, and gators patrolling across the river.
-    spinners.push({ x: centerX(654), z: 654, len: 4.6, speed: 1.5, phase: 0.4 }, { x: centerX(706), z: 706, len: 4.6, speed: -1.6, phase: 2 });
-    // Spinning things earlier on, too: a gentle paddle wheel to learn on, spiked propellers
-    // (hazards) you have to stay out of the middle for, and a big wheel turning in the
-    // whirlpool's eye.
-    spinners.push(
-        { x: centerX(121), z: 121, len: 4.4, speed: 1.2, phase: 1 },
-        { x: centerX(186), z: 186, len: 5.2, speed: 1.35, phase: 0, bars: 1, hazard: true },
-        { x: centerX(375), z: 375, len: 5, speed: -1.5, phase: 2.5, bars: 1, hazard: true },
-        { x: centerX(538), z: 538, len: 7, speed: 0.8, phase: 0, bars: 2 },
-    );
-    for (const z of [666, 692]) gators.push({ x: centerX(z), z, half: 1.3, r: 0.75, amp: 6, speed: 1, phase: z * 0.37 });
-    for (const side of [-1, 1]) rocks.push({ x: centerX(678) + side * 5.7, z: 678, r: 1.8 });
-
-    const statics = [...rocks.map((o) => ({ ...o, hazard: false })), ...mines.map((o) => ({ ...o, hazard: true }))];
-
-    // The river's two banks as line segments, for the raft to bump into.
-    const walls = [];
-    for (let z = -60; z < 820; z += SEG) {
-        walls.push([
-            [centerX(z) - halfWidth(z), z, centerX(z + SEG) - halfWidth(z + SEG), z + SEG],
-            [centerX(z) + halfWidth(z), z, centerX(z + SEG) + halfWidth(z + SEG), z + SEG],
-        ]);
-    }
-
-    const flowAt = (x, z) => {
-        const f = interp(FLOW, z);
-        let fx = 0;
-        let fz = f;
-        const vx = centerX(VORTEX.z);
-        const dx = x - vx;
-        const dz = z - VORTEX.z;
-        const d = Math.hypot(dx, dz);
-        if (d < VORTEX.r && d > 0.01) {
-            const s = VORTEX.strength * smooth(1 - d / VORTEX.r);
-            fx += (-dz / d) * s;
-            fz += (dx / d) * s;
-        }
-        return [fx, fz];
-    };
-
-    return { centerX, halfWidth, flowAt, rocks, mines, sweepers, logs, boosts, geysers, lily, bumpers, gators, spinners, statics, walls, vortex: { x: centerX(VORTEX.z), z: VORTEX.z, r: VORTEX.r } };
-};
-
-let cached;
-export const getCourse = () => (cached ??= buildCourse());
-
-// The two ends of a sweeper's spiked log, and of a sliding log, at sim time t.
-export const sweeperEnds = (s, t) => {
-    const a = s.phase + s.speed * t;
-    return [s.x, s.z, s.x + Math.sin(a) * s.len, s.z + Math.cos(a) * s.len];
-};
-export const logAt = (l, t) => {
-    const x = l.x + l.amp * Math.sin(l.speed * t + l.phase);
-    const vx = l.amp * l.speed * Math.cos(l.speed * t + l.phase);
-    return { x, vx };
-};
-
-// Where a geyser is in its cycle at sim time t: quiet, bubbling a warning, or erupting.
-export const GEYSER_WARN = 1.3;
-export const GEYSER_BLAST = 0.9;
-export const geyserAt = (g, t) => {
-    const ph = (((t + g.phase) % g.period) + g.period) % g.period;
-    if (ph < GEYSER_BLAST) return { state: 'erupt', k: ph / GEYSER_BLAST };
-    if (ph > g.period - GEYSER_WARN) return { state: 'warn', k: (ph - (g.period - GEYSER_WARN)) / GEYSER_WARN };
-    return { state: 'idle', k: 0 };
-};
-// The two bars of a paddle wheel at sim time t, each as its two ends, and how fast the ends move.
-export const spinnerBars = (s, t) => {
-    const a = s.phase + s.speed * t;
-    const n = s.bars ?? 2;
-    return Array.from({ length: n }, (_, k) => (k * Math.PI) / n).map((o) => {
-        const sn = Math.sin(a + o);
-        const cs = Math.cos(a + o);
-        return { ends: [s.x - sn * s.len, s.z - cs * s.len, s.x + sn * s.len, s.z + cs * s.len], va: [-cs * s.len * s.speed, sn * s.len * s.speed], vb: [cs * s.len * s.speed, -sn * s.len * s.speed] };
-    });
-};
-
 export const raftRadius = (seats) => RAFT_RADIUS[seats] ?? RAFT_RADIUS[4];
 // How far from the raft's middle the hippos sit.
 export const seatRadius = (seats) => raftRadius(seats) - 0.7;
 
-export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
+// A level can be a built-in's id, a level (as saved by the editor) or an already built course.
+export function getCourse(level = 'whole') {
+    if (level && typeof level === 'object' && level.centerX) return level;
+    const def = typeof level === 'string' ? getLevel(level)?.def : sanitizeLevel(level);
+    return buildCourse(def ?? getLevel('whole').def);
+}
+
+export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' } = {}) {
     const count = seats === 2 ? 2 : 4;
-    const course = getCourse();
+    const course = getCourse(level);
+    const CHECKPOINTS = course.checkpoints;
     const R = raftRadius(count);
     const seatR = seatRadius(count);
     const minGap = (count === 2 ? 1.2 : 0.8);
@@ -259,12 +94,14 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
         cp: -1,
         sinks: 0,
         hits: 0,
+        rings: new Set(),
         events: [],
         stuck: 0,
         hippos: Array.from({ length: count }, (_, i) => ({
             ang: (i / count) * Math.PI * 2 + Math.PI,
             mv: 0,
             fart: false,
+            pw: 0,
             gas: 1,
             spent: false,
             bot: true,
@@ -395,12 +232,13 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
             h.ang = wrapAngle(h.ang + h.mv * RIM_SPEED * dt);
             const farting = racing && h.fart && h.gas > 0 && !h.spent;
             h.live = farting;
+            h.pw = farting ? Math.min(1, h.pw + dt / TOOT_RAMP) : Math.max(0, h.pw - dt / 0.1);
             if (farting) {
                 h.gas = Math.max(0, h.gas - GAS_DRAIN * dt);
                 if (h.gas <= 0) h.spent = true;
                 const a = sim.yaw + h.ang;
-                fx -= Math.sin(a) * THRUST[count];
-                fz -= Math.cos(a) * THRUST[count];
+                fx -= Math.sin(a) * THRUST[count] * h.pw;
+                fz -= Math.cos(a) * THRUST[count] * h.pw;
             } else {
                 h.gas = Math.min(1, h.gas + GAS_REGEN * dt);
                 if (h.spent && h.gas >= GAS_RESTART) h.spent = false;
@@ -480,8 +318,10 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
         sim.vx += (fx - (sim.vx - cx) * drag) * dt;
         sim.vz += (fz + pad - (sim.vz - cz) * drag) * dt;
         // The vortex twists the raft too.
-        const d = Math.hypot(sim.x - course.vortex.x, sim.z - course.vortex.z);
-        if (d < course.vortex.r) sim.w += 0.35 * smooth(1 - d / course.vortex.r) * dt;
+        if (course.vortex) {
+            const d = Math.hypot(sim.x - course.vortex.x, sim.z - course.vortex.z);
+            if (d < course.vortex.r) sim.w += 0.35 * smooth(1 - d / course.vortex.r) * dt;
+        }
         sim.w -= sim.w * SPIN_DRAG * dt;
         sim.yaw = wrapAngle(sim.yaw + sim.w * dt);
         sim.x += sim.vx * dt;
@@ -502,7 +342,15 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
                 emit({ e: 'cp', i });
             }
         }
-        if (sim.phase === 'run' && sim.z >= FINISH_Z) {
+        if (sim.phase === 'run') {
+            course.rings.forEach((r, i) => {
+                if (!sim.rings.has(i) && Math.abs(r.z - sim.z) < 4 && Math.hypot(r.x - sim.x, r.z - sim.z) < r.r) {
+                    sim.rings.add(i);
+                    emit({ e: 'ring', i });
+                }
+            });
+        }
+        if (sim.phase === 'run' && sim.z >= course.finishZ) {
             sim.phase = 'done';
             emit({ e: 'finish' });
         }
@@ -530,6 +378,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
             cp: sim.cp,
             sinks: sim.sinks,
             hits: sim.hits,
+            rg: [...sim.rings],
             h: sim.hippos.map((h) => [r2(h.ang), h.live ? 1 : 0, r2(h.gas), h.spent ? 1 : 0, h.mv, h.bot ? 1 : 0]),
             ev: events,
         };
@@ -543,6 +392,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
         sim.cp = -1;
         sim.sinks = 0;
         sim.hits = 0;
+        sim.rings.clear();
         sim.respawn();
         sim.inv = 0;
         sim.events = [];
@@ -616,8 +466,19 @@ function guidance(sim, rng, skill) {
     if (sim.phase !== 'run') ax = az = 0;
     // Wedged: back out, with a sideways nudge toward the middle of the river.
     if (sim.stuck > 1.5) {
-        ax = (sim.course.centerX(sim.z) - sim.x) * 0.5;
-        az = -5;
+        // Slide off sideways from whatever's in front, with a little backing out.
+        let near = null;
+        let nd = Infinity;
+        for (const o of sim.course.statics) {
+            const d = Math.hypot(o.x - sim.x, o.z - sim.z) - o.r;
+            if (d < nd) {
+                nd = d;
+                near = o;
+            }
+        }
+        const dir = near && nd < R + 2 ? Math.sign(sim.x - near.x || 1) : Math.sign(sim.course.centerX(sim.z) - sim.x || 1);
+        ax = dir * 6;
+        az = near && nd < R + 2 ? -1.5 : -5;
     }
     const noise = (rng() - 0.5) * 0.8 * (1 - skill);
     const c = Math.cos(noise);

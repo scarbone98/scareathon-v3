@@ -1,11 +1,11 @@
 // The Hippo Rapids socket: one connection per player, reconnecting with backoff and
 // rejoining its room with the token the server handed out.
-import type { Snapshot } from "../../../../server/shared/hippoRapids/index.js";
+import type { Level, Snapshot } from "../../../../server/shared/hippoRapids/index.js";
 
 export type RoomStatus = "lobby" | "playing" | "done";
 
 export type ServerMessage =
-  | { type: "room"; code: string; seat: number; token: string; status: RoomStatus; seats: number; host: number; names: (string | null)[]; connected: boolean[] }
+  | { type: "room"; code: string; seat: number; token: string; status: RoomStatus; seats: number; level: string; def: Level | null; host: number; names: (string | null)[]; connected: boolean[] }
   | { type: "room-info"; code: string; status: "open" | "full" | "missing"; seats?: number; free?: number; host?: string }
   | { type: "start" }
   | ({ type: "snap" } & Snapshot)

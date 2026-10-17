@@ -142,6 +142,12 @@ export const sfx = {
   beep(go = false) {
     tone("square", go ? 880 : 440, go ? 880 : 440, go ? 0.5 : 0.18, 0.22);
   },
+  // Each ring in a row sings a note higher.
+  ring(n: number) {
+    const f = 660 * 2 ** (((n - 1) % 7) / 6);
+    tone("triangle", f, f * 1.5, 0.22, 0.3);
+    tone("sine", f * 2, f * 2, 0.3, 0.12, 0.05);
+  },
   checkpoint() {
     [523, 659, 784].forEach((f, i) => tone("triangle", f, f, 0.2, 0.3, i * 0.09));
   },

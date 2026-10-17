@@ -21,7 +21,7 @@ export default async function hippoRapidsRoutes(fastify, { rooms: injectedRooms 
     const rooms = injectedRooms ?? createRoomManager({ log });
 
     if (!fastify.hasDecorator('websocketServer')) {
-        await fastify.register(websocket, { options: { maxPayload: 4096 } });
+        await fastify.register(websocket, { options: { maxPayload: 65536 } });
     }
 
     const loop = injectedRooms ? null : setInterval(() => rooms.tick(), LOOP_MS);
@@ -82,6 +82,9 @@ export default async function hippoRapidsRoutes(fastify, { rooms: injectedRooms 
                         break;
                     case 'start':
                         rooms.start(socket);
+                        break;
+                    case 'level':
+                        rooms.setLevel(socket, message);
                         break;
                     case 'again':
                         rooms.again(socket);
