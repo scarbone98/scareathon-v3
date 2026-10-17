@@ -44,6 +44,21 @@ export interface Boost {
     r: number;
 }
 
+export interface Geyser {
+    x: number;
+    z: number;
+    r: number;
+    period: number;
+    phase: number;
+}
+export interface Spinner {
+    x: number;
+    z: number;
+    len: number;
+    speed: number;
+    phase: number;
+}
+
 export interface Course {
     centerX(z: number): number;
     halfWidth(z: number): number;
@@ -53,6 +68,11 @@ export interface Course {
     sweepers: Sweeper[];
     logs: Log[];
     boosts: Boost[];
+    geysers: Geyser[];
+    lily: Boost[];
+    bumpers: Rock[];
+    gators: Log[];
+    spinners: Spinner[];
     vortex: { x: number; z: number; r: number };
 }
 
@@ -128,3 +148,7 @@ export function seatRadius(seats: number): number;
 export function wrapAngle(a: number): number;
 export function sweeperEnds(s: Sweeper, t: number): [number, number, number, number];
 export function logAt(l: Log, t: number): { x: number; vx: number };
+export const GEYSER_WARN: number;
+export const GEYSER_BLAST: number;
+export function geyserAt(g: Geyser, t: number): { state: 'idle' | 'warn' | 'erupt'; k: number };
+export function spinnerBars(s: Spinner, t: number): { ends: [number, number, number, number]; va: [number, number]; vb: [number, number] }[];

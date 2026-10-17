@@ -35,7 +35,7 @@ const fmtTime = (t: number) => {
   return `${m}:${s.toFixed(1).padStart(4, "0")}`;
 };
 
-const stars = (r: Result) => (r.run < 190 && r.sinks === 0 ? 3 : r.run < 280 ? 2 : 1);
+const stars = (r: Result) => (r.run < 270 && r.sinks === 0 ? 3 : r.run < 400 ? 2 : 1);
 
 function loadName() {
   try {

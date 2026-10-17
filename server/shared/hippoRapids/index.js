@@ -11,8 +11,8 @@
 // `t`, so a snapshot only has to carry the raft and the hippos.
 
 export const STEP = 1 / 60;
-export const COURSE_LENGTH = 560;
-export const FINISH_Z = 556;
+export const COURSE_LENGTH = 722;
+export const FINISH_Z = 718;
 export const MAX_HULL = 5;
 export const COUNTDOWN = 3.5;
 export const SINK_TIME = 2.6;
@@ -61,12 +61,12 @@ function interp(points, z) {
     return points[points.length - 1][1];
 }
 
-const CENTER = [[-80, 0], [112, 0], [145, -7], [180, 7], [208, 0], [400, 0], [440, 8], [480, -8], [520, 0], [700, 0]];
-const WIDTH = [[-80, 13], [40, 13], [90, 11.5], [290, 11.5], [330, 11], [440, 11], [470, 9.5], [520, 9.5], [545, 12.5], [700, 12.5]];
-const FLOW = [[-80, 1], [440, 1.4], [455, 3], [515, 3.2], [535, 1.2], [700, 1.2]];
+const CENTER = [[-80, 0], [112, 0], [145, -7], [180, 7], [208, 0], [400, 0], [440, 8], [480, -8], [520, 0], [600, 0], [640, 6], [680, -6], [720, 0], [900, 0]];
+const WIDTH = [[-80, 13], [40, 13], [90, 11.5], [290, 11.5], [330, 11], [440, 11], [470, 9.5], [520, 9.5], [545, 12.5], [560, 12], [665, 12], [678, 14.5], [692, 12], [900, 12]];
+const FLOW = [[-80, 1], [440, 1.4], [455, 3], [515, 3.2], [535, 1.2], [900, 1.2]];
 
 // Where the checkpoint flags stand: sinking sends the crew back to the last one reached.
-export const CHECKPOINTS = [110, 200, 295, 385, 455, 525];
+export const CHECKPOINTS = [110, 200, 295, 385, 455, 525, 575, 650];
 // What the player reads while rafting: the name of each stretch, by where it starts.
 export const SECTIONS = [
     [-80, 'The Dock'],
@@ -76,6 +76,8 @@ export const SECTIONS = [
     [385, 'Log Jam'],
     [455, 'Hippo Falls'],
     [525, 'The Whirlpool'],
+    [560, 'Geyser Gulch'],
+    [640, 'Gator Marsh'],
 ];
 const VORTEX = { z: 540, r: 17, strength: 2.4 };
 
@@ -94,6 +96,11 @@ const buildCourse = () => {
     const sweepers = [];
     const logs = [];
     const boosts = [];
+    const geysers = [];
+    const lily = [];
+    const bumpers = [];
+    const gators = [];
+    const spinners = [];
 
     // Boulders sit near the middle (never in a gap narrower than a raft against a bank),
     // so each one is a choice of left or right.
@@ -135,11 +142,23 @@ const buildCourse = () => {
     for (let z = 464, s = 1; z <= 516; z += 13, s = -s) rock(z, s, 0.38, 1.3);
     boosts.push({ x: centerX(472), z: 472, r: 2.6 }, { x: centerX(498), z: 498, r: 2.6 });
 
+    // Geyser Gulch: vents that bubble, then blast whatever floats over them; lily pads that
+    // gum up the raft; and pumpkin bumpers that fling it back.
+    [[572, -3.5], [586, 4], [600, -4.5], [614, 3.5], [628, -2]].forEach(([z, dx], i) => {
+        geysers.push({ x: centerX(z) + dx, z, r: 3.4, period: 4.6, phase: i * 1.1 });
+    });
+    lily.push({ x: centerX(580) + 4.5, z: 580, r: 4.2 }, { x: centerX(607) - 4, z: 607, r: 4.6 }, { x: centerX(634), z: 634, r: 4.2 });
+    bumpers.push({ x: centerX(593) - 1, z: 593, r: 1.3 }, { x: centerX(607) + 6, z: 607, r: 1.3 }, { x: centerX(620) - 6, z: 620, r: 1.3 }, { x: centerX(632) + 3, z: 632, r: 1.3 });
+    // Gator Marsh: paddle wheels, a rock gate, and gators patrolling across the river.
+    spinners.push({ x: centerX(654), z: 654, len: 4.6, speed: 1.5, phase: 0.4 }, { x: centerX(706), z: 706, len: 4.6, speed: -1.6, phase: 2 });
+    for (const z of [666, 692]) gators.push({ x: centerX(z), z, half: 1.3, r: 0.75, amp: 6, speed: 1, phase: z * 0.37 });
+    for (const side of [-1, 1]) rocks.push({ x: centerX(678) + side * 5.7, z: 678, r: 1.8 });
+
     const statics = [...rocks.map((o) => ({ ...o, hazard: false })), ...mines.map((o) => ({ ...o, hazard: true }))];
 
     // The river's two banks as line segments, for the raft to bump into.
     const walls = [];
-    for (let z = -60; z < 640; z += SEG) {
+    for (let z = -60; z < 820; z += SEG) {
         walls.push([
             [centerX(z) - halfWidth(z), z, centerX(z + SEG) - halfWidth(z + SEG), z + SEG],
             [centerX(z) + halfWidth(z), z, centerX(z + SEG) + halfWidth(z + SEG), z + SEG],
@@ -162,7 +181,7 @@ const buildCourse = () => {
         return [fx, fz];
     };
 
-    return { centerX, halfWidth, flowAt, rocks, mines, sweepers, logs, boosts, statics, walls, vortex: { x: centerX(VORTEX.z), z: VORTEX.z, r: VORTEX.r } };
+    return { centerX, halfWidth, flowAt, rocks, mines, sweepers, logs, boosts, geysers, lily, bumpers, gators, spinners, statics, walls, vortex: { x: centerX(VORTEX.z), z: VORTEX.z, r: VORTEX.r } };
 };
 
 let cached;
@@ -177,6 +196,25 @@ export const logAt = (l, t) => {
     const x = l.x + l.amp * Math.sin(l.speed * t + l.phase);
     const vx = l.amp * l.speed * Math.cos(l.speed * t + l.phase);
     return { x, vx };
+};
+
+// Where a geyser is in its cycle at sim time t: quiet, bubbling a warning, or erupting.
+export const GEYSER_WARN = 1.3;
+export const GEYSER_BLAST = 0.9;
+export const geyserAt = (g, t) => {
+    const ph = (((t + g.phase) % g.period) + g.period) % g.period;
+    if (ph < GEYSER_BLAST) return { state: 'erupt', k: ph / GEYSER_BLAST };
+    if (ph > g.period - GEYSER_WARN) return { state: 'warn', k: (ph - (g.period - GEYSER_WARN)) / GEYSER_WARN };
+    return { state: 'idle', k: 0 };
+};
+// The two bars of a paddle wheel at sim time t, each as its two ends, and how fast the ends move.
+export const spinnerBars = (s, t) => {
+    const a = s.phase + s.speed * t;
+    return [0, Math.PI / 2].map((o) => {
+        const sn = Math.sin(a + o);
+        const cs = Math.cos(a + o);
+        return { ends: [s.x - sn * s.len, s.z - cs * s.len, s.x + sn * s.len, s.z + cs * s.len], va: [-cs * s.len * s.speed, sn * s.len * s.speed], vb: [cs * s.len * s.speed, -sn * s.len * s.speed] };
+    });
 };
 
 export const raftRadius = (seats) => RAFT_RADIUS[seats] ?? RAFT_RADIUS[4];
@@ -251,12 +289,12 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
 
     // Raft against something: n points from the obstacle toward the raft's middle. (ox, oz)
     // is how fast the obstacle itself is moving there.
-    const bump = (nx, nz, depth, ox, oz, hazard) => {
+    const bump = (nx, nz, depth, ox, oz, hazard, bounce = BOUNCE) => {
         sim.x += nx * depth;
         sim.z += nz * depth;
         const vn = (sim.vx - ox) * nx + (sim.vz - oz) * nz;
         if (vn >= 0) return;
-        const jn = (1 + BOUNCE) * -vn;
+        const jn = (1 + bounce) * -vn;
         sim.vx += nx * jn;
         sim.vz += nz * jn;
         // Scraping spins the raft: the contact point drags along the obstacle.
@@ -283,14 +321,14 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
         }
     };
 
-    const bumpPoint = (px, pz, r, ox, oz, hazard) => {
+    const bumpPoint = (px, pz, r, ox, oz, hazard, bounce) => {
         const dx = sim.x - px;
         const dz = sim.z - pz;
         const min = R + r;
         const d2 = dx * dx + dz * dz;
         if (d2 >= min * min) return;
         const d = Math.sqrt(d2) || 0.001;
-        bump(dx / d, dz / d, min - d, ox, oz, hazard);
+        bump(dx / d, dz / d, min - d, ox, oz, hazard, bounce);
     };
 
     // Raft against a line segment (a wall, a sweeper, a log) of the given thickness.
@@ -323,6 +361,19 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
             if (Math.abs(l.z - sim.z) > 6) continue;
             const { x, vx } = logAt(l, sim.t);
             bumpSegment(x - l.half, l.z, x + l.half, l.z, l.r, vx, 0, vx, 0, false);
+        }
+        for (const g of course.gators) {
+            if (Math.abs(g.z - sim.z) > 6) continue;
+            const { x, vx } = logAt(g, sim.t);
+            bumpSegment(x - g.half, g.z, x + g.half, g.z, g.r, vx, 0, vx, 0, true);
+        }
+        for (const b of course.bumpers) {
+            if (Math.abs(b.z - sim.z) < 6) bumpPoint(b.x, b.z, b.r, 0, 0, false, 1.6);
+        }
+        for (const s of course.spinners) {
+            if (Math.abs(s.z - sim.z) > s.len + R + 1) continue;
+            bumpPoint(s.x, s.z, 0.8, 0, 0, false);
+            for (const { ends, va, vb } of spinnerBars(s, sim.t)) bumpSegment(ends[0], ends[1], ends[2], ends[3], 0.4, va[0], va[1], vb[0], vb[1], false);
         }
     };
 
@@ -400,7 +451,22 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1 } = {}) {
         }
         if (pad && sim.phase === 'run') emit({ e: 'boost' });
         const done = sim.phase === 'done';
-        const drag = done ? DRAG * 2.2 : DRAG;
+        // Lily pads gum the raft up; geysers blast it away from the vent.
+        let gum = 1;
+        for (const l of course.lily) if (Math.hypot(sim.x - l.x, sim.z - l.z) < l.r + R * 0.3) gum = 3;
+        for (const g of course.geysers) {
+            if (Math.abs(g.z - sim.z) > g.r + R + 1 || geyserAt(g, sim.t).state !== 'erupt') continue;
+            const gx = sim.x - g.x;
+            const gz = sim.z - g.z;
+            const gd = Math.hypot(gx, gz);
+            const reach = g.r + R * 0.5;
+            if (gd >= reach) continue;
+            const push = 30 * (1 - (gd / reach) * 0.6);
+            sim.vx += ((gd > 0.05 ? gx / gd : 1) * push) * dt;
+            sim.vz += ((gd > 0.05 ? gz / gd : 0) * push) * dt;
+            sim.w += (gx > 0 ? -1 : 1) * 1.2 * dt;
+        }
+        const drag = (done ? DRAG * 2.2 : DRAG) * gum;
         sim.vx += (fx - (sim.vx - cx) * drag) * dt;
         sim.vz += (fz + pad - (sim.vz - cz) * drag) * dt;
         // The vortex twists the raft too.
@@ -493,6 +559,17 @@ function guidance(sim, rng, skill) {
         blockers.push([x, z, r]);
     };
     for (const o of course.statics) consider(o.x, o.z, o.r);
+    for (const b of course.bumpers) consider(b.x, b.z, b.r + 0.3);
+    for (const g of course.geysers) consider(g.x, g.z, g.r * 0.8);
+    for (const l of course.lily) consider(l.x, l.z, l.r * 0.55);
+    for (const sp of course.spinners) {
+        if (Math.abs(sp.z - sim.z) > sp.len + look) continue;
+        for (const { ends } of spinnerBars(sp, sim.t + eta(sp.z))) for (let k = 0; k <= 4; k++) consider(ends[0] + ((ends[2] - ends[0]) * k) / 4, ends[1] + ((ends[3] - ends[1]) * k) / 4, 1.1);
+    }
+    for (const g of course.gators) {
+        const { x } = logAt(g, sim.t + eta(g.z));
+        for (let k = -1; k <= 1; k++) consider(x + k * g.half, g.z, g.r + 0.5);
+    }
     for (const s of course.sweepers) {
         if (Math.abs(s.z - sim.z) > s.len + look) continue;
         const [ax, az, bx, bz] = sweeperEnds(s, sim.t + eta(s.z));

@@ -1,4 +1,4 @@
-import { COUNTDOWN, FINISH_Z, STEP, createSim, getCourse, seatRadius } from '../shared/hippoRapids/index.js';
+import { COUNTDOWN, FINISH_Z, STEP, createSim, geyserAt, getCourse, seatRadius, spinnerBars } from '../shared/hippoRapids/index.js';
 import { RECONNECT_MS, RoomError, createRoomManager } from '../hippoRapids/rooms.js';
 
 function fakeSocket() {
@@ -100,10 +100,75 @@ describe('hippo rapids sim', () => {
         expect(sim.hull).toBe(5);
     });
 
+    it('blasts the raft off a geyser only while it erupts', () => {
+        const sim = createSim({ seats: 4 });
+        sim.hippos.forEach((h) => (h.bot = false));
+        runFor(sim, COUNTDOWN + 0.1);
+        const g = getCourse().geysers[0];
+        const at = (state) => {
+            while (geyserAt(g, sim.t).state !== state) sim.t += 0.05;
+        };
+        at('idle');
+        sim.x = g.x + 1;
+        sim.z = g.z;
+        sim.vx = sim.vz = 0;
+        sim.step(STEP);
+        expect(Math.abs(sim.vx)).toBeLessThan(0.3);
+        at('erupt');
+        sim.step(STEP);
+        runFor(sim, 0.3);
+        expect(sim.vx).toBeGreaterThan(3);
+    });
+
+    it('hurts on a gator but only bounces off a paddle wheel', () => {
+        const course = getCourse();
+        const sim = createSim({ seats: 4 });
+        sim.hippos.forEach((h) => (h.bot = false));
+        runFor(sim, COUNTDOWN + 0.1);
+        const gator = course.gators[0];
+        sim.z = gator.z - sim.R - 0.6;
+        sim.x = gator.x + gator.amp * Math.sin(gator.speed * sim.t + gator.phase);
+        sim.vz = 4;
+        sim.inv = 0;
+        const hull = sim.hull;
+        runFor(sim, 0.3);
+        expect(sim.hull).toBe(hull - 1);
+        const wheel = course.spinners[0];
+        const bar = spinnerBars(wheel, sim.t)[0].ends;
+        sim.inv = 0;
+        sim.z = bar[3] + sim.R + 0.3;
+        sim.x = bar[2];
+        sim.vz = -4;
+        const before = sim.hull;
+        runFor(sim, 0.3);
+        expect(sim.hull).toBe(before);
+    });
+
+    it('slows the raft in lily pads and flings it off a bumper', () => {
+        const course = getCourse();
+        const sim = createSim({ seats: 4 });
+        sim.hippos.forEach((h) => (h.bot = false));
+        runFor(sim, COUNTDOWN + 0.1);
+        const pad = course.lily[0];
+        sim.x = pad.x;
+        sim.z = pad.z;
+        sim.vx = 0;
+        sim.vz = 6;
+        runFor(sim, 0.5);
+        expect(sim.vz).toBeLessThan(3.5);
+        const b = course.bumpers[0];
+        sim.x = b.x;
+        sim.z = b.z - sim.R - b.r - 0.05;
+        sim.vx = 0;
+        sim.vz = 3;
+        runFor(sim, 0.2);
+        expect(sim.vz).toBeLessThan(-3);
+    });
+
     it('lets a crew of bots reach the finish', () => {
         const sim = createSim({ seats: 2, skill: 1, seed: 2 });
         let steps = 0;
-        while (sim.phase !== 'done' && steps++ < 60 * 400) sim.step(STEP);
+        while (sim.phase !== 'done' && steps++ < 60 * 500) sim.step(STEP);
         expect(sim.phase).toBe('done');
         expect(sim.z).toBeGreaterThanOrEqual(FINISH_Z);
     });

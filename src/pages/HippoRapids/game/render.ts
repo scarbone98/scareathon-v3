@@ -4,6 +4,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import {
   CHECKPOINTS,
   FINISH_Z,
+  geyserAt,
   getCourse,
   logAt,
   seatRadius,
@@ -330,6 +331,10 @@ export class Renderer {
   private logs: THREE.Mesh[] = [];
   private boostPads: THREE.Mesh[] = [];
   private whirl!: THREE.Mesh;
+  private geysers: { ring: THREE.Mesh; column: THREE.Mesh; spit: number }[] = [];
+  private gators: THREE.Group[] = [];
+  private spinners: THREE.Group[] = [];
+  private bumpers: THREE.Group[] = [];
   private flags: THREE.Mesh[] = [];
   private flagsUp = -1;
   private particles: Particle[] = Array.from({ length: MAX_PARTICLES }, () => ({ alive: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, life: 1, size: 1, grow: 0, gravity: 0, from: C("#fff"), to: C("#fff") }));
@@ -448,7 +453,7 @@ export class Renderer {
     const grass = C("#7fc24a");
     const grassFar = C("#4f9a3c");
     const zs: number[] = [];
-    for (let z = -60; z <= 640; z += SEG) zs.push(z);
+    for (let z = -60; z <= 820; z += SEG) zs.push(z);
     const hedgeParts: THREE.BufferGeometry[] = [];
     for (const side of [-1, 1]) {
       const pos: number[] = [];
@@ -501,14 +506,14 @@ export class Renderer {
       tint(new THREE.IcosahedronGeometry(1.6, 1).translate(1.2, 5.4, 0.4), "#7ccf55"),
       tint(new THREE.IcosahedronGeometry(1.4, 1).translate(-1.2, 3.6, -0.5), "#58a83f"),
     ])!;
-    const trees = new THREE.InstancedMesh(mergeGeometries([trunk, canopy])!, this.own(lambert({ flatShading: true })), 320);
+    const trees = new THREE.InstancedMesh(mergeGeometries([trunk, canopy])!, this.own(lambert({ flatShading: true })), 400);
     const pumpkin = mergeGeometries([
       tint(new THREE.SphereGeometry(0.7, 10, 8).scale(1.1, 0.85, 1.1).translate(0, 0.6, 0), "#ff8a1f"),
       tint(new THREE.CylinderGeometry(0.08, 0.12, 0.3, 5).translate(0, 1.25, 0), "#4a6a24"),
     ])!;
-    const pumpkins = new THREE.InstancedMesh(pumpkin, this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x6a2a00 })), 90);
+    const pumpkins = new THREE.InstancedMesh(pumpkin, this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x6a2a00 })), 110);
     const stone = tint(new THREE.BoxGeometry(0.9, 1.4, 0.3).translate(0, 0.7, 0), "#9a94b3");
-    const stones = new THREE.InstancedMesh(stone, this.own(lambert()), 60);
+    const stones = new THREE.InstancedMesh(stone, this.own(lambert()), 75);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
@@ -523,9 +528,9 @@ export class Renderer {
       m.compose(new THREE.Vector3(x, 1.2, z), q, scale);
       mesh.setMatrixAt(i, m);
     };
-    for (let i = 0; i < 320; i++) at(i, trees, -50 + rng() * 680, 3, 38, 1, 6.28);
-    for (let i = 0; i < 90; i++) at(i, pumpkins, -40 + rng() * 650, 1.6, 7, 0.9, 6.28);
-    for (let i = 0; i < 60; i++) at(i, stones, -40 + rng() * 650, 2, 9, 1, 0.6);
+    for (let i = 0; i < 400; i++) at(i, trees, -50 + rng() * 850, 3, 38, 1, 6.28);
+    for (let i = 0; i < 110; i++) at(i, pumpkins, -40 + rng() * 820, 1.6, 7, 0.9, 6.28);
+    for (let i = 0; i < 75; i++) at(i, stones, -40 + rng() * 820, 2, 9, 1, 0.6);
     for (const mesh of [trees, pumpkins, stones]) {
       mesh.instanceMatrix.needsUpdate = true;
       this.scene.add(mesh);
@@ -628,6 +633,7 @@ export class Renderer {
       this.scene.add(pad);
       this.boostPads.push(pad);
     }
+    this.buildHazards(course);
     // The whirlpool.
     const swirl = this.own(
       canvasTexture(256, 256, (g) => {
@@ -660,6 +666,101 @@ export class Renderer {
     this.whirl.rotation.x = -Math.PI / 2;
     this.whirl.position.set(course.vortex.x, 0.05, course.vortex.z);
     this.scene.add(this.whirl);
+  }
+
+  // Geysers, lily pads, pumpkin bumpers, gators and paddle wheels.
+  private buildHazards(course: Course) {
+    const rng = mulberry32(404);
+    // Geysers: a foamy ring on the water and a column that shoots up when they blow.
+    const columnMat = this.own(new THREE.MeshBasicMaterial({ color: 0xcdf3ff, transparent: true, opacity: 0.75, depthWrite: false }));
+    const ringMat = this.own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }));
+    for (const g of course.geysers) {
+      const ring = new THREE.Mesh(this.own(new THREE.TorusGeometry(g.r * 0.55, 0.22, 6, 28).rotateX(Math.PI / 2)), ringMat);
+      ring.position.set(g.x, 0.12, g.z);
+      const vent = new THREE.Mesh(this.own(tint(new THREE.CylinderGeometry(g.r * 0.4, g.r * 0.5, 0.2, 20).translate(0, 0.02, 0), "#1f6fb0")), this.own(lambert()));
+      vent.position.set(g.x, 0, g.z);
+      const column = new THREE.Mesh(this.own(new THREE.CylinderGeometry(1, 1.5, 1, 14, 1, true).translate(0, 0.5, 0)), columnMat);
+      column.position.set(g.x, 0, g.z);
+      column.visible = false;
+      this.scene.add(vent, ring, column);
+      this.geysers.push({ ring, column, spit: 0 });
+    }
+    // Lily pads.
+    const padGeo: THREE.BufferGeometry[] = [];
+    for (const l of course.lily) {
+      for (let i = 0; i < 16; i++) {
+        const a = rng() * Math.PI * 2;
+        const d = Math.sqrt(rng()) * l.r * 0.9;
+        const r = 0.6 + rng() * 0.6;
+        padGeo.push(tint(new THREE.CylinderGeometry(r, r, 0.06, 12).translate(l.x + Math.cos(a) * d, 0.07, l.z + Math.sin(a) * d), rng() < 0.5 ? "#4fb04a" : "#3a9a52"));
+        if (rng() < 0.22) padGeo.push(tint(new THREE.ConeGeometry(0.22, 0.4, 7).translate(l.x + Math.cos(a) * d, 0.3, l.z + Math.sin(a) * d), "#ff7aa8"));
+      }
+    }
+    if (padGeo.length) this.scene.add(new THREE.Mesh(this.own(mergeGeometries(padGeo)!), this.own(lambert())));
+    // Pumpkin bumpers: round, ribbed, glowing.
+    for (const b of course.bumpers) {
+      const parts: THREE.BufferGeometry[] = [];
+      for (let k = -2; k <= 2; k++) parts.push(skin(ball(b.r * 0.62, k * b.r * 0.26, b.r * 0.62, 0, 1, 0.95, 1.05, 12), k % 2 ? "#ff8a1f" : "#ff9a3a", 0.18));
+      parts.push(skin(place(new THREE.CylinderGeometry(0.1, 0.16, 0.45, 6), 0, b.r * 1.35, 0), "#4a6a24", 0.1));
+      parts.push(skin(place(new THREE.ConeGeometry(0.16, 0.3, 4), -b.r * 0.35, b.r * 0.8, b.r * 0.9).rotateX(0), "#2a1830", 0));
+      parts.push(skin(place(new THREE.ConeGeometry(0.16, 0.3, 4), b.r * 0.35, b.r * 0.8, b.r * 0.9), "#2a1830", 0));
+      const grp = new THREE.Group();
+      const geo = mergeGeometries(parts)!;
+      grp.add(new THREE.Mesh(geo, this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x7a3200 }))));
+      grp.add(outline(geo, 0.03));
+      const base = new THREE.Mesh(this.own(new THREE.TorusGeometry(b.r * 1.05, 0.14, 6, 24).rotateX(Math.PI / 2)), ringMat);
+      base.position.y = 0.1;
+      grp.add(base);
+      grp.position.set(b.x, 0, b.z);
+      this.scene.add(grp);
+      this.bumpers.push(grp);
+    }
+    // Gators, lying along x with the snout toward +x.
+    for (const g of course.gators) {
+      const hide = "#3f8f3a";
+      const parts: THREE.BufferGeometry[] = [
+        skin(ball(1, 0, 0.2, 0, 1.25, 0.32, 0.55, 14), hide, 0.2),
+        skin(ball(0.6, -1.5, 0.15, 0, 1.6, 0.22, 0.3, 10), hide, 0.2),
+        skin(place(new THREE.BoxGeometry(1.0, 0.22, 0.5), 1.75, 0.18, 0), "#4aa343", 0.2),
+        skin(place(new THREE.BoxGeometry(0.95, 0.12, 0.5), 1.78, 0.02, 0), "#d9e6a0", 0.1),
+        skin(ball(0.14, 1.2, 0.5, -0.28, 1, 1, 1, 8), hide, 0.2),
+        skin(ball(0.14, 1.2, 0.5, 0.28, 1, 1, 1, 8), hide, 0.2),
+        skin(ball(0.07, 1.27, 0.55, -0.28, 1, 1, 1, 6), "#ffe45e", 0),
+        skin(ball(0.07, 1.27, 0.55, 0.28, 1, 1, 1, 6), "#ffe45e", 0),
+        skin(ball(0.03, 1.32, 0.56, -0.28, 1, 1, 1, 5), "#1b1030", 0),
+        skin(ball(0.03, 1.32, 0.56, 0.28, 1, 1, 1, 5), "#1b1030", 0),
+      ];
+      for (let k = 0; k < 5; k++) parts.push(skin(place(new THREE.ConeGeometry(0.1, 0.22, 4), -1 + k * 0.5, 0.52, 0), "#2c6b2a", 0.1));
+      for (let k = 0; k < 4; k++) for (const sd of [-1, 1]) parts.push(skin(place(new THREE.ConeGeometry(0.035, 0.1, 4).rotateX(Math.PI), 1.4 + k * 0.22, 0.13, sd * 0.24), "#ffffff", 0));
+      const grp = new THREE.Group();
+      const geo = mergeGeometries(parts)!;
+      grp.add(new THREE.Mesh(geo, this.own(lambert())));
+      grp.add(outline(geo, 0.03));
+      grp.scale.setScalar(0.85);
+      grp.position.set(g.x, 0, g.z);
+      this.scene.add(grp);
+      this.gators.push(grp);
+    }
+    // Paddle wheels: a hub and two crossed bars with striped blades.
+    for (const sp of course.spinners) {
+      const parts: THREE.BufferGeometry[] = [
+        skin(place(new THREE.CylinderGeometry(0.85, 1, 0.9, 14), 0, 0.4, 0), "#e07a3c", 0.15),
+        skin(place(new THREE.CylinderGeometry(0.5, 0.5, 0.2, 12), 0, 0.92, 0), "#ffd23a", 0.1),
+        skin(place(new THREE.BoxGeometry(0.5, 0.4, sp.len * 2), 0, 0.55, 0), "#8a5a38", 0.15),
+        skin(place(new THREE.BoxGeometry(sp.len * 2, 0.4, 0.5), 0, 0.55, 0), "#8a5a38", 0.15),
+      ];
+      for (const sd of [-1, 1]) {
+        parts.push(skin(place(new THREE.BoxGeometry(1.5, 0.7, 0.35), 0, 0.6, sd * (sp.len - 0.1)), sd > 0 ? "#ffd23a" : "#ff7a3a", 0.15));
+        parts.push(skin(place(new THREE.BoxGeometry(0.35, 0.7, 1.5), sd * (sp.len - 0.1), 0.6, 0), sd > 0 ? "#ff7a3a" : "#ffd23a", 0.15));
+      }
+      const grp = new THREE.Group();
+      const geo = mergeGeometries(parts)!;
+      grp.add(new THREE.Mesh(geo, this.own(lambert())));
+      grp.add(outline(geo, 0.03));
+      grp.position.set(sp.x, 0, sp.z);
+      this.scene.add(grp);
+      this.spinners.push(grp);
+    }
   }
 
   // Start and finish arches, and a flag at each checkpoint.
@@ -939,6 +1040,42 @@ export class Renderer {
       p.scale.set(s, s, s);
     });
     this.whirl.rotation.z = -t * 0.9;
+    this.course.geysers.forEach((g, i) => {
+      const fx = this.geysers[i];
+      const st = geyserAt(g, sim);
+      const near = Math.abs(g.z - view.z) < 70;
+      fx.column.visible = st.state === "erupt";
+      if (st.state === "erupt") {
+        const k = Math.sin(Math.min(1, st.k * 1.3) * Math.PI * 0.5);
+        const fall = st.k > 0.7 ? 1 - (st.k - 0.7) / 0.3 : 1;
+        fx.column.scale.set(g.r * 0.32 * (1 + 0.1 * Math.sin(t * 40)), 7.5 * k * fall, g.r * 0.32 * (1 + 0.1 * Math.cos(t * 37)));
+        if (near) for (let n = 0; n < 2; n++) this.emit({ x: g.x + (Math.random() - 0.5) * 1.5, y: 5 * k * fall, z: g.z + (Math.random() - 0.5) * 1.5, vx: (Math.random() - 0.5) * 4, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 4, life: 0.8, size: 0.28, gravity: 9, from: "#ffffff", to: "#8fd0ff" });
+      } else if (st.state === "warn" && near) {
+        fx.spit -= dt;
+        if (fx.spit <= 0) {
+          fx.spit = 0.07;
+          const a = Math.random() * Math.PI * 2;
+          this.emit({ x: g.x + Math.cos(a) * g.r * 0.4, y: 0.2, z: g.z + Math.sin(a) * g.r * 0.4, vx: 0, vy: 1.5 + st.k * 3, vz: 0, life: 0.6, size: 0.14, gravity: 5, from: "#ffffff", to: "#bfe6ff" });
+        }
+      }
+      const pulse = st.state === "warn" ? 1 + Math.sin(t * (12 + st.k * 20)) * 0.12 : st.state === "erupt" ? 1.25 : 1;
+      fx.ring.scale.setScalar(pulse);
+    });
+    this.course.gators.forEach((g, i) => {
+      const { x, vx } = logAt(g, sim);
+      const m = this.gators[i];
+      m.position.set(x, Math.sin(t * 3 + i) * 0.04, g.z);
+      const face = vx >= 0 ? 0 : Math.PI;
+      m.rotation.y += (face - m.rotation.y) * 0.2;
+      m.rotation.z = Math.sin(t * 6 + i) * 0.04;
+    });
+    this.course.spinners.forEach((sp, i) => {
+      this.spinners[i].rotation.y = sp.phase + sp.speed * sim;
+    });
+    this.bumpers.forEach((b, i) => {
+      const k = 1 + Math.sin(t * 3 + i * 2) * 0.04;
+      b.scale.set(k, 1 / k, k);
+    });
     // Flags: green once passed.
     if (view.cp !== this.flagsUp) {
       this.flagsUp = view.cp;
