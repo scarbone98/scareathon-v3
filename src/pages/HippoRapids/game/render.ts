@@ -20,6 +20,8 @@ export const HIPPO_LOOKS = [
   { name: "Bubblegum", body: "#e486a8", belly: "#f8c6d8" },
 ];
 
+const lerpTo = (cur: number, target: number, dt: number, rate: number) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+
 const SEG = 5; // the bank segments, matching the physics walls
 const C = (hex: string) => new THREE.Color(hex);
 
@@ -97,42 +99,187 @@ function nameSprite(text: string, color: string) {
   return s;
 }
 
-// A chunky hippo, nose toward +z, tail toward -z.
-function buildHippo(look: { body: string; belly: string }) {
+// Paints a geometry with soft top-light shading baked in, so the hippos read as round.
+function skin(geo: THREE.BufferGeometry, color: THREE.Color | string, shade = 0.2) {
+  const c = typeof color === "string" ? C(color) : color;
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const normal = g.getAttribute("normal");
+  const n = g.getAttribute("position").count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const k = 1 - shade + shade * (normal ? normal.getY(i) * 0.5 + 0.5 : 1) * 1.15;
+    col[i * 3] = Math.min(1, c.r * k);
+    col[i * 3 + 1] = Math.min(1, c.g * k);
+    col[i * 3 + 2] = Math.min(1, c.b * k);
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  g.deleteAttribute("uv");
+  return g;
+}
+
+const ball = (r: number, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, seg = 16) => place(new THREE.SphereGeometry(r, seg, Math.round(seg * 0.75)), x, y, z, sx, sy, sz);
+
+// A cartoon outline: the same shape pushed out along its normals and drawn inside out.
+const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1b1030, side: THREE.BackSide });
+function outline(geo: THREE.BufferGeometry, width = 0.03) {
+  const g = geo.clone();
+  const pos = g.getAttribute("position");
+  const nor = g.getAttribute("normal");
+  for (let i = 0; i < pos.count; i++) pos.setXYZ(i, pos.getX(i) + nor.getX(i) * width, pos.getY(i) + nor.getY(i) * width, pos.getZ(i) + nor.getZ(i) * width);
+  return new THREE.Mesh(g, OUTLINE);
+}
+
+// What each hippo wears, by seat.
+function accessory(kind: number): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [];
+  if (kind === 0) {
+    // Swim goggles on the forehead.
+    for (const x of [-0.12, 0.12]) {
+      out.push(skin(place(new THREE.TorusGeometry(0.085, 0.03, 8, 14).rotateX(-1.1), x, 0.43, 0.02), "#ffd23a", 0.1));
+      out.push(skin(place(new THREE.CylinderGeometry(0.075, 0.075, 0.03, 12).rotateX(-1.1), x, 0.425, 0.025), "#7fd8ff", 0.05));
+    }
+    out.push(skin(place(new THREE.BoxGeometry(0.5, 0.05, 0.05), 0, 0.3, -0.12).rotateX(0), "#ffd23a", 0.1));
+  } else if (kind === 1) {
+    // A flower tucked by the ear.
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      out.push(skin(ball(0.06, 0.3 + Math.cos(a) * 0.075, 0.5 + Math.sin(a) * 0.075, 0.0, 1, 1, 0.5, 8), "#ff7aa8", 0.1));
+    }
+    out.push(skin(ball(0.045, 0.3, 0.5, 0.01, 1, 1, 0.8, 8), "#ffe45e", 0.1));
+  } else if (kind === 2) {
+    // A little bucket hat.
+    out.push(skin(place(new THREE.CylinderGeometry(0.2, 0.25, 0.2, 14), 0, 0.5, 0.1), "#f1e4c0", 0.15));
+    out.push(skin(place(new THREE.CylinderGeometry(0.4, 0.4, 0.03, 18), 0, 0.41, 0.1), "#f1e4c0", 0.15));
+    out.push(skin(place(new THREE.CylinderGeometry(0.255, 0.255, 0.05, 14), 0, 0.46, 0.1), "#e0483a", 0.1));
+  } else {
+    // A big red bow.
+    out.push(skin(place(new THREE.ConeGeometry(0.14, 0.26, 8).rotateZ(Math.PI / 2), -0.14, 0.53, 0.12), "#e0483a", 0.12));
+    out.push(skin(place(new THREE.ConeGeometry(0.14, 0.26, 8).rotateZ(-Math.PI / 2), 0.14, 0.53, 0.12), "#e0483a", 0.12));
+    out.push(skin(ball(0.065, 0, 0.53, 0.12, 1, 1, 1, 8), "#b02a22", 0.1));
+  }
+  return out;
+}
+
+// A chunky, round hippo with a big goofy face. Nose toward +z, tail toward -z, feet on y = 0.
+function buildHippo(look: { body: string; belly: string }, outfit: number) {
   const g = new THREE.Group();
   const body = C(look.body);
   const belly = C(look.belly);
-  const dark = body.clone().multiplyScalar(0.62);
-  const parts: THREE.BufferGeometry[] = [
-    tint(place(new THREE.SphereGeometry(0.5, 16, 12), 0, 0.5, -0.05, 1.05, 0.9, 1.3), body),
-    tint(place(new THREE.SphereGeometry(0.5, 14, 10), 0, 0.32, 0.0, 0.85, 0.45, 1.05), belly),
-    // head and snout
-    tint(place(new THREE.SphereGeometry(0.42, 16, 12), 0, 0.72, 0.62, 1, 0.9, 1), body),
-    tint(place(new THREE.SphereGeometry(0.4, 16, 12), 0, 0.58, 0.95, 1.15, 0.75, 0.85), belly),
-    tint(place(new THREE.SphereGeometry(0.06, 8, 6), -0.17, 0.66, 1.24), dark),
-    tint(place(new THREE.SphereGeometry(0.06, 8, 6), 0.17, 0.66, 1.24), dark),
-    // eyes: whites with pupils looking forward
-    tint(place(new THREE.SphereGeometry(0.1, 10, 8), -0.2, 1.05, 0.68), "#ffffff"),
-    tint(place(new THREE.SphereGeometry(0.1, 10, 8), 0.2, 1.05, 0.68), "#ffffff"),
-    tint(place(new THREE.SphereGeometry(0.05, 8, 6), -0.2, 1.06, 0.77), "#161022"),
-    tint(place(new THREE.SphereGeometry(0.05, 8, 6), 0.2, 1.06, 0.77), "#161022"),
-    // ears
-    tint(place(new THREE.SphereGeometry(0.1, 8, 6), -0.36, 1.1, 0.45, 1, 1.2, 0.8), dark),
-    tint(place(new THREE.SphereGeometry(0.1, 8, 6), 0.36, 1.1, 0.45, 1, 1.2, 0.8), dark),
-    // tail
-    tint(place(new THREE.SphereGeometry(0.1, 8, 6), 0, 0.72, -0.72, 1, 1, 1.3), dark),
+  const dark = body.clone().multiplyScalar(0.6);
+  const pink = C("#f29aa8");
+  const cream = "#fff4dc";
+
+  // Body: barrel, two round cheeks at the back, a lighter belly, stubby legs.
+  const trunk: THREE.BufferGeometry[] = [
+    skin(ball(0.5, 0, 0.6, -0.08, 1.05, 1.02, 1.12, 20), body),
+    skin(ball(0.32, -0.2, 0.58, -0.48, 1, 1, 1, 14), body),
+    skin(ball(0.32, 0.2, 0.58, -0.48, 1, 1, 1, 14), body),
+    skin(ball(0.46, 0, 0.42, 0, 0.88, 0.55, 1.05, 14), belly, 0.1),
+    skin(ball(0.3, 0, 0.88, 0.1, 1.1, 0.55, 1.1, 12), body.clone().lerp(C("#ffffff"), 0.08)),
   ];
-  for (const [x, z] of [[-0.35, 0.35], [0.35, 0.35], [-0.35, -0.4], [0.35, -0.4]]) {
-    parts.push(tint(place(new THREE.CylinderGeometry(0.15, 0.17, 0.4, 8), x, 0.2, z), dark));
+  for (const [x, z] of [[-0.34, 0.3], [0.34, 0.3], [-0.32, -0.42], [0.32, -0.42]]) {
+    trunk.push(skin(place(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 10), x, 0.25, z), dark, 0.1));
   }
-  const mesh = new THREE.Mesh(mergeGeometries(parts)!, lambert());
-  g.add(mesh);
-  return { group: g };
+  const bodyGeo = mergeGeometries(trunk)!;
+  g.add(new THREE.Mesh(bodyGeo, lambert()));
+  g.add(outline(bodyGeo, 0.028));
+
+  // The head hangs off a neck pivot so it can nod, shake and strain.
+  const head = new THREE.Group();
+  head.position.set(0, 0.78, 0.4);
+  const skull: THREE.BufferGeometry[] = [
+    skin(ball(0.44, 0, 0.1, 0.16, 1.02, 0.95, 0.95, 20), body),
+    skin(ball(0.3, -0.17, -0.03, 0.5, 1, 0.9, 1.0, 14), belly),
+    skin(ball(0.3, 0.17, -0.03, 0.5, 1, 0.9, 1.0, 14), belly),
+    skin(ball(0.28, 0, 0.0, 0.5, 1.2, 0.85, 1.0, 14), belly),
+    // nostrils
+    skin(ball(0.075, -0.15, 0.17, 0.74, 1, 0.8, 1, 8), dark),
+    skin(ball(0.075, 0.15, 0.17, 0.74, 1, 0.8, 1, 8), dark),
+    skin(ball(0.045, -0.15, 0.2, 0.78, 1, 0.5, 1, 6), "#2a1830", 0),
+    skin(ball(0.045, 0.15, 0.2, 0.78, 1, 0.5, 1, 6), "#2a1830", 0),
+    // blushing cheeks
+    skin(ball(0.075, -0.33, 0.0, 0.42, 0.6, 1, 1, 8), pink, 0),
+    skin(ball(0.075, 0.33, 0.0, 0.42, 0.6, 1, 1, 8), pink, 0),
+    // eye sockets and heavy brows
+    skin(ball(0.14, -0.22, 0.35, 0.2, 1, 1, 1, 12), body),
+    skin(ball(0.14, 0.22, 0.35, 0.2, 1, 1, 1, 12), body),
+    // inside the mouth, seen when the jaw drops
+    skin(ball(0.26, 0, -0.1, 0.48, 1.1, 0.35, 1, 10), "#6e2538", 0),
+    // the upper tusks
+    skin(place(new THREE.ConeGeometry(0.04, 0.12, 6).rotateX(Math.PI), -0.17, -0.12, 0.74), cream, 0.1),
+    skin(place(new THREE.ConeGeometry(0.04, 0.12, 6).rotateX(Math.PI), 0.17, -0.12, 0.74), cream, 0.1),
+    ...accessory(outfit),
+  ];
+  const skullGeo = mergeGeometries(skull)!;
+  head.add(new THREE.Mesh(skullGeo, lambert()));
+  head.add(outline(skullGeo, 0.025));
+  // Ears, with pink insides.
+  const ears: THREE.Group[] = [];
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Group();
+    ear.position.set(side * 0.27, 0.43, 0.02);
+    const geo = mergeGeometries([skin(ball(0.1, 0, 0.06, 0, 0.8, 1.3, 0.7, 10), body), skin(ball(0.06, side * 0.01, 0.06, 0.03, 0.6, 1, 0.5, 8), pink, 0)])!;
+    ear.add(new THREE.Mesh(geo, lambert()));
+    ear.add(outline(geo, 0.02));
+    head.add(ear);
+    ears.push(ear);
+  }
+  // Big googly eyes: white, pupil and a glint, squashed flat to blink.
+  const eyes: THREE.Group[] = [];
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Group();
+    eye.position.set(side * 0.22, 0.4, 0.3);
+    const geo = mergeGeometries([
+      skin(ball(0.12, 0, 0, 0, 1, 1, 0.8, 12), "#ffffff", 0.05),
+      skin(ball(0.07, side * 0.01, 0, 0.075, 1, 1, 0.6, 10), "#1b1030", 0),
+      skin(ball(0.022, side * 0.025, 0.025, 0.1, 1, 1, 0.6, 6), "#ffffff", 0),
+      // the lid droops over the top half
+      skin(ball(0.13, 0, 0.05, -0.005, 1, 0.62, 0.85, 12), body, 0.1),
+    ])!;
+    eye.add(new THREE.Mesh(geo, lambert()));
+    head.add(eye);
+    eyes.push(eye);
+  }
+  // Lower jaw: hinged under the head, drops when the hippo lets one go.
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.06, 0.28);
+  jaw.add(
+    new THREE.Mesh(
+      mergeGeometries([
+        skin(ball(0.28, 0, -0.1, 0.27, 1.15, 0.4, 1, 14), belly, 0.1),
+        skin(place(new THREE.ConeGeometry(0.035, 0.1, 6), -0.15, 0.0, 0.46), cream, 0.1),
+        skin(place(new THREE.ConeGeometry(0.035, 0.1, 6), 0.15, 0.0, 0.46), cream, 0.1),
+      ])!,
+      lambert(),
+    ),
+  );
+  head.add(jaw);
+  g.add(head);
+
+  // A stub of a tail with a tuft.
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.8, -0.78);
+  tail.add(
+    new THREE.Mesh(
+      mergeGeometries([skin(ball(0.09, 0, 0.02, -0.06, 1, 1, 1.4, 8), dark, 0.1), skin(ball(0.07, 0, 0.06, -0.2, 1, 1, 1.1, 8), body, 0.1)])!,
+      lambert(),
+    ),
+  );
+  g.add(tail);
+  return { group: g, head, jaw, eyes, ears, tail };
 }
 
 interface HippoRig {
   holder: THREE.Group;
   rig: THREE.Group;
+  head: THREE.Group;
+  jaw: THREE.Group;
+  eyes: THREE.Group[];
+  ears: THREE.Group[];
+  tail: THREE.Group;
+  // When the hippo next blinks and flicks an ear.
+  blinkAt: number;
+  earAt: number;
   label: THREE.Sprite;
   marker: THREE.Mesh;
   puffTimer: number;
@@ -160,7 +307,7 @@ interface Particle {
 
 const MAX_PARTICLES = 400;
 const WATER_SIZE = 260;
-const HIPPO_SCALE = 0.62;
+const HIPPO_SCALE = 0.72;
 const WATER_REPEAT = 7;
 
 export class Renderer {
@@ -599,22 +746,33 @@ export class Renderer {
     ringGeo.deleteAttribute("uv");
     const pos = ringGeo.getAttribute("position");
     const col = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) {
-      const a = Math.atan2(pos.getX(i), pos.getZ(i));
+    for (let i = 0; i < pos.count; i += 3) {
+      // One colour per triangle, by where its middle sits round the ring, so the bands stay crisp.
+      const a = Math.atan2(pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2), pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2));
       const band = Math.floor(((a + Math.PI) / (Math.PI * 2)) * 16) % 2;
       const c = band ? C("#fff0d6") : C("#e0483a");
-      col.set([c.r, c.g, c.b], i * 3);
+      for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3);
     }
     ringGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
     ringGeo.translate(0, 0.28, 0);
     const deck = tint(new THREE.CylinderGeometry(R - 0.5, R - 0.5, 0.3, 36).translate(0, 0.14, 0), "#7ccf7a");
     const deckRing = tint(new THREE.CylinderGeometry(R - 0.8, R - 0.8, 0.34, 36).translate(0, 0.15, 0), "#a6e29c");
     const hull = tint(new THREE.CylinderGeometry(R - 0.1, R - 0.45, 0.5, 36).translate(0, -0.05, 0), "#58c9d9");
-    const body = new THREE.Mesh(this.own(mergeGeometries([ringGeo, deck, deckRing, hull])!), this.own(lambert()));
+    // Rope grab-lines round the tube, a ring pattern on the deck, and the inflation valve.
+    const trim: THREE.BufferGeometry[] = [];
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+      const loop = new THREE.TorusGeometry(0.2, 0.04, 6, 12, Math.PI).rotateX(Math.PI / 2).rotateY(-a + Math.PI / 2);
+      loop.translate(Math.sin(a) * (R - 0.4), 0.62, Math.cos(a) * (R - 0.4));
+      trim.push(tint(loop, "#f6ecd2"));
+    }
+    trim.push(tint(new THREE.TorusGeometry(R - 1.15, 0.05, 6, 36).rotateX(Math.PI / 2).translate(0, 0.33, 0), "#3a9a4a"));
+    trim.push(tint(new THREE.CylinderGeometry(0.1, 0.1, 0.2, 8).translate(Math.sin(2.4) * (R - 0.4), 0.72, Math.cos(2.4) * (R - 0.4)), "#ffd23a"));
+    const body = new THREE.Mesh(this.own(mergeGeometries([ringGeo, deck, deckRing, hull, ...trim])!), this.own(lambert()));
     this.raftBody.add(body);
     for (let i = 0; i < seats; i++) {
       const look = HIPPO_LOOKS[i];
-      const { group } = buildHippo(look);
+      const { group, head, jaw, eyes, ears, tail } = buildHippo(look, i);
       const holder = new THREE.Group();
       const s = HIPPO_SCALE;
       group.scale.setScalar(s);
@@ -628,7 +786,7 @@ export class Renderer {
       marker.visible = false;
       holder.add(marker);
       this.raftBody.add(holder);
-      this.rigs.push({ holder, rig: group, label, marker, puffTimer: 0, walk: 0, look: i, labelText: "" });
+      this.rigs.push({ holder, rig: group, head, jaw, eyes, ears, tail, blinkAt: 1 + Math.random() * 3, earAt: 2 + Math.random() * 4, label, marker, puffTimer: 0, walk: 0, look: i, labelText: "" });
     }
   }
 
@@ -688,7 +846,7 @@ export class Renderer {
     view.h.forEach((state, i) => {
       const rig = this.rigs[i];
       const [ang, farting, , spent, mv] = state;
-      rig.holder.position.set(Math.sin(ang) * seatR, 0.3, Math.cos(ang) * seatR);
+      rig.holder.position.set(Math.sin(ang) * seatR, 0.38, Math.cos(ang) * seatR);
       rig.holder.rotation.y = ang + Math.PI;
       rig.walk += mv !== 0 ? dt * 9 : 0;
       const waddle = mv !== 0 ? Math.sin(rig.walk) * 0.12 : 0;
@@ -696,6 +854,22 @@ export class Renderer {
       rig.rig.rotation.z = waddle;
       rig.rig.scale.set(HIPPO_SCALE * (1 + push), HIPPO_SCALE * (1 - push * 0.8 + (spent ? -0.05 : 0)), HIPPO_SCALE * (1 + push * 0.5));
       rig.rig.position.y = Math.abs(waddle) * 0.4 + (farting ? Math.abs(Math.sin(t * 25)) * 0.05 : 0);
+      // Faces: blink, flick an ear, strain and gape when letting one go, droop when out of beans.
+      const fr = farting ? 1 : 0;
+      rig.blinkAt -= dt;
+      const blink = rig.blinkAt < 0.12 && rig.blinkAt > 0 ? 0.12 : 1;
+      if (rig.blinkAt <= 0) rig.blinkAt = 1.5 + Math.random() * 3.5;
+      const squint = farting ? 0.45 : spent ? 0.6 : 1;
+      for (const eye of rig.eyes) eye.scale.set(1, Math.min(blink, squint), 1);
+      rig.jaw.rotation.x = lerpTo(rig.jaw.rotation.x, fr ? 0.5 + Math.sin(t * 30) * 0.12 : spent ? 0.18 : 0, dt, 18);
+      rig.head.rotation.x = lerpTo(rig.head.rotation.x, spent && !farting ? 0.3 : fr ? -0.18 : Math.sin(t * 1.8 + i) * 0.03, dt, 10);
+      rig.head.rotation.z = fr ? Math.sin(t * 34) * 0.06 : 0;
+      rig.earAt -= dt;
+      if (rig.earAt <= 0) rig.earAt = 2 + Math.random() * 4;
+      const flick = rig.earAt > 1.8 ? Math.sin((rig.earAt - 1.8) * 40) * 0.5 : 0;
+      rig.ears.forEach((ear, k) => (ear.rotation.z = (k ? -1 : 1) * (fr ? 0.5 : flick)));
+      rig.tail.rotation.y = fr ? Math.sin(t * 36) * 0.7 : Math.sin(t * 2.5 + i) * 0.15;
+      rig.tail.position.y = 0.8 + fr * 0.08;
       const mine = i === view.me;
       rig.marker.visible = mine;
       rig.marker.position.y = 2.6 + Math.sin(t * 5) * 0.15;
@@ -829,8 +1003,8 @@ export class Renderer {
     const targetHeading = Math.atan2(course.centerX(view.z + ahead * 2) - course.centerX(view.z), ahead * 2) * 0.7;
     const k = 1 - Math.exp(-2.2 * dt);
     cam.heading += (targetHeading - cam.heading) * k;
-    const back = 9.5;
-    const high = 7.4;
+    const back = 10.5;
+    const high = 8.2;
     const bx = view.x - Math.sin(cam.heading) * back;
     const bz = view.z - Math.cos(cam.heading) * back;
     const follow = 1 - Math.exp(-5 * dt);
@@ -865,7 +1039,7 @@ export class Renderer {
   // The camera has to follow the raft even when nothing is moving (the title screen).
   snapCamera(view: View) {
     this.cam.x = view.x;
-    this.cam.z = view.z - 9.5;
+    this.cam.z = view.z - 10.5;
     this.cam.look.set(view.x, 0, view.z + 5);
   }
 

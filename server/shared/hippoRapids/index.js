@@ -27,7 +27,7 @@ const DRAG = 1.15;
 const SPIN_DRAG = 1.4;
 const BOUNCE = 0.5;
 const INVULN = 1.4;
-const RAFT_RADIUS = { 2: 1.6, 4: 2.1 };
+const RAFT_RADIUS = { 2: 1.9, 4: 2.45 };
 const THRUST = { 2: 4.4, 4: 3.7 };
 const SEG = 5;
 
@@ -62,7 +62,7 @@ function interp(points, z) {
 }
 
 const CENTER = [[-80, 0], [112, 0], [145, -7], [180, 7], [208, 0], [400, 0], [440, 8], [480, -8], [520, 0], [700, 0]];
-const WIDTH = [[-80, 12], [40, 12], [90, 10], [290, 10], [330, 9.5], [440, 9.5], [470, 8], [520, 8], [545, 11.5], [700, 11.5]];
+const WIDTH = [[-80, 13], [40, 13], [90, 11.5], [290, 11.5], [330, 11], [440, 11], [470, 9.5], [520, 9.5], [545, 12.5], [700, 12.5]];
 const FLOW = [[-80, 1], [440, 1.4], [455, 3], [515, 3.2], [535, 1.2], [700, 1.2]];
 
 // Where the checkpoint flags stand: sinking sends the crew back to the last one reached.
@@ -99,7 +99,7 @@ const buildCourse = () => {
     // so each one is a choice of left or right.
     const rock = (z, side, spread, r) => {
         const hw = halfWidth(z);
-        rocks.push({ x: centerX(z) + side * Math.max(0.6, Math.min(hw * spread, hw - r - 6.4)), z, r });
+        rocks.push({ x: centerX(z) + side * Math.max(0.6, Math.min(hw * spread, hw - r - 7.4)), z, r });
     };
 
     // The dock and the first boulders: easy weaving.
@@ -119,13 +119,13 @@ const buildCourse = () => {
         const hw = halfWidth(z);
         const cx = centerX(z);
         for (let x = -hw + 1.4; x <= hw - 1.3; x += 3.1) {
-            if (Math.abs(x - gc) < 5) continue;
+            if (Math.abs(x - gc) < 5.7) continue;
             mines.push({ x: cx + x, z, r: 0.85 });
         }
     });
     // The Sweepers: spiked logs turning on pivots in the banks.
     [[305, 1], [335, -1], [365, 1]].forEach(([z, s], i) => {
-        sweepers.push({ x: centerX(z) + s * (halfWidth(z) - 0.4), z, len: 7.6, speed: (i % 2 ? -1 : 1) * 1.15, phase: rng() * 6.28 });
+        sweepers.push({ x: centerX(z) + s * (halfWidth(z) - 0.4), z, len: 8.2, speed: (i % 2 ? -1 : 1) * 1.15, phase: rng() * 6.28 });
     });
     // Log Jam: logs sliding across the whole river.
     [396, 411, 426, 441].forEach((z, i) => {
