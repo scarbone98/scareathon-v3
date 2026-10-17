@@ -1,14 +1,19 @@
 import websocket from '@fastify/websocket';
 import { RoomError, createRoomManager } from '../eightBitEvilV2/rooms.js';
+import { ArenaError, createArenaManager } from '../closeEncounters/arena.js';
 
 // Close Encounters (github.com/Sclondon/CloseEncounters) plays multiplayer through the same
 // kind of rooms as 8 Bit Evil Returns V2 and October Valley: up to four saucers, a
 // four-letter code, and this server relaying game packets between the host and the rest
 // (see eightBitEvilV2/rooms.js). The leader's start carries the world's seed as its
 // "stage", so everyone flies over the same country. Its rooms are its own.
+//
+// Its arena (/arena/ws) is something else: drop-in battle rooms on the moon with nobody
+// hosting, up to twelve saucers each. See closeEncounters/arena.js.
 
 const HEARTBEAT_MS = 30_000;
 const SWEEP_MS = 2_000;
+const ARENA_TICK_MS = 1_000;
 const ERROR_MESSAGES = {
     missing: "There's no room with that code.",
     full: 'That room already has four players.',
@@ -18,9 +23,10 @@ const ERROR_MESSAGES = {
     gone: "That game isn't holding your seat any more.",
 };
 
-export default async function closeEncountersRoutes(fastify, { rooms: injectedRooms } = {}) {
+export default async function closeEncountersRoutes(fastify, { rooms: injectedRooms, arena: injectedArena } = {}) {
     const log = fastify.log.child({ feature: 'close-encounters' });
     const rooms = injectedRooms ?? createRoomManager({ log });
+    const arena = injectedArena ?? createArenaManager({ log });
     if (!fastify.hasDecorator('websocketServer')) {
         await fastify.register(websocket, { options: { maxPayload: 8192 } });
     }
@@ -38,10 +44,44 @@ export default async function closeEncountersRoutes(fastify, { rooms: injectedRo
     heartbeat.unref();
     const sweep = setInterval(() => rooms.sweep(), SWEEP_MS);
     sweep.unref();
+    const arenaTick = setInterval(() => arena.tick(), ARENA_TICK_MS);
+    arenaTick.unref();
     fastify.addHook('onClose', async () => {
         clearInterval(heartbeat);
         clearInterval(sweep);
+        clearInterval(arenaTick);
         rooms.close();
+        arena.close();
+    });
+
+    // The arena: one socket per player for as long as they're in it. Guests can play.
+    fastify.get('/arena/ws', { websocket: true }, (socket) => {
+        sockets.add(socket);
+        socket.isAlive = true;
+        socket.on('pong', () => {
+            socket.isAlive = true;
+        });
+        socket.on('error', (error) => log.warn({ err: error }, 'Close Encounters arena socket error'));
+        socket.on('close', () => {
+            sockets.delete(socket);
+            arena.disconnect(socket);
+        });
+        socket.on('message', (raw, isBinary) => {
+            if (isBinary) {
+                arena.relay(socket, raw);
+                return;
+            }
+            if (raw.length > 600) return;
+            try {
+                arena.message(socket, JSON.parse(raw.toString()));
+            } catch (error) {
+                if (error instanceof ArenaError) {
+                    socket.send(JSON.stringify({ type: 'error', code: error.code, message: ERROR_MESSAGES[error.code] ?? 'Something went wrong.' }));
+                } else if (!(error instanceof SyntaxError)) {
+                    log.error({ err: error }, 'Close Encounters arena message failed');
+                }
+            }
+        });
     });
 
     // One socket per player for the whole session. Guests can play.
