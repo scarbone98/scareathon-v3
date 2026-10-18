@@ -22,6 +22,8 @@ describe('auth route rules', () => {
         expect(isPublicRoute('POST', '/october-valley/ws')).toBe(false);
         expect(isPublicRoute('GET', '/hippo-rapids/ws')).toBe(true);
         expect(isPublicRoute('POST', '/hippo-rapids/ws')).toBe(false);
+        expect(isPublicRoute('GET', '/the-clearing/ws')).toBe(true);
+        expect(isPublicRoute('POST', '/the-clearing/ws')).toBe(false);
         expect(isPublicRoute('GET', '/close-encounters/ws')).toBe(true);
     });
 
