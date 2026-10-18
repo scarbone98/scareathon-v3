@@ -45,6 +45,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && (url.startsWith('/8bitevilreturns/v2/ws') || url.startsWith('/8bitevilreturns/v2/rooms'))) ||
         // So are October Valley's.
         (method === 'GET' && url.startsWith('/october-valley/ws')) ||
+        // And The Clearing's maze rooms.
+        (method === 'GET' && url.startsWith('/the-clearing/ws')) ||
         (method === 'GET' && url.startsWith('/close-encounters/ws')) ||
         (method === 'GET' && url.startsWith('/close-encounters/arena/ws')) ||
         // And Liquid Metal's arena.
