@@ -1,6 +1,6 @@
 // Draws Hippo Rapids: a smooth, cartoon-bright river at dusk, seen from behind the raft.
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   geyserAt,
   getCourse,
@@ -78,6 +78,15 @@ const place = (geo: THREE.BufferGeometry, x = 0, y = 0, z = 0, sx = 1, sy = 1, s
   return geo;
 };
 
+// Flat things lying on the water (foam, pads, wind arrows) get pulled a hair toward the camera so they
+// never flicker against the water or each other.
+function decal<M extends THREE.Material>(m: M, layer = 0): M {
+  m.polygonOffset = true;
+  m.polygonOffsetFactor = -2 - layer;
+  m.polygonOffsetUnits = -2 - layer;
+  return m;
+}
+
 const lambert = (opts: THREE.MeshLambertMaterialParameters = {}) => new THREE.MeshLambertMaterial({ vertexColors: true, ...opts });
 
 function nameSprite(text: string, color: string) {
@@ -118,6 +127,90 @@ function skin(geo: THREE.BufferGeometry, color: THREE.Color | string, shade = 0.
 }
 
 const ball = (r: number, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, seg = 16) => place(new THREE.SphereGeometry(r, seg, Math.round(seg * 0.75)), x, y, z, sx, sy, sz);
+
+// How high the land is, by distance back from the water's edge (matches the bank strips).
+function groundY(off: number) {
+  if (off < 0.9) return 1.15;
+  if (off < 7) return 1.15 + ((off - 0.9) / 6.1) * 0.15;
+  return 1.3 + Math.min(1, (off - 7) / 53) * 2.2;
+}
+
+// Smooth value noise in 3D, for lumpy rocks and treetops.
+function hash3(x: number, y: number, z: number) {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 2147483647);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function noise3(x: number, y: number, z: number) {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const zi = Math.floor(z);
+  const f = (t: number) => t * t * (3 - 2 * t);
+  const fx = f(x - xi);
+  const fy = f(y - yi);
+  const fz = f(z - zi);
+  let v = 0;
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 2; k++) {
+    const w = (i ? fx : 1 - fx) * (j ? fy : 1 - fy) * (k ? fz : 1 - fz);
+    v += w * hash3(xi + i, yi + j, zi + k);
+  }
+  return v;
+}
+const fbm = (x: number, y: number, z: number) => noise3(x, y, z) * 0.6 + noise3(x * 2.1 + 7, y * 2.1 + 3, z * 2.1 + 5) * 0.3 + noise3(x * 4.3 + 1, y * 4.3 + 9, z * 4.3 + 2) * 0.1;
+
+// A lumpy ball with smooth normals. The vertices are welded first, so the lumps never tear the
+// surface open, which is what makes jittered low-poly shapes look broken.
+function blob(radius: number, detail: number, amp: number, seed: number, squash = 1) {
+  const welded = (() => {
+    const g = new THREE.IcosahedronGeometry(1, detail);
+    g.deleteAttribute("normal");
+    g.deleteAttribute("uv");
+    return mergeVertices(g);
+  })();
+  const pos = welded.getAttribute("position");
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const n = fbm(x * 1.6 + seed, y * 1.6 + seed * 0.7, z * 1.6 + seed * 1.3);
+    const k = radius * (1 + amp * (n - 0.5) * 2);
+    pos.setXYZ(i, x * k, y * k * squash, z * k);
+  }
+  welded.computeVertexNormals();
+  return welded;
+}
+
+// A boulder: lumpy, flat-bottomed, with darker wet stone at the waterline, paler layers, and moss
+// growing on whatever faces up.
+function rockGeometry(radius: number, seed: number) {
+  const geo = blob(radius, 3, 0.3, seed, 0.78);
+  const pos = geo.getAttribute("position");
+  const nor = geo.getAttribute("normal");
+  const col = new Float32Array(pos.count * 3);
+  const stoneLo = C("#6f6884");
+  const stoneHi = C("#a8a1bb");
+  const wet = C("#4b4560");
+  const moss = C("#68b24c");
+  const mossDark = C("#4d9440");
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    // Sink the underside flat so it sits in the water instead of floating on a ball.
+    if (pos.getY(i) < -radius * 0.28) pos.setY(i, -radius * 0.28);
+    const y = pos.getY(i);
+    const up = nor.getY(i);
+    const layer = 0.5 + 0.5 * Math.sin(y * 9 + noise3(pos.getX(i) * 2, y * 2, pos.getZ(i) * 2) * 5);
+    c.copy(stoneLo).lerp(stoneHi, Math.min(1, Math.max(0, (y / radius + 0.3) * 0.7) + layer * 0.18));
+    if (y < radius * 0.04) c.lerp(wet, 0.7);
+    const m = up + (noise3(pos.getX(i) * 3 + seed, y * 3, pos.getZ(i) * 3) - 0.5) * 0.5;
+    if (m > 0.55) c.lerp(Math.sin(pos.getX(i) * 7 + pos.getZ(i) * 5) > 0 ? moss : mossDark, Math.min(1, (m - 0.55) * 5));
+    col[i * 3] = c.r;
+    col[i * 3 + 1] = c.g;
+    col[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
 
 // A cartoon outline: the same shape pushed out along its normals and drawn inside out.
 const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1b1030, side: THREE.BackSide });
@@ -348,7 +441,7 @@ export function windFeel(course: Course, view: { z: number; t: number }) {
 export class Renderer {
   readonly gl: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(55, 1, 0.5, 400);
+  readonly camera = new THREE.PerspectiveCamera(55, 1, 1.2, 400);
   private course: Course = getCourse('lagoon');
   private disposables: { dispose(): void }[] = [];
   private clockT = 0;
@@ -576,11 +669,11 @@ export class Renderer {
     const rng = mulberry32(77);
     const trunk = tint(new THREE.CylinderGeometry(0.28, 0.4, 3, 6).translate(0, 1.5, 0), "#6b4630");
     const canopy = mergeGeometries([
-      tint(new THREE.IcosahedronGeometry(2.2, 1).translate(0, 4.2, 0), "#6bbf4a"),
-      tint(new THREE.IcosahedronGeometry(1.6, 1).translate(1.2, 5.4, 0.4), "#7ccf55"),
-      tint(new THREE.IcosahedronGeometry(1.4, 1).translate(-1.2, 3.6, -0.5), "#58a83f"),
+      skin(blob(2.2, 2, 0.14, 3).translate(0, 4.2, 0), "#6bbf4a", 0.28),
+      skin(blob(1.6, 2, 0.14, 8).translate(1.2, 5.4, 0.4), "#7ccf55", 0.28),
+      skin(blob(1.4, 2, 0.14, 12).translate(-1.2, 3.6, -0.5), "#58a83f", 0.28),
     ])!;
-    const trees = new THREE.InstancedMesh(mergeGeometries([trunk, canopy])!, this.own(lambert({ flatShading: true })), 400);
+    const trees = new THREE.InstancedMesh(mergeGeometries([trunk, canopy])!, this.own(lambert()), 400);
     const pumpkin = mergeGeometries([
       tint(new THREE.SphereGeometry(0.7, 10, 8).scale(1.1, 0.85, 1.1).translate(0, 0.6, 0), "#ff8a1f"),
       tint(new THREE.CylinderGeometry(0.08, 0.12, 0.3, 5).translate(0, 1.25, 0), "#4a6a24"),
@@ -594,12 +687,13 @@ export class Renderer {
     const scale = new THREE.Vector3();
     const at = (i: number, mesh: THREE.InstancedMesh, z: number, minOff: number, maxOff: number, s: number, rotRange: number) => {
       const side = rng() < 0.5 ? -1 : 1;
-      const x = course.centerX(z) + side * (course.halfWidth(z) + minOff + rng() * (maxOff - minOff));
+      const off = minOff + rng() * (maxOff - minOff);
+      const x = course.centerX(z) + side * (course.halfWidth(z) + off);
       const k = s * (0.8 + rng() * 0.5);
       scale.set(k, k * (0.9 + rng() * 0.3), k);
       e.set(0, rng() * rotRange, 0);
       q.setFromEuler(e);
-      m.compose(new THREE.Vector3(x, 1.2, z), q, scale);
+      m.compose(new THREE.Vector3(x, groundY(off) - 0.08, z), q, scale);
       mesh.setMatrixAt(i, m);
     };
     for (let i = 0; i < 400; i++) at(i, trees, -50 + rng() * (course.length + 130), 3, 38, 1, 6.28);
@@ -612,22 +706,20 @@ export class Renderer {
   }
 
   private buildObstacles(course: Course) {
-    // Boulders.
+    // Boulders: lumpy stone with moss on top, and a ring of foam where the water meets it.
     const rng = mulberry32(91);
+    const rockMat = this.own(lambert());
+    const foamMat = this.own(decal(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false })));
     for (const r of course.rocks) {
-      const geo = new THREE.IcosahedronGeometry(r.r, 1);
-      const pos = geo.getAttribute("position");
-      for (let i = 0; i < pos.count; i++) {
-        const k = 0.86 + rng() * 0.28;
-        pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * k * 0.85, pos.getZ(i) * k);
-      }
-      geo.computeVertexNormals();
-      const body = new THREE.Mesh(this.own(tint(geo, "#9b94ad")), this.own(lambert({ flatShading: true })));
-      body.position.set(r.x, 0.2, r.z);
+      const seed = Math.floor(rng() * 1000);
+      const body = new THREE.Mesh(this.own(rockGeometry(r.r, seed)), rockMat);
+      body.position.set(r.x, -0.05, r.z);
       body.rotation.y = rng() * 6;
-      const moss = new THREE.Mesh(this.own(tint(new THREE.SphereGeometry(r.r * 0.62, 8, 6).scale(1, 0.4, 1), "#6bbf4a")), this.own(lambert({ flatShading: true })));
-      moss.position.set(r.x + r.r * 0.1, 0.2 + r.r * 0.62, r.z);
-      this.world.add(body, moss);
+      const foam = new THREE.Mesh(this.own(new THREE.RingGeometry(r.r * 0.8, r.r * 1.18, 28)), foamMat);
+      foam.rotation.x = -Math.PI / 2;
+      foam.position.set(r.x, 0.045 + (r.x * 0.0007 + r.z * 0.0003) % 0.01, r.z);
+      foam.renderOrder = 1;
+      this.world.add(body, foam);
     }
     // Spiked buoys.
     const spikes: THREE.BufferGeometry[] = [tint(new THREE.SphereGeometry(0.6, 12, 9).translate(0, 0.35, 0), "#7a2fd0")];
@@ -702,7 +794,7 @@ export class Renderer {
       }),
     );
     for (const b of course.boosts) {
-      const pad = new THREE.Mesh(this.own(new THREE.CircleGeometry(b.r, 28)), this.own(new THREE.MeshBasicMaterial({ map: padTex, transparent: true, depthWrite: false, fog: false })));
+      const pad = new THREE.Mesh(this.own(new THREE.CircleGeometry(b.r, 28)), this.own(decal(new THREE.MeshBasicMaterial({ map: padTex, transparent: true, depthWrite: false, fog: false }), 1)));
       pad.rotation.x = -Math.PI / 2;
       pad.position.set(b.x, 0.06, b.z);
       this.world.add(pad);
@@ -740,7 +832,7 @@ export class Renderer {
         g.fillRect(-128, -128, 256, 256);
       }),
     );
-    this.whirl = new THREE.Mesh(this.own(new THREE.CircleGeometry(course.vortex.r, 48)), this.own(new THREE.MeshBasicMaterial({ map: swirl, transparent: true, depthWrite: false, fog: false })));
+    this.whirl = new THREE.Mesh(this.own(new THREE.CircleGeometry(course.vortex.r, 48)), this.own(decal(new THREE.MeshBasicMaterial({ map: swirl, transparent: true, depthWrite: false, fog: false }), 1)));
     this.whirl.rotation.x = -Math.PI / 2;
     this.whirl.position.set(course.vortex.x, 0.05, course.vortex.z);
     this.world.add(this.whirl);
@@ -765,13 +857,21 @@ export class Renderer {
     }
     // Lily pads.
     const padGeo: THREE.BufferGeometry[] = [];
+    let padLayer = 0;
     for (const l of course.lily) {
-      for (let i = 0; i < 16; i++) {
+      const placed: [number, number, number][] = [];
+      for (let tries = 0; tries < 80 && placed.length < 16; tries++) {
         const a = rng() * Math.PI * 2;
         const d = Math.sqrt(rng()) * l.r * 0.9;
         const r = 0.6 + rng() * 0.6;
-        padGeo.push(tint(new THREE.CylinderGeometry(r, r, 0.06, 12).translate(l.x + Math.cos(a) * d, 0.07, l.z + Math.sin(a) * d), rng() < 0.5 ? "#4fb04a" : "#3a9a52"));
-        if (rng() < 0.22) padGeo.push(tint(new THREE.ConeGeometry(0.22, 0.4, 7).translate(l.x + Math.cos(a) * d, 0.3, l.z + Math.sin(a) * d), "#ff7aa8"));
+        const px = l.x + Math.cos(a) * d;
+        const pz = l.z + Math.sin(a) * d;
+        // Pads don't overlap, so no two flat tops share a spot to fight over.
+        if (placed.some(([qx, qz, qr]) => Math.hypot(qx - px, qz - pz) < qr + r + 0.1)) continue;
+        placed.push([px, pz, r]);
+        const y = 0.07 + (padLayer++ % 5) * 0.004;
+        padGeo.push(tint(new THREE.CylinderGeometry(r, r, 0.06, 14).translate(px, y, pz), rng() < 0.5 ? "#4fb04a" : "#3a9a52"));
+        if (rng() < 0.22) padGeo.push(tint(new THREE.ConeGeometry(0.22, 0.4, 7).translate(px, 0.3, pz), "#ff7aa8"));
       }
     }
     if (padGeo.length) this.world.add(new THREE.Mesh(this.own(mergeGeometries(padGeo)!), this.own(lambert())));
@@ -800,7 +900,7 @@ export class Renderer {
         skin(ball(1, 0, 0.2, 0, 1.25, 0.32, 0.55, 14), hide, 0.2),
         skin(ball(0.6, -1.5, 0.15, 0, 1.6, 0.22, 0.3, 10), hide, 0.2),
         skin(place(new THREE.BoxGeometry(1.0, 0.22, 0.5), 1.75, 0.18, 0), "#4aa343", 0.2),
-        skin(place(new THREE.BoxGeometry(0.95, 0.12, 0.5), 1.78, 0.02, 0), "#d9e6a0", 0.1),
+        skin(place(new THREE.BoxGeometry(0.95, 0.12, 0.46), 1.78, 0.02, 0), "#d9e6a0", 0.1),
         skin(ball(0.14, 1.2, 0.5, -0.28, 1, 1, 1, 8), hide, 0.2),
         skin(ball(0.14, 1.2, 0.5, 0.28, 1, 1, 1, 8), hide, 0.2),
         skin(ball(0.07, 1.27, 0.55, -0.28, 1, 1, 1, 6), "#ffe45e", 0),
@@ -849,7 +949,7 @@ export class Renderer {
       this.spinners.push(grp);
     }
     // Rings to fly through: each is worth a second off your time.
-    const hoop = this.own(mergeGeometries([skin(new THREE.TorusGeometry(1.8, 0.17, 8, 30), "#ffd23a", 0.2), skin(new THREE.TorusGeometry(1.8, 0.05, 6, 30).translate(0, 0, 0.12), "#fff6b0", 0)])!);
+    const hoop = this.own(mergeGeometries([skin(new THREE.TorusGeometry(1.8, 0.17, 8, 30), "#ffd23a", 0.2), skin(new THREE.TorusGeometry(1.8, 0.05, 6, 30).translate(0, 0, 0.15), "#fff6b0", 0)])!);
     const hoopMat = this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x9a7000 }));
     const glow = this.own(new THREE.CircleGeometry(1.75, 24));
     const glowMat = this.own(new THREE.MeshBasicMaterial({ color: 0xffe45e, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }));
@@ -869,7 +969,7 @@ export class Renderer {
       const grp = new THREE.Group();
       grp.position.set(g.x, 0, g.z);
       const span = g.hw + 1.6;
-      const stone: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(span * 2 + 2.4, 1.1, 1.8), 0, 7.8, 0), "#8f8aa8", 0.2)];
+      const stone: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(span * 2 + 2.8, 1.1, 1.8), 0, 7.8, 0), "#8f8aa8", 0.2)];
       for (const sd of [-1, 1]) {
         stone.push(skin(place(new THREE.BoxGeometry(2.4, 8.6, 2.4), sd * span, 4.3, 0), "#8f8aa8", 0.2));
         stone.push(skin(place(new THREE.BoxGeometry(3, 0.7, 3), sd * span, 8.8, 0), "#6f6a88", 0.2));
@@ -921,12 +1021,12 @@ export class Renderer {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       tex.repeat.set(Math.round(hw / 4.5), Math.max(1, Math.round(w.len / 4.5)));
       this.own(tex);
-      const mat = this.own(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xd8f4ff, opacity: 0.55 }));
+      const mat = this.own(decal(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xd8f4ff, opacity: 0.55 }), 2));
       const plane = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, w.len)), mat);
       plane.rotation.x = -Math.PI / 2;
       plane.position.set(course.centerX(w.z + w.len / 2), 0.12, w.z + w.len / 2);
       this.world.add(plane);
-      const foam = this.own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }));
+      const foam = this.own(decal(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }), 3));
       for (const edge of [w.z, w.z + w.len]) {
         const bar = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, 0.7)), foam);
         bar.rotation.x = -Math.PI / 2;
@@ -942,7 +1042,7 @@ export class Renderer {
     const mat = this.own(lambert({ flatShading: true }));
     for (const n of course.needles) {
       for (const side of [-1, 1]) {
-        const parts: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(0.7, 1, n.len), 0, 0.5, n.len / 2), "#efe6cf", 0.2), skin(place(new THREE.BoxGeometry(0.76, 0.3, n.len), 0, 0.9, n.len / 2), "#9a3ad0", 0.15)];
+        const parts: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(0.7, 1, n.len), 0, 0.5, n.len / 2), "#efe6cf", 0.2), skin(place(new THREE.BoxGeometry(0.76, 0.3, n.len - 0.06), 0, 0.9, n.len / 2), "#9a3ad0", 0.15)];
         for (let z = 0.8; z < n.len; z += 1.5) parts.push(skin(place(new THREE.ConeGeometry(0.2, 0.9, 5).rotateZ((-side * Math.PI) / 2), -side * 0.7, 0.75, z), "#f4ecd2", 0.1));
         // The flared mouth: plain mud banks that only guide you in.
         const len = Math.hypot(4, 8);
@@ -986,7 +1086,7 @@ export class Renderer {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       tex.repeat.set(Math.max(1, Math.round(hw / 5)), Math.max(1, Math.round(gu.len / 5)));
       this.own(tex);
-      const mesh = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, gu.len)), this.own(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xfff0b0, opacity: 0.7 })));
+      const mesh = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, gu.len)), this.own(decal(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xfff0b0, opacity: 0.7 }), 2)));
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(course.centerX(gu.z + gu.len / 2), 0.11, gu.z + gu.len / 2);
       this.world.add(mesh);
