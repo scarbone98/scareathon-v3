@@ -721,6 +721,9 @@ export default function HippoRapids() {
         <div className="hr-left hr-soft-in">
           <Logo left small={short} />
           <p className="hr-o max-w-xs text-center text-xs tracking-[0.3em] text-[#e8d9ff] sm:text-left">EVERYONE FARTS · ONE RAFT · DON'T WAKE THE DEAD</p>
+          <div className="rounded-full border border-[#ffb347]/50 px-3 py-0.5 text-[0.6rem] tracking-[0.35em] text-[#ffd9a8]" style={{ boxShadow: "0 0 12px rgba(255,170,60,0.3)" }}>
+            ALPHA
+          </div>
           <MenuList
             active={!howTo}
             items={[
