@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { LEVELS, MAX_HULL, RING_BONUS, getLevel, type Level } from "../../../server/shared/hippoRapids/index.js";
-import { GameController, type Hud } from "./game/controller";
+import { GameController, SAY, type CoopHud, type Hud } from "./game/controller";
 import { RoomSocket, roomLink, type RoomStatus, type ServerMessage, type SocketStatus } from "./game/net";
 import { HIPPO_LOOKS } from "./game/render";
 import { sfx } from "./game/sfx";
@@ -220,7 +220,33 @@ function Progress({ hud }: { hud: Hud }) {
   );
 }
 
-function HudBar({ hud, touch, par }: { hud: Hud; touch: boolean; par: [number, number, number] | null }) {
+// The team task in front of the crew: how many are pushing now, and what's still needed.
+function CoopPanel({ c }: { c: CoopHud }) {
+  const ok = c.have >= c.need;
+  const title = c.kind === "wind" ? "HEADWIND: ALL PUSH TOGETHER" : c.mode === 1 ? "LOCK: TAP TOGETHER" : "LOCK: FART TOGETHER";
+  return (
+    <div className="mx-auto flex w-full max-w-md items-center gap-2 rounded-xl border-[3px] border-[#1b1030] bg-[#1b1030]/85 px-3 py-1" style={{ boxShadow: ok ? "0 0 0 3px #7cff8a" : undefined }}>
+      <div className="min-w-0 flex-1">
+        <div className="hr-o truncate text-[11px] tracking-wide text-[#ffe9b0]">{title}</div>
+        {c.kind === "gate" && (
+          <div className="mt-1 h-2 overflow-hidden rounded-full border-2 border-[#1b1030] bg-[#2a1d46]">
+            <div className="h-full bg-[#ffe45e] transition-[width] duration-100" style={{ width: `${Math.round(c.charge * 100)}%` }} />
+          </div>
+        )}
+      </div>
+      <div className="text-lg tabular-nums" style={{ color: ok ? "#7cff8a" : "#fff" }}>
+        {c.have}/{c.need}
+      </div>
+      {c.kind === "gate" && c.mode === 1 && (
+        <div className="text-xs opacity-90">
+          {c.taps}/{c.count}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HudBar({ hud, touch, par, online, onSay }: { hud: Hud; touch: boolean; par: [number, number, number] | null; online: boolean; onSay: (k: number) => void }) {
   const racing = hud.phase === "run";
   return (
     <>
@@ -245,7 +271,18 @@ function HudBar({ hud, touch, par }: { hud: Hud; touch: boolean; par: [number, n
         </div>
         <Progress hud={hud} />
         <div className="hr-o text-center text-sm tracking-widest text-[#ffe9b0]">{hud.section.toUpperCase()}</div>
+        {hud.coop && <CoopPanel c={hud.coop} />}
       </div>
+      {online && hud.seat >= 0 && (
+        <div className="absolute right-2 flex flex-col gap-1" style={{ bottom: touch ? "9.5rem" : "0.75rem" }}>
+          {SAY.map((text, k) => (
+            <button key={text} type="button" className="hr-btn hr-blue px-2 py-1 text-xs" onClick={() => onSay(k)}>
+              {!touch && <span className="opacity-60">{k + 1} </span>}
+              {text}
+            </button>
+          ))}
+        </div>
+      )}
       {hud.seat >= 0 && (
         <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
           <Gas gas={hud.gas} spent={hud.spent} narrow={touch} />
@@ -283,6 +320,7 @@ function HowTo({ onClose, touch }: { onClose: () => void; touch: boolean }) {
             💨 Farts push the raft the opposite way. {touch ? "Drag the left stick toward where you want to go" : "Press the arrow keys toward where you want to go"}, and your hippo walks round the rim to the right spot.{" "}
             {touch ? "Hold FART" : "Hold SPACE"} to let one rip.
           </p>
+          <p>🤝 Some stretches need the whole crew: lock gates open when enough hippos fart together (or tap together), and headwinds only give way to everyone pushing at once. Call it out with the 1-4 keys: GO, WAIT, NOW, OOPS.</p>
           <p>🫘 Beans run out. Rest a moment and they come back, so take turns with your crew.</p>
           <p>🎃 Spiked buoys and spiky logs smash your pumpkins. Lose all five and the raft sinks back to the last green flag.</p>
           <p>⭕ Fly through gold rings: each one takes a second off your time. Short taps give small nudges, so you can thread tight lines.</p>
@@ -524,6 +562,9 @@ export default function HippoRapids() {
         }
         break;
       }
+      case "say":
+        ctrl?.onSay(m.seat, m.k);
+        break;
       case "start":
         break;
       case "presence": {
@@ -925,7 +966,7 @@ export default function HippoRapids() {
 
       {!attract && view === "play" && hud && (
         <>
-          <HudBar hud={hud} touch={touch} par={online ? null : (playing?.par ?? null)} />
+          <HudBar hud={hud} touch={touch} par={online ? null : (playing?.par ?? null)} online={online} onSay={(k) => ctrlRef.current?.say(k)} />
           {hud.phase === "countdown" && countKey > 0 && (
             <div key={countKey} className="hr-pop hr-title hr-o pointer-events-none absolute inset-x-0 top-1/4 text-center text-9xl text-[#ffe45e]">
               {countKey}

@@ -2,6 +2,7 @@
 
 export const STEP: number;
 export const RING_BONUS: number;
+export const COOP_SPAN: number;
 export const MAX_HULL: number;
 export const COUNTDOWN: number;
 export const SINK_TIME: number;
@@ -59,7 +60,7 @@ export interface Spinner {
     hazard?: boolean;
 }
 
-export type ItemType = 'rock' | 'mine' | 'bumper' | 'boost' | 'lily' | 'ring' | 'geyser' | 'sweeper' | 'log' | 'gator' | 'spinner';
+export type ItemType = 'rock' | 'mine' | 'bumper' | 'boost' | 'lily' | 'ring' | 'geyser' | 'sweeper' | 'log' | 'gator' | 'spinner' | 'gate' | 'headwind';
 
 // One thing on the water. Which of the other fields matter depends on t.
 export interface Item {
@@ -75,6 +76,10 @@ export interface Item {
     period?: number;
     bars?: number;
     hazard?: number;
+    need?: number;
+    mode?: number;
+    hold?: number;
+    count?: number;
 }
 
 export interface Level {
@@ -90,6 +95,18 @@ export interface Level {
     items: Item[];
 }
 
+// A lock gate across the river. mode 0: `need` hippos farting together for `hold` seconds.
+// mode 1: `count` unison taps.
+export interface Gate {
+    x: number;
+    z: number;
+    hw: number;
+    need: number;
+    mode: number;
+    hold: number;
+    count: number;
+}
+
 export interface Course {
     def: Level;
     name: string;
@@ -100,6 +117,8 @@ export interface Course {
     sections: [number, string][];
     sectionAt(z: number): string;
     rings: Boost[];
+    gates: Gate[];
+    headwinds: { z: number; len: number; need: number }[];
     centerX(z: number): number;
     halfWidth(z: number): number;
     flowAt(x: number, z: number): [number, number];
@@ -124,7 +143,8 @@ export type SimEvent =
     | { e: 'bump'; s: number }
     | { e: 'hit'; x: number; z: number }
     | { e: 'cp'; i: number }
-    | { e: 'ring'; i: number };
+    | { e: 'ring'; i: number }
+    | { e: 'gate'; i: number; k: 'tap' | 'open' };
 
 export interface Snapshot {
     t: number;
@@ -145,6 +165,8 @@ export interface Snapshot {
     hits: number;
     // Which rings have been flown through.
     rg: number[];
+    // Each lock gate: [open, charge 0..1, taps so far].
+    gt: [0 | 1, number, number][];
     h: HippoState[];
     ev: SimEvent[];
 }
@@ -179,6 +201,7 @@ export interface Sim {
     hippos: Hippo[];
     course: Course;
     rings: Set<number>;
+    gates: { open: boolean; charge: number; taps: number }[];
     stuck: number;
     inv: number;
     run: number;

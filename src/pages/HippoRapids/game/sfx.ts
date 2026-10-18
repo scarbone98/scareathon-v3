@@ -142,6 +142,17 @@ export const sfx = {
   beep(go = false) {
     tone("square", go ? 880 : 440, go ? 880 : 440, go ? 0.5 : 0.18, 0.22);
   },
+  // A lock gate hears the crew: a ding for each unison tap, a rumble and fanfare when it opens.
+  gate(kind: "tap" | "open", taps = 0) {
+    if (kind === "tap") {
+      const f = 440 * 2 ** (Math.min(taps, 8) / 6);
+      tone("square", f, f, 0.18, 0.2);
+      tone("triangle", f * 2, f * 2, 0.25, 0.14, 0.04);
+      return;
+    }
+    noise(0.9, "lowpass", 300, 1, 0.5);
+    [392, 523, 659, 784].forEach((f, i) => tone("triangle", f, f, 0.3, 0.28, 0.12 * i));
+  },
   // Each ring in a row sings a note higher.
   ring(n: number) {
     const f = 660 * 2 ** (((n - 1) % 7) / 6);

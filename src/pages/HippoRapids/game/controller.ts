@@ -1,6 +1,7 @@
 // Runs a game of Hippo Rapids: the local sim (solo, and the demo behind the menus) or the
 // server's snapshots (online), your input, sound and the renderer.
 import {
+  COOP_SPAN,
   GAS_RESTART,
   HIPPO_NAMES,
   RIM_SPEED,
@@ -42,7 +43,22 @@ export interface Hud {
   checkpoints: number[];
   ringsGot: number;
   ringsTotal: number;
+  coop: CoopHud | null;
 }
+
+// The teamwork happening right now: a lock gate waiting for a chorus, or a headwind to climb.
+export interface CoopHud {
+  kind: "gate" | "wind";
+  need: number;
+  have: number; // hippos farting this instant
+  charge: number;
+  mode: number; // gate: 0 hold, 1 taps
+  taps: number;
+  count: number;
+}
+
+// Quick call-outs for the crew, on the 1-4 keys.
+export const SAY = ["GO!", "WAIT", "NOW!", "OOPS"];
 
 export type Mode = "demo" | "solo" | "online";
 
@@ -242,6 +258,8 @@ export class GameController {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     sfx.unlock();
+    const say = /^Digit([1-4])$/.exec(e.code);
+    if (say && !e.repeat) this.say(Number(say[1]) - 1);
     if (KEY_AIM[e.code] || FART_KEYS.has(e.code)) e.preventDefault();
     this.keys.add(e.code);
     this.readKeys();
@@ -464,6 +482,9 @@ export class GameController {
           sfx.checkpoint();
           this.gl.burst(s.x, s.z, "cp");
           break;
+        case "gate":
+          sfx.gate(e.k, s.gt[e.i]?.[2] ?? 0);
+          break;
         case "ring":
           sfx.ring(s.rg.length);
           break;
@@ -528,7 +549,38 @@ export class GameController {
       checkpoints: this.course.checkpoints.map((z) => z / this.course.length),
       ringsGot: view.rg.length,
       ringsTotal: this.course.rings.length,
+      coop: this.coopHud(view),
     };
+  }
+
+  private coopHud(view: View): CoopHud | null {
+    const n = view.h.length;
+    const have = view.h.filter((h) => h[1] === 1).length;
+    const c = this.course;
+    for (let i = 0; i < c.gates.length; i++) {
+      const g = c.gates[i];
+      const st = view.gt[i];
+      if (st && !st[0] && view.z > g.z - COOP_SPAN - 10 && view.z < g.z + 3) return { kind: "gate", need: Math.min(g.need, n), have, charge: st[1], mode: g.mode, taps: st[2], count: g.count };
+    }
+    for (const w of c.headwinds) {
+      if (view.z > w.z - 26 && view.z < w.z + w.len) return { kind: "wind", need: Math.min(w.need, n === 2 ? 2 : 3), have, charge: 0, mode: 0, taps: 0, count: 0 };
+    }
+    return null;
+  }
+
+  // Shout something to the crew: it shows over your hippo for everyone.
+  say(k: number) {
+    if (this.me < 0 || k < 0 || k >= SAY.length) return;
+    sfx.blip();
+    if (this.mode === "online") this.send?.({ type: "say", k });
+    else this.gl.say(this.me, SAY[k]);
+  }
+
+  // Someone in the room shouted.
+  onSay(seat: number, k: number) {
+    if (k < 0 || k >= SAY.length) return;
+    this.gl.say(seat, SAY[k]);
+    if (seat !== this.me) sfx.blip();
   }
 
   // The renderer's last frame, for screenshots and tests.

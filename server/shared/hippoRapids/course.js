@@ -42,9 +42,15 @@ export const ITEM_TYPES = {
     log: { half: [1, 6, 3.2], amp: [0, 9, 5], speed: [0.3, 3, 1.25], phase: [0, 6.3, 0] },
     gator: { half: [0.8, 2.5, 1.3], amp: [0, 9, 6], speed: [0.3, 3, 1], phase: [0, 6.3, 0] },
     spinner: { len: [2.5, 9, 4.6], speed: [-3, 3, 1.3], phase: [0, 6.3, 0], bars: [1, 4, 2], hazard: [0, 1, 0] },
+    // Teamwork: a lock gate that opens when `need` hippos fart together (mode 0: hold it for
+    // `hold` seconds; mode 1: `count` unison taps), and a stretch of headwind that only `need`
+    // hippos pushing at once can climb.
+    gate: { need: [1, 4, 2], mode: [0, 1, 0], hold: [0.6, 4, 1.4], count: [1, 8, 3] },
+    headwind: { len: [6, 40, 12], need: [1, 4, 2] },
 };
 
 const MAX_ITEMS = 450;
+const INT_KEYS = new Set(['bars', 'hazard', 'need', 'mode', 'count']);
 const MAX_POINTS = 60;
 const num = (v, lo, hi, dflt) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : dflt);
 
@@ -74,7 +80,7 @@ export function sanitizeLevel(raw) {
         const out = { t: it.t, x: Math.round(clamp(it.x, -80, 80) * 100) / 100, z: Math.round(clamp(it.z, 5, finish + 20) * 100) / 100 };
         for (const [k, [lo, hi, dflt]] of Object.entries(spec)) {
             const v = num(it[k], lo, hi, dflt);
-            out[k] = k === 'bars' ? Math.round(v) : k === 'hazard' ? (v ? 1 : 0) : Math.round(v * 100) / 100;
+            out[k] = INT_KEYS.has(k) ? Math.round(v) : Math.round(v * 100) / 100;
         }
         items.push(out);
     }
@@ -163,6 +169,8 @@ export function buildCourse(def) {
         bumpers: of('bumper').map(({ x, z, r }) => ({ x, z, r })),
         gators: of('gator').map(({ x, z, half, amp, speed, phase }) => ({ x, z, half, r: 0.75, amp, speed, phase })),
         spinners: of('spinner').map(({ x, z, len, speed, phase, bars, hazard }) => ({ x, z, len, speed, phase, bars, hazard: !!hazard })),
+        gates: of('gate').map(({ z, need, mode, hold, count }) => ({ z, need, mode, hold, count, x: centerX(z), hw: halfWidth(z) })),
+        headwinds: of('headwind').map(({ z, len, need }) => ({ z, len, need })),
         rings: of('ring').map(({ x, z }) => ({ x, z, r: 2.7 })),
         statics,
         walls,

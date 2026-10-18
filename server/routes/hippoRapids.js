@@ -83,6 +83,9 @@ export default async function hippoRapidsRoutes(fastify, { rooms: injectedRooms 
                     case 'start':
                         rooms.start(socket);
                         break;
+                    case 'say':
+                        rooms.say(socket, message);
+                        break;
                     case 'level':
                         rooms.setLevel(socket, message);
                         break;

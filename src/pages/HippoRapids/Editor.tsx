@@ -42,13 +42,15 @@ const TOOLS: { id: Tool; label: string; icon: string; hint: string }[] = [
   { id: "geyser", label: "Geyser", icon: "⛲", hint: "Bubbles, then blasts the raft away." },
   { id: "lily", label: "Lilies", icon: "🪷", hint: "Lily pads: they gum the raft up." },
   { id: "boost", label: "Boost", icon: "⏩", hint: "Boost pad: a shove downstream." },
+  { id: "gate", label: "Lock", icon: "🚪", hint: "Teamwork: a gate that opens when enough hippos fart together (or tap together)." },
+  { id: "headwind", label: "Headwind", icon: "🌬", hint: "Teamwork: a headwind only a crew pushing together can climb. Leave a pool before it to rest." },
   { id: "ring", label: "Ring", icon: "⭕", hint: "Fly through for a second off your time." },
   { id: "cp", label: "Flag", icon: "🚩", hint: "Checkpoint: where a sunk raft comes back. Click again to remove." },
   { id: "label", label: "Name", icon: "🏷", hint: "Start of a stretch, named on screen." },
   { id: "erase", label: "Erase", icon: "🧽", hint: "Click anything to delete it." },
 ];
 
-const FIELD_LABELS: Record<string, string> = { r: "Size", len: "Length", speed: "Speed", phase: "Start angle", half: "Half length", amp: "Swing", period: "Period (s)", bars: "Bars", hazard: "Hazard (1 hurts)" };
+const FIELD_LABELS: Record<string, string> = { r: "Size", len: "Length", speed: "Speed", phase: "Start angle", half: "Half length", amp: "Swing", period: "Period (s)", bars: "Bars", hazard: "Hazard (1 hurts)", need: "Hippos needed", mode: "Mode (0 hold, 1 taps)", hold: "Hold (s)", count: "Taps needed" };
 
 const blank = (): Level => ({
   v: 1,
@@ -349,7 +351,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
       // Things on the water.
       L.items.forEach((it, i) => {
         const on = sel?.k === "item" && sel.i === i;
-        drawItem(g, it, sx, sy, scale, t, on);
+        drawItem(g, it, sx, sy, scale, t, on, c);
       });
       // River handles.
       if (toolRef.current === "river") {
@@ -385,11 +387,20 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
     const t = animate ? performance.now() / 1000 : 0;
     for (let i = L.items.length - 1; i >= 0; i--) {
       const it = L.items[i];
+      if (it.t === "gate" || it.t === "headwind") continue;
       let px = it.x;
       if (it.t === "log" || it.t === "gator") px = logAt({ x: it.x, z: it.z, half: it.half ?? 1, r: 1, amp: it.amp ?? 0, speed: it.speed ?? 1, phase: it.phase ?? 0 }, t).x;
       const reach = Math.max(grab, it.t === "lily" || it.t === "rock" || it.t === "bumper" || it.t === "boost" || it.t === "geyser" ? it.r ?? 1 : 1.4, it.t === "log" || it.t === "gator" ? (it.half ?? 1) : 0);
       if (Math.abs(z - it.z) < Math.max(grab, 1.2) && Math.abs(x - px) < reach) return { k: "item", i };
       if (Math.hypot(x - px, z - it.z) < reach) return { k: "item", i };
+    }
+    // Gates and headwinds span the river, so they only count when nothing smaller is under the finger.
+    for (let i = L.items.length - 1; i >= 0; i--) {
+      const it = L.items[i];
+      if (it.t !== "gate" && it.t !== "headwind") continue;
+      const zEnd = it.t === "headwind" ? it.z + (it.len ?? 12) : it.z;
+      const mid = c.centerX((it.z + zEnd) / 2);
+      if (z >= it.z - Math.max(grab, 1.2) && z <= zEnd + Math.max(grab, 1.2) && Math.abs(x - mid) < c.halfWidth(it.z) + 2) return { k: "item", i };
     }
     for (let i = 0; i < L.checkpoints.length; i++) if (Math.abs(z - L.checkpoints[i]) < grab && Math.abs(x - c.centerX(L.checkpoints[i])) < c.halfWidth(L.checkpoints[i]) + 2) return { k: "cp", i };
     if (Math.abs(z - L.finish) < grab && Math.abs(x - c.centerX(L.finish)) < c.halfWidth(L.finish) + 2) return { k: "finish" };
@@ -408,6 +419,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
       item.x = round(course.centerX(z) + side * (course.halfWidth(z) - 0.4));
       item.speed = side > 0 ? 1.15 : -1.15;
     }
+    if (type === "gate" || type === "headwind") item.x = round(course.centerX(z));
     change((l) => ({ ...l, items: [...l.items, item] }));
     setSel({ k: "item", i: levelRef.current.items.length - 1 });
   };
@@ -818,7 +830,7 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
 }
 
 // One thing on the map.
-function drawItem(g: CanvasRenderingContext2D, it: Item, sx: (x: number) => number, sy: (z: number) => number, scale: number, t: number, on: boolean) {
+function drawItem(g: CanvasRenderingContext2D, it: Item, sx: (x: number) => number, sy: (z: number) => number, scale: number, t: number, on: boolean, c: CourseT) {
   const x = sx(it.x);
   const y = sy(it.z);
   const ring = (r: number, fill: string, stroke = "#1b1030") => {
@@ -831,6 +843,46 @@ function drawItem(g: CanvasRenderingContext2D, it: Item, sx: (x: number) => numb
     g.stroke();
   };
   switch (it.t) {
+    case "gate": {
+      const cx = c.centerX(it.z);
+      const hw = c.halfWidth(it.z);
+      g.strokeStyle = on ? "#fff" : "#8f8aa8";
+      g.lineWidth = 9;
+      g.beginPath();
+      g.moveTo(sx(cx - hw - 2), y);
+      g.lineTo(sx(cx + hw + 2), y);
+      g.stroke();
+      g.strokeStyle = "#3d3858";
+      g.lineWidth = 3;
+      g.setLineDash([3, 6]);
+      g.beginPath();
+      g.moveTo(sx(cx - hw), y);
+      g.lineTo(sx(cx + hw), y);
+      g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = "#fff";
+      g.font = "bold 11px sans-serif";
+      g.textAlign = "center";
+      g.fillText(`LOCK ×${it.need ?? 2} ${it.mode === 1 ? `taps ${it.count ?? 3}` : `hold ${it.hold ?? 1.4}s`}`, sx(cx), y - 8);
+      g.textAlign = "left";
+      break;
+    }
+    case "headwind": {
+      const cx = c.centerX(it.z + (it.len ?? 12) / 2);
+      const hw = c.halfWidth(it.z + (it.len ?? 12) / 2);
+      const y2 = sy(it.z + (it.len ?? 12));
+      g.fillStyle = "rgba(210,240,255,0.35)";
+      g.fillRect(sx(cx - hw), y2, hw * 2 * scale, y - y2);
+      g.strokeStyle = on ? "#fff" : "rgba(255,255,255,0.8)";
+      g.lineWidth = on ? 3 : 2;
+      g.strokeRect(sx(cx - hw), y2, hw * 2 * scale, y - y2);
+      g.fillStyle = "#fff";
+      g.font = "bold 11px sans-serif";
+      g.textAlign = "center";
+      g.fillText(`HEADWIND ×${it.need ?? 2}`, sx(cx), (y + y2) / 2 + 4);
+      g.textAlign = "left";
+      break;
+    }
     case "rock":
       ring(it.r ?? 1.5, "#9b94ad");
       break;

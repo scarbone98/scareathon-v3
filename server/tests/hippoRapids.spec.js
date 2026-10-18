@@ -225,6 +225,101 @@ describe('hippo rapids levels', () => {
     });
 });
 
+describe('hippo rapids teamwork', () => {
+    function crew(level, seats = 4) {
+        const sim = createSim({ seats, level });
+        sim.hippos.forEach((h) => (h.bot = false));
+        runFor(sim, COUNTDOWN + 0.1);
+        return sim;
+    }
+
+    it('keeps a lock gate shut until enough hippos fart together', () => {
+        const level = { name: 'T', finish: 200, center: [[-80, 0], [400, 0]], width: [[-80, 13], [400, 13]], flow: [[-80, 1], [400, 1]], items: [{ t: 'gate', x: 0, z: 100, need: 2, mode: 0, hold: 1 }] };
+        const sim = crew(level);
+        const gate = () => sim.gates[0];
+        sim.z = 90;
+        sim.x = 0;
+        // One hippo alone, however long, does nothing.
+        sim.setInput(0, 0, true);
+        for (let i = 0; i < 90; i++) {
+            sim.z = 90;
+            sim.vz = 0;
+            sim.step(STEP);
+        }
+        expect(gate().open).toBe(false);
+        // Two together, held for a second, open it.
+        sim.hippos.forEach((h) => {
+            h.gas = 1;
+            h.spent = false;
+        });
+        sim.setInput(0, 0, true);
+        sim.setInput(2, 0, true);
+        for (let i = 0; i < 120 && !gate().open; i++) {
+            sim.z = 90;
+            sim.vz = 0;
+            sim.step(STEP);
+        }
+        expect(gate().open).toBe(true);
+        expect(sim.snapshot().gt[0][0]).toBe(1);
+    });
+
+    it('counts a tap only when enough hippos start together', () => {
+        const level = { name: 'T', finish: 200, center: [[-80, 0], [400, 0]], width: [[-80, 13], [400, 13]], flow: [[-80, 1], [400, 1]], items: [{ t: 'gate', x: 0, z: 100, need: 2, mode: 1, count: 2 }] };
+        const sim = crew(level);
+        const tap = (seats, gap) => {
+            sim.setInput(seats[0], 0, true);
+            for (let i = 0; i < gap * 60; i++) {
+                sim.z = 90;
+                sim.vz = 0;
+                sim.step(STEP);
+            }
+            sim.setInput(seats[1], 0, true);
+            for (let i = 0; i < 12; i++) sim.step(STEP);
+            sim.hippos.forEach((h, k) => sim.setInput(k, 0, false));
+            for (let i = 0; i < 40; i++) sim.step(STEP);
+        };
+        // Half a second apart is not together.
+        tap([0, 2], 0.6);
+        expect(sim.gates[0].taps).toBe(0);
+        tap([0, 2], 0.05);
+        expect(sim.gates[0].taps).toBe(1);
+        tap([1, 3], 0.05);
+        expect(sim.gates[0].open).toBe(true);
+    });
+
+    it('lets a headwind through only for a crew pushing together', () => {
+        const level = { name: 'T', finish: 200, center: [[-80, 0], [400, 0]], width: [[-80, 13], [400, 13]], flow: [[-80, 1.2], [400, 1.2]], items: [{ t: 'headwind', x: 0, z: 100, len: 6, need: 2 }] };
+        const through = (pushers) => {
+            const sim = crew(level, 2);
+            sim.z = 96;
+            sim.hippos.forEach((h, i) => (h.ang = Math.PI + (i - 0.5) * 1.2));
+            for (let i = 0; i < 60 * 6; i++) {
+                for (let k = 0; k < 2; k++) sim.setInput(k, 0, k < pushers && sim.z > 95);
+                sim.step(STEP);
+                if (sim.z > 107) return true;
+            }
+            return false;
+        };
+        expect(through(2)).toBe(true);
+        expect(through(1)).toBe(false);
+    });
+
+    it('lets bots finish the teamwork levels, but needs a person aboard to pitch in', () => {
+        for (const id of ['chorus', 'climb']) {
+            const sim = createSim({ seats: 4, skill: 1, seed: 2, level: id });
+            let steps = 0;
+            while (sim.phase !== 'done' && steps++ < 60 * 250) sim.step(STEP);
+            expect(sim.phase).toBe('done');
+        }
+        // A person who just sits there leaves the first lock shut.
+        const sim = createSim({ seats: 2, skill: 1, seed: 2, level: 'chorus' });
+        sim.hippos[0].bot = false;
+        for (let i = 0; i < 60 * 120; i++) sim.step(STEP);
+        expect(sim.phase).toBe('run');
+        expect(sim.gates[0].open).toBe(false);
+    });
+});
+
 describe('hippo rapids rooms', () => {
     function setup() {
         let time = 1_000_000;
@@ -349,6 +444,23 @@ describe('hippo rapids rooms', () => {
         rooms.join(guest, { code: room.code, name: 'B' });
         rooms.setLevel(guest, { level: 'falls' });
         expect(room.level.id).toBe('lagoon');
+    });
+
+    it('passes a call-out on to the room, but not junk or spam', () => {
+        const { rooms, advance } = setup();
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const room = rooms.create(host, { name: 'A', seats: 2 });
+        rooms.join(guest, { code: room.code, name: 'B' });
+        rooms.say(guest, { k: 2 });
+        expect(host.last('say')).toEqual({ type: 'say', seat: 1, k: 2 });
+        rooms.say(guest, { k: 1 });
+        rooms.say(guest, { k: 99 });
+        expect(host.of('say')).toHaveLength(1);
+        advance(500);
+        rooms.say(guest, { k: 99 });
+        rooms.say(guest, { k: 0 });
+        expect(host.of('say')).toHaveLength(2);
     });
 
     it('goes back to the dock after a finish', () => {

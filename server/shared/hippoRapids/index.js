@@ -30,6 +30,14 @@ export const SEAT_COUNTS = [2, 4];
 export const RING_BONUS = 1;
 // A toot builds up over this long, so a tap is a nudge and a held toot is a shove.
 const TOOT_RAMP = 0.22;
+// How hard a headwind pulls back. The hippos crowd the back of the raft and push at an angle,
+// so a crew gets less out of its farts than the sum: a whole crew (all of two, three of four) is
+// what it takes.
+const windPull = (count, need) => Math.max(0, THRUST[count] * (Math.min(need, count === 2 ? 2 : 3) - (count === 2 ? 1.2 : 1.5)));
+// A lock gate listens for farts this far upriver of it.
+export const COOP_SPAN = 18;
+// Taps count as together if they start this close.
+const TAP_WINDOW = 0.35;
 
 const DRAG = 1.15;
 const SPIN_DRAG = 1.4;
@@ -95,6 +103,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
         sinks: 0,
         hits: 0,
         rings: new Set(),
+        gates: course.gates.map(() => ({ open: false, charge: 0, taps: 0, win: -9, starts: 0, mask: 0, last: -9 })),
         events: [],
         stuck: 0,
         hippos: Array.from({ length: count }, (_, i) => ({
@@ -102,6 +111,9 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             mv: 0,
             fart: false,
             pw: 0,
+            was: false,
+            started: false,
+            home: 0,
             gas: 1,
             spent: false,
             bot: true,
@@ -110,7 +122,10 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
         })),
     };
     // Seat 0 starts at the back so the first push goes forward.
-    sim.hippos.forEach((h, i) => (h.ang = Math.PI + (i / count) * Math.PI * 2));
+    sim.hippos.forEach((h, i) => {
+        h.ang = Math.PI + (i / count) * Math.PI * 2;
+        h.home = h.ang;
+    });
 
     const emit = (e) => sim.events.push(e);
 
@@ -214,6 +229,9 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             const { x, vx } = logAt(g, sim.t);
             bumpSegment(x - g.half, g.z, x + g.half, g.z, g.r, vx, 0, vx, 0, true);
         }
+        course.gates.forEach((g, i) => {
+            if (!sim.gates[i].open && Math.abs(g.z - sim.z) < 6) bumpSegment(g.x - g.hw - 4, g.z, g.x + g.hw + 4, g.z, 0.7, 0, 0, 0, 0, false);
+        });
         for (const b of course.bumpers) {
             if (Math.abs(b.z - sim.z) < 6) bumpPoint(b.x, b.z, b.r, 0, 0, false, 1.6);
         }
@@ -232,6 +250,8 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             h.ang = wrapAngle(h.ang + h.mv * RIM_SPEED * dt);
             const farting = racing && h.fart && h.gas > 0 && !h.spent;
             h.live = farting;
+            h.started = farting && !h.was;
+            h.was = farting;
             h.pw = farting ? Math.min(1, h.pw + dt / TOOT_RAMP) : Math.max(0, h.pw - dt / 0.1);
             if (farting) {
                 h.gas = Math.max(0, h.gas - GAS_DRAIN * dt);
@@ -262,6 +282,48 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
         return [fx, fz];
     };
 
+    // Lock gates: open when enough hippos fart together (held for a while, or in unison taps).
+    function updateGates(dt) {
+        if (sim.phase !== 'run') return;
+        course.gates.forEach((g, i) => {
+            const st = sim.gates[i];
+            if (st.open) return;
+            const need = Math.min(g.need, count);
+            const near = sim.z > g.z - COOP_SPAN && sim.z < g.z + 4;
+            if (g.mode === 0) {
+                const live = sim.hippos.filter((h) => h.live).length;
+                st.charge = near && live >= need ? st.charge + dt / g.hold : Math.max(0, st.charge - dt * 0.6);
+            } else {
+                if (st.taps > 0 && sim.t - st.last > 6) st.taps = 0;
+                if (near) {
+                    sim.hippos.forEach((h, k) => {
+                        if (!h.started) return;
+                        if (sim.t - st.win > TAP_WINDOW) {
+                            st.win = sim.t;
+                            st.mask = 0;
+                        }
+                        st.mask |= 1 << k;
+                    });
+                    let n = 0;
+                    for (let k = 0; k < count; k++) if (st.mask & (1 << k)) n++;
+                    if (n >= need && sim.t - st.win <= TAP_WINDOW && sim.t - st.last > 0.45) {
+                        st.taps += 1;
+                        st.last = sim.t;
+                        st.mask = 0;
+                        st.win = -9;
+                        emit({ e: 'gate', i, k: 'tap' });
+                    }
+                }
+                st.charge = Math.min(1, st.taps / g.count);
+                if (st.taps >= g.count) st.charge = 1;
+            }
+            if (st.charge >= 1) {
+                st.open = true;
+                emit({ e: 'gate', i, k: 'open' });
+            }
+        });
+    }
+
     sim.step = (dt = STEP) => {
         sim.t += dt;
         if (sim.inv > 0) sim.inv -= dt;
@@ -290,7 +352,13 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             return;
         }
 
-        const [fx, fz] = crew(dt);
+        const [fx, fz0] = crew(dt);
+        let fz = fz0;
+        // Headwind: only enough hippos pushing at once make any headway through it.
+        for (const w of course.headwinds) {
+            if (sim.z >= w.z && sim.z <= w.z + w.len) fz -= windPull(count, w.need);
+        }
+        updateGates(dt);
         const [cx, cz] = course.flowAt(sim.x, sim.z);
         // The pads in Hippo Falls give a shove downstream.
         let pad = 0;
@@ -379,6 +447,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             sinks: sim.sinks,
             hits: sim.hits,
             rg: [...sim.rings],
+            gt: sim.gates.map((g) => [g.open ? 1 : 0, r2(g.charge), g.taps]),
             h: sim.hippos.map((h) => [r2(h.ang), h.live ? 1 : 0, r2(h.gas), h.spent ? 1 : 0, h.mv, h.bot ? 1 : 0]),
             ev: events,
         };
@@ -393,6 +462,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
         sim.sinks = 0;
         sim.hits = 0;
         sim.rings.clear();
+        sim.gates = course.gates.map(() => ({ open: false, charge: 0, taps: 0, win: -9, starts: 0, mask: 0, last: -9 }));
         sim.respawn();
         sim.inv = 0;
         sim.events = [];
@@ -458,7 +528,12 @@ function guidance(sim, rng, skill) {
     const len = Math.hypot(tx, tz);
     const vmax = 3.8 + skill * 1.6;
     const vdx = (tx / len) * vmax;
-    const vdz = (tz / len) * vmax;
+    // A closed gate ahead: slow to a halt in front of it.
+    let vdzCap = Infinity;
+    course.gates.forEach((g, i) => {
+        if (!sim.gates[i].open && g.z > sim.z - 1 && g.z - sim.z < look + 8) vdzCap = Math.min(vdzCap, Math.max(0, (g.z - R - 4 - sim.z) * 0.9));
+    });
+    const vdz = Math.min((tz / len) * vmax, vdzCap);
     const [fx, fz] = course.flowAt(sim.x, sim.z);
     // Counter the current's drift as well as chasing the wanted speed.
     let ax = vdx - sim.vx + fx * 0.2;
@@ -486,9 +561,72 @@ function guidance(sim, rng, skill) {
     return [ax * c - az * s, ax * s + az * c];
 }
 
+// The teamwork a bot is part of right now, if any: a gate to open or a headwind to climb. With
+// people aboard only some bots join in, so the people are needed; a crew of bots all do.
+function coopTask(sim, seat) {
+    const count = sim.hippos.length;
+    const humans = sim.hippos.some((h) => !h.bot);
+    const { course, R } = sim;
+    // At a gate only some bots sing when people are aboard, so the people are needed.
+    if (!humans || count === 2 || seat % 2 === 0) {
+        for (let i = 0; i < course.gates.length; i++) {
+            const g = course.gates[i];
+            if (sim.gates[i].open || sim.z > g.z + 4 || g.z - sim.z > COOP_SPAN) continue;
+            // Wait until the raft has slowed up against the gate before singing.
+            if (g.z - sim.z < R + 8 && Math.hypot(sim.vx, sim.vz) < 2.4) return { kind: 'gate', g };
+        }
+    }
+    for (const w of course.headwinds) {
+        if (sim.z > w.z - 22 && sim.z < w.z + w.len) return { kind: 'wind', w };
+    }
+    return null;
+}
+
 function botDrive(sim, seat, dt, rng) {
     const h = sim.hippos[seat];
     const b = h.brain;
+    const task = coopTask(sim, seat);
+    if (task) {
+        const ready = h.gas > 0.9 || h.live;
+        if (task.kind === 'gate') {
+            // Spread evenly round the rim (opposite farts cancel, so the raft stays put), keeping
+            // the order the hippos are already in: they can't walk through each other.
+            const n = sim.hippos.length;
+            const order = sim.hippos.map((_, k) => k).sort((a, c) => sim.hippos[a].ang - sim.hippos[c].ang);
+            let sx = 0;
+            let sz = 0;
+            order.forEach((k, j) => {
+                const off = sim.hippos[k].ang - (j * Math.PI * 2) / n;
+                sx += Math.sin(off);
+                sz += Math.cos(off);
+            });
+            const slot = Math.atan2(sx, sz) + (order.indexOf(seat) * Math.PI * 2) / n;
+            const err = wrapAngle(slot - h.ang);
+            h.mv = Math.abs(err) < 0.08 ? 0 : err > 0 ? 1 : -1;
+            const aligned = Math.abs(err) < 0.2;
+            h.fart = aligned && !h.spent && (task.g.mode === 1 ? sim.t % 1.1 < 0.12 : ready);
+            return;
+        }
+        // Headwind: everyone to the back, and all push together once the raft reaches it.
+        // Each takes its own spot across the back, so the pushes line up with the river.
+        const back = Math.PI - sim.yaw;
+        const mates = sim.hippos
+            .map((o, k) => k)
+            .filter((k) => sim.hippos[k].bot && coopTask(sim, k))
+            .sort((a, c) => wrapAngle(sim.hippos[a].ang - back) - wrapAngle(sim.hippos[c].ang - back));
+        const slot = mates.indexOf(seat) - (mates.length - 1) / 2;
+        const gap = (sim.hippos.length === 2 ? 1.2 : 0.8) + 0.05;
+        const err = wrapAngle(Math.PI - sim.yaw + slot * gap - h.ang);
+        h.mv = Math.abs(err) < 0.08 ? 0 : err > 0 ? 1 : -1;
+        // Run-up: one hippo in two pushes up to it while the rest save their beans; then everyone
+        // lets go together at the foot of the climb.
+        const toGo = task.w.z - sim.z;
+        // Nobody pushes on the way up (saving the beans); everyone lets go together just short of
+        // the climb, so the beans last through it.
+        const go = task.w.z - sim.z < (sim.hippos.length === 2 ? 4 : 3.5);
+        h.fart = Math.abs(err) < 0.9 && !h.spent && go;
+        return;
+    }
     b.next -= dt;
     if (b.next <= 0) {
         b.next = 0.18 + rng() * 0.2 + (1 - h.skill) * 0.25;

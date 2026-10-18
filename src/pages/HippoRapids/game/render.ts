@@ -285,6 +285,8 @@ interface HippoRig {
   walk: number;
   look: number;
   labelText: string;
+  bubble: THREE.Sprite;
+  sayUntil: number;
 }
 
 interface Particle {
@@ -333,6 +335,9 @@ export class Renderer {
   private levelOwned: { dispose(): void }[] = [];
   private levelBuild = false;
   private ringMeshes: THREE.Group[] = [];
+  private gates: { grp: THREE.Group; bars: THREE.Group; lamps: THREE.Mesh[]; mode: number }[] = [];
+  private winds: { tex: THREE.Texture; z: number; len: number }[] = [];
+  private bubbleTex = new Map<string, THREE.Texture>();
   private ringsGot = new Set<number>();
   private geysers: { ring: THREE.Mesh; column: THREE.Mesh; spit: number }[] = [];
   private gators: THREE.Group[] = [];
@@ -392,6 +397,8 @@ export class Renderer {
     this.spinners = [];
     this.bumpers = [];
     this.ringMeshes = [];
+    this.gates = [];
+    this.winds = [];
     this.ringsGot = new Set();
     this.whirl = null;
     this.flagsUp = -1;
@@ -664,6 +671,7 @@ export class Renderer {
       this.boostPads.push(pad);
     }
     this.buildHazards(course);
+    this.buildCoop(course);
     // The whirlpool.
     if (!course.vortex) return;
     const swirl = this.own(
@@ -815,6 +823,167 @@ export class Renderer {
     }
   }
 
+  // A sign board: two lines on a coloured panel, facing back down the river.
+  private sign(line1: string, line2: string, w: number, bg: string) {
+    const tex = this.own(
+      canvasTexture(512, 192, (g) => {
+        g.fillStyle = "#1b1030";
+        g.beginPath();
+        g.roundRect(4, 4, 504, 184, 28);
+        g.fill();
+        g.fillStyle = bg;
+        g.beginPath();
+        g.roundRect(14, 14, 484, 164, 22);
+        g.fill();
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.lineJoin = "round";
+        g.font = "bold 58px 'Trebuchet MS', 'Arial Black', sans-serif";
+        g.lineWidth = 9;
+        g.strokeStyle = "rgba(0,0,0,0.4)";
+        g.strokeText(line1, 256, 66);
+        g.fillStyle = "#fff4a8";
+        g.fillText(line1, 256, 66);
+        g.font = "bold 46px 'Trebuchet MS', 'Arial Black', sans-serif";
+        g.strokeText(line2, 256, 132);
+        g.fillStyle = "#ffffff";
+        g.fillText(line2, 256, 132);
+      }),
+    );
+    const mesh = new THREE.Mesh(this.own(new THREE.PlaneGeometry(w, w * 0.375)), this.own(new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true })));
+    mesh.rotation.y = Math.PI;
+    return mesh;
+  }
+
+  // Teamwork sections: lock gates that wait for a chorus, and headwinds.
+  private buildCoop(course: Course) {
+    const iron = this.own(lambert({ flatShading: true }));
+    for (const g of course.gates) {
+      const grp = new THREE.Group();
+      grp.position.set(g.x, 0, g.z);
+      const span = g.hw + 1.6;
+      const stone: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(span * 2 + 2.4, 1.1, 1.8), 0, 7.8, 0), "#8f8aa8", 0.2)];
+      for (const sd of [-1, 1]) {
+        stone.push(skin(place(new THREE.BoxGeometry(2.4, 8.6, 2.4), sd * span, 4.3, 0), "#8f8aa8", 0.2));
+        stone.push(skin(place(new THREE.BoxGeometry(3, 0.7, 3), sd * span, 8.8, 0), "#6f6a88", 0.2));
+      }
+      const geo = mergeGeometries(stone)!;
+      grp.add(new THREE.Mesh(geo, iron), outline(geo, 0.04));
+      const bars = new THREE.Group();
+      const barGeo: THREE.BufferGeometry[] = [];
+      for (let x = -span + 1.5; x <= span - 1.4; x += 1.4) barGeo.push(skin(place(new THREE.CylinderGeometry(0.17, 0.17, 7.2, 8), x, 3.6, 0), "#3d3858", 0.25));
+      for (const y of [1.4, 3.6, 5.8]) barGeo.push(skin(place(new THREE.BoxGeometry(span * 2 - 2, 0.25, 0.35), 0, y, 0), "#4a4468", 0.2));
+      bars.add(new THREE.Mesh(mergeGeometries(barGeo)!, iron));
+      grp.add(bars);
+      // Lamps along the beam: the crew's progress (taps so far, or how full the chorus is).
+      const n = g.mode === 1 ? g.count : 8;
+      const lamps: THREE.Mesh[] = [];
+      const lampGeo = this.own(new THREE.SphereGeometry(0.3, 10, 8));
+      for (let k = 0; k < n; k++) {
+        const lamp = new THREE.Mesh(lampGeo, this.own(new THREE.MeshBasicMaterial({ color: 0x40395a })));
+        lamp.position.set((k - (n - 1) / 2) * Math.min(1.1, (span * 1.6) / n), 7.8, -1.05);
+        grp.add(lamp);
+        lamps.push(lamp);
+      }
+      const need = Math.min(g.need, 4);
+      const board = this.sign(g.mode === 1 ? "TAP TOGETHER" : "FART TOGETHER", g.mode === 1 ? `${need} HIPPOS × ${g.count}` : `${need} HIPPOS`, Math.min(11, span * 1.7), g.mode === 1 ? "#3a6ad8" : "#d8503a");
+      board.position.set(0, 11.2, 0);
+      grp.add(board);
+      this.world.add(grp);
+      this.gates.push({ grp, bars, lamps, mode: g.mode });
+    }
+    const chev = this.own(
+      canvasTexture(
+        128,
+        128,
+        (g) => {
+          g.clearRect(0, 0, 128, 128);
+          g.strokeStyle = "rgba(255,255,255,0.75)";
+          g.lineWidth = 12;
+          g.lineCap = "round";
+          g.lineJoin = "round";
+          g.beginPath();
+          g.moveTo(24, 98);
+          g.lineTo(64, 52);
+          g.lineTo(104, 98);
+          g.stroke();
+        },
+        true,
+      ),
+    );
+    for (const w of course.headwinds) {
+      const hw = course.halfWidth(w.z + w.len / 2) * 2 + 1;
+      const tex = chev.clone();
+      tex.needsUpdate = true;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(Math.round(hw / 4.5), Math.max(1, Math.round(w.len / 4.5)));
+      this.own(tex);
+      const mat = this.own(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xd8f4ff }));
+      const plane = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, w.len)), mat);
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.set(course.centerX(w.z + w.len / 2), 0.12, w.z + w.len / 2);
+      this.world.add(plane);
+      const foam = this.own(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false }));
+      for (const edge of [w.z, w.z + w.len]) {
+        const bar = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, 0.7)), foam);
+        bar.rotation.x = -Math.PI / 2;
+        bar.position.set(course.centerX(edge), 0.14, edge);
+        this.world.add(bar);
+      }
+      const board = this.sign("HEADWIND", `PUSH × ${Math.min(w.need, 3)} TOGETHER`, 9, "#2a8ab8");
+      board.position.set(course.centerX(w.z), 6.2, w.z - 1);
+      const post = this.own(lambert());
+      for (const sd of [-1, 1]) {
+        const pole = new THREE.Mesh(this.own(tint(new THREE.CylinderGeometry(0.2, 0.25, 6, 6).translate(0, 3, 0), "#f1e6cf")), post);
+        pole.position.set(course.centerX(w.z) + sd * 4.5, 0, w.z - 1);
+        this.world.add(pole);
+      }
+      this.world.add(board);
+      this.winds.push({ tex, z: w.z, len: w.len });
+    }
+  }
+
+  // A speech bubble over a hippo's head, for the crew's call-outs.
+  private makeBubble(holder: THREE.Group) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false }));
+    s.scale.set(2.6, 1.1, 1);
+    s.position.set(0, 2.85, 0);
+    s.renderOrder = 12;
+    s.visible = false;
+    holder.add(s);
+    return s;
+  }
+
+  say(seat: number, text: string) {
+    const rig = this.rigs[seat];
+    if (!rig) return;
+    let tex = this.bubbleTex.get(text);
+    if (!tex) {
+      tex = canvasTexture(256, 112, (g) => {
+        g.fillStyle = "#1b1030";
+        g.beginPath();
+        g.roundRect(6, 6, 244, 70, 24);
+        g.moveTo(112, 74);
+        g.lineTo(128, 104);
+        g.lineTo(144, 74);
+        g.fill();
+        g.fillStyle = "#fff7e0";
+        g.beginPath();
+        g.roundRect(12, 12, 232, 58, 19);
+        g.fill();
+        g.fillStyle = "#1b1030";
+        g.font = "bold 40px 'Trebuchet MS', 'Arial Black', sans-serif";
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillText(text, 128, 42);
+      });
+      this.bubbleTex.set(text, tex);
+    }
+    rig.bubble.material.map = tex;
+    rig.bubble.material.needsUpdate = true;
+    rig.sayUntil = this.clockT + 2.4;
+  }
+
   // Start and finish arches, and a flag at each checkpoint.
   private buildLandmarks() {
     const { course } = this;
@@ -939,7 +1108,7 @@ export class Renderer {
       marker.visible = false;
       holder.add(marker);
       this.raftBody.add(holder);
-      this.rigs.push({ holder, rig: group, head, jaw, eyes, ears, tail, blinkAt: 1 + Math.random() * 3, earAt: 2 + Math.random() * 4, label, marker, puffTimer: 0, walk: 0, look: i, labelText: "" });
+      this.rigs.push({ holder, rig: group, head, jaw, eyes, ears, tail, blinkAt: 1 + Math.random() * 3, earAt: 2 + Math.random() * 4, label, marker, puffTimer: 0, walk: 0, look: i, labelText: "", bubble: this.makeBubble(holder), sayUntil: 0 });
     }
   }
 
@@ -1023,6 +1192,14 @@ export class Renderer {
       rig.ears.forEach((ear, k) => (ear.rotation.z = (k ? -1 : 1) * (fr ? 0.5 : flick)));
       rig.tail.rotation.y = fr ? Math.sin(t * 36) * 0.7 : Math.sin(t * 2.5 + i) * 0.15;
       rig.tail.position.y = 0.8 + fr * 0.08;
+      const talking = t < rig.sayUntil;
+      rig.bubble.visible = talking;
+      if (talking) {
+        const age = 2.4 - (rig.sayUntil - t);
+        const pop = age < 0.2 ? 0.6 + (age / 0.2) * 0.4 : 1;
+        rig.bubble.scale.set(2.6 * pop, 1.1 * pop, 1);
+        rig.bubble.position.y = 2.85 + Math.sin(t * 6) * 0.04;
+      }
       const mine = i === view.me;
       rig.marker.visible = mine;
       rig.marker.position.y = 2.6 + Math.sin(t * 5) * 0.15;
@@ -1092,6 +1269,26 @@ export class Renderer {
       p.scale.set(s, s, s);
     });
     if (this.whirl) this.whirl.rotation.z = -t * 0.9;
+    // Lock gates: lamps fill as the crew sings, and the portcullis lifts when it opens.
+    this.gates.forEach((gt, i) => {
+      const [open, charge, taps] = view.gt[i] ?? [0, 0, 0];
+      const lit = gt.mode === 1 ? taps : Math.round(charge * gt.lamps.length);
+      gt.lamps.forEach((lamp, k) => {
+        const mat = lamp.material as THREE.MeshBasicMaterial;
+        mat.color.set(open ? 0x5cff7a : k < lit ? 0xffe45e : 0x40395a);
+        lamp.scale.setScalar(k < lit || open ? 1.15 + Math.sin(t * 8 + k) * 0.08 : 1);
+      });
+      const target = open ? 7.8 : charge * 0.9 + (gt.mode === 0 && charge > 0 ? Math.sin(t * 30) * 0.05 : 0);
+      gt.bars.position.y += (target - gt.bars.position.y) * Math.min(1, dt * (open ? 3 : 8));
+    });
+    // Headwinds stream back toward the camera.
+    for (const w of this.winds) {
+      w.tex.offset.y = -t * 0.9;
+      if (Math.abs(view.z - w.z - w.len / 2) < 28 && Math.random() < 0.6) {
+        const cx = this.course.centerX(w.z);
+        this.emit({ x: cx + (Math.random() - 0.5) * this.course.halfWidth(w.z) * 1.8, y: 0.5 + Math.random() * 0.6, z: w.z + Math.random() * w.len, vx: 0, vy: 0.3, vz: -7, life: 0.55, size: 0.12, from: "#ffffff", to: "#a8e0ff" });
+      }
+    }
     // Rings pop when the crew flies through; a new run brings them all back.
     const gotNow = new Set(view.rg);
     if (view.rg.length < this.ringsGot.size) this.ringsGot = new Set();

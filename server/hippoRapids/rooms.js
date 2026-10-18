@@ -22,6 +22,9 @@ const DONE_STREAM_MS = 12_000;
 const ABANDONED_TTL_MS = 2 * 60_000;
 const MAX_ROOMS = 300;
 const MAX_INPUTS_PER_SECOND = 60;
+// Call-outs a crew can shout to each other: GO!, WAIT, NOW!, OOPS.
+export const SAY_COUNT = 4;
+const SAY_GAP_MS = 350;
 const MAX_CATCH_UP_S = 0.2;
 export const BOT_SKILL = 0.5;
 const DEFAULT_LEVEL = 'lagoon';
@@ -266,6 +269,16 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             if (found.player.inputs.length >= MAX_INPUTS_PER_SECOND) return;
             found.player.inputs.push(t);
             found.room.sim.setInput(found.seat, Number(mv) || 0, !!f);
+        },
+
+        // A quick call-out, shown over the sender's hippo on everyone's screen.
+        say(socket, { k }) {
+            const found = playerFor(socket);
+            if (!found || !Number.isInteger(k) || k < 0 || k >= SAY_COUNT) return;
+            const t = now();
+            if (t - (found.player.saidAt ?? 0) < SAY_GAP_MS) return;
+            found.player.saidAt = t;
+            broadcast(found.room, { type: 'say', seat: found.seat, k });
         },
 
         leave(socket) {

@@ -9,6 +9,7 @@ export type ServerMessage =
   | { type: "room-info"; code: string; status: "open" | "full" | "missing"; seats?: number; free?: number; host?: string }
   | { type: "start" }
   | ({ type: "snap" } & Snapshot)
+  | { type: "say"; seat: number; k: number }
   | { type: "presence"; connected: boolean[] }
   | { type: "left"; seat: number; name: string; reason: "left" | "dropped" }
   | { type: "error"; code: string; message: string }

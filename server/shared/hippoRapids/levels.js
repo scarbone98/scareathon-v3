@@ -214,6 +214,52 @@ function falls() {
     return level(spec, d);
 }
 
+// Teamwork: lock gates that open when enough hippos fart together, in a hold or in unison taps.
+function chorus() {
+    const spec = {
+        name: 'Chorus Locks',
+        finish: 300,
+        center: [[-80, 0], [500, 0]],
+        width: [[-80, 13], [500, 12.5]],
+        flow: [[-80, 1], [500, 1.1]],
+        checkpoints: [75, 150, 225],
+        sections: [[-80, 'The Dock'], [45, 'First Lock'], [120, 'Tap Lock'], [195, 'Big Lock']],
+    };
+    const d = draft(spec, 81);
+    d.weave([40, 58], 1.5);
+    d.at('gate', 100, 0, { need: 2, mode: 0, hold: 1.2 });
+    d.weave([118, 134], 1.6);
+    d.at('gate', 175, 0, { need: 2, mode: 1, count: 3 });
+    d.at('bumper', 195, -5, { r: 1.3 });
+    d.at('bumper', 205, 5, { r: 1.3 });
+    d.at('gate', 250, 0, { need: 3, mode: 0, hold: 1.6 });
+    d.rings([[40, 2], [88, -2], [118, 3], [163, 0], [200, 0], [238, -2], [275, 0]]);
+    return level(spec, d);
+}
+
+// Teamwork: headwinds that only a whole crew pushing at once can climb, with pools to rest in.
+function climb() {
+    const spec = {
+        name: 'Upstream Climb',
+        finish: 320,
+        center: [[-80, 0], [500, 0]],
+        width: [[-80, 13], [500, 12.5]],
+        flow: [[-80, 1], [500, 1.2]],
+        checkpoints: [70, 130, 200, 250],
+        sections: [[-80, 'The Dock'], [45, 'First Step'], [105, 'Second Step'], [175, 'Third Step'], [235, 'Last Lock']],
+    };
+    const d = draft(spec, 91);
+    d.at('headwind', 82, 0, { len: 5, need: 2 });
+    d.rock(110, 1, 0.4, 1.6);
+    d.at('headwind', 140, 0, { len: 5, need: 3 });
+    d.weave([120], 1.5);
+    d.at('lily', 165, 4, { r: 4 });
+    d.at('headwind', 205, 0, { len: 5, need: 3 });
+    d.at('gate', 262, 0, { need: 3, mode: 1, count: 4 });
+    d.rings([[60, 0], [95, 0], [128, 3], [160, -3], [190, 0], [225, 0], [255, 0], [295, 0]]);
+    return level(spec, d);
+}
+
 // The original 722 m river, start to finish.
 function wholeRiver() {
     const spec = {
@@ -268,6 +314,8 @@ export const LEVELS = [
     { id: 'gulch', par: [95, 115, 150], blurb: 'Geysers, lily pads and pumpkin bumpers.', color: '#e0584a', make: gulch },
     { id: 'marsh', par: [100, 120, 155], blurb: 'Gators, paddle wheels and a rock gate.', color: '#6a9a3a', make: marsh },
     { id: 'falls', par: [80, 100, 125], blurb: 'Fast, narrow rapids into a whirlpool.', color: '#3a6ad8', make: falls },
+    { id: 'chorus', par: [90, 110, 145], blurb: 'Teamwork! Fart together to open the locks.', color: '#e8a0d0', make: chorus },
+    { id: 'climb', par: [115, 140, 180], blurb: 'Teamwork! Only a whole crew can climb the headwind.', color: '#80c8e8', make: climb },
     { id: 'whole', par: [290, 350, 450], blurb: 'All of it, start to finish. Bring snacks.', color: '#c8a23a', make: wholeRiver },
 ].map((l) => ({ ...l, def: l.make() }));
 
