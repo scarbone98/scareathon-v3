@@ -312,6 +312,39 @@ const WATER_SIZE = 260;
 const HIPPO_SCALE = 0.72;
 const WATER_REPEAT = 7;
 
+// How windy it is around the raft, 0..1, and which way it blows (dx: -1 left, 1 right; dz: -1 toward
+// the camera). It's felt a little before the raft reaches a gust or a headwind, so you can see it coming.
+export function windFeel(course: Course, view: { z: number; t: number }) {
+  let i = 0;
+  let dx = 0;
+  let dz = 0;
+  const reach = (start: number, len: number) => {
+    if (view.z > start + len) return 0;
+    const d = start - view.z;
+    return d > 0 ? Math.max(0, 1 - d / 34) * 0.5 : 1;
+  };
+  for (const g of course.gusts) {
+    const r = reach(g.z, g.len);
+    if (r <= 0) continue;
+    const a = gustAt(g, view.t) / Math.max(0.01, Math.abs(g.force));
+    const w = r * (g.period > 0 ? 0.3 + 0.7 * Math.abs(a) : 1);
+    if (w > i) {
+      i = w;
+      dx = a >= 0 ? 1 : -1;
+      dz = 0;
+    }
+  }
+  for (const h of course.headwinds) {
+    const w = reach(h.z, h.len);
+    if (w > i) {
+      i = w;
+      dx = 0;
+      dz = -1;
+    }
+  }
+  return { i, dx, dz };
+}
+
 export class Renderer {
   readonly gl: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -829,52 +862,6 @@ export class Renderer {
     }
   }
 
-  // A sign board: two lines on a coloured panel, facing back down the river.
-  private sign(line1: string, line2: string, w: number, bg: string) {
-    const tex = this.own(
-      canvasTexture(512, 192, (g) => {
-        g.fillStyle = "#1b1030";
-        g.beginPath();
-        g.roundRect(4, 4, 504, 184, 28);
-        g.fill();
-        g.fillStyle = bg;
-        g.beginPath();
-        g.roundRect(14, 14, 484, 164, 22);
-        g.fill();
-        g.textAlign = "center";
-        g.textBaseline = "middle";
-        g.lineJoin = "round";
-        g.font = "bold 58px 'Trebuchet MS', 'Arial Black', sans-serif";
-        g.lineWidth = 9;
-        g.strokeStyle = "rgba(0,0,0,0.4)";
-        g.strokeText(line1, 256, 66);
-        g.fillStyle = "#fff4a8";
-        g.fillText(line1, 256, 66);
-        g.font = "bold 46px 'Trebuchet MS', 'Arial Black', sans-serif";
-        g.strokeText(line2, 256, 132);
-        g.fillStyle = "#ffffff";
-        g.fillText(line2, 256, 132);
-      }),
-    );
-    const mesh = new THREE.Mesh(this.own(new THREE.PlaneGeometry(w, w * 0.375)), this.own(new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true })));
-    mesh.rotation.y = Math.PI;
-    return mesh;
-  }
-
-  // A sign hung high on a gantry across the river, above the camera, so it never blocks the raft.
-  private gantry(cx: number, z: number, hw: number, line1: string, line2: string, bg: string) {
-    const parts: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(hw * 2 + 3, 0.5, 0.6), 0, 12.6, 0), "#6f6a88", 0.2)];
-    for (const sd of [-1, 1]) parts.push(skin(place(new THREE.BoxGeometry(0.7, 12.8, 0.7), sd * (hw + 1.2), 6.4, 0), "#8f8aa8", 0.2));
-    const geo = mergeGeometries(parts)!;
-    const grp = new THREE.Group();
-    grp.add(new THREE.Mesh(geo, this.own(lambert({ flatShading: true }))), outline(geo, 0.03));
-    const board = this.sign(line1, line2, Math.min(9.5, hw * 1.5), bg);
-    board.position.set(0, 11, 0);
-    grp.add(board);
-    grp.position.set(cx, 0, z);
-    this.world.add(grp);
-  }
-
   // Teamwork sections: lock gates that wait for a chorus, and headwinds.
   private buildCoop(course: Course) {
     const iron = this.own(lambert({ flatShading: true }));
@@ -905,10 +892,6 @@ export class Renderer {
         grp.add(lamp);
         lamps.push(lamp);
       }
-      const need = Math.min(g.need, 4);
-      const board = this.sign(g.mode === 1 ? "TAP TOGETHER" : "FART TOGETHER", g.mode === 1 ? `${need} HIPPOS × ${g.count}` : `${need} HIPPOS`, Math.min(11, span * 1.7), g.mode === 1 ? "#3a6ad8" : "#d8503a");
-      board.position.set(0, 11.2, 0);
-      grp.add(board);
       this.world.add(grp);
       this.gates.push({ grp, bars, lamps, mode: g.mode });
     }
@@ -938,7 +921,7 @@ export class Renderer {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       tex.repeat.set(Math.round(hw / 4.5), Math.max(1, Math.round(w.len / 4.5)));
       this.own(tex);
-      const mat = this.own(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xd8f4ff }));
+      const mat = this.own(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xd8f4ff, opacity: 0.55 }));
       const plane = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, w.len)), mat);
       plane.rotation.x = -Math.PI / 2;
       plane.position.set(course.centerX(w.z + w.len / 2), 0.12, w.z + w.len / 2);
@@ -950,7 +933,6 @@ export class Renderer {
         bar.position.set(course.centerX(edge), 0.14, edge);
         this.world.add(bar);
       }
-      this.gantry(course.centerX(w.z), w.z - 1, course.halfWidth(w.z), "HEADWIND", `PUSH × ${Math.min(w.need, 3)} TOGETHER`, "#2a8ab8");
       this.winds.push({ tex, z: w.z, len: w.len });
     }
   }
@@ -975,7 +957,6 @@ export class Renderer {
         this.world.add(grp);
         this.rails.push({ grp, side, slack: n.slack, x: n.x });
       }
-      this.gantry(n.x, n.z - 9, course.halfWidth(n.z), "THE NEEDLE", "STEER TOGETHER", "#a03a8a");
     }
     const arrows = this.own(
       canvasTexture(
@@ -1009,7 +990,6 @@ export class Renderer {
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(course.centerX(gu.z + gu.len / 2), 0.11, gu.z + gu.len / 2);
       this.world.add(mesh);
-      this.gantry(course.centerX(gu.z), gu.z - 1, course.halfWidth(gu.z), "CROSSWIND", gu.period > 0 ? "COUNTER THE GUSTS" : "HOLD YOUR LINE", "#c88a1a");
       this.gustFx.push({ tex, mesh, g: gu });
     }
   }
@@ -1360,11 +1340,29 @@ export class Renderer {
       const a = gustAt(f.g, view.t);
       const mag = Math.min(1, Math.abs(a) / Math.max(0.01, Math.abs(f.g.force)));
       f.mesh.scale.x = a >= 0 ? 1 : -1;
-      (f.mesh.material as THREE.MeshBasicMaterial).opacity = 0.15 + mag * 0.6;
+      (f.mesh.material as THREE.MeshBasicMaterial).opacity = 0.05 + mag * 0.2;
       f.tex.offset.x = a >= 0 ? -t * 0.8 * mag : t * 0.8 * mag;
       if (Math.abs(view.z - f.g.z - f.g.len / 2) < 30 && Math.random() < mag * 0.7) {
         this.emit({ x: this.course.centerX(f.g.z) + (a >= 0 ? -9 : 9), y: 0.5 + Math.random(), z: f.g.z + Math.random() * f.g.len, vx: a >= 0 ? 9 : -9, vy: 0.2, vz: 0, life: 0.7, size: 0.1, from: "#ffffff", to: "#ffe9a0" });
       }
+    }
+    // Wind you can see coming: streaks of air across the screen, before and during a gust.
+    const wind = windFeel(this.course, view);
+    for (let n = 0; n < 4; n++) {
+      if (wind.i < 0.04 || Math.random() > wind.i) continue;
+      const sp = 10 + wind.i * 10;
+      this.emit({
+        x: view.x + (Math.random() - 0.5) * 26 - wind.dx * 12,
+        y: 0.5 + Math.random() * 4,
+        z: view.z + Math.random() * 20 - 5 - wind.dz * 6,
+        vx: wind.dx * sp,
+        vy: 0,
+        vz: wind.dz * sp * 1.4,
+        life: 0.6,
+        size: 0.09 + wind.i * 0.05,
+        from: "#ffffff",
+        to: "#cfe8ff",
+      });
     }
     // Headwinds stream back toward the camera.
     for (const w of this.winds) {

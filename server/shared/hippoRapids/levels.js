@@ -361,10 +361,10 @@ export const LEVELS = [
     { id: 'gulch', par: [95, 115, 150], blurb: 'Geysers, lily pads and pumpkin bumpers.', color: '#e0584a', make: gulch },
     { id: 'marsh', par: [100, 120, 155], blurb: 'Gators, paddle wheels and a rock gate.', color: '#6a9a3a', make: marsh },
     { id: 'falls', par: [80, 100, 125], blurb: 'Fast, narrow rapids into a whirlpool.', color: '#3a6ad8', make: falls },
-    { id: 'chorus', par: [90, 110, 145], blurb: 'Teamwork! Fart together to open the locks.', color: '#e8a0d0', make: chorus },
-    { id: 'climb', par: [115, 140, 180], blurb: 'Teamwork! Only a whole crew can climb the headwind.', color: '#80c8e8', make: climb },
-    { id: 'needle', par: [95, 115, 150], blurb: 'Fine tuning: thread tight channels and fight the crosswind.', color: '#c8508a', make: needleRun },
-    { id: 'ferry', par: [90, 110, 145], blurb: 'Fine tuning: ferry across a side current and hit the landing.', color: '#50b0a0', make: ferry },
+    { id: 'chorus', par: [90, 110, 145], blurb: 'Locks that open when you fart together.', color: '#e8a0d0', make: chorus },
+    { id: 'climb', par: [115, 140, 180], blurb: 'Headwinds that take the whole crew.', color: '#80c8e8', make: climb },
+    { id: 'needle', par: [95, 115, 150], blurb: 'Tight channels and crosswinds.', color: '#c8508a', make: needleRun },
+    { id: 'ferry', par: [90, 110, 145], blurb: 'A side current and a narrow landing.', color: '#50b0a0', make: ferry },
     { id: 'whole', par: [290, 350, 450], blurb: 'All of it, start to finish. Bring snacks.', color: '#c8a23a', make: wholeRiver },
 ].map((l) => ({ ...l, def: l.make() }));
 

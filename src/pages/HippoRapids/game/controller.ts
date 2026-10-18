@@ -1,14 +1,12 @@
 // Runs a game of Hippo Rapids: the local sim (solo, and the demo behind the menus) or the
 // server's snapshots (online), your input, sound and the renderer.
 import {
-  COOP_SPAN,
   GAS_RESTART,
   HIPPO_NAMES,
   RIM_SPEED,
   STEP,
   createSim,
   getCourse,
-  gustAt,
   wrapAngle,
   type Course,
   type HippoState,
@@ -17,7 +15,7 @@ import {
   type SimEvent,
   type Snapshot,
 } from "../../../../server/shared/hippoRapids/index.js";
-import { Renderer, type View } from "./render";
+import { Renderer, windFeel, type View } from "./render";
 import { sfx } from "./sfx";
 
 export interface Hud {
@@ -44,23 +42,6 @@ export interface Hud {
   checkpoints: number[];
   ringsGot: number;
   ringsTotal: number;
-  coop: CoopHud | null;
-}
-
-// The teamwork happening right now: a lock gate waiting for a chorus, or a headwind to climb.
-export interface CoopHud {
-  kind: "gate" | "wind" | "fine";
-  need: number;
-  have: number; // hippos farting this instant
-  charge: number;
-  mode: number; // gate: 0 hold, 1 taps
-  taps: number;
-  count: number;
-  // Fine tuning: how far off the middle of the channel (m) and how much room there is; the
-  // crosswind's push (-1..1).
-  offset?: number;
-  slack?: number;
-  push?: number;
 }
 
 // Quick call-outs for the crew, on the 1-4 keys.
@@ -509,8 +490,11 @@ export class GameController {
     const quiet = this.mode === "demo" && !this.opts.attract;
     if (this.paused || quiet) {
       sfx.river(false);
+      sfx.wind(0, 0);
       return;
     }
+    const wind = windFeel(this.course, view);
+    sfx.wind(wind.i, wind.dx);
     const speed = Math.hypot(view.vx, view.vz);
     sfx.river(view.ph !== "done" || speed > 0.5, speed);
     if (view.ph === "countdown") {
@@ -555,29 +539,7 @@ export class GameController {
       checkpoints: this.course.checkpoints.map((z) => z / this.course.length),
       ringsGot: view.rg.length,
       ringsTotal: this.course.rings.length,
-      coop: this.coopHud(view),
     };
-  }
-
-  private coopHud(view: View): CoopHud | null {
-    const n = view.h.length;
-    const have = view.h.filter((h) => h[1] === 1).length;
-    const c = this.course;
-    for (let i = 0; i < c.gates.length; i++) {
-      const g = c.gates[i];
-      const st = view.gt[i];
-      if (st && !st[0] && view.z > g.z - COOP_SPAN - 10 && view.z < g.z + 3) return { kind: "gate", need: Math.min(g.need, n), have, charge: st[1], mode: g.mode, taps: st[2], count: g.count };
-    }
-    for (const w of c.headwinds) {
-      if (view.z > w.z - 26 && view.z < w.z + w.len) return { kind: "wind", need: Math.min(w.need, n === 2 ? 2 : 3), have, charge: 0, mode: 0, taps: 0, count: 0 };
-    }
-    // Fine tuning: threading a needle and/or leaning into a crosswind.
-    const needle = c.needles.find((n) => view.z > n.z - 12 && view.z < n.z + n.len);
-    const gust = c.gusts.find((g) => view.z > g.z - 6 && view.z < g.z + g.len);
-    if (needle || gust) {
-      return { kind: "fine", need: 0, have, charge: 0, mode: 0, taps: 0, count: 0, offset: needle ? view.x - needle.x : undefined, slack: needle?.slack, push: gust ? gustAt(gust, view.t) / Math.max(0.01, Math.abs(gust.force)) : undefined };
-    }
-    return null;
   }
 
   // Shout something to the crew: it shows over your hippo for everyone.

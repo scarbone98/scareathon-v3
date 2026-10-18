@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { LEVELS, MAX_HULL, RING_BONUS, getLevel, type Level } from "../../../server/shared/hippoRapids/index.js";
-import { GameController, SAY, type CoopHud, type Hud } from "./game/controller";
+import { GameController, SAY, type Hud } from "./game/controller";
 import { RoomSocket, roomLink, type RoomStatus, type ServerMessage, type SocketStatus } from "./game/net";
 import { HIPPO_LOOKS } from "./game/render";
 import { sfx } from "./game/sfx";
@@ -117,7 +117,7 @@ function SeatPicker({ seats, onChange }: { seats: number; onChange: (n: number) 
 }
 
 // The thumbstick: wherever the left thumb lands, point it where the raft should go.
-function Stick({ onAim }: { onAim: (a: [number, number] | null) => void }) {
+function Stick({ onAim, hint }: { onAim: (a: [number, number] | null) => void; hint: boolean }) {
   const [knob, setKnob] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
   const grip = useRef<{ id: number; cx: number; cy: number; ox: number; oy: number } | null>(null);
   const R = 52;
@@ -158,11 +158,11 @@ function Stick({ onAim }: { onAim: (a: [number, number] | null) => void }) {
           <div className="absolute inset-0 rounded-full border-4 border-white/50 bg-[#1b1030]/40" />
           <div className="absolute rounded-full border-4 border-[#1b1030] bg-[#ffe45e]" style={{ width: 46, height: 46, left: R - 23 + knob.x, top: R - 23 + knob.y }} />
         </div>
-      ) : (
+      ) : hint ? (
         <div className="hr-o pointer-events-none absolute left-5 text-sm opacity-80" style={{ bottom: "max(7rem, calc(env(safe-area-inset-bottom) + 6rem))" }}>
           DRAG: WHERE TO GO
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -220,63 +220,6 @@ function Progress({ hud }: { hud: Hud }) {
   );
 }
 
-// Fine tuning: where the raft is in the channel, and which way the wind is shoving.
-function FinePanel({ c }: { c: CoopHud }) {
-  const safe = c.slack ?? 1;
-  const range = safe + 1.2;
-  const off = c.offset ?? 0;
-  const pos = Math.max(-1, Math.min(1, off / range));
-  const bad = Math.abs(off) > safe;
-  return (
-    <div className="mx-auto flex w-full max-w-md items-center gap-3 rounded-xl border-[3px] border-[#1b1030] bg-[#1b1030]/85 px-3 py-1">
-      {c.offset !== undefined && (
-        <div className="min-w-0 flex-1">
-          <div className="hr-o text-[11px] tracking-wide text-[#ffe9b0]">THREAD THE NEEDLE</div>
-          <div className="relative mt-1 h-3 rounded-full border-2 border-[#1b1030] bg-[#7a2a4a]">
-            <div className="absolute inset-y-0 rounded-full bg-[#5fcf5a]" style={{ left: `${50 - (safe / range) * 50}%`, right: `${50 - (safe / range) * 50}%` }} />
-            <div className="absolute top-1/2 h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border-2 border-[#1b1030]" style={{ left: `${50 + pos * 50}%`, background: bad ? "#ff6a5a" : "#fff" }} />
-          </div>
-        </div>
-      )}
-      {c.push !== undefined && (
-        <div className="shrink-0 text-center">
-          <div className="hr-o text-[10px] tracking-wide text-[#ffe9b0]">CROSSWIND</div>
-          <div className="text-lg leading-none" style={{ opacity: 0.35 + Math.abs(c.push) * 0.65 }}>
-            {Math.abs(c.push) < 0.1 ? "·" : c.push > 0 ? "▶".repeat(1 + Math.round(Math.abs(c.push) * 2)) : "◀".repeat(1 + Math.round(Math.abs(c.push) * 2))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// The team task in front of the crew: how many are pushing now, and what's still needed.
-function CoopPanel({ c }: { c: CoopHud }) {
-  if (c.kind === "fine") return <FinePanel c={c} />;
-  const ok = c.have >= c.need;
-  const title = c.kind === "wind" ? "HEADWIND: ALL PUSH TOGETHER" : c.mode === 1 ? "LOCK: TAP TOGETHER" : "LOCK: FART TOGETHER";
-  return (
-    <div className="mx-auto flex w-full max-w-md items-center gap-2 rounded-xl border-[3px] border-[#1b1030] bg-[#1b1030]/85 px-3 py-1" style={{ boxShadow: ok ? "0 0 0 3px #7cff8a" : undefined }}>
-      <div className="min-w-0 flex-1">
-        <div className="hr-o truncate text-[11px] tracking-wide text-[#ffe9b0]">{title}</div>
-        {c.kind === "gate" && (
-          <div className="mt-1 h-2 overflow-hidden rounded-full border-2 border-[#1b1030] bg-[#2a1d46]">
-            <div className="h-full bg-[#ffe45e] transition-[width] duration-100" style={{ width: `${Math.round(c.charge * 100)}%` }} />
-          </div>
-        )}
-      </div>
-      <div className="text-lg tabular-nums" style={{ color: ok ? "#7cff8a" : "#fff" }}>
-        {c.have}/{c.need}
-      </div>
-      {c.kind === "gate" && c.mode === 1 && (
-        <div className="text-xs opacity-90">
-          {c.taps}/{c.count}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function HudBar({ hud, touch, par, online, onSay }: { hud: Hud; touch: boolean; par: [number, number, number] | null; online: boolean; onSay: (k: number) => void }) {
   const racing = hud.phase === "run";
   return (
@@ -302,7 +245,6 @@ function HudBar({ hud, touch, par, online, onSay }: { hud: Hud; touch: boolean; 
         </div>
         <Progress hud={hud} />
         <div className="hr-o text-center text-sm tracking-widest text-[#ffe9b0]">{hud.section.toUpperCase()}</div>
-        {hud.coop && <CoopPanel c={hud.coop} />}
       </div>
       {online && hud.seat >= 0 && (
         <div className="absolute right-2 flex flex-col gap-1" style={{ bottom: touch ? "9.5rem" : "0.75rem" }}>
@@ -317,7 +259,7 @@ function HudBar({ hud, touch, par, online, onSay }: { hud: Hud; touch: boolean; 
       {hud.seat >= 0 && (
         <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
           <Gas gas={hud.gas} spent={hud.spent} narrow={touch} />
-          {!touch && racing && <div className="hr-o text-xs opacity-80">ARROWS: WHERE TO GO · HOLD SPACE: FART</div>}
+          {!touch && racing && hud.run < 8 && <div className="hr-o text-xs opacity-80">ARROWS: WHERE TO GO · HOLD SPACE: FART</div>}
         </div>
       )}
       {hud.seats > 1 && (
@@ -346,18 +288,13 @@ function HowTo({ onClose, touch }: { onClose: () => void; touch: boolean }) {
       <div className="hr-panel max-h-full max-w-md overflow-auto p-5 text-center">
         <div className="hr-title text-4xl text-[#ffe45e]">HOW TO PLAY</div>
         <div className="mt-3 space-y-3 text-left text-base">
-          <p>🛟 You are hippos on one round raft. The river only goes one way: downstream.</p>
+          <p>You're hippos on one round raft. Farts push the raft the opposite way.</p>
           <p>
-            💨 Farts push the raft the opposite way. {touch ? "Drag the left stick toward where you want to go" : "Press the arrow keys toward where you want to go"}, and your hippo walks round the rim to the right spot.{" "}
-            {touch ? "Hold FART" : "Hold SPACE"} to let one rip.
+            {touch ? "Drag the left stick" : "Use the arrow keys"} toward where you want to go and your hippo walks to the right spot. {touch ? "Hold FART" : "Hold SPACE"} to toot. Beans run out, so take turns.
           </p>
-          <p>🤝 Some stretches need the whole crew: lock gates open when enough hippos fart together (or tap together), and headwinds only give way to everyone pushing at once. Call it out with the 1-4 keys: GO, WAIT, NOW, OOPS.</p>
-          <p>🪡 Needles are channels with barely any room, and crosswinds shove the raft sideways. One hippo can't both push on and hold the line: split it up, tap in small nudges, and watch the bar.</p>
-          <p>🫘 Beans run out. Rest a moment and they come back, so take turns with your crew.</p>
-          <p>🎃 Spiked buoys and spiky logs smash your pumpkins. Lose all five and the raft sinks back to the last green flag.</p>
-          <p>⭕ Fly through gold rings: each one takes a second off your time. Short taps give small nudges, so you can thread tight lines.</p>
-          <p>🏁 Make it to the finish, together. Beat the par times for 🥉 🥈 🥇, or build your own river in the level editor and share it with a code.</p>
+          <p>Spikes cost a pumpkin. Rings save a second. Some bits take the whole crew.</p>
         </div>
+
         <div className="mt-4">
           <Btn color="green" onClick={onClose}>
             GOT IT
@@ -980,7 +917,7 @@ export default function HippoRapids() {
                 );
               })}
             </div>
-            <div className="text-center text-xs opacity-80">Empty seats get a bot hippo. Friends can hop on any time, even mid-river.</div>
+            <div className="text-center text-xs opacity-80">Empty seats get bots.</div>
             {iAmHost ? (
               <Btn color="green" className="w-full" onClick={() => sockRef.current?.send({ type: "start" })}>
                 ▶ SET OFF
@@ -1011,7 +948,7 @@ export default function HippoRapids() {
           )}
           {touch && hud.seat >= 0 && !paused && (
             <>
-              <Stick onAim={(a) => ctrlRef.current?.setTouchAim(a)} />
+              <Stick hint={hud.run < 6} onAim={(a) => ctrlRef.current?.setTouchAim(a)} />
               <FartButton onHold={(f) => ctrlRef.current?.setTouchFart(f)} />
             </>
           )}

@@ -12,6 +12,7 @@ try {
 }
 let water: { gain: GainNode } | null = null;
 let lastToot = 0;
+let windNode: { gain: GainNode; pan: StereoPannerNode; filter: BiquadFilterNode } | null = null;
 
 function ensure() {
   if (ctx) return ctx;
@@ -168,6 +169,30 @@ export const sfx = {
   },
   blip() {
     tone("square", 660, 880, 0.07, 0.15);
+  },
+  // Wind: a rising howl as a gust or headwind nears, leaning toward the side it blows from.
+  wind(intensity: number, dir: number) {
+    if (!ctx && intensity <= 0) return;
+    const c = ensure();
+    if (!c || !master || !noiseBuf) return;
+    if (!windNode) {
+      const src = c.createBufferSource();
+      src.buffer = noiseBuf;
+      src.loop = true;
+      const filter = c.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 900;
+      filter.Q.value = 0.8;
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      const pan = c.createStereoPanner();
+      src.connect(filter).connect(gain).connect(pan).connect(master);
+      src.start();
+      windNode = { gain, pan, filter };
+    }
+    windNode.gain.gain.setTargetAtTime(intensity * 0.2, c.currentTime, 0.2);
+    windNode.filter.frequency.setTargetAtTime(600 + intensity * 900, c.currentTime, 0.2);
+    windNode.pan.pan.setTargetAtTime(dir * 0.6, c.currentTime, 0.2);
   },
   // The river's rush, louder the faster the raft goes.
   river(on: boolean, speed = 0) {
