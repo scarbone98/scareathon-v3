@@ -220,8 +220,39 @@ function Progress({ hud }: { hud: Hud }) {
   );
 }
 
+// Fine tuning: where the raft is in the channel, and which way the wind is shoving.
+function FinePanel({ c }: { c: CoopHud }) {
+  const safe = c.slack ?? 1;
+  const range = safe + 1.2;
+  const off = c.offset ?? 0;
+  const pos = Math.max(-1, Math.min(1, off / range));
+  const bad = Math.abs(off) > safe;
+  return (
+    <div className="mx-auto flex w-full max-w-md items-center gap-3 rounded-xl border-[3px] border-[#1b1030] bg-[#1b1030]/85 px-3 py-1">
+      {c.offset !== undefined && (
+        <div className="min-w-0 flex-1">
+          <div className="hr-o text-[11px] tracking-wide text-[#ffe9b0]">THREAD THE NEEDLE</div>
+          <div className="relative mt-1 h-3 rounded-full border-2 border-[#1b1030] bg-[#7a2a4a]">
+            <div className="absolute inset-y-0 rounded-full bg-[#5fcf5a]" style={{ left: `${50 - (safe / range) * 50}%`, right: `${50 - (safe / range) * 50}%` }} />
+            <div className="absolute top-1/2 h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border-2 border-[#1b1030]" style={{ left: `${50 + pos * 50}%`, background: bad ? "#ff6a5a" : "#fff" }} />
+          </div>
+        </div>
+      )}
+      {c.push !== undefined && (
+        <div className="shrink-0 text-center">
+          <div className="hr-o text-[10px] tracking-wide text-[#ffe9b0]">CROSSWIND</div>
+          <div className="text-lg leading-none" style={{ opacity: 0.35 + Math.abs(c.push) * 0.65 }}>
+            {Math.abs(c.push) < 0.1 ? "·" : c.push > 0 ? "▶".repeat(1 + Math.round(Math.abs(c.push) * 2)) : "◀".repeat(1 + Math.round(Math.abs(c.push) * 2))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // The team task in front of the crew: how many are pushing now, and what's still needed.
 function CoopPanel({ c }: { c: CoopHud }) {
+  if (c.kind === "fine") return <FinePanel c={c} />;
   const ok = c.have >= c.need;
   const title = c.kind === "wind" ? "HEADWIND: ALL PUSH TOGETHER" : c.mode === 1 ? "LOCK: TAP TOGETHER" : "LOCK: FART TOGETHER";
   return (
@@ -321,6 +352,7 @@ function HowTo({ onClose, touch }: { onClose: () => void; touch: boolean }) {
             {touch ? "Hold FART" : "Hold SPACE"} to let one rip.
           </p>
           <p>🤝 Some stretches need the whole crew: lock gates open when enough hippos fart together (or tap together), and headwinds only give way to everyone pushing at once. Call it out with the 1-4 keys: GO, WAIT, NOW, OOPS.</p>
+          <p>🪡 Needles are channels with barely any room, and crosswinds shove the raft sideways. One hippo can't both push on and hold the line: split it up, tap in small nudges, and watch the bar.</p>
           <p>🫘 Beans run out. Rest a moment and they come back, so take turns with your crew.</p>
           <p>🎃 Spiked buoys and spiky logs smash your pumpkins. Lose all five and the raft sinks back to the last green flag.</p>
           <p>⭕ Fly through gold rings: each one takes a second off your time. Short taps give small nudges, so you can thread tight lines.</p>

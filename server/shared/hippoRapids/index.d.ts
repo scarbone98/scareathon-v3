@@ -60,7 +60,7 @@ export interface Spinner {
     hazard?: boolean;
 }
 
-export type ItemType = 'rock' | 'mine' | 'bumper' | 'boost' | 'lily' | 'ring' | 'geyser' | 'sweeper' | 'log' | 'gator' | 'spinner' | 'gate' | 'headwind';
+export type ItemType = 'rock' | 'mine' | 'bumper' | 'boost' | 'lily' | 'ring' | 'geyser' | 'sweeper' | 'log' | 'gator' | 'spinner' | 'gate' | 'headwind' | 'needle' | 'gust';
 
 // One thing on the water. Which of the other fields matter depends on t.
 export interface Item {
@@ -80,6 +80,8 @@ export interface Item {
     mode?: number;
     hold?: number;
     count?: number;
+    slack?: number;
+    force?: number;
 }
 
 export interface Level {
@@ -107,6 +109,14 @@ export interface Gate {
     count: number;
 }
 
+export interface Gust {
+    z: number;
+    len: number;
+    force: number;
+    period: number;
+    phase: number;
+}
+
 export interface Course {
     def: Level;
     name: string;
@@ -119,6 +129,8 @@ export interface Course {
     rings: Boost[];
     gates: Gate[];
     headwinds: { z: number; len: number; need: number }[];
+    needles: { x: number; z: number; len: number; slack: number }[];
+    gusts: Gust[];
     centerX(z: number): number;
     halfWidth(z: number): number;
     flowAt(x: number, z: number): [number, number];
@@ -236,6 +248,8 @@ export function wrapAngle(a: number): number;
 export function sweeperEnds(s: Sweeper, t: number): [number, number, number, number];
 export function logAt(l: Log, t: number): { x: number; vx: number };
 export const GEYSER_WARN: number;
+// A crosswind's push at time t in hippos' worth of fart (+ is toward +x).
+export function gustAt(g: Gust, t: number): number;
 export const GEYSER_BLAST: number;
 export function geyserAt(g: Geyser, t: number): { state: 'idle' | 'warn' | 'erupt'; k: number };
 export function spinnerBars(s: Spinner, t: number): { ends: [number, number, number, number]; va: [number, number]; vb: [number, number] }[];

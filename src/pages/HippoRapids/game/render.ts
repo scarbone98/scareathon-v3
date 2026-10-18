@@ -4,6 +4,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import {
   geyserAt,
   getCourse,
+  gustAt,
   logAt,
   seatRadius,
   raftRadius,
@@ -337,6 +338,8 @@ export class Renderer {
   private ringMeshes: THREE.Group[] = [];
   private gates: { grp: THREE.Group; bars: THREE.Group; lamps: THREE.Mesh[]; mode: number }[] = [];
   private winds: { tex: THREE.Texture; z: number; len: number }[] = [];
+  private rails: { grp: THREE.Group; side: number; slack: number; x: number }[] = [];
+  private gustFx: { tex: THREE.Texture; mesh: THREE.Mesh; g: Course["gusts"][number] }[] = [];
   private bubbleTex = new Map<string, THREE.Texture>();
   private ringsGot = new Set<number>();
   private geysers: { ring: THREE.Mesh; column: THREE.Mesh; spit: number }[] = [];
@@ -399,6 +402,8 @@ export class Renderer {
     this.ringMeshes = [];
     this.gates = [];
     this.winds = [];
+    this.rails = [];
+    this.gustFx = [];
     this.ringsGot = new Set();
     this.whirl = null;
     this.flagsUp = -1;
@@ -672,6 +677,7 @@ export class Renderer {
     }
     this.buildHazards(course);
     this.buildCoop(course);
+    this.buildFine(course);
     // The whirlpool.
     if (!course.vortex) return;
     const swirl = this.own(
@@ -855,6 +861,20 @@ export class Renderer {
     return mesh;
   }
 
+  // A sign hung high on a gantry across the river, above the camera, so it never blocks the raft.
+  private gantry(cx: number, z: number, hw: number, line1: string, line2: string, bg: string) {
+    const parts: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(hw * 2 + 3, 0.5, 0.6), 0, 12.6, 0), "#6f6a88", 0.2)];
+    for (const sd of [-1, 1]) parts.push(skin(place(new THREE.BoxGeometry(0.7, 12.8, 0.7), sd * (hw + 1.2), 6.4, 0), "#8f8aa8", 0.2));
+    const geo = mergeGeometries(parts)!;
+    const grp = new THREE.Group();
+    grp.add(new THREE.Mesh(geo, this.own(lambert({ flatShading: true }))), outline(geo, 0.03));
+    const board = this.sign(line1, line2, Math.min(9.5, hw * 1.5), bg);
+    board.position.set(0, 11, 0);
+    grp.add(board);
+    grp.position.set(cx, 0, z);
+    this.world.add(grp);
+  }
+
   // Teamwork sections: lock gates that wait for a chorus, and headwinds.
   private buildCoop(course: Course) {
     const iron = this.own(lambert({ flatShading: true }));
@@ -930,16 +950,67 @@ export class Renderer {
         bar.position.set(course.centerX(edge), 0.14, edge);
         this.world.add(bar);
       }
-      const board = this.sign("HEADWIND", `PUSH × ${Math.min(w.need, 3)} TOGETHER`, 9, "#2a8ab8");
-      board.position.set(course.centerX(w.z), 6.2, w.z - 1);
-      const post = this.own(lambert());
-      for (const sd of [-1, 1]) {
-        const pole = new THREE.Mesh(this.own(tint(new THREE.CylinderGeometry(0.2, 0.25, 6, 6).translate(0, 3, 0), "#f1e6cf")), post);
-        pole.position.set(course.centerX(w.z) + sd * 4.5, 0, w.z - 1);
-        this.world.add(pole);
-      }
-      this.world.add(board);
+      this.gantry(course.centerX(w.z), w.z - 1, course.halfWidth(w.z), "HEADWIND", `PUSH × ${Math.min(w.need, 3)} TOGETHER`, "#2a8ab8");
       this.winds.push({ tex, z: w.z, len: w.len });
+    }
+  }
+
+  // Fine-tuning obstacles: tight channels between spiked rails, and crosswinds.
+  private buildFine(course: Course) {
+    const mat = this.own(lambert({ flatShading: true }));
+    for (const n of course.needles) {
+      for (const side of [-1, 1]) {
+        const parts: THREE.BufferGeometry[] = [skin(place(new THREE.BoxGeometry(0.7, 1, n.len), 0, 0.5, n.len / 2), "#efe6cf", 0.2), skin(place(new THREE.BoxGeometry(0.76, 0.3, n.len), 0, 0.9, n.len / 2), "#9a3ad0", 0.15)];
+        for (let z = 0.8; z < n.len; z += 1.5) parts.push(skin(place(new THREE.ConeGeometry(0.2, 0.9, 5).rotateZ((-side * Math.PI) / 2), -side * 0.7, 0.75, z), "#f4ecd2", 0.1));
+        // The flared mouth: plain mud banks that only guide you in.
+        const len = Math.hypot(4, 8);
+        const guide = skin(place(new THREE.BoxGeometry(0.7, 0.8, len), 0, 0.4, 0), "#a8465f", 0.2);
+        guide.rotateY(Math.atan2(-side * 4, 8));
+        guide.translate(side * 2, 0, -4);
+        parts.push(guide);
+        const geo = mergeGeometries(parts)!;
+        const grp = new THREE.Group();
+        grp.add(new THREE.Mesh(geo, mat), outline(geo, 0.03));
+        grp.position.set(n.x, 0, n.z);
+        this.world.add(grp);
+        this.rails.push({ grp, side, slack: n.slack, x: n.x });
+      }
+      this.gantry(n.x, n.z - 9, course.halfWidth(n.z), "THE NEEDLE", "STEER TOGETHER", "#a03a8a");
+    }
+    const arrows = this.own(
+      canvasTexture(
+        128,
+        128,
+        (g) => {
+          g.clearRect(0, 0, 128, 128);
+          g.strokeStyle = "rgba(255,255,255,0.8)";
+          g.lineWidth = 11;
+          g.lineCap = "round";
+          g.lineJoin = "round";
+          g.beginPath();
+          g.moveTo(22, 64);
+          g.lineTo(106, 64);
+          g.moveTo(76, 36);
+          g.lineTo(106, 64);
+          g.lineTo(76, 92);
+          g.stroke();
+        },
+        true,
+      ),
+    );
+    for (const gu of course.gusts) {
+      const hw = course.halfWidth(gu.z + gu.len / 2) * 2 + 1;
+      const tex = arrows.clone();
+      tex.needsUpdate = true;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(Math.max(1, Math.round(hw / 5)), Math.max(1, Math.round(gu.len / 5)));
+      this.own(tex);
+      const mesh = new THREE.Mesh(this.own(new THREE.PlaneGeometry(hw, gu.len)), this.own(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xfff0b0, opacity: 0.7 })));
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(course.centerX(gu.z + gu.len / 2), 0.11, gu.z + gu.len / 2);
+      this.world.add(mesh);
+      this.gantry(course.centerX(gu.z), gu.z - 1, course.halfWidth(gu.z), "CROSSWIND", gu.period > 0 ? "COUNTER THE GUSTS" : "HOLD YOUR LINE", "#c88a1a");
+      this.gustFx.push({ tex, mesh, g: gu });
     }
   }
 
@@ -1281,6 +1352,20 @@ export class Renderer {
       const target = open ? 7.8 : charge * 0.9 + (gt.mode === 0 && charge > 0 ? Math.sin(t * 30) * 0.05 : 0);
       gt.bars.position.y += (target - gt.bars.position.y) * Math.min(1, dt * (open ? 3 : 8));
     });
+    // Rails sit just outside the raft, whichever size it is.
+    const railR = raftRadius(this.seats);
+    for (const r of this.rails) r.grp.position.x = r.x + r.side * (railR + r.slack + 0.45);
+    // Crosswinds: the arrows swing with the gusts.
+    for (const f of this.gustFx) {
+      const a = gustAt(f.g, view.t);
+      const mag = Math.min(1, Math.abs(a) / Math.max(0.01, Math.abs(f.g.force)));
+      f.mesh.scale.x = a >= 0 ? 1 : -1;
+      (f.mesh.material as THREE.MeshBasicMaterial).opacity = 0.15 + mag * 0.6;
+      f.tex.offset.x = a >= 0 ? -t * 0.8 * mag : t * 0.8 * mag;
+      if (Math.abs(view.z - f.g.z - f.g.len / 2) < 30 && Math.random() < mag * 0.7) {
+        this.emit({ x: this.course.centerX(f.g.z) + (a >= 0 ? -9 : 9), y: 0.5 + Math.random(), z: f.g.z + Math.random() * f.g.len, vx: a >= 0 ? 9 : -9, vy: 0.2, vz: 0, life: 0.7, size: 0.1, from: "#ffffff", to: "#ffe9a0" });
+      }
+    }
     // Headwinds stream back toward the camera.
     for (const w of this.winds) {
       w.tex.offset.y = -t * 0.9;

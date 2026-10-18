@@ -260,6 +260,53 @@ function climb() {
     return level(spec, d);
 }
 
+// Fine tuning: tight channels and crosswinds that take a crew nudging together, a few
+// metres at a time.
+function needleRun() {
+    const spec = {
+        name: 'Needle Run',
+        finish: 320,
+        center: [[-80, 0], [500, 0]],
+        width: [[-80, 13], [500, 12.5]],
+        flow: [[-80, 1], [500, 1.2]],
+        checkpoints: [70, 150, 235],
+        sections: [[-80, 'The Dock'], [45, 'The Needle'], [125, 'Crosswinds'], [195, 'Wind Tunnel']],
+    };
+    const d = draft(spec, 101);
+    d.weave([36], 1.5);
+    d.at('needle', 62, 0, { len: 34, slack: 1.2 });
+    d.at('gust', 128, 0, { len: 34, force: 0.7, period: 4.2, phase: 0 });
+    d.rock(145, 1, 0.4, 1.7);
+    d.rock(162, -1, 0.4, 1.7);
+    d.at('needle', 205, 0, { len: 40, slack: 0.9 });
+    d.at('gust', 205, 0, { len: 40, force: 0.6, period: 3.4, phase: 1.3 });
+    d.at('needle', 265, 3, { len: 26, slack: 1 });
+    d.rings([[50, 0], [75, 0], [100, 0], [140, 2], [172, -2], [220, 0], [250, 0], [280, 3]]);
+    return level(spec, d);
+}
+
+// Fine tuning: a steady current across the river, and a landing to hit on the far side.
+function ferry() {
+    const spec = {
+        name: 'Ferry Crossing',
+        finish: 300,
+        center: [[-80, 0], [500, 0]],
+        width: [[-80, 13], [500, 13]],
+        flow: [[-80, 1], [500, 1.2]],
+        checkpoints: [75, 160, 235],
+        sections: [[-80, 'The Dock'], [45, 'Side Current'], [135, 'Hold Your Line'], [210, 'The Landing']],
+    };
+    const d = draft(spec, 111);
+    d.at('gust', 70, 0, { len: 50, force: 0.7, period: 0 });
+    d.at('needle', 100, -2.5, { len: 20, slack: 1.6 });
+    d.at('gust', 150, 0, { len: 55, force: -0.75, period: 0 });
+    d.at('needle', 185, 2.5, { len: 22, slack: 1.4 });
+    d.at('gust', 225, 0, { len: 40, force: 0.6, period: 5, phase: 0 });
+    d.at('needle', 245, 0, { len: 30, slack: 1 });
+    d.rings([[60, 0], [112, -2.5], [168, 0], [196, 2.5], [250, 0], [285, 0]]);
+    return level(spec, d);
+}
+
 // The original 722 m river, start to finish.
 function wholeRiver() {
     const spec = {
@@ -316,6 +363,8 @@ export const LEVELS = [
     { id: 'falls', par: [80, 100, 125], blurb: 'Fast, narrow rapids into a whirlpool.', color: '#3a6ad8', make: falls },
     { id: 'chorus', par: [90, 110, 145], blurb: 'Teamwork! Fart together to open the locks.', color: '#e8a0d0', make: chorus },
     { id: 'climb', par: [115, 140, 180], blurb: 'Teamwork! Only a whole crew can climb the headwind.', color: '#80c8e8', make: climb },
+    { id: 'needle', par: [95, 115, 150], blurb: 'Fine tuning: thread tight channels and fight the crosswind.', color: '#c8508a', make: needleRun },
+    { id: 'ferry', par: [90, 110, 145], blurb: 'Fine tuning: ferry across a side current and hit the landing.', color: '#50b0a0', make: ferry },
     { id: 'whole', par: [290, 350, 450], blurb: 'All of it, start to finish. Bring snacks.', color: '#c8a23a', make: wholeRiver },
 ].map((l) => ({ ...l, def: l.make() }));
 

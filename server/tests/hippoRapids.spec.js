@@ -320,6 +320,84 @@ describe('hippo rapids teamwork', () => {
     });
 });
 
+describe('hippo rapids fine tuning', () => {
+    const base = { name: 'T', finish: 200, center: [[-80, 0], [400, 0]], width: [[-80, 13], [400, 13]], flow: [[-80, 1], [400, 1]] };
+    const raft = (items, seats = 4) => {
+        const sim = createSim({ seats, level: { ...base, items } });
+        sim.hippos.forEach((h) => (h.bot = false));
+        for (let i = 0; i < (COUNTDOWN + 0.1) / STEP; i++) sim.step(STEP);
+        return sim;
+    };
+
+    it('lets a raft through a needle if it stays in the middle, and hurts if it scrapes', () => {
+        const sim = raft([{ t: 'needle', x: 0, z: 60, len: 30, slack: 0.9 }]);
+        sim.z = 50;
+        sim.x = 0;
+        sim.vz = 4;
+        for (let i = 0; i < 60 * 9; i++) {
+            sim.vz = 4;
+            sim.step(STEP);
+        }
+        expect(sim.z).toBeGreaterThan(85);
+        expect(sim.hits).toBe(0);
+        const rough = raft([{ t: 'needle', x: 0, z: 60, len: 30, slack: 0.9 }]);
+        rough.z = 65;
+        rough.x = 1.5;
+        rough.vz = 3;
+        rough.vx = 2;
+        for (let i = 0; i < 90; i++) {
+            rough.vz = 3;
+            rough.step(STEP);
+        }
+        expect(rough.hits).toBeGreaterThan(0);
+    });
+
+    it('scales the room in a needle to the raft, so two hippos find it as tight as four', () => {
+        for (const seats of [2, 4]) {
+            const sim = raft([{ t: 'needle', x: 0, z: 60, len: 30, slack: 0.9 }], seats);
+            sim.z = 50;
+            sim.vz = 4;
+            for (let i = 0; i < 60 * 9; i++) {
+                sim.vz = 4;
+                sim.step(STEP);
+            }
+            expect(sim.hits).toBe(0);
+            expect(sim.z).toBeGreaterThan(85);
+        }
+    });
+
+    it('shoves the raft sideways in a crosswind, as hard as the hippos can push', () => {
+        const sim = raft([{ t: 'gust', x: 0, z: 60, len: 40, force: 0.8, period: 0 }]);
+        sim.z = 70;
+        sim.x = 0;
+        sim.vz = 0;
+        for (let i = 0; i < 60; i++) {
+            sim.z = 70;
+            sim.step(STEP);
+        }
+        expect(sim.vx).toBeGreaterThan(1.5);
+        // One hippo pushing flat out against it holds the line, with nothing left over.
+        const held = raft([{ t: 'gust', x: 0, z: 60, len: 40, force: 0.8, period: 0 }]);
+        held.z = 70;
+        held.hippos[0].ang = Math.PI / 2 - held.yaw;
+        held.setInput(0, 0, true);
+        for (let i = 0; i < 60; i++) {
+            held.z = 70;
+            held.step(STEP);
+        }
+        expect(Math.abs(held.vx)).toBeLessThan(Math.abs(sim.vx));
+    });
+
+    it('lets bots finish the fine-tuning levels', () => {
+        for (const id of ['needle', 'ferry']) {
+            const sim = createSim({ seats: 4, skill: 1, seed: 2, level: id });
+            let steps = 0;
+            while (sim.phase !== 'done' && steps++ < 60 * 250) sim.step(STEP);
+            expect(sim.phase).toBe('done');
+        }
+    });
+});
+
 describe('hippo rapids rooms', () => {
     function setup() {
         let time = 1_000_000;

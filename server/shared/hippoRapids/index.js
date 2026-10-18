@@ -10,10 +10,10 @@
 // Everything that moves on its own (sweepers, logs) is a pure function of the sim clock
 // `t`, so a snapshot only has to carry the raft and the hippos.
 
-import { GEYSER_BLAST, GEYSER_WARN, SEG, buildCourse, clamp, geyserAt, logAt, sanitizeLevel, smooth, spinnerBars, sweeperEnds } from './course.js';
+import { GEYSER_BLAST, GEYSER_WARN, SEG, buildCourse, clamp, geyserAt, gustAt, logAt, sanitizeLevel, smooth, spinnerBars, sweeperEnds } from './course.js';
 import { LEVELS, getLevel } from './levels.js';
 
-export { GEYSER_BLAST, GEYSER_WARN, LEVELS, getLevel, geyserAt, logAt, sanitizeLevel, spinnerBars, sweeperEnds };
+export { GEYSER_BLAST, GEYSER_WARN, LEVELS, getLevel, geyserAt, gustAt, logAt, sanitizeLevel, spinnerBars, sweeperEnds };
 export { ITEM_TYPES } from './course.js';
 
 export const STEP = 1 / 60;
@@ -232,6 +232,15 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
         course.gates.forEach((g, i) => {
             if (!sim.gates[i].open && Math.abs(g.z - sim.z) < 6) bumpSegment(g.x - g.hw - 4, g.z, g.x + g.hw + 4, g.z, 0.7, 0, 0, 0, 0, false);
         });
+        for (const n of course.needles) {
+            if (sim.z < n.z - 9 || sim.z > n.z + n.len + 4) continue;
+            // Spiked rails with a flared mouth: the mouth only guides, the channel hurts.
+            const gap = R + n.slack + 0.45;
+            for (const sd of [-1, 1]) {
+                bumpSegment(n.x + sd * gap, n.z, n.x + sd * gap, n.z + n.len, 0.45, 0, 0, 0, 0, true);
+                bumpSegment(n.x + sd * (gap + 4), n.z - 8, n.x + sd * gap, n.z, 0.35, 0, 0, 0, 0, false);
+            }
+        }
         for (const b of course.bumpers) {
             if (Math.abs(b.z - sim.z) < 6) bumpPoint(b.x, b.z, b.r, 0, 0, false, 1.6);
         }
@@ -352,12 +361,14 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             return;
         }
 
-        const [fx, fz0] = crew(dt);
+        const [fx0, fz0] = crew(dt);
         let fz = fz0;
         // Headwind: only enough hippos pushing at once make any headway through it.
         for (const w of course.headwinds) {
             if (sim.z >= w.z && sim.z <= w.z + w.len) fz -= windPull(count, w.need);
         }
+        let fx = fx0;
+        for (const g of course.gusts) if (sim.z >= g.z && sim.z <= g.z + g.len) fx += gustAt(g, sim.t) * THRUST[count];
         updateGates(dt);
         const [cx, cz] = course.flowAt(sim.x, sim.z);
         // The pads in Hippo Falls give a shove downstream.
@@ -523,10 +534,14 @@ function guidance(sim, rng, skill) {
             best = X;
         }
     }
+    // Inside (or about to enter) a needle: hold its middle, slowly, with a short look-ahead so
+    // sideways drift is corrected at once.
+    const needle = course.needles.find((n) => sim.z > n.z - 12 && sim.z < n.z + n.len - 1);
+    if (needle) best = needle.x;
     const tx = best - sim.x;
-    const tz = look;
+    const tz = needle ? Math.min(look, 7) : look;
     const len = Math.hypot(tx, tz);
-    const vmax = 3.8 + skill * 1.6;
+    const vmax = needle ? 2.8 + skill * 0.8 : 3.8 + skill * 1.6;
     const vdx = (tx / len) * vmax;
     // A closed gate ahead: slow to a halt in front of it.
     let vdzCap = Infinity;
@@ -538,6 +553,8 @@ function guidance(sim, rng, skill) {
     // Counter the current's drift as well as chasing the wanted speed.
     let ax = vdx - sim.vx + fx * 0.2;
     let az = vdz - sim.vz + fz * 0.2;
+    // Lean into a crosswind.
+    for (const g of course.gusts) if (sim.z >= g.z - 2 && sim.z <= g.z + g.len) ax -= gustAt(g, sim.t) * 3 * (0.5 + skill * 0.5);
     if (sim.phase !== 'run') ax = az = 0;
     // Wedged: back out, with a sideways nudge toward the middle of the river.
     if (sim.stuck > 1.5) {

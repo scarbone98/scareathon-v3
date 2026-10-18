@@ -44,13 +44,17 @@ const TOOLS: { id: Tool; label: string; icon: string; hint: string }[] = [
   { id: "boost", label: "Boost", icon: "⏩", hint: "Boost pad: a shove downstream." },
   { id: "gate", label: "Lock", icon: "🚪", hint: "Teamwork: a gate that opens when enough hippos fart together (or tap together)." },
   { id: "headwind", label: "Headwind", icon: "🌬", hint: "Teamwork: a headwind only a crew pushing together can climb. Leave a pool before it to rest." },
+  { id: "needle", label: "Needle", icon: "🪡", hint: "Fine tuning: a channel between spiked rails with little room to spare. Costs a pumpkin to scrape." },
+  { id: "gust", label: "Crosswind", icon: "🌪", hint: "Fine tuning: a sideways wind (steady, or swinging left and right) the crew has to counter together." },
   { id: "ring", label: "Ring", icon: "⭕", hint: "Fly through for a second off your time." },
   { id: "cp", label: "Flag", icon: "🚩", hint: "Checkpoint: where a sunk raft comes back. Click again to remove." },
   { id: "label", label: "Name", icon: "🏷", hint: "Start of a stretch, named on screen." },
   { id: "erase", label: "Erase", icon: "🧽", hint: "Click anything to delete it." },
 ];
 
-const FIELD_LABELS: Record<string, string> = { r: "Size", len: "Length", speed: "Speed", phase: "Start angle", half: "Half length", amp: "Swing", period: "Period (s)", bars: "Bars", hazard: "Hazard (1 hurts)", need: "Hippos needed", mode: "Mode (0 hold, 1 taps)", hold: "Hold (s)", count: "Taps needed" };
+const SPANNING = new Set<string>(["gate", "headwind", "needle", "gust"]);
+
+const FIELD_LABELS: Record<string, string> = { r: "Size", len: "Length", speed: "Speed", phase: "Start angle", half: "Half length", amp: "Swing", period: "Period (s)", bars: "Bars", hazard: "Hazard (1 hurts)", need: "Hippos needed", slack: "Spare room (m)", force: "Wind (hippos, ± side)", mode: "Mode (0 hold, 1 taps)", hold: "Hold (s)", count: "Taps needed" };
 
 const blank = (): Level => ({
   v: 1,
@@ -387,20 +391,23 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
     const t = animate ? performance.now() / 1000 : 0;
     for (let i = L.items.length - 1; i >= 0; i--) {
       const it = L.items[i];
-      if (it.t === "gate" || it.t === "headwind") continue;
+      if (SPANNING.has(it.t)) continue;
       let px = it.x;
       if (it.t === "log" || it.t === "gator") px = logAt({ x: it.x, z: it.z, half: it.half ?? 1, r: 1, amp: it.amp ?? 0, speed: it.speed ?? 1, phase: it.phase ?? 0 }, t).x;
       const reach = Math.max(grab, it.t === "lily" || it.t === "rock" || it.t === "bumper" || it.t === "boost" || it.t === "geyser" ? it.r ?? 1 : 1.4, it.t === "log" || it.t === "gator" ? (it.half ?? 1) : 0);
       if (Math.abs(z - it.z) < Math.max(grab, 1.2) && Math.abs(x - px) < reach) return { k: "item", i };
       if (Math.hypot(x - px, z - it.z) < reach) return { k: "item", i };
     }
-    // Gates and headwinds span the river, so they only count when nothing smaller is under the finger.
+    // Gates, winds and channels span a stretch, so they only count when nothing smaller is under the finger.
     for (let i = L.items.length - 1; i >= 0; i--) {
       const it = L.items[i];
-      if (it.t !== "gate" && it.t !== "headwind") continue;
-      const zEnd = it.t === "headwind" ? it.z + (it.len ?? 12) : it.z;
-      const mid = c.centerX((it.z + zEnd) / 2);
-      if (z >= it.z - Math.max(grab, 1.2) && z <= zEnd + Math.max(grab, 1.2) && Math.abs(x - mid) < c.halfWidth(it.z) + 2) return { k: "item", i };
+      if (!SPANNING.has(it.t)) continue;
+      const g = Math.max(grab, 1.2);
+      const zEnd = it.t === "gate" ? it.z : it.z + (it.len ?? 12);
+      const zStart = it.t === "needle" ? it.z - 8 : it.z;
+      const mid = it.t === "needle" ? it.x : c.centerX((it.z + zEnd) / 2);
+      const reach = it.t === "needle" ? 2.45 + (it.slack ?? 1) + 4.5 : c.halfWidth(it.z) + 2;
+      if (z >= zStart - g && z <= zEnd + g && Math.abs(x - mid) < reach) return { k: "item", i };
     }
     for (let i = 0; i < L.checkpoints.length; i++) if (Math.abs(z - L.checkpoints[i]) < grab && Math.abs(x - c.centerX(L.checkpoints[i])) < c.halfWidth(L.checkpoints[i]) + 2) return { k: "cp", i };
     if (Math.abs(z - L.finish) < grab && Math.abs(x - c.centerX(L.finish)) < c.halfWidth(L.finish) + 2) return { k: "finish" };
@@ -419,7 +426,8 @@ export default function Editor({ initial, onExit, onTest, onSave }: EditorProps)
       item.x = round(course.centerX(z) + side * (course.halfWidth(z) - 0.4));
       item.speed = side > 0 ? 1.15 : -1.15;
     }
-    if (type === "gate" || type === "headwind") item.x = round(course.centerX(z));
+    if (type === "gate" || type === "headwind" || type === "gust") item.x = round(course.centerX(z));
+    if (type === "needle") item.x = round(course.centerX(z));
     change((l) => ({ ...l, items: [...l.items, item] }));
     setSel({ k: "item", i: levelRef.current.items.length - 1 });
   };
@@ -864,6 +872,55 @@ function drawItem(g: CanvasRenderingContext2D, it: Item, sx: (x: number) => numb
       g.font = "bold 11px sans-serif";
       g.textAlign = "center";
       g.fillText(`LOCK ×${it.need ?? 2} ${it.mode === 1 ? `taps ${it.count ?? 3}` : `hold ${it.hold ?? 1.4}s`}`, sx(cx), y - 8);
+      g.textAlign = "left";
+      break;
+    }
+    case "needle": {
+      const gap = 2.45 + (it.slack ?? 1) + 0.45;
+      const len = it.len ?? 30;
+      for (const sd of [-1, 1]) {
+        g.strokeStyle = on ? "#fff" : "#efe6cf";
+        g.lineWidth = 6;
+        g.beginPath();
+        g.moveTo(sx(it.x + sd * gap), sy(it.z));
+        g.lineTo(sx(it.x + sd * gap), sy(it.z + len));
+        g.stroke();
+        g.strokeStyle = "#9a3ad0";
+        g.lineWidth = 2;
+        g.stroke();
+        g.strokeStyle = "rgba(255,255,255,0.5)";
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(sx(it.x + sd * (gap + 4)), sy(it.z - 8));
+        g.lineTo(sx(it.x + sd * gap), sy(it.z));
+        g.stroke();
+      }
+      g.fillStyle = "#fff";
+      g.font = "bold 11px sans-serif";
+      g.textAlign = "center";
+      g.fillText(`NEEDLE · ${it.slack ?? 1}m to spare`, x, sy(it.z + len / 2));
+      g.textAlign = "left";
+      break;
+    }
+    case "gust": {
+      const mid = it.z + (it.len ?? 24) / 2;
+      const cx = c.centerX(mid);
+      const hw = c.halfWidth(mid);
+      const y2 = sy(it.z + (it.len ?? 24));
+      g.fillStyle = "rgba(255,230,140,0.28)";
+      g.fillRect(sx(cx - hw), y2, hw * 2 * scale, y - y2);
+      g.strokeStyle = on ? "#fff" : "rgba(255,230,140,0.9)";
+      g.lineWidth = on ? 3 : 2;
+      g.strokeRect(sx(cx - hw), y2, hw * 2 * scale, y - y2);
+      const swing = (it.period ?? 0) > 0;
+      const dir = swing ? Math.sin((Math.PI * 2 * t) / (it.period ?? 1) + (it.phase ?? 0)) : Math.sign(it.force ?? 1);
+      g.fillStyle = "#fff";
+      g.font = "bold 14px sans-serif";
+      g.textAlign = "center";
+      const arrow = (dir >= 0 ? "→ " : "← ").repeat(3);
+      g.fillText(arrow, sx(cx), (y + y2) / 2);
+      g.font = "bold 11px sans-serif";
+      g.fillText(`CROSSWIND ${swing ? "gusts" : "steady"} ${Math.abs(it.force ?? 0.6)}`, sx(cx), (y + y2) / 2 + 16);
       g.textAlign = "left";
       break;
     }

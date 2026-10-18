@@ -47,6 +47,11 @@ export const ITEM_TYPES = {
     // hippos pushing at once can climb.
     gate: { need: [1, 4, 2], mode: [0, 1, 0], hold: [0.6, 4, 1.4], count: [1, 8, 3] },
     headwind: { len: [6, 40, 12], need: [1, 4, 2] },
+    // Fine tuning: a channel between spiked rails with only `slack` metres to spare either side of
+    // the raft (x is the middle of it), and crosswinds that shove the raft sideways, steadily
+    // (period 0) or swinging left and right.
+    needle: { len: [10, 60, 30], slack: [0.3, 2.5, 0.9] },
+    gust: { len: [8, 60, 24], force: [-1.5, 1.5, 0.6], period: [0, 8, 3.5], phase: [0, 6.3, 0] },
 };
 
 const MAX_ITEMS = 450;
@@ -171,12 +176,18 @@ export function buildCourse(def) {
         spinners: of('spinner').map(({ x, z, len, speed, phase, bars, hazard }) => ({ x, z, len, speed, phase, bars, hazard: !!hazard })),
         gates: of('gate').map(({ z, need, mode, hold, count }) => ({ z, need, mode, hold, count, x: centerX(z), hw: halfWidth(z) })),
         headwinds: of('headwind').map(({ z, len, need }) => ({ z, len, need })),
+        needles: of('needle').map(({ x, z, len, slack }) => ({ x, z, len, slack })),
+        gusts: of('gust').map(({ z, len, force, period, phase }) => ({ z, len, force, period, phase })),
         rings: of('ring').map(({ x, z }) => ({ x, z, r: 2.7 })),
         statics,
         walls,
         vortex,
     };
 }
+
+// The sideways push of a crosswind at sim time t, in hippos' worth of fart (positive is toward +x):
+// 1 is as hard as one hippo can push.
+export const gustAt = (g, t) => g.force * (g.period > 0 ? Math.sin((Math.PI * 2 * t) / g.period + g.phase) : 1);
 
 // The two ends of a sweeper's spiked log, and of a sliding log, at sim time t.
 export const sweeperEnds = (s, t) => {

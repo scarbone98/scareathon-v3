@@ -8,6 +8,7 @@ import {
   STEP,
   createSim,
   getCourse,
+  gustAt,
   wrapAngle,
   type Course,
   type HippoState,
@@ -48,13 +49,18 @@ export interface Hud {
 
 // The teamwork happening right now: a lock gate waiting for a chorus, or a headwind to climb.
 export interface CoopHud {
-  kind: "gate" | "wind";
+  kind: "gate" | "wind" | "fine";
   need: number;
   have: number; // hippos farting this instant
   charge: number;
   mode: number; // gate: 0 hold, 1 taps
   taps: number;
   count: number;
+  // Fine tuning: how far off the middle of the channel (m) and how much room there is; the
+  // crosswind's push (-1..1).
+  offset?: number;
+  slack?: number;
+  push?: number;
 }
 
 // Quick call-outs for the crew, on the 1-4 keys.
@@ -564,6 +570,12 @@ export class GameController {
     }
     for (const w of c.headwinds) {
       if (view.z > w.z - 26 && view.z < w.z + w.len) return { kind: "wind", need: Math.min(w.need, n === 2 ? 2 : 3), have, charge: 0, mode: 0, taps: 0, count: 0 };
+    }
+    // Fine tuning: threading a needle and/or leaning into a crosswind.
+    const needle = c.needles.find((n) => view.z > n.z - 12 && view.z < n.z + n.len);
+    const gust = c.gusts.find((g) => view.z > g.z - 6 && view.z < g.z + g.len);
+    if (needle || gust) {
+      return { kind: "fine", need: 0, have, charge: 0, mode: 0, taps: 0, count: 0, offset: needle ? view.x - needle.x : undefined, slack: needle?.slack, push: gust ? gustAt(gust, view.t) / Math.max(0.01, Math.abs(gust.force)) : undefined };
     }
     return null;
   }
