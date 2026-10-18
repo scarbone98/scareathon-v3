@@ -5,11 +5,12 @@ import type { Level, Snapshot } from "../../../../server/shared/hippoRapids/inde
 export type RoomStatus = "lobby" | "playing" | "done";
 
 export type ServerMessage =
-  | { type: "room"; code: string; seat: number; token: string; status: RoomStatus; seats: number; level: string; def: Level | null; host: number; names: (string | null)[]; connected: boolean[] }
+  | { type: "room"; code: string; seat: number; token: string; status: RoomStatus; seats: number; level: string; def: Level | null; public: boolean; host: number; names: (string | null)[]; connected: boolean[] }
   | { type: "room-info"; code: string; status: "open" | "full" | "missing"; seats?: number; free?: number; host?: string }
   | { type: "start" }
   | ({ type: "snap" } & Snapshot)
   | { type: "say"; seat: number; k: number }
+  | { type: "rooms"; rooms: { code: string; host: string; level: string; seats: number; humans: number; status: string }[] }
   | { type: "presence"; connected: boolean[] }
   | { type: "left"; seat: number; name: string; reason: "left" | "dropped" }
   | { type: "error"; code: string; message: string }

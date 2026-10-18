@@ -488,6 +488,9 @@ export class Renderer {
   private dummy = new THREE.Object3D();
   private sky!: THREE.Group;
   private lastView: View | null = null;
+  // Behind the menus the camera circles the raft slowly.
+  menuCam = false;
+  private menuBlend = 0;
   // For screenshots: [eye, target] replaces the follow camera.
   debugCam: [[number, number, number], [number, number, number]] | null = null;
   private seats = 4;
@@ -1853,6 +1856,19 @@ export class Renderer {
     cam.look.x += (lx - cam.look.x) * follow;
     cam.look.z += (lz - cam.look.z) * follow;
     camera.lookAt(cam.look.x, 0, cam.look.z);
+    // The menu camera eases in and out: a low, slow orbit with the raft off to one side.
+    this.menuBlend += ((this.menuCam ? 1 : 0) - this.menuBlend) * Math.min(1, dt * 2.2);
+    if (this.menuBlend > 0.002) {
+      const t = this.clockT;
+      const ang = Math.sin(t * 0.11) * 0.8 + 0.55;
+      const r = 10.5 + Math.sin(t * 0.07) * 1.5;
+      const mx = view.x + Math.sin(ang) * r;
+      const mz = view.z - Math.cos(ang) * r;
+      const my = 3.6 + Math.sin(t * 0.17) * 0.7;
+      const b = this.menuBlend * this.menuBlend * (3 - 2 * this.menuBlend);
+      camera.position.set(camera.position.x + (mx - camera.position.x) * b, camera.position.y + (my - camera.position.y) * b, camera.position.z + (mz - camera.position.z) * b);
+      camera.lookAt(view.x + 3.5 * b, 0.9, view.z + 1.5 * b);
+    }
     if (this.debugCam) {
       camera.position.set(...this.debugCam[0]);
       camera.lookAt(...this.debugCam[1]);

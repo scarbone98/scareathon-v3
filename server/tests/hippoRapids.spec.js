@@ -541,6 +541,43 @@ describe('hippo rapids rooms', () => {
         expect(host.of('say')).toHaveLength(2);
     });
 
+    it('lists public rooms with room to spare, and only those', () => {
+        const { rooms } = setup();
+        const a = rooms.create(fakeSocket(), { name: 'Ann', seats: 4, level: 'gulch' });
+        rooms.create(fakeSocket(), { name: 'Hidden', seats: 4, public: false });
+        const b = rooms.create(fakeSocket(), { name: 'Bob', seats: 2 });
+        rooms.join(fakeSocket(), { code: a.code, name: 'Cy' });
+        rooms.join(fakeSocket(), { code: b.code, name: 'Di' });
+        const list = rooms.list().rooms;
+        // Bob's is full; the private one isn't shown.
+        expect(list.map((r) => r.host)).toEqual(['Ann']);
+        expect(list[0]).toMatchObject({ code: a.code, level: 'Geyser Gulch', seats: 4, humans: 2, status: 'lobby' });
+    });
+
+    it('quick play joins a public room, or starts one', () => {
+        const { rooms } = setup();
+        const lone = fakeSocket();
+        rooms.quick(lone, { name: 'First', seats: 4 });
+        expect(rooms.size).toBe(1);
+        const next = fakeSocket();
+        rooms.quick(next, { name: 'Second', seats: 4 });
+        expect(rooms.size).toBe(1);
+        expect(next.last('room')).toMatchObject({ seat: 1, public: true });
+    });
+
+    it('lets the host take a room off the list', () => {
+        const { rooms } = setup();
+        const host = fakeSocket();
+        const guest = fakeSocket();
+        const room = rooms.create(host, { name: 'A', seats: 4 });
+        rooms.join(guest, { code: room.code, name: 'B' });
+        rooms.setPublic(guest, { public: false });
+        expect(rooms.list().rooms).toHaveLength(1);
+        rooms.setPublic(host, { public: false });
+        expect(rooms.list().rooms).toHaveLength(0);
+        expect(host.last('room').public).toBe(false);
+    });
+
     it('goes back to the dock after a finish', () => {
         const { rooms, advance } = setup();
         const host = fakeSocket();

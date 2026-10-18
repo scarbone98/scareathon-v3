@@ -91,6 +91,7 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             seats: room.seats,
             level: room.level.id,
             def: room.level.def,
+            public: room.public,
             host: room.host,
             names: room.players.map((p) => p?.name ?? null),
             connected: connected(room),
@@ -173,13 +174,15 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             return rooms.get(code) ?? null;
         },
 
-        create(socket, { name, seats, level }) {
+        create(socket, { name, seats, level, public: isPublic }) {
             if (rooms.size >= MAX_ROOMS) throw new RoomError('busy');
             const count = seats === 2 ? 2 : 4;
             const room = {
                 code: newCode(),
                 seats: count,
                 level: pickLevel(level),
+                // Public rooms show up in the room finder and take quick-play players.
+                public: isPublic !== false,
                 players: Array(count).fill(null),
                 host: 0,
                 status: 'lobby',
@@ -195,6 +198,41 @@ export function createRoomManager({ log, now = () => Date.now() } = {}) {
             attach(room, 0, socket);
             sendRoomInfo(room);
             return room;
+        },
+
+        // Rooms anyone can walk into: open seats, public, not ended. Fullest lobbies first.
+        list() {
+            const out = [];
+            for (const room of rooms.values()) {
+                if (!room.public) continue;
+                const humans = connected(room).filter(Boolean).length;
+                if (humans >= room.seats || humans === 0) continue;
+                const level = room.level.def ?? getLevel(room.level.id)?.def;
+                out.push({
+                    code: room.code,
+                    host: room.players[room.host]?.name ?? '',
+                    level: level?.name ?? 'A river',
+                    seats: room.seats,
+                    humans,
+                    status: room.status,
+                });
+            }
+            out.sort((a, b) => (a.status === 'lobby' ? 0 : 1) - (b.status === 'lobby' ? 0 : 1) || b.humans - a.humans);
+            return { type: 'rooms', rooms: out.slice(0, 24) };
+        },
+
+        // Straight into the best open public room, or start one.
+        quick(socket, { name, seats }) {
+            const open = this.list().rooms;
+            if (open.length) return this.join(socket, { code: open[0].code, name });
+            return this.create(socket, { name, seats, level: DEFAULT_LEVEL, public: true });
+        },
+
+        setPublic(socket, { public: isPublic }) {
+            const found = playerFor(socket);
+            if (!found || found.seat !== found.room.host) return;
+            found.room.public = !!isPublic;
+            sendRoomInfo(found.room);
         },
 
         peek(code) {

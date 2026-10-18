@@ -167,6 +167,14 @@ export const sfx = {
     [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone("square", f, f, i > 3 ? 0.4 : 0.16, 0.2, i * 0.13));
     noise(0.8, "bandpass", 3000, 0.5, 0.2, 0.6);
   },
+  // Menu sounds: soft and short.
+  tick() {
+    tone("sine", 700, 820, 0.06, 0.08);
+  },
+  confirm() {
+    tone("sine", 520, 520, 0.12, 0.12);
+    tone("sine", 780, 780, 0.2, 0.1, 0.07);
+  },
   blip() {
     tone("square", 660, 880, 0.07, 0.15);
   },

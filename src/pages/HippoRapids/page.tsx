@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNod
 import { LEVELS, MAX_HULL, RING_BONUS, getLevel, type Level } from "../../../server/shared/hippoRapids/index.js";
 import { GameController, SAY, type Hud } from "./game/controller";
 import { RoomSocket, roomLink, type RoomStatus, type ServerMessage, type SocketStatus } from "./game/net";
+import { MenuList, RoomRows, type MenuItem, type RoomRow } from "./menus";
 import { HIPPO_LOOKS } from "./game/render";
 import { sfx } from "./game/sfx";
 import { MEDALS, decodeLevel, fmtTime, loadCustom, loadRecords, medalFor, newLevelId, recordKey, saveCustom, saveRecords, type Record, type SavedLevel } from "./levels";
@@ -9,7 +10,7 @@ import "./hipporapids.css";
 
 const Editor = lazy(() => import("./Editor"));
 
-type View = "title" | "levels" | "friends" | "joining" | "lobby" | "play" | "result" | "editor";
+type View = "title" | "levels" | "rooms" | "host" | "joining" | "lobby" | "play" | "result" | "editor";
 
 interface Room {
   code: string;
@@ -18,6 +19,7 @@ interface Room {
   host: number;
   level: string;
   def: Level | null;
+  public: boolean;
   status: RoomStatus;
   names: (string | null)[];
   connected: boolean[];
@@ -71,13 +73,13 @@ function Btn({ children, color = "orange", className = "", disabled, onClick }: 
   );
 }
 
-function Logo({ small = false }: { small?: boolean }) {
+function Logo({ small = false, left = false }: { small?: boolean; left?: boolean }) {
   return (
-    <div className="hr-float pointer-events-none text-center" style={{ filter: "drop-shadow(0 6px 0 rgba(27,16,48,0.55))" }}>
-      <div className="hr-title" style={{ fontSize: small ? 40 : 76, color: "#ffe45e", textShadow: "0 4px 0 #b86a00, 0 8px 0 #1b1030" }}>
+    <div className={`hr-float pointer-events-none ${left ? "text-center sm:text-left" : "text-center"}`}>
+      <div className="hr-title" style={{ fontSize: small ? 44 : 88, color: "#ffe9a0", textShadow: "0 0 26px rgba(255,170,60,0.7), 0 3px 0 rgba(130,70,0,0.5), 0 6px 18px rgba(10,4,30,0.7)" }}>
         HIPPO
       </div>
-      <div className="hr-title" style={{ fontSize: small ? 34 : 64, color: "#7cf06a", textShadow: "0 4px 0 #2a7a22, 0 8px 0 #1b1030", marginTop: small ? 2 : 4 }}>
+      <div className="hr-title" style={{ fontSize: small ? 36 : 72, color: "#b8ff9a", textShadow: "0 0 26px rgba(110,240,120,0.65), 0 3px 0 rgba(30,100,30,0.5), 0 6px 18px rgba(10,4,30,0.7)", marginTop: small ? 0 : 2 }}>
         RAPIDS
       </div>
     </div>
@@ -88,8 +90,8 @@ function HippoChip({ seat, active = false, size = 44 }: { seat: number; active?:
   const look = HIPPO_LOOKS[seat];
   return (
     <div
-      className="flex items-center justify-center rounded-full border-[3px] border-[#1b1030]"
-      style={{ width: size, height: size, background: look.body, boxShadow: active ? "0 0 0 4px #ffe45e" : undefined, fontSize: size * 0.55 }}
+      className="flex items-center justify-center rounded-full border border-white/25"
+      style={{ width: size, height: size, background: look.body, boxShadow: active ? "0 0 14px 3px rgba(255,200,90,0.8)" : undefined, fontSize: size * 0.55 }}
     >
       🦛
     </div>
@@ -199,7 +201,7 @@ function Gas({ gas, spent, narrow }: { gas: number; spent: boolean; narrow: bool
         <span>BEANS</span>
         <span className={spent ? "text-[#ff7a6a]" : ""}>{spent ? "OUT!" : ""}</span>
       </div>
-      <div className="h-4 overflow-hidden rounded-full border-[3px] border-[#1b1030] bg-[#2a1d46]">
+      <div className="h-4 overflow-hidden rounded-full border border-white/25 bg-[#2a1d46]">
         <div className="h-full rounded-full transition-[width] duration-100" style={{ width: `${Math.round(gas * 100)}%`, background: spent ? "#ff7a6a" : gas < 0.3 ? "#ffb02e" : "#9be03a" }} />
       </div>
     </div>
@@ -208,7 +210,7 @@ function Gas({ gas, spent, narrow }: { gas: number; spent: boolean; narrow: bool
 
 function Progress({ hud }: { hud: Hud }) {
   return (
-    <div className="relative mx-auto h-5 w-full max-w-md rounded-full border-[3px] border-[#1b1030] bg-[#2a1d46]/80">
+    <div className="relative mx-auto h-5 w-full max-w-md rounded-full border border-white/25 bg-[#2a1d46]/80">
       <div className="absolute inset-y-0 left-0 rounded-full bg-[#4aa9f0]" style={{ width: `${hud.progress * 100}%` }} />
       {hud.checkpoints.map((f, i) => (
         <div key={i} className="absolute top-[-5px] h-[calc(100%+10px)] w-[3px]" style={{ left: `${f * 100}%`, background: i <= hud.cp ? "#7cff8a" : "#d9d3ee" }} />
@@ -271,7 +273,7 @@ function HudBar({ hud, touch, par, online, onSay }: { hud: Hud; touch: boolean; 
                 {n}
                 {!hud.humans[i] && " (BOT)"}
               </div>
-              <div className="h-2 w-10 overflow-hidden rounded-full border-2 border-[#1b1030] bg-[#2a1d46]">
+              <div className="h-2 w-10 overflow-hidden rounded-full border border-white/25 bg-[#2a1d46]">
                 <div className="h-full bg-[#9be03a]" style={{ width: `${Math.round((hud.gases[i] ?? 1) * 100)}%` }} />
               </div>
             </div>
@@ -336,6 +338,9 @@ export default function HippoRapids() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<{ text: string; key: number } | null>(null);
   const [code, setCode] = useState("");
+  const [rooms, setRooms] = useState<RoomRow[]>([]);
+  const [hostRiver, setHostRiver] = useState("lagoon");
+  const [hostPublic, setHostPublic] = useState(true);
   const [howTo, setHowTo] = useState(false);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(sfx.muted);
@@ -515,7 +520,7 @@ export default function HippoRapids() {
         break;
       case "room": {
         const prev = roomRef.current;
-        const r: Room = { code: m.code, seat: m.seat, seats: m.seats, host: m.host, level: m.level, def: m.def, status: m.status, names: m.names, connected: m.connected };
+        const r: Room = { code: m.code, seat: m.seat, seats: m.seats, host: m.host, level: m.level, def: m.def, public: m.public, status: m.status, names: m.names, connected: m.connected };
         const lk = m.level + (m.def ? JSON.stringify(m.def) : "");
         const levelChanged = lk !== roomLevel.current.key;
         if (levelChanged) roomLevel.current = { key: lk, value: m.def ?? m.level };
@@ -524,13 +529,16 @@ export default function HippoRapids() {
         ctrl?.setNames(m.names);
         const v = viewRef.current;
         if (m.status === "playing" && v !== "play" && v !== "result") enterRun(r);
-        else if ((m.status === "lobby" && (v === "friends" || v === "joining" || v === "title" || v === "play" || v === "result")) || (m.status === "done" && (v === "friends" || v === "joining" || v === "title"))) {
+        else if ((m.status === "lobby" && (v === "rooms" || v === "host" || v === "joining" || v === "title" || v === "play" || v === "result")) || (m.status === "done" && (v === "rooms" || v === "host" || v === "joining" || v === "title"))) {
           // (A raft that already finished is back at the dock for anyone arriving after.)
           if (!prev || prev.seats !== r.seats || levelChanged || v === "play" || v === "result") ctrl?.demo(r.seats, roomLevel.current.value);
           setView("lobby");
         }
         break;
       }
+      case "rooms":
+        setRooms(m.rooms);
+        break;
       case "say":
         ctrl?.onSay(m.seat, m.k);
         break;
@@ -546,7 +554,7 @@ export default function HippoRapids() {
         break;
       case "error":
         setError(m.message);
-        if (viewRef.current === "joining") setView("friends");
+        if (viewRef.current === "joining") setView("rooms");
         break;
       default:
         break;
@@ -578,16 +586,48 @@ export default function HippoRapids() {
     setView("title");
   };
 
+  // Every river a host can pick: the built-in ones, then the player's own.
+  const riverOptions = () => [...LEVELS.map((l) => ({ id: l.id, name: l.def.name, value: l.id as string | Level })), ...custom.map((c) => ({ id: c.id, name: c.def.name, value: c.def as string | Level }))];
+
   const host = () => {
     setError(null);
     setView("joining");
-    openSocket().send({ type: "create", name: myName(), seats, level: "lagoon" });
+    const pick = riverOptions().find((o) => o.id === hostRiver) ?? riverOptions()[0];
+    openSocket().send({ type: "create", name: myName(), seats, level: pick.value, public: hostPublic });
+  };
+
+  const quickPlay = () => {
+    setError(null);
+    setView("joining");
+    openSocket().send({ type: "quick", name: myName(), seats });
+  };
+
+  // The room finder keeps its own connection open and asks for the list every couple of seconds.
+  const openFinder = () => {
+    setError(null);
+    setRooms([]);
+    openSocket();
+    setView("rooms");
   };
 
   const join = (c: string) => {
     setError(null);
     setView("joining");
-    openSocket().send({ type: "join", code: c, name: myName() });
+    (sockRef.current ?? openSocket()).send({ type: "join", code: c, name: myName() });
+  };
+
+  const backToTitle = () => {
+    sockRef.current?.close();
+    sockRef.current = null;
+    setError(null);
+    setView("title");
+  };
+
+  // Cycles through the rivers on offer: -1 or +1.
+  const nextRiver = (current: string, dir: number) => {
+    const opts = riverOptions();
+    const i = Math.max(0, opts.findIndex((o) => o.id === current));
+    return opts[(i + dir + opts.length) % opts.length];
   };
 
   // A link with ?room= opens straight into that room; a refresh rejoins the room this tab was in.
@@ -596,7 +636,9 @@ export default function HippoRapids() {
     const link = new URLSearchParams(window.location.search).get("room");
     if (link) {
       setCode(link.toUpperCase().slice(0, CODE_LENGTH));
-      setView("friends");
+      setView("rooms");
+      setRooms([]);
+      openSocket();
     } else if (RoomSocket.savedRoom()) {
       setView("joining");
       openSocket(true);
@@ -607,6 +649,20 @@ export default function HippoRapids() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The room finder asks for the list of open rafts every couple of seconds.
+  useEffect(() => {
+    if (view !== "rooms" || net !== "open") return;
+    const ask = () => sockRef.current?.send({ type: "list" });
+    ask();
+    const t = window.setInterval(ask, 2500);
+    return () => window.clearInterval(t);
+  }, [view, net]);
+
+  // Behind the menus the camera drifts slowly round the raft.
+  useEffect(() => {
+    ctrlRef.current?.setMenuCam(!attract && ["title", "levels", "rooms", "host", "joining", "lobby", "result"].includes(view));
+  }, [view, attract]);
 
   // --- picture ----------------------------------------------------------------------------
 
@@ -657,37 +713,35 @@ export default function HippoRapids() {
         </>
       )}
 
+      {!attract && ["title", "levels", "rooms", "host", "joining", "lobby", "result"].includes(view) && <div className="hr-vignette" />}
+      {!attract && ["title", "rooms", "host", "joining", "lobby"].includes(view) && <div className="hr-side-fade" />}
       {!attract && view === "title" && (
-        <div className="hr-screen hr-title-screen">
-          <div className="flex flex-col items-center gap-1 pt-2">
-            <Logo small={short} />
-            <p className="hr-o max-w-xs text-center text-base text-[#fff0c8]">Everyone farts. One raft. Don't wake the dead.</p>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-              <div className="flex items-center gap-2">
-                <span className="hr-o text-sm">NAME</span>
-                <input className="hr-input w-36 px-2 py-1 text-base" value={name} maxLength={12} onChange={(e) => saveName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-              </div>
-              <SeatPicker seats={seats} onChange={changeSeats} />
-            </div>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Btn color="green" className="w-60" onClick={() => setView("levels")}>
-                ▶ PLAY
-              </Btn>
-              <Btn color="orange" className="w-60" onClick={() => setView("friends")}>
-                PLAY WITH FRIENDS
-              </Btn>
-            </div>
-            <div className="flex items-center gap-3">
-              <Btn color="pink" className="!py-2 !text-base" onClick={() => openEditor(null)}>
-                LEVEL EDITOR
-              </Btn>
-              <Btn color="blue" className="!py-2 !text-base" onClick={() => setHowTo(true)}>
-                HOW TO PLAY
-              </Btn>
-            </div>
-          </div>
+        <div className="hr-left hr-soft-in">
+          <Logo left small={short} />
+          <p className="hr-o max-w-xs text-center text-xs tracking-[0.3em] text-[#e8d9ff] sm:text-left">EVERYONE FARTS · ONE RAFT · DON'T WAKE THE DEAD</p>
+          <MenuList
+            active={!howTo}
+            items={[
+              { key: "solo", label: "Play", hint: "With a crew of bots" },
+              { key: "quick", label: "Quick play", hint: "Hop on any open raft" },
+              { key: "find", label: "Find a room", hint: "See who's on the water" },
+              { key: "host", label: "Host a room", hint: "Start your own raft" },
+              { key: "editor", label: "Level editor", hint: "Build a river" },
+              { key: "how", label: "How to play" },
+            ]}
+            onPick={(k) => {
+              if (k === "solo") setView("levels");
+              else if (k === "quick") quickPlay();
+              else if (k === "find") openFinder();
+              else if (k === "host") setView("host");
+              else if (k === "editor") openEditor(null);
+              else setHowTo(true);
+            }}
+          />
+          <label className="flex items-center gap-3 text-[0.7rem] tracking-[0.25em] text-[#cbbdf0]">
+            PLAYER
+            <input className="hr-input w-36 px-2 py-1 text-sm" value={name} maxLength={12} onChange={(e) => saveName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+          </label>
         </div>
       )}
 
@@ -702,7 +756,7 @@ export default function HippoRapids() {
               const rec = records[recordKey(l.id, seats)];
               return (
                 <button key={l.id} type="button" className="hr-panel flex items-stretch gap-3 p-3 text-left active:translate-y-1" onClick={() => (sfx.unlock(), sfx.blip(), playBuiltIn(l.id))}>
-                  <div className="flex w-12 shrink-0 items-center justify-center rounded-xl border-[3px] border-[#1b1030] text-2xl" style={{ background: l.color }}>
+                  <div className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-white/25 text-2xl" style={{ background: l.color }}>
                     {i + 1}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -812,124 +866,146 @@ export default function HippoRapids() {
         </Suspense>
       )}
 
-      {!attract && view === "friends" && (
-        <div className="hr-screen">
-          <Logo small />
-          <div className="hr-panel flex w-full max-w-xs flex-col items-center gap-3 p-4">
-            <div className="hr-o text-lg">HOST A RAFT</div>
-            <SeatPicker seats={seats} onChange={changeSeats} />
-            <Btn color="green" className="w-full" onClick={host}>
-              GET A ROOM CODE
-            </Btn>
-            <div className="hr-o mt-2 text-lg">OR JOIN ONE</div>
-            <input
-              className="hr-input w-36 py-2 text-2xl uppercase tracking-[0.3em]"
-              placeholder="CODE"
-              value={code}
-              maxLength={CODE_LENGTH}
-              autoCapitalize="characters"
-              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === "Enter" && code.length === CODE_LENGTH) join(code);
-              }}
-            />
-            <Btn color="orange" className="w-full" disabled={code.length !== CODE_LENGTH} onClick={() => join(code)}>
-              JUMP ABOARD
-            </Btn>
-            {error && <div className="text-center text-sm text-[#ff9a8a]">{error}</div>}
+      {!attract && view === "rooms" && (
+        <div className="hr-left hr-soft-in">
+          {!short && <Logo left small />}
+          <div className="hr-o text-xs tracking-[0.35em] text-[#ffd9a8]">FIND A ROOM</div>
+          <div className="hr-glass flex flex-col gap-3 p-4" style={{ minWidth: "min(36rem, 90vw)" }}>
+            {net !== "open" ? (
+              <div className="py-4 text-center text-xs tracking-[0.25em] opacity-80">CONNECTING…</div>
+            ) : rooms.length === 0 ? (
+              <div className="py-4 text-center text-xs tracking-[0.2em] opacity-80">NO OPEN RAFTS RIGHT NOW. HOST ONE, OR TRY QUICK PLAY.</div>
+            ) : (
+              <>
+                <div className="flex px-10 text-[0.6rem] tracking-[0.25em] opacity-60">
+                  <span className="w-[38%]">HOST</span>
+                  <span className="w-[34%]">RIVER</span>
+                  <span className="w-[28%] text-right">SEATS</span>
+                </div>
+                <RoomRows rooms={rooms} onJoin={join} onBack={backToTitle} />
+              </>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
+              <label className="flex items-center gap-2 text-[0.65rem] tracking-[0.25em] opacity-90">
+                CODE
+                <input
+                  className="hr-input w-24 py-1 text-lg uppercase tracking-[0.3em]"
+                  placeholder="····"
+                  value={code}
+                  maxLength={CODE_LENGTH}
+                  autoCapitalize="characters"
+                  onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter" && code.length === CODE_LENGTH) join(code);
+                  }}
+                />
+              </label>
+              <div className="flex gap-2">
+                <Btn color="orange" className="!px-4 !py-2 !text-sm" disabled={code.length !== CODE_LENGTH} onClick={() => join(code)}>
+                  JOIN
+                </Btn>
+                <Btn color="grey" className="!px-4 !py-2 !text-sm" onClick={backToTitle}>
+                  BACK
+                </Btn>
+              </div>
+            </div>
+            {error && <div className="text-center text-xs tracking-wider text-[#ff9a8a]">{error}</div>}
           </div>
-          <Btn
-            color="grey"
-            className="!py-2 !text-base"
-            onClick={() => {
-              setError(null);
-              setView("title");
-            }}
-          >
-            BACK
-          </Btn>
+        </div>
+      )}
+
+      {!attract && view === "host" && (
+        <div className="hr-left hr-soft-in">
+          {!short && <Logo left small />}
+          <div className="hr-o text-xs tracking-[0.35em] text-[#ffd9a8]">HOST A ROOM</div>
+          <div className="hr-glass p-3">
+            <MenuList
+              items={[
+                { key: "seats", label: "Seats", value: `${seats} hippos` },
+                { key: "river", label: "River", value: riverOptions().find((o) => o.id === hostRiver)?.name ?? "" },
+                { key: "public", label: "Room", value: hostPublic ? "Open" : "Private" },
+                { key: "go", label: "Open the room", hint: hostPublic ? "Shows up in the room finder" : "Only people with the code" },
+                { key: "back", label: "Back" },
+              ]}
+              onPick={(k) => (k === "go" ? host() : k === "back" ? setView("title") : undefined)}
+              onLeft={(k) => (k === "seats" ? changeSeats(seats === 4 ? 2 : 4) : k === "river" ? setHostRiver(nextRiver(hostRiver, -1).id) : k === "public" ? setHostPublic(!hostPublic) : undefined)}
+              onRight={(k) => (k === "seats" ? changeSeats(seats === 4 ? 2 : 4) : k === "river" ? setHostRiver(nextRiver(hostRiver, 1).id) : k === "public" ? setHostPublic(!hostPublic) : undefined)}
+              onBack={() => setView("title")}
+            />
+          </div>
+          {error && <div className="text-xs tracking-wider text-[#ff9a8a]">{error}</div>}
         </div>
       )}
 
       {!attract && view === "joining" && (
-        <div className="hr-screen">
-          <Logo small />
-          <div className="hr-o text-xl">{net === "open" ? "BLOWING UP THE RAFT…" : "CONNECTING…"}</div>
-          {error && <div className="text-center text-[#ff9a8a]">{error}</div>}
-          <Btn color="grey" className="!py-2 !text-base" onClick={leaveRoom}>
-            CANCEL
-          </Btn>
+        <div className="hr-left hr-soft-in">
+          {!short && <Logo left small />}
+          <div className="hr-o text-xs tracking-[0.35em] text-[#ffd9a8]">{net === "open" ? "BLOWING UP THE RAFT…" : "CONNECTING…"}</div>
+          {error && <div className="text-xs tracking-wider text-[#ff9a8a]">{error}</div>}
+          <div className="hr-glass p-3">
+            <MenuList items={[{ key: "cancel", label: "Cancel" }]} onPick={leaveRoom} onBack={leaveRoom} />
+          </div>
         </div>
       )}
 
       {!attract && view === "lobby" && room && (
-        <div className="hr-screen">
-          <Logo small />
-          <div className="hr-panel flex w-full max-w-sm flex-col items-center gap-3 p-4">
-            <div className="hr-o text-sm">ROOM CODE</div>
-            <div className="hr-title text-6xl tracking-[0.15em] text-[#ffe45e]">{room.code}</div>
-            <Btn color="blue" className="!py-2 !text-base" onClick={copyLink}>
-              {copied ? "COPIED!" : touch ? "SHARE INVITE" : "COPY INVITE LINK"}
-            </Btn>
-            <div className="flex w-full items-center justify-between gap-2 text-sm">
-              <span className="opacity-80">RIVER</span>
-              {iAmHost ? (
-                <select
-                  className="hr-input max-w-[12rem] px-2 py-1 text-sm"
-                  value={room.def ? "custom" : room.level}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    const mine = custom.find((c) => c.id === v);
-                    sockRef.current?.send({ type: "level", level: mine ? mine.def : v });
-                  }}
-                  onKeyDown={(e) => e.stopPropagation()}
-                >
-                  {room.def && <option value="custom">{room.def.name} (custom)</option>}
-                  {LEVELS.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.def.name}
-                    </option>
-                  ))}
-                  {custom.length > 0 && <option disabled>— my rivers —</option>}
-                  {custom.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.def.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-right">{room.def ? `${room.def.name} (custom)` : (getLevel(room.level)?.def.name ?? room.level)}</span>
-              )}
+        <div className="hr-left hr-soft-in">
+          {!short && <Logo left small />}
+          <div className="hr-glass flex flex-col gap-3 p-4" style={{ minWidth: "min(24rem, 90vw)" }}>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <div className="text-[0.6rem] tracking-[0.35em] opacity-70">ROOM CODE</div>
+                <div className="hr-title text-6xl tracking-[0.16em]" style={{ color: "#ffe9a0", textShadow: "0 0 22px rgba(255,170,60,0.6)" }}>
+                  {room.code}
+                </div>
+              </div>
+              <div className="pb-2 text-right text-[0.6rem] tracking-[0.25em] opacity-80">{room.public ? "OPEN ROOM" : "PRIVATE"}</div>
             </div>
-            <div className="grid w-full grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {Array.from({ length: room.seats }, (_, i) => {
                 const n = room.names[i];
                 const here = !!n && room.connected[i];
                 return (
-                  <div key={i} className="flex items-center gap-2 rounded-xl bg-[#2a1d46] p-2" style={{ opacity: here ? 1 : 0.55 }}>
-                    <HippoChip seat={i} active={i === room.seat} size={36} />
+                  <div key={i} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2" style={{ opacity: here ? 1 : 0.5 }}>
+                    <HippoChip seat={i} active={i === room.seat} size={34} />
                     <div className="min-w-0 text-sm">
                       <div className="truncate">{n ?? "BOT"}</div>
-                      <div className="text-xs opacity-70">{i === room.host ? "HOST" : i === room.seat ? "YOU" : here ? "" : n ? "AWAY" : "WAITING"}</div>
+                      <div className="text-[0.6rem] tracking-[0.2em] opacity-70">{i === room.host ? "HOST" : i === room.seat ? "YOU" : here ? "" : n ? "AWAY" : "EMPTY"}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="text-center text-xs opacity-80">Empty seats get bots.</div>
-            {iAmHost ? (
-              <Btn color="green" className="w-full" onClick={() => sockRef.current?.send({ type: "start" })}>
-                ▶ SET OFF
-              </Btn>
-            ) : (
-              <div className="hr-o text-sm">WAITING FOR {room.names[room.host] ?? "THE HOST"}…</div>
-            )}
+            <MenuList
+              items={[
+                ...(iAmHost ? [{ key: "go", label: "Set off", hint: "Empty seats get bots" }] : [{ key: "wait", label: `Waiting for ${room.names[room.host] ?? "the host"}`, disabled: true }]),
+                { key: "river", label: "River", value: room.def ? room.def.name : (getLevel(room.level)?.def.name ?? room.level), disabled: !iAmHost },
+                ...(iAmHost ? [{ key: "public", label: "Room", value: room.public ? "Open" : "Private" }] : []),
+                { key: "invite", label: copied ? "Copied!" : touch ? "Share invite" : "Copy invite link" },
+                { key: "leave", label: "Leave" },
+              ] as MenuItem[]}
+              onPick={(k) => {
+                if (k === "go") sockRef.current?.send({ type: "start" });
+                else if (k === "invite") void copyLink();
+                else if (k === "leave") leaveRoom();
+              }}
+              onLeft={(k) => {
+                if (k === "river" && iAmHost) {
+                  const o = nextRiver(room.def ? "" : room.level, -1);
+                  sockRef.current?.send({ type: "level", level: o.value });
+                } else if (k === "public") sockRef.current?.send({ type: "public", public: !room.public });
+              }}
+              onRight={(k) => {
+                if (k === "river" && iAmHost) {
+                  const o = nextRiver(room.def ? "" : room.level, 1);
+                  sockRef.current?.send({ type: "level", level: o.value });
+                } else if (k === "public") sockRef.current?.send({ type: "public", public: !room.public });
+              }}
+              onBack={leaveRoom}
+            />
           </div>
           {note && <div className="hr-o hr-note text-sm">{note.text}</div>}
-          <Btn color="grey" className="!py-2 !text-base" onClick={leaveRoom}>
-            LEAVE
-          </Btn>
         </div>
       )}
 

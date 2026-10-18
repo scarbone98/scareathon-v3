@@ -567,6 +567,11 @@ export class GameController {
     if (seat !== this.me) sfx.blip();
   }
 
+  // Behind the menus: a slow orbit round the raft instead of the chase camera.
+  setMenuCam(on: boolean) {
+    this.gl.menuCam = on;
+  }
+
   // The renderer's last frame, for screenshots and tests.
   get current() {
     return this.view;
