@@ -41,6 +41,8 @@ export type MachineData = {
   hasLeaderboard?: boolean;
   // Playable but unfinished: EARLY ACCESS over its preview, and shelved in a group of their own.
   earlyAccess?: boolean;
+  // Earlier still: an early-access game marked ALPHA instead (rough, and changing a lot).
+  alpha?: boolean;
   // An early-access game that still spends its first day in NEW GAMES, like a finished one
   newShelf?: boolean;
   // One of this device's favourites when the list was built (Arcade/favourites.ts): shelved
@@ -101,6 +103,7 @@ const CASINO_URL = "/casino";
 const FROG_BALL_URL = "/frog-ball";
 const MYSTERY_CRYPT_URL = "/mystery-crypt";
 const GHOST_RIDGE_URL = "/ghost-ridge";
+const HIPPO_RAPIDS_URL = "/hippo-rapids";
 const MUERTOS_URL = "/muertos";
 const SCARY_CAPITALIST_URL = "/scary-capitalist";
 const SCAREDLE_URL = "/scaredle";
@@ -855,6 +858,32 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Ghost Ridge", GHOST_RIDGE_URL)
           }
+        />
+      ),
+    },
+    // Co-op raft game built into the site: 2 or 4 hippos on one round raft fart their way down a
+    // river past boulders, spiked buoys, sweepers and logs. Rooms by code (the server runs the
+    // raft, bots take empty seats), or solo with bots. No scores: it's about the finish.
+    {
+      name: "Hippo Rapids",
+      added: "2026-10-17T13:00:00-05:00",
+      earlyAccess: true,
+      alpha: true,
+      cartridge: {
+        color: "#2b8fe0",
+        tagline: "Four hippos. One raft. Zero brakes.",
+        font: { family: "Luckiest Guy" },
+        about: { released: "2026", players: "Solo, or 2-4 online with bots", genre: "Co-op raft chaos", developer: "scarbone98" },
+        backNote: "Beans are not infinite.",
+      },
+      // Not uploaded to the bucket yet: npm run upload:recordings.
+      videoUrl: `${RECORDINGS}/HippoRapids.mp4`,
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Hippo Rapids"
+          url={HIPPO_RAPIDS_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },

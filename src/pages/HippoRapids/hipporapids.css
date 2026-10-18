@@ -1,0 +1,365 @@
+/* Hippo Rapids' screens: soft glass and glow over the 3D river, in the spirit of a stylish
+   early-2000s console menu. Nothing sharp: translucent panels, light borders, slow animation. */
+
+@font-face {
+  font-family: "HRTitle";
+  src: url("/fonts/scoobydoo.ttf") format("truetype");
+  font-display: block;
+}
+
+.hr-root {
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  color: #f1ebff;
+  overscroll-behavior: none;
+}
+
+.hr-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hr-title {
+  font-family: "HRTitle", "Trebuchet MS", cursive;
+  line-height: 0.9;
+  letter-spacing: 0.03em;
+}
+
+/* Light text with a soft dark halo, readable over water without a hard outline. */
+.hr-o {
+  text-shadow:
+    0 0 6px rgba(10, 4, 30, 0.9),
+    0 1px 3px rgba(10, 4, 30, 0.9),
+    0 0 14px rgba(10, 4, 30, 0.6);
+}
+
+/* Glass panels. */
+.hr-panel,
+.hr-glass {
+  background: linear-gradient(180deg, rgba(52, 34, 96, 0.58), rgba(20, 11, 42, 0.66));
+  border: 1px solid rgba(196, 176, 255, 0.24);
+  border-radius: 14px;
+  box-shadow:
+    0 10px 40px rgba(4, 0, 18, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 34px rgba(130, 96, 230, 0.12);
+  backdrop-filter: blur(7px) saturate(1.25);
+}
+
+/* Soft glossy buttons. --c is the tint. */
+.hr-btn {
+  --c: 150, 120, 235;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(var(--c), 0.62), rgba(var(--c), 0.28));
+  box-shadow:
+    0 0 18px rgba(var(--c), 0.35),
+    0 4px 14px rgba(4, 0, 18, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 6px rgba(10, 4, 30, 0.7);
+  transition:
+    transform 0.12s,
+    box-shadow 0.2s,
+    filter 0.2s;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.hr-btn:hover:not(:disabled) {
+  filter: brightness(1.18);
+  box-shadow:
+    0 0 26px rgba(var(--c), 0.6),
+    0 4px 14px rgba(4, 0, 18, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.hr-btn:active:not(:disabled),
+.hr-btn.hr-down {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(1.3);
+}
+.hr-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.hr-green {
+  --c: 96, 214, 120;
+}
+.hr-orange {
+  --c: 255, 150, 50;
+}
+.hr-blue {
+  --c: 80, 160, 245;
+}
+.hr-pink {
+  --c: 232, 100, 170;
+}
+.hr-grey {
+  --c: 130, 120, 170;
+}
+
+/* Menu lists: wide-spaced caps, a glowing bar sliding to the chosen line. */
+.hr-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: min(20rem, 82vw);
+}
+.hr-menu-item {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0.62rem 1.6rem 0.62rem 2.6rem;
+  text-align: left;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #c6b9ea;
+  text-shadow: 0 0 10px rgba(150, 120, 255, 0.55);
+  background: linear-gradient(90deg, rgba(255, 150, 50, 0), rgba(255, 150, 50, 0));
+  border-radius: 8px;
+  transition:
+    color 0.2s,
+    background 0.25s,
+    padding 0.2s,
+    text-shadow 0.2s;
+  cursor: pointer;
+}
+.hr-menu-item small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  opacity: 0;
+  max-height: 0;
+  transition:
+    opacity 0.25s,
+    max-height 0.25s;
+  color: #ffd9a8;
+}
+.hr-menu-item.sel {
+  color: #fff;
+  padding-left: 3rem;
+  text-shadow:
+    0 0 16px rgba(255, 175, 80, 0.95),
+    0 0 3px rgba(255, 255, 255, 0.9);
+  background: linear-gradient(90deg, rgba(255, 150, 50, 0.4), rgba(255, 150, 50, 0.1) 65%, rgba(255, 150, 50, 0));
+}
+.hr-menu-item.sel small {
+  opacity: 0.85;
+  max-height: 1.6rem;
+}
+.hr-menu-item::before {
+  content: "◆";
+  position: absolute;
+  left: 1.1rem;
+  top: 50%;
+  transform: translateY(-50%) scale(0.5);
+  opacity: 0;
+  color: #ffb347;
+  font-size: 0.7rem;
+  text-shadow: 0 0 10px rgba(255, 170, 60, 1);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.hr-menu-item.sel::before {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  animation: hr-glint 1.8s ease-in-out infinite;
+}
+.hr-menu-item:disabled {
+  opacity: 0.4;
+}
+.hr-menu-value {
+  float: right;
+  letter-spacing: 0.12em;
+  color: #fff;
+}
+
+@keyframes hr-glint {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.7);
+  }
+}
+
+/* The dark frame around the menu: a vignette, and the top and bottom fading to night. */
+.hr-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(8, 4, 24, 0) 40%, rgba(8, 4, 24, 0.72) 100%),
+    linear-gradient(180deg, rgba(8, 4, 24, 0.6), rgba(8, 4, 24, 0) 24%, rgba(8, 4, 24, 0) 66%, rgba(8, 4, 24, 0.7));
+}
+.hr-side-fade {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(10, 5, 28, 0.78), rgba(10, 5, 28, 0.35) 45%, rgba(10, 5, 28, 0) 75%);
+}
+
+.hr-soft-in {
+  animation: hr-soft-in 0.5s ease-out both;
+}
+@keyframes hr-soft-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hr-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1deg);
+  }
+}
+.hr-float {
+  animation: hr-bob 4.5s ease-in-out infinite;
+}
+
+@keyframes hr-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.hr-pop {
+  animation: hr-pop 0.45s ease-out both;
+}
+
+@keyframes hr-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.hr-note {
+  animation: hr-fade 2.2s ease-out both;
+}
+
+.hr-input {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  outline: none;
+  backdrop-filter: blur(4px);
+}
+.hr-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+.hr-input:focus {
+  border-color: rgba(255, 175, 80, 0.85);
+  box-shadow: 0 0 16px rgba(255, 150, 50, 0.4);
+}
+select.hr-input option {
+  color: #1b1030;
+}
+
+/* Menu screens: centred when they fit, scrollable from the top when they don't (a phone on
+   its side). Padding keeps clear of notches. */
+.hr-screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overscroll-behavior: contain;
+}
+.hr-screen > :first-child {
+  margin-top: auto;
+}
+.hr-screen > :last-child {
+  margin-bottom: auto;
+}
+.hr-screen.hr-top > :first-child,
+.hr-screen.hr-top > :last-child {
+  margin: 0;
+}
+.hr-title-screen {
+  justify-content: space-between;
+}
+.hr-title-screen > :first-child,
+.hr-title-screen > :last-child {
+  margin: 0;
+}
+
+/* The main menu: logo and list down the left (centred on a narrow phone). */
+.hr-left {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.2rem;
+  padding: max(1.2rem, env(safe-area-inset-top)) max(1.2rem, env(safe-area-inset-right)) max(1.2rem, env(safe-area-inset-bottom)) max(clamp(1rem, 7vw, 6rem), env(safe-area-inset-left));
+  overscroll-behavior: contain;
+}
+@media (max-width: 640px) {
+  .hr-left {
+    align-items: center;
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+}
+.hr-left > :first-child {
+  margin-top: auto;
+}
+.hr-left > :last-child {
+  margin-bottom: auto;
+}
+
+/* Landscape phones: tighter. */
+@media (max-height: 520px) {
+  .hr-menu-item {
+    padding-top: 0.38rem;
+    padding-bottom: 0.38rem;
+    font-size: 0.92rem;
+  }
+  .hr-btn {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    font-size: 0.9rem !important;
+  }
+  .hr-left {
+    gap: 0.6rem;
+  }
+}
