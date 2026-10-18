@@ -94,6 +94,7 @@ export class GameController {
   private hudAt = 0;
   private countBeep = -1;
   private tootAt: number[] = [];
+  private critterIn = 18;
   private lastHits: { x: number; z: number }[] = [];
   private keys = new Set<string>();
   private aim: [number, number] = [0, 0];
@@ -118,6 +119,8 @@ export class GameController {
     private opts: Opts,
   ) {
     this.gl = new Renderer(canvas);
+    // Thunder arrives a beat after the flash.
+    this.gl.onLightning = () => window.setTimeout(() => !this.disposed && sfx.thunder(), 500 + Math.random() * 900);
     this.resizeObs = new ResizeObserver(() => this.resize());
     this.resizeObs.observe(host);
     this.resize();
@@ -495,6 +498,13 @@ export class GameController {
     }
     const wind = windFeel(this.course, view);
     sfx.wind(wind.i, wind.dx);
+    // Now and then, something out in the dark.
+    this.critterIn -= dt;
+    if (this.critterIn < 0) {
+      this.critterIn = 20 + Math.random() * 30;
+      if (Math.random() < 0.5) sfx.owl();
+      else sfx.howl();
+    }
     const speed = Math.hypot(view.vx, view.vz);
     sfx.river(view.ph !== "done" || speed > 0.5, speed);
     if (view.ph === "countdown") {

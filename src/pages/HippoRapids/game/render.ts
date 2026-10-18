@@ -226,29 +226,26 @@ function outline(geo: THREE.BufferGeometry, width = 0.03) {
 function accessory(kind: number): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
   if (kind === 0) {
-    // Swim goggles on the forehead.
-    for (const x of [-0.12, 0.12]) {
-      out.push(skin(place(new THREE.TorusGeometry(0.085, 0.03, 8, 14).rotateX(-1.1), x, 0.43, 0.02), "#ffd23a", 0.1));
-      out.push(skin(place(new THREE.CylinderGeometry(0.075, 0.075, 0.03, 12).rotateX(-1.1), x, 0.425, 0.025), "#7fd8ff", 0.05));
-    }
-    out.push(skin(place(new THREE.BoxGeometry(0.5, 0.05, 0.05), 0, 0.3, -0.12).rotateX(0), "#ffd23a", 0.1));
+    // A witch's hat, with a buckle.
+    out.push(skin(place(new THREE.CylinderGeometry(0.44, 0.44, 0.04, 18), 0, 0.5, 0.12), "#2c1f48", 0.15));
+    out.push(skin(place(new THREE.ConeGeometry(0.27, 0.7, 14).rotateZ(0.12), 0.03, 0.86, 0.12), "#2c1f48", 0.15));
+    out.push(skin(place(new THREE.CylinderGeometry(0.285, 0.31, 0.1, 14), 0, 0.57, 0.12), "#ff8a1f", 0.1));
+    out.push(skin(place(new THREE.BoxGeometry(0.12, 0.1, 0.04), 0, 0.57, 0.42), "#ffd23a", 0.1));
   } else if (kind === 1) {
-    // A flower tucked by the ear.
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      out.push(skin(ball(0.06, 0.3 + Math.cos(a) * 0.075, 0.5 + Math.sin(a) * 0.075, 0.0, 1, 1, 0.5, 8), "#ff7aa8", 0.1));
+    // Little red devil horns.
+    for (const sd of [-1, 1]) {
+      out.push(skin(place(new THREE.ConeGeometry(0.075, 0.34, 8).rotateZ(-sd * 0.35), sd * 0.24, 0.62, 0.1), "#d8362a", 0.15));
     }
-    out.push(skin(ball(0.045, 0.3, 0.5, 0.01, 1, 1, 0.8, 8), "#ffe45e", 0.1));
   } else if (kind === 2) {
-    // A little bucket hat.
-    out.push(skin(place(new THREE.CylinderGeometry(0.2, 0.25, 0.2, 14), 0, 0.5, 0.1), "#f1e4c0", 0.15));
-    out.push(skin(place(new THREE.CylinderGeometry(0.4, 0.4, 0.03, 18), 0, 0.41, 0.1), "#f1e4c0", 0.15));
-    out.push(skin(place(new THREE.CylinderGeometry(0.255, 0.255, 0.05, 14), 0, 0.46, 0.1), "#e0483a", 0.1));
+    // A pumpkin for a hat.
+    out.push(skin(ball(0.3, 0, 0.58, 0.12, 1.1, 0.8, 1.1, 12), "#ff8a1f", 0.2));
+    out.push(skin(place(new THREE.CylinderGeometry(0.04, 0.06, 0.16, 5), 0, 0.82, 0.12), "#4a6a24", 0.1));
   } else {
-    // A big red bow.
-    out.push(skin(place(new THREE.ConeGeometry(0.14, 0.26, 8).rotateZ(Math.PI / 2), -0.14, 0.53, 0.12), "#e0483a", 0.12));
-    out.push(skin(place(new THREE.ConeGeometry(0.14, 0.26, 8).rotateZ(-Math.PI / 2), 0.14, 0.53, 0.12), "#e0483a", 0.12));
-    out.push(skin(ball(0.065, 0, 0.53, 0.12, 1, 1, 1, 8), "#b02a22", 0.1));
+    // Bat ears and a bow tie.
+    for (const sd of [-1, 1]) out.push(skin(place(new THREE.ConeGeometry(0.13, 0.5, 3).rotateZ(-sd * 0.15), sd * 0.22, 0.66, 0.1), "#2c1f48", 0.15));
+    out.push(skin(place(new THREE.ConeGeometry(0.1, 0.2, 6).rotateZ(Math.PI / 2), -0.1, -0.12, 0.4), "#e0483a", 0.12));
+    out.push(skin(place(new THREE.ConeGeometry(0.1, 0.2, 6).rotateZ(-Math.PI / 2), 0.1, -0.12, 0.4), "#e0483a", 0.12));
+    out.push(skin(ball(0.05, 0, -0.12, 0.4, 1, 1, 1, 8), "#b02a22", 0.1));
   }
   return out;
 }
@@ -467,6 +464,18 @@ export class Renderer {
   private rails: { grp: THREE.Group; side: number; slack: number; x: number }[] = [];
   private gustFx: { tex: THREE.Texture; mesh: THREE.Mesh; g: Course["gusts"][number] }[] = [];
   private bubbleTex = new Map<string, THREE.Texture>();
+  // Spooky stuff that rides along with the camera or lives in the level.
+  private bats: { grp: THREE.Group; wings: THREE.Mesh[]; r: number; speed: number; a: number; h: number; ahead: number }[] = [];
+  private mist: { sprite: THREE.Sprite; oz: number; ox: number; drift: number }[] = [];
+  private ghosts: { grp: THREE.Group; base: THREE.Vector3; phase: number }[] = [];
+  private wisps: { pts: THREE.Points; base: Float32Array; phase: Float32Array } | null = null;
+  private hemi!: THREE.HemisphereLight;
+  private moonLight!: THREE.DirectionalLight;
+  private nextBolt = 12;
+  private flash = 0;
+  // Called when lightning strikes, a moment before the thunder arrives.
+  onLightning: (() => void) | null = null;
+  private glow: THREE.Texture | null = null;
   private ringsGot = new Set<number>();
   private geysers: { ring: THREE.Mesh; column: THREE.Mesh; spit: number }[] = [];
   private gators: THREE.Group[] = [];
@@ -531,6 +540,8 @@ export class Renderer {
     this.rails = [];
     this.gustFx = [];
     this.ringsGot = new Set();
+    this.ghosts = [];
+    this.wisps = null;
     this.whirl = null;
     this.flagsUp = -1;
     this.course = course;
@@ -547,27 +558,58 @@ export class Renderer {
     scene.background = this.own(
       canvasTexture(8, 256, (g) => {
         const grad = g.createLinearGradient(0, 0, 0, 256);
-        grad.addColorStop(0, "#2a1d63");
-        grad.addColorStop(0.45, "#a0457d");
-        grad.addColorStop(0.8, "#ff9a62");
-        grad.addColorStop(1, "#ffd08a");
+        grad.addColorStop(0, "#070519");
+        grad.addColorStop(0.5, "#241047");
+        grad.addColorStop(0.84, "#6a2a66");
+        grad.addColorStop(1, "#c4573f");
         g.fillStyle = grad;
         g.fillRect(0, 0, 8, 256);
       }),
     );
-    scene.fog = new THREE.Fog(0xe39a78, 55, 190);
-    scene.add(new THREE.HemisphereLight(0xffd9b8, 0x4c5fa8, 1.25));
-    const sun = new THREE.DirectionalLight(0xffe2b8, 1.6);
-    sun.position.set(-30, 50, -20);
-    scene.add(sun);
+    scene.fog = new THREE.Fog(0x3a2358, 40, 165);
+    this.hemi = new THREE.HemisphereLight(0x9a8ad8, 0x2a2850, 1.15);
+    scene.add(this.hemi);
+    this.moonLight = new THREE.DirectionalLight(0xbfd0ff, 1.25);
+    this.moonLight.position.set(-30, 50, 25);
+    scene.add(this.moonLight);
 
     // The moon and a scatter of stars ride along with the camera so they never come nearer.
     this.sky = new THREE.Group();
-    const moon = new THREE.Mesh(this.own(new THREE.CircleGeometry(16, 32)), this.own(new THREE.MeshBasicMaterial({ color: 0xfff1c9, fog: false })));
-    moon.position.set(-90, 95, 300);
+    const moonTex = this.own(
+      canvasTexture(256, 256, (g) => {
+        g.fillStyle = "#fff4cf";
+        g.beginPath();
+        g.arc(128, 128, 120, 0, Math.PI * 2);
+        g.fill();
+        const rng = mulberry32(12);
+        g.fillStyle = "rgba(200,180,130,0.45)";
+        for (let i = 0; i < 9; i++) {
+          g.beginPath();
+          g.arc(60 + rng() * 140, 60 + rng() * 140, 8 + rng() * 22, 0, Math.PI * 2);
+          g.fill();
+        }
+      }),
+    );
+    const moon = new THREE.Mesh(this.own(new THREE.CircleGeometry(20, 40)), this.own(new THREE.MeshBasicMaterial({ map: moonTex, transparent: true, fog: false })));
+    moon.position.set(-90, 105, 300);
     moon.rotation.y = Math.PI;
-    this.sky.add(moon);
+    const halo = new THREE.Sprite(this.own(new THREE.SpriteMaterial({ map: this.glowTexture(), color: 0xfff0c0, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
+    halo.scale.set(120, 120, 1);
+    halo.position.set(-90, 105, 299);
+    this.sky.add(halo, moon);
+    const starPos: number[] = [];
+    const sr = mulberry32(5);
+    for (let i = 0; i < 220; i++) {
+      const az = sr() * Math.PI * 2;
+      const el = 0.18 + sr() * 1.2;
+      starPos.push(Math.cos(az) * Math.cos(el) * 330, Math.sin(el) * 330, Math.sin(az) * Math.cos(el) * 330 + 40);
+    }
+    const starGeo = this.own(new THREE.BufferGeometry());
+    starGeo.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
+    this.sky.add(new THREE.Points(starGeo, this.own(new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 }))));
     scene.add(this.sky);
+    this.buildBats();
+    this.buildMist();
 
     this.buildWater();
     scene.add(this.world);
@@ -583,7 +625,7 @@ export class Renderer {
         256,
         256,
         (g) => {
-          g.fillStyle = "#2b8fe0";
+          g.fillStyle = "#1c6396";
           g.fillRect(0, 0, 256, 256);
           const rng = mulberry32(5);
           g.lineCap = "round";
@@ -615,10 +657,10 @@ export class Renderer {
 
   private buildBanks() {
     const { course } = this;
-    const clay = C("#d4687a");
-    const clayDark = C("#a8465f");
-    const grass = C("#7fc24a");
-    const grassFar = C("#4f9a3c");
+    const clay = C("#a94868");
+    const clayDark = C("#6e2f4e");
+    const grass = C("#4f8450");
+    const grassFar = C("#2c5a47");
     const zs: number[] = [];
     for (let z = -60; z <= course.length + 110; z += SEG) zs.push(z);
     const hedgeParts: THREE.BufferGeometry[] = [];
@@ -659,50 +701,219 @@ export class Renderer {
       // The rounded hedge along the water's edge.
       const curve = new THREE.CatmullRomCurve3(zs.map((z) => new THREE.Vector3(course.centerX(z) + side * (course.halfWidth(z) + 0.15), 1.45, z)));
       const tube = new THREE.TubeGeometry(curve, zs.length * 2, 0.5, 8, false);
-      hedgeParts.push(tint(tube, "#4fae3e"));
+      hedgeParts.push(tint(tube, "#3a8a4c"));
     }
     this.world.add(new THREE.Mesh(this.own(mergeGeometries(hedgeParts)!), this.own(lambert())));
+  }
+
+  // A soft round glow, for lanterns, wisps, the moon.
+  private glowTexture() {
+    this.glow ??= this.own(
+      canvasTexture(64, 64, (g) => {
+        const rad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        rad.addColorStop(0, "rgba(255,255,255,1)");
+        rad.addColorStop(0.35, "rgba(255,255,255,0.45)");
+        rad.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = rad;
+        g.fillRect(0, 0, 64, 64);
+      }),
+    );
+    return this.glow;
+  }
+
+  private glowPoints(positions: number[], color: number, size: number, opacity = 0.9) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    const pts = new THREE.Points(this.own(geo), this.own(new THREE.PointsMaterial({ map: this.glowTexture(), color, size, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending })));
+    pts.frustumCulled = false;
+    return pts;
+  }
+
+  // Bats wheeling about over the river ahead of the raft.
+  private buildBats() {
+    const body = this.own(tint(new THREE.SphereGeometry(0.22, 8, 6).scale(1, 0.8, 1.6), "#1a1226"));
+    const wingGeo = this.own(
+      (() => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0.3, 1.1, 0.12, 0.45, 0.85, 0, -0.35, 0.45, 0, -0.1, 0, 0, 0.3, 0.85, 0, -0.35], 3));
+        g.computeVertexNormals();
+        return g;
+      })(),
+    );
+    const mat = this.own(new THREE.MeshBasicMaterial({ color: 0x120c1e, side: THREE.DoubleSide, fog: false }));
+    const bodyMat = this.own(new THREE.MeshBasicMaterial({ color: 0x1a1226, fog: false }));
+    for (let i = 0; i < 11; i++) {
+      const grp = new THREE.Group();
+      grp.add(new THREE.Mesh(body, bodyMat));
+      const wings: THREE.Mesh[] = [];
+      for (const sd of [-1, 1]) {
+        const w = new THREE.Mesh(wingGeo, mat);
+        w.scale.x = sd;
+        grp.add(w);
+        wings.push(w);
+      }
+      grp.scale.setScalar(1.3);
+      this.scene.add(grp);
+      this.bats.push({ grp, wings, r: 6 + Math.random() * 16, speed: (0.6 + Math.random() * 0.9) * (Math.random() < 0.5 ? -1 : 1), a: Math.random() * 6.28, h: 9 + Math.random() * 9, ahead: 20 + Math.random() * 50 });
+    }
+  }
+
+  // Low mist drifting across the water.
+  private buildMist() {
+    const tex = this.own(
+      canvasTexture(128, 128, (g) => {
+        const rad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+        rad.addColorStop(0, "rgba(210,200,240,0.9)");
+        rad.addColorStop(0.5, "rgba(190,180,230,0.35)");
+        rad.addColorStop(1, "rgba(180,170,220,0)");
+        g.fillStyle = rad;
+        g.fillRect(0, 0, 128, 128);
+      }),
+    );
+    for (let i = 0; i < 16; i++) {
+      const sprite = new THREE.Sprite(this.own(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.2, depthWrite: false })));
+      const sc = 16 + Math.random() * 18;
+      sprite.scale.set(sc * 1.8, sc * 0.5, 1);
+      sprite.position.y = 0.7 + Math.random() * 1.2;
+      this.scene.add(sprite);
+      this.mist.push({ sprite, oz: Math.random() * 130, ox: (Math.random() - 0.5) * 30, drift: (Math.random() - 0.5) * 1.2 });
+    }
   }
 
   private buildDecor() {
     const { course } = this;
     const rng = mulberry32(77);
-    const trunk = tint(new THREE.CylinderGeometry(0.28, 0.4, 3, 6).translate(0, 1.5, 0), "#6b4630");
+    const dark = "#2a1f35";
+    // Leafy trees in sickly autumn colours, and bare dead ones.
+    const trunk = tint(new THREE.CylinderGeometry(0.28, 0.4, 3, 6).translate(0, 1.5, 0), "#4a3340");
     const canopy = mergeGeometries([
-      skin(blob(2.2, 2, 0.14, 3).translate(0, 4.2, 0), "#6bbf4a", 0.28),
-      skin(blob(1.6, 2, 0.14, 8).translate(1.2, 5.4, 0.4), "#7ccf55", 0.28),
-      skin(blob(1.4, 2, 0.14, 12).translate(-1.2, 3.6, -0.5), "#58a83f", 0.28),
+      skin(blob(2.2, 2, 0.16, 3).translate(0, 4.2, 0), "#8a8f34", 0.3),
+      skin(blob(1.6, 2, 0.16, 8).translate(1.2, 5.4, 0.4), "#b0782c", 0.3),
+      skin(blob(1.4, 2, 0.16, 12).translate(-1.2, 3.6, -0.5), "#6a4a86", 0.3),
     ])!;
-    const trees = new THREE.InstancedMesh(mergeGeometries([trunk, canopy])!, this.own(lambert()), 400);
-    const pumpkin = mergeGeometries([
-      tint(new THREE.SphereGeometry(0.7, 10, 8).scale(1.1, 0.85, 1.1).translate(0, 0.6, 0), "#ff8a1f"),
-      tint(new THREE.CylinderGeometry(0.08, 0.12, 0.3, 5).translate(0, 1.25, 0), "#4a6a24"),
-    ])!;
-    const pumpkins = new THREE.InstancedMesh(pumpkin, this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x6a2a00 })), 110);
-    const stone = tint(new THREE.BoxGeometry(0.9, 1.4, 0.3).translate(0, 0.7, 0), "#9a94b3");
-    const stones = new THREE.InstancedMesh(stone, this.own(lambert()), 75);
+    const leafy = new THREE.InstancedMesh(mergeGeometries([trunk, canopy])!, this.own(lambert()), 200);
+    const bare: THREE.BufferGeometry[] = [tint(new THREE.CylinderGeometry(0.2, 0.46, 5, 6).translate(0, 2.5, 0), dark)];
+    for (const [ry, rz, len, y] of [[0, 0.8, 2.6, 3.4], [2.1, -0.9, 2.2, 4], [4.2, 0.7, 2.4, 2.8], [1, -1.1, 1.8, 4.6], [3.3, 1, 1.6, 4.9]]) {
+      const br = new THREE.CylinderGeometry(0.06, 0.14, len, 5).translate(0, len / 2, 0);
+      br.rotateZ(rz);
+      br.rotateY(ry);
+      br.translate(0, y, 0);
+      bare.push(tint(br, dark));
+      const twig = new THREE.CylinderGeometry(0.03, 0.07, len * 0.6, 4).translate(0, len * 0.3, 0);
+      twig.rotateZ(-rz * 0.8);
+      twig.rotateY(ry + 1);
+      twig.translate(Math.sin(rz) * len * -0.5 * Math.cos(ry), y + len * 0.8, Math.sin(rz) * len * 0.5 * Math.sin(ry));
+      bare.push(tint(twig, dark));
+    }
+    const dead = new THREE.InstancedMesh(mergeGeometries(bare)!, this.own(lambert()), 220);
+    // Jack-o'-lanterns: lit from inside, so they're unlit orange with a dark face.
+    const jack: THREE.BufferGeometry[] = [tint(new THREE.SphereGeometry(0.7, 12, 9).scale(1.1, 0.85, 1.1).translate(0, 0.6, 0), "#ff8a1f"), tint(new THREE.CylinderGeometry(0.08, 0.12, 0.3, 5).translate(0, 1.25, 0), "#3d5a1e")];
+    for (const sd of [-1, 1]) jack.push(tint(new THREE.ConeGeometry(0.14, 0.24, 3).rotateX(Math.PI / 2).rotateZ(Math.PI).translate(sd * 0.25, 0.8, 0.74), "#3a1500"));
+    for (let k = -2; k <= 2; k++) jack.push(tint(new THREE.BoxGeometry(0.1, 0.1, 0.1).translate(k * 0.14, 0.38 + (k % 2 ? 0 : 0.08), 0.76), "#3a1500"));
+    const pumpkins = new THREE.InstancedMesh(mergeGeometries(jack)!, this.own(new THREE.MeshBasicMaterial({ vertexColors: true })), 90);
+    // Gravestones: rounded slabs and crosses.
+    const slab = mergeGeometries([tint(new THREE.BoxGeometry(0.9, 1.1, 0.3).translate(0, 0.55, 0), "#8d89a6"), tint(new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12).rotateX(Math.PI / 2).translate(0, 1.1, 0), "#8d89a6")])!;
+    const cross = mergeGeometries([tint(new THREE.BoxGeometry(0.22, 1.5, 0.22).translate(0, 0.75, 0), "#7e7a98"), tint(new THREE.BoxGeometry(0.8, 0.22, 0.22).translate(0, 1.1, 0), "#7e7a98")])!;
+    const slabs = new THREE.InstancedMesh(slab, this.own(lambert()), 70);
+    const crosses = new THREE.InstancedMesh(cross, this.own(lambert()), 40);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const e = new THREE.Euler();
     const scale = new THREE.Vector3();
-    const at = (i: number, mesh: THREE.InstancedMesh, z: number, minOff: number, maxOff: number, s: number, rotRange: number) => {
+    const glowAt: number[] = [];
+    const at = (i: number, mesh: THREE.InstancedMesh, z: number, minOff: number, maxOff: number, s: number, rotRange: number, glow = false) => {
       const side = rng() < 0.5 ? -1 : 1;
       const off = minOff + rng() * (maxOff - minOff);
       const x = course.centerX(z) + side * (course.halfWidth(z) + off);
       const k = s * (0.8 + rng() * 0.5);
       scale.set(k, k * (0.9 + rng() * 0.3), k);
-      e.set(0, rng() * rotRange, 0);
+      e.set((rng() - 0.5) * 0.12 * (rotRange < 1 ? 1 : 0), rng() * rotRange, (rng() - 0.5) * 0.12 * (rotRange < 1 ? 1 : 0));
       q.setFromEuler(e);
-      m.compose(new THREE.Vector3(x, groundY(off) - 0.08, z), q, scale);
+      const y = groundY(off) - 0.08;
+      m.compose(new THREE.Vector3(x, y, z), q, scale);
       mesh.setMatrixAt(i, m);
+      if (glow) glowAt.push(x, y + 0.7 * k, z);
     };
-    for (let i = 0; i < 400; i++) at(i, trees, -50 + rng() * (course.length + 130), 3, 38, 1, 6.28);
-    for (let i = 0; i < 110; i++) at(i, pumpkins, -40 + rng() * (course.length + 100), 1.6, 7, 0.9, 6.28);
-    for (let i = 0; i < 75; i++) at(i, stones, -40 + rng() * (course.length + 100), 2, 9, 1, 0.6);
-    for (const mesh of [trees, pumpkins, stones]) {
+    const span = course.length + 130;
+    for (let i = 0; i < 200; i++) at(i, leafy, -50 + rng() * span, 3, 38, 1, 6.28);
+    for (let i = 0; i < 220; i++) at(i, dead, -50 + rng() * span, 2.5, 40, 1, 6.28);
+    for (let i = 0; i < 90; i++) at(i, pumpkins, -40 + rng() * (span - 30), 1.6, 8, 0.9, 6.28, true);
+    for (let i = 0; i < 70; i++) at(i, slabs, -40 + rng() * (span - 30), 2, 11, 1, 0.5);
+    for (let i = 0; i < 40; i++) at(i, crosses, -40 + rng() * (span - 30), 2, 11, 1, 0.5);
+    for (const mesh of [leafy, dead, pumpkins, slabs, crosses]) {
       mesh.instanceMatrix.needsUpdate = true;
       this.world.add(mesh);
     }
+    this.world.add(this.glowPoints(glowAt, 0xff8a2a, 3.2, 0.8));
+
+    // Lanterns on posts along the banks, every so often.
+    const posts: THREE.BufferGeometry[] = [];
+    const lamps: THREE.BufferGeometry[] = [];
+    const lampGlow: number[] = [];
+    for (let z = 6; z < course.length + 20; z += 24 + rng() * 8) {
+      for (const side of [-1, 1]) {
+        if (rng() < 0.35) continue;
+        const x = course.centerX(z) + side * (course.halfWidth(z) + 1.7);
+        posts.push(tint(new THREE.CylinderGeometry(0.1, 0.14, 3.4, 6).translate(x, 1.15 + 1.7, z), "#2a2038"));
+        posts.push(tint(new THREE.BoxGeometry(0.7, 0.14, 0.7).translate(x, 1.15 + 3.4, z), "#2a2038"));
+        lamps.push(tint(new THREE.BoxGeometry(0.46, 0.6, 0.46).translate(x, 1.15 + 3.1, z), "#ffd27a"));
+        lampGlow.push(x, 1.15 + 3.1, z);
+      }
+    }
+    if (posts.length) {
+      this.world.add(new THREE.Mesh(this.own(mergeGeometries(posts)!), this.own(lambert())));
+      this.world.add(new THREE.Mesh(this.own(mergeGeometries(lamps)!), this.own(new THREE.MeshBasicMaterial({ vertexColors: true }))));
+      this.world.add(this.glowPoints(lampGlow, 0xffb85a, 7, 0.85));
+    }
+
+    // Ghosts hanging about the banks, and wisps over the water.
+    const sheet = this.own(
+      (() => {
+        const pts: THREE.Vector2[] = [];
+        for (let i = 0; i <= 10; i++) pts.push(new THREE.Vector2(0.12 + 0.5 * Math.sin((i / 10) * Math.PI * 0.55 + 0.1) * (i / 10 > 0.8 ? 1 + (i / 10 - 0.8) * 1.6 : 1), 0.1 + (i / 10) * 0.9));
+        const body = new THREE.LatheGeometry(pts, 16);
+        const head = new THREE.SphereGeometry(0.5, 14, 10).translate(0, 1.1, 0);
+        return mergeGeometries([tint(body, "#eef6ff"), tint(head, "#eef6ff")])!;
+      })(),
+    );
+    const eyeGeo = this.own(new THREE.SphereGeometry(0.075, 8, 6));
+    const ghostMat = this.own(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x4a6a9a, transparent: true, opacity: 0.85 }));
+    const eyeMat = this.own(new THREE.MeshBasicMaterial({ color: 0x1b1030 }));
+    const count = Math.max(4, Math.round(course.length / 38));
+    for (let i = 0; i < count; i++) {
+      const z = 20 + rng() * (course.length - 10);
+      const side = rng() < 0.5 ? -1 : 1;
+      const off = 1.5 + rng() * 3;
+      const grp = new THREE.Group();
+      grp.add(new THREE.Mesh(sheet, ghostMat));
+      for (const sd of [-1, 1]) {
+        const eye = new THREE.Mesh(eyeGeo, eyeMat);
+        eye.position.set(sd * 0.17, 1.2, 0.43);
+        grp.add(eye);
+      }
+      const mouth = new THREE.Mesh(this.own(new THREE.SphereGeometry(0.09, 8, 6).scale(1, 1.3, 0.6)), eyeMat);
+      mouth.position.set(0, 0.98, 0.47);
+      grp.add(mouth);
+      const base = new THREE.Vector3(course.centerX(z) + side * (course.halfWidth(z) + off), groundY(off) + 1.2 + rng() * 1.2, z);
+      grp.position.copy(base);
+      grp.scale.setScalar(1.2 + rng() * 0.8);
+      this.world.add(grp);
+      this.ghosts.push({ grp, base, phase: rng() * 6.28 });
+    }
+    const n = Math.round(course.length / 7);
+    const basePos = new Float32Array(n * 3);
+    const phase = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const z = rng() * course.length;
+      const side = rng() < 0.5 ? -1 : 1;
+      basePos[i * 3] = course.centerX(z) + side * (course.halfWidth(z) * (0.5 + rng() * 0.8));
+      basePos[i * 3 + 1] = 0.8 + rng() * 2.5;
+      basePos[i * 3 + 2] = z;
+      phase[i] = rng() * 6.28;
+    }
+    const wisps = this.glowPoints(Array.from(basePos), 0x9affd0, 1.6, 0.8);
+    this.world.add(wisps);
+    this.wisps = { pts: wisps, base: basePos, phase };
   }
 
   private buildObstacles(course: Course) {
@@ -1223,14 +1434,14 @@ export class Renderer {
       // One colour per triangle, by where its middle sits round the ring, so the bands stay crisp.
       const a = Math.atan2(pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2), pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2));
       const band = Math.floor(((a + Math.PI) / (Math.PI * 2)) * 16) % 2;
-      const c = band ? C("#fff0d6") : C("#e0483a");
+      const c = band ? C("#ff9a2e") : C("#2e2142");
       for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3);
     }
     ringGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
     ringGeo.translate(0, 0.28, 0);
     const deck = tint(new THREE.CylinderGeometry(R - 0.5, R - 0.5, 0.3, 36).translate(0, 0.14, 0), "#7ccf7a");
     const deckRing = tint(new THREE.CylinderGeometry(R - 0.8, R - 0.8, 0.34, 36).translate(0, 0.15, 0), "#a6e29c");
-    const hull = tint(new THREE.CylinderGeometry(R - 0.1, R - 0.45, 0.5, 36).translate(0, -0.05, 0), "#58c9d9");
+    const hull = tint(new THREE.CylinderGeometry(R - 0.1, R - 0.45, 0.5, 36).translate(0, -0.05, 0), "#5a3a8a");
     // Rope grab-lines round the tube, a ring pattern on the deck, and the inflation valve.
     const trim: THREE.BufferGeometry[] = [];
     for (let k = 0; k < 8; k++) {
@@ -1445,6 +1656,49 @@ export class Renderer {
       if (Math.abs(view.z - f.g.z - f.g.len / 2) < 30 && Math.random() < mag * 0.7) {
         this.emit({ x: this.course.centerX(f.g.z) + (a >= 0 ? -9 : 9), y: 0.5 + Math.random(), z: f.g.z + Math.random() * f.g.len, vx: a >= 0 ? 9 : -9, vy: 0.2, vz: 0, life: 0.7, size: 0.1, from: "#ffffff", to: "#ffe9a0" });
       }
+    }
+    // Spooky: bats circling ahead, mist drifting over the water, ghosts bobbing on the banks,
+    // wisps, and the odd flash of lightning.
+    const camP = this.camera.position;
+    this.bats.forEach((b, i) => {
+      b.a += b.speed * dt;
+      b.grp.position.set(camP.x + Math.cos(b.a) * b.r, b.h + Math.sin(b.a * 3 + i) * 0.8, camP.z + b.ahead + Math.sin(b.a) * b.r * 0.6);
+      b.grp.rotation.y = Math.atan2(-Math.sin(b.a) * b.speed, Math.cos(b.a) * b.speed * 0.6);
+      const flap = Math.sin(t * 15 + i * 2) * 0.75;
+      for (const w of b.wings) w.rotation.z = flap * w.scale.x;
+    });
+    for (const m of this.mist) {
+      const rel = ((((m.oz - camP.z + 20) % 140) + 140) % 140) - 20;
+      m.sprite.position.set(camP.x + m.ox + Math.sin(t * 0.15 + m.oz) * 6 * m.drift, m.sprite.position.y, camP.z + rel);
+      (m.sprite.material as THREE.SpriteMaterial).opacity = 0.2 * Math.min(1, Math.min(rel + 20, 120 - rel) / 25);
+    }
+    this.ghosts.forEach((g, i) => {
+      g.grp.position.set(g.base.x + Math.sin(t * 0.5 + g.phase) * 0.8, g.base.y + Math.sin(t * 1.3 + g.phase) * 0.35, g.base.z + Math.cos(t * 0.4 + g.phase) * 1.2);
+      g.grp.rotation.y = Math.atan2(this.course.centerX(g.base.z) - g.base.x, -7) + Math.sin(t * 0.8 + i) * 0.2;
+      g.grp.rotation.z = Math.sin(t * 1.1 + g.phase) * 0.06;
+    });
+    if (this.wisps) {
+      const arr = this.wisps.pts.geometry.getAttribute("position") as THREE.BufferAttribute;
+      const { base, phase } = this.wisps;
+      for (let i = 0; i < phase.length; i++) arr.setXYZ(i, base[i * 3] + Math.sin(t * 0.6 + phase[i]) * 1.4, base[i * 3 + 1] + Math.sin(t * 1.1 + phase[i] * 2) * 0.5, base[i * 3 + 2] + Math.cos(t * 0.5 + phase[i]) * 1.6);
+      arr.needsUpdate = true;
+    }
+    this.nextBolt -= dt;
+    if (this.nextBolt < 0) {
+      this.nextBolt = 16 + Math.random() * 22;
+      this.flash = 1;
+      this.onLightning?.();
+    }
+    if (this.flash > 0) {
+      this.flash = Math.max(0, this.flash - dt * 3);
+      const f = this.flash * (Math.random() < 0.35 ? 0.4 : 1);
+      this.hemi.intensity = 1.15 + f * 2.4;
+      this.moonLight.intensity = 1.25 + f * 1.6;
+      (this.scene.fog as THREE.Fog).color.setRGB(0.23 + f * 0.4, 0.14 + f * 0.3, 0.35 + f * 0.4);
+    } else {
+      this.hemi.intensity = 1.15;
+      this.moonLight.intensity = 1.25;
+      (this.scene.fog as THREE.Fog).color.setHex(0x3a2358);
     }
     // Wind you can see coming: streaks of air across the screen, before and during a gust.
     const wind = windFeel(this.course, view);

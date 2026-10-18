@@ -170,6 +170,41 @@ export const sfx = {
   blip() {
     tone("square", 660, 880, 0.07, 0.15);
   },
+  // Thunder: a crack and a long grumble.
+  thunder() {
+    noise(0.25, "highpass", 900, 0.7, 0.35);
+    noise(2.6, "lowpass", 220, 0.8, 0.9, 0.05);
+    tone("sawtooth", 62, 28, 2.2, 0.25, 0.1);
+  },
+  // An owl, off in the trees.
+  owl() {
+    for (const [w, f] of [[0, 430], [0.38, 390], [1.1, 430], [1.48, 390]]) tone("sine", f, f * 0.92, 0.3, 0.12, w);
+  },
+  // Something howling a long way off.
+  howl() {
+    const c = ensure();
+    if (!c || !master) return;
+    const t = c.currentTime;
+    const o = c.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(260, t);
+    o.frequency.linearRampToValueAtTime(520, t + 1.4);
+    o.frequency.linearRampToValueAtTime(380, t + 3.2);
+    const lfo = c.createOscillator();
+    lfo.frequency.value = 5.5;
+    const lg = c.createGain();
+    lg.gain.value = 9;
+    lfo.connect(lg).connect(o.frequency);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.07, t + 1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
+    o.connect(g).connect(master);
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + 3.5);
+    lfo.stop(t + 3.5);
+  },
   // Wind: a rising howl as a gust or headwind nears, leaning toward the side it blows from.
   wind(intensity: number, dir: number) {
     if (!ctx && intensity <= 0) return;

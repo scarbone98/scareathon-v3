@@ -661,7 +661,7 @@ export default function HippoRapids() {
         <div className="hr-screen hr-title-screen">
           <div className="flex flex-col items-center gap-1 pt-2">
             <Logo small={short} />
-            <p className="hr-o max-w-xs text-center text-base text-[#fff0c8]">Everyone farts. One raft. Don't hit the buoys.</p>
+            <p className="hr-o max-w-xs text-center text-base text-[#fff0c8]">Everyone farts. One raft. Don't wake the dead.</p>
           </div>
           <div className="flex flex-col items-center gap-3">
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
