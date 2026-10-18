@@ -25,7 +25,7 @@ export const GAS_DRAIN = 0.42;
 export const GAS_REGEN = 0.3;
 export const GAS_RESTART = 0.15;
 export const HIPPO_NAMES = ['Hyuk', 'Bubbles', 'Gus', 'Petunia'];
-export const SEAT_COUNTS = [2, 4];
+export const SEAT_COUNTS = [1, 2, 4];
 // Each ring the raft passes through takes this many seconds off the time that counts.
 export const RING_BONUS = 1;
 // A toot builds up over this long, so a tap is a nudge and a held toot is a shove.
@@ -33,7 +33,7 @@ const TOOT_RAMP = 0.22;
 // How hard a headwind pulls back. The hippos crowd the back of the raft and push at an angle,
 // so a crew gets less out of its farts than the sum: a whole crew (all of two, three of four) is
 // what it takes.
-const windPull = (count, need) => Math.max(0, THRUST[count] * (Math.min(need, count === 2 ? 2 : 3) - (count === 2 ? 1.2 : 1.5)));
+const windPull = (count, need) => Math.max(0, THRUST[count] * (Math.min(need, count === 1 ? 1 : count === 2 ? 2 : 3) - (count === 1 ? 0.5 : count === 2 ? 1.2 : 1.5)));
 // A lock gate listens for farts this far upriver of it.
 export const COOP_SPAN = 18;
 // Taps count as together if they start this close.
@@ -43,8 +43,10 @@ const DRAG = 1.15;
 const SPIN_DRAG = 1.4;
 const BOUNCE = 0.5;
 const INVULN = 1.4;
-const RAFT_RADIUS = { 2: 1.9, 4: 2.45 };
-const THRUST = { 2: 4.4, 4: 3.7 };
+// One hippo on a little raft with a bigger tank of beans and a harder push: a solo game.
+const RAFT_RADIUS = { 1: 1.5, 2: 1.9, 4: 2.45 };
+const THRUST = { 1: 4.9, 2: 4.4, 4: 3.7 };
+const GAS_USE = { 1: 0.3, 2: GAS_DRAIN, 4: GAS_DRAIN };
 
 export const wrapAngle = (a) => {
     const t = (a + Math.PI) % (Math.PI * 2);
@@ -74,7 +76,7 @@ export function getCourse(level = 'whole') {
 }
 
 export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' } = {}) {
-    const count = seats === 2 ? 2 : 4;
+    const count = seats === 1 ? 1 : seats === 2 ? 2 : 4;
     const course = getCourse(level);
     const CHECKPOINTS = course.checkpoints;
     const R = raftRadius(count);
@@ -263,7 +265,7 @@ export function createSim({ seats = 4, skill = 0.55, seed = 1, level = 'whole' }
             h.was = farting;
             h.pw = farting ? Math.min(1, h.pw + dt / TOOT_RAMP) : Math.max(0, h.pw - dt / 0.1);
             if (farting) {
-                h.gas = Math.max(0, h.gas - GAS_DRAIN * dt);
+                h.gas = Math.max(0, h.gas - GAS_USE[count] * dt);
                 if (h.gas <= 0) h.spent = true;
                 const a = sim.yaw + h.ang;
                 fx -= Math.sin(a) * THRUST[count] * h.pw;

@@ -101,7 +101,7 @@ function HippoChip({ seat, active = false, size = 44 }: { seat: number; active?:
 function SeatPicker({ seats, onChange }: { seats: number; onChange: (n: number) => void }) {
   return (
     <div className="flex gap-3">
-      {[2, 4].map((n) => (
+      {[1, 2, 4].map((n) => (
         <button
           key={n}
           type="button"
@@ -111,7 +111,7 @@ function SeatPicker({ seats, onChange }: { seats: number; onChange: (n: number) 
             onChange(n);
           }}
         >
-          {n} HIPPOS
+          {n === 1 ? "SOLO" : `${n} HIPPOS`}
         </button>
       ))}
     </div>
@@ -483,9 +483,11 @@ export default function HippoRapids() {
     setResult(null);
     setView("play");
   };
+  // Alone on a small raft is slower going, so the medal times stretch a bit.
+  const parFor = (par: [number, number, number]): [number, number, number] => (seats === 1 ? [Math.round(par[0] * 1.3), Math.round(par[1] * 1.3), Math.round(par[2] * 1.3)] : par);
   const playBuiltIn = (id: string) => {
     const l = getLevel(id);
-    if (l) startSolo({ key: id, name: l.def.name, value: id, par: l.par, testing: false });
+    if (l) startSolo({ key: id, name: l.def.name, value: id, par: parFor(l.par), testing: false });
   };
   const playCustom = (c: SavedLevel) => startSolo({ key: c.id, name: c.def.name, value: c.def, par: null, testing: false });
   const nextLevel = () => {
@@ -722,7 +724,7 @@ export default function HippoRapids() {
           <MenuList
             active={!howTo}
             items={[
-              { key: "solo", label: "Play", hint: "With a crew of bots" },
+              { key: "solo", label: "Play", hint: "Solo, or with a crew of bots" },
               { key: "quick", label: "Quick play", hint: "Hop on any open raft" },
               { key: "find", label: "Find a room", hint: "See who's on the water" },
               { key: "host", label: "Host a room", hint: "Start your own raft" },
@@ -763,7 +765,7 @@ export default function HippoRapids() {
                     <div className="text-lg leading-tight">{l.def.name}</div>
                     <div className="text-xs opacity-80">{l.blurb}</div>
                     <div className="mt-1 text-xs opacity-70">
-                      {l.def.finish} m · gold {fmtTime(l.par[0])}
+                      {l.def.finish} m · gold {fmtTime(parFor(l.par)[0])}
                     </div>
                   </div>
                   <div className="flex w-16 shrink-0 flex-col items-end justify-center text-right">
@@ -922,15 +924,15 @@ export default function HippoRapids() {
           <div className="hr-glass p-3">
             <MenuList
               items={[
-                { key: "seats", label: "Seats", value: `${seats} hippos` },
+                { key: "seats", label: "Seats", value: `${seats === 2 ? 2 : 4} hippos` },
                 { key: "river", label: "River", value: riverOptions().find((o) => o.id === hostRiver)?.name ?? "" },
                 { key: "public", label: "Room", value: hostPublic ? "Open" : "Private" },
                 { key: "go", label: "Open the room", hint: hostPublic ? "Shows up in the room finder" : "Only people with the code" },
                 { key: "back", label: "Back" },
               ]}
               onPick={(k) => (k === "go" ? host() : k === "back" ? setView("title") : undefined)}
-              onLeft={(k) => (k === "seats" ? changeSeats(seats === 4 ? 2 : 4) : k === "river" ? setHostRiver(nextRiver(hostRiver, -1).id) : k === "public" ? setHostPublic(!hostPublic) : undefined)}
-              onRight={(k) => (k === "seats" ? changeSeats(seats === 4 ? 2 : 4) : k === "river" ? setHostRiver(nextRiver(hostRiver, 1).id) : k === "public" ? setHostPublic(!hostPublic) : undefined)}
+              onLeft={(k) => (k === "seats" ? changeSeats(seats === 2 ? 4 : 2) : k === "river" ? setHostRiver(nextRiver(hostRiver, -1).id) : k === "public" ? setHostPublic(!hostPublic) : undefined)}
+              onRight={(k) => (k === "seats" ? changeSeats(seats === 2 ? 4 : 2) : k === "river" ? setHostRiver(nextRiver(hostRiver, 1).id) : k === "public" ? setHostPublic(!hostPublic) : undefined)}
               onBack={() => setView("title")}
             />
           </div>

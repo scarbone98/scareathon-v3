@@ -464,6 +464,9 @@ export class Renderer {
   private rails: { grp: THREE.Group; side: number; slack: number; x: number }[] = [];
   private gustFx: { tex: THREE.Texture; mesh: THREE.Mesh; g: Course["gusts"][number] }[] = [];
   private bubbleTex = new Map<string, THREE.Texture>();
+  // Phones draw less (fewer trees, bats and mist); a slow device drops to the lite look as well.
+  private phone = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  private lite = false;
   // Spooky stuff that rides along with the camera or lives in the level.
   private bats: { grp: THREE.Group; wings: THREE.Mesh[]; r: number; speed: number; a: number; h: number; ahead: number }[] = [];
   private mist: { sprite: THREE.Sprite; oz: number; ox: number; drift: number }[] = [];
@@ -488,6 +491,17 @@ export class Renderer {
   private dummy = new THREE.Object3D();
   private sky!: THREE.Group;
   private lastView: View | null = null;
+  // Called when the frame rate is poor: lower the resolution and drop the extras.
+  goLite() {
+    if (this.lite) return;
+    this.lite = true;
+    this.gl.setPixelRatio(1);
+    this.resize(this.gl.domElement.clientWidth || 1, this.gl.domElement.clientHeight || 1);
+    this.bats.forEach((b) => (b.grp.visible = false));
+    this.mist.forEach((m) => (m.sprite.visible = false));
+    if (this.wisps) this.wisps.pts.visible = false;
+  }
+
   // Behind the menus the camera circles the raft slowly.
   menuCam = false;
   private menuBlend = 0;
@@ -496,10 +510,10 @@ export class Renderer {
   private seats = 4;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.gl = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    const retina = (window.devicePixelRatio || 1) >= 2;
+    this.gl = new THREE.WebGLRenderer({ canvas, antialias: !(this.phone && retina), powerPreference: "high-performance" });
     // Phones have a lot of pixels and not much GPU: render a bit under native.
-    const phone = window.matchMedia("(pointer: coarse)").matches;
-    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, phone ? 1.5 : 2));
+    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.phone ? 1.5 : 2));
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     this.buildWorld();
     this.setSeats(4);
@@ -745,7 +759,7 @@ export class Renderer {
     );
     const mat = this.own(new THREE.MeshBasicMaterial({ color: 0x120c1e, side: THREE.DoubleSide, fog: false }));
     const bodyMat = this.own(new THREE.MeshBasicMaterial({ color: 0x1a1226, fog: false }));
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < (this.phone ? 6 : 11); i++) {
       const grp = new THREE.Group();
       grp.add(new THREE.Mesh(body, bodyMat));
       const wings: THREE.Mesh[] = [];
@@ -773,7 +787,7 @@ export class Renderer {
         g.fillRect(0, 0, 128, 128);
       }),
     );
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < (this.phone ? 8 : 16); i++) {
       const sprite = new THREE.Sprite(this.own(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.2, depthWrite: false })));
       const sc = 16 + Math.random() * 18;
       sprite.scale.set(sc * 1.8, sc * 0.5, 1);
@@ -838,8 +852,11 @@ export class Renderer {
       if (glow) glowAt.push(x, y + 0.7 * k, z);
     };
     const span = course.length + 130;
+    const thin = this.phone ? 0.55 : 1;
     for (let i = 0; i < 200; i++) at(i, leafy, -50 + rng() * span, 3, 38, 1, 6.28);
     for (let i = 0; i < 220; i++) at(i, dead, -50 + rng() * span, 2.5, 40, 1, 6.28);
+    leafy.count = Math.round(200 * thin);
+    dead.count = Math.round(220 * thin);
     for (let i = 0; i < 90; i++) at(i, pumpkins, -40 + rng() * (span - 30), 1.6, 8, 0.9, 6.28, true);
     for (let i = 0; i < 70; i++) at(i, slabs, -40 + rng() * (span - 30), 2, 11, 1, 0.5);
     for (let i = 0; i < 40; i++) at(i, crosses, -40 + rng() * (span - 30), 2, 11, 1, 0.5);
@@ -1461,7 +1478,7 @@ export class Renderer {
       const look = HIPPO_LOOKS[i];
       const { group, head, jaw, eyes, ears, tail } = buildHippo(look, i);
       const holder = new THREE.Group();
-      const s = HIPPO_SCALE;
+      const s = seats === 1 ? HIPPO_SCALE * 0.86 : HIPPO_SCALE;
       group.scale.setScalar(s);
       holder.add(group);
       const label = nameSprite("", "#fff");
@@ -1536,10 +1553,11 @@ export class Renderer {
       rig.holder.position.set(Math.sin(ang) * seatR, 0.38, Math.cos(ang) * seatR);
       rig.holder.rotation.y = ang + Math.PI;
       rig.walk += mv !== 0 ? dt * 9 : 0;
+      const hs = this.seats === 1 ? HIPPO_SCALE * 0.86 : HIPPO_SCALE;
       const waddle = mv !== 0 ? Math.sin(rig.walk) * 0.12 : 0;
       const push = farting ? Math.sin(t * 38) * 0.05 : 0;
       rig.rig.rotation.z = waddle;
-      rig.rig.scale.set(HIPPO_SCALE * (1 + push), HIPPO_SCALE * (1 - push * 0.8 + (spent ? -0.05 : 0)), HIPPO_SCALE * (1 + push * 0.5));
+      rig.rig.scale.set(hs * (1 + push), hs * (1 - push * 0.8 + (spent ? -0.05 : 0)), hs * (1 + push * 0.5));
       rig.rig.position.y = Math.abs(waddle) * 0.4 + (farting ? Math.abs(Math.sin(t * 25)) * 0.05 : 0);
       // Faces: blink, flick an ear, strain and gape when letting one go, droop when out of beans.
       const fr = farting ? 1 : 0;
@@ -1663,14 +1681,14 @@ export class Renderer {
     // Spooky: bats circling ahead, mist drifting over the water, ghosts bobbing on the banks,
     // wisps, and the odd flash of lightning.
     const camP = this.camera.position;
-    this.bats.forEach((b, i) => {
+    if (!this.lite) this.bats.forEach((b, i) => {
       b.a += b.speed * dt;
       b.grp.position.set(camP.x + Math.cos(b.a) * b.r, b.h + Math.sin(b.a * 3 + i) * 0.8, camP.z + b.ahead + Math.sin(b.a) * b.r * 0.6);
       b.grp.rotation.y = Math.atan2(-Math.sin(b.a) * b.speed, Math.cos(b.a) * b.speed * 0.6);
       const flap = Math.sin(t * 15 + i * 2) * 0.75;
       for (const w of b.wings) w.rotation.z = flap * w.scale.x;
     });
-    for (const m of this.mist) {
+    for (const m of this.lite ? [] : this.mist) {
       const rel = ((((m.oz - camP.z + 20) % 140) + 140) % 140) - 20;
       m.sprite.position.set(camP.x + m.ox + Math.sin(t * 0.15 + m.oz) * 6 * m.drift, m.sprite.position.y, camP.z + rel);
       (m.sprite.material as THREE.SpriteMaterial).opacity = 0.2 * Math.min(1, Math.min(rel + 20, 120 - rel) / 25);
@@ -1680,7 +1698,7 @@ export class Renderer {
       g.grp.rotation.y = Math.atan2(this.course.centerX(g.base.z) - g.base.x, -7) + Math.sin(t * 0.8 + i) * 0.2;
       g.grp.rotation.z = Math.sin(t * 1.1 + g.phase) * 0.06;
     });
-    if (this.wisps) {
+    if (this.wisps && !this.lite) {
       const arr = this.wisps.pts.geometry.getAttribute("position") as THREE.BufferAttribute;
       const { base, phase } = this.wisps;
       for (let i = 0; i < phase.length; i++) arr.setXYZ(i, base[i * 3] + Math.sin(t * 0.6 + phase[i]) * 1.4, base[i * 3 + 1] + Math.sin(t * 1.1 + phase[i] * 2) * 0.5, base[i * 3 + 2] + Math.cos(t * 0.5 + phase[i]) * 1.6);

@@ -95,6 +95,9 @@ export class GameController {
   private countBeep = -1;
   private tootAt: number[] = [];
   private critterIn = 18;
+  // Frame time, smoothed: a poor frame rate drops the scenery to the lite look.
+  private frameEma = 0.016;
+  private frames = 0;
   private lastHits: { x: number; z: number }[] = [];
   private keys = new Set<string>();
   private aim: [number, number] = [0, 0];
@@ -159,7 +162,9 @@ export class GameController {
   }
 
   // Bots raft the river behind the menus.
-  demo(seats: number, level: string | Level = "lagoon") {
+  demo(seatCount: number, level: string | Level = "lagoon") {
+    // The menu's bots always raft as a crew, even when you're about to go solo.
+    const seats = Math.max(2, seatCount);
     this.mode = "demo";
     this.send = null;
     this.me = -1;
@@ -328,9 +333,14 @@ export class GameController {
   private frame = (now: number) => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.frame);
-    const dt = Math.min(0.1, (now - (this.last || now)) / 1000);
+    const raw = (now - (this.last || now)) / 1000;
+    const dt = Math.min(0.1, raw);
     this.last = now;
     if (document.hidden) return;
+    if (this.mode !== "demo" && raw > 0 && raw < 0.5) {
+      this.frameEma = this.frameEma * 0.95 + raw * 0.05;
+      if (++this.frames === 150 && this.frameEma > 0.036) this.gl.goLite();
+    }
 
     let view: View | null = null;
     if (this.mode === "online") view = this.onlineView(dt);

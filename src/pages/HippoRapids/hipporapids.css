@@ -55,7 +55,6 @@
 /* Soft glossy buttons. --c is the tint. */
 .hr-btn {
   --c: 150, 120, 235;
-  position: relative;
   border: 1px solid rgba(255, 255, 255, 0.38);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(var(--c), 0.62), rgba(var(--c), 0.28));

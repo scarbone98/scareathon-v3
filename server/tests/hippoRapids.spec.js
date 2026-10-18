@@ -225,6 +225,41 @@ describe('hippo rapids levels', () => {
     });
 });
 
+describe('hippo rapids solo', () => {
+    it('puts one hippo on a smaller raft with a bigger tank of beans', () => {
+        const solo = createSim({ seats: 1, level: 'lagoon' });
+        const crew = createSim({ seats: 4, level: 'lagoon' });
+        expect(solo.hippos).toHaveLength(1);
+        expect(solo.R).toBeLessThan(crew.R);
+        solo.hippos[0].bot = false;
+        crew.hippos.forEach((h) => (h.bot = false));
+        for (const sim of [solo, crew]) {
+            for (let i = 0; i < (COUNTDOWN + 0.1) / STEP; i++) sim.step(STEP);
+            sim.setInput(0, 0, true);
+        }
+        let soloSeconds = 0;
+        while (!solo.hippos[0].spent && soloSeconds < 10) {
+            solo.step(STEP);
+            soloSeconds += STEP;
+        }
+        let crewSeconds = 0;
+        while (!crew.hippos[0].spent && crewSeconds < 10) {
+            crew.step(STEP);
+            crewSeconds += STEP;
+        }
+        expect(soloSeconds).toBeGreaterThan(crewSeconds + 0.8);
+    });
+
+    it('lets a lone bot finish every built-in river, so every level is a fair solo game', () => {
+        for (const l of LEVELS) {
+            const sim = createSim({ seats: 1, skill: 1, seed: 3, level: l.id });
+            let steps = 0;
+            while (sim.phase !== 'done' && steps++ < 60 * 450) sim.step(STEP);
+            expect({ id: l.id, phase: sim.phase }).toEqual({ id: l.id, phase: 'done' });
+        }
+    });
+});
+
 describe('hippo rapids teamwork', () => {
     function crew(level, seats = 4) {
         const sim = createSim({ seats, level });
