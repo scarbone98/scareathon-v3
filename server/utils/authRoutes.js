@@ -33,6 +33,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && url.startsWith('/crypt-clash/ws')) ||
         // So are Frog Ball co-op rooms.
         (method === 'GET' && url.startsWith('/frog-ball/ws')) ||
+        // And Hippo Rapids rafts (solo needs no server at all).
+        (method === 'GET' && url.startsWith('/hippo-rapids/ws')) ||
         // Fury's transport authenticates with a one-use ticket issued after JWT
         // verification. Unauthenticated sockets cannot create/join/relay.
         (method === 'GET' && url.split('?')[0] === '/wayside-fury/coop/ws') ||
@@ -44,6 +46,7 @@ export function isPublicRoute(method, url) {
         // So are October Valley's.
         (method === 'GET' && url.startsWith('/october-valley/ws')) ||
         (method === 'GET' && url.startsWith('/close-encounters/ws')) ||
+        (method === 'GET' && url.startsWith('/close-encounters/arena/ws')) ||
         // And Liquid Metal's arena.
         (method === 'GET' && url.startsWith('/liquid-metal/ws')) ||
         // And Penguin Slide's race rooms.

@@ -38,6 +38,7 @@ import casinoRoutes, { isCasinoEnabled } from './routes/casino.js';
 import monsterBashRoutes, { isMonsterBashEnabled } from './routes/monsterBash.js';
 import cryptClashRoutes, { isCryptClashEnabled } from './routes/cryptClash.js';
 import frogBallRoutes, { isFrogBallEnabled } from './routes/frogBall.js';
+import hippoRapidsRoutes, { isHippoRapidsEnabled } from './routes/hippoRapids.js';
 import mysteryCryptRoutes from './routes/mysteryCrypt.js';
 import waysideFuryRoutes from './routes/waysideFury.js';
 import waysideFuryCoopRoutes from './routes/waysideFuryCoop.js';
@@ -352,6 +353,9 @@ async function main() {
         }
         if (isFrogBallEnabled()) {
             fastify.register(frogBallRoutes, { prefix: '/frog-ball' });
+        }
+        if (isHippoRapidsEnabled()) {
+            fastify.register(hippoRapidsRoutes, { prefix: '/hippo-rapids' });
         }
 
         // Run the server!

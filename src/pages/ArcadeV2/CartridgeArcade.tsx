@@ -438,7 +438,7 @@ export default function CartridgeArcade({
     // An early access game: a band across its preview like COMING SOON's, blinking EARLY ACCESS
     // in the cart's colour, but with the preview left bright behind it. A still (the poster,
     // a paused clip) isn't painted again, so its words never blink off.
-    const paintEarlyAccess = (color: string) => (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => {
+    const paintEarlyAccess = (color: string, label = "EARLY ACCESS") => (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => {
       const band = height * 0.3;
       const rule = Math.max(3, Math.round(height * 0.012));
       context.fillStyle = "rgba(4, 2, 8, 0.85)";
@@ -453,7 +453,7 @@ export default function CartridgeArcade({
       context.shadowColor = color;
       context.shadowBlur = height * 0.06;
       context.fillStyle = "#fff4e0";
-      context.fillText("EARLY ACCESS", width / 2, height / 2 + 2);
+      context.fillText(label, width / 2, height / 2 + 2);
       context.shadowBlur = 0;
     };
 
@@ -481,7 +481,7 @@ export default function CartridgeArcade({
 
     // What's drawn over a game's preview: early access's band, and a tag in the corner over that
     const overlayFor = (game: MachineData) => {
-      const band = game.earlyAccess ? paintEarlyAccess(game.cartridge.color) : undefined;
+      const band = game.earlyAccess ? paintEarlyAccess(game.cartridge.color, game.alpha ? "ALPHA" : "EARLY ACCESS") : undefined;
       const tag = isNewGame(game) ? paintTag("NEW!") : hasUpdate(game) ? paintTag("UPDATE!") : undefined;
       if (!band || !tag) return band ?? tag;
       return (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => {

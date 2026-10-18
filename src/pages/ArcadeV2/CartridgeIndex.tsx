@@ -181,7 +181,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
             ),
             ...carts.map(({ game, index }) => {
             const soon = game.special === "soon";
-            const stamp = soon ? "COMING SOON" : game.earlyAccess ? "EARLY ACCESS" : "";
+            const stamp = soon ? "COMING SOON" : game.earlyAccess ? (game.alpha ? "ALPHA" : "EARLY ACCESS") : "";
             return (
               <li key={game.name}>
                 <button
