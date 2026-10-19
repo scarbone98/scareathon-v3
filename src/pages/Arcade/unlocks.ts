@@ -17,10 +17,15 @@ export const SECRET_CARTS: Record<string, string> = {
 export const UNLOCK_EVENT = "arcade:unlocked";
 const UNLOCK_KEY = "wayside.unlockedCarts";
 
+// Carts that were unlocked under an old name (old name -> name now)
+const RENAMED: Record<string, string> = {
+  "The Clearing": "Warren",
+};
+
 export function unlockedCarts(): string[] {
   try {
     const saved = JSON.parse(localStorage.getItem(UNLOCK_KEY) ?? "[]");
-    return Array.isArray(saved) ? saved : [];
+    return Array.isArray(saved) ? saved.map((name) => RENAMED[name] ?? name) : [];
   } catch {
     return [];
   }
