@@ -134,8 +134,8 @@ const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/i
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
 // the server's /penguins/ws.
 const PENGUIN_SLIDE_URL = "https://sclondon.github.io/PenguinSlide/build/index.html?v=cf636b8";
-// The Clearing: github.com/Sclondon/TheClearing (Godot web build on GitHub Pages)
-const THE_CLEARING_URL = "https://sclondon.github.io/TheClearing/build/index.html?v=9f1243b";
+// Warren (was The Clearing): github.com/Sclondon/Warren (Godot web build on GitHub Pages)
+const WARREN_URL = "https://sclondon.github.io/Warren/build/index.html?v=6ab3461";
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dc264d1";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
@@ -1494,10 +1494,10 @@ export function createArcadeGames(): MachineData[] {
     // --- Secret: in testing, only on the shelf once you've typed MAZE into WaysideOS.
     // Alone, or online rooms for up to four (server/routes/theClearing.js). No scores yet.
     {
-      name: "The Clearing",
+      name: "Warren",
       added: "2026-10-17T14:10:00-06:00",
       availableOnMobile: true,
-      videoUrl: "/game-recordings/TheClearing.mp4",
+      videoUrl: "/game-recordings/Warren.mp4",
       secret: true,
       earlyAccess: true,
       cartridge: {
@@ -1510,8 +1510,8 @@ export function createArcadeGames(): MachineData[] {
       hasLeaderboard: false,
       game: (
         <GameRenderer
-          title="The Clearing"
-          url={THE_CLEARING_URL}
+          title="Warren"
+          url={WARREN_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
