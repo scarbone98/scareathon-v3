@@ -112,6 +112,8 @@ const DEEP_TIME_URL = "https://scarbone98.github.io/deep-time/?v=8f2bcc0";
 const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=5e3e65b";
+// github.com/Sclondon/Atlas
+const ATLAS_URL = "https://sclondon.github.io/Atlas/build/index.html?v=ff2e933";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
@@ -1318,6 +1320,30 @@ export function createArcadeGames(): MachineData[] {
           title="BOB"
           url={BOB_URL}
           allow="accelerometer; gyroscope"
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // A toy, no score: spin the Earth, plot journeys that play out as red travel lines,
+    // and set its weather (clouds, wind, hurricanes, lightning, aurora) and its sun.
+    {
+      name: "Atlas",
+      added: "2026-10-21T18:45:00-06:00",
+      availableOnMobile: true,
+      cartridge: {
+        color: "#d9a441",
+        tagline: "Spin the Earth. Plot a journey. Follow the red line.",
+        font: { family: "Libre Baskerville", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Globe toy", developer: "sclondon" },
+        backNote: "Press GO and the plane takes the long way round.",
+      },
+      videoUrl: "/game-recordings/Atlas.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Atlas"
+          url={ATLAS_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
