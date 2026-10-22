@@ -113,7 +113,7 @@ const HALLOW_DEEP_URL = "https://scarbone98.github.io/hallow-deep/?v=51a535b";
 const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=5e3e65b";
 // github.com/Sclondon/Atlas
-const ATLAS_URL = "https://sclondon.github.io/Atlas/build/index.html?v=ff2e933";
+const ATLAS_URL = "https://sclondon.github.io/Atlas/build/index.html?v=864f442";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
