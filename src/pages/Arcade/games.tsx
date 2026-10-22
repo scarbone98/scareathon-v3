@@ -153,6 +153,9 @@ const FOX_CROW_COOKIE_URL = "https://sclondon.github.io/TheFoxTheCrowAndTheCooki
 // A bandsman with the whole band on his back: five note buttons, seven instruments and a loop
 // station (github.com/Sclondon/OneManBand).
 const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=b7075e5";
+// Granny Grumblewart's potion shop: brew what the customers order, step by step in the right order
+// (github.com/Sclondon/HubbleBubble), in testing.
+const HUBBLE_BUBBLE_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=3c4ec03";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1513,6 +1516,33 @@ export function createArcadeGames(): MachineData[] {
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Liquid Metal", LIQUID_METAL_URL)
+          }
+        />
+      ),
+    },
+    // --- Secret: in testing, only on the shelf once you've typed POTION into WaysideOS.
+    // Posts PLAYER_DIED with the coins taken over every night when a night's takings fall short.
+    {
+      name: "Hubble Bubble",
+      added: "2026-10-21T18:50:00-06:00",
+      availableOnMobile: true,
+      videoUrl: "/game-recordings/HubbleBubble.mp4",
+      secret: true,
+      earlyAccess: true,
+      cartridge: {
+        color: "#8a55c8",
+        tagline: "Hubble bubble, toil and trouble: brew them right and brew them double!",
+        font: { family: "Fredoka" },
+        about: { released: "2026", players: "1 player", genre: "Potion brewing", developer: "sclondon" },
+        backNote: "Ingredients, heat, a stir and a zap, in that order. Then bottle it.",
+      },
+      game: (
+        <GameRenderer
+          title="Hubble Bubble"
+          url={HUBBLE_BUBBLE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+          onLoad={(iframe) =>
+            listenForPlayerDiedScores(iframe, "Hubble Bubble", HUBBLE_BUBBLE_URL)
           }
         />
       ),
