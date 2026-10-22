@@ -202,6 +202,7 @@ async function main() {
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261012_add_wayside_fury_game.sql', import.meta.url), 'utf8')); // Wayside Fury's arcade scores
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261013_add_liquid_metal_game.sql', import.meta.url), 'utf8')); // Liquid Metal's
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261014_add_close_encounters_game.sql', import.meta.url), 'utf8')); // Close Encounters'
+                await runStartupSql(pool, await readFile(new URL('./db/migrations/20261021_add_hubble_bubble_game.sql', import.meta.url), 'utf8')); // Hubble Bubble's
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261012_add_wayside_fury_saves.sql', import.meta.url), 'utf8')); // revisioned Wayside Fury character sheets
                 await runStartupSql(pool, await readFile(new URL('./db/migrations/20261008_agent_tokens.sql', import.meta.url), 'utf8')); // agent keys for the wayside CLI
             } catch (err) {
