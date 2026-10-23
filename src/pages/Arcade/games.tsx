@@ -155,7 +155,7 @@ const FOX_CROW_COOKIE_URL = "https://sclondon.github.io/TheFoxTheCrowAndTheCooki
 const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html?v=b7075e5";
 // Granny Grumblewart's potion shop: brew what the customers order, step by step in the right order
 // (github.com/Sclondon/HubbleBubble), in testing.
-const HUBBLE_BUBBLE_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=6412f9c";
+const HUBBLE_BUBBLE_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=c97b3e2";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
