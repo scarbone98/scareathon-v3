@@ -25,7 +25,8 @@ export const GAME_SCORE_POLICIES = new Map([
     }],
     // Coins taken over every night of a run (the nights need 60, 110, 160, 210, then 60 more each);
     // a first night is 100 or so, a run into night five some 800.
-    ['Hubble Bubble', {
+    // (Cauldron was Hubble Bubble)
+    ['Cauldron', {
         score: { min: 0, max: 1000000, integer: true },
         tickets: { from: 60, full: 800 },
     }],

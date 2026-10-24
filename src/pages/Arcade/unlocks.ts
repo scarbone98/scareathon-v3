@@ -12,7 +12,7 @@ export const SECRET_CARTS: Record<string, string> = {
   PENGUIN: "Penguin Slide",
   COOKIE: "The Fox, The Crow, and The Cookie",
   MAZE: "Warren",
-  POTION: "Hubble Bubble",
+  POTION: "Cauldron",
 };
 
 export const UNLOCK_EVENT = "arcade:unlocked";
@@ -21,6 +21,7 @@ const UNLOCK_KEY = "wayside.unlockedCarts";
 // Carts that were unlocked under an old name (old name -> name now)
 const RENAMED: Record<string, string> = {
   "The Clearing": "Warren",
+  "Hubble Bubble": "Cauldron",
 };
 
 export function unlockedCarts(): string[] {
