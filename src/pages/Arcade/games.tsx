@@ -139,7 +139,7 @@ const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/i
 // the server's /penguins/ws.
 const PENGUIN_SLIDE_URL = "https://sclondon.github.io/PenguinSlide/build/index.html?v=cf636b8";
 // Warren (was The Clearing): github.com/Sclondon/Warren (Godot web build on GitHub Pages)
-const WARREN_URL = "https://sclondon.github.io/Warren/build/index.html?v=6ab3461";
+const WARREN_URL = "https://sclondon.github.io/Warren/build/index.html?v=fa2e614";
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dc264d1";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
