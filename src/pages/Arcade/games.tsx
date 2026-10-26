@@ -115,7 +115,7 @@ const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=5e3e65b";
 // github.com/Sclondon/Atlas
 const ATLAS_URL = "https://sclondon.github.io/Atlas/build/index.html?v=cc911dc";
 // github.com/Sclondon/ScenicRoute
-const SCENIC_ROUTE_URL = "https://sclondon.github.io/ScenicRoute/build/index.html?v=16f22fc";
+const SCENIC_ROUTE_URL = "https://sclondon.github.io/ScenicRoute/build/index.html?v=6bd9a46";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
@@ -1358,14 +1358,14 @@ export function createArcadeGames(): MachineData[] {
     // autumn wood at the golden hour.
     {
       name: "Scenic Route",
-      added: "2026-10-25T23:30:00-06:00",
+      added: "2026-10-26T00:45:00-06:00",
       availableOnMobile: true,
       cartridge: {
         color: "#c9782e",
-        tagline: "Stand a while somewhere beautiful and look around.",
+        tagline: "Stand at the edge of an autumn wood and look around.",
         font: { family: "Cormorant Garamond", weight: 700 },
         about: { released: "2026", players: "Single player", genre: "Lounge", developer: "sclondon" },
-        backNote: "Lean on the fence by the pumpkins and listen for the woodpecker.",
+        backNote: "Watch the valley: the deer come along it now and then.",
       },
       videoUrl: "/game-recordings/ScenicRoute.mp4",
       hasLeaderboard: false,
