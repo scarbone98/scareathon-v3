@@ -11,7 +11,6 @@ export const SECRET_CARTS: Record<string, string> = {
   WIND: "Daughter Of The Wind",
   PENGUIN: "Penguin Slide",
   COOKIE: "The Fox, The Crow, and The Cookie",
-  MAZE: "Warren",
   POTION: "Cauldron",
 };
 
