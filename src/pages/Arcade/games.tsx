@@ -1378,6 +1378,29 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
+    // Alone, or online rooms for up to four (server/routes/theClearing.js). No scores yet.
+    {
+      name: "Warren",
+      added: "2026-10-26T12:00:00-06:00",
+      availableOnMobile: true,
+      videoUrl: "/game-recordings/Warren.mp4",
+      cartridge: {
+        color: "#5f7a4a",
+        tagline: "You wake in the middle of a maze. Find the way out.",
+        font: { family: "Special Elite" },
+        about: { released: "2026", players: "1-4 players, online", genre: "Maze", developer: "sclondon" },
+        backNote: "Bring friends. Share the room code.",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Warren"
+          url={WARREN_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
     {
       name: "Snow Globe",
       earlyAccess: true,
@@ -1569,31 +1592,6 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Cauldron", CAULDRON_URL)
           }
-        />
-      ),
-    },
-    // --- Secret: in testing, only on the shelf once you've typed MAZE into WaysideOS.
-    // Alone, or online rooms for up to four (server/routes/theClearing.js). No scores yet.
-    {
-      name: "Warren",
-      added: "2026-10-17T14:10:00-06:00",
-      availableOnMobile: true,
-      videoUrl: "/game-recordings/Warren.mp4",
-      secret: true,
-      earlyAccess: true,
-      cartridge: {
-        color: "#5f7a4a",
-        tagline: "You wake in the middle of a maze. Find the way out.",
-        font: { family: "Special Elite" },
-        about: { released: "2026", players: "1-4 players, online", genre: "Maze", developer: "sclondon" },
-        backNote: "Bring friends. Share the room code.",
-      },
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Warren"
-          url={WARREN_URL}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
