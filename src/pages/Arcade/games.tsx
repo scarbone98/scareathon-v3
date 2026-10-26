@@ -114,6 +114,8 @@ const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=5e3e65b";
 // github.com/Sclondon/Atlas
 const ATLAS_URL = "https://sclondon.github.io/Atlas/build/index.html?v=cc911dc";
+// github.com/Sclondon/ScenicRoute
+const SCENIC_ROUTE_URL = "https://sclondon.github.io/ScenicRoute/build/index.html?v=5bd513a";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
@@ -1347,6 +1349,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Atlas"
           url={ATLAS_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // A lounge, no score: punch a ticket and sit a while somewhere scenic. First stop is
+    // Amberwood, an autumn wood at the golden hour. Fares are free preview passes for now.
+    {
+      name: "Scenic Route",
+      added: "2026-10-25T18:25:00-06:00",
+      availableOnMobile: true,
+      cartridge: {
+        color: "#c9782e",
+        tagline: "Punch a ticket. Sit a while somewhere beautiful.",
+        font: { family: "Cormorant Garamond", weight: 700 },
+        about: { released: "2026", players: "Single player", genre: "Lounge", developer: "sclondon" },
+        backNote: "Sit on the fallen log and listen for the woodpecker.",
+      },
+      videoUrl: "/game-recordings/ScenicRoute.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Scenic Route"
+          url={SCENIC_ROUTE_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
