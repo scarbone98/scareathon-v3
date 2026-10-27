@@ -114,8 +114,8 @@ const PICTO_BOX_URL = "/picto-box";
 const BOB_URL = "https://sclondon.github.io/BOB/build/index.html?v=5e3e65b";
 // github.com/Sclondon/Atlas
 const ATLAS_URL = "https://sclondon.github.io/Atlas/build/index.html?v=cc911dc";
-// github.com/Sclondon/ScenicRoute
-const SCENIC_ROUTE_URL = "https://sclondon.github.io/ScenicRoute/build/index.html?v=76b0945";
+// Lounge (was Scenic Route): github.com/Sclondon/ScenicRoute
+const SCENIC_ROUTE_URL = "https://sclondon.github.io/ScenicRoute/build/index.html?v=1ced36d";
 const SNOW_GLOBE_URL = "https://sclondon.github.io/snowglobe-sim/?v=e6cf5b1";
 const WAYSIDE_GALLERY_URL = "https://sclondon.github.io/WaysideGallery/build/index.html?v=c9eff71";
 const BREEDABLE_MONSTERS_URL = "https://sclondon.github.io/BreedableMonsters/build/index.html?v=47b15c4";
@@ -1357,7 +1357,7 @@ export function createArcadeGames(): MachineData[] {
     // A lounge, no score: postcards to scenic places to stand in and look around: an autumn
     // wood, a Hawaiian beach club, a night club and an Italian harbour cafe.
     {
-      name: "Scenic Route",
+      name: "Lounge",
       added: "2026-10-26T02:20:00-06:00",
       availableOnMobile: true,
       cartridge: {
@@ -1371,7 +1371,7 @@ export function createArcadeGames(): MachineData[] {
       hasLeaderboard: false,
       game: (
         <GameRenderer
-          title="Scenic Route"
+          title="Lounge"
           url={SCENIC_ROUTE_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
