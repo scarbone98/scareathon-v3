@@ -4,7 +4,7 @@
 // React only sees HUD numbers and a few events.
 import * as THREE from "three";
 import { Renderer } from "./render";
-import { sfx } from "./sfx";
+import { sfx, unlockAudio } from "./sfx";
 import { headingDir, MAX_TILT, newGame, newPilot, pilotTilt, READY_TIME, ropeStep, speedOf, stageScore, step, tiltedGravity, FLIES_PER_LIFE, type Game, type Pilot, type Tether, type V3 } from "./sim";
 import { COOP_STAGES, STAGES, type StageDef } from "./stages";
 import type { Seat, ServerMessage } from "./coopNet";
@@ -171,7 +171,9 @@ export class GameController {
 
   // Try the stage again from the start; in a run it costs a life.
   retry() {
-    if (!this.isLive()) return false;
+    // Not once the goal's been reached: the stage's score is already banked,
+    // and replaying it for its flies would turn lives into 1UPs for ever.
+    if (!this.isLive() || this.game.status === "goal") return false;
     if (this.mode === "run") {
       if (this.lives <= 0) return false;
       this.lives--;
@@ -427,6 +429,11 @@ export class GameController {
 
   private onPointerDown = (e: PointerEvent) => {
     if (!this.isLive() || this.paused) return;
+    // Phones suspend audio when the screen locks or the tab is left; any
+    // touch brings it back.
+    unlockAudio();
+    // A tap hurries the goal tally or a fall along, as Enter does.
+    if (this.game.status !== "play" && this.game.status !== "ready") this.skip();
     // Touch anywhere on the game to grab the joystick there.
     if (e.pointerType === "mouse" || this.stick) return;
     const r = this.host.getBoundingClientRect();
@@ -442,12 +449,21 @@ export class GameController {
   private onPointerMove = (e: PointerEvent) => {
     if (!this.stick || e.pointerId !== this.stick.id) return;
     const r = this.host.getBoundingClientRect();
-    const dx = e.clientX - r.left - this.stick.ox;
-    const dy = e.clientY - r.top - this.stick.oy;
+    const fx = e.clientX - r.left;
+    const fy = e.clientY - r.top;
+    let dx = fx - this.stick.ox;
+    let dy = fy - this.stick.oy;
     const m = Math.hypot(dx, dy);
-    const k = m > STICK_RANGE ? STICK_RANGE / m : 1;
-    this.stick.x = (dx * k) / STICK_RANGE;
-    this.stick.y = (-dy * k) / STICK_RANGE;
+    if (m > STICK_RANGE) {
+      // A thumb that runs past the rim drags the stick along with it, so
+      // swinging back the other way takes effect straight away.
+      dx *= STICK_RANGE / m;
+      dy *= STICK_RANGE / m;
+      this.stick.ox = fx - dx;
+      this.stick.oy = fy - dy;
+    }
+    this.stick.x = dx / STICK_RANGE;
+    this.stick.y = -dy / STICK_RANGE;
   };
 
   private onPointerUp = (e: PointerEvent) => {
@@ -773,7 +789,8 @@ export class GameController {
     f.taken = true;
     this.flies += f.big ? 10 : 1;
     this.renderer.pop(new THREE.Vector3(f.at.x, f.at.y, f.at.z), f.big);
-    sfx.fly();
+    if (f.big) sfx.bigFly();
+    else sfx.fly();
   }
 
   // The server's verdict on this attempt.

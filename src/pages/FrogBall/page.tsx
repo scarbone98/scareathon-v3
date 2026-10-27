@@ -476,10 +476,10 @@ export default function FrogBall() {
         )}
         {view === "howto" && <HowTo touch={touch} onBack={() => (sfx.back(), setView("menu"))} />}
         {view === "coop" && <CoopMenu touch={touch} error={coopError} onHost={hostRoom} onJoin={() => (setCoopError(null), setView("join"))} onBack={() => toMenu(MENU_INDEX.coop)} />}
-        {view === "join" && <JoinCode touch={touch} initial={linkedRoom()} error={coopError} busy={joining} onJoin={joinRoom} onBack={() => (closeSocket(false), setJoining(false), setView("coop"))} />}
+        {view === "join" && <JoinCode touch={touch} initial={linkedRoom()} error={coopError} busy={joining} offline={net === "reconnecting"} onJoin={joinRoom} onBack={() => (closeSocket(false), setJoining(false), setView("coop"))} />}
         {view === "lobby" &&
           (room ? (
-            <Lobby code={room.code} note={lobbyNote} seat={room.seat} names={room.names} connected={room.connected} touch={touch} onStart={() => sockRef.current?.send({ type: "go", count: COOP_STAGES.length })} onLeave={leaveRoom} />
+            <Lobby code={room.code} note={net === "reconnecting" ? "RECONNECTING..." : lobbyNote} seat={room.seat} names={room.names} connected={room.connected} touch={touch} onStart={() => sockRef.current?.send({ type: "go", count: COOP_STAGES.length })} onLeave={leaveRoom} />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-[#1a1033]/60">
               <span className="fb-o fb-blink text-[16px] text-[var(--cyan)]">{net === "reconnecting" ? "RECONNECTING..." : "OPENING A ROOM..."}</span>
@@ -510,7 +510,7 @@ export default function FrogBall() {
             onRetry={() => {
               if (ctrlRef.current?.retry()) {
                 resetPlayUi();
-              }
+              } else sfx.denied();
             }}
             onSound={() => changeSettings({ ...settings, sound: !settings.sound })}
             onQuit={coopRun ? leaveRoom : toTitle}

@@ -93,11 +93,12 @@ export function HudView({ hud, portrait, partner, onPause }: { hud: Hud; portrai
             <span className="fb-o text-[16px] text-[var(--yellow)]">{pad(hud.flies, 3)}</span>
           </div>
         </div>
+        {/* The hit area reaches past the little button, for thumbs. */}
         <button
           type="button"
           aria-label="Pause"
           onClick={onPause}
-          className="fb-item pointer-events-auto flex h-[22px] w-[22px] items-center justify-center gap-[3px]"
+          className="fb-item pointer-events-auto flex h-[22px] w-[22px] items-center justify-center gap-[3px] before:absolute before:-inset-[11px] before:content-['']"
         >
           <span className="h-[9px] w-[3px] bg-[var(--cream)] shadow-[0_0_0_1px_#1a1033]" />
           <span className="h-[9px] w-[3px] bg-[var(--cream)] shadow-[0_0_0_1px_#1a1033]" />
@@ -414,14 +415,14 @@ export function NameEntry({ score, rank, initial, touch, onDone }: { score: numb
       <div className="mt-5 flex gap-4">
         {name.map((ch, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
-            <button type="button" className="fb-o p-1 text-white" onClick={() => (setSlot(i), change(i, 1))} aria-label="Next letter">
+            <button type="button" className="fb-o px-3 py-2 text-white" onClick={() => (setSlot(i), change(i, 1))} aria-label="Next letter">
               <span className="fb-tri fb-tri-up" style={{ borderWidth: "0 6px 7px 6px" }} />
             </button>
             <div className={`fb-item flex h-[40px] w-[36px] items-center justify-center ${i === slot ? "is-sel" : ""}`} onClick={() => setSlot(i)}>
               <span className={`text-[24px] ${i === slot ? "" : "fb-o"}`}>{ch === " " ? "_" : ch}</span>
               {i === slot && <span className="fb-blink absolute inset-x-[7px] bottom-[5px] h-[2px] bg-[var(--ink)]" />}
             </div>
-            <button type="button" className="fb-o p-1 text-white" onClick={() => (setSlot(i), change(i, -1))} aria-label="Previous letter">
+            <button type="button" className="fb-o px-3 py-2 text-white" onClick={() => (setSlot(i), change(i, -1))} aria-label="Previous letter">
               <span className="fb-tri fb-tri-down" style={{ borderWidth: "7px 6px 0 6px" }} />
             </button>
           </div>

@@ -62,7 +62,8 @@ export function CoopMenu({ touch, error, onHost, onJoin, onBack }: { touch: bool
 }
 
 // Enter a room code: type it, tap the pad, or walk the pad with a gamepad.
-export function JoinCode({ touch, initial, error, busy, onJoin, onBack }: { touch: boolean; initial: string; error: string | null; busy: boolean; onJoin: (code: string) => void; onBack: () => void }) {
+// offline: the socket is trying to (re)connect, e.g. the server is down.
+export function JoinCode({ touch, initial, error, busy, offline = false, onJoin, onBack }: { touch: boolean; initial: string; error: string | null; busy: boolean; offline?: boolean; onJoin: (code: string) => void; onBack: () => void }) {
   const [code, setCode] = useState(initial.toUpperCase().slice(0, CODE_LENGTH));
   const keys = [...CODE_CHARS, "DEL", "JOIN"];
   const COLS = 8;
@@ -131,7 +132,7 @@ export function JoinCode({ touch, initial, error, busy, onJoin, onBack }: { touc
           </div>
         ))}
       </div>
-      <div className="fb-o mt-2 h-3 text-[8px] text-[var(--pink)]">{busy ? <span className="fb-blink text-[var(--cyan)]">CONNECTING...</span> : error?.toUpperCase()}</div>
+      <div className="fb-o mt-2 h-3 text-[8px] text-[var(--pink)]">{busy ? <span className="fb-blink text-[var(--cyan)]">{offline ? "CAN'T REACH THE SERVER. RETRYING..." : "CONNECTING..."}</span> : error?.toUpperCase()}</div>
       <div className="fb-panel mt-2 grid grid-cols-8 gap-1.5 p-2.5">
         {keys.map((k, i) => (
           <button
@@ -139,7 +140,7 @@ export function JoinCode({ touch, initial, error, busy, onJoin, onBack }: { touc
             type="button"
             onMouseEnter={() => setSel(i)}
             onClick={() => (setSel(i), type(k))}
-            className={`fb-item flex h-[22px] items-center justify-center text-[8px] ${k.length > 1 ? "col-span-2" : "w-[22px]"} ${i === sel ? "is-sel" : ""} ${k === "JOIN" && code.length < CODE_LENGTH ? "is-off" : ""}`}
+            className={`fb-item flex h-[28px] items-center justify-center text-[8px] ${k.length > 1 ? "col-span-2" : "w-[28px]"} ${i === sel ? "is-sel" : ""} ${k === "JOIN" && code.length < CODE_LENGTH ? "is-off" : ""}`}
           >
             <span className={i === sel ? "" : "fb-o"}>{k}</span>
           </button>
@@ -150,7 +151,7 @@ export function JoinCode({ touch, initial, error, busy, onJoin, onBack }: { touc
           <Hints items={[[<span className="fb-key">A-Z</span>, "TYPE"], [KEYS.ok, "JOIN"], [KEYS.back, "BACK"]]} />
         </div>
       ) : (
-        <button type="button" onClick={onBack} className="fb-item !absolute left-3 top-3 px-2 py-1.5 text-[8px]">
+        <button type="button" onClick={onBack} className="fb-item !absolute left-3 top-3 px-2 py-2.5 text-[8px]">
           BACK
         </button>
       )}

@@ -51,7 +51,6 @@ export function cleanCode(code) {
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 1e5);
 const round = (n) => Math.round(n * 1000) / 1000;
 
-// A ball update, or null if it's malformed.
 // A ball update, or null if it's malformed. k is how the player is tilting
 // (x, z, each -1..1), which lets the partner guess how the ball will speed up.
 export function cleanState(message) {

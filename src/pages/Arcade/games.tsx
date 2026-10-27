@@ -810,7 +810,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Frog Ball",
-      earlyAccess: true,
+      updated: "2026-10-27T14:05:37-06:00",
       cartridge: {
         color: "#6cc04a",
         tagline: "Roll a frog through dream worlds.",

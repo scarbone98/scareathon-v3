@@ -26,6 +26,11 @@ const SESSION_KEY = "frog-ball-coop";
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 15000;
 const PING_MS = 2000;
+// Phones waking from sleep often hold a socket that still says it's open but
+// is long dead. Hearing nothing (not even a pong) for this long means start over.
+const STALE_MS = 7000;
+// After coming back to the tab, how long a ping gets to be answered.
+const WAKE_CHECK_MS = 1500;
 const CLOCK_SAMPLES = 8;
 
 interface Session {
@@ -71,6 +76,7 @@ export class CoopSocket {
   // Clock samples from pings: [round trip, server minus local].
   private samples: [number, number][] = [];
   private offset = 0;
+  private heard = 0; // when the server last sent anything
   rtt = 0;
   session: Session | null;
 
@@ -101,6 +107,7 @@ export class CoopSocket {
     this.socket = socket;
     socket.onopen = () => {
       this.retryMs = MIN_RETRY_MS;
+      this.heard = Date.now();
       this.onStatus("open");
       if (this.session) socket.send(JSON.stringify({ type: "rejoin", ...this.session }));
       for (const data of this.outbox) socket.send(data);
@@ -110,6 +117,7 @@ export class CoopSocket {
       this.pingTimer = window.setInterval(this.ping, PING_MS);
     };
     socket.onmessage = (event) => {
+      this.heard = Date.now();
       let message: ServerMessage;
       try {
         message = JSON.parse(event.data) as ServerMessage;
@@ -130,17 +138,41 @@ export class CoopSocket {
       }
       this.onMessage(message);
     };
-    socket.onclose = () => {
-      window.clearInterval(this.pingTimer);
-      if (this.closed || this.socket !== socket) return;
-      this.onStatus("reconnecting");
-      this.retryTimer = window.setTimeout(this.connect, this.retryMs);
-      this.retryMs = Math.min(MAX_RETRY_MS, this.retryMs * 2);
-    };
+    socket.onclose = () => this.dropped(socket);
   };
 
+  private dropped(socket: WebSocket) {
+    window.clearInterval(this.pingTimer);
+    if (this.closed || this.socket !== socket) return;
+    this.onStatus("reconnecting");
+    window.clearTimeout(this.retryTimer);
+    this.retryTimer = window.setTimeout(this.connect, this.retryMs);
+    this.retryMs = Math.min(MAX_RETRY_MS, this.retryMs * 2);
+  }
+
+  // Gives up on a socket that's gone quiet without waiting for the browser
+  // to notice (which can take minutes), and reconnects.
+  private abandon(socket: WebSocket) {
+    socket.onclose = null;
+    socket.onmessage = null;
+    try {
+      socket.close();
+    } catch {
+      // Already closing.
+    }
+    this.dropped(socket);
+  }
+
   private ping = () => {
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "ping", t: Date.now() }));
+    const socket = this.socket;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    // Background tabs get their timers slowed and replies held up, so only
+    // a visible tab judges the line dead.
+    if (document.visibilityState === "visible" && Date.now() - this.heard > STALE_MS) {
+      this.abandon(socket);
+      return;
+    }
+    socket.send(JSON.stringify({ type: "ping", t: Date.now() }));
   };
 
   // The fastest recent round trips give the truest clock offset.
@@ -155,12 +187,30 @@ export class CoopSocket {
   }
 
   // Browsers throttle background tabs; reconnect at once when the tab returns.
+  // A socket that still claims to be open gets a ping, and is dropped if the
+  // reply doesn't come quickly.
   private onVisible = () => {
-    if (document.visibilityState !== "visible" || this.socket?.readyState !== WebSocket.CLOSED || this.closed) return;
+    if (document.visibilityState !== "visible" || this.closed) return;
+    const socket = this.socket;
+    if (socket?.readyState === WebSocket.OPEN) {
+      const asked = Date.now();
+      this.ping();
+      window.setTimeout(() => {
+        if (!this.closed && this.socket === socket && socket.readyState === WebSocket.OPEN && this.heard < asked) {
+          this.abandon(socket);
+          this.reconnectNow();
+        }
+      }, WAKE_CHECK_MS);
+      return;
+    }
+    if (socket?.readyState === WebSocket.CLOSED || socket?.readyState === WebSocket.CLOSING) this.reconnectNow();
+  };
+
+  private reconnectNow() {
     window.clearTimeout(this.retryTimer);
     this.retryMs = MIN_RETRY_MS;
     this.connect();
-  };
+  }
 
   // Ball updates are dropped while disconnected (they'd be stale); anything
   // else is queued until the socket opens.

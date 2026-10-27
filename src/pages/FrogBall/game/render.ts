@@ -156,6 +156,23 @@ function tileCylUVs(geo: THREE.BufferGeometry, r: number, h: number) {
   });
 }
 
+// Frees the GPU side of everything under obj, apart from what's in keep (shared
+// materials and textures), so a long session of retries doesn't keep piling up
+// buffers and textures on a phone.
+function disposeTree(obj: THREE.Object3D, keep: Set<unknown> = new Set()) {
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    // Sprites all share one built-in quad.
+    if (m.geometry && !(o instanceof THREE.Sprite)) m.geometry.dispose();
+    const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+    for (const mat of mats) {
+      if (keep.has(mat)) continue;
+      for (const v of Object.values(mat)) if (v instanceof THREE.Texture && !keep.has(v)) v.dispose();
+      mat.dispose();
+    }
+  });
+}
+
 interface FlyView {
   obj: THREE.Group;
   wings: THREE.Mesh[];
@@ -251,7 +268,10 @@ export class Renderer {
   private setWorld(world: number, center: THREE.Vector3, radius: number) {
     this.palette = PALETTES[world];
     const p = this.palette;
-    if (this.sky) this.scene.remove(this.sky);
+    if (this.sky) {
+      this.scene.remove(this.sky);
+      disposeTree(this.sky);
+    }
     this.sky = makeSky(p);
     this.scene.add(this.sky);
     this.scene.fog = new THREE.Fog(p.fog.color, p.fog.near, p.fog.far);
@@ -261,7 +281,10 @@ export class Renderer {
     this.sun.color.set(p.light.sun);
     this.sun.intensity = p.light.sunIntensity;
     this.balls[0].setTint(world === 3 || world === 4 ? "#d8c8ff" : GREEN_FROG.shell);
-    if (this.scenery) this.scene.remove(this.scenery.group);
+    if (this.scenery) {
+      this.scene.remove(this.scenery.group);
+      disposeTree(this.scenery.group);
+    }
     this.scenery = SCENERY[world](center, radius);
     this.scene.add(this.scenery.group);
     this.world = world;
@@ -309,11 +332,15 @@ export class Renderer {
 
   // Build everything for a new stage (or the same one again after a fall).
   setStage(g: Game) {
+    // The floor materials are cached per world and tone, so they stay.
+    const keep = new Set<unknown>([this.glow, this.arrow]);
+    for (const mats of this.materials.values()) for (const m of mats) keep.add(m).add((m as THREE.MeshLambertMaterial).map);
+    disposeTree(this.stage, keep);
     this.stage.clear();
     this.bodyMeshes = [];
     this.flies = [];
     this.pads = [];
-    for (const p of this.pops) this.scene.remove(p.pts);
+    for (const p of this.pops) this.removePop(p);
     this.pops = [];
 
     const box = new THREE.Box3();
@@ -415,6 +442,12 @@ export class Renderer {
     this.pops.push({ pts, vel, age: 0 });
   }
 
+  private removePop(p: Pop) {
+    this.scene.remove(p.pts);
+    p.pts.geometry.dispose();
+    (p.pts.material as THREE.Material).dispose();
+  }
+
   private popMaterial(color: string) {
     return new THREE.PointsMaterial({ map: this.glow, color, size: 0.35, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   }
@@ -457,7 +490,7 @@ export class Renderer {
       pos.needsUpdate = true;
       (p.pts.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - p.age / 0.7);
       if (p.age > 0.7) {
-        this.scene.remove(p.pts);
+        this.removePop(p);
         this.pops.splice(i, 1);
       }
     }
@@ -540,6 +573,7 @@ export class Renderer {
   }
 
   dispose() {
+    disposeTree(this.scene);
     this.gl.dispose();
   }
 }
