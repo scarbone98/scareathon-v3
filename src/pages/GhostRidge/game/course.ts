@@ -81,6 +81,18 @@ export function heightAt(c: Course, x: number, z: number) {
   return y;
 }
 
+// The kicker whose lip a world point is on (its last couple of metres, or just past), if any.
+export function kickerLipAt(c: Course, x: number, z: number) {
+  const d = -z;
+  const u = x - centerAt(c, d);
+  const list = c.kickerBuckets[bucketOf(d)];
+  if (list) for (const k of list) {
+    const along = d - k.d;
+    if (along > k.len - 2.5 && along < k.len + 2 && Math.abs(u - k.u) < k.w + 1) return k;
+  }
+  return undefined;
+}
+
 function kickerHeight(k: Kicker, d: number, u: number) {
   const along = d - k.d;
   if (along < 0 || along > k.len + 1.5) return 0;
