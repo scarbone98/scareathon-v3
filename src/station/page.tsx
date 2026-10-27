@@ -9,7 +9,7 @@ import { useNavigatorContext } from "../components/navigator/context";
 import CrtTransition from "../pages/ArcadeV2/CrtTransition";
 import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
-import { markPlayed, watchGameUpdates } from "../pages/Arcade/news";
+import { markPlayed, SHELF_EVENT, watchGameUpdates } from "../pages/Arcade/news";
 import { createArcadeGames, CRYPTLINS_URL, normalizeMachineName, pickShuffleGame, POCKET_AQUARIUM_URL, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
 import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie, useLooks } from "./data.ts";
 import { FOLD, HEADINGS, isHeading, isPetStop, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
@@ -565,6 +565,19 @@ export default function StationPage() {
   // Playing a game: a CRT power-on into it, and power-off back out, as in the arcade
   const [playing, setPlaying] = useState<MachineData | null>(null);
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
+  // A game found updated after the shelf was laid out (Arcade/news.ts): the shelf is rebuilt so it
+  // joins NEW GAMES, but not under someone playing; then once they're back
+  const [reshelve, setReshelve] = useState(false);
+  useEffect(() => {
+    const onShelf = () => setReshelve(true);
+    window.addEventListener(SHELF_EVENT, onShelf);
+    return () => window.removeEventListener(SHELF_EVENT, onShelf);
+  }, []);
+  useEffect(() => {
+    if (!reshelve || playing || transition) return;
+    setReshelve(false);
+    setUnlocks((n) => n + 1);
+  }, [reshelve, playing, transition]);
   const play = (game: MachineData) => {
     if (game.special === "mystery" || game.special === "locked" || game.special === "wayside") return;
     const picked = game.special === "shuffle" ? pickShuffleGame(games) : game;

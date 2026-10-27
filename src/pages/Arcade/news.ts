@@ -15,6 +15,8 @@ const NEWS_FOR = 2 * DAY;
 
 // Something's changed: a game's been played, or the builds' dates have come in
 export const NEWS_EVENT = "arcade:news";
+// The builds' dates have moved a game onto or off the NEW GAMES shelf: the shelf wants rebuilding
+export const SHELF_EVENT = "arcade:shelf";
 const PLAYED_KEY = "wayside.playedCarts";
 
 // When each game was last played on this device: name -> time (ms)
@@ -79,13 +81,18 @@ export async function watchGameUpdates(games: MachineData[]) {
     })
   );
   asking = false;
+  const shelved = (game: MachineData) => onNewShelf(game);
+  const before = games.filter(shelved).map((game) => game.name).join("\n");
   builds = { at: Date.now(), times };
+  const after = games.filter(shelved).map((game) => game.name).join("\n");
   try {
     localStorage.setItem(BUILDS_KEY, JSON.stringify(builds));
   } catch {
     // (private windows: asked for again next visit)
   }
   window.dispatchEvent(new CustomEvent(NEWS_EVENT));
+  // A game's just been found updated (or its day is up): the shelf's in the wrong order
+  if (before !== after) window.dispatchEvent(new CustomEvent(SHELF_EVENT));
 }
 
 // When a game last changed: its build's date, or the one written on it
