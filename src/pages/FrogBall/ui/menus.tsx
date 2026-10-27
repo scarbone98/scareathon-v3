@@ -270,11 +270,11 @@ export function StageSelect({
       <div className="absolute inset-x-0 top-3 flex flex-col items-center">
         <span className="fb-o text-[8px] text-[var(--cream)]">PRACTICE</span>
         <div className="mt-2 flex items-center gap-4">
-          <button type="button" className="fb-o p-1 text-[16px] text-white" onClick={() => worldStep(-1)} aria-label="Previous world">
+          <button type="button" className="fb-o relative p-1 text-[16px] text-white before:absolute before:-inset-2 before:content-['']" onClick={() => worldStep(-1)} aria-label="Previous world">
             <span className="fb-tri fb-tri-left" style={{ borderWidth: "6px 8px 6px 0" }} />
           </button>
           <ArcadeText key={world} text={`WORLD ${world + 1}`} size={24} face={color} side="#1a1033" depth={3} anim="drop" />
-          <button type="button" className="fb-o p-1 text-[16px] text-white" onClick={() => worldStep(1)} aria-label="Next world">
+          <button type="button" className="fb-o relative p-1 text-[16px] text-white before:absolute before:-inset-2 before:content-['']" onClick={() => worldStep(1)} aria-label="Next world">
             <span className="fb-tri fb-tri-right" style={{ borderWidth: "6px 0 6px 8px" }} />
           </button>
         </div>
@@ -327,7 +327,7 @@ export function StageSelect({
         </div>
       )}
       {touch && (
-        <button type="button" onClick={onBack} className="fb-item !absolute left-3 top-3 px-2 py-1.5 text-[8px]">
+        <button type="button" onClick={onBack} className="fb-item !absolute left-3 top-3 px-2 py-2.5 text-[8px]">
           BACK
         </button>
       )}

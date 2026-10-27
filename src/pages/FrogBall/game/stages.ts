@@ -519,9 +519,9 @@ S.push({
     disc(0, -3, -8, 1.9, { tone: "spring", spring: 17 }),
     { shape: "cyl", at: [0, -6, -8], r: 0.6, h: 5, tone: "pillar" },
     floorZ(0, -1, -11, -22, 6),
-    disc(-1.5, -2, -24.5, 2.2, { tone: "cap" }),
-    disc(2, -3, -29, 2.2, { tone: "cap" }),
-    disc(-1, -4, -33.5, 2.2, { tone: "cap" }),
+    disc(-1.5, -2, -24.5, 2.4, { tone: "cap" }),
+    disc(2, -3, -29, 2.4, { tone: "cap" }),
+    disc(-1, -4, -33.5, 2.4, { tone: "cap" }),
     disc(0, -5, -40, 4),
   ],
   flies: [

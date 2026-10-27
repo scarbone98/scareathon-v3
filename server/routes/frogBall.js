@@ -2,7 +2,9 @@ import websocket from '@fastify/websocket';
 import { RoomError, createRoomManager } from '../frogBall/rooms.js';
 
 const LOOP_MS = 50;
-const HEARTBEAT_MS = 30_000;
+// Short, so a phone that slept with the game open shows as gone (and its
+// partner sees it) within seconds rather than a minute.
+const HEARTBEAT_MS = 10_000;
 
 const ERROR_MESSAGES = {
     missing: "There's no room with that code.",
