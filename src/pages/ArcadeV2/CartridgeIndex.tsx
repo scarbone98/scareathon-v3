@@ -6,7 +6,7 @@ import { useFavouriteCarts } from "../Arcade/favourites.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
 // games' stills and names in alphabetical order, a row of filters behind a FILTER button (genre, developer,
-// single or multiplayer, early access, coming soon), and a search prompt along the bottom that filters
+// single or multiplayer, early access, locked), and a search prompt along the bottom that filters
 // by name or genre. Picking one jumps the shelf to it. This device's favourites come first,
 // under FAVOURITES (Arcade/favourites.ts), then games in their first day,
 // under NEW GAMES, and anything new or updated wears a "!" badge until it's played (Arcade/news.ts).
@@ -22,8 +22,8 @@ const PLAYERS = ["Single player", "Multiplayer"];
 const playersOf = (game: MachineData) => (/^single player$/i.test(game.cartridge.about.players) ? PLAYERS[0] : /^unknown$/i.test(game.cartridge.about.players) ? "" : PLAYERS[1]);
 // "sclondon + scarbone98" is both of them
 const developersOf = (game: MachineData) => game.cartridge.about.developer.split("+").map((name) => name.trim());
-// How far along a game is, for the order they're listed in: finished, early access, coming soon, "???"
-const readiness = (game: MachineData) => (game.special === "mystery" ? 3 : game.special === "soon" ? 2 : game.earlyAccess ? 1 : 0);
+// How far along a game is, for the order they're listed in: finished, early access, locked, "???"
+const readiness = (game: MachineData) => (game.special === "mystery" ? 3 : game.special === "locked" ? 2 : game.earlyAccess ? 1 : 0);
 const unique = (values: string[]) => [...new Set(values)].filter((value) => value !== "UNKNOWN").sort((a, b) => a.localeCompare(b));
 
 // A filter that's on or off: lit when it's on
@@ -84,7 +84,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   const [developer, setDeveloper] = useState("");
   const [players, setPlayers] = useState("");
   const [early, setEarly] = useState(false);
-  const [soon, setSoon] = useState(false);
+  const [locked, setLocked] = useState(false);
   // The filters are tucked away until asked for
   const [filtersOpen, setFiltersOpen] = useState(false);
   const needle = query.trim().toLowerCase();
@@ -97,14 +97,14 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   );
   const genres = useMemo(() => unique(games.map((game) => game.cartridge.about.genre)), [games]);
   const developers = useMemo(() => unique(games.flatMap(developersOf)), [games]);
-  // Early access and coming soon together show both kinds
+  // Early access and locked together show both kinds
   const shown = listed.filter(
     ({ game }) =>
       (!needle || `${game.name} ${game.cartridge.about.genre}`.toLowerCase().includes(needle)) &&
       (!genre || game.cartridge.about.genre === genre) &&
       (!developer || developersOf(game).includes(developer)) &&
       (!players || playersOf(game) === players) &&
-      ((!early && !soon) || (early && Boolean(game.earlyAccess)) || (soon && game.special === "soon"))
+      ((!early && !locked) || (early && Boolean(game.earlyAccess)) || (locked && game.special === "locked"))
   );
   // Favourites first, then new games, each under a heading of their own
   const favourites = useFavouriteCarts();
@@ -116,7 +116,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
       ? [{ title: "FAVOURITES", carts: starred }, { title: "NEW GAMES", carts: fresh }, { title: "ALL GAMES", carts: others.filter(({ game }) => !onNewShelf(game)) }]
       : [{ title: "", carts: shown }];
   const played = useMemo(playedCarts, []);
-  const filtersOn = [genre, developer, players, early, soon].filter(Boolean).length;
+  const filtersOn = [genre, developer, players, early, locked].filter(Boolean).length;
   return (
     <div
       role="dialog"
@@ -163,8 +163,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
             <Toggle on={early} onChange={setEarly}>
               EARLY ACCESS
             </Toggle>
-            <Toggle on={soon} onChange={setSoon}>
-              COMING SOON
+            <Toggle on={locked} onChange={setLocked}>
+              LOCKED
             </Toggle>
           </div>
         ) : (
@@ -180,8 +180,8 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
               </li>
             ),
             ...carts.map(({ game, index }) => {
-            const soon = game.special === "soon";
-            const stamp = soon ? "COMING SOON" : game.earlyAccess ? (game.alpha ? "ALPHA" : "EARLY ACCESS") : "";
+            const isLocked = game.special === "locked";
+            const stamp = isLocked ? "LOCKED" : game.earlyAccess ? (game.alpha ? "ALPHA" : "EARLY ACCESS") : "";
             return (
               <li key={game.name}>
                 <button
@@ -189,9 +189,9 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                   onClick={() => onPick(index)}
                   aria-current={index === current || undefined}
                   className="group flex w-full flex-col overflow-hidden rounded-md border-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39ff6a]"
-                  style={{ borderColor: index === current ? PHOSPHOR : "rgba(57, 255, 106, 0.25)", textShadow: "none", opacity: soon ? 0.75 : undefined }}
+                  style={{ borderColor: index === current ? PHOSPHOR : "rgba(57, 255, 106, 0.25)", textShadow: "none", opacity: isLocked ? 0.75 : undefined }}
                 >
-                  <div className="h-1.5" style={{ background: soon ? "#4c4c52" : game.cartridge.color }} />
+                  <div className="h-1.5" style={{ background: isLocked ? "#4c4c52" : game.cartridge.color }} />
                   <div className="relative aspect-video w-full bg-black">
                     {game.videoUrl && (
                       <img
@@ -199,7 +199,7 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
                         alt=""
                         loading="lazy"
                         className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
-                          soon ? "opacity-50 grayscale" : "opacity-85 [@media(hover:hover)]:group-hover:opacity-100"
+                          isLocked ? "opacity-50 grayscale" : "opacity-85 [@media(hover:hover)]:group-hover:opacity-100"
                         }`}
                         onError={(event) => {
                           event.currentTarget.style.display = "none";

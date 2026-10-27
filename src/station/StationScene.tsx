@@ -1174,7 +1174,7 @@ function buildArcade(preview: { name: string; video: string; color: string } | n
             tape: game.cartridge.backTape,
             cassette: game.cartridge.cassette,
             untitled: game.special === "mystery",
-            hologram: game.special === "soon",
+            hologram: game.special === "locked",
             badge: hasNews(game),
           });
           cart.group.userData.restBase = new Vector3(slots[i] - slots[start], layout.homeY, layout.z);
@@ -1280,8 +1280,8 @@ function buildCartRack(games: MachineData[]) {
     const h = tierH * (0.68 + ((i * 37) % 7) / 70);
     const x = -width / 2 + 0.01 + spine * (col + 0.5);
     const shell = standard(game.cartridge.color, 0.55);
-    // A coming-soon game's cart is a hologram, see-through and glowing (as in the arcade)
-    if (game.special === "soon") {
+    // A locked game's cart is a hologram, see-through and glowing (as in the arcade)
+    if (game.special === "locked") {
       shell.color.lerp(new Color("#7ff3ff"), 0.55).multiplyScalar(0.35);
       shell.emissive.copy(shell.color).multiplyScalar(1.6);
       Object.assign(shell, { transparent: true, opacity: 0.35, depthWrite: false, blending: AdditiveBlending });
