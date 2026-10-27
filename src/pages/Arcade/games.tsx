@@ -9,7 +9,7 @@ import { BAND_SONG_EVENT } from "../../station/things/BandSongs.tsx";
 import { supabase } from "../../supabaseClient.ts";
 import { unlockedCarts } from "./unlocks.ts";
 import { favouriteCarts } from "./favourites.ts";
-import { isNewGame } from "./news.ts";
+import { onNewShelf } from "./news.ts";
 
 // Most attract videos play from Supabase Storage (npm run upload:recordings) so
 // they aren't copied into every deployment; their stills stay in public/.
@@ -1874,15 +1874,15 @@ export function createArcadeGames(): MachineData[] {
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the favourites, the cassette
-// carts (things to do), new games (finished ones, or early access with newShelf, for their first day), the finished games
+// carts (things to do), new games (finished ones, or early access with newShelf, for their first day or a day after an update), the finished games
 // ("???" among them), early access, and coming soon
 export function shelfGroupOf(game: MachineData) {
   if (game.favourite) return -1;
   if (game.special === "mystery") return 2;
   if (game.special === "soon") return 4;
-  if (game.earlyAccess) return isNewGame(game) ? 1 : 3;
+  if (game.earlyAccess) return onNewShelf(game) ? 1 : 3;
   if (game.cartridge.cassette) return 0;
-  return isNewGame(game) ? 1 : 2;
+  return onNewShelf(game) ? 1 : 2;
 }
 
 // Alphabetical order, leaving a leading "The" out of it and counting 2 before 10

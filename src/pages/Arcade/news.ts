@@ -1,7 +1,7 @@
 // What's new in the arcade. A game that's arrived or changed in the last couple of days wears a
 // yellow "!" badge on its cartridge and its tile in the index until it's been played on this
 // device, and a finished game spends its first day in a NEW GAMES group of its own before
-// joining the rest. When it arrived is its `added` date (Arcade/games.tsx); when it last
+// joining the rest (and goes back there for a day whenever it's updated). When it arrived is its `added` date (Arcade/games.tsx); when it last
 // changed is read off its web build by itself (see watchGameUpdates), or its `updated` date
 // for a game served by this site.
 import { isValidElement } from "react";
@@ -96,6 +96,15 @@ export function isNewGame(game: MachineData, now = Date.now()) {
   if (game.special || (game.earlyAccess && !game.newShelf)) return false;
   const added = timeOf(game.added);
   return added > 0 && added <= now && now - added < NEW_FOR;
+}
+
+// On the NEW GAMES shelf: a finished game in its first day, or one that's been updated in the last
+// day (its build pushed, or its `updated` date)
+export function onNewShelf(game: MachineData, now = Date.now()) {
+  if (isNewGame(game, now)) return true;
+  if (game.special || (game.earlyAccess && !game.newShelf)) return false;
+  const updated = updatedTime(game);
+  return updated > timeOf(game.added) && updated <= now && now - updated < NEW_FOR;
 }
 
 // Added or updated lately, and not played since

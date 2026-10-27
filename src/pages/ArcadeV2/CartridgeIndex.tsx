@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { byName, type MachineData } from "../Arcade/games.tsx";
 import { stillUrlFor } from "./cartridge.ts";
-import { hasNews, isNewGame, playedCarts } from "../Arcade/news.ts";
+import { hasNews, onNewShelf, playedCarts } from "../Arcade/news.ts";
 import { useFavouriteCarts } from "../Arcade/favourites.ts";
 
 // Every cartridge at once, as a green-screen directory listing: a grid of the
@@ -110,10 +110,10 @@ export default function CartridgeIndex({ games, current, onPick, onClose }: Prop
   const favourites = useFavouriteCarts();
   const starred = shown.filter(({ game }) => favourites.includes(game.name));
   const others = shown.filter(({ game }) => !favourites.includes(game.name));
-  const fresh = others.filter(({ game }) => isNewGame(game));
+  const fresh = others.filter(({ game }) => onNewShelf(game));
   const sections =
     starred.length || fresh.length
-      ? [{ title: "FAVOURITES", carts: starred }, { title: "NEW GAMES", carts: fresh }, { title: "ALL GAMES", carts: others.filter(({ game }) => !isNewGame(game)) }]
+      ? [{ title: "FAVOURITES", carts: starred }, { title: "NEW GAMES", carts: fresh }, { title: "ALL GAMES", carts: others.filter(({ game }) => !onNewShelf(game)) }]
       : [{ title: "", carts: shown }];
   const played = useMemo(playedCarts, []);
   const filtersOn = [genre, developer, players, early, soon].filter(Boolean).length;
