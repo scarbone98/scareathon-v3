@@ -243,9 +243,9 @@ export default function CartridgeArcade({
     // idle → power (CRT warming up) → static → video; eject runs off → idle.
     // "bars": the off-air test card, for a game with nothing to preview.
     // "mystery": the "???" cartridge's live cuts, once it's plugged in
-    // "soon": a coming-soon cart's cover (with COMING SOON over it once it's plugged in)
+    // "locked": a locked cart's cover (with LOCKED over it once it's plugged in)
     // "wayside": WaysideOS: its logo on the shelf, its code prompt once it's plugged in
-    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" | "soon" | "wayside" = "idle";
+    let screenMode: "idle" | "power" | "static" | "video" | "off" | "bars" | "mystery" | "locked" | "wayside" = "idle";
     const paintWayside = createWaysideScreen();
     const wayside: WaysideState = { plugged: false, entry: "", reply: null, bootAt: 0 };
     const mysteryScreen = createMysteryScreen("/game-recordings/stills/Mystery.jpg");
@@ -380,8 +380,8 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
-    // A coming-soon cart (it won't plug in): its cover fills the screen, dimmed
-    // behind a band that blinks COMING SOON in the cart's colour.
+    // A locked cart (it won't plug in): its cover fills the screen, dimmed
+    // behind a band that blinks LOCKED in the cart's colour.
     const covers = new Map<string, HTMLImageElement>();
     const coverFor = (url: string) => {
       let image = covers.get(url);
@@ -427,7 +427,7 @@ export default function CartridgeArcade({
         screenContext.shadowColor = soonColor;
         screenContext.shadowBlur = 16;
         screenContext.fillStyle = "#fff4e0";
-        screenContext.fillText("COMING SOON", width / 2, height / 2 + 2);
+        screenContext.fillText("LOCKED", width / 2, height / 2 + 2);
         screenContext.shadowBlur = 0;
       }
       screenContext.fillStyle = "rgba(0, 0, 0, 0.22)";
@@ -435,7 +435,7 @@ export default function CartridgeArcade({
       screenTexture.needsUpdate = true;
     };
 
-    // An early access game: a band across its preview like COMING SOON's, blinking EARLY ACCESS
+    // An early access game: a band across its preview like LOCKED's, blinking EARLY ACCESS
     // in the cart's colour, but with the preview left bright behind it. A still (the poster,
     // a paused clip) isn't painted again, so its words never blink off.
     const paintEarlyAccess = (color: string, label = "EARLY ACCESS") => (context: CanvasRenderingContext2D, width: number, height: number, still: boolean) => {
@@ -642,7 +642,7 @@ export default function CartridgeArcade({
         if (mysteryScreen.paint(screenContext, time)) screenTexture.needsUpdate = true;
         return;
       }
-      if (screenMode === "soon") {
+      if (screenMode === "locked") {
         paintSoon(time, width, height);
         return;
       }
@@ -738,9 +738,9 @@ export default function CartridgeArcade({
         showOnScreen(screenTexture);
         return;
       }
-      // Not made yet: the cover on the screen under COMING SOON
-      if (game.special === "soon") {
-        screenMode = "soon";
+      // Locked: the cover on the screen under LOCKED
+      if (game.special === "locked") {
+        screenMode = "locked";
         soonCover = game.videoUrl ? coverFor(stillUrlFor(game.videoUrl)) : null;
         soonColor = game.cartridge.color;
         lastSoonFrame = -1;
@@ -1614,11 +1614,11 @@ export default function CartridgeArcade({
       if (busy || index < 0 || index >= carts.length) return;
       const state = carts[index];
       if (state.where !== "shelf") return;
-      // Not made yet: it won't go in. A shake of the head instead.
-      if (games[index].special === "soon") {
+      // Locked: it won't go in. A shake of the head instead.
+      if (games[index].special === "locked") {
         focus(index);
         playTick();
-        showTerminal({ kind: "message", lines: ["> COMING SOON", "NOT FINISHED YET", "CHECK BACK SOON"], at: nowSeconds() });
+        showTerminal({ kind: "message", lines: ["> LOCKED", "NEEDS A CODE", "TYPE IT INTO WAYSIDEOS"], at: nowSeconds() });
         gsap.killTweensOf(state.cart.group.rotation);
         gsap.fromTo(state.cart.group.rotation, { z: 0.14 }, { z: 0, duration: 0.5, ease: "elastic.out(1.4, 0.25)" });
         return;
@@ -1876,7 +1876,7 @@ export default function CartridgeArcade({
           tape: game.cartridge.backTape,
           cassette: game.cartridge.cassette,
           untitled: game.special === "mystery",
-          hologram: game.special === "soon",
+          hologram: game.special === "locked",
           badge: hasNews(game, played),
         });
         cart.group.userData.cartIndex = index;

@@ -7,7 +7,7 @@ import LoadingSpinner from "../../components/LoadingSpinner.tsx";
 import { fetchWithAuth } from "../../fetchWithAuth.ts";
 import { BAND_SONG_EVENT } from "../../station/things/BandSongs.tsx";
 import { supabase } from "../../supabaseClient.ts";
-import { unlockedCarts } from "./unlocks.ts";
+import { SECRET_CARTS, unlockedCarts } from "./unlocks.ts";
 import { favouriteCarts } from "./favourites.ts";
 import { onNewShelf } from "./news.ts";
 
@@ -56,12 +56,13 @@ export type MachineData = {
   updated?: string;
   // Cartridges that aren't a game of their own: "mystery" only shows its
   // screen and can't be played; "shuffle" plays a random other game.
-  // "soon": a game that isn't made yet: its cover art on the shelf, COMING SOON once plugged in.
+  // "locked": a secret cart whose code hasn't been typed into WaysideOS yet: its cover art on the
+  // shelf, LOCKED once plugged in, and it won't play (set by createArcadeGames, not written here).
   // "wayside": WaysideOS, a code prompt on the cabinet's screen (ArcadeV2/waysideOS.ts).
   // secret: off the shelf until its code is typed into WaysideOS (Arcade/unlocks.ts), or,
   // for "???" and Snow Globe, until it's bought at the station's ticket counter.
   secret?: boolean;
-  special?: "mystery" | "shuffle" | "soon" | "wayside";
+  special?: "mystery" | "shuffle" | "locked" | "wayside";
   // Label colour and one-line pitch for the /arcade-v2 cartridge shelf.
   // font: a Google Font that suits the game, for its name on the label, marquee and card.
   // about: shown by the info button on the arcade's game card; developer is a GitHub handle.
@@ -1647,20 +1648,18 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // --- Secret: in testing, only on the shelf once you've typed DENVS into WaysideOS.
-    // No scores while it's in testing.
+    // Roguelike Space Invaders on a tabletop diorama of Denver. A full release since 2026-10-27
+    // (it was a secret, DENVS, in testing); no scores yet.
     {
       name: "Denver Vs The Universe",
-      added: "2026-10-07T03:30:00-06:00",
+      added: "2026-10-27T12:00:00-06:00",
       videoUrl: "/game-recordings/DenverVsTheUniverse.mp4",
-      secret: true,
-      earlyAccess: true,
       cartridge: {
         color: "#8a3fd6",
         tagline: "Aliens over the Mile High City. Hold the diorama.",
         font: { family: "Bungee" },
         about: { released: "2026", players: "Single player", genre: "Roguelike shooter", developer: "sclondon" },
-        backNote: "test area",
+        backNote: "A tabletop Denver, and everything the universe can throw at it.",
       },
       hasLeaderboard: false,
       game: (
@@ -1828,48 +1827,6 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // --- Coming soon: carts on the shelf before their games exist. There's no
-    // video, just a cover (the URL finds stills/<Name>.jpg); plugged in, the
-    // screen says COMING SOON and nothing launches.
-    {
-      name: "Fury From The Tomb",
-      cartridge: {
-        color: "#c9a24a",
-        tagline: "The book's cursed tomb, awake at last.",
-        font: { family: "Cinzel", weight: 700 },
-        about: { released: "Coming soon", players: "Single player", genre: "Adventure", developer: "sclondon" },
-      },
-      videoUrl: `${RECORDINGS}/FuryFromTheTomb.mp4`,
-      hasLeaderboard: false,
-      special: "soon",
-      game: null,
-    },
-    {
-      name: "Satellite Sim",
-      cartridge: {
-        color: "#4a8cff",
-        tagline: "Real satellites, circling the Earth, live.",
-        font: { family: "Audiowide" },
-        about: { released: "Coming soon", players: "Single player", genre: "Simulation", developer: "sclondon" },
-      },
-      videoUrl: `${RECORDINGS}/SatelliteSim.mp4`,
-      hasLeaderboard: false,
-      special: "soon",
-      game: null,
-    },
-    {
-      name: "Depth",
-      cartridge: {
-        color: "#3fd8e8",
-        tagline: "Go down. Keep going down.",
-        font: { family: "Pixelify Sans", weight: 700 },
-        about: { released: "Coming soon", players: "Single player", genre: "Metroidvania", developer: "sclondon" },
-      },
-      videoUrl: `${RECORDINGS}/Depth.mp4`,
-      hasLeaderboard: false,
-      special: "soon",
-      game: null,
-    },
     {
       name: "???",
       cartridge: {
@@ -1889,23 +1846,26 @@ export function createArcadeGames(): MachineData[] {
       game: null,
     },
   ];
-  // Secret carts stay off the shelf until they're unlocked on this device. The shelf runs
+  // Secret carts with a WaysideOS code sit in the LOCKED group until it's typed on this device;
+  // ones bought at the ticket counter stay off the shelf until then. The shelf runs
   // group by group, each in alphabetical order (Shuffle leads the finished games, "???" ends them)
   const edge = (game: MachineData) => (game.special === "shuffle" ? -1 : game.special === "mystery" ? 1 : 0);
+  const codeCarts = Object.values(SECRET_CARTS);
   const favourites = favouriteCarts();
   return games
-    .filter((game) => !game.secret || unlocked.includes(game.name))
+    .filter((game) => !game.secret || unlocked.includes(game.name) || codeCarts.includes(game.name))
+    .map((game): MachineData => (game.secret && !unlocked.includes(game.name) ? { ...game, special: "locked" } : game))
     .map((game) => (favourites.includes(game.name) ? { ...game, favourite: true } : game))
     .sort((a, b) => shelfGroupOf(a) - shelfGroupOf(b) || edge(a) - edge(b) || byName(a, b));
 }
 
 // The shelf's groups, left to right, with a wider gap between one and the next: the favourites, the cassette
 // carts (things to do), new games (finished ones, or early access with newShelf, for their first day or a day after an update), the finished games
-// ("???" among them), early access, and coming soon
+// ("???" among them), early access, and the locked ones
 export function shelfGroupOf(game: MachineData) {
   if (game.favourite) return -1;
   if (game.special === "mystery") return 2;
-  if (game.special === "soon") return 4;
+  if (game.special === "locked") return 4;
   if (game.earlyAccess) return onNewShelf(game) ? 1 : 3;
   if (game.cartridge.cassette) return 0;
   return onNewShelf(game) ? 1 : 2;

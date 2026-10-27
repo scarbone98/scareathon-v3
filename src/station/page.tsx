@@ -566,7 +566,7 @@ export default function StationPage() {
   const [playing, setPlaying] = useState<MachineData | null>(null);
   const [transition, setTransition] = useState<{ mode: "on" | "off"; game: MachineData | null } | null>(null);
   const play = (game: MachineData) => {
-    if (game.special === "mystery" || game.special === "soon" || game.special === "wayside") return;
+    if (game.special === "mystery" || game.special === "locked" || game.special === "wayside") return;
     const picked = game.special === "shuffle" ? pickShuffleGame(games) : game;
     markPlayed(picked.name);
     setTransition({ mode: "on", game: picked });
