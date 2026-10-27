@@ -147,6 +147,8 @@ const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/inde
 const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e529";
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
+// A frog band on a riverboat, and a camera desk for filming it (github.com/Sclondon/Frogulizer).
+const FROGULIZER_URL = "https://sclondon.github.io/Frogulizer/build/index.html?v=4cc8675";
 // An interactive music video for mewithoutYou's "The Fox, the Crow and the Cookie": a pixel-art wood
 // to pan around and tap while the story plays (github.com/Sclondon/TheFoxTheCrowAndTheCookie). The song
 // plays from Spotify's (or YouTube's) official embed inside the game, so its frame must allow autoplay
@@ -1740,6 +1742,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Daughter Of The Wind"
           url={DAUGHTER_OF_THE_WIND_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // Secret: on the shelf once FROG is typed into WaysideOS. No score: a music visualiser with a camera desk.
+    {
+      name: "Frogulizer",
+      added: "2026-10-27T13:58:00-06:00",
+      videoUrl: "/game-recordings/Frogulizer.mp4",
+      secret: true,
+      availableOnMobile: true,
+      cartridge: {
+        color: "#c8432b",
+        tagline: "A frog band on a riverboat. Point the camera and film the dance.",
+        font: { family: "Rye", weight: 400 },
+        about: { released: "2026", players: "Single player", genre: "Music visualiser", developer: "sclondon" },
+        backNote: "camera desk",
+      },
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Frogulizer"
+          url={FROGULIZER_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
