@@ -1,6 +1,6 @@
 // Riding physics, tricks and scoring for Ghost Ridge. No three.js here, so
 // the bot and balance checks can run it without a screen.
-import { buildCourse, centerAt, courseHeading, G, GATE_BONUS, GATES, heightAt, LENGTH, nearbyObstacles, normalAt, START_D, type Course } from "./course";
+import { buildCourse, centerAt, courseHeading, G, GATE_BONUS, GATES, heightAt, kickerLipAt, LENGTH, nearbyObstacles, normalAt, START_D, type Course } from "./course";
 
 export const START_TIME = 55;
 const DT = 1 / 120;
@@ -279,6 +279,7 @@ function ground(g: Game, dt: number, inp: Input) {
   if (g.p.y - h > 0.22) {
     // The snow fell away beneath us.
     takeOff(g, inp);
+    kick(g);
     return;
   }
   g.p.y = h;
@@ -289,6 +290,7 @@ function ground(g: Game, dt: number, inp: Input) {
   // Moving away from the snow (off a lip or over a crest): take off.
   if (vn > 1.8) {
     takeOff(g, inp);
+    kick(g);
     return;
   }
   if (vn !== 0) {
@@ -300,6 +302,14 @@ function ground(g: Game, dt: number, inp: Input) {
     v.y *= s / s2;
     v.z *= s / s2;
   }
+}
+
+// Riding off a kicker's lip throws you up by itself, more off a bigger one, so
+// every kicker is a real jump without pressing anything (an ollie on top goes higher).
+export const KICK = { base: 1.5, perMetre: 0.8 };
+function kick(g: Game) {
+  const k = kickerLipAt(g.course, g.p.x, g.p.z);
+  if (k) g.v.y += KICK.base + k.h * KICK.perMetre;
 }
 
 function ollie(g: Game, n: V3) {
