@@ -18,8 +18,25 @@ const COUNT_MS = 700;
 const HANG_MS = 1500;
 const GIVE_UP_MS = 3000; // (nothing came of it: back up)
 
-export default function TicketDrop() {
+// After a game's closed, a beat for the screen to power off before it drops
+const AFTER_GAME_MS = 600;
+
+// `hold`: a game is open over the station (it'd drop behind it, and be back up before you'd
+// quit). What it wins is kept, added up, and counted in once you're back.
+export default function TicketDrop({ hold = false }: { hold?: boolean }) {
   const { data: summary } = useSummary();
+  const holding = useRef(hold);
+  holding.current = hold;
+  const kept = useRef<Win | null>(null);
+  useEffect(() => {
+    if (hold || !kept.current) return;
+    const timer = window.setTimeout(() => {
+      const win = kept.current;
+      kept.current = null;
+      if (win) window.dispatchEvent(new CustomEvent<Win>("wayside:tickets", { detail: win }));
+    }, AFTER_GAME_MS);
+    return () => window.clearTimeout(timer);
+  }, [hold]);
   const balance = summary?.coinBalance ?? null;
   const known = useRef<number | null>(balance);
   // Down or not; what it counts from, and to (null: not known yet); what it reads now
@@ -32,6 +49,14 @@ export default function TicketDrop() {
   useEffect(() => {
     const onTickets = (event: Event) => {
       const win = ((event as CustomEvent<Win | undefined>).detail ?? {}) as Win;
+      if (holding.current) {
+        const before = kept.current;
+        kept.current = {
+          tickets: (before?.tickets ?? 0) + (win.tickets ?? 0) || undefined,
+          balance: typeof win.balance === "number" ? win.balance : before?.balance ?? null,
+        };
+        return;
+      }
       // (from what it's showing, if it's already down; else from what you had)
       let from = down ? readingNow.current : known.current ?? 0;
       const to = typeof win.balance === "number" ? win.balance : win.tickets ? from + win.tickets : null;

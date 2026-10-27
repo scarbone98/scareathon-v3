@@ -892,7 +892,7 @@ export default function StationPage() {
         {/* Tickets coming in: a counter drops down from the top left and counts up */}
         {/* The capsule machine has no card: it's worked by hand, with its counter and prize over the scene */}
         {!directoryVisible && at === "capsule" && <Capsule signedIn={signedIn} goTo={goTo} />}
-        {!directoryVisible && <TicketDrop />}
+        {!directoryVisible && <TicketDrop hold={Boolean(playing || transition)} />}
         {/* The ticketmaster has a word for you as you walk up */}
         <ClerkSays arrived={!directoryVisible && at === "tickets" && atArrived && !held} />
 
