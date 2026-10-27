@@ -620,8 +620,9 @@ export class Renderer {
     // Rider.
     const r = this.rider;
     r.root.position.set(g.p.x, g.p.y, g.p.z);
-    const n = g.onGround && g.crashT <= 0 ? normalAt(this.course, g.p.x, g.p.z) : { x: 0, y: 1, z: 0 };
-    this.riderUp.lerp(new THREE.Vector3(n.x, n.y, n.z), 1 - Math.exp(-12 * dt)).normalize();
+    // In the air the board eases level with the snow it's coming down on.
+    const n = g.crashT <= 0 ? normalAt(this.course, g.p.x, g.p.z) : { x: 0, y: 1, z: 0 };
+    this.riderUp.lerp(new THREE.Vector3(n.x, n.y, n.z), 1 - Math.exp(-(g.onGround ? 12 : 4) * dt)).normalize();
     const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -g.heading);
     const tilt = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.riderUp);
     r.root.quaternion.copy(tilt.multiply(yaw));
