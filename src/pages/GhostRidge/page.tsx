@@ -6,7 +6,7 @@ import {
   type RunResult,
 } from "./game/controller";
 import { START_TIME } from "./game/sim";
-import { GATES } from "./game/course";
+import { GATES, LENGTH } from "./game/course";
 import "./ghostridge.css";
 
 const BEST_KEY = "ghost-ridge-best";
@@ -51,7 +51,7 @@ function Logo({ small = false }: { small?: boolean }) {
       <div
         className="gr-title"
         style={{
-          fontSize: small ? 34 : 58,
+          fontSize: small ? 34 : "min(58px, 11vh)",
           color: "#c88cff",
           textShadow: "0 3px 0 #4a1a7a, 0 6px 0 #120a24",
         }}
@@ -61,7 +61,7 @@ function Logo({ small = false }: { small?: boolean }) {
       <div
         className="gr-title"
         style={{
-          fontSize: small ? 48 : 84,
+          fontSize: small ? 48 : "min(84px, 16vh)",
           color: "#ff8a1f",
           textShadow: "0 4px 0 #8a3a00, 0 8px 0 #120a24, 0 0 26px #ff8a1f66",
         }}
@@ -148,9 +148,10 @@ function Stick({ ctrl }: { ctrl: GameController | null }) {
           />
         </div>
       ) : (
-        <div className="gr-o pointer-events-none absolute bottom-10 left-6 text-[9px] text-white/60">
+        <div className="gr-o gr-safe-bl pointer-events-none absolute bottom-10 left-6 text-[9px] leading-relaxed text-white/60">
           drag to steer
           <br />▲ tuck ▼ brake
+          <br />let go to land
         </div>
       )}
     </div>
@@ -197,24 +198,26 @@ function TouchControls({ ctrl }: { ctrl: GameController | null }) {
   return (
     <>
       <Stick ctrl={ctrl} />
-      <Pad
-        label="JUMP"
-        color="#ff7a1acc"
-        className="bottom-6 right-5 h-[88px] w-[88px] text-[11px]"
-        onChange={(d) => ctrl?.setButton("jump", d)}
-      />
-      <Pad
-        label="GRAB"
-        color="#7b3fd0cc"
-        className="bottom-[104px] right-[92px] h-16 w-16 text-[9px]"
-        onChange={(d) => ctrl?.setButton("grab", d)}
-      />
-      <Pad
-        label="BOOST"
-        color="#2fae62cc"
-        className="bottom-[124px] right-4 h-16 w-16 text-[8px]"
-        onChange={(d) => ctrl?.setButton("boost", d)}
-      />
+      <div className="gr-safe-br pointer-events-none absolute h-[200px] w-[190px] [&>*]:pointer-events-auto">
+        <Pad
+          label="JUMP"
+          color="#ff7a1acc"
+          className="bottom-6 right-5 h-[88px] w-[88px] text-[11px]"
+          onChange={(d) => ctrl?.setButton("jump", d)}
+        />
+        <Pad
+          label="GRAB"
+          color="#7b3fd0cc"
+          className="bottom-[104px] right-[92px] h-16 w-16 text-[9px]"
+          onChange={(d) => ctrl?.setButton("grab", d)}
+        />
+        <Pad
+          label="BOOST"
+          color="#2fae62cc"
+          className="bottom-[124px] right-4 h-16 w-16 text-[8px]"
+          onChange={(d) => ctrl?.setButton("boost", d)}
+        />
+      </div>
     </>
   );
 }
@@ -222,7 +225,7 @@ function TouchControls({ ctrl }: { ctrl: GameController | null }) {
 function HudBar({ hud, onPause }: { hud: Hud; onPause: () => void }) {
   const low = hud.time < 10 && hud.status === "ride";
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 px-3 pt-3">
+    <div className="gr-safe-top pointer-events-none absolute inset-x-0 top-0">
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="gr-o text-[9px] text-[#c88cff]">TIME</div>
@@ -246,7 +249,7 @@ function HudBar({ hud, onPause }: { hud: Hud; onPause: () => void }) {
             type="button"
             aria-label="Pause"
             onClick={onPause}
-            className="gr-btn gr-stone pointer-events-auto px-2 py-1.5 text-[10px]"
+            className="gr-btn gr-stone pointer-events-auto h-10 w-10 text-[10px]"
           >
             II
           </button>
@@ -262,7 +265,7 @@ function HudBar({ hud, onPause }: { hud: Hud; onPause: () => void }) {
           <div
             key={d}
             className={`absolute -top-1 h-3 w-1 ${i < hud.checkpoints ? "bg-[#7dffb0]" : "bg-[#ffcf4a]"}`}
-            style={{ left: `${(d / 3000) * 100}%` }}
+            style={{ left: `${(d / LENGTH) * 100}%` }}
           />
         ))}
       </div>
@@ -313,24 +316,24 @@ function HowTo({ onBack, touch }: { onBack: () => void; touch: boolean }) {
     ? [
         ["Drag left side", "Steer. Up to tuck for speed, down to brake."],
         ["Hold JUMP", "Crouch. Let go to jump; hold longer for more pop."],
-        ["In the air", "Drag left/right to spin, up/down to flip."],
+        ["In the air", "Let go, then drag left/right to spin or up/down to flip. Let go again to land straight."],
         ["GRAB", "Hold in the air for grab points."],
         ["BOOST", "Tricks and candy fill the meter."],
       ]
     : [
         ["← →", "Steer. ↑ to tuck for speed, ↓ to brake."],
         ["Space", "Hold to crouch, let go to jump."],
-        ["In the air", "← → to spin, ↑ ↓ to flip."],
+        ["In the air", "← → to spin, ↑ ↓ to flip. Let go to straighten out for the landing."],
         ["Z / K", "Hold in the air to grab."],
         ["Shift / X", "Boost. Tricks and candy fill the meter."],
       ];
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-[#0b0718]/70 p-4">
-      <div className="gr-panel w-full max-w-sm p-4">
+      <div className="gr-panel gr-scroll max-h-full w-full max-w-sm p-4 [@media(max-height:480px)]:max-w-xl">
         <div className="gr-o mb-3 text-center text-sm text-[#ffcf4a]">
           HOW TO RIDE
         </div>
-        <ul className="space-y-2.5">
+        <ul className="space-y-2.5 [@media(max-height:480px)]:space-y-1.5">
           {rows.map(([k, v]) => (
             <li key={k} className="flex gap-3 text-[9px] leading-relaxed">
               <span className="w-24 shrink-0 text-[#ff8a1f]">{k}</span>
@@ -371,9 +374,9 @@ function Results({
   ];
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-[#0b0718]/75 p-4">
-      <div className="gr-panel w-full max-w-sm p-4 text-center">
+      <div className="gr-panel gr-scroll max-h-full w-full max-w-sm p-4 text-center">
         <div
-          className="gr-title gr-o text-5xl"
+          className="gr-title gr-o text-5xl [@media(max-height:480px)]:text-3xl"
           style={{ color: result.finished ? "#7dffb0" : "#ff5a6a" }}
         >
           {result.finished ? "FINISHED!" : "TIME UP"}
@@ -402,7 +405,7 @@ function Results({
         >
           {isBest ? "NEW BEST!" : `Best ${best.toLocaleString()}`}
         </div>
-        <Btn className="mt-4 w-full" onClick={onAgain}>
+        <Btn className="mt-4 w-full [@media(max-height:480px)]:mt-2" onClick={onAgain}>
           RIDE AGAIN
         </Btn>
         <Btn color="stone" className="mt-2 w-full" onClick={onMenu}>
@@ -434,7 +437,7 @@ export default function GhostRidge() {
   const [muted, setMuted] = useState(
     () => localStorage.getItem(MUTE_KEY) === "1",
   );
-  const [touch] = useState(
+  const [touch, setTouch] = useState(
     () => window.matchMedia("(pointer: coarse)").matches,
   );
   // ?attract shows just the bot riding, for recording the cabinet video.
@@ -446,7 +449,7 @@ export default function GhostRidge() {
     const c = new GameController(hostRef.current!, canvasRef.current!, {
       onHud: setHud,
       onPopup: (p) => setPopups((list) => [...list.slice(-2), p]),
-      onPause: () => setPaused(true),
+      onPause: () => setPaused((p) => !p),
       onOver: (run) => {
         const prev = Number(localStorage.getItem(BEST_KEY)) || 0;
         const isBest = run.score > prev;
@@ -525,7 +528,10 @@ export default function GhostRidge() {
   return (
     <div
       className="gr-root fixed inset-0 z-50 overflow-hidden bg-[#0b0718] text-white"
-      onPointerDown={() => ctrl?.unlockAudio()}
+      onPointerDown={(e) => {
+        ctrl?.unlockAudio();
+        if (e.pointerType === "touch") setTouch(true);
+      }}
     >
       <div ref={hostRef} className="absolute inset-0">
         <canvas ref={canvasRef} className="gr-canvas" />
@@ -543,7 +549,7 @@ export default function GhostRidge() {
           {view === "ride" && touch && !paused && <TouchControls ctrl={ctrl} />}
 
           {(view === "title" || view === "howto") && (
-            <div className="absolute inset-0 flex flex-col items-center justify-between bg-gradient-to-b from-[#0b0718]/60 via-transparent to-[#0b0718]/80 px-6 pb-8 pt-[8vh]">
+            <div className="absolute inset-0 flex flex-col items-center justify-between bg-gradient-to-b from-[#0b0718]/60 via-transparent to-[#0b0718]/80 px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[8vh] [@media(max-height:480px)]:pb-4">
               <Logo />
               {view === "title" && (
                 <div className="flex w-full max-w-xs flex-col items-stretch gap-3">
@@ -580,8 +586,8 @@ export default function GhostRidge() {
           )}
 
           {view === "ride" && paused && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0b0718]/75 px-6">
-              <div className="gr-title gr-o mb-4 text-6xl text-[#ff8a1f]">
+            <div className="gr-scroll absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0b0718]/75 px-6 py-4 [@media(max-height:480px)]:gap-2">
+              <div className="gr-title gr-o mb-4 text-6xl text-[#ff8a1f] [@media(max-height:480px)]:mb-1 [@media(max-height:480px)]:text-4xl">
                 PAUSED
               </div>
               <Btn

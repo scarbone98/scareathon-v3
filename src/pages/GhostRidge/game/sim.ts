@@ -6,6 +6,13 @@ export const START_TIME = 55;
 const DT = 1 / 120;
 const SPIN_RATE = 7.4; // rad/s in the air
 const FLIP_RATE = 6.4;
+// With no spin or flip held, the rider eases toward the nearest landable
+// angle (rad/s), so letting go is how you stick a landing. Touch gets more.
+const SETTLE_RATE = 3;
+const TOUCH_SETTLE_RATE = 5.5;
+// A thumbstick can't snap back to centre like a key, so touch riders get a
+// wider landing window and need a firmer push to rotate.
+const TOUCH_DEAD = 0.35;
 const CANDY_POINTS = 25;
 const FINISH_POINTS = 2000;
 const TIME_POINTS = 100; // per second left at the finish
@@ -61,6 +68,12 @@ export type Game = {
   acc: number;
   // The title-screen rider passes through graves, trees and ghosts.
   ghostly: boolean;
+  // Riding on a touchscreen: softer air controls and landings.
+  touch: boolean;
+  // Stick directions still held from the snow when we took off (-1, 0, 1).
+  // They don't spin or flip us until they're let go.
+  heldSteer: number;
+  heldLean: number;
 };
 
 const GRABS = ["Indy", "Method", "Mute", "Stalefish", "Tail Grab", "Nose Grab", "Crail", "Graveyard Grab", "Mummy Wrap"];
@@ -105,6 +118,9 @@ export function newGame(course = sharedCourse()): Game {
     clock: 0,
     acc: 0,
     ghostly: false,
+    touch: false,
+    heldSteer: 0,
+    heldLean: 0,
   };
 }
 
@@ -255,14 +271,14 @@ function ground(g: Game, dt: number, inp: Input) {
   const h = heightAt(course, g.p.x, g.p.z);
   if (released && g.status === "ride") {
     g.p.y = Math.max(g.p.y, h) + 0.05;
-    takeOff(g);
+    takeOff(g, inp);
     ollie(g, n);
     return;
   }
   if (!inp.jump) g.charge = 0;
   if (g.p.y - h > 0.22) {
     // The snow fell away beneath us.
-    takeOff(g);
+    takeOff(g, inp);
     return;
   }
   g.p.y = h;
@@ -272,7 +288,7 @@ function ground(g: Game, dt: number, inp: Input) {
   const vn = v.x * n2.x + v.y * n2.y + v.z * n2.z;
   // Moving away from the snow (off a lip or over a crest): take off.
   if (vn > 1.8) {
-    takeOff(g);
+    takeOff(g, inp);
     return;
   }
   if (vn !== 0) {
@@ -293,10 +309,17 @@ function ollie(g: Game, n: V3) {
   g.v.z += n.z * pop;
   g.charge = 0;
   g.popped = true;
+  // On keys, steering into an ollie is how you wind up a spin. A thumb on the
+  // stick is usually still steering, so touch riders have to let go first.
+  // (A tuck held into an ollie never becomes a flip: up is tuck on the snow.)
+  if (!g.touch) g.heldSteer = 0;
   g.events.push({ type: "jump" });
 }
 
-function takeOff(g: Game) {
+// Any push on the stick counts as held; keys are all or nothing anyway.
+const heldDir = (v: number) => (Math.abs(v) > 0.1 ? Math.sign(v) : 0);
+
+function takeOff(g: Game, inp: Input) {
   g.popped = false;
   g.onGround = false;
   g.airT = 0;
@@ -306,6 +329,34 @@ function takeOff(g: Game) {
   g.grabName = "";
   g.carve = 0;
   g.boosting = false;
+  // Steering, tucking or braking over a lip shouldn't turn into a spin or flip.
+  g.heldSteer = heldDir(inp.steer);
+  g.heldLean = heldDir(inp.lean);
+}
+
+// The stick in the air. On touch only its main direction counts, past a dead
+// zone, so a steering thumb that drifts up or down doesn't flip us.
+function airStick(g: Game, inp: Input) {
+  let { steer, lean } = inp;
+  if (g.touch) {
+    const shape = (v: number) => Math.sign(v) * Math.max(0, (Math.abs(v) - TOUCH_DEAD) / (1 - TOUCH_DEAD));
+    const side = Math.abs(steer) >= Math.abs(lean);
+    steer = side ? shape(steer) : 0;
+    lean = side ? 0 : shape(lean);
+  }
+  // Held from the snow: ignored until let go (or pushed the other way).
+  if (g.heldSteer && heldDir(inp.steer) !== g.heldSteer) g.heldSteer = 0;
+  if (g.heldLean && heldDir(inp.lean) !== g.heldLean) g.heldLean = 0;
+  if (g.heldSteer) steer = 0;
+  if (g.heldLean) lean = 0;
+  return { steer, lean };
+}
+
+// Ease an angle toward the nearest whole multiple of period.
+function settle(a: number, period: number, step: number) {
+  const to = Math.round(a / period) * period;
+  const d = to - a;
+  return Math.abs(d) <= step ? to : a + Math.sign(d) * step;
 }
 
 function air(g: Game, dt: number, inp: Input) {
@@ -316,13 +367,15 @@ function air(g: Game, dt: number, inp: Input) {
   v.y *= keep;
   v.z *= keep;
   g.airT += dt;
-  if (g.status === "ride") {
-    g.spin += inp.steer * SPIN_RATE * dt;
-    g.flip += inp.lean * FLIP_RATE * dt;
-    if (inp.grab) {
-      if (!g.grabName) g.grabName = GRABS[Math.floor(Math.random() * GRABS.length)];
-      g.grabT += dt;
-    }
+  const { steer, lean } = g.status === "ride" ? airStick(g, inp) : { steer: 0, lean: 0 };
+  g.spin += steer * SPIN_RATE * dt;
+  g.flip += lean * FLIP_RATE * dt;
+  const rate = (g.touch ? TOUCH_SETTLE_RATE : SETTLE_RATE) * dt;
+  if (!steer) g.spin = settle(g.spin, Math.PI, rate);
+  if (!lean) g.flip = settle(g.flip, Math.PI * 2, rate);
+  if (g.status === "ride" && inp.grab) {
+    if (!g.grabName) g.grabName = GRABS[Math.floor(Math.random() * GRABS.length)];
+    g.grabT += dt;
   }
   // Letting go of jump just after leaving a lip still pops.
   if (g.jumpHeld && !inp.jump && !g.popped && g.airT < 0.15 && g.status === "ride") ollie(g, { x: 0, y: 1, z: 0 });
@@ -352,7 +405,7 @@ function land(g: Game) {
   const n = normalAt(g.course, g.p.x, g.p.z, tmpN);
   const v = g.v;
   const into = -(v.x * n.x + v.y * n.y + v.z * n.z);
-  const clean = offBy(g.flip, Math.PI * 2) < 0.75 && offBy(g.spin, Math.PI) < 0.8;
+  const clean = offBy(g.flip, Math.PI * 2) < (g.touch ? 1.05 : 0.75) && offBy(g.spin, Math.PI) < (g.touch ? 1.1 : 0.8);
   g.events.push({ type: "land", clean, hard: Math.min(1, into / 22) });
   if (!clean) {
     crash(g, "Bailed!");

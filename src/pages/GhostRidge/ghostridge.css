@@ -97,3 +97,22 @@
   touch-action: none;
 }
 .gr-pad[data-down="true"] { filter: brightness(1.4); transform: scale(0.94); }
+
+/* Keep the HUD and pads clear of notches, rounded corners and the home bar. */
+.gr-safe-top {
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left));
+}
+.gr-safe-br {
+  right: env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+.gr-safe-bl {
+  margin-left: env(safe-area-inset-left, 0px);
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Panels taller than a landscape phone scroll (the rest of the page doesn't). */
+.gr-scroll {
+  overflow-y: auto;
+  touch-action: pan-y;
+}

@@ -63,6 +63,8 @@ export class Sound {
   private chop = CHOPS[0];
   private mood: Mood = "off";
   private muted = false;
+  private paused = false;
+  private stumbleUntil = 0;
   private rnd = Math.random;
 
   unlock() {
@@ -73,8 +75,18 @@ export class Sound {
         return;
       }
       this.build();
+      if (this.paused) void this.ctx.suspend();
     }
-    if (this.ctx.state === "suspended") void this.ctx.resume();
+    if (this.ctx.state === "suspended" && !this.paused) void this.ctx.resume();
+  }
+
+  // Pausing (or leaving the tab) stops everything, board hiss and all, and
+  // picks the tune back up where it was.
+  setPaused(p: boolean) {
+    this.paused = p;
+    if (!this.ctx) return;
+    if (p && this.ctx.state === "running") void this.ctx.suspend();
+    if (!p && this.ctx.state === "suspended") void this.ctx.resume();
   }
 
   setMuted(m: boolean) {
@@ -492,7 +504,9 @@ export class Sound {
   // Muffle the music while airborne; it slams back in on landing.
   setAir(air: boolean) {
     if (!this.ctx) return;
-    this.musicFilter.frequency.setTargetAtTime(air ? 900 : 20000, this.ctx.currentTime, air ? 0.25 : 0.04);
+    // Landing in a crash: let the stumble play out first.
+    const at = Math.max(this.ctx.currentTime, air ? 0 : this.stumbleUntil);
+    this.musicFilter.frequency.setTargetAtTime(air ? 900 : 20000, at, air ? 0.25 : 0.04);
   }
 
   setRide(speed: number, carve: number, air: boolean) {
@@ -560,6 +574,7 @@ export class Sound {
         this.musicFilter.frequency.cancelScheduledValues(now);
         this.musicFilter.frequency.setValueAtTime(350, now);
         this.musicFilter.frequency.setTargetAtTime(20000, now + 0.9, 0.3);
+        this.stumbleUntil = now + 0.9;
       }
     },
     candy: () => {

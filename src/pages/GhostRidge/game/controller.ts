@@ -73,6 +73,8 @@ export class GameController {
 
   private keys = new Set<string>();
   private touch = { steer: 0, lean: 0, jump: false, grab: false, boost: false };
+  // Whichever was used last, keys or the touch controls, sets how forgiving the air is.
+  private onTouch = window.matchMedia("(pointer: coarse)").matches;
 
   constructor(private host: HTMLElement, canvas: HTMLCanvasElement, private cb: Callbacks) {
     this.renderer = new Renderer(canvas, sharedCourse());
@@ -82,6 +84,7 @@ export class GameController {
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("blur", this.onBlur);
+    document.addEventListener("visibilitychange", this.onVisibility);
     this.resize();
     this.snapCamera();
     this.sound.setMood("menu");
@@ -141,15 +144,21 @@ export class GameController {
     this.paused = p;
     this.last = performance.now();
     if (p) this.touch = { steer: 0, lean: 0, jump: false, grab: false, boost: false };
+    this.sound.setPaused(p || document.hidden);
   }
+
+  // A hidden tab goes quiet, on the title screen too.
+  private onVisibility = () => this.sound.setPaused(this.paused || document.hidden);
 
   setStick(steer: number, lean: number) {
     this.touch.steer = steer;
     this.touch.lean = lean;
+    this.onTouch = true;
   }
 
   setButton(name: "jump" | "grab" | "boost", down: boolean) {
     this.touch[name] = down;
+    this.onTouch = true;
   }
 
   dispose() {
@@ -159,6 +168,7 @@ export class GameController {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
     window.removeEventListener("blur", this.onBlur);
+    document.removeEventListener("visibilitychange", this.onVisibility);
     this.sound.dispose();
     this.renderer.dispose();
   }
@@ -171,6 +181,7 @@ export class GameController {
     if (["arrowleft", "arrowright", "arrowup", "arrowdown", " "].includes(k)) e.preventDefault();
     if ((k === "escape" || k === "p") && this.mode === "ride") this.cb.onPause();
     this.keys.add(k);
+    this.onTouch = false;
   };
 
   private onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
@@ -211,6 +222,7 @@ export class GameController {
     if (!this.paused) {
       this.time += dt;
       const g = this.game;
+      if (this.mode !== "demo") g.touch = this.onTouch;
       const input = this.mode === "demo" ? botInput(g, this.bot, dt) : this.mode === "ride" ? this.readInput() : NO_INPUT;
       step(g, dt, input);
       this.handleEvents();

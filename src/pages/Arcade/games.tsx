@@ -854,7 +854,7 @@ export function createArcadeGames(): MachineData[] {
     },
     {
       name: "Ghost Ridge",
-      earlyAccess: true,
+      updated: "2026-10-27T14:00:00-06:00",
       cartridge: {
         color: "#2b2150",
         tagline: "Shred the haunted mountain.",
