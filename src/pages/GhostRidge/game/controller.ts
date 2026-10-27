@@ -309,8 +309,8 @@ export class GameController {
         case "crash":
           play.crash();
           if (e.reason === "Spooked!") play.ghost();
+          // no word for it: the shake, the sound and the tumble say enough
           this.shake = 1;
-          this.popup(e.reason, "#ff5a6a");
           break;
         case "candy":
           play.candy();
