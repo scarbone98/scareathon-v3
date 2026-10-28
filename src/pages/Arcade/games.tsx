@@ -140,12 +140,12 @@ const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/i
 // the server's /penguins/ws.
 const PENGUIN_SLIDE_URL = "https://sclondon.github.io/PenguinSlide/build/index.html?v=cf636b8";
 // Warren (was The Clearing): github.com/Sclondon/Warren (Godot web build on GitHub Pages)
-const WARREN_URL = "https://sclondon.github.io/Warren/build/index.html?v=fa2e614";
+const WARREN_URL = "https://sclondon.github.io/Warren/build/index.html?v=8a20e18";
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dc264d1";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
 // A touch-first 3D character controller after Inside (github.com/Sclondon/Outside), in testing.
-const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=7f6e529";
+const OUTSIDE_URL = "https://sclondon.github.io/Outside/build/index.html?v=8348b89";
 // A glider, a sky of clouds and a fleet of airships (github.com/Sclondon/DaughterOfTheWind), in testing.
 const DAUGHTER_OF_THE_WIND_URL = "https://sclondon.github.io/DaughterOfTheWind/build/index.html?v=98d569b";
 // A frog band on a riverboat, and a camera desk for filming it (github.com/Sclondon/Frogulizer).
