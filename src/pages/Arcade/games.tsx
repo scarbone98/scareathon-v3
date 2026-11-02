@@ -157,7 +157,7 @@ const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html
 // till it poofs, and get marked on it (github.com/Sclondon/HubbleBubble; the repo keeps the old name).
 const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=234a756";
 // A raccoon 3D platformer on a Pacific Northwest hill, after Banjo-Kazooie (github.com/Sclondon/Ringtail), in testing.
-const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=6a312f8";
+const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=527f386";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
