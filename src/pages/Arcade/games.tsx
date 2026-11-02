@@ -156,6 +156,8 @@ const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html
 // Cauldron (was Hubble Bubble): Granny Grumblewart's potion shop. Brew what the customers order, stir it
 // till it poofs, and get marked on it (github.com/Sclondon/HubbleBubble; the repo keeps the old name).
 const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=234a756";
+// A raccoon 3D platformer on a Pacific Northwest hill, after Banjo-Kazooie (github.com/Sclondon/Ringtail), in testing.
+const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=6a312f8";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1347,6 +1349,30 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Atlas"
           url={ATLAS_URL}
+          desktopAspectRatio={16 / 9}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // A 3D collect-a-thon, no score yet: a raccoon with tail moves on a Pacific Northwest hill.
+    // Desktop first (keys or a pad); food to find and lost raccoons to bring home in four zones.
+    {
+      name: "Ringtail",
+      added: "2026-11-02T13:37:00-07:00",
+      earlyAccess: true,
+      cartridge: {
+        color: "#6f8f3a",
+        tagline: "Raid the bins. Spin your tail. Bring the lost kits home.",
+        font: { family: "Luckiest Guy" },
+        about: { released: "2026", players: "Single player", genre: "3D platformer", developer: "sclondon" },
+        backNote: "Push the stick all the way to run on all fours.",
+      },
+      videoUrl: "/game-recordings/Ringtail.mp4",
+      hasLeaderboard: false,
+      game: (
+        <GameRenderer
+          title="Ringtail"
+          url={RINGTAIL_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
