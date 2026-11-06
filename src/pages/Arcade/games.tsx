@@ -139,8 +139,6 @@ const CLOSE_ENCOUNTERS_URL = "https://sclondon.github.io/CloseEncounters/build/i
 // Downhill penguin racing (github.com/Sclondon/PenguinSlide), in testing. Its race rooms are
 // the server's /penguins/ws.
 const PENGUIN_SLIDE_URL = "https://sclondon.github.io/PenguinSlide/build/index.html?v=cf636b8";
-// Warren (was The Clearing): github.com/Sclondon/Warren (Godot web build on GitHub Pages)
-const WARREN_URL = "https://sclondon.github.io/Warren/build/index.html?v=8a20e18";
 const OCTOBER_VALLEY_URL = "https://sclondon.github.io/OctoberValley/build/index.html?v=dc264d1";
 // Roguelike Space Invaders on a diorama table (github.com/Sclondon/DenverVsTheUniverse), in testing.
 const DENVER_VS_URL = "https://sclondon.github.io/DenverVsTheUniverse/build/index.html?v=075aa17";
@@ -1397,29 +1395,6 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Lounge"
           url={SCENIC_ROUTE_URL}
-          desktopAspectRatio={16 / 9}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-        />
-      ),
-    },
-    // Alone, or online rooms for up to four (server/routes/theClearing.js). No scores yet.
-    {
-      name: "Warren",
-      added: "2026-10-26T12:00:00-06:00",
-      availableOnMobile: true,
-      videoUrl: "/game-recordings/Warren.mp4",
-      cartridge: {
-        color: "#5f7a4a",
-        tagline: "You wake in the middle of a maze. Find the way out.",
-        font: { family: "Special Elite" },
-        about: { released: "2026", players: "1-4 players, online", genre: "Maze", developer: "sclondon" },
-        backNote: "Bring friends. Share the room code.",
-      },
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Warren"
-          url={WARREN_URL}
           desktopAspectRatio={16 / 9}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
