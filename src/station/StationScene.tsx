@@ -73,6 +73,9 @@ import { AQUARIUM_OPEN, HATCH, HEADINGS, HUB, STOPS, VIEWS, type Heading, type S
 import { CAPSULE_MS, CAPSULE_TICKETS, capsuleMachine } from "./capsuleSignal.ts";
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
+import { buildAutumn, isAutumnSeason } from "./autumn.ts"; // AUTUMN
+import { buildChristmas, isChristmasSeason } from "./christmas.ts"; // CHRISTMAS
+import { featuredEvent } from "../seasonEvents.ts";
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
 import { loadAvatarManifest } from "../components/avatar/manifest.ts";
 import { mergeFixedParts } from "../pages/ArcadeV2/mergeParts.ts";
@@ -719,6 +722,7 @@ function buildBulletin() {
 
 // The poster frame over the events table shows tonight's film, or the event's own poster
 function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, line: string) {
+  if (featuredEvent().id === "christmathon") return drawChristmasPoster(ctx, w, h, title, line);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, "#1a0d05");
   g.addColorStop(1, "#3a1405");
@@ -741,6 +745,74 @@ function drawEventPoster(ctx: CanvasRenderingContext2D, w: number, h: number, ti
   ctx.font = "italic 20px Georgia, serif";
   ctx.fillText(line, w / 2, h - 28, w - 30);
   ctx.strokeStyle = "#ffd9a0";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(10, 10, w - 20, h - 20);
+}
+
+// Christmathon's: a snowy night, a star over the hills, firs on them, and snow coming down
+function drawChristmasPoster(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, line: string) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#08142e");
+  g.addColorStop(0.6, "#1a2e58");
+  g.addColorStop(1, "#0c1a36");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  // The star, and its rays
+  const starX = w * 0.68;
+  const starY = h * 0.2;
+  const glow = ctx.createRadialGradient(starX, starY, 0, starX, starY, w * 0.3);
+  glow.addColorStop(0, "rgba(255,236,170,0.55)");
+  glow.addColorStop(1, "rgba(255,236,170,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h * 0.6);
+  ctx.fillStyle = "#fff2c0";
+  ctx.beginPath();
+  for (let i = 0; i <= 8; i += 1) {
+    const angle = -Math.PI / 2 + (i / 8) * Math.PI * 2;
+    const r = i % 2 ? 5 : i % 4 ? 16 : 30;
+    ctx.lineTo(starX + Math.cos(angle) * r, starY + Math.sin(angle) * r);
+  }
+  ctx.fill();
+  // Snowy hills, the far one bluer, firs dark along the near one
+  ctx.fillStyle = "#9fb4d8";
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.6);
+  for (let x = 0; x <= w; x += 8) ctx.lineTo(x, h * 0.5 - Math.sin(x * 0.02 + 1) * 18);
+  ctx.lineTo(w, h * 0.62);
+  ctx.lineTo(0, h * 0.62);
+  ctx.fill();
+  ctx.fillStyle = "#e8eef8";
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.64);
+  for (let x = 0; x <= w; x += 8) ctx.lineTo(x, h * 0.57 - Math.sin(x * 0.03 + 4) * 12);
+  ctx.lineTo(w, h * 0.64);
+  ctx.fill();
+  ctx.fillStyle = "#0e2a1a";
+  [[0.12, 26], [0.22, 18], [0.8, 30], [0.9, 20]].forEach(([at, tall]) => {
+    const x = w * at;
+    const y = h * 0.57 - Math.sin(x * 0.03 + 4) * 12 + 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - tall);
+    ctx.lineTo(x + tall * 0.35, y);
+    ctx.lineTo(x - tall * 0.35, y);
+    ctx.fill();
+  });
+  ctx.fillStyle = "#0c1a36";
+  ctx.fillRect(0, h * 0.635, w, h);
+  // Falling snow (the same flakes every time it's drawn)
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  for (let i = 0; i < 70; i += 1) {
+    const x = (i * 97) % w;
+    const y = (i * 61) % (h * 0.62);
+    ctx.fillRect(x, y, i % 3 ? 2 : 3, i % 3 ? 2 : 3);
+  }
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#fff2d6";
+  ctx.font = "700 36px Georgia, serif";
+  wrap(ctx, title.toUpperCase(), w - 30, 2).forEach((text, i) => ctx.fillText(text, w / 2, h * 0.73 + i * 40, w - 30));
+  ctx.font = "italic 20px Georgia, serif";
+  ctx.fillText(line, w / 2, h - 28, w - 30);
+  ctx.strokeStyle = "#e8c860";
   ctx.lineWidth = 4;
   ctx.strokeRect(10, 10, w - 20, h - 20);
 }
@@ -939,7 +1011,8 @@ function buildEvents() {
   // The poster on the wall above the stand
   const posterZ = POSTER_Z;
   group.add(box(1.0, 1.4, 0.04, standard("#2a1d14", 0.7), 0, 2.38, posterZ));
-  const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, "Scare-athon", "October 1 to 31"));
+  const event = featuredEvent();
+  const posterTexture = paint(256, 384, (ctx, w, h) => drawEventPoster(ctx, w, h, event.id === "christmathon" ? "Christmathon" : "Scare-athon", `${event.monthName} 1 to ${event.lastDay}`));
   const poster = plane(0.88, 1.28, standard("#ffffff", 0.8, posterTexture), 0, 2.38, posterZ + 0.025);
   group.add(poster);
   group.userData.poster = poster;
@@ -948,7 +1021,7 @@ function buildEvents() {
   group.add(plane(1.5, 1.9, new MeshBasicMaterial({ map: glowTexture(), color: "#ffb15a", transparent: true, opacity: 0.14, blending: AdditiveBlending, depthWrite: false }), 0, POSTER_Y, posterZ - 0.005));
   const scareathonSign = new Group();
   scareathonSign.position.set(0, SIGN_Y, posterZ + 0.02);
-  scareathonSign.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture("SCAREATHON", "#ffd9a0", "#120d08", "700 72px Georgia, serif"))));
+  scareathonSign.add(plane(1.1, 0.21, standard("#ffffff", 0.8, signTexture(event.name.toUpperCase(), "#ffd9a0", "#120d08", "700 72px Georgia, serif"))));
   group.add(rattles(scareathonSign, "sign"));
   addLamp(group, 0, 2.4, 1.0);
   group.add(hitBox(1.55, 1.7, 0.5, 0.85));
@@ -2468,7 +2541,7 @@ function creamPaintTexture() {
 const CAR_ADVERTS: [string, string, string][] = [
   ["MIND THE GAP", "Between this world and the next", "#7a1f1a"],
   ["THE ARCADE", "Open all night on the platform", "#1f3a5a"],
-  ["SCAREATHON", "A film every night in October", "#b4501a"],
+  featuredEvent().id === "christmathon" ? ["CHRISTMATHON", "A film every night until Christmas", "#1f6a3a"] : ["SCAREATHON", "A film every night in October", "#b4501a"],
   ["LOST PROPERTY", "Ask at the counter. Do not ask what", "#2f4a2f"],
 ];
 function advertStripTexture() {
@@ -2799,6 +2872,9 @@ function buildTrain() {
 
 // ?hour= in the address the site was opened at: the time of day to show instead of the
 // clock's (kept for the visit, in case the address had changed by the time this file loaded)
+// (whether the address asks for the weather: if not, it snows all December. Read as the
+// station loads, before it tidies the address)
+const WEATHER_ASKED = new URLSearchParams(window.location.search).has("weather");
 const ASKED_HOUR = (() => {
   if (typeof window === "undefined") return null;
   // (however it was tacked on: "?face=back?hour=13" too, which isn't a proper address)
@@ -2867,6 +2943,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const LAMP_TINTS = [null, "#ff6a1a", "#7dff6a", "#b45cff", "#5ab4ff", "#ff4a6a"].map((tint) => (tint ? new Color(tint) : null));
     const LAMP_GLASS = LAMP_TINTS.map((tint) => (tint ? lampGlass.color.clone().lerp(tint, 0.7) : lampGlass.color));
     const lamps: Lamp[] = [];
+    const autumnLamps = isAutumnSeason(); // AUTUMN
+    const AUTUMN_LAMP = new Color("#ff9a4a");
     const mothWing = new MeshBasicMaterial({ color: "#d9cfb4", side: DoubleSide, transparent: true, opacity: 0.85 });
     const ceilingLamp = (x: number, z: number, light: PointLight) => {
       const glass = lampGlass.clone();
@@ -2883,6 +2961,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       scene.add(moths);
       // HALLOWEEN: each lamp comes on in a colour of its own (the rest of the year, its warm white)
       const tint = isHalloweenSeason() ? 1 + Math.floor(Math.random() * (LAMP_TINTS.length - 1)) : 0;
+      if (autumnLamps) light.color.lerp(AUTUMN_LAMP, 0.35); // AUTUMN: a warmer light all November
       const warm = light.color.clone();
       if (tint) light.color.copy(LAMP_TINTS[tint] ?? warm);
       lamps.push({ light, glass, base: light.intensity, tappedAt: -10, seed: 0, hit, nextFlicker: (tint ? 15 : 12) + Math.random() * (tint ? 75 : 40), moths, warm, tint });
@@ -3987,7 +4066,8 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const starGeometry = new BufferGeometry();
     starGeometry.setAttribute("position", new Float32BufferAttribute(starPositions, 3));
     // (fainter, or gone, when the weather's in)
-    const weather = weatherNow();
+    // CHRISTMAS: it snows all December (unless ?weather= asks for something else)
+    const weather = isChristmasSeason() && !WEATHER_ASKED ? "snow" : weatherNow();
     const starLight = new PointsMaterial({ color: "#cfd8ff", size: 1.5, sizeAttenuation: false, fog: false, transparent: true, opacity: weather === "clear" ? 1 : weather === "snow" ? 0.35 : 0.12 });
     scene.add(new Points(starGeometry, starLight));
     if (weather !== "clear") {
@@ -4388,8 +4468,12 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       if (child.userData.opens) opening.push(child as Group);
     });
     // HALLOWEEN: bats and jack-o'-lanterns, in October only (see halloween.ts)
-    const halloween = isHalloweenSeason() ? buildHalloween({ wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02 + (AQUARIUM_OPEN ? AQUARIUM_TOP : 0), WALL_Z + 0.25] }) : null;
+    const stationShape = { wallZ: WALL_Z, sideX: SIDE_X, endX: END_X, edgeZ: EDGE_Z, ceilingY: 4.04, ticketsAt: [SIDE_X - 0.13, 1.095, TICKET_Z] as [number, number, number], lockersTop: [-5.3, 0.12 + 2 * LOCKER_H + 0.02 + (AQUARIUM_OPEN ? AQUARIUM_TOP : 0), WALL_Z + 0.25] as [number, number, number] };
+    const halloween = isHalloweenSeason() ? buildHalloween(stationShape) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
+    // AUTUMN: leaves and squashes in November (autumn.ts); CHRISTMAS: garland, wreaths and a tree in December (christmas.ts)
+    const seasonal = isAutumnSeason() ? buildAutumn(stationShape) : isChristmasSeason() ? buildChristmas(stationShape) : null;
+    if (seasonal) scene.add(seasonal);
     halloweenRef.current = halloween;
     // Across the tracks, in some of the quiet between trains: somebody stood by the fence,
     // a shape darker than the dark, watching the platform. The next train goes by and
@@ -4953,6 +5037,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         const ahead = camera.getWorldDirection(new Vector3());
         halloween.userData.update(t, reduced, Math.atan2(ahead.x, ahead.z));
       }
+      seasonal?.userData.update(t, reduced); // AUTUMN, CHRISTMAS (the tree's lights twinkle)
       // (nothing falls inside a train: the passing one, or the one you ride in on)
       outsideWeather.userData.update(t, reduced, (train.visible && train.position.x > -60) || arrival.active);
       // The eyes at the transoms: every 41 s or so, at one window or the other, for 6 s
