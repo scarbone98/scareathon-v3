@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { needsSignIn, useLooks, useScareboard, type PlayerLook } from "../data.ts";
+import { needsSignIn, standingsLabels, useLooks, useScareboard, type PlayerLook } from "../data.ts";
+import { featuredEvent, SEASON_EVENTS, type SeasonEvent } from "../../seasonEvents";
 import { DEFAULT_BANNER, ON_BANNER_TEXT, bannerStyle } from "../banners.ts";
 import NewsDot from "../../components/NewsDot";
 import { notePlaces, placesSeen } from "../seen.ts";
@@ -220,23 +221,24 @@ function usePlacesMoved(year: number | undefined, rows: { name: string; rank: nu
   return (name: string, rank: number) => (before && name in before && before[name] !== rank ? before[name] : undefined);
 }
 
-function Standings({ signedIn }: { signedIn: boolean }) {
+function Standings({ signedIn, event }: { signedIn: boolean; event: SeasonEvent }) {
   const [year, setYear] = useState<number | null>(null);
-  const { data, isLoading, error } = useScareboard(year, signedIn);
+  const { data, isLoading, error } = useScareboard(year, signedIn, event);
   const before = usePlacesMoved(data?.leaderboard.meta?.year, data?.leaderboard.data ?? []);
-  const { data: me } = useScareathonMe(signedIn);
+  const { data: me } = useScareathonMe(signedIn, event);
   const compact = useIsMobileArcade();
   const { data: looks, isPending: looksPending } = useLooks((data?.leaderboard.data ?? []).flatMap((row) => (row.userId ? [row.userId] : [])));
   if (!signedIn || needsSignIn(error)) return null;
   if (isLoading && !data) return <Line>FLIPPING...</Line>;
   if (error) return <Line>BOARD FAULT: {error.message.toUpperCase()}</Line>;
   const meta = data?.leaderboard.meta;
+  const labels = standingsLabels(meta, event);
   const rows = data?.leaderboard.data ?? [];
   const winsFor = (name: string) => (data?.pastWinners.data ?? []).filter((w) => w.name === name).map((w) => w.year.slice(2, 4));
   return (
     <>
       <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[13px] opacity-80">
-        <span className="mr-1">{meta?.isLive ? "LIVE STANDINGS" : meta?.isPreseason ? "PRESEASON - STARTS OCT 01" : "HISTORICAL"}</span>
+        <span className="mr-1">{labels.label}</span>
         {(meta?.availableYears ?? []).map((y) => (
           <Key key={y} active={y === meta?.year} onClick={() => setYear(y)}>
             {String(y)}
@@ -245,7 +247,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
         {/* (over the totals down the right) */}
         <span className="ml-auto pr-1.5">POINTS</span>
       </div>
-      {rows.length === 0 && <Line>{meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"}</Line>}
+      {rows.length === 0 && <Line>{labels.empty}</Line>}
       {rows.map((row) => {
         const wins = winsFor(row.name);
         return (
@@ -277,7 +279,7 @@ function Standings({ signedIn }: { signedIn: boolean }) {
           />
         );
       })}
-      {me?.isAdmin && <ScareathonAdminPanel className="mt-4" />}
+      {me?.isAdmin && <ScareathonAdminPanel className="mt-4" seasonEvent={event} />}
     </>
   );
 }
@@ -613,10 +615,12 @@ function ProfileCard({ player, games, onClose }: { player: Viewed; games: string
   );
 }
 
-// The board on the wall: the Scareboard, and the arcade's hi-scores (straight to one game's,
+// The board on the wall: the event's standings (in November and December the Christmathon's, with
+// the Scareathon's a key along), and the arcade's hi-scores (straight to one game's,
 // with `game`: the arcade's leaderboard key)
 export default function DepartureBoard({ signedIn, goTo, games = [], game }: Props) {
-  const [board, setBoard] = useState<"scareathon" | "podium" | "arcade">(game && games.includes(game) ? "arcade" : "scareathon");
+  const featured = featuredEvent();
+  const [board, setBoard] = useState<"event" | "scareathon" | "podium" | "arcade">(game && games.includes(game) ? "arcade" : "event");
   const [viewing, setViewing] = useState<Viewed | null>(null);
   const closeProfile = useCallback(() => setViewing(null), []);
   return (
@@ -628,9 +632,14 @@ export default function DepartureBoard({ signedIn, goTo, games = [], game }: Pro
         <span className="text-[26px] font-bold tracking-wide">SCOREBOARD</span>
       </div>
       <div className="mb-2 flex gap-1.5">
-        <Key active={board === "scareathon"} onClick={() => setBoard("scareathon")}>
-          SCAREATHON
+        <Key active={board === "event"} onClick={() => setBoard("event")}>
+          {featured.name.toUpperCase()}
         </Key>
+        {featured.id !== "scareathon" && (
+          <Key active={board === "scareathon"} onClick={() => setBoard("scareathon")}>
+            SCAREATHON
+          </Key>
+        )}
         {/* (the same standings, everyone stood on a podium) */}
         <Key active={board === "podium"} onClick={() => setBoard("podium")}>
           PODIUM
@@ -645,7 +654,12 @@ export default function DepartureBoard({ signedIn, goTo, games = [], game }: Pro
         {board === "arcade" ? (
           <ArcadeScores games={games} start={game} />
         ) : signedIn ? (
-          board === "podium" ? <Podium signedIn={signedIn} /> : <Standings signedIn={signedIn} />
+          board === "podium" ? (
+            <Podium signedIn={signedIn} />
+          ) : (
+            // (keyed, so each event's board keeps its own year)
+            <Standings key={board} signedIn={signedIn} event={board === "scareathon" ? SEASON_EVENTS.scareathon : featured} />
+          )
         ) : (
           <>
             <Line>STANDINGS ......... SIGNED-IN PASSENGERS</Line>

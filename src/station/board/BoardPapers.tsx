@@ -17,6 +17,7 @@ import {
   useSummary,
   type ContentLoopItem,
 } from "../data.ts";
+import { eventBlurb, featuredEvent } from "../../seasonEvents";
 import { createArcadeGames, normalizeMachineName } from "../../pages/Arcade/games";
 import type { GoTo } from "../stops.ts";
 import { AvatarView } from "../../components/avatar/AvatarView";
@@ -296,28 +297,33 @@ function ArcadePost({ challenge, game, spotlight, signedIn, goTo, full }: { chal
   );
 }
 
-// ---- The event post: the Scareathon, as a film poster
+// ---- The event post: the event the station is showing (Scareathon, or Christmathon), as a film poster
 
 function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture: Picture }) {
-  const { isLive, daysUntil, year, day } = eventState();
-  const count = isLive ? `Night ${day} of 31` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`;
+  const { event, isLive, isOver, daysUntil, year, day } = eventState();
+  const count = isOver ? "That's a wrap" : isLive ? `Night ${day} of ${event.lastDay}` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`;
+  const christmas = event.id === "christmathon";
   return (
     <div className="relative flex h-full min-h-full flex-col bg-[#1a0f08] text-[#f2e2c2]">
       <Photo picture={picture} className={full ? "aspect-[4/3] w-full" : "absolute inset-0"} fade="linear-gradient(to bottom, rgba(26,15,8,0.1) 30%, rgba(26,15,8,0.92) 78%)" />
       <div className={`${full ? "" : "absolute inset-x-0 bottom-0"} px-4 pb-3 pt-2 text-center`}>
-        <p className="text-[12px] uppercase tracking-[0.4em] opacity-80">October {year}</p>
-        <p className="text-[42px] uppercase leading-[0.9] text-[#ffb070] [text-shadow:0_2px_0_#000]" style={serif}>
-          Scare-athon
+        <p className="text-[12px] uppercase tracking-[0.4em] opacity-80">
+          {event.monthName} {year}
         </p>
-        <p className="mt-1 inline-block -rotate-2 border-2 border-[#ffb070] px-2 text-[14px] uppercase tracking-[0.2em] text-[#ffb070]" style={pixel}>
+        <p className={`${christmas ? "text-[34px] text-[#f3cf7a]" : "text-[42px] text-[#ffb070]"} uppercase leading-[0.9] [text-shadow:0_2px_0_#000]`} style={serif}>
+          {christmas ? "Christmathon" : "Scare-athon"}
+        </p>
+        <p
+          className={`mt-1 inline-block -rotate-2 border-2 px-2 text-[14px] uppercase tracking-[0.2em] ${christmas ? "border-[#f3cf7a] text-[#f3cf7a]" : "border-[#ffb070] text-[#ffb070]"}`}
+          style={pixel}
+        >
           {count}
         </p>
         {full && (
           <p className="mt-3 text-left text-[17px] leading-snug" style={typewriter}>
-            {isLive
-              ? "One horror film every night through Halloween. Watch along, finish the weekly challenges, and climb the Scareboard."
-              : "Starting October 1: a horror film every night through Halloween, weekly challenges, and a Scareboard for the whole month."}{" "}
-            Watch the night's film for a point, finish the week's challenge for another, and wear a costume on Halloween for one more.
+            {eventBlurb(event, isLive, isOver)} Watch the night's film for a point, finish the week's challenge for another, and{" "}
+            {event.dressUp[0].toLowerCase()}
+            {event.dressUp.slice(1)} for one more.
           </p>
         )}
         {/* Stacked, and big enough for a thumb */}
@@ -716,7 +722,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
     {
       id: "event",
       kind: "EVENT",
-      title: "SCARE-ATHON",
+      title: featuredEvent().id === "christmathon" ? "CHRISTMATHON" : "SCARE-ATHON",
       pinned: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
       full: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
       tint: "#1a0f08",

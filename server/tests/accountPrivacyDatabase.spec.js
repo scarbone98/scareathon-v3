@@ -47,7 +47,7 @@ beforeAll(async () => {
         CREATE TABLE user_carts (user_id uuid REFERENCES users(id), cart_key text);
         CREATE TABLE lounge_chat (user_id uuid REFERENCES users(id), body text);
     `);
-    for (const name of ['20260507_add_inbox_foundation.sql', '20260930_add_scareathon_scoring.sql', '20260928_add_picto_box_photos.sql', '20261003_wayside_online.sql', '20261008_agent_tokens.sql']) {
+    for (const name of ['20260507_add_inbox_foundation.sql', '20260930_add_scareathon_scoring.sql', '20261110_add_christmathon.sql', '20260928_add_picto_box_photos.sql', '20261003_wayside_online.sql', '20261008_agent_tokens.sql']) {
         // Inbox rewards reference the catalog even though this test has no catalog items.
         if (name.startsWith('20260507')) await database.exec('CREATE TABLE avatar_items (id integer PRIMARY KEY);');
         await database.exec(await readFile(new URL(`../db/migrations/${name}`, import.meta.url), 'utf8'));

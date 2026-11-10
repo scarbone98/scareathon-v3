@@ -9,8 +9,10 @@ import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
 import PosterCalendar from "./PosterCalendar.tsx";
 import type { SheetContent } from "../Sheet.tsx";
 import { PAPER_GRAIN, sans, serif, stubButton, typewriter } from "../style/theme.ts";
+import { eventBlurb, type SeasonEvent } from "../../seasonEvents";
 
-// The events table: three flyers standing on it (the event, tonight's film, the rules)
+// The events table, for the event the station is showing (the Scareathon, or the Christmathon
+// in November and December): three flyers standing on it (the event, tonight's film, the rules)
 // and the poster above, which is tonight's film too. Each flyer's face says what it is;
 // picking one up (a Sheet) has the rest.
 
@@ -19,14 +21,14 @@ import { PAPER_GRAIN, sans, serif, stubButton, typewriter } from "../style/theme
 // A full-bleed flyer (the calendar) lays itself out edge to edge.
 export type Flyer = { id: string; title: string; tint: string; ink: string; content: (zoomed: boolean) => ReactNode; fullBleed?: boolean };
 
-const RULES = [
-  "Watch each night's film, then tick it off on the October calendar. Every film you watch is 1 point.",
+const rules = (event: SeasonEvent) => [
+  `Watch each night's film, then tick it off on the ${event.monthName} calendar. Every film you watch is 1 point.`,
   "Finish the week's arcade challenge for 1 more point.",
   "Finish the day's arcade challenge for a few extra tickets.",
-  "Wear a costume on Halloween for 1 more point.",
-  "Have fun, and don't get scared.",
+  `${event.dressUp} for 1 more point.`,
+  event.id === "scareathon" ? "Have fun, and don't get scared." : "Have fun, and stay merry.",
 ];
-
+
 const small = "text-[12px] uppercase tracking-[0.2em] opacity-85";
 // The rules' bullet: a printer's ornament, a lozenge between two dots
 function Ornament() {
@@ -43,22 +45,20 @@ function Ornament() {
 const decree = { fontFamily: "'UnifrakturMaguntia', 'IM Fell English', serif" };
 
 function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
-  const { isLive, daysUntil, year, day } = eventState();
+  const { event, isLive, isOver, daysUntil, year, day } = eventState();
   const { data: items = [] } = useContentLoop();
   const challenge = items.find((item) => item.type === "weekly_challenge");
   const { data: reward } = useRewardStatus(challenge, signedIn);
   const target = challenge ? challengeTarget(challenge) : null;
   return (
     <div className="text-[#2a1d14]">
-      <p className={small}>Scareathon {year}</p>
+      <p className={small}>
+        {event.name} {year}
+      </p>
       <p className="mt-1 text-4xl" style={serif}>
-        {isLive ? `Night ${day} of 31` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`}
+        {isOver ? "See you next year" : isLive ? `Night ${day} of ${event.lastDay}` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`}
       </p>
-      <p className="mt-3 text-[15px] leading-relaxed">
-        {isLive
-          ? "A horror film every night through Halloween. Watch along, finish the weekly challenges, and climb the Scareboard."
-          : "Starting October 1: a horror film every night through Halloween, weekly challenges, and a Scareboard for the whole month."}
-      </p>
+      <p className="mt-3 text-[15px] leading-relaxed">{eventBlurb(event, isLive, isOver)}</p>
       {challenge && (
         <div className="mt-5 border-t border-[#2a1d14]/20 pt-4">
           <p className={small}>
@@ -88,7 +88,7 @@ function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
       )}
       <div className="mt-5 flex flex-wrap gap-2 border-t border-[#2a1d14]/20 pt-4">
         <button type="button" className={stubButton} onClick={() => goTo("departures")}>
-          The Scareboard
+          {event.board[4].toUpperCase()}{event.board.slice(5)}
         </button>
       </div>
     </div>
@@ -96,10 +96,10 @@ function EventSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
 }
 
 function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
-  const { isLive, day, calendarYear } = eventState();
+  const { event, isLive, isOver, day, calendarYear } = eventState();
   const { data, isLoading, error } = useTodayMovie(isLive && signedIn);
-  const { data: me } = useScareathonMe(isLive && signedIn);
-  const toggle = useToggleWatched();
+  const { data: me } = useScareathonMe(isLive && signedIn, event);
+  const toggle = useToggleWatched(event);
   const watched = me?.season === calendarYear ? me.watchedDays.includes(day) : null;
   const heading = (
     <p className="text-xs uppercase tracking-[0.3em] text-[#f2ead2]/85">Tonight's film</p>
@@ -109,9 +109,11 @@ function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
       <>
         {heading}
         <p className="mt-2 text-2xl text-[#f2ead2]" style={serif}>
-          The projector is dark until October 1.
+          {isOver ? `The ${event.name} is over for this year.` : `The projector is dark until ${event.monthName} 1.`}
         </p>
-        <p className="mt-2 text-sm text-stone-400">The first film of the Scareathon is shown that night, and one every night after.</p>
+        <p className="mt-2 text-sm text-stone-400">
+          {isOver ? "Every night's film is still on the calendar." : `The first film of the ${event.name} is shown that night, and one every night after.`}
+        </p>
       </>
     );
   if (!signedIn || needsSignIn(error))
@@ -149,9 +151,14 @@ function TonightSheet({ signedIn, goTo }: { signedIn: boolean; goTo: GoTo }) {
 }
 
 export function useEventThings(signedIn: boolean, goTo: GoTo) {
+  const { event } = eventState();
   const tonight: SheetContent = { id: "tonight", title: "Tonight's film", tone: "ledger", body: <TonightSheet signedIn={signedIn} goTo={goTo} /> };
   const flyers: Flyer[] = [
-    { id: "event", title: "Scareathon", tint: "#ff7a1a", ink: "#1a0d05", content: () => <EventSheet signedIn={signedIn} goTo={goTo} /> },
+    {
+      id: "event",
+      title: event.name,
+      tint: event.id === "scareathon" ? "#ff7a1a" : "#b3262e",
+      ink: event.id === "scareathon" ? "#1a0d05" : "#fbf3e4", content: () => <EventSheet signedIn={signedIn} goTo={goTo} /> },
     // Tonight's film is the poster over the table (see PosterSheet), not a flyer on the stand
     { id: "tonight", title: "Tonight's film", tint: "#0d131b", ink: "#e6e2d8", content: () => tonight.body },
     {
@@ -162,13 +169,13 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
       content: () => (
         // Set like a posted decree: a blackletter heading over old italic print, white on black
         <div className="text-center text-[#f2ece0]">
-          <p className={small}>The Scareathon</p>
+          <p className={small}>The {event.name}</p>
           <p className="mt-1 text-[46px] leading-none" style={decree}>
             The Rules
           </p>
           <p className="mx-auto mt-2 w-16 border-t-2 border-[#f2ece0]/40" />
           <ol className="mt-4 space-y-3 text-left">
-            {RULES.map((rule) => (
+            {rules(event).map((rule) => (
               <li key={rule} className="flex gap-3 text-[18px] italic leading-snug" style={serif}>
                 <Ornament />
                 <span>{rule}</span>
@@ -180,7 +187,7 @@ export function useEventThings(signedIn: boolean, goTo: GoTo) {
     },
     {
       id: "calendar",
-      title: "The October calendar",
+      title: `The ${event.monthName} calendar`,
       tint: "#1d2a3a",
       ink: "#f2ead2",
       content: (zoomed) => <PosterCalendar signedIn={signedIn} goTo={goTo} zoomed={zoomed} />,

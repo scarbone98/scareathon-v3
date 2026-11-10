@@ -4,28 +4,28 @@ import type { GoTo } from "../stops.ts";
 import { serif, stubButton } from "../style/theme.ts";
 import { useScareathonMe, useToggleWatched } from "../../scareathonSeason";
 
-// The October calendar flyer: the month laid out as a wall calendar, every night's film
+// The event's calendar flyer (October's, or December's to Christmas): the month laid out as a wall calendar, every night's film
 // poster in its square, and the picked night's film under it. It looks the same on the
 // stand and up close; up close, tap a film to see what it is and tick it off (each tick is
-// a point on the Scareboard). `zoomed` only decides whether it can be pressed.
+// a point on the event's standings). `zoomed` only decides whether it can be pressed.
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// A smaller poster than the API's: 31 of them share one flyer
+// A smaller poster than the API's: up to 31 of them share one flyer
 const smallPoster = (url?: string) => url?.replace("/t/p/w342/", "/t/p/w154/");
 
 export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: boolean; goTo: GoTo; zoomed: boolean }) {
-  const { isLive, day: today, calendarYear } = eventState();
+  const { event, isLive, day: today, calendarYear } = eventState();
   const { data, error } = useCalendar(signedIn);
-  const { data: me } = useScareathonMe(signedIn);
-  const toggle = useToggleWatched();
+  const { data: me } = useScareathonMe(signedIn, event);
+  const toggle = useToggleWatched(event);
   const [picked, setPicked] = useState<number | null>(null);
 
   const films = signedIn && !needsSignIn(error) ? data?.data : undefined;
   const watched = me?.season === calendarYear ? new Set(me.watchedDays) : null;
-  const firstWeekday = new Date(calendarYear, 9, 1).getDay();
-  const rows = Math.ceil((firstWeekday + 31) / 7);
+  const firstWeekday = new Date(calendarYear, event.monthIndex, 1).getDay();
+  const rows = Math.ceil((firstWeekday + event.lastDay) / 7);
   const selected = picked ?? (isLive ? today : 1);
   const film = films?.[selected];
 
@@ -33,7 +33,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
     <div className="flex h-full w-full flex-col px-3 pb-3 pt-4 text-[#f2ead2]">
       <div className="flex items-baseline justify-between px-1">
         <p className="text-[34px] font-bold leading-none tracking-wide" style={serif}>
-          OCTOBER
+          {event.monthName.toUpperCase()}
         </p>
         <p className="text-[13px] uppercase tracking-[0.25em] opacity-85">{calendarYear}</p>
       </div>
@@ -51,7 +51,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
         {Array.from({ length: firstWeekday }, (_, i) => (
           <span key={`blank-${i}`} />
         ))}
-        {Array.from({ length: 31 }, (_, i) => {
+        {Array.from({ length: event.lastDay }, (_, i) => {
           const date = i + 1;
           const entry = films?.[date];
           const poster = smallPoster(entry?.lowResUrl);
@@ -82,7 +82,7 @@ export default function PosterCalendar({ signedIn, goTo, zoomed }: { signedIn: b
               type="button"
               className={`${frame} transition hover:brightness-110`}
               onClick={() => setPicked(date)}
-              aria-label={`${date} October: ${entry?.title ?? "film"}${seen ? ", watched" : ""}`}
+              aria-label={`${date} ${event.monthName}: ${entry?.title ?? "film"}${seen ? ", watched" : ""}`}
               aria-pressed={selected === date}
             >
               {cell}

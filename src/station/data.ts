@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { fetchWithAuth } from "../fetchWithAuth";
 import { supabase } from "../supabaseClient";
+import { eventQuery, featuredEvent, type SeasonEvent } from "../seasonEvents";
 import type { AvatarLook } from "../components/avatar/types";
 
 // The station's data. Same endpoints, and the same query keys and cached shapes, as the
@@ -101,15 +102,28 @@ async function readJson<T>(response: Response, label: string): Promise<T> {
 
 export const needsSignIn = (error: unknown) => error instanceof ApiError && error.status === 401;
 
-// The Scareathon runs through October, by the viewer's own clock: tonight's film is tonight's
+// The standings board's line over the rows, and its line when there are none ("STARTS OCT 01")
+export function standingsLabels(meta: ScareboardData["leaderboard"]["meta"] | undefined, event: SeasonEvent) {
+  const starts = `${event.monthName.slice(0, 3).toUpperCase()} 01`;
+  return {
+    label: meta ? (meta.isLive ? "LIVE STANDINGS" : meta.isPreseason ? `PRESEASON - STARTS ${starts}` : "HISTORICAL") : "",
+    empty: meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM ${starts}` : "NO SCORES YET",
+  };
+}
+
+// The event the station shows (see seasonEvents.ts: the Christmathon in November and December,
+// the Scareathon the rest of the year), by the viewer's own clock: tonight's film is tonight's
 // wherever they are, until their own midnight. (Watches are on the honor system, any day.)
-export const EVENT_MONTH = 9;
+// isOver: its last night has gone (the Christmathon, December 26 to 31).
 export function eventState(now = new Date()) {
+  const event = featuredEvent(now);
   const year = now.getFullYear();
-  const isLive = now.getMonth() === EVENT_MONTH;
-  const nextStart = now > new Date(year, EVENT_MONTH + 1, 0, 23, 59, 59) ? new Date(year + 1, EVENT_MONTH, 1) : new Date(year, EVENT_MONTH, 1);
-  const daysUntil = Math.max(0, Math.ceil((nextStart.getTime() - now.getTime()) / 86_400_000));
-  return { isLive, daysUntil, year: nextStart.getFullYear(), day: now.getDate(), calendarYear: year };
+  const start = new Date(year, event.monthIndex, 1);
+  const end = new Date(year, event.monthIndex, event.lastDay, 23, 59, 59);
+  const isOver = now > end;
+  const isLive = now >= start && !isOver;
+  const daysUntil = Math.max(0, Math.ceil((start.getTime() - now.getTime()) / 86_400_000));
+  return { event, isLive, isOver, daysUntil, year, day: now.getDate(), calendarYear: year };
 }
 
 // The signed-in session, kept current; every query is refetched when it changes
@@ -199,15 +213,16 @@ export function useLooks(userIds: string[]) {
   });
 }
 
-export function useScareboard(year: number | null, enabled: boolean) {
+// An event's standings (the one the station is showing, unless given)
+export function useScareboard(year: number | null, enabled: boolean, event: SeasonEvent = featuredEvent()) {
   return useQuery<ScareboardData>({
-    queryKey: ["leaderboard", "by-year", year],
+    queryKey: ["leaderboard", event.id, "by-year", year],
     queryFn: async () => {
       const [leaderboard, pastWinners] = await Promise.all([
-        fetchWithAuth(year ? `/leaderboard?year=${year}` : "/leaderboard", { cache: "no-store" }).then((r) =>
+        fetchWithAuth(year ? `/leaderboard?year=${year}${eventQuery(event, "&")}` : `/leaderboard${eventQuery(event)}`, { cache: "no-store" }).then((r) =>
           readJson<ScareboardData["leaderboard"]>(r, "Scareboard")
         ),
-        fetchWithAuth("/past-winners", { cache: "no-store" }).then((r) => readJson<ScareboardData["pastWinners"]>(r, "Past winners")),
+        fetchWithAuth(`/past-winners${eventQuery(event)}`, { cache: "no-store" }).then((r) => readJson<ScareboardData["pastWinners"]>(r, "Past winners")),
       ]);
       return { leaderboard, pastWinners };
     },
@@ -218,10 +233,10 @@ export function useScareboard(year: number | null, enabled: boolean) {
 }
 
 export function useCalendar(enabled: boolean) {
-  const { calendarYear } = eventState();
+  const { calendarYear, event } = eventState();
   return useQuery<{ data: CalendarDay[] }>({
-    queryKey: ["calendar", calendarYear],
-    queryFn: () => fetchWithAuth("/calendar", { headers: { "Content-Type": "application/json" } }).then((r) => readJson(r, "Calendar")),
+    queryKey: ["calendar", event.id, calendarYear],
+    queryFn: () => fetchWithAuth(`/calendar${eventQuery(event)}`, { headers: { "Content-Type": "application/json" } }).then((r) => readJson(r, "Calendar")),
     enabled,
     retry: (count, error) => !needsSignIn(error) && count < 2,
     staleTime: 1000 * 60 * 60,
@@ -229,10 +244,10 @@ export function useCalendar(enabled: boolean) {
 }
 
 export function useTodayMovie(enabled: boolean) {
-  const { calendarYear, day } = eventState();
+  const { calendarYear, day, event } = eventState();
   return useQuery<{ data?: Movie }>({
-    queryKey: ["calendar", calendarYear, "day", day],
-    queryFn: () => fetchWithAuth(`/calendar/${day}`, { headers: { "Content-Type": "application/json" } }).then((r) => readJson(r, "Today's movie")),
+    queryKey: ["calendar", event.id, calendarYear, "day", day],
+    queryFn: () => fetchWithAuth(`/calendar/${day}${eventQuery(event)}`, { headers: { "Content-Type": "application/json" } }).then((r) => readJson(r, "Today's movie")),
     enabled,
     retry: (count, error) => !needsSignIn(error) && count < 2,
     staleTime: 1000 * 60 * 30,

@@ -40,18 +40,18 @@ export function isAgentRouteAllowed(method, url) {
     return AGENT_ROUTES.some(([allowedMethod, pattern]) => allowedMethod === method && pattern.test(path));
 }
 
-// The last October night an agent may mark watched, US Eastern time (as the calendar runs):
-// none before October, tonight during it, all 31 after it. Players marking by hand keep the
+// The last night of an event (the Scareathon unless given) an agent may mark watched, US Eastern
+// time (as the calendar runs): none before its month, tonight during it, all of them after it. Players marking by hand keep the
 // honor system; an agent can't mark a night that hasn't come yet.
-export function latestUnlockedDay(date = new Date()) {
+export function latestUnlockedDay(date = new Date(), event = { monthIndex: 9, lastDay: 31 }) {
     const parts = new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/New_York', month: 'numeric', day: 'numeric'
     }).formatToParts(date);
     const month = Number(parts.find(part => part.type === 'month')?.value);
     const day = Number(parts.find(part => part.type === 'day')?.value);
-    if (month < 10) return 0;
-    if (month > 10) return 31;
-    return day;
+    if (month < event.monthIndex + 1) return 0;
+    if (month > event.monthIndex + 1) return event.lastDay;
+    return Math.min(day, event.lastDay);
 }
 
 // A small per-key limit, in memory (one server)

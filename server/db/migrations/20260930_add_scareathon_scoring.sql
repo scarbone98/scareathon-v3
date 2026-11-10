@@ -28,12 +28,7 @@ CREATE TABLE IF NOT EXISTS public.scareathon_points (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS scareathon_points_season
-    ON public.scareathon_points (season, user_id);
-
-CREATE UNIQUE INDEX IF NOT EXISTS scareathon_points_source_once
-    ON public.scareathon_points (user_id, season, source_key)
-    WHERE source_key IS NOT NULL;
+-- (its indexes, which take the event in too, are in 20261110_add_christmathon.sql)
 
 -- Standings of the sheet-era seasons, exactly as the sheet had them
 CREATE TABLE IF NOT EXISTS public.scareathon_history (

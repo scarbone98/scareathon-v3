@@ -3,6 +3,7 @@ import { deleteCachePrefix } from '../utils/cacheManager.js';
 
 jest.unstable_mockModule('../db/mockDB.js', () => ({ default: { query: jest.fn() } }));
 const { getLeaderboardPayload, getPastWinners } = await import('../routes/leaderboard.js');
+const { EVENTS } = await import('../utils/scareathon.js');
 
 // A fake database: sheet-era history and winners, and account tallies per season
 function fakeDb({ history = {}, winners = [], accounts = {} } = {}) {
@@ -115,5 +116,36 @@ describe('past winners', () => {
         const result = await getPastWinners({ date: new Date(2026, 10, 2, 12), db: fakeDb({ winners, accounts }) });
         expect(result[0]).toEqual({ year: '2026', name: 'wraith' });
         expect(result).toHaveLength(3);
+    });
+});
+
+describe('the Christmathon', () => {
+    const christmathon = () => fakeDb({ history: { 2025: history2025 }, winners: [{ season: 2025, name: 'Sam' }], accounts: { 2026: [
+        { user_id: 'u1', username: 'elf', movies: 4, weekly: 1, bonus: 0 },
+    ] } });
+
+    beforeEach(() => {
+        deleteCachePrefix('leaderboard_');
+        deleteCachePrefix('pastWinners_');
+    });
+
+    test('has no standings before its first November', async () => {
+        await expect(getLeaderboardPayload({ date: new Date(2026, 9, 20, 12), db: christmathon(), event: EVENTS.christmathon })).rejects.toThrow('No Christmathon season');
+    });
+
+    test('is a preseason in November, with no sheet history, and only its own points', async () => {
+        const db = christmathon();
+        const result = await getLeaderboardPayload({ date: new Date(2026, 10, 10, 12), db, event: EVENTS.christmathon });
+        expect(result.meta).toEqual({ year: 2026, source: 'accounts', isLive: false, isPreseason: true, availableYears: [2026] });
+        const tally = db.query.mock.calls.find(([sql]) => sql.includes('WITH tallies'));
+        expect(tally[1]).toEqual([2026, 'christmathon']);
+    });
+
+    test('is live to Christmas Day, then has a champion', async () => {
+        const live = await getLeaderboardPayload({ date: new Date(2026, 11, 25, 20), db: christmathon(), event: EVENTS.christmathon });
+        expect(live.meta).toMatchObject({ isLive: true });
+        const after = await getLeaderboardPayload({ date: new Date(2026, 11, 26, 12), db: christmathon(), event: EVENTS.christmathon });
+        expect(after.meta).toMatchObject({ isLive: false, isPreseason: false });
+        expect(await getPastWinners({ date: new Date(2026, 11, 26, 12), db: christmathon(), event: EVENTS.christmathon })).toEqual([{ year: '2026', name: 'elf' }]);
     });
 });

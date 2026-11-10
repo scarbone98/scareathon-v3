@@ -11,7 +11,8 @@ import type { CabinetFrame } from "../pages/ArcadeV2/CartridgeArcade";
 import { UNLOCK_EVENT } from "../pages/Arcade/unlocks";
 import { markPlayed, SHELF_EVENT, watchGameUpdates } from "../pages/Arcade/news";
 import { createArcadeGames, CRYPTLINS_URL, normalizeMachineName, pickShuffleGame, POCKET_AQUARIUM_URL, TICKETS_EVENT, useIsMobileArcade, type MachineData } from "../pages/Arcade/games";
-import { eventState, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie, useLooks } from "./data.ts";
+import { eventState, standingsLabels, useDailyRune, useScareboard, useSession, useSummary, useTodayMovie, useLooks } from "./data.ts";
+import { SEASON_EVENTS } from "../seasonEvents";
 import { FOLD, HEADINGS, isHeading, isPetStop, isStopId, STOPS, STOP_IDS, VIEWS, type GoTo, type Heading, type StopId } from "./stops.ts";
 import { PinnedPaper, useBoardPapers, type Paper } from "./board/BoardPapers.tsx";
 import { FlyerFace, PosterSheet, useEventThings } from "./things/EventThings.tsx";
@@ -59,14 +60,16 @@ const CartridgeArcade = lazy(() => import("../pages/ArcadeV2/CartridgeArcade.tsx
 // Paint the scene's own textures from live data: the papers' headlines (the stand-ins
 // under their HTML), the departure board as seen from afar, and the poster
 function useBoards(signedIn: boolean, papers: Paper[]): Boards {
-  const { isLive, year } = eventState();
+  const { event, isLive, isOver, year } = eventState();
   const { data: scoreboard } = useScareboard(null, signedIn);
+  // (before the Christmathon has any points, the champion is still the Scareathon's)
+  const { data: scareboard } = useScareboard(null, signedIn && event.id !== "scareathon", SEASON_EVENTS.scareathon);
   const { data: movie } = useTodayMovie(isLive && signedIn);
   const { data: summary } = useSummary();
   const { data: rune = null } = useDailyRune();
   const unread = signedIn ? summary?.unreadCount ?? 0 : 0;
   // (whoever's first on the Scareboard, and how they look)
-  const first = scoreboard?.leaderboard.data[0];
+  const first = scoreboard?.leaderboard.data[0] ?? scareboard?.leaderboard.data[0];
   const { data: looks } = useLooks(first?.userId ? [first.userId] : []);
   // Keyed on the text, so the board is only repainted when a paper's headline changes
   const noticeKey = papers.map((paper) => `${paper.kind}\u0000${paper.title}`).join("\u0001");
@@ -75,12 +78,13 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
   return useMemo(() => {
     // The scoreboard's painted face shows what its HTML one does (see DepartureBoard)
     const meta = scoreboard?.leaderboard.meta;
+    const labels = standingsLabels(meta, event);
     const rows = (scoreboard?.leaderboard.data ?? []).map((row) => ({ rank: row.rank, name: row.name, total: String(row.total ?? "") }));
     const departures = signedIn
       ? {
-          label: meta ? (meta.isLive ? "LIVE STANDINGS" : meta.isPreseason ? "PRESEASON - STARTS OCT 01" : "HISTORICAL") : "",
+          label: labels.label,
           rows,
-          lines: !scoreboard ? ["FLIPPING..."] : rows.length ? [] : [meta?.isPreseason ? `${meta.year} ON THE WAY - STANDINGS FROM OCT 01` : "NO SCORES YET"],
+          lines: !scoreboard ? ["FLIPPING..."] : rows.length ? [] : [labels.empty],
         }
       : { label: "", rows: [], lines: ["STANDINGS ......... SIGNED-IN PASSENGERS", "ARCADE ............ BOARDING ALL NIGHT"] };
     const film = movie?.data?.title ? movie.data : undefined; // (only a film with a title)
@@ -88,11 +92,13 @@ function useBoards(signedIn: boolean, papers: Paper[]): Boards {
       ? { image: film.lowResUrl ?? null, title: film.title, line: "Showing tonight" }
       : isLive
         ? { image: null, title: "Showing tonight", line: "Sign in to see what's on" }
-        : { image: null, title: "Dark tonight", line: `The first reel: October 1, ${year}` };
+        : isOver
+          ? { image: null, title: "That's a wrap", line: `The ${event.name} is over for ${year}` }
+          : { image: null, title: "Dark tonight", line: `The first reel: ${event.monthName} 1, ${year}` };
     // Top of the board, for the poster by the ticket counter
     const champion = signedIn && first ? { name: first.name, total: String(first.total ?? ""), look: first.userId ? looks?.[first.userId] : undefined } : null;
     return { notices, departures, poster, unread, rune, champion };
-  }, [notices, scoreboard, signedIn, movie, isLive, year, unread, rune, first, looks]);
+  }, [notices, scoreboard, signedIn, movie, isLive, isOver, event, year, unread, rune, first, looks]);
 }
 
 // How much of a phone's screen the held card takes, under the object
