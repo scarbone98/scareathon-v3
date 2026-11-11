@@ -1,37 +1,38 @@
 import pool from '../db/mockDB.js';
 import { getOrRefreshCache } from '../utils/cacheManager.js';
-import { FIRST_ACCOUNT_SEASON } from '../utils/scareathon.js';
+import { EVENTS, FIRST_ACCOUNT_SEASON, eventFromQuery } from '../utils/scareathon.js';
 
 // The Scareboard. Seasons from FIRST_ACCOUNT_SEASON on are worked out from player accounts
 // (movies marked watched + the points ledger); earlier seasons are the sheet-era standings
-// copied into scareathon_history.
+// copied into scareathon_history. ?event=christmathon gives the Christmathon's (accounts only).
 
 const HISTORY_TTL = 24 * 60 * 60 * 1000;
 // Live standings change whenever someone marks a movie; writes clear this cache too
 const ACCOUNT_SEASON_TTL = 60 * 1000;
-const EVENT_MONTH_INDEX = 9;
-const PRESEASON_MONTH_INDEX = 8;
 
 function setReadCacheHeaders(reply) {
     reply.header('Cache-Control', 'private, no-store');
 }
 
-function getLeaderboardCutoffYear(date = new Date()) {
+// This year's standings are shown from the month before the event (its preseason)
+function getLeaderboardCutoffYear(date = new Date(), event = EVENTS.scareathon) {
     const currentYear = date.getFullYear();
-    return date.getMonth() >= PRESEASON_MONTH_INDEX ? currentYear : currentYear - 1;
+    return date.getMonth() >= event.monthIndex - 1 ? currentYear : currentYear - 1;
 }
 
-function isLiveEventOpen(date = new Date()) {
-    return date.getMonth() === EVENT_MONTH_INDEX;
+function isLiveEventOpen(date = new Date(), event = EVENTS.scareathon) {
+    return date.getMonth() === event.monthIndex && date.getDate() <= event.lastDay;
 }
 
-function getWinnerCutoffYear(date = new Date()) {
-    return date.getMonth() >= EVENT_MONTH_INDEX ? date.getFullYear() : date.getFullYear() - 1;
+function getWinnerCutoffYear(date = new Date(), event = EVENTS.scareathon) {
+    return date.getMonth() >= event.monthIndex ? date.getFullYear() : date.getFullYear() - 1;
 }
 
-// An account season has a champion once its October is over
-function isSeasonFinished(season, date = new Date()) {
-    return season < date.getFullYear() || (season === date.getFullYear() && date.getMonth() > EVENT_MONTH_INDEX);
+// An account season has a champion once its last night is over
+function isSeasonFinished(season, date = new Date(), event = EVENTS.scareathon) {
+    const month = date.getMonth();
+    return season < date.getFullYear() || (season === date.getFullYear()
+        && (month > event.monthIndex || (month === event.monthIndex && date.getDate() > event.lastDay)));
 }
 
 function normalizeYear(value) {
@@ -84,13 +85,13 @@ async function getHistoryStandings(db, season) {
     }, HISTORY_TTL);
 }
 
-export async function getAccountStandings(db, season) {
-    return getOrRefreshCache(`leaderboard_accounts_${season}`, async () => {
+export async function getAccountStandings(db, season, event = EVENTS.scareathon) {
+    return getOrRefreshCache(`leaderboard_accounts_${event.id}_${season}`, async () => {
         const result = await db.query(`
             WITH tallies AS (
                 SELECT user_id, count(*)::int AS movies, 0 AS weekly, 0 AS bonus
                 FROM scareathon_watches
-                WHERE season = $1
+                WHERE season = $1 AND event = $2
                 GROUP BY user_id
                 UNION ALL
                 SELECT user_id,
@@ -98,7 +99,7 @@ export async function getAccountStandings(db, season) {
                     COALESCE(sum(points) FILTER (WHERE category = 'weekly'), 0)::int,
                     COALESCE(sum(points) FILTER (WHERE category = 'bonus'), 0)::int
                 FROM scareathon_points
-                WHERE season = $1
+                WHERE season = $1 AND event = $2
                 GROUP BY user_id
             )
             SELECT u.id AS user_id, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE u.username END AS username,
@@ -108,7 +109,7 @@ export async function getAccountStandings(db, season) {
             FROM tallies t
             JOIN users u ON u.id = t.user_id
             GROUP BY u.id, u.username
-        `, [season]);
+        `, [season, event.id]);
 
         return rankStandings(result.rows
             .map(row => {
@@ -122,53 +123,48 @@ export async function getAccountStandings(db, season) {
     }, ACCOUNT_SEASON_TTL);
 }
 
-function getAvailableYears(historySeasons, date = new Date()) {
-    const cutoffYear = getLeaderboardCutoffYear(date);
+function getAvailableYears(historySeasons, date = new Date(), event = EVENTS.scareathon) {
+    const cutoffYear = getLeaderboardCutoffYear(date, event);
     const years = new Set(historySeasons.filter(year => year < FIRST_ACCOUNT_SEASON && year <= cutoffYear));
-    for (let year = FIRST_ACCOUNT_SEASON; year <= cutoffYear; year++) {
+    for (let year = Math.max(FIRST_ACCOUNT_SEASON, event.firstSeason); year <= cutoffYear; year++) {
         years.add(year);
     }
     return [...years].sort((a, b) => b - a);
 }
 
-export async function getLeaderboardPayload({ requestedYear, date = new Date(), db = pool } = {}) {
-    const availableYears = getAvailableYears(await getHistorySeasons(db), date);
+export async function getLeaderboardPayload({ requestedYear, date = new Date(), db = pool, event = EVENTS.scareathon } = {}) {
+    // (the sheet-era history is all Scareathon)
+    const historySeasons = event.id === 'scareathon' ? await getHistorySeasons(db) : [];
+    const availableYears = getAvailableYears(historySeasons, date, event);
     const year = availableYears.includes(requestedYear) ? requestedYear : availableYears[0];
 
     if (!year) {
-        const error = new Error('No Scareathon season has standings yet');
+        const error = new Error(`No ${event.name} season has standings yet`);
         error.statusCode = 404;
         throw error;
     }
 
     const fromAccounts = year >= FIRST_ACCOUNT_SEASON;
-    const data = fromAccounts ? await getAccountStandings(db, year) : await getHistoryStandings(db, year);
+    const data = fromAccounts ? await getAccountStandings(db, year, event) : await getHistoryStandings(db, year);
 
     return {
         data,
         meta: {
             year,
             source: fromAccounts ? 'accounts' : 'history',
-            isLive: year === date.getFullYear() && isLiveEventOpen(date),
-            isPreseason: year === date.getFullYear() && date.getMonth() < EVENT_MONTH_INDEX,
+            isLive: year === date.getFullYear() && isLiveEventOpen(date, event),
+            isPreseason: year === date.getFullYear() && date.getMonth() < event.monthIndex,
             availableYears
         }
     };
 }
 
-export async function getPastWinners({ date = new Date(), db = pool } = {}) {
-    const cutoffYear = getWinnerCutoffYear(date);
-    return getOrRefreshCache(`pastWinners_${cutoffYear}_${date.getMonth()}`, async () => {
-        const result = await db.query(`
-            SELECT w.season, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE w.name END AS name
-            FROM scareathon_winners w LEFT JOIN users u ON u.id = w.user_id
-            WHERE w.season <= $1
-            ORDER BY w.season DESC
-        `, [Math.min(cutoffYear, FIRST_ACCOUNT_SEASON - 1)]);
-        const winners = result.rows.map(row => ({ year: String(row.season), name: row.name }));
-
-        for (let season = FIRST_ACCOUNT_SEASON; isSeasonFinished(season, date); season++) {
-            const standings = await getAccountStandings(db, season);
+export async function getPastWinners({ date = new Date(), db = pool, event = EVENTS.scareathon } = {}) {
+    const cutoffYear = getWinnerCutoffYear(date, event);
+    return getOrRefreshCache(`pastWinners_${event.id}_${cutoffYear}_${date.getMonth()}_${isSeasonFinished(cutoffYear, date, event)}`, async () => {
+        const winners = event.id === 'scareathon' ? await getSheetWinners(db, cutoffYear) : [];
+        for (let season = Math.max(FIRST_ACCOUNT_SEASON, event.firstSeason); isSeasonFinished(season, date, event); season++) {
+            const standings = await getAccountStandings(db, season, event);
             standings
                 .filter(user => user.rank === 1 && user.total > 0)
                 .forEach(user => winners.push({ year: String(season), name: user.name }));
@@ -178,11 +174,24 @@ export async function getPastWinners({ date = new Date(), db = pool } = {}) {
     }, HISTORY_TTL);
 }
 
+// The sheet-era Scareathon champions
+async function getSheetWinners(db, cutoffYear) {
+    const result = await db.query(`
+        SELECT w.season, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE w.name END AS name
+        FROM scareathon_winners w LEFT JOIN users u ON u.id = w.user_id
+        WHERE w.season <= $1
+        ORDER BY w.season DESC
+    `, [Math.min(cutoffYear, FIRST_ACCOUNT_SEASON - 1)]);
+    return result.rows.map(row => ({ year: String(row.season), name: row.name }));
+}
+
 export default async function (fastify, options) {
     fastify.get('/leaderboard', async (request, reply) => {
         const requestedYear = normalizeYear(request.query?.year);
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
         try {
-            const response = await getLeaderboardPayload({ requestedYear });
+            const response = await getLeaderboardPayload({ requestedYear, event });
             setReadCacheHeaders(reply);
             return response;
         } catch (err) {
@@ -196,8 +205,10 @@ export default async function (fastify, options) {
     });
 
     fastify.get('/past-winners', async (request, reply) => {
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
         try {
-            const pastWinners = await getPastWinners();
+            const pastWinners = await getPastWinners({ event });
             setReadCacheHeaders(reply);
             return { data: pastWinners };
         } catch (err) {

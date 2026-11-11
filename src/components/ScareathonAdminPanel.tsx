@@ -8,10 +8,12 @@ import {
   usePointLedger,
   useRemovePoints,
 } from "../scareathonSeason";
+import { SEASON_EVENTS, type SeasonEvent } from "../seasonEvents";
 
 // Admins only: give or take Scareboard points (movies, weekly challenges, bonus), see and
 // undo every entry this season, and copy the old sheet's seasons in.
-// Shown under the Scareboard on the classic page and on the station's scoreboard.
+// Shown under the Scareboard on the classic page and on the station's scoreboard (there, for the
+// event whose standings are showing: points go to the Scareathon unless `seasonEvent` says otherwise).
 
 const CATEGORIES: { value: PointCategory; label: string }[] = [
   { value: "bonus", label: "Bonus" },
@@ -21,14 +23,14 @@ const CATEGORIES: { value: PointCategory; label: string }[] = [
 
 type ImportResult = { seasons: Record<string, number>; winners: number; skipped: string[] };
 
-export default function ScareathonAdminPanel({ className = "" }: { className?: string }) {
+export default function ScareathonAdminPanel({ className = "", seasonEvent = SEASON_EVENTS.scareathon }: { className?: string; seasonEvent?: SeasonEvent }) {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [category, setCategory] = useState<PointCategory>("bonus");
   const [points, setPoints] = useState("1");
   const [reason, setReason] = useState("");
-  const ledger = usePointLedger(open);
-  const award = useAwardPoints();
+  const ledger = usePointLedger(open, seasonEvent);
+  const award = useAwardPoints(seasonEvent);
   const remove = useRemovePoints();
   const importHistory = useImportHistory();
   const refreshCalendar = useRefreshCalendar();
@@ -69,10 +71,10 @@ export default function ScareathonAdminPanel({ className = "" }: { className?: s
             </button>
           </form>
           {award.error && <p className="text-sm text-red-400">{award.error.message}</p>}
-          {award.isSuccess && <p className="text-sm text-green-400">Saved. The Scareboard is updated.</p>}
+          {award.isSuccess && <p className="text-sm text-green-400">Saved. The {seasonEvent.name} standings are updated.</p>}
 
           <div>
-            <h3 className="mb-1 text-sm uppercase tracking-widest text-orange-300/80">This season's points</h3>
+            <h3 className="mb-1 text-sm uppercase tracking-widest text-orange-300/80">This {seasonEvent.name}'s points</h3>
             {ledger.isLoading && <p className="text-sm text-orange-100/60">Loading…</p>}
             {ledger.error && <p className="text-sm text-red-400">{ledger.error.message}</p>}
             {ledger.data?.length === 0 && <p className="text-sm text-orange-100/60">No points given yet. (Watched movies are counted from the calendar.)</p>}
@@ -108,7 +110,7 @@ export default function ScareathonAdminPanel({ className = "" }: { className?: s
             <button type="button" className={button} onClick={() => refreshCalendar.mutate()} disabled={refreshCalendar.isPending}>
               {refreshCalendar.isPending ? "Refreshing…" : refreshCalendar.isSuccess ? "Calendar refreshed" : "Refresh the calendar from the Google sheet"}
             </button>
-            <p className="mt-1 text-xs text-orange-100/50">After changing the Calendar-YYYY tab, so the site shows it now.</p>
+            <p className="mt-1 text-xs text-orange-100/50">After changing the Calendar-YYYY or Christmathon-YYYY tab, so the site shows it now.</p>
             {refreshCalendar.error && <p className="text-sm text-red-400">{refreshCalendar.error.message}</p>}
           </div>
 

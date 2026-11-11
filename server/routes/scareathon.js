@@ -9,17 +9,19 @@ import {
     awardScareathonPoints,
     clearStandingsCache,
     currentSeason,
+    eventFromQuery,
 } from '../utils/scareathon.js';
 
+// Every route takes ?event= (scareathon, the default, or christmathon).
 // The player's side of the Scareboard (marking calendar movies watched, their own tally)
 // and the admin's (awarding and taking away points, importing the sheet-era history).
 
 const MAX_REASON_LENGTH = 200;
 const MAX_POINTS_PER_AWARD = 1000;
 
-function parseDay(value) {
+function parseDay(value, event) {
     const day = Number(value);
-    return Number.isInteger(day) && day >= 1 && day <= 31 ? day : null;
+    return Number.isInteger(day) && day >= 1 && day <= event.lastDay ? day : null;
 }
 
 function parseSeason(value, fallback) {
@@ -28,19 +30,19 @@ function parseSeason(value, fallback) {
     return Number.isInteger(season) && season >= FIRST_ACCOUNT_SEASON && season <= 2100 ? season : null;
 }
 
-export async function getPlayerSeason(db, userId, season) {
+export async function getPlayerSeason(db, userId, season, event = 'scareathon') {
     const [watches, points] = await Promise.all([
         db.query(`
             SELECT day FROM scareathon_watches
-            WHERE user_id = $1 AND season = $2
+            WHERE user_id = $1 AND season = $2 AND event = $3
             ORDER BY day
-        `, [userId, season]),
+        `, [userId, season, event]),
         db.query(`
             SELECT category, COALESCE(sum(points), 0)::int AS points
             FROM scareathon_points
-            WHERE user_id = $1 AND season = $2
+            WHERE user_id = $1 AND season = $2 AND event = $3
             GROUP BY category
-        `, [userId, season]),
+        `, [userId, season, event]),
     ]);
 
     const watchedDays = watches.rows.map(row => Number(row.day));
@@ -49,6 +51,7 @@ export async function getPlayerSeason(db, userId, season) {
         if (row.category in tally) tally[row.category] += Number(row.points);
     }
     return {
+        event,
         season,
         watchedDays,
         points: { ...tally, total: tally.movies + tally.weekly + tally.bonus },
@@ -140,9 +143,11 @@ export async function importSheetHistory(db, doc) {
 export default async function routes(fastify) {
     // The signed-in player's season: the days they've marked, their points, and whether they're an admin
     fastify.get('/me', async (request, reply) => {
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
         try {
             const season = currentSeason();
-            const data = await getPlayerSeason(pool, request.user.sub, season);
+            const data = await getPlayerSeason(pool, request.user.sub, season, event.id);
             return { data: { ...data, isAdmin: isAdminUser(request.user) } };
         } catch (error) {
             fastify.log.error(error);
@@ -153,20 +158,22 @@ export default async function routes(fastify) {
     // Honor system: any day of this season's calendar, any time. An agent key, though,
     // can only mark nights that have come (tonight and before, Eastern time)
     fastify.put('/watches/:day', async (request, reply) => {
-        const day = parseDay(request.params.day);
-        if (!day) return reply.code(400).send({ error: 'Day must be a number between 1 and 31' });
-        if (request.user?.agent && day > latestUnlockedDay()) {
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
+        const day = parseDay(request.params.day, event);
+        if (!day) return reply.code(400).send({ error: `Day must be a number between 1 and ${event.lastDay}` });
+        if (request.user?.agent && day > latestUnlockedDay(new Date(), event)) {
             return reply.code(403).send({ error: `Night ${day} hasn't come yet. Agents can only mark nights up to tonight.` });
         }
         try {
             const season = currentSeason();
             await pool.query(`
-                INSERT INTO scareathon_watches (user_id, season, day)
-                VALUES ($1, $2, $3)
+                INSERT INTO scareathon_watches (user_id, season, day, event)
+                VALUES ($1, $2, $3, $4)
                 ON CONFLICT DO NOTHING
-            `, [request.user.sub, season, day]);
+            `, [request.user.sub, season, day, event.id]);
             clearStandingsCache();
-            return { data: await getPlayerSeason(pool, request.user.sub, season) };
+            return { data: await getPlayerSeason(pool, request.user.sub, season, event.id) };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'Could not mark that movie watched' });
@@ -174,16 +181,18 @@ export default async function routes(fastify) {
     });
 
     fastify.delete('/watches/:day', async (request, reply) => {
-        const day = parseDay(request.params.day);
-        if (!day) return reply.code(400).send({ error: 'Day must be a number between 1 and 31' });
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
+        const day = parseDay(request.params.day, event);
+        if (!day) return reply.code(400).send({ error: `Day must be a number between 1 and ${event.lastDay}` });
         try {
             const season = currentSeason();
             await pool.query(`
                 DELETE FROM scareathon_watches
-                WHERE user_id = $1 AND season = $2 AND day = $3
-            `, [request.user.sub, season, day]);
+                WHERE user_id = $1 AND season = $2 AND day = $3 AND event = $4
+            `, [request.user.sub, season, day, event.id]);
             clearStandingsCache();
-            return { data: await getPlayerSeason(pool, request.user.sub, season) };
+            return { data: await getPlayerSeason(pool, request.user.sub, season, event.id) };
         } catch (error) {
             fastify.log.error(error);
             return reply.code(500).send({ error: 'Could not unmark that movie' });
@@ -202,6 +211,8 @@ export default async function routes(fastify) {
         admin.get('/points', async (request, reply) => {
             const season = parseSeason(request.query?.season, currentSeason());
             if (!season) return reply.code(400).send({ error: 'Unknown season' });
+            const event = eventFromQuery(request.query);
+            if (!event) return reply.code(400).send({ error: 'Unknown event' });
             try {
                 const result = await pool.query(`
                     SELECT p.id, CASE WHEN u.deleted_at IS NOT NULL THEN 'Deleted rider' ELSE u.username END AS username, p.category, p.points, p.reason, p.source_key,
@@ -209,10 +220,10 @@ export default async function routes(fastify) {
                     FROM scareathon_points p
                     JOIN users u ON u.id = p.user_id
                     LEFT JOIN users giver ON giver.id = p.awarded_by
-                    WHERE p.season = $1
+                    WHERE p.season = $1 AND p.event = $2
                     ORDER BY p.created_at DESC, p.id DESC
                     LIMIT 500
-                `, [season]);
+                `, [season, event.id]);
                 return {
                     data: result.rows.map(row => ({
                         id: Number(row.id),
@@ -224,7 +235,7 @@ export default async function routes(fastify) {
                         awardedBy: row.awarded_by,
                         createdAt: row.created_at,
                     })),
-                    meta: { season },
+                    meta: { season, event: event.id },
                 };
             } catch (error) {
                 admin.log.error(error);
@@ -240,6 +251,7 @@ export default async function routes(fastify) {
             const points = Number(body.points);
             const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, MAX_REASON_LENGTH) : '';
             const season = parseSeason(body.season, currentSeason());
+            const event = eventFromQuery({ event: body.event });
 
             if (!username) return reply.code(400).send({ error: 'Which player?' });
             if (!POINT_CATEGORIES.includes(category)) return reply.code(400).send({ error: 'Category must be movies, weekly or bonus' });
@@ -247,6 +259,7 @@ export default async function routes(fastify) {
                 return reply.code(400).send({ error: 'Points must be a whole number other than 0' });
             }
             if (!season) return reply.code(400).send({ error: 'Unknown season' });
+            if (!event) return reply.code(400).send({ error: 'Unknown event' });
 
             try {
                 const player = await pool.query('SELECT id, username FROM users WHERE lower(username) = lower($1) LIMIT 1', [username]);
@@ -259,8 +272,9 @@ export default async function routes(fastify) {
                     points,
                     reason,
                     awardedBy: request.user.sub,
+                    event,
                 });
-                return reply.code(201).send({ data: { id: award.id, username: player.rows[0].username, category, points, reason, season } });
+                return reply.code(201).send({ data: { id: award.id, username: player.rows[0].username, category, points, reason, season, event: event.id } });
             } catch (error) {
                 admin.log.error(error);
                 return reply.code(500).send({ error: 'Could not award those points' });
@@ -282,7 +296,7 @@ export default async function routes(fastify) {
             }
         });
 
-        // Read the October calendar from the Google sheet again now (after editing it there),
+        // Read the event calendars from the Google sheet again now (after editing it there),
         // rather than waiting out the hour it's kept for
         admin.post('/refresh-calendar', async () => {
             clearCalendarCache();

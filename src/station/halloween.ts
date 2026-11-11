@@ -27,16 +27,25 @@ import {
 // else is in this file; to take them down for good, delete it and the lines marked HALLOWEEN
 // in StationScene.
 
+// The month it is in New York (1-12), which says which decorations are up. ?season=halloween
+// (or autumn, christmas, none) in the address puts those up instead, to see them any day.
+// (read as the station loads, before it tidies the address)
+const ASKED_SEASON = new URLSearchParams(window.location.search).get("season");
+const SEASON_MONTHS: Record<string, number> = { halloween: 10, autumn: 11, christmas: 12, none: 0 };
+export function seasonMonth(now = new Date()) {
+  if (ASKED_SEASON && ASKED_SEASON in SEASON_MONTHS) return SEASON_MONTHS[ASKED_SEASON];
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "numeric" }).format(now));
+}
+
 export function isHalloweenSeason(now = new Date()) {
-  const month = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "numeric" }).format(now));
-  return month === 10;
+  return seasonMonth(now) === 10;
 }
 
 // Where the station's walls are (from StationScene)
 // (lockersTop: the middle of the lockers' top; edgeZ: the platform's edge)
 export type StationShape = { wallZ: number; sideX: number; endX: number; edgeZ: number; ceilingY: number; ticketsAt: [number, number, number]; lockersTop: [number, number, number] };
 
-function paint(width: number, height: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
+export function paint(width: number, height: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -273,7 +282,7 @@ function candle(height: number, seed: number) {
   return group;
 }
 
-const glowMap = paint(64, 64, (ctx, w, h) => {
+export const glowMap = paint(64, 64, (ctx, w, h) => {
   const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
   g.addColorStop(0, "rgba(255,200,120,0.9)");
   g.addColorStop(1, "rgba(255,120,30,0)");

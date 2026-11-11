@@ -40,6 +40,7 @@ describe('a player', () => {
             .mockResolvedValueOnce(rows({ category: 'weekly', points: 2 }, { category: 'bonus', points: 1 }, { category: 'movies', points: -1 }));
         const response = await (await app()).inject({ method: 'GET', url: '/scareathon/me', headers: { 'x-test-user': ALICE } });
         expect(response.json().data).toEqual({
+            event: 'scareathon',
             season: currentSeason(),
             watchedDays: [1, 3],
             points: { movies: 1, weekly: 2, bonus: 1, total: 4 },
@@ -52,7 +53,7 @@ describe('a player', () => {
         const response = await (await app()).inject({ method: 'PUT', url: '/scareathon/watches/7', headers: { 'x-test-user': ALICE } });
         expect(response.statusCode).toBe(200);
         expect(query.mock.calls[0][0]).toMatch(/INSERT INTO scareathon_watches/);
-        expect(query.mock.calls[0][1]).toEqual([ALICE, currentSeason(), 7]);
+        expect(query.mock.calls[0][1]).toEqual([ALICE, currentSeason(), 7, 'scareathon']);
         expect(response.json().data.watchedDays).toEqual([7]);
     });
 
@@ -66,6 +67,20 @@ describe('a player', () => {
     test('cannot mark a day that is not in October', async () => {
         const response = await (await app()).inject({ method: 'PUT', url: '/scareathon/watches/32', headers: { 'x-test-user': ALICE } });
         expect(response.statusCode).toBe(400);
+        expect(query).not.toHaveBeenCalled();
+    });
+
+    test('marks a Christmathon night apart from the Scareathon, up to Christmas', async () => {
+        query.mockResolvedValueOnce(rows()).mockResolvedValueOnce(rows({ day: 25 })).mockResolvedValueOnce(rows());
+        const server = await app();
+        const response = await server.inject({ method: 'PUT', url: '/scareathon/watches/25?event=christmathon', headers: { 'x-test-user': ALICE } });
+        expect(response.statusCode).toBe(200);
+        expect(query.mock.calls[0][1]).toEqual([ALICE, currentSeason(), 25, 'christmathon']);
+        expect(query.mock.calls[1][1]).toEqual([ALICE, currentSeason(), 'christmathon']);
+        expect(response.json().data.event).toBe('christmathon');
+        query.mockClear();
+        expect((await server.inject({ method: 'PUT', url: '/scareathon/watches/26?event=christmathon', headers: { 'x-test-user': ALICE } })).statusCode).toBe(400);
+        expect((await server.inject({ method: 'GET', url: '/scareathon/me?event=easter', headers: { 'x-test-user': ALICE } })).statusCode).toBe(400);
         expect(query).not.toHaveBeenCalled();
     });
 
@@ -88,7 +103,7 @@ describe('an admin', () => {
         });
         expect(response.statusCode).toBe(201);
         expect(response.json().data).toMatchObject({ id: 9, username: 'Alice', category: 'bonus', points: 1 });
-        expect(query.mock.calls[1][1]).toEqual([ALICE, currentSeason(), 'bonus', 1, 'Halloween costume', null, ADMIN]);
+        expect(query.mock.calls[1][1]).toEqual([ALICE, currentSeason(), 'bonus', 1, 'Halloween costume', null, ADMIN, 'scareathon']);
     });
 
     test('can take points away, but not zero or an unknown category', async () => {
@@ -126,11 +141,20 @@ describe('weekly challenges', () => {
     test('count on the Scareboard in October, once', async () => {
         const db = { query: jest.fn(async () => rows({ id: '1' })) };
         await awardWeeklyChallengePoint(db, ALICE, challenge, new Date('2026-10-05T15:00:00Z'));
-        expect(db.query.mock.calls[0][1]).toEqual([ALICE, 2026, 'weekly', 1, 'Weekly challenge: Crypt crawl', 'weekly_challenge:week-40', null]);
+        expect(db.query.mock.calls[0][1]).toEqual([ALICE, 2026, 'weekly', 1, 'Weekly challenge: Crypt crawl', 'weekly_challenge:week-40', null, 'scareathon']);
         expect(db.query.mock.calls[0][0]).toMatch(/ON CONFLICT .* DO NOTHING/s);
     });
 
-    test('do not count outside October (Eastern time)', async () => {
+    test('count on the Christmathon in December, up to Christmas Day', async () => {
+        const db = { query: jest.fn(async () => rows({ id: '1' })) };
+        await awardWeeklyChallengePoint(db, ALICE, challenge, new Date('2026-12-25T15:00:00Z'));
+        expect(db.query.mock.calls[0][1].at(-1)).toBe('christmathon');
+        db.query.mockClear();
+        await awardWeeklyChallengePoint(db, ALICE, challenge, new Date('2026-12-26T15:00:00Z'));
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('do not count after October (Eastern time)', async () => {
         const db = { query: jest.fn(async () => rows()) };
         // 11pm October 31 in New York is already November in UTC
         await awardWeeklyChallengePoint(db, ALICE, challenge, new Date('2026-11-01T03:00:00Z'));

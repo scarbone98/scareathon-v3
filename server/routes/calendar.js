@@ -1,6 +1,7 @@
 import calendarSheet from '../db/google-sheets.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
 import { enrichMovieData } from '../utils/tmdb.js';
+import { EVENTS, eventFromQuery } from '../utils/scareathon.js';
 
 const CALENDAR_TTL = 60 * 60 * 1000;
 const CALENDAR_DAY_TTL = 30 * 60 * 1000;
@@ -19,8 +20,10 @@ export function clearCalendarCache() {
     deleteCachePrefix('calendar_');
 }
 
-export async function loadCalendarData(year = getCalendarYear()) {
-    const sheetTitle = `Calendar-${year}`;
+// An event's calendar is a tab of the sheet: Calendar-<year> (the Scareathon's October),
+// Christmathon-<year> (December 1 to 25). Ask for one with ?event=.
+export async function loadCalendarData(year = getCalendarYear(), event = EVENTS.scareathon) {
+    const sheetTitle = `${event.sheetPrefix}-${year}`;
     const doc = await calendarSheet();
     const sheet = doc?.sheetsByTitle[sheetTitle];
     if (!sheet) {
@@ -28,11 +31,11 @@ export async function loadCalendarData(year = getCalendarYear()) {
     }
 
     const rows = await sheet.getRows();
-    const data = Array(32).fill(null);
+    const data = Array(event.lastDay + 1).fill(null);
     for (const row of rows) {
         const day = Number(row.get('day'));
         const title = row.get('title')?.trim();
-        if (!Number.isInteger(day) || day < 1 || day > 31 || !title || data[day]) {
+        if (!Number.isInteger(day) || day < 1 || day > event.lastDay || !title || data[day]) {
             throw new Error(`Invalid or duplicate day in ${sheetTitle}: ${row.get('day')}`);
         }
         data[day] = {
@@ -45,18 +48,20 @@ export async function loadCalendarData(year = getCalendarYear()) {
         };
     }
     if (data.slice(1).some(day => !day)) {
-        throw new Error(`${sheetTitle} must contain one movie for every day in October`);
+        throw new Error(`${sheetTitle} must contain one movie for every day from 1 to ${event.lastDay}`);
     }
     return data;
 }
 
 export default async function (fastify, options) {
     fastify.get('/calendar', async (request, reply) => {
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
         const year = getCalendarYear();
-        const cacheKey = `calendar_${year}`;
+        const cacheKey = `calendar_${event.id}_${year}`;
 
         try {
-            const data = await getOrRefreshCache(cacheKey, () => loadCalendarData(year), CALENDAR_TTL);
+            const data = await getOrRefreshCache(cacheKey, () => loadCalendarData(year, event), CALENDAR_TTL);
             setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
 
             return { data: data };
@@ -67,18 +72,20 @@ export default async function (fastify, options) {
     });
 
     fastify.get('/calendar/:day', async (request, reply) => {
+        const event = eventFromQuery(request.query);
+        if (!event) return reply.code(400).send({ error: 'Unknown event' });
         try {
             const day = parseInt(request.params.day);
             const year = getCalendarYear();
 
-            if (isNaN(day) || day < 1 || day > 31) {
-                return reply.code(400).send({ error: 'Day must be a number between 1 and 31' });
+            if (isNaN(day) || day < 1 || day > event.lastDay) {
+                return reply.code(400).send({ error: `Day must be a number between 1 and ${event.lastDay}` });
             }
 
             // Check if specific day data is cached (with enrichment)
-            const dayCacheKey = `calendar_${year}_day_enriched_${day}`;
+            const dayCacheKey = `calendar_${event.id}_${year}_day_enriched_${day}`;
             const enrichedMovie = await getOrRefreshCache(dayCacheKey, async () => {
-                const calendarData = await getOrRefreshCache(`calendar_${year}`, () => loadCalendarData(year), CALENDAR_TTL);
+                const calendarData = await getOrRefreshCache(`calendar_${event.id}_${year}`, () => loadCalendarData(year, event), CALENDAR_TTL);
                 const dayMovie = calendarData[day];
 
                 if (!dayMovie || !dayMovie.title) {

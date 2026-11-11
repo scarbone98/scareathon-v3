@@ -54,6 +54,37 @@ vent shows NO SIGNAL bars, shaking the phone rocks the machine, drops dust and c
 | Agent keys | `server/utils/agentTokens.js`, `agent-cli/` | Settings > Agent keys makes a `wsa_` key for the `wayside` CLI. The auth hook sends those keys to `authenticateAgent`: allowlisted routes only (calendar, own season, mark/unmark watched for nights that have come, Scareboard), never admin. |
 | Data | `data.ts` | react-query with the classic pages' query keys, `fetchWithAuth`, the Supabase session. |
 
+## Seasons and events
+
+- **Two film events.** Scareathon: a horror film every night of October. Christmathon: a Christmas film every
+  night from December 1 to Christmas Day. Both are listed in `src/seasonEvents.ts` (front end) and
+  `EVENTS` in `server/utils/scareathon.js` (server); keep the two lists the same.
+- **Which one the station shows**: `featuredEvent()`: Christmathon from November 1 to December 31 (counting down
+  through November, "that's a wrap" after Christmas), Scareathon the rest of the year. `eventState()` in
+  `data.ts` gives the featured event and whether it's live or over. The flyers, the calendar flyer, the
+  board's event post, the poster and the scoreboard all follow it; in November and December the scoreboard
+  keeps a SCAREATHON key too.
+- **Calendars** are tabs of the Google sheet: `Calendar-<year>` (October) and `Christmathon-<year>`
+  (December 1 to 25). `server/scripts/create-christmathon-2026.mjs` makes the 2026 tab from
+  `christmathon-2026.csv` (run it without `--create` first to check the list).
+- **Decorations** come down and go up by month (Eastern time): Halloween in October (`halloween.ts`), autumn
+  in November (`autumn.ts`), Christmas in December (`christmas.ts`). Each is one file plus lines marked
+  HALLOWEEN / AUTUMN / CHRISTMAS in `StationScene.tsx`.
+
+### Decision: one set of tables, an event column (2026-11-10, Claude's pick)
+
+- **What**: Christmathon watches and points go in the Scareathon's tables (`scareathon_watches`,
+  `scareathon_points`) with an `event` column (`'scareathon'` by default, so every older row stays
+  Scareathon). Every event route takes `?event=christmathon`; without it they answer for the Scareathon as before,
+  so the classic pages and agent keys keep working unchanged.
+- **Why**: the season is the year, so a December watch would otherwise count towards that year's October
+  standings. A discriminator column is the usual way to keep several kinds of the same record in one table
+  (single-table inheritance); the scoring, ranking, caching and admin code is all shared.
+- **Alternatives**: separate `christmathon_*` tables (every query and admin route duplicated); encoding the
+  event in the season number (hidden meaning in an integer, and it breaks the year pickers).
+- Migration `20261110_add_christmathon.sql` runs at every server start, after the 20260930 one, and is safe to run
+  again: the watches' key becomes (user, event, season, day), and automatic awards land once per event.
+
 ## Running and testing locally
 
 - Dev server with real data: `VITE_BASE_URL=https://scareathon-v3-production.up.railway.app npm run dev`,

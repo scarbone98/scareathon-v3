@@ -47,10 +47,10 @@ export async function erasePrivateAccount(client, userId) {
     const tables = await existingTables(client);
     // Preserve the movies total, without retaining which nights the rider watched.
     if (tables.has('scareathon_watches')) {
-        await client.query(`INSERT INTO scareathon_points (user_id, season, category, points, reason, source_key)
-            SELECT user_id, season, 'movies', count(*)::int, '', 'deleted-account:movies'
-            FROM scareathon_watches WHERE user_id = $1 GROUP BY user_id, season
-            ON CONFLICT (user_id, season, source_key) WHERE source_key IS NOT NULL DO NOTHING`, [userId]);
+        await client.query(`INSERT INTO scareathon_points (user_id, event, season, category, points, reason, source_key)
+            SELECT user_id, event, season, 'movies', count(*)::int, '', 'deleted-account:movies'
+            FROM scareathon_watches WHERE user_id = $1 GROUP BY user_id, event, season
+            ON CONFLICT (user_id, event, season, source_key) WHERE source_key IS NOT NULL DO NOTHING`, [userId]);
     }
     if (tables.has('scareathon_points')) {
         await client.query("UPDATE scareathon_points SET reason = '', source_key = NULL, awarded_by = NULL WHERE user_id = $1", [userId]);
