@@ -299,13 +299,64 @@ function ArcadePost({ challenge, game, spotlight, signedIn, goTo, full }: { chal
 
 // ---- The event post: the event the station is showing (Scareathon, or Christmathon), as a film poster
 
+// The Christmathon's picture, painted: a lit tree in falling snow under a string of lights
+const SNOW = Array.from({ length: 46 }, (_, i) => ({ x: (i * 37.3) % 100, y: (i * 61.7) % 100, r: 0.35 + ((i * 13) % 5) * 0.12 }));
+const BULBS = ["#e0433b", "#f3cf7a", "#3fa66b", "#5b8fd9", "#e0433b", "#f3cf7a", "#3fa66b", "#5b8fd9", "#e0433b"];
+
+function ChristmasScene() {
+  return (
+    <div className="absolute inset-0 overflow-hidden" style={{ background: "radial-gradient(ellipse at 50% 30%, #1f5a3a 0%, #0f3424 55%, #071a12 100%)" }}>
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        {/* the tree, its glow, its star and baubles */}
+        <g transform="translate(50 6) scale(0.72) translate(-50 -6)">
+        <ellipse cx="50" cy="34" rx="26" ry="24" fill="#f3cf7a" opacity="0.12" />
+        <polygon points="50,12 38,30 43,30 33,44 40,44 29,58 71,58 60,44 67,44 57,30 62,30" fill="#0b2a1a" stroke="#2d7a4f" strokeWidth="0.6" />
+        <rect x="47" y="58" width="6" height="5" fill="#3a2414" />
+        <path d="M40 31 Q50 36 59 30 M35 45 Q50 51 64 44 M31 57 Q50 62 69 57" fill="none" stroke="#f3cf7a" strokeWidth="0.5" opacity="0.8" />
+        {[[44, 33, 0], [55, 32, 1], [39, 47, 2], [50, 50, 3], [61, 46, 0], [35, 58, 1], [46, 60, 2], [58, 60, 3], [66, 57, 0]].map(([x, y, c], i) => (
+          <circle key={i} cx={x} cy={y} r="1.4" fill={BULBS[c]} />
+        ))}
+        <polygon points="50,6 51.8,10.4 56.4,10.6 52.8,13.4 54,17.8 50,15.3 46,17.8 47.2,13.4 43.6,10.6 48.2,10.4" fill="#f3cf7a" />
+        </g>
+        {/* a string of lights along the top */}
+        <path d="M-2 4 Q12 13 25 5 Q38 13 50 5 Q62 13 75 5 Q88 13 102 4" fill="none" stroke="#1b1208" strokeWidth="0.5" />
+        {BULBS.map((colour, i) => {
+          const x = 2 + i * 12;
+          const y = 4 + Math.sin(((x % 25) / 25) * Math.PI) * 4.5;
+          return (
+            <g key={i}>
+              <circle cx={x} cy={y + 1.6} r="3" fill={colour} opacity="0.25" />
+              <ellipse cx={x} cy={y + 1.6} rx="1.1" ry="1.6" fill={colour} />
+            </g>
+          );
+        })}
+        {/* snow, and drifts on the ground */}
+        {SNOW.map((flake, i) => (
+          <circle key={i} cx={flake.x} cy={flake.y} r={flake.r} fill="#fff" opacity="0.75" />
+        ))}
+        <path d="M0 48 Q20 43 40 47 Q62 51 80 45 Q92 42 100 46 L100 100 L0 100 Z" fill="#e8eef0" opacity="0.18" />
+      </svg>
+      {/* a red ribbon down each side */}
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-[#b3261e]" />
+      <div className="absolute inset-y-0 right-0 w-1.5 bg-[#b3261e]" />
+    </div>
+  );
+}
+
 function EventPost({ goTo, full, picture }: { goTo: GoTo; full: boolean; picture: Picture }) {
   const { event, isLive, isOver, daysUntil, year, day } = eventState();
   const count = isOver ? "That's a wrap" : isLive ? `Night ${day} of ${event.lastDay}` : `${daysUntil} ${daysUntil === 1 ? "day" : "days"} to go`;
   const christmas = event.id === "christmathon";
   return (
-    <div className="relative flex h-full min-h-full flex-col bg-[#1a0f08] text-[#f2e2c2]">
-      <Photo picture={picture} className={full ? "aspect-[4/3] w-full" : "absolute inset-0"} fade="linear-gradient(to bottom, rgba(26,15,8,0.1) 30%, rgba(26,15,8,0.92) 78%)" />
+    <div className={`relative flex h-full min-h-full flex-col text-[#f2e2c2] ${christmas ? "bg-[#071a12]" : "bg-[#1a0f08]"}`}>
+      {christmas ? (
+        <div className={full ? "relative aspect-[4/3] w-full" : "absolute inset-0"}>
+          <ChristmasScene />
+          <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(7,26,18,0) 50%, rgba(7,26,18,0.92) 80%)" }} />
+        </div>
+      ) : (
+        <Photo picture={picture} className={full ? "aspect-[4/3] w-full" : "absolute inset-0"} fade="linear-gradient(to bottom, rgba(26,15,8,0.1) 30%, rgba(26,15,8,0.92) 78%)" />
+      )}
       <div className={`${full ? "" : "absolute inset-x-0 bottom-0"} px-4 pb-3 pt-2 text-center`}>
         <p className="text-[12px] uppercase tracking-[0.4em] opacity-80">
           {event.monthName} {year}
@@ -725,7 +776,7 @@ export function useBoardPapers(signedIn: boolean, goTo: GoTo): Paper[] {
       title: featuredEvent().id === "christmathon" ? "CHRISTMATHON" : "SCARE-ATHON",
       pinned: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
       full: <EventPost goTo={goTo} full={false} picture={eventPicture} />,
-      tint: "#1a0f08",
+      tint: featuredEvent().id === "christmathon" ? "#071a12" : "#1a0f08",
       sheet: { backgroundImage: "none" },
     },
   ];
