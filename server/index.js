@@ -22,6 +22,7 @@ import octoberValleyRoutes from './routes/octoberValley.js';
 import theClearingRoutes from './routes/theClearing.js';
 import closeEncountersRoutes from './routes/closeEncounters.js';
 import liquidMetalRoutes from './routes/liquidMetal.js';
+import gulpRoutes from './routes/gulp.js';
 import penguinsRoutes from './routes/penguins.js';
 import gamesRoutes from './routes/games.js';
 import dailyPuzzleRoutes from './routes/dailyPuzzles.js';
@@ -320,6 +321,7 @@ async function main() {
         fastify.register(theClearingRoutes, { prefix: '/the-clearing' });
         fastify.register(closeEncountersRoutes, { prefix: '/close-encounters' });
         fastify.register(liquidMetalRoutes, { prefix: '/liquid-metal' });
+        fastify.register(gulpRoutes, { prefix: '/gulp' });
         fastify.register(penguinsRoutes, { prefix: '/penguins' });
         fastify.register(userRoutes, { prefix: '/user' });
         fastify.register(accountPrivacyRoutes, { prefix: '/user' });
