@@ -51,6 +51,8 @@ export function isPublicRoute(method, url) {
         (method === 'GET' && url.startsWith('/close-encounters/arena/ws')) ||
         // And Liquid Metal's arena.
         (method === 'GET' && url.startsWith('/liquid-metal/ws')) ||
+        // And Gulp's shared sea.
+        (method === 'GET' && url.startsWith('/gulp/ws')) ||
         // And Penguin Slide's race rooms.
         (method === 'GET' && url.startsWith('/penguins/ws')) ||
         (method === 'GET' && PICTO_BOX_IMAGE.test(url)) ||
