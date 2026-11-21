@@ -156,7 +156,6 @@ const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html
 const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=234a756";
 // A raccoon 3D platformer on a Pacific Northwest hill, after Banjo-Kazooie (github.com/Sclondon/Ringtail), in testing.
 const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=8426624";
-const GULP_URL = "https://sclondon.github.io/Gulp/build/index.html?v=b785b6b";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1373,31 +1372,6 @@ export function createArcadeGames(): MachineData[] {
           title="Ringtail"
           url={RINGTAIL_URL}
           desktopAspectRatio={16 / 9}
-          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
-        />
-      ),
-    },
-    // Eat-and-grow in a 3D sea, no score yet (Gulp is a working title): start as a sardine, eat what is
-    // smaller, keep clear of what is bigger, and grow through smolt, salmon and tuna to a shark.
-    // Phone first: a stick and a burst button.
-    {
-      name: "Gulp",
-      added: "2026-11-17T14:00:00-07:00",
-      earlyAccess: true,
-      availableOnMobile: true,
-      cartridge: {
-        color: "#2f6fb0",
-        tagline: "Start as a sardine. Eat what is smaller. End up a shark.",
-        font: { family: "Luckiest Guy" },
-        about: { released: "2026", players: "Single player", genre: "Eat and grow", developer: "sclondon" },
-        backNote: "Big moon jellies sting. Small ones are a snack.",
-      },
-      videoUrl: "/game-recordings/Gulp.mp4",
-      hasLeaderboard: false,
-      game: (
-        <GameRenderer
-          title="Gulp"
-          url={GULP_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
