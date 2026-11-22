@@ -156,6 +156,9 @@ const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html
 const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=234a756";
 // A raccoon 3D platformer on a Pacific Northwest hill, after Banjo-Kazooie (github.com/Sclondon/Ringtail), in testing.
 const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=8426624";
+// A felt mouse in a mug of cocoa, after a photo of a real one: he pops out of the foam, paces, tosses his candy
+// and sits back in. A toy to turn about, no score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
+const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=28a7f33";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1591,6 +1594,29 @@ export function createArcadeGames(): MachineData[] {
           onLoad={(iframe) =>
             listenForPlayerDiedScores(iframe, "Cauldron", CAULDRON_URL)
           }
+        />
+      ),
+    },
+    // --- Secret: a toy, not a game, only on the shelf once you've typed MOUSE into WaysideOS. No scores.
+    {
+      name: "Felt Mouse",
+      added: "2026-11-22T14:00:00-07:00",
+      availableOnMobile: true,
+      videoUrl: "/game-recordings/FeltMouse.mp4",
+      secret: true,
+      hasLeaderboard: false,
+      cartridge: {
+        color: "#b3261e",
+        tagline: "A little felt mouse in a mug of cocoa. Drag to turn him about.",
+        font: { family: "Fredoka" },
+        about: { released: "2026", players: "1 player", genre: "Toy", developer: "sclondon" },
+        backNote: "He hides under the foam, pops out, paces, tosses his candy and sits back in.",
+      },
+      game: (
+        <GameRenderer
+          title="Felt Mouse"
+          url={FELT_MOUSE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
     },
