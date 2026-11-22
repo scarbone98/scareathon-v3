@@ -110,6 +110,12 @@ async function getWatchProviders(movieId) {
     }
 }
 
+// A film's small TMDB poster, or '' (one search, kept a week like every search)
+export async function findPosterUrl(title, releaseYear) {
+    const result = title ? await searchMovie(title, releaseYear) : null;
+    return result?.poster_path ? `https://image.tmdb.org/t/p/w342${result.poster_path}` : '';
+}
+
 /**
  * Enrich movie data with TMDB information
  * @param {string} title - Movie title

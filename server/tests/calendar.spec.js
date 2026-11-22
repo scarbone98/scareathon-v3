@@ -2,8 +2,10 @@ import { jest } from '@jest/globals';
 
 const calendarSheet = jest.fn();
 jest.unstable_mockModule('../db/google-sheets.js', () => ({ default: calendarSheet }));
+const findPosterUrl = jest.fn(async title => `poster:${title}`);
+jest.unstable_mockModule('../utils/tmdb.js', () => ({ enrichMovieData: jest.fn(), findPosterUrl }));
 
-const { loadCalendarData } = await import('../routes/calendar.js');
+const { loadCalendarData, loadCalendarWithPosters } = await import('../routes/calendar.js');
 
 function makeRows() {
     return Array.from({ length: 31 }, (_, index) => ({
@@ -37,4 +39,16 @@ test('rejects an incomplete calendar', async () => {
     });
 
     await expect(loadCalendarData(2026)).rejects.toThrow('one movie for every day');
+});
+
+test('fills blank posters from TMDB and keeps the sheet posters', async () => {
+    const rows = makeRows().slice(0, 25);
+    rows[0] = { get: key => ({ day: '1', title: 'Movie 1', lowResUrl: 'sheet.jpg' })[key] };
+    calendarSheet.mockResolvedValueOnce({ sheetsByTitle: { 'Christmathon-2026': { getRows: jest.fn(async () => rows) } } });
+    const { EVENTS } = await import('../utils/scareathon.js');
+
+    const data = await loadCalendarWithPosters(2026, EVENTS.christmathon);
+    expect(data[1].lowResUrl).toBe('sheet.jpg');
+    expect(data[25].lowResUrl).toBe('poster:Movie 25');
+    expect(findPosterUrl).toHaveBeenCalledTimes(24);
 });

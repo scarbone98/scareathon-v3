@@ -1,6 +1,6 @@
 import calendarSheet from '../db/google-sheets.js';
 import { deleteCachePrefix, getOrRefreshCache } from '../utils/cacheManager.js';
-import { enrichMovieData } from '../utils/tmdb.js';
+import { enrichMovieData, findPosterUrl } from '../utils/tmdb.js';
 import { EVENTS, eventFromQuery } from '../utils/scareathon.js';
 
 const CALENDAR_TTL = 60 * 60 * 1000;
@@ -53,6 +53,16 @@ export async function loadCalendarData(year = getCalendarYear(), event = EVENTS.
     return data;
 }
 
+// The calendar with every blank poster filled from TMDB (the Christmathon tab was made
+// without posters), so the month's poster grid isn't empty tiles
+export async function loadCalendarWithPosters(year = getCalendarYear(), event = EVENTS.scareathon) {
+    const data = await loadCalendarData(year, event);
+    await Promise.all(data.map(async (movie) => {
+        if (movie && !movie.lowResUrl) movie.lowResUrl = await findPosterUrl(movie.title, movie.releaseYear);
+    }));
+    return data;
+}
+
 export default async function (fastify, options) {
     fastify.get('/calendar', async (request, reply) => {
         const event = eventFromQuery(request.query);
@@ -61,7 +71,7 @@ export default async function (fastify, options) {
         const cacheKey = `calendar_${event.id}_${year}`;
 
         try {
-            const data = await getOrRefreshCache(cacheKey, () => loadCalendarData(year, event), CALENDAR_TTL);
+            const data = await getOrRefreshCache(cacheKey, () => loadCalendarWithPosters(year, event), CALENDAR_TTL);
             setReadCacheHeaders(reply, CALENDAR_TTL / 1000);
 
             return { data: data };
@@ -85,7 +95,7 @@ export default async function (fastify, options) {
             // Check if specific day data is cached (with enrichment)
             const dayCacheKey = `calendar_${event.id}_${year}_day_enriched_${day}`;
             const enrichedMovie = await getOrRefreshCache(dayCacheKey, async () => {
-                const calendarData = await getOrRefreshCache(`calendar_${event.id}_${year}`, () => loadCalendarData(year, event), CALENDAR_TTL);
+                const calendarData = await getOrRefreshCache(`calendar_${event.id}_${year}`, () => loadCalendarWithPosters(year, event), CALENDAR_TTL);
                 const dayMovie = calendarData[day];
 
                 if (!dayMovie || !dayMovie.title) {
