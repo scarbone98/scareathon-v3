@@ -156,9 +156,9 @@ const ONE_MAN_BAND_URL = "https://sclondon.github.io/OneManBand/build/index.html
 const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v=234a756";
 // A raccoon 3D platformer on a Pacific Northwest hill, after Banjo-Kazooie (github.com/Sclondon/Ringtail), in testing.
 const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=8426624";
-// A felt mouse in a mug of cocoa, after a photo of a real one: he pops out of the foam, paces, tosses his candy
-// and sits back in. A toy to turn about, no score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
-const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=28a7f33";
+// A felt mouse in a mug of cocoa, after a photo of a real one: he pops out of the foam and you walk him about a
+// kitchen counter decorated for Christmas (stick, candy toss, home to the mug). No score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
+const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=1fcbc97";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1597,7 +1597,7 @@ export function createArcadeGames(): MachineData[] {
         />
       ),
     },
-    // --- Secret: a toy, not a game, only on the shelf once you've typed MOUSE into WaysideOS. No scores.
+    // --- Secret: a small toy of a game, only on the shelf once you've typed MOUSE into WaysideOS. No scores.
     {
       name: "Felt Mouse",
       added: "2026-11-22T14:00:00-07:00",
@@ -1607,10 +1607,10 @@ export function createArcadeGames(): MachineData[] {
       hasLeaderboard: false,
       cartridge: {
         color: "#b3261e",
-        tagline: "A little felt mouse in a mug of cocoa. Drag to turn him about.",
+        tagline: "A little felt mouse on a Christmas kitchen counter. Walk him about.",
         font: { family: "Fredoka" },
         about: { released: "2026", players: "1 player", genre: "Toy", developer: "sclondon" },
-        backNote: "He hides under the foam, pops out, paces, tosses his candy and sits back in.",
+        backNote: "He lives in the cocoa mug. Toss his candy, visit the gingerbread house, then send him home to the foam.",
       },
       game: (
         <GameRenderer
