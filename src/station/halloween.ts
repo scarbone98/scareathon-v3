@@ -27,18 +27,28 @@ import {
 // else is in this file; to take them down for good, delete it and the lines marked HALLOWEEN
 // in StationScene.
 
-// The month it is in New York (1-12), which says which decorations are up. ?season=halloween
-// (or autumn, christmas, none) in the address puts those up instead, to see them any day.
-// (read as the station loads, before it tidies the address)
+// Which decorations are up, by the date in New York: Halloween in October, autumn from
+// November 1 to the day before Thanksgiving, Christmas from Thanksgiving (the fourth Thursday
+// of November) to December 31. ?season=halloween (or autumn, christmas, none) in the address
+// puts those up instead, to see them any day. (read as the station loads, before it tidies the address)
+export type StationSeason = "halloween" | "autumn" | "christmas" | "none";
 const ASKED_SEASON = new URLSearchParams(window.location.search).get("season");
-const SEASON_MONTHS: Record<string, number> = { halloween: 10, autumn: 11, christmas: 12, none: 0 };
-export function seasonMonth(now = new Date()) {
-  if (ASKED_SEASON && ASKED_SEASON in SEASON_MONTHS) return SEASON_MONTHS[ASKED_SEASON];
-  return Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "numeric" }).format(now));
+const SEASONS: StationSeason[] = ["halloween", "autumn", "christmas", "none"];
+export function stationSeason(now = new Date()): StationSeason {
+  if (SEASONS.includes(ASKED_SEASON as StationSeason)) return ASKED_SEASON as StationSeason;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(now);
+  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const [year, month, day] = [part("year"), part("month"), part("day")];
+  if (month === 10) return "halloween";
+  if (month === 12) return "christmas";
+  if (month !== 11) return "none";
+  const firstWeekday = new Date(Date.UTC(year, 10, 1)).getUTCDay(); // 0 Sunday .. 4 Thursday
+  const thanksgiving = 1 + ((4 - firstWeekday + 7) % 7) + 21;
+  return day >= thanksgiving ? "christmas" : "autumn";
 }
 
 export function isHalloweenSeason(now = new Date()) {
-  return seasonMonth(now) === 10;
+  return stationSeason(now) === "halloween";
 }
 
 // Where the station's walls are (from StationScene)

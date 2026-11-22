@@ -69,7 +69,8 @@ vent shows NO SIGNAL bars, shaking the phone rocks the machine, drops dust and c
   `christmathon-2026.csv` (run it without `--create` first to check the list). A blank `lowResUrl` (poster)
   cell is filled from TMDB by the server (`loadCalendarWithPosters`), so a tab made without posters still shows them.
 - **Decorations** come down and go up by month (Eastern time): Halloween in October (`halloween.ts`), autumn
-  in November (`autumn.ts`), Christmas in December (`christmas.ts`). Each is one file plus lines marked
+  from November 1 to the day before Thanksgiving (`autumn.ts`), Christmas from Thanksgiving to December 31
+  (`christmas.ts`; the snow outside too). `stationSeason()` in `halloween.ts` decides; `?season=` overrides it. Each is one file plus lines marked
   HALLOWEEN / AUTUMN / CHRISTMAS in `StationScene.tsx`.
 
 ### Decision: one set of tables, an event column (2026-11-10, Claude's pick)

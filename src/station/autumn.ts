@@ -13,16 +13,16 @@ import {
   Vector3,
 } from "three";
 import { mergeFixedParts } from "../pages/ArcadeV2/mergeParts.ts";
-import { paint, seasonMonth, type StationShape } from "./halloween.ts";
+import { paint, stationSeason, type StationShape } from "./halloween.ts";
 
-// Autumn decorations for the station, through November only (no event, just the season):
+// Autumn decorations for the station, from November 1 until Thanksgiving (no event, just the season):
 // garlands of red, orange and gold leaves along the ceiling corners, squashes and gourds about
 // the platform, a hay bale and corn sheaves at the platform's end. (The canopy's lamps burn a
 // little warmer too: StationScene.) Everything else is in this file; to take them down for
 // good, delete it and the lines marked AUTUMN in StationScene.
 
 export function isAutumnSeason(now = new Date()) {
-  return seasonMonth(now) === 11;
+  return stationSeason(now) === "autumn";
 }
 
 // A fallen leaf cut out of paper: a maple's five points, or an oak's rounded lobes
