@@ -1,33 +1,142 @@
 import {
   AdditiveBlending,
   BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
   Color,
-  ConeGeometry,
-  CylinderGeometry,
   DoubleSide,
+  Float32BufferAttribute,
   Group,
   InstancedMesh,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  type Object3D,
   PlaneGeometry,
-  Shape,
-  ShapeGeometry,
+  Points,
+  PointsMaterial,
   SphereGeometry,
+  Sprite,
+  SpriteMaterial,
   Vector3,
 } from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { CHRISTMAS_META as meta } from "./christmasMeta.ts";
 import { mergeFixedParts } from "../pages/ArcadeV2/mergeParts.ts";
 import { glowMap, paint, stationSeason, type StationShape } from "./halloween.ts";
 
-// Christmas decorations for the station, from Thanksgiving to December 31: evergreen garland along the
-// ceiling corners with coloured lights strung through it, wreaths on the walls, and a tree at
-// the platform's end, its lights twinkling, a star on top and presents under it. (Outside it
-// snows all the while: StationScene.) Everything else is in this file; to take them down for good,
-// delete it and the lines marked CHRISTMAS in StationScene.
+// Christmas decorations for the station, from Thanksgiving to December 31: fir garland swagged
+// along the walls, over the ticket window and along the railing, with strings of big bulbs (some
+// blinking, the railing's chasing); wreaths; a tree at the platform's end with presents and a toy
+// train; poinsettias, candy canes and nutcrackers about the place; candles, a village cottage and a
+// snow globe on the lockers; a little tree, a snowman, a candy jar and stockings at the ticket
+// counter. The props are Blender models (art/station/build_christmas.py -> public/models/Christmas.glb).
+// Outside it snows, and the snow lies on the fields; the rug in the middle is a winter one
+// (StationScene). Everything else is in this file; to take them down for good, delete it and
+// the lines marked CHRISTMAS in StationScene.
 
 export function isChristmasSeason(now = new Date()) {
   return stationSeason(now) === "christmas";
+}
+
+// Snow lying on the fields and over the line, for StationScene: the textures, and the colour
+// they're lit by at night (moonlit blue) and by day (StationScene's fields are painted dark and
+// multiplied well past white by day; snow is painted light, so its day colour stays near white)
+export function snowyGround() {
+  const drift = (base: string, dots: string[], count: number, size: number) =>
+    paint(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < count; i += 1) {
+        ctx.fillStyle = dots[i % dots.length];
+        ctx.fillRect(Math.random() * w, Math.random() * h, size, size);
+      }
+    });
+  const fields = drift("#dfe5ee", ["#c9d1de", "#eef2f7", "#bfc9d8", "#f6f8fb", "#d3dae5"], 2600, 3);
+  // (the line: snow over the gravel, the stones showing through here and there)
+  const ballast = drift("#cfd6e0", ["#5a5550", "#e8edf3", "#3e3a36", "#b8c1cd"], 900, 2);
+  return { fields, ballast, night: "#6f7c96", day: "#d8dde6" };
+}
+
+// The rug in the middle of the platform, for the season: deep red, a green border with a white
+// stitch round it, a ring of snowflakes and a big one in the middle, worn pale where you stand
+export function christmasRugTexture() {
+  return paint(512, 512, (ctx, w) => {
+    const c = w / 2;
+    const ring = (r: number, colour: string) => {
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.arc(c, c, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    ring(c, "#173c26");
+    ring(c - 14, "#245a36");
+    ring(c - 34, "#173c26");
+    ring(c - 40, "#8e1c22");
+    ring(c - 92, "#a8262a");
+    ring(c - 98, "#e8dcc4");
+    ring(c - 103, "#a8262a");
+    // A white stitch round the border
+    ctx.strokeStyle = "#efe6d2";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.arc(c, c, c - 24, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const flake = (x: number, y: number, r: number, width: number) => {
+      ctx.strokeStyle = "#f4efe2";
+      ctx.lineWidth = width;
+      ctx.lineCap = "round";
+      for (let k = 0; k < 6; k += 1) {
+        const a = (k / 6) * Math.PI * 2;
+        const ex = Math.cos(a);
+        const ey = Math.sin(a);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + ex * r, y + ey * r);
+        ctx.stroke();
+        // (two little branches on each arm)
+        [0.45, 0.7].forEach((along) => {
+          const bx = x + ex * r * along;
+          const by = y + ey * r * along;
+          [-1, 1].forEach((side) => {
+            const b = a + side * 0.75;
+            ctx.beginPath();
+            ctx.moveTo(bx, by);
+            ctx.lineTo(bx + Math.cos(b) * r * 0.28, by + Math.sin(b) * r * 0.28);
+            ctx.stroke();
+          });
+        });
+      }
+    };
+    // A ring of snowflakes between the border and the middle, and a big one in the middle
+    for (let i = 0; i < 12; i += 1) {
+      const a = (i / 12) * Math.PI * 2;
+      flake(c + Math.cos(a) * (c - 66), c + Math.sin(a) * (c - 66), 15, 3);
+    }
+    flake(c, c, 92, 7);
+    // Gold studs between the flakes
+    for (let i = 0; i < 12; i += 1) {
+      const a = ((i + 0.5) / 12) * Math.PI * 2;
+      const x = c + Math.cos(a) * (c - 66);
+      const y = c + Math.sin(a) * (c - 66);
+      ctx.fillStyle = "#d8a23a";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const worn = ctx.createRadialGradient(c, c, 8, c, c, c - 100);
+    worn.addColorStop(0, "rgba(230,200,190,0.28)");
+    worn.addColorStop(1, "rgba(230,200,190,0)");
+    ctx.fillStyle = worn;
+    ctx.fillRect(0, 0, w, w);
+    for (let i = 0; i < 9000; i += 1) {
+      ctx.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,0.12)" : "rgba(255,240,230,0.06)";
+      ctx.fillRect(Math.random() * w, Math.random() * w, 2, 2);
+    }
+  });
 }
 
 // A spray of fir: a stem down the middle, needles off it both ways, dark and light greens
@@ -57,9 +166,48 @@ function boughTexture() {
   });
 }
 
-// The colours the lights come in, and how bright each is when it's lit
-const BULBS = ["#ff3a3a", "#3aff6a", "#ffd23a", "#3a8aff", "#fff2d0"].map((colour) => new Color(colour));
-const BULB_DIM = 0.22;
+// The colours the lights come in (old-fashioned big bulbs: red, green, amber, blue, warm white)
+const BULBS = ["#ff3a3a", "#3aff6a", "#ffb43a", "#3a8aff", "#fff2d0"].map((colour) => new Color(colour));
+
+// How a bulb behaves: most glow and gently twinkle, some blink right off and on, and the
+// railing's string chases along
+type Bulb = { at: Vector3; colour: number; mode: "twinkle" | "blink" | "chase"; phase: number; size: number };
+
+// A paper snowflake, cut out: six arms with little branches, white on clear
+function paperSnowflake() {
+  return paint(128, 128, (ctx, w) => {
+    ctx.clearRect(0, 0, w, w);
+    const c = w / 2;
+    ctx.strokeStyle = "#f4f6fa";
+    ctx.lineCap = "round";
+    for (let k = 0; k < 6; k += 1) {
+      const a = (k / 6) * Math.PI * 2;
+      const ex = Math.cos(a);
+      const ey = Math.sin(a);
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.lineTo(c + ex * c * 0.9, c + ey * c * 0.9);
+      ctx.stroke();
+      ctx.lineWidth = 6;
+      [0.4, 0.65].forEach((along) => {
+        const bx = c + ex * c * along;
+        const by = c + ey * c * along;
+        [-1, 1].forEach((side) => {
+          const b = a + side * 0.8;
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          ctx.lineTo(bx + Math.cos(b) * c * 0.26, by + Math.sin(b) * c * 0.26);
+          ctx.stroke();
+        });
+      });
+    }
+    ctx.fillStyle = "#f4f6fa";
+    ctx.beginPath();
+    ctx.arc(c, c, 12, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
 
 // Moves a sub-assembly's meshes into `group` with its placing baked into each, so they can be
 // merged with everything else (see mergeFixedParts): the sub-assembly must only turn and move
@@ -72,42 +220,102 @@ function bake(group: Group, sub: Group) {
   });
 }
 
-export function buildChristmas({ wallZ, sideX, endX, ceilingY }: StationShape) {
+// The props are models (art/station/build_christmas.py makes them in Blender), loaded once
+// and placed by name; the lights and the candle flames are made here, so they can twinkle
+const MODELS = "/models/Christmas.glb";
+
+// Puts a copy of a prop where it goes: at (x, y, z), turned `turn` about the vertical, scaled
+type Placing = [name: string, x: number, y: number, z: number, turn?: number, scale?: number];
+
+export function buildChristmas({ wallZ, sideX, endX, ceilingY, ticketsAt, lockersTop }: StationShape, warm?: (object: Object3D) => Promise<unknown>) {
   const group = new Group();
   const hookY = ceilingY - 0.05;
   const needles = new MeshStandardMaterial({ map: boughTexture(), transparent: true, alphaTest: 0.35, side: DoubleSide, roughness: 0.9, emissive: "#0c2412", emissiveIntensity: 0.6 });
-  const bulbAt: Vector3[] = [];
+  const bulbs: Bulb[] = [];
+  const bulb = (at: Vector3, mode: Bulb["mode"], size = 1) => bulbs.push({ at, colour: bulbs.length % BULBS.length, mode, phase: Math.random() * Math.PI * 2, size });
+  // (every third bulb on a string blinks; the rest twinkle)
+  const strung = (at: Vector3, i: number, size = 1) => bulb(at, i % 3 === 0 ? "blink" : "twinkle", size);
 
-  // Garland: sprays of fir along a swag, every which way, thick enough to look like a rope of it
-  const spray = new PlaneGeometry(0.3, 0.15);
-  const garland = (from: Vector3, to: Vector3, sag: number, span: number) => {
+  // The ticket counter's own frame of reference: x along the counter, z out towards the
+  // visitor, y up from the floor (the counter faces back along the platform)
+  const counter = new Group();
+  counter.position.set(ticketsAt[0], 0, ticketsAt[2]);
+  counter.rotation.y = -Math.PI / 2;
+  counter.updateMatrixWorld();
+  const atCounter = (x: number, y: number, z: number) => new Vector3(x, y, z).applyMatrix4(counter.matrixWorld);
+  const counterTop = ticketsAt[1];
+
+  // Garland: swags of fir rope along the walls' tops, a bow at each hook, bulbs hung along them.
+  // Each swag is the model's one swag, stretched a little to fit its stretch of wall
+  const swagBulbs = meta.swagBulbs.map(([x, y, z]) => new Vector3(x, y, z));
+  const swags: Placing[] = [];
+  const bows: Placing[] = [];
+  // (along a wall from `from` to `to`, `turn` facing out from it)
+  const garland = (from: Vector3, to: Vector3, turn: number, span = meta.swagLength, bowed = true) => {
     const length = from.distanceTo(to);
-    const swags = Math.max(1, Math.round(length / span));
-    const at = (k: number) => {
-      const point = from.clone().lerp(to, k);
-      point.y -= Math.sin(((k * swags) % 1) * Math.PI) * sag;
-      return point;
-    };
+    const count = Math.max(1, Math.round(length / span));
+    const stretch = length / count / meta.swagLength;
     const along = to.clone().sub(from).normalize();
-    const heading = Math.atan2(-along.z, along.x);
-    const count = Math.floor(length / 0.08);
-    for (let i = 0; i <= count; i += 1) {
-      const mesh = new Mesh(spray, needles);
-      mesh.position.copy(at(i / count));
-      mesh.rotation.set(((i * 47) % 13) * 0.24, heading + ((i * 31) % 9) * 0.1 - 0.4, ((i * 17) % 11) * 0.3 - 1.5);
-      group.add(mesh);
+    for (let i = 0; i < count; i += 1) {
+      const start = from.clone().addScaledVector(along, (length * i) / count);
+      swags.push(["GarlandSwag", start.x, start.y, start.z, turn, stretch]);
+      if (bowed) bows.push(["GarlandBow", start.x, start.y, start.z, turn]);
+      const place = new Matrix4().makeRotationY(turn).scale(new Vector3(stretch, 1, 1)).setPosition(start);
+      swagBulbs.forEach((point, k) => strung(point.clone().applyMatrix4(place), i * swagBulbs.length + k, 1.2));
     }
-    // A light every so often along it, hung a little below
-    const lights = Math.floor(length / 0.28);
-    for (let i = 1; i < lights; i += 1) bulbAt.push(at(i / lights).add(new Vector3(0, -0.06, 0)).addScaledVector(along.clone().cross(new Vector3(0, 1, 0)), -0.05));
+    if (bowed) bows.push(["GarlandBow", to.x, to.y, to.z, turn]);
   };
-  garland(new Vector3(endX + 0.3, hookY, wallZ + 0.1), new Vector3(sideX - 0.1, hookY, wallZ + 0.1), 0.2, 1.6);
-  garland(new Vector3(sideX - 0.1, hookY, wallZ + 0.1), new Vector3(sideX - 0.1, hookY, wallZ + 4.2), 0.2, 1.4);
+  garland(new Vector3(endX + 0.3, hookY, wallZ + 0.1), new Vector3(sideX - 0.1, hookY, wallZ + 0.1), 0);
+  garland(new Vector3(sideX - 0.1, hookY, wallZ + 0.1), new Vector3(sideX - 0.1, hookY, wallZ + 4.2), -Math.PI / 2);
+  // One over the ticket window, and along the railing at the platform's end (facing in)
+  garland(atCounter(-0.75, 2.14, 0.1), atCounter(0.75, 2.14, 0.1), -Math.PI / 2, 1.5);
+  const railX = endX + 0.12;
+  garland(new Vector3(railX, 1.08, wallZ + 0.15), new Vector3(railX, 1.08, 3.1), Math.PI / 2, 0.9, false); // (no bows: seen from the bench they're right in your face)
+
+  // Lights round the ticket window's frame, up one side and down the other, blinking in turn
+  for (let i = 0; i <= 8; i += 1) {
+    const y = 1.12 + (i / 8) * 0.9;
+    bulb(atCounter(-0.8, y, 0.09), i % 2 ? "blink" : "twinkle");
+    bulb(atCounter(0.8, y, 0.09), i % 2 ? "twinkle" : "blink");
+  }
+  // A string looped along the railing's handrail, chasing towards the view
+  {
+    const from = wallZ + 0.2;
+    const to = 3.1;
+    const n = 26;
+    for (let i = 0; i <= n; i += 1) {
+      const k = i / n;
+      const sag = Math.abs(Math.sin(k * Math.PI * 6)) * 0.07;
+      bulbs.push({ at: new Vector3(railX + 0.02, 0.99 - sag, from + k * (to - from)), colour: i % BULBS.length, mode: "chase", phase: k, size: 1 });
+    }
+  }
+
+  // The tree, at the platform's end, its lights wound round it from the foot up
+  const treeX = endX + 0.62;
+  const treeZ = wallZ + 0.7;
+  const tree = meta.tree;
+  {
+    const turns = 6.5;
+    const n = 78;
+    for (let i = 0; i < n; i += 1) {
+      const k = i / n;
+      const y = tree.baseY + k * (tree.topY - tree.baseY);
+      const r = tree.baseRadius * (1 - k) * 0.95 + 0.04;
+      const a = k * turns * Math.PI * 2;
+      strung(new Vector3(treeX + Math.cos(a) * r, y, treeZ + Math.sin(a) * r), i, 0.9);
+    }
+  }
+  // The star's glow
+  const starGlow = new Sprite(new SpriteMaterial({ map: glowMap, color: "#ffd060", transparent: true, opacity: 0.45, blending: AdditiveBlending, depthWrite: false }));
+  starGlow.scale.set(0.7, 0.7, 1);
+  starGlow.position.set(treeX, tree.starY, treeZ + 0.02);
+  group.add(starGlow);
 
   // A wreath: sprays round a ring, red berries in clumps, a red bow at the bottom. Built
   // facing +z, then turned to face out from its wall
   const red = new MeshStandardMaterial({ color: "#c8202a", roughness: 0.55, emissive: "#3a0608" });
   const berry = new SphereGeometry(0.018, 6, 5);
+  const spray = new PlaneGeometry(0.3, 0.15);
   const wreath = (x: number, y: number, z: number, turn: number, radius: number) => {
     const sub = new Group();
     const sprays = 16;
@@ -150,119 +358,156 @@ export function buildChristmas({ wallZ, sideX, endX, ceilingY }: StationShape) {
   // the back wall between the events poster and the pigeonholes
   wreath(sideX - 0.05, 2.45, wallZ + 0.7, -Math.PI / 2, 0.24);
   wreath(2.3, 2.45, wallZ + 0.05, 0, 0.24);
+  mergeFixedParts(group, [starGlow]);
 
-  // The tree, at the platform's end: layered boughs round a dark core, each tier drooping,
-  // wider towards the floor, in a red-wrapped tub
-  const tree = new Group();
-  const treeX = endX + 0.5;
-  const treeZ = wallZ + 0.85;
-  const foot = 0.3; // (the tub's top)
-  const height = 2.05;
-  const core = new Mesh(new ConeGeometry(0.27, height * 0.92, 10, 1, true), new MeshStandardMaterial({ color: "#0f2a16", roughness: 1, side: DoubleSide }));
-  core.position.set(0, foot + height * 0.46 + 0.05, 0);
-  tree.add(core);
-  const trunk = new Mesh(new CylinderGeometry(0.05, 0.06, 0.3, 8), new MeshStandardMaterial({ color: "#4a3020", roughness: 1 }));
-  trunk.position.y = foot + 0.05;
-  tree.add(trunk);
-  const tub = new Mesh(new CylinderGeometry(0.2, 0.16, foot, 14), red);
-  tub.position.y = foot / 2;
-  tree.add(tub);
-  const bough = new PlaneGeometry(1, 0.32);
-  bough.translate(0.5, 0, 0);
-  const tiers = 9;
-  const tipAt: Vector3[] = [];
-  for (let tier = 0; tier < tiers; tier += 1) {
-    const k = tier / (tiers - 1); // 0 at the bottom
-    const y = foot + 0.12 + k * (height - 0.25);
-    // (the widest tier clear of the railing on one side and the lockers on the other)
-    const reach = 0.36 * (1 - k) + 0.08;
-    const count = Math.max(5, Math.round(12 - k * 6));
-    for (let i = 0; i < count; i += 1) {
-      const angle = ((i + (tier % 2) * 0.5) / count) * Math.PI * 2;
-      const droop = 0.35 + (1 - k) * 0.2;
-      const mesh = new Mesh(bough, needles);
-      mesh.scale.set(reach, reach * 0.9 + 0.1, 1);
-      mesh.position.set(0, y, 0);
-      // (laid flat, drooped at the tip, then turned round the trunk)
-      mesh.rotation.set(-Math.PI / 2, angle, -droop, "YZX");
-      tree.add(mesh);
-      tipAt.push(new Vector3(Math.cos(angle) * reach * Math.cos(droop) * 0.85, y - Math.sin(droop) * reach * 0.85 - 0.02, -Math.sin(angle) * reach * Math.cos(droop) * 0.85));
-    }
-  }
-  tree.position.set(treeX, 0, treeZ);
-  bake(group, tree);
-  // Lights and baubles on the bough tips, every other one each, turning about the tree
-  const baubleAt: Vector3[] = [];
-  tipAt.forEach((tip, i) => (i % 2 ? bulbAt : baubleAt).push(tip.add(new Vector3(treeX, 0, treeZ))));
-  // The star on top
-  const star = new Shape();
-  for (let i = 0; i <= 10; i += 1) {
-    const angle = Math.PI / 2 + (i / 10) * Math.PI * 2;
-    const r = i % 2 ? 0.045 : 0.11;
-    if (i === 0) star.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
-    else star.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
-  }
-  const gold = new MeshBasicMaterial({ color: "#ffd860", side: DoubleSide, fog: false });
-  const topper = new Mesh(new ShapeGeometry(star), gold);
-  topper.position.set(treeX, foot + height + 0.08, treeZ);
-  topper.rotation.y = 0.5;
-  const topperGlow = new Mesh(new PlaneGeometry(0.6, 0.6), new MeshBasicMaterial({ map: glowMap, color: "#ffd060", transparent: true, opacity: 0.45, blending: AdditiveBlending, depthWrite: false }));
-  topperGlow.position.copy(topper.position);
-  topperGlow.rotation.y = 0.5;
-  group.add(topper, topperGlow);
-  // Presents under it: wrapped boxes, a ribbon each way round
-  const papers = ["#c8202a", "#1f6a3a", "#e0c060", "#2a4a9a"].map((colour) => new MeshStandardMaterial({ color: colour, roughness: 0.7 }));
-  const ribbon = new MeshStandardMaterial({ color: "#f2e6c8", roughness: 0.5 });
-  ([
-    [0.32, 0.25, 0.22, 0.16, 0.4, 0],
-    [0.05, 0.4, 0.18, 0.14, 0.9, 1],
-    [0.38, -0.12, 0.14, 0.2, -0.3, 2],
-    [-0.12, 0.42, 0.13, 0.1, 0.2, 3],
-  ] as const).forEach(([dx, dz, size, tall, turn, paper]) => {
-    const sub = new Group();
-    const box = new Mesh(new BoxGeometry(size, tall, size), papers[paper]);
-    box.position.y = tall / 2;
-    const across = new Mesh(new BoxGeometry(size + 0.004, tall + 0.004, 0.025), ribbon);
-    across.position.y = tall / 2;
-    const along = new Mesh(new BoxGeometry(0.025, tall + 0.004, size + 0.004), ribbon);
-    along.position.y = tall / 2;
-    sub.add(box, across, along);
-    sub.position.set(treeX + dx, 0, treeZ + dz);
-    sub.rotation.y = turn;
-    bake(group, sub);
+  // Where the props go
+  const [lockersX, lockersY, lockersZ] = lockersTop;
+  const onCounter = (name: string, x: number, z: number, turn = 0, scale = 1): Placing => {
+    const at = atCounter(x, counterTop, z);
+    return [name, at.x, at.y, at.z, turn - Math.PI / 2, scale];
+  };
+  const hungOnCounter = (name: string, x: number): Placing => {
+    const at = atCounter(x, 1.03, 0.5);
+    return [name, at.x, at.y, at.z, -Math.PI / 2];
+  };
+  const props: Placing[] = [
+    ...swags,
+    ...bows,
+    ["XmasTree", treeX, 0, treeZ, 0.4],
+    ["Presents", treeX, 0, treeZ, 0.6], // (round the tree's foot, facing into the room)
+    ["ToyTrain", lockersX - 0.1, 0, lockersZ + 0.62, 0.25],
+    // On top of the lockers: candles, a village cottage and a snow globe
+    ["CandleCluster", lockersX - 0.32, lockersY, lockersZ, 0.2],
+    ["VillageHouse", lockersX + 0.08, lockersY, lockersZ - 0.03, -0.2],
+    ["SnowGlobe", lockersX + 0.4, lockersY, lockersZ + 0.04, 0.3],
+    // Poinsettias about the floor: under the board, beside the events table, by the bench
+    ["Poinsettia", -1.55, 0, wallZ + 0.3, 0.5],
+    ["Poinsettia", -0.25, 0, wallZ + 0.3, 1.7],
+    ["Poinsettia", 2.15, 0, wallZ + 0.32, 2.6],
+    ["Poinsettia", endX + 0.45, 0, 2.7, 0.9],
+    // Big candy canes either side of the board
+    ["CandyCane", -1.8, 0, wallZ + 0.22, 0.2, 2.2],
+    ["CandyCane", 0.02, 0, wallZ + 0.22, Math.PI - 0.2, 2.2],
+    // A gingerbread man on the bench, by the radio
+    ["Gingerbread", endX + 1.2, 0.49, 0.55, Math.PI / 2],
+    // The ticket shop: nutcrackers either side of the counter, and things on it
+    (() => { const at = atCounter(-1.12, 0, 0.35); return ["Nutcracker", at.x, 0, at.z, -Math.PI / 2] as Placing; })(),
+    (() => { const at = atCounter(1.12, 0, 0.35); return ["Nutcracker", at.x, 0, at.z, -Math.PI / 2] as Placing; })(),
+    onCounter("MiniTree", -0.68, 0.27),
+    onCounter("Snowman", -0.44, 0.36, 0.3),
+    onCounter("CandleCluster", 0.42, 0.35, -0.4),
+    onCounter("CandyJar", 0.68, 0.27),
+    onCounter("Gingerbread", 0.24, 0.42, -0.5),
+    hungOnCounter("Stocking", -0.45),
+    hungOnCounter("Stocking", 0.45),
+  ];
+
+  // Paper snowflakes hung on threads either side of the ticket counter (clear of the adverts over
+  // it, which are the shop's things), slowly turning
+  const flakeMaterial = new MeshStandardMaterial({ map: paperSnowflake(), transparent: true, alphaTest: 0.4, side: DoubleSide, roughness: 1, emissive: "#3a4250", emissiveIntensity: 0.5 });
+  const thread = new MeshBasicMaterial({ color: "#6e6a62" });
+  const flakes: Mesh[] = [];
+  [[-1.55, 2.55, 0.3], [-1.25, 2.25, 0.24], [1.25, 2.3, 0.26], [1.55, 2.6, 0.32]].forEach(([x, y, size], i) => {
+    const at = atCounter(x, y, 0.45 + (i % 2) * 0.15);
+    const flake = new Mesh(new PlaneGeometry(size, size), flakeMaterial);
+    flake.position.copy(at);
+    flake.rotation.y = i * 0.9;
+    const string = new Mesh(new BoxGeometry(0.0025, ceilingY - y - size / 2, 0.0025), thread);
+    string.position.set(at.x, (ceilingY + y + size / 2) / 2, at.z);
+    flakes.push(flake);
+    group.add(flake, string);
   });
 
-  mergeFixedParts(group, [topper, topperGlow]);
+  // Candle flames: on the lockers and on the counter, each wick's flame and its glow
+  const flames: Mesh[] = [];
 
-  // The baubles: shiny, red, gold and silver
-  const baubles = new InstancedMesh(new SphereGeometry(0.03, 10, 8), new MeshStandardMaterial({ color: "#ffffff", roughness: 0.25, metalness: 0.6, emissive: "#202020" }), baubleAt.length);
+  const flameGeometry = new SphereGeometry(0.014, 8, 6);
+  flameGeometry.scale(1, 2.2, 1);
+  flameGeometry.translate(0, 0.026, 0);
+  const flameMaterial = new MeshBasicMaterial({ color: "#ffd27a" });
+  const flameGlow = new SpriteMaterial({ map: glowMap, color: "#ffb050", transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false });
+  props
+    .filter(([name]) => name === "CandleCluster")
+    .forEach(([, x, y, z, turn = 0]) => {
+      const place = new Matrix4().makeRotationY(turn).setPosition(x, y, z);
+      meta.candleWicks.forEach(([wx, wy, wz]) => {
+        const at = new Vector3(wx, wy, wz).applyMatrix4(place);
+        const flame = new Mesh(flameGeometry, flameMaterial);
+        flame.position.copy(at);
+        const glow = new Sprite(flameGlow);
+        glow.scale.set(0.22, 0.22, 1);
+        glow.position.copy(at).add(new Vector3(0, 0.03, 0));
+        flames.push(flame);
+        group.add(flame, glow);
+      });
+    });
+
+  // The bulbs, all in one go, each its own colour, and a soft halo round each
+  const bulbGeometry = new SphereGeometry(0.02, 8, 6);
+  bulbGeometry.scale(1, 1.35, 1);
+  const lamps = new InstancedMesh(bulbGeometry, new MeshBasicMaterial({ color: "#ffffff" }), bulbs.length);
   const place = new Matrix4();
-  const baubleColours = ["#c8202a", "#e0b040", "#c0c8d0"].map((colour) => new Color(colour));
-  baubleAt.forEach((at, i) => {
-    baubles.setMatrixAt(i, place.makeTranslation(at.x, at.y, at.z));
-    baubles.setColorAt(i, baubleColours[i % baubleColours.length]);
+  bulbs.forEach(({ at, colour, size }, i) => {
+    lamps.setMatrixAt(i, place.makeScale(size, size, size).setPosition(at));
+    lamps.setColorAt(i, BULBS[colour]);
   });
-  group.add(baubles);
-  // The lights, garland and tree alike, in one go: each its own colour, twinkling
-  const bulbs = new InstancedMesh(new SphereGeometry(0.016, 8, 6), new MeshBasicMaterial({ color: "#ffffff", fog: false }), bulbAt.length);
-  bulbAt.forEach((at, i) => {
-    bulbs.setMatrixAt(i, place.makeTranslation(at.x, at.y, at.z));
-    bulbs.setColorAt(i, BULBS[i % BULBS.length]);
+  group.add(lamps);
+  const haloColours = new Float32Array(bulbs.length * 3);
+  const haloGeometry = new BufferGeometry();
+  haloGeometry.setAttribute("position", new Float32BufferAttribute(bulbs.flatMap(({ at }) => [at.x, at.y, at.z]), 3));
+  haloGeometry.setAttribute("color", new BufferAttribute(haloColours, 3));
+  const halos = new Points(haloGeometry, new PointsMaterial({ map: glowMap, size: 0.16, vertexColors: true, transparent: true, opacity: 0.55, blending: AdditiveBlending, depthWrite: false }));
+  halos.frustumCulled = false;
+  group.add(halos);
+
+  // The props, once the models are in
+  new GLTFLoader().load(MODELS, (gltf) => {
+    const models = new Map<string, Object3D>();
+    gltf.scene.traverse((child) => {
+      if (child.parent === gltf.scene) models.set(child.name, child);
+    });
+    const placed = new Group();
+    props.forEach(([name, x, y, z, turn = 0, scale = 1]) => {
+      const model = models.get(name);
+      if (!model) return;
+      const copy = model.clone();
+      copy.position.set(x, y, z);
+      copy.rotation.set(0, turn, 0);
+      // (the garland stretches along its length only)
+      copy.scale.set(scale, name === "GarlandSwag" ? 1 : scale, name === "GarlandSwag" ? 1 : scale);
+      placed.add(copy);
+    });
+    (warm ? warm(placed) : Promise.resolve()).then(() => group.add(placed));
   });
-  group.add(bulbs);
+
   const lit = new Color();
   let twinkledAt = -1;
   group.userData.update = (t: number, reduced: boolean) => {
-    if (reduced || t - twinkledAt < 0.12) return;
+    if (t - twinkledAt < 0.08) return;
     twinkledAt = t;
-    // (each bulb on a slow wave of its own; a few at a time dip right down and come back)
-    bulbAt.forEach((_, i) => {
-      const wave = Math.sin(t * (0.7 + (i % 7) * 0.13) + i * 2.3);
-      const level = wave > 0.85 ? BULB_DIM : 0.75 + 0.25 * Math.sin(t * 1.9 + i);
-      bulbs.setColorAt(i, lit.copy(BULBS[i % BULBS.length]).multiplyScalar(level));
+    bulbs.forEach(({ colour, mode, phase }, i) => {
+      let level = 1;
+      if (!reduced) {
+        if (mode === "blink") level = Math.sin(t * 2.4 + phase) > -0.1 ? 1 : 0.12;
+        else if (mode === "chase") level = ((phase * 6 - t * 0.9) % 1 + 1) % 1 < 0.45 ? 1 : 0.18;
+        else level = 0.78 + 0.22 * Math.sin(t * (0.8 + (i % 5) * 0.21) + phase);
+      }
+      lit.copy(BULBS[colour]).multiplyScalar(level);
+      lamps.setColorAt(i, lit);
+      haloColours[i * 3] = lit.r;
+      haloColours[i * 3 + 1] = lit.g;
+      haloColours[i * 3 + 2] = lit.b;
     });
-    if (bulbs.instanceColor) bulbs.instanceColor.needsUpdate = true;
-    (topperGlow.material as MeshBasicMaterial).opacity = 0.4 + 0.08 * Math.sin(t * 1.3);
+    if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
+    haloGeometry.attributes.color.needsUpdate = true;
+    // The candles flicker; the star breathes
+    flames.forEach((flame, i) => {
+      const flicker = reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 11 + i * 1.7) * Math.sin(t * 7.3 + i);
+      flame.scale.set(1, flicker, 1);
+    });
+    flameGlow.opacity = reduced ? 0.5 : 0.42 + 0.1 * Math.sin(t * 9.1);
+    starGlow.material.opacity = 0.4 + 0.08 * Math.sin(t * 1.3);
+    if (!reduced) flakes.forEach((flake, i) => (flake.rotation.y = i * 0.9 + Math.sin(t * 0.4 + i * 1.3) * 0.8));
   };
   return group;
 }

@@ -87,6 +87,21 @@ vent shows NO SIGNAL bars, shaking the phone rocks the machine, drops dust and c
 - Migration `20261110_add_christmathon.sql` runs at every server start, after the 20260930 one, and is safe to run
   again: the watches' key becomes (user, event, season, day), and automatic awards land once per event.
 
+### Decision: the Christmas props are Blender models (2026-11-22)
+
+- **What**: the tree, garland, bows, poinsettias, nutcrackers, candles, candy canes and the small novelties are models,
+  built by `art/station/build_christmas.py` (Blender 4.3, headless; it saves `christmas.blend` and the four-side
+  look sheets in `art/station/look/`) into one file, `public/models/Christmas.glb` (about 1.4 MB, 28k triangles).
+  `christmas.ts` loads it once, places copies by object name, and makes only what moves itself: the bulbs
+  (twinkling, blinking, and a chase along the railing), the candle flames, the star's glow and the paper
+  snowflakes. Colour is in vertex colours on one shared material (one shader program), plus a `Glow` material.
+  `christmasMeta.ts` is a copy of `art/station/christmas_meta.json` (where the tree's lights, each swag's bulbs
+  and the candle wicks go); copy it again after rebuilding the models.
+- **Why**: the user's rule for all their games is models in Blender, not meshes built in code, so they can open
+  and edit them; and the user asked for nicer props (2026-11-22).
+- **Alternatives**: the code-built sprays of fir and cones the first Christmas dressing used (kept only for the
+  two wreaths); one file per prop (more requests, nothing gained).
+
 ## Running and testing locally
 
 - Dev server with real data: `VITE_BASE_URL=https://scareathon-v3-production.up.railway.app npm run dev`,
