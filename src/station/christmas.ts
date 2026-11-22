@@ -18,16 +18,16 @@ import {
   Vector3,
 } from "three";
 import { mergeFixedParts } from "../pages/ArcadeV2/mergeParts.ts";
-import { glowMap, paint, seasonMonth, type StationShape } from "./halloween.ts";
+import { glowMap, paint, stationSeason, type StationShape } from "./halloween.ts";
 
-// Christmas decorations for the station, through December only: evergreen garland along the
+// Christmas decorations for the station, from Thanksgiving to December 31: evergreen garland along the
 // ceiling corners with coloured lights strung through it, wreaths on the walls, and a tree at
 // the platform's end, its lights twinkling, a star on top and presents under it. (Outside it
-// snows all month: StationScene.) Everything else is in this file; to take them down for good,
+// snows all the while: StationScene.) Everything else is in this file; to take them down for good,
 // delete it and the lines marked CHRISTMAS in StationScene.
 
 export function isChristmasSeason(now = new Date()) {
-  return seasonMonth(now) === 12;
+  return stationSeason(now) === "christmas";
 }
 
 // A spray of fir: a stem down the middle, needles off it both ways, dark and light greens
