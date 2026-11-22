@@ -74,7 +74,7 @@ import { CAPSULE_MS, CAPSULE_TICKETS, capsuleMachine } from "./capsuleSignal.ts"
 import { buildWeather, weatherNow } from "./weather.ts";
 import { buildHalloween, isHalloweenSeason } from "./halloween.ts"; // HALLOWEEN
 import { buildAutumn, isAutumnSeason } from "./autumn.ts"; // AUTUMN
-import { buildChristmas, isChristmasSeason } from "./christmas.ts"; // CHRISTMAS
+import { buildChristmas, christmasRugTexture, isChristmasSeason, snowyGround } from "./christmas.ts"; // CHRISTMAS
 import { featuredEvent } from "../seasonEvents.ts";
 import { drawRuneTablet, RUNE_FONT_FAMILY } from "./runes.ts";
 import { loadAvatarManifest } from "../components/avatar/manifest.ts";
@@ -3889,7 +3889,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
         ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
       }
     });
-    const rug = new Mesh(new CircleGeometry(1.25, 48), standard("#ffffff", 1, rugTexture));
+    const rug = new Mesh(new CircleGeometry(1.25, 48), standard("#ffffff", 1, isChristmasSeason() ? christmasRugTexture() : rugTexture)); // CHRISTMAS: a winter rug
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(HUB.pos[0], 0.011, 0.45);
     scene.add(rug);
@@ -3901,7 +3901,9 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
 
     // Tracks: gravel bed, two rails, sleepers running off into the fog
     // The fields all round: dark earth and dead grass, reaching well past the platform's end
-    const fieldTex = speckle("#1d1f17", ["#252a1c", "#16170f", "#2b2a1d", "#1a1c14"], 1800, 3);
+    const snow = isChristmasSeason() ? snowyGround() : null; // CHRISTMAS: snow lying on the fields and the line
+    const fieldTex = snow?.fields ?? speckle("#1d1f17", ["#252a1c", "#16170f", "#2b2a1d", "#1a1c14"], 1800, 3);
+    const FIELDS_NIGHT = snow?.night ?? "#8a8a7a";
     fieldTex.wrapS = fieldTex.wrapT = RepeatWrapping;
     // (out past where the train sets off from, a long way down the line: its headlight is
     // on the land's horizon then, not floating over the land's far edge)
@@ -3922,15 +3924,15 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     shaftway.lineTo(HATCH.x + shaftHalf, -HATCH.z - shaftHalf);
     shaftway.closePath();
     fieldShape.holes.push(shaftway);
-    const fields = new Mesh(new ShapeGeometry(fieldShape), standard("#8a8a7a", 1, fieldTex));
+    const fields = new Mesh(new ShapeGeometry(fieldShape), standard(FIELDS_NIGHT, 1, fieldTex));
     fields.position.y = -0.9;
     fields.rotation.x = -Math.PI / 2;
     scene.add(fields);
     // The gravel bed, only under the line
-    const ballast = speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2);
+    const ballast = snow?.ballast ?? speckle("#25221f", ["#302c28", "#1c1a18"], 700, 2);
     ballast.wrapS = ballast.wrapT = RepeatWrapping;
     ballast.repeat.set(300, 1.5);
-    const bed = plane(1000, 4.6, standard("#25221f", 1, ballast), 0, -0.85, TRACK_Z);
+    const bed = plane(1000, 4.6, standard(snow ? FIELDS_NIGHT : "#25221f", 1, ballast), 0, -0.85, TRACK_Z);
     bed.rotation.x = -Math.PI / 2;
     scene.add(bed);
     const railMaterial = standard("#6b6f78", 0.5);
@@ -4106,7 +4108,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const DAY_SKY = overcast ? ["#5d6b7c", "#8b98a6", DAY_HAZE, DAY_HAZE] : ["#3f74b4", "#8ab6dd", DAY_HAZE, DAY_HAZE];
     // (the land's own colour at sunrise and sunset: already dark, under a sky still lit)
     const TWILIGHT_HAZE = "#4a3238";
-    const DAY_FIELDS = new Color().setRGB(overcast ? 5 : 7.5, overcast ? 5 : 7, overcast ? 4.2 : 4.6);
+    const DAY_FIELDS = snow ? new Color(snow.day) : new Color().setRGB(overcast ? 5 : 7.5, overcast ? 5 : 7, overcast ? 4.2 : 4.6);
     const TWILIGHT_SKY = ["#1b2140", "#5a3f6a", "#f08a4a", TWILIGHT_HAZE];
     const sunLight = new DirectionalLight("#fff4e0", 0);
     scene.add(sunLight);
@@ -4161,7 +4163,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
       // sun (their colour multiplies the paint, well past white), so they don't lie under
       // the bright sky as a dark slab
       const fieldPaint = (fields.material as MeshStandardMaterial).color;
-      fieldPaint.set("#8a8a7a").lerp(DAY_FIELDS, onTheGround);
+      fieldPaint.set(FIELDS_NIGHT).lerp(DAY_FIELDS, onTheGround);
       skyLight.color.copy(mix("#6f7fa8", "#e6eeff", daylight));
       skyLight.groundColor.copy(mix("#1a120c", "#6b5c4a", daylight));
       skyLight.intensity = 0.45 + daylight * (overcast ? 0.9 : 1.25);
@@ -4472,7 +4474,7 @@ export default function StationScene({ at, heading, onSelect, onTurn, boards, pa
     const halloween = isHalloweenSeason() ? buildHalloween(stationShape) : null;
     if (halloween) scene.add(halloween); // HALLOWEEN
     // AUTUMN: leaves and squashes in November (autumn.ts); CHRISTMAS: garland, wreaths and a tree in December (christmas.ts)
-    const seasonal = isAutumnSeason() ? buildAutumn(stationShape) : isChristmasSeason() ? buildChristmas(stationShape) : null;
+    const seasonal = isAutumnSeason() ? buildAutumn(stationShape) : isChristmasSeason() ? buildChristmas(stationShape, warmCabinet) : null;
     if (seasonal) scene.add(seasonal);
     halloweenRef.current = halloween;
     // Across the tracks, in some of the quiet between trains: somebody stood by the fence,
