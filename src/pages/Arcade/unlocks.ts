@@ -12,6 +12,7 @@ export const SECRET_CARTS: Record<string, string> = {
   PENGUIN: "Penguin Slide",
   POTION: "Cauldron",
   FROG: "Frogulizer",
+  MOUSE: "Felt Mouse",
 };
 
 export const UNLOCK_EVENT = "arcade:unlocked";
