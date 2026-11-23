@@ -158,7 +158,7 @@ const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v
 const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=8426624";
 // A felt mouse in a mug of cocoa, after a photo of a real one: he pops out of the foam and you walk him about a
 // kitchen counter decorated for Christmas (stick, jump, interact). No score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
-const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=a9de99d";
+const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=47323c8";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
