@@ -159,6 +159,9 @@ const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=842
 // A felt mouse in a mug of cocoa, after a photo of a real one: he pops out of the foam and you walk him about a
 // kitchen counter decorated for Christmas (stick, jump, interact). No score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
 const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=9a8c12e";
+// Fish Viewer: pick any of Gulp's sea life (158 kinds) and watch it swim about open water. No score
+// (github.com/Sclondon/FishViewer).
+const FISH_VIEWER_URL = "https://sclondon.github.io/FishViewer/build/index.html?v=82f458b";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1616,6 +1619,28 @@ export function createArcadeGames(): MachineData[] {
         <GameRenderer
           title="Felt Mouse"
           url={FELT_MOUSE_URL}
+          reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
+        />
+      ),
+    },
+    // --- A toy: every animal from Gulp, to watch swim. No scores.
+    {
+      name: "Fish Viewer",
+      added: "2026-11-23T14:00:00-07:00",
+      availableOnMobile: true,
+      videoUrl: "/game-recordings/FishViewer.mp4",
+      hasLeaderboard: false,
+      cartridge: {
+        color: "#1b6fa8",
+        tagline: "Pick any sea creature and watch it swim.",
+        font: { family: "Fredoka" },
+        about: { released: "2026", players: "1 player", genre: "Toy", developer: "sclondon" },
+        backNote: "158 kinds, from guppies to blue whales. Drag to look around, pinch to zoom.",
+      },
+      game: (
+        <GameRenderer
+          title="Fish Viewer"
+          url={FISH_VIEWER_URL}
           reservedVerticalSpace={GAME_TOOLBAR_HEIGHT}
         />
       ),
