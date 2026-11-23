@@ -161,7 +161,7 @@ const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=842
 const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=9a8c12e";
 // Fish Viewer: pick any of Gulp's sea life (158 kinds) and watch it swim about open water. No score
 // (github.com/Sclondon/FishViewer).
-const FISH_VIEWER_URL = "https://sclondon.github.io/FishViewer/build/index.html?v=82f458b";
+const FISH_VIEWER_URL = "https://sclondon.github.io/FishViewer/build/index.html?v=b8a361e";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
