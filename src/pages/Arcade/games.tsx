@@ -157,8 +157,8 @@ const CAULDRON_URL = "https://sclondon.github.io/HubbleBubble/build/index.html?v
 // A raccoon 3D platformer on a Pacific Northwest hill, after Banjo-Kazooie (github.com/Sclondon/Ringtail), in testing.
 const RINGTAIL_URL = "https://sclondon.github.io/Ringtail/build/index.html?v=8426624";
 // A felt mouse in a mug of cocoa, after a photo of a real one: he pops out of the foam and you walk him about a
-// kitchen counter decorated for Christmas (stick, candy toss, home to the mug). No score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
-const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=6916bc1";
+// kitchen counter decorated for Christmas (stick, jump, interact). No score (github.com/Sclondon/FeltMouse). Secret: MOUSE.
+const FELT_MOUSE_URL = "https://sclondon.github.io/FeltMouse/build/index.html?v=a9de99d";
 // Cryptlins isn't a cartridge: it's the cellar under the station's trap door (src/station/PetFrame.tsx),
 // which talks to it; the build rests until that page shows it, so it can't be a plain cart.
 // Nor is Pocket Aquarium: it's the tank on top of the station's lockers, in the same frame.
@@ -1610,7 +1610,7 @@ export function createArcadeGames(): MachineData[] {
         tagline: "A little felt mouse on a Christmas kitchen counter. Walk him about.",
         font: { family: "Fredoka" },
         about: { released: "2026", players: "1 player", genre: "Toy", developer: "sclondon" },
-        backNote: "He lives in the cocoa mug. Toss his candy, visit the gingerbread house, then send him home to the foam.",
+        backNote: "He lives in the cocoa mug. Hop onto the presents, toss his candy, then send him home to the foam.",
       },
       game: (
         <GameRenderer
